@@ -25,6 +25,7 @@ enum nib_instructions_e {
 	NI_LVALUE_GLOBAL,		// Load the global variable reference onto the stack (server script pVARIABLE)
 	NI_LVALUE_SELF,			// Loads the reference for the SELF onto the stack
 	NI_LVALUE_BIT,			// Load and push a flag bit reference onto the stack
+	NI_LVALUE_BIT_BANK,
 	NI_LVALUE_FIELD,
 	NI_CALL_FUNCTION,		// Makes a function call
 	NI_CALL_METHOD,
@@ -35,8 +36,10 @@ enum nib_instructions_e {
 	NI_LOAD_WIDEVNUM,		// Pops 2 (area, vnum) pushes combined WNUM onto stack
 	NI_LOAD_FLAG,
 	NI_LOAD_FLAG_TABLE,		// Contains the TABLE pointer
+	NI_LOAD_FLAG_BANK,
 	NI_LOAD_STAT,
 	NI_NEW_LIST,			// Pushes an empty list (of the given list type) onto the stack
+	NI_NEW_ARRAY,
 	NI_NULL,				// Pushes a NST_NULL onto the stack
 	NI_TRUE,
 	NI_FALSE,
@@ -63,6 +66,14 @@ enum nib_instructions_e {
 	NI_ITER_START,
 	NI_ITER_STOP,
 	NI_ITER_NEXT,
+
+	NI_STRINGER_START,
+	NI_STRINGER_STOP,
+	NI_STRINGER_NEXT,
+
+	NI_INDEXER_START,
+	NI_INDEXER_STOP,
+	NI_INDEXER_NEXT,
 
 	NI_LAND,
 	NI_LOR,
@@ -132,7 +143,8 @@ enum nib_script_stack_type_e
 	NST_FUNCTION = -1,		// Only used when getting the context for function calls
 	NST_UNKNOWN = 0,
 	NST_BOOLEAN,
-	NST_NUMBER,
+	NST_NUMBER32,			// INT
+	NST_NUMBER,				// LONG
 	NST_FLOAT,
 	NST_STRING,
 	NST_CHAR,
@@ -140,9 +152,15 @@ enum nib_script_stack_type_e
 	NST_WIDEVNUM,
 	NST_FLAG,
 	NST_FLAG_BIT,		// Can only be an LVALUE; treated as BOOLEAN
+	NST_FLAG_BANK,
 	NST_STAT,
+	NST_STAT32,
 	NST_LIST,
-	NST_ACCOUNT,
+	NST_LIST_C,
+	NST_ARRAY,
+	NST_ARRAY_C,
+	NST__GAME_TYPES_START,
+	NST_ACCOUNT = NST__GAME_TYPES_START,
 	NST_AFFECT,
 	NST_AREA,
 	NST_CHANNEL,
@@ -173,7 +191,13 @@ enum nib_script_stack_type_e
 	// Types invalid for LVALUEs
 	NST_STRING_S = NST__MAX,	// String is not to be freed when popped
 	NST_LIST_S,					// Lists not created by the script
+	NST_LIST_CS,
+	NST_ARRAY_S,
+	NST_ARRAY_CS,
+	NST_FLAG_BANK_S,
 	NST_ITERATOR,
+	NST_STRINGER,
+	NST_INDEXER,
 	NST_NULL,					// Explicitly a null pointer
 	NST_LVALUE,
 };
@@ -200,9 +224,16 @@ enum nib_switch_case_e
 	NCASE_SUFFIX,
 };
 
+enum nib_indexing_mode_e {
+	NIDX_SINGLE = 0,
+	NIDX_MIN,
+	NIDX_MAX,
+	NIDX_RANGE
+};
+
 #define MAX_FLAG_BITS		(bitsize(flag_value_t))
 
-#define DECL_METHOD_FUNC(f)	int nib_method_func_##f (NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output)
+#define DECL_METHOD_FUNC(f)	int nib_method_func_##f (NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_STACK *argv, NIB_SCRIPT_STACK *output)
 
 #include "dummy.h"
 
@@ -222,6 +253,13 @@ struct flag_type_lookup
 	bool internal;
 };
 
+struct flagbank_type_lookup
+{
+	struct flagbank_type_lookup *next;
+	char *name;
+	const struct flag_type **bank;
+	int banks;
+};
 
 #include "script.h"
 
@@ -267,10 +305,12 @@ struct nib_field_type
 {
 	char *name;
 	bool readonly;
+	bool lvalue;				// Whether this field can be used as an lvalue
 	NIB_TYPE *type;
 	NIB_SCRIPT_STACK_TYPE stype;
-	NIB_SCRIPT_STACK_TYPE stype2;	// For LIST
+	NIB_SCRIPT_STACK_TYPE stype2;	// For LIST and ARRAY
 	size_t offset;
+	size_t size;
 
 	METHOD_FUNC *method;		// If it is a field-method, instead of an offset
 
@@ -284,8 +324,9 @@ struct nib_method_type
 	char *name;
 	NIB_TYPE *result;		// Use NULL to indicate no return
 	NIB_SCRIPT_STACK_TYPE sresult;
-	NIB_SCRIPT_STACK_TYPE sresult2;	// For LIST
-
+	NIB_SCRIPT_STACK_TYPE sresult2;	// For LIST and ARRAY
+	bool constant;
+	bool lvalue;
 	int nparams;
 	NIB_TYPE **params;
 
@@ -299,6 +340,7 @@ struct nib_method_func_type
 {
 	char *name;
 	METHOD_FUNC *func;
+	bool lvalue;
 };
 
 typedef struct statement_s
@@ -451,14 +493,19 @@ void nib_script_comment_add(long address, char *comment);
 
 // flags.c
 bool nib_register_flag_table(const char *name, const struct flag_type *table);
+bool nib_register_flag_bank(const char *name, const struct flag_type **bank);
 bool nib_register_stat_table(const char *name, const struct flag_type *table);
 const struct flag_type *nib_lookup_flag_table(LLIST *created, const char *name);
+const struct flag_type **nib_lookup_flag_bank(const char *name);
 const char *nib_get_flag_table_name(LLIST *created, const struct flag_type *table);
+const char *nib_get_flag_bank_name(const struct flag_type **bank);
 const struct flag_type *nib_lookup_stat_table(LLIST *created, const char *name);
 const char *nib_get_stat_table_name(LLIST *created, const struct flag_type *table);
 const char *nib_get_flag_string(const struct flag_type *table, long bits);
+const char *nib_get_flagbank_string(const struct flag_type **banks, long *bits);
 const char *nib_get_stat_string(const struct flag_type *table, long bits);
 bool nib_find_flag_value(const struct flag_type *table, const char *name, bool *settable, flag_value_t *output);
+bool nib_find_flagbank_value(const struct flag_type **banks, const char *name, bool *settable, int *bank, flag_value_t *output);
 bool nib_flag_add_table(LLIST *names, char *table_name);
 bool nib_stat_add_table(LLIST *names, char *table_name);
 struct flag_type_lookup *nib_flag_copy_table(struct flag_type_lookup *src);
@@ -466,6 +513,7 @@ void nib_flag_free_table(struct flag_type_lookup *lookup);
 bool nib_flag_tables_init();
 void nib_flag_tables_cleanup();
 int nib_add_used_table(const struct flag_type *table);
+int nib_add_used_bank(const struct flag_type **bank);
 
 // interpret.c
 int nib_interpret_script(NIB_SCRIPT *script /* add arguments */);
@@ -539,19 +587,19 @@ void mem_buffer_clear(NIB_BUFFER *buffer);
 nib_bytecode_p mem_buffer_get(NIB_BUFFER *buffer);
 
 // methods.c
-size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name);
+bool nib_field_offset_lookup(NIB_TYPE *context, char *name, size_t *offset, size_t *size, bool *lvalue);
 bool nib_field_valid_context(NIB_TYPE *context);
 NIB_FIELD *nib_field_get_byid(NIB_SCRIPT_STACK_TYPE context, int id);
 NIB_FIELD *nib_field_get(NIB_TYPE *context, char *name);
-bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset, METHOD_FUNC *method);
+bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, size_t offset, size_t size, METHOD_FUNC *method);
 bool nib_method_valid_context(NIB_TYPE *context);
-METHOD_FUNC *nib_method_func_lookup(const char *name);
-NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func);
+bool nib_method_func_lookup(const char *name, METHOD_FUNC **func, bool *lvalue);
+NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func);
 void free_nib_method(NIB_METHOD *method);
 NIB_METHOD *nib_method_get_byid(NIB_SCRIPT_STACK_TYPE context, int id);
 NIB_METHOD *nib_method_get(NIB_TYPE *context, char *name, LLIST *params);
 bool nib_method_exists(NIB_TYPE *context, char *name, LLIST *params);
-bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func);
+bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func);
 bool nib_methods_init();
 void nib_methods_cleanup();
 void nib_method_get_prototype(NIB_METHOD *method, char *buffer, size_t max_len);
@@ -573,11 +621,13 @@ extern NIB_TYPE *nibtype_void;
 extern NIB_TYPE *nibtype_any;
 extern NIB_TYPE *nibtype_bool;
 extern NIB_TYPE *nibtype_char;
+extern NIB_TYPE *nibtype_int32;	// Only used by fields
 extern NIB_TYPE *nibtype_int;
 extern NIB_TYPE *nibtype_float;
 extern NIB_TYPE *nibtype_string;
 extern NIB_TYPE *nibtype_flag;
 extern NIB_TYPE *nibtype_list;
+extern NIB_TYPE *nibtype_array;
 extern NIB_TYPE *nibtype_stat;
 extern NIB_TYPE *nibtype_map;
 extern NIB_TYPE *nibtype_widevnum;
@@ -614,15 +664,20 @@ extern NIB_TYPE *nibtype_world;
 NIB_TYPE *new_nib_type_flag(int bits);
 NIB_TYPE *new_nib_type_flag_named(LLIST *names);
 NIB_TYPE *new_nib_type_flag_table(const struct flag_type *table);
+NIB_TYPE *new_nib_type_flag_bank(const struct flag_type **bank);
 NIB_TYPE *new_nib_type_stat_named(LLIST *names);
-NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table);
-NIB_TYPE *new_nib_type_list(NIB_TYPE *elem);
+NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table, bool is_32bit);
+NIB_TYPE *new_nib_type_list(NIB_TYPE *elem, bool constant);
+NIB_TYPE *new_nib_type_array(NIB_TYPE *elem, long length, bool constant);
+NIB_TYPE *new_nib_type_multi(LLIST *types);
 void free_nib_type(NIB_TYPE *type);
 NIB_TYPE *nib_type_copy(NIB_TYPE *src);
+NIB_TYPE *nib_type_by_reference(NIB_TYPE *src, bool byref);
 char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type);
 int nib_type_get_flag_index(NIB_TYPE *type, const char *str);
 NIB_TYPE *nib_combine_types(NIB_TYPE *a, NIB_TYPE *b);
 bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b);
+bool is_nib_type_in_multi(NIB_TYPE *multi, NIB_TYPE *type);
 
 // utils.c
 extern unsigned long nib_allocations;
@@ -655,6 +710,8 @@ void nib_free(void *data);
 void nib_ledger_cleanup();
 void nib_ledger_display();
 void hex_dump(void *addr, size_t size);
+size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst);
+char *get_affect_name(AFFECT_DATA *paf);
 
 // variables.c
 NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant);

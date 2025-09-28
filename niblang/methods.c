@@ -12,7 +12,7 @@
 #include "yacc/method_parser.h"
 #include "yacc/method_lexer.h"
 
-NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
+NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant);
 
 // Create function pointers for method names
 LLIST *nib_functions = NULL;			// Context-less methods (aka functions)
@@ -23,18 +23,36 @@ LLIST *nib_methods_char = NULL;
 LLIST *nib_methods_string = NULL;
 LLIST *nib_methods_map = NULL;
 LLIST *nib_methods_widevnum = NULL;
-LLIST *nib_methods_area = NULL;
-LLIST *nib_methods_dungeon = NULL;
-LLIST *nib_methods_instance = NULL;
-LLIST *nib_methods_mobile = NULL;
-LLIST *nib_methods_object = NULL;
-LLIST *nib_methods_quest = NULL;
-LLIST *nib_methods_room = NULL;
-LLIST *nib_methods_ship = NULL;
-LLIST *nib_methods_token = NULL;
 LLIST *nib_methods_list = NULL;
+LLIST *nib_methods_array = NULL;
 LLIST *nib_methods_flag = NULL;
 LLIST *nib_methods_stat = NULL;
+LLIST *nib_methods_account = NULL;
+LLIST *nib_methods_affect = NULL;
+LLIST *nib_methods_area = NULL;
+LLIST *nib_methods_channel = NULL;
+LLIST *nib_methods_class = NULL;
+LLIST *nib_methods_dungeon = NULL;
+LLIST *nib_methods_exit = NULL;
+LLIST *nib_methods_instance = NULL;
+LLIST *nib_methods_liquid = NULL;
+LLIST *nib_methods_mail = NULL;
+LLIST *nib_methods_material = NULL;
+LLIST *nib_methods_mission = NULL;
+LLIST *nib_methods_mobile = NULL;
+LLIST *nib_methods_note = NULL;
+LLIST *nib_methods_object = NULL;
+LLIST *nib_methods_org = NULL;
+LLIST *nib_methods_quest = NULL;
+LLIST *nib_methods_race = NULL;
+LLIST *nib_methods_rank = NULL;
+LLIST *nib_methods_reputation = NULL;
+LLIST *nib_methods_room = NULL;
+LLIST *nib_methods_ship = NULL;
+LLIST *nib_methods_skill = NULL;
+LLIST *nib_methods_token = NULL;
+LLIST *nib_methods_wilds = NULL;
+LLIST *nib_methods_world = NULL;
 
 LLIST *nib_fields_int = NULL;
 LLIST *nib_fields_float = NULL;
@@ -43,16 +61,34 @@ LLIST *nib_fields_char = NULL;
 LLIST *nib_fields_string = NULL;
 LLIST *nib_fields_map = NULL;
 LLIST *nib_fields_widevnum = NULL;
+LLIST *nib_fields_account = NULL;
+LLIST *nib_fields_affect = NULL;
 LLIST *nib_fields_area = NULL;
+LLIST *nib_fields_channel = NULL;
+LLIST *nib_fields_class = NULL;
 LLIST *nib_fields_dungeon = NULL;
+LLIST *nib_fields_exit = NULL;
 LLIST *nib_fields_instance = NULL;
+LLIST *nib_fields_liquid = NULL;
+LLIST *nib_fields_mail = NULL;
+LLIST *nib_fields_material = NULL;
+LLIST *nib_fields_mission = NULL;
 LLIST *nib_fields_mobile = NULL;
+LLIST *nib_fields_note = NULL;
 LLIST *nib_fields_object = NULL;
+LLIST *nib_fields_org = NULL;
 LLIST *nib_fields_quest = NULL;
+LLIST *nib_fields_race = NULL;
+LLIST *nib_fields_rank = NULL;
+LLIST *nib_fields_reputation = NULL;
 LLIST *nib_fields_room = NULL;
 LLIST *nib_fields_ship = NULL;
+LLIST *nib_fields_skill = NULL;
 LLIST *nib_fields_token = NULL;
+LLIST *nib_fields_wilds = NULL;
+LLIST *nib_fields_world = NULL;
 LLIST *nib_fields_list = NULL;
+LLIST *nib_fields_array = NULL;
 LLIST *nib_fields_flag = NULL;
 LLIST *nib_fields_stat = NULL;
 
@@ -89,39 +125,74 @@ struct nib_field_offset_type
 	NIB_PRIMARY_TYPE primary;		// NT_UNKNOWN for non-primary
 	char *field;
 	size_t offset;
+	size_t size;
+	bool lvalue;			// Whether this can be an lvalue
 };
 
 #define STRIFY(v)	#v
 
-#define NFO(c,p,f,v) \
-	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f) }
+#define NFO(c,p,f,v,s) \
+	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f), sizeof(s), true }
+
+#define NFOS(c,p,f,v,s) \
+	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f), (s), true }
+
+#define NFOR(c,p,f,v,s) \
+	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f), sizeof(s), false }
+
+#define NFORS(c,p,f,v,s) \
+	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f), (s), false }
 
 #define NFOEND		{ NTC_VOID, NT_UNKNOWN, NULL, 0 }
 
 static struct nib_field_offset_type __field_offsets[] =
 {
-	NFO(PRIMARY,AREA,uid,__static_area),
-	NFO(PRIMARY,AREA,name,__static_area),
-	NFO(PRIMARY,AREA,description,__static_area),
-	NFO(PRIMARY,AREA,area_flags,__static_area),
-	NFO(PRIMARY,AREA,room_list,__static_area),
-	NFO(PRIMARY,MOBILE,name,__static_mobile),
-	NFO(PRIMARY,MOBILE,short_descr,__static_mobile),
-	NFO(PRIMARY,MOBILE,long_descr,__static_mobile),
-	NFO(PRIMARY,MOBILE,description,__static_mobile),
-	NFO(PRIMARY,ROOM,vnum,__static_room),
-	NFO(PRIMARY,ROOM,name,__static_room),
-	NFO(PRIMARY,ROOM,description,__static_room),
-	NFO(PRIMARY,ROOM,lpeople,__static_room),
-	NFO(PRIMARY,WIDEVNUM,pArea,__static_wnum),
-	NFO(PRIMARY,WIDEVNUM,vnum,__static_wnum),
+	NFO(PRIMARY,AREA,uid,__static_area,long),
+	NFO(PRIMARY,AREA,name,__static_area,char *),
+	NFO(PRIMARY,AREA,description,__static_area,char *),
+	NFO(PRIMARY,AREA,area_flags,__static_area,long),
+	NFO(PRIMARY,AREA,room_list,__static_area,LLIST *),
+	NFO(PRIMARY,EXIT,u1.to_room,__static_exit,ROOM_INDEX_DATA *),
+	NFO(PRIMARY,EXIT,from_room,__static_exit,ROOM_INDEX_DATA *),
+	NFO(PRIMARY,EXIT,exit_info,__static_exit,long),
+	NFO(PRIMARY,MOBILE,name,__static_mobile,char *),
+	NFO(PRIMARY,MOBILE,short_descr,__static_mobile,char *),
+	NFO(PRIMARY,MOBILE,long_descr,__static_mobile,char *),
+	NFO(PRIMARY,MOBILE,description,__static_mobile,char *),
+	NFOR(PRIMARY,MOBILE,lcarrying,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,lworn,__static_mobile,LLIST *),
+	NFO(PRIMARY,OBJECT,name,__static_object,char *),
+	NFO(PRIMARY,OBJECT,short_descr,__static_object,char *),
+	NFO(PRIMARY,OBJECT,description,__static_object,char *),
+	NFO(PRIMARY,OBJECT,full_description,__static_object,char *),
+	NFOR(PRIMARY,OBJECT,carried_by,__static_object,CHAR_DATA *),
+	NFOR(PRIMARY,OBJECT,pulled_by,__static_object,CHAR_DATA *),
+	NFO(PRIMARY,OBJECT,num_enchanted,__static_object,int),
+	NFOR(PRIMARY,OBJECT,item_type,__static_object,int),
+	NFOS(PRIMARY,OBJECT,extra,__static_object,sizeof(long) * 4),
+	NFO(PRIMARY,OBJECT,level,__static_object,int),
+	NFO(PRIMARY,OBJECT,condition,__static_object,int),
+	NFOR(PRIMARY,ROOM,vnum,__static_room,long),
+	NFO(PRIMARY,ROOM,name,__static_room,char *),
+	NFO(PRIMARY,ROOM,description,__static_room,char *),
+	NFORS(PRIMARY,ROOM,exit,__static_room,sizeof(EXIT_DATA *) * 10),
+	NFO(PRIMARY,ROOM,exit[DIR_NORTH],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_NORTHEAST],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_EAST],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_SOUTHEAST],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_SOUTH],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_SOUTHWEST],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_WEST],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_NORTHWEST],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_UP],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,exit[DIR_DOWN],__static_room,EXIT_DATA *),
+	NFO(PRIMARY,ROOM,lpeople,__static_room,LLIST *),
+	NFO(PRIMARY,WIDEVNUM,pArea,__static_wnum,AREA_DATA *),
+	NFO(PRIMARY,WIDEVNUM,vnum,__static_wnum,long),
 	NFOEND
 };
 
-#define MFE(f)	{ #f, nib_method_func_##f }
-#define MFEND	{ NULL, NULL }
-
-size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name)
+bool nib_field_offset_lookup(NIB_TYPE *context, char *name, size_t *offset, size_t *size, bool *lvalue)
 {
 	if (!context) return NULL;	// Indicates error or unknown
 
@@ -134,25 +205,32 @@ size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name)
 			__field_offsets[i].primary == p &&
 			!str_cmp(__field_offsets[i].field, name))
 		{
-			return &(__field_offsets[i].offset);
+			*offset = __field_offsets[i].offset;
+			*size = __field_offsets[i].size;
+			*lvalue = __field_offsets[i].lvalue;
+			return true;
 		}
 	}
 
-	return NULL;
+	return false;
 }
 
-NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, size_t offset, METHOD_FUNC *method)
+NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, bool lvalue, size_t offset, METHOD_FUNC *method)
 {
 	NIB_FIELD *field = calloc(1, sizeof(NIB_FIELD));
 
 	field->name = strdup(name);
 	field->type = nib_type_copy(type);
-	field->stype = convert_to_stype(type);
+	// fprintf(stderr, "new_nib_field(%s,%s)\n", field->name, nib_get_typename(NULL,type));
+	field->stype = convert_to_stype(type, false);
 	if (type && type->type_class == NTC_LIST)
-		field->stype2 = convert_to_stype(type->_.type);
+		field->stype2 = convert_to_stype(type->_.list.type, false);
+	else if (type && type->type_class == NTC_ARRAY)
+		field->stype2 = convert_to_stype(type->_.array.type, false);
 	else
 		field->stype2 = NST_UNKNOWN;
 	field->readonly = readonly;
+	field->lvalue = lvalue;
 	field->offset = offset;
 	field->method = method;
 
@@ -180,15 +258,32 @@ bool nib_field_valid_context(NIB_TYPE *context)
 			{
 				case NT_WIDEVNUM:	return true;
 
+				case NT_ACCOUNT:	return true;
+				case NT_AFFECT:		return true;
 				case NT_AREA:		return true;
+				case NT_CHANNEL:	return true;
+				case NT_CLASS:		return true;
 				case NT_DUNGEON:	return true;
+				case NT_EXIT:		return true;
 				case NT_INSTANCE:	return true;
+				case NT_LIQUID:		return true;
+				case NT_MAIL:		return true;
+				case NT_MATERIAL:	return true;
+				case NT_MISSION:	return true;
 				case NT_MOBILE:		return true;
+				case NT_NOTE:		return true;
 				case NT_OBJECT:		return true;
+				case NT_ORG:		return true;
 				case NT_QUEST:		return true;
+				case NT_RACE:		return true;
+				case NT_RANK:		return true;
+				case NT_REPUTATION:	return true;
 				case NT_ROOM:		return true;
 				case NT_SHIP:		return true;
+				case NT_SKILL:		return true;
 				case NT_TOKEN:		return true;
+				case NT_WILDS:		return true;
+				case NT_WORLD:		return true;
 			}
 		}
 	}
@@ -207,18 +302,38 @@ static LLIST *__get_field_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_STRING:	return nib_fields_string;
 		case NST_MAP:		return nib_fields_map;
 		case NST_WIDEVNUM:	return nib_fields_widevnum;
+		case NST_ACCOUNT:	return nib_fields_account;
+		case NST_AFFECT:	return nib_fields_affect;
 		case NST_AREA:		return nib_fields_area;
+		case NST_CHANNEL:	return nib_fields_channel;
+		case NST_CLASS:		return nib_fields_class;
 		case NST_DUNGEON:	return nib_fields_dungeon;
+		case NST_EXIT:		return nib_fields_exit;
 		case NST_INSTANCE:	return nib_fields_instance;
+		case NST_LIQUID:	return nib_fields_liquid;
+		case NST_MAIL:		return nib_fields_mail;
+		case NST_MATERIAL:	return nib_fields_material;
+		case NST_MISSION:	return nib_fields_mission;
 		case NST_MOBILE:	return nib_fields_mobile;
+		case NST_NOTE:		return nib_fields_note;
 		case NST_OBJECT:	return nib_fields_object;
+		case NST_ORG:		return nib_fields_org;
 		case NST_QUEST:		return nib_fields_quest;
+		case NST_RACE:		return nib_fields_race;
+		case NST_RANK:		return nib_fields_rank;
+		case NST_REPUTATION:return nib_fields_reputation;
 		case NST_ROOM:		return nib_fields_room;
 		case NST_SHIP:		return nib_fields_ship;
+		case NST_SKILL:		return nib_fields_skill;
 		case NST_TOKEN:		return nib_fields_token;
+		case NST_WILDS:		return nib_fields_wilds;
+		case NST_WORLD:		return nib_fields_world;
 		case NST_FLAG:		return nib_fields_flag;
 		case NST_STAT:		return nib_fields_stat;
 		case NST_LIST:		return nib_fields_list;
+		case NST_LIST_S:	return nib_fields_list;
+		case NST_ARRAY:		return nib_fields_array;
+		case NST_ARRAY_S:	return nib_fields_array;
 	}
 
 	return NULL;
@@ -240,19 +355,38 @@ static LLIST *__get_field_context(NIB_TYPE *context)
 			case NT_MAP:		return nib_fields_map;
 			case NT_WIDEVNUM:	return nib_fields_widevnum;
 
+			case NT_ACCOUNT:	return nib_fields_account;
+			case NT_AFFECT:		return nib_fields_affect;
 			case NT_AREA:		return nib_fields_area;
+			case NT_CHANNEL:	return nib_fields_channel;
+			case NT_CLASS:		return nib_fields_class;
 			case NT_DUNGEON:	return nib_fields_dungeon;
+			case NT_EXIT:		return nib_fields_exit;
 			case NT_INSTANCE:	return nib_fields_instance;
+			case NT_LIQUID:		return nib_fields_liquid;
+			case NT_MAIL:		return nib_fields_mail;
+			case NT_MATERIAL:	return nib_fields_material;
+			case NT_MISSION:	return nib_fields_mission;
 			case NT_MOBILE:		return nib_fields_mobile;
+			case NT_NOTE:		return nib_fields_note;
 			case NT_OBJECT:		return nib_fields_object;
+			case NT_ORG:		return nib_fields_org;
 			case NT_QUEST:		return nib_fields_quest;
+			case NT_RACE:		return nib_fields_race;
+			case NT_RANK:		return nib_fields_rank;
+			case NT_REPUTATION:	return nib_fields_reputation;
 			case NT_ROOM:		return nib_fields_room;
 			case NT_SHIP:		return nib_fields_ship;
+			case NT_SKILL:		return nib_fields_skill;
 			case NT_TOKEN:		return nib_fields_token;
+			case NT_WILDS:		return nib_fields_wilds;
+			case NT_WORLD:		return nib_fields_world;
 		}
 	}
 	else if (context->type_class == NTC_LIST)
 		return nib_fields_list;
+	else if (context->type_class == NTC_ARRAY)
+		return nib_fields_array;
 	else if (context->type_class == NTC_FLAG)
 		return nib_fields_flag;
 	else if (context->type_class == NTC_STAT)
@@ -299,7 +433,7 @@ NIB_FIELD *nib_field_get_byid(NIB_SCRIPT_STACK_TYPE context, int id)
 	return field;
 }
 
-bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset, METHOD_FUNC *method)
+bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, bool lvalue, size_t offset, size_t size, METHOD_FUNC *method)
 {
 	// Assume the field does not exist
 
@@ -308,7 +442,7 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 	if (!fields) return false;
 
 	// Create field
-	NIB_FIELD *field = new_nib_field(name, ret, readonly, offset, method);
+	NIB_FIELD *field = new_nib_field(name, ret, readonly, lvalue, offset, method);
 	if (!field) return false;
 
 	list_appendlink(fields, field);
@@ -318,40 +452,71 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 
 #include "funcs.h"
 
+#define MFEL(f)	{ #f, nib_method_func_##f, true }
+#define MFER(f)	{ #f, nib_method_func_##f, false }
+#define MFEND	{ NULL, NULL, false }
+
 const struct nib_method_func_type nib_method_funcs[] =
 {
-	MFE(function_print_msg),
-	MFE(function_random_percent),
-	MFE(function_reckoning),
-	MFE(list_add),
-	MFE(list_insert),
-	MFE(list_remove),
-	MFE(list_size),
-	MFE(mobile_get_widevnum),
-	MFE(number_random_value),
-	MFE(string_length),
+	MFER(area_get_room),
+	MFER(array_length),
+	MFER(exit_get_direction),
+	MFER(exit_get_door),
+	MFER(exit_get_mate),
+	MFEL(exit_get_north),
+	MFEL(exit_get_northeast),
+	MFEL(exit_get_east),
+	MFEL(exit_get_southeast),
+	MFEL(exit_get_south),
+	MFEL(exit_get_southwest),
+	MFEL(exit_get_west),
+	MFEL(exit_get_northwest),
+	MFEL(exit_get_up),
+	MFEL(exit_get_down),
+	MFER(exit_is_oneway),
+	MFER(exit_is_twoway),
+	MFER(function_print_msg),
+	MFER(function_random_percent),
+	MFER(function_reckoning),
+	MFER(list_add),
+	MFER(list_insert),
+	MFER(list_remove),
+	MFER(list_size),
+	MFER(mobile_get_widevnum),
+	MFER(number_random_value),
+	MFER(room_get_exits),
+	MFER(string_length),
 	MFEND
 };
 
-METHOD_FUNC *nib_method_func_lookup(const char *name)
+bool nib_method_func_lookup(const char *name, METHOD_FUNC **func, bool *lvalue)
 {
 	for(int i = 0; nib_method_funcs[i].name; i++)
 		if (!str_cmp(nib_method_funcs[i].name, name))
-			return nib_method_funcs[i].func;
+		{
+			*func = nib_method_funcs[i].func;
+			*lvalue = nib_method_funcs[i].lvalue;
+			return true;
+		}
 
-	return NULL;
+	return false;
 }
 
 
-NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func)
+NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func)
 {
 	NIB_METHOD *method = calloc(1, sizeof(NIB_METHOD));
 
 	method->name = strdup(name);
+	method->constant = constant;
+	method->lvalue = lvalue;
 	method->result = nib_type_copy(ret);
-	method->sresult = convert_to_stype(ret);
+	method->sresult = convert_to_stype(ret, false);
 	if (ret && ret->type_class == NTC_LIST)
-		method->sresult2 = convert_to_stype(ret->_.type);
+		method->sresult2 = convert_to_stype(ret->_.list.type, false);
+	else if (ret && ret->type_class == NTC_ARRAY)
+		method->sresult2 = convert_to_stype(ret->_.array.type, false);
+		// Length is on the actual result type
 	else
 		method->sresult2 = NST_UNKNOWN;
 	method->nparams = list_size(params);
@@ -414,18 +579,37 @@ bool nib_method_valid_context(NIB_TYPE *context)
 				case NT_MAP:		return true;
 				case NT_WIDEVNUM:	return true;
 
+				case NT_ACCOUNT:	return true;
+				case NT_AFFECT:		return true;
 				case NT_AREA:		return true;
+				case NT_CHANNEL:	return true;
+				case NT_CLASS:		return true;
 				case NT_DUNGEON:	return true;
+				case NT_EXIT:		return true;
 				case NT_INSTANCE:	return true;
+				case NT_LIQUID:		return true;
+				case NT_MAIL:		return true;
+				case NT_MATERIAL:	return true;
+				case NT_MISSION:	return true;
 				case NT_MOBILE:		return true;
+				case NT_NOTE:		return true;
 				case NT_OBJECT:		return true;
+				case NT_ORG:		return true;
 				case NT_QUEST:		return true;
+				case NT_RACE:		return true;
+				case NT_RANK:		return true;
+				case NT_REPUTATION:	return true;
 				case NT_ROOM:		return true;
 				case NT_SHIP:		return true;
+				case NT_SKILL:		return true;
 				case NT_TOKEN:		return true;
+				case NT_WILDS:		return true;
+				case NT_WORLD:		return true;
 			}
 		}
 		else if (context->type_class == NTC_LIST)
+			return true;
+		else if (context->type_class == NTC_ARRAY)
 			return true;
 		else if (context->type_class == NTC_FLAG)
 			return true;
@@ -452,19 +636,39 @@ static LLIST *__get_method_context(NIB_TYPE *context)
 			case NT_MAP:		return nib_methods_map;
 			case NT_WIDEVNUM:	return nib_methods_widevnum;
 
+			case NT_ACCOUNT:	return nib_methods_account;
+			case NT_AFFECT:		return nib_methods_affect;
 			case NT_AREA:		return nib_methods_area;
+			case NT_CHANNEL:	return nib_methods_channel;
+			case NT_CLASS:		return nib_methods_class;
 			case NT_DUNGEON:	return nib_methods_dungeon;
+			case NT_EXIT:		return nib_methods_exit;
 			case NT_INSTANCE:	return nib_methods_instance;
+			case NT_LIQUID:		return nib_methods_liquid;
+			case NT_MAIL:		return nib_methods_mail;
+			case NT_MATERIAL:	return nib_methods_material;
+			case NT_MISSION:	return nib_methods_mission;
 			case NT_MOBILE:		return nib_methods_mobile;
+			case NT_NOTE:		return nib_methods_note;
 			case NT_OBJECT:		return nib_methods_object;
+			case NT_ORG:		return nib_methods_org;
 			case NT_QUEST:		return nib_methods_quest;
+			case NT_RACE:		return nib_methods_race;
+			case NT_RANK:		return nib_methods_rank;
+			case NT_REPUTATION:	return nib_methods_reputation;
 			case NT_ROOM:		return nib_methods_room;
 			case NT_SHIP:		return nib_methods_ship;
+			case NT_SKILL:		return nib_methods_skill;
 			case NT_TOKEN:		return nib_methods_token;
+			case NT_WILDS:		return nib_methods_wilds;
+			case NT_WORLD:		return nib_methods_world;
+
 		}
 	}
 	else if (context->type_class == NTC_LIST)
 		return nib_methods_list;
+	else if (context->type_class == NTC_ARRAY)
+		return nib_methods_array;
 	else if (context->type_class == NTC_FLAG)
 		return nib_methods_flag;
 	else if (context->type_class == NTC_STAT)
@@ -501,8 +705,7 @@ static bool __method_matches_signature(NIB_METHOD *method, NIB_TYPE *anytype, ch
 			// Variable argument method; ignore the rest of the arguments
 			break;
 		}
-
-		if (atype->type_class == NTC_ANY)
+		else if (atype->type_class == NTC_ANY)
 		{
 			// If it is ANY but the anytype is NULL, then skip it.
 			//  Only really care if it is a list
@@ -511,8 +714,20 @@ static bool __method_matches_signature(NIB_METHOD *method, NIB_TYPE *anytype, ch
 
 			atype = anytype;	// Substitute the ANY type replacement
 		}
-
-		if (!are_nib_types_equal(atype, ptype))
+		else if (atype->type_class == NTC_MULTI)
+		{
+			if (!is_nib_type_in_multi(atype,ptype))
+			{
+				valid = false;
+				break;
+			}
+		}
+		else if (!are_nib_types_equal(atype, ptype))
+		{
+			valid = false;
+			break;
+		}
+		else if (atype->_reference && !ptype->_reference)
 		{
 			valid = false;
 			break;
@@ -535,20 +750,41 @@ static LLIST *__get_method_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_BOOLEAN:	return nib_methods_boolean;
 		case NST_CHAR:		return nib_methods_char;
 		case NST_STRING:	return nib_methods_string;
+		case NST_STRING_S:	return nib_methods_string;
 		case NST_MAP:		return nib_methods_map;
 		case NST_WIDEVNUM:	return nib_methods_widevnum;
+		case NST_ACCOUNT:	return nib_methods_account;
+		case NST_AFFECT:	return nib_methods_affect;
 		case NST_AREA:		return nib_methods_area;
+		case NST_CHANNEL:	return nib_methods_channel;
+		case NST_CLASS:		return nib_methods_class;
 		case NST_DUNGEON:	return nib_methods_dungeon;
+		case NST_EXIT:		return nib_methods_exit;
 		case NST_INSTANCE:	return nib_methods_instance;
+		case NST_LIQUID:	return nib_methods_liquid;
+		case NST_MAIL:		return nib_methods_mail;
+		case NST_MATERIAL:	return nib_methods_material;
+		case NST_MISSION:	return nib_methods_mission;
 		case NST_MOBILE:	return nib_methods_mobile;
+		case NST_NOTE:		return nib_methods_note;
 		case NST_OBJECT:	return nib_methods_object;
+		case NST_ORG:		return nib_methods_org;
 		case NST_QUEST:		return nib_methods_quest;
+		case NST_RACE:		return nib_methods_race;
+		case NST_RANK:		return nib_methods_rank;
+		case NST_REPUTATION:return nib_methods_reputation;
 		case NST_ROOM:		return nib_methods_room;
 		case NST_SHIP:		return nib_methods_ship;
+		case NST_SKILL:		return nib_methods_skill;
 		case NST_TOKEN:		return nib_methods_token;
+		case NST_WILDS:		return nib_methods_wilds;
+		case NST_WORLD:		return nib_methods_world;
 		case NST_FLAG:		return nib_methods_flag;
 		case NST_STAT:		return nib_methods_stat;
 		case NST_LIST:		return nib_methods_list;
+		case NST_LIST_S:	return nib_methods_list;
+		case NST_ARRAY:		return nib_methods_array;
+		case NST_ARRAY_S:	return nib_methods_array;
 	}
 
 	return NULL;
@@ -582,8 +818,13 @@ NIB_METHOD *nib_method_get(NIB_TYPE *context, char *name, LLIST *params)
 	if (!methods) return NULL;
 
 	NIB_TYPE *subtype = NULL;
-	if (context && context->type_class == NTC_LIST)
-		subtype = context->_.type;	// Get LIST element type
+	if (context)
+	{
+		if (context->type_class == NTC_LIST)
+			subtype = context->_.list.type;	// Get LIST element type
+		else if (context->type_class == NTC_ARRAY)
+			subtype = context->_.list.type;	// Get ARRAY element type
+	}
 
 	ITERATOR it;
 	NIB_METHOD *method;
@@ -614,6 +855,9 @@ static bool __method_same_signature(NIB_METHOD *method, char *name, LLIST *param
 		if (!are_nib_types_equal(method->params[index], ptype))
 			break;
 
+		if (method->params[index]->_reference && !ptype->_reference)
+			break;
+
 		++index;
 	}
 	iterator_stop(&it);
@@ -640,7 +884,7 @@ bool nib_method_exists(NIB_TYPE *context, char *name, LLIST *params)
 	return (method != NULL);
 }
 
-bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func)
+bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func)
 {
 	// Assume the method signature does not exist
 
@@ -649,7 +893,7 @@ bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, LLIST *params,
 	if (!methods) return false;
 
 	// Create methods
-	NIB_METHOD *method = new_nib_method(name, ret, params, method_name, method_func);
+	NIB_METHOD *method = new_nib_method(name, ret, constant, lvalue, params, method_name, method_func);
 	if (!method) return false;
 
 	list_appendlink(methods, method);
@@ -697,125 +941,95 @@ static inline LLIST *__create_field_list()
 	return list_createx(false, NULL, __free_field);
 }
 
+#define __met(t) \
+	nib_methods_##t = __create_method_list(); \
+	if (!list_isvalid(nib_methods_##t)) return false;
+
+#define __fld(t) \
+	nib_fields_##t = __create_field_list(); \
+	if (!list_isvalid(nib_fields_##t)) return false;
+
 
 bool nib_methods_init()
 {
 	nib_functions = __create_method_list();
 	if(!list_isvalid(nib_functions)) return false;
 
-	nib_methods_int = __create_method_list();
-	if(!list_isvalid(nib_methods_int)) return false;
+	__met(int)
+	__met(float)
+	__met(boolean)
+	__met(char)
+	__met(string)
+	__met(map)
+	__met(widevnum)
+	__met(list)
+	__met(array)
+	__met(flag)
+	__met(stat)
+	__met(account)
+	__met(affect)
+	__met(area)
+	__met(channel)
+	__met(class)
+	__met(dungeon)
+	__met(exit)
+	__met(instance)
+	__met(liquid)
+	__met(mail)
+	__met(material)
+	__met(mission)
+	__met(mobile)
+	__met(note)
+	__met(object)
+	__met(org)
+	__met(quest)
+	__met(race)
+	__met(rank)
+	__met(reputation)
+	__met(room)
+	__met(ship)
+	__met(skill)
+	__met(token)
+	__met(wilds)
+	__met(world)
 
-	nib_methods_float = __create_method_list();
-	if(!list_isvalid(nib_methods_float)) return false;
-
-	nib_methods_boolean = __create_method_list();
-	if(!list_isvalid(nib_methods_boolean)) return false;
-
-	nib_methods_char = __create_method_list();
-	if(!list_isvalid(nib_methods_char)) return false;
-
-	nib_methods_string = __create_method_list();
-	if(!list_isvalid(nib_methods_string)) return false;
-
-	nib_methods_map = __create_method_list();
-	if(!list_isvalid(nib_methods_map)) return false;
-
-	nib_methods_widevnum = __create_method_list();
-	if(!list_isvalid(nib_methods_widevnum)) return false;
-
-	nib_methods_area = __create_method_list();
-	if(!list_isvalid(nib_methods_area)) return false;
-
-	nib_methods_dungeon = __create_method_list();
-	if(!list_isvalid(nib_methods_dungeon)) return false;
-
-	nib_methods_instance = __create_method_list();
-	if(!list_isvalid(nib_methods_instance)) return false;
-
-	nib_methods_mobile = __create_method_list();
-	if(!list_isvalid(nib_methods_mobile)) return false;
-
-	nib_methods_object = __create_method_list();
-	if(!list_isvalid(nib_methods_object)) return false;
-
-	nib_methods_quest = __create_method_list();
-	if(!list_isvalid(nib_methods_quest)) return false;
-
-	nib_methods_room = __create_method_list();
-	if(!list_isvalid(nib_methods_room)) return false;
-
-	nib_methods_ship = __create_method_list();
-	if(!list_isvalid(nib_methods_ship)) return false;
-
-	nib_methods_token = __create_method_list();
-	if(!list_isvalid(nib_methods_token)) return false;
-
-	nib_methods_list = __create_method_list();
-	if(!list_isvalid(nib_methods_list)) return false;
-
-	nib_methods_flag = __create_method_list();
-	if(!list_isvalid(nib_methods_flag)) return false;
-
-	nib_methods_stat = __create_method_list();
-	if(!list_isvalid(nib_methods_stat)) return false;
-
-	nib_fields_int = __create_field_list();
-	if(!list_isvalid(nib_fields_int)) return false;
-
-	nib_fields_float = __create_field_list();
-	if(!list_isvalid(nib_fields_float)) return false;
-
-	nib_fields_boolean = __create_field_list();
-	if(!list_isvalid(nib_fields_boolean)) return false;
-
-	nib_fields_char = __create_field_list();
-	if(!list_isvalid(nib_fields_char)) return false;
-
-	nib_fields_string = __create_field_list();
-	if(!list_isvalid(nib_fields_string)) return false;
-
-	nib_fields_map = __create_field_list();
-	if(!list_isvalid(nib_fields_map)) return false;
-
-	nib_fields_widevnum = __create_field_list();
-	if(!list_isvalid(nib_fields_widevnum)) return false;
-
-	nib_fields_area = __create_field_list();
-	if(!list_isvalid(nib_fields_area)) return false;
-
-	nib_fields_dungeon = __create_field_list();
-	if(!list_isvalid(nib_fields_dungeon)) return false;
-
-	nib_fields_instance = __create_field_list();
-	if(!list_isvalid(nib_fields_instance)) return false;
-
-	nib_fields_mobile = __create_field_list();
-	if(!list_isvalid(nib_fields_mobile)) return false;
-
-	nib_fields_object = __create_field_list();
-	if(!list_isvalid(nib_fields_object)) return false;
-
-	nib_fields_quest = __create_field_list();
-	if(!list_isvalid(nib_fields_quest)) return false;
-
-	nib_fields_room = __create_field_list();
-	if(!list_isvalid(nib_fields_room)) return false;
-
-	nib_fields_ship = __create_field_list();
-	if(!list_isvalid(nib_fields_ship)) return false;
-
-	nib_fields_token = __create_field_list();
-	if(!list_isvalid(nib_fields_token)) return false;
-
-	nib_fields_list = __create_field_list();
-	if(!list_isvalid(nib_fields_list)) return false;
-
-	nib_fields_flag = __create_field_list();
-	if(!list_isvalid(nib_fields_flag)) return false;
-
-	nib_fields_stat = __create_field_list();
-	if(!list_isvalid(nib_fields_stat)) return false;
+	__fld(int)
+	__fld(float)
+	__fld(boolean)
+	__fld(char)
+	__fld(string)
+	__fld(map)
+	__fld(widevnum)
+	__fld(list)
+	__fld(array)
+	__fld(flag)
+	__fld(stat)
+	__fld(account)
+	__fld(affect)
+	__fld(area)
+	__fld(channel)
+	__fld(class)
+	__fld(dungeon)
+	__fld(exit)
+	__fld(instance)
+	__fld(liquid)
+	__fld(mail)
+	__fld(material)
+	__fld(mission)
+	__fld(mobile)
+	__fld(note)
+	__fld(object)
+	__fld(org)
+	__fld(quest)
+	__fld(race)
+	__fld(rank)
+	__fld(reputation)
+	__fld(room)
+	__fld(ship)
+	__fld(skill)
+	__fld(token)
+	__fld(wilds)
+	__fld(world)
 
 	return nib_methods_load();
 }
@@ -830,18 +1044,36 @@ void nib_methods_cleanup()
 	list_destroy(nib_methods_string);
 	list_destroy(nib_methods_map);
 	list_destroy(nib_methods_widevnum);
-	list_destroy(nib_methods_area);
-	list_destroy(nib_methods_dungeon);
-	list_destroy(nib_methods_instance);
-	list_destroy(nib_methods_mobile);
-	list_destroy(nib_methods_object);
-	list_destroy(nib_methods_quest);
-	list_destroy(nib_methods_room);
-	list_destroy(nib_methods_ship);
-	list_destroy(nib_methods_token);
 	list_destroy(nib_methods_list);
+	list_destroy(nib_methods_array);
 	list_destroy(nib_methods_flag);
 	list_destroy(nib_methods_stat);
+	list_destroy(nib_methods_account);
+	list_destroy(nib_methods_affect);
+	list_destroy(nib_methods_area);
+	list_destroy(nib_methods_channel);
+	list_destroy(nib_methods_class);
+	list_destroy(nib_methods_dungeon);
+	list_destroy(nib_methods_exit);
+	list_destroy(nib_methods_instance);
+	list_destroy(nib_methods_liquid);
+	list_destroy(nib_methods_mail);
+	list_destroy(nib_methods_material);
+	list_destroy(nib_methods_mission);
+	list_destroy(nib_methods_mobile);
+	list_destroy(nib_methods_note);
+	list_destroy(nib_methods_object);
+	list_destroy(nib_methods_org);
+	list_destroy(nib_methods_quest);
+	list_destroy(nib_methods_race);
+	list_destroy(nib_methods_rank);
+	list_destroy(nib_methods_reputation);
+	list_destroy(nib_methods_room);
+	list_destroy(nib_methods_ship);
+	list_destroy(nib_methods_skill);
+	list_destroy(nib_methods_token);
+	list_destroy(nib_methods_wilds);
+	list_destroy(nib_methods_world);
 
 	list_destroy(nib_fields_int);
 	list_destroy(nib_fields_float);
@@ -850,19 +1082,36 @@ void nib_methods_cleanup()
 	list_destroy(nib_fields_string);
 	list_destroy(nib_fields_map);
 	list_destroy(nib_fields_widevnum);
-	list_destroy(nib_fields_area);
-	list_destroy(nib_fields_dungeon);
-	list_destroy(nib_fields_instance);
-	list_destroy(nib_fields_mobile);
-	list_destroy(nib_fields_object);
-	list_destroy(nib_fields_quest);
-	list_destroy(nib_fields_room);
-	list_destroy(nib_fields_ship);
-	list_destroy(nib_fields_token);
+	list_destroy(nib_fields_array);
 	list_destroy(nib_fields_list);
 	list_destroy(nib_fields_flag);
 	list_destroy(nib_fields_stat);
-
+	list_destroy(nib_fields_account);
+	list_destroy(nib_fields_affect);
+	list_destroy(nib_fields_area);
+	list_destroy(nib_fields_channel);
+	list_destroy(nib_fields_class);
+	list_destroy(nib_fields_dungeon);
+	list_destroy(nib_fields_exit);
+	list_destroy(nib_fields_instance);
+	list_destroy(nib_fields_liquid);
+	list_destroy(nib_fields_mail);
+	list_destroy(nib_fields_material);
+	list_destroy(nib_fields_mission);
+	list_destroy(nib_fields_mobile);
+	list_destroy(nib_fields_note);
+	list_destroy(nib_fields_object);
+	list_destroy(nib_fields_org);
+	list_destroy(nib_fields_quest);
+	list_destroy(nib_fields_race);
+	list_destroy(nib_fields_rank);
+	list_destroy(nib_fields_reputation);
+	list_destroy(nib_fields_room);
+	list_destroy(nib_fields_ship);
+	list_destroy(nib_fields_skill);
+	list_destroy(nib_fields_token);
+	list_destroy(nib_fields_wilds);
+	list_destroy(nib_fields_world);
 }
 
 void nib_method_get_prototype(NIB_METHOD *method, char *buffer, size_t max_len)

@@ -1,0 +1,25 @@
+global area plith;
+global int vnum;
+
+room rm = plith.get_room(vnum);
+
+if (rm == null)
+	print("room not found");
+else
+{
+	print("room: " + rm.name + ", Exits: " + rm.exits.length);
+
+	foreach(ex : rm.exits)
+	{
+		if (ex != null)
+		{
+			if (!5.random())
+				ex.flags.hidden = true;
+			if (ex.dest != null)
+				print(" exit(" + ex.direction + ") -> " + ex.dest.name + ", [" + ex.flags + "]");
+			else
+				print(" exit(" + ex.direction + ") -> null");
+		}
+	}
+
+}

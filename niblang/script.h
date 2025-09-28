@@ -31,6 +31,7 @@ typedef enum nib_primary_types
 {
 	NT_UNKNOWN = 0,
 	NT_BOOLEAN,
+	NT_NUMBER32,
 	NT_NUMBER,
 	NT_FLOAT,
 	NT_CHAR,
@@ -71,9 +72,12 @@ typedef enum nib_type_class {
 	NTC_ANY,			// Indicates anything
 	NTC_PRIMARY,
 	NTC_FLAG,
+	NTC_FLAG_BANK,
 	NTC_STAT,
+	NTC_STAT32,		// Targets a stat that's `int` instead of `long`
 	NTC_LIST,
 	NTC_ARRAY,
+	NTC_MULTI,		// MUST be cast or ASSIGNED to resolve the type	(only used by return types of methods)
 	NTC_VARARGS		// Special type used for function prototypes
 } NIB_TYPE_CLASS;
 
@@ -81,6 +85,7 @@ typedef enum nib_type_class {
 struct nib_type
 {
 	bool _static;		// Statically defined, do not "free"
+	bool _reference;	// Is by reference
 
 	int type_class;
 
@@ -93,10 +98,23 @@ struct nib_type
 			const struct flag_type *table;
 		} flag;						// Used by type_class FLAG
 		struct {
+			const struct flag_type **bank;
+			int banks;
+		} flagbank;
+		struct {
 			LLIST *names;
 			const struct flag_type *table;
 		} stat;
-		NIB_TYPE *type;				// Used by type_class LIST
+		struct {
+			NIB_TYPE *type;		// Used by type_class LIST
+			bool constant;		// Elements are constant
+		} list;
+		struct {
+			NIB_TYPE *type;
+			long length;		// Length of array
+			bool constant;		// Elements are constant
+		} array;
+		LLIST *multi;
 	} _;
 
 	char *name;
@@ -170,9 +188,12 @@ struct nib_script_type_s
 	int n_tables;
 	struct flag_type **tables;	// Combined FLAG and STAT table usage
 
+	int n_banks;
+	struct flag_type ***banks;
+
 	LLIST *flag_tables;
 	LLIST *stat_tables;
-
+	
 	int n_switches;
 	NIB_SWITCH *switches;
 

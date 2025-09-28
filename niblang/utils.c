@@ -6,6 +6,7 @@
 
 #include "../merc.h"
 #include "niblang.h"
+#include "script.h"
 
 #define TOLOWER(ch)		(((ch) >= 'A' && (ch) <= 'Z')?((ch)+' '):(ch))
 #define TOUPPER(ch)		(((ch) >= 'a' && (ch) <= 'z')?((ch)-' '):(ch))
@@ -24,6 +25,19 @@ char * const dir_name[] =
 	"northwest",
 	"southeast",
 	"southwest"
+};
+
+const int16_t rev_dir[] = {
+	DIR_SOUTH,
+	DIR_WEST,
+	DIR_NORTH,
+	DIR_EAST,
+	DIR_DOWN,
+	DIR_UP,
+	DIR_SOUTHWEST,
+	DIR_SOUTHEAST,
+	DIR_NORTHWEST,
+	DIR_NORTHEAST
 };
 
 
@@ -165,6 +179,8 @@ utf8char_t utf8_getchar(const char *str)
 
 size_t utf8_strlen(const char *str)
 {
+	if (!str) return 0;
+
 	size_t len = 0;
 	while(*str)
 	{
@@ -350,7 +366,7 @@ long number_range(long from, long to)
 	long power;
 	long number;
 
-	if (from == 0 && to == 0)
+	if (from == 0 && to <= from)
 		return 0;
 
 	if ((to = to - from + 1) <= 1)
@@ -562,6 +578,13 @@ void nib_ledger_display()
 
 			if (current->count > 0)
 			{
+				if (current->size == sizeof(NIB_TYPE))
+				{
+					NIB_TYPE *type = (NIB_TYPE *)(current->addr);
+
+					printf("TYPE?: %s\n", nib_get_typename(NULL,type));
+				}
+
 				printf("%p (%lu of %lu)\n", current->addr, current->count, current->size);
 				hex_dump(current->addr, current->count * current->size);
 			}
@@ -697,4 +720,22 @@ bool affect_equal(AFFECT_DATA *a, AFFECT_DATA *b)
 		return a->skill == b->skill;
 
 	return false;
+}
+
+
+size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst)
+{
+	size_t size = sizeof(void *);
+	switch(nst)
+	{
+	case NST_NUMBER:	size = sizeof(long); break;
+	case NST_FLOAT:		size = sizeof(double); break;
+	case NST_BOOLEAN:	size = sizeof(bool); break;
+	case NST_CHAR:		size = sizeof(utf8char_t); break;
+	case NST_WIDEVNUM:	size = sizeof(WNUM); break;
+	// case NST_STAT:		size = sizeof(long) + sizeof(void *); break;
+	// case NST_FLAG:		size = sizeof(long) + sizeof(void *); break;
+	}
+
+	return size;
 }

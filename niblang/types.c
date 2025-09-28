@@ -11,46 +11,48 @@
 extern LLIST *nib_flag_created_tables;
 extern LLIST *nib_stat_created_tables;
 
-static NIB_TYPE __nibtype_null			= { true, NTC_ANY, {0}, "null"};
-static NIB_TYPE __nibtype_void			= { true, NTC_VOID, {0}, "void"};
-static NIB_TYPE __nibtype_any			= { true, NTC_ANY, {0}, "any"};
-static NIB_TYPE __nibtype_bool			= { true, NTC_PRIMARY, {NT_BOOLEAN}, "boolean"};
-static NIB_TYPE __nibtype_char			= { true, NTC_PRIMARY, {NT_CHAR}, "char"};
-static NIB_TYPE __nibtype_int			= { true, NTC_PRIMARY, {NT_NUMBER}, "int"};
-static NIB_TYPE __nibtype_float			= { true, NTC_PRIMARY, {NT_FLOAT}, "float"};
-static NIB_TYPE __nibtype_string		= { true, NTC_PRIMARY, {NT_STRING}, "string"};
-static NIB_TYPE __nibtype_map			= { true, NTC_PRIMARY, {NT_MAP}, "map"};
-static NIB_TYPE __nibtype_flag			= { true, NTC_FLAG, {.flag = {0, NULL, NULL}}, "flag"};
-static NIB_TYPE __nibtype_list			= { true, NTC_LIST, {.type = NULL}, "list"};
-static NIB_TYPE __nibtype_stat			= { true, NTC_STAT, {.stat = {NULL, NULL}}, "stat"};
-static NIB_TYPE __nibtype_varargs		= { true, NTC_VARARGS, {0}, "..."};
-static NIB_TYPE __nibtype_widevnum		= { true, NTC_PRIMARY, {NT_WIDEVNUM}, "widevnum"};
-static NIB_TYPE __nibtype_account		= { true, NTC_PRIMARY, {NT_ACCOUNT}, "account"};
-static NIB_TYPE __nibtype_affect		= { true, NTC_PRIMARY, {NT_AFFECT}, "affect"};
-static NIB_TYPE __nibtype_area			= { true, NTC_PRIMARY, {NT_AREA}, "area"};
-static NIB_TYPE __nibtype_channel		= { true, NTC_PRIMARY, {NT_CHANNEL}, "channel"};
-static NIB_TYPE __nibtype_class			= { true, NTC_PRIMARY, {NT_CLASS}, "class"};
-static NIB_TYPE __nibtype_dungeon		= { true, NTC_PRIMARY, {NT_DUNGEON}, "dungeon"};
-static NIB_TYPE __nibtype_exit			= { true, NTC_PRIMARY, {NT_EXIT}, "exit"};
-static NIB_TYPE __nibtype_instance		= { true, NTC_PRIMARY, {NT_INSTANCE}, "instance"};
-static NIB_TYPE __nibtype_liquid		= { true, NTC_PRIMARY, {NT_LIQUID}, "liquid"};
-static NIB_TYPE __nibtype_mail			= { true, NTC_PRIMARY, {NT_MAIL}, "mail"};
-static NIB_TYPE __nibtype_material		= { true, NTC_PRIMARY, {NT_MATERIAL}, "material"};
-static NIB_TYPE __nibtype_mission		= { true, NTC_PRIMARY, {NT_MISSION}, "mission"};
-static NIB_TYPE __nibtype_mobile		= { true, NTC_PRIMARY, {NT_MOBILE}, "mobile"};
-static NIB_TYPE __nibtype_note			= { true, NTC_PRIMARY, {NT_NOTE}, "note"};
-static NIB_TYPE __nibtype_object		= { true, NTC_PRIMARY, {NT_OBJECT}, "object"};
-static NIB_TYPE __nibtype_org			= { true, NTC_PRIMARY, {NT_ORG}, "organization"};
-static NIB_TYPE __nibtype_quest			= { true, NTC_PRIMARY, {NT_QUEST}, "quest"};
-static NIB_TYPE __nibtype_race			= { true, NTC_PRIMARY, {NT_RACE}, "race"};
-static NIB_TYPE __nibtype_rank			= { true, NTC_PRIMARY, {NT_RANK}, "rank"};
-static NIB_TYPE __nibtype_reputation	= { true, NTC_PRIMARY, {NT_REPUTATION}, "reputation"};
-static NIB_TYPE __nibtype_room			= { true, NTC_PRIMARY, {NT_ROOM}, "room"};
-static NIB_TYPE __nibtype_ship			= { true, NTC_PRIMARY, {NT_SHIP}, "ship"};
-static NIB_TYPE __nibtype_skill			= { true, NTC_PRIMARY, {NT_SKILL}, "skill"};
-static NIB_TYPE __nibtype_token			= { true, NTC_PRIMARY, {NT_TOKEN}, "token"};
-static NIB_TYPE __nibtype_wilds			= { true, NTC_PRIMARY, {NT_WILDS}, "wilds"};
-static NIB_TYPE __nibtype_world			= { true, NTC_PRIMARY, {NT_WORLD}, "world"};
+static NIB_TYPE __nibtype_null			= { true, false, NTC_ANY, {0}, "null"};
+static NIB_TYPE __nibtype_void			= { true, false, NTC_VOID, {0}, "void"};
+static NIB_TYPE __nibtype_any			= { true, false, NTC_ANY, {0}, "any"};
+static NIB_TYPE __nibtype_bool			= { true, false, NTC_PRIMARY, {NT_BOOLEAN}, "boolean"};
+static NIB_TYPE __nibtype_char			= { true, false, NTC_PRIMARY, {NT_CHAR}, "char"};
+static NIB_TYPE __nibtype_int32			= { true, false, NTC_PRIMARY, {NT_NUMBER32}, "int32"};
+static NIB_TYPE __nibtype_int			= { true, false, NTC_PRIMARY, {NT_NUMBER}, "int"};
+static NIB_TYPE __nibtype_float			= { true, false, NTC_PRIMARY, {NT_FLOAT}, "float"};
+static NIB_TYPE __nibtype_string		= { true, false, NTC_PRIMARY, {NT_STRING}, "string"};
+static NIB_TYPE __nibtype_map			= { true, false, NTC_PRIMARY, {NT_MAP}, "map"};
+static NIB_TYPE __nibtype_flag			= { true, false, NTC_FLAG, {.flag = {0, NULL, NULL}}, "flag"};
+static NIB_TYPE __nibtype_list			= { true, false, NTC_LIST, {.list = {NULL, false}}, "list"};
+static NIB_TYPE __nibtype_array			= { true, false, NTC_ARRAY, {.array = {NULL, 0, false}}, "array"};
+static NIB_TYPE __nibtype_stat			= { true, false, NTC_STAT, {.stat = {NULL, NULL}}, "stat"};
+static NIB_TYPE __nibtype_varargs		= { true, false, NTC_VARARGS, {0}, "..."};
+static NIB_TYPE __nibtype_widevnum		= { true, false, NTC_PRIMARY, {NT_WIDEVNUM}, "widevnum"};
+static NIB_TYPE __nibtype_account		= { true, false, NTC_PRIMARY, {NT_ACCOUNT}, "account"};
+static NIB_TYPE __nibtype_affect		= { true, false, NTC_PRIMARY, {NT_AFFECT}, "affect"};
+static NIB_TYPE __nibtype_area			= { true, false, NTC_PRIMARY, {NT_AREA}, "area"};
+static NIB_TYPE __nibtype_channel		= { true, false, NTC_PRIMARY, {NT_CHANNEL}, "channel"};
+static NIB_TYPE __nibtype_class			= { true, false, NTC_PRIMARY, {NT_CLASS}, "class"};
+static NIB_TYPE __nibtype_dungeon		= { true, false, NTC_PRIMARY, {NT_DUNGEON}, "dungeon"};
+static NIB_TYPE __nibtype_exit			= { true, false, NTC_PRIMARY, {NT_EXIT}, "exit"};
+static NIB_TYPE __nibtype_instance		= { true, false, NTC_PRIMARY, {NT_INSTANCE}, "instance"};
+static NIB_TYPE __nibtype_liquid		= { true, false, NTC_PRIMARY, {NT_LIQUID}, "liquid"};
+static NIB_TYPE __nibtype_mail			= { true, false, NTC_PRIMARY, {NT_MAIL}, "mail"};
+static NIB_TYPE __nibtype_material		= { true, false, NTC_PRIMARY, {NT_MATERIAL}, "material"};
+static NIB_TYPE __nibtype_mission		= { true, false, NTC_PRIMARY, {NT_MISSION}, "mission"};
+static NIB_TYPE __nibtype_mobile		= { true, false, NTC_PRIMARY, {NT_MOBILE}, "mobile"};
+static NIB_TYPE __nibtype_note			= { true, false, NTC_PRIMARY, {NT_NOTE}, "note"};
+static NIB_TYPE __nibtype_object		= { true, false, NTC_PRIMARY, {NT_OBJECT}, "object"};
+static NIB_TYPE __nibtype_org			= { true, false, NTC_PRIMARY, {NT_ORG}, "organization"};
+static NIB_TYPE __nibtype_quest			= { true, false, NTC_PRIMARY, {NT_QUEST}, "quest"};
+static NIB_TYPE __nibtype_race			= { true, false, NTC_PRIMARY, {NT_RACE}, "race"};
+static NIB_TYPE __nibtype_rank			= { true, false, NTC_PRIMARY, {NT_RANK}, "rank"};
+static NIB_TYPE __nibtype_reputation	= { true, false, NTC_PRIMARY, {NT_REPUTATION}, "reputation"};
+static NIB_TYPE __nibtype_room			= { true, false, NTC_PRIMARY, {NT_ROOM}, "room"};
+static NIB_TYPE __nibtype_ship			= { true, false, NTC_PRIMARY, {NT_SHIP}, "ship"};
+static NIB_TYPE __nibtype_skill			= { true, false, NTC_PRIMARY, {NT_SKILL}, "skill"};
+static NIB_TYPE __nibtype_token			= { true, false, NTC_PRIMARY, {NT_TOKEN}, "token"};
+static NIB_TYPE __nibtype_wilds			= { true, false, NTC_PRIMARY, {NT_WILDS}, "wilds"};
+static NIB_TYPE __nibtype_world			= { true, false, NTC_PRIMARY, {NT_WORLD}, "world"};
 
 /* Types to add: TODO
 
@@ -84,12 +86,14 @@ NIB_TYPE *nibtype_void = &__nibtype_void;
 NIB_TYPE *nibtype_any = &__nibtype_any;
 NIB_TYPE *nibtype_bool = &__nibtype_bool;
 NIB_TYPE *nibtype_char = &__nibtype_char;
+NIB_TYPE *nibtype_int32  = &__nibtype_int32;
 NIB_TYPE *nibtype_int  = &__nibtype_int;
 NIB_TYPE *nibtype_float = &__nibtype_float;
 NIB_TYPE *nibtype_string = &__nibtype_string;
 NIB_TYPE *nibtype_map = &__nibtype_map;
 NIB_TYPE *nibtype_flag = &__nibtype_flag;
 NIB_TYPE *nibtype_list = &__nibtype_list;
+NIB_TYPE *nibtype_array = &__nibtype_array;
 NIB_TYPE *nibtype_stat = &__nibtype_stat;
 NIB_TYPE *nibtype_varargs = &__nibtype_varargs;
 NIB_TYPE *nibtype_widevnum = &__nibtype_widevnum;
@@ -231,6 +235,19 @@ NIB_TYPE *new_nib_type_flag_table(const struct flag_type *table)
 	return type;
 }
 
+NIB_TYPE *new_nib_type_flag_bank(const struct flag_type **bank)
+{
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
+
+	type->_static = false;
+	type->type_class = NTC_FLAG_BANK;
+	type->_.flagbank.bank = bank;
+	for(type->_.flagbank.banks = 0; bank[type->_.flagbank.banks]; type->_.flagbank.banks++);
+	type->name = NULL;
+
+	return type;
+}
+
 NIB_TYPE *new_nib_type_stat_named(LLIST *names)
 {
 	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
@@ -243,12 +260,12 @@ NIB_TYPE *new_nib_type_stat_named(LLIST *names)
 	return type;
 }
 
-NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table)
+NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table, bool is_32bit)
 {
 	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
-	type->type_class = NTC_STAT;
+	type->type_class = is_32bit ? NTC_STAT32 : NTC_STAT;
 	type->_.stat.names = NULL;
 	type->_.stat.table = table;
 	type->name = NULL;
@@ -257,13 +274,40 @@ NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table)
 }
 
 
-NIB_TYPE *new_nib_type_list(NIB_TYPE *elem)
+NIB_TYPE *new_nib_type_list(NIB_TYPE *elem, bool constant)
 {
 	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_LIST;
-	type->_.type = elem;
+	type->_.list.type = elem;
+	type->_.list.constant = constant;
+	type->name = NULL;
+
+	return type;
+}
+
+NIB_TYPE *new_nib_type_array(NIB_TYPE *elem, long length, bool constant)
+{
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
+
+	type->_static = false;
+	type->type_class = NTC_ARRAY;
+	type->_.array.type = elem;
+	type->_.array.length = length;
+	type->_.array.constant = constant;
+	type->name = NULL;
+
+	return type;
+}
+
+NIB_TYPE *new_nib_type_multi(LLIST *types)
+{
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
+
+	type->_static = false;
+	type->type_class = NTC_MULTI;
+	type->_.multi = list_copy(types);
 	type->name = NULL;
 
 	return type;
@@ -271,23 +315,27 @@ NIB_TYPE *new_nib_type_list(NIB_TYPE *elem)
 
 void free_nib_type(NIB_TYPE *type)
 {
+	// if (type && type->_reference)
+	// {
+	// 	fprintf(stderr, "Reference Type: %s (%p)\n", nib_get_typename(NULL, type), type);
+	// }
 	if (type && !type->_static)
 	{
 		if (type->type_class == NTC_LIST)
 		{
-			free_nib_type(type->_.type);
+			free_nib_type(type->_.list.type);
 		}
 		else if (type->type_class == NTC_FLAG)
 		{
-			// if (type->_.flag.table)
-			// {
-			// 	printf("free_nib_type(flag(%s))\n", get_flag_table_name(type->_.flag.table));
-			// }
 			list_destroy(type->_.flag.names);
 		}
 		else if (type->type_class == NTC_STAT)
 		{
 			list_destroy(type->_.stat.names);
+		}
+		else if (type->type_class == NTC_MULTI)
+		{
+			list_destroy(type->_.multi);
 		}
 
 		if (type->name) nib_free(type->name);
@@ -304,6 +352,7 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 	NIB_TYPE *dest = nib_calloc(1,sizeof(NIB_TYPE));
 
 	dest->_static = false;
+	dest->_reference = src->_reference;
 	dest->type_class = src->type_class;
 	if (src->name)
 		dest->name = nib_strdup(src->name);
@@ -317,7 +366,14 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 			break;
 
 		case NTC_LIST:
-			dest->_.type = nib_type_copy(src->_.type);
+			dest->_.list.constant = src->_.list.constant;
+			dest->_.list.type = nib_type_copy(src->_.list.type);
+			break;
+
+		case NTC_ARRAY:
+			dest->_.array.constant = src->_.array.constant;
+			dest->_.array.length = src->_.array.length;
+			dest->_.array.type = nib_type_copy(src->_.array.type);
 			break;
 
 		case NTC_FLAG:
@@ -326,45 +382,107 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 			dest->_.flag.table = src->_.flag.table;
 			break;
 
+		case NTC_FLAG_BANK:
+			dest->_.flagbank.bank = src->_.flagbank.bank;
+			dest->_.flagbank.banks = src->_.flagbank.banks;
+			break;
+
 		case NTC_STAT:
+		case NTC_STAT32:
 			dest->_.stat.names = list_copy(src->_.flag.names);
 			dest->_.stat.table = src->_.stat.table;
+			break;
+
+		case NTC_MULTI:
+			dest->_.multi = list_copy(src->_.multi);
 			break;
 	}
 
 	return dest;
 }
 
+NIB_TYPE *nib_type_by_reference(NIB_TYPE *src, bool byref)
+{
+	if (!src) return NULL;
+
+	if (!byref) return src;
+
+	bool _static = src->_static;
+	src->_static = false;
+	NIB_TYPE *tp = nib_type_copy(src);
+	src->_static = _static;
+
+	if (tp)
+		tp->_reference = true;
+	return tp;
+}
+
 #define MTSL 10240
 #define MTSN 20
 char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 {
-	static char buf[MTSN][MTSL];
+	static char buf[MTSN][MTSL+1];
 	static int i = 0;
-
-	// Already has a name
-	if (type->name)
-		return type->name;
 
 	i = (i + 1) % MTSN;
 	char *p = buf[i];
-	if (type->type_class == NTC_LIST)
+	char *start = p;
+
+	if (type->_static)
+		*p++ = '$';
+
+	// Already has a name
+	if (type->name)
 	{
-		snprintf(p, MTSL-1, "list(%s)", nib_get_typename(context, type->_.type));
+		snprintf(p, MTSL-1, "%s%s", type->name, (type->_reference ? "&" : ""));
+	}
+	else if (type->type_class == NTC_LIST)
+	{
+		snprintf(p, MTSL-1, "list%s(%s%s)", (type->_reference ? "&" : ""), (type->_.list.constant?"constant ":""), nib_get_typename(context, type->_.list.type));
+	}
+	else if (type->type_class == NTC_ARRAY)
+	{
+		snprintf(p, MTSL-1, "array%s(%s%s[%ld])", (type->_reference ? "&" : ""), (type->_.array.constant?"constant ":""), nib_get_typename(context, type->_.array.type), type->_.array.length);
+	}
+	else if (type->type_class == NTC_MULTI)
+	{
+		strcpy(p, "multi(");
+		ITERATOR it;
+		NIB_TYPE *tp;
+		bool first = true;
+		iterator_start(&it, type->_.multi);
+		while((tp = (NIB_TYPE *)iterator_nextdata(&it)))
+		{
+			if (first)
+				first = false;
+			else
+				strcat(p, "|");
+
+			strcat(p, nib_get_typename(context,tp));
+		}
+		iterator_stop(&it);
+		strcat(p, ")");
+	}
+	else if (type->type_class == NTC_FLAG_BANK)
+	{
+		if (type->_.flagbank.bank)
+			snprintf(p, MTSL-1, "flagbank%s(%s)", (type->_reference ? "&" : ""), nib_get_flag_bank_name(type->_.flagbank.bank));
+		else
+			snprintf(p, MTSL-1, "flagbank%s(???)", (type->_reference ? "&" : ""));
 	}
 	else if (type->type_class == NTC_FLAG)
 	{
 		if (type->_.flag.bits > 0)
 		{
-			snprintf(p, MTSL-1, "flag(%d)", type->_.flag.bits);
+			snprintf(p, MTSL-1, "flag%s(%d)", (type->_reference ? "&" : ""), type->_.flag.bits);
 		}
 		else if (type->_.flag.table)
 		{
-			snprintf(p, MTSL-1, "flag(%s)", nib_get_flag_table_name((context?context->flag_tables:nib_flag_created_tables),type->_.flag.table));
+			snprintf(p, MTSL-1, "flag%s(%s)", (type->_reference ? "&" : ""), nib_get_flag_table_name((context?context->flag_tables:nib_flag_created_tables),type->_.flag.table));
 		}
 		else
 		{
-			strcpy(p, "flag(<");
+			snprintf(p, MTSL-1, "flag%s(<", (type->_reference ? "&" : ""));
 			ITERATOR it;
 			char *name;
 			bool first = true;
@@ -386,11 +504,11 @@ char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 	{
 		if (type->_.stat.table)
 		{
-			snprintf(p, MTSL-1, "stat(%s)", nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
+			snprintf(p, MTSL-1, "stat%s(%s)", (type->_reference ? "&" : ""), nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
 		}
 		else
 		{
-			strcpy(p, "stat(<");
+			snprintf(p, MTSL-1, "stat%s(<", (type->_reference ? "&" : ""));
 			ITERATOR it;
 			char *name;
 			bool first = true;
@@ -408,9 +526,35 @@ char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 			strcat(p, ">)");
 		}
 	}
-	
+	else if (type->type_class == NTC_STAT32)
+	{
+		if (type->_.stat.table)
+		{
+			snprintf(p, MTSL-1, "stat32%s(%s)", (type->_reference ? "&" : ""), nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
+		}
+		else
+		{
+			snprintf(p, MTSL-1, "stat32%s(<", (type->_reference ? "&" : ""));
+			ITERATOR it;
+			char *name;
+			bool first = true;
+			iterator_start(&it, type->_.stat.names);
+			while((name = (char *)iterator_nextdata(&it)))
+			{
+				if (first)
+					first = false;
+				else
+					strcat(p, ",");
+
+				strcat(p, name);
+			}
+			iterator_stop(&it);
+			strcat(p, ">)");
+		}
+	}
+
 	p[MTSL-1] = '\0';
-	return p;
+	return start;
 }
 
 int nib_type_get_flag_index(NIB_TYPE *type, const char *str)
@@ -451,7 +595,7 @@ bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b)
 	switch(a->type_class)
 	{
 		case NTC_PRIMARY:
-			if (a->_.primary == b->_.primary) return true;	// They are the same
+			return (a->_.primary == b->_.primary);	// They are the same
 
 		case NTC_FLAG:
 		{
@@ -481,6 +625,9 @@ bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b)
 			return !n_a && !n_b;
 		}
 
+		case NTC_FLAG_BANK:
+			return a->_.flagbank.bank == b->_.flagbank.bank;
+
 		case NTC_STAT:
 		{
 			if (a->_.stat.table != b->_.stat.table) return true;	// Table flags
@@ -505,103 +652,64 @@ bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b)
 		}
 
 		case NTC_LIST:
-			return are_nib_types_equal(a->_.type, b->_.type);
+			if (a->_.list.constant != b->_.list.constant) return false;
+			return are_nib_types_equal(a->_.list.type, b->_.list.type);
 
+		case NTC_ARRAY:
+			if (a->_.array.constant != b->_.array.constant) return false;
+			if (a->_.array.length != b->_.array.length) return false;
+			return are_nib_types_equal(a->_.array.type, b->_.array.type);
+
+		case NTC_MULTI:
+			if (list_size(a->_.multi) != list_size(b->_.multi)) return false;
+
+			// Check if a ⊆ b
+			ITERATOR it;
+			NIB_TYPE *ta;
+			iterator_start(&it, a->_.multi);
+			while((ta = (NIB_TYPE *)iterator_nextdata(&it)))
+			{
+				if (!is_nib_type_in_multi(b,ta))
+					break;
+			}
+			iterator_stop(&it);
+
+			if (ta == NULL)
+			{
+				// Check if b ⊆ a
+				NIB_TYPE *tb;
+				iterator_start(&it, b->_.multi);
+				while((tb = (NIB_TYPE *)iterator_nextdata(&it)))
+				{
+					if (!is_nib_type_in_multi(a,tb))
+						break;
+				}
+				iterator_stop(&it);
+
+				return tb == NULL;
+			}
+
+			return false;
 	}
 
 	return false;
 }
 
-// When used for assignment or conversion:
-//  a = destination
-//  b = source
-//  example:  int a;  a = true;
-bool are_nib_types_compatible(NIB_TYPE *a, NIB_TYPE *b)
+bool is_nib_type_in_multi(NIB_TYPE *multi, NIB_TYPE *type)
 {
-	if (!a || !b) return false;
+	if (multi->type_class != NTC_MULTI) return false;
 
-	if (a == b) return true;	// Automatically compatible if they are the same pointer
-
-	// Need to compare based upon details of the type, ignore the static flag
-
-	if (a->type_class != b->type_class)		// Not even the same class of type
-		return false;
-
-	switch(a->type_class)
+	ITERATOR it;
+	NIB_TYPE *tp;
+	iterator_start(&it,multi->_.multi);
+	while((tp = (NIB_TYPE *)iterator_nextdata(&it)))
 	{
-		case NTC_PRIMARY:
-			if (a->_.primary == b->_.primary) return true;	// They are the same
-
-			// Comparable numbers 
-			switch (a->_.primary)
-			{
-				case NT_NUMBER:
-					return b->_.primary == NT_BOOLEAN || b->_.primary == NT_CHAR;
-				
-				case NT_FLOAT:
-					return b->_.primary == NT_BOOLEAN ||
-						b->_.primary == NT_NUMBER;
-			}
-
-			return false;
-
-		case NTC_FLAG:
-		{
-			// Compare the bits
-			if (a->_.flag.bits != b->_.flag.bits) return false;
-
-			if (a->_.flag.bits > 0) return true;	// Numerical bits
-
-			if (a->_.flag.table != b->_.flag.table) return false;	// Table flags
-
-			if (list_size(a->_.flag.names) != list_size(b->_.flag.names)) return false;
-
-			ITERATOR ita, itb;
-			char *n_a = NULL, *n_b = NULL;
-			iterator_start(&ita, a->_.flag.names);
-			iterator_start(&itb, b->_.flag.names);
-			while((n_a = (char *)iterator_nextdata(&ita)) != NULL ||
-				(n_b = (char *)iterator_nextdata(&itb)) != NULL)
-				{
-					if (str_cmp(n_a, n_b))
-						break;
-				}
-
-			iterator_stop(&ita);
-			iterator_stop(&itb);
-
-			return !n_a && !n_b;
-		}
-
-		case NTC_STAT:
-		{
-			if (a->_.stat.table != b->_.stat.table) return false;
-
-			if (list_size(a->_.stat.names) != list_size(b->_.stat.names)) return false;
-
-			ITERATOR ita, itb;
-			char *n_a = NULL, *n_b = NULL;
-			iterator_start(&ita, a->_.stat.names);
-			iterator_start(&itb, b->_.stat.names);
-			while((n_a = (char *)iterator_nextdata(&ita)) != NULL ||
-				(n_b = (char *)iterator_nextdata(&itb)) != NULL)
-				{
-					if (str_cmp(n_a, n_b))
-						break;
-				}
-
-			iterator_stop(&ita);
-			iterator_stop(&itb);
-
-			return !n_a && !n_b;
-		}
-
-		case NTC_LIST:
-			return are_nib_types_compatible(a->_.type, b->_.type);
-
-		default:
-			return false;
+		if (are_nib_types_equal(tp, type))
+			break;
 	}
+	iterator_stop(&it);
+
+	return tp != NULL;
 }
 
 NIB_TYPE *nib_combine_types(NIB_TYPE *a, NIB_TYPE *b)

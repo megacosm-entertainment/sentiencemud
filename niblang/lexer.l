@@ -380,6 +380,7 @@ static utf8char_t parse_utf8_escape_character(char *str)
 %x ML_COMMENT
 %x FIELD_NAME
 %x FLAG_NAMES
+%x BANK_NAMES
 %x CASE_LABEL
 
 /* UTF-8 continuation byte */
@@ -440,6 +441,7 @@ UB [\200-\277]
 "account"				{ return T_ACCOUNT; }
 "affect"				{ return T_AFFECT; }
 "area"					{ return T_AREA; }
+"array"					{ return T_ARRAY; }
 "boolean"				{ return T_BOOLEAN; }
 "bool"					{ return T_BOOLEAN; }	// Shorthand for BOOLEAN
 "break"					{ return T_BREAK; }
@@ -456,6 +458,7 @@ UB [\200-\277]
 "else"					{ return T_ELSE; }
 "exit"					{ return T_EXIT; }
 "false"                 { return T_FALSE; }
+"flagbank"				{ return T_FLAGBANK; }
 "flag"					{ return T_FLAG; }
 "float"					{ return T_FLOAT; }
 "foreach"				{ return T_FOREACH; }
@@ -466,6 +469,7 @@ UB [\200-\277]
 "infinity"				{ yylval->float_number = INFINITY; return T_FLOAT_NUMBER; }
 "instance"				{ return T_INSTANCE; }
 "int"					{ return T_INT; }
+"in"					{ return T_IN; }
 "liquid"				{ return T_LIQUID; }
 "list"					{ return T_LIST; }
 "mail"					{ return T_MAIL; }
@@ -490,6 +494,7 @@ UB [\200-\277]
 "sizeof"                { return T_SIZEOF; }
 "stat"					{ return T_STAT; }
 "string"				{ return T_STRING; }
+"subsetof"				{ return T_SUBSETOF; }
 "switch"				{ return T_SWITCH; }
 "table"					{ return T_TABLE; }
 "token"					{ return T_TOKEN; }
@@ -499,7 +504,9 @@ UB [\200-\277]
 "widevnum"				{ return T_WIDEVNUM; }
 "wilds"					{ return T_WILDS; }
 "world"					{ return T_WORLD; }
+"<[["					{ yy_push_state(BANK_NAMES); return T_OPEN_BANK; }
 "<["					{ yy_push_state(FLAG_NAMES); return T_OPEN_FLAG; }
+<BANK_NAMES>"]]>"		{ yy_pop_state(); return T_CLOSE_BANK; }
 <FLAG_NAMES>"]>"		{ yy_pop_state(); return T_CLOSE_FLAG; }
 "{["                    { return T_OPEN_MAP; }
 "]}"                    { return T_CLOSE_MAP; }
@@ -570,6 +577,11 @@ UB [\200-\277]
 <FLAG_NAMES>"."   		{ return T_DOT; }
 <FLAG_NAMES>[0-9]+		{ yylval->number = atol(nibtext); return T_NUMBER; }
 <FLAG_NAMES>[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
+<BANK_NAMES>"::"		{ return T_COLONS; }
+<BANK_NAMES>":"			{ return T_COLON; }
+<BANK_NAMES>","   		{ return T_COMMA; }
+<BANK_NAMES>"."   		{ return T_DOT; }
+<BANK_NAMES>[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
 <CASE_LABEL>".."			{ yy_pop_state(); return T_RANGE; }
 <CASE_LABEL>":"			{ yy_pop_state(); return T_COLON; }
 <CASE_LABEL>[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }

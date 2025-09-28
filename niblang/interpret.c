@@ -26,7 +26,7 @@ extern char * const dir_name[];
 #define SETRET(n,r)			(n)->last_return = SCPERR_##r
 #define SETRETN(n,r)		(n)->last_return = (r)
 
-NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type)
+NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 {
 	if (!type) return NST_VOID;
 
@@ -37,6 +37,7 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type)
 		case NTC_PRIMARY:
 			switch(type->_.primary)
 			{
+				case NT_NUMBER32:	return NST_NUMBER32;
 				case NT_NUMBER:		return NST_NUMBER;
 				case NT_FLOAT:		return NST_FLOAT;
 				case NT_BOOLEAN:	return NST_BOOLEAN;
@@ -74,8 +75,11 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type)
 			}
 			break;
 		case NTC_FLAG:		return NST_FLAG;
+		case NTC_FLAG_BANK:	return NST_FLAG_BANK;
 		case NTC_STAT:		return NST_STAT;
-		case NTC_LIST:		return NST_LIST;
+		case NTC_STAT32:	return NST_STAT32;
+		case NTC_LIST:		return (constant && type->_.list.constant)?NST_LIST_C:NST_LIST;
+		case NTC_ARRAY:		return (constant && type->_.array.constant)?NST_ARRAY_C:NST_ARRAY;
 		case NTC_VOID:		return NST_VOID;
 	}
 	return NST_UNKNOWN;
@@ -86,6 +90,7 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 	switch(type)
 	{
 		case NST_BOOLEAN:	return "boolean";
+		case NST_NUMBER32:	return "number32";
 		case NST_NUMBER:	return "number";
 		case NST_FLOAT:		return "float";
 		case NST_STRING:	return "string";
@@ -94,7 +99,13 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 		case NST_WIDEVNUM:	return "widevnum";
 		case NST_FLAG:		return "flag";
 		case NST_STAT:		return "stat";
+		case NST_STAT32:	return "stat32";
 		case NST_LIST:		return "list";
+		case NST_LIST_S:	return "list_s";
+		case NST_ARRAY:		return "array";
+		case NST_ARRAY_C:	return "array_c";
+		case NST_ARRAY_S:	return "array_s";
+		case NST_ARRAY_CS:	return "array_cs";
 		case NST_ACCOUNT:	return "account";
 		case NST_AFFECT:	return "affect";
 		case NST_AREA:		return "area";
@@ -244,24 +255,148 @@ static LLIST *new_string_list()
 }
 
 
+LLIST *nib_create_new_list(NIB_SCRIPT_STACK_TYPE type)
+{
+	switch(type)
+	{
+	case NST_NUMBER:	return new_integer_list();
+	case NST_FLOAT:		return new_float_list();
+	case NST_BOOLEAN:	return new_boolean_list();
+	case NST_CHAR:		return new_char_list();
+	// case NST_MAP:
+	case NST_STRING:	return new_string_list();
+	case NST_WIDEVNUM:	return new_widevnum_list();
+	default:
+		if (type >= NST__GAME_TYPES_START && type < NST__MAX)
+			return list_create(false);
+		break;
+	}
+
+	return NULL;
+}
+
+void *nib_create_new_array(NIB_SCRIPT_STACK_TYPE type, long length)
+{
+	size_t size = sizeof(void *);
+	switch(type)
+	{
+	case NST_NUMBER:	size = sizeof(long); break;
+	case NST_FLOAT:		size = sizeof(double); break;
+	case NST_BOOLEAN:	size = sizeof(bool); break;
+	case NST_CHAR:		size = sizeof(utf8char_t); break;
+	// case NST_MAP:	// pointer
+	//case NST_STRING:	// pointer
+	case NST_WIDEVNUM:	size = sizeof(WNUM); break;
+	}
+
+	return calloc(length, size);
+}
+
 static void free_stack_item(NIB_SCRIPT_STACK *stack)
 {
 	switch(stack->type)
 	{
 		case NST_STRING:
-			free(stack->_.str);
+			if (stack->_.str) free(stack->_.str);
 			break;
 
 		case NST_LIST:
 			list_destroy(stack->_.list.list);
 			break;
 
+		case NST_ARRAY:
+			if (stack->_.array.ptr)
+			{
+				// All string arrays use copies
+				if (stack->_.array.type == NST_STRING)
+				{
+					char **p = (char **)stack->_.array.ptr;
+					for(long i = 0; i < stack->_.array.length; i++, p++)
+					{
+						if (*p) free(*p);
+					}
+				}
+				free(stack->_.array.ptr);
+			}
+			break;
+
 		case NST_ITERATOR:
 			iterator_stop(&stack->_.iter.it);	// Make sure it is stopped
-			list_destroy(stack->_.iter.list);
+			if (!stack->_.iter.shared)
+				list_destroy(stack->_.iter.list);
+			break;
+
+			
+		case NST_INDEXER:
+			if (!stack->_.indexer.shared && stack->_.indexer.ptr)
+			{
+				// All string arrays use copies
+				if (stack->_.indexer.type == NST_STRING)
+				{
+					char **p = (char **)stack->_.indexer.ptr;
+					for(long i = 0; i < stack->_.indexer.length; i++, p++)
+					{
+						if (*p) free(*p);
+					}
+				}
+				free(stack->_.indexer.ptr);
+			}
 			break;
 	}
 
+}
+
+
+static void free_local_value(NIB_LOCAL_RUNTIME_VAR *local)
+{
+	if (local->type == NST_STRING)
+	{
+		if (local->_.str) free(local->_.str);
+	}
+	else if (local->type == NST_LIST)
+	{
+		list_destroy(local->_.list.list);
+	}
+	else if (local->type == NST_ARRAY)
+	{
+		if (local->_.array.ptr)
+		{
+			if (local->_.array.type == NST_STRING)
+			{
+				char **p = (char **)local->_.array.ptr;
+				for(long i = 0; i < local->_.array.length; i++, p++)
+					if (*p) free(*p);
+			}
+			free(local->_.array.ptr);
+		}
+	}
+	else if (local->type == NST_FLAG_BANK)
+	{
+		if (local->_.flagbank.bits)
+			free(local->_.flagbank.bits);
+	}
+}
+
+static void free_script_runtime(NIB_SCRIPT_RUNTIME *nsr)
+{
+	if (nsr)
+	{
+		if (nsr->locals)
+		{
+			for(int i = nsr->n_locals; i-- > 0;)
+			{
+				free_local_value(&nsr->locals[i]);
+			}
+		}
+
+		// Clear up the stack, regardless
+		for(int sp = nsr->sp; sp-- > 0;)
+			free_stack_item(&nsr->stack[sp]);
+
+		list_destroy(nsr->disassembly);
+
+		free(nsr);
+	}
 }
 
 static NIB_SCRIPT_RUNTIME *new_script_runtime(NIB_SCRIPT *script)
@@ -279,6 +414,11 @@ static NIB_SCRIPT_RUNTIME *new_script_runtime(NIB_SCRIPT *script)
 
 		nsr->n_locals = script->n_locals;
 		nsr->locals = calloc(nsr->n_locals, sizeof(NIB_LOCAL_RUNTIME_VAR));
+		if (!nsr->locals)
+		{
+			free_script_runtime(nsr);
+			return NULL;
+		}
 
 		for(int i = nsr->n_locals; i-- > 0;)
 		{
@@ -297,13 +437,30 @@ static NIB_SCRIPT_RUNTIME *new_script_runtime(NIB_SCRIPT *script)
 				nsr->locals[i]._.stat.table = script->locals[i].type->_.flag.table;
 				break;
 
+			case NST_FLAG_BANK:
+				nsr->locals[i]._.flagbank.bank = script->locals[i].type->_.flagbank.bank;
+				nsr->locals[i]._.flagbank.banks = script->locals[i].type->_.flagbank.banks;
+				nsr->locals[i]._.flagbank.bits = (long *)calloc(nsr->locals[i]._.flagbank.banks, sizeof(long));
+				if (!nsr->locals[i]._.flagbank.bits)
+				{
+					free_script_runtime(nsr);
+					return NULL;
+				}
+				break;
+
 			case NST_STAT:
 				nsr->locals[i]._.stat.table = script->locals[i].type->_.stat.table;
 				break;
 
 			case NST_LIST:
-				// Need to store the list's subtype
-				nsr->locals[i]._.list.type = convert_to_stype(script->locals[i].type->_.type);
+				nsr->locals[i]._.list.type = convert_to_stype(script->locals[i].type->_.list.type, false);
+				nsr->locals[i]._.list.constant = script->locals[i].type->_.list.constant;
+				break;
+
+			case NST_ARRAY:
+				nsr->locals[i]._.array.type = convert_to_stype(script->locals[i].type->_.array.type, false);
+				nsr->locals[i]._.array.length = script->locals[i].type->_.array.length;
+				nsr->locals[i]._.array.constant = script->locals[i].type->_.array.constant;
 				break;
 			}
 		}
@@ -312,40 +469,6 @@ static NIB_SCRIPT_RUNTIME *new_script_runtime(NIB_SCRIPT *script)
 	}
 
 	return nsr;
-}
-
-static void free_local_value(NIB_LOCAL_RUNTIME_VAR *local)
-{
-	if (local->type == NST_STRING)
-	{
-		if (local->_.str) free(local->_.str);
-	}
-	else if (local->type == NST_LIST)
-	{
-		list_destroy(local->_.list.list);
-	}
-}
-
-static void free_script_runtime(NIB_SCRIPT_RUNTIME *nsr)
-{
-	if (nsr)
-	{
-		if (nsr->locals)
-		{
-			for(int i = nsr->n_locals; i-- > 0;)
-			{
-				free_local_value(&nsr->locals[i]);
-			}
-		}
-
-		// Clear up the stack, regardless
-		for(int sp = 0; sp < nsr->sp; sp++)
-			free_stack_item(&nsr->stack[sp]);
-
-		list_destroy(nsr->disassembly);
-
-		free(nsr);
-	}
 }
 
 #define CHECK_STACK	\
@@ -365,14 +488,26 @@ bool nib_dup_stack(NIB_SCRIPT_RUNTIME *nsr)
 	switch(top->type)
 	{
 	case NST_STRING:
-		stack->_.str = strdup(top->_.str);
+		stack->type = NST_STRING_S;
 		break;
 	
 	case NST_LIST:
-		stack->_.list.list = list_copy(top->_.list.list);
+		stack->type = NST_LIST_S;
+		break;
+	
+	case NST_ARRAY:
+		stack->type = NST_ARRAY_S;
 		break;
 	}
 
+	return true;
+}
+
+bool nib_push_stack_raw(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp)
+{
+	CHECK_STACK;
+
+	nsr->stack[nsr->sp++] = *sp;
 	return true;
 }
 
@@ -419,6 +554,32 @@ bool nib_push_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag
 	stack->type = NST_FLAG;
 	stack->_.stat.number = value;
 	stack->_.stat.table = table;
+
+	return true;
+}
+bool nib_push_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, long* bits, const struct flag_type **bank, int banks)
+{
+	CHECK_STACK;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	stack->type = NST_FLAG_BANK;
+	stack->_.flagbank.bits = bits;
+	stack->_.flagbank.bank = bank;
+	stack->_.flagbank.banks = banks;
+
+	return true;
+}
+bool nib_push_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, long* bits, const struct flag_type **bank, int banks)
+{
+	CHECK_STACK;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	stack->type = NST_FLAG_BANK_S;
+	stack->_.flagbank.bits = bits;
+	stack->_.flagbank.bank = bank;
+	stack->_.flagbank.banks = banks;
 
 	return true;
 }
@@ -469,7 +630,7 @@ bool nib_push_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STAC
 
 	stack->type = NST_LIST;
 	stack->_.list.type = type;
-	stack->_.list.list = value;
+	stack->_.list.list = list_copy(value);
 
 	return true;
 }
@@ -500,7 +661,7 @@ bool nib_push_stack_list_raw (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_
 	return true;
 }
 
-bool nib_push_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, LLIST *list, NIB_SCRIPT_STACK_TYPE type)
+bool nib_push_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, LLIST *list, NIB_SCRIPT_STACK_TYPE type, bool shared)
 {
 	CHECK_STACK;
 
@@ -509,7 +670,109 @@ bool nib_push_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, LLIST *list, NIB_SCRIPT_S
 	stack->type = NST_ITERATOR;
 	stack->_.iter.type = type;
 	stack->_.iter.list = list;
+	stack->_.iter.shared = shared;
 	iterator_start(&stack->_.iter.it, stack->_.iter.list);
+
+	return true;
+}
+
+bool nib_push_stack_array (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_STACK_TYPE type, size_t size, long length)
+{
+	CHECK_STACK;
+
+	if (length <= 0) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	if (size < 1)
+		size = get_array_element_size_nst(type);
+
+	stack->type = NST_ARRAY;
+	stack->_.array.type = type;
+	stack->_.array.size = size;
+	stack->_.array.length = length;
+
+	stack->_.array.ptr = calloc(length,size);
+	if (!stack->_.array.ptr)
+		return false;
+	if (value)
+	{
+#if 1
+		if (type == NST_STRING)
+		{
+			// Clone strings
+			char **s = (char **)value;
+			char **d = (char **)stack->_.array.ptr;
+			for(int i = 0; i < length; i++,d++,s++)
+			{
+				if (*s) *d = strdup(*s);
+			}
+		}
+		else
+			memcpy(stack->_.array.ptr,value,length * size);
+#else
+		if (type == NST_STRING)
+			stack->_.array.type = NST_STRING_S;
+		memcpy(stack->_.array.ptr,value,length * size);
+#endif
+	}
+
+	return true;
+}
+
+bool nib_push_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_STACK_TYPE type, size_t size, long length)
+{
+	CHECK_STACK;
+
+	if (length <= 0) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	if (size < 1)
+		size = get_array_element_size_nst(type);
+
+	stack->type = NST_ARRAY_S;
+	stack->_.array.type = type;
+	stack->_.array.size = size;
+	stack->_.array.length = length;
+	stack->_.array.ptr = value;
+
+	return true;
+}
+
+bool nib_push_stack_array_raw (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_STACK_TYPE type, size_t size, long length)
+{
+	CHECK_STACK;
+
+	if (length <= 0) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	if (size < 1)
+		size = get_array_element_size_nst(type);
+
+	stack->type = NST_ARRAY;
+	stack->_.array.type = type;
+	stack->_.array.size = size;
+	stack->_.array.length = length;
+	stack->_.array.ptr = value;
+
+	return true;
+}
+
+bool nib_push_stack_indexer (NIB_SCRIPT_RUNTIME *nsr, void *ptr, NIB_SCRIPT_STACK_TYPE type, size_t size, long length, bool shared)
+{
+	CHECK_STACK;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	stack->type = NST_INDEXER;
+	stack->_.indexer.type = type;
+	stack->_.indexer.length = length;
+	stack->_.indexer.size = size;
+	stack->_.indexer.index = 0;
+	stack->_.indexer.shared = shared;
+	stack->_.indexer.ptr = ptr;
 
 	return true;
 }
@@ -610,12 +873,20 @@ bool nib_push_stack_lvalue_value(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 
 	case NST_FLAG:
 		return nib_push_stack_flag(nsr, *(lvalue->_.stat.number),lvalue->_.stat.table);
+	
+	case NST_FLAG_BANK:
+		return nib_push_stack_flagbank_shared(nsr, lvalue->_.flagbank.bits, lvalue->_.flagbank.bank, lvalue->_.flagbank.banks);
 
 	case NST_STAT:
 		return nib_push_stack_stat(nsr, *(lvalue->_.stat.number),lvalue->_.stat.table);
 
 	case NST_LIST:
-		return nib_push_stack_list(nsr, *(lvalue->_.list.list), lvalue->_.list.type);
+	case NST_LIST_C:
+		return nib_push_stack_list_shared(nsr, *(lvalue->_.list.list), lvalue->_.list.type);
+
+	case NST_ARRAY:
+	case NST_ARRAY_C:
+		return nib_push_stack_array_shared(nsr, *(lvalue->_.array.ptr), lvalue->_.array.type, lvalue->_.array.size, lvalue->_.array.length);
 	}
 
 	return false;
@@ -668,11 +939,23 @@ bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *va
 	case NST_FLAG:
 		return nib_push_stack_flag(nsr, var->_.stat.number, var->_.stat.table);
 
+	case NST_FLAG_BANK:
+		return nib_push_stack_flagbank_shared(nsr, var->_.flagbank.bits, var->_.flagbank.bank, var->_.flagbank.banks);
+
 	case NST_STAT:
 		return nib_push_stack_stat(nsr, var->_.stat.number, var->_.stat.table);
 
 	case NST_LIST:
-		return nib_push_stack_list(nsr, var->_.list.list, var->_.list.type);
+	case NST_LIST_C:
+	case NST_LIST_S:
+	case NST_LIST_CS:
+		return nib_push_stack_list_shared(nsr, var->_.list.list, var->_.list.type);
+
+	case NST_ARRAY:
+	case NST_ARRAY_C:
+	case NST_ARRAY_S:
+	case NST_ARRAY_CS:
+		return nib_push_stack_array_shared(nsr, var->_.array.ptr, var->_.array.type, var->_.array.size, var->_.array.length);
 	}
 
 	return false;
@@ -729,6 +1012,13 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 		lvalue._.stat.table = var->_.stat.table;
 		break;
 
+	case NST_FLAG_BANK:
+		lvalue.type = NST_FLAG_BANK;
+		lvalue._.flagbank.bits = var->_.flagbank.bits;
+		lvalue._.flagbank.bank = var->_.flagbank.bank;
+		lvalue._.flagbank.banks = var->_.flagbank.banks;
+		break;
+
 	case NST_STAT:
 		lvalue.type = NST_STAT;
 		lvalue._.stat.number = &(var->_.stat.number);
@@ -736,15 +1026,23 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 		break;
 
 	case NST_LIST:
+	case NST_LIST_C:
+	case NST_LIST_S:
+	case NST_LIST_CS:
 		lvalue.type = NST_LIST;
 		lvalue._.list.type = var->_.list.type;
 		lvalue._.list.list = &(var->_.list.list);
 		break;
 
-	case NST_LIST_S:
-		lvalue.type = NST_LIST_S;
-		lvalue._.list.type = var->_.list.type;
-		lvalue._.list.list = &(var->_.list.list);
+	case NST_ARRAY:
+	case NST_ARRAY_C:
+	case NST_ARRAY_S:
+	case NST_ARRAY_CS:
+		lvalue.type = NST_ARRAY;
+		lvalue._.array.type = var->_.array.type;
+		lvalue._.array.size = get_array_element_size_nst(lvalue._.array.type);
+		lvalue._.array.length = var->_.array.length;
+		lvalue._.array.ptr = &(var->_.array.ptr);
 		break;
 
 	default:
@@ -796,6 +1094,23 @@ bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__gbl(SKILL,skill,skill)
 	__gbl(TOKEN,token,token)
 	__gbl(WILDS,wilds,wilds)
+
+	case VAR_FLAG:
+		return nib_push_stack_flag(nsr, var->_.stat.number, var->_.stat.table);
+
+	case VAR_FLAG_BANK:
+		return nib_push_stack_flagbank_shared(nsr, var->_.flagbank.bits, var->_.flagbank.bank, var->_.flagbank.banks);
+
+	case VAR_STAT:
+		return nib_push_stack_stat(nsr, var->_.stat.number, var->_.stat.table);
+
+	case VAR_LIST:
+	case VAR_LIST_S:
+		return nib_push_stack_list_shared(nsr, var->_.list.list, var->_.list.type);
+
+	case VAR_ARRAY:
+	case VAR_ARRAY_S:
+		return nib_push_stack_array_shared(nsr, var->_.array.ptr, var->_.array.type, var->_.array.size, var->_.array.length);
 	}
 
 	return false;
@@ -816,13 +1131,22 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__glv(FLOAT,flt,d)
 	__glv(BOOLEAN,b,b)
 	__glv(CHAR,ch,ch)
-	case VAR_STRING_S:
+	// case VAR_STRING_S:
 	__glv(STRING,str,str)
 	// __glv(MAP,map,map)
+	__glv(WIDEVNUM,wnum,wnum)
+
 	case VAR_FLAG:
 		lvalue.type = NST_FLAG;
 		lvalue._.stat.number = &(var->_.stat.number);
 		lvalue._.stat.table = var->_.stat.table;
+		break;
+
+	case VAR_FLAG_BANK:
+		lvalue.type = NST_FLAG_BANK;
+		lvalue._.flagbank.bits = var->_.flagbank.bits;
+		lvalue._.flagbank.bank = var->_.flagbank.bank;
+		lvalue._.flagbank.banks = var->_.flagbank.banks;
 		break;
 
 	case VAR_STAT:
@@ -831,7 +1155,6 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 		lvalue._.stat.table = var->_.stat.table;
 		break;
 
-	__glv(WIDEVNUM,wnum,wnum)
 	__glv(ACCOUNT,account,account)
 	__glv(AFFECT,affect,affect)
 	__glv(AREA,area,area)
@@ -858,6 +1181,21 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__glv(TOKEN,token,token)
 	__glv(WILDS,wilds,wilds)
 
+	case VAR_LIST:
+	case VAR_LIST_S:
+		lvalue.type = NST_LIST;
+		lvalue._.list.type = var->_.list.type;
+		lvalue._.list.list = &(var->_.list.list);
+		break;
+
+	case VAR_ARRAY:
+	case VAR_ARRAY_S:
+		lvalue.type = NST_ARRAY;
+		lvalue._.array.type = var->_.array.type;
+		lvalue._.array.length = var->_.array.length;
+		lvalue._.array.ptr = &(var->_.array.ptr);
+		break;
+
 	default:
 		return false;
 
@@ -866,102 +1204,272 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	return nib_push_stack_lvalue(nsr, &lvalue);
 }
 
-static void *__get_lvalue_field(NIB_SCRIPT_LVALUE *lvalue, NIB_FIELD *field)
+static void *__get_field_offset(NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 {
-#define __lfo(t,f) \
-	case NST_##t:		return (void *)*(lvalue->_.f) + field->offset;
+#define __rfo(t,f) \
+	case NST_##t:		return (void *)(sp->_.f) + field->offset;
 
-	switch(lvalue->type)
+#define __lfo(t,f) \
+	case NST_##t:		return (void *)(*(sp->_.lvalue._.f)) + field->offset;
+
+	switch(sp->type)
 	{
-	__lfo(ACCOUNT,account)
-	__lfo(AFFECT,affect)
-	__lfo(AREA,area)
-	// __lfo(CHANNEL,channel)
-	__lfo(CLASS,clazz)
-	__lfo(DUNGEON,dungeon)
-	__lfo(EXIT,ex)
-	__lfo(INSTANCE,instance)
-	__lfo(LIQUID,liquid)
-	__lfo(MAIL,mail)
-	__lfo(MATERIAL,material)
-	__lfo(MISSION,mission)
-	__lfo(MOBILE,mobile)
-	__lfo(NOTE,note)
-	__lfo(OBJECT,object)
-	__lfo(ORG,org)
-	// __lfo(QUEST,quest)
-	__lfo(RACE,race)
-	__lfo(RANK,rank)
-	__lfo(REPUTATION,reputation)
-	__lfo(ROOM,room)
-	__lfo(SHIP,ship)
-	__lfo(SKILL,skill)
-	__lfo(TOKEN,token)
-	__lfo(WILDS,wilds)
-	case NST_WIDEVNUM:	return (void*)(lvalue->_.wnum) + field->offset;
+	__rfo(ACCOUNT,account)
+	__rfo(AFFECT,affect)
+	__rfo(AREA,area)
+	// __rfo(CHANNEL,channel)
+	__rfo(CLASS,clazz)
+	__rfo(DUNGEON,dungeon)
+	__rfo(EXIT,ex)
+	__rfo(INSTANCE,instance)
+	__rfo(LIQUID,liquid)
+	__rfo(MAIL,mail)
+	__rfo(MATERIAL,material)
+	__rfo(MISSION,mission)
+	__rfo(MOBILE,mobile)
+	__rfo(NOTE,note)
+	__rfo(OBJECT,object)
+	__rfo(ORG,org)
+	// __rfo(QUEST,quest)
+	__rfo(RACE,race)
+	__rfo(RANK,rank)
+	__rfo(REPUTATION,reputation)
+	__rfo(ROOM,room)
+	__rfo(SHIP,ship)
+	__rfo(SKILL,skill)
+	__rfo(TOKEN,token)
+	__rfo(WILDS,wilds)
+	// __rfo(WORLD,world)
+	case NST_WIDEVNUM:
+		// fprintf(stderr,"__get_field_offset(WIDEVNUM): %p, %d\n", &(sp->_.wnum), field->offset);
+		// fprintf(stderr,"__get_field_offset(WIDEVNUM): (AREA_DATA **)%p\n", ((void*)&(sp->_.wnum) + field->offset));
+		// fprintf(stderr,"__get_field_offset(WIDEVNUM): (AREA_DATA *)%p\n", *((AREA_DATA **)((void*)&(sp->_.wnum) + field->offset)));
+		// fprintf(stderr,"__get_field_offset(WIDEVNUM): name = %s\n", (*((AREA_DATA **)((void*)&(sp->_.wnum) + field->offset)))->name);
+		return (void*)&(sp->_.wnum) + field->offset;
+	case NST_LVALUE:
+		switch(sp->_.lvalue.type)
+		{
+		__lfo(ACCOUNT,account)
+		__lfo(AFFECT,affect)
+		//__lfo(AREA,area)
+		case NST_AREA:
+			// fprintf(stderr,"__get_field_offset(AREA): %p\n", sp->_.lvalue._.area);
+			// fprintf(stderr,"__get_field_offset(AREA): %p, %d\n", *(sp->_.lvalue._.area), field->offset);
+			// fprintf(stderr,"__get_field_offset(AREA): %p\n", ((void*)(*(sp->_.lvalue._.area)) + field->offset));
+			return (void *)(*(sp->_.lvalue._.area)) + field->offset;
+		// __lfo(CHANNEL,channel)
+		__lfo(CLASS,clazz)
+		__lfo(DUNGEON,dungeon)
+		__lfo(EXIT,ex)
+		__lfo(INSTANCE,instance)
+		__lfo(LIQUID,liquid)
+		__lfo(MAIL,mail)
+		__lfo(MATERIAL,material)
+		__lfo(MISSION,mission)
+		__lfo(MOBILE,mobile)
+		__lfo(NOTE,note)
+		__lfo(OBJECT,object)
+		__lfo(ORG,org)
+		// __lfo(QUEST,quest)
+		__lfo(RACE,race)
+		__lfo(RANK,rank)
+		__lfo(REPUTATION,reputation)
+		__lfo(ROOM,room)
+		__lfo(SHIP,ship)
+		__lfo(SKILL,skill)
+		__lfo(TOKEN,token)
+		__lfo(WILDS,wilds)
+		// __lfo(WORLD,world)
+		case NST_WIDEVNUM:	return (void*)(sp->_.lvalue._.wnum) + field->offset;
+		}
 	}
+
 
 	return NULL;
 }
 
-bool nib_push_stack_field_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lvalue, NIB_FIELD *field)
+bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 {
-#define __flv(t,f)	case NST_##t:	_lvalue._.f = ptr; break;
+#define __flv(n,t,r,l)	\
+	case NST_##n:\
+		if (is_lvalue) \
+		{ \
+			_stack.type = NST_LVALUE; \
+			_stack._.lvalue.type = NST_##n; \
+			_stack._.lvalue._.l = ptr; \
+		} else { \
+			_stack._.r = *((t *)ptr); \
+		} \
+		break;
 
-	void *ptr = __get_lvalue_field(lvalue, field);
+#define __flv2(n,t,r,l,s) \
+	case NST_##n:\
+		if (is_lvalue) \
+		{ \
+			_stack.type = NST_LVALUE; \
+			_stack._.lvalue.type = NST_##n; \
+			_stack._.lvalue._.l = ptr; \
+		} else { \
+			_stack.type = NST_##s; \
+			_stack._.r = *((t *)ptr); \
+		} \
+		break;
+
+#define __flvd(n,f) \
+	case NST_##n:\
+		if (is_lvalue) \
+		{ \
+			_stack.type = NST_LVALUE; \
+			_stack._.lvalue.type = NST_##n; \
+			_stack._.lvalue._.f = ptr; \
+		} else { \
+			_stack._.f = *((n##_DATA **)ptr); \
+		} \
+		break;
+
+	// Save value as an LVALUE instead of an RVALUE
+	bool is_lvalue = sp->type == NST_LVALUE && field->lvalue;
+	void *ptr = __get_field_offset(sp, field);
 	if (!ptr) return false;
 
-	NIB_SCRIPT_LVALUE _lvalue;
-	_lvalue.type = field->stype;
+	// fprintf(stderr,"nib_push_stack_field: %p\n", ptr);
+
+	NIB_SCRIPT_STACK _stack;
+	memset(&_stack, 0, sizeof(_stack));
+	_stack.type = field->stype;
 	switch(field->stype)
 	{
-	__flv(NUMBER,number)
-	__flv(FLOAT,d)
-	__flv(BOOLEAN,b)
-	__flv(CHAR,ch)
-	__flv(STRING,str)
+	case NST_NUMBER32:
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_NUMBER32;
+			_stack._.lvalue._.number32 = ptr;
+		}
+		else
+		{
+			_stack.type = NST_NUMBER;
+			_stack._.i = *((int *)ptr);
+		}
+		break;
+	__flv(NUMBER,long,i,number)
+	__flv(FLOAT,double,d,d)
+	__flv(BOOLEAN,bool,b,b)
+	__flv(CHAR,utf8char_t,ch,ch)
+	__flv2(STRING,char *,str,str,STRING_S)
 	// __flv(MAP,map)
-	__flv(WIDEVNUM,wnum)
-	__flv(ACCOUNT,account)
-	__flv(AFFECT,affect)
-	__flv(AREA,area)
-	// __flv(CHANNEL,channel)
-	__flv(CLASS,clazz)
-	__flv(DUNGEON,dungeon)
-	__flv(EXIT,ex)
-	__flv(INSTANCE,instance)
-	__flv(LIQUID,liquid)
-	__flv(MAIL,mail)
-	__flv(MATERIAL,material)
-	__flv(MISSION,mission)
-	__flv(MOBILE,mobile)
-	__flv(NOTE,note)
-	__flv(OBJECT,object)
-	__flv(ORG,org)
-	// __flv(QUEST,quest)
-	__flv(RACE,race)
-	__flv(RANK,rank)
-	__flv(REPUTATION,reputation)
-	__flv(ROOM,room)
-	__flv(SHIP,ship)
-	__flv(SKILL,skill)
-	__flv(TOKEN,token)
-	__flv(WILDS,wilds)
+	__flv(WIDEVNUM,WNUM,wnum,wnum)
+	__flvd(ACCOUNT,account)
+	__flvd(AFFECT,affect)
+	__flvd(AREA,area)
+	// __flvd(CHANNEL,channel)
+	__flvd(CLASS,clazz)
+	__flv(DUNGEON,DUNGEON *,dungeon,dungeon)
+	__flvd(EXIT,ex)
+	__flv(INSTANCE,INSTANCE *,instance,instance)
+	__flv(LIQUID,LIQUID *,liquid,liquid)
+	__flvd(MAIL,mail)
+	__flv(MATERIAL,MATERIAL *,material,material)
+	__flvd(MISSION,mission)
+	__flv(MOBILE,CHAR_DATA *,mobile,mobile)
+	__flvd(NOTE,note)
+	__flv(OBJECT,OBJ_DATA *,object,object)
+	__flv(ORG,CHURCH_DATA *,org,org)
+	// __flvd(QUEST,quest)
+	__flvd(RACE,race)
+	__flv(RANK,REPUTATION_INDEX_RANK_DATA *,rank,rank)
+	__flv(REPUTATION,REPUTATION_DATA *,reputation,reputation)
+	__flv(ROOM,ROOM_INDEX_DATA *,room,room)
+	__flvd(SHIP,ship)
+	__flvd(SKILL,skill)
+	__flvd(TOKEN,token)
+	__flvd(WILDS,wilds)
 	case NST_FLAG:
-		_lvalue._.stat.number = ptr;
-		_lvalue._.stat.table = field->type->_.flag.table;
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_FLAG;
+			_stack._.lvalue._.stat.number = ptr;
+			_stack._.lvalue._.stat.table = field->type->_.flag.table;
+		}
+		else
+		{
+			_stack._.stat.number = *((long *)ptr);
+			_stack._.stat.table = field->type->_.flag.table;
+		}
+		break;
+
+	case NST_FLAG_BANK:
+		// This is never an lvalue
+		_stack.type = NST_FLAG_BANK_S;
+		_stack._.flagbank.bits = ptr;
+		_stack._.flagbank.bank = field->type->_.flagbank.bank;
+		_stack._.flagbank.banks = field->type->_.flagbank.banks;
 		break;
 
 	case NST_STAT:
-		_lvalue._.stat.number = ptr;
-		_lvalue._.stat.table = field->type->_.stat.table;
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_STAT;
+			_stack._.lvalue._.stat.number = ptr;
+			_stack._.lvalue._.stat.table = field->type->_.stat.table;
+		}
+		else
+		{
+			_stack._.stat.number = *((long *)ptr);
+			_stack._.stat.table = field->type->_.stat.table;
+		}
+		break;
+
+	case NST_STAT32:
+		// fprintf(stderr, "push field: STAT32, %s\n", is_lvalue?"true":"false");
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_STAT32;
+			_stack._.lvalue._.stat32.number = ptr;
+			_stack._.lvalue._.stat32.table = field->type->_.stat.table;
+			// fprintf(stderr, "push field: STAT32, %p, %X\n",
+			// 	_stack._.lvalue._.stat32.table,
+			// 	*(_stack._.lvalue._.stat32.number)
+			// );
+		}
+		else
+		{
+			_stack.type = NST_STAT;
+			_stack._.stat.number = *((int *)ptr);
+			_stack._.stat.table = field->type->_.stat.table;
+			// fprintf(stderr, "push field: STAT, %p, %X\n",
+			// 	_stack._.stat.table,
+			// 	_stack._.stat.number
+			// );
+		}
 		break;
 
 	case NST_LIST:
-	case NST_LIST_S:
-		_lvalue.type = NST_LIST;	// LVALUE Lists are always "shared"
-		_lvalue._.list.type = field->stype2;
-		_lvalue._.list.list = ptr;
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_LIST;
+			_stack._.lvalue._.list.list = ptr;
+			_stack._.lvalue._.list.type = field->stype2;
+		}
+		else
+		{
+			_stack.type = NST_LIST_S;
+			_stack._.list.list = *((LLIST **)ptr);
+			_stack._.list.type = field->stype2;
+		}
+		break;
+
+	case NST_ARRAY:
+		// This is never an lvalue
+		_stack.type = NST_ARRAY_S;
+		_stack._.array.ptr = ptr;
+		_stack._.array.type = field->stype2;
+		_stack._.array.size = get_array_element_size_nst(field->stype2);
+		_stack._.array.length = field->type->_.array.length;
 		break;
 
 	default:
@@ -969,7 +1477,7 @@ bool nib_push_stack_field_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 
 	}
 
-	return nib_push_stack_lvalue(nsr, &_lvalue);
+	return nib_push_stack_raw(nsr, &_stack);
 }
 
 
@@ -977,6 +1485,12 @@ NIB_SCRIPT_STACK_TYPE nib_peek_stack(NIB_SCRIPT_RUNTIME *nsr)
 {
 	if (nsr->sp < 1) return NST_UNKNOWN;
 	return nsr->stack[nsr->sp-1].type;
+}
+
+NIB_SCRIPT_STACK *nib_peek_stack_raw(NIB_SCRIPT_RUNTIME *nsr)
+{
+	if (nsr->sp < 1) return NULL;
+	return &nsr->stack[nsr->sp-1];
 }
 
 NIB_SCRIPT_STACK_TYPE nib_peek_stack_lvalue_type(NIB_SCRIPT_RUNTIME *nsr)
@@ -1044,6 +1558,42 @@ bool nib_peek_stack_flag (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, con
 	{
 		*output = stack->_.stat.number;
 		*table = stack->_.stat.table;
+		return true;
+	}
+
+	return false;
+}
+bool nib_peek_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, int offset, long **output, const struct flag_type ***bank, int *banks)
+{
+	int sp = nsr->sp + offset;
+
+	if (sp < 0 || sp >= MAX_STACK) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[sp];
+
+	if (stack->type == NST_FLAG_BANK)
+	{
+		*output = stack->_.flagbank.bits;
+		*bank = stack->_.flagbank.bank;
+		*banks = stack->_.flagbank.banks;
+		return true;
+	}
+
+	return false;
+}
+bool nib_peek_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, long **output, const struct flag_type ***bank, int *banks)
+{
+	int sp = nsr->sp + offset;
+
+	if (sp < 0 || sp >= MAX_STACK) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[sp];
+
+	if (stack->type == NST_FLAG_BANK_S)
+	{
+		*output = stack->_.flagbank.bits;
+		*bank = stack->_.flagbank.bank;
+		*banks = stack->_.flagbank.banks;
 		return true;
 	}
 
@@ -1149,6 +1699,46 @@ bool nib_peek_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **ou
 	return false;
 }
 
+bool nib_peek_stack_array (NIB_SCRIPT_RUNTIME *nsr, int offset, void **output, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length)
+{
+	int sp = nsr->sp + offset;
+
+	if (sp < 0 || sp >= MAX_STACK) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[sp];
+
+	if (stack->type == NST_ARRAY)
+	{
+		*type = stack->_.array.type;
+		*output = stack->_.array.ptr;
+		*size = stack->_.array.size;
+		*length = stack->_.array.length;
+		return true;
+	}
+
+	return false;
+}
+
+bool nib_peek_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, void **output, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length)
+{
+	int sp = nsr->sp + offset;
+
+	if (sp < 0 || sp >= MAX_STACK) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[sp];
+
+	if (stack->type == NST_ARRAY_S)
+	{
+		*type = stack->_.array.type;
+		*output = stack->_.array.ptr;
+		*size = stack->_.array.size;
+		*length = stack->_.array.length;
+		return true;
+	}
+
+	return false;
+}
+
 bool stack_empty(NIB_SCRIPT_RUNTIME *nsr)
 {
 	return nsr->sp < 1;
@@ -1234,6 +1824,38 @@ bool nib_pop_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long *output, const struct fla
 
 	return false;
 }
+bool nib_pop_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, long **output, const struct flag_type ***bank, int *banks)
+{
+	if (nsr->sp < 1) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[--nsr->sp];
+
+	if (stack->type == NST_FLAG_BANK)
+	{
+		*output = stack->_.flagbank.bits;
+		*bank = stack->_.flagbank.bank;
+		*banks = stack->_.flagbank.banks;
+		return true;
+	}
+
+	return false;
+}
+bool nib_pop_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, long **output, const struct flag_type ***bank, int *banks)
+{
+	if (nsr->sp < 1) return false;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[--nsr->sp];
+
+	if (stack->type == NST_FLAG_BANK_S)
+	{
+		*output = stack->_.flagbank.bits;
+		*bank = stack->_.flagbank.bank;
+		*banks = stack->_.flagbank.banks;
+		return true;
+	}
+
+	return false;
+}
 bool nib_pop_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long *output, const struct flag_type **table)
 {
 	if (nsr->sp < 1) return false;
@@ -1278,7 +1900,7 @@ __pop(WILDS_DATA *,WILDS,wilds,wilds)
 
 __pop(NIB_SCRIPT_LVALUE,LVALUE,lvalue,lvalue)
 
-bool nib_pop_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, ITERATOR *it, LLIST **list, NIB_SCRIPT_STACK_TYPE *type)
+bool nib_pop_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, ITERATOR *it, LLIST **list, NIB_SCRIPT_STACK_TYPE *type, bool *shared)
 {
 	if (nsr->sp < 1) return false;
 
@@ -1289,6 +1911,7 @@ bool nib_pop_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, ITERATOR *it, LLIST **list
 		*type = stack->_.iter.type;
 		*list = stack->_.iter.list;
 		*it = stack->_.iter.it;
+		*shared = stack->_.iter.shared;
 		return true;
 	}
 
@@ -1486,6 +2109,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 
 			switch(lvalue.type)
 			{
+			case NST_NUMBER32:		return !*(lvalue._.number32);
 			case NST_NUMBER:		return !*(lvalue._.number);
 			case NST_FLOAT:			return *(lvalue._.d) == 0.0;
 			case NST_BOOLEAN:		return !*(lvalue._.b);
@@ -1617,6 +2241,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 
 			switch(lvalue.type)
 			{
+			case NST_NUMBER32:		return *(lvalue._.number32) != 0;
 			case NST_NUMBER:		return *(lvalue._.number) != 0;
 			case NST_FLOAT:			return *(lvalue._.d) != 0.0;
 			case NST_BOOLEAN:		return *(lvalue._.b);
@@ -1667,19 +2292,23 @@ static bool __increment_stack(NIB_SCRIPT_RUNTIME *nsr, bool post, bool push_resu
 	if (!nib_pop_stack_lvalue(nsr, &lvalue))
 		return false;
 
-	if (lvalue.type != NST_NUMBER)
-		return false;
-
 	long value;
-
-	if (post)
+	if (lvalue.type == NST_NUMBER32)
 	{
-		value = (*(lvalue._.number))++;
+		if (post)
+			value = (*(lvalue._.number32))++;
+		else
+			value = ++(*(lvalue._.number32));
+	}
+	else if (lvalue.type == NST_NUMBER)
+	{
+		if (post)
+			value = (*(lvalue._.number))++;
+		else
+			value = ++(*(lvalue._.number));
 	}
 	else
-	{
-		value = ++(*(lvalue._.number));
-	}
+		return false;
 
 	if (push_result)
 		return nib_push_stack_number(nsr, value);
@@ -1694,19 +2323,23 @@ static bool __decrement_stack(NIB_SCRIPT_RUNTIME *nsr, bool post, bool push_resu
 	if (!nib_pop_stack_lvalue(nsr, &lvalue))
 		return false;
 
-	if (lvalue.type != NST_NUMBER)
-		return false;
-
 	long value;
-
-	if (post)
+	if (lvalue.type == NST_NUMBER32)
 	{
-		value = (*(lvalue._.number))--;
+		if (post)
+			value = (*(lvalue._.number32))--;
+		else
+			value = --(*(lvalue._.number32));
+	}
+	else if (lvalue.type == NST_NUMBER)
+	{
+		if (post)
+			value = (*(lvalue._.number))--;
+		else
+			value = --(*(lvalue._.number));
 	}
 	else
-	{
-		value = --(*(lvalue._.number));
-	}
+		return false;
 
 	if (push_result)
 		return nib_push_stack_number(nsr, value);
@@ -2029,6 +2662,55 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// NUMBER op NUMBER32
+						{
+							long value;
+							switch(op)
+							{
+							case NI_ADD:	value = lsp->_.i + *(rsp->_.lvalue._.number32); break;
+							case NI_SUBT:	value = lsp->_.i - *(rsp->_.lvalue._.number32); break;
+							case NI_MULT:	value = lsp->_.i * *(rsp->_.lvalue._.number32); break;
+							case NI_MOD:
+								if (*(rsp->_.lvalue._.number32) == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = lsp->_.i % *(rsp->_.lvalue._.number32);
+								break;
+							
+							case NI_DIV:
+								if (*(rsp->_.lvalue._.number32) == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = lsp->_.i / *(rsp->_.lvalue._.number32);
+								break;
+
+							case NI_BAND:		value = (lsp->_.i & *(rsp->_.lvalue._.number32)); break;
+							case NI_BOR:		value = (lsp->_.i | *(rsp->_.lvalue._.number32)); break;
+							case NI_BXOR:		value = (lsp->_.i ^ *(rsp->_.lvalue._.number32)); break;
+
+							case NI_LSH:		value = (lsp->_.i << *(rsp->_.lvalue._.number32)); break;
+							case NI_RSH:		value = (lsp->_.i >> *(rsp->_.lvalue._.number32)); break;
+							case NI_RSHL:		value = (long)(((unsigned long)lsp->_.i) >> *(rsp->_.lvalue._.number32)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+
+							if (!nib_push_stack_number(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// NUMBER op NUMBER
 						{
 							long value;
@@ -2069,6 +2751,11 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								return true;
 							}
 
+							if (!nib_push_stack_number(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
 							break;
 						}
 					case NST_FLOAT:		// NUMBER op FLOAT => FLOAT
@@ -2310,6 +2997,37 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// FLOAT op NUMBER32 => FLOAT
+						{
+							double value;
+							switch(op)
+							{
+							case NI_ADD:	value = lsp->_.d + (double)*(rsp->_.lvalue._.number32); break;
+							case NI_SUBT:	value = lsp->_.d - (double)*(rsp->_.lvalue._.number32); break;
+							case NI_MULT:	value = lsp->_.d * (double)*(rsp->_.lvalue._.number32); break;
+							case NI_DIV:
+								if (*(rsp->_.lvalue._.number32) == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = lsp->_.d / (double)*(rsp->_.lvalue._.number32);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_float(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+
 					case NST_NUMBER:	// FLOAT op NUMBER => FLOAT
 						{
 							double value;
@@ -2563,6 +3281,40 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:		// CHAR op NUMBER32 => STRING
+						{
+							if (op != NI_MULT)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							// Cloning
+							char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int len = strlen(bytes);
+							int cnt = *(rsp->_.lvalue._.number32);
+							cnt = (cnt>0)?cnt:0;
+							char *value = calloc(1,len*cnt+1);
+							if (!value)
+							{
+								SETRET(nsr,MEMORY);
+								return true;
+							}
+							char *s = value;
+							for(int i = cnt; i-- > 0; s+=len)
+								strcpy(s,bytes);
+							*s = '\0';
+
+							if (!nib_push_stack_string_raw(nsr,value))
+							{
+								free(value);
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
 					case NST_NUMBER:		// CHAR op NUMBER => STRING
 						{
 							if (op != NI_MULT)
@@ -3092,6 +3844,102 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					case NI_ADD:		// Concatenation
 						{
 							const char *stringify = nib_get_flag_string(rsp->_.stat.table,rsp->_.stat.number);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLAG_BANK:		// STRING op BANK => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_flagbank_string(rsp->_.flagbank.bank,rsp->_.flagbank.bits);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									free(rsp->_.flagbank.bits);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+								free(rsp->_.flagbank.bits);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else
+							{
+								free(rsp->_.flagbank.bits);
+								if (!nib_push_stack_string(nsr,stringify))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLAG_BANK_S:	// STRING op BANK => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_flagbank_string(rsp->_.flagbank.bank,rsp->_.flagbank.bits);
 							if (lsp->_.str)
 							{
 								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -4331,6 +5179,88 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// STRING op NUMBER32 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(rsp->_.lvalue._.number32),number);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,number);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (lsp->_.str)
+									{
+										register int cnt = *(rsp->_.lvalue._.number32);
+										register int len = strlen(lsp->_.str);
+										char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										register char *str = value;
+										for(int i = cnt; i-- > 0; str += len)
+											strcpy(str, lsp->_.str);
+										*str = 0;
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr, value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_NUMBER:	// STRING op NUMBER => STRING
 						{
 							switch(op)
@@ -4745,6 +5675,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_FLAG_BANK:	// STRING op BANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flagbank_string((const struct flag_type **)rsp->_.lvalue._.flagbank.bank,rsp->_.lvalue._.flagbank.bits);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_STAT:		// STRING op STAT => STRING
 						{
 							switch(op)
@@ -4752,6 +5723,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							case NI_ADD:		// Concatenation
 								{
 									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT32:	// STRING op STAT32 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
 									if (lsp->_.str)
 									{
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -6324,6 +7336,99 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			case NST_FLAG_BANK:	// STRING op BANK => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_flagbank_string(rsp->_.flagbank.bank,rsp->_.flagbank.bits);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(rsp->_.flagbank.bits);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(rsp->_.flagbank.bits);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else
+							{
+								free(rsp->_.flagbank.bits);
+
+								if (!nib_push_stack_string(nsr,stringify))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLAG_BANK_S:	// STRING op BANK => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_flagbank_string(rsp->_.flagbank.bank,rsp->_.flagbank.bits);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else
+							{
+								if (!nib_push_stack_string(nsr,stringify))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_STAT:		// STRING op STAT => STRING
 				{
 					switch(op)
@@ -7429,6 +8534,81 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// STRING(s) op NUMBER32 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(rsp->_.lvalue._.number32),number);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,number);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (lsp->_.str)
+									{
+										register int cnt = *(rsp->_.lvalue._.number32);
+										register int len = strlen(lsp->_.str);
+										char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										register char *str = value;
+										for(int i = cnt; i-- > 0; str += len)
+											strcpy(str, lsp->_.str);
+										*str = 0;
+
+										if (!nib_push_stack_string_raw(nsr, value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_NUMBER:	// STRING(s) op NUMBER => STRING
 						{
 							switch(op)
@@ -7817,6 +8997,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_FLAG_BANK:	// STRING op BANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flagbank_string(rsp->_.lvalue._.flagbank.bank,rsp->_.lvalue._.flagbank.bits);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_STAT:		// STRING op STAT => STRING
 						{
 							switch(op)
@@ -7824,6 +9045,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							case NI_ADD:		// Concatenation
 								{
 									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT32:	// STRING op STAT32 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
 									if (lsp->_.str)
 									{
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -8988,6 +10250,27 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:
+						{
+							long value;
+							switch(op)
+							{
+							case NI_BAND:	value = (lsp->_.stat.number) & *(rsp->_.lvalue._.number32); break;
+							case NI_BOR:	value = (lsp->_.stat.number) | *(rsp->_.lvalue._.number32); break;
+							case NI_BXOR:	value = (lsp->_.stat.number) ^ *(rsp->_.lvalue._.number32); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_flag(nsr,value,lsp->_.stat.table))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:
 						{
 							long value;
@@ -9053,6 +10336,520 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 		{
 			switch(lsp->_.lvalue.type)
 			{
+			case NST_NUMBER32:		// NUMBER32 op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_NUMBER:	// NUMBER32 op NUMBER => NUMBER
+						{
+							long value;
+							switch(op)
+							{
+							case NI_ADD:	value = *(lsp->_.lvalue._.number32) + rsp->_.i; break;
+							case NI_SUBT:	value = *(lsp->_.lvalue._.number32) - rsp->_.i; break;
+							case NI_MULT:	value = *(lsp->_.lvalue._.number32) * rsp->_.i; break;
+							case NI_MOD:
+								if (rsp->_.i == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = *(lsp->_.lvalue._.number32) % rsp->_.i;
+								break;
+							
+							case NI_DIV:
+								if (rsp->_.i == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = *(lsp->_.lvalue._.number32) / rsp->_.i;
+								break;
+
+							case NI_BAND:	value = (*(lsp->_.lvalue._.number32) & rsp->_.i); break;
+							case NI_BOR:	value = (*(lsp->_.lvalue._.number32) | rsp->_.i); break;
+							case NI_BXOR:	value = (*(lsp->_.lvalue._.number32) ^ rsp->_.i); break;
+							case NI_LSH:	value = (*(lsp->_.lvalue._.number32) << rsp->_.i); break;
+							case NI_RSH:	value = (*(lsp->_.lvalue._.number32) >> rsp->_.i); break;
+							case NI_RSHL:	value = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> rsp->_.i); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_number(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLOAT:		// NUMBER32 op FLOAT => FLOAT
+						{
+							double value;
+							switch(op)
+							{
+							case NI_ADD:	value = (double)*(lsp->_.lvalue._.number32) + rsp->_.d; break;
+							case NI_SUBT:	value = (double)*(lsp->_.lvalue._.number32) - rsp->_.d; break;
+							case NI_MULT:	value = (double)*(lsp->_.lvalue._.number32) * rsp->_.d; break;
+							case NI_DIV:
+								if (rsp->_.d == 0.0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = (double)*(lsp->_.lvalue._.number32) / rsp->_.d;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_float(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_CHAR:		// NUMBER32 op CHAR => STRING
+						{
+							if (op != NI_MULT)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							// Cloning
+							char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int len = strlen(bytes);
+							int cnt = (*(lsp->_.lvalue._.number32)>0)?*(lsp->_.lvalue._.number32):0;
+							char *value = calloc(1,len*cnt+1);
+							if (!value)
+							{
+								SETRET(nsr,MEMORY);
+								return true;
+							}
+							char *s = value;
+							for(int i = cnt; i-- > 0; s+=len)
+								strcpy(s,bytes);
+							*s = '\0';
+
+							if (!nib_push_stack_string_raw(nsr,value))
+							{
+								free(value);
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+					case NST_STRING:	// NUMBER32 op STRING => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(lsp->_.lvalue._.number32), number);
+									if (rsp->_.str)
+									{
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
+										strcpy(value,number);
+										strcat(value,rsp->_.str);
+										free(rsp->_.str);
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+										
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (rsp->_.str)
+									{
+										int len = strlen(rsp->_.str);
+										int cnt = (*(lsp->_.lvalue._.number32)>0)?*(lsp->_.lvalue._.number32):0;
+										char *value = calloc(1,cnt * len + 1);
+										char *str = value;
+										for(int i = 0; i < cnt; i++, str += len)
+											strcpy(str,rsp->_.str);
+										*str = '\0';
+										free(rsp->_.str);
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								if (rsp->_.str) free(rsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STRING_S:	// NUMBER32 op STRING(s) => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(lsp->_.lvalue._.number32), number);
+									if (rsp->_.str)
+									{
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
+										strcpy(value,number);
+										strcat(value,rsp->_.str);
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+										
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (rsp->_.str)
+									{
+										int len = strlen(rsp->_.str);
+										int cnt = (*(lsp->_.lvalue._.number32)>0)?*(lsp->_.lvalue._.number32):0;
+										char *value = calloc(1,cnt * len + 1);
+										char *str = value;
+										for(int i = 0; i < cnt; i++, str += len)
+											strcpy(str,rsp->_.str);
+										*str = '\0';
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG:		// NUMBER32 op FLAG => FLAG
+						{
+							long value;
+							switch(op)
+							{
+							case NI_BAND:	value = *(lsp->_.lvalue._.number32) & rsp->_.stat.number; break;
+							case NI_BOR:	value = *(lsp->_.lvalue._.number32) | rsp->_.stat.number; break;
+							case NI_BXOR:	value = *(lsp->_.lvalue._.number32) ^ rsp->_.stat.number; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_flag(nsr, value, rsp->_.stat.table))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					case NST_LVALUE:	// NUMBER32 op LVALUE
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_NUMBER32:	// NUMBER32 op NUMBER32
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number32) + *(rsp->_.lvalue._.number32); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number32) - *(rsp->_.lvalue._.number32); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number32) * *(rsp->_.lvalue._.number32); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number32) % *(rsp->_.lvalue._.number32);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number32) / *(rsp->_.lvalue._.number32);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number32) & *(rsp->_.lvalue._.number32)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number32) | *(rsp->_.lvalue._.number32)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number32) ^ *(rsp->_.lvalue._.number32)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number32) << *(rsp->_.lvalue._.number32)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number32) >> *(rsp->_.lvalue._.number32)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> *(rsp->_.lvalue._.number32)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									break;
+								}
+
+							case NST_NUMBER:	// NUMBER32 op NUMBER
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number32) + *(rsp->_.lvalue._.number); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number32) - *(rsp->_.lvalue._.number); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number32) * *(rsp->_.lvalue._.number); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number32) % *(rsp->_.lvalue._.number);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number32) / *(rsp->_.lvalue._.number);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number32) & *(rsp->_.lvalue._.number)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number32) | *(rsp->_.lvalue._.number)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number32) ^ *(rsp->_.lvalue._.number)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number32) << *(rsp->_.lvalue._.number)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number32) >> *(rsp->_.lvalue._.number)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> *(rsp->_.lvalue._.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									break;
+								}
+
+							case NST_FLOAT:		// NUMBER32 op FLOAT => FLOAT
+								{
+									double value;
+									switch(op)
+									{
+									case NI_ADD:	value = (double)*(lsp->_.lvalue._.number32) + *(rsp->_.lvalue._.d); break;
+									case NI_SUBT:	value = (double)*(lsp->_.lvalue._.number32) - *(rsp->_.lvalue._.d); break;
+									case NI_MULT:	value = (double)*(lsp->_.lvalue._.number32) * *(rsp->_.lvalue._.d); break;
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.d) == 0.0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = (double)*(lsp->_.lvalue._.number32) / *(rsp->_.lvalue._.d);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_float(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_CHAR:		// NUMBER32 op CHAR => STRING
+								{
+									if (op != NI_MULT)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									// Cloning
+									char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+									int len = strlen(bytes);
+									int cnt = (*(lsp->_.lvalue._.number32)>0)?*(lsp->_.lvalue._.number32):0;
+									char *value = calloc(1,len*cnt+1);
+									if (!value)
+									{
+										SETRET(nsr,MEMORY);
+										return true;
+									}
+									char *s = value;
+									for(int i = cnt; i-- > 0;s+=len)
+										strcpy(s,bytes);
+									*s = '\0';
+
+									if (!nib_push_stack_string_raw(nsr,value))
+									{
+										free(value);
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+							case NST_STRING:	// NUMBER32 op STRING => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char number[100];
+											ltoa(*(lsp->_.lvalue._.number32), number);
+											if (*(rsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
+												strcpy(value,number);
+												strcat(value,*(rsp->_.lvalue._.str));
+
+												if(!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return false;
+												}
+											}
+											else if(!nib_push_stack_string(nsr,number))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+												
+											break;
+										}
+
+									case NI_MULT:		// Cloning
+										{
+											if (*(rsp->_.lvalue._.str))
+											{
+												int len = strlen(*(rsp->_.lvalue._.str));
+												int cnt = (*(lsp->_.lvalue._.number32)>0)?*(lsp->_.lvalue._.number32):0;
+												char *value = calloc(1,cnt * len + 1);
+												char *str = value;
+												for(int i = 0; i < cnt; i++, str += len)
+													strcpy(str,*(rsp->_.lvalue._.str));
+												*str = '\0';
+
+												if(!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return false;
+												}
+											}
+											else if(!nib_push_stack_string(nsr, ""))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLAG:		// NUMBER32 op FLAG => FLAG
+								{
+									long value;
+									switch(op)
+									{
+									case NI_BAND:	value = *(lsp->_.lvalue._.number32) & *(rsp->_.lvalue._.stat.number); break;
+									case NI_BOR:	value = *(lsp->_.lvalue._.number32) | *(rsp->_.lvalue._.stat.number); break;
+									case NI_BXOR:	value = *(lsp->_.lvalue._.number32) ^ *(rsp->_.lvalue._.stat.number); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_flag(nsr, value, rsp->_.lvalue._.stat.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+				
 			case NST_NUMBER:		// NUMBER op ???
 				{
 					switch(rsp->type)
@@ -9321,6 +11118,49 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER32:	// NUMBER op NUMBER32
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number) + *(rsp->_.lvalue._.number32); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number) - *(rsp->_.lvalue._.number32); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number) * *(rsp->_.lvalue._.number32); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number) % *(rsp->_.lvalue._.number32);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number) / *(rsp->_.lvalue._.number32);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number) & *(rsp->_.lvalue._.number32)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number) | *(rsp->_.lvalue._.number32)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number) ^ *(rsp->_.lvalue._.number32)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number) << *(rsp->_.lvalue._.number32)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number) >> *(rsp->_.lvalue._.number32)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number)) >> *(rsp->_.lvalue._.number32)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									break;
+								}
+
 							case NST_NUMBER:	// NUMBER op NUMBER
 								{
 									long value;
@@ -9363,6 +11203,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 									break;
 								}
+
 							case NST_FLOAT:		// NUMBER op FLOAT => FLOAT
 								{
 									double value;
@@ -9591,6 +11432,37 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER32:	// FLOAT op NUMBER32 => FLOAT
+								{
+									double value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.d) + (double)*(rsp->_.lvalue._.number32); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.d) - (double)*(rsp->_.lvalue._.number32); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.d) * (double)*(rsp->_.lvalue._.number32); break;
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.d) / (double)*(rsp->_.lvalue._.number32);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_float(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+
 							case NST_NUMBER:	// FLOAT op NUMBER => FLOAT
 								{
 									double value;
@@ -10386,6 +12258,99 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										SETRET(nsr,STACK);
 										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLAG_BANK:		// STRING op BANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flagbank_string(rsp->_.flagbank.bank,rsp->_.flagbank.bits);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											free(rsp->_.flagbank.bits);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(rsp->_.flagbank.bits);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else
+									{
+										free(rsp->_.flagbank.bits);
+
+										if (!nib_push_stack_string(nsr,stringify))
+										{
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLAG_BANK_S:	// STRING op BANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flagbank_string(rsp->_.flagbank.bank,rsp->_.flagbank.bits);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else
+									{
+										if (!nib_push_stack_string(nsr,stringify))
+										{
+											SETRET(nsr,STACK);
+											return true;
+										}
 									}
 
 									break;
@@ -11503,6 +13468,81 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER32:	// STRING op NUMBER32 => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char number[100];
+											ltoa(*(rsp->_.lvalue._.number32),number);
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(number)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,number);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,number))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									case NI_MULT:		// Cloning
+										{
+											if (*(lsp->_.lvalue._.str))
+											{
+												register int cnt = *(rsp->_.lvalue._.number32);
+												register int len = strlen(*(lsp->_.lvalue._.str));
+												char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+
+												register char *str = value;
+												for(int i = cnt; i-- > 0; str += len)
+													strcpy(str, *(lsp->_.lvalue._.str));
+												*str = 0;
+
+												if (!nib_push_stack_string_raw(nsr, value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr, ""))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
 							case NST_NUMBER:	// STRING op NUMBER => STRING
 								{
 									switch(op)
@@ -11885,6 +13925,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									break;
 								}
 							
+							case NST_FLAG_BANK:	// STRING op BANK => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											const char *stringify = nib_get_flagbank_string((const struct flag_type **)rsp->_.lvalue._.flagbank.bank,rsp->_.lvalue._.flagbank.bits);
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
 							case NST_STAT:		// STRING op STAT => STRING
 								{
 									switch(op)
@@ -11892,6 +13973,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									case NI_ADD:		// Concatenation
 										{
 											const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_STAT32:	// STRING op STAT32 => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
 											if (*(lsp->_.lvalue._.str))
 											{
 												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
@@ -13391,6 +15513,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.i) == (*(rsp->_.lvalue._.number32)); break;
+							case NI_NEQ:	value = (lsp->_.i) != (*(rsp->_.lvalue._.number32)); break;
+							case NI_LT:		value = (lsp->_.i) < (*(rsp->_.lvalue._.number32)); break;
+							case NI_LE:		value = (lsp->_.i) <= (*(rsp->_.lvalue._.number32)); break;
+							case NI_GT:		value = (lsp->_.i) > (*(rsp->_.lvalue._.number32)); break;
+							case NI_GE:		value = (lsp->_.i) >= (*(rsp->_.lvalue._.number32)); break;
+							case NI_LAND:	value = (lsp->_.i != 0) && (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LOR:	value = (lsp->_.i != 0) || (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LXOR:	value = (lsp->_.i != 0) != (*(rsp->_.lvalue._.number32) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -13614,6 +15763,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// FLOAT op NUMBER32 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.d) == ((double)*(rsp->_.lvalue._.number32)); break;
+							case NI_NEQ:	value = (lsp->_.d) != ((double)*(rsp->_.lvalue._.number32)); break;
+							case NI_LT:		value = (lsp->_.d) < ((double)*(rsp->_.lvalue._.number32)); break;
+							case NI_LE:		value = (lsp->_.d) <= ((double)*(rsp->_.lvalue._.number32)); break;
+							case NI_GT:		value = (lsp->_.d) > ((double)*(rsp->_.lvalue._.number32)); break;
+							case NI_GE:		value = (lsp->_.d) >= ((double)*(rsp->_.lvalue._.number32)); break;
+							case NI_LAND:	value = (lsp->_.d != 0.0) && (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LOR:	value = (lsp->_.d != 0.0) || (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LXOR:	value = (lsp->_.d != 0.0) != (*(rsp->_.lvalue._.number32) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// FLOAT op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -13743,6 +15919,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:	// CHAR op NUMBER32 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.ch) == (*(rsp->_.lvalue._.number32)); break;
+							case NI_NEQ:	value = (lsp->_.ch) != (*(rsp->_.lvalue._.number32)); break;
+							case NI_LT:		value = (lsp->_.ch) < (*(rsp->_.lvalue._.number32)); break;
+							case NI_LE:		value = (lsp->_.ch) <= (*(rsp->_.lvalue._.number32)); break;
+							case NI_GT:		value = (lsp->_.ch) > (*(rsp->_.lvalue._.number32)); break;
+							case NI_GE:		value = (lsp->_.ch) >= (*(rsp->_.lvalue._.number32)); break;
+							case NI_LAND:	value = (lsp->_.ch != '\0') && (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LOR:	value = (lsp->_.ch != '\0') || (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LXOR:	value = (lsp->_.ch != '\0') != (*(rsp->_.lvalue._.number32) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// CHAR op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -14828,6 +17031,30 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.stat.number) == *(rsp->_.lvalue._.number32); break;
+							case NI_NEQ:	value = (lsp->_.stat.number) != *(rsp->_.lvalue._.number32); break;
+							case NI_LT:		value = (lsp->_.stat.number) < *(rsp->_.lvalue._.number32); break;
+							case NI_LE:		value = (lsp->_.stat.number) <= *(rsp->_.lvalue._.number32); break;
+							case NI_GT:		value = (lsp->_.stat.number) > *(rsp->_.lvalue._.number32); break;
+							case NI_GE:		value = (lsp->_.stat.number) >= *(rsp->_.lvalue._.number32); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:		// STAT op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -14864,6 +17091,31 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							case NI_LE:		value = same && ((lsp->_.stat.number) <= *(rsp->_.lvalue._.stat.number)); break;
 							case NI_GT:		value = same && ((lsp->_.stat.number) > *(rsp->_.lvalue._.stat.number)); break;
 							case NI_GE:		value = same && ((lsp->_.stat.number) >= *(rsp->_.lvalue._.stat.number)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT32:		// STAT op STAT32 => BOOLEAN
+						{
+							bool same = lsp->_.stat.table == rsp->_.lvalue._.stat32.table;
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = same && ((lsp->_.stat.number) == *(rsp->_.lvalue._.stat32.number)); break;
+							case NI_NEQ:	value = same && ((lsp->_.stat.number) != *(rsp->_.lvalue._.stat32.number)); break;
+							case NI_LT:		value = same && ((lsp->_.stat.number) < *(rsp->_.lvalue._.stat32.number)); break;
+							case NI_LE:		value = same && ((lsp->_.stat.number) <= *(rsp->_.lvalue._.stat32.number)); break;
+							case NI_GT:		value = same && ((lsp->_.stat.number) > *(rsp->_.lvalue._.stat32.number)); break;
+							case NI_GE:		value = same && ((lsp->_.stat.number) >= *(rsp->_.lvalue._.stat32.number)); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -17221,6 +19473,305 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 		{
 			switch(lsp->_.lvalue.type)
 			{
+			case NST_NUMBER32:		// NUMBER32 op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_NUMBER:	// NUMBER32 op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (rsp->_.i); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (rsp->_.i); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (rsp->_.i); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (rsp->_.i); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (rsp->_.i); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (rsp->_.i); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.i != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.i != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.i != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLOAT:		// NUMBER32 op FLOAT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((double)*(lsp->_.lvalue._.number32)) == (rsp->_.d); break;
+							case NI_NEQ:	value = ((double)*(lsp->_.lvalue._.number32)) != (rsp->_.d); break;
+							case NI_LT:		value = ((double)*(lsp->_.lvalue._.number32)) < (rsp->_.d); break;
+							case NI_LE:		value = ((double)*(lsp->_.lvalue._.number32)) <= (rsp->_.d); break;
+							case NI_GT:		value = ((double)*(lsp->_.lvalue._.number32)) > (rsp->_.d); break;
+							case NI_GE:		value = ((double)*(lsp->_.lvalue._.number32)) >= (rsp->_.d); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.d != 0.0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.d != 0.0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.d != 0.0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_CHAR:		// NUMBER32 op CHAR => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (rsp->_.ch); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (rsp->_.ch); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (rsp->_.ch); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (rsp->_.ch); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (rsp->_.ch); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (rsp->_.ch); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.ch != '\0'); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.ch != '\0'); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.ch != '\0'); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_BOOLEAN:	// NUMBER32 op BOOLEAN => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.b); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.b); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.b); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG:		// NUMBER32 op FLAG => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (rsp->_.i); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (rsp->_.i); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.i != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.i != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.i != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_NUMBER32:	// NUMBER32 op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.number32)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.number32)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.number32)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.number32)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.number32)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.number32)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.number32) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER:	// NUMBER32 op NUMBER => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLOAT:		// NUMBER32 op FLOAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((double)*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.d)); break;
+									case NI_NEQ:	value = ((double)*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.d)); break;
+									case NI_LT:		value = ((double)*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.d)); break;
+									case NI_LE:		value = ((double)*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.d)); break;
+									case NI_GT:		value = ((double)*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.d)); break;
+									case NI_GE:		value = ((double)*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.d)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.d) != 0.0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.d) != 0.0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.d) != 0.0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_CHAR:		// NUMBER32 op CHAR => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.ch)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.ch)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.ch)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.ch)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.ch)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.ch)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.ch) != '\0'); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.ch) != '\0'); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.ch) != '\0'); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_BOOLEAN:	// NUMBER32 op BOOLEAN => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.b)); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.b)); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.b)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLAG:		// NUMBER32 op FLAG => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:		// NUMBER op ???
 				{
 					switch(rsp->type)
@@ -18489,6 +21040,30 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat.number) == *(rsp->_.lvalue._.number32); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat.number) != *(rsp->_.lvalue._.number32); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat.number) < *(rsp->_.lvalue._.number32); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat.number) <= *(rsp->_.lvalue._.number32); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat.number) > *(rsp->_.lvalue._.number32); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat.number) >= *(rsp->_.lvalue._.number32); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER:		// STAT op NUMBER => BOOLEAN
 								{
 									bool value;
@@ -18525,6 +21100,200 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat.number) <= *(rsp->_.lvalue._.stat.number)); break;
 									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat.number) > *(rsp->_.lvalue._.stat.number)); break;
 									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat.number) >= *(rsp->_.lvalue._.stat.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT32:		// STAT op STAT32 => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat.table == rsp->_.lvalue._.stat32.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat.number) == *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat.number) != *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat.number) < *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat.number) <= *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat.number) > *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat.number) >= *(rsp->_.lvalue._.stat32.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_STAT32:		// STAT32 op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_NUMBER:		// STAT op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(lsp->_.lvalue._.stat32.number) == (rsp->_.i); break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.stat32.number) != (rsp->_.i); break;
+							case NI_LT:		value = *(lsp->_.lvalue._.stat32.number) < (rsp->_.i); break;
+							case NI_LE:		value = *(lsp->_.lvalue._.stat32.number) <= (rsp->_.i); break;
+							case NI_GT:		value = *(lsp->_.lvalue._.stat32.number) > (rsp->_.i); break;
+							case NI_GE:		value = *(lsp->_.lvalue._.stat32.number) >= (rsp->_.i); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT:			// STAT32 op STAT => BOOLEAN
+						{
+							bool same = lsp->_.lvalue._.stat32.table == rsp->_.stat.table;
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat32.number) == (rsp->_.stat.number)); break;
+							case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat32.number) != (rsp->_.stat.number)); break;
+							case NI_LT:		value = same && (*(lsp->_.lvalue._.stat32.number) < (rsp->_.stat.number)); break;
+							case NI_LE:		value = same && (*(lsp->_.lvalue._.stat32.number) <= (rsp->_.stat.number)); break;
+							case NI_GT:		value = same && (*(lsp->_.lvalue._.stat32.number) > (rsp->_.stat.number)); break;
+							case NI_GE:		value = same && (*(lsp->_.lvalue._.stat32.number) >= (rsp->_.stat.number)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:		// STAT op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat32.number) == *(rsp->_.lvalue._.number32); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat32.number) != *(rsp->_.lvalue._.number32); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat32.number) < *(rsp->_.lvalue._.number32); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat32.number) <= *(rsp->_.lvalue._.number32); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat32.number) > *(rsp->_.lvalue._.number32); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat32.number) >= *(rsp->_.lvalue._.number32); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER:		// STAT op NUMBER => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat32.number) == *(rsp->_.lvalue._.number); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat32.number) != *(rsp->_.lvalue._.number); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat32.number) < *(rsp->_.lvalue._.number); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat32.number) <= *(rsp->_.lvalue._.number); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat32.number) > *(rsp->_.lvalue._.number); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat32.number) >= *(rsp->_.lvalue._.number); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT:			// STAT op STAT => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat32.table == rsp->_.lvalue._.stat.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat32.number) == *(rsp->_.lvalue._.stat.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat32.number) != *(rsp->_.lvalue._.stat.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat32.number) < *(rsp->_.lvalue._.stat.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat32.number) <= *(rsp->_.lvalue._.stat.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat32.number) > *(rsp->_.lvalue._.stat.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat32.number) >= *(rsp->_.lvalue._.stat.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT32:			// STAT op STAT => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat32.table == rsp->_.lvalue._.stat32.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat32.number) == *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat32.number) != *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat32.number) < *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat32.number) <= *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat32.number) > *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat32.number) >= *(rsp->_.lvalue._.stat32.number)); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -20843,6 +23612,821 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	bool push_result = true;
 	switch(lsp->_.lvalue.type)
 	{
+	case NST_NUMBER32:		// NUMBER32 op= ???
+		{
+			switch(rsp->type)
+			{
+			case NST_NUMBER:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number32) = (int)rsp->_.i;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							*(lsp->_.lvalue._.number32) += (int)rsp->_.i;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_SUBT_EQ:
+						{
+							*(lsp->_.lvalue._.number32) -= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_MULT_EQ:
+						{
+							*(lsp->_.lvalue._.number32) *= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_MOD_EQ:
+						{
+							if (rsp->_.i == 0)
+							{
+								SETRET(nsr,MATH);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.number32) %= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_DIV_EQ:
+						{
+							if (rsp->_.i == 0)
+							{
+								SETRET(nsr,MATH);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.number32) /= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BAND_EQ:
+						{
+							*(lsp->_.lvalue._.number32) |= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BOR_EQ:
+						{
+							*(lsp->_.lvalue._.number32) |= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BXOR_EQ:
+						{
+							*(lsp->_.lvalue._.number32) ^= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_LSH_EQ:
+						{
+							if (rsp->_.i >= MAX_FLAG_BITS)
+								*(lsp->_.lvalue._.number32) = 0;
+							else
+								*(lsp->_.lvalue._.number32) <<= rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_RSH_EQ:
+						{
+							if (rsp->_.i >= MAX_FLAG_BITS)
+							{
+								if (*(lsp->_.lvalue._.number32) < 0)
+									*(lsp->_.lvalue._.number32) = -1;
+								else
+									*(lsp->_.lvalue._.number32) = 0;
+							}
+							else
+								*(lsp->_.lvalue._.number32) >>= rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_RSHL_EQ:
+						{
+							if (rsp->_.i >= MAX_FLAG_BITS)
+								*(lsp->_.lvalue._.number32) = 0;
+							else
+								*(lsp->_.lvalue._.number32) = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> rsp->_.i);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_FLOAT:			// NUMBER op= FLOAT
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number32) = (int)rsp->_.d;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							*(lsp->_.lvalue._.number32) = (int)(*(lsp->_.lvalue._.number32) + rsp->_.d);
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_SUBT_EQ:
+						{
+							*(lsp->_.lvalue._.number32) = (int)(*(lsp->_.lvalue._.number32) - rsp->_.d);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_MULT_EQ:
+						{
+							*(lsp->_.lvalue._.number32) = (int)(*(lsp->_.lvalue._.number32) * rsp->_.d);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_DIV_EQ:
+						{
+							if (rsp->_.d == 0.0)
+							{
+								SETRET(nsr,MATH);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.number32) = (int)(*(lsp->_.lvalue._.number32) / rsp->_.d);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_BOOLEAN:		// NUMBER op= BOOLEAN
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number32) = ((rsp->_.b)?1:0);
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_NUMBER32:		// NUMBER32 op= NUMBER32
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number32) = *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number32) += *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) -= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) *= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) %= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) /= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number32) |= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number32) |= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number32) ^= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number32) = 0;
+									else
+										*(lsp->_.lvalue._.number32) <<= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number32) < 0)
+											*(lsp->_.lvalue._.number32) = -1;
+										else
+											*(lsp->_.lvalue._.number32) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number32) >>= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number32) = 0;
+									else
+										*(lsp->_.lvalue._.number32) = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> *(rsp->_.lvalue._.number32));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number32) = *(rsp->_.lvalue._.number);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number32) += *(rsp->_.lvalue._.number);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) -= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) *= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) %= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) /= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number32) |= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number32) |= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number32) ^= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number32) = 0;
+									else
+										*(lsp->_.lvalue._.number32) <<= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number32) < 0)
+											*(lsp->_.lvalue._.number32) = -1;
+										else
+											*(lsp->_.lvalue._.number32) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number32) >>= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number32) = 0;
+									else
+										*(lsp->_.lvalue._.number32) = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> *(rsp->_.lvalue._.number));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLOAT:			// NUMBER op= FLOAT
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number32) = (long)*(rsp->_.lvalue._.d);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number32) = (long)(*(lsp->_.lvalue._.number32) + *(rsp->_.lvalue._.d));
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) = (long)(*(lsp->_.lvalue._.number32) - *(rsp->_.lvalue._.d));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) = (long)(*(lsp->_.lvalue._.number32) * *(rsp->_.lvalue._.d));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.d) == 0.0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) = (long)(*(lsp->_.lvalue._.number32) / *(rsp->_.lvalue._.d));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_BOOLEAN:		// NUMBER op= BOOLEAN
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number32) = ((*(rsp->_.lvalue._.b))?1L:0L);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG_BIT:		// NUMBER op= BIT
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									
+									*(lsp->_.lvalue._.number32) = (IS_SET(*(rsp->_.lvalue._.bit.value),rsp->_.lvalue._.bit.bit)?1:0);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_NUMBER:		// NUMBER op= ???
 		{
 			switch(rsp->type)
@@ -24255,6 +27839,248 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 			break;
 		}
 
+	case NST_FLAG_BANK:
+		{
+			switch(rsp->type)
+			{
+			case NST_FLAG_BANK:
+				{
+					if (!rsp->_.flagbank.bits ||
+						lsp->_.lvalue._.flagbank.bank != rsp->_.flagbank.bank)
+					{
+						if (rsp->_.flagbank.bits) free(rsp->_.flagbank.bits);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] = rsp->_.flagbank.bits[i];
+
+							free(rsp->_.flagbank.bits);
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BAND_EQ:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] &= rsp->_.flagbank.bits[i];
+
+							free(rsp->_.flagbank.bits);
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BOR_EQ:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] |= rsp->_.flagbank.bits[i];
+
+							free(rsp->_.flagbank.bits);
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BXOR_EQ:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] ^= rsp->_.flagbank.bits[i];
+
+							free(rsp->_.flagbank.bits);
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						if (rsp->_.flagbank.bits) free(rsp->_.flagbank.bits);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLAG_BANK_S:
+				{
+					if (lsp->_.lvalue._.flagbank.bank != rsp->_.flagbank.bank)
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] = rsp->_.flagbank.bits[i];
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BAND_EQ:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] &= rsp->_.flagbank.bits[i];
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BOR_EQ:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] |= rsp->_.flagbank.bits[i];
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BXOR_EQ:
+						{
+							for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+								lsp->_.lvalue._.flagbank.bits[i] ^= rsp->_.flagbank.bits[i];
+
+							if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+				case NST_FLAG_BANK:
+					{
+						if (lsp->_.lvalue._.flagbank.bank != rsp->_.lvalue._.flagbank.bank)
+						{
+							SETRET(nsr,INVALID);
+							return true;
+						}
+						switch(op)
+						{
+						case NI_VOID_ASSIGN:
+							push_result = false;
+						case NI_ASSIGN:
+							{
+								for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+									lsp->_.lvalue._.flagbank.bits[i] = rsp->_.lvalue._.flagbank.bits[i];
+
+								if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						case NI_BAND_EQ:
+							{
+								for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+									lsp->_.lvalue._.flagbank.bits[i] &= rsp->_.lvalue._.flagbank.bits[i];
+
+								if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						case NI_BOR_EQ:
+							{
+								for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+									lsp->_.lvalue._.flagbank.bits[i] |= rsp->_.lvalue._.flagbank.bits[i];
+
+								if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						case NI_BXOR_EQ:
+							{
+								for(int i = 0; i < lsp->_.lvalue._.flagbank.banks; i++)
+									lsp->_.lvalue._.flagbank.bits[i] ^= rsp->_.lvalue._.flagbank.bits[i];
+
+								if (push_result && !nib_push_stack_flagbank_shared(nsr,lsp->_.lvalue._.flagbank.bits,lsp->_.lvalue._.flagbank.bank,lsp->_.lvalue._.flagbank.banks))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						default:
+							SETRET(nsr,INVALID);
+							return true;
+						}
+						break;
+					}
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_STAT:
 		{
 			switch(rsp->type)
@@ -24294,6 +28120,37 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_STAT32:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat.table != rsp->_.lvalue._.stat32.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat.number) = *(rsp->_.lvalue._.stat32.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat.number),lsp->_.lvalue._.stat.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_STAT:
 						{
 							switch(op)
@@ -24331,6 +28188,551 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					}
 					break;
 				}
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_STAT32:
+		{
+			switch(rsp->type)
+			{
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_STAT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat32.table != rsp->_.lvalue._.stat.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat32.number) = *(rsp->_.lvalue._.stat.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat32.number),lsp->_.lvalue._.stat32.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT32:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat32.table != rsp->_.lvalue._.stat32.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat32.number) = *(rsp->_.lvalue._.stat32.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat32.number),lsp->_.lvalue._.stat32.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_LIST:
+		{
+			switch(rsp->type)
+			{
+			case NST_LIST:
+				{
+					if (lsp->_.lvalue._.list.type != rsp->_.list.type)
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							list_destroy(*(lsp->_.lvalue._.list.list));
+							*(lsp->_.lvalue._.list.list) = rsp->_.list.list;
+
+							if (push_result && !nib_push_stack_list_shared(nsr,*(lsp->_.lvalue._.list.list),lsp->_.lvalue._.list.type))
+							{
+								list_destroy(rsp->_.list.list);
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_LIST_S:
+				{
+					if (lsp->_.lvalue._.list.type != rsp->_.list.type)
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							list_destroy(*(lsp->_.lvalue._.list.list));
+							// Make a copy since the source list is managed elsewhere
+							*(lsp->_.lvalue._.list.list) = list_copy(rsp->_.list.list);
+
+							if (push_result && !nib_push_stack_list_shared(nsr,*(lsp->_.lvalue._.list.list),lsp->_.lvalue._.list.type))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_NULL:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							list_destroy(*(lsp->_.lvalue._.list.list));
+							lsp->_.lvalue._.list.list = NULL;
+
+							if (push_result && !nib_push_stack_null(nsr))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_LIST:
+						{
+							if (lsp->_.lvalue._.list.type != rsp->_.lvalue._.list.type)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									list_destroy(*(lsp->_.lvalue._.list.list));
+									// Make a copy since the source list is managed elsewhere
+									*(lsp->_.lvalue._.list.list) = list_copy(*(rsp->_.lvalue._.list.list));
+
+									if (push_result && !nib_push_stack_list_shared(nsr,*(lsp->_.lvalue._.list.list),lsp->_.lvalue._.list.type))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_ARRAY:
+		{
+			switch(rsp->type)
+			{
+			case NST_ARRAY:
+				{
+					// Must match completely
+					if (lsp->_.lvalue._.array.type != rsp->_.array.type ||
+						lsp->_.lvalue._.array.size != rsp->_.array.size ||
+						lsp->_.lvalue._.array.length != rsp->_.array.length)
+					{
+						free_stack_item(rsp);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							// Check if string array, if so, free old strings
+							if (lsp->_.lvalue._.array.type == NST_STRING)
+							{
+								if (*(lsp->_.lvalue._.array.ptr))
+								{
+									char **s = (char **)(*(lsp->_.lvalue._.array.ptr));
+									for(long i = lsp->_.lvalue._.array.length; i-- > 0; s++)
+										if (*s) free(*s);
+								}
+							}
+
+							if (rsp->_.array.ptr)
+							{
+								if (!*(lsp->_.lvalue._.array.ptr))
+								{
+									// No actual array allocated in LHS (assigning to a null)
+									*(lsp->_.lvalue._.array.ptr) = calloc(rsp->_.array.length,rsp->_.array.size);
+									if (!*(lsp->_.lvalue._.array.ptr))
+									{
+										free_stack_item(rsp);
+										SETRET(nsr,MEMORY);
+										return true;
+									}
+								}
+								
+								if (rsp->_.array.type == NST_STRING)
+								{
+									// If it is a string, copy and free old array contents
+									char **s = (char **)(rsp->_.array.ptr);
+									char **d = (char **)(*(lsp->_.lvalue._.array.ptr));
+									for(long i = 0; i < rsp->_.array.length; i++, s++, d++)
+									{
+										if (*s)
+											*d = strdup(*s);
+										else
+											*d = NULL;
+									}
+								}
+								else
+									// Just copy data over, nothing needs to be freed/duplicated
+									memcpy(*(lsp->_.lvalue._.array.ptr), rsp->_.array.ptr, lsp->_.lvalue._.array.length * lsp->_.lvalue._.array.size);
+
+								free_stack_item(rsp);
+							}
+							else if (*(lsp->_.lvalue._.array.ptr))
+							{
+								// The RHS was null/empty, so wipe the LHS out
+								// NOTE: the strings were already free'd in preparation to copy the RHS over.
+								free(*(lsp->_.lvalue._.array.ptr));
+								*(lsp->_.lvalue._.array.ptr) = NULL;
+							}
+
+							if (push_result && !nib_push_stack_array_shared(nsr,*(lsp->_.lvalue._.array.ptr),lsp->_.lvalue._.array.type,lsp->_.lvalue._.array.size,lsp->_.lvalue._.array.length))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_ARRAY_S:
+				{
+					// Must match completely
+					if (lsp->_.lvalue._.array.type != rsp->_.array.type ||
+						lsp->_.lvalue._.array.size != rsp->_.array.size ||
+						lsp->_.lvalue._.array.length != rsp->_.array.length)
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							// Check if string array, if so, free old strings
+							if (lsp->_.lvalue._.array.type == NST_STRING)
+							{
+								if (*(lsp->_.lvalue._.array.ptr))
+								{
+									char **s = (char **)(*(lsp->_.lvalue._.array.ptr));
+									for(long i = lsp->_.lvalue._.array.length; i-- > 0; s++)
+										if (*s) free(*s);
+								}
+							}
+
+							if (rsp->_.array.ptr)
+							{
+								if (!*(lsp->_.lvalue._.array.ptr))
+								{
+									// No actual array allocated in LHS (assigning to a null)
+									*(lsp->_.lvalue._.array.ptr) = calloc(rsp->_.array.length,rsp->_.array.size);
+									if (!*(lsp->_.lvalue._.array.ptr))
+									{
+										free_stack_item(rsp);
+										SETRET(nsr,MEMORY);
+										return true;
+									}
+								}
+								
+								if (rsp->_.array.type == NST_STRING)
+								{
+									// If it is a string, copy and free old array contents
+									char **s = (char **)(rsp->_.array.ptr);
+									char **d = (char **)(*(lsp->_.lvalue._.array.ptr));
+									for(long i = 0; i < rsp->_.array.length; i++, s++, d++)
+									{
+										if (*s)
+											*d = strdup(*s);
+										else
+											*d = NULL;
+									}
+								}
+								else
+									// Just copy data over, nothing needs to be freed/duplicated
+									memcpy(*(lsp->_.lvalue._.array.ptr), rsp->_.array.ptr, lsp->_.lvalue._.array.length * lsp->_.lvalue._.array.size);
+							}
+							else if (*(lsp->_.lvalue._.array.ptr))
+							{
+								// The RHS was null/empty, so wipe the LHS out
+								// NOTE: the strings were already free'd in preparation to copy the RHS over.
+								free(*(lsp->_.lvalue._.array.ptr));
+								*(lsp->_.lvalue._.array.ptr) = NULL;
+							}
+
+							if (push_result && !nib_push_stack_array_shared(nsr,*(lsp->_.lvalue._.array.ptr),lsp->_.lvalue._.array.type,lsp->_.lvalue._.array.size,lsp->_.lvalue._.array.length))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_NULL:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							if (*(lsp->_.lvalue._.array.ptr))
+							{
+								// Check if string array, if so, free old strings
+								if (lsp->_.lvalue._.array.type == NST_STRING)
+								{
+									char **s = (char **)(*(lsp->_.lvalue._.array.ptr));
+									for(long i = lsp->_.lvalue._.array.length; i-- > 0; s++)
+										if (*s) free(*s);
+								}
+
+								free(*(lsp->_.lvalue._.array.ptr));
+								*(lsp->_.lvalue._.array.ptr) = NULL;
+							}
+
+							if (push_result && !nib_push_stack_null(nsr))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+			
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_ARRAY:
+						{
+							// Must match completely
+							if (lsp->_.lvalue._.array.type != rsp->_.lvalue._.array.type ||
+								lsp->_.lvalue._.array.size != rsp->_.lvalue._.array.size ||
+								lsp->_.lvalue._.array.length != rsp->_.lvalue._.array.length)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									// Check if string array, if so, free old strings
+									if (lsp->_.lvalue._.array.type == NST_STRING)
+									{
+										if (*(lsp->_.lvalue._.array.ptr))
+										{
+											char **s = (char **)(*(lsp->_.lvalue._.array.ptr));
+											for(long i = lsp->_.lvalue._.array.length; i-- > 0; s++)
+												if (*s) free(*s);
+										}
+									}
+
+									if (*(rsp->_.lvalue._.array.ptr))
+									{
+										if (!*(lsp->_.lvalue._.array.ptr))
+										{
+											// No actual array allocated in LHS (assigning to a null)
+											*(lsp->_.lvalue._.array.ptr) = calloc(rsp->_.lvalue._.array.length,rsp->_.lvalue._.array.size);
+											if (!*(lsp->_.lvalue._.array.ptr))
+											{
+												free_stack_item(rsp);
+												SETRET(nsr,MEMORY);
+												return true;
+											}
+										}
+										
+										if (rsp->_.lvalue._.array.type == NST_STRING)
+										{
+											// If it is a string, copy and free old array contents
+											char **s = (char **)(*(rsp->_.lvalue._.array.ptr));
+											char **d = (char **)(*(lsp->_.lvalue._.array.ptr));
+											for(long i = 0; i < rsp->_.lvalue._.array.length; i++, s++, d++)
+											{
+												if (*s)
+													*d = strdup(*s);
+												else
+													*d = NULL;
+											}
+										}
+										else
+											// Just copy data over, nothing needs to be freed/duplicated
+											memcpy(*(lsp->_.lvalue._.array.ptr), *(rsp->_.lvalue._.array.ptr), lsp->_.lvalue._.array.length * lsp->_.lvalue._.array.size);
+									}
+									else if (*(lsp->_.lvalue._.array.ptr))
+									{
+										// The RHS was null/empty, so wipe the LHS out
+										// NOTE: the strings were already free'd in preparation to copy the RHS over.
+										free(*(lsp->_.lvalue._.array.ptr));
+										*(lsp->_.lvalue._.array.ptr) = NULL;
+									}
+
+									if (push_result && !nib_push_stack_array_shared(nsr,*(lsp->_.lvalue._.array.ptr),lsp->_.lvalue._.array.type,lsp->_.lvalue._.array.size,lsp->_.lvalue._.array.length))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			default:
 				SETRET(nsr,INVALID);
 				return true;
@@ -24528,117 +28930,15 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	return false;
 }
 
-static bool __pop_method_arg(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_ARG *arg)
+static bool __pop_method_arg(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *arg)
 {
 	NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
 	if (!sp)
 		return false;
 
-	arg->type = sp->type;
-	switch(sp->type)
-	{
-	case NST_NUMBER:		arg->_.i = sp->_.i;	break;
-	case NST_FLOAT:			arg->_.d = sp->_.d; break;
-	case NST_BOOLEAN:		arg->_.b = sp->_.b; break;
-	case NST_CHAR:			arg->_.ch = sp->_.ch; break;
-	case NST_STRING:		arg->_.str = sp->_.str; break;
-	case NST_STRING_S:		arg->_.str = sp->_.str; arg->type = NST_STRING; break;
-	case NST_WIDEVNUM:		arg->_.wnum = sp->_.wnum; break;
-	case NST_FLAG:
-	case NST_STAT:
-		arg->_.stat.number = sp->_.stat.number;
-		arg->_.stat.table = sp->_.stat.table;
-		break;
-	case NST_LIST:
-	case NST_LIST_S:
-		arg->type = NST_LIST;
-		arg->_.list.list = sp->_.list.list;
-		arg->_.list.type = sp->_.list.type;
-		break;
-	case NST_AREA:			arg->_.area = sp->_.area; break;
-	// case NST_DUNGEON:
-	// case NST_INSTANCE:
-	case NST_MOBILE:		arg->_.mobile = sp->_.mobile; break;
-	// case NST_OBJECT:
-	// case NST_QUEST:
-	case NST_ROOM:			arg->_.room = sp->_.room; break;
-	// case NST_SHIP:
-	// case NST_TOKEN:
-	case NST_LVALUE:
-		{
-			arg->type = sp->_.lvalue.type;
-			switch(sp->_.lvalue.type)
-			{
-			case NST_NUMBER:		arg->_.i = *(sp->_.lvalue._.number); break;
-			case NST_FLOAT:			arg->_.d = *(sp->_.lvalue._.d); break;
-			case NST_BOOLEAN:		arg->_.b = *(sp->_.lvalue._.b); break;
-			case NST_CHAR:			arg->_.ch = *(sp->_.lvalue._.ch); break;
-			case NST_STRING:
-			case NST_STRING_S:
-				arg->type = NST_STRING;
-				arg->_.str = *(sp->_.lvalue._.str);
-				break;
-			case NST_WIDEVNUM:		arg->_.wnum = *(sp->_.lvalue._.wnum); break;
-			case NST_FLAG:
-			case NST_STAT:
-				arg->_.stat.number = *(sp->_.lvalue._.stat.number);
-				arg->_.stat.table = sp->_.lvalue._.stat.table;
-				break;
-			case NST_LIST:
-			case NST_LIST_S:
-				arg->type = NST_LIST;
-				arg->_.list.list = *(sp->_.lvalue._.list.list);
-				arg->_.list.type = sp->_.lvalue._.list.type;
-				break;
-			case NST_AREA:			arg->_.area = *(sp->_.lvalue._.area); break;
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
-			case NST_MOBILE:		arg->_.mobile = *(sp->_.lvalue._.mobile); break;
-			// case NST_OBJECT:
-			// case NST_QUEST:
-			case NST_ROOM:			arg->_.room = *(sp->_.lvalue._.room); break;
-			// case NST_SHIP:
-			// case NST_TOKEN:
-			default:
-				return false;
-			}
-			break;
-		}
-
-	default:
-		return false;
-	}
+	*arg = *sp;
 
 	return true;
-}
-
-static bool __push_method_result(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_ARG *result)
-{
-	switch(result->type)
-	{
-	case NST_NUMBER:		return nib_push_stack_number(nsr,result->_.i);
-	case NST_FLOAT:			return nib_push_stack_float(nsr,result->_.d);
-	case NST_BOOLEAN:		return nib_push_stack_boolean(nsr,result->_.b);
-	case NST_CHAR:			return nib_push_stack_char(nsr,result->_.ch);
-	case NST_STRING:		return nib_push_stack_string_raw(nsr,result->_.str);
-	case NST_STRING_S:		return nib_push_stack_string_shared(nsr,result->_.str);
-	case NST_WIDEVNUM:		return nib_push_stack_widevnum(nsr,&(result->_.wnum));
-	case NST_FLAG:			return nib_push_stack_flag(nsr,result->_.stat.number,result->_.stat.table);
-	case NST_STAT:			return nib_push_stack_stat(nsr,result->_.stat.number,result->_.stat.table);
-	case NST_LIST:			return nib_push_stack_list_raw(nsr,result->_.list.list,result->_.list.type);
-	case NST_LIST_S:		return nib_push_stack_list_shared(nsr,result->_.list.list,result->_.list.type);
-	case NST_AREA:			return nib_push_stack_area(nsr,result->_.area);
-	// case NST_DUNGEON:
-	// case NST_INSTANCE:
-	case NST_MOBILE:		return nib_push_stack_mobile(nsr,result->_.mobile);
-	// case NST_OBJECT:
-	// case NST_QUEST:
-	case NST_ROOM:			return nib_push_stack_room(nsr,result->_.room);
-	// case NST_SHIP:
-	// case NST_TOKEN:
-	default:
-		return false;
-	}
 }
 
 static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
@@ -24728,16 +29028,86 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
-	case NI_LVALUE_FIELD:
+	case NI_LVALUE_BIT_BANK:
 		{
-			short id = __get_short(nsr);
+			int _bank = (int)__get_bytecode(nsr);
+			flag_value_t bit = __get_long(nsr);
 
-			NIB_SCRIPT_STACK_TYPE context = nib_peek_stack_lvalue_type(nsr);
-			if (context == NST_UNKNOWN)
+			NIB_SCRIPT_STACK *stack = nib_pop_stack_raw(nsr);
+			if (!stack)
 			{
 				SETRET(nsr,STACK);
 				return true;
 			}
+
+			if (stack->type != NST_FLAG_BANK &&
+				stack->type != NST_FLAG_BANK_S &&
+				(stack->type != NST_LVALUE || stack->_.lvalue.type != NST_FLAG_BANK))
+			{
+				free_stack_item(stack);
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+
+			long *bits;
+			const struct flag_type **bank;
+			int banks;
+
+			if (stack->type == NST_FLAG_BANK || stack->type == NST_FLAG_BANK_S)
+			{
+				bits = stack->_.flagbank.bits;
+				bank = stack->_.flagbank.bank;
+				banks = stack->_.flagbank.banks;
+			}
+			else
+			{
+				bits = stack->_.lvalue._.flagbank.bits;
+				bank = stack->_.lvalue._.flagbank.bank;
+				banks = stack->_.lvalue._.flagbank.banks;
+			}
+
+			if (_bank < 0 || _bank >= banks)
+			{
+				free_stack_item(stack);
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			NIB_SCRIPT_LVALUE lvalue;
+			memset(&lvalue, 0, sizeof(lvalue));
+			lvalue.type = NST_FLAG_BIT;
+			lvalue._.bit.value = &bits[_bank];
+			lvalue._.bit.table = bank[_bank];
+			lvalue._.bit.bit = bit;
+
+			free_stack_item(stack);
+
+			if (!nib_push_stack_lvalue(nsr,&lvalue))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_LVALUE_FIELD:
+		{
+			short id = __get_short(nsr);
+
+			NIB_SCRIPT_STACK *this = nib_pop_stack_raw(nsr);
+			if (!this)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			NIB_SCRIPT_STACK_TYPE context;
+			if (this->type == NST_LVALUE)
+				context = this->_.lvalue.type;
+			else
+				context = this->type;
+			// sprintf(nsr->debug, "Context = %ld", context);
 
 			NIB_FIELD *field = nib_field_get_byid(context, id);
 			if (!field)
@@ -24746,23 +29116,17 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				return true;
 			}
 
+			// fprintf(stderr,"LVALUE_FIELD: %s\n", field->name);
+
 			if (field->method)
 			{
-				NIB_SCRIPT_ARG this;
-
-				if (!__pop_method_arg(nsr,&this))
-				{
-					SETRET(nsr,STACK);
-					return true;
-				}
-
-				NIB_SCRIPT_ARG output;
+				NIB_SCRIPT_STACK output;
 				memset(&output,0,sizeof(output));
 				output.type = field->stype;
 
-				nsr->last_return = (*field->method)(nsr,1,&this,&output);
+				nsr->last_return = (*field->method)(nsr,1,this,&output);
 
-				if (!__push_method_result(nsr,&output))
+				if (!nib_push_stack_raw(nsr,&output))
 				{
 					SETRET(nsr,STACK);
 					//SETRETN(nsr,__LINE__);
@@ -24772,20 +29136,14 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			}
 			else
 			{
-				NIB_SCRIPT_LVALUE lvalue;
-				if (!nib_pop_stack_lvalue(nsr, &lvalue))
-				{
-					SETRET(nsr,STACK);
-					return true;
-				}
-				if (!nib_push_stack_field_lvalue(nsr, &lvalue, field))
+				if (!nib_push_stack_field(nsr, this, field))
 				{
 					SETRET(nsr,STACK);
 					return true;
 				}
 			}
 
-
+			// fprintf(stderr, "NI_LVALUE_FIELD\n");
 			break;
 		}
 
@@ -24801,7 +29159,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				return true;
 			}
 
-			NIB_SCRIPT_ARG *argv = nib_calloc(argn, sizeof(NIB_SCRIPT_ARG));
+			NIB_SCRIPT_STACK *argv = nib_calloc(argn, sizeof(NIB_SCRIPT_STACK));
 			if (!argv)
 			{
 				SETRET(nsr,MEMORY);
@@ -24812,13 +29170,16 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			{
 				if (!__pop_method_arg(nsr,&argv[i]))
 				{
+					// Free up stack items that have been popped so far
+					for(int j = argn; j-- > i;)
+						free_stack_item(&argv[j]);
+
 					nib_free(argv);
 					SETRET(nsr,STACK);
 					// SETRETN(nsr,__LINE__);
 					return true;
 				}
 			}
-//typedef int METHOD_FUNC(NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output);
 
 			if (method->sresult == NST_VOID)
 			{
@@ -24826,20 +29187,24 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			}
 			else
 			{
-				NIB_SCRIPT_ARG output;
+				NIB_SCRIPT_STACK output;
 				memset(&output,0,sizeof(output));
 				output.type = method->sresult;
 
 				nsr->last_return = (*method->method)(nsr,argn,argv,&output);
 
-				if (!__push_method_result(nsr,&output))
+				if (!nib_push_stack_raw(nsr,&output))
 				{
+					for(int i = argn; i-- > 0;)
+						free_stack_item(&argv[i]);
 					nib_free(argv);
 					SETRET(nsr,STACK);
 					return true;
 				}
 			}
 
+			for(int i = argn; i-- > 0;)
+				free_stack_item(&argv[i]);
 			nib_free(argv);
 
 			// If something happened in the execution of the call that was considered fatal, fail the script
@@ -24850,27 +29215,23 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 
 	case NI_CALL_METHOD:
 		{
+			NIB_SCRIPT_STACK_TYPE context = (NIB_SCRIPT_STACK_TYPE)__get_bytecode(nsr);
 			short id = __get_short(nsr);
 			int argn = __get_bytecode(nsr) + 1;		// argv[0] == "this"
-
-			NIB_SCRIPT_STACK_TYPE context = nib_peek_stack_lvalue_type(nsr);
-			if (context == NST_UNKNOWN)
-			{
-				SETRET(nsr,STACK);
-				return true;
-			}
 
 			NIB_METHOD *method = nib_method_get_byid(context, id);
 			if (!method)
 			{
 				SETRET(nsr,INVALID);
+				// SETRETN(nsr,__LINE__);
 				return true;
 			}
 
-			NIB_SCRIPT_ARG *argv = nib_calloc(argn, sizeof(NIB_SCRIPT_ARG));
+			NIB_SCRIPT_STACK *argv = nib_calloc(argn, sizeof(NIB_SCRIPT_STACK));
 			if (!argv)
 			{
 				SETRET(nsr,MEMORY);
+				// SETRETN(nsr,__LINE__);
 				return true;
 			}
 
@@ -24878,28 +29239,8 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			{
 				if (!__pop_method_arg(nsr,&argv[i]))
 				{
-					nib_free(argv);
-					SETRET(nsr,STACK);
-					// SETRETN(nsr,(__LINE__ * 10 + i));
-					return true;
-				}
-			}
-//typedef int METHOD_FUNC(NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output);
-
-			if (method->sresult == NST_VOID)
-			{
-				nsr->last_return = (*method->method)(nsr,argn,argv,NULL);
-			}
-			else
-			{
-				NIB_SCRIPT_ARG output;
-				memset(&output,0,sizeof(output));
-				output.type = method->sresult;
-
-				nsr->last_return = (*method->method)(nsr,argn,argv,&output);
-
-				if (!__push_method_result(nsr,&output))
-				{
+					for(int j = argn; j-- > i;)
+						free_stack_item(&argv[j]);
 					nib_free(argv);
 					SETRET(nsr,STACK);
 					// SETRETN(nsr,__LINE__);
@@ -24907,6 +29248,42 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				}
 			}
 
+			// Context entity does not match the intended context of the instruction
+			if ((argv[0].type != context) && (argv[0].type == NST_LVALUE && (argv[0]._.lvalue.type != context)))
+			{
+				for(int i = argn; i-- > 0;)
+					free_stack_item(&argv[i]);
+				nib_free(argv);
+				SETRET(nsr,INVALID);
+				// SETRETN(nsr,__LINE__);
+				return true;
+			}
+
+			if (method->sresult == NST_VOID)
+			{
+				nsr->last_return = (*method->method)(nsr,argn,argv,NULL);
+			}
+			else
+			{
+				NIB_SCRIPT_STACK output;
+				memset(&output,0,sizeof(output));
+				output.type = method->sresult;
+
+				nsr->last_return = (*method->method)(nsr,argn,argv,&output);
+
+				if (!nib_push_stack_raw(nsr,&output))
+				{
+					for(int i = argn; i-- > 0;)
+						free_stack_item(&argv[i]);
+					nib_free(argv);
+					SETRET(nsr,STACK);
+					// SETRETN(nsr,__LINE__);
+					return true;
+				}
+			}
+
+			for(int i = argn; i-- > 0;)
+				free_stack_item(&argv[i]);
 			nib_free(argv);
 
 			// If something happened in the execution of the call that was considered fatal, fail the script
@@ -25065,6 +29442,41 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
+	case NI_LOAD_FLAG_BANK:
+		{
+			short table_index = __get_short(nsr);
+
+			if (table_index <= 0 || table_index > nsr->script->n_banks)
+			{
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			struct flag_type **bank = nsr->script->banks[table_index - 1];
+			int banks;
+			for(banks = 0; bank[banks]; banks++);
+
+			long *bits = malloc(banks * sizeof(long));
+			if (!bits)
+			{
+				SETRET(nsr,MEMORY);
+				return true;
+			}
+
+			for(int i = 0; i < banks; i++)
+			{
+				bits[i] = __get_long(nsr);
+			}
+			
+			if (!nib_push_stack_flagbank(nsr, bits, (const struct flag_type **)bank, banks))
+			{
+				free(bits);
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
 	case NI_LOAD_STAT:
 		{
 			long number = __get_number(nsr);
@@ -25090,19 +29502,9 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 		{
 			NIB_SCRIPT_STACK_TYPE type = (NIB_SCRIPT_STACK_TYPE)__get_bytecode(nsr);
 
-			LLIST *list = NULL;
-			switch(type)
+			LLIST *list = nib_create_new_list(type);
+			if (!list)
 			{
-			case NST_NUMBER:	list = new_integer_list(); break;
-			case NST_FLOAT:		list = new_float_list(); break;
-			case NST_BOOLEAN:	list = new_boolean_list(); break;
-			case NST_CHAR:		list = new_char_list(); break;
-			case NST_STRING:	list = new_string_list(); break;
-			case NST_WIDEVNUM:	list = new_widevnum_list(); break;
-			case NST_AREA:		list = list_create(false); break;
-			case NST_MOBILE:	list = list_create(false); break;
-			case NST_ROOM:		list = list_create(false); break;
-			default:
 				SETRET(nsr,INVALID);
 				return true;
 			}
@@ -25114,6 +29516,19 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			}
 			break;
 		}
+
+	case NI_NEW_ARRAY:
+		{
+			break;
+		}
+
+	case NI_NULL:
+		if (!nib_push_stack_null(nsr))
+		{
+			SETRET(nsr,STACK);
+			return true;
+		}
+		break;
 
 	case NI_TRUE:
 		if (!nib_push_stack_boolean(nsr, true))
@@ -25550,7 +29965,9 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 		{
 			LLIST *list;
 			NIB_SCRIPT_STACK_TYPE type;
+			bool shared = true;
 
+			// Pops without freeing anything
 			NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
 
 			if (!sp)
@@ -25562,6 +29979,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			switch(sp->type)
 			{
 			case NST_LIST:
+				shared = false;
 			case NST_LIST_S:
 				list = sp->_.list.list;
 				type = sp->_.list.type;
@@ -25570,7 +29988,6 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				switch(sp->_.lvalue.type)
 				{
 				case NST_LIST:
-				case NST_LIST_S:
 					list = *(sp->_.lvalue._.list.list);
 					type = sp->_.lvalue._.list.type;
 					break;
@@ -25587,7 +30004,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			}
 
 			// Push iterator onto stack
-			if (!nib_push_stack_iterator(nsr, list, type))
+			if (!nib_push_stack_iterator(nsr, list, type, shared))
 			{
 				SETRET(nsr,STACK);
 				return true;
@@ -25596,18 +30013,12 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 		}
 
 	case NI_ITER_STOP:
+		if (!nib_pop_stack(nsr))
 		{
-			ITERATOR it;
-			LLIST *list;
-			NIB_SCRIPT_STACK_TYPE type;
-			if (!nib_pop_stack_iterator(nsr,&it,&list,&type))
-			{
-				SETRET(nsr,STACK);
-				return true;
-			}
-			iterator_stop(&it);
-			break;
+			SETRET(nsr,STACK);
+			return true;
 		}
+		break;
 
 	case NI_ITER_NEXT:
 		{
@@ -25658,15 +30069,191 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 					var->_.str = strdup((char *)data);
 					break;
 				case NST_WIDEVNUM:	var->_.wnum = *((WNUM *)data); break;
-				case NST_AREA:		var->_.area = (AREA_DATA *)data; break;
-				case NST_MOBILE:	var->_.mobile = (CHAR_DATA *)data; break;
-				case NST_ROOM:		var->_.room = (ROOM_INDEX_DATA *)data; break;
+#define __iter(n,f,t) \
+				case NST_##n:		var->_.f = (t) data; break;
+				
+				__iter(ACCOUNT,account,ACCOUNT_DATA *)
+				__iter(AFFECT,affect,AFFECT_DATA *)
+				__iter(AREA,area,AREA_DATA *)
+				// __iter(CHANNEL,channel,CHANNEL_DATA *)
+				__iter(CLASS,clazz,CLASS_DATA *)
+				__iter(DUNGEON,dungeon,DUNGEON *)
+				__iter(EXIT,ex,EXIT_DATA *)
+				__iter(INSTANCE,instance,INSTANCE *)
+				__iter(LIQUID,liquid,LIQUID *)
+				__iter(MAIL,mail,MAIL_DATA *)
+				__iter(MATERIAL,material,MATERIAL *)
+				__iter(MISSION,mission,MISSION_DATA *)
+				__iter(MOBILE,mobile,CHAR_DATA *)
+				__iter(NOTE,note,NOTE_DATA *)
+				__iter(OBJECT,object,OBJ_DATA *)
+				__iter(ORG,org,CHURCH_DATA *)
+				// __iter(QUEST,quest,QUEST_DATA *)
+				__iter(RACE,race,RACE_DATA *)
+				__iter(RANK,rank,REPUTATION_INDEX_RANK_DATA *)
+				__iter(REPUTATION,reputation,REPUTATION_DATA *)
+				__iter(ROOM,room,ROOM_INDEX_DATA *)
+				__iter(SHIP,ship,SHIP_DATA *)
+				__iter(SKILL,skill,SKILL_DATA *)
+				__iter(TOKEN,token,TOKEN_DATA *)
+				__iter(WILDS,wilds,WILDS_DATA *)
+				// __iter(WORLD,world,WORLD_DATA *)
 				default:
 					SETRET(nsr,INVALID);
 					// SETRETN(nsr,__LINE__);
 					return true;
 				}
+
+#undef __iter
 			}
+		}
+		break;
+
+	case NI_INDEXER_START:
+		{
+			long length;
+			size_t size;
+			void *ptr;
+			NIB_SCRIPT_STACK_TYPE type;
+			bool shared = true;
+
+			NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
+
+			if (!sp)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			switch(sp->type)
+			{
+			case NST_ARRAY:
+				shared = false;
+			case NST_ARRAY_S:
+				ptr = sp->_.array.ptr;
+				size = sp->_.array.size;
+				length = sp->_.array.length;
+				type = sp->_.array.type;
+				break;
+			case NST_LVALUE:
+				switch(sp->_.lvalue.type)
+				{
+				case NST_ARRAY:
+					ptr = *(sp->_.lvalue._.array.ptr);
+					size = sp->_.lvalue._.array.size;
+					length = sp->_.lvalue._.array.length;
+					type = sp->_.lvalue._.array.type;
+					break;
+				default:
+					free_stack_item(sp);
+					SETRET(nsr,INVALID);
+					return true;
+				}
+				break;
+			default:
+				free_stack_item(sp);
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			// Push indexer onto stack
+			if (!nib_push_stack_indexer(nsr, ptr, type, size, length, shared))
+			{
+				free_stack_item(sp);
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+	
+	case NI_INDEXER_STOP:
+		if (!nib_pop_stack(nsr))
+		{
+			SETRET(nsr,STACK);
+			return true;
+		}
+		break;
+
+	case NI_INDEXER_NEXT:
+		{
+			nib_address_t address = __get_address(nsr);
+			short id = __get_short(nsr);
+			NIB_LOCAL_RUNTIME_VAR *var = get_local_var(nsr, id);
+			if (!var)
+			{
+				SETRET(nsr,FAILURE);
+				// SETRETN(nsr,__LINE__);
+				return true;
+			}
+
+			NIB_SCRIPT_STACK *sp = nib_peek_stack_raw(nsr);
+			if (!sp || sp->type != NST_INDEXER)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			if (sp->_.indexer.type != var->type)
+			{
+				SETRET(nsr,INVALID);
+				SETRETN(nsr,__LINE__);
+				return true;
+			}
+
+			if (sp->_.indexer.ptr && sp->_.indexer.index < sp->_.indexer.length)
+			{
+				void *data = sp->_.indexer.ptr + sp->_.indexer.index++ * sp->_.indexer.size;
+
+				// Assign to the variable
+				switch(sp->_.indexer.type)
+				{
+				case NST_NUMBER:	var->_.i = *((long *)data); break;
+				case NST_FLOAT:		var->_.f = *((double *)data); break;
+				case NST_BOOLEAN:	var->_.b = *((bool *)data); break;
+				case NST_CHAR:		var->_.ch = *((utf8char_t *)data); break;
+				case NST_STRING:
+					if (var->_.str) free(var->_.str);
+					var->_.str = strdup((char *)data);
+					break;
+				case NST_WIDEVNUM:	var->_.wnum = *((WNUM *)data); break;
+#define __iter(n,f,t) \
+				case NST_##n:		var->_.f = (t)(*(void **)data); break;
+				
+				__iter(ACCOUNT,account,ACCOUNT_DATA *)
+				__iter(AFFECT,affect,AFFECT_DATA *)
+				__iter(AREA,area,AREA_DATA *)
+				// __iter(CHANNEL,channel,CHANNEL_DATA *)
+				__iter(CLASS,clazz,CLASS_DATA *)
+				__iter(DUNGEON,dungeon,DUNGEON *)
+				__iter(EXIT,ex,EXIT_DATA *)
+				__iter(INSTANCE,instance,INSTANCE *)
+				__iter(LIQUID,liquid,LIQUID *)
+				__iter(MAIL,mail,MAIL_DATA *)
+				__iter(MATERIAL,material,MATERIAL *)
+				__iter(MISSION,mission,MISSION_DATA *)
+				__iter(MOBILE,mobile,CHAR_DATA *)
+				__iter(NOTE,note,NOTE_DATA *)
+				__iter(OBJECT,object,OBJ_DATA *)
+				__iter(ORG,org,CHURCH_DATA *)
+				// __iter(QUEST,quest,QUEST_DATA *)
+				__iter(RACE,race,RACE_DATA *)
+				__iter(RANK,rank,REPUTATION_INDEX_RANK_DATA *)
+				__iter(REPUTATION,reputation,REPUTATION_DATA *)
+				__iter(ROOM,room,ROOM_INDEX_DATA *)
+				__iter(SHIP,ship,SHIP_DATA *)
+				__iter(SKILL,skill,SKILL_DATA *)
+				__iter(TOKEN,token,TOKEN_DATA *)
+				__iter(WILDS,wilds,WILDS_DATA *)
+				// __iter(WORLD,world,WORLD_DATA *)
+				default:
+					SETRET(nsr,INVALID);
+					SETRETN(nsr,__LINE__);
+					return true;
+				}
+			}
+			else
+				nsr->pc = address;
+#undef __iter
 		}
 		break;
 
@@ -26001,6 +30588,7 @@ static const char *opcode_names[] = {
 	"LVALUE_GLOBAL",
 	"LVALUE_SELF",
 	"LVALUE_BIT",
+	"LVALUE_BIT_BANK",
 	"LVALUE_FIELD",
 	"CALL_FUNCTION",
 	"CALL_METHOD",
@@ -26011,8 +30599,10 @@ static const char *opcode_names[] = {
 	"LOAD_WIDEVNUM",
 	"LOAD_FLAG",
 	"LOAD_FLAG_TABLE",
+	"LOAD_FLAG_BANK",
 	"LOAD_STAT",
 	"NEW_LIST",
+	"NEW_ARRAY",
 	"NULL",
 	"TRUE",
 	"FALSE",
@@ -26038,6 +30628,12 @@ static const char *opcode_names[] = {
 	"ITER_START",
 	"ITER_STOP",
 	"ITER_NEXT",
+	"STRINGER_START",
+	"STRINGER_STOP",
+	"STRINGER_NEXT",
+	"INDEXER_START",
+	"INDEXER_STOP",
+	"INDEXER_NEXT",
 	"LAND",
 	"LOR",
 	"LXOR",
@@ -26175,8 +30771,10 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 
 			switch(pc[addr])
 			{
-			case NI_LVALUE_SELF:
 			case NI_LOAD_WIDEVNUM:
+				type = NST_WIDEVNUM;
+				break;
+			case NI_LVALUE_SELF:
 			case NI_CONST0:
 			case NI_CONST1:
 			case NI_NCONST1:
@@ -26266,6 +30864,15 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 				break;
 			}
 
+			case NI_NEW_ARRAY:
+			{
+				NIB_SCRIPT_STACK_TYPE array_type = (NIB_SCRIPT_STACK_TYPE)pc[addr+1]; addr++;
+				memcpy(&number,&pc[addr+1],sizeof(number)); addr+=sizeof(number);
+				
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d %ld (new array(%s[%ld]))", array_type, number, nst_to_type(array_type), number);
+				break;
+			}
+
 			case NI_POPN:
 				{
 					short n;
@@ -26351,17 +30958,48 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 					break;
 				}
 
-			case NI_CALL_FUNCTION:
-				type = NST_FUNCTION;
+			case NI_LVALUE_BIT_BANK:
+				{
+					int bank = (int)pc[addr+1]; addr++;
+					flag_value_t bit;
+					memcpy(&bit, &pc[addr+1], sizeof(flag_value_t)); addr += sizeof(flag_value_t);
 
-			case NI_CALL_METHOD:
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d <[%08X]>", bank, bit);
+					break;
+				}
+
+			case NI_CALL_FUNCTION:
 				{
 					short id;
 					unsigned char args;
 					memcpy(&id, &pc[addr+1], sizeof(id));		addr += sizeof(id);
 					args = (unsigned char)pc[addr+1];			addr++;
 
-					NIB_METHOD *method = nib_method_get_byid(type, id);
+					NIB_METHOD *method = nib_method_get_byid(NST_FUNCTION, id);
+					if (method)
+					{
+						type = method->sresult;
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %d (%s %s)", id, args, nib_get_typename(script,method->result), method->name);
+					}
+					else
+					{
+						type = NST_UNKNOWN;
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %d --invalid--", id, args);
+					}
+
+					break;
+				}
+
+			case NI_CALL_METHOD:
+				{
+					NIB_SCRIPT_STACK_TYPE nst;
+					short id;
+					unsigned char args;
+					nst = (NIB_SCRIPT_STACK_TYPE)pc[addr+1]; addr++;
+					memcpy(&id, &pc[addr+1], sizeof(id));		addr += sizeof(id);
+					args = (unsigned char)pc[addr+1];			addr++;
+
+					NIB_METHOD *method = nib_method_get_byid(nst, id);
 					if (method)
 					{
 						type = method->sresult;
@@ -26433,6 +31071,43 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 				linej += snprintf(line + linej, sizeof(line) - linej - 1, " <[%08X@%s]>", number, nib_get_flag_table_name(script->flag_tables,table));
 				break;
 
+			case NI_LOAD_FLAG_BANK:
+			{
+				// #banks
+				// bank index
+				// bits1
+				// ...
+				// bitsN
+				int banks = pc[addr+1]; addr++;
+				memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+				
+				struct flag_type **bank;
+				if (index > 0 && index <= script->n_banks)
+					bank = script->banks[index - 1];
+				else
+					bank = NULL;
+
+				if (bank)
+				{
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %s<[[", banks, nib_get_flag_bank_name((const struct flag_type **)bank));
+					for(int i = 0; i < banks; i++)
+					{
+						memcpy(&number, &pc[addr+1], sizeof(long)); addr+=sizeof(long);
+
+						if (i > 0)
+							linej += snprintf(line + linej, sizeof(line) - linej - 1, ",%08X", number);
+						else
+							linej += snprintf(line + linej, sizeof(line) - linej - 1, "%08X", number);
+					}
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, "]]>");
+				}
+				else
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, ???", banks);
+
+
+				break;
+			}
+
 			case NI_LOAD_STAT:
 				memcpy(&number, &pc[addr+1], sizeof(number)); addr += sizeof(number);
 				memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
@@ -26453,7 +31128,17 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 				addr+=sizeof(address);
 				break;
 
+			// case NI_INDEXER_START:
+			// 	{
+			// 		memcpy(&number, &pc[addr+1], sizeof(number)); addr+= sizeof(number);
+
+			// 		linej += snprintf(line + linej, sizeof(line) - linej - 1, " %ld", number);
+			// 		break;
+			// 	}
+
 			case NI_ITER_NEXT:
+			case NI_STRINGER_NEXT:
+			case NI_INDEXER_NEXT:
 				{
 					short id;
 					memcpy(&address, &pc[addr+1], sizeof(address));	addr+=sizeof(address);
@@ -26500,6 +31185,7 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 NIB_SCRIPT_RUNTIME *nib_step_execute_init(NIB_SCRIPT *script)
 {
 	NIB_SCRIPT_RUNTIME *nsr = new_script_runtime(script);
+	if (!nsr) return NULL;
 
 	nsr->disassembly = __generate_disassembly(script);
 	
@@ -26625,8 +31311,12 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 	case NST_STAT:		return snprintf(line, max_len, "STA(%08X)", stack->_.stat.number);
 	case NST_LIST:		return snprintf(line, max_len, "LST(%s)", nst_to_type(stack->_.list.type));
 	case NST_LIST_S:	return snprintf(line, max_len, "LSTS(%s)", nst_to_type(stack->_.list.type));
+	case NST_ARRAY:		return snprintf(line, max_len, "ARY(%s[%ld])", nst_to_type(stack->_.array.type),stack->_.array.length);
+	case NST_ARRAY_S:	return snprintf(line, max_len, "ARYS(%s[%ld])", nst_to_type(stack->_.array.type),stack->_.array.length);
 	case NST_ITERATOR:
 		return snprintf(line, max_len, "ITER(%s)", nst_to_type(stack->_.iter.type));
+	case NST_INDEXER:
+		return snprintf(line, max_len, "IDXR(%s,%p,%ld,%ld)", nst_to_type(stack->_.indexer.type),stack->_.indexer.ptr,stack->_.indexer.index,stack->_.indexer.length);
 	case NST_LVALUE:
 		switch(stack->_.lvalue.type)
 		{
@@ -26645,7 +31335,7 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 					(stack->_.lvalue._.wnum->pArea != NULL ) ? stack->_.lvalue._.wnum->pArea->uid : 0,
 					stack->_.lvalue._.wnum->vnum
 				);
-		case NST_AREA:		return snprintf(line, max_len, "LVALUE(AREA(%ld))", (*(stack->_.lvalue._.area) != NULL)?(*(stack->_.lvalue._.area))->uid:0);
+		case NST_AREA:		return snprintf(line, max_len, "LVALUE(AREA(%p))", stack->_.lvalue._.area);
 		// case NST_INSTANCE:
 		// case NST_DUNGEON:
 		case NST_MOBILE:	return snprintf(line, max_len, "LVALUE(MOBILE)");
@@ -26663,8 +31353,9 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 		case NST_STAT:		return snprintf(line, max_len, "LVALUE(STA(%08X))", *(stack->_.lvalue._.number));
 		case NST_LIST:		return snprintf(line, max_len, "LVALUE(LST(%s))", nst_to_type(stack->_.lvalue._.list.type));
 //		case NST_LIST_S:	return snprintf(line, max_len, "LSTS(%s)", nst_to_type(stack->_.list.type));
+		case NST_ARRAY:		return snprintf(line, max_len, "LVALUE(ARRAY(%s,%p,%ld))", nst_to_type(stack->_.lvalue._.array.type),*(stack->_.lvalue._.array.ptr),stack->_.lvalue._.array.length);
 
-		default:			return snprintf(line, max_len, "LVALUE(???)");
+		default:			return snprintf(line, max_len, "LVALUE(??? %ld)", stack->_.lvalue.type);
 		}
 		break;
 	case NST_NULL:		return snprintf(line, max_len, "<NULL>");

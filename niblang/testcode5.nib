@@ -1,0 +1,18 @@
+global object sword;
+
+print("sword.type = " + sword.type);
+print("sword.flags = " + sword.flags);
+
+sword.flags.emits_light = false;
+
+print("sword.flags = " + sword.flags);
+
+print("BEFORE:");
+print("sword.level = " + sword.level);
+print("sword.condition = " + sword.condition);
+
+sword.level = 123;
+
+print("AFTER:");
+print("sword.level = " + sword.level);
+print("sword.condition = " + sword.condition);

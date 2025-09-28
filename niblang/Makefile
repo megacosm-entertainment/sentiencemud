@@ -1,6 +1,7 @@
 OBJDIR = obj
 YACCDIR = yacc
 C_FLAGS = -Werror -Wfatal-errors -Wno-trigraphs
+#C_FLAGS = -Wno-trigraphs
 
 L_FILES = \
 	lexer.l \
@@ -18,6 +19,7 @@ C_FILES = \
 	compile.c \
 	dummy.c \
 	flags.c \
+	funcs.c \
 	interpret.c \
 	list.c \
 	main.c \
@@ -25,6 +27,7 @@ C_FILES = \
 	methods.c \
 	scopetree.c \
 	script.c \
+	tables.c \
 	types.c \
 	utils.c \
 	variables.c

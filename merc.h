@@ -7310,11 +7310,11 @@ struct exit_data
         ROOM_INDEX_DATA *to_room;
         WNUM_LOAD wnum;
     } u1;
-    int exit_info;
+    long exit_info;
     char *keyword;
     char *short_desc; /* short description for displaying only */
     char *long_desc;  /* long desc for closer scrutiny */
-    int rs_flags;
+    long rs_flags;
     int orig_door;
 
     struct door_data

@@ -36,6 +36,8 @@ LLIST *nib_stat_created_tables = NULL;
 
 LLIST *nib_used_tables = NULL;
 
+LLIST *nib_used_banks = NULL;
+
 LLIST *nib_switch_blocks = NULL;
 
 struct nib_break_s *nib_break_address = NULL;
@@ -1045,6 +1047,9 @@ bool nib_init_compile()
 	nib_used_tables = list_create(false);	// Will hold (struct flag_type *)
 	if (!list_isvalid(nib_used_tables)) return false;
 
+	nib_used_banks = list_create(false);	// Will hold (struct flag_type **)
+	if (!list_isvalid(nib_used_banks)) return false;
+
 	nib_switch_blocks = nib_create_switch_list();
 	if (!list_isvalid(nib_switch_blocks)) return false;
 
@@ -1062,6 +1067,7 @@ void nib_cleanup_compile()
 	list_destroy(nib_flag_created_tables);
 	list_destroy(nib_stat_created_tables);
 	list_destroy(nib_used_tables);
+	list_destroy(nib_used_banks);
 	list_destroy(nib_switch_blocks);
 
 	nib_program_storage = NULL;
@@ -1072,6 +1078,7 @@ void nib_cleanup_compile()
 	nib_flag_created_tables = NULL;
 	nib_stat_created_tables = NULL;
 	nib_used_tables = NULL;
+	nib_used_banks = NULL;
 	nib_switch_blocks = NULL;
 
 	nib_cleanup_scopetree();

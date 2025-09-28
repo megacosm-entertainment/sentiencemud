@@ -9,6 +9,7 @@
 
 #include "../merc.h"
 #include "niblang.h"
+#include "script.h"
 
 extern int nibmethoddebug;
 extern int nibdebug;
@@ -51,6 +52,7 @@ struct parse_params_s {
 	bool run;
 	bool step;
 	bool clock;
+	bool cursor;
 	int run_count;
 };
 
@@ -60,6 +62,7 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 	memset(params,0,sizeof(*params));
 	params->run = true;
 	params->run_count = 1;
+	params->cursor = true;
 	
 	while(n < argc)
 	{
@@ -69,6 +72,8 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 			params->step = true;
 		else if (!str_cmp(argv[n], "-t"))
 			params->clock = true;
+		else if (!str_cmp(argv[n], "-c"))
+			params->cursor = false;
 		else if (!str_cmp(argv[n], "-f"))
 		{
 			if ((n+1) >= argc)
@@ -116,6 +121,8 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 
 int main(int argc, char **argv)
 {
+	setvbuf(stderr, NULL, _IONBF, 0);
+
 	srand(time(NULL));
 	struct parse_params_s params;
 	if (argc < 2 || !parse_args(argc,argv,&params))
@@ -166,7 +173,7 @@ int main(int argc, char **argv)
 				newt.c_lflag &= ~(ICANON | ECHO);
 				tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-				printf("\033[?25l");
+				if (params.cursor) printf("\033[?25l");
 
 				// Post processing
 				if (params.dump)
@@ -204,7 +211,7 @@ int main(int argc, char **argv)
 						NIB_SCRIPT_RUNTIME *nsr = nib_step_execute_init(script);
 						if (nsr && !nib_is_execution_done(nsr))
 						{
-							nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+							nib_step_execute_show(nsr, w.ws_row - 1, w.ws_col);
 
 							while(true)
 							{
@@ -218,7 +225,7 @@ int main(int argc, char **argv)
 									nib_step_execute(nsr);
 
 									if (nib_get_last_return(nsr) == SCPERR_SUCCESS)
-										nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+										nib_step_execute_show(nsr, w.ws_row - 1, w.ws_col);
 									else
 										break;
 								}
@@ -230,7 +237,7 @@ int main(int argc, char **argv)
 							}
 						}
 
-						nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+						nib_step_execute_show(nsr, w.ws_row - 1, w.ws_col);
 
 						char *code = NULL;
 						if(nib_get_last_return(nsr) < 0)
@@ -309,7 +316,7 @@ int main(int argc, char **argv)
 
 				}
 
-				printf("\n\033[?25h");
+				if (params.cursor) printf("\n\033[?25h");
 				tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
 				free_nib_script(script);
@@ -333,7 +340,19 @@ int main(int argc, char **argv)
 	printf("outstanding allocations: %lu\n", nib_allocations);
 	nib_ledger_cleanup();
 
-	printf("\U0001F60A\n\U00004E16\n");
-	return 0;
+/* #define __offset(f)	printf("&type->" #f " = %X(%X)\n", (size_t)((void *)&type.f - (void *)&type), sizeof(type.f))
+	NIB_TYPE type;
+	__offset(_static);
+	__offset(_reference);
+	__offset(type_class);
+	__offset(_);
+	__offset(_.primary);
+	__offset(_.flag);
+	__offset(_.stat);
+	__offset(_.list);
+	__offset(_.array);
+	__offset(_.multi);
+	__offset(name);
+ */	return 0;
 }
 

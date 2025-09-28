@@ -6,7 +6,7 @@
 #include "../merc.h"
 #include "niblang.h"
 
-NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
+NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant);
 
 NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant)
 {
@@ -14,7 +14,7 @@ NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool const
 
 	var->name = nib_strdup(name);
 	var->type = type;
-	var->stype = convert_to_stype(type);
+	var->stype = convert_to_stype(type,true);
 	var->scope = scope;
 	var->constant = constant;
 	var->initialized = false;

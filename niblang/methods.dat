@@ -2,11 +2,20 @@
 Function Format:
 FUNCTION return-type function-name([param-list]) -> internal-name;
 
+FUNCTION return-type function-name([param-list]) {
+	internal: internal-name,
+	description: "description"
+}
+
 Method Format:
 METHOD return-type context-type.method-name([param-list]) -> internal-name;
 
 Field Format:
-FIELD[ readonly] return-type context-type.field-name -> internal-name;
+FIELD[ constant] return-type context-type.field-name -> internal-name;
+
+Method-as-Field Format: (inherently constant return value)
+FIELD METHOD return-type context-type.method-name -> internal-name;
+
 
 For flags and stats, ONLY built-in named tables may be used
 */
@@ -23,42 +32,92 @@ method int int.random() -> number_random_value;
 field method int string.length -> string_length;
 
 // WIDEVNUM methods/fields
-field area widevnum.area -> widevnum_pArea;
-field int widevnum.vnum -> widevnum_vnum;
+field area& widevnum.area -> widevnum_pArea;
+field int& widevnum.vnum -> widevnum_vnum;
 
-// LIST methods (no fields) - only context that allows ANY to be used
+// LIST methods (no fields)
 method int list.size() -> list_size;
 method int list.add(any) -> list_add;
 method bool list.insert(int,any) -> list_insert;
 method any list.remove(int) -> list_remove;
 
-// AREA methods/fields
-field readonly int area.uid -> area_uid;
-field readonly string area.name -> area_name;
-field readonly string area.description -> area_description;
-field flag(area) area.flags -> area_area_flags;
-field readonly list(room) area.rooms -> area_room_list;
+// ARRAY methods and fields
+field method int array.length -> array_length;
 
-// INSTANCE methods/fields
+// AREA methods/fields
+field constant int area.uid -> area_uid;
+field constant string area.name -> area_name;
+field constant string area.description -> area_description;
+field flag&("area") area.flags -> area_area_flags;
+field constant list(room) area.rooms -> area_room_list;
+method room area.get_room(int) -> area_get_room;
 
 // DUNGEON methods/fields
 
+// EXIT methods/fields
+field method int exit.door -> exit_get_door;	// TODO: Change this to a stat
+field method string exit.dir -> exit_get_direction;
+field method string exit.direction -> exit_get_direction;
+field constant room exit.room -> exit_from_room;
+field room exit.dest -> exit_u1.to_room;
+field room exit.destination -> exit_u1.to_room;
+field method exit exit.mate -> exit_get_mate;
+field method exit& exit.north -> exit_get_north;
+field method exit& exit.northeast -> exit_get_northeast;
+field method exit& exit.east -> exit_get_east;
+field method exit& exit.southeast -> exit_get_southeast;
+field method exit& exit.south -> exit_get_south;
+field method exit& exit.southwest -> exit_get_southwest;
+field method exit& exit.west -> exit_get_west;
+field method exit& exit.northwest -> exit_get_northwest;
+field method exit& exit.up -> exit_get_up;
+field method exit& exit.down -> exit_get_down;
+field method boolean exit.is_oneway -> exit_is_oneway;
+field method boolean exit.is_twoway -> exit_is_twoway;
+field flag&("exit") exit.flags -> exit_exit_info;
+
+// INSTANCE methods/fields
+
 // MOBILE methods/fields
-field string mobile.name -> mobile_name;
-field string mobile.short -> mobile_short_descr;
-field string mobile.long -> mobile_long_descr;
-field string mobile.description -> mobile_description;
+field string& mobile.name -> mobile_name;
+field string& mobile.short -> mobile_short_descr;
+field string& mobile.long -> mobile_long_descr;
+field string& mobile.description -> mobile_description;
 field method widevnum mobile.widevnum -> mobile_get_widevnum;
+field list(constant object) mobile.carrying -> mobile_lcarrying;
+field list(constant object) mobile.worn -> mobile_lworn;
 
 // OBJECT methods/fields
+field string& object.name -> object_name;
+field string& object.short -> object_short_descr;
+field string& object.long -> object_description;
+field string& object.description -> object_full_description;
+field constant mobile object.carrier -> object_carried_by;
+field constant mobile object.puller -> object_pulled_by;
+field constant int object.enchanted -> object_num_enchanted;
+field constant stat32(itemtypes) object.type -> object_item_type;
+field flagbank&("object") object.flags -> object_extra;
+field int32& object.level -> object_level;
+field int32& object.condition -> object_condition;
 
 // QUEST methods/fields
 
 // ROOM method/fields
-field readonly int room.vnum -> room_vnum;
-field string room.name -> room_name;
-field string room.description -> room_description;
-field readonly list(mobile) room.people -> room_lpeople;
+field constant int room.vnum -> room_vnum;
+field string& room.name -> room_name;
+field string& room.description -> room_description;
+field constant list(mobile) room.people -> room_lpeople;
+field constant array(exit[10]) room.exits -> room_exit;
+field exit& room.north -> room_exit[DIR_NORTH];
+field exit& room.northeast -> room_exit[DIR_NORTHEAST];
+field exit& room.east -> room_exit[DIR_EAST];
+field exit& room.southeast -> room_exit[DIR_SOUTHEAST];
+field exit& room.south -> room_exit[DIR_SOUTH];
+field exit& room.southwest -> room_exit[DIR_SOUTHWEST];
+field exit& room.west -> room_exit[DIR_WEST];
+field exit& room.northwest -> room_exit[DIR_NORTHWEST];
+field exit& room.up -> room_exit[DIR_UP];
+field exit& room.down -> room_exit[DIR_DOWN];
 
 // SHIP methods/fields
 

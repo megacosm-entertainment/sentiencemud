@@ -28,6 +28,9 @@ DECL_METHOD_FUNC(list_insert);
 DECL_METHOD_FUNC(list_remove);
 DECL_METHOD_FUNC(list_size);
 
+// ARRAY methods
+DECL_METHOD_FUNC(array_length);
+
 // STAT methods
 
 // MAP methods
@@ -35,8 +38,26 @@ DECL_METHOD_FUNC(list_size);
 // WIDEVNUM methods
 
 // AREA Methods
+DECL_METHOD_FUNC(area_get_room);
 
 // DUNGEON methods
+
+// EXIT
+DECL_METHOD_FUNC(exit_get_door);
+DECL_METHOD_FUNC(exit_get_direction);
+DECL_METHOD_FUNC(exit_get_mate);
+DECL_METHOD_FUNC(exit_get_north);
+DECL_METHOD_FUNC(exit_get_northeast);
+DECL_METHOD_FUNC(exit_get_east);
+DECL_METHOD_FUNC(exit_get_southeast);
+DECL_METHOD_FUNC(exit_get_south);
+DECL_METHOD_FUNC(exit_get_southwest);
+DECL_METHOD_FUNC(exit_get_west);
+DECL_METHOD_FUNC(exit_get_northwest);
+DECL_METHOD_FUNC(exit_get_up);
+DECL_METHOD_FUNC(exit_get_down);
+DECL_METHOD_FUNC(exit_is_oneway);
+DECL_METHOD_FUNC(exit_is_twoway);
 
 // INSTANCE methods
 
@@ -48,6 +69,7 @@ DECL_METHOD_FUNC(mobile_get_widevnum);
 // QUEST methods
 
 // ROOM methods
+DECL_METHOD_FUNC(room_get_exits);
 
 // SHIP methods
 

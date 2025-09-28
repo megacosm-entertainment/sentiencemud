@@ -7,6 +7,8 @@ struct nib_script_stack_lvalue_s
 {
 	NIB_SCRIPT_STACK_TYPE type;
 	union {
+		void *raw;
+		int *number32;
 		long *number;
 		bool *b;
 		double *d;
@@ -54,9 +56,27 @@ struct nib_script_stack_lvalue_s
 		} stat;		// FLAG and STAT
 
 		struct {
+			int *number;
+			const struct flag_type *table;
+		} stat32;		// FLAG and STAT
+
+		struct {
+			long *bits;
+			const struct flag_type **bank;
+			int banks;
+		} flagbank;		// FLAG_BANK
+
+		struct {
 			NIB_SCRIPT_STACK_TYPE type;
 			LLIST **list;
 		} list;
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			long length;
+			size_t size;
+			void **ptr;
+		} array;
 	} _;
 };
 
@@ -78,16 +98,38 @@ struct nib_script_stack_s
 		} stat;
 
 		struct {
+			long *bits;
+			const struct flag_type **bank;
+			int banks;
+		} flagbank;		// FLAG_BANK
+
+		struct {
 			NIB_SCRIPT_STACK_TYPE type;
 			LLIST *list;
-			ITERATOR it;
 		} list;
 
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
 			LLIST *list;
+			bool shared;
 			ITERATOR it;
 		} iter;
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			long length;
+			size_t size;
+			void *ptr;
+		} array;
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			long length;
+			size_t size;
+			long index;
+			bool shared;
+			void *ptr;
+		} indexer;	// Used for indexing an array
 
 		ACCOUNT_DATA *account;
 		AFFECT_DATA *affect;
@@ -136,6 +178,7 @@ struct nib_local_runtime_var_s
 		WNUM wnum;
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
+			bool constant;
 			LLIST *list;
 		} list;
 
@@ -143,6 +186,20 @@ struct nib_local_runtime_var_s
 			long number;
 			const struct flag_type *table;
 		} stat;
+
+		struct {
+			long *bits;
+			const struct flag_type **bank;
+			int banks;
+		} flagbank;		// FLAG_BANK
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			bool constant;
+			long length;
+			size_t size;
+			void *ptr;
+		} array;
 
 		ACCOUNT_DATA *account;
 		AFFECT_DATA *affect;
@@ -202,63 +259,80 @@ struct nib_script_runtime_s
 	char debug[1024];
 };
 
-struct nib_script_argument_s
-{
-	NIB_SCRIPT_STACK_TYPE type;
+// struct nib_script_argument_s
+// {
+// 	NIB_SCRIPT_STACK_TYPE type;
 
-	union {
-		long i;
-		double d;
-		bool b;
-		char *str;
-		utf8char_t ch;
-		WNUM wnum;
+// 	union {
+// 		long i;
+// 		double d;
+// 		bool b;
+// 		char *str;
+// 		utf8char_t ch;
+// 		WNUM wnum;
 
-		struct {
-			long number;
-			const struct flag_type *table;
-		} stat;
+// 		struct {
+// 			long number;
+// 			const struct flag_type *table;
+// 		} stat;
 
-		struct {
-			NIB_SCRIPT_STACK_TYPE type;
-			LLIST *list;
-			ITERATOR it;
-		} list;
+// 		struct {
+// 			NIB_SCRIPT_STACK_TYPE type;
+// 			bool constant;
+// 			LLIST *list;
+// 		} list;
 
-		struct {
-			NIB_SCRIPT_STACK_TYPE type;
-			LLIST *list;
-			ITERATOR it;
-		} iter;
+// 		struct {
+// 			NIB_SCRIPT_STACK_TYPE type;
+// 			bool constant;
+// 			LLIST *list;
+// 			ITERATOR it;
+// 		} iter;
 
-		ACCOUNT_DATA *account;
-		AFFECT_DATA *affect;
-		AREA_DATA *area;
-		//CHANNEL_DATA *channel;
-		CLASS_DATA *clazz;
-		DUNGEON *dungeon;
-		EXIT_DATA *ex;
-		INSTANCE *instance;
-		LIQUID *liquid;
-		MAIL_DATA *mail;
-		MATERIAL *material;
-		MISSION_DATA *mission;
-		CHAR_DATA *mobile;
-		NOTE_DATA *note;
-		OBJ_DATA *object;
-		CHURCH_DATA *org;	// Change to ORG_DATA when done
-		// QUEST_DATA *quest;
-		RACE_DATA *race;
-		REPUTATION_INDEX_RANK_DATA *rank;
-		REPUTATION_DATA *reputation;
-		ROOM_INDEX_DATA *room;
-		SHIP_DATA *ship;
-		SKILL_DATA *skill;
-		TOKEN_DATA *token;
-		WILDS_DATA *wilds;
-		// WORLD_DATA *world;
-	} _;
-};
+// 		struct {
+// 			NIB_SCRIPT_STACK_TYPE type;
+// 			bool constant;
+// 			long length;
+// 			size_t size;
+// 			void *ptr;
+// 		} array;
+
+// 		struct {
+// 			NIB_SCRIPT_STACK_TYPE type;
+// 			bool constant;
+// 			long length;
+// 			long index;
+// 			void *ptr;
+// 		} indexer;
+
+// 		ACCOUNT_DATA *account;
+// 		AFFECT_DATA *affect;
+// 		AREA_DATA *area;
+// 		//CHANNEL_DATA *channel;
+// 		CLASS_DATA *clazz;
+// 		DUNGEON *dungeon;
+// 		EXIT_DATA *ex;
+// 		INSTANCE *instance;
+// 		LIQUID *liquid;
+// 		MAIL_DATA *mail;
+// 		MATERIAL *material;
+// 		MISSION_DATA *mission;
+// 		CHAR_DATA *mobile;
+// 		NOTE_DATA *note;
+// 		OBJ_DATA *object;
+// 		CHURCH_DATA *org;	// Change to ORG_DATA when done
+// 		// QUEST_DATA *quest;
+// 		RACE_DATA *race;
+// 		REPUTATION_INDEX_RANK_DATA *rank;
+// 		REPUTATION_DATA *reputation;
+// 		ROOM_INDEX_DATA *room;
+// 		SHIP_DATA *ship;
+// 		SKILL_DATA *skill;
+// 		TOKEN_DATA *token;
+// 		WILDS_DATA *wilds;
+// 		// WORLD_DATA *world;
+// 	} _;
+// };
 
 #define __push(t,n) bool nib_push_stack_##n (NIB_SCRIPT_RUNTIME *nsr, t value);
 __push(long,number)
@@ -267,10 +341,16 @@ __push(bool,boolean)
 __push(utf8char_t,char)
 __push(const char *,string)
 __push(char *,string_shared)
+bool nib_push_stack_list_raw (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
 bool nib_push_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
 bool nib_push_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
+bool nib_push_stack_array_raw (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_STACK_TYPE type, size_t size, long length);
+bool nib_push_stack_array (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_STACK_TYPE type, size_t size, long length);
+bool nib_push_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_STACK_TYPE type, size_t size, long length);
 bool nib_push_stack_widevnum (NIB_SCRIPT_RUNTIME *nsr, WNUM *value);
 bool nib_push_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
+bool nib_push_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, long* bits, const struct flag_type **bank, int banks);
+bool nib_push_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, long* bits, const struct flag_type **bank, int banks);
 bool nib_push_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
 __push(ACCOUNT_DATA *,account)
 __push(AFFECT_DATA *,affect)
@@ -313,8 +393,12 @@ __peek(char *,string)
 __peek(char *,string_shared)
 bool nib_peek_stack_list (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
 bool nib_peek_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
+bool nib_peek_stack_array (NIB_SCRIPT_RUNTIME *nsr, int offset, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
+bool nib_peek_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
 __peek(WNUM,widevnum)
 bool nib_peek_stack_flag (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
+bool nib_peek_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, int offset, long **output, const struct flag_type ***bank, int *banks);
+bool nib_peek_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, long **output, const struct flag_type ***bank, int *banks);
 bool nib_peek_stack_stat (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
 __peek(ACCOUNT_DATA *,account)
 __peek(AFFECT_DATA *,affect)
@@ -355,8 +439,12 @@ __pop(char *,string)
 __pop(char *,string_shared)
 bool nib_pop_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
 bool nib_pop_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
+bool nib_pop_stack_array (NIB_SCRIPT_RUNTIME *nsr, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
+bool nib_pop_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
 __pop(WNUM,widevnum)
 bool nib_pop_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
+bool nib_pop_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, long **output, const struct flag_type ***bank, int *banks);
+bool nib_pop_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, long **output, const struct flag_type ***bank, int *banks);
 bool nib_pop_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
 __pop(ACCOUNT_DATA *,account)
 __pop(AFFECT_DATA *,affect)

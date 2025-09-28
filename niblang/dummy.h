@@ -13,9 +13,12 @@ enum variable_enum {
 	VAR_STRING_S,		// Shared, allocated elsewhere
 	VAR_WIDEVNUM,
 	VAR_FLAG,
+	VAR_FLAG_BANK,
 	VAR_STAT,
 	VAR_LIST,
 	VAR_LIST_S,			// Shared, allocated elsewhere
+	VAR_ARRAY,
+	VAR_ARRAY_S,
 	VAR_ACCOUNT,
 	VAR_AFFECT,
 	VAR_AREA,
@@ -140,9 +143,22 @@ struct script_var_type {
 			const char *table_name;
 		} stat;
 		struct {
+			long *bits;
+			const struct flag_type **bank;
+			int banks;
+		} flagbank;
+		struct {
 			LLIST *list;
+			bool constant;
 			int type;
 		} list;
+		struct {
+			void *ptr;
+			int type;
+			long length;
+			size_t size;
+			bool constant;
+		} array;
 		ACCOUNT_DATA *account;
 		AFFECT_DATA *affect;
 		AREA_DATA *area;
@@ -184,10 +200,11 @@ pVARIABLE variable_new_string(const char *name, char *str);
 pVARIABLE variable_new_shared_string(const char *name, char *str);
 pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum);
 pVARIABLE variable_new_flag(const char *name, long number, struct flag_type *table, const char *table_name);
+pVARIABLE variable_new_flagbank(const char *name, long *bits, const struct flag_type **bank);
 pVARIABLE variable_new_stat(const char *name, long number, struct flag_type *table, const char *table_name);
-pVARIABLE variable_new_list_raw(const char *name, LLIST *list, int type);
-pVARIABLE variable_new_list(const char *name, LLIST *list, int type);
-pVARIABLE variable_new_shared_list(const char *name, LLIST *list, int type);
+pVARIABLE variable_new_list_raw(const char *name, LLIST *list, int type, bool constant);
+pVARIABLE variable_new_list(const char *name, LLIST *list, int type, bool constant);
+pVARIABLE variable_new_shared_list(const char *name, LLIST *list, int type, bool constant);
 pVARIABLE variable_new_area(const char *name, AREA_DATA *area);
 // pVARIABLE variable_new_dungeon(const char *name, DUNGEON *dungeon);
 // pVARIABLE variable_new_instance(const char *name, INSTANCE *instance);

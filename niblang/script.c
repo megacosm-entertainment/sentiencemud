@@ -19,6 +19,7 @@ extern LLIST *nib_comment_storage;
 extern LLIST *nib_flag_created_tables;
 extern LLIST *nib_stat_created_tables;
 extern LLIST *nib_used_tables;
+extern LLIST *nib_used_banks;
 extern LLIST *nib_switch_blocks;
 
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
@@ -64,6 +65,26 @@ NIB_SCRIPT *new_nib_script(const char *src, NIB_SCRIPT_CLASS sc)
 				while((table = (struct flag_type *)iterator_nextdata(&it)))
 				{
 					script->tables[index++] = table;
+				}
+				iterator_stop(&it);
+			}
+		}
+
+		script->n_banks = list_size(nib_used_banks);
+		if (script->n_banks > 0)
+		{
+			script->banks = (struct flag_type ***)calloc(script->n_banks, sizeof(struct flag_type **));
+			
+			if (script->banks)
+			{
+				ITERATOR it;
+				struct flag_type **bank;
+				int index = 0;
+
+				iterator_start(&it, nib_used_banks);
+				while((bank = (struct flag_type **)iterator_nextdata(&it)))
+				{
+					script->banks[index++] = bank;
 				}
 				iterator_stop(&it);
 			}
@@ -234,6 +255,7 @@ void free_nib_script(NIB_SCRIPT *script)
 		}
 
 		if (script->tables) free(script->tables);
+		if (script->banks) free(script->banks);
 		list_destroy(script->flag_tables);
 		list_destroy(script->stat_tables);
 
@@ -259,6 +281,7 @@ static const char *opcode_names[] = {
 	"LVALUE_GLOBAL",
 	"LVALUE_SELF",
 	"LVALUE_BIT",	// Use for situations like flag.bit = true/false;
+	"LVALUE_BIT_BANK",
 	"LVALUE_FIELD",
 	"CALL_FUNCTION",
 	"CALL_METHOD",
@@ -269,8 +292,10 @@ static const char *opcode_names[] = {
 	"LOAD_WIDEVNUM",
 	"LOAD_FLAG",
 	"LOAD_FLAG_TABLE",
+	"LOAD_FLAG_BANK",
 	"LOAD_STAT",
 	"NEW_LIST",
+	"NEW_ARRAY",
 	"NULL",
 	"TRUE",
 	"FALSE",
@@ -296,6 +321,12 @@ static const char *opcode_names[] = {
 	"ITER_START",
 	"ITER_STOP",
 	"ITER_NEXT",
+	"STRINGER_START",
+	"STRINGER_STOP",
+	"STRINGER_NEXT",
+	"INDEXER_START",
+	"INDEXER_STOP",
+	"INDEXER_NEXT",
 	"LAND",
 	"LOR",
 	"LXOR",
@@ -382,15 +413,35 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 		case NST_FLAG:		return "flag";
 		case NST_STAT:		return "stat";
 		case NST_LIST:		return "list";
+		case NST_LIST_S:	return "list_s";
+		case NST_ARRAY:		return "array";
+		case NST_ARRAY_S:	return "array_s";
+		case NST_ACCOUNT:	return "account";
+		case NST_AFFECT:	return "affect";
 		case NST_AREA:		return "area";
+		case NST_CHANNEL:	return "channel";
+		case NST_CLASS:		return "class";
 		case NST_DUNGEON:	return "dungeon";
+		case NST_EXIT:		return "exit";
 		case NST_INSTANCE:	return "instance";
+		case NST_LIQUID:	return "liquid";
+		case NST_MAIL:		return "mail";
+		case NST_MATERIAL:	return "material";
+		case NST_MISSION:	return "mission";
 		case NST_MOBILE:	return "mobile";
+		case NST_NOTE:		return "note";
 		case NST_OBJECT:	return "object";
+		case NST_ORG:		return "org";
 		case NST_QUEST:		return "quest";
+		case NST_RACE:		return "race";
+		case NST_RANK:		return "rank";
+		case NST_REPUTATION:return "reputation";
 		case NST_ROOM:		return "room";
 		case NST_SHIP:		return "ship";
+		case NST_SKILL:		return "skill";
 		case NST_TOKEN:		return "token";
+		case NST_WILDS:		return "wilds";
+		case NST_WORLD:		return "world";
 	}
 
 	return "invalid";
@@ -433,8 +484,10 @@ void nib_decompile_code(NIB_SCRIPT *script)
 
 		switch(pc[addr])
 		{
-		case NI_LVALUE_SELF:
 		case NI_LOAD_WIDEVNUM:
+			type = NST_WIDEVNUM;
+			break;
+		case NI_LVALUE_SELF:
 		case NI_NULL:
 		case NI_TRUE:
 		case NI_FALSE:
@@ -524,6 +577,15 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			break;
 		}
 
+		case NI_NEW_ARRAY:
+		{
+			NIB_SCRIPT_STACK_TYPE array_type = (NIB_SCRIPT_STACK_TYPE)pc[addr+1]; addr++;
+			memcpy(&number,&pc[addr+1],sizeof(number)); addr+=sizeof(number);
+			
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d %ld (new array(%s[%ld]))", array_type, number, nst_to_type(array_type), number);
+			break;
+		}
+		
 		case NI_POPN:
 			{
 				short n;
@@ -609,13 +671,44 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				break;
 			}
 
-		case NI_CALL_FUNCTION:
-			type = NST_FUNCTION;
+			case NI_LVALUE_BIT_BANK:
+				{
+					int bank = (int)pc[addr+1]; addr++;
+					flag_value_t bit;
+					memcpy(&bit, &pc[addr+1], sizeof(flag_value_t)); addr += sizeof(flag_value_t);
 
-		case NI_CALL_METHOD:
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d <[%08X]>", bank, bit);
+					break;
+				}
+
+		case NI_CALL_FUNCTION:
 			{
 				short id;
 				unsigned char args;
+				memcpy(&id, &pc[addr+1], sizeof(id));		addr += sizeof(id);
+				args = (unsigned char)pc[addr+1];			addr++;
+
+				NIB_METHOD *method = nib_method_get_byid(NST_FUNCTION, id);
+				if (method)
+				{
+					type = method->sresult;
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %d (%s %s)", id, args, nib_get_typename(script,method->result), method->name);
+				}
+				else
+				{
+					type = NST_UNKNOWN;
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %d --invalid--", id, args);
+				}
+
+				break;
+			}
+
+		case NI_CALL_METHOD:
+			{
+				NIB_SCRIPT_STACK_TYPE nst;
+				short id;
+				unsigned char args;
+				nst = (NIB_SCRIPT_STACK_TYPE)pc[addr+1]; addr++;
 				memcpy(&id, &pc[addr+1], sizeof(id));		addr += sizeof(id);
 				args = (unsigned char)pc[addr+1];			addr++;
 
@@ -677,6 +770,43 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " <[%08X@%s]>", number, nib_get_flag_table_name(script->flag_tables,table));
 			break;
 
+		case NI_LOAD_FLAG_BANK:
+		{
+			// #banks
+			// bank index
+			// bits1
+			// ...
+			// bitsN
+			int banks = pc[addr+1]; addr++;
+			memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+			
+			struct flag_type **bank;
+			if (index > 0 && index <= script->n_banks)
+				bank = script->banks[index - 1];
+			else
+				bank = NULL;
+
+			if (bank)
+			{
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %s<[[", banks, nib_get_flag_bank_name((const struct flag_type **)bank));
+				for(int i = 0; i < banks; i++)
+				{
+					memcpy(&number, &pc[addr+1], sizeof(long)); addr+=sizeof(long);
+
+					if (i > 0)
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, ",%08X", number);
+					else
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, "%08X", number);
+				}
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, "]]>");
+			}
+			else
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, ???", banks);
+
+
+			break;
+		}
+
 		case NI_LOAD_FLAG:
 			memcpy(&number, &pc[addr+1], sizeof(number));
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " <[%08X]>", number);
@@ -710,7 +840,17 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			addr+=sizeof(address);
 			break;
 
+		// case NI_INDEXER_START:
+		// 	{
+		// 		memcpy(&number, &pc[addr+1], sizeof(number)); addr+= sizeof(number);
+
+		// 		linej += snprintf(line + linej, sizeof(line) - linej - 1, " %ld", number);
+		// 		break;
+		// 	}
+
 		case NI_ITER_NEXT:
+		case NI_STRINGER_NEXT:
+		case NI_INDEXER_NEXT:
 			{
 				short id;
 				memcpy(&address, &pc[addr+1], sizeof(address));	addr+=sizeof(address);
