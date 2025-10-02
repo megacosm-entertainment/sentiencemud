@@ -326,6 +326,12 @@ static void free_stack_item(NIB_SCRIPT_STACK *stack)
 				list_destroy(stack->_.iter.list);
 			break;
 
+		case NST_STRINGER:
+			if (!stack->_.stringer.shared && stack->_.stringer.str)
+			{
+				free(stack->_.stringer.str);
+			}
+			break;
 			
 		case NST_INDEXER:
 			if (!stack->_.indexer.shared && stack->_.indexer.ptr)
@@ -756,6 +762,20 @@ bool nib_push_stack_array_raw (NIB_SCRIPT_RUNTIME *nsr, void *value, NIB_SCRIPT_
 	stack->_.array.size = size;
 	stack->_.array.length = length;
 	stack->_.array.ptr = value;
+
+	return true;
+}
+
+bool nib_push_stack_stringer (NIB_SCRIPT_RUNTIME *nsr, char *str, bool shared)
+{
+	CHECK_STACK;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	stack->type = NST_STRINGER;
+	stack->_.stringer.shared = shared;
+	stack->_.stringer.str = str;
+	stack->_.stringer.cur = str;
 
 	return true;
 }
@@ -30108,6 +30128,89 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			}
 		}
 		break;
+
+	case NI_STRINGER_START:
+		{
+			NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
+			if (!sp)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			char *str;
+			bool shared = true;
+
+			switch(sp->type)
+			{
+			case NST_STRING:
+				shared = false;
+			case NST_STRING_S:
+				str = sp->_.str;
+				break;
+			case NST_LVALUE:
+				switch(sp->_.lvalue.type)
+				{
+				case NST_STRING:
+					str = sp->_.lvalue._.str ? *(sp->_.lvalue._.str) : NULL;
+					break;
+				default:
+					free_stack_item(sp);
+					SETRET(nsr,INVALID);
+					return true;
+				}
+				break;
+			default:
+				free_stack_item(sp);
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_stringer(nsr,str,shared))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+	
+	case NI_STRINGER_STOP:
+		if (!nib_pop_stack(nsr))
+		{
+			SETRET(nsr,STACK);
+			return true;
+		}
+		break;
+
+	case NI_STRINGER_NEXT:
+		{
+			nib_address_t address = __get_address(nsr);
+			short id = __get_short(nsr);
+			NIB_LOCAL_RUNTIME_VAR *var = get_local_var(nsr, id);
+			if (!var || var->type != NST_CHAR)
+			{
+				SETRET(nsr,FAILURE);
+				// SETRETN(nsr,__LINE__);
+				return true;
+			}
+
+			NIB_SCRIPT_STACK *sp = nib_peek_stack_raw(nsr);
+			if (!sp || sp->type != NST_STRINGER)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			if (sp->_.stringer.cur && *(sp->_.stringer.cur))
+			{
+				var->_.ch = utf8_getchar(sp->_.stringer.cur);
+
+				sp->_.stringer.cur = utf8_nextchar(sp->_.stringer.cur);
+			}
+			else
+				nsr->pc = address;
+			break;
+		}
 
 	case NI_INDEXER_START:
 		{

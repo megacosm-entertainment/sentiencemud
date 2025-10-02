@@ -1,0 +1,6 @@
+string text = "Plith²";
+
+foreach(ch : text)
+{
+	print("Char: '" + ch + "'");
+}

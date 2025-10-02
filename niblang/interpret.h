@@ -124,12 +124,18 @@ struct nib_script_stack_s
 
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
+			bool shared;
 			long length;
 			size_t size;
 			long index;
-			bool shared;
 			void *ptr;
 		} indexer;	// Used for indexing an array
+
+		struct {
+			char *str;
+			char *cur;
+			bool shared;
+		} stringer;
 
 		ACCOUNT_DATA *account;
 		AFFECT_DATA *affect;
