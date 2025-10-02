@@ -1313,12 +1313,7 @@ static void *__get_field_offset(NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 		{
 		__lfo(ACCOUNT,account)
 		__lfo(AFFECT,affect)
-		//__lfo(AREA,area)
-		case NST_AREA:
-			// fprintf(stderr,"__get_field_offset(AREA): %p\n", sp->_.lvalue._.area);
-			// fprintf(stderr,"__get_field_offset(AREA): %p, %d\n", *(sp->_.lvalue._.area), field->offset);
-			// fprintf(stderr,"__get_field_offset(AREA): %p\n", ((void*)(*(sp->_.lvalue._.area)) + field->offset));
-			return (void *)(*(sp->_.lvalue._.area)) + field->offset;
+		__lfo(AREA,area)
 		// __lfo(CHANNEL,channel)
 		__lfo(CLASS,clazz)
 		__lfo(DUNGEON,dungeon)
@@ -26511,6 +26506,138 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					break;
 				}
 
+			case NST_ACCOUNT:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							strncpy(stringify,(rsp->_.account ? rsp->_.account->username : "null"),sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							strncpy(stringify,(rsp->_.account ? rsp->_.account->username : "null"),sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_AFFECT:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							strncpy(stringify,get_affect_name(rsp->_.affect),sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							strncpy(stringify,get_affect_name(rsp->_.affect),sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
 			case NST_AREA:
 				{
 					switch(op)
@@ -26581,8 +26708,587 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					break;
 				}
 
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
+			// case NST_CHANNEL:
+			case NST_CLASS:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							strncpy(stringify,(rsp->_.clazz ? rsp->_.clazz->name : "null"),sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							strncpy(stringify,(rsp->_.clazz ? rsp->_.clazz->name : "null"),sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_DUNGEON:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.dungeon))
+								strncpy(stringify,rsp->_.dungeon->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.dungeon))
+								strncpy(stringify,rsp->_.dungeon->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_EXIT:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ex))
+							{
+								if (rsp->_.ex->orig_door >= 0 && rsp->_.ex->orig_door < MAX_DIR)
+									strncpy(stringify,dir_name[rsp->_.ex->orig_door],sizeof(stringify)-1);
+								else
+									strncpy(stringify,"???",sizeof(stringify)-1);
+							}
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ex))
+							{
+								if (rsp->_.ex->orig_door >= 0 && rsp->_.ex->orig_door < MAX_DIR)
+									strncpy(stringify,dir_name[rsp->_.ex->orig_door],sizeof(stringify)-1);
+								else
+									strncpy(stringify,"???",sizeof(stringify)-1);
+							}
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_INSTANCE:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.instance))
+								strncpy(stringify,rsp->_.instance->blueprint->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.instance))
+								strncpy(stringify,rsp->_.instance->blueprint->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_LIQUID:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.liquid))
+								strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.liquid))
+								strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_MAIL:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (rsp->_.mail)
+								snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",rsp->_.mail->recipient);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (rsp->_.mail)
+								snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",rsp->_.mail->recipient);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_MATERIAL:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.material))
+								strncpy(stringify,rsp->_.material->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.material))
+								strncpy(stringify,rsp->_.material->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_MISSION:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (rsp->_.mission)
+								snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",rsp->_.mission->timer);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (rsp->_.mission)
+								snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",rsp->_.mission->timer);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
 			case NST_MOBILE:
 				{
 					switch(op)
@@ -26655,8 +27361,440 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					break;
 				}
 
-			// case NST_OBJECT:
+			case NST_NOTE:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.note))
+								snprintf(stringify,sizeof(stringify)-1,"<note:%s>",rsp->_.note->to_list);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.note))
+								snprintf(stringify,sizeof(stringify)-1,"<note:%s>",rsp->_.note->to_list);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_OBJECT:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.object) ? (rsp->_.object)->short_descr : "null",
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->area->uid : 0,
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->vnum : 0);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							int len = sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.object) ? (rsp->_.object)->short_descr : "null",
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->area->uid : 0,
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->vnum : 0);
+
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_ORG:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.liquid))
+								strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.liquid))
+								strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
 			// case NST_QUEST:
+			case NST_RACE:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.race))
+								strncpy(stringify,rsp->_.race->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.race))
+								strncpy(stringify,rsp->_.race->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_RANK:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.rank))
+								strncpy(stringify,rsp->_.rank->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.rank))
+								strncpy(stringify,rsp->_.rank->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_REPUTATION:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.reputation))
+								strncpy(stringify,rsp->_.reputation->pIndexData->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.reputation))
+								strncpy(stringify,rsp->_.reputation->pIndexData->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
 			case NST_ROOM:
 				{
 					switch(op)
@@ -26729,8 +27867,295 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					break;
 				}
 
-			// case NST_SHIP:
-			// case NST_TOKEN:
+			case NST_SHIP:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ship))
+								strncpy(stringify,rsp->_.ship->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ship))
+								strncpy(stringify,rsp->_.ship->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+
+			case NST_SKILL:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.skill))
+								strncpy(stringify,rsp->_.skill->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.skill))
+								strncpy(stringify,rsp->_.skill->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_TOKEN:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.token) ? (rsp->_.token)->name : "null",
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->area->uid : 0,
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->vnum : 0);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							int len = sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.token) ? (rsp->_.token)->name : "null",
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->area->uid : 0,
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->vnum : 0);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
+			case NST_WILDS:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.wilds) ? (rsp->_.wilds)->name : "null",
+								(rsp->_.wilds) ? (rsp->_.wilds)->pArea->uid : 0,
+								(rsp->_.wilds) ? (rsp->_.wilds)->uid : 0);
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.wilds) ? (rsp->_.wilds)->name : "null",
+								(rsp->_.wilds) ? (rsp->_.wilds)->pArea->uid : 0,
+								(rsp->_.wilds) ? (rsp->_.wilds)->uid : 0);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
 			case NST_NULL:
 				{
 					switch(op)
@@ -26833,6 +28258,111 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 											}
 											char *str = value;
 											for(int i = *(rsp->_.lvalue._.number);i-- > 0; str+=len)
+												strcpy(str,*(lsp->_.lvalue._.str));
+											*str = '\0';
+
+											free(*(lsp->_.lvalue._.str));
+											*(lsp->_.lvalue._.str) = value;
+										}
+										else
+										{
+											free(*(lsp->_.lvalue._.str));
+											*(lsp->_.lvalue._.str) = strdup("");
+										}
+									}
+									else
+									{
+										*(lsp->_.lvalue._.str) = strdup("");
+									}
+
+									if (!nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_NUMBER32:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+
+									char stringify[80];
+									snprintf(stringify,sizeof(stringify)-1,"%d",*(rsp->_.lvalue._.number32));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[80];
+									int len = snprintf(stringify,sizeof(stringify)-1,"%d",*(rsp->_.lvalue._.number32));
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									if (*(lsp->_.lvalue._.str))
+									{
+										if (*(rsp->_.lvalue._.number) > 0)
+										{
+											int len = strlen(*(lsp->_.lvalue._.str));
+											char *value = calloc(1,len * *(rsp->_.lvalue._.number32) + 1);
+											if (!value)
+											{
+												SETRET(nsr,MEMORY);
+												return true;
+											}
+											char *str = value;
+											for(int i = *(rsp->_.lvalue._.number32);i-- > 0; str+=len)
 												strcpy(str,*(lsp->_.lvalue._.str));
 											*str = '\0';
 
@@ -27293,6 +28823,199 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							break;
 						}
 
+					case NST_STAT32:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number)));
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
+									int len = strlen(stringify);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_ACCOUNT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									strncpy(stringify,(*(rsp->_.lvalue._.account) ? (*(rsp->_.lvalue._.account))->username : "null"),sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									strncpy(stringify,(*(rsp->_.lvalue._.account) ? (*(rsp->_.lvalue._.account))->username : "null"),sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_AFFECT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									strncpy(stringify,get_affect_name(*(rsp->_.lvalue._.affect)),sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									strncpy(stringify,get_affect_name(*(rsp->_.lvalue._.affect)),sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
 					case NST_AREA:
 						{
 							switch(op)
@@ -27363,8 +29086,587 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							break;
 						}
 
-					// case NST_DUNGEON:
-					// case NST_INSTANCE:
+					// case NST_CHANNEL:
+					case NST_CLASS:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									strncpy(stringify,((*(rsp->_.lvalue._.clazz)) ? (*(rsp->_.lvalue._.clazz))->name : "null"),sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									strncpy(stringify,((*(rsp->_.lvalue._.clazz)) ? (*(rsp->_.lvalue._.clazz))->name : "null"),sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_DUNGEON:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.dungeon))))
+										strncpy(stringify,(*(rsp->_.lvalue._.dungeon))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.dungeon))))
+										strncpy(stringify,(*(rsp->_.lvalue._.dungeon))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_EXIT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ex))))
+									{
+										if ((*(rsp->_.lvalue._.ex))->orig_door >= 0 && (*(rsp->_.lvalue._.ex))->orig_door < MAX_DIR)
+											strncpy(stringify,dir_name[(*(rsp->_.lvalue._.ex))->orig_door],sizeof(stringify)-1);
+										else
+											strncpy(stringify,"???",sizeof(stringify)-1);
+									}
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ex))))
+									{
+										if ((*(rsp->_.lvalue._.ex))->orig_door >= 0 && (*(rsp->_.lvalue._.ex))->orig_door < MAX_DIR)
+											strncpy(stringify,dir_name[(*(rsp->_.lvalue._.ex))->orig_door],sizeof(stringify)-1);
+										else
+											strncpy(stringify,"???",sizeof(stringify)-1);
+									}
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_INSTANCE:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.instance))))
+										strncpy(stringify,(*(rsp->_.lvalue._.instance))->blueprint->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.instance))))
+										strncpy(stringify,(*(rsp->_.lvalue._.instance))->blueprint->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_LIQUID:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+										strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+										strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_MAIL:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.mail)))
+										snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",(*(rsp->_.lvalue._.mail))->recipient);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.mail)))
+										snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",(*(rsp->_.lvalue._.mail))->recipient);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_MATERIAL:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.material))))
+										strncpy(stringify,(*(rsp->_.lvalue._.material))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.material))))
+										strncpy(stringify,(*(rsp->_.lvalue._.material))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_MISSION:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.mission)))
+										snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",(*(rsp->_.lvalue._.mission))->timer);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.mission)))
+										snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",(*(rsp->_.lvalue._.mission))->timer);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
 					case NST_MOBILE:
 						{
 							switch(op)
@@ -27437,8 +29739,440 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							break;
 						}
 
-					// case NST_OBJECT:
+					case NST_NOTE:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.note))))
+										snprintf(stringify,sizeof(stringify)-1,"<note:%s>",(*(rsp->_.lvalue._.note))->to_list);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.note))))
+										snprintf(stringify,sizeof(stringify)-1,"<note:%s>",(*(rsp->_.lvalue._.note))->to_list);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_OBJECT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.object))) ? ((*(rsp->_.lvalue._.object)))->short_descr : "null",
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->vnum : 0);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									int len = sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.object))) ? ((*(rsp->_.lvalue._.object)))->short_descr : "null",
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->vnum : 0);
+
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_ORG:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+										strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+										strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
 					// case NST_QUEST:
+					case NST_RACE:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.race))))
+										strncpy(stringify,(*(rsp->_.lvalue._.race))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.race))))
+										strncpy(stringify,(*(rsp->_.lvalue._.race))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_RANK:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.rank))))
+										strncpy(stringify,(*(rsp->_.lvalue._.rank))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.rank))))
+										strncpy(stringify,(*(rsp->_.lvalue._.rank))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_REPUTATION:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.reputation))))
+										strncpy(stringify,(*(rsp->_.lvalue._.reputation))->pIndexData->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.reputation))))
+										strncpy(stringify,(*(rsp->_.lvalue._.reputation))->pIndexData->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
 					case NST_ROOM:
 						{
 							switch(op)
@@ -27511,8 +30245,295 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							break;
 						}
 
-					// case NST_SHIP:
-					// case NST_TOKEN:
+					case NST_SHIP:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ship))))
+										strncpy(stringify,(*(rsp->_.lvalue._.ship))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ship))))
+										strncpy(stringify,(*(rsp->_.lvalue._.ship))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+
+					case NST_SKILL:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.skill))))
+										strncpy(stringify,(*(rsp->_.lvalue._.skill))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.skill))))
+										strncpy(stringify,(*(rsp->_.lvalue._.skill))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_TOKEN:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.token))) ? ((*(rsp->_.lvalue._.token)))->name : "null",
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->vnum : 0);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									int len = sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.token))) ? ((*(rsp->_.lvalue._.token)))->name : "null",
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->vnum : 0);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
+					case NST_WILDS:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->name : "null",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->pArea->uid : 0,
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->uid : 0);
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->name : "null",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->pArea->uid : 0,
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->uid : 0);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
 					default:
 						SETRET(nsr,INVALID);
 						return true;
