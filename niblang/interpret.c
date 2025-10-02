@@ -85,6 +85,48 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 	return NST_UNKNOWN;
 }
 
+bool nst_is_pointer(NIB_SCRIPT_STACK_TYPE type)
+{
+	switch(type)
+	{
+	case NST_NUMBER:
+	case NST_NUMBER32:
+	case NST_BOOLEAN:
+	case NST_FLOAT:
+	case NST_CHAR:
+	case NST_WIDEVNUM:
+	case NST_FLAG:
+	case NST_FLAG_BANK:
+	case NST_FLAG_BIT:
+	case NST_STAT:
+	case NST_STAT32:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static void *indexer_next_data(NIB_SCRIPT_STACK *sp)
+{
+	void *data;
+	if (!sp->_.indexer.ptr || sp->_.indexer.index >= sp->_.indexer.length)
+		return NULL;
+
+	if (nst_is_pointer(sp->_.indexer.type))
+	{
+		do {
+			data = sp->_.indexer.ptr + sp->_.indexer.index++ * sp->_.indexer.size;
+			if (*((void **)data)) return data;
+		} while (sp->_.indexer.index < sp->_.indexer.length);
+
+		return NULL;	// Nothing, end of array
+	}
+	else
+	{
+		return sp->_.indexer.ptr + sp->_.indexer.index++ * sp->_.indexer.size;
+	}
+}
+
 static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 {
 	switch(type)
@@ -30303,10 +30345,9 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				return true;
 			}
 
-			if (sp->_.indexer.ptr && sp->_.indexer.index < sp->_.indexer.length)
+			void *data = indexer_next_data(sp);
+			if (data)
 			{
-				void *data = sp->_.indexer.ptr + sp->_.indexer.index++ * sp->_.indexer.size;
-
 				// Assign to the variable
 				switch(sp->_.indexer.type)
 				{
@@ -30316,7 +30357,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				case NST_CHAR:		var->_.ch = *((utf8char_t *)data); break;
 				case NST_STRING:
 					if (var->_.str) free(var->_.str);
-					var->_.str = strdup((char *)data);
+					var->_.str = strdup(*((char **)data));
 					break;
 				case NST_WIDEVNUM:	var->_.wnum = *((WNUM *)data); break;
 #define __iter(n,f,t) \

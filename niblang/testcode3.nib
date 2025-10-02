@@ -20,6 +20,8 @@ else
 			else
 				print(" exit(" + ex.direction + ") -> null");
 		}
+		else
+			print("ex = null");
 	}
 
 }
