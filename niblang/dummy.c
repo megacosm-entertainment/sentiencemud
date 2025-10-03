@@ -248,7 +248,7 @@ void dummy_cleanup()
 
 AREA_DATA *find_area(char *name)
 {
-	if (!name) return NULL;
+	if (!utf8_isstrascii(name)) return NULL;
 
 	if (!str_cmp(plith.name, name))
 		return &plith;
@@ -262,11 +262,52 @@ AREA_DATA *get_area_from_uid (long uid)
 	return NULL;
 }
 
+CLASS_DATA *get_class_data(const char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
 
+	return NULL;
+}
 
+LIQUID *liquid_lookup(char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
 
+	return NULL;
+}
 
+MATERIAL *material_lookup(const char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
 
+	return NULL;
+}
+
+CHURCH_DATA *get_church_by_name(const char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
+
+	return NULL;
+}
+
+RACE_DATA *get_race_data(const char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
+
+	return NULL;
+}
+
+SKILL_DATA *get_skill_data(char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
+
+	return NULL;
+}
+
+WILDS_DATA *get_wilds_from_uid(AREA_DATA *area, long uid)
+{
+	return NULL;
+}
 
 
 //////////////////////////

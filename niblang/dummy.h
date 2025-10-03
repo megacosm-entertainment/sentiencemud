@@ -217,7 +217,4 @@ pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room);
 void variable_get_string(pVARIABLE var, char *buf, int buf_len, int char_len);
 const char *variable_get_typename(pVARIABLE var);
 
-AREA_DATA *find_area(char *name);
-AREA_DATA *get_area_from_uid (long uid);
-
 #endif

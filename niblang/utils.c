@@ -680,6 +680,16 @@ const char *utf8_getnchars(const char *str, int len)
 	return start;
 }
 
+bool utf8_isstrascii(register const char *str)
+{
+	if (!str) return false;	// Null pointers are not ascii.
+
+	while(*str && ((unsigned char)*str) < 0x80)
+		++str;
+
+	return !*str;
+}
+
 
 char *get_affect_name(AFFECT_DATA *paf)
 {

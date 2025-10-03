@@ -698,6 +698,7 @@ bool utf8_str_suffix(const char *astr, const char *bstr);
 bool utf8_isvalid(utf8char_t ch);
 bool utf8_isprint(utf8char_t ch);
 const char *utf8_getnchars(const char *str, int len);
+bool utf8_isstrascii(const char *str);
 // Not UTF-8 aware
 int str_cmp(const char *astr, const char *bstr);
 bool str_prefix(const char *astr, const char *bstr);

@@ -553,9 +553,14 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			break;
 		}
 
-		case NI_GET_AREA:
-			type = NST_AREA;
-			break;
+		case NI_GET_AREA:		type = NST_AREA; break;
+		case NI_GET_CLASS:		type = NST_CLASS; break;
+		case NI_GET_LIQUID:		type = NST_LIQUID; break;
+		case NI_GET_MATERIAL:	type = NST_MATERIAL; break;
+		case NI_GET_ORG:		type = NST_ORG; break;
+		case NI_GET_RACE:		type = NST_RACE; break;
+		case NI_GET_SKILL:		type = NST_SKILL; break;
+		case NI_GET_WILDS:		type = NST_WILDS; break;
 
 		case NI_RETURN_BYTE:
 		{

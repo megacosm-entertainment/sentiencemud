@@ -33710,6 +33710,485 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			}
 			break;
 		}
+
+	case NI_GET_CLASS:
+		{
+			CLASS_DATA *clazz = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					clazz = get_class_data(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					clazz = get_class_data(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						clazz = get_class_data(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_class(nsr, clazz))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_GET_LIQUID:
+		{
+			LIQUID *liquid = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					liquid = liquid_lookup(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					liquid = liquid_lookup(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						liquid = liquid_lookup(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_liquid(nsr, liquid))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_GET_MATERIAL:
+		{
+			MATERIAL *material = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					material = material_lookup(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					material = material_lookup(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						material = material_lookup(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_material(nsr, material))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_GET_ORG:
+		{
+			CHURCH_DATA *org = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					org = get_church_by_name(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					org = get_church_by_name(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						org = get_church_by_name(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_org(nsr, org))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_GET_RACE:
+		{
+			RACE_DATA *race = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					race = get_race_data(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					race = get_race_data(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						race = get_race_data(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_race(nsr, race))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_GET_SKILL:
+		{
+			SKILL_DATA *skill = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					skill = get_skill_data(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					skill = get_skill_data(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						skill = get_skill_data(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_skill(nsr, skill))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
+	case NI_GET_WILDS:
+		{
+			WILDS_DATA *wilds = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_NUMBER:
+				{
+					long uid;
+					if (!nib_pop_stack_number(nsr, &uid))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					wilds = get_wilds_from_uid(NULL, uid);
+					break;
+				}
+
+				case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_NUMBER:
+						wilds = get_wilds_from_uid(NULL, *(lvalue._.number));
+						break;
+
+					case NST_NUMBER32:
+						wilds = get_wilds_from_uid(NULL, *(lvalue._.number32));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_wilds(nsr, wilds))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
 	}
 
 	return false;
@@ -34005,9 +34484,14 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 				break;
 			}
 
-			case NI_GET_AREA:
-				type = NST_AREA;
-				break;
+			case NI_GET_AREA:		type = NST_AREA; break;
+			case NI_GET_CLASS:		type = NST_CLASS; break;
+			case NI_GET_LIQUID:		type = NST_LIQUID; break;
+			case NI_GET_MATERIAL:	type = NST_MATERIAL; break;
+			case NI_GET_ORG:		type = NST_ORG; break;
+			case NI_GET_RACE:		type = NST_RACE; break;
+			case NI_GET_SKILL:		type = NST_SKILL; break;
+			case NI_GET_WILDS:		type = NST_WILDS; break;
 
 			case NI_RETURN_BYTE:
 			{
