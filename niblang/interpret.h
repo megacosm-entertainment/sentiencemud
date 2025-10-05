@@ -7,8 +7,10 @@ struct nib_script_stack_lvalue_s
 {
 	NIB_SCRIPT_STACK_TYPE type;
 	union {
+		void **pointer;
 		void *raw;
 		int *number32;
+		short *number16;
 		long *number;
 		bool *b;
 		double *d;
@@ -37,6 +39,7 @@ struct nib_script_stack_lvalue_s
 		REPUTATION_INDEX_RANK_DATA **rank;
 		REPUTATION_DATA **reputation;
 		ROOM_INDEX_DATA **room;
+		SECTOR_DATA **sector;
 		SHIP_DATA **ship;
 		SKILL_DATA **skill;
 		TOKEN_DATA **token;
@@ -58,7 +61,12 @@ struct nib_script_stack_lvalue_s
 		struct {
 			int *number;
 			const struct flag_type *table;
-		} stat32;		// FLAG and STAT
+		} stat32;
+
+		struct {
+			short *number;
+			const struct flag_type *table;
+		} stat16;
 
 		struct {
 			long *bits;
@@ -85,6 +93,7 @@ struct nib_script_stack_s
 	NIB_SCRIPT_STACK_TYPE type;
 
 	union {
+		void *pointer;			// Used just to check the types that are raw pointers
 		long i;
 		double d;
 		bool b;
@@ -158,6 +167,7 @@ struct nib_script_stack_s
 		REPUTATION_INDEX_RANK_DATA *rank;
 		REPUTATION_DATA *reputation;
 		ROOM_INDEX_DATA *room;
+		SECTOR_DATA *sector;
 		SHIP_DATA *ship;
 		SKILL_DATA *skill;
 		TOKEN_DATA *token;
@@ -228,6 +238,7 @@ struct nib_local_runtime_var_s
 		REPUTATION_INDEX_RANK_DATA *rank;
 		REPUTATION_DATA *reputation;
 		ROOM_INDEX_DATA *room;
+		SECTOR_DATA *sector;
 		SHIP_DATA *ship;
 		SKILL_DATA *skill;
 		TOKEN_DATA *token;
@@ -379,6 +390,7 @@ __push(RACE_DATA *,race)
 __push(REPUTATION_INDEX_RANK_DATA *,rank)
 __push(REPUTATION_DATA *,reputation)
 __push(ROOM_INDEX_DATA *,room)
+__push(SECTOR_DATA *,sector)
 __push(SHIP_DATA *,ship)
 __push(SKILL_DATA *,skill)
 __push(TOKEN_DATA *,token)
@@ -427,6 +439,7 @@ __peek(RACE_DATA *,race)
 __peek(REPUTATION_INDEX_RANK_DATA *,rank)
 __peek(REPUTATION_DATA *,reputation)
 __peek(ROOM_INDEX_DATA *,room)
+__peek(SECTOR_DATA *,sector)
 __peek(SHIP_DATA *,ship)
 __peek(SKILL_DATA *,skill)
 __peek(TOKEN_DATA *,token)
@@ -473,6 +486,7 @@ __pop(RACE_DATA *,race)
 __pop(REPUTATION_INDEX_RANK_DATA *,rank)
 __pop(REPUTATION_DATA *,reputation)
 __pop(ROOM_INDEX_DATA *,room)
+__pop(SECTOR_DATA *,sector)
 __pop(SHIP_DATA *,ship)
 __pop(SKILL_DATA *,skill)
 __pop(TOKEN_DATA *,token)

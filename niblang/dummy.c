@@ -21,6 +21,10 @@ static WNUM __wnum_zero;
 
 AREA_DATA plith;
 
+SECTOR_DATA sector_inside;
+SECTOR_DATA sector_city;
+SECTOR_DATA sector_field;
+
 ROOM_INDEX_DATA beginning;
 EXIT_DATA beginning_down;
 
@@ -50,6 +54,9 @@ static LLIST *nib_variables = NULL;
 #define CLRMEM(m)		memset(&(m),0,sizeof(m))
 void dummy_init()
 {
+	CLRMEM(sector_inside);
+	CLRMEM(sector_city);
+	CLRMEM(sector_field);
 	CLRMEM(plith);
 	CLRMEM(beginning);
 	CLRMEM(pious_street);
@@ -65,6 +72,33 @@ void dummy_init()
 	CLRMEM(sword);
 	CLRMEM(you);
 	CLRMEM(you_pcdata);
+
+	sector_inside.name = strdup("inside");
+	sector_inside.flags = SECTOR_INDOORS | SECTOR_CITY_LIGHTS;
+	sector_inside.sector_class = SECTCLASS_CITY;
+	sector_inside.move_cost = 1;
+	sector_inside.hp_regen = 100;
+	sector_inside.mana_regen = 100;
+	sector_inside.move_regen = 100;
+	sector_inside.soil = -20;
+
+	sector_city.name = strdup("city");
+	sector_city.flags = SECTOR_CITY_LIGHTS;
+	sector_city.sector_class = SECTCLASS_CITY;
+	sector_city.move_cost = 2;
+	sector_city.hp_regen = 100;
+	sector_city.mana_regen = 100;
+	sector_city.move_regen = 100;
+	sector_city.soil = -10;
+
+	sector_field.name = strdup("field");
+	sector_field.flags = SECTOR_NATURE;
+	sector_field.sector_class = SECTCLASS_PLAINS;
+	sector_field.move_cost = 2;
+	sector_field.hp_regen = 100;
+	sector_field.mana_regen = 100;
+	sector_field.move_regen = 100;
+	sector_field.soil = 5;
 
 	steiner_index.area = &plith;
 	steiner_index.vnum = 1L;
@@ -139,6 +173,9 @@ void dummy_init()
 	beginning.name = strdup("The Beginning");
 	beginning.description = strdup("The heart of the Town of Plith.");
 	beginning.lpeople = list_create(false);
+	beginning.rs_sector = &sector_inside;
+	beginning.sector = &sector_inside;
+	beginning.sector_flags = beginning.rs_sector->flags;
 	list_appendlink(beginning.lpeople, &steiner);
 	list_appendlink(beginning.lpeople, &ravage);
 	list_appendlink(beginning.lpeople, &mayor);
@@ -154,6 +191,10 @@ void dummy_init()
 	pious_street.name = strdup("Pious Street");
 	pious_street.description = strdup("The glorious street of piety.");
 	pious_street.lpeople = list_create(false);
+	pious_street.rs_sector = &sector_city;
+	pious_street.sector = &sector_city;
+	pious_street.sector_flags = pious_street.rs_sector->flags;
+
 
 	pious_street_up.from_room = &pious_street;
 	pious_street_up.orig_door = DIR_UP;
@@ -171,13 +212,119 @@ void dummy_init()
 	list_appendlink(plith.room_list, &beginning);
 	list_appendlink(plith.room_list, &pious_street);
 
-	nib_register_flag_table("affect", affect_flags);
-	nib_register_flag_table("area", area_flags);
-	nib_register_flag_table("exit", exit_flags);
+ 	nib_register_flag_table("account",acct_flags);
+ 	nib_register_flag_table("area_region",area_region_flags);
+ 	nib_register_flag_table("area",area_flags);
+ 	nib_register_flag_table("areaplace",place_flags);
+ 	nib_register_flag_table("blueprint_section",blueprint_section_flags);
+ 	nib_register_flag_table("blueprint",blueprint_flags);
+ 	nib_register_flag_table("book",book_flags);
+ 	nib_register_flag_table("cart",cart_flags);
+ 	nib_register_stat_table("catalyst_method",catalyst_method_types);
+ 	nib_register_flag_table("church",church_flags);
+ 	nib_register_flag_table("class",class_flags);
+ 	nib_register_flag_table("comm",comm_flags);
+ 	nib_register_flag_table("compartment",compartment_flags);
+ 	nib_register_flag_table("container",container_flags);
+ 	nib_register_flag_table("corpse_object",corpse_object_flags);
+ 	nib_register_flag_table("dungeon",dungeon_flags);
+ 	nib_register_flag_table("exit",exit_flags);
+ 	nib_register_flag_table("fluid_con",fluid_con_flags);
+ 	nib_register_flag_table("form",form_flags);
+ 	nib_register_flag_table("furniture_action",furniture_action_flags);
+ 	nib_register_flag_table("furniture",furniture_flags);
+ 	nib_register_flag_table("immune",imm_flags);
+ 	nib_register_flag_table("instance",instance_flags);
+ 	nib_register_flag_table("instrument",instrument_flags);
+ 	nib_register_flag_table("light",light_flags);
+ 	nib_register_flag_table("lock",lock_flags);
+ 	nib_register_flag_table("material",material_flags);
+ 	nib_register_flag_table("offense",off_flags);
+ 	nib_register_flag_table("part",part_flags);
+ 	nib_register_flag_table("portal_exit",portal_exit_flags);
+ 	nib_register_flag_table("portal",portal_flags);
+ 	nib_register_flag_table("practice_entry",practice_entry_flags);
+ 	nib_register_flag_table("prog_entity",prog_entity_flags);
+ 	nib_register_flag_table("project",project_flags);
+ 	nib_register_flag_table("reputation_rank",reputation_rank_flags);
+ 	nib_register_flag_table("reputation",reputation_flags);
+ 	nib_register_flag_table("resist",res_flags);
+ 	nib_register_flag_table("scroll",scroll_flags);
+ 	nib_register_flag_table("sector",sector_flags);
+ 	nib_register_flag_table("ship",ship_flags);
+ 	nib_register_flag_table("shop",shop_flags);
+ 	nib_register_flag_table("skill_entry",skill_entry_flags);
+ 	nib_register_flag_table("skill",skill_flags);
+ 	nib_register_flag_table("song",song_flags);
+ 	nib_register_flag_table("stock",stock_types);
+ 	nib_register_flag_table("time_of_day",time_of_day_flags);
+ 	nib_register_flag_table("token",token_flags);
+ 	nib_register_flag_table("vuln",vuln_flags);
+ 	nib_register_flag_table("wear",wear_flags);
 
-	nib_register_flag_bank("object",extra_flagbank);
+ 	nib_register_flag_bank("mobile",act_flagbank);
+ 	nib_register_flag_bank("player",plr_flagbank);
+ 	nib_register_flag_bank("affect",affect_flagbank);
+ 	nib_register_flag_bank("object",extra_flagbank);
+ 	nib_register_flag_bank("room",room_flagbank);
 
-	nib_register_stat_table("itemtypes", type_flags);
+ 	nib_register_stat_table("ac",ac_type);
+ 	nib_register_stat_table("adornment",adornment_types);
+ 	nib_register_stat_table("affgroup_mobile",affgroup_mobile_flags);
+ 	nib_register_stat_table("affgroup_object",affgroup_object_flags);
+ 	nib_register_stat_table("affgroup",affgroup_flags);
+ 	nib_register_stat_table("ammo",ammo_types);
+ 	nib_register_stat_table("apply_types",apply_types);
+ 	nib_register_stat_table("apply",apply_flags);
+ 	nib_register_stat_table("area_who_display",area_who_display);
+ 	nib_register_stat_table("area_who_titles",area_who_titles);
+ 	nib_register_stat_table("armour_protection",armour_protection_types);
+ 	nib_register_stat_table("armour",armour_types);
+ 	nib_register_stat_table("blueprint_section",blueprint_section_types);
+ 	nib_register_stat_table("boolean",boolean_types);
+ 	nib_register_stat_table("catalyst",catalyst_types);
+ 	nib_register_stat_table("church_sizes",church_sizes);
+ 	nib_register_stat_table("class",class_types);
+ 	nib_register_stat_table("corpse",corpse_types);
+ 	nib_register_stat_table("damage_class",damage_classes);
+ 	nib_register_stat_table("death_release",death_release_modes);
+ 	nib_register_stat_table("death",death_types);
+ 	nib_register_stat_table("food_buff",food_buff_types);
+ 	nib_register_stat_table("instrument",instrument_types);
+ 	nib_register_stat_table("itemtypes",type_flags);
+ 	nib_register_stat_table("material_class",material_classes);
+ 	nib_register_stat_table("missionary",missionary_types);
+ 	nib_register_stat_table("moon_phases",moon_phases);
+ 	nib_register_stat_table("portal_gate",portal_gatetype);
+ 	nib_register_stat_table("position",position_flags);
+ 	nib_register_stat_table("ranged_weapon_class",ranged_weapon_class);
+ 	nib_register_stat_table("room_condition",room_condition_flags);
+ 	nib_register_stat_table("script_spaces",script_spaces);
+ 	nib_register_stat_table("sector_class",sector_classes);
+ 	nib_register_stat_table("sectortypes",sector_types);
+ 	nib_register_stat_table("sex",sex_flags);
+ 	nib_register_stat_table("ship_class",ship_class_types);
+ 	nib_register_stat_table("size",size_flags);
+ 	nib_register_stat_table("skill_sources",skill_sources);
+ 	nib_register_stat_table("song_target",song_target_types);
+ 	nib_register_stat_table("spell_position",spell_position_flags);
+ 	nib_register_stat_table("spell_target",spell_target_types);
+ 	nib_register_stat_table("staff_ranks",staff_ranks);
+ 	nib_register_stat_table("stat",stat_types);
+ 	nib_register_stat_table("tattoo_loc",tattoo_loc_flags);
+	nib_register_stat_table("token",token_types);
+ 	nib_register_stat_table("tool",tool_types);
+ 	nib_register_stat_table("transfer_modes",transfer_modes);
+ 	nib_register_stat_table("vital",vital_types);
+ 	nib_register_stat_table("weapon_class",weapon_class);
+ 	nib_register_stat_table("weapon_type2",weapon_type2);
+ 	nib_register_stat_table("wear_loc",wear_loc_flags);
+
+}
+
+static void __cleanup_sector(SECTOR_DATA *sector)
+{
+	if (sector->name) free(sector->name);
 }
 
 static void __cleanup_pcdata(PC_DATA *pcdata)
@@ -244,6 +391,9 @@ void dummy_cleanup()
 
 	__cleanup_area(&plith);
 
+	__cleanup_sector(&sector_inside);
+	__cleanup_sector(&sector_city);
+
 }
 
 AREA_DATA *find_area(char *name)
@@ -293,6 +443,17 @@ CHURCH_DATA *get_church_by_name(const char *name)
 RACE_DATA *get_race_data(const char *name)
 {
 	if (!utf8_isstrascii(name)) return NULL;
+
+	return NULL;
+}
+
+SECTOR_DATA *get_sector_data(char *name)
+{
+	if (!utf8_isstrascii(name)) return NULL;
+
+	if (!str_cmp(sector_inside.name, name)) return &sector_inside;
+	if (!str_cmp(sector_city.name, name)) return &sector_city;
+	if (!str_cmp(sector_field.name, name)) return &sector_field;
 
 	return NULL;
 }
@@ -413,6 +574,7 @@ bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type)
 	__vp(RANK)
 	__vp(REPUTATION)
 	__vp(ROOM)
+	__vp(SECTOR)
 	__vp(SHIP)
 	__vp(SKILL)
 	__vp(TOKEN)
@@ -606,6 +768,7 @@ __var(RACE,RACE_DATA *,race,race)
 __var(RANK,REPUTATION_INDEX_RANK_DATA *,rank,rank)
 __var(REPUTATION,REPUTATION_DATA *,reputation,reputation)
 __var(ROOM,ROOM_INDEX_DATA *,room,room)
+__var(SECTOR,SECTOR_DATA *,sector,sector)
 __var(SHIP,SHIP_DATA *,ship,ship)
 __var(SKILL,SKILL_DATA *,skill,skill)
 __var(TOKEN,TOKEN_DATA *,token,token)
@@ -710,6 +873,7 @@ void variable_get_string(pVARIABLE var, char *buf, int buf_len, int char_len)
 			case VAR_RANK:		type = "rank"; break;
 			case VAR_REPUTATION:type = "reputation"; break;
 			case VAR_ROOM:		type = "room"; break;
+			case VAR_SECTOR:	type = "sector"; break;
 			case VAR_SHIP:		type = "ship"; break;
 			case VAR_SKILL:		type = "skill"; break;
 			case VAR_TOKEN:		type = "token"; break;
@@ -761,6 +925,7 @@ void variable_get_string(pVARIABLE var, char *buf, int buf_len, int char_len)
 			case VAR_RANK:		type = "rank"; break;
 			case VAR_REPUTATION:type = "reputation"; break;
 			case VAR_ROOM:		type = "room"; break;
+			case VAR_SECTOR:	type = "sector"; break;
 			case VAR_SHIP:		type = "ship"; break;
 			case VAR_SKILL:		type = "skill"; break;
 			case VAR_TOKEN:		type = "token"; break;
@@ -943,6 +1108,13 @@ void variable_get_string(pVARIABLE var, char *buf, int buf_len, int char_len)
 			len = snprintf(buf,buf_len,"null");
 		break;
 
+	case VAR_SECTOR:
+		if (var->_.sector)
+			len = snprintf(buf,buf_len,"%s", var->_.sector->name);
+		else
+			len = snprintf(buf,buf_len,"null");
+		break;
+
 	case VAR_SHIP:
 		if (var->_.ship && var->_.ship->index)
 		{
@@ -1053,6 +1225,7 @@ const char *variable_get_typename(pVARIABLE var)
 			case VAR_RANK:		return "list(constant rank)";
 			case VAR_REPUTATION:return "list(constant reputation)";
 			case VAR_ROOM:		return "list(constant room)";
+			case VAR_SECTOR:	return "list(constant sector)";
 			case VAR_SHIP:		return "list(constant ship)";
 			case VAR_SKILL:		return "list(constant skill)";
 			case VAR_TOKEN:		return "list(constant token)";
@@ -1093,6 +1266,7 @@ const char *variable_get_typename(pVARIABLE var)
 			case VAR_RANK:		return "list(rank)";
 			case VAR_REPUTATION:return "list(reputation)";
 			case VAR_ROOM:		return "list(room)";
+			case VAR_SECTOR:	return "list(sector)";
 			case VAR_SHIP:		return "list(ship)";
 			case VAR_SKILL:		return "list(skill)";
 			case VAR_TOKEN:		return "list(token)";
@@ -1135,6 +1309,7 @@ const char *variable_get_typename(pVARIABLE var)
 			case VAR_RANK:		return "list_s(constant rank)";
 			case VAR_REPUTATION:return "list_s(constant reputation)";
 			case VAR_ROOM:		return "list_s(constant room)";
+			case VAR_SECTOR:	return "list_s(constant sector)";
 			case VAR_SHIP:		return "list_s(constant ship)";
 			case VAR_SKILL:		return "list_s(constant skill)";
 			case VAR_TOKEN:		return "list_s(constant token)";
@@ -1175,6 +1350,7 @@ const char *variable_get_typename(pVARIABLE var)
 			case VAR_RANK:		return "list_s(rank)";
 			case VAR_REPUTATION:return "list_s(reputation)";
 			case VAR_ROOM:		return "list_s(room)";
+			case VAR_SECTOR:	return "list_s(sector)";
 			case VAR_SHIP:		return "list_s(ship)";
 			case VAR_SKILL:		return "list_s(skill)";
 			case VAR_TOKEN:		return "list_s(token)";
@@ -1219,6 +1395,7 @@ const char *variable_get_typename(pVARIABLE var)
 			case VAR_RANK:		type = "rank"; break;
 			case VAR_REPUTATION:type = "reputation"; break;
 			case VAR_ROOM:		type = "room"; break;
+			case VAR_SECTOR:	type = "sector"; break;
 			case VAR_SHIP:		type = "ship"; break;
 			case VAR_SKILL:		type = "skill"; break;
 			case VAR_TOKEN:		type = "token"; break;
@@ -1268,6 +1445,7 @@ const char *variable_get_typename(pVARIABLE var)
 			case VAR_RANK:		type = "rank"; break;
 			case VAR_REPUTATION:type = "reputation"; break;
 			case VAR_ROOM:		type = "room"; break;
+			case VAR_SECTOR:	type = "sector"; break;
 			case VAR_SHIP:		type = "ship"; break;
 			case VAR_SKILL:		type = "skill"; break;
 			case VAR_TOKEN:		type = "token"; break;
@@ -1302,6 +1480,7 @@ const char *variable_get_typename(pVARIABLE var)
 	case VAR_RANK:		return "rank";
 	case VAR_REPUTATION:return "reputation";
 	case VAR_ROOM:		return "room";
+	case VAR_SECTOR:	return "sector";
 	case VAR_SHIP:		return "ship";
 	case VAR_SKILL:		return "skill";
 	case VAR_TOKEN:		return "token";

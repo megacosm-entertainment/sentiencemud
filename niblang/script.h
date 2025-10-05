@@ -32,6 +32,7 @@ typedef enum nib_primary_types
 	NT_UNKNOWN = 0,
 	NT_BOOLEAN,
 	NT_NUMBER32,
+	NT_NUMBER16,
 	NT_NUMBER,
 	NT_FLOAT,
 	NT_CHAR,
@@ -59,6 +60,7 @@ typedef enum nib_primary_types
 	NT_RANK,		// Reputation Rank
 	NT_REPUTATION,
 	NT_ROOM,
+	NT_SECTOR,
 	NT_SHIP,
 	NT_SKILL,
 	NT_TOKEN,
@@ -75,6 +77,7 @@ typedef enum nib_type_class {
 	NTC_FLAG_BANK,
 	NTC_STAT,
 	NTC_STAT32,		// Targets a stat that's `int` instead of `long`
+	NTC_STAT16,		// Targets a stat that's `short` instead of `long`
 	NTC_LIST,
 	NTC_ARRAY,
 	NTC_MULTI,		// MUST be cast or ASSIGNED to resolve the type	(only used by return types of methods)

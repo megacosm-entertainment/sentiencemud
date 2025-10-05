@@ -489,6 +489,7 @@ UB [\200-\277]
 "reputation"			{ return T_REPUTATION; }
 "return"				{ return T_RETURN; }
 "room"					{ return T_ROOM; }
+"sector"				{ return T_SECTOR; }
 "self"					{ return T_SELF; }
 "ship"					{ return T_SHIP; }
 "sizeof"                { return T_SIZEOF; }

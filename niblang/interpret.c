@@ -37,6 +37,7 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 		case NTC_PRIMARY:
 			switch(type->_.primary)
 			{
+				case NT_NUMBER16:	return NST_NUMBER16;
 				case NT_NUMBER32:	return NST_NUMBER32;
 				case NT_NUMBER:		return NST_NUMBER;
 				case NT_FLOAT:		return NST_FLOAT;
@@ -67,6 +68,7 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 				case NT_RANK:		return NST_RANK;
 				case NT_REPUTATION:	return NST_REPUTATION;
 				case NT_ROOM:		return NST_ROOM;
+				case NT_SECTOR:		return NST_SECTOR;
 				case NT_SHIP:		return NST_SHIP;
 				case NT_SKILL:		return NST_SKILL;
 				case NT_TOKEN:		return NST_TOKEN;
@@ -78,6 +80,7 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 		case NTC_FLAG_BANK:	return NST_FLAG_BANK;
 		case NTC_STAT:		return NST_STAT;
 		case NTC_STAT32:	return NST_STAT32;
+		case NTC_STAT16:	return NST_STAT16;
 		case NTC_LIST:		return (constant && type->_.list.constant)?NST_LIST_C:NST_LIST;
 		case NTC_ARRAY:		return (constant && type->_.array.constant)?NST_ARRAY_C:NST_ARRAY;
 		case NTC_VOID:		return NST_VOID;
@@ -91,6 +94,7 @@ bool nst_is_pointer(NIB_SCRIPT_STACK_TYPE type)
 	{
 	case NST_NUMBER:
 	case NST_NUMBER32:
+	case NST_NUMBER16:
 	case NST_BOOLEAN:
 	case NST_FLOAT:
 	case NST_CHAR:
@@ -100,9 +104,91 @@ bool nst_is_pointer(NIB_SCRIPT_STACK_TYPE type)
 	case NST_FLAG_BIT:
 	case NST_STAT:
 	case NST_STAT32:
+	case NST_STAT16:
 		return false;
 	default:
 		return true;
+	}
+}
+
+bool stack_is_pointer(NIB_SCRIPT_STACK *sp)
+{
+	if (sp->type == NST_LVALUE)
+		return nst_is_pointer(sp->_.lvalue.type);
+
+	return nst_is_pointer(sp->type);
+}
+
+bool stack_is_null_pointer(NIB_SCRIPT_STACK *sp)
+{
+	switch(sp->type)
+	{
+	case NST_NUMBER:
+	case NST_NUMBER32:
+	case NST_NUMBER16:
+	case NST_BOOLEAN:
+	case NST_FLOAT:
+	case NST_CHAR:
+	case NST_WIDEVNUM:
+	case NST_FLAG:
+	case NST_FLAG_BANK:
+	case NST_FLAG_BIT:
+	case NST_STAT:
+	case NST_STAT32:
+	case NST_STAT16:
+		return false;
+
+	case NST_LIST:
+	case NST_LIST_C:
+	case NST_LIST_S:
+	case NST_LIST_CS:
+		return !list_isvalid(sp->_.list.list);
+
+	case NST_ARRAY:
+	case NST_ARRAY_C:
+	case NST_ARRAY_S:
+	case NST_ARRAY_CS:
+		return !sp->_.array.ptr;
+
+	case NST_LVALUE:
+		switch(sp->_.lvalue.type)
+		{
+		case NST_NUMBER:
+		case NST_NUMBER32:
+		case NST_NUMBER16:
+		case NST_BOOLEAN:
+		case NST_FLOAT:
+		case NST_CHAR:
+		case NST_WIDEVNUM:
+		case NST_FLAG:
+		case NST_FLAG_BANK:
+		case NST_FLAG_BIT:
+		case NST_STAT:
+		case NST_STAT32:
+		case NST_STAT16:
+			return false;
+
+		case NST_LIST:
+		case NST_LIST_C:
+		case NST_LIST_S:
+		case NST_LIST_CS:
+			return !list_isvalid(*(sp->_.lvalue._.list.list));
+
+		case NST_ARRAY:
+		case NST_ARRAY_C:
+		case NST_ARRAY_S:
+		case NST_ARRAY_CS:
+			return !sp->_.lvalue._.array.ptr;
+
+		default:	// Pointer type lvalue
+			return !sp->_.lvalue._.pointer || !*(sp->_.lvalue._.pointer);
+		}
+
+	case NST_NULL:	// This is by definition NULL
+		return true;
+
+	default:	// Pointer type object
+		return !sp->_.pointer;
 	}
 }
 
@@ -132,8 +218,9 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 	switch(type)
 	{
 		case NST_BOOLEAN:	return "boolean";
-		case NST_NUMBER32:	return "number32";
-		case NST_NUMBER:	return "number";
+		case NST_NUMBER16:	return "int16";
+		case NST_NUMBER32:	return "int32";
+		case NST_NUMBER:	return "int";
 		case NST_FLOAT:		return "float";
 		case NST_STRING:	return "string";
 		case NST_CHAR:		return "char";
@@ -142,6 +229,7 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 		case NST_FLAG:		return "flag";
 		case NST_STAT:		return "stat";
 		case NST_STAT32:	return "stat32";
+		case NST_STAT16:	return "stat16";
 		case NST_LIST:		return "list";
 		case NST_LIST_S:	return "list_s";
 		case NST_ARRAY:		return "array";
@@ -169,6 +257,7 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 		case NST_RANK:		return "rank";
 		case NST_REPUTATION:return "reputation";
 		case NST_ROOM:		return "room";
+		case NST_SECTOR:	return "sector";
 		case NST_SHIP:		return "ship";
 		case NST_SKILL:		return "skill";
 		case NST_TOKEN:		return "token";
@@ -664,6 +753,7 @@ __push(RACE_DATA *,RACE,race,race)
 __push(REPUTATION_INDEX_RANK_DATA *,RANK,rank,rank)
 __push(REPUTATION_DATA *,REPUTATION,reputation,reputation)
 __push(ROOM_INDEX_DATA *,ROOM,room,room)
+__push(SECTOR_DATA *,SECTOR,sector,sector)
 __push(SHIP_DATA *,SHIP,ship,ship)
 __push(SKILL_DATA *,SKILL,skill,skill)
 __push(TOKEN_DATA *,TOKEN,token,token)
@@ -927,6 +1017,7 @@ bool nib_push_stack_lvalue_value(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 	__lv(RANK,rank,rank)
 	__lv(REPUTATION,reputation,reputation)
 	__lv(ROOM,room,room)
+	__lv(SECTOR,sector,sector)
 	__lv(SHIP,ship,ship)
 	__lv(SKILL,skill,skill)
 	__lv(TOKEN,token,token)
@@ -992,6 +1083,7 @@ bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *va
 	__lcl(RANK,rank,rank)
 	__lcl(REPUTATION,reputation,reputation)
 	__lcl(ROOM,room,room)
+	__lcl(SECTOR,sector,sector)
 	__lcl(SHIP,ship,ship)
 	__lcl(SKILL,skill,skill)
 	__lcl(TOKEN,token,token)
@@ -1062,6 +1154,7 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 	__llv(RANK,rank,rank)
 	__llv(REPUTATION,reputation,reputation)
 	__llv(ROOM,room,room)
+	__llv(SECTOR,sector,sector)
 	__llv(SHIP,ship,ship)
 	__llv(SKILL,skill,skill)
 	__llv(TOKEN,token,token)
@@ -1152,6 +1245,7 @@ bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__gbl(RANK,rank,rank)
 	__gbl(REPUTATION,reputation,reputation)
 	__gbl(ROOM,room,room)
+	__gbl(SECTOR,sector,sector)
 	__gbl(SHIP,ship,ship)
 	__gbl(SKILL,skill,skill)
 	__gbl(TOKEN,token,token)
@@ -1238,6 +1332,7 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__glv(RANK,rank,rank)
 	__glv(REPUTATION,reputation,reputation)
 	__glv(ROOM,room,room)
+	__glv(SECTOR,sector,sector)
 	__glv(SHIP,ship,ship)
 	__glv(SKILL,skill,skill)
 	__glv(TOKEN,token,token)
@@ -1297,6 +1392,7 @@ static void *__get_field_offset(NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 	__rfo(RANK,rank)
 	__rfo(REPUTATION,reputation)
 	__rfo(ROOM,room)
+	__rfo(SECTOR,sector)
 	__rfo(SHIP,ship)
 	__rfo(SKILL,skill)
 	__rfo(TOKEN,token)
@@ -1332,6 +1428,7 @@ static void *__get_field_offset(NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 		__lfo(RANK,rank)
 		__lfo(REPUTATION,reputation)
 		__lfo(ROOM,room)
+		__lfo(SECTOR,sector)
 		__lfo(SHIP,ship)
 		__lfo(SKILL,skill)
 		__lfo(TOKEN,token)
@@ -1384,18 +1481,131 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 		} \
 		break;
 
+#define __fdef(n,f,v) \
+	case NST_##n:\
+		_stack.type = NST_##n; \
+		_stack._.f = (v); \
+		break;
+
+#define __fdef2(n,t,f,v) \
+	case NST_##n:\
+		_stack.type = NST_##t; \
+		_stack._.f = (v); \
+		break;
+
+#define __fdefn(n,f)	__fdef(n,f,NULL)
+
+
 	// Save value as an LVALUE instead of an RVALUE
 	bool is_lvalue = sp->type == NST_LVALUE && field->lvalue;
+
+	NIB_SCRIPT_STACK _stack;
+	memset(&_stack, 0, sizeof(_stack));
+	_stack.type = field->stype;
+
+	if (stack_is_null_pointer(sp))
+	{
+		// Create "default" rvalues based upon what the field output is
+		switch(field->stype)
+		{
+		__fdef2(NUMBER16,NUMBER,i,0)
+		__fdef2(NUMBER32,NUMBER,i,0)
+		__fdef(NUMBER,i,0)
+		__fdef(FLOAT,d,0.0)
+		__fdef(BOOLEAN,b,false)
+		__fdef(CHAR,ch,'\0')
+		__fdef2(STRING,STRING_S,str,"")
+		case NST_WIDEVNUM:
+			_stack.type = NST_WIDEVNUM;
+			_stack._.wnum.pArea = NULL;
+			_stack._.wnum.vnum = 0;
+			break;
+		
+		__fdefn(ACCOUNT,account)
+		__fdefn(AFFECT,affect)
+		__fdefn(AREA,area)
+		// __fdefn(CHANNEL,channel)
+		__fdefn(CLASS,clazz)
+		__fdefn(DUNGEON,dungeon)
+		__fdefn(EXIT,ex)
+		__fdefn(INSTANCE,instance)
+		__fdefn(LIQUID,liquid)
+		__fdefn(MAIL,mail)
+		__fdefn(MATERIAL,material)
+		__fdefn(MISSION,mission)
+		__fdefn(MOBILE,mobile)
+		__fdefn(NOTE,note)
+		__fdefn(OBJECT,object)
+		__fdefn(ORG,org)
+		// __fdefn(QUEST,quest)
+		__fdefn(RACE,race)
+		__fdefn(RANK,rank)
+		__fdefn(REPUTATION,reputation)
+		__fdefn(ROOM,room)
+		__fdefn(SECTOR,sector)
+		__fdefn(SHIP,ship)
+		__fdefn(SKILL,skill)
+		__fdefn(TOKEN,token)
+		__fdefn(WILDS,wilds)
+		case NST_FLAG:
+			_stack._.stat.number = 0;
+			_stack._.stat.table = field->type->_.flag.table;
+			break;
+
+		case NST_FLAG_BANK:
+			_stack.type = NST_FLAG_BANK_S;
+			_stack._.flagbank.bits = NULL;
+			_stack._.flagbank.bank = field->type->_.flagbank.bank;
+			_stack._.flagbank.banks = field->type->_.flagbank.banks;
+			break;
+
+		case NST_STAT:
+		case NST_STAT32:
+		case NST_STAT16:
+			_stack._.stat.number = 0;
+			_stack._.stat.table = field->type->_.stat.table;
+			break;
+
+		case NST_LIST:
+			_stack.type = NST_LIST_S;
+			_stack._.list.list = NULL;
+			_stack._.list.type = field->stype2;
+			break;
+
+		case NST_ARRAY:
+			_stack.type = NST_ARRAY_S;
+			_stack._.array.ptr = NULL;
+			_stack._.array.type = field->stype2;
+			_stack._.array.size = get_array_element_size_nst(field->stype2);
+			_stack._.array.length = field->type->_.array.length;
+			break;
+		default:
+			return false;
+		}
+
+		return nib_push_stack_raw(nsr, &_stack);
+	}
+
 	void *ptr = __get_field_offset(sp, field);
 	if (!ptr) return false;
 
 	// fprintf(stderr,"nib_push_stack_field: %p\n", ptr);
 
-	NIB_SCRIPT_STACK _stack;
-	memset(&_stack, 0, sizeof(_stack));
-	_stack.type = field->stype;
 	switch(field->stype)
 	{
+	case NST_NUMBER16:
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_NUMBER16;
+			_stack._.lvalue._.number16 = ptr;
+		}
+		else
+		{
+			_stack.type = NST_NUMBER;
+			_stack._.i = *((short *)ptr);
+		}
+		break;
 	case NST_NUMBER32:
 		if (is_lvalue)
 		{
@@ -1437,6 +1647,7 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 	__flv(RANK,REPUTATION_INDEX_RANK_DATA *,rank,rank)
 	__flv(REPUTATION,REPUTATION_DATA *,reputation,reputation)
 	__flv(ROOM,ROOM_INDEX_DATA *,room,room)
+	__flvd(SECTOR,sector)
 	__flvd(SHIP,ship)
 	__flvd(SKILL,skill)
 	__flvd(TOKEN,token)
@@ -1501,6 +1712,22 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 			// 	_stack._.stat.table,
 			// 	_stack._.stat.number
 			// );
+		}
+		break;
+
+	case NST_STAT16:
+		if (is_lvalue)
+		{
+			_stack.type = NST_LVALUE;
+			_stack._.lvalue.type = NST_STAT16;
+			_stack._.lvalue._.stat16.number = ptr;
+			_stack._.lvalue._.stat16.table = field->type->_.stat.table;
+		}
+		else
+		{
+			_stack.type = NST_STAT;
+			_stack._.stat.number = *((short *)ptr);
+			_stack._.stat.table = field->type->_.stat.table;
 		}
 		break;
 
@@ -1694,6 +1921,7 @@ __peek(RACE_DATA *,RACE,race,race)
 __peek(REPUTATION_INDEX_RANK_DATA *,RANK,rank,rank)
 __peek(REPUTATION_DATA *,REPUTATION,reputation,reputation)
 __peek(ROOM_INDEX_DATA *,ROOM,room,room)
+__peek(SECTOR_DATA *,SECTOR,sector,sector)
 __peek(SHIP_DATA *,SHIP,ship,ship)
 __peek(SKILL_DATA *,SKILL,skill,skill)
 __peek(TOKEN_DATA *,TOKEN,token,token)
@@ -1949,6 +2177,7 @@ __pop(RACE_DATA *,RACE,race,race)
 __pop(REPUTATION_INDEX_RANK_DATA *,RANK,rank,rank)
 __pop(REPUTATION_DATA *,REPUTATION,reputation,reputation)
 __pop(ROOM_INDEX_DATA *,ROOM,room,room)
+__pop(SECTOR_DATA *,SECTOR,sector,sector)
 __pop(SHIP_DATA *,SHIP,ship,ship)
 __pop(SKILL_DATA *,SKILL,skill,skill)
 __pop(TOKEN_DATA *,TOKEN,token,token)
@@ -2111,6 +2340,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 		__zr(RANK,REPUTATION_INDEX_RANK_DATA *,rank,!value)
 		__zr(REPUTATION,REPUTATION_DATA *,reputation,!IS_VALID(value))
 		__zr(ROOM,ROOM_INDEX_DATA *,room,!value)
+		__zr(SECTOR,SECTOR_DATA *,sector,!value)
 		__zr(SHIP,SHIP_DATA *,ship,!IS_VALID(value))
 		__zr(SKILL,SKILL_DATA *,skill,!IS_VALID(value))
 		__zr(TOKEN,TOKEN_DATA *,token,!IS_VALID(value))
@@ -2196,6 +2426,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 			case NST_RANK:			return !*(lvalue._.rank);
 			case NST_REPUTATION:	return !IS_VALID((*(lvalue._.reputation)));
 			case NST_ROOM:			return !*(lvalue._.room);
+			case NST_SECTOR:		return !*(lvalue._.sector);
 			case NST_SHIP:			return !IS_VALID((*(lvalue._.ship)));
 			case NST_SKILL:			return !IS_VALID((*(lvalue._.skill)));
 			case NST_TOKEN:			return !IS_VALID((*(lvalue._.token)));
@@ -2243,6 +2474,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 		__zr(RANK,REPUTATION_INDEX_RANK_DATA *,rank,value)
 		__zr(REPUTATION,REPUTATION_DATA *,reputation,IS_VALID(value))
 		__zr(ROOM,ROOM_INDEX_DATA *,room,value != NULL)
+		__zr(SECTOR,SECTOR_DATA *,sector,value != NULL)
 		__zr(SHIP,SHIP_DATA *,ship,IS_VALID(value))
 		__zr(SKILL,SKILL_DATA *,skill,IS_VALID(value))
 		__zr(TOKEN,TOKEN_DATA *,token,IS_VALID(value))
@@ -2328,6 +2560,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 			case NST_RANK:			return *(lvalue._.rank) != NULL;
 			case NST_REPUTATION:	return IS_VALID((*(lvalue._.reputation)));
 			case NST_ROOM:			return *(lvalue._.room) != NULL;
+			case NST_SECTOR:		return *(lvalue._.sector) != NULL;
 			case NST_SHIP:			return IS_VALID((*(lvalue._.ship)));
 			case NST_SKILL:			return IS_VALID((*(lvalue._.skill)));
 			case NST_TOKEN:			return IS_VALID((*(lvalue._.token)));
@@ -4992,11 +5225,56 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							else
 								strcpy(stringify, "null");
-							sprintf(stringify,"%s(%ld,%ld)",
-								(rsp->_.room) ? (rsp->_.room)->name : "null",
-								(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
-								(rsp->_.room) ? (rsp->_.room)->vnum : 0);
 
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_SECTOR:	// STRING op SECTOR => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.sector)
+								strncpy(stringify,rsp->_.sector->name,sizeof(stringify)-1);
+							else
+								strcpy(stringify, "null");
 							if (lsp->_.str)
 							{
 								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -5236,6 +5514,88 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER16:	// STRING op NUMBER16 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(rsp->_.lvalue._.number16),number);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,number);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (lsp->_.str)
+									{
+										register int cnt = *(rsp->_.lvalue._.number16);
+										register int len = strlen(lsp->_.str);
+										char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										register char *str = value;
+										for(int i = cnt; i-- > 0; str += len)
+											strcpy(str, lsp->_.str);
+										*str = 0;
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr, value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_NUMBER32:	// STRING op NUMBER32 => STRING
 						{
 							switch(op)
@@ -5821,6 +6181,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							case NI_ADD:		// Concatenation
 								{
 									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT16:	// STRING op STAT16 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat16.table,*(rsp->_.lvalue._.stat16.number));
 									if (lsp->_.str)
 									{
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -6744,6 +7145,52 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										(room) ? (room)->name : "null",
 										(room) ? (room)->area->uid : 0,
 										(room) ? (room)->vnum : 0);
+
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SECTOR:		// STRING op SECTOR => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (*(rsp->_.lvalue._.sector))
+										strncpy(stringify,(*(rsp->_.lvalue._.sector))->name,sizeof(stringify)-1);
+									else
+										strcpy(stringify, "null");
 
 									if (lsp->_.str)
 									{
@@ -8406,6 +8853,52 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			case NST_SECTOR:	// STRING op SECTOR => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.sector)
+								strncpy(stringify, rsp->_.sector->name, sizeof(stringify)-1);
+							else
+								strcpy(stringify, "null");
+
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_SHIP:		// STRING op SHIP => STRING
 				{
 					switch(op)
@@ -8591,6 +9084,81 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER16:	// STRING(s) op NUMBER16 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(rsp->_.lvalue._.number16),number);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,number);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (lsp->_.str)
+									{
+										register int cnt = *(rsp->_.lvalue._.number16);
+										register int len = strlen(lsp->_.str);
+										char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										register char *str = value;
+										for(int i = cnt; i-- > 0; str += len)
+											strcpy(str, lsp->_.str);
+										*str = 0;
+
+										if (!nib_push_stack_string_raw(nsr, value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_NUMBER32:	// STRING(s) op NUMBER32 => STRING
 						{
 							switch(op)
@@ -9143,6 +9711,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							case NI_ADD:		// Concatenation
 								{
 									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT16:	// STRING op STAT16 => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat16.table,*(rsp->_.lvalue._.stat16.number));
 									if (lsp->_.str)
 									{
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -10017,10 +10626,52 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									}
 									else
 										strcpy(stringify, "null");
-									sprintf(stringify,"%s(%ld,%ld)",
-										((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->name : "null",
-										((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->area->uid : 0,
-										((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->vnum : 0);
+
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SECTOR:	// STRING op SECTOR => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.sector)))
+										strncpy(stringify, (*(rsp->_.lvalue._.sector))->name,sizeof(stringify)-1);
+									else
+										strcpy(stringify, "null");
 
 									if (lsp->_.str)
 									{
@@ -13301,6 +13952,52 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									}
 									else
 										strcpy(stringify, "null");
+
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SECTOR:	// STRING op SECTOR => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.sector)
+										strncpy(stringify, rsp->_.sector->name,sizeof(stringify)-1);
+									else
+										strcpy(stringify, "null");
 									sprintf(stringify,"%s(%ld,%ld)",
 										(rsp->_.room) ? (rsp->_.room)->name : "null",
 										(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
@@ -13525,6 +14222,81 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER16:	// STRING op NUMBER16 => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char number[100];
+											ltoa(*(rsp->_.lvalue._.number16),number);
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(number)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,number);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,number))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									case NI_MULT:		// Cloning
+										{
+											if (*(lsp->_.lvalue._.str))
+											{
+												register int cnt = *(rsp->_.lvalue._.number16);
+												register int len = strlen(*(lsp->_.lvalue._.str));
+												char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+
+												register char *str = value;
+												for(int i = cnt; i-- > 0; str += len)
+													strcpy(str, *(lsp->_.lvalue._.str));
+												*str = 0;
+
+												if (!nib_push_stack_string_raw(nsr, value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr, ""))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
 							case NST_NUMBER32:	// STRING op NUMBER32 => STRING
 								{
 									switch(op)
@@ -14071,6 +14843,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									case NI_ADD:		// Concatenation
 										{
 											const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_STAT16:	// STRING op STAT16 => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat16.table,*(rsp->_.lvalue._.stat16.number));
 											if (*(lsp->_.lvalue._.str))
 											{
 												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
@@ -14945,10 +15758,52 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 											}
 											else
 												strcpy(stringify, "null");
-											sprintf(stringify,"%s(%ld,%ld)",
-												((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->name : "null",
-												((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->area->uid : 0,
-												((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->vnum : 0);
+
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_SECTOR:	// STRING op SECTOR => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if ((*(rsp->_.lvalue._.sector)))
+												strncpy(stringify, (*(rsp->_.lvalue._.sector))->name,sizeof(stringify)-1);
+											else
+												strcpy(stringify, "null");
 
 											if ((*(lsp->_.lvalue._.str)))
 											{
@@ -17088,6 +17943,30 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER16:		// STAT op NUMBER16 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.stat.number) == *(rsp->_.lvalue._.number16); break;
+							case NI_NEQ:	value = (lsp->_.stat.number) != *(rsp->_.lvalue._.number16); break;
+							case NI_LT:		value = (lsp->_.stat.number) < *(rsp->_.lvalue._.number16); break;
+							case NI_LE:		value = (lsp->_.stat.number) <= *(rsp->_.lvalue._.number16); break;
+							case NI_GT:		value = (lsp->_.stat.number) > *(rsp->_.lvalue._.number16); break;
+							case NI_GE:		value = (lsp->_.stat.number) >= *(rsp->_.lvalue._.number16); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
 						{
 							bool value;
@@ -17186,6 +18065,31 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
+					case NST_STAT16:		// STAT op STAT16 => BOOLEAN
+						{
+							bool same = lsp->_.stat.table == rsp->_.lvalue._.stat16.table;
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = same && ((lsp->_.stat.number) == *(rsp->_.lvalue._.stat16.number)); break;
+							case NI_NEQ:	value = same && ((lsp->_.stat.number) != *(rsp->_.lvalue._.stat16.number)); break;
+							case NI_LT:		value = same && ((lsp->_.stat.number) < *(rsp->_.lvalue._.stat16.number)); break;
+							case NI_LE:		value = same && ((lsp->_.stat.number) <= *(rsp->_.lvalue._.stat16.number)); break;
+							case NI_GT:		value = same && ((lsp->_.stat.number) > *(rsp->_.lvalue._.stat16.number)); break;
+							case NI_GE:		value = same && ((lsp->_.stat.number) >= *(rsp->_.lvalue._.stat16.number)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17229,8 +18133,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.account) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.account) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.account); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.account); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17312,8 +18216,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.affect) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.affect) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.affect); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.affect); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17477,8 +18381,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.clazz) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.clazz) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.clazz); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.clazz); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17584,8 +18488,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.dungeon) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.dungeon) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.dungeon); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.dungeon); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17691,8 +18595,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.ex) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.ex) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.ex); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.ex); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17798,8 +18702,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.instance) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.instance) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.instance); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.instance); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -17905,8 +18809,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.liquid) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.liquid) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.liquid); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.liquid); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18069,8 +18973,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.material) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.material) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.material); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.material); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18258,8 +19162,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.mobile) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.mobile) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.mobile); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.mobile); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18311,6 +19215,88 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 								else
 									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
 								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_NOTE:			// NOTE op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_NOTE:		// NOTE op NOTE => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.note) == (rsp->_.note); break;
+					case NI_NEQ:	value = (lsp->_.note) != (rsp->_.note); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// NOTE op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = !IS_VALID(lsp->_.note); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.note); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// NOTE op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_NOTE:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.note) == *(rsp->_.lvalue._.note); break;
+							case NI_NEQ:	value = (lsp->_.note) != *(rsp->_.lvalue._.note); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -18392,8 +19378,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.object) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.object) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.object); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.object); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18584,8 +19570,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.race) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.race) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.race); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.race); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18666,8 +19652,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.rank) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.rank) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.rank); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.rank); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18743,13 +19729,38 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
+			case NST_WIDEVNUM:		// MOBILE op WIDEVNUM => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.reputation && lsp->_.reputation->pIndexData != NULL) && (lsp->_.reputation->pIndexData->area == rsp->_.wnum.pArea) && (lsp->_.reputation->pIndexData->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.reputation && lsp->_.reputation->pIndexData)
+							value = (lsp->_.reputation->pIndexData->area != rsp->_.wnum.pArea) || (lsp->_.reputation->pIndexData->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NULL:		// REPUTATION op null => BOOLEAN
 				{
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.reputation) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.reputation) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.reputation); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.reputation); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -18774,6 +19785,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							{
 							case NI_EQ:		value = (lsp->_.reputation) == *(rsp->_.lvalue._.reputation); break;
 							case NI_NEQ:	value = (lsp->_.reputation) != *(rsp->_.lvalue._.reputation); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:			// MOBILE op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.reputation && lsp->_.reputation->pIndexData != NULL) && (lsp->_.reputation->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.reputation->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.reputation && lsp->_.reputation->pIndexData)
+								{
+									value = (lsp->_.reputation->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.reputation->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+								}
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -18923,6 +19961,88 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 			break;
 		}
 
+	case NST_SECTOR:		// SECTOR op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_SECTOR:		// SECTOR op SECTOR => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.sector) == (rsp->_.sector); break;
+					case NI_NEQ:	value = (lsp->_.sector) != (rsp->_.sector); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:			// SECTOR op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.sector) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.sector) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:		// SECTOR op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_SECTOR:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.sector) == *(rsp->_.lvalue._.sector); break;
+							case NI_NEQ:	value = (lsp->_.sector) != *(rsp->_.lvalue._.sector); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_SHIP:			// SHIP op ???
 		{
 			switch(rsp->type)
@@ -18977,8 +20097,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.ship) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.ship) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.ship); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.ship); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -19084,8 +20204,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.skill) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.skill) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.skill); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.skill); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -19191,8 +20311,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.token) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.token) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.token); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.token); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -19300,8 +20420,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.wilds) == NULL; break;
-					case NI_NEQ:	value = (lsp->_.wilds) != NULL; break;
+					case NI_EQ:		value = !IS_VALID(lsp->_.wilds); break;
+					case NI_NEQ:	value = IS_VALID(lsp->_.wilds); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -19441,6 +20561,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 			__bool_nullvf(RANK,rank)
 			__bool_nullvf(REPUTATION,reputation)
 			__bool_nullf(ROOM,room)
+			__bool_nullf(SECTOR,sector)
 			__bool_nullvf(SHIP,ship)
 			__bool_nullvf(SKILL,skill)
 			__bool_nullvf(TOKEN,token)
@@ -19511,6 +20632,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					__bool_nullvflv(RANK,rank)
 					__bool_nullvflv(REPUTATION,reputation)
 					__bool_nullflv(ROOM,room)
+					__bool_nullflv(SECTOR,sector)
 					__bool_nullvflv(SHIP,ship)
 					__bool_nullvflv(SKILL,skill)
 					__bool_nullvflv(TOKEN,token)
@@ -19530,11 +20652,445 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 		{
 			switch(lsp->_.lvalue.type)
 			{
-			case NST_NUMBER32:		// NUMBER32 op ???
+			case NST_NUMBER16:		// NUMBER op ???
 				{
 					switch(rsp->type)
 					{
-					case NST_NUMBER:	// NUMBER32 op NUMBER => BOOLEAN
+					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (rsp->_.i); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (rsp->_.i); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (rsp->_.i); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (rsp->_.i); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (rsp->_.i); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (rsp->_.i); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.i != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.i != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.i != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLOAT:		// NUMBER op FLOAT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((double)*(lsp->_.lvalue._.number16)) == (rsp->_.d); break;
+							case NI_NEQ:	value = ((double)*(lsp->_.lvalue._.number16)) != (rsp->_.d); break;
+							case NI_LT:		value = ((double)*(lsp->_.lvalue._.number16)) < (rsp->_.d); break;
+							case NI_LE:		value = ((double)*(lsp->_.lvalue._.number16)) <= (rsp->_.d); break;
+							case NI_GT:		value = ((double)*(lsp->_.lvalue._.number16)) > (rsp->_.d); break;
+							case NI_GE:		value = ((double)*(lsp->_.lvalue._.number16)) >= (rsp->_.d); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.d != 0.0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.d != 0.0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.d != 0.0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_CHAR:		// NUMBER op CHAR => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (rsp->_.ch); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (rsp->_.ch); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (rsp->_.ch); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (rsp->_.ch); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (rsp->_.ch); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (rsp->_.ch); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.ch != '\0'); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.ch != '\0'); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.ch != '\0'); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_BOOLEAN:	// NUMBER op BOOLEAN => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.b); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.b); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.b); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG:		// NUMBER op FLAG => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (rsp->_.i); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (rsp->_.i); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.i != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.i != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.i != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT:		// NUMBER op STAT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (rsp->_.stat.number); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (rsp->_.stat.number); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (rsp->_.stat.number); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (rsp->_.stat.number); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (rsp->_.stat.number); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (rsp->_.stat.number); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.stat.number != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.stat.number != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.stat.number != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.number16)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.number16)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.number16)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.number16)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.number16)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.number16)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.number16) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.number32)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.number32)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.number32)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.number32)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.number32)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.number32)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.number32) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLOAT:		// NUMBER op FLOAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((double)*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.d)); break;
+									case NI_NEQ:	value = ((double)*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.d)); break;
+									case NI_LT:		value = ((double)*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.d)); break;
+									case NI_LE:		value = ((double)*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.d)); break;
+									case NI_GT:		value = ((double)*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.d)); break;
+									case NI_GE:		value = ((double)*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.d)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.d) != 0.0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.d) != 0.0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.d) != 0.0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_CHAR:		// NUMBER op CHAR => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.ch)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.ch)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.ch)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.ch)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.ch)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.ch)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.ch) != '\0'); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.ch) != '\0'); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.ch) != '\0'); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_BOOLEAN:	// NUMBER op BOOLEAN => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.b)); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.b)); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.b)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLAG:		// NUMBER op FLAG => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT:		// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.stat.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.stat.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.stat.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT32:	// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT16:	// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NUMBER32:		// NUMBER op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 						{
 							bool value;
 							switch(op)
@@ -19561,7 +21117,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					case NST_FLOAT:		// NUMBER32 op FLOAT => BOOLEAN
+					case NST_FLOAT:		// NUMBER op FLOAT => BOOLEAN
 						{
 							bool value;
 							switch(op)
@@ -19588,7 +21144,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					case NST_CHAR:		// NUMBER32 op CHAR => BOOLEAN
+					case NST_CHAR:		// NUMBER op CHAR => BOOLEAN
 						{
 							bool value;
 							switch(op)
@@ -19615,7 +21171,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					case NST_BOOLEAN:	// NUMBER32 op BOOLEAN => BOOLEAN
+					case NST_BOOLEAN:	// NUMBER op BOOLEAN => BOOLEAN
 						{
 							bool value;
 							switch(op)
@@ -19636,7 +21192,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					case NST_FLAG:		// NUMBER32 op FLAG => BOOLEAN
+					case NST_FLAG:		// NUMBER op FLAG => BOOLEAN
 						{
 							bool value;
 							switch(op)
@@ -19659,11 +21215,65 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
+					case NST_STAT:		// NUMBER op STAT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (rsp->_.stat.number); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (rsp->_.stat.number); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (rsp->_.stat.number); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (rsp->_.stat.number); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (rsp->_.stat.number); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (rsp->_.stat.number); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.stat.number != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.stat.number != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.stat.number != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_LVALUE:
 						{
 							switch(rsp->_.lvalue.type)
 							{
-							case NST_NUMBER32:	// NUMBER32 op NUMBER32 => BOOLEAN
+							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.number16)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.number16)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.number16)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.number16)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.number16)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.number16)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.number16) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
 								{
 									bool value;
 									switch(op)
@@ -19690,7 +21300,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							case NST_NUMBER:	// NUMBER32 op NUMBER => BOOLEAN
+							case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 								{
 									bool value;
 									switch(op)
@@ -19717,7 +21327,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							case NST_FLOAT:		// NUMBER32 op FLOAT => BOOLEAN
+							case NST_FLOAT:		// NUMBER op FLOAT => BOOLEAN
 								{
 									bool value;
 									switch(op)
@@ -19744,7 +21354,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							case NST_CHAR:		// NUMBER32 op CHAR => BOOLEAN
+							case NST_CHAR:		// NUMBER op CHAR => BOOLEAN
 								{
 									bool value;
 									switch(op)
@@ -19771,7 +21381,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							case NST_BOOLEAN:	// NUMBER32 op BOOLEAN => BOOLEAN
+							case NST_BOOLEAN:	// NUMBER op BOOLEAN => BOOLEAN
 								{
 									bool value;
 									switch(op)
@@ -19792,7 +21402,7 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							case NST_FLAG:		// NUMBER32 op FLAG => BOOLEAN
+							case NST_FLAG:		// NUMBER op FLAG => BOOLEAN
 								{
 									bool value;
 									switch(op)
@@ -19802,6 +21412,87 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
 									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
 									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT:		// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.stat.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.stat.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.stat.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT32:	// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT16:	// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.stat16.number) != 0); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -19958,10 +21649,91 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
+					case NST_STAT:		// NUMBER op STAT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (rsp->_.stat.number); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (rsp->_.stat.number); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (rsp->_.stat.number); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (rsp->_.stat.number); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (rsp->_.stat.number); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (rsp->_.stat.number); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (rsp->_.stat.number != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (rsp->_.stat.number != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (rsp->_.stat.number != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_LVALUE:
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (*(rsp->_.lvalue._.number16)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (*(rsp->_.lvalue._.number16)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (*(rsp->_.lvalue._.number16)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (*(rsp->_.lvalue._.number16)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (*(rsp->_.lvalue._.number16)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (*(rsp->_.lvalue._.number16)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.number16) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (*(rsp->_.lvalue._.number32)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (*(rsp->_.lvalue._.number32)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (*(rsp->_.lvalue._.number32)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (*(rsp->_.lvalue._.number32)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (*(rsp->_.lvalue._.number32)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (*(rsp->_.lvalue._.number32)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.number32) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 								{
 									bool value;
@@ -20074,6 +21846,87 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
 									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
 									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT:		// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (*(rsp->_.lvalue._.stat.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.stat.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.stat.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.stat.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT32:	// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (*(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.stat32.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT16:	// NUMBER op STAT => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (*(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.stat16.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.stat16.number) != 0); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -20621,15 +22474,19 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					// case NST_DUNGEON:
-					// case NST_INSTANCE:
-					case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+					case NST_DUNGEON:
 						{
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = (rsp->_.mobile->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == rsp->_.mobile->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == rsp->_.mobile->pIndexData->vnum); break;
-							case NI_NEQ:	value = (rsp->_.mobile->pIndexData == NULL) || (lsp->_.lvalue._.wnum->pArea != rsp->_.mobile->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != rsp->_.mobile->pIndexData->vnum); break;
+							case NI_EQ:		value = ((rsp->_.dungeon)) && (((rsp->_.dungeon))->index != NULL) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.dungeon))->index->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.dungeon))->index->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.dungeon) && ((rsp->_.dungeon))->index)
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.dungeon))->index->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.dungeon))->index->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
+								
 							default:
 								SETRET(nsr,INVALID);
 								return true;		
@@ -20644,15 +22501,100 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 					
-					// case NST_OBJECT:
+					case NST_INSTANCE:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((rsp->_.instance)) && (((rsp->_.instance))->blueprint != NULL) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.instance))->blueprint->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.instance))->blueprint->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.instance) && ((rsp->_.instance))->blueprint)
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.instance))->blueprint->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.instance))->blueprint->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
+								
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
+					case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((rsp->_.mobile)) && (((rsp->_.mobile))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.mobile))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.mobile))->pIndexData->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.mobile) && ((rsp->_.mobile))->pIndexData)
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.mobile))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.mobile))->pIndexData->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
+								
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
+					case NST_OBJECT:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((rsp->_.object)) && (((rsp->_.object))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.object))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.object))->pIndexData->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.object) && ((rsp->_.object))->pIndexData)
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.object))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.object))->pIndexData->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
+								
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
 					// case NST_QUEST:
 					case NST_ROOM:			// WIDEVNUM op ROOM
 						{
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = (lsp->_.lvalue._.wnum->pArea == rsp->_.room->area) && (lsp->_.lvalue._.wnum->vnum == rsp->_.room->vnum); break;
-							case NI_NEQ:	value = (lsp->_.lvalue._.wnum->pArea != rsp->_.room->area) || (lsp->_.lvalue._.wnum->vnum != rsp->_.room->vnum); break;
+							case NI_EQ:		value = (rsp->_.room) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.room))->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.room))->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.room))
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.room))->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.room))->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;		
@@ -20667,8 +22609,60 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					// case NST_SHIP:
-					// case NST_TOKEN:
+					case NST_SHIP:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((rsp->_.ship)) && (((rsp->_.ship))->index != NULL) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.ship))->index->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.ship))->index->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.ship) && ((rsp->_.ship))->index)
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.ship))->index->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.ship))->index->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
+								
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
+					case NST_TOKEN:		// WIDEVNUM op TOKEN => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((rsp->_.token)) && (((rsp->_.token))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == ((rsp->_.token))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == ((rsp->_.token))->pIndexData->vnum); break;
+							case NI_NEQ:
+								if ((rsp->_.token) && ((rsp->_.token))->pIndexData)
+									value = (lsp->_.lvalue._.wnum->pArea != ((rsp->_.token))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != ((rsp->_.token))->pIndexData->vnum);
+								else
+									value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+								break;
+								
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
 					case NST_NULL:			// WIDEVNUM op null
 						{
 							bool value;
@@ -20714,15 +22708,19 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							// case NST_DUNGEON:
-							// case NST_INSTANCE:
-							case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+							case NST_DUNGEON:
 								{
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:		value = ((*(rsp->_.lvalue._.mobile))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.mobile))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.mobile))->pIndexData->vnum); break;
-									case NI_NEQ:	value = ((*(rsp->_.lvalue._.mobile))->pIndexData == NULL) || (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.mobile))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.mobile))->pIndexData->vnum); break;
+									case NI_EQ:		value = (*(rsp->_.lvalue._.dungeon)) && ((*(rsp->_.lvalue._.dungeon))->index != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.dungeon))->index->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.dungeon))->index->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.dungeon) && (*(rsp->_.lvalue._.dungeon))->index)
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.dungeon))->index->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.dungeon))->index->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
+										
 									default:
 										SETRET(nsr,INVALID);
 										return true;		
@@ -20737,15 +22735,100 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 							
-							// case NST_OBJECT:
+							case NST_INSTANCE:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(rsp->_.lvalue._.instance)) && ((*(rsp->_.lvalue._.instance))->blueprint != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.instance))->blueprint->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.instance))->blueprint->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.instance) && (*(rsp->_.lvalue._.instance))->blueprint)
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.instance))->blueprint->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.instance))->blueprint->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
+										
+									default:
+										SETRET(nsr,INVALID);
+										return true;		
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;		
+									}
+
+									break;
+								}
+							
+							case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(rsp->_.lvalue._.mobile)) && ((*(rsp->_.lvalue._.mobile))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.mobile))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.mobile))->pIndexData->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.mobile) && (*(rsp->_.lvalue._.mobile))->pIndexData)
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.mobile))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.mobile))->pIndexData->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
+										
+									default:
+										SETRET(nsr,INVALID);
+										return true;		
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;		
+									}
+
+									break;
+								}
+							
+							case NST_OBJECT:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.object))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.object))->pIndexData->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.object) && (*(rsp->_.lvalue._.object))->pIndexData)
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.object))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.object))->pIndexData->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
+										
+									default:
+										SETRET(nsr,INVALID);
+										return true;		
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;		
+									}
+
+									break;
+								}
+							
 							// case NST_QUEST:
 							case NST_ROOM:			// WIDEVNUM op ROOM
 								{
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:		value = (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.room))->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.room))->vnum); break;
-									case NI_NEQ:	value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.room))->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.room))->vnum); break;
+									case NI_EQ:		value = *(rsp->_.lvalue._.room) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.room))->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.room))->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.room))
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.room))->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.room))->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;		
@@ -20760,8 +22843,60 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
-							// case NST_SHIP:
-							// case NST_TOKEN:
+							case NST_SHIP:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(rsp->_.lvalue._.ship)) && ((*(rsp->_.lvalue._.ship))->index != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.ship))->index->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.ship))->index->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.ship) && (*(rsp->_.lvalue._.ship))->index)
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.ship))->index->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.ship))->index->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
+										
+									default:
+										SETRET(nsr,INVALID);
+										return true;		
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;		
+									}
+
+									break;
+								}
+							
+							case NST_TOKEN:		// WIDEVNUM op TOKEN => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token))->pIndexData != NULL) && (lsp->_.lvalue._.wnum->pArea == (*(rsp->_.lvalue._.token))->pIndexData->area) && (lsp->_.lvalue._.wnum->vnum == (*(rsp->_.lvalue._.token))->pIndexData->vnum); break;
+									case NI_NEQ:
+										if (*(rsp->_.lvalue._.token) && (*(rsp->_.lvalue._.token))->pIndexData)
+											value = (lsp->_.lvalue._.wnum->pArea != (*(rsp->_.lvalue._.token))->pIndexData->area) || (lsp->_.lvalue._.wnum->vnum != (*(rsp->_.lvalue._.token))->pIndexData->vnum);
+										else
+											value = lsp->_.lvalue._.wnum->pArea && lsp->_.lvalue._.wnum->vnum > 0;
+										break;
+										
+									default:
+										SETRET(nsr,INVALID);
+										return true;		
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;		
+									}
+
+									break;
+								}
+							
 							default:
 								SETRET(nsr,INVALID);
 								return true;		
@@ -21097,6 +23232,30 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER16:		// STAT op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat.number) == *(rsp->_.lvalue._.number16); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat.number) != *(rsp->_.lvalue._.number16); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat.number) < *(rsp->_.lvalue._.number16); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat.number) <= *(rsp->_.lvalue._.number16); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat.number) > *(rsp->_.lvalue._.number16); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat.number) >= *(rsp->_.lvalue._.number16); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
 								{
 									bool value;
@@ -21195,6 +23354,31 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
+							case NST_STAT16:		// STAT op STAT16 => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat.table == rsp->_.lvalue._.stat16.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat.number) == *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat.number) != *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat.number) < *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat.number) <= *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat.number) > *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat.number) >= *(rsp->_.lvalue._.stat16.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21266,6 +23450,30 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_NUMBER16:		// STAT op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat32.number) == *(rsp->_.lvalue._.number16); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat32.number) != *(rsp->_.lvalue._.number16); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat32.number) < *(rsp->_.lvalue._.number16); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat32.number) <= *(rsp->_.lvalue._.number16); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat32.number) > *(rsp->_.lvalue._.number16); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat32.number) >= *(rsp->_.lvalue._.number16); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
 								{
 									bool value;
@@ -21364,6 +23572,249 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									break;
 								}
 
+							case NST_STAT16:			// STAT op STAT => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat32.table == rsp->_.lvalue._.stat16.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat32.number) == *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat32.number) != *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat32.number) < *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat32.number) <= *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat32.number) > *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat32.number) >= *(rsp->_.lvalue._.stat16.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_STAT16:		// STAT16 op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_NUMBER:		// STAT op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(lsp->_.lvalue._.stat16.number) == (rsp->_.i); break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.stat16.number) != (rsp->_.i); break;
+							case NI_LT:		value = *(lsp->_.lvalue._.stat16.number) < (rsp->_.i); break;
+							case NI_LE:		value = *(lsp->_.lvalue._.stat16.number) <= (rsp->_.i); break;
+							case NI_GT:		value = *(lsp->_.lvalue._.stat16.number) > (rsp->_.i); break;
+							case NI_GE:		value = *(lsp->_.lvalue._.stat16.number) >= (rsp->_.i); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT:			// STAT32 op STAT => BOOLEAN
+						{
+							bool same = lsp->_.lvalue._.stat16.table == rsp->_.stat.table;
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat16.number) == (rsp->_.stat.number)); break;
+							case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat16.number) != (rsp->_.stat.number)); break;
+							case NI_LT:		value = same && (*(lsp->_.lvalue._.stat16.number) < (rsp->_.stat.number)); break;
+							case NI_LE:		value = same && (*(lsp->_.lvalue._.stat16.number) <= (rsp->_.stat.number)); break;
+							case NI_GT:		value = same && (*(lsp->_.lvalue._.stat16.number) > (rsp->_.stat.number)); break;
+							case NI_GE:		value = same && (*(lsp->_.lvalue._.stat16.number) >= (rsp->_.stat.number)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:		// STAT op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_NUMBER16:		// STAT op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat16.number) == *(rsp->_.lvalue._.number16); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat16.number) != *(rsp->_.lvalue._.number16); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat16.number) < *(rsp->_.lvalue._.number16); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat16.number) <= *(rsp->_.lvalue._.number16); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat16.number) > *(rsp->_.lvalue._.number16); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat16.number) >= *(rsp->_.lvalue._.number16); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:		// STAT op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat16.number) == *(rsp->_.lvalue._.number32); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat16.number) != *(rsp->_.lvalue._.number32); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat16.number) < *(rsp->_.lvalue._.number32); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat16.number) <= *(rsp->_.lvalue._.number32); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat16.number) > *(rsp->_.lvalue._.number32); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat16.number) >= *(rsp->_.lvalue._.number32); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER:		// STAT op NUMBER => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = *(lsp->_.lvalue._.stat16.number) == *(rsp->_.lvalue._.number); break;
+									case NI_NEQ:	value = *(lsp->_.lvalue._.stat16.number) != *(rsp->_.lvalue._.number); break;
+									case NI_LT:		value = *(lsp->_.lvalue._.stat16.number) < *(rsp->_.lvalue._.number); break;
+									case NI_LE:		value = *(lsp->_.lvalue._.stat16.number) <= *(rsp->_.lvalue._.number); break;
+									case NI_GT:		value = *(lsp->_.lvalue._.stat16.number) > *(rsp->_.lvalue._.number); break;
+									case NI_GE:		value = *(lsp->_.lvalue._.stat16.number) >= *(rsp->_.lvalue._.number); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT:			// STAT op STAT => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat16.table == rsp->_.lvalue._.stat.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat16.number) == *(rsp->_.lvalue._.stat.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat16.number) != *(rsp->_.lvalue._.stat.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat16.number) < *(rsp->_.lvalue._.stat.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat16.number) <= *(rsp->_.lvalue._.stat.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat16.number) > *(rsp->_.lvalue._.stat.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat16.number) >= *(rsp->_.lvalue._.stat.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT32:			// STAT op STAT => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat16.table == rsp->_.lvalue._.stat32.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat16.number) == *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat16.number) != *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat16.number) < *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat16.number) <= *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat16.number) > *(rsp->_.lvalue._.stat32.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat16.number) >= *(rsp->_.lvalue._.stat32.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_STAT16:			// STAT op STAT => BOOLEAN
+								{
+									bool same = lsp->_.lvalue._.stat16.table == rsp->_.lvalue._.stat16.table;
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = same && (*(lsp->_.lvalue._.stat16.number) == *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_NEQ:	value = !same || (*(lsp->_.lvalue._.stat16.number) != *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LT:		value = same && (*(lsp->_.lvalue._.stat16.number) < *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_LE:		value = same && (*(lsp->_.lvalue._.stat16.number) <= *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GT:		value = same && (*(lsp->_.lvalue._.stat16.number) > *(rsp->_.lvalue._.stat16.number)); break;
+									case NI_GE:		value = same && (*(lsp->_.lvalue._.stat16.number) >= *(rsp->_.lvalue._.stat16.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21407,8 +23858,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.account))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.account))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.account)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.account)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21490,8 +23941,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.affect))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.affect))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.affect)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.affect)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21572,8 +24023,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.area))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.area))) != NULL; break;
+							case NI_EQ:		value = *(lsp->_.lvalue._.area) == NULL; break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.area) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21655,8 +24106,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.clazz))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.clazz))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.clazz)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.clazz)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21762,8 +24213,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.dungeon))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.dungeon))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.dungeon)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.dungeon)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21869,8 +24320,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.ex))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.ex))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.ex)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.ex)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -21976,8 +24427,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.instance))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.instance))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.instance)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.instance)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22083,8 +24534,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.liquid))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.liquid))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.liquid)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.liquid)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22165,8 +24616,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.mail))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mail))) != NULL; break;
+							case NI_EQ:		value = *(lsp->_.lvalue._.mail) == NULL; break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.mail) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22247,8 +24698,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.material))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.material))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.material)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.material)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22329,8 +24780,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.mission))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mission))) != NULL; break;
+							case NI_EQ:		value = *(lsp->_.lvalue._.mission) == NULL; break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.mission) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22436,8 +24887,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mobile))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.mobile)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.mobile)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22570,8 +25021,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.object))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.object))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.object)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.object)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22679,8 +25130,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.org))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.org))) != NULL; break;
+							case NI_EQ:		value = *(lsp->_.lvalue._.org) == NULL; break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.org) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22762,8 +25213,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.race))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.race))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.race)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.race)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22844,8 +25295,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.rank))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.rank))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.rank)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.rank)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -22926,8 +25377,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.reputation))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.reputation))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.reputation)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.reputation)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -23028,8 +25479,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.room))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.room))) != NULL; break;
+							case NI_EQ:		value = *(lsp->_.lvalue._.room) == NULL; break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.room) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -23074,6 +25525,88 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									{
 									case NI_EQ:		value = ((*(lsp->_.lvalue._.room))->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.room))->vnum == rsp->_.lvalue._.wnum->vnum); break;
 									case NI_NEQ:	value = ((*(lsp->_.lvalue._.room))->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.room))->vnum != rsp->_.lvalue._.wnum->vnum); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_SECTOR:		// SECTOR op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_SECTOR:		// SECTOR op SECTOR => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.sector))) == (rsp->_.sector); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.sector))) != (rsp->_.sector); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:			// SECTOR op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(lsp->_.lvalue._.sector) == NULL; break;
+							case NI_NEQ:	value = *(lsp->_.lvalue._.sector) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:		// SECTOR op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_SECTOR:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.sector))) == *(rsp->_.lvalue._.sector); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.sector))) != *(rsp->_.lvalue._.sector); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -23155,8 +25688,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.ship))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.ship))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.ship)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.ship)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -23262,8 +25795,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.skill))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.skill))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.skill)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.skill)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -23369,8 +25902,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.token))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.token))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.token)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.token)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -23478,8 +26011,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.wilds))) == NULL; break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.wilds))) != NULL; break;
+							case NI_EQ:		value = !IS_VALID(((*(lsp->_.lvalue._.wilds)))); break;
+							case NI_NEQ:	value = IS_VALID(((*(lsp->_.lvalue._.wilds)))); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -23669,6 +26202,1006 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	bool push_result = true;
 	switch(lsp->_.lvalue.type)
 	{
+	case NST_NUMBER16:		// NUMBER16 op= ???
+		{
+			switch(rsp->type)
+			{
+			case NST_NUMBER:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number16) = (int)rsp->_.i;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							*(lsp->_.lvalue._.number16) += (int)rsp->_.i;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_SUBT_EQ:
+						{
+							*(lsp->_.lvalue._.number16) -= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_MULT_EQ:
+						{
+							*(lsp->_.lvalue._.number16) *= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_MOD_EQ:
+						{
+							if (rsp->_.i == 0)
+							{
+								SETRET(nsr,MATH);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.number16) %= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_DIV_EQ:
+						{
+							if (rsp->_.i == 0)
+							{
+								SETRET(nsr,MATH);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.number16) /= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BAND_EQ:
+						{
+							*(lsp->_.lvalue._.number16) |= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BOR_EQ:
+						{
+							*(lsp->_.lvalue._.number16) |= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_BXOR_EQ:
+						{
+							*(lsp->_.lvalue._.number16) ^= (int)rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_LSH_EQ:
+						{
+							if (rsp->_.i >= MAX_FLAG_BITS)
+								*(lsp->_.lvalue._.number16) = 0;
+							else
+								*(lsp->_.lvalue._.number16) <<= rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_RSH_EQ:
+						{
+							if (rsp->_.i >= MAX_FLAG_BITS)
+							{
+								if (*(lsp->_.lvalue._.number16) < 0)
+									*(lsp->_.lvalue._.number16) = -1;
+								else
+									*(lsp->_.lvalue._.number16) = 0;
+							}
+							else
+								*(lsp->_.lvalue._.number16) >>= rsp->_.i;
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_RSHL_EQ:
+						{
+							if (rsp->_.i >= MAX_FLAG_BITS)
+								*(lsp->_.lvalue._.number16) = 0;
+							else
+								*(lsp->_.lvalue._.number16) = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> rsp->_.i);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_FLOAT:			// NUMBER op= FLOAT
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number16) = (int)rsp->_.d;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							*(lsp->_.lvalue._.number16) = (int)(*(lsp->_.lvalue._.number16) + rsp->_.d);
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_SUBT_EQ:
+						{
+							*(lsp->_.lvalue._.number16) = (int)(*(lsp->_.lvalue._.number16) - rsp->_.d);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_MULT_EQ:
+						{
+							*(lsp->_.lvalue._.number16) = (int)(*(lsp->_.lvalue._.number16) * rsp->_.d);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_DIV_EQ:
+						{
+							if (rsp->_.d == 0.0)
+							{
+								SETRET(nsr,MATH);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.number16) = (int)(*(lsp->_.lvalue._.number16) / rsp->_.d);
+
+							if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_BOOLEAN:		// NUMBER op= BOOLEAN
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number16) = ((rsp->_.b)?1:0);
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_NUMBER16:		// NUMBER32 op= NUMBER16
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number16) = *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number16) += *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) -= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) *= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) %= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) /= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number16) |= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number16) |= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number16) ^= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number16) = 0;
+									else
+										*(lsp->_.lvalue._.number16) <<= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number16) < 0)
+											*(lsp->_.lvalue._.number16) = -1;
+										else
+											*(lsp->_.lvalue._.number16) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number16) >>= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number16) = 0;
+									else
+										*(lsp->_.lvalue._.number16) = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> *(rsp->_.lvalue._.number16));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER32:		// NUMBER32 op= NUMBER32
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number16) = *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number16) += *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) -= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) *= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) %= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) /= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number16) |= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number16) |= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number16) ^= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number16) = 0;
+									else
+										*(lsp->_.lvalue._.number16) <<= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number16) < 0)
+											*(lsp->_.lvalue._.number16) = -1;
+										else
+											*(lsp->_.lvalue._.number16) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number16) >>= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number16) = 0;
+									else
+										*(lsp->_.lvalue._.number16) = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> *(rsp->_.lvalue._.number32));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number16) = *(rsp->_.lvalue._.number);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number16) += *(rsp->_.lvalue._.number);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) -= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) *= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) %= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) /= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number16) |= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number16) |= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number16) ^= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number16) = 0;
+									else
+										*(lsp->_.lvalue._.number16) <<= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number16) < 0)
+											*(lsp->_.lvalue._.number16) = -1;
+										else
+											*(lsp->_.lvalue._.number16) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number16) >>= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number16) = 0;
+									else
+										*(lsp->_.lvalue._.number16) = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> *(rsp->_.lvalue._.number));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLOAT:			// NUMBER op= FLOAT
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number16) = (long)*(rsp->_.lvalue._.d);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number16) = (long)(*(lsp->_.lvalue._.number16) + *(rsp->_.lvalue._.d));
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) = (long)(*(lsp->_.lvalue._.number16) - *(rsp->_.lvalue._.d));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number16) = (long)(*(lsp->_.lvalue._.number16) * *(rsp->_.lvalue._.d));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.d) == 0.0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number16) = (long)(*(lsp->_.lvalue._.number16) / *(rsp->_.lvalue._.d));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_BOOLEAN:		// NUMBER op= BOOLEAN
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number16) = ((*(rsp->_.lvalue._.b))?1L:0L);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG_BIT:		// NUMBER op= BIT
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									
+									*(lsp->_.lvalue._.number16) = (IS_SET(*(rsp->_.lvalue._.bit.value),rsp->_.lvalue._.bit.bit)?1:0);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_NUMBER32:		// NUMBER32 op= ???
 		{
 			switch(rsp->type)
@@ -23968,6 +27501,191 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_NUMBER16:		// NUMBER32 op= NUMBER16
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number32) = *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number32) += *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) -= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number32) *= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) %= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number32) /= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number32) |= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number32) |= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number32) ^= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number32) = 0;
+									else
+										*(lsp->_.lvalue._.number32) <<= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number32) < 0)
+											*(lsp->_.lvalue._.number32) = -1;
+										else
+											*(lsp->_.lvalue._.number32) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number32) >>= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number32) = 0;
+									else
+										*(lsp->_.lvalue._.number32) = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> *(rsp->_.lvalue._.number16));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER32:		// NUMBER32 op= NUMBER32
 						{
 							switch(op)
@@ -27867,6 +31585,78 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					break;
 				}
 
+			case NST_SECTOR:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							char stringify[100];
+							if(rsp->_.sector)
+								strncpy(stringify,rsp->_.sector->name,sizeof(stringify)-1);
+							else
+								strcpy(stringify,"null");
+							
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+							if(rsp->_.sector)
+								strncpy(stringify,rsp->_.sector->name,sizeof(stringify)-1);
+							else
+								strcpy(stringify,"null");
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					break;
+				}
+
 			case NST_SHIP:
 				{
 					switch(op)
@@ -28352,7 +32142,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 								{
 									if (*(lsp->_.lvalue._.str))
 									{
-										if (*(rsp->_.lvalue._.number) > 0)
+										if (*(rsp->_.lvalue._.number32) > 0)
 										{
 											int len = strlen(*(lsp->_.lvalue._.str));
 											char *value = calloc(1,len * *(rsp->_.lvalue._.number32) + 1);
@@ -28363,6 +32153,111 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 											}
 											char *str = value;
 											for(int i = *(rsp->_.lvalue._.number32);i-- > 0; str+=len)
+												strcpy(str,*(lsp->_.lvalue._.str));
+											*str = '\0';
+
+											free(*(lsp->_.lvalue._.str));
+											*(lsp->_.lvalue._.str) = value;
+										}
+										else
+										{
+											free(*(lsp->_.lvalue._.str));
+											*(lsp->_.lvalue._.str) = strdup("");
+										}
+									}
+									else
+									{
+										*(lsp->_.lvalue._.str) = strdup("");
+									}
+
+									if (!nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_NUMBER16:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+
+									char stringify[80];
+									snprintf(stringify,sizeof(stringify)-1,"%d",*(rsp->_.lvalue._.number16));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[80];
+									int len = snprintf(stringify,sizeof(stringify)-1,"%d",*(rsp->_.lvalue._.number16));
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									if (*(lsp->_.lvalue._.str))
+									{
+										if (*(rsp->_.lvalue._.number16) > 0)
+										{
+											int len = strlen(*(lsp->_.lvalue._.str));
+											char *value = calloc(1,len * *(rsp->_.lvalue._.number16) + 1);
+											if (!value)
+											{
+												SETRET(nsr,MEMORY);
+												return true;
+											}
+											char *str = value;
+											for(int i = *(rsp->_.lvalue._.number16);i-- > 0; str+=len)
 												strcpy(str,*(lsp->_.lvalue._.str));
 											*str = '\0';
 
@@ -28847,6 +32742,67 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							case NI_ADD_EQ:
 								{
 									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat32.table,*(rsp->_.lvalue._.stat32.number));
+									int len = strlen(stringify);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT16:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(nib_get_stat_string(rsp->_.lvalue._.stat16.table,*(rsp->_.lvalue._.stat16.number)));
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat16.table,*(rsp->_.lvalue._.stat16.number));
 									int len = strlen(stringify);
 									if (*(lsp->_.lvalue._.str))
 									{
@@ -30245,6 +34201,78 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							break;
 						}
 
+					case NST_SECTOR:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									char stringify[100];
+									if (*(rsp->_.lvalue._.sector))
+										strncpy(stringify,(*(rsp->_.lvalue._.sector))->name,sizeof(stringify)-1);
+									else
+										strcpy(stringify,"null");
+									
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+									if (*(rsp->_.lvalue._.sector))
+										strncpy(stringify,(*(rsp->_.lvalue._.sector))->name,sizeof(stringify)-1);
+									else
+										strcpy(stringify,"null");
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							break;
+						}
+
 					case NST_SHIP:
 						{
 							switch(op)
@@ -31184,7 +35212,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							*(lsp->_.lvalue._.stat.number) = rsp->_.stat.number;
 
-							if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.number),rsp->_.stat.table))
+							if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat.number),lsp->_.lvalue._.stat.table))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -31203,6 +35231,37 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_STAT16:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat.table != rsp->_.lvalue._.stat16.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat.number) = *(rsp->_.lvalue._.stat16.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat.number),lsp->_.lvalue._.stat.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_STAT32:
 						{
 							switch(op)
@@ -31282,6 +35341,37 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 		{
 			switch(rsp->type)
 			{
+			case NST_STAT:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							if (lsp->_.lvalue._.stat32.table != rsp->_.stat.table)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.stat32.number) = rsp->_.stat.number;
+
+							if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat32.number),lsp->_.lvalue._.stat32.table))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_LVALUE:
 				{
 					switch(rsp->_.lvalue.type)
@@ -31334,6 +35424,182 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									*(lsp->_.lvalue._.stat32.number) = *(rsp->_.lvalue._.stat32.number);
 
 									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat32.number),lsp->_.lvalue._.stat32.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT16:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat32.table != rsp->_.lvalue._.stat16.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat32.number) = *(rsp->_.lvalue._.stat16.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat32.number),lsp->_.lvalue._.stat32.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_STAT16:
+		{
+			switch(rsp->type)
+			{
+			case NST_STAT:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							if (lsp->_.lvalue._.stat16.table != rsp->_.stat.table)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							*(lsp->_.lvalue._.stat16.number) = rsp->_.stat.number;
+
+							if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat16.number),lsp->_.lvalue._.stat16.table))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_STAT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat16.table != rsp->_.lvalue._.stat.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat16.number) = *(rsp->_.lvalue._.stat.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat16.number),lsp->_.lvalue._.stat16.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT32:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat16.table != rsp->_.lvalue._.stat32.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat16.number) = *(rsp->_.lvalue._.stat32.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat16.number),lsp->_.lvalue._.stat16.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STAT16:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (lsp->_.lvalue._.stat16.table != rsp->_.lvalue._.stat16.table)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.stat16.number) = *(rsp->_.lvalue._.stat16.number);
+
+									if (push_result && !nib_push_stack_stat(nsr,*(lsp->_.lvalue._.stat16.number),lsp->_.lvalue._.stat16.table))
 									{
 										SETRET(nsr,STACK);
 										return true;
@@ -31999,6 +36265,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	__asn(RANK,rank,rank,rank)
 	__asn(REPUTATION,reputation,reputation,reputation)
 	__asn(ROOM,room,room,room)
+	__asn(SECTOR,sector,sector,sector)
 	__asn(SHIP,ship,ship,ship)
 	__asn(SKILL,skill,skill,skill)
 	__asn(TOKEN,token,token,token)
@@ -33176,6 +37443,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				__iter(RANK,rank,REPUTATION_INDEX_RANK_DATA *)
 				__iter(REPUTATION,reputation,REPUTATION_DATA *)
 				__iter(ROOM,room,ROOM_INDEX_DATA *)
+				__iter(SECTOR,sector,SECTOR_DATA *)
 				__iter(SHIP,ship,SHIP_DATA *)
 				__iter(SKILL,skill,SKILL_DATA *)
 				__iter(TOKEN,token,TOKEN_DATA *)
@@ -33405,6 +37673,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				__iter(RANK,rank,REPUTATION_INDEX_RANK_DATA *)
 				__iter(REPUTATION,reputation,REPUTATION_DATA *)
 				__iter(ROOM,room,ROOM_INDEX_DATA *)
+				__iter(SECTOR,sector,SECTOR_DATA *)
 				__iter(SHIP,ship,SHIP_DATA *)
 				__iter(SKILL,skill,SKILL_DATA *)
 				__iter(TOKEN,token,TOKEN_DATA *)
@@ -34061,6 +38330,76 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
+	case NI_GET_SECTOR:
+		{
+			SECTOR_DATA *sector = NULL;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *name;
+					if (!nib_pop_stack_string(nsr, &name))
+					{
+						if (name) free(name);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					sector = get_sector_data(name);
+					if (name) free(name);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *name;
+					if (!nib_pop_stack_string_shared(nsr, &name))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					sector = get_sector_data(name);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						sector = get_sector_data(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_sector(nsr, sector))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
 	case NI_GET_SKILL:
 		{
 			SKILL_DATA *skill = NULL;
@@ -34324,6 +38663,7 @@ static const char *opcode_names[] = {
 	"GET_MATERIAL",
 	"GET_ORG",
 	"GET_RACE",
+	"GET_SECTOR",
 	"GET_SKILL",
 	"GET_WILDS",
 };
@@ -34490,6 +38830,7 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 			case NI_GET_MATERIAL:	type = NST_MATERIAL; break;
 			case NI_GET_ORG:		type = NST_ORG; break;
 			case NI_GET_RACE:		type = NST_RACE; break;
+			case NI_GET_SECTOR:		type = NST_SECTOR; break;
 			case NI_GET_SKILL:		type = NST_SKILL; break;
 			case NI_GET_WILDS:		type = NST_WILDS; break;
 
@@ -34931,10 +39272,10 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 	case NST_BOOLEAN:	return snprintf(line, max_len, "BLN(%s)", (stack->_.b) ? "true" : "false");
 	case NST_FLOAT:		return snprintf(line, max_len, "FLT(%lf)", stack->_.d);
 	case NST_CHAR:
-			if (utf8_isprint(stack->_.ch))
-				return snprintf(line, max_len, "CHR(%s)", utf8_getbytes(stack->_.ch));
-			else
-				return snprintf(line, max_len, "CHR(%X)", stack->_.ch);
+		if (utf8_isprint(stack->_.ch))
+			return snprintf(line, max_len, "CHR(%s)", utf8_getbytes(stack->_.ch));
+		else
+			return snprintf(line, max_len, "CHR(%X)", stack->_.ch);
 	case NST_STRING:	return snprintf(line, max_len, "STR(%s)", (stack->_.str)?stack->_.str:"null");
 	case NST_STRING_S:	return snprintf(line, max_len, "STRS(%s)", (stack->_.str)?stack->_.str:"null");
 	case NST_MAP:		return snprintf(line, max_len, "MAP");
@@ -34943,15 +39284,95 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 				(stack->_.wnum.pArea != NULL ) ? stack->_.wnum.pArea->uid : 0,
 				stack->_.wnum.vnum
 			);
-	case NST_AREA:		return snprintf(line, max_len, "AREA(%ld)", (stack->_.area != NULL)?stack->_.area->uid:0);
-	// case NST_INSTANCE:
-	// case NST_DUNGEON:
-	case NST_MOBILE:	return snprintf(line, max_len, "MOBILE");
-	// case NST_OBJECT:
+	case NST_ACCOUNT:	return snprintf(line, max_len, "ACCT(%s)", (IS_VALID(stack->_.account) ? stack->_.account->username : "???"));
+	case NST_AFFECT:	return snprintf(line, max_len, "AFFT(%s)", (IS_VALID(stack->_.affect) ? get_affect_name(stack->_.affect) : "???"));
+	case NST_AREA:		return snprintf(line, max_len, "AREA(%ld)", ((stack->_.area != NULL)?stack->_.area->uid:0));
+	case NST_CLASS:		return snprintf(line, max_len, "CLASS(%s)", (IS_VALID(stack->_.clazz)?stack->_.clazz->name:"???"));
+	case NST_DUNGEON:
+		if (IS_VALID(stack->_.dungeon) && stack->_.dungeon->index)
+			return snprintf(line, max_len, "DUNG(%s(%ld#%ld))",
+				stack->_.dungeon->index->name,
+				stack->_.dungeon->index->area->uid,
+				stack->_.dungeon->index->vnum);
+		else
+			return snprintf(line, max_len, "DUNG(???)");
+	case NST_EXIT:
+		if (stack->_.ex && stack->_.ex->orig_door >= 0 && stack->_.ex->orig_door < MAX_DIR)
+			return snprintf(line, max_len, "EXIT(%s)", dir_name[stack->_.ex->orig_door]);
+		else
+			return snprintf(line, max_len, "EXIT(???)");
+	case NST_INSTANCE:
+		if (IS_VALID(stack->_.instance) && stack->_.instance->blueprint)
+			return snprintf(line, max_len, "INST(%s(%ld#%ld))",
+				stack->_.instance->blueprint->name,
+				stack->_.instance->blueprint->area->uid,
+				stack->_.instance->blueprint->vnum);
+		else
+			return snprintf(line, max_len, "INST(???)");
+	case NST_LIQUID:		return snprintf(line, max_len, "LIQ(%s)", (IS_VALID(stack->_.liquid) ? stack->_.liquid->name : "???"));
+	case NST_MAIL:			return snprintf(line, max_len, "MAIL");
+	case NST_MATERIAL:		return snprintf(line, max_len, "MAT(%s)", (IS_VALID(stack->_.material) ? stack->_.material->name : "???"));
+	case NST_MISSION:		return snprintf(line, max_len, "MISSION");
+	case NST_MOBILE:
+		if (IS_VALID(stack->_.mobile))
+		{
+			if (IS_NPC(stack->_.mobile))
+			{
+				if(stack->_.mobile->pIndexData)
+					return snprintf(line, max_len, "MOBILE(%s(%ld#%ld))",
+						stack->_.mobile->short_descr,
+						stack->_.mobile->pIndexData->area->uid,
+						stack->_.mobile->pIndexData->vnum);
+				else
+					return snprintf(line, max_len, "MOBILE(???)");
+			}
+			else
+				return snprintf(line, max_len, "PLAYER(%s)", stack->_.mobile->short_descr);
+		}
+		else
+			return snprintf(line, max_len, "MOBILE(???)");
+	case NST_NOTE:			return snprintf(line, max_len, "NOTE");
+	case NST_OBJECT:
+		if (IS_VALID(stack->_.object))
+			return snprintf(line, max_len, "OBJECT(%s(%ld#%ld))",
+				stack->_.object->short_descr,
+				stack->_.object->pIndexData->area->uid,
+				stack->_.object->pIndexData->vnum);
+		else
+			return snprintf(line, max_len, "OBJECT(???)");
+	case NST_ORG:		return snprintf(line, max_len, "ORG(%s)",  (stack->_.org ? stack->_.org->name : "???"));
 	// case NST_QUEST:
+	case NST_RACE:		return snprintf(line, max_len, "RACE(%s)",  (IS_VALID(stack->_.race) ? stack->_.race->name : "???"));
+	case NST_RANK:		return snprintf(line, max_len, "RANK(%s)",  (IS_VALID(stack->_.rank) ? stack->_.rank->name : "???"));
+	case NST_REPUTATION:
+		if (IS_VALID(stack->_.reputation))
+			return snprintf(line, max_len, "REP(%s(%ld#%ld))",
+				stack->_.reputation->pIndexData->name,
+				stack->_.reputation->pIndexData->area->uid,
+				stack->_.reputation->pIndexData->vnum);
+		else
+			return snprintf(line, max_len, "REP(???)");
 	case NST_ROOM:		return snprintf(line, max_len, "ROOM(%ld)", (stack->_.room != NULL)?stack->_.room->vnum:0);
-	// case NST_SHIP:
-	// case NST_TOKEN:
+	case NST_SECTOR:	return snprintf(line, max_len, "SECT(%s)", (stack->_.sector != NULL)?stack->_.sector->name:"???");
+	case NST_SHIP:
+		if (IS_VALID(stack->_.ship) && stack->_.ship->index)
+			return snprintf(line, max_len, "SHIP(%s(%ld#%ld))",
+				stack->_.ship->index->name,
+				stack->_.ship->index->area->uid,
+				stack->_.ship->index->vnum);
+		else
+			return snprintf(line, max_len, "SHIP(???)");
+	case NST_SKILL:		return snprintf(line, max_len, "SKILL(%s)",  (IS_VALID(stack->_.skill) ? stack->_.skill->name : "???"));
+	case NST_TOKEN:
+		if (IS_VALID(stack->_.token))
+			return snprintf(line, max_len, "TOKEN(%s(%ld#%ld))",
+				stack->_.token->pIndexData->name,
+				stack->_.token->pIndexData->area->uid,
+				stack->_.token->pIndexData->vnum);
+		else
+			return snprintf(line, max_len, "TOKEN(???)");
+	case NST_WILDS:
+		return snprintf(line, max_len, "WILDS(%ld)", (stack->_.wilds ? stack->_.wilds->uid : 0));
 	case NST_FLAG:
 		if (stack->_.stat.table)
 			return snprintf(line, max_len, "FLG(%08X@%s)", stack->_.stat.number, nib_get_flag_table_name(script->flag_tables,stack->_.stat.table));
@@ -34970,6 +39391,8 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 		switch(stack->_.lvalue.type)
 		{
 		case NST_NUMBER:	return snprintf(line, max_len, "LVALUE(INT(%ld))", *(stack->_.lvalue._.number));
+		case NST_NUMBER32:	return snprintf(line, max_len, "LVALUE(INT32(%d))", *(stack->_.lvalue._.number32));
+		case NST_NUMBER16:	return snprintf(line, max_len, "LVALUE(INT16(%d))", *(stack->_.lvalue._.number16));
 		case NST_BOOLEAN:	return snprintf(line, max_len, "LVALUE(BLN(%s))", *(stack->_.lvalue._.b) ? "true" : "false");
 		case NST_FLOAT:		return snprintf(line, max_len, "LVALUE(FLT(%lf))", *(stack->_.lvalue._.d));
 		case NST_CHAR:
@@ -34984,22 +39407,50 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 					(stack->_.lvalue._.wnum->pArea != NULL ) ? stack->_.lvalue._.wnum->pArea->uid : 0,
 					stack->_.lvalue._.wnum->vnum
 				);
-		case NST_AREA:		return snprintf(line, max_len, "LVALUE(AREA(%p))", stack->_.lvalue._.area);
+		case NST_ACCOUNT:	return snprintf(line, max_len, "LVALUE(ACCT(%s))", IS_VALID((*(stack->_.lvalue._.account)))?(*(stack->_.lvalue._.account))->username:"???");
+		case NST_AFFECT:	return snprintf(line, max_len, "LVALUE(AFF(%s))", IS_VALID((*(stack->_.lvalue._.affect)))?get_affect_name(*(stack->_.lvalue._.affect)):"???");
+		case NST_AREA:		return snprintf(line, max_len, "LVALUE(AREA(%ld))", *(stack->_.lvalue._.area) ? (*(stack->_.lvalue._.area))->uid : 0);
 		// case NST_INSTANCE:
 		// case NST_DUNGEON:
-		case NST_MOBILE:	return snprintf(line, max_len, "LVALUE(MOBILE)");
+		case NST_MOBILE:
+			if (IS_VALID((*(stack->_.lvalue._.mobile))))
+			{
+				if (IS_NPC((*(stack->_.lvalue._.mobile))))
+				{
+					if ((*(stack->_.lvalue._.mobile))->pIndexData)
+					{
+						return snprintf(line, max_len, "LVALUE(MOBILE(%s(%ld#%ld)))",
+							(*(stack->_.lvalue._.mobile))->short_descr,
+							(*(stack->_.lvalue._.mobile))->pIndexData->area->uid,
+							(*(stack->_.lvalue._.mobile))->pIndexData->vnum);
+					}
+					else
+						return snprintf(line, max_len, "LVALUE(MOBILE(???))");
+				}
+				else
+					return snprintf(line, max_len, "LVALUE(PLAYER(%s))", (*(stack->_.lvalue._.mobile))->short_descr);
+			}
+			else
+				return snprintf(line, max_len, "LVALUE(MOBILE(???))");
+
+
+		
+		return snprintf(line, max_len, "LVALUE(MOBILE)");
 		// case NST_OBJECT:
 		// case NST_QUEST:
 		case NST_ROOM:		return snprintf(line, max_len, "LVALUE(ROOM(%ld))", (*(stack->_.lvalue._.room) != NULL)?(*(stack->_.lvalue._.room))->vnum:0);
+		case NST_SECTOR:	return snprintf(line, max_len, "LVALUE(SECTOR(%ld))", (*(stack->_.lvalue._.sector) != NULL)?(*(stack->_.lvalue._.sector))->name:"???");
 		// case NST_SHIP:
 		// case NST_TOKEN:
 		case NST_FLAG:
 			if (stack->_.lvalue._.stat.table)
-				return snprintf(line, max_len, "LVALUE(FLG(%08X@%s))", *(stack->_.lvalue._.number),nib_get_flag_table_name(script->flag_tables,stack->_.lvalue._.stat.table));
+				return snprintf(line, max_len, "LVALUE(FLG(%08X@%s))", *(stack->_.lvalue._.stat.number),nib_get_flag_table_name(script->flag_tables,stack->_.lvalue._.stat.table));
 			else
-				return snprintf(line, max_len, "LVALUE(FLG(%08X))", *(stack->_.lvalue._.number));
+				return snprintf(line, max_len, "LVALUE(FLG(%08X))", *(stack->_.lvalue._.stat.number));
 		case NST_FLAG_BIT:	return snprintf(line, max_len, "LVALUE(BIT(%08X:%s))", stack->_.lvalue._.bit.bit, (IS_SET(*(stack->_.lvalue._.bit.value),stack->_.lvalue._.bit.bit)?"ON":"OFF"));
-		case NST_STAT:		return snprintf(line, max_len, "LVALUE(STA(%08X))", *(stack->_.lvalue._.number));
+		case NST_STAT:		return snprintf(line, max_len, "LVALUE(STA(%08X@%s))", *(stack->_.lvalue._.stat.number),nib_get_stat_table_name(script->stat_tables,stack->_.lvalue._.stat.table));
+		case NST_STAT32:	return snprintf(line, max_len, "LVALUE(STA32(%08X))", *(stack->_.lvalue._.stat32.number),nib_get_stat_table_name(NULL,stack->_.lvalue._.stat32.table));
+		case NST_STAT16:	return snprintf(line, max_len, "LVALUE(STA16(%08X))", *(stack->_.lvalue._.stat16.number),nib_get_stat_table_name(NULL,stack->_.lvalue._.stat16.table));
 		case NST_LIST:		return snprintf(line, max_len, "LVALUE(LST(%s))", nst_to_type(stack->_.lvalue._.list.type));
 //		case NST_LIST_S:	return snprintf(line, max_len, "LSTS(%s)", nst_to_type(stack->_.list.type));
 		case NST_ARRAY:		return snprintf(line, max_len, "LVALUE(ARRAY(%s,%p,%ld))", nst_to_type(stack->_.lvalue._.array.type),*(stack->_.lvalue._.array.ptr),stack->_.lvalue._.array.length);

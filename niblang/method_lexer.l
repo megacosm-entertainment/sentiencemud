@@ -93,6 +93,8 @@ static char *trim_outer_quotes(const char *src)
 "function"				{ return T_FUNCTION; }
 "instance&"				{ TYPE(T_INSTANCE,true) }
 "instance"				{ TYPE(T_INSTANCE,false) }
+"int16&"				{ TYPE(T_INT16,true) }
+"int16"					{ TYPE(T_INT16,false) }
 "int32&"				{ TYPE(T_INT32,true) }
 "int32"					{ TYPE(T_INT32,false) }
 "int&"					{ TYPE(T_INT,true) }
@@ -126,10 +128,14 @@ static char *trim_outer_quotes(const char *src)
 "reputation"			{ TYPE(T_REPUTATION,false) }
 "room&"					{ TYPE(T_ROOM,true) }
 "room"					{ TYPE(T_ROOM,false) }
+"sector&"				{ TYPE(T_SECTOR,true) }
+"sector"				{ TYPE(T_SECTOR,false) }
 "ship&"					{ TYPE(T_SHIP,true) }
 "ship"					{ TYPE(T_SHIP,false) }
 "skill&"				{ TYPE(T_SKILL,true) }
 "skill"					{ TYPE(T_SKILL,false) }
+"stat16&"				{ TYPE(T_STAT16,true) }
+"stat16"				{ TYPE(T_STAT16,false) }
 "stat32&"				{ TYPE(T_STAT32,true) }
 "stat32"				{ TYPE(T_STAT32,false) }
 "stat&"					{ TYPE(T_STAT,true) }

@@ -131,6 +131,7 @@ enum nib_instructions_e {
 	NI_GET_MATERIAL,	// Pops 1 string, gets material, pushes onto stack
 	NI_GET_ORG,
 	NI_GET_RACE,		// Pops 1 string, gets race, pushes onto stack
+	NI_GET_SECTOR,
 	NI_GET_SKILL,		// Pops 1 string, gets skill, pushes onto stack
 	NI_GET_WILDS,
 
@@ -143,6 +144,7 @@ enum nib_script_stack_type_e
 	NST_FUNCTION = -1,		// Only used when getting the context for function calls
 	NST_UNKNOWN = 0,
 	NST_BOOLEAN,
+	NST_NUMBER16,			// SHORT
 	NST_NUMBER32,			// INT
 	NST_NUMBER,				// LONG
 	NST_FLOAT,
@@ -155,6 +157,7 @@ enum nib_script_stack_type_e
 	NST_FLAG_BANK,
 	NST_STAT,
 	NST_STAT32,
+	NST_STAT16,
 	NST_LIST,
 	NST_LIST_C,
 	NST_ARRAY,
@@ -181,6 +184,7 @@ enum nib_script_stack_type_e
 	NST_RANK,
 	NST_REPUTATION,
 	NST_ROOM,
+	NST_SECTOR,
 	NST_SKILL,
 	NST_SHIP,
 	NST_TOKEN,
@@ -621,7 +625,8 @@ extern NIB_TYPE *nibtype_void;
 extern NIB_TYPE *nibtype_any;
 extern NIB_TYPE *nibtype_bool;
 extern NIB_TYPE *nibtype_char;
-extern NIB_TYPE *nibtype_int32;	// Only used by fields
+extern NIB_TYPE *nibtype_int16;	// Only used by methods.dat
+extern NIB_TYPE *nibtype_int32;	// Only used by methods.dat
 extern NIB_TYPE *nibtype_int;
 extern NIB_TYPE *nibtype_float;
 extern NIB_TYPE *nibtype_string;
@@ -655,6 +660,7 @@ extern NIB_TYPE *nibtype_race;
 extern NIB_TYPE *nibtype_rank;
 extern NIB_TYPE *nibtype_reputation;
 extern NIB_TYPE *nibtype_room;
+extern NIB_TYPE *nibtype_sector;
 extern NIB_TYPE *nibtype_ship;
 extern NIB_TYPE *nibtype_skill;
 extern NIB_TYPE *nibtype_token;
@@ -666,7 +672,9 @@ NIB_TYPE *new_nib_type_flag_named(LLIST *names);
 NIB_TYPE *new_nib_type_flag_table(const struct flag_type *table);
 NIB_TYPE *new_nib_type_flag_bank(const struct flag_type **bank);
 NIB_TYPE *new_nib_type_stat_named(LLIST *names);
-NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table, bool is_32bit);
+NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table);
+NIB_TYPE *new_nib_type_stat32_table(const struct flag_type *table);
+NIB_TYPE *new_nib_type_stat16_table(const struct flag_type *table);
 NIB_TYPE *new_nib_type_list(NIB_TYPE *elem, bool constant);
 NIB_TYPE *new_nib_type_array(NIB_TYPE *elem, long length, bool constant);
 NIB_TYPE *new_nib_type_multi(LLIST *types);

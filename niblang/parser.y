@@ -500,6 +500,20 @@ static bool check_valid_assignment(NIB_TYPE *left, NIB_TYPE *right, enum nib_ins
 			return op == NI_ASSIGN;
 		break;
 
+	case NST_SECTOR:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_SECTOR);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
 	case NST_SKILL:
 		if (rhs == NST_STRING)
 		{
@@ -588,10 +602,14 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 	NIB_SCRIPT_STACK_TYPE rhs = convert_to_stype(right, false);
 
 	if (lhs == NST_NUMBER32) lhs = NST_NUMBER;
+	else if (lhs == NST_NUMBER16) lhs = NST_NUMBER;
 	else if (lhs == NST_STAT32) lhs = NST_STAT;
+	else if (lhs == NST_STAT16) lhs = NST_STAT;
 
 	if (rhs == NST_NUMBER32) rhs = NST_NUMBER;
+	else if (rhs == NST_NUMBER16) rhs = NST_NUMBER;
 	else if (rhs == NST_STAT32) rhs = NST_STAT;
+	else if (rhs == NST_STAT16) rhs = NST_STAT;
 
 	// String concatenation for anything
 	switch(lhs)
@@ -970,6 +988,7 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 		case NST_RANK:
 		case NST_REPUTATION:
 		case NST_ROOM:
+		case NST_SECTOR:
 		case NST_SHIP:
 		case NST_SKILL:
 		case NST_TOKEN:
@@ -1120,6 +1139,7 @@ void niberrorf(const char *msg, ...)
 %token T_RIGHT_SHIFT
 %token T_RIGHTL_SHIFT
 %token T_ROOM
+%token T_SECTOR
 %token T_SELF
 %token T_SEMICOLON
 %token T_SHIP
@@ -4106,7 +4126,7 @@ expr4:
 			ins_short((short)nib_add_used_table(table));
 
 			$$.name = NULL;
-			$$.type = new_nib_type_stat_table(table, false);
+			$$.type = new_nib_type_stat_table(table);
 			$$.needs_use = true;
 			$$.flags = IS_LITERAL;
 
@@ -4763,7 +4783,7 @@ type:	T_INT										{ $$ = nibtype_int; }
 		}
 	| T_STAT T_OPEN_PAREN stat_table[T] T_CLOSE_PAREN
 		{
-			$$ = new_nib_type_stat_table($T, false);
+			$$ = new_nib_type_stat_table($T);
 		}
 	| T_LIST T_OPEN_PAREN possible_constant[C] listtype[T] T_CLOSE_PAREN	{ $$ = new_nib_type_list($T, $C); }
 	| T_ARRAY T_OPEN_PAREN possible_constant[C] listtype[T] T_OPEN_BRACKET T_NUMBER[L] T_CLOSE_BRACKET T_CLOSE_PAREN
@@ -4789,6 +4809,7 @@ type:	T_INT										{ $$ = nibtype_int; }
 	| T_RANK										{ $$ = nibtype_rank; }
 	| T_REPUTATION									{ $$ = nibtype_reputation; }
 	| T_ROOM										{ $$ = nibtype_room; }
+	| T_SECTOR										{ $$ = nibtype_sector; }
 	| T_SHIP										{ $$ = nibtype_ship; }
 	| T_SKILL										{ $$ = nibtype_skill; }
 	| T_TOKEN										{ $$ = nibtype_token; }
@@ -4877,6 +4898,7 @@ listtype:	T_INT										{ $$ = nibtype_int; }
 	| T_RANK										{ $$ = nibtype_rank; }
 	| T_REPUTATION									{ $$ = nibtype_reputation; }
 	| T_ROOM										{ $$ = nibtype_room; }
+	| T_SECTOR										{ $$ = nibtype_sector; }
 	| T_SHIP										{ $$ = nibtype_ship; }
 	| T_SKILL										{ $$ = nibtype_skill; }
 	| T_TOKEN										{ $$ = nibtype_token; }

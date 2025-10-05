@@ -1,0 +1,23 @@
+global area plith;
+
+room beg = plith.get_room(1);
+
+print(beg.name);
+print(beg.sector.name);
+print("before: " + beg.sector_flags);
+
+beg.sector_flags.briars = true;
+print("after: " + beg.sector_flags);
+
+sector field = "field";
+if (beg.set_sector(field))
+	print("Sector changed.");
+
+print(beg.sector.name);
+print("flags: " + beg.sector_flags);
+
+if (beg.reset())
+	print("Room reset");
+
+print(beg.sector.name);
+print("flags: " + beg.sector_flags);

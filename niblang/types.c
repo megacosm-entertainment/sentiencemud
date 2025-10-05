@@ -16,6 +16,7 @@ static NIB_TYPE __nibtype_void			= { true, false, NTC_VOID, {0}, "void"};
 static NIB_TYPE __nibtype_any			= { true, false, NTC_ANY, {0}, "any"};
 static NIB_TYPE __nibtype_bool			= { true, false, NTC_PRIMARY, {NT_BOOLEAN}, "boolean"};
 static NIB_TYPE __nibtype_char			= { true, false, NTC_PRIMARY, {NT_CHAR}, "char"};
+static NIB_TYPE __nibtype_int16			= { true, false, NTC_PRIMARY, {NT_NUMBER16}, "int32"};
 static NIB_TYPE __nibtype_int32			= { true, false, NTC_PRIMARY, {NT_NUMBER32}, "int32"};
 static NIB_TYPE __nibtype_int			= { true, false, NTC_PRIMARY, {NT_NUMBER}, "int"};
 static NIB_TYPE __nibtype_float			= { true, false, NTC_PRIMARY, {NT_FLOAT}, "float"};
@@ -48,6 +49,7 @@ static NIB_TYPE __nibtype_race			= { true, false, NTC_PRIMARY, {NT_RACE}, "race"
 static NIB_TYPE __nibtype_rank			= { true, false, NTC_PRIMARY, {NT_RANK}, "rank"};
 static NIB_TYPE __nibtype_reputation	= { true, false, NTC_PRIMARY, {NT_REPUTATION}, "reputation"};
 static NIB_TYPE __nibtype_room			= { true, false, NTC_PRIMARY, {NT_ROOM}, "room"};
+static NIB_TYPE __nibtype_sector		= { true, false, NTC_PRIMARY, {NT_SECTOR}, "sector"};
 static NIB_TYPE __nibtype_ship			= { true, false, NTC_PRIMARY, {NT_SHIP}, "ship"};
 static NIB_TYPE __nibtype_skill			= { true, false, NTC_PRIMARY, {NT_SKILL}, "skill"};
 static NIB_TYPE __nibtype_token			= { true, false, NTC_PRIMARY, {NT_TOKEN}, "token"};
@@ -86,6 +88,7 @@ NIB_TYPE *nibtype_void = &__nibtype_void;
 NIB_TYPE *nibtype_any = &__nibtype_any;
 NIB_TYPE *nibtype_bool = &__nibtype_bool;
 NIB_TYPE *nibtype_char = &__nibtype_char;
+NIB_TYPE *nibtype_int16  = &__nibtype_int16;
 NIB_TYPE *nibtype_int32  = &__nibtype_int32;
 NIB_TYPE *nibtype_int  = &__nibtype_int;
 NIB_TYPE *nibtype_float = &__nibtype_float;
@@ -118,6 +121,7 @@ NIB_TYPE *nibtype_race = &__nibtype_race;
 NIB_TYPE *nibtype_rank = &__nibtype_rank;
 NIB_TYPE *nibtype_reputation = &__nibtype_reputation;
 NIB_TYPE *nibtype_room = &__nibtype_room;
+NIB_TYPE *nibtype_sector = &__nibtype_sector;
 NIB_TYPE *nibtype_ship = &__nibtype_ship;
 NIB_TYPE *nibtype_skill = &__nibtype_skill;
 NIB_TYPE *nibtype_token = &__nibtype_token;
@@ -260,12 +264,12 @@ NIB_TYPE *new_nib_type_stat_named(LLIST *names)
 	return type;
 }
 
-NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table, bool is_32bit)
+NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table)
 {
 	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
-	type->type_class = is_32bit ? NTC_STAT32 : NTC_STAT;
+	type->type_class = NTC_STAT;
 	type->_.stat.names = NULL;
 	type->_.stat.table = table;
 	type->name = NULL;
@@ -273,6 +277,31 @@ NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table, bool is_32bit)
 	return type;
 }
 
+NIB_TYPE *new_nib_type_stat32_table(const struct flag_type *table)
+{
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
+
+	type->_static = false;
+	type->type_class = NTC_STAT32;
+	type->_.stat.names = NULL;
+	type->_.stat.table = table;
+	type->name = NULL;
+
+	return type;
+}
+
+NIB_TYPE *new_nib_type_stat16_table(const struct flag_type *table)
+{
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
+
+	type->_static = false;
+	type->type_class = NTC_STAT16;
+	type->_.stat.names = NULL;
+	type->_.stat.table = table;
+	type->name = NULL;
+
+	return type;
+}
 
 NIB_TYPE *new_nib_type_list(NIB_TYPE *elem, bool constant)
 {
@@ -389,6 +418,7 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 
 		case NTC_STAT:
 		case NTC_STAT32:
+		case NTC_STAT16:
 			dest->_.stat.names = list_copy(src->_.flag.names);
 			dest->_.stat.table = src->_.stat.table;
 			break;
@@ -530,26 +560,22 @@ char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 	{
 		if (type->_.stat.table)
 		{
-			snprintf(p, MTSL-1, "stat32%s(%s)", (type->_reference ? "&" : ""), nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
+			snprintf(p, MTSL-1, "stat32%s(%s)", (type->_reference ? "&" : ""), nib_get_stat_table_name(NULL,type->_.stat.table));
 		}
 		else
 		{
-			snprintf(p, MTSL-1, "stat32%s(<", (type->_reference ? "&" : ""));
-			ITERATOR it;
-			char *name;
-			bool first = true;
-			iterator_start(&it, type->_.stat.names);
-			while((name = (char *)iterator_nextdata(&it)))
-			{
-				if (first)
-					first = false;
-				else
-					strcat(p, ",");
-
-				strcat(p, name);
-			}
-			iterator_stop(&it);
-			strcat(p, ">)");
+			snprintf(p, MTSL-1, "stat32%s(???)", (type->_reference ? "&" : ""));
+		}
+	}
+	else if (type->type_class == NTC_STAT16)
+	{
+		if (type->_.stat.table)
+		{
+			snprintf(p, MTSL-1, "stat16%s(%s)", (type->_reference ? "&" : ""), nib_get_stat_table_name(NULL,type->_.stat.table));
+		}
+		else
+		{
+			snprintf(p, MTSL-1, "stat16%s(???)", (type->_reference ? "&" : ""));
 		}
 	}
 

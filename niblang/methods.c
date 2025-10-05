@@ -48,6 +48,7 @@ LLIST *nib_methods_race = NULL;
 LLIST *nib_methods_rank = NULL;
 LLIST *nib_methods_reputation = NULL;
 LLIST *nib_methods_room = NULL;
+LLIST *nib_methods_sector = NULL;
 LLIST *nib_methods_ship = NULL;
 LLIST *nib_methods_skill = NULL;
 LLIST *nib_methods_token = NULL;
@@ -82,6 +83,7 @@ LLIST *nib_fields_race = NULL;
 LLIST *nib_fields_rank = NULL;
 LLIST *nib_fields_reputation = NULL;
 LLIST *nib_fields_room = NULL;
+LLIST *nib_fields_sector = NULL;
 LLIST *nib_fields_ship = NULL;
 LLIST *nib_fields_skill = NULL;
 LLIST *nib_fields_token = NULL;
@@ -108,8 +110,12 @@ static MISSION_DATA __static_mission;
 static CHAR_DATA __static_mobile;
 static NOTE_DATA __static_note;
 static OBJ_DATA __static_object;
+static CHURCH_DATA __static_org;
 static RACE_DATA __static_race;
+static REPUTATION_INDEX_RANK_DATA __static_rank;
+static REPUTATION_DATA __static_reputation;
 static ROOM_INDEX_DATA __static_room;
+static SECTOR_DATA __static_sector;
 static SHIP_DATA __static_ship;
 static SKILL_DATA __static_skill;
 static TOKEN_DATA __static_token;
@@ -147,20 +153,290 @@ struct nib_field_offset_type
 
 static struct nib_field_offset_type __field_offsets[] =
 {
+	// Account
+	NFOR(PRIMARY,ACCOUNT,username,__static_account,char *),
+	NFOR(PRIMARY,ACCOUNT,failed_attempts,__static_account,int),
+	NFOR(PRIMARY,ACCOUNT,last_failed_attempt,__static_account,time_t),
+	NFOR(PRIMARY,ACCOUNT,email,__static_account,char *),
+	NFOR(PRIMARY,ACCOUNT,email_verified,__static_account,bool),
+	NFOR(PRIMARY,ACCOUNT,character_count,__static_account,int),
+	NFOR(PRIMARY,ACCOUNT,character_limit,__static_account,int),
+	NFOR(PRIMARY,ACCOUNT,acct_flags,__static_account,long),
+	NFOR(PRIMARY,ACCOUNT,lvault,__static_account,LLIST *),
+
+	// Affect
+	NFOR(PRIMARY,AFFECT,group,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,where,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,skill,__static_affect,SKILL_DATA *),
+	NFOR(PRIMARY,AFFECT,token,__static_affect,TOKEN_DATA *),
+	NFOR(PRIMARY,AFFECT,level,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,duration,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,location,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,modifier,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,bitvector,__static_affect,long),
+	NFOR(PRIMARY,AFFECT,bitvector2,__static_affect,long),
+	NFOR(PRIMARY,AFFECT,random,__static_affect,int16_t),
+	NFOR(PRIMARY,AFFECT,custom_name,__static_affect,char *),
+	NFOR(PRIMARY,AFFECT,slot,__static_affect,int16_t),
+
+	// Area
 	NFO(PRIMARY,AREA,uid,__static_area,long),
 	NFO(PRIMARY,AREA,name,__static_area,char *),
 	NFO(PRIMARY,AREA,description,__static_area,char *),
 	NFO(PRIMARY,AREA,area_flags,__static_area,long),
 	NFO(PRIMARY,AREA,room_list,__static_area,LLIST *),
+	NFO(PRIMARY,AREA,age,__static_area,int16_t),
+	NFOR(PRIMARY,AREA,nplayer,__static_area,int16_t),
+	NFOR(PRIMARY,AREA,security,__static_area,int),
+	NFOR(PRIMARY,AREA,open,__static_area,bool),
+	// Default Region in AREA
+	NFOR(PRIMARY,AREA,region.uid,__static_area,long),
+	NFOR(PRIMARY,AREA,region.name,__static_area,char *),
+	NFOR(PRIMARY,AREA,region.description,__static_area,char *),
+	NFOR(PRIMARY,AREA,region.area_who,__static_area,int),
+	NFOR(PRIMARY,AREA,region.post_office,__static_area,long),
+	NFOR(PRIMARY,AREA,region.flags,__static_area,long),
+	NFOR(PRIMARY,AREA,region.players,__static_area,LLIST *),
+	NFOR(PRIMARY,AREA,region.rooms,__static_area,LLIST *),
+	// Method: region.recall
+	NFOR(PRIMARY,AREA,region.place_flags,__static_area,long),
+	NFOR(PRIMARY,AREA,region.savage_level,__static_area,int),
+	NFOR(PRIMARY,AREA,region.land_x,__static_area,int),
+	NFOR(PRIMARY,AREA,region.land_y,__static_area,int),
+	// Method: region.airship
+	NFOR(PRIMARY,AREA,rs_repop,__static_area,int),
+	NFO(PRIMARY,AREA,repop,__static_area,int),
+
+	// Channel
+
+	// Class
+	NFOR(PRIMARY,CLASS,name,__static_class,char *),
+	NFOR(PRIMARY,CLASS,description,__static_class,char *),
+	// Method: string display(stat(sex))
+	// Method: string who(stat(sex))
+	NFOR(PRIMARY,CLASS,uid,__static_class,int),
+	NFOR(PRIMARY,CLASS,type,__static_class,int),
+	NFOR(PRIMARY,CLASS,flags,__static_class,long),
+	NFOR(PRIMARY,CLASS,groups,__static_class,LLIST *),
+	NFOR(PRIMARY,CLASS,primary_stat,__static_class,int16_t),
+	NFOR(PRIMARY,CLASS,max_level,__static_class,int16_t),
+
+	// Dungeon
+	NFOR(PRIMARY,DUNGEON,floors,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,special_rooms,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,special_exits,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,entry_room,__static_dungeon,ROOM_INDEX_DATA *),
+	NFOR(PRIMARY,DUNGEON,exit_room,__static_dungeon,ROOM_INDEX_DATA *),
+	NFOR(PRIMARY,DUNGEON,flags,__static_dungeon,long),
+	NFOR(PRIMARY,DUNGEON,player_owners,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,players,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,mobiles,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,objects,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,bosses,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,rooms,__static_dungeon,LLIST *),
+	NFOR(PRIMARY,DUNGEON,age,__static_dungeon,int),
+	NFOR(PRIMARY,DUNGEON,idle_timer,__static_dungeon,int),
+
+	// Exit
+	NFO(PRIMARY,EXIT,keyword,__static_exit,char *),
+	NFO(PRIMARY,EXIT,short_desc,__static_exit,char *),
+	NFO(PRIMARY,EXIT,long_desc,__static_exit,char *),
 	NFO(PRIMARY,EXIT,u1.to_room,__static_exit,ROOM_INDEX_DATA *),
 	NFO(PRIMARY,EXIT,from_room,__static_exit,ROOM_INDEX_DATA *),
 	NFO(PRIMARY,EXIT,exit_info,__static_exit,long),
+	NFO(PRIMARY,EXIT,door.strength,__static_exit,int16_t),
+	NFO(PRIMARY,EXIT,door.material,__static_exit,MATERIAL *),
+	NFO(PRIMARY,EXIT,door.lock.pick_chance,__static_exit,int),
+	NFO(PRIMARY,EXIT,door.lock.flags,__static_exit,long),
+	NFO(PRIMARY,EXIT,door.lock.key_wnum,__static_exit,WNUM),
+	NFOR(PRIMARY,EXIT,door.lock.special_keys,__static_exit,LLIST *),
+
+	// Instance
+
+	// Liquid
+	NFOR(PRIMARY,LIQUID,uid,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,name,__static_liquid,char *),
+	NFOR(PRIMARY,LIQUID,color,__static_liquid,char *),
+	NFOR(PRIMARY,LIQUID,flammable,__static_liquid,bool),
+	NFOR(PRIMARY,LIQUID,proof,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,full,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,hunger,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,thirst,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,fuel_unit,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,fuel_duration,__static_liquid,int16_t),
+	NFOR(PRIMARY,LIQUID,max_mana,__static_liquid,int16_t),
+
+	// Mail
+	NFOR(PRIMARY,MAIL,lobjects,__static_mail,LLIST *),
+	NFOR(PRIMARY,MAIL,sender,__static_mail,char *),
+	NFOR(PRIMARY,MAIL,recipient,__static_mail,char *),
+	NFOR(PRIMARY,MAIL,sent_date,__static_mail,time_t),
+	NFOR(PRIMARY,MAIL,expire_date,__static_mail,time_t),
+	NFOR(PRIMARY,MAIL,deliver_date,__static_mail,time_t),
+	NFOR(PRIMARY,MAIL,message,__static_mail,char *),
+	NFOR(PRIMARY,MAIL,picked_up,__static_mail,bool),
+	NFOR(PRIMARY,MAIL,scripted,__static_mail,bool),
+	NFOR(PRIMARY,MAIL,return_service,__static_mail,bool),
+	NFOR(PRIMARY,MAIL,timestamp_expiration,__static_mail,bool),
+
+	// Material
+	NFOR(PRIMARY,MATERIAL,name,__static_material,char *),
+	NFOR(PRIMARY,MATERIAL,material_class,__static_material,int),
+	NFOR(PRIMARY,MATERIAL,flags,__static_material,long),
+	NFOR(PRIMARY,MATERIAL,flammable,__static_material,int16_t),
+	NFOR(PRIMARY,MATERIAL,corrodibility,__static_material,int16_t),
+	NFOR(PRIMARY,MATERIAL,fragility,__static_material,int),
+	NFOR(PRIMARY,MATERIAL,strength,__static_material,int),
+	NFOR(PRIMARY,MATERIAL,value,__static_material,int),
+	NFOR(PRIMARY,MATERIAL,corroded,__static_material,MATERIAL *),
+	NFOR(PRIMARY,MATERIAL,burned,__static_material,MATERIAL *),
+
+	// Mission
+
+	// Mobile
 	NFO(PRIMARY,MOBILE,name,__static_mobile,char *),
 	NFO(PRIMARY,MOBILE,short_descr,__static_mobile,char *),
 	NFO(PRIMARY,MOBILE,long_descr,__static_mobile,char *),
 	NFO(PRIMARY,MOBILE,description,__static_mobile,char *),
 	NFOR(PRIMARY,MOBILE,lcarrying,__static_mobile,LLIST *),
 	NFOR(PRIMARY,MOBILE,lworn,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,llocker,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,lstache,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,laffected,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,ltokens,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,in_room,__static_mobile,ROOM_INDEX_DATA *),
+	NFO(PRIMARY,MOBILE,home_room,__static_mobile,ROOM_INDEX_DATA *),
+	NFOR(PRIMARY,MOBILE,in_wilds,__static_mobile,WILDS_DATA *),
+	NFOR(PRIMARY,MOBILE,at_wilds_x,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,at_wilds_y,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,id[0],__static_mobile,unsigned long),
+	NFOR(PRIMARY,MOBILE,id[1],__static_mobile,unsigned long),
+	NFOR(PRIMARY,MOBILE,num_grouped,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,sex,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,race,__static_mobile,RACE_DATA *),
+	NFO(PRIMARY,MOBILE,timer,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,wait,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,daze,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,cast,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,panic,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,music,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,brew,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,scribe,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,bind,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,recite,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,resurrect,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,ranged,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,hide,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,paroxysm,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,bomb,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,bashed,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,reverie,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,paralyzed,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,pk_timer,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,no_recall,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,inking,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,imbuing,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,wimpy,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,hit,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,max_hit,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,mana,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,max_mana,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,move,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,max_move,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,gold,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,silver,__static_mobile,long),
+	NFOS(PRIMARY,MOBILE,act,__static_mobile,2 * sizeof(long)),
+	NFO(PRIMARY,MOBILE,comm,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,wiznet,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,imm_flags,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,res_flags,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,vuln_flags,__static_mobile,long),
+	NFOS(PRIMARY,MOBILE,affected_by,__static_mobile,2 * sizeof(long)),
+	NFO(PRIMARY,MOBILE,position,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,practice,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,train,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,carry_weight,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,carry_number,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,alignment,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,hitroll,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,damroll,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,xpboost,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,armour[0],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,armour[1],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,armour[2],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,armour[3],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cur_stat[STAT_STR],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cur_stat[STAT_INT],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cur_stat[STAT_WIS],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cur_stat[STAT_DEX],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cur_stat[STAT_CON],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,mod_stat[STAT_STR],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,mod_stat[STAT_INT],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,mod_stat[STAT_WIS],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,mod_stat[STAT_DEX],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,mod_stat[STAT_CON],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,perm_stat[STAT_STR],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,perm_stat[STAT_INT],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,perm_stat[STAT_WIS],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,perm_stat[STAT_DEX],__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,perm_stat[STAT_CON],__static_mobile,int),
+	NFO(PRIMARY,MOBILE,form,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,parts,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,lostparts,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,size,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,material,__static_mobile,MATERIAL *),
+	NFO(PRIMARY,MOBILE,damage,__static_mobile,DICE_DATA),
+	NFO(PRIMARY,MOBILE,dam_type,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,start_pos,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,default_pos,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,hired_to,__static_mobile,time_t),
+	NFOR(PRIMARY,MOBILE,creation_time,__static_mobile,time_t),
+	NFOR(PRIMARY,MOBILE,mount,__static_mobile,CHAR_DATA *),
+	NFOR(PRIMARY,MOBILE,rider,__static_mobile,CHAR_DATA *),
+	NFOR(PRIMARY,MOBILE,riding,__static_mobile,bool),
+	NFO(PRIMARY,MOBILE,time_left_death,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,dead,__static_mobile,bool),
+	NFOR(PRIMARY,MOBILE,can_release,__static_mobile,bool),
+	NFO(PRIMARY,MOBILE,home,__static_mobile,WNUM),
+	NFOR(PRIMARY,MOBILE,deaths,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,player_kills,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cpk_kills,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,arena_kills,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,monster_kills,__static_mobile,long),
+	NFOR(PRIMARY,MOBILE,wars_won,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,player_deaths,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,cpk_deaths,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,arena_deaths,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,church,__static_mobile,CHURCH_DATA *),
+	NFOR(PRIMARY,MOBILE,pending_mission,__static_mobile,MISSION_DATA *),
+	NFOR(PRIMARY,MOBILE,missions,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,hunting,__static_mobile,CHAR_DATA *),
+	NFOR(PRIMARY,MOBILE,challenged,__static_mobile,CHAR_DATA *),
+	NFOR(PRIMARY,MOBILE,challenger,__static_mobile,CHAR_DATA *),
+	NFO(PRIMARY,MOBILE,deitypoints,__static_mobile,long),
+	NFO(PRIMARY,MOBILE,pneuma,__static_mobile,long),
+	NFOR(PRIMARY,MOBILE,pulled_cart,__static_mobile,OBJ_DATA *),
+	NFORS(PRIMARY,MOBILE,toxin,__static_mobile,MAX_TOXIN * sizeof(int)),
+	NFO(PRIMARY,MOBILE,toxin[TOXIN_PARALYZE],__static_mobile,int),
+	NFO(PRIMARY,MOBILE,toxin[TOXIN_WEAKNESS],__static_mobile,int),
+	NFO(PRIMARY,MOBILE,toxin[TOXIN_NEURO],__static_mobile,int),
+	NFO(PRIMARY,MOBILE,toxin[TOXIN_VENOM],__static_mobile,int),
+	NFO(PRIMARY,MOBILE,bitten,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,bitten_type,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,bitten_level,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,repair,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,repair_obj,__static_mobile,OBJ_DATA *),
+	NFO(PRIMARY,MOBILE,repair_amt,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,wildview_bonus_x,__static_mobile,int),
+	NFO(PRIMARY,MOBILE,wildview_bonus_y,__static_mobile,int),
+	NFOR(PRIMARY,MOBILE,tempstore,__static_mobile,MAX_TEMPSTORE * sizeof(int)),
+	NFO(PRIMARY,MOBILE,tempstring,__static_mobile,char *),
+	NFOR(PRIMARY,MOBILE,reputations,__static_mobile,LLIST *),
+	NFOR(PRIMARY,MOBILE,deathsight_vision,__static_mobile,int),
+	
+	// Note
+
+	// Object
 	NFO(PRIMARY,OBJECT,name,__static_object,char *),
 	NFO(PRIMARY,OBJECT,short_descr,__static_object,char *),
 	NFO(PRIMARY,OBJECT,description,__static_object,char *),
@@ -172,6 +448,40 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOS(PRIMARY,OBJECT,extra,__static_object,sizeof(long) * 4),
 	NFO(PRIMARY,OBJECT,level,__static_object,int),
 	NFO(PRIMARY,OBJECT,condition,__static_object,int),
+
+	// Org
+	NFOR(PRIMARY,ORG,hall_area,__static_org,AREA_DATA *),
+	NFOR(PRIMARY,ORG,vnum_start,__static_org,long),
+	NFOR(PRIMARY,ORG,name,__static_org,char *),
+	NFOR(PRIMARY,ORG,flag,__static_org,char *),
+	NFOR(PRIMARY,ORG,founder,__static_org,char *),
+	NFOR(PRIMARY,ORG,owner,__static_org,char *),
+	NFOR(PRIMARY,ORG,motd,__static_org,char *),
+	NFOR(PRIMARY,ORG,rules,__static_org,char *),
+	NFOR(PRIMARY,ORG,info,__static_org,char *),
+	NFOR(PRIMARY,ORG,pneuma,__static_org,long),
+	NFOR(PRIMARY,ORG,gold,__static_org,long),
+	NFOR(PRIMARY,ORG,dp,__static_org,long),
+	NFOR(PRIMARY,ORG,max_positions,__static_org,int),
+	NFOR(PRIMARY,ORG,size,__static_org,int),
+	NFOR(PRIMARY,ORG,alignment,__static_org,int),
+	NFOR(PRIMARY,ORG,pk_wins,__static_org,long),
+	NFOR(PRIMARY,ORG,pk_losses,__static_org,long),
+	NFOR(PRIMARY,ORG,cpk_wins,__static_org,long),
+	NFOR(PRIMARY,ORG,cpk_losses,__static_org,long),
+	NFOR(PRIMARY,ORG,wars_won,__static_org,long),
+	NFOR(PRIMARY,ORG,settings,__static_org,long),
+	NFOR(PRIMARY,ORG,lcoffer,__static_org,LLIST *),
+
+	// Quest
+
+	// Race
+
+	// Rank
+
+	// Reputation
+
+	// Room
 	NFOR(PRIMARY,ROOM,vnum,__static_room,long),
 	NFO(PRIMARY,ROOM,name,__static_room,char *),
 	NFO(PRIMARY,ROOM,description,__static_room,char *),
@@ -186,9 +496,55 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,ROOM,exit[DIR_NORTHWEST],__static_room,EXIT_DATA *),
 	NFO(PRIMARY,ROOM,exit[DIR_UP],__static_room,EXIT_DATA *),
 	NFO(PRIMARY,ROOM,exit[DIR_DOWN],__static_room,EXIT_DATA *),
-	NFO(PRIMARY,ROOM,lpeople,__static_room,LLIST *),
+	NFOS(PRIMARY,ROOM,room_flag,__static_room,sizeof(__static_room.room_flag)),
+	NFOR(PRIMARY,ROOM,light,__static_room,int),
+	NFOR(PRIMARY,ROOM,sector,__static_room,SECTOR_DATA *),
+	NFO(PRIMARY,ROOM,sector_flags,__static_room,long),
+	NFO(PRIMARY,ROOM,heal_rate,__static_room,int),
+	NFO(PRIMARY,ROOM,mana_rate,__static_room,int),
+	NFO(PRIMARY,ROOM,move_rate,__static_room,int),
+	NFO(PRIMARY,ROOM,savage_level,__static_room,int),
+	NFOR(PRIMARY,ROOM,viewwilds,__static_room,WILDS_DATA *),
+	NFOR(PRIMARY,ROOM,ship,__static_room,SHIP_DATA *),
+	NFOR(PRIMARY,ROOM,lcontents,__static_room,LLIST *),
+	NFOR(PRIMARY,ROOM,ltokens,__static_room,LLIST *),
+	NFOR(PRIMARY,ROOM,lpeople,__static_room,LLIST *),
+	NFOS(PRIMARY,ROOM,tempstore,__static_room,sizeof(__static_room.tempstore)),
+
+	// Sector
+	NFOR(PRIMARY,SECTOR,name,__static_sector,char *),
+	NFOR(PRIMARY,SECTOR,description,__static_sector,char *),
+	NFOR(PRIMARY,SECTOR,sector_class,__static_sector,int16_t),
+	NFOR(PRIMARY,SECTOR,flags,__static_sector,long),
+	NFOR(PRIMARY,SECTOR,move_cost,__static_sector,int16_t),
+	NFOR(PRIMARY,SECTOR,hp_regen,__static_sector,int16_t),
+	NFOR(PRIMARY,SECTOR,mana_regen,__static_sector,int16_t),
+	NFOR(PRIMARY,SECTOR,move_regen,__static_sector,int16_t),
+	NFOR(PRIMARY,SECTOR,soil,__static_sector,int16_t),
+
+	// Ship
+
+	// Skill
+
+	// Token
+	NFOR(PRIMARY,TOKEN,name,__static_token,char *),
+	NFOR(PRIMARY,TOKEN,description,__static_token,char *),
+	NFOR(PRIMARY,TOKEN,type,__static_token,int),
+	NFOR(PRIMARY,TOKEN,flags,__static_token,long),
+	NFO(PRIMARY,TOKEN,timer,__static_token,int),
+	NFO(PRIMARY,TOKEN,player,__static_token,CHAR_DATA *),
+	NFO(PRIMARY,TOKEN,object,__static_token,OBJ_DATA *),
+	NFO(PRIMARY,TOKEN,room,__static_token,ROOM_INDEX_DATA *),
+	NFOS(PRIMARY,TOKEN,value,__static_token,MAX_TOKEN_VALUES * sizeof(long)),
+	NFOS(PRIMARY,TOKEN,tempstore,__static_token,MAX_TEMPSTORE * sizeof(long)),
+
+
+	// Widevnum
 	NFO(PRIMARY,WIDEVNUM,pArea,__static_wnum,AREA_DATA *),
 	NFO(PRIMARY,WIDEVNUM,vnum,__static_wnum,long),
+
+	// Wilds
+
 	NFOEND
 };
 
@@ -279,6 +635,7 @@ bool nib_field_valid_context(NIB_TYPE *context)
 				case NT_RANK:		return true;
 				case NT_REPUTATION:	return true;
 				case NT_ROOM:		return true;
+				case NT_SECTOR:		return true;
 				case NT_SHIP:		return true;
 				case NT_SKILL:		return true;
 				case NT_TOKEN:		return true;
@@ -323,6 +680,7 @@ static LLIST *__get_field_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_RANK:		return nib_fields_rank;
 		case NST_REPUTATION:return nib_fields_reputation;
 		case NST_ROOM:		return nib_fields_room;
+		case NST_SECTOR:	return nib_fields_sector;
 		case NST_SHIP:		return nib_fields_ship;
 		case NST_SKILL:		return nib_fields_skill;
 		case NST_TOKEN:		return nib_fields_token;
@@ -376,6 +734,7 @@ static LLIST *__get_field_context(NIB_TYPE *context)
 			case NT_RANK:		return nib_fields_rank;
 			case NT_REPUTATION:	return nib_fields_reputation;
 			case NT_ROOM:		return nib_fields_room;
+			case NT_SECTOR:		return nib_fields_sector;
 			case NT_SHIP:		return nib_fields_ship;
 			case NT_SKILL:		return nib_fields_skill;
 			case NT_TOKEN:		return nib_fields_token;
@@ -485,7 +844,10 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(mobile_get_widevnum),
 	MFER(number_random_value),
 	MFER(room_get_exits),
+	MFER(room_reset),
+	MFER(room_set_sector),
 	MFER(string_length),
+	MFER(token_get_index_value),
 	MFEND
 };
 
@@ -600,6 +962,7 @@ bool nib_method_valid_context(NIB_TYPE *context)
 				case NT_RANK:		return true;
 				case NT_REPUTATION:	return true;
 				case NT_ROOM:		return true;
+				case NT_SECTOR:		return true;
 				case NT_SHIP:		return true;
 				case NT_SKILL:		return true;
 				case NT_TOKEN:		return true;
@@ -657,6 +1020,7 @@ static LLIST *__get_method_context(NIB_TYPE *context)
 			case NT_RANK:		return nib_methods_rank;
 			case NT_REPUTATION:	return nib_methods_reputation;
 			case NT_ROOM:		return nib_methods_room;
+			case NT_SECTOR:		return nib_methods_sector;
 			case NT_SHIP:		return nib_methods_ship;
 			case NT_SKILL:		return nib_methods_skill;
 			case NT_TOKEN:		return nib_methods_token;
@@ -774,6 +1138,7 @@ static LLIST *__get_method_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_RANK:		return nib_methods_rank;
 		case NST_REPUTATION:return nib_methods_reputation;
 		case NST_ROOM:		return nib_methods_room;
+		case NST_SECTOR:	return nib_methods_sector;
 		case NST_SHIP:		return nib_methods_ship;
 		case NST_SKILL:		return nib_methods_skill;
 		case NST_TOKEN:		return nib_methods_token;
@@ -987,6 +1352,7 @@ bool nib_methods_init()
 	__met(rank)
 	__met(reputation)
 	__met(room)
+	__met(sector)
 	__met(ship)
 	__met(skill)
 	__met(token)
@@ -1025,6 +1391,7 @@ bool nib_methods_init()
 	__fld(rank)
 	__fld(reputation)
 	__fld(room)
+	__fld(sector)
 	__fld(ship)
 	__fld(skill)
 	__fld(token)
@@ -1069,6 +1436,7 @@ void nib_methods_cleanup()
 	list_destroy(nib_methods_rank);
 	list_destroy(nib_methods_reputation);
 	list_destroy(nib_methods_room);
+	list_destroy(nib_methods_sector);
 	list_destroy(nib_methods_ship);
 	list_destroy(nib_methods_skill);
 	list_destroy(nib_methods_token);
@@ -1107,6 +1475,7 @@ void nib_methods_cleanup()
 	list_destroy(nib_fields_rank);
 	list_destroy(nib_fields_reputation);
 	list_destroy(nib_fields_room);
+	list_destroy(nib_fields_sector);
 	list_destroy(nib_fields_ship);
 	list_destroy(nib_fields_skill);
 	list_destroy(nib_fields_token);

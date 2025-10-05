@@ -4146,7 +4146,6 @@ const struct flag_type material_classes[] =
     { "gas",                MATERIAL_CLASS_GAS,             true  },
     { "organic",            MATERIAL_CLASS_ORGANIC,         true  },
     { "earth",              MATERIAL_CLASS_EARTH,           true  },
-    { "no_haggle",          PRACTICE_ENTRY_NO_HAGGLE,       true  },
     { NULL,                 0,                              false }
 };
 

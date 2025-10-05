@@ -3,6 +3,39 @@
 
 // Everything about this needs to be removed and resolved once integrated into the main code
 
+#define SCRIPT_WIZNET		(A)	/* The script will wiznet to WIZ_SCRIPTS */
+#define SCRIPT_DISABLED		(B)	/* The script must be turned off by an IMP */
+#define SCRIPT_LUA			(C)	/* This script is a LUA compiled script. */
+#define SCRIPT_SECURED		(D)	/* This script will reset security settings to its values */
+#define SCRIPT_SYSTEM		(E)	// A system script, may ONLY be called when security is SYSTEM security
+#define SCRIPT_INSPECT		(Z)	/* Inspect the script for restricted actions */
+
+#define SCRIPTEXEC_HALT		(A)	/* Kill script execution because the controller entity had been destructed */
+
+/* This should be moved to merc.h and made general */
+#define INTERRUPT_CAST		(A)
+#define INTERRUPT_MUSIC		(B)
+#define INTERRUPT_BREW		(C)
+#define INTERRUPT_REPAIR	(D)
+#define INTERRUPT_HIDE		(E)
+#define INTERRUPT_BIND		(F)
+#define INTERRUPT_BOMB		(G)
+#define INTERRUPT_RECITE	(H)
+#define INTERRUPT_REVERIE	(I)
+#define INTERRUPT_TRANCE	(J)
+#define INTERRUPT_SCRIBE	(K)
+#define INTERRUPT_RANGED	(L)
+#define INTERRUPT_RESURRECT	(M)
+#define INTERRUPT_FADE		(N)
+#define INTERRUPT_INK		(O)
+#define INTERRUPT_IMBUE		(P)
+#define INTERRUPT_SCRIPT	(dd)	/* Used to interrupt whatever script action is going, that is up to the individual scripts to determine that! */
+#define INTERRUPT_SILENT	(ee)	/* Used to make the interrupt SILENT */
+
+#define TRANSFER_MODE_SILENT	0
+#define TRANSFER_MODE_PORTAL	1
+#define TRANSFER_MODE_MOVEMENT	2
+
 enum variable_enum {
 	VAR_UNKNOWN = 0,
 	VAR_BOOLEAN,
@@ -40,6 +73,7 @@ enum variable_enum {
 	VAR_RANK,
 	VAR_REPUTATION,
 	VAR_ROOM,
+	VAR_SECTOR,
 	VAR_SKILL,
 	VAR_SHIP,
 	VAR_TOKEN,
@@ -180,6 +214,7 @@ struct script_var_type {
 		REPUTATION_INDEX_RANK_DATA *rank;
 		REPUTATION_DATA *reputation;
 		ROOM_INDEX_DATA *room;
+		SECTOR_DATA *sector;
 		SHIP_DATA *ship;
 		SKILL_DATA *skill;
 		TOKEN_DATA *token;

@@ -132,6 +132,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %token T_INSTANCE
 %token T_INT
 %token T_INT32
+%token T_INT16
 %token T_LIQUID
 %token T_LIST
 %token T_LT
@@ -156,10 +157,12 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %token T_RANK
 %token T_REPUTATION
 %token T_ROOM
+%token T_SECTOR
 %token T_SEMICOLON
 %token T_SHIP
 %token T_SKILL
 %token T_STAT
+%token T_STAT16
 %token T_STAT32
 %token T_STRING
 %token T_STRING_LITERAL
@@ -173,7 +176,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %type <number> T_NUMBER
 %type <identifier> T_IDENTIFIER
 %type <literal> T_STRING_LITERAL
-%type <byref> T_ACCOUNT T_AFFECT T_AREA T_BOOLEAN T_CHANNEL T_CLASS T_CHAR T_DUNGEON T_EXIT T_FLAG T_FLAGBANK T_FLOAT T_INSTANCE T_INT T_INT32 T_LIQUID T_LIST T_MAIL T_MAP T_MATERIAL T_MISSION T_MOBILE T_NOTE T_OBJECT T_ORG T_QUEST T_RACE T_RANK T_REPUTATION T_ROOM T_SHIP T_SKILL T_STAT T_STAT32 T_STRING T_TOKEN T_WIDEVNUM T_WILDS T_WORLD
+%type <byref> T_ACCOUNT T_AFFECT T_AREA T_BOOLEAN T_CHANNEL T_CLASS T_CHAR T_DUNGEON T_EXIT T_FLAG T_FLAGBANK T_FLOAT T_INSTANCE T_INT T_INT32 T_INT16 T_LIQUID T_LIST T_MAIL T_MAP T_MATERIAL T_MISSION T_MOBILE T_NOTE T_OBJECT T_ORG T_QUEST T_RACE T_RANK T_REPUTATION T_ROOM T_SECTOR T_SHIP T_SKILL T_STAT T_STAT16 T_STAT32 T_STRING T_TOKEN T_WIDEVNUM T_WILDS T_WORLD
 
 %type <b> possible_constant
 %type <nibtype> type return_type arg_type listtype contexttype fieldtype multitype
@@ -480,6 +483,7 @@ arg_type:
 type:
 		T_INT										{ $$ = nib_type_by_reference(nibtype_int, $1); }
 	|	T_INT32										{ $$ = nib_type_by_reference(nibtype_int32, $1); }
+	|	T_INT16										{ $$ = nib_type_by_reference(nibtype_int16, $1); }
 	|	T_FLOAT										{ $$ = nib_type_by_reference(nibtype_float, $1); }
 	|	T_BOOLEAN									{ $$ = nib_type_by_reference(nibtype_bool, $1); }
 	|	T_CHAR										{ $$ = nib_type_by_reference(nibtype_char, $1); }
@@ -497,13 +501,18 @@ type:
 		}
 	|	T_STAT T_OP stat_table[T] T_CP
 		{
-			$$ = new_nib_type_stat_table($T, false);
+			$$ = new_nib_type_stat_table($T);
 			$$->_reference = $1;
 		}
 	|	T_STAT32 T_OP stat_table[T] T_CP
 		{
 			// fprintf(stderr, "STAT32: %p (%s)\n", $T, nib_get_stat_table_name(NULL,$T));
-			$$ = new_nib_type_stat_table($T, true);
+			$$ = new_nib_type_stat32_table($T);
+			$$->_reference = $1;
+		}
+	|	T_STAT16 T_OP stat_table[T] T_CP
+		{
+			$$ = new_nib_type_stat16_table($T);
 			$$->_reference = $1;
 		}
 	|	T_LIST T_OP possible_constant[C] listtype[T] T_CP
@@ -557,6 +566,7 @@ type:
 	|	T_RANK										{ $$ = nib_type_by_reference(nibtype_rank, $1); }
 	|	T_REPUTATION								{ $$ = nib_type_by_reference(nibtype_reputation, $1); }
 	|	T_ROOM										{ $$ = nib_type_by_reference(nibtype_room, $1); }
+	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
@@ -621,6 +631,7 @@ listtype:
 	|	T_RANK										{ $$ = nib_type_by_reference(nibtype_rank, $1); }
 	|	T_REPUTATION								{ $$ = nib_type_by_reference(nibtype_reputation, $1); }
 	|	T_ROOM										{ $$ = nib_type_by_reference(nibtype_room, $1); }
+	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
@@ -656,6 +667,7 @@ multitype:
 	|	T_RANK										{ $$ = nib_type_by_reference(nibtype_rank, $1); }
 	|	T_REPUTATION								{ $$ = nib_type_by_reference(nibtype_reputation, $1); }
 	|	T_ROOM										{ $$ = nib_type_by_reference(nibtype_room, $1); }
+	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
@@ -695,6 +707,7 @@ contexttype:
 	|	T_RANK										{ $$ = nib_type_by_reference(nibtype_rank, $1); }
 	|	T_REPUTATION								{ $$ = nib_type_by_reference(nibtype_reputation, $1); }
 	|	T_ROOM										{ $$ = nib_type_by_reference(nibtype_room, $1); }
+	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
@@ -724,6 +737,7 @@ fieldtype:
 	|	T_RANK										{ $$ = nib_type_by_reference(nibtype_rank, $1); }
 	|	T_REPUTATION								{ $$ = nib_type_by_reference(nibtype_reputation, $1); }
 	|	T_ROOM										{ $$ = nib_type_by_reference(nibtype_room, $1); }
+	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }

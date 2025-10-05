@@ -107,7 +107,20 @@ field constant int room.vnum -> room_vnum;
 field string& room.name -> room_name;
 field string& room.description -> room_description;
 field constant list(mobile) room.people -> room_lpeople;
+field constant list(object) room.contents -> room_lcontents;
+field constant list(token) room.tokens -> room_ltokens;
 field constant array(exit[10]) room.exits -> room_exit;
+field constant array(int[10]) room.tempstore -> room_tempstore;
+field constant ship room.ship -> room_ship;
+field constant sector room.sector -> room_sector;
+field flag&("sector") room.sector_flags -> room_sector_flags;	// Modifiable sector flag
+field constant wilds room.viewwilds -> room_viewwilds;
+field constant int32 room.light -> room_light;
+field int32& room.heal -> room_heal_rate;
+field int32& room.mana -> room_mana_rate;
+field int32& room.move -> room_move_rate;
+field int32& room.savage -> room_savage_level;
+field flagbank&("room") room.flags -> room_room_flag;
 field exit& room.north -> room_exit[DIR_NORTH];
 field exit& room.northeast -> room_exit[DIR_NORTHEAST];
 field exit& room.east -> room_exit[DIR_EAST];
@@ -118,8 +131,30 @@ field exit& room.west -> room_exit[DIR_WEST];
 field exit& room.northwest -> room_exit[DIR_NORTHWEST];
 field exit& room.up -> room_exit[DIR_UP];
 field exit& room.down -> room_exit[DIR_DOWN];
+method constant boolean room.set_sector(sector) -> room_set_sector;
+method constant boolean room.reset() -> room_reset;
+
+// SECTOR methods/fields
+field constant string sector.name -> sector_name;
+field constant string sector.description -> sector_description;
+field constant stat16("sector_class") sector.class -> sector_sector_class;
+field constant flag("sector") sector.flags -> sector_flags;
+field constant int16 sector.cost -> sector_move_cost;
+field constant int16 sector.hp -> sector_hp_regen;
+field constant int16 sector.mana -> sector_mana_regen;
+field constant int16 sector.move -> sector_move_regen;
+field constant int16 sector.soil -> sector_soil;
 
 // SHIP methods/fields
 
 // TOKEN methods/fields
-
+field string token.name -> token_name;
+field string token.description -> token_description;
+field constant stat("token") token.type -> token_type;
+field constant flag("token") token.flags -> token_flags;
+field int32& token.timer -> token_timer;
+field constant mobile& token.mobile -> token_player;
+field constant object& token.object -> token_object;
+field constant room& token.room -> token_room;
+field constant array(int[10]) token.value -> token_value;
+field method constant array(constant int[10]) token.index_value -> token_get_index_value;

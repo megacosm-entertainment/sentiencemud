@@ -70,9 +70,12 @@ DECL_METHOD_FUNC(mobile_get_widevnum);
 
 // ROOM methods
 DECL_METHOD_FUNC(room_get_exits);
+DECL_METHOD_FUNC(room_set_sector);
+DECL_METHOD_FUNC(room_reset);
 
 // SHIP methods
 
 // TOKEN methods
+DECL_METHOD_FUNC(token_get_index_value);
 
 #endif

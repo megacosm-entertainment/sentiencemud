@@ -28,6 +28,8 @@ extern char * const dir_name[];
 #define IS_MOB(n)		(IS__TYPE(n,MOBILE))
 #define IS_OBJ(n)		(IS__TYPE(n,OBJECT))
 #define IS_ROOM(n)		(IS__TYPE(n,ROOM))
+#define IS_SECTOR(n)	(IS__TYPE(n,SECTOR))
+#define IS_TOKEN(n)		(IS__TYPE(n,TOKEN))
 #define IS_LVALUE(n)	(IS__TYPE(n,LVALUE))
 #define IS_LV_NUM32(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,NUMBER32)))
 #define IS_LV_NUM(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,NUMBER)))
@@ -45,6 +47,8 @@ extern char * const dir_name[];
 #define IS_LV_MOB(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,MOBILE)))
 #define IS_LV_OBJ(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,OBJECT)))
 #define IS_LV_ROOM(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,ROOM)))
+#define IS_LV_SECTOR(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,SECTOR)))
+#define IS_LV_TOKEN(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,TOKEN)))
 
 #define ARG__TYPE(n,f)	(argv[(n)]._.f)
 #define ARG_NUM(n)		(ARG__TYPE(n,i))
@@ -62,6 +66,8 @@ extern char * const dir_name[];
 #define ARG_MOB(n)		(ARG__TYPE(n,mobile))
 #define ARG_OBJ(n)		(ARG__TYPE(n,object))
 #define ARG_ROOM(n)		(ARG__TYPE(n,room))
+#define ARG_SECTOR(n)	(ARG__TYPE(n,sector))
+#define ARG_TOK(n)		(ARG__TYPE(n,token))
 
 #define LV__FLD(n,f)	(argv[(n)]._.lvalue._.f)
 #define LV_NUM32(n)		(*(LV__FLD(n,number32)))
@@ -81,6 +87,8 @@ extern char * const dir_name[];
 #define LV_MOB(n)		(*(LV__FLD(n,mobile)))
 #define LV_OBJ(n)		(*(LV__FLD(n,object)))
 #define LV_ROOM(n)		(*(LV__FLD(n,room)))
+#define LV_SECTOR(n)	(*(LV__FLD(n,sector)))
+#define LV_TOKEN(n)		(*(LV__FLD(n,token)))
 
 #define IS_ARG_NUM(n)	(IS_LV_NUM32((n)) || IS_LV_NUM((n)) || IS_NUM((n)))
 #define IS_ARG_FLT(n)	(IS_LV_FLOAT((n)) || IS_FLOAT((n)))
@@ -96,6 +104,8 @@ extern char * const dir_name[];
 #define IS_ARG_MOB(n)	(IS_LV_MOB((n)) || IS_MOB((n)))
 #define IS_ARG_OBJ(n)	(IS_LV_OBJ((n)) || IS_OBJ((n)))
 #define IS_ARG_ROOM(n)	(IS_LV_ROOM((n)) || IS_ROOM((n)))
+#define IS_ARG_SECTOR(n)	(IS_LV_SECTOR((n)) || IS_SECTOR((n)))
+#define IS_ARG_TOKEN(n)	(IS_LV_TOKEN((n)) || IS_TOKEN((n)))
 
 #define IS_THIS_NUM		(IS_ARG_NUM(0))
 #define IS_THIS_FLT		(IS_ARG_FLT(0))
@@ -111,6 +121,8 @@ extern char * const dir_name[];
 #define IS_THIS_MOB		(IS_ARG_MOB(0))
 #define IS_THIS_OBJ		(IS_ARG_OBJ(0))
 #define IS_THIS_ROOM	(IS_ARG_ROOM(0))
+#define IS_THIS_SECTOR	(IS_ARG_SECTOR(0))
+#define IS_THIS_TOKEN	(IS_ARG_TOKEN(0))
 
 #define GET_NUM(n)		(IS_LV_NUM32((n)) ? LV_NUM32((n)) : (IS_LV_NUM((n)) ? LV_NUM((n)) : (IS_NUM((n)) ? ARG_NUM((n)) : 0)))
 #define GET_FLT(n)		(IS_LV_FLOAT((n)) ? LV_FLT((n)) : ARG_FLT((n)))
@@ -124,6 +136,8 @@ extern char * const dir_name[];
 #define GET_MOB(n)		(IS_LV_MOB((n)) ? LV_MOB((n)) : ARG_MOB((n)))
 #define GET_OBJ(n)		(IS_LV_OBJ((n)) ? LV_OBJ((n)) : ARG_OBJ((n)))
 #define GET_ROOM(n)		(IS_LV_ROOM((n)) ? LV_ROOM((n)) : ARG_ROOM((n)))
+#define GET_SECTOR(n)	(IS_LV_SECTOR((n)) ? LV_SECTOR((n)) : ARG_SECTOR((n)))
+#define GET_TOKEN(n)	(IS_LV_TOKEN((n)) ? LV_TOKEN((n)) : ARG_TOK((n)))
 //#define GET__LIST(n)	(IS_LV_LIST((n)) ? LV__LIST((n)) : ARG__LIST((n)))
 #define GET_LIST(n)		(IS_LV_LIST((n)) ? LV_LIST((n)) : ARG_LIST((n)))
 //#define GET__ARRAY(n)	(IS_LV_ARRAY((n)) ? LV__ARRAY((n)) : ARG__ARRAY((n)))
@@ -141,18 +155,20 @@ extern char * const dir_name[];
 #define THIS_MOB		(GET_MOB(0))
 #define THIS_OBJ		(GET_OBJ(0))
 #define THIS_ROOM		(GET_ROOM(0))
+#define THIS_TOKEN		(GET_TOKEN(0))
 //#define THIS__LIST		(GET__LIST(0))
 #define THIS_LIST		(GET_LIST(0))
 //#define THIS__ARRAY		(GET__ARRAY(0))
 #define THIS_ARRAY		(GET_ARRAY(0))
 
+#define SET_NULL		(output->type = NST_NULL)
 #define SET_NUM(n)		(output->type = NST_NUMBER, output->_.i = (n))
 #define SET_FLT(f)		(output->type = NST_FLOAT, output->_.d = (f))
 #define SET_BOOL(v)		(output->type = NST_BOOLEAN, output->_.b = (v))
 #define SET_STRS(s)		(output->type = NST_STRING_S, output->_.str = (s))
 #define SET_WNUM(w)		(output->type = NST_WIDEVNUM, output->_.wnum = (w))
 #define SET_MOB(m)		(output->type = NST_MOBILE, output->_.mobile = (m))
-#define SET_OBJ(m)		(output->type = NST_OBJECT, output->_.object = (o))
+#define SET_OBJ(o)		(output->type = NST_OBJECT, output->_.object = (o))
 #define SET_ROOM(r)		(output->type = NST_ROOM, output->_.room = (r))
 #define SET_EXIT(x)		(output->type = NST_EXIT, output->_.ex = (x))
 #define SET_LV_EXIT(x)	\
@@ -609,6 +625,66 @@ DECL_METHOD_FUNC(room_get_exits)
 	return SCPERR_SUCCESS;
 }
 
+DECL_METHOD_FUNC(room_set_sector)
+{
+	if (!IS_THIS_ROOM) return SCPERR_STACK;
+	if (!IS_ARG_SECTOR(1)) return SCPERR_STACK;
+
+	ROOM_INDEX_DATA *room = THIS_ROOM;
+	SECTOR_DATA *sector = GET_SECTOR(1);
+
+	if (!room || !sector)
+	{
+		SET_BOOL(false);
+	}
+	else
+	{
+		room->sector = sector;
+		room->sector_flags = sector->flags;
+		SET_BOOL(true);
+	}
+
+	return SCPERR_SUCCESS;
+}
+
+DECL_METHOD_FUNC(room_reset)
+{
+	if (!IS_THIS_ROOM) return SCPERR_STACK;
+
+	ROOM_INDEX_DATA *room = THIS_ROOM;
+
+	if (room)
+	{
+		room->sector = room->rs_sector;
+		room->sector_flags = room->rs_sector ? room->rs_sector->flags : 0;
+
+		SET_BOOL(true);
+	}
+	else
+	{
+		SET_BOOL(false);
+	}
+
+	return SCPERR_SUCCESS;
+}
+
 // SHIP methods
 
 // TOKEN methods
+DECL_METHOD_FUNC(token_get_index_value)
+{
+	if (!IS_THIS_TOKEN) return SCPERR_STACK;
+
+	TOKEN_DATA *token = THIS_TOKEN;
+
+	output->type = NST_ARRAY_S;
+	output->_.array.type = NST_NUMBER;
+	output->_.array.size = sizeof(long);
+	output->_.array.length = MAX_TOKEN_VALUES;
+	if (token && token->pIndexData)
+		output->_.array.ptr = token->pIndexData->value;
+	else
+		output->_.array.ptr = NULL;
+
+	return SCPERR_SUCCESS;
+}

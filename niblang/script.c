@@ -373,6 +373,7 @@ static const char *opcode_names[] = {
 	"GET_MATERIAL",
 	"GET_ORG",
 	"GET_RACE",
+	"GET_SECTOR",
 	"GET_SKILL",
 	"GET_WILDS",
 };
@@ -559,6 +560,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_GET_MATERIAL:	type = NST_MATERIAL; break;
 		case NI_GET_ORG:		type = NST_ORG; break;
 		case NI_GET_RACE:		type = NST_RACE; break;
+		case NI_GET_SECTOR:		type = NST_SECTOR; break;
 		case NI_GET_SKILL:		type = NST_SKILL; break;
 		case NI_GET_WILDS:		type = NST_WILDS; break;
 
