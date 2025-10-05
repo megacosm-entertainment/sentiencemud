@@ -37,6 +37,9 @@ DECL_METHOD_FUNC(array_length);
 
 // WIDEVNUM methods
 
+// AFFECT methods
+DECL_METHOD_FUNC(affect_is_permanent);
+
 // AREA Methods
 DECL_METHOD_FUNC(area_get_room);
 
@@ -76,6 +79,7 @@ DECL_METHOD_FUNC(room_reset);
 // SHIP methods
 
 // TOKEN methods
+DECL_METHOD_FUNC(token_owner_type);
 DECL_METHOD_FUNC(token_get_index_value);
 
 #endif

@@ -168,7 +168,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,AFFECT,group,__static_affect,int16_t),
 	NFOR(PRIMARY,AFFECT,where,__static_affect,int16_t),
 	NFOR(PRIMARY,AFFECT,skill,__static_affect,SKILL_DATA *),
-	NFOR(PRIMARY,AFFECT,token,__static_affect,TOKEN_DATA *),
+	NFO(PRIMARY,AFFECT,token,__static_affect,TOKEN_DATA *),
 	NFOR(PRIMARY,AFFECT,level,__static_affect,int16_t),
 	NFOR(PRIMARY,AFFECT,duration,__static_affect,int16_t),
 	NFOR(PRIMARY,AFFECT,location,__static_affect,int16_t),
@@ -817,6 +817,7 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 
 const struct nib_method_func_type nib_method_funcs[] =
 {
+	MFER(affect_is_permanent),
 	MFER(area_get_room),
 	MFER(array_length),
 	MFER(exit_get_direction),
@@ -847,6 +848,7 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(room_reset),
 	MFER(room_set_sector),
 	MFER(string_length),
+	MFER(token_owner_type),
 	MFER(token_get_index_value),
 	MFEND
 };

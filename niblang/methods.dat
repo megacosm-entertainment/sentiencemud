@@ -41,8 +41,39 @@ method int list.add(any) -> list_add;
 method bool list.insert(int,any) -> list_insert;
 method any list.remove(int) -> list_remove;
 
-// ARRAY methods and fields
+// ARRAY methods/fields
 field method int array.length -> array_length;
+
+// ACCOUNT methods/fields
+field constant string account.username -> account_username;
+field constant int32 account.attempts -> account_failed_attempts;
+// TODO: create a TIME type
+field constant int account.last_failed -> account_last_failed_attempt;
+field constant string account.email -> account_email;
+field constant boolean account.verified -> account_email_verified;
+field constant int32 account.count -> account_character_count;
+field constant int32 account.limit -> account_character_limit;
+field constant flag("account") account.flags -> account_acct_flags;
+field constant list(constant object) account.vault -> account_lvault;
+
+// AFFECT method/fields
+field constant stat16("affgroup") affect.group -> affect_group;
+field constant stat16("apply_types") affect.where -> affect_where;
+field constant skill affect.skill -> affect_skill;
+field constant token& affect.token -> affect_token;
+field constant int16 affect.level -> affect_level;
+field constant int16 affect.duration -> affect_duration;
+field method constant boolean affect.permanent -> affect_is_permanent;
+field constant stat16("apply") affect.location -> affect_location;
+// field method constant string affect.location_name -> affect_get_location_name;
+field constant int16 affect.modifier -> affect_modifier;
+// My only concern here is that bitvector and bitvector2 are *NOT* defined as an array, so they might not be contiguous
+//  Better to make them an array
+field constant flagbank("affect") -> affect_bitvector;
+field constant int16 affect.random -> affect_random;
+field constant string affect.name -> affect_custom_name;
+field constant stat16("wear_loc") affect.slot -> affect_slot;
+
 
 // AREA methods/fields
 field constant int area.uid -> area_uid;
@@ -153,6 +184,7 @@ field string token.description -> token_description;
 field constant stat("token") token.type -> token_type;
 field constant flag("token") token.flags -> token_flags;
 field int32& token.timer -> token_timer;
+field method constant stat("token_owner") token.owner -> token_owner_type;
 field constant mobile& token.mobile -> token_player;
 field constant object& token.object -> token_object;
 field constant room& token.room -> token_room;

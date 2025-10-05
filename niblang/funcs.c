@@ -23,6 +23,7 @@ extern char * const dir_name[];
 #define IS_WNUM(n)		(IS__TYPE(n,WIDEVNUM))
 #define IS_LIST(n)		(IS__TYPE(n,LIST) || IS__TYPE(n,LIST_S))
 #define IS_ARRAY(n)		(IS__TYPE(n,ARRAY) || IS__TYPE(n,ARRAY_S))
+#define IS_AFFECT(n)	(IS__TYPE(n,AFFECT))
 #define IS_AREA(n)		(IS__TYPE(n,AREA))
 #define IS_EXIT(n)		(IS__TYPE(n,EXIT))
 #define IS_MOB(n)		(IS__TYPE(n,MOBILE))
@@ -42,6 +43,7 @@ extern char * const dir_name[];
 #define IS_LV_WNUM(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,WIDEVNUM)))
 #define IS_LV_LIST(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,LIST)))
 #define IS_LV_ARRAY(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,ARRAY)))
+#define IS_LV_AFFECT(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,AFFECT)))
 #define IS_LV_AREA(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,AREA)))
 #define IS_LV_EXIT(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,EXIT)))
 #define IS_LV_MOB(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,MOBILE)))
@@ -61,6 +63,7 @@ extern char * const dir_name[];
 #define ARG_LIST(n)		(ARG__TYPE(n,list.list))
 #define ARG__ARRAY(n)	(ARG__TYPE(n,array))
 #define ARG_ARRAY(n)	(ARG__TYPE(n,array.ptr))
+#define ARG_AFFECT(n)	(ARG__TYPE(n,affect))
 #define ARG_AREA(n)		(ARG__TYPE(n,area))
 #define ARG_EXIT(n)		(ARG__TYPE(n,ex))
 #define ARG_MOB(n)		(ARG__TYPE(n,mobile))
@@ -82,6 +85,7 @@ extern char * const dir_name[];
 #define LV_LIST(n)		(*(LV__FLD(n,list.list)))
 #define LV__ARRAY(n)	(LV__FLD(n,array))
 #define LV_ARRAY(n)		(LV__FLD(n,array.ptr))
+#define LV_AFFECT(n)	(*(LV__FLD(n,affect)))
 #define LV_AREA(n)		(*(LV__FLD(n,area)))
 #define LV_EXIT(n)		(*(LV__FLD(n,ex)))
 #define LV_MOB(n)		(*(LV__FLD(n,mobile)))
@@ -99,6 +103,7 @@ extern char * const dir_name[];
 #define IS_ARG_WVUM(n)	(IS_LV_WNUM((n)) || IS_WNUM((n)))
 #define IS_ARG_LIST(n)	(IS_LV_LIST((n)) || IS_LIST((n)))
 #define IS_ARG_ARRAY(n)	(IS_LV_ARRAY((n)) || IS_ARRAY((n)))
+#define IS_ARG_AFFECT(n)	(IS_LV_AFFECT((n)) || IS_AFFECT((n)))
 #define IS_ARG_AREA(n)	(IS_LV_AREA((n)) || IS_AREA((n)))
 #define IS_ARG_EXIT(n)	(IS_LV_EXIT((n)) || IS_EXIT((n)))
 #define IS_ARG_MOB(n)	(IS_LV_MOB((n)) || IS_MOB((n)))
@@ -116,6 +121,7 @@ extern char * const dir_name[];
 #define IS_THIS_WVUM	(IS_ARG_WVUM(0))
 #define IS_THIS_LIST	(IS_ARG_LIST(0))
 #define IS_THIS_ARRAY	(IS_ARG_ARRAY(0))
+#define IS_THIS_AFFECT	(IS_ARG_AFFECT(0))
 #define IS_THIS_AREA	(IS_ARG_AREA(0))
 #define IS_THIS_EXIT	(IS_ARG_EXIT(0))
 #define IS_THIS_MOB		(IS_ARG_MOB(0))
@@ -131,6 +137,7 @@ extern char * const dir_name[];
 #define GET_CHR(n)		(IS_LV_CHAR((n)) ? LV_CHR((n)) : ARG_CHR((n)))
 #define GET_STR(n)		(IS_LV_STR((n)) ? LV_STR((n)) : ARG_STR((n)))
 #define GET_WVUM(n)		(IS_LV_WNUM((n)) ? LV_WNUM((n)) : ARG_WNUM((n)))
+#define GET_AFFECT(n)	(IS_LV_AFFECT((n)) ? LV_AFFECT((n)) : ARG_AFFECT((n)))
 #define GET_AREA(n)		(IS_LV_AREA((n)) ? LV_AREA((n)) : ARG_AREA((n)))
 #define GET_EXIT(n)		(IS_LV_EXIT((n)) ? LV_EXIT((n)) : ARG_EXIT((n)))
 #define GET_MOB(n)		(IS_LV_MOB((n)) ? LV_MOB((n)) : ARG_MOB((n)))
@@ -150,6 +157,7 @@ extern char * const dir_name[];
 #define THIS_CHR		(GET_CHR(0))
 #define THIS_STR		(GET_STR(0))
 #define THIS_WVUM		(GET_WVUM(0))
+#define THIS_AFFECT		(GET_AFFECT(0))
 #define THIS_AREA		(GET_AREA(0))
 #define THIS_EXIT		(GET_EXIT(0))
 #define THIS_MOB		(GET_MOB(0))
@@ -292,6 +300,25 @@ DECL_METHOD_FUNC(array_length)
 // MAP methods
 
 // WIDEVNUM methods
+
+// AFFECT Methods
+DECL_METHOD_FUNC(affect_is_permanent)
+{
+	if (!IS_THIS_AFFECT) return SCPERR_STACK;
+
+	AFFECT_DATA *aff = THIS_AFFECT;
+
+	if (IS_VALID(aff) && aff->duration < 0)
+	{
+		SET_BOOL(true);
+	}
+	else
+	{
+		SET_BOOL(false);
+	}
+
+	return SCPERR_SUCCESS;
+}
 
 // AREA Methods
 
@@ -671,6 +698,26 @@ DECL_METHOD_FUNC(room_reset)
 // SHIP methods
 
 // TOKEN methods
+DECL_METHOD_FUNC(token_owner_type)
+{
+	if (!IS_THIS_TOKEN) return SCPERR_STACK;
+
+	TOKEN_DATA *token = THIS_TOKEN;
+
+	output->type = NST_STAT;
+	output->_.stat.table = token_owner_types;
+	if (token->player)
+		output->_.stat.number = TOKEN_OWNER_MOB;
+	else if (token->object)
+		output->_.stat.number = TOKEN_OWNER_OBJ;
+	else if (token->room)
+		output->_.stat.number = TOKEN_OWNER_ROOM;
+	else
+		output->_.stat.number = TOKEN_OWNER_NONE;
+
+	return SCPERR_SUCCESS;
+}
+
 DECL_METHOD_FUNC(token_get_index_value)
 {
 	if (!IS_THIS_TOKEN) return SCPERR_STACK;

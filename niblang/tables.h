@@ -75,6 +75,7 @@ extern const struct flag_type *room_flagbank[];
 
 // Stats
 extern const struct flag_type token_types[];
+extern const struct flag_type token_owner_types[];
 extern const struct flag_type type_flags[];
 extern const struct flag_type apply_flags[];
 extern const struct flag_type room_condition_flags[];

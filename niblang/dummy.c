@@ -220,7 +220,6 @@ void dummy_init()
  	nib_register_flag_table("blueprint",blueprint_flags);
  	nib_register_flag_table("book",book_flags);
  	nib_register_flag_table("cart",cart_flags);
- 	nib_register_stat_table("catalyst_method",catalyst_method_types);
  	nib_register_flag_table("church",church_flags);
  	nib_register_flag_table("class",class_flags);
  	nib_register_flag_table("comm",comm_flags);
@@ -283,6 +282,7 @@ void dummy_init()
  	nib_register_stat_table("blueprint_section",blueprint_section_types);
  	nib_register_stat_table("boolean",boolean_types);
  	nib_register_stat_table("catalyst",catalyst_types);
+ 	nib_register_stat_table("catalyst_method",catalyst_method_types);
  	nib_register_stat_table("church_sizes",church_sizes);
  	nib_register_stat_table("class",class_types);
  	nib_register_stat_table("corpse",corpse_types);
@@ -313,6 +313,7 @@ void dummy_init()
  	nib_register_stat_table("stat",stat_types);
  	nib_register_stat_table("tattoo_loc",tattoo_loc_flags);
 	nib_register_stat_table("token",token_types);
+	nib_register_stat_table("token_owner",token_owner_types);
  	nib_register_stat_table("tool",tool_types);
  	nib_register_stat_table("transfer_modes",transfer_modes);
  	nib_register_stat_table("vital",vital_types);

@@ -36,6 +36,11 @@
 #define TRANSFER_MODE_PORTAL	1
 #define TRANSFER_MODE_MOVEMENT	2
 
+#define TOKEN_OWNER_NONE	0
+#define TOKEN_OWNER_MOB		1
+#define TOKEN_OWNER_OBJ		2
+#define TOKEN_OWNER_ROOM	3
+
 enum variable_enum {
 	VAR_UNKNOWN = 0,
 	VAR_BOOLEAN,
