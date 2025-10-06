@@ -7,9 +7,15 @@
 DECL_METHOD_FUNC(function_random_percent);
 DECL_METHOD_FUNC(function_print_msg);
 DECL_METHOD_FUNC(function_reckoning);
+DECL_METHOD_FUNC(function_get_time);
 
 // NUMBER methods
 DECL_METHOD_FUNC(number_random_value);
+
+// TIME methods
+DECL_METHOD_FUNC(time_add_days);
+DECL_METHOD_FUNC(time_add_months);
+
 
 // FLOAT methods
 

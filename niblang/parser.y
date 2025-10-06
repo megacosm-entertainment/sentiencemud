@@ -258,9 +258,30 @@ static bool check_valid_assignment(NIB_TYPE *left, NIB_TYPE *right, enum nib_ins
 
 	switch(lhs)
 	{
+	case NST_TIME:
+		if (rhs == NST_NUMBER)
+		{
+			if (op == NI_ASSIGN ||
+				op == NI_ADD_EQ ||
+				op == NI_SUBT_EQ)
+				return true;
+		}
+		else if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_PARSE_TIME);
+				return true;
+			}
+		}
+		else if (rhs == lhs)
+			return op == NI_ASSIGN;
+		break;
 	case NST_NUMBER:
 		if (rhs == NST_NUMBER)
 			return true;	// All operations are valid between numbers
+		else if(rhs == NST_TIME)
+			return op == NI_ASSIGN;	// Basically converts it to an ordinary number
 		else if (rhs == NST_FLOAT)
 		{
 			if (op == NI_ASSIGN ||
@@ -614,6 +635,31 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 	// String concatenation for anything
 	switch(lhs)
 	{
+	case NST_TIME:		// TIME
+		switch(rhs)
+		{
+		case NST_NUMBER:
+		case NST_TIME:
+			switch(op)
+			{
+			case NI_ADD:		// TIME + NUMBER (Addition)
+			case NI_SUBT:		// TIME - NUMBER (Subtraction)
+				return nibtype_time;
+
+			case NI_EQ:			// NUMBER == TIME (Equality)
+			case NI_NEQ:		// NUMBER != TIME (Inequality)
+			case NI_LT:			// NUMBER < TIME (Less Than)
+			case NI_LE:			// NUMBER <= TIME (Less Than or Equal)
+			case NI_GT:			// NUMBER > TIME (Greater Than)
+			case NI_GE:			// NUMBER >= TIME (Greater Than or Equal)
+			case NI_LAND:		// NUMBER && TIME (Both Numbers Non-Zero)
+			case NI_LOR:		// NUMBER || TIME (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// NUMBER ^^ TIME (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+			break;
+		}
+		break;
 	case NST_NUMBER:	// NUMBER op ???
 		switch(rhs)
 		{
@@ -642,6 +688,26 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 			case NI_LAND:		// NUMBER && NUMBER (Both Numbers Non-Zero)
 			case NI_LOR:		// NUMBER || NUMBER (One or Both Numbers Non-Zero)
 			case NI_LXOR:		// NUMBER ^^ NUMBER (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+
+			break;
+		case NST_TIME:		// NUMBER op TIME
+			switch(op)
+			{
+			case NI_ADD:		// NUMBER + TIME (Addition)
+			case NI_SUBT:		// NUMBER - TIME (Subtraction)
+				return nibtype_time;
+
+			case NI_EQ:			// NUMBER == TIME (Equality)
+			case NI_NEQ:		// NUMBER != TIME (Inequality)
+			case NI_LT:			// NUMBER < TIME (Less Than)
+			case NI_LE:			// NUMBER <= TIME (Less Than or Equal)
+			case NI_GT:			// NUMBER > TIME (Greater Than)
+			case NI_GE:			// NUMBER >= TIME (Greater Than or Equal)
+			case NI_LAND:		// NUMBER && TIME (Both Numbers Non-Zero)
+			case NI_LOR:		// NUMBER || TIME (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// NUMBER ^^ TIME (Only One Number Non-Zero)
 				return nibtype_bool;
 			}
 
@@ -835,7 +901,7 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 				return nibtype_bool;
 			break;
 		default:
-			if(rhs != NST_LIST)
+			if(rhs != NST_LIST && rhs != NST_ARRAY)
 			{
 				if (op == NI_ADD)
 					return nibtype_string;
@@ -1155,6 +1221,7 @@ void niberrorf(const char *msg, ...)
 %token T_SUBSETOF
 %token T_SWITCH
 %token T_TABLE
+%token T_TIME
 %token T_TOKEN
 %token T_TRUE
 %token T_TYPEOF
@@ -1960,17 +2027,23 @@ for_init_expr:
 
 comma_expr_decl:
 		expr_decl
+		{
+			free_nib_type($<decl>1.type);
+		}
 	|	comma_expr_decl
 		{
 			insert_pop_value();
 		}
 		T_COMMA expr_decl
+		{
+			free_nib_type($<decl>4.type);
+		}
 	;
 
 expr_decl:
 		expr0
 		{
-
+			$<decl>$.type = $1.type;
 		}
 	|	type[T] T_IDENTIFIER[I]
 		{
@@ -2050,7 +2123,7 @@ expr_decl:
 			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_VOID_ASSIGN);
 
-			$<decl>$ = $<decl>5;
+			$<decl>$ = $<decl>4;
 			nib_free($I);
 			free_nib_type($E.type);
 		}
@@ -2067,7 +2140,7 @@ for_cond_expr:
 			$$.needs_use = true;
 			$$.flags = IS_LITERAL;
 
-			// printf("%d, %d: $$.type = %p\n", __LINE__, niblineno, $$.type);
+			//printf("%d, %d: $$.type = %p\n", __LINE__, niblineno, $$.type);
 		}
 	|	comma_expr
 		{
@@ -2080,7 +2153,7 @@ for_cond_expr:
 			$$.rhs = $1.rhs;
 			$$.rhs_len = $1.rhs_len;
 
-			// printf("%d, %d: $$.type = %p\n", __LINE__, niblineno, $$.type);
+			//printf("%d, %d: $$.type = %p\n", __LINE__, niblineno, $$.type);
 		}
 	;
 
@@ -2091,6 +2164,10 @@ for_iter_expr:
 			ins_int(1);
 		}
 	|	comma_expr
+		{
+			//printf("%d, %d: $1.type = %p\n", __LINE__, niblineno, $1.type);
+			free_nib_type($1.type);
+		}
 	;
 
 foreach:
@@ -4789,6 +4866,7 @@ type:	T_INT										{ $$ = nibtype_int; }
 	| T_ARRAY T_OPEN_PAREN possible_constant[C] listtype[T] T_OPEN_BRACKET T_NUMBER[L] T_CLOSE_BRACKET T_CLOSE_PAREN
 													{ $$ = new_nib_type_array($T,$L,$C); }
 	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_TIME										{ $$ = nibtype_time; }
 	| T_ACCOUNT										{ $$ = nibtype_account; }
 	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }
@@ -4878,6 +4956,7 @@ listtype:	T_INT										{ $$ = nibtype_int; }
 	| T_STRING										{ $$ = nibtype_string; }
 	| T_MAP											{ $$ = nibtype_map; }
 	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_TIME										{ $$ = nibtype_time; }
 	| T_ACCOUNT										{ $$ = nibtype_account; }
 	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }

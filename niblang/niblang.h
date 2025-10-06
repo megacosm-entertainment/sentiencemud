@@ -135,6 +135,8 @@ enum nib_instructions_e {
 	NI_GET_SKILL,		// Pops 1 string, gets skill, pushes onto stack
 	NI_GET_WILDS,
 
+	NI_PARSE_TIME,		// Pops 1 string, attempts to parse the time string, pushes result time onto stack
+
 	NI__MAX
 };
 
@@ -152,6 +154,7 @@ enum nib_script_stack_type_e
 	NST_CHAR,
 	NST_MAP,
 	NST_WIDEVNUM,
+	NST_TIME,
 	NST_FLAG,
 	NST_FLAG_BIT,		// Can only be an LVALUE; treated as BOOLEAN
 	NST_FLAG_BANK,
@@ -636,6 +639,7 @@ extern NIB_TYPE *nibtype_array;
 extern NIB_TYPE *nibtype_stat;
 extern NIB_TYPE *nibtype_map;
 extern NIB_TYPE *nibtype_widevnum;
+extern NIB_TYPE *nibtype_time;
 extern NIB_TYPE *nibtype_varargs;
 
 // Internal entity types (not exhaustive)
@@ -721,6 +725,7 @@ void nib_ledger_display();
 void hex_dump(void *addr, size_t size);
 size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst);
 char *get_affect_name(AFFECT_DATA *paf);
+time_t parse_time_string(char *str);
 
 // variables.c
 NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant);

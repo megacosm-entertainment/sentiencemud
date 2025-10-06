@@ -28,6 +28,7 @@ static NIB_TYPE __nibtype_array			= { true, false, NTC_ARRAY, {.array = {NULL, 0
 static NIB_TYPE __nibtype_stat			= { true, false, NTC_STAT, {.stat = {NULL, NULL}}, "stat"};
 static NIB_TYPE __nibtype_varargs		= { true, false, NTC_VARARGS, {0}, "..."};
 static NIB_TYPE __nibtype_widevnum		= { true, false, NTC_PRIMARY, {NT_WIDEVNUM}, "widevnum"};
+static NIB_TYPE __nibtype_time			= { true, false, NTC_PRIMARY, {NT_TIME}, "time"};
 static NIB_TYPE __nibtype_account		= { true, false, NTC_PRIMARY, {NT_ACCOUNT}, "account"};
 static NIB_TYPE __nibtype_affect		= { true, false, NTC_PRIMARY, {NT_AFFECT}, "affect"};
 static NIB_TYPE __nibtype_area			= { true, false, NTC_PRIMARY, {NT_AREA}, "area"};
@@ -100,6 +101,7 @@ NIB_TYPE *nibtype_array = &__nibtype_array;
 NIB_TYPE *nibtype_stat = &__nibtype_stat;
 NIB_TYPE *nibtype_varargs = &__nibtype_varargs;
 NIB_TYPE *nibtype_widevnum = &__nibtype_widevnum;
+NIB_TYPE *nibtype_time = &__nibtype_time;
 NIB_TYPE *nibtype_account = &__nibtype_account;
 NIB_TYPE *nibtype_affect = &__nibtype_affect;
 NIB_TYPE *nibtype_area = &__nibtype_area;

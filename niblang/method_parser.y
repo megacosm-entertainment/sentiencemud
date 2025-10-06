@@ -166,6 +166,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %token T_STAT32
 %token T_STRING
 %token T_STRING_LITERAL
+%token T_TIME
 %token T_TOKEN
 %token T_VARARGS
 %token T_VOID
@@ -176,7 +177,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %type <number> T_NUMBER
 %type <identifier> T_IDENTIFIER
 %type <literal> T_STRING_LITERAL
-%type <byref> T_ACCOUNT T_AFFECT T_AREA T_BOOLEAN T_CHANNEL T_CLASS T_CHAR T_DUNGEON T_EXIT T_FLAG T_FLAGBANK T_FLOAT T_INSTANCE T_INT T_INT32 T_INT16 T_LIQUID T_LIST T_MAIL T_MAP T_MATERIAL T_MISSION T_MOBILE T_NOTE T_OBJECT T_ORG T_QUEST T_RACE T_RANK T_REPUTATION T_ROOM T_SECTOR T_SHIP T_SKILL T_STAT T_STAT16 T_STAT32 T_STRING T_TOKEN T_WIDEVNUM T_WILDS T_WORLD
+%type <byref> T_ACCOUNT T_AFFECT T_AREA T_BOOLEAN T_CHANNEL T_CLASS T_CHAR T_DUNGEON T_EXIT T_FLAG T_FLAGBANK T_FLOAT T_INSTANCE T_INT T_INT32 T_INT16 T_LIQUID T_LIST T_MAIL T_MAP T_MATERIAL T_MISSION T_MOBILE T_NOTE T_OBJECT T_ORG T_QUEST T_RACE T_RANK T_REPUTATION T_ROOM T_SECTOR T_SHIP T_SKILL T_STAT T_STAT16 T_STAT32 T_STRING T_TIME T_TOKEN T_WIDEVNUM T_WILDS T_WORLD
 
 %type <b> possible_constant
 %type <nibtype> type return_type arg_type listtype contexttype fieldtype multitype
@@ -569,6 +570,7 @@ type:
 	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
+	|	T_TIME										{ $$ = nib_type_by_reference(nibtype_time, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
 	|	T_WILDS										{ $$ = nib_type_by_reference(nibtype_wilds, $1); }
 	|	T_WORLD										{ $$ = nib_type_by_reference(nibtype_world, $1); }
@@ -634,6 +636,7 @@ listtype:
 	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
+	|	T_TIME										{ $$ = nib_type_by_reference(nibtype_time, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
 	|	T_WILDS										{ $$ = nib_type_by_reference(nibtype_wilds, $1); }
 	|	T_WORLD										{ $$ = nib_type_by_reference(nibtype_world, $1); }
@@ -670,6 +673,7 @@ multitype:
 	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
+	|	T_TIME										{ $$ = nib_type_by_reference(nibtype_time, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
 	|	T_WILDS										{ $$ = nib_type_by_reference(nibtype_wilds, $1); }
 	|	T_WORLD										{ $$ = nib_type_by_reference(nibtype_world, $1); }
@@ -710,6 +714,7 @@ contexttype:
 	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
+	|	T_TIME										{ $$ = nib_type_by_reference(nibtype_time, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
 	|	T_WILDS										{ $$ = nib_type_by_reference(nibtype_wilds, $1); }
 	|	T_WORLD										{ $$ = nib_type_by_reference(nibtype_world, $1); }
@@ -740,6 +745,7 @@ fieldtype:
 	|	T_SECTOR									{ $$ = nib_type_by_reference(nibtype_sector, $1); }
 	|	T_SHIP										{ $$ = nib_type_by_reference(nibtype_ship, $1); }
 	|	T_SKILL										{ $$ = nib_type_by_reference(nibtype_skill, $1); }
+	|	T_TIME										{ $$ = nib_type_by_reference(nibtype_time, $1); }
 	|	T_TOKEN										{ $$ = nib_type_by_reference(nibtype_token, $1); }
 	|	T_WILDS										{ $$ = nib_type_by_reference(nibtype_wilds, $1); }
 	|	T_WORLD										{ $$ = nib_type_by_reference(nibtype_world, $1); }

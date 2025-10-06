@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "../merc.h"
 #include "../wilds.h"
@@ -46,6 +47,7 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 				case NT_STRING:		return NST_STRING;
 				case NT_MAP:		return NST_MAP;
 				case NT_WIDEVNUM:	return NST_WIDEVNUM;
+				case NT_TIME:		return NST_TIME;
 
 				case NT_ACCOUNT:	return NST_ACCOUNT;
 				case NT_AFFECT:		return NST_AFFECT;
@@ -665,6 +667,7 @@ __push(long,NUMBER,i,number)
 __push(double,FLOAT,d,float)
 __push(bool,BOOLEAN,b,boolean)
 __push(utf8char_t,CHAR,ch,char)
+__push(time_t,TIME,timestamp,time)
 __push(char *,STRING_S,str,string_shared)
 
 static WNUM __wnum_zero;
@@ -992,6 +995,7 @@ bool nib_push_stack_lvalue_value(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 	__lv(FLOAT,d,float)
 	__lv(BOOLEAN,b,boolean)
 	__lv(CHAR,ch,char)
+	__lv(TIME,timestamp,time)
 	__lv(STRING,str,string_shared)
 	// __lv(MAP,map,map)
 	case NST_WIDEVNUM:
@@ -1058,6 +1062,7 @@ bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *va
 	__lcl(FLOAT,f,float)
 	__lcl(BOOLEAN,b,boolean)
 	__lcl(CHAR,ch,char)
+	__lcl(TIME,timestamp,time)
 	__lcl(STRING,str,string_shared)
 	// __lcl(MAP,map,map)
 	case NST_WIDEVNUM:
@@ -1130,6 +1135,7 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 	__llv(FLOAT,f,d)
 	__llv(BOOLEAN,b,b)
 	__llv(CHAR,ch,ch)
+	__llv(TIME,timestamp,timestamp)
 	__llv(STRING,str,str)
 	// __llv(MAP,map,map)
 	__llv(WIDEVNUM,wnum,wnum)
@@ -1219,6 +1225,7 @@ bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__gbl(FLOAT,flt,float)
 	__gbl(BOOLEAN,b,boolean)
 	__gbl(CHAR,ch,char)
+	__gbl(TIME,timestamp,time)
 	case VAR_STRING_S:
 	__gbl(STRING,str,string_shared)
 	// __gbl(MAP,map,map)
@@ -1287,6 +1294,7 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__glv(FLOAT,flt,d)
 	__glv(BOOLEAN,b,b)
 	__glv(CHAR,ch,ch)
+	__glv(TIME,timestamp,timestamp)
 	// case VAR_STRING_S:
 	__glv(STRING,str,str)
 	// __glv(MAP,map,map)
@@ -1514,6 +1522,7 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 		__fdef(FLOAT,d,0.0)
 		__fdef(BOOLEAN,b,false)
 		__fdef(CHAR,ch,'\0')
+		__fdef(TIME,timestamp,((time_t)0))
 		__fdef2(STRING,STRING_S,str,"")
 		case NST_WIDEVNUM:
 			_stack.type = NST_WIDEVNUM;
@@ -1623,6 +1632,7 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 	__flv(FLOAT,double,d,d)
 	__flv(BOOLEAN,bool,b,b)
 	__flv(CHAR,utf8char_t,ch,ch)
+	__flv(TIME,time_t,timestamp,timestamp)
 	__flv2(STRING,char *,str,str,STRING_S)
 	// __flv(MAP,map)
 	__flv(WIDEVNUM,WNUM,wnum,wnum)
@@ -1827,6 +1837,7 @@ __peek(long,NUMBER,i,number)
 __peek(double,FLOAT,d,float)
 __peek(bool,BOOLEAN,b,boolean)
 __peek(utf8char_t,CHAR,ch,char)
+__peek(time_t,TIME,timestamp,time)
 __peek(char *,STRING,str,string)
 __peek(char *,STRING_S,str,string_shared)
 __peek(WNUM,WIDEVNUM,wnum,widevnum)
@@ -2077,6 +2088,7 @@ __pop(long,NUMBER,i,number)
 __pop(double,FLOAT,d,float)
 __pop(bool,BOOLEAN,b,boolean)
 __pop(utf8char_t,CHAR,ch,char)
+__pop(time_t,TIME,timestamp,time)
 bool nib_pop_stack_string (NIB_SCRIPT_RUNTIME *nsr, char **output) \
 {
 	*output = NULL;	// This needs to be initialized to NULL
@@ -2315,6 +2327,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 		__zr(FLOAT,double,float,value == 0.0)
 		__zr(BOOLEAN,bool,boolean,!value)
 		__zr(CHAR,utf8char_t,char,value == '\0')
+		__zr(TIME,time_t,time,!value)
 		__zr(STRING,char *,string,IS_NULLSTR(value))
 		__zr(STRING_S,char *,string_shared,IS_NULLSTR(value))
 //		__zr(MAP...)
@@ -2396,12 +2409,14 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 
 			switch(lvalue.type)
 			{
+			case NST_NUMBER16:		return !*(lvalue._.number16);
 			case NST_NUMBER32:		return !*(lvalue._.number32);
 			case NST_NUMBER:		return !*(lvalue._.number);
 			case NST_FLOAT:			return *(lvalue._.d) == 0.0;
 			case NST_BOOLEAN:		return !*(lvalue._.b);
 			case NST_FLAG_BIT:		return !IS_SET(*(lvalue._.bit.value),lvalue._.bit.bit);
 			case NST_CHAR:			return !*(lvalue._.ch);
+			case NST_TIME:			return !*(lvalue._.timestamp);
 			case NST_STRING:		return !*(lvalue._.str) || !(*(lvalue._.str))[0];
 			// case NST_MAP:		return is map null or empty;
 			case NST_WIDEVNUM:		return !lvalue._.wnum->pArea && lvalue._.wnum->vnum < 1;
@@ -2449,6 +2464,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 		__zr(FLOAT,double,float,value != 0.0)
 		__zr(BOOLEAN,bool,boolean,value)
 		__zr(CHAR,utf8char_t,char,value != '\0')
+		__zr(TIME,time_t,time,value != 0)
 		__zr(STRING,char *,string,!IS_NULLSTR(value))
 		__zr(STRING_S,char *,string_shared,!IS_NULLSTR(value))
 		// __zr(MAP...)
@@ -2530,12 +2546,14 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 
 			switch(lvalue.type)
 			{
+			case NST_NUMBER16:		return *(lvalue._.number16) != 0;
 			case NST_NUMBER32:		return *(lvalue._.number32) != 0;
 			case NST_NUMBER:		return *(lvalue._.number) != 0;
 			case NST_FLOAT:			return *(lvalue._.d) != 0.0;
 			case NST_BOOLEAN:		return *(lvalue._.b);
 			case NST_FLAG_BIT:		return IS_SET(*(lvalue._.bit.value),lvalue._.bit.bit);
 			case NST_CHAR:			return *(lvalue._.ch) != '\0';
+			case NST_TIME:			return *(lvalue._.timestamp) != 0;
 			case NST_STRING:		return !IS_NULLSTR((*(lvalue._.str)));
 			// case NST_MAP:		return is map valid and with entries;
 			case NST_WIDEVNUM:		return lvalue._.wnum->vnum > 0;
@@ -2590,6 +2608,13 @@ static bool __increment_stack(NIB_SCRIPT_RUNTIME *nsr, bool post, bool push_resu
 		else
 			value = ++(*(lvalue._.number32));
 	}
+	else if (lvalue.type == NST_NUMBER16)
+	{
+		if (post)
+			value = (*(lvalue._.number16))++;
+		else
+			value = ++(*(lvalue._.number16));
+	}
 	else if (lvalue.type == NST_NUMBER)
 	{
 		if (post)
@@ -2620,6 +2645,13 @@ static bool __decrement_stack(NIB_SCRIPT_RUNTIME *nsr, bool post, bool push_resu
 			value = (*(lvalue._.number32))--;
 		else
 			value = --(*(lvalue._.number32));
+	}
+	else if (lvalue.type == NST_NUMBER16)
+	{
+		if (post)
+			value = (*(lvalue._.number16))--;
+		else
+			value = --(*(lvalue._.number16));
 	}
 	else if (lvalue.type == NST_NUMBER)
 	{
@@ -2661,10 +2693,169 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 	switch(lsp->type)
 	{
+	case NST_TIME:
+		{
+			switch(rsp->type)
+			{
+			case NST_TIME:	// TIME op TIME => TIME
+				{
+					time_t value;
+					switch(op)
+					{
+					case NI_ADD:	value = lsp->_.timestamp + rsp->_.timestamp; break;
+					case NI_SUBT:	value = lsp->_.timestamp - rsp->_.timestamp; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_time(nsr, value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NUMBER:	// TIME op NUMBER => TIME
+				{
+					time_t value;
+					switch(op)
+					{
+					case NI_ADD:	value = lsp->_.timestamp + ((time_t)rsp->_.i); break;
+					case NI_SUBT:	value = lsp->_.timestamp - ((time_t)rsp->_.i); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_time(nsr, value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				switch(rsp->_.lvalue.type)
+				{
+				case NST_TIME:	// TIME op TIME => TIME
+					{
+						time_t value;
+						switch(op)
+						{
+						case NI_ADD:	value = lsp->_.timestamp + *(rsp->_.lvalue._.timestamp); break;
+						case NI_SUBT:	value = lsp->_.timestamp - *(rsp->_.lvalue._.timestamp); break;
+						default:
+							SETRET(nsr,INVALID);
+							return true;
+						}
+
+						if (!nib_push_stack_time(nsr, value))
+						{
+							SETRET(nsr,STACK);
+							return true;
+						}
+						break;
+					}
+
+				case NST_NUMBER16:
+					{
+						time_t value;
+						switch(op)
+						{
+						case NI_ADD:	value = lsp->_.timestamp + ((time_t)*(rsp->_.lvalue._.number16)); break;
+						case NI_SUBT:	value = lsp->_.timestamp - ((time_t)*(rsp->_.lvalue._.number16)); break;
+						default:
+							SETRET(nsr,INVALID);
+							return true;
+						}
+
+						if (!nib_push_stack_time(nsr, value))
+						{
+							SETRET(nsr,STACK);
+							return true;
+						}
+						break;
+					}
+
+				case NST_NUMBER32:
+					{
+						time_t value;
+						switch(op)
+						{
+						case NI_ADD:	value = lsp->_.timestamp + ((time_t)*(rsp->_.lvalue._.number32)); break;
+						case NI_SUBT:	value = lsp->_.timestamp - ((time_t)*(rsp->_.lvalue._.number32)); break;
+						default:
+							SETRET(nsr,INVALID);
+							return true;
+						}
+
+						if (!nib_push_stack_time(nsr, value))
+						{
+							SETRET(nsr,STACK);
+							return true;
+						}
+						break;
+					}
+
+				case NST_NUMBER:	// TIME op NUMBER => TIME
+					{
+						time_t value;
+						switch(op)
+						{
+						case NI_ADD:	value = lsp->_.timestamp + ((time_t)*(rsp->_.lvalue._.number)); break;
+						case NI_SUBT:	value = lsp->_.timestamp - ((time_t)*(rsp->_.lvalue._.number)); break;
+						default:
+							SETRET(nsr,INVALID);
+							return true;
+						}
+
+						if (!nib_push_stack_time(nsr, value))
+						{
+							SETRET(nsr,STACK);
+							return true;
+						}
+						break;
+					}
+
+				default:
+					SETRET(nsr,INVALID);
+					return true;
+				}
+				break;
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_NUMBER:		// NUMBER op ???
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:	// NUMBER op TIME => NUMBER
+				{
+					time_t value;
+					switch(op)
+					{
+					case NI_ADD:	value = ((time_t)lsp->_.i) + rsp->_.timestamp; break;
+					case NI_SUBT:	value = ((time_t)lsp->_.i) - rsp->_.timestamp; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_time(nsr, value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:	// NUMBER op NUMBER => NUMBER
 				{
 					long value;
@@ -2952,6 +3143,26 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:	// NUMBER op TIME => NUMBER
+						{
+							time_t value;
+							switch(op)
+							{
+							case NI_ADD:	value = ((time_t)lsp->_.i) + *(rsp->_.lvalue._.timestamp); break;
+							case NI_SUBT:	value = ((time_t)lsp->_.i) - *(rsp->_.lvalue._.timestamp); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_time(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER32:	// NUMBER op NUMBER32
 						{
 							long value;
@@ -2987,6 +3198,55 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							case NI_LSH:		value = (lsp->_.i << *(rsp->_.lvalue._.number32)); break;
 							case NI_RSH:		value = (lsp->_.i >> *(rsp->_.lvalue._.number32)); break;
 							case NI_RSHL:		value = (long)(((unsigned long)lsp->_.i) >> *(rsp->_.lvalue._.number32)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+
+							if (!nib_push_stack_number(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER16:	// NUMBER op NUMBER16
+						{
+							long value;
+							switch(op)
+							{
+							case NI_ADD:	value = lsp->_.i + *(rsp->_.lvalue._.number16); break;
+							case NI_SUBT:	value = lsp->_.i - *(rsp->_.lvalue._.number16); break;
+							case NI_MULT:	value = lsp->_.i * *(rsp->_.lvalue._.number16); break;
+							case NI_MOD:
+								if (*(rsp->_.lvalue._.number16) == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = lsp->_.i % *(rsp->_.lvalue._.number16);
+								break;
+							
+							case NI_DIV:
+								if (*(rsp->_.lvalue._.number32) == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = lsp->_.i / *(rsp->_.lvalue._.number16);
+								break;
+
+							case NI_BAND:		value = (lsp->_.i & *(rsp->_.lvalue._.number16)); break;
+							case NI_BOR:		value = (lsp->_.i | *(rsp->_.lvalue._.number16)); break;
+							case NI_BXOR:		value = (lsp->_.i ^ *(rsp->_.lvalue._.number16)); break;
+
+							case NI_LSH:		value = (lsp->_.i << *(rsp->_.lvalue._.number16)); break;
+							case NI_RSH:		value = (lsp->_.i >> *(rsp->_.lvalue._.number16)); break;
+							case NI_RSHL:		value = (long)(((unsigned long)lsp->_.i) >> *(rsp->_.lvalue._.number16)); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -3738,6 +3998,54 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+
+							struct tm *timeinfo = localtime(&(rsp->_.timestamp));
+							strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+							
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
 			case NST_NUMBER:	// STRING op NUMBER => STRING
 				{
 					switch(op)
@@ -5514,6 +5822,54 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+
+									struct tm *timeinfo = localtime(rsp->_.lvalue._.timestamp);
+									strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+									
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
 					case NST_NUMBER16:	// STRING op NUMBER16 => STRING
 						{
 							switch(op)
@@ -7442,6 +7798,51 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+
+							struct tm *timeinfo = localtime(&(rsp->_.timestamp));
+							strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+							
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:	// STRING(s) op NUMBER => STRING
 				{
 					switch(op)
@@ -9084,6 +9485,51 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+
+									struct tm *timeinfo = localtime(rsp->_.lvalue._.timestamp);
+									strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+									
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER16:	// STRING(s) op NUMBER16 => STRING
 						{
 							switch(op)
@@ -11044,11 +11490,785 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 		{
 			switch(lsp->_.lvalue.type)
 			{
-			case NST_NUMBER32:		// NUMBER32 op ???
+			case NST_TIME:
 				{
 					switch(rsp->type)
 					{
-					case NST_NUMBER:	// NUMBER32 op NUMBER => NUMBER
+					case NST_TIME:	// TIME op TIME => TIME
+						{
+							time_t value;
+							switch(op)
+							{
+							case NI_ADD:	value = *(lsp->_.lvalue._.timestamp) + rsp->_.timestamp; break;
+							case NI_SUBT:	value = *(lsp->_.lvalue._.timestamp) - rsp->_.timestamp; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_time(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:	// TIME op NUMBER => TIME
+						{
+							time_t value;
+							switch(op)
+							{
+							case NI_ADD:	value = *(lsp->_.lvalue._.timestamp) + ((time_t)rsp->_.i); break;
+							case NI_SUBT:	value = *(lsp->_.lvalue._.timestamp) - ((time_t)rsp->_.i); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_time(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:
+						switch(rsp->_.lvalue.type)
+						{
+						case NST_TIME:	// TIME op TIME => TIME
+							{
+								time_t value;
+								switch(op)
+								{
+								case NI_ADD:	value = *(lsp->_.lvalue._.timestamp) + *(rsp->_.lvalue._.timestamp); break;
+								case NI_SUBT:	value = *(lsp->_.lvalue._.timestamp) - *(rsp->_.lvalue._.timestamp); break;
+								default:
+									SETRET(nsr,INVALID);
+									return true;
+								}
+
+								if (!nib_push_stack_time(nsr, value))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						case NST_NUMBER16:
+							{
+								time_t value;
+								switch(op)
+								{
+								case NI_ADD:	value = *(lsp->_.lvalue._.timestamp) + ((time_t)*(rsp->_.lvalue._.number16)); break;
+								case NI_SUBT:	value = *(lsp->_.lvalue._.timestamp) - ((time_t)*(rsp->_.lvalue._.number16)); break;
+								default:
+									SETRET(nsr,INVALID);
+									return true;
+								}
+
+								if (!nib_push_stack_time(nsr, value))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						case NST_NUMBER32:
+							{
+								time_t value;
+								switch(op)
+								{
+								case NI_ADD:	value = *(lsp->_.lvalue._.timestamp) + ((time_t)*(rsp->_.lvalue._.number32)); break;
+								case NI_SUBT:	value = *(lsp->_.lvalue._.timestamp) - ((time_t)*(rsp->_.lvalue._.number32)); break;
+								default:
+									SETRET(nsr,INVALID);
+									return true;
+								}
+
+								if (!nib_push_stack_time(nsr, value))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						case NST_NUMBER:	// TIME op NUMBER => TIME
+							{
+								time_t value;
+								switch(op)
+								{
+								case NI_ADD:	value = *(lsp->_.lvalue._.timestamp) + ((time_t)*(rsp->_.lvalue._.number)); break;
+								case NI_SUBT:	value = *(lsp->_.lvalue._.timestamp) - ((time_t)*(rsp->_.lvalue._.number)); break;
+								default:
+									SETRET(nsr,INVALID);
+									return true;
+								}
+
+								if (!nib_push_stack_time(nsr, value))
+								{
+									SETRET(nsr,STACK);
+									return true;
+								}
+								break;
+							}
+
+						default:
+							SETRET(nsr,INVALID);
+							return true;
+						}
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NUMBER16:		// NUMBER op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_TIME:	// NUMBER op TIME => NUMBER
+						{
+							time_t value;
+							switch(op)
+							{
+							case NI_ADD:	value = ((time_t)*(lsp->_.lvalue._.number16)) + rsp->_.timestamp; break;
+							case NI_SUBT:	value = ((time_t)*(lsp->_.lvalue._.number16)) - rsp->_.timestamp; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_time(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:	// NUMBER op NUMBER => NUMBER
+						{
+							long value;
+							switch(op)
+							{
+							case NI_ADD:	value = *(lsp->_.lvalue._.number16) + rsp->_.i; break;
+							case NI_SUBT:	value = *(lsp->_.lvalue._.number16) - rsp->_.i; break;
+							case NI_MULT:	value = *(lsp->_.lvalue._.number16) * rsp->_.i; break;
+							case NI_MOD:
+								if (rsp->_.i == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = *(lsp->_.lvalue._.number16) % rsp->_.i;
+								break;
+							
+							case NI_DIV:
+								if (rsp->_.i == 0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = *(lsp->_.lvalue._.number16) / rsp->_.i;
+								break;
+
+							case NI_BAND:	value = (*(lsp->_.lvalue._.number16) & rsp->_.i); break;
+							case NI_BOR:	value = (*(lsp->_.lvalue._.number16) | rsp->_.i); break;
+							case NI_BXOR:	value = (*(lsp->_.lvalue._.number16) ^ rsp->_.i); break;
+							case NI_LSH:	value = (*(lsp->_.lvalue._.number16) << rsp->_.i); break;
+							case NI_RSH:	value = (*(lsp->_.lvalue._.number16) >> rsp->_.i); break;
+							case NI_RSHL:	value = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> rsp->_.i); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_number(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLOAT:		// NUMBER op FLOAT => FLOAT
+						{
+							double value;
+							switch(op)
+							{
+							case NI_ADD:	value = (double)*(lsp->_.lvalue._.number16) + rsp->_.d; break;
+							case NI_SUBT:	value = (double)*(lsp->_.lvalue._.number16) - rsp->_.d; break;
+							case NI_MULT:	value = (double)*(lsp->_.lvalue._.number16) * rsp->_.d; break;
+							case NI_DIV:
+								if (rsp->_.d == 0.0)
+								{
+									SETRET(nsr,MATH);
+									return true;
+								}
+
+								value = (double)*(lsp->_.lvalue._.number16) / rsp->_.d;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_float(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_CHAR:		// NUMBER op CHAR => STRING
+						{
+							if (op != NI_MULT)
+							{
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							// Cloning
+							char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int len = strlen(bytes);
+							int cnt = (*(lsp->_.lvalue._.number16)>0)?*(lsp->_.lvalue._.number16):0;
+							char *value = calloc(1,len*cnt+1);
+							if (!value)
+							{
+								SETRET(nsr,MEMORY);
+								return true;
+							}
+							char *s = value;
+							for(int i = cnt; i-- > 0; s+=len)
+								strcpy(s,bytes);
+							*s = '\0';
+
+							if (!nib_push_stack_string_raw(nsr,value))
+							{
+								free(value);
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+					case NST_STRING:	// NUMBER op STRING => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(lsp->_.lvalue._.number16), number);
+									if (rsp->_.str)
+									{
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
+										strcpy(value,number);
+										strcat(value,rsp->_.str);
+										free(rsp->_.str);
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+										
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (rsp->_.str)
+									{
+										int len = strlen(rsp->_.str);
+										int cnt = (*(lsp->_.lvalue._.number16)>0)?*(lsp->_.lvalue._.number16):0;
+										char *value = calloc(1,cnt * len + 1);
+										char *str = value;
+										for(int i = 0; i < cnt; i++, str += len)
+											strcpy(str,rsp->_.str);
+										*str = '\0';
+										free(rsp->_.str);
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								if (rsp->_.str) free(rsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_STRING_S:	// NUMBER op STRING(s) => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char number[100];
+									ltoa(*(lsp->_.lvalue._.number16), number);
+									if (rsp->_.str)
+									{
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
+										strcpy(value,number);
+										strcat(value,rsp->_.str);
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr,number))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+										
+									break;
+								}
+
+							case NI_MULT:		// Cloning
+								{
+									if (rsp->_.str)
+									{
+										int len = strlen(rsp->_.str);
+										int cnt = (*(lsp->_.lvalue._.number16)>0)?*(lsp->_.lvalue._.number16):0;
+										char *value = calloc(1,cnt * len + 1);
+										char *str = value;
+										for(int i = 0; i < cnt; i++, str += len)
+											strcpy(str,rsp->_.str);
+										*str = '\0';
+
+										if(!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return false;
+										}
+									}
+									else if(!nib_push_stack_string(nsr, ""))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG:		// NUMBER op FLAG => FLAG
+						{
+							long value;
+							switch(op)
+							{
+							case NI_BAND:	value = *(lsp->_.lvalue._.number16) & rsp->_.stat.number; break;
+							case NI_BOR:	value = *(lsp->_.lvalue._.number16) | rsp->_.stat.number; break;
+							case NI_BXOR:	value = *(lsp->_.lvalue._.number16) ^ rsp->_.stat.number; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_flag(nsr, value, rsp->_.stat.table))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					case NST_LVALUE:	// NUMBER op LVALUE
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_TIME:	// NUMBER op TIME => NUMBER
+								{
+									time_t value;
+									switch(op)
+									{
+									case NI_ADD:	value = ((time_t)*(lsp->_.lvalue._.number16)) + *(rsp->_.lvalue._.timestamp); break;
+									case NI_SUBT:	value = ((time_t)*(lsp->_.lvalue._.number16)) - *(rsp->_.lvalue._.timestamp); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_time(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER16:	// NUMBER op NUMBER16
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number16) + *(rsp->_.lvalue._.number16); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number16) - *(rsp->_.lvalue._.number16); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number16) * *(rsp->_.lvalue._.number16); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number16) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number16) % *(rsp->_.lvalue._.number16);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number16) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number16) / *(rsp->_.lvalue._.number16);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number16) & *(rsp->_.lvalue._.number16)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number16) | *(rsp->_.lvalue._.number16)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number16) ^ *(rsp->_.lvalue._.number16)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number16) << *(rsp->_.lvalue._.number16)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number16) >> *(rsp->_.lvalue._.number16)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> *(rsp->_.lvalue._.number16)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:	// NUMBER op NUMBER32
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number16) + *(rsp->_.lvalue._.number32); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number16) - *(rsp->_.lvalue._.number32); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number16) * *(rsp->_.lvalue._.number32); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number16) % *(rsp->_.lvalue._.number32);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number32) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number16) / *(rsp->_.lvalue._.number32);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number16) & *(rsp->_.lvalue._.number32)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number16) | *(rsp->_.lvalue._.number32)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number16) ^ *(rsp->_.lvalue._.number32)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number16) << *(rsp->_.lvalue._.number32)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number16) >> *(rsp->_.lvalue._.number32)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> *(rsp->_.lvalue._.number32)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER:	// NUMBER op NUMBER
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number16) + *(rsp->_.lvalue._.number); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number16) - *(rsp->_.lvalue._.number); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number16) * *(rsp->_.lvalue._.number); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number16) % *(rsp->_.lvalue._.number);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number16) / *(rsp->_.lvalue._.number);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number16) & *(rsp->_.lvalue._.number)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number16) | *(rsp->_.lvalue._.number)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number16) ^ *(rsp->_.lvalue._.number)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number16) << *(rsp->_.lvalue._.number)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number16) >> *(rsp->_.lvalue._.number)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number16)) >> *(rsp->_.lvalue._.number)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLOAT:		// NUMBER op FLOAT => FLOAT
+								{
+									double value;
+									switch(op)
+									{
+									case NI_ADD:	value = (double)*(lsp->_.lvalue._.number16) + *(rsp->_.lvalue._.d); break;
+									case NI_SUBT:	value = (double)*(lsp->_.lvalue._.number16) - *(rsp->_.lvalue._.d); break;
+									case NI_MULT:	value = (double)*(lsp->_.lvalue._.number16) * *(rsp->_.lvalue._.d); break;
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.d) == 0.0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = (double)*(lsp->_.lvalue._.number16) / *(rsp->_.lvalue._.d);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_float(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_CHAR:		// NUMBER op CHAR => STRING
+								{
+									if (op != NI_MULT)
+									{
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									// Cloning
+									char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+									int len = strlen(bytes);
+									int cnt = (*(lsp->_.lvalue._.number16)>0)?*(lsp->_.lvalue._.number16):0;
+									char *value = calloc(1,len*cnt+1);
+									if (!value)
+									{
+										SETRET(nsr,MEMORY);
+										return true;
+									}
+									char *s = value;
+									for(int i = cnt; i-- > 0;s+=len)
+										strcpy(s,bytes);
+									*s = '\0';
+
+									if (!nib_push_stack_string_raw(nsr,value))
+									{
+										free(value);
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+							case NST_STRING:	// NUMBER op STRING => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char number[100];
+											ltoa(*(lsp->_.lvalue._.number16), number);
+											if (*(rsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
+												strcpy(value,number);
+												strcat(value,*(rsp->_.lvalue._.str));
+
+												if(!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return false;
+												}
+											}
+											else if(!nib_push_stack_string(nsr,number))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+												
+											break;
+										}
+
+									case NI_MULT:		// Cloning
+										{
+											if (*(rsp->_.lvalue._.str))
+											{
+												int len = strlen(*(rsp->_.lvalue._.str));
+												int cnt = (*(lsp->_.lvalue._.number16)>0)?*(lsp->_.lvalue._.number16):0;
+												char *value = calloc(1,cnt * len + 1);
+												char *str = value;
+												for(int i = 0; i < cnt; i++, str += len)
+													strcpy(str,*(rsp->_.lvalue._.str));
+												*str = '\0';
+
+												if(!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return false;
+												}
+											}
+											else if(!nib_push_stack_string(nsr, ""))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+
+							case NST_FLAG:		// NUMBER op FLAG => FLAG
+								{
+									long value;
+									switch(op)
+									{
+									case NI_BAND:	value = *(lsp->_.lvalue._.number16) & *(rsp->_.lvalue._.stat.number); break;
+									case NI_BOR:	value = *(lsp->_.lvalue._.number16) | *(rsp->_.lvalue._.stat.number); break;
+									case NI_BXOR:	value = *(lsp->_.lvalue._.number16) ^ *(rsp->_.lvalue._.stat.number); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_flag(nsr, value, rsp->_.lvalue._.stat.table))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+				
+			case NST_NUMBER32:		// NUMBER op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_TIME:	// NUMBER op TIME => NUMBER
+						{
+							time_t value;
+							switch(op)
+							{
+							case NI_ADD:	value = ((time_t)*(lsp->_.lvalue._.number32)) + rsp->_.timestamp; break;
+							case NI_SUBT:	value = ((time_t)*(lsp->_.lvalue._.number32)) - rsp->_.timestamp; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_time(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:	// NUMBER op NUMBER => NUMBER
 						{
 							long value;
 							switch(op)
@@ -11095,7 +12315,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 
-					case NST_FLOAT:		// NUMBER32 op FLOAT => FLOAT
+					case NST_FLOAT:		// NUMBER op FLOAT => FLOAT
 						{
 							double value;
 							switch(op)
@@ -11125,7 +12345,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 
-					case NST_CHAR:		// NUMBER32 op CHAR => STRING
+					case NST_CHAR:		// NUMBER op CHAR => STRING
 						{
 							if (op != NI_MULT)
 							{
@@ -11157,7 +12377,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							break;
 						}
-					case NST_STRING:	// NUMBER32 op STRING => STRING
+					case NST_STRING:	// NUMBER op STRING => STRING
 						{
 							switch(op)
 							{
@@ -11224,7 +12444,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 
-					case NST_STRING_S:	// NUMBER32 op STRING(s) => STRING
+					case NST_STRING_S:	// NUMBER op STRING(s) => STRING
 						{
 							switch(op)
 							{
@@ -11288,7 +12508,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 
-					case NST_FLAG:		// NUMBER32 op FLAG => FLAG
+					case NST_FLAG:		// NUMBER op FLAG => FLAG
 						{
 							long value;
 							switch(op)
@@ -11308,11 +12528,80 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							break;
 						}
-					case NST_LVALUE:	// NUMBER32 op LVALUE
+					case NST_LVALUE:	// NUMBER op LVALUE
 						{
 							switch(rsp->_.lvalue.type)
 							{
-							case NST_NUMBER32:	// NUMBER32 op NUMBER32
+							case NST_TIME:	// NUMBER op TIME => NUMBER
+								{
+									time_t value;
+									switch(op)
+									{
+									case NI_ADD:	value = ((time_t)*(lsp->_.lvalue._.number32)) + *(rsp->_.lvalue._.timestamp); break;
+									case NI_SUBT:	value = ((time_t)*(lsp->_.lvalue._.number32)) - *(rsp->_.lvalue._.timestamp); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_time(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER16:	// NUMBER op NUMBER16
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number32) + *(rsp->_.lvalue._.number16); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number32) - *(rsp->_.lvalue._.number16); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number32) * *(rsp->_.lvalue._.number16); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number16) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number32) % *(rsp->_.lvalue._.number16);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number16) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number32) / *(rsp->_.lvalue._.number16);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number32) & *(rsp->_.lvalue._.number16)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number32) | *(rsp->_.lvalue._.number16)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number32) ^ *(rsp->_.lvalue._.number16)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number32) << *(rsp->_.lvalue._.number16)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number32) >> *(rsp->_.lvalue._.number16)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number32)) >> *(rsp->_.lvalue._.number16)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:	// NUMBER op NUMBER32
 								{
 									long value;
 									switch(op)
@@ -11352,10 +12641,16 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
 									break;
 								}
 
-							case NST_NUMBER:	// NUMBER32 op NUMBER
+							case NST_NUMBER:	// NUMBER op NUMBER
 								{
 									long value;
 									switch(op)
@@ -11395,10 +12690,16 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
 									break;
 								}
 
-							case NST_FLOAT:		// NUMBER32 op FLOAT => FLOAT
+							case NST_FLOAT:		// NUMBER op FLOAT => FLOAT
 								{
 									double value;
 									switch(op)
@@ -11428,7 +12729,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									break;
 								}
 
-							case NST_CHAR:		// NUMBER32 op CHAR => STRING
+							case NST_CHAR:		// NUMBER op CHAR => STRING
 								{
 									if (op != NI_MULT)
 									{
@@ -11460,7 +12761,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 									break;
 								}
-							case NST_STRING:	// NUMBER32 op STRING => STRING
+							case NST_STRING:	// NUMBER op STRING => STRING
 								{
 									switch(op)
 									{
@@ -11524,7 +12825,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									break;
 								}
 
-							case NST_FLAG:		// NUMBER32 op FLAG => FLAG
+							case NST_FLAG:		// NUMBER op FLAG => FLAG
 								{
 									long value;
 									switch(op)
@@ -11562,6 +12863,26 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->type)
 					{
+					case NST_TIME:		// NUMBER op TIME => TIME
+						{
+							time_t value;
+							switch(op)
+							{
+							case NI_ADD:	value = ((time_t)*(lsp->_.lvalue._.number)) + rsp->_.timestamp; break;
+							case NI_SUBT:	value = ((time_t)*(lsp->_.lvalue._.number)) - rsp->_.timestamp; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_time(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// NUMBER op NUMBER => NUMBER
 						{
 							long value;
@@ -11826,6 +13147,75 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_TIME:		// NUMBER op TIME => TIME
+								{
+									time_t value;
+									switch(op)
+									{
+									case NI_ADD:	value = ((time_t)*(lsp->_.lvalue._.number)) + *(rsp->_.lvalue._.timestamp); break;
+									case NI_SUBT:	value = ((time_t)*(lsp->_.lvalue._.number)) - *(rsp->_.lvalue._.timestamp); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_time(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER16:	// NUMBER op NUMBER16
+								{
+									long value;
+									switch(op)
+									{
+									case NI_ADD:	value = *(lsp->_.lvalue._.number) + *(rsp->_.lvalue._.number16); break;
+									case NI_SUBT:	value = *(lsp->_.lvalue._.number) - *(rsp->_.lvalue._.number16); break;
+									case NI_MULT:	value = *(lsp->_.lvalue._.number) * *(rsp->_.lvalue._.number16); break;
+									case NI_MOD:
+										if (*(rsp->_.lvalue._.number16) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number) % *(rsp->_.lvalue._.number16);
+										break;
+									
+									case NI_DIV:
+										if (*(rsp->_.lvalue._.number16) == 0)
+										{
+											SETRET(nsr,MATH);
+											return true;
+										}
+
+										value = *(lsp->_.lvalue._.number) / *(rsp->_.lvalue._.number16);
+										break;
+
+									case NI_BAND:		value = (*(lsp->_.lvalue._.number) & *(rsp->_.lvalue._.number16)); break;
+									case NI_BOR:		value = (*(lsp->_.lvalue._.number) | *(rsp->_.lvalue._.number16)); break;
+									case NI_BXOR:		value = (*(lsp->_.lvalue._.number) ^ *(rsp->_.lvalue._.number16)); break;
+
+									case NI_LSH:		value = (*(lsp->_.lvalue._.number) << *(rsp->_.lvalue._.number16)); break;
+									case NI_RSH:		value = (*(lsp->_.lvalue._.number) >> *(rsp->_.lvalue._.number16)); break;
+									case NI_RSHL:		value = (long)(((unsigned long)*(lsp->_.lvalue._.number)) >> *(rsp->_.lvalue._.number16)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER32:	// NUMBER op NUMBER32
 								{
 									long value;
@@ -11866,6 +13256,12 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
 									break;
 								}
 
@@ -11909,6 +13305,12 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
+
+									if (!nib_push_stack_number(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
 									break;
 								}
 
@@ -12582,6 +13984,51 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->type)
 					{
+					case NST_TIME:
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+
+									struct tm *timeinfo = localtime(&(rsp->_.timestamp));
+									strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+									
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// STRING op NUMBER => STRING
 						{
 							switch(op)
@@ -14222,6 +15669,51 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_TIME:
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+
+											struct tm *timeinfo = localtime(rsp->_.lvalue._.timestamp);
+											strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+											
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER16:	// STRING op NUMBER16 => STRING
 								{
 									switch(op)
@@ -16292,10 +17784,221 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 	
 	switch(lsp->type)
 	{
+	case NST_TIME:
+		{
+			switch(rsp->type)
+			{
+			case NST_TIME:
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.timestamp) == (rsp->_.timestamp); break;
+					case NI_NEQ:	value = (lsp->_.timestamp) != (rsp->_.timestamp); break;
+					case NI_LT:		value = (lsp->_.timestamp) < (rsp->_.timestamp); break;
+					case NI_LE:		value = (lsp->_.timestamp) <= (rsp->_.timestamp); break;
+					case NI_GT:		value = (lsp->_.timestamp) > (rsp->_.timestamp); break;
+					case NI_GE:		value = (lsp->_.timestamp) >= (rsp->_.timestamp); break;
+					case NI_LAND:	value = (lsp->_.timestamp != 0) && (rsp->_.timestamp != 0); break;
+					case NI_LOR:	value = (lsp->_.timestamp != 0) || (rsp->_.timestamp != 0); break;
+					case NI_LXOR:	value = (lsp->_.timestamp != 0) != (rsp->_.timestamp != 0); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr, value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.timestamp) == (rsp->_.i); break;
+					case NI_NEQ:	value = (lsp->_.timestamp) != (rsp->_.i); break;
+					case NI_LT:		value = (lsp->_.timestamp) < (rsp->_.i); break;
+					case NI_LE:		value = (lsp->_.timestamp) <= (rsp->_.i); break;
+					case NI_GT:		value = (lsp->_.timestamp) > (rsp->_.i); break;
+					case NI_GE:		value = (lsp->_.timestamp) >= (rsp->_.i); break;
+					case NI_LAND:	value = (lsp->_.timestamp != 0) && (rsp->_.i != 0); break;
+					case NI_LOR:	value = (lsp->_.timestamp != 0) || (rsp->_.i != 0); break;
+					case NI_LXOR:	value = (lsp->_.timestamp != 0) != (rsp->_.i != 0); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr, value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_TIME:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.timestamp) == (*(rsp->_.lvalue._.timestamp)); break;
+							case NI_NEQ:	value = (lsp->_.timestamp) != (*(rsp->_.lvalue._.timestamp)); break;
+							case NI_LT:		value = (lsp->_.timestamp) < (*(rsp->_.lvalue._.timestamp)); break;
+							case NI_LE:		value = (lsp->_.timestamp) <= (*(rsp->_.lvalue._.timestamp)); break;
+							case NI_GT:		value = (lsp->_.timestamp) > (*(rsp->_.lvalue._.timestamp)); break;
+							case NI_GE:		value = (lsp->_.timestamp) >= (*(rsp->_.lvalue._.timestamp)); break;
+							case NI_LAND:	value = (lsp->_.timestamp != 0) && (*(rsp->_.lvalue._.timestamp) != 0); break;
+							case NI_LOR:	value = (lsp->_.timestamp != 0) || (*(rsp->_.lvalue._.timestamp) != 0); break;
+							case NI_LXOR:	value = (lsp->_.timestamp != 0) != (*(rsp->_.lvalue._.timestamp) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.timestamp) == (*(rsp->_.lvalue._.number16)); break;
+							case NI_NEQ:	value = (lsp->_.timestamp) != (*(rsp->_.lvalue._.number16)); break;
+							case NI_LT:		value = (lsp->_.timestamp) < (*(rsp->_.lvalue._.number16)); break;
+							case NI_LE:		value = (lsp->_.timestamp) <= (*(rsp->_.lvalue._.number16)); break;
+							case NI_GT:		value = (lsp->_.timestamp) > (*(rsp->_.lvalue._.number16)); break;
+							case NI_GE:		value = (lsp->_.timestamp) >= (*(rsp->_.lvalue._.number16)); break;
+							case NI_LAND:	value = (lsp->_.timestamp != 0) && (*(rsp->_.lvalue._.number16) != 0); break;
+							case NI_LOR:	value = (lsp->_.timestamp != 0) || (*(rsp->_.lvalue._.number16) != 0); break;
+							case NI_LXOR:	value = (lsp->_.timestamp != 0) != (*(rsp->_.lvalue._.number16) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.timestamp) == (*(rsp->_.lvalue._.number32)); break;
+							case NI_NEQ:	value = (lsp->_.timestamp) != (*(rsp->_.lvalue._.number32)); break;
+							case NI_LT:		value = (lsp->_.timestamp) < (*(rsp->_.lvalue._.number32)); break;
+							case NI_LE:		value = (lsp->_.timestamp) <= (*(rsp->_.lvalue._.number32)); break;
+							case NI_GT:		value = (lsp->_.timestamp) > (*(rsp->_.lvalue._.number32)); break;
+							case NI_GE:		value = (lsp->_.timestamp) >= (*(rsp->_.lvalue._.number32)); break;
+							case NI_LAND:	value = (lsp->_.timestamp != 0) && (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LOR:	value = (lsp->_.timestamp != 0) || (*(rsp->_.lvalue._.number32) != 0); break;
+							case NI_LXOR:	value = (lsp->_.timestamp != 0) != (*(rsp->_.lvalue._.number32) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.timestamp) == (*(rsp->_.lvalue._.number)); break;
+							case NI_NEQ:	value = (lsp->_.timestamp) != (*(rsp->_.lvalue._.number)); break;
+							case NI_LT:		value = (lsp->_.timestamp) < (*(rsp->_.lvalue._.number)); break;
+							case NI_LE:		value = (lsp->_.timestamp) <= (*(rsp->_.lvalue._.number)); break;
+							case NI_GT:		value = (lsp->_.timestamp) > (*(rsp->_.lvalue._.number)); break;
+							case NI_GE:		value = (lsp->_.timestamp) >= (*(rsp->_.lvalue._.number)); break;
+							case NI_LAND:	value = (lsp->_.timestamp != 0) && (*(rsp->_.lvalue._.number) != 0); break;
+							case NI_LOR:	value = (lsp->_.timestamp != 0) || (*(rsp->_.lvalue._.number) != 0); break;
+							case NI_LXOR:	value = (lsp->_.timestamp != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_NUMBER:		// NUMBER op ???
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.i) == (rsp->_.timestamp); break;
+					case NI_NEQ:	value = (lsp->_.i) != (rsp->_.timestamp); break;
+					case NI_LT:		value = (lsp->_.i) < (rsp->_.timestamp); break;
+					case NI_LE:		value = (lsp->_.i) <= (rsp->_.timestamp); break;
+					case NI_GT:		value = (lsp->_.i) > (rsp->_.timestamp); break;
+					case NI_GE:		value = (lsp->_.i) >= (rsp->_.timestamp); break;
+					case NI_LAND:	value = (lsp->_.i != 0) && (rsp->_.timestamp != 0); break;
+					case NI_LOR:	value = (lsp->_.i != 0) || (rsp->_.timestamp != 0); break;
+					case NI_LXOR:	value = (lsp->_.i != 0) != (rsp->_.timestamp != 0); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr, value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 				{
 					bool value;
@@ -16425,6 +18128,60 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (rsp->_.timestamp); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (rsp->_.timestamp); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (rsp->_.timestamp); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (rsp->_.timestamp); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (rsp->_.timestamp); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (rsp->_.timestamp); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (rsp->_.timestamp != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (rsp->_.timestamp != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (rsp->_.timestamp != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.i) == (*(rsp->_.lvalue._.number16)); break;
+							case NI_NEQ:	value = (lsp->_.i) != (*(rsp->_.lvalue._.number16)); break;
+							case NI_LT:		value = (lsp->_.i) < (*(rsp->_.lvalue._.number16)); break;
+							case NI_LE:		value = (lsp->_.i) <= (*(rsp->_.lvalue._.number16)); break;
+							case NI_GT:		value = (lsp->_.i) > (*(rsp->_.lvalue._.number16)); break;
+							case NI_GE:		value = (lsp->_.i) >= (*(rsp->_.lvalue._.number16)); break;
+							case NI_LAND:	value = (lsp->_.i != 0) && (*(rsp->_.lvalue._.number16) != 0); break;
+							case NI_LOR:	value = (lsp->_.i != 0) || (*(rsp->_.lvalue._.number16) != 0); break;
+							case NI_LXOR:	value = (lsp->_.i != 0) != (*(rsp->_.lvalue._.number16) != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
 						{
 							bool value;
@@ -20652,10 +22409,221 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 		{
 			switch(lsp->_.lvalue.type)
 			{
+			case NST_TIME:
+				{
+					switch(rsp->type)
+					{
+					case NST_TIME:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (rsp->_.timestamp); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (rsp->_.timestamp); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (rsp->_.timestamp); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (rsp->_.timestamp); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (rsp->_.timestamp); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (rsp->_.timestamp); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (rsp->_.timestamp != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (rsp->_.timestamp != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (rsp->_.timestamp != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (rsp->_.i); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (rsp->_.i); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (rsp->_.i); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (rsp->_.i); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (rsp->_.i); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (rsp->_.i); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (rsp->_.i != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (rsp->_.i != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (rsp->_.i != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_TIME:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (*(rsp->_.lvalue._.timestamp) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (*(rsp->_.lvalue._.number16)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (*(rsp->_.lvalue._.number16)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (*(rsp->_.lvalue._.number16)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (*(rsp->_.lvalue._.number16)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (*(rsp->_.lvalue._.number16)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (*(rsp->_.lvalue._.number16)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (*(rsp->_.lvalue._.number16) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (*(rsp->_.lvalue._.number16) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER32:	// NUMBER op NUMBER32 => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (*(rsp->_.lvalue._.number32)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (*(rsp->_.lvalue._.number32)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (*(rsp->_.lvalue._.number32)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (*(rsp->_.lvalue._.number32)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (*(rsp->_.lvalue._.number32)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (*(rsp->_.lvalue._.number32)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (*(rsp->_.lvalue._.number32) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (*(rsp->_.lvalue._.number32) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.timestamp)) == (*(rsp->_.lvalue._.number)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.timestamp)) != (*(rsp->_.lvalue._.number)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.timestamp)) < (*(rsp->_.lvalue._.number)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.timestamp)) <= (*(rsp->_.lvalue._.number)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.timestamp)) > (*(rsp->_.lvalue._.number)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.timestamp)) >= (*(rsp->_.lvalue._.number)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.timestamp) != 0) && (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) || (*(rsp->_.lvalue._.number) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.timestamp) != 0) != (*(rsp->_.lvalue._.number) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER16:		// NUMBER op ???
 				{
 					switch(rsp->type)
 					{
+					case NST_TIME:	// NUMBER op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (rsp->_.timestamp); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (rsp->_.timestamp); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (rsp->_.timestamp); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (rsp->_.timestamp); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (rsp->_.timestamp); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (rsp->_.timestamp); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (rsp->_.timestamp != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (rsp->_.timestamp != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (rsp->_.timestamp != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -20812,6 +22780,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_TIME:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number16)) == (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number16)) != (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number16)) < (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number16)) <= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number16)) > (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number16)) >= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number16) != 0) && (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number16) != 0) || (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number16) != 0) != (*(rsp->_.lvalue._.timestamp) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
 								{
 									bool value;
@@ -21090,6 +23085,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->type)
 					{
+					case NST_TIME:	// NUMBER op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (rsp->_.timestamp); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (rsp->_.timestamp); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (rsp->_.timestamp); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (rsp->_.timestamp); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (rsp->_.timestamp); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (rsp->_.timestamp); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (rsp->_.timestamp != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (rsp->_.timestamp != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (rsp->_.timestamp != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -21246,6 +23268,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_TIME:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number32)) == (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number32)) != (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number32)) < (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number32)) <= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number32)) > (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number32)) >= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number32) != 0) && (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number32) != 0) || (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number32) != 0) != (*(rsp->_.lvalue._.timestamp) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
 								{
 									bool value;
@@ -21524,6 +23573,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 				{
 					switch(rsp->type)
 					{
+					case NST_TIME:	// NUMBER op NUMBER => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (rsp->_.timestamp); break;
+							case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (rsp->_.timestamp); break;
+							case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (rsp->_.timestamp); break;
+							case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (rsp->_.timestamp); break;
+							case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (rsp->_.timestamp); break;
+							case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (rsp->_.timestamp); break;
+							case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (rsp->_.timestamp != 0); break;
+							case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (rsp->_.timestamp != 0); break;
+							case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (rsp->_.timestamp != 0); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr, value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:	// NUMBER op NUMBER => BOOLEAN
 						{
 							bool value;
@@ -21680,6 +23756,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 						{
 							switch(rsp->_.lvalue.type)
 							{
+							case NST_TIME:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.number)) == (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_NEQ:	value = (*(lsp->_.lvalue._.number)) != (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LT:		value = (*(lsp->_.lvalue._.number)) < (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LE:		value = (*(lsp->_.lvalue._.number)) <= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GT:		value = (*(lsp->_.lvalue._.number)) > (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_GE:		value = (*(lsp->_.lvalue._.number)) >= (*(rsp->_.lvalue._.timestamp)); break;
+									case NI_LAND:	value = (*(lsp->_.lvalue._.number) != 0) && (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LOR:	value = (*(lsp->_.lvalue._.number) != 0) || (*(rsp->_.lvalue._.timestamp) != 0); break;
+									case NI_LXOR:	value = (*(lsp->_.lvalue._.number) != 0) != (*(rsp->_.lvalue._.timestamp) != 0); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr, value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
 							case NST_NUMBER16:	// NUMBER op NUMBER16 => BOOLEAN
 								{
 									bool value;
@@ -26202,10 +28305,363 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	bool push_result = true;
 	switch(lsp->_.lvalue.type)
 	{
+	case NST_TIME:		// TIME op= ???
+		{
+			switch(rsp->type)
+			{
+			case NST_TIME:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.timestamp) = rsp->_.timestamp;
+
+							if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							*(lsp->_.lvalue._.timestamp) += rsp->_.timestamp;
+
+							if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_SUBT_EQ:
+						{
+							*(lsp->_.lvalue._.timestamp) -= rsp->_.timestamp;
+
+							if (!nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NUMBER:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.timestamp) = rsp->_.i;
+
+							if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+					
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							*(lsp->_.lvalue._.timestamp) += rsp->_.i;
+
+							if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_SUBT_EQ:
+						{
+							*(lsp->_.lvalue._.timestamp) -= rsp->_.i;
+
+							if (!nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_TIME:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.timestamp) = *(rsp->_.lvalue._.timestamp);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) += *(rsp->_.lvalue._.timestamp);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) -= *(rsp->_.lvalue._.timestamp);
+
+									if (!nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER16:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.timestamp) = *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) += *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) -= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER32:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.timestamp) = *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) += *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) -= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.timestamp) = *(rsp->_.lvalue._.number);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) += *(rsp->_.lvalue._.number);
+
+									if (push_result && !nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.timestamp) -= *(rsp->_.lvalue._.number);
+
+									if (!nib_push_stack_time(nsr,*(lsp->_.lvalue._.timestamp)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_NUMBER16:		// NUMBER16 op= ???
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number16) = (short)rsp->_.timestamp;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:		// NUMBER op= NUMBER
 				{
 					switch(op)
@@ -26501,6 +28957,31 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number16) = (short)*(rsp->_.lvalue._.timestamp);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number16)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER16:		// NUMBER32 op= NUMBER16
 						{
 							switch(op)
@@ -27206,6 +29687,31 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number32) = (int)rsp->_.timestamp;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:		// NUMBER op= NUMBER
 				{
 					switch(op)
@@ -27501,6 +30007,31 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number32) = (int)*(rsp->_.lvalue._.timestamp);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number32)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER16:		// NUMBER32 op= NUMBER16
 						{
 							switch(op)
@@ -28206,6 +30737,31 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:		// NUMBER op= NUMBER
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.number) = (long)rsp->_.timestamp;
+
+							if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_NUMBER:		// NUMBER op= NUMBER
 				{
 					switch(op)
@@ -28501,6 +31057,401 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:		// NUMBER op= NUMBER
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number) = (long)*(rsp->_.lvalue._.timestamp);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER16:		// NUMBER32 op= NUMBER16
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number) = *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number) += *(rsp->_.lvalue._.number16);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number) -= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number) *= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number) %= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number) /= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number) |= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number) |= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number) ^= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number) = 0;
+									else
+										*(lsp->_.lvalue._.number) <<= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number) < 0)
+											*(lsp->_.lvalue._.number) = -1;
+										else
+											*(lsp->_.lvalue._.number) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number) >>= *(rsp->_.lvalue._.number16);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number16) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number) = 0;
+									else
+										*(lsp->_.lvalue._.number) = (long)(((unsigned long)*(lsp->_.lvalue._.number)) >> *(rsp->_.lvalue._.number16));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NUMBER32:		// NUMBER32 op= NUMBER32
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.number) = *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									*(lsp->_.lvalue._.number) += *(rsp->_.lvalue._.number32);
+
+									if (push_result && !nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_SUBT_EQ:
+								{
+									*(lsp->_.lvalue._.number) -= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MULT_EQ:
+								{
+									*(lsp->_.lvalue._.number) *= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_MOD_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number) %= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_DIV_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) == 0)
+									{
+										SETRET(nsr,MATH);
+										return true;
+									}
+
+									*(lsp->_.lvalue._.number) /= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BAND_EQ:
+								{
+									*(lsp->_.lvalue._.number) |= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BOR_EQ:
+								{
+									*(lsp->_.lvalue._.number) |= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_BXOR_EQ:
+								{
+									*(lsp->_.lvalue._.number) ^= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_LSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number) = 0;
+									else
+										*(lsp->_.lvalue._.number) <<= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSH_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+									{
+										if (*(lsp->_.lvalue._.number) < 0)
+											*(lsp->_.lvalue._.number) = -1;
+										else
+											*(lsp->_.lvalue._.number) = 0;
+									}
+									else
+										*(lsp->_.lvalue._.number) >>= *(rsp->_.lvalue._.number32);
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_RSHL_EQ:
+								{
+									if (*(rsp->_.lvalue._.number32) >= MAX_FLAG_BITS)
+										*(lsp->_.lvalue._.number) = 0;
+									else
+										*(lsp->_.lvalue._.number) = (long)(((unsigned long)*(lsp->_.lvalue._.number)) >> *(rsp->_.lvalue._.number32));
+
+									if (!nib_push_stack_number(nsr,*(lsp->_.lvalue._.number)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_NUMBER:		// NUMBER op= NUMBER
 						{
 							switch(op)
@@ -29613,6 +32564,76 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 		{
 			switch(rsp->type)
 			{
+			case NST_TIME:
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+
+							char stringify[100];
+
+							struct tm *timeinfo = localtime(&(rsp->_.timestamp));
+							strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+							*(lsp->_.lvalue._.str) = strdup(stringify);
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NI_VOID_ADD_EQ:
+						push_result = false;
+					case NI_ADD_EQ:
+						{
+							char stringify[100];
+
+							struct tm *timeinfo = localtime(&(rsp->_.timestamp));
+							strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+							if (*(lsp->_.lvalue._.str))
+							{
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+
+								strcpy(value,*(lsp->_.lvalue._.str));
+								strcat(value,stringify);
+
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = value;
+							}
+							else
+							{
+								free(*(lsp->_.lvalue._.str));
+								*(lsp->_.lvalue._.str) = strdup(stringify);
+							}
+
+							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_NUMBER:
 				{
 					switch(op)
@@ -31975,6 +34996,76 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_TIME:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
+
+									char stringify[100];
+
+									struct tm *timeinfo = localtime(rsp->_.lvalue._.timestamp);
+									strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+									*(lsp->_.lvalue._.str) = strdup(stringify);
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+							case NI_ADD_EQ:
+								{
+									char stringify[100];
+
+									struct tm *timeinfo = localtime(rsp->_.lvalue._.timestamp);
+									strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = value;
+									}
+									else
+									{
+										free(*(lsp->_.lvalue._.str));
+										*(lsp->_.lvalue._.str) = strdup(stringify);
+									}
+
+									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_NUMBER:
 						{
 							switch(op)
@@ -38528,6 +41619,77 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
+	case NI_PARSE_TIME:
+		{
+			time_t t = (time_t)0;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *time_str;
+					if (!nib_pop_stack_string(nsr, &time_str))
+					{
+						if (time_str) free(time_str);
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					t = parse_time_string(time_str);
+					if (time_str) free(time_str);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *time_str;
+					if (!nib_pop_stack_string_shared(nsr, &time_str))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					t = parse_time_string(time_str);
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						t = parse_time_string(*(lvalue._.str));
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_time(nsr,t))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			break;
+		}
+
 	}
 
 	return false;
@@ -38666,6 +41828,7 @@ static const char *opcode_names[] = {
 	"GET_SECTOR",
 	"GET_SKILL",
 	"GET_WILDS",
+	"PARSE_TIME",
 };
 
 static void __add_dissassembled_line(LLIST *assembly, long address, char *str, bool is_comment)
@@ -38833,6 +41996,7 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 			case NI_GET_SECTOR:		type = NST_SECTOR; break;
 			case NI_GET_SKILL:		type = NST_SKILL; break;
 			case NI_GET_WILDS:		type = NST_WILDS; break;
+			case NI_PARSE_TIME:		type = NST_TIME; break;
 
 			case NI_RETURN_BYTE:
 			{
@@ -39284,6 +42448,14 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 				(stack->_.wnum.pArea != NULL ) ? stack->_.wnum.pArea->uid : 0,
 				stack->_.wnum.vnum
 			);
+	case NST_TIME:
+		{
+			char stringify[100];
+
+			struct tm *timeinfo = localtime(&(stack->_.timestamp));
+			strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+			return snprintf(line, max_len, "TIME(%s)", stringify); 
+		}
 	case NST_ACCOUNT:	return snprintf(line, max_len, "ACCT(%s)", (IS_VALID(stack->_.account) ? stack->_.account->username : "???"));
 	case NST_AFFECT:	return snprintf(line, max_len, "AFFT(%s)", (IS_VALID(stack->_.affect) ? get_affect_name(stack->_.affect) : "???"));
 	case NST_AREA:		return snprintf(line, max_len, "AREA(%ld)", ((stack->_.area != NULL)?stack->_.area->uid:0));
@@ -39407,9 +42579,18 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 					(stack->_.lvalue._.wnum->pArea != NULL ) ? stack->_.lvalue._.wnum->pArea->uid : 0,
 					stack->_.lvalue._.wnum->vnum
 				);
+		case NST_TIME:
+			{
+				char stringify[100];
+
+				struct tm *timeinfo = localtime(stack->_.lvalue._.timestamp);
+				strftime(stringify, sizeof(stringify), "%Y-%m-%d %H:%M:%S", timeinfo);
+				return snprintf(line, max_len, "LVALUE(TIME(%s))", stringify); 
+			}
 		case NST_ACCOUNT:	return snprintf(line, max_len, "LVALUE(ACCT(%s))", IS_VALID((*(stack->_.lvalue._.account)))?(*(stack->_.lvalue._.account))->username:"???");
 		case NST_AFFECT:	return snprintf(line, max_len, "LVALUE(AFF(%s))", IS_VALID((*(stack->_.lvalue._.affect)))?get_affect_name(*(stack->_.lvalue._.affect)):"???");
 		case NST_AREA:		return snprintf(line, max_len, "LVALUE(AREA(%ld))", *(stack->_.lvalue._.area) ? (*(stack->_.lvalue._.area))->uid : 0);
+		case NST_CLASS:		return snprintf(line, max_len, "LVALUE(CLASS(%s))", IS_VALID((*(stack->_.lvalue._.clazz)))?(*(stack->_.lvalue._.clazz))->name:"???");
 		// case NST_INSTANCE:
 		// case NST_DUNGEON:
 		case NST_MOBILE:

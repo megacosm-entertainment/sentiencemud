@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include <math.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "../merc.h"
 #include "niblang.h"
@@ -21,6 +22,7 @@ extern char * const dir_name[];
 #define IS_CHAR(n)		(IS__TYPE(n,CHAR))
 #define IS_STR(n)		(IS__TYPE(n,STRING) || IS__TYPE(n,STRING_S))
 #define IS_WNUM(n)		(IS__TYPE(n,WIDEVNUM))
+#define IS_TIME(n)		(IS__TYPE(n,TIME))
 #define IS_LIST(n)		(IS__TYPE(n,LIST) || IS__TYPE(n,LIST_S))
 #define IS_ARRAY(n)		(IS__TYPE(n,ARRAY) || IS__TYPE(n,ARRAY_S))
 #define IS_AFFECT(n)	(IS__TYPE(n,AFFECT))
@@ -41,6 +43,7 @@ extern char * const dir_name[];
 #define IS_LV_STR(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,STRING)))
 #define IS_LV_MAP(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,MAP)))
 #define IS_LV_WNUM(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,WIDEVNUM)))
+#define IS_LV_TIME(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,TIME)))
 #define IS_LV_LIST(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,LIST)))
 #define IS_LV_ARRAY(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,ARRAY)))
 #define IS_LV_AFFECT(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,AFFECT)))
@@ -59,6 +62,7 @@ extern char * const dir_name[];
 #define ARG_CHR(n)		(ARG__TYPE(n,ch))
 #define ARG_STR(n)		(ARG__TYPE(n,str))
 #define ARG_WNUM(n)		(ARG__TYPE(n,wnum))
+#define ARG_TIME(n)		(ARG__TYPE(n,timestamp))
 #define ARG__LIST(n)	(ARG__TYPE(n,list))
 #define ARG_LIST(n)		(ARG__TYPE(n,list.list))
 #define ARG__ARRAY(n)	(ARG__TYPE(n,array))
@@ -81,6 +85,7 @@ extern char * const dir_name[];
 #define LV_CHR(n)		(*(LV__FLD(n,ch)))
 #define LV_STR(n)		(*(LV__FLD(n,str)))
 #define LV_WVUM(n)		(*(LV__FLD(n,wnum)))
+#define LV_TIME(n)		(*(LV__FLD(n,timestamp)))
 #define LV__LIST(n)		(LV__FLD(n,list))
 #define LV_LIST(n)		(*(LV__FLD(n,list.list)))
 #define LV__ARRAY(n)	(LV__FLD(n,array))
@@ -101,6 +106,7 @@ extern char * const dir_name[];
 #define IS_ARG_CHR(n)	(IS_LV_CHAR((n)) || IS_CHAR((n)))
 #define IS_ARG_STR(n)	(IS_LV_STR((n)) || IS_STR((n)))
 #define IS_ARG_WVUM(n)	(IS_LV_WNUM((n)) || IS_WNUM((n)))
+#define IS_ARG_TIME(n)	(IS_LV_TIME((n)) || IS_TIME((n)))
 #define IS_ARG_LIST(n)	(IS_LV_LIST((n)) || IS_LIST((n)))
 #define IS_ARG_ARRAY(n)	(IS_LV_ARRAY((n)) || IS_ARRAY((n)))
 #define IS_ARG_AFFECT(n)	(IS_LV_AFFECT((n)) || IS_AFFECT((n)))
@@ -119,6 +125,7 @@ extern char * const dir_name[];
 #define IS_THIS_CHR		(IS_ARG_CHR(0))
 #define IS_THIS_STR		(IS_ARG_STR(0))
 #define IS_THIS_WVUM	(IS_ARG_WVUM(0))
+#define IS_THIS_TIME	(IS_ARG_TIME(0))
 #define IS_THIS_LIST	(IS_ARG_LIST(0))
 #define IS_THIS_ARRAY	(IS_ARG_ARRAY(0))
 #define IS_THIS_AFFECT	(IS_ARG_AFFECT(0))
@@ -137,6 +144,7 @@ extern char * const dir_name[];
 #define GET_CHR(n)		(IS_LV_CHAR((n)) ? LV_CHR((n)) : ARG_CHR((n)))
 #define GET_STR(n)		(IS_LV_STR((n)) ? LV_STR((n)) : ARG_STR((n)))
 #define GET_WVUM(n)		(IS_LV_WNUM((n)) ? LV_WNUM((n)) : ARG_WNUM((n)))
+#define GET_TIME(n)		(IS_LV_TIME((n)) ? LV_TIME((n)) : ARG_TIME((n)))
 #define GET_AFFECT(n)	(IS_LV_AFFECT((n)) ? LV_AFFECT((n)) : ARG_AFFECT((n)))
 #define GET_AREA(n)		(IS_LV_AREA((n)) ? LV_AREA((n)) : ARG_AREA((n)))
 #define GET_EXIT(n)		(IS_LV_EXIT((n)) ? LV_EXIT((n)) : ARG_EXIT((n)))
@@ -157,6 +165,7 @@ extern char * const dir_name[];
 #define THIS_CHR		(GET_CHR(0))
 #define THIS_STR		(GET_STR(0))
 #define THIS_WVUM		(GET_WVUM(0))
+#define THIS_TIME		(GET_TIME(0))
 #define THIS_AFFECT		(GET_AFFECT(0))
 #define THIS_AREA		(GET_AREA(0))
 #define THIS_EXIT		(GET_EXIT(0))
@@ -170,21 +179,19 @@ extern char * const dir_name[];
 #define THIS_ARRAY		(GET_ARRAY(0))
 
 #define SET_NULL		(output->type = NST_NULL)
-#define SET_NUM(n)		(output->type = NST_NUMBER, output->_.i = (n))
-#define SET_FLT(f)		(output->type = NST_FLOAT, output->_.d = (f))
-#define SET_BOOL(v)		(output->type = NST_BOOLEAN, output->_.b = (v))
-#define SET_STRS(s)		(output->type = NST_STRING_S, output->_.str = (s))
-#define SET_WNUM(w)		(output->type = NST_WIDEVNUM, output->_.wnum = (w))
-#define SET_MOB(m)		(output->type = NST_MOBILE, output->_.mobile = (m))
-#define SET_OBJ(o)		(output->type = NST_OBJECT, output->_.object = (o))
-#define SET_ROOM(r)		(output->type = NST_ROOM, output->_.room = (r))
-#define SET_EXIT(x)		(output->type = NST_EXIT, output->_.ex = (x))
-#define SET_LV_EXIT(x)	\
-	do { \
-		output->type = NST_LVALUE; \
-		output->_.lvalue.type = NST_EXIT; \
-		output->_.lvalue._.ex = x; \
-	} while(false)
+#define SET__TYPE(n,f,v)	(output->type = NST_##n, output->_.f = (v))
+#define SET_NUM(n)		SET__TYPE(NUMBER,i,n)
+#define SET_FLT(f)		SET__TYPE(FLOAT,d,f)
+#define SET_BOOL(v)		SET__TYPE(BOOLEAN,b,v)
+#define SET_STRS(s)		SET__TYPE(STRING_S,str,s)
+#define SET_WNUM(w)		SET__TYPE(WIDEVNUM,wnum,w)
+#define SET_TIME(t)		SET__TYPE(TIME,timestamp,t)
+#define SET_MOB(m)		SET__TYPE(MOBILE,mobile,m)
+#define SET_OBJ(o)		SET__TYPE(OBJECT,object,o)
+#define SET_ROOM(r)		SET__TYPE(ROOM,room,r)
+#define SET_EXIT(x)		SET__TYPE(EXIT,ex,x)
+#define SET_LVALUE(n,f,v)	(output->type = NST_LVALUE, output->_.lvalue.type = NST_##n, output->_.lvalue._.f = (v))
+#define SET_LV_EXIT(x)		SET_LVALUE(EXIT,ex,x)
 
 
 /////////////////////////////////////
@@ -215,6 +222,16 @@ DECL_METHOD_FUNC(function_reckoning)
 	return SCPERR_SUCCESS;
 }
 
+DECL_METHOD_FUNC(function_get_time)
+{
+	time_t now = time(NULL);
+
+	SET_TIME(now);
+
+	return SCPERR_SUCCESS;
+}
+
+
 // NUMBER methods
 
 // number.random()
@@ -226,6 +243,79 @@ DECL_METHOD_FUNC(number_random_value)
 	long value = number_range(0, THIS_NUM - 1);
 
 	SET_NUM(value);
+	return SCPERR_SUCCESS;
+}
+
+// TIME methods
+static inline bool __is_leap(long year)
+{
+	// Is multiple 4 and (is not a century year or is multiple 400)
+	return !(year % 4) && ((year % 100) || !(year%400));
+}
+
+DECL_METHOD_FUNC(time_add_days)
+{
+	if (!IS_THIS_TIME) return SCPERR_STACK;
+	if (!IS_ARG_NUM(1)) return SCPERR_STACK;
+
+	time_t stamp = THIS_TIME;
+	long days = GET_NUM(1);
+
+	stamp += 86400 * days;
+	if (stamp < 0) stamp = 0;
+
+	SET_TIME(stamp);
+
+	return SCPERR_SUCCESS;
+}
+
+DECL_METHOD_FUNC(time_add_months)
+{
+	static int dpm[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+	static int dpml[12] = {31,29,31,30,31,30,31,31,30,31,30,31};
+
+	if (!IS_THIS_TIME) return SCPERR_STACK;
+	if (!IS_ARG_NUM(1)) return SCPERR_STACK;
+
+	time_t stamp = THIS_TIME;
+	long months = GET_NUM(1);
+
+	struct tm *timeinfo = localtime(&stamp);
+
+	timeinfo->tm_mon += months;
+	if (timeinfo->tm_mon >= 12)
+	{
+		timeinfo->tm_year += (timeinfo->tm_mon / 12);
+		timeinfo->tm_mon = (timeinfo->tm_mon % 12 + 12) % 12;
+	}
+	else if (timeinfo->tm_mon < 0)
+	{
+		timeinfo->tm_year += ((timeinfo->tm_mon - 11) / 12);
+		timeinfo->tm_mon = (timeinfo->tm_mon % 12 + 12) % 12;
+	}
+
+	if (timeinfo->tm_year < 0)
+	{
+		SET_TIME(0);
+	}
+	else
+	{
+		if (__is_leap(timeinfo->tm_year + 1900))
+		{
+			if (timeinfo->tm_mday > dpml[timeinfo->tm_mon])
+				timeinfo->tm_mday = dpml[timeinfo->tm_mon];
+		}
+		else
+		{
+			if (timeinfo->tm_mday > dpm[timeinfo->tm_mon])
+				timeinfo->tm_mday = dpm[timeinfo->tm_mon];
+		}
+
+		stamp = mktime(timeinfo);
+
+		SET_TIME(stamp);
+	}
+
 	return SCPERR_SUCCESS;
 }
 

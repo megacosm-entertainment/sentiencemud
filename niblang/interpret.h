@@ -17,6 +17,7 @@ struct nib_script_stack_lvalue_s
 		char **str;
 		utf8char_t *ch;
 		WNUM *wnum;
+		time_t *timestamp;
 
 		ACCOUNT_DATA **account;
 		AFFECT_DATA **affect;
@@ -100,6 +101,7 @@ struct nib_script_stack_s
 		char *str;
 		utf8char_t ch;
 		WNUM wnum;
+		time_t timestamp;
 
 		struct {
 			long number;
@@ -192,6 +194,7 @@ struct nib_local_runtime_var_s
 		char *str;
 		utf8char_t ch;
 		WNUM wnum;
+		time_t timestamp;
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
 			bool constant;
@@ -356,6 +359,7 @@ __push(long,number)
 __push(double,float)
 __push(bool,boolean)
 __push(utf8char_t,char)
+__push(time_t,time)
 __push(const char *,string)
 __push(char *,string_shared)
 bool nib_push_stack_list_raw (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
@@ -407,6 +411,7 @@ __peek(long,number)
 __peek(double,float)
 __peek(bool,boolean)
 __peek(utf8char_t,char)
+__peek(time_t,time)
 __peek(char *,string)
 __peek(char *,string_shared)
 bool nib_peek_stack_list (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
@@ -454,6 +459,7 @@ __pop(long,number)
 __pop(double,float)
 __pop(bool,boolean)
 __pop(utf8char_t,char)
+__pop(time_t,time)
 __pop(char *,string)
 __pop(char *,string_shared)
 bool nib_pop_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);

@@ -142,6 +142,8 @@ static char *trim_outer_quotes(const char *src)
 "stat"					{ TYPE(T_STAT,false) }
 "string&"				{ TYPE(T_STRING,true) }
 "string"				{ TYPE(T_STRING,false) }
+"time&"					{ TYPE(T_TIME,true) }
+"time"					{ TYPE(T_TIME,false) }
 "token&"				{ TYPE(T_TOKEN,true) }
 "token"					{ TYPE(T_TOKEN,false) }
 "void"					{ return T_VOID; }

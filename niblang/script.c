@@ -376,6 +376,7 @@ static const char *opcode_names[] = {
 	"GET_SECTOR",
 	"GET_SKILL",
 	"GET_WILDS",
+	"PARSE_TIME",
 };
 
 static void __print_comments(NIB_SCRIPT *script, long address)
@@ -404,14 +405,22 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 {
 	switch(type)
 	{
+		case NST_NUMBER16:	return "int16";
+		case NST_NUMBER32:	return "int32";
+		case NST_STAT16:	return "stat16";
+		case NST_STAT32:	return "stat32";
+
 		case NST_BOOLEAN:	return "boolean";
-		case NST_NUMBER:	return "number";
+		case NST_NUMBER:	return "int";
 		case NST_FLOAT:		return "float";
 		case NST_STRING:	return "string";
 		case NST_CHAR:		return "char";
 		case NST_MAP:		return "map";
 		case NST_WIDEVNUM:	return "widevnum";
+		case NST_TIME:		return "time";
 		case NST_FLAG:		return "flag";
+		case NST_FLAG_BANK:	return "flagbank";
+		case NST_FLAG_BANK_S:	return "flagbank_s";
 		case NST_STAT:		return "stat";
 		case NST_LIST:		return "list";
 		case NST_LIST_S:	return "list_s";
@@ -563,6 +572,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_GET_SECTOR:		type = NST_SECTOR; break;
 		case NI_GET_SKILL:		type = NST_SKILL; break;
 		case NI_GET_WILDS:		type = NST_WILDS; break;
+		case NI_PARSE_TIME:		type = NST_TIME; break;
 
 		case NI_RETURN_BYTE:
 		{

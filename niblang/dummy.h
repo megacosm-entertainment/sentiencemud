@@ -50,6 +50,7 @@ enum variable_enum {
 	VAR_STRING,
 	VAR_STRING_S,		// Shared, allocated elsewhere
 	VAR_WIDEVNUM,
+	VAR_TIME,
 	VAR_FLAG,
 	VAR_FLAG_BANK,
 	VAR_STAT,
@@ -176,6 +177,7 @@ struct script_var_type {
 		utf8char_t ch;
 		char *str;
 		WNUM wnum;
+		time_t timestamp;
 		struct {
 			long number;
 			struct flag_type *table;

@@ -498,6 +498,7 @@ UB [\200-\277]
 "subsetof"				{ return T_SUBSETOF; }
 "switch"				{ return T_SWITCH; }
 "table"					{ return T_TABLE; }
+"time"					{ return T_TIME; }
 "token"					{ return T_TOKEN; }
 "true"                  { return T_TRUE; }
 "typeof"                { return T_TYPEOF; }

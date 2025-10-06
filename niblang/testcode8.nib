@@ -1,0 +1,16 @@
+time now = get_time();
+int tm = now;
+
+print("Now = " + now);
+print("Tm = " + tm);
+
+print("5 days = " + now.add_days(5));
+print("1 month = " + now.add_months(1));
+
+time then = "2025-03-31 00:00:00";
+print("Then = " + then);
+print("Then + 30 days = " + then.add_days(30));
+
+for(int m = 1; m <= 5; m++)
+	print("Then + " + m + " month = " + then.add_months(m));
+

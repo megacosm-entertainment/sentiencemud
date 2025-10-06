@@ -23,6 +23,7 @@ LLIST *nib_methods_char = NULL;
 LLIST *nib_methods_string = NULL;
 LLIST *nib_methods_map = NULL;
 LLIST *nib_methods_widevnum = NULL;
+LLIST *nib_methods_time = NULL;
 LLIST *nib_methods_list = NULL;
 LLIST *nib_methods_array = NULL;
 LLIST *nib_methods_flag = NULL;
@@ -62,6 +63,7 @@ LLIST *nib_fields_char = NULL;
 LLIST *nib_fields_string = NULL;
 LLIST *nib_fields_map = NULL;
 LLIST *nib_fields_widevnum = NULL;
+LLIST *nib_fields_time = NULL;
 LLIST *nib_fields_account = NULL;
 LLIST *nib_fields_affect = NULL;
 LLIST *nib_fields_area = NULL;
@@ -161,8 +163,12 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,ACCOUNT,email_verified,__static_account,bool),
 	NFOR(PRIMARY,ACCOUNT,character_count,__static_account,int),
 	NFOR(PRIMARY,ACCOUNT,character_limit,__static_account,int),
-	NFOR(PRIMARY,ACCOUNT,acct_flags,__static_account,long),
+	NFO(PRIMARY,ACCOUNT,acct_flags,__static_account,long),
+	NFOR(PRIMARY,ACCOUNT,creation_date,__static_account,time_t),
+	NFOR(PRIMARY,ACCOUNT,last_login,__static_account,time_t),
+	NFOR(PRIMARY,ACCOUNT,staff_account,__static_account,bool),
 	NFOR(PRIMARY,ACCOUNT,lvault,__static_account,LLIST *),
+	NFO(PRIMARY,ACCOUNT,vault_rent,__static_account,time_t),
 
 	// Affect
 	NFOR(PRIMARY,AFFECT,group,__static_affect,int16_t),
@@ -835,6 +841,7 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFEL(exit_get_down),
 	MFER(exit_is_oneway),
 	MFER(exit_is_twoway),
+	MFER(function_get_time),
 	MFER(function_print_msg),
 	MFER(function_random_percent),
 	MFER(function_reckoning),
@@ -848,6 +855,8 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(room_reset),
 	MFER(room_set_sector),
 	MFER(string_length),
+	MFER(time_add_days),
+	MFER(time_add_months),
 	MFER(token_owner_type),
 	MFER(token_get_index_value),
 	MFEND
@@ -942,6 +951,7 @@ bool nib_method_valid_context(NIB_TYPE *context)
 				case NT_STRING:		return true;
 				case NT_MAP:		return true;
 				case NT_WIDEVNUM:	return true;
+				case NT_TIME:		return true;
 
 				case NT_ACCOUNT:	return true;
 				case NT_AFFECT:		return true;
@@ -1000,6 +1010,7 @@ static LLIST *__get_method_context(NIB_TYPE *context)
 			case NT_STRING:		return nib_methods_string;
 			case NT_MAP:		return nib_methods_map;
 			case NT_WIDEVNUM:	return nib_methods_widevnum;
+			case NT_TIME:		return nib_methods_time;
 
 			case NT_ACCOUNT:	return nib_methods_account;
 			case NT_AFFECT:		return nib_methods_affect;
@@ -1119,6 +1130,7 @@ static LLIST *__get_method_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_STRING_S:	return nib_methods_string;
 		case NST_MAP:		return nib_methods_map;
 		case NST_WIDEVNUM:	return nib_methods_widevnum;
+		case NST_TIME:		return nib_methods_time;
 		case NST_ACCOUNT:	return nib_methods_account;
 		case NST_AFFECT:	return nib_methods_affect;
 		case NST_AREA:		return nib_methods_area;
@@ -1329,6 +1341,7 @@ bool nib_methods_init()
 	__met(string)
 	__met(map)
 	__met(widevnum)
+	__met(time)
 	__met(list)
 	__met(array)
 	__met(flag)
@@ -1368,6 +1381,7 @@ bool nib_methods_init()
 	__fld(string)
 	__fld(map)
 	__fld(widevnum)
+	__fld(time)
 	__fld(list)
 	__fld(array)
 	__fld(flag)
@@ -1413,6 +1427,7 @@ void nib_methods_cleanup()
 	list_destroy(nib_methods_string);
 	list_destroy(nib_methods_map);
 	list_destroy(nib_methods_widevnum);
+	list_destroy(nib_methods_time);
 	list_destroy(nib_methods_list);
 	list_destroy(nib_methods_array);
 	list_destroy(nib_methods_flag);
@@ -1452,6 +1467,7 @@ void nib_methods_cleanup()
 	list_destroy(nib_fields_string);
 	list_destroy(nib_fields_map);
 	list_destroy(nib_fields_widevnum);
+	list_destroy(nib_fields_time);
 	list_destroy(nib_fields_array);
 	list_destroy(nib_fields_list);
 	list_destroy(nib_fields_flag);

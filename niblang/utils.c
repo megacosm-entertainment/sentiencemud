@@ -3,6 +3,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "../merc.h"
 #include "niblang.h"
@@ -748,4 +749,27 @@ size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst)
 	}
 
 	return size;
+}
+
+time_t parse_time_string(char *str)
+{
+	int year, month, day, hour, minute, second;
+	int result = sscanf(str, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
+	if (result == 6)
+	{
+		struct tm timeinfo;
+		memset(&timeinfo,0,sizeof(timeinfo));
+
+		timeinfo.tm_year = year - 1900; // Years since 1900
+		timeinfo.tm_mon = month - 1;   // Months since January (0-11)
+		timeinfo.tm_mday = day;
+		timeinfo.tm_hour = hour;
+		timeinfo.tm_min = minute;
+		timeinfo.tm_sec = second;
+		timeinfo.tm_isdst = -1;
+
+		return mktime(&timeinfo);
+	}
+	else
+		return (time_t)-1;
 }
