@@ -16,3 +16,15 @@ sword.level = 123;
 print("AFTER:");
 print("sword.level = " + sword.level);
 print("sword.condition = " + sword.condition);
+
+
+print("sword.carrier = " + sword.carrier.name);
+
+object obj = sword.carrier.equipment(<[wear_loc.wielded]>);
+
+if (obj != null)
+	print(sword.carrier.short + " is using " + obj.short + ".");
+else
+	print(sword.carrier.short + " is using nothing at that slot.");
+
+

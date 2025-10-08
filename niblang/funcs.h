@@ -81,6 +81,7 @@ DECL_METHOD_FUNC(exit_is_twoway);
 // MOBILE methods
 DECL_METHOD_FUNC(mobile_get_widevnum);
 DECL_METHOD_FUNC(mobile_is_pc);
+DECL_METHOD_FUNC(mobile_get_equipment);
 
 // OBJECT methods
 

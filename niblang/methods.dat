@@ -139,7 +139,9 @@ field string& mobile.long -> mobile_long_descr;
 field string& mobile.description -> mobile_description;
 field method constant widevnum mobile.widevnum -> mobile_get_widevnum;
 field constant list(constant object) mobile.carrying -> mobile_lcarrying;
+field constant list(constant object) mobile.inventory -> mobile_lcarrying;
 field constant list(constant object) mobile.worn -> mobile_lworn;
+field constant list(constant object) mobile.equipment -> mobile_lworn;
 field constant list(constant object) mobile.locker -> mobile_llocker;
 field constant list(constant object) mobile.stache -> mobile_lstache;
 field constant list(constant affect) mobile.affects -> mobile_laffected;
@@ -288,6 +290,7 @@ field constant array(int32[10]) mobile.tempstore -> mobile_tempstore;
 field string& mobile.tempstring -> mobile_tempstring;
 field constant list(constant reputation) mobile.reputations -> mobile_reputations;
 field constant int32 mobile.deathsight -> mobile_deathsight_vision;
+method constant object mobile.equipment(stat("wear_loc")) -> mobile_get_equipment;
 
 
 // OBJECT methods/fields

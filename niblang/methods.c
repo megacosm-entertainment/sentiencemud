@@ -892,6 +892,7 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(list_size),
 	MFER(mobile_get_widevnum),
 	MFER(mobile_is_pc),
+	MFER(mobile_get_equipment),
 	MFER(number_random_value),
 	MFER(rank_color),
 	MFER(reputation_name),

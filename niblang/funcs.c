@@ -893,6 +893,62 @@ DECL_METHOD_FUNC(mobile_is_pc)
 	return SCPERR_SUCCESS;
 }
 
+// object mobile.equipment(stat(wear_loc))
+DECL_METHOD_FUNC(mobile_get_equipment)
+{
+	if (!IS_THIS_MOB) return SCPERR_STACK;
+	if (!IS_ARG_STAT(1)) return SCPERR_STACK;
+
+	// Verify we are using the correct stat
+	if (IS_LV_STAT(1))
+	{
+		if (LV__STAT(1).table != wear_loc_flags) return SCPERR_STACK;
+	}
+	else if (IS_LV_STAT32(1))
+	{
+		if (LV__STAT32(1).table != wear_loc_flags) return SCPERR_STACK;
+	}
+	else if (IS_LV_STAT16(1))
+	{
+		if (LV__STAT16(1).table != wear_loc_flags) return SCPERR_STACK;
+	}
+	else if(ARG__STAT(1).table != wear_loc_flags)
+		return SCPERR_STACK;
+
+	CHAR_DATA *mob = THIS_MOB;
+
+	if (IS_VALID(mob))
+	{
+		long slot = GET_STAT(1);
+
+		if (slot == WEAR_NONE)
+		{
+			SET_OBJ(NULL);
+		}
+		else
+		{
+			ITERATOR it;
+			OBJ_DATA *obj;
+
+			iterator_start(&it,mob->lworn);
+			while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+			{
+				if (obj->wear_loc == slot)
+					break;
+			}
+			iterator_stop(&it);
+
+			SET_OBJ(obj);
+		}
+	}
+	else
+	{
+		SET_OBJ(NULL);
+	}
+
+	return SCPERR_SUCCESS;
+}
+
 // OBJECT methods
 
 // QUEST methods

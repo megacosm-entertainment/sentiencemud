@@ -4140,6 +4140,8 @@ expr4:
 			{
 				niberrorf("Flag name lists only support %d names.  Encountered %d instead.",
 					MAX_FLAG_BITS, list_size($L));
+				nib_free($I);
+				list_destroy($L);
 				YYERROR;
 			}
 
@@ -4148,6 +4150,8 @@ expr4:
 			if (!table)
 			{
 				niberrorf("Undefined flag table '%s'.", $I);
+				nib_free($I);
+				list_destroy($L);
 				YYERROR;
 			}
 
@@ -4173,6 +4177,8 @@ expr4:
 			if (name != NULL)
 			{
 				niberrorf("Unknown name '%s' for table '%s'", name, $I);
+				nib_free($I);
+				list_destroy($L);
 				YYERROR;
 			}
 
@@ -4204,6 +4210,8 @@ expr4:
 			if (!table)
 			{
 				niberrorf("Undefined stat table '%s'.", $T);
+				nib_free($T);
+				nib_free($I);
 				YYERROR;
 			}
 
@@ -4212,6 +4220,8 @@ expr4:
 			if (!nib_find_flag_value(table, $I, &settable, &bit))
 			{
 				niberrorf("Stat table '%s' has no value '%s' defined.", $T, $I);
+				nib_free($T);
+				nib_free($I);
 				YYERROR;
 			}
 
@@ -4233,6 +4243,7 @@ expr4:
 			if (index < 0)
 			{
 				niberrorf("No such game setting '%s' available.", $I);
+				nib_free($I);
 				YYERROR;
 			}
 			
@@ -4244,6 +4255,7 @@ expr4:
 			case SETTING_TYPE_STRING:	$$.type = nibtype_string; break;
 			default:
 				yyerror("Invalid game setting type.");
+				nib_free($I);
 				YYERROR;
 			}
 
@@ -4262,6 +4274,7 @@ expr4:
 			if (index < 0)
 			{
 				niberrorf("No such game setting '%s' available.", $I);
+				nib_free($I);
 				YYERROR;
 			}
 			
@@ -4273,6 +4286,7 @@ expr4:
 			case SETTING_TYPE_STRING:	$$.type = nibtype_string; break;
 			default:
 				yyerror("Invalid game setting type.");
+				nib_free($I);
 				YYERROR;
 			}
 
