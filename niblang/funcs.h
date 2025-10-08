@@ -56,6 +56,8 @@ DECL_METHOD_FUNC(area_get_room);
 DECL_METHOD_FUNC(class_display);
 DECL_METHOD_FUNC(class_who);
 
+// DICE Methods
+DECL_METHOD_FUNC(dice_roll);
 
 // DUNGEON methods
 

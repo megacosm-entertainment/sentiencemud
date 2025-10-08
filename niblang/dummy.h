@@ -51,6 +51,7 @@ enum variable_enum {
 	VAR_STRING_S,		// Shared, allocated elsewhere
 	VAR_WIDEVNUM,
 	VAR_TIME,
+	VAR_DICE,
 	VAR_FLAG,
 	VAR_FLAG_BANK,
 	VAR_STAT,
@@ -177,6 +178,7 @@ struct script_var_type {
 		utf8char_t ch;
 		char *str;
 		WNUM wnum;
+		DICE_DATA dice;
 		time_t timestamp;
 		struct {
 			long number;
@@ -241,6 +243,7 @@ pVARIABLE variable_new_string_raw(const char *name, char *str);
 pVARIABLE variable_new_string(const char *name, char *str);
 pVARIABLE variable_new_shared_string(const char *name, char *str);
 pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum);
+pVARIABLE variable_new_dice(const char *name, DICE_DATA *dice);
 pVARIABLE variable_new_flag(const char *name, long number, struct flag_type *table, const char *table_name);
 pVARIABLE variable_new_flagbank(const char *name, long *bits, const struct flag_type **bank);
 pVARIABLE variable_new_stat(const char *name, long number, struct flag_type *table, const char *table_name);

@@ -24,6 +24,7 @@ extern char * const dir_name[];
 #define IS_STR(n)		(IS__TYPE(n,STRING) || IS__TYPE(n,STRING_S))
 #define IS_WNUM(n)		(IS__TYPE(n,WIDEVNUM))
 #define IS_TIME(n)		(IS__TYPE(n,TIME))
+#define IS_DICE(n)		(IS__TYPE(n,DICE))
 #define IS_STAT16(n)	(IS__TYPE(n,STAT16))
 #define IS_STAT32(n)	(IS__TYPE(n,STAT32))
 #define IS_STAT(n)		(IS__TYPE(n,STAT))
@@ -54,6 +55,7 @@ extern char * const dir_name[];
 #define IS_LV_MAP(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,MAP)))
 #define IS_LV_WNUM(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,WIDEVNUM)))
 #define IS_LV_TIME(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,TIME)))
+#define IS_LV_DICE(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,DICE)))
 #define IS_LV_STAT16(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,STAT16)))
 #define IS_LV_STAT32(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,STAT32)))
 #define IS_LV_STAT(n)	(IS_LVALUE(n) && (IS_LV__TYPE(n,STAT)))
@@ -81,6 +83,7 @@ extern char * const dir_name[];
 #define ARG_STR(n)		(ARG__TYPE(n,str))
 #define ARG_WNUM(n)		(ARG__TYPE(n,wnum))
 #define ARG_TIME(n)		(ARG__TYPE(n,timestamp))
+#define ARG_DICE(n)		(ARG__TYPE(n,dice))
 #define ARG__STAT(n)	(ARG__TYPE(n,stat))
 #define ARG_STAT(n)		(ARG__TYPE(n,stat.number))
 #define ARG__LIST(n)	(ARG__TYPE(n,list))
@@ -112,6 +115,7 @@ extern char * const dir_name[];
 #define LV_STR(n)		(*(LV__FLD(n,str)))
 #define LV_WVUM(n)		(*(LV__FLD(n,wnum)))
 #define LV_TIME(n)		(*(LV__FLD(n,timestamp)))
+#define LV_DICE(n)		(*(LV__FLD(n,dice)))
 #define LV__STAT16(n)	(LV__FLD(n,stat16))
 #define LV_STAT16(n)	(*(LV__FLD(n,stat16.number)))
 #define LV__STAT32(n)	(LV__FLD(n,stat32))
@@ -144,6 +148,7 @@ extern char * const dir_name[];
 #define IS_ARG_STR(n)	(IS_LV_STR((n)) || IS_STR((n)))
 #define IS_ARG_WVUM(n)	(IS_LV_WNUM((n)) || IS_WNUM((n)))
 #define IS_ARG_TIME(n)	(IS_LV_TIME((n)) || IS_TIME((n)))
+#define IS_ARG_DICE(n)	(IS_LV_DICE((n)) || IS_DICE((n)))
 #define IS_ARG_STAT(n)	(IS_LV_STAT16((n)) || IS_LV_STAT32((n)) || IS_LV_STAT((n)) || IS_STAT((n)))
 #define IS_ARG_LIST(n)	(IS_LV_LIST((n)) || IS_LIST((n)))
 #define IS_ARG_ARRAY(n)	(IS_LV_ARRAY((n)) || IS_ARRAY((n)))
@@ -169,6 +174,7 @@ extern char * const dir_name[];
 #define IS_THIS_STR		(IS_ARG_STR(0))
 #define IS_THIS_WVUM	(IS_ARG_WVUM(0))
 #define IS_THIS_TIME	(IS_ARG_TIME(0))
+#define IS_THIS_DICE	(IS_ARG_DICE(0))
 #define IS_THIS_STAT	(IS_ARG_STAT(0))
 #define IS_THIS_LIST	(IS_ARG_LIST(0))
 #define IS_THIS_ARRAY	(IS_ARG_ARRAY(0))
@@ -194,6 +200,7 @@ extern char * const dir_name[];
 #define GET_STR(n)		(IS_LV_STR((n)) ? LV_STR((n)) : ARG_STR((n)))
 #define GET_WVUM(n)		(IS_LV_WNUM((n)) ? LV_WNUM((n)) : ARG_WNUM((n)))
 #define GET_TIME(n)		(IS_LV_TIME((n)) ? LV_TIME((n)) : ARG_TIME((n)))
+#define GET_DICE(n)		(IS_LV_DICE((n)) ? LV_DICE((n)) : ARG_DICE((n)))
 #define GET_STAT(n)		(IS_LV_STAT16((n)) ? LV_STAT16((n)) : (IS_LV_STAT32((n)) ? LV_STAT32((n)) : (IS_LV_STAT((n)) ? LV_STAT((n)) : (IS_STAT((n)) ? ARG_STAT((n)) : 0))))
 #define GET_AFFECT(n)	(IS_LV_AFFECT((n)) ? LV_AFFECT((n)) : ARG_AFFECT((n)))
 #define GET_AREA(n)		(IS_LV_AREA((n)) ? LV_AREA((n)) : ARG_AREA((n)))
@@ -221,6 +228,7 @@ extern char * const dir_name[];
 #define THIS_STR		(GET_STR(0))
 #define THIS_WVUM		(GET_WVUM(0))
 #define THIS_TIME		(GET_TIME(0))
+#define THIS_DICE		(GET_DICE(0))
 #define THIS_AFFECT		(GET_AFFECT(0))
 #define THIS_AREA		(GET_AREA(0))
 #define THIS_CLASS		(GET_CLASS(0))
@@ -467,6 +475,31 @@ DECL_METHOD_FUNC(string_length)
 	long len = utf8_strlen(THIS_STR);
 
 	SET_NUM(len);
+	return SCPERR_SUCCESS;
+}
+
+// DICE methods
+
+// int dice.roll()
+// Rolls NdS+B
+DECL_METHOD_FUNC(dice_roll)
+{
+	if (!IS_THIS_DICE) return SCPERR_STACK;
+
+	DICE_DATA dice = THIS_DICE;
+
+#if 0
+	long roll = dice.bonus;
+
+	for(int i = dice.number; i-- > 0;)
+	{
+		roll += number_range(1,dice.size);
+	}
+#else
+	long roll = (long)dice.bonus + ((dice.number > 0 && dice.size > 0) ? number_range(dice.number, dice.number * dice.size) : 0L);
+#endif
+	SET_NUM(roll);
+
 	return SCPERR_SUCCESS;
 }
 

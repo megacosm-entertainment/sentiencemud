@@ -261,6 +261,20 @@ static bool check_valid_assignment(NIB_TYPE *left, NIB_TYPE *right, enum nib_ins
 
 	switch(lhs)
 	{
+	case NST_DICE:
+		if(rhs == NST_DICE)
+			return op == NI_ASSIGN;
+
+		else if(rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_PARSE_DICE);
+				return true;
+			}
+		}
+		break;
+	
 	case NST_TIME:
 		if (rhs == NST_NUMBER)
 		{
@@ -1142,6 +1156,7 @@ void niberrorf(const char *msg, ...)
 %token T_CONTINUE
 %token T_DECREMENT
 %token T_DEFAULT
+%token T_DICE
 %token T_DIVIDE
 %token T_DO
 %token T_DOT
@@ -4995,6 +5010,7 @@ type:	T_INT										{ $$ = nibtype_int; }
 													{ $$ = new_nib_type_array($T,$L,$C); }
 	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
 	| T_TIME										{ $$ = nibtype_time; }
+	| T_DICE										{ $$ = nibtype_dice; }
 	| T_ACCOUNT										{ $$ = nibtype_account; }
 	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }
@@ -5085,6 +5101,7 @@ listtype:	T_INT										{ $$ = nibtype_int; }
 	| T_MAP											{ $$ = nibtype_map; }
 	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
 	| T_TIME										{ $$ = nibtype_time; }
+	| T_DICE										{ $$ = nibtype_dice; }
 	| T_ACCOUNT										{ $$ = nibtype_account; }
 	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }

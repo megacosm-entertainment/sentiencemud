@@ -40,6 +40,7 @@ typedef enum nib_primary_types
 	NT_MAP,
 	NT_WIDEVNUM,
 	NT_TIME,
+	NT_DICE,
 	NT_ACCOUNT,
 	NT_AFFECT,
 	NT_AREA,

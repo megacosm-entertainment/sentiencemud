@@ -79,6 +79,8 @@ static char *trim_outer_quotes(const char *src)
 "class"					{ TYPE(T_CLASS,false) }
 "constant"				{ return T_CONSTANT; }
 "const"					{ return T_CONSTANT; }
+"dice&"					{ TYPE(T_DICE,true) }
+"dice"					{ TYPE(T_DICE,false) }
 "dungeon&"				{ TYPE(T_DUNGEON,true) }
 "dungeon"				{ TYPE(T_DUNGEON,false) }
 "exit&"					{ TYPE(T_EXIT,true) }

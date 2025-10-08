@@ -4,15 +4,6 @@ TODO:
   - LOADING should create the main data structure, load the source and other OLC data
   - COMPILE should compile the source and add the compiled data structures. 
 
-- Add the DICE type
-  - Fields:
-    - int32& dice.count
-    - int32& dice.size
-	- int32& dice.bonus
-	- int dice.last_roll
-  - Methods:
-    - int dice.roll()
-
 - Add ability to define an array using a registered stat table.
   - Only stat tables that have been registered for array indexing will be usuable
     - Syntax: array(type[table-name]) or array(type["table-name"])

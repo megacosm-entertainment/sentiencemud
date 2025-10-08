@@ -116,9 +116,9 @@ void game_settings_init()
     /* Email */
     game_settings.enable_email = true;
     game_settings.email_port = 2587;
-    game_settings.email_username = "AKIA5XUHKP32Y2NIRD4L";
+    game_settings.email_username = "SD6HKJAK234HKJHD8LHJ";
     game_settings.email_host = "email-smtp.us-west-2.amazonaws.com";
-    game_settings.email_password = "BKA13aKa0jFyzEvwccJxJTPyZVnsR1IN52IIjlAMSRHN";
+    game_settings.email_password = "FMS7zEvwc3cN52IIycrba6FAsd98jlAop1d3HA2fTRW3";
     game_settings.email_from_addr = "notify@sentiencemud.net";
     game_settings.email_from_name = "The Towne Crier";
 
@@ -827,6 +827,8 @@ bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type)
 	__vp(CHAR)
 	__vps(STRING)
 	__vp(WIDEVNUM)
+	__vp(TIME)
+	__vp(DICE)
 	__vc(FLAG)
 	__vc(FLAG_BANK)
 	__vc(STAT)
@@ -1021,6 +1023,29 @@ pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum)
 		var->type = VAR_WIDEVNUM;
 		var->_.wnum.pArea = area;
 		var->_.wnum.vnum = vnum;
+	}
+
+	return var;
+}
+
+__var(TIME,time_t,timestamp,time)
+
+pVARIABLE variable_new_dice(const char *name, DICE_DATA *dice)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_DICE;
+		if (dice)
+			var->_.dice = *dice;
+		else
+		{
+			var->_.dice.number = 0;
+			var->_.dice.size = 0;
+			var->_.dice.bonus = 0;
+			var->_.dice.last_roll = 0L;
+		}
 	}
 
 	return var;

@@ -296,6 +296,7 @@ static const char *opcode_names[] = {
 	"LOAD_FLAG_BANK",
 	"LOAD_STAT",
 	"LOAD_GAME_SETTING",
+	"LOAD_DICE",
 	"NEW_LIST",
 	"NEW_ARRAY",
 	"NULL",
@@ -379,6 +380,7 @@ static const char *opcode_names[] = {
 	"GET_SKILL",
 	"GET_WILDS",
 	"PARSE_TIME",
+	"PARSE_DICE",
 };
 
 static void __print_comments(NIB_SCRIPT *script, long address)
@@ -575,6 +577,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_GET_SKILL:		type = NST_SKILL; break;
 		case NI_GET_WILDS:		type = NST_WILDS; break;
 		case NI_PARSE_TIME:		type = NST_TIME; break;
+		case NI_PARSE_DICE:		type = NST_DICE; break;
 
 		case NI_RETURN_BYTE:
 		{
@@ -848,6 +851,21 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
 			const struct game_setting_type *setting = &game_settings_table[index];
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %s", setting->name);
+			break;
+		}
+
+		case NI_LOAD_DICE:
+		{
+			int n,s,b;
+			memcpy(&n,&pc[addr+1],sizeof(int)); addr+=sizeof(int);
+			memcpy(&s,&pc[addr+1],sizeof(int)); addr+=sizeof(int);
+			memcpy(&b,&pc[addr+1],sizeof(int)); addr+=sizeof(int);
+			if (b > 0)
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %dd%d+%d", n,s,b);
+			else if (b < 0)
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %dd%d%d", n,s,b);
+			else
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %dd%d", n,s);
 			break;
 		}
 

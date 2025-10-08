@@ -18,6 +18,7 @@ struct nib_script_stack_lvalue_s
 		utf8char_t *ch;
 		WNUM *wnum;
 		time_t *timestamp;
+		DICE_DATA *dice;
 
 		ACCOUNT_DATA **account;
 		AFFECT_DATA **affect;
@@ -102,6 +103,7 @@ struct nib_script_stack_s
 		utf8char_t ch;
 		WNUM wnum;
 		time_t timestamp;
+		DICE_DATA dice;
 
 		struct {
 			long number;
@@ -195,6 +197,7 @@ struct nib_local_runtime_var_s
 		utf8char_t ch;
 		WNUM wnum;
 		time_t timestamp;
+		DICE_DATA dice;
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
 			bool constant;
@@ -373,6 +376,7 @@ bool nib_push_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag
 bool nib_push_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, long* bits, const struct flag_type **bank, int banks);
 bool nib_push_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, long* bits, const struct flag_type **bank, int banks);
 bool nib_push_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
+__push(DICE_DATA *,dice)
 __push(ACCOUNT_DATA *,account)
 __push(AFFECT_DATA *,affect)
 __push(AREA_DATA *,area)
@@ -419,6 +423,7 @@ bool nib_peek_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **va
 bool nib_peek_stack_array (NIB_SCRIPT_RUNTIME *nsr, int offset, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
 bool nib_peek_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
 __peek(WNUM,widevnum)
+__peek(DICE_DATA,dice)
 bool nib_peek_stack_flag (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
 bool nib_peek_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, int offset, long **output, const struct flag_type ***bank, int *banks);
 bool nib_peek_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, long **output, const struct flag_type ***bank, int *banks);
@@ -467,6 +472,7 @@ bool nib_pop_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRI
 bool nib_pop_stack_array (NIB_SCRIPT_RUNTIME *nsr, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
 bool nib_pop_stack_array_shared (NIB_SCRIPT_RUNTIME *nsr, void **value, NIB_SCRIPT_STACK_TYPE *type, size_t *size, long *length);
 __pop(WNUM,widevnum)
+__pop(DICE_DATA,dice)
 bool nib_pop_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
 bool nib_pop_stack_flagbank (NIB_SCRIPT_RUNTIME *nsr, long **output, const struct flag_type ***bank, int *banks);
 bool nib_pop_stack_flagbank_shared (NIB_SCRIPT_RUNTIME *nsr, long **output, const struct flag_type ***bank, int *banks);

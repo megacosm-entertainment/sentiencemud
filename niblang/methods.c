@@ -24,6 +24,7 @@ LLIST *nib_methods_string = NULL;
 LLIST *nib_methods_map = NULL;
 LLIST *nib_methods_widevnum = NULL;
 LLIST *nib_methods_time = NULL;
+LLIST *nib_methods_dice = NULL;
 LLIST *nib_methods_list = NULL;
 LLIST *nib_methods_array = NULL;
 LLIST *nib_methods_flag = NULL;
@@ -64,6 +65,7 @@ LLIST *nib_fields_string = NULL;
 LLIST *nib_fields_map = NULL;
 LLIST *nib_fields_widevnum = NULL;
 LLIST *nib_fields_time = NULL;
+LLIST *nib_fields_dice = NULL;
 LLIST *nib_fields_account = NULL;
 LLIST *nib_fields_affect = NULL;
 LLIST *nib_fields_area = NULL;
@@ -97,6 +99,7 @@ LLIST *nib_fields_flag = NULL;
 LLIST *nib_fields_stat = NULL;
 
 static WNUM __static_wnum;
+static DICE_DATA __static_dice;
 static ACCOUNT_DATA __static_account;
 static AFFECT_DATA __static_affect;
 static AREA_DATA __static_area;
@@ -229,6 +232,11 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,CLASS,groups,__static_class,LLIST *),
 	NFOR(PRIMARY,CLASS,primary_stat,__static_class,int16_t),
 	NFOR(PRIMARY,CLASS,max_level,__static_class,int16_t),
+
+	// Dice
+	NFO(PRIMARY,DICE,number,__static_dice,int),
+	NFO(PRIMARY,DICE,size,__static_dice,int),
+	NFO(PRIMARY,DICE,bonus,__static_dice,int),
 
 	// Dungeon
 	NFOR(PRIMARY,DUNGEON,floors,__static_dungeon,LLIST *),
@@ -623,6 +631,7 @@ NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, bool lvalue,
 	field->name = strdup(name);
 	field->type = nib_type_copy(type);
 	// fprintf(stderr, "new_nib_field(%s,%s)\n", field->name, nib_get_typename(NULL,type));
+
 	field->stype = convert_to_stype(type, false);
 	if (type && type->type_class == NTC_LIST)
 		field->stype2 = convert_to_stype(type->_.list.type, false);
@@ -658,6 +667,7 @@ bool nib_field_valid_context(NIB_TYPE *context)
 			switch(context->_.primary)
 			{
 				case NT_WIDEVNUM:	return true;
+				case NT_DICE:		return true;
 
 				case NT_ACCOUNT:	return true;
 				case NT_AFFECT:		return true;
@@ -704,6 +714,8 @@ static LLIST *__get_field_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_STRING:	return nib_fields_string;
 		case NST_MAP:		return nib_fields_map;
 		case NST_WIDEVNUM:	return nib_fields_widevnum;
+		case NST_TIME:		return nib_fields_time;
+		case NST_DICE:		return nib_fields_dice;
 		case NST_ACCOUNT:	return nib_fields_account;
 		case NST_AFFECT:	return nib_fields_affect;
 		case NST_AREA:		return nib_fields_area;
@@ -757,6 +769,8 @@ static LLIST *__get_field_context(NIB_TYPE *context)
 			case NT_STRING:		return nib_fields_string;
 			case NT_MAP:		return nib_fields_map;
 			case NT_WIDEVNUM:	return nib_fields_widevnum;
+			case NT_TIME:		return nib_fields_time;
+			case NT_DICE:		return nib_fields_dice;
 
 			case NT_ACCOUNT:	return nib_fields_account;
 			case NT_AFFECT:		return nib_fields_affect;
@@ -867,6 +881,7 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(array_length),
 	MFER(class_display),
 	MFER(class_who),
+	MFER(dice_roll),
 	MFER(exit_get_direction),
 	MFER(exit_get_door),
 	MFER(exit_get_mate),
@@ -1009,6 +1024,7 @@ bool nib_method_valid_context(NIB_TYPE *context)
 				case NT_MAP:		return true;
 				case NT_WIDEVNUM:	return true;
 				case NT_TIME:		return true;
+				case NT_DICE:		return true;
 
 				case NT_ACCOUNT:	return true;
 				case NT_AFFECT:		return true;
@@ -1068,6 +1084,7 @@ static LLIST *__get_method_context(NIB_TYPE *context)
 			case NT_MAP:		return nib_methods_map;
 			case NT_WIDEVNUM:	return nib_methods_widevnum;
 			case NT_TIME:		return nib_methods_time;
+			case NT_DICE:		return nib_methods_dice;
 
 			case NT_ACCOUNT:	return nib_methods_account;
 			case NT_AFFECT:		return nib_methods_affect;
@@ -1188,6 +1205,7 @@ static LLIST *__get_method_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_MAP:		return nib_methods_map;
 		case NST_WIDEVNUM:	return nib_methods_widevnum;
 		case NST_TIME:		return nib_methods_time;
+		case NST_DICE:		return nib_methods_dice;
 		case NST_ACCOUNT:	return nib_methods_account;
 		case NST_AFFECT:	return nib_methods_affect;
 		case NST_AREA:		return nib_methods_area;
@@ -1399,6 +1417,7 @@ bool nib_methods_init()
 	__met(map)
 	__met(widevnum)
 	__met(time)
+	__met(dice)
 	__met(list)
 	__met(array)
 	__met(flag)
@@ -1439,6 +1458,7 @@ bool nib_methods_init()
 	__fld(map)
 	__fld(widevnum)
 	__fld(time)
+	__fld(dice)
 	__fld(list)
 	__fld(array)
 	__fld(flag)
@@ -1485,6 +1505,7 @@ void nib_methods_cleanup()
 	list_destroy(nib_methods_map);
 	list_destroy(nib_methods_widevnum);
 	list_destroy(nib_methods_time);
+	list_destroy(nib_methods_dice);
 	list_destroy(nib_methods_list);
 	list_destroy(nib_methods_array);
 	list_destroy(nib_methods_flag);
@@ -1525,6 +1546,7 @@ void nib_methods_cleanup()
 	list_destroy(nib_fields_map);
 	list_destroy(nib_fields_widevnum);
 	list_destroy(nib_fields_time);
+	list_destroy(nib_fields_dice);
 	list_destroy(nib_fields_array);
 	list_destroy(nib_fields_list);
 	list_destroy(nib_fields_flag);

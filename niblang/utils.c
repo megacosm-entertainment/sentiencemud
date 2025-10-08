@@ -748,6 +748,8 @@ size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst)
 	case NST_BOOLEAN:	size = sizeof(bool); break;
 	case NST_CHAR:		size = sizeof(utf8char_t); break;
 	case NST_WIDEVNUM:	size = sizeof(WNUM); break;
+	case NST_TIME:		size = sizeof(time_t); break;
+	case NST_DICE:		size = sizeof(DICE_DATA); break;
 	// case NST_STAT:		size = sizeof(long) + sizeof(void *); break;
 	// case NST_FLAG:		size = sizeof(long) + sizeof(void *); break;
 	}
@@ -776,6 +778,40 @@ time_t parse_time_string(char *str)
 	}
 	else
 		return (time_t)-1;
+}
+
+bool parse_dice(char *str, DICE_DATA *dice)
+{
+	int n, s, b, res;
+
+	res = sscanf(str, "%dd%d+%d", &n,&s,&b);
+	if (res == 3)
+	{
+		dice->number = n;
+		dice->size = s;
+		dice->bonus = b;
+		return true;
+	}
+
+	res = sscanf(str, "%dd%d-%d", &n,&s,&b);
+	if (res == 3)
+	{
+		dice->number = n;
+		dice->size = s;
+		dice->bonus = -b;
+		return true;
+	}
+
+	res = sscanf(str, "%dd%d", &n,&s);
+	if (res == 2)
+	{
+		dice->number = n;
+		dice->size = s;
+		dice->bonus = 0;
+		return true;
+	}
+
+	return false;
 }
 
 int game_setting_lookup(const char *name)

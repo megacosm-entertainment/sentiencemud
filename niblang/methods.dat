@@ -105,6 +105,12 @@ field constant flag("class") class.flags -> class_flags;
 field constant stat16("stat") class.primary -> class_primary_stat;
 field constant int16 class.max_level -> class_max_level;
 
+// DICE methods/fields
+field int32& dice.number -> dice_number;
+field int32& dice.size -> dice_size;
+field int32& dice.bonus -> dice_bonus;
+method constant int dice.roll() -> dice_roll;
+
 // DUNGEON methods/fields
 
 // EXIT methods/fields

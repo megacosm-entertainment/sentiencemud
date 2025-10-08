@@ -39,6 +39,7 @@ enum nib_instructions_e {
 	NI_LOAD_FLAG_BANK,
 	NI_LOAD_STAT,
 	NI_LOAD_GAME_SETTING,
+	NI_LOAD_DICE,
 	NI_NEW_LIST,			// Pushes an empty list (of the given list type) onto the stack
 	NI_NEW_ARRAY,
 	NI_NULL,				// Pushes a NST_NULL onto the stack
@@ -137,6 +138,7 @@ enum nib_instructions_e {
 	NI_GET_WILDS,
 
 	NI_PARSE_TIME,		// Pops 1 string, attempts to parse the time string, pushes result time onto stack
+	NI_PARSE_DICE,
 
 	NI__MAX
 };
@@ -156,6 +158,7 @@ enum nib_script_stack_type_e
 	NST_MAP,
 	NST_WIDEVNUM,
 	NST_TIME,
+	NST_DICE,
 	NST_FLAG,
 	NST_FLAG_BIT,		// Can only be an LVALUE; treated as BOOLEAN
 	NST_FLAG_BANK,
@@ -642,6 +645,7 @@ extern NIB_TYPE *nibtype_stat;
 extern NIB_TYPE *nibtype_map;
 extern NIB_TYPE *nibtype_widevnum;
 extern NIB_TYPE *nibtype_time;
+extern NIB_TYPE *nibtype_dice;
 extern NIB_TYPE *nibtype_varargs;
 
 // Internal entity types (not exhaustive)
@@ -728,6 +732,7 @@ void hex_dump(void *addr, size_t size);
 size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst);
 char *get_affect_name(AFFECT_DATA *paf);
 time_t parse_time_string(char *str);
+bool parse_dice(char *str, DICE_DATA *dice);
 int game_setting_lookup(const char *name);
 
 // variables.c

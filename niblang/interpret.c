@@ -49,6 +49,7 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type, bool constant)
 				case NT_MAP:		return NST_MAP;
 				case NT_WIDEVNUM:	return NST_WIDEVNUM;
 				case NT_TIME:		return NST_TIME;
+				case NT_DICE:		return NST_DICE;
 
 				case NT_ACCOUNT:	return NST_ACCOUNT;
 				case NT_AFFECT:		return NST_AFFECT;
@@ -102,6 +103,8 @@ bool nst_is_pointer(NIB_SCRIPT_STACK_TYPE type)
 	case NST_FLOAT:
 	case NST_CHAR:
 	case NST_WIDEVNUM:
+	case NST_TIME:
+	case NST_DICE:
 	case NST_FLAG:
 	case NST_FLAG_BANK:
 	case NST_FLAG_BIT:
@@ -133,6 +136,8 @@ bool stack_is_null_pointer(NIB_SCRIPT_STACK *sp)
 	case NST_FLOAT:
 	case NST_CHAR:
 	case NST_WIDEVNUM:
+	case NST_TIME:
+	case NST_DICE:
 	case NST_FLAG:
 	case NST_FLAG_BANK:
 	case NST_FLAG_BIT:
@@ -163,6 +168,8 @@ bool stack_is_null_pointer(NIB_SCRIPT_STACK *sp)
 		case NST_FLOAT:
 		case NST_CHAR:
 		case NST_WIDEVNUM:
+		case NST_TIME:
+		case NST_DICE:
 		case NST_FLAG:
 		case NST_FLAG_BANK:
 		case NST_FLAG_BIT:
@@ -673,7 +680,6 @@ __push(utf8char_t,CHAR,ch,char)
 __push(time_t,TIME,timestamp,time)
 __push(char *,STRING_S,str,string_shared)
 
-static WNUM __wnum_zero;
 bool nib_push_stack_widevnum (NIB_SCRIPT_RUNTIME *nsr, WNUM *value)
 {
 	CHECK_STACK;
@@ -684,7 +690,29 @@ bool nib_push_stack_widevnum (NIB_SCRIPT_RUNTIME *nsr, WNUM *value)
 	if (value)
 		stack->_.wnum = *value;
 	else
-		stack->_.wnum = __wnum_zero;
+	{
+		stack->_.wnum.pArea = NULL;
+		stack->_.wnum.vnum = 0;
+	}
+
+	return true;
+}
+
+bool nib_push_stack_dice (NIB_SCRIPT_RUNTIME *nsr, DICE_DATA *value)
+{
+	CHECK_STACK;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp++];
+
+	stack->type = NST_DICE;
+	if (value)
+		stack->_.dice = *value;
+	else
+	{
+		stack->_.dice.number = 0;
+		stack->_.dice.size = 0;
+		stack->_.dice.bonus = 0;
+	}
 
 	return true;
 }
@@ -1003,6 +1031,8 @@ bool nib_push_stack_lvalue_value(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 	// __lv(MAP,map,map)
 	case NST_WIDEVNUM:
 		return nib_push_stack_widevnum (nsr, lvalue->_.wnum );
+	case NST_DICE:
+		return nib_push_stack_dice (nsr, lvalue->_.dice);
 	__lv(ACCOUNT,account,account)
 	__lv(AFFECT,affect,affect)
 	__lv(AREA,area,area)
@@ -1070,6 +1100,8 @@ bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *va
 	// __lcl(MAP,map,map)
 	case NST_WIDEVNUM:
 		return nib_push_stack_widevnum(nsr, &var->_.wnum);
+	case NST_DICE:
+		return nib_push_stack_dice(nsr, &var->_.dice);
 	__lcl(ACCOUNT,account,account)
 	__lcl(AFFECT,affect,affect)
 	__lcl(AREA,area,area)
@@ -1142,6 +1174,7 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 	__llv(STRING,str,str)
 	// __llv(MAP,map,map)
 	__llv(WIDEVNUM,wnum,wnum)
+	__llv(DICE,dice,dice)
 	__llv(ACCOUNT,account,account)
 	__llv(AFFECT,affect,affect)
 	__llv(AREA,area,area)
@@ -1234,6 +1267,8 @@ bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	// __gbl(MAP,map,map)
 	case VAR_WIDEVNUM:
 		return nib_push_stack_widevnum(nsr, &var->_.wnum);
+	case VAR_DICE:
+		return nib_push_stack_dice(nsr, &var->_.dice);
 	__gbl(ACCOUNT,account,account)
 	__gbl(AFFECT,affect,affect)
 	__gbl(AREA,area,area)
@@ -1302,6 +1337,7 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 	__glv(STRING,str,str)
 	// __glv(MAP,map,map)
 	__glv(WIDEVNUM,wnum,wnum)
+	__glv(DICE,dice,dice)
 
 	case VAR_FLAG:
 		lvalue.type = NST_FLAG;
@@ -1415,6 +1451,8 @@ static void *__get_field_offset(NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 		// fprintf(stderr,"__get_field_offset(WIDEVNUM): (AREA_DATA *)%p\n", *((AREA_DATA **)((void*)&(sp->_.wnum) + field->offset)));
 		// fprintf(stderr,"__get_field_offset(WIDEVNUM): name = %s\n", (*((AREA_DATA **)((void*)&(sp->_.wnum) + field->offset)))->name);
 		return (void*)&(sp->_.wnum) + field->offset;
+	case NST_DICE:
+		return (void*)&(sp->_.dice) + field->offset;
 	case NST_LVALUE:
 		switch(sp->_.lvalue.type)
 		{
@@ -1446,6 +1484,7 @@ static void *__get_field_offset(NIB_SCRIPT_STACK *sp, NIB_FIELD *field)
 		__lfo(WILDS,wilds)
 		// __lfo(WORLD,world)
 		case NST_WIDEVNUM:	return (void*)(sp->_.lvalue._.wnum) + field->offset;
+		case NST_DICE:		return (void*)(sp->_.lvalue._.dice) + field->offset;
 		}
 	}
 
@@ -1509,6 +1548,7 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 
 	// Save value as an LVALUE instead of an RVALUE
 	bool is_lvalue = sp->type == NST_LVALUE && field->lvalue;
+//	sprintf(nsr->debug, "is_lvalue = %s", (is_lvalue?"true":"false"));
 
 	NIB_SCRIPT_STACK _stack;
 	memset(&_stack, 0, sizeof(_stack));
@@ -1531,6 +1571,12 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 			_stack.type = NST_WIDEVNUM;
 			_stack._.wnum.pArea = NULL;
 			_stack._.wnum.vnum = 0;
+			break;
+		case NST_DICE:
+			_stack.type = NST_DICE;
+			_stack._.dice.number = 0;
+			_stack._.dice.size = 0;
+			_stack._.dice.bonus = 0;
 			break;
 		
 		__fdefn(ACCOUNT,account)
@@ -1639,6 +1685,7 @@ bool nib_push_stack_field(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_STACK *sp, NIB_FIE
 	__flv2(STRING,char *,str,str,STRING_S)
 	// __flv(MAP,map)
 	__flv(WIDEVNUM,WNUM,wnum,wnum)
+	__flv(DICE,DICE_DATA,dice,dice)
 	__flvd(ACCOUNT,account)
 	__flvd(AFFECT,affect)
 	__flvd(AREA,area)
@@ -1844,6 +1891,7 @@ __peek(time_t,TIME,timestamp,time)
 __peek(char *,STRING,str,string)
 __peek(char *,STRING_S,str,string_shared)
 __peek(WNUM,WIDEVNUM,wnum,widevnum)
+__peek(DICE_DATA,DICE,dice,dice)
 bool nib_peek_stack_flag (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table)
 {
 	int sp = nsr->sp + offset;
@@ -2109,6 +2157,7 @@ bool nib_pop_stack_string (NIB_SCRIPT_RUNTIME *nsr, char **output) \
 }
 __pop(char *,STRING_S,str,string_shared)
 __pop(WNUM,WIDEVNUM,wnum,widevnum)
+__pop(DICE_DATA,DICE,dice,dice)
 bool nib_pop_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long *output, const struct flag_type **table)
 {
 	if (nsr->sp < 1) return false;
@@ -4001,6 +4050,57 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 		{
 			switch(rsp->type)
 			{
+			case NST_DICE:	// STRING op DICE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.dice.bonus > 0)
+								sprintf(stringify,"(%dd%d+%d)", rsp->_.dice.number, rsp->_.dice.size, rsp->_.dice.bonus);
+							else if (rsp->_.dice.bonus < 0)
+								sprintf(stringify,"(%dd%d%d)", rsp->_.dice.number, rsp->_.dice.size, rsp->_.dice.bonus);
+							else
+								sprintf(stringify,"(%dd%d)", rsp->_.dice.number, rsp->_.dice.size);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_TIME:
 				{
 					switch(op)
@@ -5825,6 +5925,62 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_DICE:	// STRING op DICE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.lvalue._.dice)
+									{
+										if (rsp->_.lvalue._.dice->bonus > 0)
+											sprintf(stringify,"(%dd%d+%d)", rsp->_.lvalue._.dice->number, rsp->_.lvalue._.dice->size, rsp->_.lvalue._.dice->bonus);
+										else if (rsp->_.lvalue._.dice->bonus < 0)
+											sprintf(stringify,"(%dd%d%d)", rsp->_.lvalue._.dice->number, rsp->_.lvalue._.dice->size, rsp->_.lvalue._.dice->bonus);
+										else
+											sprintf(stringify,"(%dd%d)", rsp->_.lvalue._.dice->number, rsp->_.lvalue._.dice->size);
+									}
+									else
+										sprintf(stringify,"(--d--)");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_TIME:
 						{
 							switch(op)
@@ -7801,6 +7957,53 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 		{
 			switch(rsp->type)
 			{
+			case NST_DICE:	// STRING op DICE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.dice.bonus > 0)
+								sprintf(stringify,"(%dd%d+%d)", rsp->_.dice.number, rsp->_.dice.size, rsp->_.dice.bonus);
+							else if (rsp->_.dice.bonus < 0)
+								sprintf(stringify,"(%dd%d%d)", rsp->_.dice.number, rsp->_.dice.size, rsp->_.dice.bonus);
+							else
+								sprintf(stringify,"(%dd%d)", rsp->_.dice.number, rsp->_.dice.size);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_TIME:
 				{
 					switch(op)
@@ -9488,6 +9691,58 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_DICE:	// STRING op DICE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.lvalue._.dice)
+									{
+										if (rsp->_.lvalue._.dice->bonus > 0)
+											sprintf(stringify,"(%dd%d+%d)", rsp->_.lvalue._.dice->number, rsp->_.lvalue._.dice->size, rsp->_.lvalue._.dice->bonus);
+										else if (rsp->_.lvalue._.dice->bonus < 0)
+											sprintf(stringify,"(%dd%d%d)", rsp->_.lvalue._.dice->number, rsp->_.lvalue._.dice->size, rsp->_.lvalue._.dice->bonus);
+										else
+											sprintf(stringify,"(%dd%d)", rsp->_.lvalue._.dice->number, rsp->_.lvalue._.dice->size);
+									}
+									else
+										sprintf(stringify,"(--d--)");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_TIME:
 						{
 							switch(op)
@@ -28308,6 +28563,81 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	bool push_result = true;
 	switch(lsp->_.lvalue.type)
 	{
+	case NST_DICE:		// DICE op= ???
+		{
+			switch(rsp->type)
+			{
+			case NST_DICE:		// DICE op= DICE
+				{
+					switch(op)
+					{
+					case NI_VOID_ASSIGN:
+						push_result = false;
+					case NI_ASSIGN:
+						{
+							*(lsp->_.lvalue._.dice) = rsp->_.dice;
+
+							if (push_result && !nib_push_stack_dice(nsr,lsp->_.lvalue._.dice))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_DICE:		// DICE op= DICE
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.dice) = *(rsp->_.lvalue._.dice);
+
+									if (push_result && !nib_push_stack_dice(nsr,lsp->_.lvalue._.dice))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+							
+							case NI_VOID_ADD_EQ:
+								push_result = false;
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_TIME:		// TIME op= ???
 		{
 			switch(rsp->type)
@@ -39985,6 +40315,26 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
+	case NI_LOAD_DICE:
+		{
+			int n = __get_int(nsr);
+			int s = __get_int(nsr);
+			int b = __get_int(nsr);
+
+			DICE_DATA dice;
+			dice.number = n;
+			dice.size = s;
+			dice.bonus = b;
+			dice.last_roll = 0L;
+
+			if (!nib_push_stack_dice(nsr, &dice))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+			break;
+		}
+
 	case NI_NEW_LIST:
 		{
 			NIB_SCRIPT_STACK_TYPE type = (NIB_SCRIPT_STACK_TYPE)__get_bytecode(nsr);
@@ -41738,6 +42088,92 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
+	case NI_PARSE_DICE:
+		{
+			DICE_DATA dice;
+			switch(nib_peek_stack(nsr))
+			{
+			case NST_STRING:
+				{
+					char *dice_str;
+					if (!nib_pop_stack_string(nsr, &dice_str))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					if (!parse_dice(dice_str, &dice))
+					{
+						dice.number = 0;
+						dice.size = 0;
+						dice.bonus = 0;
+					}
+
+					if (dice_str) free(dice_str);
+					break;
+				}
+
+			case NST_STRING_S:
+				{
+					char *dice_str;
+					if (!nib_pop_stack_string_shared(nsr, &dice_str))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					if (!parse_dice(dice_str, &dice))
+					{
+						dice.number = 0;
+						dice.size = 0;
+						dice.bonus = 0;
+					}
+					break;
+				}
+
+			case NST_LVALUE:
+				{
+					NIB_SCRIPT_LVALUE lvalue;
+					if (!nib_pop_stack_lvalue(nsr, &lvalue))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+
+					switch(lvalue.type)
+					{
+					case NST_STRING:
+					case NST_STRING_S:
+						if (!parse_dice(*(lvalue._.str), &dice))
+						{
+							dice.number = 0;
+							dice.size = 0;
+							dice.bonus = 0;
+						}
+						break;
+					
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (!nib_push_stack_dice(nsr,&dice))
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			break;
+		}
+
 	}
 
 	return false;
@@ -41795,6 +42231,7 @@ static const char *opcode_names[] = {
 	"LOAD_FLAG_BANK",
 	"LOAD_STAT",
 	"LOAD_GAME_SETTING",
+	"LOAD_DICE",
 	"NEW_LIST",
 	"NEW_ARRAY",
 	"NULL",
@@ -41878,6 +42315,7 @@ static const char *opcode_names[] = {
 	"GET_SKILL",
 	"GET_WILDS",
 	"PARSE_TIME",
+	"PARSE_DICE",
 };
 
 static void __add_dissassembled_line(LLIST *assembly, long address, char *str, bool is_comment)
@@ -42046,6 +42484,7 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 			case NI_GET_SKILL:		type = NST_SKILL; break;
 			case NI_GET_WILDS:		type = NST_WILDS; break;
 			case NI_PARSE_TIME:		type = NST_TIME; break;
+			case NI_PARSE_DICE:		type = NST_DICE; break;
 
 			case NI_RETURN_BYTE:
 			{
@@ -42330,6 +42769,21 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 				break;
 			}
 
+			case NI_LOAD_DICE:
+			{
+				int n,s,b;
+				memcpy(&n,&pc[addr+1],sizeof(int)); addr+=sizeof(int);
+				memcpy(&s,&pc[addr+1],sizeof(int)); addr+=sizeof(int);
+				memcpy(&b,&pc[addr+1],sizeof(int)); addr+=sizeof(int);
+				if (b > 0)
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %dd%d+%d", n,s,b);
+				else if (b < 0)
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %dd%d%d", n,s,b);
+				else
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %dd%d", n,s);
+				break;
+			}
+
 			case NI_JUMP:
 			case NI_JUMP_ZERO:
 			case NI_JUMP_NOT_ZERO:
@@ -42505,6 +42959,25 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 				(stack->_.wnum.pArea != NULL ) ? stack->_.wnum.pArea->uid : 0,
 				stack->_.wnum.vnum
 			);
+	case NST_DICE:
+		if (stack->_.dice.bonus > 0)
+			return snprintf(line, max_len, "DICE(%dd%d+%d)", 
+					stack->_.dice.number,
+					stack->_.dice.size,
+					stack->_.dice.bonus
+				);
+		else if (stack->_.dice.bonus < 0)
+			return snprintf(line, max_len, "DICE(%dd%d%d)", 
+					stack->_.dice.number,
+					stack->_.dice.size,
+					stack->_.dice.bonus
+				);
+		else
+			return snprintf(line, max_len, "DICE(%dd%d)", 
+					stack->_.dice.number,
+					stack->_.dice.size
+				);
+		
 	case NST_TIME:
 		{
 			char stringify[100];
@@ -42636,6 +43109,24 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 					(stack->_.lvalue._.wnum->pArea != NULL ) ? stack->_.lvalue._.wnum->pArea->uid : 0,
 					stack->_.lvalue._.wnum->vnum
 				);
+		case NST_DICE:
+			if (stack->_.lvalue._.dice->bonus > 0)
+				return snprintf(line, max_len, "LVALUE(DICE(%dd%d+%d))",
+						stack->_.lvalue._.dice->number,
+						stack->_.lvalue._.dice->size,
+						stack->_.lvalue._.dice->bonus
+					);
+			else if (stack->_.lvalue._.dice->bonus < 0)
+				return snprintf(line, max_len, "LVALUE(DICE(%dd%d%d))",
+						stack->_.lvalue._.dice->number,
+						stack->_.lvalue._.dice->size,
+						stack->_.lvalue._.dice->bonus
+					);
+			else
+				return snprintf(line, max_len, "LVALUE(DICE(%dd%d))", 
+						stack->_.lvalue._.dice->number,
+						stack->_.lvalue._.dice->size
+					);
 		case NST_TIME:
 			{
 				char stringify[100];

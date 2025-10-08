@@ -453,6 +453,7 @@ UB [\200-\277]
 "const"					{ return T_CONSTANT; }	// Shorthand for CONSTANT
 "continue"				{ return T_CONTINUE; }
 "default"				{ return T_DEFAULT; }
+"dice"					{ return T_DICE; }
 "do"					{ return T_DO; }
 "dungeon"				{ return T_DUNGEON; }
 "else"					{ return T_ELSE; }

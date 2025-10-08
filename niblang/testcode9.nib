@@ -1,3 +1,4 @@
+/*
 print("game.game_name = " + game.game_name);
 print("game[\"server_description\"] = " + game["server_description"]);
 
@@ -9,3 +10,9 @@ print("Paladin.who[female] = " + paladin.who(<[sex.female]>));
 
 race human = "human";
 print("Human.name = " + human.name);
+*/
+
+dice foo = "40d200+690";
+
+print("Foo = " + foo);
+print("Roll = " + foo.roll());
