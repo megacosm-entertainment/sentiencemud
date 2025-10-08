@@ -1,6 +1,21 @@
 #ifndef __TABLES_H__
 #define __TABLES_H__
 
+/* Game settings table structure */
+struct game_setting_type {
+    char *name;              /* Setting name */
+    void *ptr;               /* Pointer to the setting in game_settings */
+    int type;                /* Setting type: 0=bool, 1=int, 2=string */
+    int category;            /* Setting category */
+    char *help;              /* Help text */
+    bool olc_settable;       /* Can be modified through OLC */
+    bool requires_reboot;    /* Requires reboot to take effect */
+	bool sensitive;		 /* Sensitive setting */
+	bool script_access;
+};
+
+extern const struct game_setting_type game_settings_table[];
+
 // Flags
 extern const struct flag_type token_flags[];
 extern const struct flag_type area_flags[];

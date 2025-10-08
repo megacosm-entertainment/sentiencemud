@@ -114,6 +114,7 @@ static char *trim_outer_quotes(const char *src)
 "mobile&"				{ TYPE(T_MOBILE,true) }
 "mobile"				{ TYPE(T_MOBILE,false) }
 "multi"					{ return T_MULTI; }
+"mutable"				{ return T_MUTABLE; }
 "object&"				{ TYPE(T_OBJECT,true) }
 "object"				{ TYPE(T_OBJECT,false) }
 "organization&"			{ TYPE(T_ORG,true) }

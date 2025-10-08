@@ -13,6 +13,9 @@ DECL_METHOD_FUNC(function_get_time);
 DECL_METHOD_FUNC(number_random_value);
 
 // TIME methods
+DECL_METHOD_FUNC(time_add);
+DECL_METHOD_FUNC(time_add_minutes);
+DECL_METHOD_FUNC(time_add_hours);
 DECL_METHOD_FUNC(time_add_days);
 DECL_METHOD_FUNC(time_add_months);
 
@@ -49,6 +52,11 @@ DECL_METHOD_FUNC(affect_is_permanent);
 // AREA Methods
 DECL_METHOD_FUNC(area_get_room);
 
+// CLASS Methods
+DECL_METHOD_FUNC(class_display);
+DECL_METHOD_FUNC(class_who);
+
+
 // DUNGEON methods
 
 // EXIT
@@ -72,10 +80,25 @@ DECL_METHOD_FUNC(exit_is_twoway);
 
 // MOBILE methods
 DECL_METHOD_FUNC(mobile_get_widevnum);
+DECL_METHOD_FUNC(mobile_is_pc);
 
 // OBJECT methods
 
 // QUEST methods
+
+// RANK methods
+DECL_METHOD_FUNC(rank_color);
+
+// REPUTATION methods
+DECL_METHOD_FUNC(reputation_name);
+DECL_METHOD_FUNC(reputation_description);
+DECL_METHOD_FUNC(reputation_comments);
+DECL_METHOD_FUNC(reputation_widevnum);
+DECL_METHOD_FUNC(reputation_rank);
+DECL_METHOD_FUNC(reputation_maximum_rank);
+DECL_METHOD_FUNC(reputation_ranks);
+DECL_METHOD_FUNC(reputation_initial_rank);
+DECL_METHOD_FUNC(reputation_initial_reputation);
 
 // ROOM methods
 DECL_METHOD_FUNC(room_get_exits);

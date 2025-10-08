@@ -16,6 +16,8 @@
 #include "method_parser.h"
 #include "method_lexer.h"
 
+#define IS_MUTABLE		(A)
+
 extern int nibmethodlineno;
 
 int nibmethoderror(const char *msg) {
@@ -95,6 +97,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 	LLIST *type_list;
 	const struct flag_type *flag_table;
 	const struct flag_type **flag_bank;
+	long modifiers;
 }
 
 %destructor { free_nib_type($$); } <nibtype>
@@ -145,6 +148,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %token T_MISSION
 %token T_MOBILE
 %token T_MULTI
+%token T_MUTABLE
 %token T_NOTE
 %token T_NUMBER
 %token T_OB
@@ -178,6 +182,7 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %type <identifier> T_IDENTIFIER
 %type <literal> T_STRING_LITERAL
 %type <byref> T_ACCOUNT T_AFFECT T_AREA T_BOOLEAN T_CHANNEL T_CLASS T_CHAR T_DUNGEON T_EXIT T_FLAG T_FLAGBANK T_FLOAT T_INSTANCE T_INT T_INT32 T_INT16 T_LIQUID T_LIST T_MAIL T_MAP T_MATERIAL T_MISSION T_MOBILE T_NOTE T_OBJECT T_ORG T_QUEST T_RACE T_RANK T_REPUTATION T_ROOM T_SECTOR T_SHIP T_SKILL T_STAT T_STAT16 T_STAT32 T_STRING T_TIME T_TOKEN T_WIDEVNUM T_WILDS T_WORLD
+%type <modifiers> possible_modifiers modifiers modifier
 
 %type <b> possible_constant
 %type <nibtype> type return_type arg_type listtype contexttype fieldtype multitype
@@ -197,7 +202,7 @@ def:	method_def
 	;
 
 method_def:
-		T_METHOD possible_constant[P] return_type[R] contexttype[C] T_DOT T_IDENTIFIER[M] optional_argtype_list[A] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
+		T_METHOD possible_modifiers[B] possible_constant[P] return_type[R] contexttype[C] T_DOT T_IDENTIFIER[M] optional_argtype_list[A] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
 		{
 			if ($C->_reference)
 			{
@@ -256,7 +261,7 @@ method_def:
 			}
 
 			// Generate method info for the argument list with return type for the given context type
-			if (!nib_method_add($C, $M, $R, $P || !lvalue, lvalue, $A, $F, func))
+			if (!nib_method_add($C, $M, $R, $P || !lvalue, lvalue, $B, $A, $F, func))
 			{
 				yyerror("Could not add method signature.");
 				YYERROR;
@@ -267,9 +272,32 @@ method_def:
 			free_nib_type($C);
 			free_nib_type($R);
 			list_destroy($A);
-
 		}
 	;
+
+possible_modifiers:
+		/* empty */
+		{
+			$$ = 0;
+		}
+	|	T_OP modifiers T_CP
+		{
+			$$ = $2;
+		}
+	;
+
+modifiers:
+		modifier
+		{
+			$$ = $1;
+		}
+	|	modifiers T_COMMA modifier
+		{
+			$$ = $1 | $3;
+		}
+
+modifier:
+		T_MUTABLE						{ $$ = IS_MUTABLE; }
 
 function_def:
 		T_FUNCTION possible_constant[P] return_type[R] T_IDENTIFIER[M] optional_argtype_list[A] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
@@ -316,7 +344,7 @@ function_def:
 			}
 
 			// Generate method info for the argument list with return type for the given context type
-			if (!nib_method_add(NULL, $M, $R, $P || !lvalue, lvalue, $A, $F, func))
+			if (!nib_method_add(NULL, $M, $R, $P || !lvalue, lvalue, 0, $A, $F, func))
 			{
 				yyerror("Could not add function signature.");
 				YYERROR;
@@ -461,11 +489,14 @@ argtype_list:
 		{
 			$$ = nib_create_type_list();
 			list_appendlink($$, nib_type_copy($1));
+
+			free_nib_type($1);
 		}
 	|	argtype_list T_COMMA arg_type
 		{
 			list_appendlink($1, nib_type_copy($3));
 			$$ = $1;
+			free_nib_type($3);
 		}
 	;
 
@@ -607,6 +638,8 @@ multi_list:
 
 listtype:
 	 	T_INT										{ $$ = nib_type_by_reference(nibtype_int, $1); }
+	| 	T_INT32										{ $$ = nib_type_by_reference(nibtype_int32, $1); }
+	| 	T_INT16										{ $$ = nib_type_by_reference(nibtype_int16, $1); }
 	|	T_FLOAT										{ $$ = nib_type_by_reference(nibtype_float, $1); }
 	|	T_BOOLEAN									{ $$ = nib_type_by_reference(nibtype_bool, $1); }
 	|	T_CHAR										{ $$ = nib_type_by_reference(nibtype_char, $1); }
@@ -644,6 +677,8 @@ listtype:
 
 multitype:
 	 	T_INT										{ $$ = nib_type_by_reference(nibtype_int, $1); }
+	| 	T_INT32										{ $$ = nib_type_by_reference(nibtype_int32, $1); }
+	| 	T_INT16										{ $$ = nib_type_by_reference(nibtype_int16, $1); }
 	|	T_FLOAT										{ $$ = nib_type_by_reference(nibtype_float, $1); }
 	|	T_BOOLEAN									{ $$ = nib_type_by_reference(nibtype_bool, $1); }
 	|	T_CHAR										{ $$ = nib_type_by_reference(nibtype_char, $1); }

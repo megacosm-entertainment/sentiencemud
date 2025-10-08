@@ -315,6 +315,9 @@ NIB_TYPE *new_nib_type_list(NIB_TYPE *elem, bool constant)
 	type->_.list.constant = constant;
 	type->name = NULL;
 
+	// printf("new_nib_type_list:\n");
+	// hex_dump(type,sizeof(NIB_TYPE));
+
 	return type;
 }
 

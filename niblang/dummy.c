@@ -19,6 +19,8 @@ Dummy file that will contain method functions to be referenced by the pointer ta
 
 static WNUM __wnum_zero;
 
+GAME_SETTINGS_DATA game_settings;
+
 AREA_DATA plith;
 
 SECTOR_DATA sector_inside;
@@ -49,11 +51,202 @@ OBJ_DATA sword;
 CHAR_DATA you;
 PC_DATA you_pcdata;
 
+CLASS_DATA paladin;
+
+RACE_DATA human;
+
 static LLIST *nib_variables = NULL;
 
 #define CLRMEM(m)		memset(&(m),0,sizeof(m))
+#define CLRMEMV(m)		do { memset(&(m),0,sizeof(m)); (m).valid = true; } while(0)
+void game_settings_init()
+{
+	CLRMEM(game_settings);
+
+    /* Basic settings */
+    game_settings.game_name = "SentienceMUD";
+    game_settings.login_string = "LoginString What is your name?\n\r\n\r";
+    game_settings.server_description = "Nibelung 2.0 Test Server";
+    game_settings.testport = false;
+    game_settings.dev_server = true;
+    game_settings.wizlock = true;
+    game_settings.new_acct_lock = false;
+    game_settings.new_char_lock = false;
+    game_settings.wizlock_msg = "Not ready for public access.";
+    game_settings.new_acct_lock_msg = "";
+    game_settings.new_char_lock_msg = "";
+    game_settings.logall = false;
+	game_settings.note_boot_errors = false;
+
+    /* Auth */
+    game_settings.require_uniq_pass_staff = false;
+    game_settings.max_login_attempts = 3;
+    game_settings.enable_passwd = true;
+    game_settings.enable_mfa = true;
+    game_settings.require_email_verif = false;
+
+    /* 2FA */
+    game_settings.require_2fa_all = false;
+    game_settings.require_2fa_staff = false;
+    
+    /* Multiplaying & Linking */
+    game_settings.allow_mp_acct_all = false;
+    game_settings.allow_mp_acct_staff = false;
+    game_settings.allow_mp_host_all = false;
+    game_settings.allow_mp_host_staff = false;
+    game_settings.allow_link_all = false;
+    game_settings.allow_unlink_all = false;
+
+    /* Game Systems */
+    game_settings.alignment_system = false;
+    game_settings.restrict_races_align = false;
+    game_settings.restrict_classes_align = false;
+
+    /* Timers */
+    game_settings.idle_time = 12;
+    game_settings.idle_disconnect_time = 30;
+
+    /* Misc Maximums */
+    game_settings.max_alias = 80;
+    game_settings.max_characters = 0;
+    game_settings.max_orgs = 0;
+    game_settings.max_logfile_size = 1000000;
+	game_settings.org_disable_pk_pneuma_cost = 0;
+
+    /* Email */
+    game_settings.enable_email = true;
+    game_settings.email_port = 2587;
+    game_settings.email_username = "AKIA5XUHKP32Y2NIRD4L";
+    game_settings.email_host = "email-smtp.us-west-2.amazonaws.com";
+    game_settings.email_password = "BKA13aKa0jFyzEvwccJxJTPyZVnsR1IN52IIjlAMSRHN";
+    game_settings.email_from_addr = "notify@sentiencemud.net";
+    game_settings.email_from_name = "The Towne Crier";
+
+    /* Missions */
+    game_settings.max_mission_allowance = 100;
+    game_settings.inc_missions = 6;
+    game_settings.max_missions = 25;
+
+    /* Locker Settings */
+    game_settings.lockers_enabled = false;
+    game_settings.locker_rent_enabled = false;
+    game_settings.max_locker_weight = 0;
+    game_settings.max_locker_items = 0;
+    game_settings.locker_rent_cost = 0;
+    game_settings.locker_rent_time = 0;
+    game_settings.locker_rent_time_max = 0;
+    game_settings.locker_additional_cost_per_tier = 0;
+    game_settings.locker_additional_slots_per_tier = 0;
+    game_settings.locker_additional_weight_per_tier = 0;
+    game_settings.locker_tier_max = 0;
+
+    /* Vault Settings */
+    game_settings.max_vault_weight = 0;
+    game_settings.max_vault_items = 0;
+    game_settings.vault_enabled = false;
+    game_settings.vault_rent = false;
+    game_settings.vault_rent_per_char = false;
+    game_settings.vault_rent_cost = 0;
+    game_settings.vault_rent_time = 0;
+    game_settings.vault_additional_cost_per_char = 0;
+    game_settings.vault_additional_slots_per_char = 0;
+    game_settings.vault_additional_weight_per_char = 0;
+
+    /* Coffer Settings */
+    game_settings.max_coffer_weight = 0;
+    game_settings.max_coffer_items = 0;
+    game_settings.coffer_enabled = false;
+    game_settings.coffer_rent = false;
+    game_settings.coffer_rent_cost = 0;
+    game_settings.coffer_rent_currency = "";
+    game_settings.coffer_rent_period = 0;
+
+    /* Protocols and Ports*/
+    game_settings.enable_telnet = true;
+    game_settings.telnet_port = 9999;
+    game_settings.enable_tls = false;
+    game_settings.tls_port = 9110;
+    game_settings.enable_websocket_tls = false;
+    game_settings.websocket_tls_port = 0;
+    game_settings.enable_web = false;
+    game_settings.ssl_cert_path = "/sentience/data/system/certs/sentience.pem";
+    game_settings.ssl_key_path = "/sentience/data/system/certs/sentience.key";
+    game_settings.enable_insecure_warning = true;
+    game_settings.insecure_warning_msg = "{RWARNING: {XAll traffic to and from this port is plaintext.{X";
+
+    /* MSSP */
+    game_settings.mssp_players = 0;
+    game_settings.mssp_uptime = 0;
+    game_settings.mssp_crawl_delay = 0;
+    game_settings.mssp_hostname = "";
+    game_settings.mssp_port = 0;
+    game_settings.mssp_tls_port = 0;
+    game_settings.mssp_codebase = "";
+    game_settings.mssp_contact = "";
+    game_settings.mssp_created = 0;
+    game_settings.mssp_ip = "";
+    game_settings.mssp_language = "";
+    game_settings.mssp_location = "";
+    game_settings.mssp_minimum_age = 0;
+    game_settings.mssp_website = "";
+    game_settings.mssp_family = "";
+    game_settings.mssp_genre = "";
+    game_settings.mssp_status = "";
+    game_settings.mssp_gamesystem = "";
+    game_settings.mssp_intermud = "";
+    game_settings.mssp_subgenre = "";
+    game_settings.mssp_discord_server = "";
+    game_settings.mssp_areas = 0;
+    game_settings.mssp_helpfiles = 0;
+    game_settings.mssp_mobiles = 0;
+    game_settings.mssp_objects = 0;
+    game_settings.mssp_rooms = 0;
+    game_settings.mssp_classes = 0;
+    game_settings.mssp_levels = 0;
+    game_settings.mssp_races = 0;
+    game_settings.mssp_skills = 0;
+    game_settings.mssp_dbsize = 0;
+    game_settings.mssp_ansi = false;
+    game_settings.mssp_gmcp = false;
+    game_settings.mssp_mccp = false;
+    game_settings.mssp_mcp = false;
+    game_settings.mssp_msdp = false;
+    game_settings.mssp_msp = false;
+    game_settings.mssp_mxp = false;
+    game_settings.mssp_pueb = false;
+    game_settings.mssp_utf8 = false;
+    game_settings.mssp_vt100 = false;
+    game_settings.mssp_xterm256 = false;
+    game_settings.mssp_xtermtrue = false;
+    game_settings.mssp_atcp = false;
+    game_settings.mssp_ssl = false;
+    game_settings.mssp_pay2play = false;
+    game_settings.mssp_pay4perks = false;
+    game_settings.mssp_hiring_builders = false;
+    game_settings.mssp_hiring_coders = false;
+    game_settings.mssp_adult_material = false;
+    game_settings.mssp_multiclass = false;
+    game_settings.mssp_newbie_friendly = false;
+    game_settings.mssp_player_cities = false;
+    game_settings.mssp_player_clans = false;
+    game_settings.mssp_player_crafting = false;
+    game_settings.mssp_player_guilds = false;
+    game_settings.mssp_equipment_system = "";
+    game_settings.mssp_multiplaying = "";
+    game_settings.mssp_playerkilling = false;
+    game_settings.mssp_quest_system = false;
+    game_settings.mssp_roleplaying = false;
+    game_settings.mssp_training_system = false;
+    game_settings.mssp_world_originality = false;
+}
+
+
 void dummy_init()
 {
+	game_settings_init();
+
+	CLRMEMV(paladin);
+	CLRMEMV(human);
 	CLRMEM(sector_inside);
 	CLRMEM(sector_city);
 	CLRMEM(sector_field);
@@ -61,17 +254,17 @@ void dummy_init()
 	CLRMEM(beginning);
 	CLRMEM(pious_street);
 	CLRMEM(steiner_index);
-	CLRMEM(steiner);
+	CLRMEMV(steiner);
 	CLRMEM(ravage_index);
-	CLRMEM(ravage);
+	CLRMEMV(ravage);
 	CLRMEM(mayor_index);
-	CLRMEM(mayor);
+	CLRMEMV(mayor);
 	CLRMEM(cloak_index);
-	CLRMEM(cloak);
+	CLRMEMV(cloak);
 	CLRMEM(sword_index);
-	CLRMEM(sword);
-	CLRMEM(you);
-	CLRMEM(you_pcdata);
+	CLRMEMV(sword);
+	CLRMEMV(you);
+	CLRMEMV(you_pcdata);
 
 	sector_inside.name = strdup("inside");
 	sector_inside.flags = SECTOR_INDOORS | SECTOR_CITY_LIGHTS;
@@ -111,6 +304,7 @@ void dummy_init()
 	steiner.lcarrying = list_create(false);
 	steiner.lworn = list_create(false);
 	SET_BIT(steiner.act[0], ACT_IS_NPC);
+	steiner.race = &human;
 
 	ravage_index.area = &plith;
 	ravage_index.vnum = 2L;
@@ -123,6 +317,7 @@ void dummy_init()
 	ravage.lcarrying = list_create(false);
 	ravage.lworn = list_create(false);
 	SET_BIT(ravage.act[0], ACT_IS_NPC);
+	ravage.race = &human;
 
 	mayor_index.area = &plith;
 	mayor_index.vnum = 3L;
@@ -135,6 +330,7 @@ void dummy_init()
 	mayor.lcarrying = list_create(false);
 	mayor.lworn = list_create(false);
 	SET_BIT(mayor.act[0], ACT_IS_NPC);
+	mayor.race = &human;
 
 	sword_index.area = &plith;
 	sword_index.vnum = 1L;
@@ -211,6 +407,62 @@ void dummy_init()
 	plith.room_index_hash[pious_street.vnum % MAX_KEY_HASH] = &pious_street;
 	list_appendlink(plith.room_list, &beginning);
 	list_appendlink(plith.room_list, &pious_street);
+
+	paladin.name = strdup("paladin");
+	paladin.description = strdup("A holy knight.");
+	paladin.display[SEX_NEUTRAL] = strdup("Paladin(N)");
+	paladin.display[SEX_MALE] = strdup("Paladin(M)");
+	paladin.display[SEX_FEMALE] = strdup("Paladin(F)");
+	paladin.display[SEX_EITHER] = strdup("Paladin(?)");
+	paladin.who[SEX_NEUTRAL] = strdup("(N)Paladin");
+	paladin.who[SEX_MALE] = strdup("(M)Paladin");
+	paladin.who[SEX_FEMALE] = strdup("(F)Paladin");
+	paladin.who[SEX_EITHER] = strdup("(?)Paladin");
+	paladin.uid = 1;
+	paladin.type = CLASS_WARRIOR;
+	paladin.flags = CLASS_COMBATIVE;
+	// paladin.groups
+	paladin.primary_stat = STAT_STR;
+	paladin.max_level = MAX_CLASS_LEVEL;
+
+	human.name = strdup("human");
+	human.description = strdup("");
+	human.comments = strdup("");
+	human.uid = 1;
+	human.playable = true;
+	human.starting = true;
+	human.flags = 0;
+	human.act[0] = 0;
+	human.act[1] = 0;
+	human.aff[0] = 0;
+	human.aff[1] = 0;
+	human.off = 0;
+	human.imm = 0;
+	human.res = 0;
+	human.vuln = 0;
+	human.form = 0;
+	human.parts = 0;
+	human.premort = NULL;
+	human.remort = false;
+	human.who = strdup("Human");
+	human.skills = list_create(false);
+	human.stats[STAT_STR] = 13;
+	human.max_stats[STAT_STR] = 18;
+	human.stats[STAT_DEX] = 13;
+	human.max_stats[STAT_DEX] = 18;
+	human.stats[STAT_INT] = 13;
+	human.max_stats[STAT_INT] = 18;
+	human.stats[STAT_WIS] = 13;
+	human.max_stats[STAT_WIS] = 18;
+	human.stats[STAT_CON] = 13;
+	human.max_stats[STAT_CON] = 18;
+	human.max_vitals[0] = 3000;
+	human.max_vitals[1] = 3000;
+	human.max_vitals[2] = 3000;
+	human.min_size = SIZE_MEDIUM;
+	human.max_size = SIZE_MEDIUM;
+	human.default_alignment = 0;
+
 
  	nib_register_flag_table("account",acct_flags);
  	nib_register_flag_table("area_region",area_region_flags);
@@ -323,6 +575,25 @@ void dummy_init()
 
 }
 
+static void __cleanup_class(CLASS_DATA *clazz)
+{
+	if (clazz->name) free(clazz->name);
+	if (clazz->description) free(clazz->description);
+
+	for(int i = 0; i < SEX_MAX; i++)
+	{
+		if (clazz->display[i]) free(clazz->display[i]);
+		if (clazz->who[i]) free(clazz->who[i]);
+	}
+
+	// list_destroy(clazz->groups);
+}
+
+static void __cleanup_race(RACE_DATA *race)
+{
+
+}
+
 static void __cleanup_sector(SECTOR_DATA *sector)
 {
 	if (sector->name) free(sector->name);
@@ -395,6 +666,9 @@ void dummy_cleanup()
 	__cleanup_sector(&sector_inside);
 	__cleanup_sector(&sector_city);
 
+	__cleanup_class(&paladin);
+	__cleanup_race(&human);
+
 }
 
 AREA_DATA *find_area(char *name)
@@ -416,6 +690,8 @@ AREA_DATA *get_area_from_uid (long uid)
 CLASS_DATA *get_class_data(const char *name)
 {
 	if (!utf8_isstrascii(name)) return NULL;
+
+	if (!str_cmp(paladin.name, name)) return &paladin;
 
 	return NULL;
 }
@@ -444,6 +720,8 @@ CHURCH_DATA *get_church_by_name(const char *name)
 RACE_DATA *get_race_data(const char *name)
 {
 	if (!utf8_isstrascii(name)) return NULL;
+
+	if (!str_cmp(human.name, name)) return &human;
 
 	return NULL;
 }
@@ -1524,6 +1802,9 @@ bool variable_init()
 	list_appendlink(nib_variables, var);
 
 	var = variable_new_object("sword", &sword);
+	list_appendlink(nib_variables, var);
+
+	var = variable_new_class("paladin", &paladin);
 	list_appendlink(nib_variables, var);
 
 	return true;

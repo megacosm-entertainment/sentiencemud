@@ -14,3 +14,8 @@ print("Then + 30 days = " + then.add_days(30));
 for(int m = 1; m <= 5; m++)
 	print("Then + " + m + " month = " + then.add_months(m));
 
+print("Time = " + then.add_hours(2).add_minutes(14).add_days(3));
+
+time future = 1000000000000;
+print("Future = " + future);
+print("Future + 3d2h14m = " + future.add(3,2,14));

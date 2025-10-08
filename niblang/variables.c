@@ -13,7 +13,7 @@ NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool const
 	NIB_VARIABLE *var = nib_calloc(1,sizeof(NIB_VARIABLE));
 
 	var->name = nib_strdup(name);
-	var->type = type;
+	var->type = nib_type_copy(type);
 	var->stype = convert_to_stype(type,true);
 	var->scope = scope;
 	var->constant = constant;

@@ -10,6 +10,7 @@
 #include "../merc.h"
 #include "niblang.h"
 #include "script.h"
+#include "tables.h"
 
 extern NIB_BUFFER *nib_program_storage;
 extern LLIST *nib_global_variables;
@@ -294,6 +295,7 @@ static const char *opcode_names[] = {
 	"LOAD_FLAG_TABLE",
 	"LOAD_FLAG_BANK",
 	"LOAD_STAT",
+	"LOAD_GAME_SETTING",
 	"NEW_LIST",
 	"NEW_ARRAY",
 	"NULL",
@@ -729,7 +731,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				memcpy(&id, &pc[addr+1], sizeof(id));		addr += sizeof(id);
 				args = (unsigned char)pc[addr+1];			addr++;
 
-				NIB_METHOD *method = nib_method_get_byid(type, id);
+				NIB_METHOD *method = nib_method_get_byid(nst, id);
 				if (method)
 				{
 					type = method->sresult;
@@ -840,6 +842,14 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				table = NULL;
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %ld@%s", number, nib_get_stat_table_name(script->stat_tables,table));
 			break;
+		
+		case NI_LOAD_GAME_SETTING:
+		{
+			memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+			const struct game_setting_type *setting = &game_settings_table[index];
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %s", setting->name);
+			break;
+		}
 
 		case NI_LOAD_FLOAT:
 			memcpy(&floating, &pc[addr+1], sizeof(floating));

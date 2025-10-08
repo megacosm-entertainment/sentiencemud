@@ -1,0 +1,11 @@
+print("game.game_name = " + game.game_name);
+print("game[\"server_description\"] = " + game["server_description"]);
+
+class paladin = "paladin";
+stat("sex") sex = <[sex.male]>;
+
+print("Paladin.display[" + sex + "] = " + paladin.display(sex));
+print("Paladin.who[female] = " + paladin.who(<[sex.female]>));
+
+race human = "human";
+print("Human.name = " + human.name);

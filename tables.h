@@ -331,6 +331,7 @@ struct game_setting_type {
     bool olc_settable;       /* Can be modified through OLC */
     bool requires_reboot;    /* Requires reboot to take effect */
 	bool sensitive;		 /* Sensitive setting */
+	bool script_access;		/* Accessible in scripting */
 };
 
 typedef struct church_log_meta_category {

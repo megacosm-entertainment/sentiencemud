@@ -151,6 +151,9 @@ struct nib_field_offset_type
 #define NFORS(c,p,f,v,s) \
 	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f), (s), false }
 
+#define NFORA(c,p,f,v,a,s) \
+	{ NTC_##c, NT_##p, STRIFY(p ## _ ## f), GET_OFFSET(v,f), (a) * sizeof(s), false }
+
 #define NFOEND		{ NTC_VOID, NT_UNKNOWN, NULL, 0 }
 
 static struct nib_field_offset_type __field_offsets[] =
@@ -315,8 +318,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,MOBILE,in_wilds,__static_mobile,WILDS_DATA *),
 	NFOR(PRIMARY,MOBILE,at_wilds_x,__static_mobile,int),
 	NFOR(PRIMARY,MOBILE,at_wilds_y,__static_mobile,int),
-	NFOR(PRIMARY,MOBILE,id[0],__static_mobile,unsigned long),
-	NFOR(PRIMARY,MOBILE,id[1],__static_mobile,unsigned long),
+	NFORA(PRIMARY,MOBILE,id,__static_mobile,2,unsigned long),
 	NFOR(PRIMARY,MOBILE,num_grouped,__static_mobile,int),
 	NFOR(PRIMARY,MOBILE,sex,__static_mobile,int),
 	NFOR(PRIMARY,MOBILE,race,__static_mobile,RACE_DATA *),
@@ -351,13 +353,13 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,MOBILE,max_move,__static_mobile,long),
 	NFO(PRIMARY,MOBILE,gold,__static_mobile,long),
 	NFO(PRIMARY,MOBILE,silver,__static_mobile,long),
-	NFOS(PRIMARY,MOBILE,act,__static_mobile,2 * sizeof(long)),
+	NFORA(PRIMARY,MOBILE,act,__static_mobile,2,long),
 	NFO(PRIMARY,MOBILE,comm,__static_mobile,long),
 	NFO(PRIMARY,MOBILE,wiznet,__static_mobile,long),
 	NFO(PRIMARY,MOBILE,imm_flags,__static_mobile,long),
 	NFO(PRIMARY,MOBILE,res_flags,__static_mobile,long),
 	NFO(PRIMARY,MOBILE,vuln_flags,__static_mobile,long),
-	NFOS(PRIMARY,MOBILE,affected_by,__static_mobile,2 * sizeof(long)),
+	NFORA(PRIMARY,MOBILE,affected_by,__static_mobile,2,long),
 	NFO(PRIMARY,MOBILE,position,__static_mobile,int),
 	NFO(PRIMARY,MOBILE,practice,__static_mobile,int),
 	NFO(PRIMARY,MOBILE,train,__static_mobile,int),
@@ -435,7 +437,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,MOBILE,repair_amt,__static_mobile,int),
 	NFO(PRIMARY,MOBILE,wildview_bonus_x,__static_mobile,int),
 	NFO(PRIMARY,MOBILE,wildview_bonus_y,__static_mobile,int),
-	NFOR(PRIMARY,MOBILE,tempstore,__static_mobile,MAX_TEMPSTORE * sizeof(int)),
+	NFORA(PRIMARY,MOBILE,tempstore,__static_mobile,MAX_TEMPSTORE,int),
 	NFO(PRIMARY,MOBILE,tempstring,__static_mobile,char *),
 	NFOR(PRIMARY,MOBILE,reputations,__static_mobile,LLIST *),
 	NFOR(PRIMARY,MOBILE,deathsight_vision,__static_mobile,int),
@@ -482,10 +484,47 @@ static struct nib_field_offset_type __field_offsets[] =
 	// Quest
 
 	// Race
+	NFOR(PRIMARY,RACE,name,__static_race,char *),
+	NFOR(PRIMARY,RACE,description,__static_race,char *),
+	NFOR(PRIMARY,RACE,comments,__static_race,char *),
+	NFOR(PRIMARY,RACE,uid,__static_race,int16_t),
+	NFOR(PRIMARY,RACE,playable,__static_race,bool),
+	NFOR(PRIMARY,RACE,starting,__static_race,bool),
+	NFOR(PRIMARY,RACE,flags,__static_race,long),
+	NFORA(PRIMARY,RACE,act,__static_race,2,long),
+	NFORA(PRIMARY,RACE,aff,__static_race,2,long),
+	NFOR(PRIMARY,RACE,off,__static_race,long),
+	NFOR(PRIMARY,RACE,imm,__static_race,long),
+	NFOR(PRIMARY,RACE,res,__static_race,long),
+	NFOR(PRIMARY,RACE,vuln,__static_race,long),
+	NFOR(PRIMARY,RACE,form,__static_race,long),
+	NFOR(PRIMARY,RACE,parts,__static_race,long),
+	NFOR(PRIMARY,RACE,premort,__static_race,RACE_DATA *),
+	NFOR(PRIMARY,RACE,remort,__static_race,bool),
+	NFOR(PRIMARY,RACE,who,__static_race,char *),
+	NFOR(PRIMARY,RACE,skills,__static_race,LLIST *),
+	NFORA(PRIMARY,RACE,stats,__static_race,MAX_STATS,int),
+	NFORA(PRIMARY,RACE,max_stats,__static_race,MAX_STATS,int),
+	NFORA(PRIMARY,RACE,max_vitals,__static_race,3,int),
+	NFOR(PRIMARY,RACE,min_size,__static_race,int),
+	NFOR(PRIMARY,RACE,max_size,__static_race,int),
+	NFOR(PRIMARY,RACE,default_alignment,__static_race,int),
 
 	// Rank
+	NFOR(PRIMARY,RANK,uid,__static_rank,int16_t),
+	NFOR(PRIMARY,RANK,ordinal,__static_rank,int16_t),
+	NFOR(PRIMARY,RANK,name,__static_rank,char *),
+	NFOR(PRIMARY,RANK,description,__static_rank,char *),
+	NFOR(PRIMARY,RANK,comments,__static_rank,char *),
+	NFOR(PRIMARY,RANK,capacity,__static_rank,long),
+	NFOR(PRIMARY,RANK,flags,__static_rank,long),
+	NFOR(PRIMARY,RANK,set,__static_rank,long),
 
 	// Reputation
+	NFOR(PRIMARY,REPUTATION,flags,__static_reputation,long),
+	NFOR(PRIMARY,REPUTATION,reputation,__static_reputation,long),
+	NFOR(PRIMARY,REPUTATION,paragon_level,__static_reputation,int),
+	NFO(PRIMARY,REPUTATION,token,__static_reputation,TOKEN_DATA *),
 
 	// Room
 	NFOR(PRIMARY,ROOM,vnum,__static_room,long),
@@ -826,6 +865,8 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(affect_is_permanent),
 	MFER(area_get_room),
 	MFER(array_length),
+	MFER(class_display),
+	MFER(class_who),
 	MFER(exit_get_direction),
 	MFER(exit_get_door),
 	MFER(exit_get_mate),
@@ -850,11 +891,25 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFER(list_remove),
 	MFER(list_size),
 	MFER(mobile_get_widevnum),
+	MFER(mobile_is_pc),
 	MFER(number_random_value),
+	MFER(rank_color),
+	MFER(reputation_name),
+	MFER(reputation_description),
+	MFER(reputation_comments),
+	MFER(reputation_widevnum),
+	MFER(reputation_rank),
+	MFER(reputation_maximum_rank),
+	MFER(reputation_ranks),
+	MFER(reputation_initial_rank),
+	MFER(reputation_initial_reputation),
 	MFER(room_get_exits),
 	MFER(room_reset),
 	MFER(room_set_sector),
 	MFER(string_length),
+	MFER(time_add),
+	MFER(time_add_minutes),
+	MFER(time_add_hours),
 	MFER(time_add_days),
 	MFER(time_add_months),
 	MFER(token_owner_type),
@@ -876,13 +931,14 @@ bool nib_method_func_lookup(const char *name, METHOD_FUNC **func, bool *lvalue)
 }
 
 
-NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func)
+NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, bool constant, bool lvalue, int modifiers, LLIST *params, char *method_name, METHOD_FUNC *method_func)
 {
 	NIB_METHOD *method = calloc(1, sizeof(NIB_METHOD));
 
 	method->name = strdup(name);
 	method->constant = constant;
 	method->lvalue = lvalue;
+	method->modifiers = modifiers;
 	method->result = nib_type_copy(ret);
 	method->sresult = convert_to_stype(ret, false);
 	if (ret && ret->type_class == NTC_LIST)
@@ -1263,7 +1319,7 @@ bool nib_method_exists(NIB_TYPE *context, char *name, LLIST *params)
 	return (method != NULL);
 }
 
-bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func)
+bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, int modifiers, LLIST *params, char *method_name, METHOD_FUNC *method_func)
 {
 	// Assume the method signature does not exist
 
@@ -1272,7 +1328,7 @@ bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant,
 	if (!methods) return false;
 
 	// Create methods
-	NIB_METHOD *method = new_nib_method(name, ret, constant, lvalue, params, method_name, method_func);
+	NIB_METHOD *method = new_nib_method(name, ret, constant, lvalue, modifiers, params, method_name, method_func);
 	if (!method) return false;
 
 	list_appendlink(methods, method);

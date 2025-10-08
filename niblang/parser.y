@@ -15,12 +15,15 @@
 
 #include "../../merc.h"
 #include "../niblang.h"
+#include "../tables.h"
 #include "parser.h"
 #include "lexer.h"
 
 #define IS_READONLY		(A)
 #define IS_LITERAL		(B)
 #define IS_LVALUE		(C)
+
+#define IS_MUTABLE		(A)
 
 #define MAX_SHIFT		(bitsize(long) - 1)
 
@@ -1500,6 +1503,10 @@ name_list:
 					var = nib_new_variable($I, $T, nib_get_scope(), $M.constant);
 					nib_add_local_variable(var);
 
+					// printf("Variable declaration: %s\n", var->name);
+					// hex_dump($T,sizeof(NIB_TYPE));
+					// hex_dump(var->type, sizeof(NIB_TYPE));
+
 					$<decl>$.type = $T;
 				}
 			}
@@ -2211,6 +2218,11 @@ foreach:
 				else if ($E.type->type_class == NTC_LIST)
 				{
 					type = $E.type->_.list.type;
+
+					// automatically upgrade to full INT
+					if (type == nibtype_int32 || type == nibtype_int16)
+						type = nibtype_int;
+
 					codes[0] = NI_ITER_START;
 					codes[1] = NI_ITER_NEXT;
 					codes[2] = NI_ITER_STOP;
@@ -2219,6 +2231,11 @@ foreach:
 				{
 					type = $E.type->_.array.type;
 					length = $E.type->_.array.length;
+
+					// automatically upgrade to full INT
+					if (type == nibtype_int32 || type == nibtype_int16)
+						type = nibtype_int;
+
 					codes[0] = NI_INDEXER_START;
 					codes[1] = NI_INDEXER_NEXT;
 					codes[2] = NI_INDEXER_STOP;
@@ -4210,6 +4227,64 @@ expr4:
 			nib_free($I);
 			nib_free($T);
 		}
+	|	T_GAME T_DOT T_IDENTIFIER[I]
+		{
+			short index = game_setting_lookup($I);
+			if (index < 0)
+			{
+				niberrorf("No such game setting '%s' available.", $I);
+				YYERROR;
+			}
+			
+			const struct game_setting_type *setting = &game_settings_table[index];
+			switch(setting->type)
+			{
+			case SETTING_TYPE_BOOL:		$$.type = nibtype_bool; break;
+			case SETTING_TYPE_INT:		$$.type = nibtype_int; break;
+			case SETTING_TYPE_STRING:	$$.type = nibtype_string; break;
+			default:
+				yyerror("Invalid game setting type.");
+				YYERROR;
+			}
+
+			ins_code(NI_LOAD_GAME_SETTING);
+			ins_short(index);
+
+			$$.name = NULL;
+			$$.needs_use = true;
+			$$.flags = IS_READONLY;
+
+			nib_free($I);
+		}
+	|	T_GAME T_OPEN_BRACKET T_STRING_LITERAL[I] T_CLOSE_BRACKET
+		{
+			short index = game_setting_lookup($I);
+			if (index < 0)
+			{
+				niberrorf("No such game setting '%s' available.", $I);
+				YYERROR;
+			}
+			
+			const struct game_setting_type *setting = &game_settings_table[index];
+			switch(setting->type)
+			{
+			case SETTING_TYPE_BOOL:		$$.type = nibtype_bool; break;
+			case SETTING_TYPE_INT:		$$.type = nibtype_int; break;
+			case SETTING_TYPE_STRING:	$$.type = nibtype_string; break;
+			default:
+				yyerror("Invalid game setting type.");
+				YYERROR;
+			}
+
+			ins_code(NI_LOAD_GAME_SETTING);
+			ins_short(index);
+
+			$$.name = NULL;
+			$$.needs_use = true;
+			$$.flags = IS_READONLY;
+
+			nib_free($I);
+		}
 	;
 
 // table_name:
@@ -4491,6 +4566,9 @@ name_lvalue:
 				}
 			}
 
+			// printf("Variable: %s\n", var->name);
+			// hex_dump(var->type, sizeof(NIB_TYPE));
+
 			$$.name = var->name;
 			if (var->constant)
 			{
@@ -4754,12 +4832,18 @@ method_call:
 		{
 			if ($C.type == NULL || $C.type->type_class == NTC_VOID)
 			{
+				nib_free($M);
+				list_destroy($A);
+				free_nib_type($C.type);
 				yyerror("Attempt to call a method on a void type.");
 				YYERROR;
 			}
 
 			if ($C.type->type_class == NTC_ANY)
 			{
+				nib_free($M);
+				list_destroy($A);
+				free_nib_type($C.type);
 				yyerror("Attempt to call a method on an unresolved type.");
 				YYERROR;
 			}
@@ -4769,9 +4853,34 @@ method_call:
 
 			if (!method)
 			{
+				nib_free($M);
+				list_destroy($A);
+				free_nib_type($C.type);
 				niberrorf("No such method '%s' found for '%s'.",
 					$M, nib_get_typename(NULL,$C.type));
 				YYERROR;
+			}
+
+			// Check whether the method is MUTABLE and the type is not
+			if (IS_SET(method->modifiers,IS_MUTABLE))
+			{
+				if ($C.type->type_class == NTC_LIST && $C.type->_.list.constant)
+				{
+					nib_free($M);
+					list_destroy($A);
+					free_nib_type($C.type);
+					niberrorf("Method '%s' may not be used on a list with constant elements.", method->name);
+					YYERROR;
+				}
+
+				if ($C.type->type_class == NTC_ARRAY && $C.type->_.array.constant)
+				{
+					nib_free($M);
+					list_destroy($A);
+					free_nib_type($C.type);
+					niberrorf("Method '%s' may not be used on an array with constant elements.", method->name);
+					YYERROR;
+				}
 			}
 
 			ins_code(NI_CALL_METHOD);
@@ -4862,7 +4971,12 @@ type:	T_INT										{ $$ = nibtype_int; }
 		{
 			$$ = new_nib_type_stat_table($T);
 		}
-	| T_LIST T_OPEN_PAREN possible_constant[C] listtype[T] T_CLOSE_PAREN	{ $$ = new_nib_type_list($T, $C); }
+	| T_LIST T_OPEN_PAREN possible_constant[C] listtype[T] T_CLOSE_PAREN	{
+		$$ = new_nib_type_list($T, $C);
+		// printf("LIST(%s):\n", nib_get_typename(NULL, $T));
+		// hex_dump($T,sizeof(NIB_TYPE));
+		// hex_dump($$,sizeof(NIB_TYPE));
+	}
 	| T_ARRAY T_OPEN_PAREN possible_constant[C] listtype[T] T_OPEN_BRACKET T_NUMBER[L] T_CLOSE_BRACKET T_CLOSE_PAREN
 													{ $$ = new_nib_type_array($T,$L,$C); }
 	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }

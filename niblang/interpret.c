@@ -12,6 +12,7 @@
 #include "niblang.h"
 #include "script.h"
 #include "interpret.h"
+#include "tables.h"
 
 char *get_affect_name(AFFECT_DATA *paf);
 bool affect_equal(AFFECT_DATA *a, AFFECT_DATA *b);
@@ -414,6 +415,8 @@ void *nib_create_new_array(NIB_SCRIPT_STACK_TYPE type, long length)
 	switch(type)
 	{
 	case NST_NUMBER:	size = sizeof(long); break;
+	case NST_NUMBER32:	size = sizeof(int); break;
+	case NST_NUMBER16:	size = sizeof(short); break;
 	case NST_FLOAT:		size = sizeof(double); break;
 	case NST_BOOLEAN:	size = sizeof(bool); break;
 	case NST_CHAR:		size = sizeof(utf8char_t); break;
@@ -39939,6 +39942,49 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			break;
 		}
 
+	case NI_LOAD_GAME_SETTING:
+		{
+			short index = __get_short(nsr);
+			const struct game_setting_type *setting = &game_settings_table[index];
+			if (!setting->script_access)
+			{
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			switch(setting->type)
+			{
+			case SETTING_TYPE_BOOL:
+				if (!nib_push_stack_boolean(nsr, *((bool *)(setting->ptr))))
+				{
+					SETRET(nsr,STACK);
+					return true;
+				}
+				break;
+
+			case SETTING_TYPE_INT:
+				if (!nib_push_stack_number(nsr, *((int *)(setting->ptr))))
+				{
+					SETRET(nsr,STACK);
+					return true;
+				}
+				break;
+
+			case SETTING_TYPE_STRING:
+				if (!nib_push_stack_string_shared(nsr, *((char **)(setting->ptr))))
+				{
+					SETRET(nsr,STACK);
+					return true;
+				}
+				break;
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NI_NEW_LIST:
 		{
 			NIB_SCRIPT_STACK_TYPE type = (NIB_SCRIPT_STACK_TYPE)__get_bytecode(nsr);
@@ -40502,6 +40548,8 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				switch(type)
 				{
 				case NST_NUMBER:	var->_.i = *((long *)data); break;
+				case NST_NUMBER32:	var->_.i = *((int *)data); break;
+				case NST_NUMBER16:	var->_.i = *((short *)data); break;
 				case NST_FLOAT:		var->_.f = *((double *)data); break;
 				case NST_BOOLEAN:	var->_.b = *((bool *)data); break;
 				case NST_CHAR:		var->_.ch = *((utf8char_t *)data); break;
@@ -41746,6 +41794,7 @@ static const char *opcode_names[] = {
 	"LOAD_FLAG_TABLE",
 	"LOAD_FLAG_BANK",
 	"LOAD_STAT",
+	"LOAD_GAME_SETTING",
 	"NEW_LIST",
 	"NEW_ARRAY",
 	"NULL",
@@ -42272,6 +42321,14 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 
 				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %ld@%s", number, nib_get_stat_table_name(script->stat_tables,table));
 				break;
+
+			case NI_LOAD_GAME_SETTING:
+			{
+				memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+				const struct game_setting_type *setting = &game_settings_table[index];
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %s", setting->name);
+				break;
+			}
 
 			case NI_JUMP:
 			case NI_JUMP_ZERO:

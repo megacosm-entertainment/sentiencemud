@@ -30,6 +30,9 @@ function constant time get_time() -> function_get_time;
 method constant int int.random() -> number_random_value;
 
 // TIME methods/fields
+method constant time time.add(int,int,int) -> time_add;
+method constant time time.add_minutes(int) -> time_add_minutes;
+method constant time time.add_hours(int) -> time_add_hours;
 method constant time time.add_days(int) -> time_add_days;
 method constant time time.add_months(int) -> time_add_months;
 
@@ -40,11 +43,11 @@ field method constant int string.length -> string_length;
 field area& widevnum.area -> widevnum_pArea;
 field int& widevnum.vnum -> widevnum_vnum;
 
-// LIST methods (no fields)
-method int list.size() -> list_size;
-method int list.add(any) -> list_add;
-method bool list.insert(int,any) -> list_insert;
-method any list.remove(int) -> list_remove;
+// LIST methods/fields
+field method int list.size -> list_size;
+method(mutable) int list.add(any) -> list_add;
+method(mutable) bool list.insert(int,any) -> list_insert;
+method(mutable) any list.remove(int) -> list_remove;
 
 // ARRAY methods/fields
 field method int array.length -> array_length;
@@ -90,6 +93,18 @@ field flag&("area") area.flags -> area_area_flags;
 field constant list(room) area.rooms -> area_room_list;
 method room area.get_room(int) -> area_get_room;
 
+// CLASS methods/fields
+field constant string class.name -> class_name;
+field constant string class.description -> class_description;
+method constant string class.display(stat("sex")) -> class_display;
+method constant string class.who(stat("sex")) -> class_who;
+field constant int32 class.uid -> class_uid;
+field constant stat32("class") class.type -> class_type;
+field constant flag("class") class.flags -> class_flags;
+//field constant list(???) class.group -> class_groups;
+field constant stat16("stat") class.primary -> class_primary_stat;
+field constant int16 class.max_level -> class_max_level;
+
 // DUNGEON methods/fields
 
 // EXIT methods/fields
@@ -117,13 +132,163 @@ field flag&("exit") exit.flags -> exit_exit_info;
 // INSTANCE methods/fields
 
 // MOBILE methods/fields
+field method constant boolean mobile.is_pc -> mobile_is_pc;
 field string& mobile.name -> mobile_name;
 field string& mobile.short -> mobile_short_descr;
 field string& mobile.long -> mobile_long_descr;
 field string& mobile.description -> mobile_description;
-field method widevnum mobile.widevnum -> mobile_get_widevnum;
-field list(constant object) mobile.carrying -> mobile_lcarrying;
-field list(constant object) mobile.worn -> mobile_lworn;
+field method constant widevnum mobile.widevnum -> mobile_get_widevnum;
+field constant list(constant object) mobile.carrying -> mobile_lcarrying;
+field constant list(constant object) mobile.worn -> mobile_lworn;
+field constant list(constant object) mobile.locker -> mobile_llocker;
+field constant list(constant object) mobile.stache -> mobile_lstache;
+field constant list(constant affect) mobile.affects -> mobile_laffected;
+field constant list(constant token) mobile.tokens -> mobile_ltokens;
+field constant room mobile.room -> mobile_in_room;
+field constant room mobile.home_room -> mobile_home_room;
+field constant wilds mobile.wilds -> mobile_in_wilds;
+field constant int32 mobile.wilds_x -> mobile_at_wilds_x;
+field constant int32 mobile.wilds_y -> mobile_at_wilds_y;
+field constant array(constant int[2]) mobile.id -> mobile_id;
+field constant int32 mobile.group_size -> mobile_num_grouped;
+field constant stat32("sex") mobile.sex -> mobile_sex;
+field constant race mobile.race -> mobile_race;
+field int32& mobile.timer -> mobile_timer;
+field int32& mobile.wait -> mobile_wait;
+field int32& mobile.daze -> mobile_daze;
+field int32& mobile.cast -> mobile_cast;
+field int32& mobile.panic -> mobile_panic;
+field int32& mobile.music -> mobile_music;
+field int32& mobile.brew -> mobile_brew;
+field int32& mobile.scribe -> mobile_scribe;
+field int32& mobile.bind -> mobile_bind;
+field int32& mobile.recite -> mobile_recite;
+field int32& mobile.resurrect -> mobile_resurrect;
+field int32& mobile.ranged -> mobile_ranged;
+field int32& mobile.hide -> mobile_hide;
+field int32& mobile.paroxysm -> mobile_paroxysm;
+field int32& mobile.bomb -> mobile_bomb;
+field int32& mobile.bashed -> mobile_bashed;
+field int32& mobile.reverie -> mobile_reverie;
+field int32& mobile.paralyzed -> mobile_paralyzed;
+field int32& mobile.pk_timer -> mobile_pk_timer;
+field int32& mobile.no_recall -> mobile_no_recall;
+field int32& mobile.inking -> mobile_inking;
+field int32& mobile.imbuing -> mobile_imbuing;
+field int32& mobile.wimpy -> mobile_wimpy;
+field constant int mobile.hit -> mobile_hit;
+field constant int mobile.max_hit -> mobile_max_hit;
+field constant int mobile.mana -> mobile_mana;
+field constant int mobile.max_mana -> mobile_max_mana;
+field constant int mobile.move -> mobile_move;
+field constant int mobile.max_move -> mobile_max_move;
+field int mobile.gold -> mobile_gold;
+field int mobile.silver -> mobile_silver;
+// There's no way to make these two fields automatically switch based upon the runtime value
+field flagbank("mobile") mobile.mobile -> mobile_act;
+field flagbank("player") mobile.player -> mobile_act;
+field flag&("comm") mobile.comm -> mobile_comm;
+//field flag&("wiznet") mobile.wiznet -> mobile_wiznet;
+field flag&("immune") mobile.immune -> mobile_imm_flags;
+field flag&("resist") mobile.resist -> mobile_res_flags;
+field flag&("vuln") mobile.vuln -> mobile_vuln_flags;
+field flagbank("affect") mobile.affected -> mobile_affected_by;
+field stat32&("position") mobile.position -> mobile_position;
+field int32& mobile.practices -> mobile_practice;
+field int32& mobile.trains -> mobile_train;
+field constant int32 mobile.carry_weight -> mobile_carry_weight;
+field constant int32 mobile.carry_number -> mobile_carry_number;
+field int32& mobile.alignment -> mobile_alignment;
+field constant int32 mobile.hitroll -> mobile_hitroll;
+field constant int32 mobile.damroll -> mobile_damroll;
+field int32& mobile.xpboost -> mobile_xpboost;
+field constant int32 mobile.ac_bash -> mobile_armour[0];
+field constant int32 mobile.ac_pierce -> mobile_armour[1];
+field constant int32 mobile.ac_slash -> mobile_armour[2];
+field constant int32 mobile.ac_magic -> mobile_armour[3];
+field constant int32 mobile.str -> mobile_cur_stat[STAT_STR];
+field constant int32 mobile.strength -> mobile_cur_stat[STAT_STR];
+field constant int32 mobile.int -> mobile_cur_stat[STAT_INT];
+field constant int32 mobile.intelligence -> mobile_cur_stat[STAT_INT];
+field constant int32 mobile.wis -> mobile_cur_stat[STAT_WIS];
+field constant int32 mobile.wisdom -> mobile_cur_stat[STAT_WIS];
+field constant int32 mobile.dex -> mobile_cur_stat[STAT_DEX];
+field constant int32 mobile.dexterity -> mobile_cur_stat[STAT_DEX];
+field constant int32 mobile.con -> mobile_cur_stat[STAT_CON];
+field constant int32 mobile.constitution -> mobile_cur_stat[STAT_CON];
+field constant int32 mobile.mod_str -> mobile_mod_stat[STAT_STR];
+field constant int32 mobile.mod_strength -> mobile_mod_stat[STAT_STR];
+field constant int32 mobile.mod_int -> mobile_mod_stat[STAT_INT];
+field constant int32 mobile.mod_intelligence -> mobile_mod_stat[STAT_INT];
+field constant int32 mobile.mod_wis -> mobile_mod_stat[STAT_WIS];
+field constant int32 mobile.mod_wisdom -> mobile_mod_stat[STAT_WIS];
+field constant int32 mobile.mod_dex -> mobile_mod_stat[STAT_DEX];
+field constant int32 mobile.mod_dexterity -> mobile_mod_stat[STAT_DEX];
+field constant int32 mobile.mod_con -> mobile_mod_stat[STAT_CON];
+field constant int32 mobile.mod_constitution -> mobile_mod_stat[STAT_CON];
+field constant int32 mobile.perm_str -> mobile_perm_stat[STAT_STR];
+field constant int32 mobile.perm_strength -> mobile_perm_stat[STAT_STR];
+field constant int32 mobile.perm_int -> mobile_perm_stat[STAT_INT];
+field constant int32 mobile.perm_intelligence -> mobile_perm_stat[STAT_INT];
+field constant int32 mobile.perm_wis -> mobile_perm_stat[STAT_WIS];
+field constant int32 mobile.perm_wisdom -> mobile_perm_stat[STAT_WIS];
+field constant int32 mobile.perm_dex -> mobile_perm_stat[STAT_DEX];
+field constant int32 mobile.perm_dexterity -> mobile_perm_stat[STAT_DEX];
+field constant int32 mobile.perm_con -> mobile_perm_stat[STAT_CON];
+field constant int32 mobile.perm_constitution -> mobile_perm_stat[STAT_CON];
+field flag&("form") mobile.form -> mobile_form;
+field flag&("part") mobile.parts -> mobile_parts;
+field flag&("part") mobile.lostparts -> mobile_lostparts;
+field stat32&("size") mobile.size -> mobile_size;
+field material& mobile.material -> mobile_material;
+// field dice& mobile.damage -> mobile_damage;
+// field stat32&(???) mobile.dam_type -> mobile_dam_type;
+field constant stat32("position") mobile.start_pos -> mobile_start_pos;
+field constant stat32("position") mobile.default_pos -> mobile_default_pos;
+field constant time mobile.hired -> mobile_hired_to;
+field constant time mobile.created -> mobile_creation_time;
+field constant mobile mobile.mount -> mobile_mount;
+field constant mobile mobile.rider -> mobile_rider;
+field constant boolean mobile.riding -> mobile_riding;
+field int32& mobile.death -> mobile_time_left_death;
+field constant boolean mobile.dead -> mobile_dead;
+field constant boolean mobile.can_release -> mobile_can_release;
+field widevnum& mobile.home -> mobile_home;
+field constant int32 mobile.deaths -> mobile_deaths;
+field constant int32 mobile.player_kills -> mobile_player_kills;
+field constant int32 mobile.cpk_kills -> mobile_cpk_kills;
+field constant int32 mobile.arena_kills -> mobile_arena_kills;
+field constant int32 mobile.monster_kills -> mobile_monster_kills;
+field constant int32 mobile.wars_won -> mobile_wars_won;
+field constant int32 mobile.player_deaths -> mobile_player_deaths;
+field constant int32 mobile.cpk_deaths -> mobile_cpk_deaths;
+field constant int32 mobile.arena_deaths -> mobile_arena_deaths;
+field constant organization mobile.org -> mobile_church;
+field constant organization mobile.organization -> mobile_church;
+field constant mission mobile.mission -> mobile_pending_mission;
+field constant list(constant mission) mobile.missions -> mobile_missions;
+field constant mobile mobile.hunting -> mobile_hunting;
+field constant mobile mobile.challenged -> mobile_challenged;
+field constant mobile mobile.challenger -> mobile_challenger;
+field int& mobile.dp -> mobile_deitypoints;
+field int& mobile.deitypoints -> mobile_deitypoints;
+field int& mobile.pneuma -> mobile_pneuma;
+field constant object mobile.cart -> mobile_pulled_cart;
+// TODO: Make use of a toxin stat
+field constant array(int32[4]) mobile.toxin -> mobile_toxin;
+field int32& mobile.bitten -> mobile_bitten;
+// field stat32&("toxin") mobile.bitten_type -> mobile_bitten_type;
+field int32& mobile.bitten_level -> mobile_bitten_level;
+field int32& mobile.repair -> mobile_repair;
+field object& mobile.repair_obj -> mobile_repair_obj;
+field int32& mobile.repair_amount -> mobile_repair_amt;
+field int32& mobile.wildview_bonus_x -> mobile_wildview_bonus_x;
+field int32& mobile.wildview_bonus_y -> mobile_wildview_bonus_y;
+field constant array(int32[10]) mobile.tempstore -> mobile_tempstore;
+field string& mobile.tempstring -> mobile_tempstring;
+field constant list(constant reputation) mobile.reputations -> mobile_reputations;
+field constant int32 mobile.deathsight -> mobile_deathsight_vision;
+
 
 // OBJECT methods/fields
 field string& object.name -> object_name;
@@ -138,7 +303,87 @@ field flagbank&("object") object.flags -> object_extra;
 field int32& object.level -> object_level;
 field int32& object.condition -> object_condition;
 
+// ORG methods/fields
+// TODO: Change all of these when ORGs are properly updated
+field constant string organization.name -> org_name;
+field constant area organization.hall -> org_hall_area;
+field constant int organization.vnum_start -> org_vnum_start;
+field constant string organization.flag -> org_flag;
+field constant string organization.founder -> org_founder;
+field constant string organization.owner -> org_owner;
+field constant string organization.motd -> org_motd;
+field constant string organization.rules -> org_rules;
+field constant string organization.info -> org_info;
+field constant int organization.pneuma -> org_pneuma;
+field constant int organization.gold -> org_gold;
+field constant int organization.dp -> org_dp;
+field constant int32 organization.max_positions -> org_max_positions;
+field constant stat32("church_sizes") organization.size -> org_size;
+field constant int32 organization.alignment -> org_alignment;
+field constant int organization.pk_wins -> org_pk_wins;
+field constant int organization.pk_losses -> org_pk_losses;
+field constant int organization.cpk_wins -> org_cpk_wins;
+field constant int organization.cpk_losses -> org_cpk_losses;
+field constant int organization.wars_won -> org_wars_won;
+field constant flag("church") organization.settings -> org_settings;
+field constant list(constant object) organization.coffer -> org_lcoffer;
+
+
 // QUEST methods/fields
+
+// RACE methods/fields
+field constant string race.name -> race_name;
+field constant string race.description -> race_description;
+field constant string race.comments -> race_comments;
+field constant int16 race.uid -> race_uid;
+field constant boolean race.playable -> race_playable;
+field constant boolean race.starting -> race_starting;
+// field constant flag("race") race.flags -> race_flags;	// No flags yet
+field constant flagbank("mobile") race.mobile -> race_act;
+field constant flagbank("affect") race.affected -> race_aff;
+field constant flag("offense") race.offense -> race_off;
+field constant flag("immune") race.immune -> race_imm;
+field constant flag("resist") race.resist -> race_res;
+field constant flag("vuln") race.vuln -> race_vuln;
+field constant flag("form") race.form -> race_form;
+field constant flag("part") race.parts -> race_parts;
+field constant race race.remort -> race_premort;
+field constant boolean race.is_remort -> race_remort;
+field constant string race.who -> race_who;
+field constant list(constant skill) race.skills -> race_skills;
+// TODO: When I get arrays that can use stats as indexers, change these
+field constant array(constant int32[5]) race.stats -> race_stats;
+field constant array(constant int32[5]) race.max_stats -> race_max_stats;
+field constant array(constant int32[3]) race.max_vitals -> race_max_vitals;
+field constant stat32(size) race.min_size -> race_min_size;
+field constant stat32(size) race.max_size -> race_max_size;
+field constant int32 race.alignment -> race_default_alignment;
+
+// RANK methods/fields
+field constant int16 rank.uid -> rank_uid;
+field constant int16 rank.ordinal -> rank_ordinal;
+field constant string rank.name -> rank_name;
+field constant string rank.description -> rank_description;
+field constant string rank.comments -> rank_comments;
+field constant int rank.capacity -> rank_capacity;
+field constant flag("reputation_rank") rank.flags -> rank_flags;
+field constant int rank.set -> rank_set;
+field method constant string rank.color -> rank_color;
+
+// REPUTATION method/fields
+field method constant string reputation.name -> reputation_name;
+field method constant string reputation.description -> reputation_description;
+field method constant string reputation.comments -> reputation_comments;
+field method constant widevnum reputation.widevnum -> reputation_widevnum;
+field method constant rank reputation.rank -> reputation_rank;
+field method constant rank reputation.max_rank -> reputation_maximum_rank;
+field method constant rank reputation.initial_rank -> reputation_initial_rank;
+field method constant list(constant rank) reputation.ranks -> reputation_ranks;
+field method constant int reputation.initial -> reputation_initial_reputation;
+field constant flag("reputation") reputation.flags -> reputation_flags;
+field constant int reputation.reputation -> reputation_reputation;
+field constant int32 reputation.paragon -> reputation_paragon_level;
+field constant token& reputation.token -> reputation_token;
 
 // ROOM method/fields
 field constant int room.vnum -> room_vnum;

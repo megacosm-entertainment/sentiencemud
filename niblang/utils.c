@@ -8,6 +8,7 @@
 #include "../merc.h"
 #include "niblang.h"
 #include "script.h"
+#include "tables.h"
 
 #define TOLOWER(ch)		(((ch) >= 'A' && (ch) <= 'Z')?((ch)+' '):(ch))
 #define TOUPPER(ch)		(((ch) >= 'a' && (ch) <= 'z')?((ch)-' '):(ch))
@@ -514,6 +515,7 @@ void nib_free(void *data)
 
 void hex_dump(void *addr, size_t size)
 {
+	printf("HEX: %p(%ld)\n", addr, size);
 	printf("      ");
 	for(int j = 0; j < 16; j++)
 	{
@@ -740,6 +742,8 @@ size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst)
 	switch(nst)
 	{
 	case NST_NUMBER:	size = sizeof(long); break;
+	case NST_NUMBER32:	size = sizeof(int); break;
+	case NST_NUMBER16:	size = sizeof(short); break;
 	case NST_FLOAT:		size = sizeof(double); break;
 	case NST_BOOLEAN:	size = sizeof(bool); break;
 	case NST_CHAR:		size = sizeof(utf8char_t); break;
@@ -772,4 +776,22 @@ time_t parse_time_string(char *str)
 	}
 	else
 		return (time_t)-1;
+}
+
+int game_setting_lookup(const char *name)
+{
+	if (!utf8_isstrascii(name)) return -1;
+
+	for(int i = 0; game_settings_table[i].name; i++)
+	{
+		if (!str_cmp(game_settings_table[i].name, name) && game_settings_table[i].script_access)
+			return i;
+	}
+
+	return -1;
+}
+
+int game_setting_type(int index)
+{
+	return game_settings_table[index].type;
 }

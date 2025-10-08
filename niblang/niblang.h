@@ -38,6 +38,7 @@ enum nib_instructions_e {
 	NI_LOAD_FLAG_TABLE,		// Contains the TABLE pointer
 	NI_LOAD_FLAG_BANK,
 	NI_LOAD_STAT,
+	NI_LOAD_GAME_SETTING,
 	NI_NEW_LIST,			// Pushes an empty list (of the given list type) onto the stack
 	NI_NEW_ARRAY,
 	NI_NULL,				// Pushes a NST_NULL onto the stack
@@ -334,6 +335,7 @@ struct nib_method_type
 	NIB_SCRIPT_STACK_TYPE sresult2;	// For LIST and ARRAY
 	bool constant;
 	bool lvalue;
+	int modifiers;
 	int nparams;
 	NIB_TYPE **params;
 
@@ -601,12 +603,12 @@ NIB_FIELD *nib_field_get(NIB_TYPE *context, char *name);
 bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, size_t offset, size_t size, METHOD_FUNC *method);
 bool nib_method_valid_context(NIB_TYPE *context);
 bool nib_method_func_lookup(const char *name, METHOD_FUNC **func, bool *lvalue);
-NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func);
+NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, bool constant, bool lvalue, int modifiers, LLIST *params, char *method_name, METHOD_FUNC *method_func);
 void free_nib_method(NIB_METHOD *method);
 NIB_METHOD *nib_method_get_byid(NIB_SCRIPT_STACK_TYPE context, int id);
 NIB_METHOD *nib_method_get(NIB_TYPE *context, char *name, LLIST *params);
 bool nib_method_exists(NIB_TYPE *context, char *name, LLIST *params);
-bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, LLIST *params, char *method_name, METHOD_FUNC *method_func);
+bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool constant, bool lvalue, int modifiers, LLIST *params, char *method_name, METHOD_FUNC *method_func);
 bool nib_methods_init();
 void nib_methods_cleanup();
 void nib_method_get_prototype(NIB_METHOD *method, char *buffer, size_t max_len);
@@ -726,6 +728,7 @@ void hex_dump(void *addr, size_t size);
 size_t get_array_element_size_nst(NIB_SCRIPT_STACK_TYPE nst);
 char *get_affect_name(AFFECT_DATA *paf);
 time_t parse_time_string(char *str);
+int game_setting_lookup(const char *name);
 
 // variables.c
 NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant);
