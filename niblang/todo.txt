@@ -1,0 +1,27 @@
+TODO:
+
+- Split the script creation into loading and compile phases.
+  - LOADING should create the main data structure, load the source and other OLC data
+  - COMPILE should compile the source and add the compiled data structures. 
+
+- Add the DICE type
+  - Fields:
+    - int32& dice.count
+    - int32& dice.size
+	- int32& dice.bonus
+	- int dice.last_roll
+  - Methods:
+    - int dice.roll()
+
+- Add ability to define an array using a registered stat table.
+  - Only stat tables that have been registered for array indexing will be usuable
+    - Syntax: array(type[table-name]) or array(type["table-name"])
+  - When accessing the entry in such an array:
+    - Syntax: stat-array[stat-value]
+
+  - Potentially add the ability in the TABLE definition to make it an array indexer.
+    - Possible syntax: table stat array(<[value,value,...value]>) name;
+
+- Add field alias system to reduce the actual number of field definitions
+  - Candidates for field aliasing must point to the same offset on the same entity and have the same type.
+  - Syntax: alias type.field_name -> field_alias;
