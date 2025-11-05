@@ -2395,6 +2395,34 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	if (mob->sex == 3) /* random sex */
 		mob->sex = number_range(1,2);
 
+	    // NEW: carry body type and pronoun/verb settings from index to instance
+    mob->body_type = pMobIndex->body_type;
+    mob->verb_preference = pMobIndex->verb_preference;
+
+    // If index has custom pronouns, copy them; otherwise, reset to defaults for the body type
+    if (pMobIndex->pronoun_he_she || pMobIndex->pronoun_him_her ||
+        pMobIndex->pronoun_his_her || pMobIndex->pronoun_his_hers ||
+        pMobIndex->pronoun_himself_herself)
+    {
+        if (pMobIndex->pronoun_he_she)          mob->pronoun_he_she          = str_dup(pMobIndex->pronoun_he_she);
+        if (pMobIndex->pronoun_him_her)         mob->pronoun_him_her         = str_dup(pMobIndex->pronoun_him_her);
+        if (pMobIndex->pronoun_his_her)         mob->pronoun_his_her         = str_dup(pMobIndex->pronoun_his_her);
+        if (pMobIndex->pronoun_his_hers)        mob->pronoun_his_hers        = str_dup(pMobIndex->pronoun_his_hers);
+        if (pMobIndex->pronoun_himself_herself) mob->pronoun_himself_herself = str_dup(pMobIndex->pronoun_himself_herself);
+    }
+    else
+    {
+        // Apply body-type defaults (uses body_type_info[] underneath)
+        reset_pronouns_to_body_type(mob, mob->body_type);
+    }
+
+    // If body type is RANDOM, pick a concrete type now and set defaults
+    if (mob->body_type == BODY_TYPE_RANDOM) {
+        int pick = number_range(BODY_TYPE_NEUTRAL, BODY_TYPE_FEMALE); // tweak if you want to include OTHER
+        mob->body_type = (body_type_t)pick;
+        reset_pronouns_to_body_type(mob, mob->body_type);
+    }
+
 	mob->race				= pMobIndex->race;
 	race = &race_table[mob->race];
 	mob->form				= pMobIndex->form;

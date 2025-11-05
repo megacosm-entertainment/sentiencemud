@@ -833,8 +833,8 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	mob->imm_flags,
 	mob->res_flags,
 	mob->vuln_flags);
-    fprintf(fp, "StartPos %d DefaultPos %d Sex %d Wealth %ld\n",
-        mob->start_pos, mob->default_pos, mob->sex, mob->wealth);
+    fprintf(fp, "StartPos %d DefaultPos %d Wealth %ld\n",
+        mob->start_pos, mob->default_pos, mob->wealth);
 	fprintf(fp, "BodyType %d\n", mob->body_type);
     fprintf(fp, "Parts %ld Size %d\n",
 	mob->parts, mob->size);
@@ -2636,6 +2636,9 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
             else if (old_sex_val == 1) mob->body_type = BODY_TYPE_MALE;
             else if (old_sex_val == 2) mob->body_type = BODY_TYPE_FEMALE;
             else mob->body_type = BODY_TYPE_NEUTRAL;
+			sprintf(buf, "read_mob_new: mob %s(%ld) had sex field %d, migrating to body type %d",
+				mob->short_descr, mob->vnum, old_sex_val, mob->body_type);
+			log_string(buf);
         
     }
 
