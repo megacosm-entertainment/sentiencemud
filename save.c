@@ -1151,7 +1151,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->last_login = current_time;
 
 if (found && !IS_NPC(ch) && 
-    (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
+    (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name)) && d->host != NULL) {
     
     // First determine if migration is needed
     bool migration_needed = ((!IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) || 
