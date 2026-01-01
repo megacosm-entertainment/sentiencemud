@@ -750,31 +750,46 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	fprintf(fp, "Vnum %ld\n",	ch->pIndexData->vnum	);
     else
     {
-	fprintf(fp, "Pass %s~\n",	ch->pcdata->pwd		);
-	fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
-	if (ch->pcdata->reset_code != NULL)
-		fprintf(fp, "ResetCode %s~\n", ch->pcdata->reset_code);
+	/*
+	 * AUTH DATA: Only save for unlinked characters (no account)
+	 * Linked characters have their auth stored in account file
+	 * Note: As characters migrate, these fields should be empty for linked chars
+	 */
+	bool is_unlinked = IS_NULLSTR(ch->pcdata->account_name);
+	bool has_auth_data = !IS_NULLSTR(ch->pcdata->pwd) || ch->pcdata->mfa_enabled;
 
-	if (ch->pcdata->reset_time != 0)
-		fprintf(fp, "Reset_Time %ld\n", ch->pcdata->reset_time);
+	/* Save password data if unlinked or if fields are non-empty (mid-migration) */
+	if (is_unlinked || has_auth_data) {
+		if (!IS_NULLSTR(ch->pcdata->pwd)) {
+			fprintf(fp, "Pass %s~\n", ch->pcdata->pwd);
+			fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
+		}
 
-	fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
+		if (ch->pcdata->reset_code != NULL && !IS_NULLSTR(ch->pcdata->reset_code))
+			fprintf(fp, "ResetCode %s~\n", ch->pcdata->reset_code);
 
-	if (ch->pcdata->mfa_key != NULL)
-		fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
+		if (ch->pcdata->reset_time != 0)
+			fprintf(fp, "Reset_Time %ld\n", ch->pcdata->reset_time);
 
-	if (ch->pcdata->mfa_enabled == true)
-	{
-		fprintf(fp, "MFA_Enabled\n");
-		fprintf(fp, "MFAPendingKey %s~\n", ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : "");
-		fprintf(fp, "MFAPending %d\n", ch->pcdata->mfa_pending ? 1 : 0);
-		fprintf(fp, "RecoveryCodes ");
-			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
-    			fprintf(fp, "%s%c", ch->pcdata->recovery_codes[i], (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+		if (ch->pcdata->reset_state != 0)
+			fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
 
-		fprintf(fp, "RecoveryUsed ");
-			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
-    			fprintf(fp, "%d%c", ch->pcdata->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+		if (ch->pcdata->mfa_key != NULL && !IS_NULLSTR(ch->pcdata->mfa_key))
+			fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
+
+		if (ch->pcdata->mfa_enabled == true)
+		{
+			fprintf(fp, "MFA_Enabled\n");
+			fprintf(fp, "MFAPendingKey %s~\n", ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : "");
+			fprintf(fp, "MFAPending %d\n", ch->pcdata->mfa_pending ? 1 : 0);
+			fprintf(fp, "RecoveryCodes ");
+				for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+					fprintf(fp, "%s%c", ch->pcdata->recovery_codes[i], (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+
+			fprintf(fp, "RecoveryUsed ");
+				for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+					fprintf(fp, "%d%c", ch->pcdata->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+		}
 	}
 	/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 	    fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
@@ -5996,28 +6011,57 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             free_string(acct_char->last_area);
             acct_char->last_area = str_dup(format_location_string(ch->in_room));
             
-            // Migrate password data if needed
+            // Migrate password data if needed (for character override passwords)
             if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) {
                 free_string(acct_char->pwd);
                 acct_char->pwd = str_dup(ch->pcdata->pwd);
                 acct_char->pwd_vers = ch->pcdata->pwd_vers;
-                
+
+                // Also migrate old_pwd if present
+                if (!IS_NULLSTR(ch->pcdata->old_pwd)) {
+                    free_string(acct_char->old_pwd);
+                    acct_char->old_pwd = str_dup(ch->pcdata->old_pwd);
+                    free_string(ch->pcdata->old_pwd);
+                    ch->pcdata->old_pwd = str_dup("");
+                }
+
+                // Clear from character file
                 free_string(ch->pcdata->pwd);
                 ch->pcdata->pwd = str_dup("");
+                ch->pcdata->account_pwd_override = false;
+                need_save_char = true;
+            }
+            // For standard linked characters, ensure pwd is cleared
+            else if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd) && !ch->pcdata->account_pwd_override) {
+                free_string(ch->pcdata->pwd);
+                ch->pcdata->pwd = str_dup("");
+                if (!IS_NULLSTR(ch->pcdata->old_pwd)) {
+                    free_string(ch->pcdata->old_pwd);
+                    ch->pcdata->old_pwd = str_dup("");
+                }
+                ch->pcdata->account_pwd_override = false;
                 need_save_char = true;
             }
             
             // Migrate MFA settings
             if (ch->pcdata && ch->pcdata->mfa_enabled) {
                 acct_char->mfa_enabled = ch->pcdata->mfa_enabled;
-                
+
                 if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
                     free_string(acct_char->mfa_key);
                     acct_char->mfa_key = str_dup(ch->pcdata->mfa_key);
                     free_string(ch->pcdata->mfa_key);
                     ch->pcdata->mfa_key = str_dup("");
                 }
-                
+
+                // Migrate pending MFA key if present
+                if (!IS_NULLSTR(ch->pcdata->mfa_pending_key)) {
+                    free_string(acct_char->mfa_pending_key);
+                    acct_char->mfa_pending_key = str_dup(ch->pcdata->mfa_pending_key);
+                    free_string(ch->pcdata->mfa_pending_key);
+                    ch->pcdata->mfa_pending_key = str_dup("");
+                }
+
                 // Handle recovery codes
                 for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
                     if (!IS_NULLSTR(ch->pcdata->recovery_codes[i])) {
@@ -6025,15 +6069,30 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                             free_string(acct_char->recovery_codes[i]);
                         acct_char->recovery_codes[i] = str_dup(ch->pcdata->recovery_codes[i]);
                         acct_char->recovery_used[i] = ch->pcdata->recovery_used[i];
-                        
+
                         free_string(ch->pcdata->recovery_codes[i]);
                         ch->pcdata->recovery_codes[i] = str_dup("");
                         ch->pcdata->recovery_used[i] = false;
                     }
                 }
-                
-                // Disable MFA on character since it's now at account level
+
+                // Clear MFA state on character since it's now at account level
                 ch->pcdata->mfa_enabled = false;
+                ch->pcdata->mfa_pending = false;
+                need_save_char = true;
+            }
+            // For standard linked characters, ensure MFA is cleared
+            else if (ch->pcdata && (!IS_NULLSTR(ch->pcdata->mfa_key) || ch->pcdata->mfa_enabled)) {
+                if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
+                    free_string(ch->pcdata->mfa_key);
+                    ch->pcdata->mfa_key = str_dup("");
+                }
+                if (!IS_NULLSTR(ch->pcdata->mfa_pending_key)) {
+                    free_string(ch->pcdata->mfa_pending_key);
+                    ch->pcdata->mfa_pending_key = str_dup("");
+                }
+                ch->pcdata->mfa_enabled = false;
+                ch->pcdata->mfa_pending = false;
                 need_save_char = true;
             }
             
@@ -6131,41 +6190,82 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
         if (ch->in_room != NULL)
             acct_char->last_area = str_dup(!IS_NULLSTR(ch->in_room->area->name) ? ch->in_room->area->name : "");
 
-        // Copy authentication data from character to account character
+        // Copy authentication data from character to account character (for character override)
         if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) {
             acct_char->pwd = str_dup(ch->pcdata->pwd);
             acct_char->pwd_vers = ch->pcdata->pwd_vers;
-            
-            // Clear from character file since we're now storing at account level
+
+            // Also copy old_pwd if present
+            if (!IS_NULLSTR(ch->pcdata->old_pwd)) {
+                acct_char->old_pwd = str_dup(ch->pcdata->old_pwd);
+                free_string(ch->pcdata->old_pwd);
+                ch->pcdata->old_pwd = str_dup("");
+            }
+
+            // Clear from character file
             free_string(ch->pcdata->pwd);
             ch->pcdata->pwd = str_dup("");
+            ch->pcdata->account_pwd_override = false;
             need_save_char = true;
         }
-        
+        // For standard linked characters, ensure pwd is cleared
+        else if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd)) {
+            free_string(ch->pcdata->pwd);
+            ch->pcdata->pwd = str_dup("");
+            if (!IS_NULLSTR(ch->pcdata->old_pwd)) {
+                free_string(ch->pcdata->old_pwd);
+                ch->pcdata->old_pwd = str_dup("");
+            }
+            ch->pcdata->account_pwd_override = false;
+            need_save_char = true;
+        }
+
         // Copy MFA settings
         if (ch->pcdata && ch->pcdata->mfa_enabled) {
             acct_char->mfa_enabled = ch->pcdata->mfa_enabled;
-            
+
             if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
                 acct_char->mfa_key = str_dup(ch->pcdata->mfa_key);
                 free_string(ch->pcdata->mfa_key);
                 ch->pcdata->mfa_key = str_dup("");
             }
-            
+
+            // Copy pending MFA key if present
+            if (!IS_NULLSTR(ch->pcdata->mfa_pending_key)) {
+                acct_char->mfa_pending_key = str_dup(ch->pcdata->mfa_pending_key);
+                free_string(ch->pcdata->mfa_pending_key);
+                ch->pcdata->mfa_pending_key = str_dup("");
+            }
+
             // Copy recovery codes
             for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
                 if (!IS_NULLSTR(ch->pcdata->recovery_codes[i])) {
                     acct_char->recovery_codes[i] = str_dup(ch->pcdata->recovery_codes[i]);
                     acct_char->recovery_used[i] = ch->pcdata->recovery_used[i];
-                    
+
                     free_string(ch->pcdata->recovery_codes[i]);
                     ch->pcdata->recovery_codes[i] = str_dup("");
                     ch->pcdata->recovery_used[i] = false;
                 }
             }
-            
-            // Disable MFA on character since it's now at account level
+
+            // Clear MFA state on character
             ch->pcdata->mfa_enabled = false;
+            ch->pcdata->mfa_pending = false;
+            need_save_char = true;
+        }
+        // For standard linked characters, ensure MFA is cleared
+        else if (ch->pcdata && (!IS_NULLSTR(ch->pcdata->mfa_key) || ch->pcdata->mfa_enabled)) {
+            if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
+                free_string(ch->pcdata->mfa_key);
+                ch->pcdata->mfa_key = str_dup("");
+            }
+            if (!IS_NULLSTR(ch->pcdata->mfa_pending_key)) {
+                free_string(ch->pcdata->mfa_pending_key);
+                ch->pcdata->mfa_pending_key = str_dup("");
+            }
+            ch->pcdata->mfa_enabled = false;
+            ch->pcdata->mfa_pending = false;
             need_save_char = true;
         }
         

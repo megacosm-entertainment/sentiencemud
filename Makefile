@@ -14,6 +14,7 @@ EXE	= sent
 
 C_FILES = \
     account/auth.c \
+    account/auth_migrate.c \
     account/otp.c \
     account/account_notes.c \
     act_comm.c \
@@ -106,6 +107,7 @@ C_FILES = \
     mount.c \
     music.c \
     nanny.c \
+    nanny_utils.c \
     note.c \
     olc.c \
     olc_act.c \

@@ -22,10 +22,11 @@
 #include "wilds.h"
 #include "protocol.h"
 #include "account/auth.h"
+#include "nanny_utils.h"
 
 
-#define DEV_SKIP_PASSWORD (game_settings.dev_server && !game_settings.enable_passwd)
-#define DEV_SKIP_MFA      (game_settings.dev_server && !game_settings.enable_mfa)
+#define DEV_SKIP_PASSWORD should_skip_password()
+#define DEV_SKIP_MFA      should_skip_mfa()
 
 
 
@@ -3936,25 +3937,22 @@ void login_get_char_mfa(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    // Verify MFA using account_character data
-    if (!IS_NULLSTR(acct_char->mfa_key)) {
-        mfa_valid = validate_totp_code(acct_char->mfa_key, argument);
-        
-        // Also check recovery codes
-        if (!mfa_valid) {
-            for (int i = 0; i < MFA_RECOVERY_CODES && !mfa_valid; i++) {
-                if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
-                    !acct_char->recovery_used[i] &&
-                    !strcmp(argument, acct_char->recovery_codes[i])) {
-                    // Mark code as used
-                    acct_char->recovery_used[i] = true;
-                    save_account(acct);
-                    mfa_valid = true;
-                    write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
-                }
-            }
-        }
+    // Verify MFA using auth API
+    AUTH_DATA *auth = get_character_auth(acct_char);
+
+    // Try MFA code first
+    if (verify_mfa_code(argument, auth)) {
+        mfa_valid = true;
     }
+    // Try recovery code if MFA failed
+    else if (verify_recovery_code(argument, auth)) {
+        mark_recovery_code_used(argument, auth, acct, acct_char);
+        save_account(acct);
+        mfa_valid = true;
+        write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
+    }
+
+    free_auth_data(auth);
     
     if (!mfa_valid) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
@@ -4058,15 +4056,19 @@ void login_character_mfa_verify(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
 
-    // Verify using the pending key
-    if (!validate_totp_code(acct_char->mfa_pending_key, argument)) {
+    // Verify using the pending key via auth API
+    AUTH_DATA *auth = get_character_auth(acct_char);
+    bool valid = verify_mfa_code(argument, auth);
+    free_auth_data(auth);
+
+    if (!valid) {
         write_to_buffer(d, "Invalid MFA code. MFA setup has been aborted.\n\r", 0);
-        
+
         // Clear the pending key
         free_string(acct_char->mfa_pending_key);
         acct_char->mfa_pending_key = str_dup("");
         save_account(acct);
-        
+
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
@@ -4109,8 +4111,12 @@ void login_account_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
         return;
     }
     
-    // Validate with the pending key
-    if (!validate_totp_code(acct->mfa_pending_key, argument)) {
+    // Validate with the pending key via auth API
+    AUTH_DATA *auth = get_account_auth(acct);
+    bool valid = verify_mfa_code(argument, auth);
+    free_auth_data(auth);
+
+    if (!valid) {
         write_to_buffer(d, "Invalid MFA code. Please try again: ", 0);
         return;
     }
@@ -4137,23 +4143,23 @@ void login_account_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
 void login_get_account_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
-    bool valid_code = validate_totp_code(acct->mfa_key, argument);
+    AUTH_DATA *auth = get_account_auth(acct);
+    bool valid_code = false;
     bool used_recovery = false;
-    
-    // Check recovery codes if TOTP validation fails
-    if (!valid_code) {
-        for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-            if (!IS_NULLSTR(acct->recovery_codes[i]) && 
-                !acct->recovery_used[i] && 
-                !strcmp(argument, acct->recovery_codes[i])) {
-                acct->recovery_used[i] = true;
-                save_account(acct);
-                valid_code = true;
-                used_recovery = true;
-                break;
-            }
-        }
+
+    // Try MFA code first
+    if (verify_mfa_code(argument, auth)) {
+        valid_code = true;
     }
+    // Try recovery code if MFA failed
+    else if (verify_recovery_code(argument, auth)) {
+        mark_recovery_code_used(argument, auth, acct, NULL);
+        save_account(acct);
+        valid_code = true;
+        used_recovery = true;
+    }
+
+    free_auth_data(auth);
     
     if (!valid_code) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
@@ -4938,8 +4944,12 @@ void login_character_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
         return;
     }
     
-    // Use the pending key for validation!
-    if (!validate_totp_code(acct_char->mfa_pending_key, argument)) {
+    // Use the pending key for validation via auth API
+    AUTH_DATA *auth = get_character_auth(acct_char);
+    bool valid = verify_mfa_code(argument, auth);
+    free_auth_data(auth);
+
+    if (!valid) {
         write_to_buffer(d, "Invalid MFA code. Please try again: ", 0);
         d->connected = CON_CHARACTER_MFA_CONFIRM;
         return;
@@ -4983,22 +4993,22 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    // Verify MFA using account_character data
-    mfa_valid = validate_totp_code(acct_char->mfa_key, argument);
-    
-    // Also check recovery codes
-    if (!mfa_valid) {
-        for (int i = 0; i < MFA_RECOVERY_CODES && !mfa_valid; i++) {
-            if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
-                !acct_char->recovery_used[i] &&
-                !strcmp(argument, acct_char->recovery_codes[i])) {
-                mfa_valid = true;
-                acct_char->recovery_used[i] = true;
-                save_account(acct);
-                write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
-            }
-        }
+    // Verify MFA using auth API
+    AUTH_DATA *auth = get_character_auth(acct_char);
+
+    // Try MFA code first
+    if (verify_mfa_code(argument, auth)) {
+        mfa_valid = true;
     }
+    // Try recovery code if MFA failed
+    else if (verify_recovery_code(argument, auth)) {
+        mark_recovery_code_used(argument, auth, acct, acct_char);
+        save_account(acct);
+        mfa_valid = true;
+        write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
+    }
+
+    free_auth_data(auth);
     
     if (mfa_valid) {
         d->mfa_verified = true;
