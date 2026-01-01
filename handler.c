@@ -4428,7 +4428,7 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
     if (ch == NULL) {
         // If no character is provided, we can always "see" the object
         // This prevents crashes in script triggers and other scenarios
-        return TRUE;
+        return true;
     }
 
     // Toggled on dead people's possessions.
@@ -10631,7 +10631,7 @@ bool has_recovery_codes(const char **codes, int count) {
 ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded) {
     ACCOUNT_DATA *account = get_account_by_name(name); // online/in-memory
     if (account) {
-        if (was_loaded) *was_loaded = FALSE;
+        if (was_loaded) *was_loaded = false;
         return account;
     }
 
@@ -10639,7 +10639,7 @@ ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded) {
     DESCRIPTOR_DATA d;
     memset(&d, 0, sizeof(d));
     if (!load_account(&d, name)) {
-        if (was_loaded) *was_loaded = FALSE;
+        if (was_loaded) *was_loaded = false;
         return NULL;
     }
 
@@ -10650,7 +10650,7 @@ ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded) {
 		}
     }
 
-    if (was_loaded) *was_loaded = TRUE;
+    if (was_loaded) *was_loaded = true;
     return d.account;
 }
 
@@ -10775,7 +10775,7 @@ CHURCH_DATA *get_church_by_name(const char *name)
 }
 
 bool validate_account_recipient(const char *account_name) {
-    bool was_loaded = FALSE;
+    bool was_loaded = false;
     ACCOUNT_DATA *acct = get_account_online_or_offline((char *)account_name, &was_loaded);
     if (!acct)
         return false;

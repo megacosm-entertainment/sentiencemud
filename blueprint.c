@@ -331,7 +331,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				ex->link = link;
 
 				list_appendlink(bp->_static.entries, ex);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -347,7 +347,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				ex->link = link;
 
 				list_appendlink(bp->_static.exits, ex);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 

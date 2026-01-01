@@ -5950,7 +5950,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH], arg3[MAX_INPUT_LENGTH], buf[MSL];
     ACCOUNT_DATA *account;
-    bool loaded = FALSE;
+    bool loaded = false;
     int value;
 
     argument = one_argument(argument, arg);   // account name
@@ -5999,7 +5999,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
 	else if (!str_prefix(arg2, "flag")) {
     	char flag_buf[MAX_INPUT_LENGTH];
     	char *flag_name;
-    	bool found_flag = FALSE;
+    	bool found_flag = false;
 
 	    // Make a copy of arg3 to tokenize
     	strncpy(flag_buf, arg3, sizeof(flag_buf));
@@ -6015,7 +6015,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
         	    // Don't return, just skip this flag
         	} else {
         	    TOGGLE_BIT(account->acct_flags, flagval);
-        	    found_flag = TRUE;
+        	    found_flag = true;
         	}
         	flag_name = strtok(NULL, " ");
     	}
@@ -7492,7 +7492,7 @@ void do_sockets(CHAR_DATA *ch, char *argument)
     int count;
     char s[100];
     char idle[20];
-    bool found_match = FALSE;
+    bool found_match = false;
     int search_type = 0; // 0 = name, 1 = host, 2 = account, 3 = state
 
     count = 0;
@@ -7526,30 +7526,30 @@ void do_sockets(CHAR_DATA *ch, char *argument)
     for (d = descriptor_list; d; d = d->next) {
         // Skip this descriptor if it doesn't match our search criteria
         if (arg[0] != '\0') {
-            found_match = FALSE;
+            found_match = false;
             
             switch (search_type) {
                 case 0: // Default search by character name
                     if (d->character && can_see(ch, d->character) && 
                         (is_name(arg, d->character->name) ||
                          (d->original && is_name(arg, d->original->name))))
-                        found_match = TRUE;
+                        found_match = true;
                     break;
                     
                 case 1: // Search by host
                     if (d->host && strstr(d->host, arg))
-                        found_match = TRUE;
+                        found_match = true;
                     break;
                     
                 case 2: // Search by account
                     if (d->account && strstr(d->account->username, arg))
-                        found_match = TRUE;
+                        found_match = true;
                     break;
                     
                 case 3: // Search by connection state
                     if (d->connected < CON_MAX && 
                         strstr(con_states[d->connected].name, arg))
-                        found_match = TRUE;
+                        found_match = true;
                     break;
             }
             
@@ -10244,7 +10244,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
     char reset_msg[MSL], reset_subject[MSL];
     char tmp_reset_code[16]; // Used for reset codes and can be for new passwords
     DESCRIPTOR_DATA d;       // Used for loading offline accounts/chars
-    bool is_account = FALSE;
+    bool is_account = false;
     ACCOUNT_DATA *account = NULL;
 
     argument = one_argument(argument, type);
@@ -10260,7 +10260,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
     // Check if this is an account reset
     if (!strncmp(target, "account:", 8))
     {
-        is_account = TRUE;
+        is_account = true;
         memmove(target, target + 8, strlen(target) - 7); // Remove "account:" prefix
     }
 
@@ -10587,7 +10587,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
     char target[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA d;
-    bool is_account = FALSE;
+    bool is_account = false;
     ACCOUNT_DATA *account = NULL;
 
     argument = one_argument(argument, target);
@@ -10602,7 +10602,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
     // Check if this is an account reset
     if (!strncmp(target, "account:", 8))
     {
-        is_account = TRUE;
+        is_account = true;
         memmove(target, target + 8, strlen(target) - 7); // Remove "account:" prefix
     }
 
@@ -10634,7 +10634,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
             }
 
             // Reset MFA settings
-            account->mfa_enabled = FALSE;
+            account->mfa_enabled = false;
             
             if (!IS_NULLSTR(account->mfa_key))
             {
@@ -10683,7 +10683,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
                     }
 
                     // Reset MFA settings
-                    d.character->pcdata->mfa_enabled = FALSE;
+                    d.character->pcdata->mfa_enabled = false;
                     
                     if (!IS_NULLSTR(d.character->pcdata->mfa_key))
                     {
@@ -10712,7 +10712,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
                 }
 
                 // Reset MFA for online character
-                victim->pcdata->mfa_enabled = FALSE;
+                victim->pcdata->mfa_enabled = false;
                 
                 if (!IS_NULLSTR(victim->pcdata->mfa_key))
                 {
@@ -10801,7 +10801,7 @@ void do_acctlink(CHAR_DATA *ch, char *argument) {
     CHAR_DATA *char_to_link = NULL;
     DESCRIPTOR_DATA d_account, d_char; // d_account for potentially loading offline account
     DESCRIPTOR_DATA *d_iter;
-    bool is_account_online = FALSE;
+    bool is_account_online = false;
 
     argument = one_argument(argument, account_name_arg);
     argument = one_argument(argument, char_name_arg);
@@ -10819,7 +10819,7 @@ void do_acctlink(CHAR_DATA *ch, char *argument) {
         if (d_iter->account != NULL &&
             !str_cmp(d_iter->account->username, account_name_arg)) {
             target_account = d_iter->account;
-            is_account_online = TRUE;
+            is_account_online = true;
             // Optional: send_to_char("Notice: Account is currently online. Using live data.\n\r", ch);
             break;
         }
@@ -10839,7 +10839,7 @@ void do_acctlink(CHAR_DATA *ch, char *argument) {
             return;
         }
         target_account = d_account.account;
-        is_account_online = FALSE; // Mark that this account was loaded
+        is_account_online = false; // Mark that this account was loaded
     }
 
     // At this point, target_account is valid (either online or loaded into d_account.account)
@@ -10977,7 +10977,7 @@ void do_acctunlink(CHAR_DATA *ch, char *argument) {
     CHAR_DATA *char_to_unlink = NULL;
     DESCRIPTOR_DATA d_account, d_char;
     DESCRIPTOR_DATA *d_iter;
-    bool is_account_online = FALSE;
+    bool is_account_online = false;
 
     one_argument(argument, char_name_arg);
 
@@ -11027,12 +11027,12 @@ void do_acctunlink(CHAR_DATA *ch, char *argument) {
 
     // 4. Find Account: Check if account is online first
     memset(&d_account, 0, sizeof(d_account));
-    is_account_online = FALSE;
+    is_account_online = false;
     for (d_iter = descriptor_list; d_iter != NULL; d_iter = d_iter->next) {
         if (d_iter->account != NULL &&
             !str_cmp(d_iter->account->username, old_account_name)) {
             source_account = d_iter->account;
-            is_account_online = TRUE;
+            is_account_online = true;
             break;
         }
     }
@@ -11047,7 +11047,7 @@ void do_acctunlink(CHAR_DATA *ch, char *argument) {
             return;
         }
         source_account = d_account.account;
-        is_account_online = FALSE;
+        is_account_online = false;
     }
 
     // 5. Remove character from account (this also updates char pfile to clear account info & saves account)

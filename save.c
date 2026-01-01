@@ -1867,7 +1867,7 @@ iterator_stop(&it);
 		if (!str_cmp(word, "LastArea"))
 		{
 			ch->pcdata->last_area = fread_string(fp);
-			fMatch = TRUE;
+			fMatch = true;
 		}
 
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
@@ -1912,12 +1912,12 @@ iterator_stop(&it);
 		if (!str_cmp(word, "MFAPendingKey")) {
     		free_string(ch->pcdata->mfa_pending_key);
     		ch->pcdata->mfa_pending_key = str_dup(fread_string(fp));
-    		fMatch = TRUE;
+    		fMatch = true;
 		}
 
 		if (!str_cmp(word, "MFAPending")) {
 		    ch->pcdata->mfa_pending = (fread_number(fp) != 0);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 
@@ -2217,12 +2217,12 @@ iterator_stop(&it);
 		if (!str_cmp(word, "RecoveryCodes")) {
     		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
         		ch->pcdata->recovery_codes[i] = str_dup(fread_word(fp));
-    		fMatch = TRUE;
+    		fMatch = true;
 		}
 		if (!str_cmp(word, "RecoveryUsed")) {
     		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
         		ch->pcdata->recovery_used[i] = (fread_number(fp) != 0);
-    		fMatch = TRUE;
+    		fMatch = true;
 		}
 
 	    KEY("Resist", ch->res_flags,	fread_flag(fp));
@@ -5360,13 +5360,13 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
         get_account_id(account);
 
     account->character_count = list_size(account->characters);
-    account->staff_account = FALSE;
+    account->staff_account = false;
     ITERATOR cit;
     ACCOUNT_CHARACTER *ch_entry;
     iterator_start(&cit, account->characters);
     while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&cit))) {
         if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
-            account->staff_account = TRUE;
+            account->staff_account = true;
             break;
         }
     }
@@ -5466,21 +5466,21 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
     // Add to the beginning of the list
     note->next = account->staff_notes;
     account->staff_notes = note;
-    fMatch = TRUE;
+    fMatch = true;
 }
 break;
 
         case 'C':
 			if (!str_cmp(word, "CharCount")) {
     			account->character_count = fread_number(fp);
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
 			KEY("CharacterLimit", account->character_limit, fread_number(fp));
             KEY("Created", account->creation_date, fread_number(fp));
 			if (!str_cmp(word, "CreationIP")) {
  			   free_string(account->creation_host);
     			account->creation_host = fread_string(fp);
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
             break;
 		case 'D':
@@ -5509,11 +5509,11 @@ break;
 			if (!str_cmp(word, "LastHost")) {
     			free_string(account->last_login_host);
     			account->last_login_host = fread_string(fp);
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
 			if (!str_cmp(word, "LastLogin")) {
     			account->last_login = fread_number(fp);
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
             KEY("LogI", account->last_login, fread_number(fp));
             break;
@@ -5526,11 +5526,11 @@ break;
 			if (!str_cmp(word, "MFAPendingKey")) {
     			free_string(account->mfa_pending_key);
     			account->mfa_pending_key = str_dup(fread_string(fp));
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
 			if (!str_cmp(word, "MFAPending")) {
     			account->mfa_pending = (fread_number(fp) != 0);
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
             break;
 
@@ -5549,12 +5549,12 @@ break;
 			if (!str_cmp(word, "RecoveryCodes")) {
     			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
         			account->recovery_codes[i] = str_dup(fread_word(fp));
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
 			if (!str_cmp(word, "RecoveryUsed")) {
     			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
         			account->recovery_used[i] = (fread_number(fp) != 0);
-    			fMatch = TRUE;
+    			fMatch = true;
 			}
             KEYS("ResetCode", account->reset_code, fread_string(fp));
             KEY("Reset_Time", account->reset_time, fread_number(fp));
@@ -5631,7 +5631,7 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
         case 'L':
             if (!str_cmp(word, "LastArea")) {
                 acct_char->last_area = fread_string(fp);
-                fMatch = TRUE;
+                fMatch = true;
             }
             KEY("LastLogin", acct_char->last_login, fread_number(fp));
             KEY("LastHost", acct_char->last_host, fread_string(fp));
@@ -5668,13 +5668,13 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
             if (!str_cmp(word, "RecoveryCodes")) {
                 for (int i = 0; i < MFA_RECOVERY_CODES; i++)
                     acct_char->recovery_codes[i] = str_dup(fread_word(fp));
-                fMatch = TRUE;
+                fMatch = true;
             }
             
             if (!str_cmp(word, "RecoveryUsed")) {
                 for (int i = 0; i < MFA_RECOVERY_CODES; i++)
                     acct_char->recovery_used[i] = (fread_number(fp) != 0);
-                fMatch = TRUE;
+                fMatch = true;
             }
             break;
         
@@ -6242,13 +6242,13 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 
     // Update account metadata
     account->character_count = list_size(account->characters);
-    account->staff_account = FALSE;
+    account->staff_account = false;
     ITERATOR cit;
     ACCOUNT_CHARACTER *ch_entry;
     iterator_start(&cit, account->characters);
     while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&cit))) {
         if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
-            account->staff_account = TRUE;
+            account->staff_account = true;
             break;
         }
     }
@@ -6268,7 +6268,7 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
 {
     ITERATOR it;
     ACCOUNT_CHARACTER *acct_char;
-    bool found = FALSE;
+    bool found = false;
 
     if (!account || IS_NULLSTR(name)) {
         bug("account_remove_character: invalid parameters", 0);
@@ -6281,7 +6281,7 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
         if (!str_cmp(acct_char->name, name)) {
             iterator_remcurrent(&it);
             free_account_character(acct_char);
-            found = TRUE;
+            found = true;
             break;
         }
     }
@@ -6564,8 +6564,8 @@ static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
 }
 
 void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
-    LLIST *seen = list_create(FALSE);
-    LLIST *obj_seen = list_create(FALSE);
+    LLIST *seen = list_create(false);
+    LLIST *obj_seen = list_create(false);
     OBJ_DATA *obj;
     ITERATOR it;
     
@@ -6592,7 +6592,7 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
     
     // 2. Process carried items (lcarrying)
     if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
-        LLIST *remove_list = list_create(FALSE);
+        LLIST *remove_list = list_create(false);
         
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
@@ -6631,7 +6631,7 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
         // Now remove any duplicates from lcarrying
         iterator_start(&it, remove_list);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            list_remlink(ch->lcarrying, obj, FALSE);
+            list_remlink(ch->lcarrying, obj, false);
         }
         iterator_stop(&it);
         
@@ -6640,7 +6640,7 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
     
     // 3. Process locker items (llocker)
     if (ch->llocker && IS_VALID(ch->llocker)) {
-        LLIST *remove_list = list_create(FALSE);
+        LLIST *remove_list = list_create(false);
         
         iterator_start(&it, ch->llocker);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
@@ -6679,7 +6679,7 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
         // Now remove any duplicates from llocker
         iterator_start(&it, remove_list);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            list_remlink(ch->llocker, obj, FALSE);
+            list_remlink(ch->llocker, obj, false);
         }
         iterator_stop(&it);
         

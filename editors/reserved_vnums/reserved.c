@@ -86,7 +86,7 @@ void load_reserved(void)
 {
     FILE *fp;
     char *word;
-    bool in_block = FALSE;
+    bool in_block = false;
     RESERVED_DATA *reserved = NULL;
     char buf[MSL];
     
@@ -119,12 +119,12 @@ void load_reserved(void)
             if (!str_cmp(word, "#END")) {
                 break;
             } else if (!str_cmp(word, "#RESERVED")) {
-                in_block = TRUE;
+                in_block = true;
                 reserved = alloc_mem(sizeof(RESERVED_DATA));
                 reserved->name = NULL;
                 reserved->description = NULL;
                 reserved->type = -1;
-                reserved->removable = FALSE;
+                reserved->removable = false;
                 reserved->id = 0;
             } else if (!str_cmp(word, "#-RESERVED")) {
                 if (in_block && reserved) {
@@ -140,7 +140,7 @@ void load_reserved(void)
                         free_mem(reserved, sizeof(RESERVED_DATA));
                     }
                     
-                    in_block = FALSE;
+                    in_block = false;
                     reserved = NULL;
                 }
             }
@@ -176,7 +176,7 @@ void load_reserved(void)
     fclose(fp);
     
     log_string(formatf("%d reserved items loaded.", list_size(reserved_vnums)));
-    reserved_changed = FALSE;
+    reserved_changed = false;
 }
 
 /*
@@ -234,7 +234,7 @@ void save_reserved(void)
     
     log_string(formatf("%d reserved items saved to '%s'.", 
                      list_size(reserved_vnums), RESERVED_FILE));
-    reserved_changed = FALSE;
+    reserved_changed = false;
 }
 
 /*
@@ -390,7 +390,7 @@ RESERVED(reserved_listvnums)
         
         if (type == -1) {
             send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
-            return FALSE;
+            return false;
         }
     }
     
@@ -519,7 +519,7 @@ RESERVED(reserved_listvnums)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -536,14 +536,14 @@ RESERVED(reserved_show)
     
     if (arg[0] == '\0') {
         send_to_char("Syntax: reserved show <name>\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     reserved = find_reserved(arg);
     
     if (!reserved) {
         send_to_char("No reserved item with that name exists.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Get type name */
@@ -637,7 +637,7 @@ RESERVED(reserved_show)
     sprintf(buf, "{Y+------------------------------------------------------------------------------+{x\n\r");
     send_to_char(buf, ch);
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -651,7 +651,7 @@ RESERVED(reserved_add)
     char removable_str[MAX_INPUT_LENGTH];
     int type = -1;
     int id;
-    bool removable = TRUE;
+    bool removable = true;
     RESERVED_DATA *reserved;
     
     argument = one_argument(argument, name);
@@ -662,13 +662,13 @@ RESERVED(reserved_add)
     if (name[0] == '\0' || type_str[0] == '\0' || id_str[0] == '\0') {
         send_to_char("Syntax: reserved add <name> <type> <id> [removable]\n\r", ch);
         send_to_char("Types: mob, obj, room, area, skill, flag, command\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Check for existing item with same name */
     if (find_reserved(name)) {
         send_to_char("A reserved item with that name already exists.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Find the type */
@@ -681,13 +681,13 @@ RESERVED(reserved_add)
     
     if (type == -1) {
         send_to_char("Invalid type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Validate ID */
     if (!is_number(id_str)) {
         send_to_char("ID must be a number.\n\r", ch);
-        return FALSE;
+        return false;
     }
     id = atoi(id_str);
     
@@ -695,7 +695,7 @@ RESERVED(reserved_add)
     if (removable_str[0] != '\0') {
         if (!str_prefix(removable_str, "permanent") || !str_prefix(removable_str, "no") || 
             !str_prefix(removable_str, "false") || !str_cmp(removable_str, "0")) {
-            removable = FALSE;
+            removable = false;
         }
     }
     
@@ -717,15 +717,15 @@ RESERVED(reserved_add)
     
     /* Add to list */
     if (!reserved_vnums)
-        reserved_vnums = list_create(FALSE);
+        reserved_vnums = list_create(false);
     list_appendlink(reserved_vnums, reserved);
     
-    reserved_changed = TRUE;
+    reserved_changed = true;
     
     send_to_char(formatf("Added reserved item: %s (type: %s, ID: %d)\n\r", 
         name, reserved_types_get_name(type), id), ch);
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -742,26 +742,26 @@ RESERVED(reserved_delete)
     
     if (arg[0] == '\0') {
         send_to_char("Syntax: reserved delete <name> [confirm]\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     reserved = find_reserved(arg);
     
     if (!reserved) {
         send_to_char("No reserved item with that name exists.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     if (!reserved->removable) {
         send_to_char("This reserved item cannot be removed. It is marked as permanent.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Require confirmation */
     if (str_cmp(confirm, "confirm")) {
         send_to_char(formatf("Are you sure you want to delete reserved item '%s'?\n\r", reserved->name), ch);
         send_to_char("Type 'reserved delete <name> confirm' to confirm.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Remove from list */
@@ -772,10 +772,10 @@ RESERVED(reserved_delete)
         free_string(reserved->name);
         free_string(reserved->description);
         free_mem(reserved, sizeof(RESERVED_DATA));
-        reserved_changed = TRUE;
+        reserved_changed = true;
     } else {
         send_to_char("Reserved item not found in the list.\n\r", ch);
-        return FALSE;
+        return false;
     }
 
         
@@ -784,11 +784,11 @@ RESERVED(reserved_delete)
         /* Auto-save after deletion */
         save_reserved();
         
-        return TRUE;
+        return true;
     
     
     send_to_char("Error removing reserved item from list.\n\r", ch);
-    return FALSE;
+    return false;
 }
 
 /*
@@ -806,39 +806,39 @@ RESERVED(reserved_edit)
     if (name[0] == '\0' || field[0] == '\0') {
         send_to_char("Syntax: reserved edit <name> <field> <value>\n\r", ch);
         send_to_char("Fields: name, type, id, removable, description\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     reserved = find_reserved(name);
     
     if (!reserved) {
         send_to_char("No reserved item with that name exists.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     if (!str_cmp(field, "name")) {
         if (argument[0] == '\0') {
             send_to_char("You must specify a new name.\n\r", ch);
-            return FALSE;
+            return false;
         }
         
         /* Check if new name already exists */
         if (find_reserved(argument)) {
             send_to_char("A reserved item with that name already exists.\n\r", ch);
-            return FALSE;
+            return false;
         }
         
         free_string(reserved->name);
         reserved->name = str_dup(argument);
         send_to_char("Reserved item name changed.\n\r", ch);
-        reserved_changed = TRUE;
+        reserved_changed = true;
     }
     else if (!str_cmp(field, "type")) {
         int type = -1;
         
         if (argument[0] == '\0') {
             send_to_char("You must specify a type: mob, obj, room, area, skill, flag, command\n\r", ch);
-            return FALSE;
+            return false;
         }
         
         /* Find the type */
@@ -851,19 +851,19 @@ RESERVED(reserved_edit)
         
         if (type == -1) {
             send_to_char("Invalid type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
-            return FALSE;
+            return false;
         }
         
         reserved->type = type;
         send_to_char("Reserved item type changed.\n\r", ch);
-        reserved_changed = TRUE;
+        reserved_changed = true;
     }
     else if (!str_cmp(field, "id")) {
         int id;
         
         if (argument[0] == '\0' || !is_number(argument)) {
             send_to_char("You must specify a numeric ID.\n\r", ch);
-            return FALSE;
+            return false;
         }
         
         id = atoi(argument);
@@ -878,12 +878,12 @@ RESERVED(reserved_edit)
         
         reserved->id = id;
         send_to_char("Reserved item ID changed.\n\r", ch);
-        reserved_changed = TRUE;
+        reserved_changed = true;
     }
     else if (!str_cmp(field, "removable")) {
         if (!reserved->removable && get_staff_rank(ch) < STAFF_IMPLEMENTOR) {
             send_to_char("Only implementors can change permanent reserved items to removable.\n\r", ch);
-            return FALSE;
+            return false;
         }
         
         if (argument[0] == '\0') {
@@ -891,34 +891,34 @@ RESERVED(reserved_edit)
         } else {
             if (!str_prefix(argument, "yes") || !str_prefix(argument, "true") ||
                 !str_prefix(argument, "on") || !str_cmp(argument, "1")) {
-                reserved->removable = TRUE;
+                reserved->removable = true;
             } else {
-                reserved->removable = FALSE;
+                reserved->removable = false;
             }
         }
         
         send_to_char(formatf("Reserved item is now %s.\n\r", reserved->removable ? "removable" : "permanent"), ch);
-        reserved_changed = TRUE;
+        reserved_changed = true;
     }
     else if (!str_cmp(field, "description")) {
         if (argument[0] == '\0') {
             /* Start string editor */
             string_append(ch, &reserved->description);
-            reserved_changed = TRUE;
-            return TRUE;
+            reserved_changed = true;
+            return true;
         } else {
             free_string(reserved->description);
             reserved->description = str_dup(argument);
             send_to_char("Reserved item description changed.\n\r", ch);
-            reserved_changed = TRUE;
+            reserved_changed = true;
         }
     }
     else {
         send_to_char("Invalid field. Fields are: name, type, id, removable, description\n\r", ch);
-        return FALSE;
+        return false;
     }
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -928,7 +928,7 @@ RESERVED(reserved_save)
 {
     save_reserved();
     send_to_char("Reserved items saved.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -947,7 +947,7 @@ RESERVED(reserved_search)
     
     if (argument[0] == '\0') {
         send_to_char("Syntax: reserved search <string>\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Convert search string to lowercase for case-insensitive matching */
@@ -1110,7 +1110,7 @@ RESERVED(reserved_search)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1120,7 +1120,7 @@ RESERVED(reserved_import)
 {
     send_to_char("This functionality is not yet implemented.\n\r", ch);
     send_to_char("To import defines, you would need to specify the file to parse.\n\r", ch);
-    return FALSE;
+    return false;
 }
 
 /*
@@ -1189,7 +1189,7 @@ RESERVED(reserved_export)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1218,15 +1218,15 @@ void init_reserved_defaults(void)
         const char *description;
     } defaults[] = {
         /* Define your defaults here */
-        { "MOB_VNUM_DEATH", RESERVED_MOB, 6502, FALSE, "Death mob used for death handling" },
-        { "OBJ_VNUM_SILVER_ONE", RESERVED_OBJ, 1, FALSE, "One silver coin" },
-        { "ROOM_VNUM_LIMBO", RESERVED_ROOM, 2, FALSE, "Limbo room for storage" },
+        { "MOB_VNUM_DEATH", RESERVED_MOB, 6502, false, "Death mob used for death handling" },
+        { "OBJ_VNUM_SILVER_ONE", RESERVED_OBJ, 1, false, "One silver coin" },
+        { "ROOM_VNUM_LIMBO", RESERVED_ROOM, 2, false, "Limbo room for storage" },
         /* Add more defaults here */
-        { NULL, 0, 0, FALSE, NULL }
+        { NULL, 0, 0, false, NULL }
     };
     
     if (!reserved_vnums)
-        reserved_vnums = list_create(FALSE);
+        reserved_vnums = list_create(false);
     
     for (int i = 0; defaults[i].name; i++) {
         RESERVED_DATA *reserved = alloc_mem(sizeof(RESERVED_DATA));
@@ -1237,7 +1237,7 @@ void init_reserved_defaults(void)
         reserved->description = str_dup(defaults[i].description);
         
         list_appendlink(reserved_vnums, reserved);
-        reserved_changed = TRUE;
+        reserved_changed = true;
     }
     
     log_string("Default reserved items loaded.");
@@ -1266,12 +1266,12 @@ RESERVED(reserved_listid)
     
     if (arg1[0] == '\0') {
         send_to_char("Syntax: reserved listid <id> [type]\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     if (!is_number(arg1)) {
         send_to_char("The ID must be a number.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     id = atoi(arg1);
@@ -1287,7 +1287,7 @@ RESERVED(reserved_listid)
         
         if (type == -1) {
             send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
-            return FALSE;
+            return false;
         }
     }
     
@@ -1427,5 +1427,5 @@ RESERVED(reserved_listid)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
     
-    return TRUE;
+    return true;
 }

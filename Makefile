@@ -7,12 +7,13 @@ GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
 GIT_URL := "$(shell sh giturl.sh)"
 
-C_FLAGS = $(PROF) -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -MMD -MP
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -MMD -MP
 L_FLAGS =  $(PROF) $(LIBS)
 
 EXE	= sent
 
 C_FILES = \
+    account/auth.c \
     account/otp.c \
     account/account_notes.c \
     act_comm.c \

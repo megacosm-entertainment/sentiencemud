@@ -357,14 +357,14 @@ void string_end_accnote(CHAR_DATA *ch)
     }
 
     // First check if account is still valid
-    bool found = FALSE;
+    bool found = false;
     if (loaded_accounts) {
         ITERATOR it;
         ACCOUNT_DATA *acc;
         iterator_start(&it, loaded_accounts);
         while ((acc = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
             if (acc == account) {
-                found = TRUE;
+                found = true;
                 break;
             }
         }

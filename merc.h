@@ -113,13 +113,13 @@ typedef unsigned char			bool;
 #if !defined(false)
 #define false false
 #else
-#define FALSE false
+#define false false
 #endif
 
 #if !defined(true)
 #define true true
 #else
-#define TRUE true
+#define true true
 #endif
 typedef unsigned char sent_bool;
 #define TRISTATE_FALSE 0

@@ -866,19 +866,19 @@ DNGEDIT( dngedit_floors )
 				bp->static_exit_section < 1 || bp->static_exit_link < 1 )
 			{
 				send_to_char("Blueprint must have an entrance and exit specified.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 		}
 		else
 		{
 			send_to_char("Blueprint mode not supported yet.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 		*/
 
 		list_appendlink(dng->floors, bp);
 		send_to_char("Floor added.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_prefix(arg, "remove") || !str_prefix(arg, "delete") )
@@ -886,7 +886,7 @@ DNGEDIT( dngedit_floors )
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int index = atoi(argument);
@@ -894,7 +894,7 @@ DNGEDIT( dngedit_floors )
 		if( index < 1 || index > list_size(dng->floors) )
 		{
 			send_to_char("Index out of range.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_remnthlink(dng->floors, index, false);
@@ -904,11 +904,11 @@ DNGEDIT( dngedit_floors )
 		// Iterate over Level definitions to remove all references to this floor.
 
 		send_to_char("Floor removed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	dngedit_floors(ch, "");
-	return FALSE;
+	return false;
 }
 
 DNGEDIT( dngedit_levels )
@@ -943,7 +943,7 @@ DNGEDIT( dngedit_levels )
 		send_to_char("         levels group <#> remove <#>\n\r", ch);
 		send_to_char("         levels remove <#>\n\r", ch);
 		send_to_char("         levels scripted <boolean>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -956,7 +956,7 @@ DNGEDIT( dngedit_levels )
 		if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 		{
 			send_to_char("Please turn off scripted levels to edit levels manually.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg2);
@@ -966,19 +966,19 @@ DNGEDIT( dngedit_levels )
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax: levels add static <floor>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(argument))
 			{
 				send_to_char("Please specify a number for a floor.", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (list_size(dng->floors) < 1)
 			{
 				send_to_char("Please create floors first.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			floor = atoi(argument);
@@ -986,7 +986,7 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			DUNGEON_INDEX_LEVEL_DATA *level = new_dungeon_index_level();
@@ -996,7 +996,7 @@ DNGEDIT( dngedit_levels )
 
 			sprintf(buf, "Static level %d added.\n\r", list_size(dng->levels));
 			send_to_char(buf, ch);
-			return TRUE;
+			return true;
 		}
 
 		if (!str_prefix(arg2, "weighted"))
@@ -1008,7 +1008,7 @@ DNGEDIT( dngedit_levels )
 
 			sprintf(buf, "Weighted Random level %d added.\n\r", list_size(dng->levels));
 			send_to_char(buf, ch);
-			return TRUE;
+			return true;
 		}
 
 		if (!str_prefix(arg2, "grouped"))
@@ -1020,11 +1020,11 @@ DNGEDIT( dngedit_levels )
 
 			sprintf(buf, "Group level %d added.\n\r", list_size(dng->levels));
 			send_to_char(buf, ch);
-			return TRUE;
+			return true;
 		}
 
 		send_to_char("Invalid type of level.  Please specify either static, weighted floors or grouped levels.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	// levels move <#> up|down|top|first|bottom|last
@@ -1035,14 +1035,14 @@ DNGEDIT( dngedit_levels )
 		if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 		{
 			send_to_char("Please turn off scripted levels to edit levels manually.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg2);
 		if (!is_number(arg2))
 		{
 			send_to_char("Please specify a valid level number.", ch);
-			return FALSE;
+			return false;
 		}
 
 		int index = atoi(arg2);
@@ -1050,7 +1050,7 @@ DNGEDIT( dngedit_levels )
 		{
 			sprintf(buf, "Please specify a level number from 1 to %d.\n\r", list_size(dng->levels));
 			send_to_char(buf, ch);
-			return FALSE;
+			return false;
 		}
 
 		int to_index = -1;
@@ -1063,7 +1063,7 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Please specify a level number from 1 to %d.\n\r", list_size(dng->levels));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 		}
 		else if (!str_prefix(arg3, "up"))
@@ -1071,7 +1071,7 @@ DNGEDIT( dngedit_levels )
 			if (index <= 1)
 			{
 				send_to_char("That level cannot move up any further.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			to_index = index - 1;
@@ -1081,7 +1081,7 @@ DNGEDIT( dngedit_levels )
 			if (index >= list_size(dng->levels))
 			{
 				send_to_char("That level cannot move down any further.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			to_index = index + 1;
@@ -1091,7 +1091,7 @@ DNGEDIT( dngedit_levels )
 			if (index <= 1)
 			{
 				send_to_char("That level is already up as far as it can go.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			to_index = 1;
@@ -1101,7 +1101,7 @@ DNGEDIT( dngedit_levels )
 			if (index >= list_size(dng->levels))
 			{
 				send_to_char("That level is already down ass far as it can go.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			to_index = list_size(dng->levels);
@@ -1110,18 +1110,18 @@ DNGEDIT( dngedit_levels )
 		{
 			send_to_char("Syntax:  levels move <#> up|down|top|bottom|first|last\n\r", ch);
 			send_to_char("         levels move <from> <to>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 		
 		if (index == to_index)
 		{
 			send_to_char("You shove the level as hard as possible, barely moving.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_movelink(dng->levels, index, to_index);
 		send_to_char("Level moved.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	// levels weight <#> list
@@ -1133,7 +1133,7 @@ DNGEDIT( dngedit_levels )
 		if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 		{
 			send_to_char("Please turn off scripted levels to edit levels manually.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		char arg3[MIL];
@@ -1146,27 +1146,27 @@ DNGEDIT( dngedit_levels )
 		if (!is_number(arg2))
 		{
 			send_to_char("Please specify a valid level number.", ch);
-			return FALSE;
+			return false;
 		}
 
 		index = atoi(arg2);
 		if (index <= 0 || index > list_size(dng->levels))
 		{
 			sprintf(buf, "Please specify a level number from 1 to %d.\n\r", list_size(dng->levels));
-			return FALSE;
+			return false;
 		}
 
 		level = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, index);
 		if (!IS_VALID(level))
 		{
 			send_to_char("Failed to retrieve level information.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (level->mode != LEVELMODE_WEIGHTED)
 		{
 			send_to_char("That level is not a weighted random level.  Please specify a weighted random level.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg3);
@@ -1212,7 +1212,7 @@ DNGEDIT( dngedit_levels )
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax:  levels weight <#> add <weight> <floor>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg4);
@@ -1220,27 +1220,27 @@ DNGEDIT( dngedit_levels )
 			if (!is_number(arg4))
 			{
 				send_to_char("Please specify a positive number for the weight.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int weight = atoi(arg4);
 			if (weight < 1)
 			{
 				send_to_char("Please specify a positive number for the weight.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax:  levels weight <#> add <weight> <floor>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(argument))
 			{
 				sprintf(buf, "Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int floor = atoi(argument);
@@ -1248,7 +1248,7 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = new_weighted_random_floor();
@@ -1259,7 +1259,7 @@ DNGEDIT( dngedit_levels )
 			level->total_weight += weight;
 
 			send_to_char("Weighted Random entry added.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 		else if (!str_prefix(arg3, "set"))
 		{
@@ -1270,7 +1270,7 @@ DNGEDIT( dngedit_levels )
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax:  levels weight <#> set <#> <weight> <floor>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg4);
@@ -1280,7 +1280,7 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Please specify a weighted random entry number from 1 to %d.\n\r", list_size(level->weighted_floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(arg4);
@@ -1288,33 +1288,33 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Please specify a weighted random entry number from 1 to %d.\n\r", list_size(level->weighted_floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(arg5))
 			{
 				send_to_char("Please specify a positive number for the weight.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int weight = atoi(arg5);
 			if (weight < 1)
 			{
 				send_to_char("Please specify a positive number for the weight.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax:  levels weight <#> set <#> <weight> <floor>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(argument))
 			{
 				sprintf(buf, "Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int floor = atoi(argument);
@@ -1322,7 +1322,7 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 
@@ -1336,20 +1336,20 @@ DNGEDIT( dngedit_levels )
 			level->total_weight += weight;
 
 			send_to_char("Weighted Random entry set.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 		else if (!str_prefix(arg3, "remove"))
 		{
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax:  levels weight <#> remove <#>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(argument))
 			{
 				send_to_char("Please specify a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(argument);
@@ -1357,7 +1357,7 @@ DNGEDIT( dngedit_levels )
 			{
 				sprintf(buf, "Invalid weight entry index.  Please specify a value from 1 to %d.\n\r", list_size(level->weighted_floors));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)list_nthdata(level->weighted_floors, index);
@@ -1371,7 +1371,7 @@ DNGEDIT( dngedit_levels )
 			list_remnthlink(level->weighted_floors, index, true);
 
 			send_to_char("Weight Random entry removed.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -1389,14 +1389,14 @@ DNGEDIT( dngedit_levels )
 		if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 		{
 			send_to_char("Please turn off scripted levels to edit levels manually.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!is_number(arg2))
 		{
 			send_to_char("Syntax:  levels group {W<#>{x <command>\n\r", ch);
 			send_to_char("         Please specify a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int index = atoi(arg2);
@@ -1405,21 +1405,21 @@ DNGEDIT( dngedit_levels )
 			send_to_char("Syntax:  levels group {W<#>{x <command>\n\r", ch);
 			sprintf(buf, "         Please specify a group number from 1 to %d.\n\r", list_size(dng->levels));
 			send_to_char(buf, ch);
-			return FALSE;
+			return false;
 		}
 
 		DUNGEON_INDEX_LEVEL_DATA *level = list_nthdata(dng->levels, index);
 		if (!IS_VALID(level))
 		{
 			send_to_char("No such level exists.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (level->mode != LEVELMODE_GROUP)
 		{
 			sprintf(buf, "Level %d is not a group level set.\n\r", index);
 			send_to_char(buf, ch);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_NULLSTR(argument))
@@ -1433,7 +1433,7 @@ DNGEDIT( dngedit_levels )
 			send_to_char("         levels group <#> weight <#> set <#> <weight> <floor>\n\r", ch);
 			send_to_char("         levels group <#> weight <#> remove <#>\n\r", ch);
 			send_to_char("         levels group <#> remove <#>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		char arg3[MIL];
@@ -1448,7 +1448,7 @@ DNGEDIT( dngedit_levels )
 			{
 				send_to_char("Syntax:  levels group <#> add static <floor>\n\r", ch);
 				send_to_char("         levels group <#> add weighted\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			char arg4[MIL];
@@ -1459,14 +1459,14 @@ DNGEDIT( dngedit_levels )
 				if (IS_NULLSTR(argument))
 				{
 					send_to_char("Syntax:  levels group <#> add static <floor>\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
 				{
 					send_to_char("Syntax:  levels group <#> add static {W<floor>{x\n\r", ch);
 					send_to_char("         Please specify a number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int floor = atoi(argument);
@@ -1475,7 +1475,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> add static {W<floor>{x\n\r", ch);
 					sprintf(buf, "         Please specify a floor number between 1 and %d\n\r", list_size(dng->floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *lvl = new_dungeon_index_level();
@@ -1485,7 +1485,7 @@ DNGEDIT( dngedit_levels )
 				list_appendlink(level->group, lvl);
 				sprintf(buf, "Static level added to Group Level %d.\n\r", index);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 			if (!str_prefix(arg4, "weighted"))
@@ -1497,7 +1497,7 @@ DNGEDIT( dngedit_levels )
 				list_appendlink(level->group, lvl);
 				sprintf(buf, "Weighted Random level added to Group Level %d.\n\r", index);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 		}
@@ -1510,7 +1510,7 @@ DNGEDIT( dngedit_levels )
 			{
 				send_to_char("Syntax:  levels group <#> move <#> up|down|top|first|bottom|last\n\r", ch);
 				send_to_char("         levels group <#> move <from> <to>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			char arg4[MIL];
@@ -1520,7 +1520,7 @@ DNGEDIT( dngedit_levels )
 			if (!is_number(arg4))
 			{
 				send_to_char("Please specify a valid level number.", ch);
-				return FALSE;
+				return false;
 			}
 
 			int entry = atoi(arg4);
@@ -1530,7 +1530,7 @@ DNGEDIT( dngedit_levels )
 				send_to_char("         levels group <#> move {W<from>{x <to>\n\r", ch);
 				sprintf(buf, "         Please specify a level number from 1 to %d.\n\r", list_size(level->group));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int to_entry = -1;
@@ -1543,7 +1543,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> move {W<#>{x up|down|top|first|bottom|last\n\r", ch);
 					send_to_char("         levels group <#> move {W<from>{x <to>\n\r", ch);
 					sprintf(buf, "         Please specify a level number from 1 to %d.\n\r", list_size(level->group));
-					return FALSE;
+					return false;
 				}
 			}
 			else if (!str_prefix(argument, "up"))
@@ -1551,7 +1551,7 @@ DNGEDIT( dngedit_levels )
 				if (entry <= 1)
 				{
 					send_to_char("That level cannot move up any further.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				to_entry = entry - 1;
@@ -1561,7 +1561,7 @@ DNGEDIT( dngedit_levels )
 				if (entry >= list_size(level->group))
 				{
 					send_to_char("That level cannot move down any further.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				to_entry = entry + 1;
@@ -1571,7 +1571,7 @@ DNGEDIT( dngedit_levels )
 				if (entry <= 1)
 				{
 					send_to_char("That level is already up as far as it can go.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				to_entry = 1;
@@ -1581,7 +1581,7 @@ DNGEDIT( dngedit_levels )
 				if (entry >= list_size(level->group))
 				{
 					send_to_char("That level is already down ass far as it can go.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				to_entry = list_size(level->group);
@@ -1590,18 +1590,18 @@ DNGEDIT( dngedit_levels )
 			{
 				send_to_char("Syntax:  levels group <#> move <#> up|down|top|bottom|first|last\n\r", ch);
 				send_to_char("         levels group <#>s move <from> <to>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 			
 			if (entry == to_entry)
 			{
 				send_to_char("You shove the level as hard as possible, barely moving.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			list_movelink(level->group, entry, to_entry);
 			send_to_char("Level moved.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		// levels group <#> weight <#> list
@@ -1620,27 +1620,27 @@ DNGEDIT( dngedit_levels )
 			if (!is_number(arg4))
 			{
 				send_to_char("Please specify a valid level number.", ch);
-				return FALSE;
+				return false;
 			}
 
 			int entry = atoi(arg4);
 			if (entry < 1 || entry > list_size(level->group))
 			{
 				sprintf(buf, "Please specify a level number from 1 to %d.\n\r", list_size(level->group));
-				return FALSE;
+				return false;
 			}
 
 			lvl = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(level->group, entry);
 			if (!IS_VALID(lvl))
 			{
 				send_to_char("Failed to retrieve level information.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (lvl->mode != LEVELMODE_WEIGHTED)
 			{
 				send_to_char("That level is not a weighted random level.  Please specify a weighted random level.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg5);
@@ -1686,7 +1686,7 @@ DNGEDIT( dngedit_levels )
 				if (argument[0] == '\0')
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> add <weight> <floor>\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg6);
@@ -1695,7 +1695,7 @@ DNGEDIT( dngedit_levels )
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> add {W<weight>{x <floor>\n\r", ch);
 					send_to_char("         Please specify a positive number for the weight.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int weight = atoi(arg6);
@@ -1703,13 +1703,13 @@ DNGEDIT( dngedit_levels )
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> add {W<weight>{x <floor>\n\r", ch);
 					send_to_char("         Please specify a positive number for the weight.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (argument[0] == '\0')
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> add <weight> <floor>\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -1717,7 +1717,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> weight <#> add <weight> {W<floor>{x\n\r", ch);
 					sprintf(buf, "         Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int floor = atoi(argument);
@@ -1726,7 +1726,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> weight <#> add <weight> {W<floor>{x\n\r", ch);
 					sprintf(buf, "         Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = new_weighted_random_floor();
@@ -1737,7 +1737,7 @@ DNGEDIT( dngedit_levels )
 				lvl->total_weight += weight;
 
 				send_to_char("Weighted Random entry added.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 			else if (!str_prefix(arg5, "set"))
 			{
@@ -1748,7 +1748,7 @@ DNGEDIT( dngedit_levels )
 				if (argument[0] == '\0')
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> set <#> {W<weight> <floor>{x\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg6);
@@ -1759,7 +1759,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> weight <#> set {W<#>{x <weight> <floor>\n\r", ch);
 					sprintf(buf, "         Please specify a weighted random entry number from 1 to %d.\n\r", list_size(lvl->weighted_floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int index = atoi(arg6);
@@ -1768,14 +1768,14 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> weight <#> set {W<#>{x <weight> <floor>\n\r", ch);
 					sprintf(buf, "         Please specify a weighted random entry number from 1 to %d.\n\r", list_size(lvl->weighted_floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(arg7))
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> set <#> {W<weight>{x <floor>\n\r", ch);
 					send_to_char("         Please specify a positive number for the weight.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int weight = atoi(arg7);
@@ -1783,13 +1783,13 @@ DNGEDIT( dngedit_levels )
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> set <#> {W<weight>{x <floor>\n\r", ch);
 					send_to_char("         Please specify a positive number for the weight.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (argument[0] == '\0')
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> set <#> <weight> {W<floor>{x\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -1797,7 +1797,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> weight <#> set <#> <weight> {W<floor>{x\n\r", ch);
 					sprintf(buf, "         Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int floor = atoi(argument);
@@ -1806,7 +1806,7 @@ DNGEDIT( dngedit_levels )
 					send_to_char("Syntax:  levels group <#> weight <#> set <#> <weight> {W<floor>{x\n\r", ch);
 					sprintf(buf, "         Please specify a floor number from 1 to %d.\n\r", list_size(dng->floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 
@@ -1820,21 +1820,21 @@ DNGEDIT( dngedit_levels )
 				lvl->total_weight += weight;
 
 				send_to_char("Weighted Random entry set.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 			else if (!str_prefix(arg5, "remove"))
 			{
 				if (argument[0] == '\0')
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> remove {W<#>{x\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
 				{
 					send_to_char("Syntax:  levels group <#> weight <#> remove {W<#>{x\n\r", ch);
 					send_to_char("         Please specify a number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int index = atoi(argument);
@@ -1842,7 +1842,7 @@ DNGEDIT( dngedit_levels )
 				{
 					sprintf(buf, "Invalid weight entry index.  Please specify a value from 1 to %d.\n\r", list_size(lvl->weighted_floors));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)list_nthdata(lvl->weighted_floors, index);
@@ -1856,7 +1856,7 @@ DNGEDIT( dngedit_levels )
 				list_remnthlink(lvl->weighted_floors, index, true);
 
 				send_to_char("Weight Random entry removed.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 		}
 
@@ -1867,14 +1867,14 @@ DNGEDIT( dngedit_levels )
 			{
 				send_to_char("Syntax:  levels group <#> remove {W<#>{x\n\r", ch);
 				send_to_char("         Please give a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(argument))
 			{
 				send_to_char("Syntax:  levels group <#> remove {W<#>{x\n\r", ch);
 				send_to_char("         Please give a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(argument);
@@ -1883,12 +1883,12 @@ DNGEDIT( dngedit_levels )
 				send_to_char("Syntax:  levels group <#> remove {W<#>{x\n\r", ch);
 				sprintf(buf, "         Please give a number between 1 and %d\n\r", list_size(level->group));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 		
 			list_remnthlink(level->group, index, true);
 			send_to_char("Level removed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		dngedit_levels(ch, "group");
@@ -1905,7 +1905,7 @@ DNGEDIT( dngedit_levels )
 				send_to_char("Dungeon uses scripted levels.  Please supply a DUNGEON_SCHEMATIC trigger on the dungeon index.\n\r", ch);
 			else
 				send_to_char("Dungeon uses manually defined levels.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!str_prefix(argument, "true") || !str_prefix(argument, "yes") || !str_prefix(argument, "on"))
@@ -1913,7 +1913,7 @@ DNGEDIT( dngedit_levels )
 			if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 			{
 				send_to_char("Dungeon already uses scripted level design.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			// Delete all manual level information
@@ -1923,7 +1923,7 @@ DNGEDIT( dngedit_levels )
 
 			SET_BIT(dng->flags, DUNGEON_SCRIPTED_LEVELS);
 			send_to_char("Dungeon now uses scripted level design.  Please make sure a {WDUNGEON_SCHEMATIC{x trigger has been added to the dungeon index.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if (!str_prefix(argument, "false") || !str_prefix(argument, "no") || !str_prefix(argument, "off"))
@@ -1931,17 +1931,17 @@ DNGEDIT( dngedit_levels )
 			if (!IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 			{
 				send_to_char("Dungeon does not use scripted level design.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			REMOVE_BIT(dng->flags, DUNGEON_SCRIPTED_LEVELS);
 			send_to_char("Dungeon set to manual level design.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		send_to_char("Syntax:  levels scripted <boolean>\n\r", ch);
 		send_to_char("Please specify a boolean value: true/yes/on or false/no/off", ch);
-		return FALSE;
+		return false;
 	}
 
 	// levels remove <#>
@@ -1951,14 +1951,14 @@ DNGEDIT( dngedit_levels )
 		{
 			send_to_char("Syntax:  levels remove {W<#>{x\n\r", ch);
 			send_to_char("         Please give a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!is_number(argument))
 		{
 			send_to_char("Syntax:  levels remove {W<#>{x\n\r", ch);
 			send_to_char("         Please give a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int index = atoi(argument);
@@ -1967,23 +1967,23 @@ DNGEDIT( dngedit_levels )
 			send_to_char("Syntax:  levels remove {W<#>{x\n\r", ch);
 			sprintf(buf, "         Please give a number between 1 and %d\n\r", list_size(dng->levels));
 			send_to_char(buf, ch);
-			return FALSE;
+			return false;
 		}
 
 		DUNGEON_INDEX_LEVEL_DATA *level = list_nthdata(dng->levels, index);
 		if (!IS_VALID(level))
 		{
 			send_to_char("Failed to retrieve level information.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 	
 		list_remnthlink(dng->levels, index, true);
 		send_to_char("Level removed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	dngedit_levels(ch, "");
-	return FALSE;
+	return false;
 }
 
 DNGEDIT( dngedit_entry )
@@ -2329,13 +2329,13 @@ DNGEDIT( dngedit_special )
 		send_to_char("         special exit group # to # remove #\n\r", ch);
 		send_to_char("         special exit group # remove #\n\r", ch);
 		send_to_char("         special exit remove #\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 	{
 		send_to_char("Please turn off scripted levels to edit special rooms/exits manually.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!str_prefix(arg, "room"))
@@ -2384,7 +2384,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("Dungeon has no special rooms defined.\n\r", ch);
 			}
 
-			return FALSE;
+			return false;
 		}
 
 		if( is_number(arg2) )
@@ -2396,14 +2396,14 @@ DNGEDIT( dngedit_special )
 			if( !IS_VALID(special) )
 			{
 				send_to_char("No such special room.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg3);
 			if( arg3[0] == '\0' )
 			{
 				dngedit_special(ch, "");
-				return FALSE;
+				return false;
 			}
 
 			if( !str_prefix(arg3, "remove") || !str_prefix(arg3, "delete") )
@@ -2411,7 +2411,7 @@ DNGEDIT( dngedit_special )
 				list_remnthlink(dng->special_rooms, index, true);
 
 				send_to_char("Special room deleted.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			if( !str_prefix(arg3, "level") )
@@ -2420,21 +2420,21 @@ DNGEDIT( dngedit_special )
 				if( !is_number(arg4) )
 				{
 					send_to_char("That is not a number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int level = atoi(arg4);
 				if( level < 1 || level > list_size(dng->levels) )
 				{
 					send_to_char("Level out of range.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				special->level = level;
 				special->room = 0;
 
 				send_to_char("Level changed.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			if( !str_prefix(arg3, "name") )
@@ -2444,7 +2444,7 @@ DNGEDIT( dngedit_special )
 				if( IS_NULLSTR(arg4) )
 				{
 					send_to_char("Syntax:  special room # name [name]\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 
@@ -2453,7 +2453,7 @@ DNGEDIT( dngedit_special )
 				special->name = str_dup(arg4);
 
 				send_to_char("Special room name changed.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			if( !str_prefix(arg3, "room") )
@@ -2462,7 +2462,7 @@ DNGEDIT( dngedit_special )
 				if( !is_number(arg4))
 				{
 					send_to_char("That is not a number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int room = atol(arg4);
@@ -2470,7 +2470,7 @@ DNGEDIT( dngedit_special )
 				special->room = room;
 
 				send_to_char("Special room changed.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 		}
 		else if( !str_prefix(arg2, "add") )
@@ -2481,13 +2481,13 @@ DNGEDIT( dngedit_special )
 			if( argument[0] == '\0' )
 			{
 				send_to_char("Syntax:  special room add [level] [special room] [name]\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if( !is_number(arg3) || !is_number(arg4) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int level = atoi(arg3);
@@ -2496,7 +2496,7 @@ DNGEDIT( dngedit_special )
 			if( level < 1 || level > list_size(dng->levels) )
 			{
 				send_to_char("Level out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			char name[MIL+1];
@@ -2514,7 +2514,7 @@ DNGEDIT( dngedit_special )
 			list_appendlink(dng->special_rooms, special);
 
 			send_to_char("Special Room added.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 
@@ -2524,7 +2524,7 @@ DNGEDIT( dngedit_special )
 		send_to_char("         special {Wroom{x # name <name>\n\r", ch);
 		send_to_char("         special {Wroom{x # level <level>\n\r", ch);
 		send_to_char("         special {Wroom{x # room <special room>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!str_prefix(arg, "exit"))
@@ -2804,7 +2804,7 @@ DNGEDIT( dngedit_special )
 			}
 			else
 				send_to_char("Dungeon has no special exits defined.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!str_prefix(arg2, "add"))
@@ -2813,7 +2813,7 @@ DNGEDIT( dngedit_special )
 			if (list_size(dng->levels) < 1)
 			{
 				send_to_char("Please add level definitions before adding special exits.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (argument[0] == '\0')
@@ -2823,7 +2823,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit {Wadd{x destination <from-level> <from-exit>\n\r", ch);
 				send_to_char("         special exit {Wadd{x weighted\n\r", ch);
 				send_to_char("         special exit {Wadd{x group\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg3);
@@ -2837,7 +2837,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static {R<from-level>{x <from-exit> <to-level> <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg4);
@@ -2847,7 +2847,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static {R<from-level>{x <from-exit> <to-level> <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int from_level = atoi(arg4);
@@ -2856,7 +2856,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static {R<from-level>{x <from-exit> <to-level> <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *from_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, from_level);
@@ -2868,7 +2868,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> {R<from-exit>{x <to-level> <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg5);
@@ -2878,7 +2878,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> {R<from-exit>{x <to-level> <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int from_exit = atoi(arg5);
@@ -2887,7 +2887,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> {R<from-exit>{x <to-level> <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -2895,7 +2895,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> <from-exit> {R<to-level>{x <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg6);
@@ -2905,7 +2905,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> <from-exit> {R<to-level>{x <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int to_level = atoi(arg6);
@@ -2914,7 +2914,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> <from-exit> {R<to-level>{x <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *to_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, to_level);
@@ -2926,7 +2926,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> <from-exit> <to-level> {R<to-entrance>{x\n\r", ch);
 					sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -2934,7 +2934,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> <from-exit> <to-level> {R<to-entrance>{x\n\r", ch);
 					sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int to_entry = atoi(argument);
@@ -2943,13 +2943,13 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add static <from-level> <from-exit> <to-level> {R<to-entrance>{x\n\r", ch);
 					sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (from_level == to_level && from_exit == to_entry)
 				{
 					send_to_char("Both exits are the same.  Unable to connect them.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -2961,7 +2961,7 @@ DNGEDIT( dngedit_special )
 				list_appendlink(dng->special_exits, ex);
 
 				send_to_char("Static special exit added.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			// Add Source Special Exit
@@ -2973,7 +2973,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add source {R<to-level>{x <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg6);
@@ -2983,7 +2983,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add source {R<to-level>{x <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int to_level = atoi(arg6);
@@ -2992,7 +2992,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add source {R<to-level>{x <to-entrance>\n\r", ch);
 					sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *to_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, to_level);
@@ -3004,7 +3004,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add source <to-level> {R<to-entrance>{x\n\r", ch);
 					sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -3012,7 +3012,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add source <to-level> {R<to-entrance>{x\n\r", ch);
 					sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int to_entry = atoi(argument);
@@ -3021,7 +3021,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add source <to-level> {R<to-entrance>{x\n\r", ch);
 					sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3036,7 +3036,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("Source special exit added.\n\r", ch);
 				sprintf(buf, "Please add source exits using {Wspecial exit from {Y%d{W add ...{x\n\r", index);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 			if (!str_prefix(arg3, "destination"))
@@ -3046,7 +3046,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add destination {R<from-level>{x <from-exit>\n\r", ch);
 					sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg4);
@@ -3056,7 +3056,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add destination {R<from-level>{x <from-exit>\n\r", ch);
 					sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int from_level = atoi(arg4);
@@ -3065,7 +3065,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add destination {R<from-level>{x <from-exit>\n\r", ch);
 					sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *from_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, from_level);
@@ -3077,7 +3077,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add destination <from-level> {R<from-exit>{x\n\r", ch);
 					sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -3085,7 +3085,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add destination <from-level> {R<from-exit>{x\n\r", ch);
 					sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int from_exit = atoi(argument);
@@ -3094,7 +3094,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit add destination <from-level> {R<from-exit>{x\n\r", ch);
 					sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3109,7 +3109,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("Destination special exit added.\n\r", ch);
 				sprintf(buf, "Please add target entrances using {Wspecial exit to {Y%d{W add ...{x\n\r", index);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 			if (!str_prefix(arg3, "weighted"))
@@ -3117,7 +3117,7 @@ DNGEDIT( dngedit_special )
 				if (!IS_NULLSTR(argument))
 				{
 					send_to_char("Syntax:  special exit add weighted\n\r", ch);
-					return FALSE;
+					return false;
 				}
 				
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3132,7 +3132,7 @@ DNGEDIT( dngedit_special )
 				send_to_char(buf, ch);
 				sprintf(buf, "Please add target entrances using {Wspecial exit to {Y%d{W add ...{x\n\r", index);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 			if (!str_prefix(arg3, "group"))
@@ -3140,7 +3140,7 @@ DNGEDIT( dngedit_special )
 				if (!IS_NULLSTR(argument))
 				{
 					send_to_char("Syntax:  special exit add group\n\r", ch);
-					return FALSE;
+					return false;
 				}
 				
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3153,7 +3153,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("Group special exit added.\n\r", ch);
 				sprintf(buf, "Please add exit definitions using {Wspecial exit group {Y%d{W add ...{x\n\r", index);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 			send_to_char("Syntax:  special exit add {Wstatic{x <from-level> <from-exit> <to-level> <to-entrance>\n\r", ch);
@@ -3161,7 +3161,7 @@ DNGEDIT( dngedit_special )
 			send_to_char("         special exit add {Wdestination{x <from-level> <from-exit>\n\r", ch);
 			send_to_char("         special exit add {Wweighted{x\n\r", ch);
 			send_to_char("         special exit add {Wgroup{x\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!str_prefix(arg2, "group"))
@@ -3186,7 +3186,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit group {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, argg);
@@ -3207,7 +3207,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit group {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int gindex = atoi(argg);
@@ -3228,7 +3228,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit group {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			DUNGEON_INDEX_SPECIAL_EXIT *gex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(dng->special_exits, gindex);
@@ -3236,14 +3236,14 @@ DNGEDIT( dngedit_special )
 			{
 				sprintf(buf, "Not such special exit %d found.\n\r", gindex);
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			if (gex->mode != EXITMODE_GROUP)
 			{
 				sprintf(buf, "Special exit %d is not a GROUP exit.\n\r", gindex);
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, argg2);			
@@ -3253,7 +3253,7 @@ DNGEDIT( dngedit_special )
 				if (list_size(dng->levels) < 1)
 				{
 					send_to_char("Please add level definitions before adding special exits.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (argument[0] == '\0')
@@ -3262,7 +3262,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # {Wadd{x source <to-level> <to-entrance>\n\r", ch);
 					send_to_char("         special exit group # {Wadd{x destination <from-level> <from-exit>\n\r", ch);
 					send_to_char("         special exit group # {Wadd{x weighted\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg3);
@@ -3276,7 +3276,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static {R<from-level>{x <from-exit> <to-level> <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg4);
@@ -3286,7 +3286,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static {R<from-level>{x <from-exit> <to-level> <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int from_level = atoi(arg4);
@@ -3295,7 +3295,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static {R<from-level>{x <from-exit> <to-level> <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *from_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, from_level);
@@ -3307,7 +3307,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> {R<from-exit>{x <to-level> <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg5);
@@ -3317,7 +3317,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> {R<from-exit>{x <to-level> <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int from_exit = atoi(arg5);
@@ -3326,7 +3326,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> {R<from-exit>{x <to-level> <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -3334,7 +3334,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> <from-exit> {R<to-level>{x <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -3344,7 +3344,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> <from-exit> {R<to-level>{x <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int to_level = atoi(arg6);
@@ -3353,7 +3353,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> <from-exit> {R<to-level>{x <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *to_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, to_level);
@@ -3365,7 +3365,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> <from-exit> <to-level> {R<to-entrance>{x\n\r", ch);
 						sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (!is_number(argument))
@@ -3373,7 +3373,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> <from-exit> <to-level> {R<to-entrance>{x\n\r", ch);
 						sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int to_entry = atoi(argument);
@@ -3382,13 +3382,13 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add static <from-level> <from-exit> <to-level> {R<to-entrance>{x\n\r", ch);
 						sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (from_level == to_level && from_exit == to_entry)
 					{
 						send_to_char("Both exits are the same.  Unable to connect them.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3400,7 +3400,7 @@ DNGEDIT( dngedit_special )
 					list_appendlink(gex->group, ex);
 
 					send_to_char("Static special exit added to group.\n\r", ch);
-					return TRUE;
+					return true;
 				}
 
 				// Add Source Special Exit
@@ -3412,7 +3412,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add source {R<to-level>{x <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -3422,7 +3422,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add source {R<to-level>{x <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int to_level = atoi(arg6);
@@ -3431,7 +3431,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add source {R<to-level>{x <to-entrance>\n\r", ch);
 						sprintf(buf, "         Please specify a target level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *to_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, to_level);
@@ -3443,7 +3443,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add source <to-level> {R<to-entrance>{x\n\r", ch);
 						sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (!is_number(argument))
@@ -3451,7 +3451,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add source <to-level> {R<to-entrance>{x\n\r", ch);
 						sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int to_entry = atoi(argument);
@@ -3460,7 +3460,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add source <to-level> {R<to-entrance>{x\n\r", ch);
 						sprintf(buf, "         Please specify a target entrance number from 1 to %d.\n\r", to_entries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3475,7 +3475,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Source special exit group # added.\n\r", ch);
 					sprintf(buf, "Please add source exits using {Wspecial exit group {Y%d{W from {Y%d{W add ...{x\n\r", gindex, index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 				}
 
 				if (!str_prefix(arg3, "destination"))
@@ -3485,7 +3485,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add destination {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg4);
@@ -3495,7 +3495,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add destination {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int from_level = atoi(arg4);
@@ -3504,7 +3504,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add destination {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a source level number from 1 to %d.\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *from_level_data = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, from_level);
@@ -3516,7 +3516,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add destination <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (!is_number(argument))
@@ -3524,7 +3524,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add destination <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int from_exit = atoi(argument);
@@ -3533,7 +3533,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # add destination <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a source exit number from 1 to %d.\n\r", from_exits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3548,7 +3548,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Destination special exit added to group.\n\r", ch);
 					sprintf(buf, "Please add target entrances using {Wspecial exit group {Y%d{W to {Y%d{W add ...{x\n\r", gindex, index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 				}
 
 				if (!str_prefix(arg3, "weighted"))
@@ -3556,7 +3556,7 @@ DNGEDIT( dngedit_special )
 					if (!IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit group # add weighted\n\r", ch);
-						return FALSE;
+						return false;
 					}
 					
 					DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
@@ -3571,14 +3571,14 @@ DNGEDIT( dngedit_special )
 					send_to_char(buf, ch);
 					sprintf(buf, "Please add target entrances using {Wspecial exit group {Y%d{W to {Y%d{W add ...{x\n\r", gindex, index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 				}
 
 				send_to_char("Syntax:  special exit group # add {Wstatic{x <from-level> <from-exit> <to-level> <to-entrance>\n\r", ch);
 				send_to_char("         special exit group # add {Wsource{x <to-level> <to-entrance>\n\r", ch);
 				send_to_char("         special exit group # add {Wdestination{x <from-level> <from-exit>\n\r", ch);
 				send_to_char("         special exit group # add {Wweighted{x\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg2, "from"))
@@ -3586,7 +3586,7 @@ DNGEDIT( dngedit_special )
 				if (list_size(gex->group) < 1)
 				{
 					send_to_char("Please add a special exit definition first.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -3598,7 +3598,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # from {R#{x remove #\n\r", ch);
 					sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg3);
@@ -3611,7 +3611,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # from {R#{x remove #\n\r", ch);
 					sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int index = atoi(arg3);
@@ -3624,7 +3624,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # from {R#{x remove #\n\r", ch);
 					sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(gex->group, index);
@@ -3632,7 +3632,7 @@ DNGEDIT( dngedit_special )
 				if (ex->mode == EXITMODE_GROUP)
 				{
 					send_to_char("Cannot alter the From definitions on a GROUP exit.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -3642,7 +3642,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # from # {Rset{x # <weight> <from-level> <from-exit>\n\r", ch);
 					send_to_char("         special exit group # from # {Rset{x <weight> <from-level> <from-exit> (for static and destination exits only)\n\r", ch);
 					send_to_char("         special exit group # from # {Rremove{x #\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg4);
@@ -3683,7 +3683,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("There are no From definitions on this special exit.\n\r", ch);
 					}
-					return FALSE;
+					return false;
 				}
 
 				if (!str_prefix(arg4, "add"))
@@ -3692,21 +3692,21 @@ DNGEDIT( dngedit_special )
 					{
 						sprintf(buf, "Special exit %d is a STATIC exit.  Cannot add any new From definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (ex->mode == EXITMODE_WEIGHTED_DEST)
 					{
 						sprintf(buf, "Special exit %d is a DESTINATION exit.  Cannot add any new From definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit group # from # add {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -3714,7 +3714,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit group # from # add {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					int weight = atoi(arg6);
@@ -3722,7 +3722,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit group # from # add {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -3730,7 +3730,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # add <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg7);
@@ -3739,7 +3739,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # add <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int flindex = atoi(arg7);
@@ -3748,7 +3748,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # add <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *flevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, flindex);
@@ -3759,7 +3759,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # add <weight> <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int fexit = atoi(argument);
@@ -3768,7 +3768,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # add <weight> <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					add_dungeon_index_weighted_exit_data(ex->from, weight, flindex, fexit);
@@ -3776,7 +3776,7 @@ DNGEDIT( dngedit_special )
 
 					sprintf(buf, "From definition added to special exit %d.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!str_prefix(arg4, "set"))
@@ -3786,14 +3786,14 @@ DNGEDIT( dngedit_special )
 						if (list_size(ex->from) < 1)
 						{
 							send_to_char("Special exit appears to be missing necessary From definition.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
 						{
 							send_to_char("Syntax:  special exit group # from # set {R<weight>{x <from-level> <from-exit>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg6);
@@ -3801,7 +3801,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # from # set {R<weight>{x <from-level> <from-exit>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						int weight = atoi(arg6);
@@ -3809,7 +3809,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # from # set {R<weight>{x <from-level> <from-exit>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
@@ -3817,7 +3817,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set <weight> {R<from-level>{x <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg7);
@@ -3826,7 +3826,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set <weight> {R<from-level>{x <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int flindex = atoi(arg7);
@@ -3835,7 +3835,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set <weight> {R<from-level>{x <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_LEVEL_DATA *flevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, flindex);
@@ -3846,7 +3846,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set <weight> <from-level> {R<from-exit>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int fexit = atoi(argument);
@@ -3855,7 +3855,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set <weight> <from-level> {R<from-exit>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_WEIGHTED_EXIT_DATA *fex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->from, 1);
@@ -3868,14 +3868,14 @@ DNGEDIT( dngedit_special )
 
 						sprintf(buf, "From definition set on special exit %d.\n\r", index);
 						send_to_char(buf, ch);
-						return TRUE;
+						return true;
 					}
 					else
 					{
 						if (list_size(ex->from) < 1)
 						{
 							send_to_char("Special exit has no From definition.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
@@ -3883,7 +3883,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set {R#{x <weight> <from-level> <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg5);
@@ -3892,7 +3892,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set {R#{x <weight> <from-level> <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int findex = atoi(arg5);
@@ -3901,14 +3901,14 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set {R#{x <weight> <from-level> <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
 						{
 							send_to_char("Syntax:  special exit group # from # set # {R<weight>{x <from-level> <from-exit>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg6);
@@ -3916,7 +3916,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # from # set # {R<weight>{x <from-level> <from-exit>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						int weight = atoi(arg6);
@@ -3924,7 +3924,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # from # set # {R<weight>{x <from-level> <from-exit>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
@@ -3932,7 +3932,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set # <weight> {R<from-level>{x <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg7);
@@ -3941,7 +3941,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set # <weight> {R<from-level>{x <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int flindex = atoi(arg7);
@@ -3950,7 +3950,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set # <weight> {R<from-level>{x <from-exit>\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_LEVEL_DATA *flevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, flindex);
@@ -3961,7 +3961,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set # <weight> <from-level> {R<from-exit>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int fexit = atoi(argument);
@@ -3970,7 +3970,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # from # set # <weight> <from-level> {R<from-exit>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_WEIGHTED_EXIT_DATA *fex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->from, findex);
@@ -3983,7 +3983,7 @@ DNGEDIT( dngedit_special )
 
 						sprintf(buf, "From definition %d set on special exit %d.\n\r", findex, index);
 						send_to_char(buf, ch);
-						return TRUE;
+						return true;
 
 					}
 				}
@@ -3994,14 +3994,14 @@ DNGEDIT( dngedit_special )
 					{
 						sprintf(buf, "Special exit %d is a STATIC exit.  Cannot remove the From definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (ex->mode == EXITMODE_WEIGHTED_DEST)
 					{
 						sprintf(buf, "Special exit %d is a DESTINATION exit.  Cannot remove the From definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (!is_number(argument))
@@ -4009,7 +4009,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # remove {R#{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int findex = atoi(argument);
@@ -4018,14 +4018,14 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # from # remove {R#{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					list_remnthlink(ex->from, findex, true);
 					send_to_char("From definition removed from special exit.\n\r", ch);
 					if (list_size(ex->from) < 1)
 						send_to_char("{RWarning:{x Please add a from definition for this exit to work.\n\r", ch);
-					return TRUE;
+					return true;
 				}
 
 				send_to_char("Syntax:  special exit group # from # {Rlist{x\n\r", ch);
@@ -4033,7 +4033,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit group # from # {Rset{x # <weight> <from-level> <from-exit>\n\r", ch);
 				send_to_char("         special exit group # from # {Rset{x <weight> <from-level> <from-exit> (for static and destination exits only)\n\r", ch);
 				send_to_char("         special exit group # from # {Rremove{x #\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg2, "to"))
@@ -4041,7 +4041,7 @@ DNGEDIT( dngedit_special )
 				if (list_size(gex->group) < 1)
 				{
 					send_to_char("Please add a special exit definition first.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -4053,7 +4053,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # to {R#{x remove #\n\r", ch);
 					sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg3);
@@ -4066,7 +4066,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # to {R#{x remove #\n\r", ch);
 					sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int index = atoi(arg3);
@@ -4079,7 +4079,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # to {R#{x remove #\n\r", ch);
 					sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(gex->group, index);
@@ -4087,7 +4087,7 @@ DNGEDIT( dngedit_special )
 				if (ex->mode == EXITMODE_GROUP)
 				{
 					send_to_char("Cannot alter the To definitions on a GROUP exit.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -4097,7 +4097,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("         special exit group # to # {Rset{x # <weight> <to-level> <to-entry>\n\r", ch);
 					send_to_char("         special exit group # to # {Rset{x <weight> <to-level> <to-entry> (for static and source exits only)\n\r", ch);
 					send_to_char("         special exit group # to # {Rremove{x #\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg4);
@@ -4138,7 +4138,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("There are no To definitions on this special exit.\n\r", ch);
 					}
-					return FALSE;
+					return false;
 				}
 
 				if (!str_prefix(arg4, "add"))
@@ -4147,21 +4147,21 @@ DNGEDIT( dngedit_special )
 					{
 						sprintf(buf, "Special exit %d is a STATIC exit.  Cannot add any new To definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (ex->mode == EXITMODE_WEIGHTED_SOURCE)
 					{
 						sprintf(buf, "Special exit %d is a SOURCE exit.  Cannot add any new To definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit group # to # add {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -4169,7 +4169,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit group # to # add {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					int weight = atoi(arg6);
@@ -4177,7 +4177,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit group # to # add {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -4185,7 +4185,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # add <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg7);
@@ -4194,7 +4194,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # add <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tlindex = atoi(arg7);
@@ -4203,7 +4203,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # add <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *tlevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, tlindex);
@@ -4214,7 +4214,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # add <weight> <to-level> {R<to-entry>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tentry = atoi(argument);
@@ -4223,7 +4223,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # add <weight> <to-level> {R<to-entry>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					add_dungeon_index_weighted_exit_data(ex->to, weight, tlindex, tentry);
@@ -4231,7 +4231,7 @@ DNGEDIT( dngedit_special )
 
 					sprintf(buf, "To definition added to special exit %d.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!str_prefix(arg4, "set"))
@@ -4241,14 +4241,14 @@ DNGEDIT( dngedit_special )
 						if (list_size(ex->to) < 1)
 						{
 							send_to_char("Special exit appears to be missing necessary To definition.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
 						{
 							send_to_char("Syntax:  special exit group # to # set {R<weight>{x <to-level> <to-entry>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg6);
@@ -4256,7 +4256,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # to # set {R<weight>{x <to-level> <to-entry>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						int weight = atoi(arg6);
@@ -4264,7 +4264,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # to # set {R<weight>{x <to-level> <to-entry>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
@@ -4272,7 +4272,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set <weight> {R<to-level>{x <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg7);
@@ -4281,7 +4281,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set <weight> {R<to-level>{x <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int tlindex = atoi(arg7);
@@ -4290,7 +4290,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set <weight> {R<to-level>{x <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_LEVEL_DATA *tlevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, tlindex);
@@ -4301,7 +4301,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set <weight> <to-level> {R<to-entry>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int tentry = atoi(argument);
@@ -4310,7 +4310,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set <weight> <to-level> {R<to-entry>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_WEIGHTED_EXIT_DATA *tex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->to, 1);
@@ -4323,14 +4323,14 @@ DNGEDIT( dngedit_special )
 
 						sprintf(buf, "To definition set on special exit %d.\n\r", index);
 						send_to_char(buf, ch);
-						return TRUE;
+						return true;
 					}
 					else
 					{
 						if (list_size(ex->to) < 1)
 						{
 							send_to_char("Special exit has no To definition.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
@@ -4338,7 +4338,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set {R#{x <weight> <to-level> <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg5);
@@ -4347,7 +4347,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set {R#{x <weight> <to-level> <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int tindex = atoi(arg5);
@@ -4356,14 +4356,14 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set {R#{x <weight> <to-level> <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
 						{
 							send_to_char("Syntax:  special exit group # to # set # {R<weight>{x <to-level> <to-entry>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg6);
@@ -4371,7 +4371,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # to # set # {R<weight>{x <to-level> <to-entry>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						int weight = atoi(arg6);
@@ -4379,7 +4379,7 @@ DNGEDIT( dngedit_special )
 						{
 							send_to_char("Syntax:  special exit group # to # set # {R<weight>{x <to-level> <to-entry>\n\r", ch);
 							send_to_char("         Please specify a positive number.\n\r", ch);
-							return FALSE;
+							return false;
 						}
 
 						if (IS_NULLSTR(argument))
@@ -4387,7 +4387,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set # <weight> {R<to-level>{x <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						argument = one_argument(argument, arg7);
@@ -4396,7 +4396,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set # <weight> {R<to-level>{x <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int tlindex = atoi(arg7);
@@ -4405,7 +4405,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set # <weight> {R<to-level>{x <to-entry>\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_LEVEL_DATA *tlevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, tlindex);
@@ -4416,7 +4416,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set # <weight> <to-level> {R<to-entry>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						int tentry = atoi(argument);
@@ -4425,7 +4425,7 @@ DNGEDIT( dngedit_special )
 							send_to_char("Syntax:  special exit group # to # set # <weight> <to-level> {R<to-entry>{x\n\r", ch);
 							sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 							send_to_char(buf, ch);
-							return FALSE;
+							return false;
 						}
 
 						DUNGEON_INDEX_WEIGHTED_EXIT_DATA *tex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->to, tindex);
@@ -4438,7 +4438,7 @@ DNGEDIT( dngedit_special )
 
 						sprintf(buf, "To definition %d set on special exit %d.\n\r", tindex, index);
 						send_to_char(buf, ch);
-						return TRUE;
+						return true;
 
 					}
 				}
@@ -4449,14 +4449,14 @@ DNGEDIT( dngedit_special )
 					{
 						sprintf(buf, "Special exit %d is a STATIC exit.  Cannot remove the To definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (ex->mode == EXITMODE_WEIGHTED_SOURCE)
 					{
 						sprintf(buf, "Special exit %d is a SOURCE exit.  Cannot remove the To definition.\n\r", index);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (!is_number(argument))
@@ -4464,7 +4464,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # remove {R#{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tindex = atoi(argument);
@@ -4473,14 +4473,14 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit group # to # remove {R#{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					list_remnthlink(ex->to, tindex, true);
 					send_to_char("To definition removed to special exit.\n\r", ch);
 					if (list_size(ex->to) < 1)
 						send_to_char("{RWarning:{x Please add a To definition for this exit to work.\n\r", ch);
-					return TRUE;
+					return true;
 				}
 
 				send_to_char("Syntax:  special exit group # to # {Rlist{x\n\r", ch);
@@ -4488,7 +4488,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit group # to # {Rset{x # <weight> <to-level> <to-entry>\n\r", ch);
 				send_to_char("         special exit group # to # {Rset{x <weight> <to-level> <to-entry> (for static and destination exits only)\n\r", ch);
 				send_to_char("         special exit group # to # {Rremove{x #\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg2, "remove"))
@@ -4498,7 +4498,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit group # remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -4506,13 +4506,13 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (list_size(dng->special_exits) < 1)
 				{
 					send_to_char("There are no special exits.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int index = atoi(argument);
@@ -4521,13 +4521,13 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(gex->group));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				list_remnthlink(gex->group, index, true);
 				sprintf(buf, "Special exit %d removed from group %d.\n\r", index, gindex);
 				send_to_char(buf, ch);
-				return TRUE;
+				return true;
 			}
 
 
@@ -4544,7 +4544,7 @@ DNGEDIT( dngedit_special )
 			send_to_char("         special exit group # {Rto{x # set[ #] <weight> <to-level> <to-entrance>\n\r", ch);
 			send_to_char("         special exit group # {Rto{x # remove #\n\r", ch);
 			send_to_char("         special exit group # {Rremove{x #\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!str_prefix(arg2, "from"))
@@ -4553,7 +4553,7 @@ DNGEDIT( dngedit_special )
 			if (list_size(dng->special_exits) < 1)
 			{
 				send_to_char("Please add a special exit definition first.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (IS_NULLSTR(argument))
@@ -4565,7 +4565,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit from {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg3);
@@ -4578,7 +4578,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit from {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(arg3);
@@ -4591,7 +4591,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit from {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(dng->special_exits, index);
@@ -4599,7 +4599,7 @@ DNGEDIT( dngedit_special )
 			if (ex->mode == EXITMODE_GROUP)
 			{
 				send_to_char("Cannot alter the From definitions on a GROUP exit.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (IS_NULLSTR(argument))
@@ -4609,7 +4609,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit from # {Rset{x # <weight> <from-level> <from-exit>\n\r", ch);
 				send_to_char("         special exit from # {Rset{x <weight> <from-level> <from-exit> (for static and destination exits only)\n\r", ch);
 				send_to_char("         special exit from # {Rremove{x #\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg4);
@@ -4650,7 +4650,7 @@ DNGEDIT( dngedit_special )
 				{
 					send_to_char("There are no From definitions on this special exit.\n\r", ch);
 				}
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg4, "add"))
@@ -4659,21 +4659,21 @@ DNGEDIT( dngedit_special )
 				{
 					sprintf(buf, "Special exit %d is a STATIC exit.  Cannot add any new From definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (ex->mode == EXITMODE_WEIGHTED_DEST)
 				{
 					sprintf(buf, "Special exit %d is a DESTINATION exit.  Cannot add any new From definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
 				{
 					send_to_char("Syntax:  special exit from # add {R<weight>{x <from-level> <from-exit>\n\r", ch);
 					send_to_char("         Please specify a positive number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg6);
@@ -4681,7 +4681,7 @@ DNGEDIT( dngedit_special )
 				{
 					send_to_char("Syntax:  special exit from # add {R<weight>{x <from-level> <from-exit>\n\r", ch);
 					send_to_char("         Please specify a positive number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int weight = atoi(arg6);
@@ -4689,7 +4689,7 @@ DNGEDIT( dngedit_special )
 				{
 					send_to_char("Syntax:  special exit from # add {R<weight>{x <from-level> <from-exit>\n\r", ch);
 					send_to_char("         Please specify a positive number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -4697,7 +4697,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # add <weight> {R<from-level>{x <from-exit>\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg7);
@@ -4706,7 +4706,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # add <weight> {R<from-level>{x <from-exit>\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int flindex = atoi(arg7);
@@ -4715,7 +4715,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # add <weight> {R<from-level>{x <from-exit>\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *flevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, flindex);
@@ -4726,7 +4726,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # add <weight> <from-level> {R<from-exit>{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int fexit = atoi(argument);
@@ -4735,7 +4735,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # add <weight> <from-level> {R<from-exit>{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				add_dungeon_index_weighted_exit_data(ex->from, weight, flindex, fexit);
@@ -4743,7 +4743,7 @@ DNGEDIT( dngedit_special )
 
 				sprintf(buf, "From definition added to special exit %d.\n\r", index);
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg4, "set"))
@@ -4753,14 +4753,14 @@ DNGEDIT( dngedit_special )
 					if (list_size(ex->from) < 1)
 					{
 						send_to_char("Special exit appears to be missing necessary From definition.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit from # set {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -4768,7 +4768,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit from # set {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					int weight = atoi(arg6);
@@ -4776,7 +4776,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit from # set {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -4784,7 +4784,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg7);
@@ -4793,7 +4793,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int flindex = atoi(arg7);
@@ -4802,7 +4802,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *flevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, flindex);
@@ -4813,7 +4813,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set <weight> <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int fexit = atoi(argument);
@@ -4822,7 +4822,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set <weight> <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_WEIGHTED_EXIT_DATA *fex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->from, 1);
@@ -4835,14 +4835,14 @@ DNGEDIT( dngedit_special )
 
 					sprintf(buf, "From definition set on special exit %d.\n\r", index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 				}
 				else
 				{
 					if (list_size(ex->from) < 1)
 					{
 						send_to_char("Special exit has no From definition.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -4850,7 +4850,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set {R#{x <weight> <from-level> <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg5);
@@ -4859,7 +4859,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set {R#{x <weight> <from-level> <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int findex = atoi(arg5);
@@ -4868,14 +4868,14 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set {R#{x <weight> <from-level> <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit from # set # {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -4883,7 +4883,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit from # set # {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					int weight = atoi(arg6);
@@ -4891,7 +4891,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit from # set # {R<weight>{x <from-level> <from-exit>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -4899,7 +4899,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set # <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg7);
@@ -4908,7 +4908,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set # <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int flindex = atoi(arg7);
@@ -4917,7 +4917,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set # <weight> {R<from-level>{x <from-exit>\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *flevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, flindex);
@@ -4928,7 +4928,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set # <weight> <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int fexit = atoi(argument);
@@ -4937,7 +4937,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit from # set # <weight> <from-level> {R<from-exit>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number from 1 to %d\n\r", fexits);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_WEIGHTED_EXIT_DATA *fex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->from, findex);
@@ -4950,7 +4950,7 @@ DNGEDIT( dngedit_special )
 
 					sprintf(buf, "From definition %d set on special exit %d.\n\r", findex, index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 
 				}
 			}
@@ -4962,14 +4962,14 @@ DNGEDIT( dngedit_special )
 				{
 					sprintf(buf, "Special exit %d is a STATIC exit.  Cannot remove the From definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (ex->mode == EXITMODE_WEIGHTED_DEST)
 				{
 					sprintf(buf, "Special exit %d is a DESTINATION exit.  Cannot remove the From definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -4977,7 +4977,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int findex = atoi(argument);
@@ -4986,14 +4986,14 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit from # remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(ex->from));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				list_remnthlink(ex->from, findex, true);
 				send_to_char("From definition removed from special exit.\n\r", ch);
 				if (list_size(ex->from) < 1)
 					send_to_char("{RWarning:{x Please add a from definition for this exit to work.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			send_to_char("Syntax:  special exit from # {Rlist{x\n\r", ch);
@@ -5001,7 +5001,7 @@ DNGEDIT( dngedit_special )
 			send_to_char("         special exit from # {Rset{x # <weight> <from-level> <from-exit>\n\r", ch);
 			send_to_char("         special exit from # {Rset{x <weight> <from-level> <from-exit> (for static and destination exits only)\n\r", ch);
 			send_to_char("         special exit from # {Rremove{x #\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!str_prefix(arg2, "to"))
@@ -5010,7 +5010,7 @@ DNGEDIT( dngedit_special )
 			if (list_size(dng->special_exits) < 1)
 			{
 				send_to_char("Please add a special exit definition first.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (IS_NULLSTR(argument))
@@ -5022,7 +5022,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit to {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg3);
@@ -5035,7 +5035,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit to {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(arg3);
@@ -5048,7 +5048,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit to {R#{x remove #\n\r", ch);
 				sprintf(buf, "         Please specify a number between 1 and {Y%d{x.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(dng->special_exits, index);
@@ -5056,7 +5056,7 @@ DNGEDIT( dngedit_special )
 			if (ex->mode == EXITMODE_GROUP)
 			{
 				send_to_char("Cannot alter the To definitions on a GROUP exit.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (IS_NULLSTR(argument))
@@ -5066,7 +5066,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("         special exit to # {Rset{x # <weight> <to-level> <to-entry>\n\r", ch);
 				send_to_char("         special exit to # {Rset{x <weight> <to-level> <to-entry> (for static and source exits only)\n\r", ch);
 				send_to_char("         special exit to # {Rremove{x #\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg4);
@@ -5107,7 +5107,7 @@ DNGEDIT( dngedit_special )
 				{
 					send_to_char("There are no To definitions on this special exit.\n\r", ch);
 				}
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg4, "add"))
@@ -5116,21 +5116,21 @@ DNGEDIT( dngedit_special )
 				{
 					sprintf(buf, "Special exit %d is a STATIC exit.  Cannot add any new To definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (ex->mode == EXITMODE_WEIGHTED_SOURCE)
 				{
 					sprintf(buf, "Special exit %d is a SOURCE exit.  Cannot add any new To definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
 				{
 					send_to_char("Syntax:  special exit to # add {R<weight>{x <to-level> <to-entry>\n\r", ch);
 					send_to_char("         Please specify a positive number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg6);
@@ -5138,7 +5138,7 @@ DNGEDIT( dngedit_special )
 				{
 					send_to_char("Syntax:  special exit to # add {R<weight>{x <to-level> <to-entry>\n\r", ch);
 					send_to_char("         Please specify a positive number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int weight = atoi(arg6);
@@ -5146,7 +5146,7 @@ DNGEDIT( dngedit_special )
 				{
 					send_to_char("Syntax:  special exit to # add {R<weight>{x <to-level> <to-entry>\n\r", ch);
 					send_to_char("         Please specify a positive number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if (IS_NULLSTR(argument))
@@ -5154,7 +5154,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # add <weight> {R<to-level>{x <to-entry>\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				argument = one_argument(argument, arg7);
@@ -5163,7 +5163,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # add <weight> {R<to-level>{x <to-entry>\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int tlindex = atoi(arg7);
@@ -5172,7 +5172,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # add <weight> {R<to-level>{x <to-entry>\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				DUNGEON_INDEX_LEVEL_DATA *tlevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, tlindex);
@@ -5183,7 +5183,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # add <weight> <to-level> {R<to-entry>{x\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int tentry = atoi(argument);
@@ -5192,7 +5192,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # add <weight> <to-level> {R<to-entry>{x\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				add_dungeon_index_weighted_exit_data(ex->to, weight, tlindex, tentry);
@@ -5200,7 +5200,7 @@ DNGEDIT( dngedit_special )
 
 				sprintf(buf, "To definition added to special exit %d.\n\r", index);
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!str_prefix(arg4, "set"))
@@ -5210,14 +5210,14 @@ DNGEDIT( dngedit_special )
 					if (list_size(ex->to) < 1)
 					{
 						send_to_char("Special exit appears to be missing necessary To definition.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit to # set {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -5225,7 +5225,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit to # set {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					int weight = atoi(arg6);
@@ -5233,7 +5233,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit to # set {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -5241,7 +5241,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg7);
@@ -5250,7 +5250,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tlindex = atoi(arg7);
@@ -5259,7 +5259,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *tlevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, tlindex);
@@ -5270,7 +5270,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set <weight> <to-level> {R<to-entry>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tentry = atoi(argument);
@@ -5279,7 +5279,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set <weight> <to-level> {R<to-entry>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_WEIGHTED_EXIT_DATA *tex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->to, 1);
@@ -5292,14 +5292,14 @@ DNGEDIT( dngedit_special )
 
 					sprintf(buf, "To definition set on special exit %d.\n\r", index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 				}
 				else
 				{
 					if (list_size(ex->to) < 1)
 					{
 						send_to_char("Special exit has no To definition.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -5307,7 +5307,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set {R#{x <weight> <to-level> <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg5);
@@ -5316,7 +5316,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set {R#{x <weight> <to-level> <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tindex = atoi(arg5);
@@ -5325,14 +5325,14 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set {R#{x <weight> <to-level> <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
 					{
 						send_to_char("Syntax:  special exit to # set # {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg6);
@@ -5340,7 +5340,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit to # set # {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					int weight = atoi(arg6);
@@ -5348,7 +5348,7 @@ DNGEDIT( dngedit_special )
 					{
 						send_to_char("Syntax:  special exit to # set # {R<weight>{x <to-level> <to-entry>\n\r", ch);
 						send_to_char("         Please specify a positive number.\n\r", ch);
-						return FALSE;
+						return false;
 					}
 
 					if (IS_NULLSTR(argument))
@@ -5356,7 +5356,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set # <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					argument = one_argument(argument, arg7);
@@ -5365,7 +5365,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set # <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tlindex = atoi(arg7);
@@ -5374,7 +5374,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set # <weight> {R<to-level>{x <to-entry>\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", list_size(dng->levels));
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_LEVEL_DATA *tlevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, tlindex);
@@ -5385,7 +5385,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set # <weight> <to-level> {R<to-entry>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					int tentry = atoi(argument);
@@ -5394,7 +5394,7 @@ DNGEDIT( dngedit_special )
 						send_to_char("Syntax:  special exit to # set # <weight> <to-level> {R<to-entry>{x\n\r", ch);
 						sprintf(buf, "         Please specify a number to 1 to %d\n\r", tentries);
 						send_to_char(buf, ch);
-						return FALSE;
+						return false;
 					}
 
 					DUNGEON_INDEX_WEIGHTED_EXIT_DATA *tex = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(ex->to, tindex);
@@ -5407,7 +5407,7 @@ DNGEDIT( dngedit_special )
 
 					sprintf(buf, "To definition %d set on special exit %d.\n\r", tindex, index);
 					send_to_char(buf, ch);
-					return TRUE;
+					return true;
 
 				}
 			}
@@ -5418,14 +5418,14 @@ DNGEDIT( dngedit_special )
 				{
 					sprintf(buf, "Special exit %d is a STATIC exit.  Cannot remove the To definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (ex->mode == EXITMODE_WEIGHTED_SOURCE)
 				{
 					sprintf(buf, "Special exit %d is a SOURCE exit.  Cannot remove the To definition.\n\r", index);
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				if (!is_number(argument))
@@ -5433,7 +5433,7 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				int tindex = atoi(argument);
@@ -5442,14 +5442,14 @@ DNGEDIT( dngedit_special )
 					send_to_char("Syntax:  special exit to # remove {R#{x\n\r", ch);
 					sprintf(buf, "         Please specify a number to 1 to %d.\n\r", list_size(ex->to));
 					send_to_char(buf, ch);
-					return FALSE;
+					return false;
 				}
 
 				list_remnthlink(ex->to, tindex, true);
 				send_to_char("To definition removed to special exit.\n\r", ch);
 				if (list_size(ex->to) < 1)
 					send_to_char("{RWarning:{x Please add a To definition for this exit to work.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			send_to_char("Syntax:  special exit to # {Rlist{x\n\r", ch);
@@ -5457,7 +5457,7 @@ DNGEDIT( dngedit_special )
 			send_to_char("         special exit to # {Rset{x # <weight> <to-level> <to-entry>\n\r", ch);
 			send_to_char("         special exit to # {Rset{x <weight> <to-level> <to-entry> (for static and destination exits only)\n\r", ch);
 			send_to_char("         special exit to # {Rremove{x #\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!str_prefix(arg2, "remove"))
@@ -5468,7 +5468,7 @@ DNGEDIT( dngedit_special )
 				send_to_char("Syntax:  special exit remove {R#{x\n\r", ch);
 				sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			if (!is_number(argument))
@@ -5476,13 +5476,13 @@ DNGEDIT( dngedit_special )
 				send_to_char("Syntax:  special exit remove {R#{x\n\r", ch);
 				sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			if (list_size(dng->special_exits) < 1)
 			{
 				send_to_char("There are no special exits.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(argument);
@@ -5491,12 +5491,12 @@ DNGEDIT( dngedit_special )
 				send_to_char("Syntax:  special exit remove {R#{x\n\r", ch);
 				sprintf(buf, "         Please specify a number from 1 to %d.\n\r", list_size(dng->special_exits));
 				send_to_char(buf, ch);
-				return FALSE;
+				return false;
 			}
 
 			list_remnthlink(dng->special_exits, index, true);
 			send_to_char("Special exit removed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		send_to_char("Syntax:  special exit {Rlist{x\n\r", ch);
@@ -5528,7 +5528,7 @@ DNGEDIT( dngedit_special )
 		send_to_char("         special exit {Rgroup{x # to # remove #\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # remove #\n\r", ch);
 		send_to_char("         special exit {Rremove{x #\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 

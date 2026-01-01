@@ -4047,8 +4047,8 @@ BLUEPRINT *new_blueprint()
 
     bp->_static.layout = NULL;
     bp->_static.recall = -1;
-    bp->_static.entries = list_createx(FALSE, NULL, delete_blueprint_exit_data);
-    bp->_static.exits = list_createx(FALSE, NULL, delete_blueprint_exit_data);
+    bp->_static.entries = list_createx(false, NULL, delete_blueprint_exit_data);
+    bp->_static.exits = list_createx(false, NULL, delete_blueprint_exit_data);
 
 	VALIDATE(bp);
 	return bp;
@@ -4239,7 +4239,7 @@ INSTANCE *new_instance()
 	instance->rooms = list_create(false);
 	instance->bosses = list_create(false);
 	instance->special_rooms = list_createx(false, NULL, delete_named_special_room);
-    instance->special_exits = list_createx(FALSE, NULL, delete_named_special_exit);
+    instance->special_exits = list_createx(false, NULL, delete_named_special_exit);
 	instance->player_owners = list_createx(false, NULL, delete_list_uid_data);
 
 	VALIDATE(instance);
@@ -4342,9 +4342,9 @@ DUNGEON_INDEX_SPECIAL_EXIT *new_dungeon_index_special_exit()
 
 	memset(special, 0, sizeof(DUNGEON_INDEX_SPECIAL_EXIT));
 	special->name = &str_empty[0];
-    special->from = list_createx(FALSE, NULL, delete_weighted_random_exit_data);
-    special->to = list_createx(FALSE, NULL, delete_weighted_random_exit_data);
-    special->group = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
+    special->from = list_createx(false, NULL, delete_weighted_random_exit_data);
+    special->to = list_createx(false, NULL, delete_weighted_random_exit_data);
+    special->group = list_createx(false, NULL, delete_dungeon_index_special_exit);
 
 	VALIDATE(special);
 	return special;
@@ -4425,9 +4425,9 @@ DUNGEON_INDEX_LEVEL_DATA *new_dungeon_index_level()
 
     dungeon_level->mode = LEVELMODE_STATIC;
     dungeon_level->floor = 0;
-    dungeon_level->weighted_floors = list_createx(FALSE, NULL, delete_weighted_random_floor_data);
+    dungeon_level->weighted_floors = list_createx(false, NULL, delete_weighted_random_floor_data);
     dungeon_level->total_weight = 0;
-    dungeon_level->group = list_createx(FALSE, NULL, delete_dungeon_index_level);
+    dungeon_level->group = list_createx(false, NULL, delete_dungeon_index_level);
 
     VALIDATE(dungeon_level);
 
@@ -4471,9 +4471,9 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 	dungeon_index->area_who = AREA_BLANK;
 
 	dungeon_index->floors = list_create(false);
-    dungeon_index->levels = list_createx(FALSE, NULL, delete_dungeon_index_level);
+    dungeon_index->levels = list_createx(false, NULL, delete_dungeon_index_level);
 	dungeon_index->special_rooms = list_createx(false, NULL, delete_dungeon_index_special_room);
-    dungeon_index->special_exits = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
+    dungeon_index->special_exits = list_createx(false, NULL, delete_dungeon_index_special_exit);
 	dungeon_index->entry_room = 0;
 	dungeon_index->exit_room = 0;
 
@@ -4537,7 +4537,7 @@ DUNGEON *new_dungeon()
 	dng->rooms = list_create(false);
 	dng->bosses = list_create(false);
 	dng->special_rooms = list_createx(false, NULL, delete_named_special_room);
-    dng->special_exits = list_createx(FALSE, NULL, delete_named_special_exit);
+    dng->special_exits = list_createx(false, NULL, delete_named_special_exit);
 	dng->player_owners = list_createx(false, NULL, delete_list_uid_data);
 
 	VALIDATE(dng);

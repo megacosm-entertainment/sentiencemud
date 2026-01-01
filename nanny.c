@@ -21,6 +21,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "protocol.h"
+#include "account/auth.h"
 
 
 #define DEV_SKIP_PASSWORD (game_settings.dev_server && !game_settings.enable_passwd)
@@ -216,23 +217,15 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
             return;
         }
-        // If not reset code, try password (tiered check)
-        // 1. Try new preferred method (system crypt())
-        if (acct->passwd && acct->passwd[0] != '\0') {
-            if (strcmp(crypt(argument, acct->passwd), acct->passwd) == 0) {
-                password_ok = true;
-            }
-        }
-        // 2. Fallback to current method (custom sha256_crypt()) if new one failed
-        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
-            if (strcmp(sha256_crypt(argument), acct->passwd) == 0) {
-                password_ok = true;
-            }
-        }
-        // 3. Fallback to plaintext comparison if others failed
-        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
-            if (strcmp(argument, acct->passwd) == 0) {
-                password_ok = true;
+        // If not reset code, try password using auth API
+        AUTH_DATA *auth = get_account_auth(acct);
+        pwd_result_t pwd_result = verify_password(argument, auth);
+        free_auth_data(auth);
+
+        if (pwd_result != PWD_INVALID) {
+            password_ok = true;
+            // Mark for password upgrade if using legacy methods
+            if (pwd_result == PWD_VALID_PLAINTEXT) {
                 acct->passwd_version = 0; // Mark for forced update
             }
         }
@@ -248,22 +241,15 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
         // The reset state will be cleared upon successful login further down.
 
     } else { // Normal password check (no reset pending)
-        // 1. Try new preferred method (system crypt())
-        if (acct->passwd && acct->passwd[0] != '\0') {
-            if (strcmp(crypt(argument, acct->passwd), acct->passwd) == 0) {
-                password_ok = true;
-            }
-        }
-        // 2. Fallback to current method (custom sha256_crypt()) if new one failed
-        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
-            if (strcmp(sha256_crypt(argument), acct->passwd) == 0) {
-                password_ok = true;
-            }
-        }
-        // 3. Fallback to plaintext comparison if others failed
-        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
-            if (strcmp(argument, acct->passwd) == 0) {
-                password_ok = true;
+        // Use auth API for password verification
+        AUTH_DATA *auth = get_account_auth(acct);
+        pwd_result_t pwd_result = verify_password(argument, auth);
+        free_auth_data(auth);
+
+        if (pwd_result != PWD_INVALID) {
+            password_ok = true;
+            // Mark for password upgrade if using legacy methods
+            if (pwd_result == PWD_VALID_PLAINTEXT) {
                 acct->passwd_version = 0; // Mark for forced update
             }
         }
@@ -624,17 +610,22 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
 void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
-    
+
     write_to_buffer(d, "\n\r", 2);
-    
-    if (strcmp(sha256_crypt(argument), acct->passwd)) {
+
+    // Use auth API for password verification
+    AUTH_DATA *auth = get_account_auth(acct);
+    pwd_result_t pwd_result = verify_password(argument, auth);
+    free_auth_data(auth);
+
+    if (pwd_result == PWD_INVALID) {
         write_to_buffer(d, "Incorrect password.\n\r", 0);
         ProtocolNoEcho(d, false);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
-    
+
     d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
 }
 
@@ -642,23 +633,23 @@ void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
 // If the code is correct, we proceed to the MFA settings menu.
 void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
     ACCOUNT_DATA *acct = d->account;
-    bool valid = validate_totp_code(acct->mfa_key, argument);
-    
-    // Check recovery codes if TOTP validation fails
-    if (!valid) {
-        for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-            if (!IS_NULLSTR(acct->recovery_codes[i]) && 
-                !acct->recovery_used[i] && 
-                !strcmp(argument, acct->recovery_codes[i])) {
-                acct->recovery_used[i] = true;
-                save_account(acct);
-                valid = true;
-                write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
-                break;
-            }
-        }
+    AUTH_DATA *auth = get_account_auth(acct);
+    bool valid = false;
+
+    // Try MFA code first
+    if (verify_mfa_code(argument, auth)) {
+        valid = true;
     }
-    
+    // Try recovery code if MFA failed
+    else if (verify_recovery_code(argument, auth)) {
+        mark_recovery_code_used(argument, auth, acct, NULL);
+        save_account(acct);
+        valid = true;
+        write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
+    }
+
+    free_auth_data(auth);
+
     if (valid) {
         d->mfa_verified = true;
         display_account_mfa_menu(d, "");
@@ -2835,30 +2826,14 @@ void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
     }
     
     write_to_buffer(d, "\n\r", 2);
-    
-    // Tiered password check for ch->pcdata->pwd
-    // 1. Try new preferred method (system crypt())
-    if (ch->pcdata->pwd && ch->pcdata->pwd[0] != '\0') {
-        if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) == 0) {
-            password_ok = true;
-        }
-    }
 
-    // 2. Fallback to current method (custom sha256_crypt()) if new one failed
-    if (!password_ok && ch->pcdata->pwd && ch->pcdata->pwd[0] != '\0') {
-        if (strcmp(sha256_crypt(argument), ch->pcdata->pwd) == 0) {
-            password_ok = true;
-            // This might indicate the char's password needs re-hashing to crypt() standard
-        }
-    }
+    // Use auth API for character password verification (from PC_DATA for unlinked chars)
+    AUTH_DATA *auth = get_auth_data(ch, d->account);
+    pwd_result_t pwd_result = verify_password(argument, auth);
+    free_auth_data(auth);
 
-    // 3. Fallback to plaintext comparison if others failed
-    if (!password_ok && ch->pcdata->pwd && ch->pcdata->pwd[0] != '\0') {
-        if (strcmp(argument, ch->pcdata->pwd) == 0) {
-            password_ok = true;
-            // This definitely indicates the char's password needs hashing
-            // Consider forcing a password change or auto-hashing it here.
-        }
+    if (pwd_result != PWD_INVALID) {
+        password_ok = true;
     }
     
     if (!password_ok) {
@@ -5618,7 +5593,7 @@ bool get_character_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct, ACCOUNT_CHARACTE
 void login_get_char_body_type(DESCRIPTOR_DATA *d, char *argument) {
     CHAR_DATA *ch = d->character;
     body_type_t chosen_body_type = BODY_TYPE_NEUTRAL;
-    bool body_type_chosen = FALSE;
+    bool body_type_chosen = false;
     int i;
     char buf[MSL];
 
@@ -5637,12 +5612,12 @@ void login_get_char_body_type(DESCRIPTOR_DATA *d, char *argument) {
     for (i = 0; i < BODY_TYPE_MAX; i++) {
         if (!str_prefix(argument, body_type_info[i].name)) {
             chosen_body_type = (body_type_t)i;
-            body_type_chosen = TRUE;
+            body_type_chosen = true;
             break;
         }
         if (strlen(argument) == 1 && LOWER(argument[0]) == body_type_info[i].name[0]) {
             chosen_body_type = (body_type_t)i;
-            body_type_chosen = TRUE;
+            body_type_chosen = true;
             break;
         }
     }

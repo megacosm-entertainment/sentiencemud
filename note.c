@@ -395,7 +395,7 @@ if (!str_cmp(type_arg_lc, "@church"))
         while (*p != '\0') {
             p = one_argument(p, account_name);
             if (account_name[0] == '\0') break;
-            bool loaded = FALSE;
+            bool loaded = false;
             ACCOUNT_DATA *acct = get_account_online_or_offline(account_name, &loaded);
             if (acct) {
                 if (found_any) strcat(valid_accounts, " ");

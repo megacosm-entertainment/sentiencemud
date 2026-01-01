@@ -365,7 +365,7 @@ if (match_count == 1) {
 
         // If still not found, try partial match for all settings
         if (!found) {
-            bool any = FALSE;
+            bool any = false;
             snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
             add_buf(buffer, buf);
             snprintf(buf, sizeof(buf), "{Y| %-23s | %-36s | %-10s |{x\n\r", "Setting Name", "Value", "Type");
@@ -376,7 +376,7 @@ if (match_count == 1) {
             for (i = 0; game_settings_table[i].name != NULL; i++) {
                 if (!str_prefix(argument, game_settings_table[i].name)) {
                     gameedit_display_setting(buffer, ch, &game_settings_table[i]);
-                    any = TRUE;
+                    any = true;
                 }
             }
 
@@ -445,7 +445,7 @@ add_buf(buffer, buf);
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
-    return FALSE;
+    return false;
 }
 
 // Modify the do_gameedit function (in the 'set' section) to handle EXTSTR edit case
@@ -459,18 +459,18 @@ GAMEEDIT(gameedit_set)
     
     if (arg1[0] == '\0') {
         send_to_char("Syntax: gameedit set <setting> <value>\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     if (!gameedit_find_setting(ch, arg1, &setting)) {
         send_to_char("No such setting found.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Check if setting is OLC settable */
     if (!setting->olc_settable) {
         send_to_char("This setting cannot be changed through OLC.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Get the value argument */
@@ -494,7 +494,7 @@ GAMEEDIT(gameedit_set)
     else {
         if (argument[0] == '\0') {
             send_to_char("Syntax: gameedit set <setting> <value>\n\r", ch);
-            return FALSE;
+            return false;
         }
         strcpy(arg2, argument);
     }
@@ -513,7 +513,7 @@ GAMEEDIT(gameedit_confirm)
     
     if (list_size(pending_changes) == 0) {
         send_to_char("There are no pending changes to confirm.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Extract optional comment */
@@ -584,7 +584,7 @@ GAMEEDIT(gameedit_confirm)
     }
     
     pending_reboot = false;
-    return TRUE;
+    return true;
 }
 
 /*
@@ -598,7 +598,7 @@ GAMEEDIT(gameedit_revert)
     
     if (list_size(pending_changes) == 0) {
         send_to_char("There are no pending changes to revert.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Count and clear the pending changes */
@@ -613,7 +613,7 @@ GAMEEDIT(gameedit_revert)
     
     send_to_char(formatf("Reverted %d pending setting changes.\n\r", count), ch);
     pending_reboot = false;
-    return TRUE;
+    return true;
 }
 
 bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_type **setting)
@@ -624,7 +624,7 @@ bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_
         /* First try exact match */
         if (!str_cmp(name, game_settings_table[i].name)) {
             *setting = &game_settings_table[i];
-            return TRUE;
+            return true;
         }
     }
     
@@ -632,11 +632,11 @@ bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_
     for (i = 0; game_settings_table[i].name != NULL; i++) {
         if (!str_prefix(name, game_settings_table[i].name)) {
             *setting = &game_settings_table[i];
-            return TRUE;
+            return true;
         }
     }
     
-    return FALSE;
+    return false;
 }
 
 /*
@@ -763,7 +763,7 @@ void gameedit_display_category(BUFFER *buffer, CHAR_DATA *ch, int category)
 {
     char buf[MAX_STRING_LENGTH];
     int i;
-    bool found = FALSE;
+    bool found = false;
 
     // Table header
     snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
@@ -785,7 +785,7 @@ void gameedit_display_category(BUFFER *buffer, CHAR_DATA *ch, int category)
     for (i = 0; game_settings_table[i].name != NULL; i++) {
         if (game_settings_table[i].category == category) {
             gameedit_display_setting(buffer, ch, &game_settings_table[i]);
-            found = TRUE;
+            found = true;
         }
     }
 
@@ -815,21 +815,21 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
                 str_cmp(value, "on") && str_cmp(value, "off") &&
                 str_cmp(value, "1") && str_cmp(value, "0")) {
                 send_to_char("Boolean settings must be true/false, yes/no, on/off, or 1/0.\n\r", ch);
-                return FALSE;
+                return false;
             }
             break;
             
         case SETTING_TYPE_INT:
             if (!is_number(value)) {
                 send_to_char("This setting requires a numeric value.\n\r", ch);
-                return FALSE;
+                return false;
             }
             break;
             
         case SETTING_TYPE_FLOAT:
             {
                 char *p;
-                bool valid = TRUE;
+                bool valid = true;
                 int decimal_points = 0;
                 
                 // Check if it's a valid float format (digits, maybe a decimal point, more digits)
@@ -837,21 +837,21 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
                     if (*p == '.') {
                         decimal_points++;
                         if (decimal_points > 1) {
-                            valid = FALSE;
+                            valid = false;
                             break;
                         }
                     } else if (*p == '-' && p == value) {
                         // Negative sign allowed only at start
                         continue;
                     } else if (!isdigit(*p)) {
-                        valid = FALSE;
+                        valid = false;
                         break;
                     }
                 }
                 
                 if (!valid) {
                     send_to_char("This setting requires a floating point number.\n\r", ch);
-                    return FALSE;
+                    return false;
                 }
             }
             break;
@@ -861,7 +861,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
             if (!str_cmp(value, "edit")) {
                 if (!setting->olc_settable) {
                     send_to_char("This setting cannot be changed through OLC.\n\r", ch);
-                    return FALSE;
+                    return false;
                 }
                 
                 // Set up the string editor
@@ -870,7 +870,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
                 ch->desc->editor_ptr = (void *)setting; // Store setting for later reference
                 
                 string_append(ch, (char **)setting->ptr);
-                return TRUE;
+                return true;
             }
             // Otherwise, treat it like a regular string
             break;
@@ -888,7 +888,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
     // Handle special case for EXTSTR when not using 'edit'
     if (setting->type == SETTING_TYPE_EXTSTR && str_cmp(value, "edit")) {
         send_to_char("Extended string settings must be edited with 'gameedit set <setting> edit'.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Check if we already have a pending change for this setting */
@@ -901,7 +901,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
             iterator_stop(&it);
             
             send_to_char("Setting updated in pending changes.\n\r", ch);
-            return TRUE;
+            return true;
         }
     }
     iterator_stop(&it);
@@ -919,7 +919,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
         pending_reboot = true;
     }
     
-    return TRUE;
+    return true;
 }
 
 /*
@@ -931,18 +931,18 @@ bool requires_reboot(void)
     GAME_SETTING_CHANGE *change;
     
     if (!pending_changes || list_size(pending_changes) == 0)
-        return FALSE;
+        return false;
     
     iterator_start(&it, pending_changes);
     while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
         if (change->setting->requires_reboot) {
             iterator_stop(&it);
-            return TRUE;
+            return true;
         }
     }
     iterator_stop(&it);
     
-    return FALSE;
+    return false;
 }
 
 
@@ -1005,7 +1005,7 @@ GAMEEDIT(gameedit_history)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
     
-    return FALSE;
+    return false;
 }
 
 /*
@@ -1022,7 +1022,7 @@ GAMEEDIT(gameedit_view)
     
     if (argument[0] == '\0' || !is_number(argument)) {
         send_to_char("Syntax: gameedit view <changeset_id>\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     id = atoi(argument);
@@ -1037,7 +1037,7 @@ GAMEEDIT(gameedit_view)
     
     if (!changeset) {
         send_to_char("No changeset found with that ID.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     buffer = new_buf();
@@ -1149,7 +1149,7 @@ GAMEEDIT(gameedit_view)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
     
-    return FALSE;
+    return false;
 }
 
 /*
@@ -1168,7 +1168,7 @@ GAMEEDIT(gameedit_pending)
         add_buf(buffer, "There are no pending game setting changes.\n\r");
         page_to_char(buf_string(buffer), ch);
         free_buf(buffer);
-        return TRUE;
+        return true;
     }
 
     sprintf(buf, "{YPending Game Setting Changes (%d):{x\n\r", list_size(pending_changes));
@@ -1294,7 +1294,7 @@ GAMEEDIT(gameedit_pending)
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1304,7 +1304,7 @@ GAMEEDIT(gameedit_rollback)
 {
     int i, id;
     char arg[MAX_INPUT_LENGTH];
-    bool confirm = FALSE;
+    bool confirm = false;
     GAME_SETTINGS_CHANGESET *changeset = NULL;
     ITERATOR it;
     GAME_SETTING_CHANGE_HISTORY *history;
@@ -1315,14 +1315,14 @@ GAMEEDIT(gameedit_rollback)
     
     if (arg[0] == '\0' || !is_number(arg)) {
         send_to_char("Syntax: gameedit rollback <changeset_id> [confirm]\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     id = atoi(arg);
     
     /* Check if 'confirm' was provided */
     if (argument[0] != '\0' && !str_cmp(argument, "confirm"))
-        confirm = TRUE;
+        confirm = true;
     
     /* Find the changeset with the given ID */
     for (i = 0; i < changeset_count; i++) {
@@ -1334,7 +1334,7 @@ GAMEEDIT(gameedit_rollback)
     
     if (!changeset) {
         send_to_char("No changeset found with that ID.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Require confirmation before proceeding */
@@ -1347,7 +1347,7 @@ GAMEEDIT(gameedit_rollback)
             changeset->id, changeset->author, time_buf), ch);
         send_to_char(formatf("This will revert %d settings.\n\r", list_size(changeset->changes)), ch);
         send_to_char("Type 'gameedit rollback <id> confirm' to proceed.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Apply the old values */
@@ -1445,7 +1445,7 @@ save_changesets();
         pending_reboot = true;
     }
     
-    return TRUE;
+    return true;
 }
 
 void create_changeset(CHAR_DATA *ch, char *comment)
@@ -1681,7 +1681,7 @@ void load_changesets(void)
             break;
         }
         
-        fMatch = FALSE;
+        fMatch = false;
         
         if (word[0] == '\0') {
             log_string("Error: Empty word read");
@@ -1692,7 +1692,7 @@ void load_changesets(void)
         if (!str_cmp(word, "#END") && changeset) {
             log_string(formatf("Finished changeset ID #%d", changeset->id));
             changeset = NULL; // Reset for next changeset
-            fMatch = TRUE;
+            fMatch = true;
             continue;
         }
         
@@ -1728,7 +1728,7 @@ void load_changesets(void)
             
             changesets[changeset_count++] = changeset;
 //            log_string(formatf("Processing changeset #%d", changeset_count));
-            fMatch = TRUE;
+            fMatch = true;
             continue;
         }
         
@@ -1744,7 +1744,7 @@ void load_changesets(void)
                 if (!str_cmp(word, "Author")) {
                     free_string(changeset->author);
                     changeset->author = fread_string(fp);
-                    fMatch = TRUE;
+                    fMatch = true;
                 }
                 break;
                 
@@ -1752,7 +1752,7 @@ void load_changesets(void)
                 if (!str_cmp(word, "Comment")) {
                     free_string(changeset->comment);
                     changeset->comment = fread_string(fp);
-                    fMatch = TRUE;
+                    fMatch = true;
                 }
                 else if (!str_cmp(word, "Change")) {
                     char *setting_name = fread_word(fp);  // Use fread_word for the setting name
@@ -1796,21 +1796,21 @@ void load_changesets(void)
                     if (old_value) free_string(old_value);
                     if (new_value) free_string(new_value);
                     
-                    fMatch = TRUE;
+                    fMatch = true;
                 }
                 break;
                 
             case 'I':
                 if (!str_cmp(word, "Id")) {
                     changeset->id = fread_number(fp);
-                    fMatch = TRUE;
+                    fMatch = true;
                 }
                 break;
                 
             case 'T':
                 if (!str_cmp(word, "Timestamp")) {
                     changeset->timestamp = fread_number(fp);
-                    fMatch = TRUE;
+                    fMatch = true;
                 }
                 break;
         }
@@ -1853,7 +1853,7 @@ GAMEEDIT(gameedit_comment)
     
     if (argument[0] == '\0' || !is_number(argument)) {
         send_to_char("Syntax: gameedit comment <changeset_id>\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     id = atoi(argument);
@@ -1868,13 +1868,13 @@ GAMEEDIT(gameedit_comment)
     
     if (!changeset) {
         send_to_char("No changeset found with that ID.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Only allow author or imps to edit comments */
     if (str_cmp(ch->name, changeset->author) && get_staff_rank(ch) < STAFF_IMPLEMENTOR) {
         send_to_char("You can only edit comments on changesets you created if you are not an IMP.\n\r", ch);
-        return FALSE;
+        return false;
     }
     
     /* Start the string editor without saving immediately */
@@ -1883,7 +1883,7 @@ GAMEEDIT(gameedit_comment)
     
     string_append(ch, &changeset->comment);
     
-    return TRUE;
+    return true;
 }
 
 // Add a handler for the string editor for EXTSTR type settings

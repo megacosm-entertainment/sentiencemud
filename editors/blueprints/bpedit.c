@@ -1134,7 +1134,7 @@ BPEDIT( bpedit_static )
 				if( section < 1 || section > list_size(bp->sections) )
 				{
 					send_to_char("Section index out of range.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
@@ -1142,7 +1142,7 @@ BPEDIT( bpedit_static )
 				if( !get_section_link(bs, link) )
 				{
 					send_to_char("Link index out of range.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
@@ -1151,11 +1151,11 @@ BPEDIT( bpedit_static )
 				list_appendlink(bp->_static.entries, bex);
 
 				send_to_char("Blueprint entry point added.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			send_to_char("Syntax:  static entry add <section#> <link#>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !str_prefix(arg2, "remove") )
@@ -1163,24 +1163,24 @@ BPEDIT( bpedit_static )
 			if (!is_number(argument))
 			{
 				send_to_char("Syntax:  static entry remove <#>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(argument);
 			if (index < 1 || index > list_size(bp->_static.entries))
 			{
 				send_to_char("No such entry point.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			list_remnthlink(bp->_static.entries, index, true);
 
 			send_to_char("Blueprint entry point removed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		bpedit_static(ch, "entry");
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg, "exit") )
@@ -1191,7 +1191,7 @@ BPEDIT( bpedit_static )
 		{
 			send_to_char("Syntax:  static exit add <section#> <link#>\n\r", ch);
 			send_to_char("         static exit remove <#>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg2);
@@ -1210,7 +1210,7 @@ BPEDIT( bpedit_static )
 				if( section < 1 || section > list_size(bp->sections) )
 				{
 					send_to_char("Section index out of range.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
@@ -1218,7 +1218,7 @@ BPEDIT( bpedit_static )
 				if( !get_section_link(bs, link) )
 				{
 					send_to_char("Link index out of range.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
@@ -1227,11 +1227,11 @@ BPEDIT( bpedit_static )
 				list_appendlink(bp->_static.exits, bex);
 
 				send_to_char("Blueprint exit point added.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			send_to_char("Syntax:  static exit add <section#> <link#>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !str_prefix(arg2, "remove") )
@@ -1239,20 +1239,20 @@ BPEDIT( bpedit_static )
 			if (!is_number(argument))
 			{
 				send_to_char("Syntax:  static exit remove <#>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(argument);
 			if (index < 1 || index > list_size(bp->_static.exits))
 			{
 				send_to_char("No such exit point.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			list_remnthlink(bp->_static.exits, index, true);
 
 			send_to_char("Blueprint exit point removed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		bpedit_static(ch, "exit");
