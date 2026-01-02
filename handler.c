@@ -2128,8 +2128,11 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
  */
 void obj_to_locker(OBJ_DATA *obj, CHAR_DATA *ch)
 {
+    // MIGRATION: Moving from old linked-list to new LLIST system
+    // Keep old system for backward compatibility during transition
     obj->next_content    = ch->locker;
     ch->locker           = obj;
+
     obj->carried_by      = ch;
     obj->in_room         = NULL;
     obj->in_obj          = NULL;
@@ -2137,6 +2140,7 @@ void obj_to_locker(OBJ_DATA *obj, CHAR_DATA *ch)
 
     obj->pIndexData->lockered++;
 
+    // New LLIST system - this is the primary storage now
     list_addlink(ch->llocker, obj);
 
 }

@@ -45,6 +45,7 @@
 #include "tables.h"
 #include "olc_save.h"
 #include "wilds.h"
+#include "redis_cache.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -10930,10 +10931,13 @@ void do_acctlink(CHAR_DATA *ch, char *argument) {
     char_to_link->pcdata->reset_state = 0;    // e.g., RESET_NONE
     char_to_link->pcdata->need_change_pw = 0; // No longer needs individual password change
 
-    save_char_obj(char_to_link);
+    // NOTE: Do NOT save here - account_add_character() will save if migration occurs
+    // Saving here causes duplicate objects (12% bloat) because account_add_character
+    // also calls save_char_obj() after migration. See ACCTLINK_DUPLICATION_BUG.md
 
     // 6. Add character to account's list
     // account_add_character expects a fully loaded CHAR_DATA, which char_to_link is.
+    // This will call save_char_obj() internally if migration changes are made.
     account_add_character(target_account, char_to_link);
 
     // Explicitly save the account, whether it was online or loaded from disk.
@@ -11106,17 +11110,112 @@ void do_gcstats(CHAR_DATA *ch, char *argument)
         send_to_char("Huh?\n\r", ch);
         return;
     }
-    
+
     char buf[MAX_STRING_LENGTH];
     sprintf(buf, "Garbage Collection Statistics:\n\r");
     sprintf(buf + strlen(buf), "Items waiting: Mobs %d, Objs %d, Rooms %d, Tokens %d\n\r",
-            list_size(gc_mobiles), list_size(gc_objects), 
+            list_size(gc_mobiles), list_size(gc_objects),
             list_size(gc_rooms), list_size(gc_tokens));
     sprintf(buf + strlen(buf), "Total GC calls: %ld\n\r", gc_calls);
     sprintf(buf + strlen(buf), "Total items processed: %ld\n\r", gc_total_processed);
-    sprintf(buf + strlen(buf), "Average items per call: %.2f\n\r", 
+    sprintf(buf + strlen(buf), "Average items per call: %.2f\n\r",
             gc_calls > 0 ? (float)gc_total_processed / gc_calls : 0);
     sprintf(buf + strlen(buf), "Max GC time: %ld ms\n\r", gc_max_time);
-    
+
     send_to_char(buf, ch);
+}
+
+void do_cachestats(CHAR_DATA *ch, char *argument)
+{
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    // Use the redis_print_stats function which formats and displays stats
+    redis_print_stats(ch);
+}
+
+void do_cacheinfo(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char name[MAX_INPUT_LENGTH];
+    CHAR_INFO_CACHE *info;
+    int i;
+
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: cacheinfo <character name>\n\r", ch);
+        return;
+    }
+
+    one_argument(argument, name);
+    name[0] = UPPER(name[0]);
+
+    // Try to get character info from Redis cache
+    info = redis_get_char_info(name);
+
+    if (!info) {
+        sprintf(buf, "No cached data found for '%s'.\n\r", name);
+        send_to_char(buf, ch);
+        send_to_char("(Character may not exist, or cache has expired)\n\r", ch);
+        return;
+    }
+
+    // Display cached character info
+    sprintf(buf, "\n\r{Y=== Cached Info for %s ==={x\n\r\n\r", info->name);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Name:        {C%s{x\n\r", info->name);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Title:       {C%s{x\n\r", info->title);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Level:       {G%d{x ({G%d{x total)\n\r", info->level, info->tot_level);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Race:        {W%s{x%s\n\r", info->race, info->remorts ? " {Y(Remort){x" : "");
+    send_to_char(buf, ch);
+
+    if (info->num_classes > 0) {
+        sprintf(buf, "Classes:     ");
+        for (i = 0; i < info->num_classes; i++) {
+            sprintf(buf + strlen(buf), "{W%s{x%s",
+                    info->classes[i],
+                    (i < info->num_classes - 1) ? ", " : "");
+        }
+        strcat(buf, "\n\r");
+        send_to_char(buf, ch);
+    }
+
+    sprintf(buf, "Health:      {%c%d%%{x\n\r",
+            info->health_pct >= 75 ? 'G' : (info->health_pct >= 25 ? 'Y' : 'R'),
+            info->health_pct);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Mana:        {%c%d%%{x\n\r",
+            info->mana_pct >= 75 ? 'C' : (info->mana_pct >= 25 ? 'Y' : 'R'),
+            info->mana_pct);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Gold:        {Y%ld{x\n\r", info->gold);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Experience:  {C%ld{x\n\r", info->experience);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Last Played: {W%s{x", ctime(&info->last_played));
+    send_to_char(buf, ch);
+
+    sprintf(buf, "Status:      {%s%s{x\n\r\n\r",
+            info->is_active ? "G" : "R",
+            info->is_active ? "ONLINE" : "Offline");
+    send_to_char(buf, ch);
+
+    free_char_info_cache(info);
 }

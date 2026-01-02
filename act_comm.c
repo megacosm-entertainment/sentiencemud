@@ -42,6 +42,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "redis_cache.h"
 
 
 
@@ -1294,6 +1295,9 @@ iterator_stop(&it);
 	ch->manastore = 0;
 
 	save_char_obj(ch);
+
+	// Mark character as inactive in Redis cache
+	redis_set_char_active(ch->name, false);
 
 	if (MOUNTED(ch))
 	{

@@ -51,6 +51,7 @@
 #include "olc_save.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "redis_cache.h"
 
 #if defined(KEY)
 #undef KEY
@@ -208,6 +209,8 @@ void save_char_obj(CHAR_DATA *ch)
 {
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
+    struct timeval start_time, end_time, dedup_time, write_time;
+    long dedup_ms, write_ms, total_ms;
 
     if (IS_NPC(ch))
     return;
@@ -218,63 +221,87 @@ void save_char_obj(CHAR_DATA *ch)
         return;
     }
 
+    gettimeofday(&start_time, NULL);
     remove_duplicate_objects_from_char(ch);
+    gettimeofday(&dedup_time, NULL);
 
-    // Save character to account first
-    if (ch->desc && ch->desc->account) {
-        account_add_character(ch->desc->account, ch);
-        // Account saving is typically handled at player quit or via specific account commands.
-        // account_add_character may trigger a save if migration occurs.
-    } else if (!IS_NPC(ch) &&
-              (!IS_NULLSTR(ch->pcdata->account_name) || ch->pcdata->account_id[0] != 0)) {
-        // Fallback: Try to find and update account if not already on descriptor.
-        // This might happen during auto-saves or other scenarios where desc might be temporarily unavailable
-        // or the account link wasn't established.
-        ACCOUNT_DATA *account = NULL;
+    // CRITICAL: Prevent recursive save loop and duplicate file writes
+    // save_char_obj() can be called from account_add_character() at line 6361
+    // Track recursion depth to prevent:
+    // 1. Infinite recursion (account_add_character calling save_char_obj calling account_add_character...)
+    // 2. Multiple file writes (both the outer and inner save writing the pfile)
+    static int save_depth = 0;
+    bool is_top_level_save = (save_depth == 0);
+    save_depth++;
 
-        // Try by account name first
-        if (!IS_NULLSTR(ch->pcdata->account_name)) {
-            account = find_account_by_name(ch->pcdata->account_name);
-        }
+    // Update account metadata (may trigger recursive save)
+    // BUT: Only do this if we're the top-level save to prevent recursion
+    // When save_char_obj is called from account_add_character, we should NOT
+    // call account_add_character again (infinite loop!)
+    if (is_top_level_save) {
+        if (ch->desc && ch->desc->account) {
+            account_add_character(ch->desc->account, ch);
+            // Account saving is typically handled at player quit or via specific account commands.
+            // account_add_character may trigger a save if migration occurs.
+        } else if (!IS_NPC(ch) &&
+                  (!IS_NULLSTR(ch->pcdata->account_name) || ch->pcdata->account_id[0] != 0)) {
+            // Fallback: Try to find and update account if not already on descriptor.
+            // This might happen during auto-saves or other scenarios where desc might be temporarily unavailable
+            // or the account link wasn't established.
+            ACCOUNT_DATA *account = NULL;
 
-        // If not found by name, try by ID
-        if (account == NULL && ch->pcdata->account_id[0] != 0) {
-            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
-        }
+            // Try by account name first
+            if (!IS_NULLSTR(ch->pcdata->account_name)) {
+                account = find_account_by_name(ch->pcdata->account_name);
+            }
 
-        if (account != NULL) {
-            account_add_character(account, ch); // This might save the account if data is migrated
-            // If ch->desc is available, link the found account to it.
-            if (ch->desc) {
-                ch->desc->account = account; // Link it for the current session
-            } else {
-                save_account(account); // Explicitly save if we're not attaching to a descriptor.
-                if (!ch->desc) { // Only free if there's no descriptor to hold it
-                    // Check if it's in the global list before freeing
-                    bool is_globally_loaded = false;
-                    if (loaded_accounts) {
-                        ITERATOR acc_it;
-                        ACCOUNT_DATA *glob_acct;
-                        iterator_start(&acc_it, loaded_accounts);
-                        while((glob_acct = (ACCOUNT_DATA *)iterator_nextdata(&acc_it))) {
-                            if (glob_acct == account) {
-                                is_globally_loaded = true;
-                                break;
+            // If not found by name, try by ID
+            if (account == NULL && ch->pcdata->account_id[0] != 0) {
+                account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+            }
+
+                if (account != NULL) {
+                    account_add_character(account, ch); // This might save the account if data is migrated
+                    // If ch->desc is available, link the found account to it.
+                    if (ch->desc) {
+                        ch->desc->account = account; // Link it for the current session
+                    } else {
+                        save_account(account); // Explicitly save if we're not attaching to a descriptor.
+                        if (!ch->desc) { // Only free if there's no descriptor to hold it
+                            // Check if it's in the global list before freeing
+                            bool is_globally_loaded = false;
+                            if (loaded_accounts) {
+                                ITERATOR acc_it;
+                                ACCOUNT_DATA *glob_acct;
+                                iterator_start(&acc_it, loaded_accounts);
+                                while((glob_acct = (ACCOUNT_DATA *)iterator_nextdata(&acc_it))) {
+                                    if (glob_acct == account) {
+                                        is_globally_loaded = true;
+                                        break;
+                                    }
+                                }
+                                iterator_stop(&acc_it);
+                            }
+                            if (!is_globally_loaded) {
+                                free_account(account);
                             }
                         }
-                        iterator_stop(&acc_it);
                     }
-                    if (!is_globally_loaded) {
-                        free_account(account);
-                    }
+                } else {
+                    log_stringf("save_char_obj: Character %s has account identifiers but account could not be found by name ('%s') or ID (%lu %lu).",
+                        ch->name,
+                        ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
+                        ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
                 }
             }
-        } else {
-            log_stringf("save_char_obj: Character %s has account identifiers but account could not be found by name ('%s') or ID (%lu %lu).",
-                ch->name,
-                ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
-                ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
         }
+
+    // Only write the file if this is the top-level save call
+    // Recursive saves (from account_add_character) should not write the file
+    // The top-level save will write the file after all account updates are complete
+    if (!is_top_level_save) {
+        save_depth--;
+        return;
     }
 
     // Remove carrying_temp code that's no longer needed
@@ -285,6 +312,8 @@ void save_char_obj(CHAR_DATA *ch)
     {
     bug("Save_char_obj: fopen", 0);
     perror(strsave);
+    save_depth--;
+    return;
     }
     else
     {
@@ -311,14 +340,23 @@ void save_char_obj(CHAR_DATA *ch)
         if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
             ITERATOR it;
             OBJ_DATA *obj;
+            int save_count = 0;
+            int list_count = list_size(ch->lcarrying);
             iterator_start(&it, ch->lcarrying);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
                 // Only write non-locker, top-level objects
                 if (!obj->locker && obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
                     fwrite_obj_new(ch, obj, fp, 0);
+                    save_count++;
                 }
             }
             iterator_stop(&it);
+
+            // LOG: Report saving activity for large inventories
+            if (list_count > 100) {
+                log_stringf("save_char_obj: %s has %d items in lcarrying, saved %d to disk",
+                           ch->name ? ch->name : "(unknown)", list_count, save_count);
+            }
         }
         fprintf(fp, "#ENDINVENTORY\n");
 
@@ -327,13 +365,23 @@ void save_char_obj(CHAR_DATA *ch)
         if (ch->llocker && IS_VALID(ch->llocker)) {
             ITERATOR it;
             OBJ_DATA *obj;
+            int locker_list_count = list_size(ch->llocker);
+            int locker_written = 0;
             iterator_start(&it, ch->llocker);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                if (list_haslink(loaded_objects, obj)) {
+                // Only write top-level locker objects (not nested in containers)
+                // fwrite_obj_new() will skip next_content for top-level locker objects
+                if (obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
                     fwrite_obj_new(ch, obj, fp, 0);
+                    locker_written++;
                 }
             }
             iterator_stop(&it);
+
+            if (locker_list_count > 10) {
+                log_stringf("save_char_obj: %s locker has %d items in list, wrote %d top-level",
+                           ch->name, locker_list_count, locker_written);
+            }
         }
         fprintf(fp, "#ENDLOCKER\n");
 
@@ -350,9 +398,39 @@ void save_char_obj(CHAR_DATA *ch)
         fprintf(fp, "#END\n");
     }
 
+    gettimeofday(&write_time, NULL);
     fclose(fp);
     rename(TEMP_FILE, strsave);
     fpReserve = fopen(NULL_FILE, "r");
+
+    // Cache character info in Redis for fast account menu display
+    // Only cache on top-level saves (not during recursive account updates)
+    if (is_top_level_save) {
+        redis_cache_char_info(ch);
+        if (ch->desc) {
+            redis_set_char_active(ch->name, true);
+        }
+    }
+
+    gettimeofday(&end_time, NULL);
+    save_depth--;
+
+    // Calculate timings for any save with inventory
+    int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
+                   (ch->llocker ? list_size(ch->llocker) : 0) +
+                   (ch->lworn ? list_size(ch->lworn) : 0);
+
+    if (obj_count > 10) {
+        dedup_ms = (dedup_time.tv_sec - start_time.tv_sec) * 1000 +
+                  (dedup_time.tv_usec - start_time.tv_usec) / 1000;
+        write_ms = (write_time.tv_sec - dedup_time.tv_sec) * 1000 +
+                  (write_time.tv_usec - dedup_time.tv_usec) / 1000;
+        total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+                  (end_time.tv_usec - start_time.tv_usec) / 1000;
+
+        log_stringf("PERFORMANCE save_char_obj: %s with %d objects - dedup: %ldms, write: %ldms, total: %ldms",
+                   ch->name, obj_count, dedup_ms, write_ms, total_ms);
+    }
 }
 
 
@@ -915,7 +993,10 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 	IMMORTAL_DATA *immortal;
     OBJ_DATA *objNestList[MAX_NEST];
     int iNest;
+    struct timeval start_time, end_time;
+    long total_ms;
 
+    gettimeofday(&start_time, NULL);
     __init_player_versioning(&__versioning);
 
     ch = new_char();
@@ -1104,6 +1185,15 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     }
     fpReserve = fopen(NULL_FILE, "r");
 
+    // LOG: Count loaded items for diagnosis
+    if (!IS_NPC(ch) && ch->lcarrying) {
+        int loaded_count = list_size(ch->lcarrying);
+        if (loaded_count > 100) {
+            log_stringf("load_char_obj: Loaded %d inventory items for %s",
+                       loaded_count, ch->name ? ch->name : "(unknown)");
+        }
+    }
+
     if(!IS_NPC(ch)) {
         if(ch->pcdata->creation_date < 0) {
             ch->pcdata->creation_date = ch->id[0];
@@ -1219,6 +1309,21 @@ if (found && !IS_NPC(ch) &&
                 ch->name,
                 ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
                 ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+        }
+    }
+
+    // Performance logging for any character with inventory
+    if (found && ch) {
+        gettimeofday(&end_time, NULL);
+        int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
+                       (ch->llocker ? list_size(ch->llocker) : 0) +
+                       (ch->lworn ? list_size(ch->lworn) : 0);
+
+        if (obj_count > 10) {
+            total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+                      (end_time.tv_usec - start_time.tv_usec) / 1000;
+            log_stringf("PERFORMANCE load_char_obj: %s with %d objects - total: %ldms",
+                       ch->name, obj_count, total_ms);
         }
     }
 }
@@ -2619,11 +2724,31 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     AFFECT_DATA *paf;
     //char buf[MSL];
 
+    // DIAGNOSTIC: Log object being written
+    static int write_count = 0;
+    write_count++;
+    log_stringf("fwrite_obj_new[%d]: Writing %s (id %ld, vnum %ld, nest %d, locker=%d, in_obj=%s)",
+               write_count,
+               obj->short_descr ? obj->short_descr : "(null)",
+               obj->id[0],
+               obj->pIndexData ? obj->pIndexData->vnum : 0,
+               iNest,
+               obj->locker,
+               obj->in_obj ? obj->in_obj->short_descr : "NULL");
+
     /*
      * Slick recursion to write lists backwards,
      * so loading them will load in forwards order.
+     *
+     * MIGRATION NOTE: For top-level objects (in_obj=NULL), skip next_content
+     * traversal because they're managed by LLIST now (llocker, lcarrying, lworn).
+     * Their next_content is legacy from the old linked-list system.
+     *
+     * ONLY traverse next_content for nested objects inside containers (in_obj != NULL).
+     * These use next_content to link siblings within the same container.
      */
-    if (obj->next_content != NULL)
+    bool is_nested = (obj->in_obj != NULL);
+    if (obj->next_content != NULL && is_nested)
 	fwrite_obj_new(ch, obj->next_content, fp, iNest);
 
     /*
@@ -3404,6 +3529,12 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					free_obj(obj);
 					return NULL;
 				}
+				// OPTIMIZATION: Disable expensive O(n²) duplicate detection during load
+				// All duplication bugs have been fixed (see COMPLETE_DUPLICATION_FIX_SUMMARY.md)
+				// This was causing 5+ million comparisons for a 3271-object character!
+				// Deduplication still runs during SAVE (remove_duplicate_objects_from_char)
+				// If duplicates somehow appear, they'll be caught and cleaned up on next save.
+				/* DISABLED FOR PERFORMANCE - was taking ~1 second for 3271 objects
 				else if (is_duplicate_object(obj))
 				{
 const char *where = "Unknown";
@@ -3422,6 +3553,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 					free_obj(obj);
 					return NULL;
 				}
+				*/
 				else
 				{
 					if (!fVnum)
@@ -5977,10 +6109,25 @@ void save_account(ACCOUNT_DATA *account)
 
 void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 {
-    log_string("account_add_character: adding character to account");
     ACCOUNT_CHARACTER *acct_char = NULL;
     ITERATOR it;
     bool need_save_char = false;
+
+    // CRITICAL: Prevent recursive calls to account_add_character
+    // This function can be called from save_char_obj, which can be called from
+    // account_add_character, creating an infinite loop
+    static int add_char_depth = 0;
+    if (add_char_depth > 0) {
+        log_stringf("account_add_character: SKIPPING recursive call for %s (depth %d)",
+                   ch->name ? ch->name : "(unknown)", add_char_depth);
+        return;
+    }
+    add_char_depth++;
+
+    // DIAGNOSTIC: Log entry to account_add_character
+    int initial_obj_count = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+    log_stringf("account_add_character: ENTRY - %s has %d items in lcarrying",
+               ch->name ? ch->name : "(unknown)", initial_obj_count);
 
     if (!account || !ch || IS_NPC(ch)) {
         bug("account_add_character: invalid parameters", 0);
@@ -6340,8 +6487,19 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
     
     // Save the character file ONCE if any changes were made
     if (need_save_char) {
+        int before_save = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+        log_stringf("account_add_character: BEFORE save_char_obj - %s has %d items",
+                   ch->name, before_save);
         save_char_obj(ch);
+        int after_save = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+        log_stringf("account_add_character: AFTER save_char_obj - %s has %d items",
+                   ch->name, after_save);
     }
+
+    // DIAGNOSTIC: Log exit from account_add_character
+    int final_obj_count = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+    log_stringf("account_add_character: EXIT - %s has %d items in lcarrying",
+               ch->name ? ch->name : "(unknown)", final_obj_count);
 
     // Update account metadata
     account->character_count = list_size(account->characters);
@@ -6671,7 +6829,13 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
     LLIST *obj_seen = list_create(false);
     OBJ_DATA *obj;
     ITERATOR it;
-    
+
+    // DIAGNOSTIC: Log entry to deduplication
+    int initial_carrying = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+    int initial_locker = ch->llocker ? list_size(ch->llocker) : 0;
+    log_stringf("remove_duplicate_objects_from_char: ENTRY - %s has %d carrying, %d locker",
+               ch->name ? ch->name : "(unknown)", initial_carrying, initial_locker);
+
     // 1. First add all worn items to seen list (these take priority)
     // We should NEVER remove worn items during deduplication
     if (ch->lworn && IS_VALID(ch->lworn)) {
@@ -6737,7 +6901,7 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
             list_remlink(ch->lcarrying, obj, false);
         }
         iterator_stop(&it);
-        
+
         list_destroy(remove_list);
     }
     
@@ -6785,13 +6949,19 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
             list_remlink(ch->llocker, obj, false);
         }
         iterator_stop(&it);
-        
+
         list_destroy(remove_list);
     }
     
     list_destroy(seen);
     list_destroy(obj_seen);
     // We DO NOT destroy lworn - it's the character's equipment list
+
+    // DIAGNOSTIC: Log exit from deduplication
+    int final_carrying = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+    int final_locker = ch->llocker ? list_size(ch->llocker) : 0;
+    log_stringf("remove_duplicate_objects_from_char: EXIT - %s has %d carrying, %d locker",
+               ch->name ? ch->name : "(unknown)", final_carrying, final_locker);
 }
 
 void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen) {

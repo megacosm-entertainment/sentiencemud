@@ -9411,6 +9411,8 @@ void save_immortal(FILE *fp, IMMORTAL_DATA *immortal);
 void read_immstaff();
 IMMORTAL_DATA *read_immortal(FILE *fp);
 void do_staffduty(CHAR_DATA *ch, char *argument);
+void do_cachestats(CHAR_DATA *ch, char *argument);
+void do_cacheinfo(CHAR_DATA *ch, char *argument);
 IMMORTAL_DATA *find_immortal(char *argument);
 void do_staffdelete(CHAR_DATA *ch, char *argument);
 void do_staffsupervisor(CHAR_DATA *ch, char *argument);

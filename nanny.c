@@ -2447,26 +2447,41 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     
     // If we found an existing instance of this character already in the game
     if (existing && existing != ch) {
+        // LOG: Inventory counts before reconnect
+        int existing_inv = existing->lcarrying ? list_size(existing->lcarrying) : 0;
+        int temp_inv = ch->lcarrying ? list_size(ch->lcarrying) : 0;
+        if (existing_inv > 100 || temp_inv > 100) {
+            log_stringf("RECONNECT: existing=%s has %d items, temp has %d items",
+                       existing->name ? existing->name : "(unknown)", existing_inv, temp_inv);
+        }
+
         // If the existing character has a descriptor, disconnect them
         if (existing->desc) {
             write_to_buffer(existing->desc, "\n\rSomeone else is logging in with your character.\n\r", 0);
             close_socket(existing->desc);
             existing->desc = NULL;
         }
-        
+
         // Save the room reference for later, but remove character from it FIRST
         ROOM_INDEX_DATA *old_room = existing->in_room;
         if (existing->in_room) {
             char_from_room(existing);
         }
-        
+
         // Transfer the descriptor to the existing character
         existing->desc = d;
         d->character = existing;
-        
+
         // Free the temporary character
         free_char(ch);
-        
+
+        // LOG: Check inventory count after freeing temp character
+        int existing_inv_after = existing->lcarrying ? list_size(existing->lcarrying) : 0;
+        if (existing_inv_after > 100) {
+            log_stringf("RECONNECT: After free_char, existing=%s now has %d items (was %d)",
+                       existing->name ? existing->name : "(unknown)", existing_inv_after, existing_inv);
+        }
+
         // Set as playing
         d->connected = CON_PLAYING;
 
@@ -2672,10 +2687,11 @@ void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
 {
     char buf[MAX_STRING_LENGTH];
     bool found;
-    
+    CHAR_DATA *ch;
+
     // Load the character
     found = load_char_obj(d, ch_entry->name);
-    
+
     if (!found) {
         sprintf(buf, "Character '%s' could not be loaded.\n\r", ch_entry->name);
         write_to_buffer(d, buf, 0);
@@ -2683,7 +2699,17 @@ void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
         display_account_menu(d);
         return;
     }
-    
+
+    ch = d->character;
+
+    // CRITICAL: Add to loaded_chars to prevent duplicate loading during reconnect
+    if (ch && !list_haslink(loaded_chars, ch)) {
+        list_appendlink(loaded_chars, ch);
+        log_stringf("select_character: Added %s to loaded_chars (inventory: %d items)",
+                   ch->name ? ch->name : "(unknown)",
+                   ch->lcarrying ? list_size(ch->lcarrying) : 0);
+    }
+
     // Show character menu
     display_character_menu(d);
     d->connected = CON_CHARACTER_MENU;

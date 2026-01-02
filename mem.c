@@ -689,9 +689,14 @@ void free_char( CHAR_DATA *ch )
     EVENT_DATA *ev, *ev_next;
     SKILL_ENTRY *se, *se_next;
     ITERATOR it;
+    struct timeval start_time, end_time;
+    long total_ms;
+    int total_objects = 0;
 
     if (!IS_VALID(ch))
         return;
+
+    gettimeofday(&start_time, NULL);
 
     if (IS_NPC(ch))
         mobile_count--;
@@ -712,6 +717,7 @@ void free_char( CHAR_DATA *ch )
     if (ch->lcarrying) {
         LLIST *temp_carrying = ch->lcarrying;
         int item_count = list_size(temp_carrying);
+        total_objects += item_count;
         ch->lcarrying = NULL;  // Detach to skip list_remlink during extraction
 
         iterator_start(&it, temp_carrying);
@@ -721,16 +727,13 @@ void free_char( CHAR_DATA *ch )
         iterator_stop(&it);
 
         list_destroy(temp_carrying);
-
-        if (item_count > 100) {
-            log_stringf("free_char: Freed %d inventory items for %s",
-                       item_count, ch->name ? ch->name : "(unknown)");
-        }
     }
 
     // Free worn items using lworn
     if (ch->lworn) {
         LLIST *temp_worn = ch->lworn;
+        int worn_count = list_size(temp_worn);
+        total_objects += worn_count;
         ch->lworn = NULL;
 
         iterator_start(&it, temp_worn);
@@ -746,6 +749,7 @@ void free_char( CHAR_DATA *ch )
     if (ch->llocker) {
         LLIST *temp_locker = ch->llocker;
         int locker_count = list_size(temp_locker);
+        total_objects += locker_count;
         ch->llocker = NULL;
 
         iterator_start(&it, temp_locker);
@@ -755,11 +759,6 @@ void free_char( CHAR_DATA *ch )
         iterator_stop(&it);
 
         list_destroy(temp_locker);
-
-        if (locker_count > 100) {
-            log_stringf("free_char: Freed %d locker items for %s",
-                       locker_count, ch->name ? ch->name : "(unknown)");
-        }
     }
 
     // affects
@@ -833,6 +832,15 @@ void free_char( CHAR_DATA *ch )
 
     ch->next = char_free;
     char_free = ch;
+
+    // Performance logging
+    if (total_objects > 10) {
+        gettimeofday(&end_time, NULL);
+        total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+                  (end_time.tv_usec - start_time.tv_usec) / 1000;
+        log_stringf("PERFORMANCE free_char: %s with %d top-level objects - total: %ldms",
+                   ch->name ? ch->name : "(unknown)", total_objects, total_ms);
+    }
 }
 
 

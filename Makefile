@@ -1,7 +1,7 @@
 CC      = gcc
 PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng -lhiredis
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
@@ -118,6 +118,7 @@ C_FILES = \
     project.c \
     protocol.c \
     quest.c \
+    redis_cache.c \
     save.c \
     scan.c \
     script_commands.c \

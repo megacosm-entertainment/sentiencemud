@@ -3457,6 +3457,8 @@ const struct do_func_type do_func_table[] =
         { "do_reserved", do_reserved },
         { "do_pronouns", do_pronouns },
         { "do_gcstats", do_gcstats },
+        { "do_cachestats", do_cachestats },
+        { "do_cacheinfo", do_cacheinfo },
 };
 
 /* Table mapping connection states to display strings */

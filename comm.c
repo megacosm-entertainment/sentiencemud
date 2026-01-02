@@ -73,6 +73,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "protocol.h"
+#include "redis_cache.h"
 
 /*
  * Socket and TCP/IP stuff.
@@ -543,6 +544,15 @@ int main(int argc, char **argv)
 
     boot_db();
 
+    // Initialize Redis cache (optional - game works without it)
+    if (!redis_init()) {
+        log_string("WARNING: Redis cache unavailable - character list display will be slower");
+    } else {
+        // Warm cache with recently active characters (Phase 1 - currently no-op)
+        // Future: This will pre-cache character.json files in Phase 3
+        redis_warm_cache(100);
+    }
+
     sprintf(log_buf, "Sentience is up on %d.", telnet_port);
     log_string(log_buf);
     game_loop(control_telnet, control_tls);
@@ -609,6 +619,9 @@ int main(int argc, char **argv)
      * That's all, folks.
      */
     log_string("Normal termination of game.");
+
+    // Shutdown Redis connection
+    redis_shutdown();
 
     CleanupLogs();
 
