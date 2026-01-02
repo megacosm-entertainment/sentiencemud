@@ -708,30 +708,58 @@ void free_char( CHAR_DATA *ch )
     }
 
     // Free items in inventory using lcarrying
+    // OPTIMIZATION: Detach list before extraction to avoid O(n²) list_remlink calls
     if (ch->lcarrying) {
-        iterator_start(&it, ch->lcarrying);
+        LLIST *temp_carrying = ch->lcarrying;
+        int item_count = list_size(temp_carrying);
+        ch->lcarrying = NULL;  // Detach to skip list_remlink during extraction
+
+        iterator_start(&it, temp_carrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            extract_obj(obj);
+            extract_obj(obj);  // obj_from_char will safely handle NULL ch->lcarrying
         }
         iterator_stop(&it);
+
+        list_destroy(temp_carrying);
+
+        if (item_count > 100) {
+            log_stringf("free_char: Freed %d inventory items for %s",
+                       item_count, ch->name ? ch->name : "(unknown)");
+        }
     }
 
     // Free worn items using lworn
     if (ch->lworn) {
-        iterator_start(&it, ch->lworn);
+        LLIST *temp_worn = ch->lworn;
+        ch->lworn = NULL;
+
+        iterator_start(&it, temp_worn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             extract_obj(obj);
         }
         iterator_stop(&it);
+
+        list_destroy(temp_worn);
     }
 
     // Free locker items using llocker
     if (ch->llocker) {
-        iterator_start(&it, ch->llocker);
+        LLIST *temp_locker = ch->llocker;
+        int locker_count = list_size(temp_locker);
+        ch->llocker = NULL;
+
+        iterator_start(&it, temp_locker);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             extract_obj(obj);
         }
         iterator_stop(&it);
+
+        list_destroy(temp_locker);
+
+        if (locker_count > 100) {
+            log_stringf("free_char: Freed %d locker items for %s",
+                       locker_count, ch->name ? ch->name : "(unknown)");
+        }
     }
 
     // affects

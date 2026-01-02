@@ -1441,7 +1441,11 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
 	if (dclose->account) {
     	dclose->account->refcount--;
+    	log_stringf("close_socket: Account %s refcount decreased to %d",
+    	           dclose->account->username, dclose->account->refcount);
     	if (dclose->account->refcount <= 0) {
+        	log_stringf("close_socket: Freeing account %s (refcount %d)",
+        	           dclose->account->username, dclose->account->refcount);
         	list_remlink(loaded_accounts, dclose->account, false);
         	free_account(dclose->account);
     	}

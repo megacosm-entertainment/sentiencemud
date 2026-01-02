@@ -5245,7 +5245,10 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
         while ((acct = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
             if (!str_cmp(acct->username, name)) {
                 d->account = acct;
+                acct->refcount++;  // Increment refcount for cached account
                 iterator_stop(&it);
+                log_stringf("load_account: Using cached account %s (refcount now %d)",
+                           acct->username, acct->refcount);
                 return true;
             }
         }
