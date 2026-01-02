@@ -4,9 +4,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "merc.h"
-#include "recycle.h"
-#include "protocol.h"
+#include "../merc.h"
+#include "../recycle.h"
+#include "../protocol.h"
 
 /*
  * Nanny Utility Functions

@@ -1,7 +1,7 @@
 #ifndef NANNY_UTILS_H
 #define NANNY_UTILS_H
 
-#include "merc.h"
+#include "../merc.h"
 
 /*
  * Nanny Utility Functions

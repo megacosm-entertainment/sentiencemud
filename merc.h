@@ -1846,6 +1846,14 @@ struct	descriptor_data
     char * new_password_buffer;
     CHAR_DATA *reconnect_ch; /* Character being reconnected to */
 
+    /* Nanny state machine context flags (for state consolidation) */
+    bool is_account_context;    /* Account vs character operation */
+    bool is_verify_context;     /* Verify vs set operation */
+    bool is_settings_context;   /* Settings menu vs login flow */
+    int pronoun_step;           /* Custom pronoun entry step (0-6) */
+    int delete_confirm_step;    /* Deletion confirmation substep */
+    int mfa_setup_step;         /* MFA setup substep */
+
 };
 
 bool generate_crypt_salt(char *salt_buffer, size_t salt_buffer_size);

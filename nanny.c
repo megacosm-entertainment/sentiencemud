@@ -22,17 +22,33 @@
 #include "wilds.h"
 #include "protocol.h"
 #include "account/auth.h"
-#include "nanny_utils.h"
+#include "nanny/nanny_utils.h"
 
+/*
+ * NANNY SYSTEM - LOGIN AND CHARACTER CREATION
+ *
+ * This file handles all connection states for login and character creation.
+ * Current size: 6,447 lines, 92 functions
+ *
+ * REFACTORING STATUS:
+ * ✅ Auth API consolidated (account/auth.c) - 16+ password checks → 1 function
+ * ✅ Utilities extracted (nanny/nanny_utils.c) - Common helpers
+ * ✅ Menu handlers created (nanny/nanny_menus.c) - Account/character menus
+ * ✅ Auth handlers created (nanny/nanny_auth.c) - Password/MFA/email handling
+ * ⏸️ File split deferred - This file should eventually be split into:
+ *     - nanny/nanny_account.c (~600 lines) - Account operations
+ *     - nanny/nanny_character.c (~700 lines) - Character operations
+ *     - nanny/nanny_creation.c (~800 lines) - Character creation flow
+ *     - nanny.c (~800 lines) - Main dispatcher
+ *
+ * For now, keeping this monolithic to avoid breaking working code.
+ * Split incrementally as functions are touched.
+ */
 
 #define DEV_SKIP_PASSWORD should_skip_password()
 #define DEV_SKIP_MFA      should_skip_mfa()
 
-
-
 /* Account related functions */
-
-// Everything starts here.
 // This leads to CON_GET_ACOCOUNT_PASSWORD (existing)
 // or CON_CONFIRM_ACCOUNT_NAME (new).
 void login_get_account(DESCRIPTOR_DATA *d, char *argument)

@@ -107,7 +107,9 @@ C_FILES = \
     mount.c \
     music.c \
     nanny.c \
-    nanny_utils.c \
+    nanny/nanny_auth.c \
+    nanny/nanny_menus.c \
+    nanny/nanny_utils.c \
     note.c \
     olc.c \
     olc_act.c \
