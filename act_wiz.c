@@ -46,6 +46,7 @@
 #include "olc_save.h"
 #include "wilds.h"
 #include "redis_cache.h"
+#include "async_cache.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -11218,4 +11219,161 @@ void do_cacheinfo(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 
     free_char_info_cache(info);
+}
+
+void do_cachedump(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char name[MAX_INPUT_LENGTH];
+    unsigned long job_id;
+
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: cachedump <character name>\n\r", ch);
+        send_to_char("Dumps cached character data to disk (async, non-blocking).\n\r", ch);
+        return;
+    }
+
+    one_argument(argument, name);
+    name[0] = UPPER(name[0]);
+
+    // Queue async dump operation
+    job_id = async_cache_dump(name);
+
+    if (job_id == 0) {
+        send_to_char("Failed to queue cache dump operation.\n\r", ch);
+        return;
+    }
+
+    sprintf(buf, "Cache dump queued for '%s' (job #%lu)\n\r", name, job_id);
+    send_to_char(buf, ch);
+    send_to_char("Use 'cachejobs' to check status.\n\r", ch);
+}
+
+void do_cacheload(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char name[MAX_INPUT_LENGTH];
+    unsigned long job_id;
+
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: cacheload <character name>\n\r", ch);
+        send_to_char("Loads character data from disk to cache (async, non-blocking).\n\r", ch);
+        return;
+    }
+
+    one_argument(argument, name);
+    name[0] = UPPER(name[0]);
+
+    // Queue async load operation
+    job_id = async_cache_load(name);
+
+    if (job_id == 0) {
+        send_to_char("Failed to queue cache load operation.\n\r", ch);
+        return;
+    }
+
+    sprintf(buf, "Cache load queued for '%s' (job #%lu)\n\r", name, job_id);
+    send_to_char(buf, ch);
+    send_to_char("Use 'cachejobs' to check status.\n\r", ch);
+}
+
+void do_cachejobs(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    ASYNC_CACHE_JOB *job;
+    int count = 0;
+    const char *op_names[] = {"DUMP", "LOAD", "INVALIDATE"};
+    const char *status_colors[] = {"{Y", "{C", "{G", "{R"};  // QUEUED, RUNNING, COMPLETE, FAILED
+    const char *status_names[] = {"Queued", "Running", "Complete", "Failed"};
+
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    send_to_char("\n\r{Y=== Async Cache Jobs ==={x\n\r\n\r", ch);
+
+    // Show statistics first
+    async_cache_print_stats(ch);
+
+    send_to_char("{Y=== Recent Jobs ==={x\n\r\n\r", ch);
+    send_to_char("{W Job# Op       Character           Status    Queued  Start  Complete{x\n\r", ch);
+    send_to_char("{W----- -------- ------------------- --------- ------- ------ --------{x\n\r", ch);
+
+    // Get job list (completed jobs)
+    job = async_cache_job_list();
+
+    if (!job) {
+        send_to_char("No completed jobs.\n\r", ch);
+        return;
+    }
+
+    // Display up to 20 recent jobs
+    for (; job && count < 20; job = job->next, count++) {
+        time_t now = time(NULL);
+        long queued_ago = now - job->queued_time;
+        long start_ago = job->start_time > 0 ? now - job->start_time : 0;
+        long complete_ago = job->complete_time > 0 ? now - job->complete_time : 0;
+
+        sprintf(buf, "{W%5lu{x %-8s %-19s %s%-9s{x %4lds %5lds %7lds\n\r",
+                job->job_id,
+                op_names[job->operation],
+                job->character_name,
+                status_colors[job->status],
+                status_names[job->status],
+                queued_ago,
+                start_ago,
+                complete_ago);
+        send_to_char(buf, ch);
+
+        // Show error message if failed
+        if (job->status == ASYNC_STATUS_FAILED && job->error_message) {
+            sprintf(buf, "      {RError: %s{x\n\r", job->error_message);
+            send_to_char(buf, ch);
+        }
+    }
+
+    send_to_char("\n\r", ch);
+}
+
+void do_cachestop(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    unsigned long job_id;
+
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: cachestop <job#>\n\r", ch);
+        send_to_char("Cancels a queued cache operation (can't stop running jobs).\n\r", ch);
+        return;
+    }
+
+    job_id = atol(argument);
+
+    if (job_id == 0) {
+        send_to_char("Invalid job number.\n\r", ch);
+        return;
+    }
+
+    if (async_cache_job_cancel(job_id)) {
+        sprintf(buf, "Cancelled cache job #%lu\n\r", job_id);
+        send_to_char(buf, ch);
+    } else {
+        sprintf(buf, "Could not cancel job #%lu (not found or already running)\n\r", job_id);
+        send_to_char(buf, ch);
+    }
 }

@@ -74,6 +74,7 @@
 #include "wilds.h"
 #include "protocol.h"
 #include "redis_cache.h"
+#include "async_cache.h"
 
 /*
  * Socket and TCP/IP stuff.
@@ -553,6 +554,11 @@ int main(int argc, char **argv)
         redis_warm_cache(100);
     }
 
+    // Initialize async cache system for background dump/load operations
+    if (!async_cache_init()) {
+        log_string("WARNING: Async cache system failed to initialize");
+    }
+
     sprintf(log_buf, "Sentience is up on %d.", telnet_port);
     log_string(log_buf);
     game_loop(control_telnet, control_tls);
@@ -619,6 +625,9 @@ int main(int argc, char **argv)
      * That's all, folks.
      */
     log_string("Normal termination of game.");
+
+    // Shutdown async cache system (wait for pending operations)
+    async_cache_shutdown();
 
     // Shutdown Redis connection
     redis_shutdown();

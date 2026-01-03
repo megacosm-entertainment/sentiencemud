@@ -3459,6 +3459,10 @@ const struct do_func_type do_func_table[] =
         { "do_gcstats", do_gcstats },
         { "do_cachestats", do_cachestats },
         { "do_cacheinfo", do_cacheinfo },
+        { "do_cachedump", do_cachedump },
+        { "do_cacheload", do_cacheload },
+        { "do_cachejobs", do_cachejobs },
+        { "do_cachestop", do_cachestop },
 };
 
 /* Table mapping connection states to display strings */

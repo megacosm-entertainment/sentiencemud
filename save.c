@@ -52,6 +52,16 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "redis_cache.h"
+#include "json_char.h"
+
+/***************************************************************************
+ * JSON Migration Control                                                  *
+ ***************************************************************************/
+
+// Set to 0 to disable old pfile format writing (JSON only)
+// Set to 1 to write both formats during transition period
+// Once JSON is proven stable, change this to 0 to save write overhead
+#define WRITE_OLD_PFILE_FORMAT 1
 
 #if defined(KEY)
 #undef KEY
@@ -308,6 +318,10 @@ void save_char_obj(CHAR_DATA *ch)
     fclose(fpReserve);
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
 
+#if WRITE_OLD_PFILE_FORMAT
+    // Old pfile format (deprecated - will be removed once JSON is proven stable)
+    // This block writes the legacy text format for backward compatibility
+    gettimeofday(&write_time, NULL);  // Initialize timing even if not used
     if ((fp = fopen(TEMP_FILE, "w")) == NULL)
     {
     bug("Save_char_obj: fopen", 0);
@@ -401,7 +415,37 @@ void save_char_obj(CHAR_DATA *ch)
     gettimeofday(&write_time, NULL);
     fclose(fp);
     rename(TEMP_FILE, strsave);
+#else
+    // JSON-only mode: Just initialize timing variables
+    gettimeofday(&write_time, NULL);
+#endif // WRITE_OLD_PFILE_FORMAT
+
     fpReserve = fopen(NULL_FILE, "r");
+
+    // Save to JSON format (Phase 2: JSON migration)
+    // This writes the character in JSON format to the same filename
+    // The file will be auto-detected as JSON on load
+    //
+    // MIGRATION PATH:
+    // 1. During transition: WRITE_OLD_PFILE_FORMAT=1 writes both formats
+    //    - Old pfile written first, then immediately overwritten by JSON
+    //    - Provides safety net if JSON has bugs
+    // 2. After JSON proven stable: Set WRITE_OLD_PFILE_FORMAT=0 at top of file
+    //    - Saves ~50% write overhead by eliminating redundant old format write
+    //    - Old pfiles in .old/ directories remain as emergency backups
+    if (is_top_level_save) {
+        char json_path[512];
+        json_get_char_path(ch->name, json_path, sizeof(json_path));
+        if (!json_write_char(ch, json_path)) {
+            log_stringf("save_char_obj: Failed to write JSON for %s", ch->name);
+#if WRITE_OLD_PFILE_FORMAT
+            // Don't fail the save - old format is already written as backup
+#else
+            // JSON-only mode: This is critical, log error but don't crash
+            bug("save_char_obj: JSON write failed and old pfile format disabled!", 0);
+#endif
+        }
+    }
 
     // Cache character info in Redis for fast account menu display
     // Only cache on top-level saves (not during recursive account updates)
@@ -1055,7 +1099,17 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
     sprintf(buf, "Trying to load %s", strsave);
     log_string(buf);
-    if ((fp = fopen(strsave, "r")) != NULL) {
+
+    // Check if file exists and detect format (JSON vs old pfile)
+    if (json_is_json_file(strsave)) {
+        // JSON format file
+        found = true;
+        if (!json_read_char(ch, strsave)) {
+            log_stringf("load_char_obj: Failed to load JSON character %s", name);
+            found = false;
+        }
+    } else if ((fp = fopen(strsave, "r")) != NULL) {
+        // Old pfile format
         found = true;
         for (;;) {
             char letter;
@@ -1324,6 +1378,13 @@ if (found && !IS_NPC(ch) &&
                       (end_time.tv_usec - start_time.tv_usec) / 1000;
             log_stringf("PERFORMANCE load_char_obj: %s with %d objects - total: %ldms",
                        ch->name, obj_count, total_ms);
+        }
+
+        // Cache character info in Redis for fast account menu display
+        // This populates the cache when characters login
+        redis_cache_char_info(ch);
+        if (ch->desc) {
+            redis_set_char_active(ch->name, true);
         }
     }
 }
