@@ -692,9 +692,18 @@ void free_char( CHAR_DATA *ch )
     struct timeval start_time, end_time;
     long total_ms;
     int total_objects = 0;
+    char name_copy[256];  // Save name for logging after freeing
 
     if (!IS_VALID(ch))
         return;
+
+    // Save name before we free it
+    if (ch->name) {
+        strncpy(name_copy, ch->name, sizeof(name_copy) - 1);
+        name_copy[sizeof(name_copy) - 1] = '\0';
+    } else {
+        strcpy(name_copy, "(unknown)");
+    }
 
     gettimeofday(&start_time, NULL);
 
@@ -839,7 +848,7 @@ void free_char( CHAR_DATA *ch )
         total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
                   (end_time.tv_usec - start_time.tv_usec) / 1000;
         log_stringf("PERFORMANCE free_char: %s with %d top-level objects - total: %ldms",
-                   ch->name ? ch->name : "(unknown)", total_objects, total_ms);
+                   name_copy, total_objects, total_ms);
     }
 }
 

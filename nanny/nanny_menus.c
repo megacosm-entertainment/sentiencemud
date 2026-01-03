@@ -263,8 +263,8 @@ void handle_account_select_character(DESCRIPTOR_DATA *d, int char_num)
         d->character = NULL;
     }
 
-    /* Load the character */
-    if (!load_char_obj(d, selected->name)) {
+    /* Load the character (basic data only - inventory/equipment deferred until game entry) */
+    if (!load_char_obj_basic(d, selected->name)) {
         write_to_buffer(d, "\n\r{RFailed to load character. Please contact staff.{x\n\r", 0);
         display_account_menu(d);
         return;
@@ -275,6 +275,9 @@ void handle_account_select_character(DESCRIPTOR_DATA *d, int char_num)
         display_account_menu(d);
         return;
     }
+
+    /* Store reference to ACCOUNT_CHARACTER for quick access */
+    d->selected_char = selected;
 
     /* Transition to character menu */
     nanny_transition(d, CON_CHARACTER_MENU);

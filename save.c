@@ -53,6 +53,7 @@
 #include "wilds.h"
 #include "redis_cache.h"
 #include "json_char.h"
+#include "json_account.h"
 
 /***************************************************************************
  * JSON Migration Control                                                  *
@@ -1020,7 +1021,8 @@ extern pVARIABLE variable_tail;
 /*
  * Load a char and inventory into a new ch structure.
  */
-bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
+// Internal function with load_full parameter
+static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_full)
 {
     struct __player_data_versioning __versioning;
 
@@ -1104,9 +1106,16 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     if (json_is_json_file(strsave)) {
         // JSON format file
         found = true;
-        if (!json_read_char(ch, strsave)) {
-            log_stringf("load_char_obj: Failed to load JSON character %s", name);
-            found = false;
+        if (load_full) {
+            if (!json_read_char(ch, strsave)) {
+                log_stringf("load_char_obj: Failed to load JSON character %s", name);
+                found = false;
+            }
+        } else {
+            if (!json_read_char_basic(ch, strsave)) {
+                log_stringf("load_char_obj_basic: Failed to load JSON character %s", name);
+                found = false;
+            }
         }
     } else if ((fp = fopen(strsave, "r")) != NULL) {
         // Old pfile format
@@ -1380,16 +1389,34 @@ if (found && !IS_NPC(ch) &&
                        ch->name, obj_count, total_ms);
         }
 
-        // Cache character info in Redis for fast account menu display
-        // This populates the cache when characters login
-        redis_cache_char_info(ch);
-        if (ch->desc) {
-            redis_set_char_active(ch->name, true);
+        // Mark character as fully loaded (JSON sets this in json_read_char/_basic, old pfile always loads everything)
+        if (ch->pcdata && load_full) {
+            ch->pcdata->fully_loaded = true;
+        }
+
+        // Cache character info on FULL load (not basic load) to warm cache
+        // Benefits: reconnects, admin commands, account features
+        // Only happens on login/reconnect, not on every access
+        if (load_full && ch->pcdata) {
+            redis_cache_char_info(ch);
         }
     }
 }
 
     return found;
+}
+
+// Public wrapper - load full character data (inventory, equipment, skills, etc.)
+bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
+{
+    return load_char_obj_internal(d, name, true);
+}
+
+// Public wrapper - load basic character data only (no inventory, equipment, skills)
+// Used for character menu display - defers heavy loading until game entry
+bool load_char_obj_basic(DESCRIPTOR_DATA *d, char *name)
+{
+    return load_char_obj_internal(d, name, false);
 }
 
 /*
@@ -5430,6 +5457,8 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     ACCOUNT_DATA *account;
     FILE *fp;
     bool found;
+    struct timeval start_time, end_time;
+    long total_ms;
 
     if (loaded_accounts) {
         ITERATOR it;
@@ -5447,6 +5476,9 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
         }
         iterator_stop(&it);
     }
+
+    // Start timing for account load
+    gettimeofday(&start_time, NULL);
 
     // Create a new account structure
     account = new_account();
@@ -5484,81 +5516,97 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
 
     sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
-        found = true;
-        for (;;)
-        {
-            char letter;
-            char *word;
+        // Check if file is JSON format
+        if (json_is_account_json(strsave)) {
+            fclose(fp);
 
-            letter = fread_letter(fp);
-            if (letter == '*')
-            {
-                fread_to_eol(fp);
-                continue;
+            // Load using JSON format
+            if (json_read_account(account, strsave)) {
+                found = true;
+                log_stringf("load_account: Loaded JSON account %s", name);
+            } else {
+                bug("load_account: Failed to read JSON account file", 0);
+                found = false;
             }
-
-            if (letter != '#')
+        } else {
+            // Load using old pfile format
+            found = true;
+            for (;;)
             {
-                bug("Load_account: # not found.", 0);
-                break;
-            }
+                char letter;
+                char *word;
 
-            word = fread_word(fp);
-            if (!str_cmp(word, "ACCOUNT"))
-                fread_account(account, fp);
-            else if (!str_cmp(word, "CHARACTER"))
-                fread_account_character(account, fp);
-            else if (!str_cmp(word, "VAULT"))
-            {
-                // Process vault items
-                OBJ_DATA *obj;
-                OBJ_DATA *objNestList[MAX_NEST];
-                int iNest;
-
-                for (iNest = 0; iNest < MAX_NEST; iNest++)
-                    objNestList[iNest] = NULL;
-                
-                while (!str_cmp((word = fread_word(fp)), "#O"))
+                letter = fread_letter(fp);
+                if (letter == '*')
                 {
-                    obj = fread_obj_new(fp);
-                    if (obj == NULL)
-                        continue;
-                    
-                    objNestList[obj->nest] = obj;
-                    
-                    if (obj->nest == 0) {
-                        obj->next_content = account->vault_items;
-                        account->vault_items = obj;
-                    } else {
-                        OBJ_DATA *container = objNestList[obj->nest - 1];
-                        if (container->item_type == ITEM_CONTAINER || container->item_type == ITEM_WEAPON_CONTAINER)
-                            obj_to_obj(obj, container);
-                        else {
-                            sprintf(buf, "load_account: found obj %s in non-container in vault",
-                                obj->short_descr);
-                            log_string(buf);
-                            // Put it at top level if container is invalid
+                    fread_to_eol(fp);
+                    continue;
+                }
+
+                if (letter != '#')
+                {
+                    bug("Load_account: # not found.", 0);
+                    break;
+                }
+
+                word = fread_word(fp);
+                if (!str_cmp(word, "ACCOUNT"))
+                    fread_account(account, fp);
+                else if (!str_cmp(word, "CHARACTER"))
+                    fread_account_character(account, fp);
+                else if (!str_cmp(word, "VAULT"))
+                {
+                    // Process vault items
+                    OBJ_DATA *obj;
+                    OBJ_DATA *objNestList[MAX_NEST];
+                    int iNest;
+
+                    for (iNest = 0; iNest < MAX_NEST; iNest++)
+                        objNestList[iNest] = NULL;
+
+                    while (!str_cmp((word = fread_word(fp)), "#O"))
+                    {
+                        obj = fread_obj_new(fp);
+                        if (obj == NULL)
+                            continue;
+
+                        objNestList[obj->nest] = obj;
+
+                        if (obj->nest == 0) {
                             obj->next_content = account->vault_items;
                             account->vault_items = obj;
+                        } else {
+                            OBJ_DATA *container = objNestList[obj->nest - 1];
+                            if (container->item_type == ITEM_CONTAINER || container->item_type == ITEM_WEAPON_CONTAINER)
+                                obj_to_obj(obj, container);
+                            else {
+                                sprintf(buf, "load_account: found obj %s in non-container in vault",
+                                    obj->short_descr);
+                                log_string(buf);
+                                // Put it at top level if container is invalid
+                                obj->next_content = account->vault_items;
+                                account->vault_items = obj;
+                            }
                         }
                     }
-                }
-                
-                // Skip to end of vault section
-                while (str_cmp(word, "#ENDVAULT"))
-                {
-                    word = fread_word(fp);
-                }
-            }
-            else if (!str_cmp(word, "END"))
-                break;
-            else {
-                bug("Load_account: bad section.", 0);
-                break;
-            }
-        }
 
-        fclose(fp);
+                    // Skip to end of vault section
+                    while (str_cmp(word, "#ENDVAULT"))
+                    {
+                        word = fread_word(fp);
+                    }
+                }
+                else if (!str_cmp(word, "END"))
+                    break;
+                else {
+                    bug("Load_account: bad section.", 0);
+                    break;
+                }
+            }
+
+            fclose(fp);
+            log_stringf("load_account: Loaded old pfile account %s (will be migrated to JSON on next save)", name);
+        }
     }
     
     fpReserve = fopen(NULL_FILE, "r");
@@ -5610,6 +5658,15 @@ iterator_stop(&it);
         list_appendlink(loaded_accounts, account);
 	}
     account->last_login = current_time;
+
+    // Performance logging
+    gettimeofday(&end_time, NULL);
+    total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+              (end_time.tv_usec - start_time.tv_usec) / 1000;
+    int char_count = account->characters ? list_size(account->characters) : 0;
+    log_stringf("PERFORMANCE load_account: %s with %d characters - total: %ldms",
+               name, char_count, total_ms);
+
     return found;
 
 }
@@ -6120,50 +6177,33 @@ void save_account(ACCOUNT_DATA *account)
 {
 	log_string("save_account: saving account data");
     char strsave[MAX_INPUT_LENGTH];
-    FILE *fp;
-    
+
     if (account == NULL) {
         bug("save_account: null account pointer", 0);
         return;
     }
-    
+
     if (IS_NULLSTR(account->username)) {
         bug("save_account: account has no username", 0);
         return;
     }
-    
+
     // Ensure account has IDs before saving
     if (account->id[0] == 0 || account->id[1] == 0)
         get_account_id(account);
-    
+
     /* Close reserve file */
     fclose(fpReserve);
-    
-    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(account->username[0]), capitalize(account->username));
-    if ((fp = fopen(TEMP_FILE, "w")) == NULL) {
-        bug("save_account: fopen", 0);
-        perror(strsave);
-    } else {
-        /* Write account data */
-        fwrite_account(account, fp);
-        
-        /* Write character references */
-        if (account->characters && list_size(account->characters) > 0) {
-            ITERATOR it;
-            ACCOUNT_CHARACTER *acct_char;
-            
-            iterator_start(&it, account->characters);
-            while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-                fwrite_account_character(acct_char, fp);
-            }
-            iterator_stop(&it);
-        }
-        
-        fprintf(fp, "#END\n");
-        fclose(fp);
-        rename(TEMP_FILE, strsave);
+
+    // Get account path
+    json_get_account_path(account->username, strsave, sizeof(strsave));
+
+    // Write using JSON format (handles backup, atomic write, all sections)
+    if (!json_write_account(account, strsave)) {
+        log_stringf("save_account: json_write_account failed for %s", account->username);
+        bug("save_account: json_write_account failed", 0);
     }
-    
+
     /* Reopen reserve file */
     fpReserve = fopen(NULL_FILE, "r");
 }
@@ -6173,6 +6213,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
     ACCOUNT_CHARACTER *acct_char = NULL;
     ITERATOR it;
     bool need_save_char = false;
+    bool need_save_account = false;  // Only save account for structural changes, not metadata updates
 
     // CRITICAL: Prevent recursive calls to account_add_character
     // This function can be called from save_char_obj, which can be called from
@@ -6241,6 +6282,8 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                 ch->pcdata->pwd = str_dup("");
                 ch->pcdata->account_pwd_override = false;
                 need_save_char = true;
+                need_save_account = true;  // Migration requires account save
+                need_save_account = true;  // Password migration requires account save
             }
             // For standard linked characters, ensure pwd is cleared
             else if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd) && !ch->pcdata->account_pwd_override) {
@@ -6252,6 +6295,8 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                 }
                 ch->pcdata->account_pwd_override = false;
                 need_save_char = true;
+                need_save_account = true;  // Migration requires account save
+                need_save_account = true;  // Password cleanup requires account save
             }
             
             // Migrate MFA settings
@@ -6291,6 +6336,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                 ch->pcdata->mfa_enabled = false;
                 ch->pcdata->mfa_pending = false;
                 need_save_char = true;
+                need_save_account = true;  // Migration requires account save
             }
             // For standard linked characters, ensure MFA is cleared
             else if (ch->pcdata && (!IS_NULLSTR(ch->pcdata->mfa_key) || ch->pcdata->mfa_enabled)) {
@@ -6305,6 +6351,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                 ch->pcdata->mfa_enabled = false;
                 ch->pcdata->mfa_pending = false;
                 need_save_char = true;
+                need_save_account = true;  // Migration requires account save
             }
             
             // Migrate reset data
@@ -6320,6 +6367,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                 ch->pcdata->reset_time = 0;
                 ch->pcdata->reset_state = 0;
                 need_save_char = true;
+                need_save_account = true;  // Migration requires account save
             }
             
             // Migrate email data
@@ -6368,6 +6416,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                 ch->pcdata->email_verification_time = 0;
                 ch->pcdata->email_verification_last_sent = 0;
                 need_save_char = true;
+                need_save_account = true;  // Migration requires account save
             }
             
             break;
@@ -6377,6 +6426,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 
     // If not found, create new entry
     if (!acct_char) {
+        need_save_account = true;  // NEW character requires account save
         acct_char = new_account_character();
         acct_char->name = str_dup(ch->name);
         acct_char->race_name = str_dup(race_table[ch->race].name);
@@ -6418,6 +6468,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             ch->pcdata->pwd = str_dup("");
             ch->pcdata->account_pwd_override = false;
             need_save_char = true;
+                need_save_account = true;  // Migration requires account save
         }
         // For standard linked characters, ensure pwd is cleared
         else if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd)) {
@@ -6429,6 +6480,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             }
             ch->pcdata->account_pwd_override = false;
             need_save_char = true;
+                need_save_account = true;  // Migration requires account save
         }
 
         // Copy MFA settings
@@ -6464,6 +6516,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             ch->pcdata->mfa_enabled = false;
             ch->pcdata->mfa_pending = false;
             need_save_char = true;
+                need_save_account = true;  // Migration requires account save
         }
         // For standard linked characters, ensure MFA is cleared
         else if (ch->pcdata && (!IS_NULLSTR(ch->pcdata->mfa_key) || ch->pcdata->mfa_enabled)) {
@@ -6478,6 +6531,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             ch->pcdata->mfa_enabled = false;
             ch->pcdata->mfa_pending = false;
             need_save_char = true;
+                need_save_account = true;  // Migration requires account save
         }
         
         // Copy reset data
@@ -6492,6 +6546,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             ch->pcdata->reset_time = 0;
             ch->pcdata->reset_state = 0;
             need_save_char = true;
+                need_save_account = true;  // Migration requires account save
         }
         
         // Copy email data
@@ -6541,6 +6596,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             ch->pcdata->email_verification_time = 0;
             ch->pcdata->email_verification_last_sent = 0;
             need_save_char = true;
+                need_save_account = true;  // Migration requires account save
         }
         
         list_appendlink(account->characters, acct_char);
@@ -6576,11 +6632,17 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
     }
     iterator_stop(&cit);
 
-    /* Save the updated account */
-    log_stringf("account_add_character: saving %s last_area='%s'",
-        acct_char->name,
-        acct_char->last_area ? acct_char->last_area : "(null)");
-    save_account(account);
+    /* Save the updated account ONLY if structural changes occurred (migration, etc.) */
+    /* Routine metadata updates (last_login, level, last_area) are updated in memory */
+    /* but not persisted until character quit/disconnect to avoid excessive account saves */
+    if (need_save_account) {
+        log_stringf("account_add_character: STRUCTURAL CHANGE - saving account for %s", acct_char->name);
+        save_account(account);
+    } else {
+        log_stringf("account_add_character: metadata updated for %s (no account save needed)", acct_char->name);
+    }
+
+    add_char_depth--;
 }
 
 /*

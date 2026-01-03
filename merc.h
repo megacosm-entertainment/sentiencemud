@@ -1783,6 +1783,9 @@ enum {
 #define ALIGN_NONE		0
 #define ALIGN_EVIL	       -1
 
+/* Forward declarations for structs used in descriptor_data */
+typedef struct account_character_data ACCOUNT_CHARACTER;
+
 /*
  * Descriptor (channel) structure.
  */
@@ -1845,6 +1848,7 @@ struct	descriptor_data
     bool healthcheck;
     char * new_password_buffer;
     CHAR_DATA *reconnect_ch; /* Character being reconnected to */
+    ACCOUNT_CHARACTER *selected_char; /* Character selected from account menu (lightweight) */
 
     /* Nanny state machine context flags (for state consolidation) */
     bool is_account_context;    /* Account vs character operation */
@@ -4992,7 +4996,7 @@ struct account_character_data
 
 };
 
-typedef struct account_character_data ACCOUNT_CHARACTER;
+/* ACCOUNT_CHARACTER typedef moved to forward declarations before descriptor_data */
 
 /* Function prototypes for account character handling */
 ACCOUNT_CHARACTER *new_account_character(void);
@@ -5041,6 +5045,7 @@ struct	pc_data
     char *account_name;          /* Account this character belongs to */
     unsigned long account_id[2]; /* Account this character belongs to (by ID) */
     bool account_pwd_override;
+    bool fully_loaded;           /* Has inventory/equipment/skills been loaded? */
     char *last_area;
 
     int staff_rank;
@@ -9135,6 +9140,7 @@ int rpcmd_lookup(char *command);*/
 /* save.c */
 bool find_class_skill( CHAR_DATA *ch, int class );
 bool load_char_obj	args( ( DESCRIPTOR_DATA *d, char *name ) );
+bool load_char_obj_basic args( ( DESCRIPTOR_DATA *d, char *name ) );
 bool update_object( OBJ_DATA *obj );
 OBJ_DATA *fread_obj_new( FILE *fp );
 void cleanup_affects( OBJ_DATA *obj );

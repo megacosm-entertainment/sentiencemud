@@ -121,6 +121,7 @@ C_FILES = \
     redis_cache.c \
     async_cache.c \
     json_char.c \
+    json_account.c \
     save.c \
     scan.c \
     script_commands.c \

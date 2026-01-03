@@ -1,18 +1,20 @@
 CC      = clang
 PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng -lhiredis -ljansson
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
 GIT_URL := "$(shell sh giturl.sh)"
 
-C_FLAGS = $(PROF) -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -MMD -MP
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -MMD -MP
 
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
 
 C_FILES = \
+    account/auth.c \
+    account/auth_migrate.c \
     account/otp.c \
     account/account_notes.c \
     act_comm.c \
@@ -57,13 +59,13 @@ C_FILES = \
     editors/tokens/tedit.c \
     editors/wilderness/vledit.c \
     editors/wilderness/wedit.c \
+    editors/common.c \
     effects.c \
     events.c \
     fight.c \
     fight2.c \
     gq.c \
     handler.c \
-    healer.c \
     help.c \
     house.c \
     html.c \
@@ -105,6 +107,9 @@ C_FILES = \
     mount.c \
     music.c \
     nanny.c \
+    nanny/nanny_auth.c \
+    nanny/nanny_menus.c \
+    nanny/nanny_utils.c \
     note.c \
     olc.c \
     olc_act.c \
@@ -113,6 +118,10 @@ C_FILES = \
     project.c \
     protocol.c \
     quest.c \
+    redis_cache.c \
+    async_cache.c \
+    json_char.c \
+    json_account.c \
     save.c \
     scan.c \
     script_commands.c \

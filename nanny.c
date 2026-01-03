@@ -22,6 +22,7 @@
 #include "wilds.h"
 #include "protocol.h"
 #include "account/auth.h"
+#include "json_char.h"
 #include "nanny/nanny_utils.h"
 
 /*
@@ -2687,7 +2688,6 @@ void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
 {
     char buf[MAX_STRING_LENGTH];
     bool found;
-    CHAR_DATA *ch;
 
     // Load the character
     found = load_char_obj(d, ch_entry->name);
@@ -2700,15 +2700,9 @@ void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
         return;
     }
 
-    ch = d->character;
-
-    // CRITICAL: Add to loaded_chars to prevent duplicate loading during reconnect
-    if (ch && !list_haslink(loaded_chars, ch)) {
-        list_appendlink(loaded_chars, ch);
-        log_stringf("select_character: Added %s to loaded_chars (inventory: %d items)",
-                   ch->name ? ch->name : "(unknown)",
-                   ch->lcarrying ? list_size(ch->lcarrying) : 0);
-    }
+    // NOTE: Character is NOT added to loaded_chars here with lazy loading
+    // It will be added in proceed_to_game() AFTER remaining data (tokens, inventory, etc.) is loaded
+    // This prevents mobile_update() from processing partially-loaded characters with uninitialized tokens
 
     // Show character menu
     display_character_menu(d);
@@ -4019,7 +4013,7 @@ void login_get_char_mfa(DESCRIPTOR_DATA *d, char *argument)
 void proceed_to_game(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
-    
+
     // Validation check
     if (!ch) {
         log_string("ERROR: proceed_to_game called with NULL character");
@@ -4027,9 +4021,29 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
-    
+
     log_stringf("proceed_to_game: %s preparing to enter game", ch->name);
-    
+
+    // Load remaining character data if not fully loaded (inventory, equipment, skills, affects)
+    if (ch->pcdata && !ch->pcdata->fully_loaded) {
+        char strsave[MAX_INPUT_LENGTH];
+        sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
+
+        log_stringf("proceed_to_game: Loading remaining data for %s", ch->name);
+
+        if (!json_read_char_remaining(ch, strsave)) {
+            log_stringf("ERROR: Failed to load remaining data for %s", ch->name);
+            write_to_buffer(d, "\n\r{RError loading character data. Please try again or contact staff.{x\n\r", 0);
+            free_char(ch);
+            d->character = NULL;
+            display_account_menu(d);
+            d->connected = CON_ACCOUNT_MENU;
+            return;
+        }
+
+        log_stringf("proceed_to_game: Successfully loaded remaining data for %s", ch->name);
+    }
+
     if (!list_haslink(loaded_chars, ch)) {
         log_string("proceed_to_game: Adding to loaded_chars");
         list_appendlink(loaded_chars, ch);

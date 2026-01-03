@@ -197,7 +197,7 @@ CHAR_INFO_CACHE *json_to_char_info(json_t *json)
  * Object Serialization                                                    *
  ***************************************************************************/
 
-static json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
+json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
 {
     json_t *json_obj, *contains_array, *affects_array, *extra_descr_array;
     AFFECT_DATA *paf;
@@ -338,18 +338,23 @@ static json_t *inventory_to_json(CHAR_DATA *ch)
 {
     json_t *inventory;
     OBJ_DATA *obj;
+    ITERATOR it;
 
     inventory = json_array();
 
-    for (obj = ch->carrying; obj; obj = obj->next_content) {
-        // Skip equipped items (they go in equipment section)
-        // Skip locker items (they go in locker section)
-        if (obj->wear_loc == WEAR_NONE && !obj->locker) {
-            json_t *json_obj = obj_to_json(obj, 0);
-            if (json_obj) {
-                json_array_append_new(inventory, json_obj);
+    // Use lcarrying (LIST structure) instead of carrying (deprecated linked list)
+    if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            // Only write top-level inventory items (not equipped, not in locker, not in containers)
+            if (!obj->locker && obj->in_obj == NULL && obj->wear_loc == WEAR_NONE) {
+                json_t *json_obj = obj_to_json(obj, 0);
+                if (json_obj) {
+                    json_array_append_new(inventory, json_obj);
+                }
             }
         }
+        iterator_stop(&it);
     }
 
     return inventory;
@@ -359,17 +364,23 @@ static json_t *equipment_to_json(CHAR_DATA *ch)
 {
     json_t *equipment;
     OBJ_DATA *obj;
+    ITERATOR it;
 
     equipment = json_array();
 
-    for (obj = ch->carrying; obj; obj = obj->next_content) {
-        // Only equipped items
-        if (obj->wear_loc != WEAR_NONE) {
-            json_t *json_obj = obj_to_json(obj, 0);
-            if (json_obj) {
-                json_array_append_new(equipment, json_obj);
+    // Use lworn (LIST structure) instead of iterating carrying
+    if (ch->lworn && IS_VALID(ch->lworn)) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            // Only write non-locker equipped items
+            if (!obj->locker && obj->in_obj == NULL) {
+                json_t *json_obj = obj_to_json(obj, 0);
+                if (json_obj) {
+                    json_array_append_new(equipment, json_obj);
+                }
             }
         }
+        iterator_stop(&it);
     }
 
     return equipment;
@@ -379,17 +390,23 @@ static json_t *locker_to_json(CHAR_DATA *ch)
 {
     json_t *locker;
     OBJ_DATA *obj;
+    ITERATOR it;
 
     locker = json_array();
 
-    for (obj = ch->carrying; obj; obj = obj->next_content) {
-        // Only locker items
-        if (obj->locker) {
-            json_t *json_obj = obj_to_json(obj, 0);
-            if (json_obj) {
-                json_array_append_new(locker, json_obj);
+    // Use llocker (LIST structure) instead of iterating carrying
+    if (ch->llocker && IS_VALID(ch->llocker)) {
+        iterator_start(&it, ch->llocker);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            // Only write top-level locker items (not in containers)
+            if (obj->in_obj == NULL) {
+                json_t *json_obj = obj_to_json(obj, 0);
+                if (json_obj) {
+                    json_array_append_new(locker, json_obj);
+                }
             }
         }
+        iterator_stop(&it);
     }
 
     return locker;
@@ -863,6 +880,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(basic, "title", json_string(ch->pcdata->title ? ch->pcdata->title : ""));
         json_object_set_new(basic, "description", json_string(ch->description ? ch->description : ""));
         json_object_set_new(basic, "played_hours", json_integer(ch->played + (int)(current_time - ch->logon) / 3600));
+        json_object_set_new(basic, "last_login", json_integer(ch->pcdata->last_login));
 
         // *** BANK BALANCE - CRITICAL! ***
         json_object_set_new(basic, "bankbalance", json_integer(ch->pcdata->bankbalance));
@@ -872,6 +890,37 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(basic, "last_level", json_integer(ch->pcdata->last_level));
         json_object_set_new(basic, "quests_completed", json_integer(ch->pcdata->quests_completed));
         json_object_set_new(basic, "security", json_integer(ch->pcdata->security));
+
+        // *** USER PREFERENCES ***
+        json_object_set_new(basic, "scroll_lines", json_integer(ch->lines)); // Page length
+        json_object_set_new(basic, "prompt", json_string(ch->prompt ? ch->prompt : ""));
+        json_object_set_new(basic, "verb_preference", json_integer(ch->verb_preference));
+
+        // Pronouns
+        if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0') {
+            json_object_set_new(basic, "pronoun_he_she", json_string(ch->pronoun_he_she));
+        }
+        if (ch->pronoun_him_her && ch->pronoun_him_her[0] != '\0') {
+            json_object_set_new(basic, "pronoun_him_her", json_string(ch->pronoun_him_her));
+        }
+        if (ch->pronoun_his_her && ch->pronoun_his_her[0] != '\0') {
+            json_object_set_new(basic, "pronoun_his_her", json_string(ch->pronoun_his_her));
+        }
+        if (ch->pronoun_his_hers && ch->pronoun_his_hers[0] != '\0') {
+            json_object_set_new(basic, "pronoun_his_hers", json_string(ch->pronoun_his_hers));
+        }
+        if (ch->pronoun_himself_herself && ch->pronoun_himself_herself[0] != '\0') {
+            json_object_set_new(basic, "pronoun_himself_herself", json_string(ch->pronoun_himself_herself));
+        }
+
+        // Deletion status
+        if (ch->deleted) {
+            json_object_set_new(basic, "deleted", json_boolean(ch->deleted));
+            json_object_set_new(basic, "delete_time", json_integer(ch->delete_time));
+        }
+
+        // Locker rent
+        json_object_set_new(basic, "locker_rent", json_integer(ch->locker_rent));
 
         // Permanent vitals
         json_object_set_new(basic, "perm_hit", json_integer(ch->pcdata->perm_hit));
@@ -1132,39 +1181,136 @@ bool json_write_char(CHAR_DATA *ch, const char *filename)
     return true;
 }
 
-bool json_read_char_info(CHAR_DATA *ch, const char *filename)
+// Read ONLY the lightweight character info (for account menu display)
+// Does NOT load inventory, equipment, skills, affects, etc.
+// Returns CHAR_INFO_CACHE that must be freed with free_char_info_cache()
+CHAR_INFO_CACHE *json_read_char_info_lightweight(const char *filename)
 {
-    json_t *root, *character_section;
+    json_t *root, *character, *metadata;
     json_error_t error;
+    CHAR_INFO_CACHE *info;
+    const char *str;
+    json_t *value;
 
     // Load JSON file
     root = json_load_file(filename, 0, &error);
     if (!root) {
-        log_stringf("json_read_char_info: Failed to parse %s: %s", filename, error.text);
-        return false;
+        log_stringf("json_read_char_info_lightweight: Failed to parse %s: %s", filename, error.text);
+        return NULL;
     }
 
-    // Extract character section
-    character_section = json_object_get(root, "character");
-    if (!character_section) {
+    // Create info cache structure
+    info = (CHAR_INFO_CACHE *)calloc(1, sizeof(CHAR_INFO_CACHE));
+    if (!info) {
         json_decref(root);
-        log_stringf("json_read_char_info: No character section in %s", filename);
-        return false;
+        return NULL;
     }
 
-    // For now, just validate the file can be read
+    // Read metadata
+    metadata = json_object_get(root, "metadata");
+    if (metadata) {
+        value = json_object_get(metadata, "created");
+        if (value) {
+            info->last_played = json_integer_value(value);
+        }
+    }
+
+    // Read character section
+    character = json_object_get(root, "character");
+    if (!character) {
+        json_decref(root);
+        free(info);
+        return NULL;
+    }
+
+    // Basic identification
+    str = json_string_value(json_object_get(character, "name"));
+    info->name = str ? strdup(str) : strdup("Unknown");
+
+    info->level = json_integer_value(json_object_get(character, "level"));
+    info->tot_level = json_integer_value(json_object_get(character, "tot_level"));
+
+    str = json_string_value(json_object_get(character, "race"));
+    info->race = str ? strdup(str) : strdup("human");
+
+    str = json_string_value(json_object_get(character, "title"));
+    info->title = str ? strdup(str) : strdup("");
+
+    // Quick stats
+    info->gold = json_integer_value(json_object_get(character, "gold"));
+    info->experience = json_integer_value(json_object_get(character, "experience"));
+
+    // Calculate health/mana percentages
+    json_t *vitals = json_object_get(character, "vitals");
+    if (vitals) {
+        json_t *health = json_object_get(vitals, "health");
+        if (health) {
+            int current = json_integer_value(json_object_get(health, "current"));
+            int max = json_integer_value(json_object_get(health, "max"));
+            info->health_pct = (max > 0) ? (current * 100 / max) : 100;
+        }
+
+        json_t *mana = json_object_get(vitals, "mana");
+        if (mana) {
+            int current = json_integer_value(json_object_get(mana, "current"));
+            int max = json_integer_value(json_object_get(mana, "max"));
+            info->mana_pct = (max > 0) ? (current * 100 / max) : 100;
+        }
+    }
+
+    // Build class list
+    json_t *classes_obj = json_object_get(character, "classes");
+    if (classes_obj && json_is_object(classes_obj)) {
+        // Count classes
+        int num_classes = 0;
+        if (json_object_get(classes_obj, "mage")) num_classes++;
+        if (json_object_get(classes_obj, "cleric")) num_classes++;
+        if (json_object_get(classes_obj, "thief")) num_classes++;
+        if (json_object_get(classes_obj, "warrior")) num_classes++;
+
+        if (num_classes > 0) {
+            info->classes = (char **)calloc(num_classes, sizeof(char *));
+            info->num_classes = num_classes;
+            int idx = 0;
+
+            if (json_object_get(classes_obj, "mage")) {
+                info->classes[idx++] = strdup("mage");
+            }
+            if (json_object_get(classes_obj, "cleric")) {
+                info->classes[idx++] = strdup("cleric");
+            }
+            if (json_object_get(classes_obj, "thief")) {
+                info->classes[idx++] = strdup("thief");
+            }
+            if (json_object_get(classes_obj, "warrior")) {
+                info->classes[idx++] = strdup("warrior");
+            }
+        }
+    }
 
     json_decref(root);
 
-    log_stringf("JSON: Read character info for %s from %s", ch->name, filename);
-    return true;
+    log_stringf("JSON: Read lightweight info for %s", info->name);
+    return info;
+}
+
+bool json_read_char_info(CHAR_DATA *ch, const char *filename)
+{
+    // This function is deprecated - use json_read_char_info_lightweight instead
+    // Keeping for backward compatibility
+    CHAR_INFO_CACHE *info = json_read_char_info_lightweight(filename);
+    if (info) {
+        free_char_info_cache(info);
+        return true;
+    }
+    return false;
 }
 
 /***************************************************************************
  * Object Deserialization                                                   *
  ***************************************************************************/
 
-static OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
+OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
     OBJ_INDEX_DATA *pObjIndex;
@@ -1331,7 +1477,8 @@ static OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
  * COMPLETE Character Deserialization - WITH PROPER INITIALIZATION         *
  ***************************************************************************/
 
-bool json_read_char(CHAR_DATA *ch, const char *filename)
+// Internal implementation with load_heavy parameter
+static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool load_heavy)
 {
     json_t *root, *metadata, *character, *inventory, *equipment, *locker, *skills, *affects, *classes_obj;
     json_error_t error;
@@ -1339,6 +1486,11 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
     const char *str;
     size_t index;
     int i;
+    struct timeval start_time, end_time;
+    long total_ms;
+
+    // Start timing
+    gettimeofday(&start_time, NULL);
 
     // Load JSON file
     root = json_load_file(filename, 0, &error);
@@ -1702,6 +1854,9 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
         value = json_object_get(character, "bankbalance");
         if (value) ch->pcdata->bankbalance = json_integer_value(value);
 
+        value = json_object_get(character, "last_login");
+        if (value) ch->pcdata->last_login = json_integer_value(value);
+
         value = json_object_get(character, "true_sex");
         if (value) ch->pcdata->true_sex = json_integer_value(value);
         value = json_object_get(character, "last_level");
@@ -1710,6 +1865,56 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
         if (value) ch->pcdata->quests_completed = json_integer_value(value);
         value = json_object_get(character, "security");
         if (value) ch->pcdata->security = json_integer_value(value);
+
+        // *** USER PREFERENCES ***
+        value = json_object_get(character, "scroll_lines");
+        if (value) ch->lines = json_integer_value(value);
+
+        str = json_string_value(json_object_get(character, "prompt"));
+        if (str) {
+            free_string(ch->prompt);
+            ch->prompt = str_dup(str);
+        }
+
+        value = json_object_get(character, "verb_preference");
+        if (value) ch->verb_preference = json_integer_value(value);
+
+        // Pronouns
+        str = json_string_value(json_object_get(character, "pronoun_he_she"));
+        if (str) {
+            free_string(ch->pronoun_he_she);
+            ch->pronoun_he_she = str_dup(str);
+        }
+        str = json_string_value(json_object_get(character, "pronoun_him_her"));
+        if (str) {
+            free_string(ch->pronoun_him_her);
+            ch->pronoun_him_her = str_dup(str);
+        }
+        str = json_string_value(json_object_get(character, "pronoun_his_her"));
+        if (str) {
+            free_string(ch->pronoun_his_her);
+            ch->pronoun_his_her = str_dup(str);
+        }
+        str = json_string_value(json_object_get(character, "pronoun_his_hers"));
+        if (str) {
+            free_string(ch->pronoun_his_hers);
+            ch->pronoun_his_hers = str_dup(str);
+        }
+        str = json_string_value(json_object_get(character, "pronoun_himself_herself"));
+        if (str) {
+            free_string(ch->pronoun_himself_herself);
+            ch->pronoun_himself_herself = str_dup(str);
+        }
+
+        // Deletion status
+        value = json_object_get(character, "deleted");
+        if (value) ch->deleted = json_is_true(value);
+        value = json_object_get(character, "delete_time");
+        if (value) ch->delete_time = json_integer_value(value);
+
+        // Locker rent
+        value = json_object_get(character, "locker_rent");
+        if (value) ch->locker_rent = json_integer_value(value);
 
         // Permanent vitals
         value = json_object_get(character, "perm_hit");
@@ -1813,58 +2018,71 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
         if (value) ch->countdown = json_integer_value(value);
     }
 
-    // **FIX #3: Properly initialize character before char_to_room**
-    // Clear any existing pointers that might cause loops
-    ch->next_in_room = NULL;
-    ch->next = NULL;
-    ch->in_room = NULL;
-
-    // Position (room location) - NOW with proper initialization
+    // **FIX #3: Set room pointer directly WITHOUT calling char_to_room()**
+    // The old pfile loading just sets ch->in_room pointer, NOT calling char_to_room()
+    // char_to_room() will be called later during the login sequence
     json_t *position = json_object_get(character, "position");
     if (position) {
         long room_vnum = json_integer_value(json_object_get(position, "room_vnum"));
         ROOM_INDEX_DATA *room = get_room_index(room_vnum);
         if (room) {
-            char_to_room(ch, room);
+            ch->in_room = room;
+        } else {
+            // Fallback to default recall room if saved room doesn't exist
+            ch->in_room = get_room_index(11001);
         }
+    } else {
+        // No position saved - use default recall
+        ch->in_room = get_room_index(11001);
     }
 
-    // Read inventory section
-    inventory = json_object_get(root, "inventory");
-    if (inventory && json_is_array(inventory)) {
-        json_array_foreach(inventory, index, array_elem) {
-            OBJ_DATA *obj = json_to_obj(array_elem, ch);
-            if (obj) {
-                obj_to_char(obj, ch);
+    // Read inventory section (skip if not loading heavy data)
+    if (load_heavy) {
+        inventory = json_object_get(root, "inventory");
+        if (inventory && json_is_array(inventory)) {
+            json_array_foreach(inventory, index, array_elem) {
+                OBJ_DATA *obj = json_to_obj(array_elem, ch);
+                if (obj) {
+                    obj_to_char(obj, ch);
+                }
             }
         }
     }
 
-    // Read equipment section
-    equipment = json_object_get(root, "equipment");
-    if (equipment && json_is_array(equipment)) {
-        json_array_foreach(equipment, index, array_elem) {
-            OBJ_DATA *obj = json_to_obj(array_elem, ch);
-            if (obj) {
-                obj_to_char(obj, ch);
-                // wear_loc is already set in json_to_obj
+    // Read equipment section (skip if not loading heavy data)
+    if (load_heavy) {
+        equipment = json_object_get(root, "equipment");
+        if (equipment && json_is_array(equipment)) {
+            json_array_foreach(equipment, index, array_elem) {
+                OBJ_DATA *obj = json_to_obj(array_elem, ch);
+                if (obj) {
+                    obj_to_char(obj, ch);
+                    // Add to worn list if equipped (wear_loc is set in json_to_obj)
+                    if (obj->wear_loc != WEAR_NONE) {
+                        list_addlink(ch->lworn, obj);
+                    }
+                }
             }
         }
     }
 
-    // Read locker section
-    locker = json_object_get(root, "locker");
-    if (locker && json_is_array(locker)) {
-        json_array_foreach(locker, index, array_elem) {
-            OBJ_DATA *obj = json_to_obj(array_elem, ch);
-            if (obj) {
-                obj->locker = true;
-                obj_to_char(obj, ch);
+    // Read locker section (skip if not loading heavy data)
+    if (load_heavy) {
+        locker = json_object_get(root, "locker");
+        if (locker && json_is_array(locker)) {
+            json_array_foreach(locker, index, array_elem) {
+                OBJ_DATA *obj = json_to_obj(array_elem, ch);
+                if (obj) {
+                    // Use obj_to_locker() which properly adds to ch->llocker
+                    obj_to_locker(obj, ch);
+                }
             }
         }
     }
 
     // **FIX #4: Read skills section - uses skill NAME as key (robust against ID changes)**
+    // (skip if not loading heavy data)
+    if (load_heavy) {
     skills = json_object_get(root, "skills");
     if (skills && json_is_object(skills)) {
         const char *skill_key;
@@ -1954,7 +2172,7 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
             long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
             TOKEN_INDEX_DATA *pTokenIndex = get_token_index(vnum);
             if (!pTokenIndex) {
-                log_stringf("json_read_char: bad token vnum %ld", vnum);
+                log_stringf("json_read_char_internal: bad token vnum %ld", vnum);
                 continue;
             }
 
@@ -2010,10 +2228,279 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
             pos++;
         }
     }
+    } // End if (load_heavy) - close the block that started at skills section
 
     json_decref(root);
 
-    log_stringf("JSON: Loaded character %s from %s", ch->name, filename);
+    // Mark load state
+    if (ch->pcdata) {
+        ch->pcdata->fully_loaded = load_heavy;
+    }
+
+    // Performance logging
+    gettimeofday(&end_time, NULL);
+    total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+              (end_time.tv_usec - start_time.tv_usec) / 1000;
+    int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
+                   (ch->llocker ? list_size(ch->llocker) : 0) +
+                   (ch->lworn ? list_size(ch->lworn) : 0);
+    log_stringf("PERFORMANCE json_read_char_internal: %s with %d objects (%s) - total: %ldms",
+               ch->name, obj_count, load_heavy ? "full" : "basic", total_ms);
+
+    log_stringf("JSON: Loaded character %s from %s (%s)", ch->name, filename,
+                load_heavy ? "full" : "basic");
+    return true;
+}
+
+// Public wrapper for full character load
+bool json_read_char(CHAR_DATA *ch, const char *filename)
+{
+    return json_read_char_internal(ch, filename, true);
+}
+
+/***************************************************************************
+ * Basic Character Loading (Defers Heavy Data)                             *
+ ***************************************************************************/
+
+// Internal helper to load character with optional section skipping
+// load_heavy: false = skip inventory/equipment/skills/affects (basic load)
+//             true  = load everything (full load)
+static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool load_heavy);
+
+// Load character WITHOUT inventory/equipment/skills/affects
+// This is significantly faster and used for character menu display
+bool json_read_char_basic(CHAR_DATA *ch, const char *filename)
+{
+    bool result = json_read_char_internal(ch, filename, false);
+    if (result && ch->pcdata) {
+        ch->pcdata->fully_loaded = false; // Mark as partially loaded
+    }
+    return result;
+}
+
+// Load remaining character data after json_read_char_basic()
+// Call this when character actually enters the game
+bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
+{
+    json_t *root, *inventory, *equipment, *locker, *skills, *affects;
+    json_error_t error;
+    json_t *value, *array_elem;
+    const char *str;
+    size_t index;
+    struct timeval start_time, end_time;
+    long total_ms;
+
+    if (!ch || !ch->pcdata) {
+        return false;
+    }
+
+    // If already fully loaded, nothing to do
+    if (ch->pcdata->fully_loaded) {
+        return true;
+    }
+
+    // Start timing
+    gettimeofday(&start_time, NULL);
+
+    // Load JSON file
+    root = json_load_file(filename, 0, &error);
+    if (!root) {
+        log_stringf("json_read_char_remaining: Failed to parse %s: %s", filename, error.text);
+        return false;
+    }
+
+    log_stringf("JSON: Loading remaining data for %s (inventory/equipment/skills/affects)", ch->name);
+
+    // Read inventory section
+    inventory = json_object_get(root, "inventory");
+    if (inventory && json_is_array(inventory)) {
+        json_array_foreach(inventory, index, array_elem) {
+            OBJ_DATA *obj = json_to_obj(array_elem, ch);
+            if (obj) {
+                obj_to_char(obj, ch);
+            }
+        }
+    }
+
+    // Read equipment section
+    equipment = json_object_get(root, "equipment");
+    if (equipment && json_is_array(equipment)) {
+        json_array_foreach(equipment, index, array_elem) {
+            OBJ_DATA *obj = json_to_obj(array_elem, ch);
+            if (obj) {
+                obj_to_char(obj, ch);
+                // Add to worn list if equipped (wear_loc is set in json_to_obj)
+                if (obj->wear_loc != WEAR_NONE) {
+                    list_addlink(ch->lworn, obj);
+                }
+            }
+        }
+    }
+
+    // Read locker section
+    locker = json_object_get(root, "locker");
+    if (locker && json_is_array(locker)) {
+        json_array_foreach(locker, index, array_elem) {
+            OBJ_DATA *obj = json_to_obj(array_elem, ch);
+            if (obj) {
+                // Use obj_to_locker() which properly adds to ch->llocker
+                obj_to_locker(obj, ch);
+            }
+        }
+    }
+
+    // Read skills section
+    skills = json_object_get(root, "skills");
+    if (skills && json_is_object(skills)) {
+        const char *skill_key;
+        json_t *skill_value;
+        json_object_foreach(skills, skill_key, skill_value) {
+            int sn;
+
+            sn = skill_lookup(skill_key);
+            if (sn < 0) {
+                sn = atoi(skill_key);
+                if (sn < 0 || sn >= MAX_SKILL) {
+                    continue;
+                }
+            }
+
+            if (json_is_object(skill_value)) {
+                json_t *learned = json_object_get(skill_value, "learned");
+                if (learned) {
+                    ch->pcdata->learned[sn] = json_integer_value(learned);
+                }
+                json_t *mod_learned = json_object_get(skill_value, "mod_learned");
+                if (mod_learned) {
+                    ch->pcdata->mod_learned[sn] = json_integer_value(mod_learned);
+                }
+            } else {
+                ch->pcdata->learned[sn] = json_integer_value(skill_value);
+            }
+        }
+    }
+
+    // Read skill groups section
+    json_t *skill_groups = json_object_get(root, "skill_groups");
+    if (skill_groups && json_is_array(skill_groups)) {
+        json_array_foreach(skill_groups, index, array_elem) {
+            int gn = json_integer_value(json_object_get(array_elem, "id"));
+            if (gn >= 0 && gn < MAX_GROUP) {
+                ch->pcdata->group_known[gn] = true;
+            }
+        }
+    }
+
+    // Read affects section
+    affects = json_object_get(root, "affects");
+    if (affects && json_is_array(affects)) {
+        json_array_foreach(affects, index, array_elem) {
+            AFFECT_DATA *paf = new_affect();
+
+            value = json_object_get(array_elem, "group");
+            if (value) {
+                paf->group = json_integer_value(value);
+            }
+
+            paf->where = json_integer_value(json_object_get(array_elem, "where"));
+            paf->type = json_integer_value(json_object_get(array_elem, "type"));
+            paf->level = json_integer_value(json_object_get(array_elem, "level"));
+            paf->duration = json_integer_value(json_object_get(array_elem, "duration"));
+            paf->location = json_integer_value(json_object_get(array_elem, "location"));
+            paf->modifier = json_integer_value(json_object_get(array_elem, "modifier"));
+            paf->bitvector = json_integer_value(json_object_get(array_elem, "bitvector"));
+
+            value = json_object_get(array_elem, "bitvector2");
+            if (value) {
+                paf->bitvector2 = json_integer_value(value);
+            }
+
+            str = json_string_value(json_object_get(array_elem, "custom_name"));
+            if (str) {
+                paf->custom_name = str_dup(str);
+            }
+
+            paf->next = ch->affected;
+            ch->affected = paf;
+        }
+    }
+
+    // Read tokens section
+    json_t *tokens_array = json_object_get(root, "tokens");
+    if (tokens_array && json_is_array(tokens_array)) {
+        json_array_foreach(tokens_array, index, array_elem) {
+            long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
+            TOKEN_INDEX_DATA *pTokenIndex = get_token_index(vnum);
+            if (!pTokenIndex) {
+                log_stringf("json_read_char_remaining: bad token vnum %ld", vnum);
+                continue;
+            }
+
+            TOKEN_DATA *token = new_token();
+            token->pIndexData = pTokenIndex;
+
+            json_t *token_id = json_object_get(array_elem, "id");
+            if (token_id && json_is_array(token_id)) {
+                token->id[0] = json_integer_value(json_array_get(token_id, 0));
+                token->id[1] = json_integer_value(json_array_get(token_id, 1));
+            }
+
+            value = json_object_get(array_elem, "timer");
+            if (value) token->timer = json_integer_value(value);
+
+            json_t *values = json_object_get(array_elem, "values");
+            if (values && json_is_array(values)) {
+                for (int i = 0; i < MAX_TOKEN_VALUES && i < json_array_size(values); i++) {
+                    token->value[i] = json_integer_value(json_array_get(values, i));
+                }
+            }
+
+            token->next = ch->tokens;
+            ch->tokens = token;
+        }
+    }
+
+    // Read aliases section
+    json_t *aliases_array = json_object_get(root, "aliases");
+    if (aliases_array && json_is_array(aliases_array) && ch->pcdata) {
+        int pos = 0;
+        json_array_foreach(aliases_array, index, array_elem) {
+            if (pos >= MAX_ALIAS) {
+                break;
+            }
+
+            str = json_string_value(json_object_get(array_elem, "alias"));
+            if (str) {
+                free_string(ch->pcdata->alias[pos]);
+                ch->pcdata->alias[pos] = str_dup(str);
+            }
+
+            str = json_string_value(json_object_get(array_elem, "substitution"));
+            if (str) {
+                free_string(ch->pcdata->alias_sub[pos]);
+                ch->pcdata->alias_sub[pos] = str_dup(str);
+            }
+
+            pos++;
+        }
+    }
+
+    json_decref(root);
+
+    // Mark as fully loaded
+    ch->pcdata->fully_loaded = true;
+
+    // Performance logging
+    gettimeofday(&end_time, NULL);
+    total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+              (end_time.tv_usec - start_time.tv_usec) / 1000;
+    int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
+                   (ch->llocker ? list_size(ch->llocker) : 0) +
+                   (ch->lworn ? list_size(ch->lworn) : 0);
+    log_stringf("PERFORMANCE json_read_char_remaining: %s with %d objects - total: %ldms",
+               ch->name, obj_count, total_ms);
+
+    log_stringf("JSON: Completed loading remaining data for %s", ch->name);
     return true;
 }
 

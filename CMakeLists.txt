@@ -28,13 +28,15 @@ set(COMMON_COMPILE_OPTIONS -Wall -fcommon -DMALLOC_STDLIB -fstack-protector -m64
 if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(/W4 /WX /std:c17)
 elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(${COMMON_COMPILE_OPTIONS} -std=gnu2x)
+    add_compile_options(${COMMON_COMPILE_OPTIONS} -std=c23)
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(${COMMON_COMPILE_OPTIONS} ${CLANG_SPECIFIC_OPTIONS} -std=c2x)
+    add_compile_options(${COMMON_COMPILE_OPTIONS} ${CLANG_SPECIFIC_OPTIONS} -std=c23)
 endif()
 
 # Using the comprehensive C_FILES list from your GCC Makefile
 set(SOURCE_FILES
+    account/auth.c
+    account/auth_migrate.c
     account/otp.c
     account/account_notes.c
     act_comm.c
@@ -79,13 +81,13 @@ set(SOURCE_FILES
     editors/tokens/tedit.c
     editors/wilderness/vledit.c
     editors/wilderness/wedit.c
+    editors/common.c
     effects.c
     events.c
     fight.c
     fight2.c
     gq.c
     handler.c
-    healer.c
     help.c
     house.c
     html.c
@@ -127,6 +129,9 @@ set(SOURCE_FILES
     mount.c
     music.c
     nanny.c
+    nanny/nanny_auth.c
+    nanny/nanny_menus.c
+    nanny/nanny_utils.c
     note.c
     olc.c
     olc_act.c
@@ -135,6 +140,10 @@ set(SOURCE_FILES
     project.c
     protocol.c
     quest.c
+    redis_cache.c
+    async_cache.c
+    json_char.c
+    json_account.c
     save.c
     scan.c
     script_commands.c
@@ -172,8 +181,8 @@ target_compile_definitions(sent PRIVATE
 )
 
 # Libraries: Using the more comprehensive list from GCC Makefile
-# pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png
-target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png)
+# pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson
+target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson)
 
 # Install step (optional, example)
 # install(TARGETS sent DESTINATION bin)

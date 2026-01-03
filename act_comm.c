@@ -1296,6 +1296,11 @@ iterator_stop(&it);
 
 	save_char_obj(ch);
 
+	// Save account to persist metadata updates (last_login, last_area, level, etc.)
+	if (ch->desc && ch->desc->account) {
+		save_account(ch->desc->account);
+	}
+
 	// Mark character as inactive in Redis cache
 	redis_set_char_active(ch->name, false);
 
