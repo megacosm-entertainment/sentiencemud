@@ -131,9 +131,9 @@ bool configure_context(SSL_CTX *context)
     // Set up ECDH parameters
     SSL_CTX_set_ecdh_auto(context, 1);
     
-    // Load certificate and private key files
-    if (SSL_CTX_use_certificate_file(context, game_settings.ssl_cert_path, SSL_FILETYPE_PEM) <= 0) {
-        log_string("SSL error: Failed to load certificate");
+    // Load certificate chain (includes intermediate certificates)
+    if (SSL_CTX_use_certificate_chain_file(context, game_settings.ssl_cert_path) <= 0) {
+        log_string("SSL error: Failed to load certificate chain");
         return false;
     }
     
@@ -148,8 +148,18 @@ bool configure_context(SSL_CTX *context)
         return false;
     }
     
-    // Set cipher list - use secure modern ciphers
-    SSL_CTX_set_cipher_list(context, "HIGH:!aNULL:!MD5:!RC4");
+    // Set cipher list - enforce Perfect Forward Secrecy with modern AEAD ciphers
+    // Prioritize TLS 1.3 ciphers, fall back to strong TLS 1.2 ciphersuites with PFS
+    SSL_CTX_set_cipher_list(context,
+        "TLS_AES_256_GCM_SHA384:"           // TLS 1.3
+        "TLS_CHACHA20_POLY1305_SHA256:"     // TLS 1.3
+        "TLS_AES_128_GCM_SHA256:"           // TLS 1.3
+        "ECDHE-RSA-AES256-GCM-SHA384:"      // TLS 1.2 with PFS
+        "ECDHE-RSA-AES128-GCM-SHA256:"      // TLS 1.2 with PFS
+        "ECDHE-RSA-CHACHA20-POLY1305:"      // TLS 1.2 with PFS
+        "DHE-RSA-AES256-GCM-SHA384:"        // TLS 1.2 with PFS
+        "DHE-RSA-AES128-GCM-SHA256"         // TLS 1.2 with PFS
+    );
     
     return true;
 }
@@ -159,15 +169,17 @@ bool configure_context(SSL_CTX *context)
  */
 SSL_CTX *create_context(void)
 {
-    SSL_CTX *new_ctx = SSL_CTX_new(SSLv23_server_method());
-    
+    // Use TLS_server_method() for modern OpenSSL (1.1.0+)
+    // This supports all TLS versions, controlled by min/max version settings
+    SSL_CTX *new_ctx = SSL_CTX_new(TLS_server_method());
+
     if (!new_ctx) {
         log_string("SSL error: Failed to create SSL context");
         return NULL;
     }
-    
-    // Disable old, insecure protocols
-    SSL_CTX_set_options(new_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
+
+    // Disable old, insecure protocols (redundant with min version, but explicit)
+    SSL_CTX_set_options(new_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
     
     // Configure the context
     if (!configure_context(new_ctx)) {

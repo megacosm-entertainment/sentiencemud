@@ -63,6 +63,8 @@
 #include <libpng/png.h>
 #include <qrencode.h>
 #include "protocol.h"
+#include "connection.h"
+#include "protocol_layer.h"
 #include "editors/reserved_vnums/reserved.h"
 
 
@@ -1839,6 +1841,12 @@ struct	descriptor_data
     TOKEN_DATA *	input_tok;
 
     unsigned int		muted;			// All text heading to the output will be blocked
+
+    /* Connection abstraction (new system) */
+    struct connection *conn;		// Connection object (TCP, TLS, WebSocket, etc.)
+    struct protocol_layer *proto;	// Protocol layer (telnet, websocket, etc.)
+
+    /* Legacy TLS fields (will be removed after migration) */
     bool    tls_handshake_in_progress;
     SSL *ssl;
         time_t last_activity;

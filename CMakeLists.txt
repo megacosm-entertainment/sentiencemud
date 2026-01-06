@@ -3,7 +3,7 @@
 #
 cmake_minimum_required (VERSION 3.10)
 
-project(sent)
+project(sent)sa
 
 # Get Git version, build date, and commit URL
 # Assumes date.sh and giturl.sh are in the same directory as CMakeLists.txt or in PATH
@@ -57,7 +57,14 @@ set(SOURCE_FILES
     chat_rooms.c
     church.c
     comm.c
+    connection.c
+    connection_tcp.c
+    connection_tls.c
+    connection_websocket.c
     const.c
+    protocol_layer.c
+    protocol_telnet.c
+    protocol_websocket.c
     db.c
     db2.c
     drunk.c

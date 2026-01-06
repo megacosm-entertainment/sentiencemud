@@ -121,6 +121,7 @@ extern void init_string_space();
 bool			is_test_port;
 int 		    telnet_port;
 int				tls_port;
+int				websocket_port;
 GLOBAL_DATA         gconfig;		/* Vizz - UID Tracking, and any other persistent global config info */
 GAME_SETTINGS_DATA  game_settings;
 LLIST *conn_players;
@@ -146,10 +147,10 @@ LLIST *ssl_ctx_cleanup_queue = NULL;
 /*
  * OS-dependent local functions.
  */
-void	game_loop		args((int control_telnet, int control_tls));
+void	game_loop		args((int control_telnet, int control_tls, int control_websocket));
 int	init_socket		args((int port));
 int init_tls_socket	args((int port));
-void	init_descriptor		args((int control, bool is_tls));
+void	init_descriptor		args((int control, int control_telnet, int control_tls, int control_websocket));
 bool	read_from_descriptor	args((DESCRIPTOR_DATA *d));
 bool	write_to_descriptor	args((DESCRIPTOR_DATA *d, char *txt, int length));
 bool	write_to_descriptor_2	args((DESCRIPTOR_DATA *d, char *txt, int length));
@@ -324,10 +325,11 @@ bool parse_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-    
+
     struct timeval now_time;
     int control_telnet = 0;
 	int control_tls = 0;
+	int control_websocket = 0;
     ITERATOR iter;
     void *data;
 	static GAME_SETTINGS_DATA game_settings_zero;
@@ -469,6 +471,8 @@ int main(int argc, char **argv)
 		telnet_port = game_settings.telnet_port;
 	if (game_settings.tls_port)
 		tls_port = game_settings.tls_port;
+	if (game_settings.websocket_tls_port)
+		websocket_port = game_settings.websocket_tls_port;
 	if (game_settings.testport || game_settings.dev_server)
     	is_test_port = true;
 	
@@ -542,6 +546,12 @@ int main(int argc, char **argv)
 		sprintf(log_buf, "TLS socket bound to port %d.", tls_port);
 		log_string(log_buf);
 	}
+	if (game_settings.enable_websocket_tls && game_settings.websocket_tls_port)
+	{
+		control_websocket = init_tls_socket(websocket_port);
+		sprintf(log_buf, "WebSocket TLS socket bound to port %d.", websocket_port);
+		log_string(log_buf);
+	}
 
     boot_db();
 
@@ -561,7 +571,7 @@ int main(int argc, char **argv)
 
     sprintf(log_buf, "Sentience is up on %d.", telnet_port);
     log_string(log_buf);
-    game_loop(control_telnet, control_tls);
+    game_loop(control_telnet, control_tls, control_websocket);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
 	list_destroy(conn_online);
@@ -768,7 +778,7 @@ int init_tls_socket(int port)
     return fd;
 }
 
-void game_loop(int control_telnet, int control_tls)
+void game_loop(int control_telnet, int control_tls, int control_websocket)
 {
     static struct timeval null_time;
     struct timeval last_time;
@@ -810,6 +820,12 @@ void game_loop(int control_telnet, int control_tls)
         {
             FD_SET(control_tls, &in_set);
             maxdesc = UMAX(maxdesc, control_tls);
+        }
+
+        if (control_websocket != -1 && game_settings.enable_websocket_tls)
+        {
+            FD_SET(control_websocket, &in_set);
+            maxdesc = UMAX(maxdesc, control_websocket);
         }
 
         // Process descriptor lists
@@ -857,66 +873,75 @@ void game_loop(int control_telnet, int control_tls)
          * New connections?
          */
         if (control_telnet != -1 && FD_ISSET(control_telnet, &in_set))
-            init_descriptor(control_telnet, false);
-        
+            init_descriptor(control_telnet, control_telnet, control_tls, control_websocket);
+
         if (control_tls != -1 && FD_ISSET(control_tls, &in_set))
-            init_descriptor(control_tls, true);
+            init_descriptor(control_tls, control_telnet, control_tls, control_websocket);
+
+        if (control_websocket != -1 && FD_ISSET(control_websocket, &in_set))
+            init_descriptor(control_websocket, control_telnet, control_tls, control_websocket);    
 
         /*
-         * Process outstanding TLS handshakes first
+         * Process outstanding handshakes first (TLS, WebSocket, etc.)
          */
         for (d = descriptor_list; d != NULL; d = d_next)
         {
             d_next = d->next;
-            
-            // Skip descriptors without SSL or that aren't in handshake mode
-            if (!d->ssl || !d->tls_handshake_in_progress)
+
+            // Skip descriptors without connections or that aren't in handshake mode
+            if (!d->conn || !d->conn->handshake_in_progress)
                 continue;
-            
-            // Check for handshake timeouts
-            if (current_time - d->last_activity > 10) {
-                log_string("Closing stalled TLS handshake connection");
+
+            // Check for handshake timeouts (5 seconds to prevent slowloris attacks)
+            if (current_time - d->conn->last_activity > 5) {
+                log_stringf("Closing stalled %s handshake connection",
+                           connection_get_protocol_name(d->conn));
                 close_socket(d);
                 continue;
             }
-            
+
             // Process handshakes ready for activity
             if (FD_ISSET(d->descriptor, &in_set) || FD_ISSET(d->descriptor, &out_set)) {
-                int ret = SSL_accept(d->ssl);
-                if (ret == 1) {
+                if (connection_process_handshake(d->conn)) {
                     // Handshake completed successfully
-                    d->tls_handshake_in_progress = false;
-                    d->last_activity = current_time;
-                    
+                    d->conn->last_activity = current_time;
+
+                    // Sync legacy field
+                    d->tls_handshake_in_progress = d->conn->handshake_in_progress;
+
+                    // For WebSocket connections, send greeting now that handshake is complete
+                    if (d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+                        // Protocol negotiation (GMCP for WebSocket)
+                        if (d->proto) {
+                            protocol_negotiate(d->proto);
+                        }
+
+                        // Send greeting
+                        if (help_greeting[0] == '.')
+                            write_to_buffer(d, help_greeting + 1, 0);
+                        else
+                            write_to_buffer(d, help_greeting, 0);
+
+                        if (!IS_NULLSTR(game_settings.login_string))
+                        {
+                            write_to_buffer(d, game_settings.login_string, 0);
+                            write_to_buffer(d, "\n\r", 0);
+                        }
+                        else
+                        {
+                            write_to_buffer(d, "By what name do you wish to be known? ", 0);
+                        }
+                    }
+
                     // Log successful handshake when debugging
                     if (game_settings.dev_server)
-                        log_string("TLS handshake completed successfully");
-                } 
-                else if (ret <= 0) {
-                    int err = SSL_get_error(d->ssl, ret);
-                    if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
-                        // Fatal handshake error - clean up properly
-                        BIO *bio = BIO_new(BIO_s_mem());
-                        ERR_print_errors(bio);
-                        
-                        char ssl_err_buf[MAX_STRING_LENGTH];
-                        char *bio_data;
-                        long bio_len = BIO_get_mem_data(bio, &bio_data);
-                        
-                        if (bio_len >= MAX_STRING_LENGTH)
-                            bio_len = MAX_STRING_LENGTH - 1;
-                        memcpy(ssl_err_buf, bio_data, bio_len);
-                        ssl_err_buf[bio_len] = '\0';
-                        BIO_free(bio);
-                        
-                        sprintf(log_buf, "TLS handshake failed: %d\nSSL errors: %s", 
-                                err, ssl_err_buf);
-                        log_string(log_buf);
-                        
-                        // Update circuit breaker
-                        ssl_errors_since_reset++;
-                        last_ssl_error = current_time;
-                        
+                        log_stringf("%s handshake completed successfully",
+                                   connection_get_protocol_name(d->conn));
+                } else {
+                    // Check if handshake failed (vs still in progress)
+                    if (d->conn->state != CONN_STATE_CONNECTING) {
+                        log_stringf("%s handshake failed",
+                                   connection_get_protocol_name(d->conn));
                         close_socket(d);
                         continue;
                     }
@@ -1050,10 +1075,11 @@ void game_loop(int control_telnet, int control_tls)
         for (d = descriptor_list; d != NULL; d = d_next) {
             d_next = d->next;
             
-            // Close connections with stalled TLS handshakes (10 seconds)
-            if (d->ssl && d->tls_handshake_in_progress && 
-                current_time - d->last_activity > 10) {
-                log_string("Closing stalled TLS handshake connection");
+            // Close connections with stalled handshakes (5 seconds to prevent slowloris)
+            if (d->conn && d->conn->handshake_in_progress &&
+                current_time - d->conn->last_activity > 5) {
+                log_stringf("Closing stalled %s handshake connection",
+                           connection_get_protocol_name(d->conn));
                 close_socket(d);
                 continue;
             }
@@ -1141,7 +1167,7 @@ void game_loop(int control_telnet, int control_tls)
 }
 
 
-void init_descriptor(int control, bool is_tls)
+void init_descriptor(int control, int control_telnet, int control_tls, int control_websocket)
 {
     char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *dnew = NULL;
@@ -1149,6 +1175,7 @@ void init_descriptor(int control, bool is_tls)
     struct hostent *from;
     int desc;
     socklen_t size;
+    connection_t *conn;
 
     size = sizeof(sock);
     getsockname(control, (struct sockaddr *) &sock, &size);
@@ -1158,128 +1185,50 @@ void init_descriptor(int control, bool is_tls)
         return;
     }
 
-#if !defined(FNDELAY)
-#define FNDELAY O_NDELAY
-#endif
-
-    if (fcntl(desc, F_SETFL, FNDELAY) == -1)
-    {
-        perror("New_descriptor: fcntl: FNDELAY");
-        close(desc);
-        return;
-    }
-
+    // Create descriptor
     dnew = new_descriptor();
     dnew->last_activity = current_time;
     dnew->healthcheck = false;
+    dnew->descriptor = desc;
 
-    if (is_tls) {
-        dnew->ssl = SSL_new(ctx);
-        dnew->tls_handshake_in_progress = true;
-        if (dnew->ssl == NULL) {
-            // Create a memory BIO to capture OpenSSL errors
-            BIO *bio = BIO_new(BIO_s_mem());
-            ERR_print_errors(bio);
-            
-            // Extract the error messages to a buffer
-            char ssl_err_buf[MAX_STRING_LENGTH];
-            char *bio_data;
-            long bio_len = BIO_get_mem_data(bio, &bio_data);
-            
-            // Copy and null-terminate the error data
-            if (bio_len >= MAX_STRING_LENGTH)
-                bio_len = MAX_STRING_LENGTH - 1;
-            memcpy(ssl_err_buf, bio_data, bio_len);
-            ssl_err_buf[bio_len] = '\0';
-            BIO_free(bio);
-            
-            // Update circuit breaker counters
-            ssl_errors_since_reset++;
-            last_ssl_error = current_time;
-            
-            sprintf(log_buf, "New_descriptor: SSL_new failed\nSSL errors: %s", ssl_err_buf);
-            bug(log_buf, 0);
-            
-            close(desc);
-            free_descriptor(dnew);
-            return;
-        }
-
-        if (SSL_set_fd(dnew->ssl, desc) == 0) {
-            // Create a memory BIO to capture OpenSSL errors
-            BIO *bio = BIO_new(BIO_s_mem());
-            ERR_print_errors(bio);
-            
-            // Extract the error messages to a buffer
-            char ssl_err_buf[MAX_STRING_LENGTH];
-            char *bio_data;
-            long bio_len = BIO_get_mem_data(bio, &bio_data);
-            
-            // Copy and null-terminate the error data
-            if (bio_len >= MAX_STRING_LENGTH)
-                bio_len = MAX_STRING_LENGTH - 1;
-            memcpy(ssl_err_buf, bio_data, bio_len);
-            ssl_err_buf[bio_len] = '\0';
-            BIO_free(bio);
-            
-            // Update circuit breaker counters
-            ssl_errors_since_reset++;
-            last_ssl_error = current_time;
-            
-            sprintf(log_buf, "New_descriptor: SSL_set_fd failed\nSSL errors: %s", ssl_err_buf);
-            bug(log_buf, 0);
-            
-            SSL_free(dnew->ssl);
-            dnew->ssl = NULL;
-            close(desc);
-            free_descriptor(dnew);
-            return;
-        }
-
-        int ret = SSL_accept(dnew->ssl);
-        if (ret <= 0) {
-            int err = SSL_get_error(dnew->ssl, ret);
-            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-                dnew->tls_handshake_in_progress = true;
-            } else {
-                // Create a memory BIO to capture OpenSSL errors
-                BIO *bio = BIO_new(BIO_s_mem());
-                ERR_print_errors(bio);
-                
-                // Extract the error messages to a buffer
-                char ssl_err_buf[MAX_STRING_LENGTH];
-                char *bio_data;
-                long bio_len = BIO_get_mem_data(bio, &bio_data);
-                
-                // Copy and null-terminate the error data
-                if (bio_len >= MAX_STRING_LENGTH)
-                    bio_len = MAX_STRING_LENGTH - 1;
-                memcpy(ssl_err_buf, bio_data, bio_len);
-                ssl_err_buf[bio_len] = '\0';
-                BIO_free(bio);
-                
-                // Update circuit breaker counters
-                ssl_errors_since_reset++;
-                last_ssl_error = current_time;
-                
-                sprintf(log_buf, "TLS handshake failed with error: %d\nSSL errors: %s\nSSL state: %s",
-                        err, ssl_err_buf, SSL_state_string_long(dnew->ssl));
-                log_string(log_buf);
-                
-                SSL_free(dnew->ssl);
-                dnew->ssl = NULL;
-                close(desc);
-                free_descriptor(dnew);
-                return;
-            }
-        } else {
-            dnew->tls_handshake_in_progress = false;
-        }
+    // Create connection object based on which control socket accepted it
+    if (control == control_websocket) {
+        conn = connection_websocket_tls_create(desc, dnew);
+    } else if (control == control_tls) {
+        conn = connection_tls_create(desc, dnew);
     } else {
-        dnew->ssl = NULL;
+        conn = connection_tcp_create(desc, dnew);
     }
 
-    dnew->descriptor = desc;
+    if (!conn) {
+        log_string("init_descriptor: Failed to create connection object");
+        close(desc);
+        free_descriptor(dnew);
+        return;
+    }
+
+    // Store connection in descriptor
+    dnew->conn = conn;
+
+    // Create protocol layer for this connection
+    dnew->proto = protocol_layer_create_for_connection(conn, dnew);
+    if (!dnew->proto) {
+        log_string("init_descriptor: Failed to create protocol layer");
+        connection_close(conn);
+        connection_free(conn);
+        close(desc);
+        free_descriptor(dnew);
+        return;
+    }
+
+    // Maintain legacy fields for backward compatibility during migration
+    if (conn->type == CONN_TYPE_TLS || conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+        dnew->ssl = (SSL*)conn->proto_data;
+        dnew->tls_handshake_in_progress = conn->handshake_in_progress;
+    } else {
+        dnew->ssl = NULL;
+        dnew->tls_handshake_in_progress = false;
+    }
     dnew->connected = CON_GET_ACCOUNT_NAME;
     dnew->showstr_head = NULL;
     dnew->showstr_point = NULL;
@@ -1325,29 +1274,39 @@ void init_descriptor(int control, bool is_tls)
 
     dnew->next = descriptor_list;
     descriptor_list = dnew;
-    ProtocolNegotiate(dnew);
 
-    write_to_buffer(dnew, compress_will, 0);
+    // For WebSocket connections, defer greeting until after WebSocket handshake completes
+    // For telnet/TLS, send greeting immediately
+    if (conn->type != CONN_TYPE_WEBSOCKET_TLS) {
+        ProtocolNegotiate(dnew);
 
-    if (help_greeting[0] == '.')
-        write_to_buffer(dnew, help_greeting + 1, 0);
-    else
-        write_to_buffer(dnew, help_greeting, 0);
+        // Negotiate protocol capabilities through new protocol layer
+        if (dnew->proto) {
+            protocol_negotiate(dnew->proto);
+        }
 
-    if (!is_tls && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
-    {
-        sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
-        write_to_buffer(dnew, buf, 0);
-    }
+        write_to_buffer(dnew, compress_will, 0);
 
-    if (!IS_NULLSTR(game_settings.login_string))
-    {
-        write_to_buffer(dnew, game_settings.login_string, 0);
-        write_to_buffer(dnew, "\n\r", 0);
-    }
-    else
-    {
-        write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+        if (help_greeting[0] == '.')
+            write_to_buffer(dnew, help_greeting + 1, 0);
+        else
+            write_to_buffer(dnew, help_greeting, 0);
+
+        if (conn->type == CONN_TYPE_TCP && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
+        {
+            sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
+            write_to_buffer(dnew, buf, 0);
+        }
+
+        if (!IS_NULLSTR(game_settings.login_string))
+        {
+            write_to_buffer(dnew, game_settings.login_string, 0);
+            write_to_buffer(dnew, "\n\r", 0);
+        }
+        else
+        {
+            write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+        }
     }
 }
 
@@ -1416,49 +1375,25 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     ProtocolDestroy(dclose->pProtocol);
 
-    // Properly shut down TLS/SSL connection with complete error handling
-    if (dclose->ssl != NULL) {
-        int ret, err;
-        
-        // Set socket to non-blocking for shutdown to prevent SIGPIPE
-        int flags = fcntl(dclose->descriptor, F_GETFL, 0);
-        fcntl(dclose->descriptor, F_SETFL, flags | O_NONBLOCK);
-        
-        // Only attempt graceful shutdown if not in handshake mode
-        if (!dclose->tls_handshake_in_progress) {
-            // Check if socket is writable before attempting shutdown
-            fd_set writefds;
-            struct timeval timeout;
-            timeout.tv_sec = 0;
-            timeout.tv_usec = 100000; // 100ms timeout
-            
-            FD_ZERO(&writefds);
-            FD_SET(dclose->descriptor, &writefds);
-            
-            if (select(dclose->descriptor + 1, NULL, &writefds, NULL, &timeout) > 0) {
-                // Socket is writable, set internal shutdown state
-                SSL_set_shutdown(dclose->ssl, SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN);
-                
-                // Try shutdown, ignoring most errors
-                ret = SSL_shutdown(dclose->ssl);
-                
-                if (ret == 0) {
-                    // Second call only if first one succeeded
-                    SSL_shutdown(dclose->ssl);
-                }
-                // Error handling remains the same
-                else if (ret < 0) {
-                    // Your existing error handling...
-                }
-            }
-        }
-        
-        // Always free the SSL object
-        SSL_free(dclose->ssl);
+    // Free protocol layer
+    if (dclose->proto) {
+        protocol_layer_free(dclose->proto);
+        dclose->proto = NULL;
+    }
+
+    // Close and free connection using abstraction layer
+    if (dclose->conn) {
+        connection_close(dclose->conn);
+        connection_free(dclose->conn);
+        dclose->conn = NULL;
+
+        // Clear legacy fields
         dclose->ssl = NULL;
-        
-        // Restore socket flags (not strictly necessary since we're closing it)
-        fcntl(dclose->descriptor, F_SETFL, flags);
+        dclose->tls_handshake_in_progress = false;
+    } else {
+        // Fallback for descriptors created before connection abstraction
+        shutdown(dclose->descriptor, SHUT_RDWR);
+        close(dclose->descriptor);
     }
 
 	if (dclose->account) {
@@ -1473,10 +1408,6 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     	}
     	dclose->account = NULL;
 	}
-    
-	// Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
-    shutdown(dclose->descriptor, SHUT_RDWR);
-    close(dclose->descriptor);
 
     free_descriptor(dclose);
     return;
@@ -1507,92 +1438,70 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
     for (;;)
     {
         int nRead = 0;
-        if (d->ssl)
-        {
-            do {
-                nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
-                if (nRead <= 0) {
-                    int err = SSL_get_error(d->ssl, nRead);
-                    if (err == SSL_ERROR_WANT_READ) {
-                        break;
-                    } else if (err == SSL_ERROR_ZERO_RETURN || err == SSL_ERROR_SYSCALL) {
-                        return false;
-                    } else {
-                        // Create a memory BIO to capture OpenSSL errors
-                        BIO *bio = BIO_new(BIO_s_mem());
-                        ERR_print_errors(bio);
-                        
-                        // Extract the error messages to a buffer
-                        char ssl_err_buf[MAX_STRING_LENGTH];
-                        char *bio_data;
-                        long bio_len = BIO_get_mem_data(bio, &bio_data);
-                        
-                        // Copy and null-terminate the error data
-                        if (bio_len >= MAX_STRING_LENGTH)
-                            bio_len = MAX_STRING_LENGTH - 1;
-                        memcpy(ssl_err_buf, bio_data, bio_len);
-                        ssl_err_buf[bio_len] = '\0';
-                        BIO_free(bio);
-                        
-                        // Update circuit breaker counters
-                        ssl_errors_since_reset++;
-                        last_ssl_error = current_time;
-                        
-                        // Log using the standard pattern
-                        sprintf(log_buf, "SSL_read failed with error: %d\nSSL errors: %s\nSSL state: %s", 
-                                err, ssl_err_buf, SSL_state_string_long(d->ssl));
-                        bug(log_buf, 0);
-                        
-                        return false;
-                    }
-                }
-            } while (nRead <= 0);
-        }
-        else
-        {
+        int bytes_read;
+
+        // Use connection abstraction
+        if (d->conn) {
+            if (!connection_read(d->conn, read_buf + iStart, sizeof(read_buf) - 10 - iStart, &bytes_read)) {
+                // Connection error or closed
+                return false;
+            }
+            nRead = bytes_read;
+        } else {
+            // Fallback for legacy connections (shouldn't happen)
             nRead = read(d->descriptor, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
         }
-        
+
         if (nRead > 0)
         {
             read_buf[nRead] = '\0';
             iStart += nRead;
-            
-            // Check for health check (both TLS and non-TLS)
+
+            // Check for health check
             if (strncmp(read_buf, "HEALTH_CHECK", 12) == 0)
             {
                 // Mark as health check
                 d->healthcheck = true;
-                
-                // Send quick response
+
+                // Send quick response using connection abstraction
                 const char *response = "OK\r\n";
-                if (d->ssl)
-                    SSL_write(d->ssl, response, strlen(response));
-                else
+                int bytes_written;
+                if (d->conn) {
+                    connection_write(d->conn, response, strlen(response), &bytes_written);
+                } else {
                     write(d->descriptor, response, strlen(response));
-                
+                }
+
                 // Don't process further - close socket in next game loop
                 return true;
             }
-            
+
             if (read_buf[iStart - 1] == '\n' || read_buf[iStart - 1] == '\r')
                 break;
         }
         else if (nRead == 0)
         {
-            return false;
+            // Connection idle (EAGAIN) or needs more data
+            if (iStart > 0)
+                break;  // Have data, process it
+            else
+                break;  // No data yet, try again later
         }
-        else if (errno == EWOULDBLOCK)
-            break;
         else
         {
+            // Error in non-connection path
+            if (errno == EWOULDBLOCK)
+                break;
+
             perror("Read_from_descriptor");
             return false;
         }
     }
 
-    read_buf[iStart] = '\0';
-    ProtocolInput(d, read_buf, iStart, d->inbuf);
+    if (iStart > 0) {
+        read_buf[iStart] = '\0';
+        ProtocolInput(d, read_buf, iStart, d->inbuf);
+    }
     return true;
 }
 
@@ -2330,57 +2239,25 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
     for (iStart = 0; iStart < length; iStart += nWrite)
     {
         nBlock = UMIN(length - iStart, 4096);
-        if (d->ssl) {
-            nWrite = SSL_write(d->ssl, txt + iStart, nBlock);
-            if (nWrite <= 0) {
-                int err = SSL_get_error(d->ssl, nWrite);
-                if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ) {
-                    // Would block, try again later
-                    break;
-                } else if (err == SSL_ERROR_ZERO_RETURN) {
-                    // Clean connection close
-                    return false;
-                } else if (err == SSL_ERROR_SYSCALL) {
-                    // System error - check errno
-                    if (errno == EPIPE || errno == ECONNRESET || errno == 0) {
-                        // Connection closed by client or other error
-                        return false;
-                    }
-                    // Log other system errors
-                    sprintf(log_buf, "SSL_write failed with system error: %s", strerror(errno));
-                    log_string(log_buf);
-                    return false;
-                } else {
-                    // Your existing error logging code
-                    BIO *bio = BIO_new(BIO_s_mem());
-                    ERR_print_errors(bio);
-                    
-                    char ssl_err_buf[MAX_STRING_LENGTH];
-                    char *bio_data;
-                    long bio_len = BIO_get_mem_data(bio, &bio_data);
-                    
-                    if (bio_len >= MAX_STRING_LENGTH)
-                        bio_len = MAX_STRING_LENGTH - 1;
-                    memcpy(ssl_err_buf, bio_data, bio_len);
-                    ssl_err_buf[bio_len] = '\0';
-                    BIO_free(bio);
-                    
-                    sprintf(log_buf, "SSL_write failed with error: %d\nSSL errors: %s", 
-                            err, ssl_err_buf);
-                    log_string(log_buf);
-                    
-                    ssl_errors_since_reset++;
-                    last_ssl_error = current_time;
-                    
-                    return false;
-                }
+        int bytes_written;
+
+        // Use connection abstraction
+        if (d->conn) {
+            if (!connection_write(d->conn, txt + iStart, nBlock, &bytes_written)) {
+                // Connection error or closed
+                return false;
             }
+            nWrite = bytes_written;
+
+            // If nothing was written (EAGAIN), break and try again later
+            if (nWrite == 0)
+                break;
         } else {
-            // Your existing non-SSL write code
+            // Fallback for legacy connections (shouldn't happen)
             nWrite = write(d->descriptor, txt + iStart, nBlock);
             if (nWrite < 0) {
-                if (errno == EPIPE) {
-                    return false; 
+                if (errno == EPIPE || errno == EWOULDBLOCK) {
+                    return false;
                 }
                 perror("Write_to_descriptor_2");
                 return false;
