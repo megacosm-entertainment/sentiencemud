@@ -384,6 +384,7 @@ AFFECT_DATA *new_affect(void)
     *af = af_zero;
     af->custom_name = NULL;
     af->slot = WEAR_NONE;
+    af->token = NULL;
 
     top_affect++;
 
@@ -3323,6 +3324,7 @@ TOKEN_DATA *new_token()
     memset(token, 0, sizeof(TOKEN_DATA));
 
     token->progs = NULL;
+    token->affects = NULL;		/* Initialize affects list */
     SET_MEMTYPE(token,MEMTYPE_TOKEN);
     VALIDATE(token);
 
@@ -3347,6 +3349,10 @@ void free_token(TOKEN_DATA *token)
 
     token->events = NULL;
     token->events_tail = NULL;
+
+    /* Destroy the affects list */
+    if (token->affects)
+	list_destroy(token->affects);
 
     variable_clearfield(VAR_TOKEN, token);
     script_clear_token(token);

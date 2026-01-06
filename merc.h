@@ -2310,6 +2310,7 @@ struct	affect_data
     int16_t 		random;
     char 		*custom_name;
     int16_t		slot;
+    TOKEN_DATA *	token;		/* Source token for this affect (if from TOKEN_AFFECT) */
 };
 
 /* where definitions */
@@ -4268,6 +4269,7 @@ struct token_data
 	EXTRA_DESCR_DATA	*ed;
 
 	SKILL_ENTRY *skill;		// Is the token used in a skill entry?
+	LLIST *affects;			// List of affects created by this token (bidirectional with AFFECT_DATA->token)
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
