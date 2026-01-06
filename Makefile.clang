@@ -129,6 +129,7 @@ C_FILES = \
     async_cache.c \
     json_char.c \
     json_account.c \
+    json_game_settings.c \
     save.c \
     scan.c \
     script_commands.c \

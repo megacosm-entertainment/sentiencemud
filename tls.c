@@ -130,18 +130,73 @@ bool configure_context(SSL_CTX *context)
     
     // Set up ECDH parameters
     SSL_CTX_set_ecdh_auto(context, 1);
-    
-    // Load certificate chain (includes intermediate certificates)
-    if (SSL_CTX_use_certificate_chain_file(context, game_settings.ssl_cert_path) <= 0) {
-        log_string("SSL error: Failed to load certificate chain");
-        return false;
+
+    // Load certificate - try environment variable first, then file
+    const char *ssl_cert_data = getenv("SENTIENCE_SSL_CERT_DATA");
+    const char *ssl_key_data = getenv("SENTIENCE_SSL_KEY_DATA");
+
+    if (ssl_cert_data && ssl_cert_data[0] != '\0') {
+        // Load certificate from environment variable (PEM format)
+        log_string("Loading SSL certificate from environment variable");
+        BIO *bio = BIO_new_mem_buf(ssl_cert_data, -1);
+        if (!bio) {
+            log_string("SSL error: Failed to create BIO for certificate data");
+            return false;
+        }
+
+        X509 *cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+        BIO_free(bio);
+
+        if (!cert) {
+            log_string("SSL error: Failed to parse certificate from environment variable");
+            return false;
+        }
+
+        if (SSL_CTX_use_certificate(context, cert) <= 0) {
+            X509_free(cert);
+            log_string("SSL error: Failed to use certificate from environment variable");
+            return false;
+        }
+        X509_free(cert);
+    } else {
+        // Load certificate from file (original behavior)
+        if (SSL_CTX_use_certificate_chain_file(context, game_settings.ssl_cert_path) <= 0) {
+            log_string("SSL error: Failed to load certificate chain");
+            return false;
+        }
     }
-    
-    if (SSL_CTX_use_PrivateKey_file(context, game_settings.ssl_key_path, SSL_FILETYPE_PEM) <= 0) {
-        log_string("SSL error: Failed to load private key");
-        return false;
+
+    if (ssl_key_data && ssl_key_data[0] != '\0') {
+        // Load private key from environment variable (PEM format)
+        log_string("Loading SSL private key from environment variable");
+        BIO *bio = BIO_new_mem_buf(ssl_key_data, -1);
+        if (!bio) {
+            log_string("SSL error: Failed to create BIO for private key data");
+            return false;
+        }
+
+        EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        BIO_free(bio);
+
+        if (!pkey) {
+            log_string("SSL error: Failed to parse private key from environment variable");
+            return false;
+        }
+
+        if (SSL_CTX_use_PrivateKey(context, pkey) <= 0) {
+            EVP_PKEY_free(pkey);
+            log_string("SSL error: Failed to use private key from environment variable");
+            return false;
+        }
+        EVP_PKEY_free(pkey);
+    } else {
+        // Load private key from file (original behavior)
+        if (SSL_CTX_use_PrivateKey_file(context, game_settings.ssl_key_path, SSL_FILETYPE_PEM) <= 0) {
+            log_string("SSL error: Failed to load private key");
+            return false;
+        }
     }
-    
+
     // Verify the private key matches the certificate
     if (!SSL_CTX_check_private_key(context)) {
         log_string("SSL error: Private key does not match certificate");

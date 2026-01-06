@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <jansson.h>
 #include "redis_cache.h"
 #include "merc.h"
 
@@ -16,6 +17,7 @@
 
 static redisContext *redis_ctx = NULL;
 static bool redis_available = false;
+static bool redis_json_available = false;
 static REDIS_STATS stats = {0};
 
 /***************************************************************************
@@ -24,11 +26,31 @@ static REDIS_STATS stats = {0};
 
 bool redis_init(void)
 {
-    struct timeval timeout = { REDIS_TIMEOUT_SEC, REDIS_TIMEOUT_USEC };
+    struct timeval timeout;
+    const char *redis_password;
+    const char *redis_host;
+    int redis_port;
+    redisReply *reply;
+
+    // Check if Redis is enabled
+    if (!game_settings.enable_redis) {
+        log_string("Redis: Caching disabled in game settings");
+        redis_available = false;
+        return false;
+    }
 
     log_string("Redis: Initializing connection...");
 
-    redis_ctx = redisConnectWithTimeout(REDIS_HOST, REDIS_PORT, timeout);
+    // Get connection settings from game_settings (with defaults)
+    redis_host = game_settings.redis_host ? game_settings.redis_host : "127.0.0.1";
+    redis_port = game_settings.redis_port > 0 ? game_settings.redis_port : 6379;
+
+    // Set timeout with defaults
+    timeout.tv_sec = game_settings.redis_timeout_sec > 0 ? game_settings.redis_timeout_sec : 1;
+    timeout.tv_usec = game_settings.redis_timeout_usec >= 0 ? game_settings.redis_timeout_usec : 500000;
+
+    log_stringf("Redis: Connecting to %s:%d...", redis_host, redis_port);
+    redis_ctx = redisConnectWithTimeout(redis_host, redis_port, timeout);
 
     if (redis_ctx == NULL || redis_ctx->err) {
         if (redis_ctx) {
@@ -42,8 +64,41 @@ bool redis_init(void)
         return false;
     }
 
+    // Authenticate if password is configured
+    // Environment variable overrides are already applied by json_apply_env_overrides()
+    redis_password = game_settings.redis_password;
+
+    if (redis_password && redis_password[0] != '\0') {
+        log_string("Redis: Authenticating...");
+        reply = redisCommand(redis_ctx, "AUTH %s", redis_password);
+
+        if (reply == NULL) {
+            log_string("Redis: AUTH command failed - connection error");
+            redisFree(redis_ctx);
+            redis_ctx = NULL;
+            redis_available = false;
+            return false;
+        }
+
+        if (reply->type == REDIS_REPLY_ERROR) {
+            log_stringf("Redis: AUTH failed: %s", reply->str);
+            freeReplyObject(reply);
+            redisFree(redis_ctx);
+            redis_ctx = NULL;
+            redis_available = false;
+            return false;
+        }
+
+        if (reply->type == REDIS_REPLY_STATUS && strcmp(reply->str, "OK") == 0) {
+            log_string("Redis: Authentication successful");
+        }
+        freeReplyObject(reply);
+    } else {
+        log_string("Redis: No password configured - connecting without authentication");
+    }
+
     // Test connection
-    redisReply *reply = redisCommand(redis_ctx, "PING");
+    reply = redisCommand(redis_ctx, "PING");
     if (reply == NULL) {
         log_string("Redis: PING failed");
         redisFree(redis_ctx);
@@ -56,6 +111,34 @@ bool redis_init(void)
         log_string("Redis: Connection established successfully");
         redis_available = true;
         freeReplyObject(reply);
+
+        // Check for RedisJSON module
+        log_string("Redis: Checking for RedisJSON module...");
+        reply = redisCommand(redis_ctx, "MODULE LIST");
+        if (reply && reply->type == REDIS_REPLY_ARRAY) {
+            for (size_t i = 0; i < reply->elements; i++) {
+                redisReply *module = reply->element[i];
+                if (module->type == REDIS_REPLY_ARRAY && module->elements >= 2) {
+                    redisReply *name_field = module->element[1];
+                    if (name_field && name_field->type == REDIS_REPLY_STRING) {
+                        if (strcasecmp(name_field->str, "ReJSON") == 0 ||
+                            strcasecmp(name_field->str, "JSON") == 0) {
+                            redis_json_available = true;
+                            log_string("Redis: RedisJSON module detected - full caching with partial updates enabled");
+                            break;
+                        }
+                    }
+                }
+            }
+            freeReplyObject(reply);
+        }
+
+        if (!redis_json_available) {
+            log_string("Redis: RedisJSON module NOT available - using fallback mode");
+            log_string("Redis: Full character caching enabled (fallback mode)");
+            log_string("Redis: See REDIS_JSON_SETUP.md for installation instructions");
+        }
+
         return true;
     }
 
@@ -536,6 +619,11 @@ void redis_print_stats(CHAR_DATA *ch)
     sprintf(buf, "Status:        {G%s{x\n\r", redis_available ? "Connected" : "Disconnected");
     send_to_char(buf, ch);
 
+    sprintf(buf, "RedisJSON:     {%c%s{x\n\r",
+            redis_json_available ? 'G' : 'Y',
+            redis_json_available ? "Available (optimal)" : "Not available (fallback mode)");
+    send_to_char(buf, ch);
+
     sprintf(buf, "Cache Hits:    {C%ld{x\n\r", s->hits);
     send_to_char(buf, ch);
 
@@ -562,4 +650,389 @@ void redis_print_stats(CHAR_DATA *ch)
 
     sprintf(buf, "Memory Used:   %.2f MB\n\r", s->memory_used / (1024.0 * 1024.0));
     send_to_char(buf, ch);
+}
+
+/***************************************************************************
+ * Full Character Caching (Phase 2)                                       *
+ ***************************************************************************/
+
+bool redis_has_json_module(void)
+{
+    return redis_json_available;
+}
+
+bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
+{
+    redisReply *reply;
+    char *key;
+    char *json_str;
+
+    if (!redis_is_available() || !ch || IS_NPC(ch) || !char_json) {
+        return false;
+    }
+
+    key = redis_key("char", ch->name, "full");
+
+    if (redis_json_available) {
+        // Use RedisJSON module for native JSON storage
+        json_str = json_dumps(char_json, JSON_COMPACT);
+        if (!json_str) {
+            log_stringf("Redis: Failed to serialize JSON for %s", ch->name);
+            stats.errors++;
+            return false;
+        }
+
+        reply = redisCommand(redis_ctx, "JSON.SET %s $ %s", key, json_str);
+        free(json_str);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+            if (reply) {
+                log_stringf("Redis: JSON.SET failed for %s: %s", ch->name, reply->str);
+                freeReplyObject(reply);
+            } else {
+                log_stringf("Redis: JSON.SET connection error for %s", ch->name);
+            }
+            stats.errors++;
+            return false;
+        }
+        freeReplyObject(reply);
+
+    } else {
+        // Fallback: Store as regular string
+        json_str = json_dumps(char_json, JSON_COMPACT);
+        if (!json_str) {
+            log_stringf("Redis: Failed to serialize JSON for %s", ch->name);
+            stats.errors++;
+            return false;
+        }
+
+        reply = redisCommand(redis_ctx, "SET %s %s", key, json_str);
+        free(json_str);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+            if (reply) {
+                log_stringf("Redis: SET failed for %s: %s", ch->name, reply->str);
+                freeReplyObject(reply);
+            } else {
+                log_stringf("Redis: SET connection error for %s", ch->name);
+            }
+            stats.errors++;
+            return false;
+        }
+        freeReplyObject(reply);
+    }
+
+    // Set expiration
+    reply = redisCommand(redis_ctx, "EXPIRE %s %d", key, REDIS_TTL_CHAR_FULL);
+    if (reply) {
+        freeReplyObject(reply);
+    }
+
+    stats.sets++;
+    log_stringf("Redis: Cached full character data for %s (%s mode)",
+                ch->name, redis_json_available ? "RedisJSON" : "fallback");
+    return true;
+}
+
+json_t *redis_get_char_full(const char *name)
+{
+    redisReply *reply;
+    char *key;
+    json_t *result = NULL;
+    json_error_t error;
+
+    if (!redis_is_available() || !name) {
+        return NULL;
+    }
+
+    key = redis_key("char", name, "full");
+
+    if (redis_json_available) {
+        // Use RedisJSON module
+        reply = redisCommand(redis_ctx, "JSON.GET %s $", key);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
+            if (reply) freeReplyObject(reply);
+            stats.misses++;
+            return NULL;
+        }
+
+        if (reply->type == REDIS_REPLY_STRING) {
+            // RedisJSON returns JSON array: ["..."] or null
+            // We need to parse the outer array and extract first element
+            json_t *wrapper = json_loads(reply->str, 0, &error);
+            if (wrapper && json_is_array(wrapper) && json_array_size(wrapper) > 0) {
+                // Extract first element and incref it before decref wrapper
+                result = json_array_get(wrapper, 0);
+                if (result) {
+                    json_incref(result);  // Caller will decref
+                }
+                json_decref(wrapper);
+            }
+            freeReplyObject(reply);
+
+            if (result) {
+                stats.hits++;
+                log_stringf("Redis: Retrieved full character data for %s (RedisJSON mode)", name);
+            } else {
+                stats.misses++;
+                log_stringf("Redis: Failed to parse RedisJSON response for %s", name);
+            }
+            return result;
+        }
+
+        freeReplyObject(reply);
+        stats.errors++;
+        return NULL;
+
+    } else {
+        // Fallback: Get regular string
+        reply = redisCommand(redis_ctx, "GET %s", key);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
+            if (reply) freeReplyObject(reply);
+            stats.misses++;
+            return NULL;
+        }
+
+        if (reply->type == REDIS_REPLY_STRING) {
+            result = json_loads(reply->str, 0, &error);
+            freeReplyObject(reply);
+
+            if (result) {
+                stats.hits++;
+                log_stringf("Redis: Retrieved full character data for %s (fallback mode)", name);
+                return result;
+            } else {
+                stats.errors++;
+                log_stringf("Redis: Failed to parse JSON for %s: %s", name, error.text);
+                return NULL;
+            }
+        }
+
+        freeReplyObject(reply);
+        stats.errors++;
+        return NULL;
+    }
+}
+
+bool redis_update_char_gold(const char *name, long gold)
+{
+    redisReply *reply;
+    char *key;
+
+    if (!redis_is_available() || !name || !redis_json_available) {
+        return false;
+    }
+
+    key = redis_key("char", name, "full");
+
+    // Use JSONPath to update just the gold field
+    reply = redisCommand(redis_ctx, "JSON.SET %s $.character.gold %ld", key, gold);
+
+    if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+        if (reply) {
+            log_stringf("Redis: Failed to update gold for %s: %s", name, reply->str);
+            freeReplyObject(reply);
+        }
+        stats.errors++;
+        return false;
+    }
+
+    freeReplyObject(reply);
+    log_stringf("Redis: Updated gold for %s to %ld (partial update)", name, gold);
+    return true;
+}
+
+bool redis_update_char_exp(const char *name, long exp)
+{
+    redisReply *reply;
+    char *key;
+
+    if (!redis_is_available() || !name || !redis_json_available) {
+        return false;
+    }
+
+    key = redis_key("char", name, "full");
+
+    // Use JSONPath to update just the experience field
+    reply = redisCommand(redis_ctx, "JSON.SET %s $.character.exp %ld", key, exp);
+
+    if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+        if (reply) {
+            log_stringf("Redis: Failed to update exp for %s: %s", name, reply->str);
+            freeReplyObject(reply);
+        }
+        stats.errors++;
+        return false;
+    }
+
+    freeReplyObject(reply);
+    log_stringf("Redis: Updated exp for %s to %ld (partial update)", name, exp);
+    return true;
+}
+
+bool redis_update_char_position(const char *name, int room_vnum)
+{
+    redisReply *reply;
+    char *key;
+
+    if (!redis_is_available() || !name || !redis_json_available) {
+        return false;
+    }
+
+    key = redis_key("char", name, "full");
+
+    // Use JSONPath to update room position
+    reply = redisCommand(redis_ctx, "JSON.SET %s $.character.room %d", key, room_vnum);
+
+    if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+        if (reply) {
+            log_stringf("Redis: Failed to update position for %s: %s", name, reply->str);
+            freeReplyObject(reply);
+        }
+        stats.errors++;
+        return false;
+    }
+
+    freeReplyObject(reply);
+    log_stringf("Redis: Updated position for %s to room %d (partial update)", name, room_vnum);
+    return true;
+}
+
+/***************************************************************************
+ * Account Caching (Phase 3)                                              *
+ ***************************************************************************/
+
+bool redis_cache_account_full(const char *account_name, json_t *account_json)
+{
+    redisReply *reply;
+    char *key;
+    char *json_str;
+
+    if (!redis_is_available() || !account_name || !account_json) {
+        return false;
+    }
+
+    key = redis_key("account", account_name, "full");
+
+    if (redis_json_available) {
+        json_str = json_dumps(account_json, JSON_COMPACT);
+        if (!json_str) {
+            stats.errors++;
+            return false;
+        }
+
+        reply = redisCommand(redis_ctx, "JSON.SET %s $ %s", key, json_str);
+        free(json_str);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+            if (reply) freeReplyObject(reply);
+            stats.errors++;
+            return false;
+        }
+        freeReplyObject(reply);
+
+    } else {
+        json_str = json_dumps(account_json, JSON_COMPACT);
+        if (!json_str) {
+            stats.errors++;
+            return false;
+        }
+
+        reply = redisCommand(redis_ctx, "SET %s %s", key, json_str);
+        free(json_str);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
+            if (reply) freeReplyObject(reply);
+            stats.errors++;
+            return false;
+        }
+        freeReplyObject(reply);
+    }
+
+    // Set expiration
+    reply = redisCommand(redis_ctx, "EXPIRE %s %d", key, REDIS_TTL_CHAR_FULL);
+    if (reply) {
+        freeReplyObject(reply);
+    }
+
+    stats.sets++;
+    log_stringf("Redis: Cached full account data for %s", account_name);
+    return true;
+}
+
+json_t *redis_get_account_full(const char *account_name)
+{
+    redisReply *reply;
+    char *key;
+    json_t *result = NULL;
+    json_error_t error;
+
+    if (!redis_is_available() || !account_name) {
+        return NULL;
+    }
+
+    key = redis_key("account", account_name, "full");
+
+    if (redis_json_available) {
+        reply = redisCommand(redis_ctx, "JSON.GET %s $", key);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
+            if (reply) freeReplyObject(reply);
+            stats.misses++;
+            return NULL;
+        }
+
+        if (reply->type == REDIS_REPLY_STRING) {
+            json_t *wrapper = json_loads(reply->str, 0, &error);
+            if (wrapper && json_is_array(wrapper) && json_array_size(wrapper) > 0) {
+                result = json_array_get(wrapper, 0);
+                if (result) {
+                    json_incref(result);
+                }
+                json_decref(wrapper);
+            }
+            freeReplyObject(reply);
+
+            if (result) {
+                stats.hits++;
+                log_stringf("Redis: Retrieved full account data for %s", account_name);
+            } else {
+                stats.misses++;
+            }
+            return result;
+        }
+
+        freeReplyObject(reply);
+        stats.errors++;
+        return NULL;
+
+    } else {
+        reply = redisCommand(redis_ctx, "GET %s", key);
+
+        if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
+            if (reply) freeReplyObject(reply);
+            stats.misses++;
+            return NULL;
+        }
+
+        if (reply->type == REDIS_REPLY_STRING) {
+            result = json_loads(reply->str, 0, &error);
+            freeReplyObject(reply);
+
+            if (result) {
+                stats.hits++;
+                log_stringf("Redis: Retrieved full account data for %s", account_name);
+                return result;
+            } else {
+                stats.errors++;
+                return NULL;
+            }
+        }
+
+        freeReplyObject(reply);
+        stats.errors++;
+        return NULL;
+    }
 }

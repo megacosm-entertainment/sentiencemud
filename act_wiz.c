@@ -36,6 +36,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <math.h>
 #include "merc.h"
@@ -47,6 +48,7 @@
 #include "wilds.h"
 #include "redis_cache.h"
 #include "async_cache.h"
+#include "json_game_settings.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -214,7 +216,8 @@ int gconfig_read (void)
     } /* end for */
 }
 
-int game_settings_read (void)
+// Old .dat format reader (kept for migration)
+int game_settings_read_dat (void)
 {
     FILE *fp;
     bool fMatch;
@@ -651,6 +654,22 @@ int game_settings_read (void)
 
 }
 
+// New JSON-based game_settings_read - automatically uses JSON or migrates from .dat
+int game_settings_read(void)
+{
+    // Try JSON format first
+    int result = json_game_settings_read();
+
+    if (result == 0) {
+        return 0;  // Success
+    }
+
+    // JSON load failed - the json loader will attempt migration
+    // If we're still here, something went wrong
+    log_string("Warning: Using default game settings due to load failure");
+    return 1;
+}
+
 
 int gconfig_write(void)
 {
@@ -681,7 +700,8 @@ int gconfig_write(void)
     return(0); /* Success*/
 }
 
-int game_settings_write(void)
+// Old .dat format writer (kept for migration)
+static int game_settings_write_dat(void)
 {
 	FILE *fp;
 
@@ -880,6 +900,12 @@ int game_settings_write(void)
 	fprintf(fp, "END\n");
 	fclose(fp);
     return(0); /* Success*/
+}
+
+// New JSON-based game_settings_write
+int game_settings_write(void)
+{
+    return json_game_settings_write();
 }
 
 void do_wiznet(CHAR_DATA *ch, char *argument)

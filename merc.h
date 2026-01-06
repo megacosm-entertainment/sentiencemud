@@ -312,11 +312,12 @@ struct script_type {
 #define SETTING_CAT_GLOBAL 5
 #define SETTING_CAT_SECURITY 6
 #define SETTING_CAT_MSSP 7
+#define SETTING_CAT_REDIS 8
 
 #define MIN_SECURITY_GAMEEDIT 9
 
 #define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
-#define SETTING_CAT_MAX 8 /* Number of setting categories */
+#define SETTING_CAT_MAX 9 /* Number of setting categories */
 
 #define AES_KEY_SIZE 32  // 256 bits
 #define AES_IV_SIZE 16   // 128 bits
@@ -1292,6 +1293,15 @@ struct game_settings_data
     bool enable_insecure_warning; // Show a warning for insecure connections?
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
+
+    /* Redis Settings */
+    bool enable_redis;            // Enable Redis caching?
+    char *redis_host;             // Redis server hostname
+    int redis_port;               // Redis server port
+    char *redis_password;         // Redis authentication password (optional)
+    int redis_timeout_sec;        // Redis connection timeout in seconds
+    int redis_timeout_usec;       // Redis connection timeout microseconds
+
     bool note_boot_errors;
     int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
     int org_disable_pk_pneuma_cost; // How much does it cost to disable PK in an org?

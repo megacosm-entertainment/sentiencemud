@@ -436,15 +436,32 @@ void save_char_obj(CHAR_DATA *ch)
     //    - Old pfiles in .old/ directories remain as emergency backups
     if (is_top_level_save) {
         char json_path[512];
+        json_t *char_json = NULL;
+
         json_get_char_path(ch->name, json_path, sizeof(json_path));
-        if (!json_write_char(ch, json_path)) {
-            log_stringf("save_char_obj: Failed to write JSON for %s", ch->name);
+
+        // Serialize character to JSON (needed for both disk and cache)
+        char_json = char_to_json(ch);
+        if (char_json) {
+            // Write to disk
+            int result = json_dump_file(char_json, json_path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
+            if (result != 0) {
+                log_stringf("save_char_obj: Failed to write JSON for %s", ch->name);
 #if WRITE_OLD_PFILE_FORMAT
-            // Don't fail the save - old format is already written as backup
+                // Don't fail the save - old format is already written as backup
 #else
-            // JSON-only mode: This is critical, log error but don't crash
-            bug("save_char_obj: JSON write failed and old pfile format disabled!", 0);
+                // JSON-only mode: This is critical, log error but don't crash
+                bug("save_char_obj: JSON write failed and old pfile format disabled!", 0);
 #endif
+            }
+
+            // Write-through cache: Update Redis with full character data
+            redis_cache_char_full(ch, char_json);
+
+            // Cleanup
+            json_decref(char_json);
+        } else {
+            log_stringf("save_char_obj: Failed to serialize JSON for %s", ch->name);
         }
     }
 
@@ -1102,6 +1119,40 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
     sprintf(buf, "Trying to load %s", strsave);
     log_string(buf);
 
+    // Read-through cache: Try Redis first for faster load
+    json_t *cached_json = redis_get_char_full(name);
+    if (cached_json) {
+        // Found in Redis cache - write to temp file and load from there
+        // This allows us to use existing json_read_char functions without major refactoring
+        char temp_path[MAX_INPUT_LENGTH];
+        snprintf(temp_path, sizeof(temp_path), "%s.cache", strsave);
+
+        int result = json_dump_file(cached_json, temp_path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
+        json_decref(cached_json);
+
+        if (result == 0) {
+            log_stringf("load_char_obj: Loading %s from Redis cache", name);
+            found = true;
+            if (load_full) {
+                if (!json_read_char(ch, temp_path)) {
+                    log_stringf("load_char_obj: Failed to load cached JSON for %s, falling back to disk", name);
+                    found = false;
+                }
+            } else {
+                if (!json_read_char_basic(ch, temp_path)) {
+                    log_stringf("load_char_obj_basic: Failed to load cached JSON for %s, falling back to disk", name);
+                    found = false;
+                }
+            }
+            unlink(temp_path);  // Clean up temp file
+
+            // If cache load succeeded, skip disk read
+            if (found) {
+                goto load_success;
+            }
+        }
+    }
+
     // Check if file exists and detect format (JSON vs old pfile)
     if (json_is_json_file(strsave)) {
         // JSON format file
@@ -1375,6 +1426,7 @@ if (found && !IS_NPC(ch) &&
         }
     }
 
+load_success:
     // Performance logging for any character with inventory
     if (found && ch) {
         gettimeofday(&end_time, NULL);

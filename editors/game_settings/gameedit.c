@@ -209,6 +209,23 @@ if (match_count == 1) {
     snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "Sensitive", setting->sensitive ? "Yes" : "No");
     add_buf(buffer, buf);
 
+    // Show source of the setting value
+    extern bool json_setting_is_env_override(const char *setting_name);
+    extern const char *json_get_env_for_setting(const char *setting_name);
+
+    if (json_setting_is_env_override(setting->name)) {
+        char env_name[256];
+        snprintf(env_name, sizeof(env_name), "SENTIENCE_%s", setting->name);
+        for (char *p = env_name + 10; *p; p++) *p = toupper(*p);  // Skip "SENTIENCE_"
+        snprintf(buf, sizeof(buf), "{Y| %-20.20s| {C%-55.55s{x{Y|{x\n\r", "Value Source", "Environment Variable");
+        add_buf(buffer, buf);
+        snprintf(buf, sizeof(buf), "{Y| %-20.20s| {C%-55.55s{x{Y|{x\n\r", "Env Variable", env_name);
+        add_buf(buffer, buf);
+    } else {
+        snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "Value Source", "Configuration File");
+        add_buf(buffer, buf);
+    }
+
     // Section divider (80 columns)
     snprintf(buf, sizeof(buf), "{Y+--------------------+---------------------------------------------------------+{x\n\r");
     add_buf(buffer, buf);
@@ -390,7 +407,7 @@ if (match_count == 1) {
             add_buf(buffer, buf);
 
             // Legend
-            snprintf(buf, sizeof(buf), "  Legend: {R*{x Requires reboot   {MS{x Sensitive setting   {DX{x Not settable via OLC\n\r\n\r");
+            snprintf(buf, sizeof(buf), "  Legend: {CE{x Environment var   {R*{x Requires reboot   {MS{x Sensitive   {DX{x Not settable\n\r\n\r");
             add_buf(buffer, buf);
         }
     }
@@ -705,6 +722,10 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
         iterator_stop(&it);
     }
 
+// Check if setting is from environment variable
+extern bool json_setting_is_env_override(const char *setting_name);
+bool is_env_override = json_setting_is_env_override(setting->name);
+
 // Format type column with modifiers
 const char *type_name = "";
 switch (setting->type) {
@@ -715,7 +736,8 @@ switch (setting->type) {
     case SETTING_TYPE_FLOAT:  type_name = "Float";   break;
     default:                  type_name = "Unknown"; break;
 }
-char modifiers[16] = "";
+char modifiers[32] = "";
+if (is_env_override) strcat(modifiers, "{CE{x");  // Cyan E for Environment
 if (setting->requires_reboot) strcat(modifiers, "{R*{x");
 if (setting->sensitive) strcat(modifiers, "{MS{x");
 if (!setting->olc_settable) strcat(modifiers, "{DX{x");
@@ -798,7 +820,7 @@ void gameedit_display_category(BUFFER *buffer, CHAR_DATA *ch, int category)
     add_buf(buffer, buf);
 
     // Legend
-    snprintf(buf, sizeof(buf), "  Legend: {R*{x Requires reboot   {MS{x Sensitive setting   {DX{x Not settable via OLC\n\r\n\r");
+    snprintf(buf, sizeof(buf), "  Legend: {CE{x Environment var   {R*{x Requires reboot   {MS{x Sensitive   {DX{x Not settable\n\r\n\r");
     add_buf(buffer, buf);
 }
 
@@ -806,7 +828,15 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
 {
     GAME_SETTING_CHANGE *change;
     ITERATOR it;
-    
+    extern bool json_setting_is_env_override(const char *setting_name);
+
+    /* Warn if setting is overridden by environment variable */
+    if (json_setting_is_env_override(setting->name)) {
+        send_to_char("{YWARNING: This setting is currently overridden by an environment variable.{x\n\r", ch);
+        send_to_char("         The change will be saved to the config file, but will only take effect\n\r", ch);
+        send_to_char("         after the environment variable is removed and the server is restarted.\n\r\n\r", ch);
+    }
+
     /* Validate the value based on the setting type */
     switch (setting->type) {
         case SETTING_TYPE_BOOL:
@@ -1626,8 +1656,8 @@ void save_changesets(void)
     
     fprintf(fp, "#END\n");
     fclose(fp);
-    
-    log_string("Game setting changesets saved.");
+
+    log_string("Game setting changeset history saved (for rollback/audit).");
 }
 
 /*
@@ -1648,11 +1678,11 @@ void load_changesets(void)
     free_all_changesets();
     
     if ((fp = fopen(CHANGESET_FILE, "r")) == NULL) {
-        log_string("No changeset file found. Starting with empty history.");
+        log_string("No changeset history file found. Starting with empty history.");
         return;
     }
-    
-    log_string("Loading changesets from file...");
+
+    log_string("Loading changeset history (for rollback/audit purposes)...");
     
     word = fread_word(fp);
     if (!word || str_cmp(word, "#CHANGESETS")) {
@@ -1664,8 +1694,8 @@ void load_changesets(void)
     
     changeset_count = fread_number(fp);
     next_changeset_id = fread_number(fp);
-    
-    log_string(formatf("Found %d changesets, next ID: %d", changeset_count, next_changeset_id));
+
+    log_string(formatf("Found %d changesets in history, next ID: %d", changeset_count, next_changeset_id));
     
     changeset_count = 0; // Reset and count as we load
     
@@ -1823,10 +1853,9 @@ void load_changesets(void)
     }
 
     // Sort changesets by ID
-    log_string("Sorting changesets by ID...");
     for (int i = 0; i < changeset_count - 1; i++) {
         for (int j = i + 1; j < changeset_count; j++) {
-            if (changesets[i] && changesets[j] && 
+            if (changesets[i] && changesets[j] &&
                 changesets[i]->id > changesets[j]->id) {
                 GAME_SETTINGS_CHANGESET *temp = changesets[i];
                 changesets[i] = changesets[j];
@@ -1834,12 +1863,12 @@ void load_changesets(void)
             }
         }
     }
-    
+
     // Verify all changesets loaded correctly
-    log_string(formatf("Successfully loaded %d changesets.", changeset_count));
+    log_string(formatf("Changeset history loaded: %d records available for rollback/audit.", changeset_count));
     for (int i = 0; i < changeset_count; i++) {
-        log_string(formatf(" - Changeset #%d by %s with %d changes", 
-            changesets[i]->id, changesets[i]->author, 
+        log_string(formatf(" - Changeset #%d by %s with %d changes",
+            changesets[i]->id, changesets[i]->author,
             list_size(changesets[i]->changes)));
     }
     

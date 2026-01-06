@@ -3743,7 +3743,15 @@ const struct game_setting_type game_settings_table[] = {
     { "mssp_roleplaying",     &game_settings.mssp_roleplaying,     SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Roleplaying enforced",                                       true,  false, false },
     { "mssp_training_system", &game_settings.mssp_training_system, SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Training system",                                            true,  false, false },
     { "mssp_world_originality", &game_settings.mssp_world_originality, SETTING_TYPE_BOOL, SETTING_CAT_MSSP,  "Based on established setting",                               true,  false, false },
-    
+
+    /* Redis Settings */
+    { "redis_enable",         &game_settings.enable_redis,         SETTING_TYPE_BOOL,   SETTING_CAT_REDIS,    "Enable Redis caching",                                       true,  false, false },
+    { "redis_host",           &game_settings.redis_host,           SETTING_TYPE_STRING, SETTING_CAT_REDIS,    "Redis server hostname",                                      true,  false, false },
+    { "redis_port",           &game_settings.redis_port,           SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis server port",                                          true,  false, false },
+    { "redis_password",       &game_settings.redis_password,       SETTING_TYPE_STRING, SETTING_CAT_REDIS,    "Redis authentication password",                              true,  false, true },
+    { "redis_timeout_sec",    &game_settings.redis_timeout_sec,    SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (seconds)",                         true,  false, false },
+    { "redis_timeout_usec",   &game_settings.redis_timeout_usec,   SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (microseconds)",                    true,  false, false },
+
     { NULL, NULL, 0, 0, NULL, false, false }  /* Terminator */
 };
 
@@ -3756,7 +3764,8 @@ const char *setting_category_names[] = {
     "Coffers",
     "Global",
     "Security",
-    "MSSP"
+    "MSSP",
+    "Redis"
 };
 
 /* Setting type names for display purposes */

@@ -14,20 +14,26 @@
 #define REDIS_CACHE_H
 
 #include <hiredis/hiredis.h>
+#include <jansson.h>
 #include "merc.h"
 
 /***************************************************************************
  * Configuration                                                           *
+ * Redis settings are now managed through game_settings                    *
+ * See merc.h GAME_SETTINGS_DATA for the configuration structure           *
+ * Settings can be overridden with environment variables:                  *
+ *   - SENTIENCE_REDIS_ENABLE                                              *
+ *   - SENTIENCE_REDIS_HOST                                                *
+ *   - SENTIENCE_REDIS_PORT                                                *
+ *   - SENTIENCE_REDIS_PASSWORD                                            *
+ *   - SENTIENCE_REDIS_TIMEOUT_SEC                                         *
+ *   - SENTIENCE_REDIS_TIMEOUT_USEC                                        *
  ***************************************************************************/
-
-#define REDIS_HOST "127.0.0.1"
-#define REDIS_PORT 6379
-#define REDIS_TIMEOUT_SEC 1
-#define REDIS_TIMEOUT_USEC 500000
 
 // TTL values (in seconds)
 #define REDIS_TTL_CHAR_INFO    (24 * 3600)  // 24 hours - rarely changes
 #define REDIS_TTL_CHAR_DATA    (1 * 3600)   // 1 hour - active gameplay
+#define REDIS_TTL_CHAR_FULL    (24 * 3600)  // 24 hours - full character JSON
 #define REDIS_TTL_CHAR_ACTIVE  (30 * 60)    // 30 minutes - is logged in?
 #define REDIS_TTL_WORLD_STATE  (7 * 24 * 3600)  // 7 days - persistent world
 
@@ -105,6 +111,30 @@ void redis_invalidate_char(const char *name);
 void redis_warm_cache(int max_chars);
 
 /***************************************************************************
+ * Full Character Caching (Phase 2 - RedisJSON)                           *
+ ***************************************************************************/
+
+// Cache full character JSON document
+// Key: "char:{name}:full"
+// Mode: Uses RedisJSON (JSON.SET) if available, falls back to string storage
+// Returns: true if cached successfully
+bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json);
+
+// Retrieve full character JSON from cache
+// Returns: json_t* if found (caller must json_decref), NULL if miss
+// Mode: Uses RedisJSON (JSON.GET) if available, falls back to string parsing
+json_t *redis_get_char_full(const char *name);
+
+// Partial update functions (only work with RedisJSON)
+// These return false if RedisJSON is not available
+bool redis_update_char_gold(const char *name, long gold);
+bool redis_update_char_exp(const char *name, long exp);
+bool redis_update_char_position(const char *name, int room_vnum);
+
+// Check if RedisJSON module is available
+bool redis_has_json_module(void);
+
+/***************************************************************************
  * Helper Functions                                                        *
  ***************************************************************************/
 
@@ -116,17 +146,17 @@ CHAR_INFO_CACHE *char_to_info_cache(CHAR_DATA *ch);
 char *redis_key(const char *prefix, const char *name, const char *suffix);
 
 /***************************************************************************
- * Future: Full Character Data Caching (Phase 4)                          *
+ * Account Caching (Phase 3)                                              *
  ***************************************************************************/
 
-// These will be implemented in later phases
-#ifdef REDIS_FUTURE_FEATURES
-bool redis_cache_char_inventory(CHAR_DATA *ch);
-bool redis_cache_char_locker(CHAR_DATA *ch);
-bool redis_cache_char_equipment(CHAR_DATA *ch);
-char *redis_get_char_inventory(const char *name);
-char *redis_get_char_locker(const char *name);
-#endif
+// Cache full account JSON document
+// Key: "account:{name}:full"
+// Returns: true if cached successfully
+bool redis_cache_account_full(const char *account_name, json_t *account_json);
+
+// Retrieve full account JSON from cache
+// Returns: json_t* if found (caller must json_decref), NULL if miss
+json_t *redis_get_account_full(const char *account_name);
 
 /***************************************************************************
  * Future: World State Persistence                                        *
