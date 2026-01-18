@@ -2342,7 +2342,7 @@ if (regular_count > 0) {
             else
                 level = vch->tot_level;
             tot_level = vch->tot_level;
-            race_name = race_table[vch->race].name;
+            race_name = vch->race ? vch->race->name : "unknown";
             if (vch->pcdata && vch->pcdata->sub_class_current) {
                 class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
             }
@@ -3160,7 +3160,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BBody Type:{x %s  {BRoom:{x %ld\n\r",
 				 VNUM(victim),
-				 race_table[victim->race].name,
+				 victim->race ? victim->race->name : "unknown",
 				 body_type_info[victim->body_type].name,
 				 victim->in_room == NULL ? 0 : victim->in_room->vnum);
 	send_to_char(buf, ch);
@@ -7224,32 +7224,32 @@ void do_mset(CHAR_DATA *ch, char *argument)
 
     if (!str_prefix(arg2, "race"))
     {
-	int race;
+	RACE_DATA *race;
 
 	race = race_lookup(arg3);
 
-	if (race == 0)
+	if (race == NULL)
 	{
 	    send_to_char("That is not a valid race.\n\r",ch);
 	    return;
 	}
 
-	if (!IS_NPC(victim) && !race_table[race].pc_race)
+	if (!IS_NPC(victim) && !race->playable)
 	{
 	    send_to_char("That is not a valid player race.\n\r",ch);
 	    return;
 	}
 
 	victim->race = race;
-	victim->affected_by_perm[0] = race_table[victim->race].aff;
-	victim->affected_by_perm[1] = race_table[victim->race].aff2;
-    victim->imm_flags_perm = race_table[victim->race].imm;
-    victim->res_flags_perm = race_table[victim->race].res;
-    victim->vuln_flags_perm = race_table[victim->race].vuln;
+	victim->affected_by_perm[0] = race->aff[0];
+	victim->affected_by_perm[1] = race->aff[1];
+    victim->imm_flags_perm = race->imm;
+    victim->res_flags_perm = race->res;
+    victim->vuln_flags_perm = race->vuln;
     affect_fix_char(victim);
 
-    victim->form        = race_table[victim->race].form;
-    victim->parts       = race_table[victim->race].parts;
+    victim->form        = race->form;
+    victim->parts       = race->parts;
     victim->lostparts	= 0;
 
 	return;
@@ -8168,7 +8168,7 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 
     i = 0;
     victim->race = get_remort_race(victim);
-    sprintf(buf2, "%s", pc_race_table[victim->race].name);
+    sprintf(buf2, "%s", victim->race ? victim->race->name : "Unknown");
     while (buf2[i] != '\0')
     {
 	buf2[i] = UPPER(buf2[i]);
@@ -8230,19 +8230,25 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 		set_perm_stat(victim, i, UMAX(val, 13));
 	}
 
-	victim->affected_by_perm[0] = race_table[victim->race].aff;
-	victim->affected_by_perm[1] = race_table[victim->race].aff2;
-    victim->imm_flags_perm = race_table[victim->race].imm;
-    victim->res_flags_perm = race_table[victim->race].res;
-    victim->vuln_flags_perm = race_table[victim->race].vuln;
+	victim->affected_by_perm[0] = victim->race ? victim->race->aff[0] : 0;
+	victim->affected_by_perm[1] = victim->race ? victim->race->aff[1] : 0;
+    victim->imm_flags_perm = victim->race ? victim->race->imm : 0;
+    victim->res_flags_perm = victim->race ? victim->race->res : 0;
+    victim->vuln_flags_perm = victim->race ? victim->race->vuln : 0;
 
-    victim->form        = race_table[victim->race].form;
-    victim->parts       = race_table[victim->race].parts;
+    victim->form        = victim->race ? victim->race->form : 0;
+    victim->parts       = victim->race ? victim->race->parts : 0;
     victim->lostparts	= 0;	// Restore anything lost
 
     /* add skills for remort race*/
-    for (i = 0; pc_race_table[victim->race].skills[i] != NULL; i++)
-	group_add(victim,pc_race_table[victim->race].skills[i],false);
+    if (victim->race && victim->race->skills) {
+        ITERATOR it;
+        char *skill;
+        iterator_start(&it, victim->race->skills);
+        while ((skill = (char *)iterator_nextdata(&it)))
+            group_add(victim, skill, false);
+        iterator_stop(&it);
+    }
 
     victim->pcdata->hit_before  = victim->pcdata->perm_hit;
     victim->pcdata->mana_before = victim->pcdata->perm_mana;
@@ -10251,11 +10257,14 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
 		break;
 
 	case ITEM_BODY_PART:
-		sprintf(buf,
-				"{B[  {Wv0{B]{%s Body Parts:{x    %s\n\r"
-				"{B[  {Wv1{B]{%s Race:{x          %s\n\r",
-				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(part_flags, obj->value[0]),
-				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", race_table[obj->value[1]].name);
+		{
+			RACE_DATA *body_race = race_lookup_uid(obj->value[1]);
+			sprintf(buf,
+					"{B[  {Wv0{B]{%s Body Parts:{x    %s\n\r"
+					"{B[  {Wv1{B]{%s Race:{x          %s\n\r",
+					(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(part_flags, obj->value[0]),
+					(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", body_race ? body_race->name : "unknown");
+		}
 
 		add_buf(buffer, buf);
 		break;

@@ -283,6 +283,12 @@ CMD_DATA *load_command(FILE *fp)
                 {
                     char *name = fread_string(fp);
                     command->function = do_func_lookup(name);
+                    if (!command->function) {
+                        log_stringf("load_command: Unknown function '%s' for command '%s' - disabling command",
+                            name, command->name);
+                        command->enabled = false;
+                    }
+                    free_string(name);
                     fMatch = true;
                     break;
                 }

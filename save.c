@@ -571,7 +571,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->prompt != NULL
     || !str_cmp(ch->prompt,"{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x "))
         fprintf(fp, "Prom %s~\n",      ch->prompt  	);
-    fprintf(fp, "Race %s~\n", pc_race_table[ch->race].name);
+    fprintf(fp, "Race %s~\n", ch->race ? ch->race->id : "human");
     fprintf(fp, "BodyType %d\n", ch->body_type );
     if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0')
         fprintf(fp, "PronounSS %s~\n", ch->pronoun_he_she);
@@ -2054,37 +2054,37 @@ iterator_stop(&it);
 		    break;
 
 		// Hack to make all chars who have hp/mana/move over there max down
-		if (ch->pcdata->perm_hit > pc_race_table[ ch->race ].max_vital_stats[ MAX_HIT ] + 11)
+		if (ch->race && ch->pcdata->perm_hit > ch->race->max_vitals[MAX_HIT] + 11)
 		{
 		    // Get difference in hp, and divide it by 10 to find the number of train sessions.
-		    qp_number = (ch->pcdata->perm_hit - pc_race_table[ ch->race ].max_vital_stats[ MAX_HIT ]) / 10;
+		    qp_number = (ch->pcdata->perm_hit - ch->race->max_vitals[MAX_HIT]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
 		    ch->questpoints += qp_number;
 
-		    ch->pcdata->perm_hit = pc_race_table[ ch->race ].max_vital_stats[ MAX_HIT ];
+		    ch->pcdata->perm_hit = ch->race->max_vitals[MAX_HIT];
 		}
 
-		if (ch->pcdata->perm_mana > pc_race_table[ ch->race ].max_vital_stats[ MAX_MANA ] + 11)
+		if (ch->race && ch->pcdata->perm_mana > ch->race->max_vitals[MAX_MANA] + 11)
 		{
 		    // Get difference in hp, and divide it by 10 to find the number of train sessions.
-		    qp_number = (ch->pcdata->perm_mana - pc_race_table[ ch->race ].max_vital_stats[ MAX_MANA ]) / 10;
+		    qp_number = (ch->pcdata->perm_mana - ch->race->max_vitals[MAX_MANA]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
 		    ch->questpoints += qp_number;
 
-		    ch->pcdata->perm_mana = pc_race_table[ ch->race ].max_vital_stats[ MAX_MANA ];
+		    ch->pcdata->perm_mana = ch->race->max_vitals[MAX_MANA];
 		}
 
-		if (ch->pcdata->perm_move > pc_race_table[ ch->race ].max_vital_stats[ MAX_MOVE ] + 11)
+		if (ch->race && ch->pcdata->perm_move > ch->race->max_vitals[MAX_MOVE] + 11)
 		{
 		    // Get difference in hp, and divide it by 10 to find the number of train sessions.
-		    qp_number = (ch->pcdata->perm_move - pc_race_table[ ch->race ].max_vital_stats[ MAX_MOVE ]) / 10;
+		    qp_number = (ch->pcdata->perm_move - ch->race->max_vitals[MAX_MOVE]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
 		    ch->questpoints += qp_number;
 
-		    ch->pcdata->perm_move = pc_race_table[ ch->race ].max_vital_stats[ MAX_MOVE ];
+		    ch->pcdata->perm_move = ch->race->max_vitals[MAX_MOVE];
 		}
 
                 break;
@@ -4581,10 +4581,10 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
     bool resetaffects = false;
     AFFECT_DATA *paf;
 
-    if (ch->race == 0)
+    if (!ch->race)
     ch->race = race_lookup("human");
 
-    ch->size = pc_race_table[ch->race].size;
+    ch->size = ch->race ? ch->race->min_size : SIZE_MEDIUM;
     ch->dam_type = 17; /*punch */
 
     // Add groups it should know
@@ -4593,17 +4593,24 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
             gn_add(ch, i);
 
     /* make sure they have any new race skills */
-    for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-        group_add(ch,pc_race_table[ch->race].skills[i],false);
+    if (ch->race && ch->race->skills) {
+        ITERATOR it;
+        char *skill_name;
+        iterator_start(&it, ch->race->skills);
+        while ((skill_name = (char *)iterator_nextdata(&it))) {
+            group_add(ch, skill_name, false);
+        }
+        iterator_stop(&it);
+    }
 
     // TODO: Readd checks for dealing with racial affects, affects2, imm, res and vuln
 
     /* 20203003 - Tieryo - Fix missing racial perm affects */
 
-    if (ch->affected_by_perm[0] != race_table[ch->race].aff || ch->affected_by_perm[1] != race_table[ch->race].aff2)
+    if (ch->race && (ch->affected_by_perm[0] != ch->race->aff[0] || ch->affected_by_perm[1] != ch->race->aff[1]))
     {
-    ch->affected_by_perm[0] = race_table[ch->race].aff;
-    ch->affected_by_perm[1] = race_table[ch->race].aff2;
+    ch->affected_by_perm[0] = ch->race->aff[0];
+    ch->affected_by_perm[1] = ch->race->aff[1];
     resetaffects = true;
     }
     if( resetaffects )
@@ -4696,8 +4703,8 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
         iterator_stop(&it);
     }
 
-    ch->form = race_table[ch->race].form;
-    ch->parts = race_table[ch->race].parts & ~ch->lostparts;
+    ch->form = ch->race ? ch->race->form : 0;
+    ch->parts = ch->race ? (ch->race->parts & ~ch->lostparts) : 0;
     ch->lostparts = 0;
 
     if (ch->version < 2)
@@ -4760,8 +4767,8 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
     }
 
     for (i = 0; i < MAX_STATS; i++)
-        if (ch->perm_stat[i] > pc_race_table[ch->race].max_stats[i])
-        	set_perm_stat(ch, i, pc_race_table[ch->race].max_stats[i]);
+        if (ch->race && ch->perm_stat[i] > ch->race->max_stats[i])
+        	set_perm_stat(ch, i, ch->race->max_stats[i]);
 
     // Make sure non imms dont have builder flag!!
     if (!IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_BUILDING))
@@ -5032,7 +5039,7 @@ void fix_broken_classes(CHAR_DATA *ch)
     int warrior = ch->pcdata->class_warrior;
 
     sprintf(buf, "fix_broken_classes: fixing broken classes for %s, a level %d %s.",
-        ch->name, ch->tot_level, race_table[ch->race].name);
+        ch->name, ch->tot_level, ch->race ? ch->race->name : "unknown");
     log_string(buf);
 
     if (mage == -1 && find_class_skill(ch, CLASS_MAGE) == true) {
@@ -6481,7 +6488,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
         need_save_account = true;  // NEW character requires account save
         acct_char = new_account_character();
         acct_char->name = str_dup(ch->name);
-        acct_char->race_name = str_dup(race_table[ch->race].name);
+        acct_char->race_name = str_dup(ch->race ? ch->race->name : "unknown");
         acct_char->tot_level = ch->tot_level;
 
         if (ch->pcdata && ch->pcdata->sub_class_current)
@@ -6777,8 +6784,8 @@ void update_account_character(CHAR_DATA *ch)
     // Update race/class
     if (acct_char->race_name)
         free_string(acct_char->race_name);
-    acct_char->race_name = str_dup(race_table[ch->race].name);
-    
+    acct_char->race_name = str_dup(ch->race ? ch->race->name : "unknown");
+
     if (acct_char->class_name)
         free_string(acct_char->class_name);
         

@@ -428,19 +428,14 @@ int get_skill(CHAR_DATA *ch, int sn)
     int skill;
 
     // Racial skills
-    if (!IS_NPC(ch))
+    if (!IS_NPC(ch) && ch->race)
     {
-        int i;
-
-        for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-        {
-            if (!str_cmp(skill_table[sn].name,pc_race_table[ch->race].skills[i])) {
-		    skill = ch->pcdata->learned[sn];
-		    if(skill <= 0) return skill;
-		    skill += ch->pcdata->mod_learned[sn];
-		    return URANGE(1,skill,100);
-	    }
-	}
+        if (race_has_skill(ch->race, skill_table[sn].name)) {
+            skill = ch->pcdata->learned[sn];
+            if (skill <= 0) return skill;
+            skill += ch->pcdata->mod_learned[sn];
+            return URANGE(1, skill, 100);
+        }
     }
 
     if (sn == -1) /* shorthand for level based skills */
@@ -474,7 +469,7 @@ int get_skill(CHAR_DATA *ch, int sn)
 	 * well up to lv500  */
 
 	// Account for racial skills.
-	if (skill_table[sn].race != -1 && ch->race != skill_table[sn].race)
+	if (skill_table[sn].race != -1 && (!ch->race || ch->race->uid != skill_table[sn].race))
 	    skill = 0;
 	if (ch->tot_level < 10)
 	    skill = 10;
@@ -856,7 +851,7 @@ int get_curr_stat(CHAR_DATA *ch, int stat)
     if (ch->dirty_stat[stat]) {
 
 		cur = ch->perm_stat[stat] + ch->mod_stat[stat];
-		max = !IS_NPC(ch) ? pc_race_table[ch->race].max_stats[stat] : 25;
+		max = (!IS_NPC(ch) && ch->race) ? ch->race->max_stats[stat] : 25;
 		if (cur > max) {
 			float t = exp(-0.0075*(cur-max));
 			cur = max + (int)((50-max)*(1-t)/(1+t)+0.5);
@@ -878,14 +873,14 @@ int get_max_train(CHAR_DATA *ch, int stat)
     if (IS_NPC(ch) || ch->level > LEVEL_IMMORTAL)
 	return 25;
 
-    max = pc_race_table[ch->race].max_stats[stat];
+    max = ch->race ? ch->race->max_stats[stat] : 20;
 /* nrrk! disabling this, too! -- Areo
     if ((stat == STAT_INT && ch->pcdata->class_mage != -1)
     ||  (stat == STAT_WIS && ch->pcdata->class_cleric != -1)
     ||  (stat == STAT_DEX && ch->pcdata->class_thief != -1)
     ||  (stat == STAT_STR && ch->pcdata->class_warrior != -1))
     {*/
-	if ((ch->race == race_lookup("human")) || (ch->race == race_lookup("avatar")))
+	if (ch->race && (!str_cmp(ch->race->id, "human") || !str_cmp(ch->race->id, "avatar")))
 	   max += 1;
 /*	else
 	   max += 2;
@@ -1297,9 +1292,11 @@ void affect_to_char(CHAR_DATA *ch, AFFECT_DATA *paf)
     *paf_new		= *paf;
     VALIDATE(paf_new);	/* in case we missed it when we set up paf */
 
-    /* Link affect to source token if present */
-    if (IS_VALID(paf_new->token))
+    /* Link affect to source token if present and valid */
+    if (paf_new->token != NULL && IS_VALID(paf_new->token))
 	list_appendlink(paf_new->token->affects, paf_new);
+    else
+	paf_new->token = NULL;  /* Clear uninitialized/invalid token pointer */
 
     paf_new->next	= ch->affected;
     ch->affected	= paf_new;
@@ -1320,9 +1317,11 @@ void affect_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 
     VALIDATE(paf);	/* in case we missed it when we set up paf */
 
-    /* Link affect to source token if present */
-    if (IS_VALID(paf_new->token))
+    /* Link affect to source token if present and valid */
+    if (paf_new->token != NULL && IS_VALID(paf_new->token))
 	list_appendlink(paf_new->token->affects, paf_new);
+    else
+	paf_new->token = NULL;  /* Clear uninitialized/invalid token pointer */
 
     paf_new->next	= obj->affected;
     obj->affected	= paf_new;
@@ -4930,8 +4929,8 @@ void resurrect_pc(CHAR_DATA *ch)
 
     /* Reset form and parts - Fixes issue 33 on gitlab repo - Tieryo 07/22/2016 */
     /* Went back to fix properly for issue 126 */
-    ch->form = race_table[ch->race].form;
-    ch->parts = race_table[ch->race].parts & ~ch->lostparts;
+    ch->form = ch->race ? ch->race->form : 0;
+    ch->parts = ch->race ? (ch->race->parts & ~ch->lostparts) : 0;
     ch->lostparts = 0;   // Restore anything lost
 
     if (IS_SAGE(ch))
@@ -5391,16 +5390,17 @@ AREA_DATA *find_area_at_coords(int x, int y )
 
 
 /* get remort race of a character based on their player race */
-// NIB20090323 - simplified this by adding race pointers to the pc_race table that points to the race number for the remort
-// If that race doesn't have the pointer, it can't remort. :)
-int get_remort_race(CHAR_DATA *ch)
+// Returns the RACE_DATA pointer for the remort destination race, or NULL if no remort available
+RACE_DATA *get_remort_race(CHAR_DATA *ch)
 {
-	int race, pc_race;
+	if (!ch || !ch->race)
+		return NULL;
 
-	race = ch->race;
-	pc_race = race_table[race].pgprn ? *race_table[race].pgprn : 0;
+	/* If already a remort race, can't remort again */
+	if (race_is_remort(ch->race))
+		return NULL;
 
-	return (!pc_race_table[pc_race].remort && pc_race_table[pc_race].prgrn) ? *pc_race_table[pc_race].prgrn : 0;
+	return race_get_remort_into(ch->race);
 }
 
 
@@ -11058,10 +11058,10 @@ void generate_discord_who() {
         else
             strcpy(classstr, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
 
-        if (wch->race >= MAX_PC_RACE)
+        if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
             strcpy(racestr, "       ");
         else
-            strcpy(racestr, pc_race_table[wch->race].who_name);
+            strcpy(racestr, wch->race->who_name);
 
         nMatch++;
 

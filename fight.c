@@ -3416,7 +3416,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
 		if( obj->item_type == ITEM_BODY_PART )
 		{
-			obj->value[1] = ch->race;
+			obj->value[1] = ch->race ? ch->race->uid : 0;
 			if( !IS_NPC(ch) || ch->persist )
 			{
 				obj->value[2] = ch->id[0];
@@ -3825,7 +3825,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 
     p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL);
 
-    victim->affected_by[0]	= race_table[victim->race].aff;
+    victim->affected_by[0]	= victim->race ? victim->race->aff[0] : 0;
     victim->affected_by[1] = 0;
 
     victim->paroxysm = 0;

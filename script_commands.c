@@ -284,7 +284,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
 
-	AFFECT_DATA af;
+	AFFECT_DATA af = {0};
 
 	info->progs->lastreturn = 0;
 
@@ -575,6 +575,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	af.bitvector2 = bv2;
 	af.custom_name = NULL;
 	af.slot = wear_loc;
+	af.token = NULL;
 	if(mob) affect_join_full(mob, &af);
 	else affect_join_full_obj(obj,&af);
 }
@@ -589,7 +590,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
 
-	AFFECT_DATA af;
+	AFFECT_DATA af = {0};
 
 	info->progs->lastreturn = 0;
 
@@ -881,6 +882,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	af.bitvector2 = bv2;
 	af.custom_name = name;
 	af.slot = wear_loc;
+	af.token = NULL;
 	if(mob) affect_join_full(mob, &af);
 	else affect_join_full_obj(obj,&af);
 }

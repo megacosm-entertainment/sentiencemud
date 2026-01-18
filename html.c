@@ -351,7 +351,7 @@ BUFFER *get_players_html()
 	 */
 
 	sprintf( racestr, "{Y");
-	strncat( racestr, pc_race_table[wch->race].who_name, 6 );
+	strncat( racestr, (wch->race && wch->race->who_name) ? wch->race->who_name : "      ", 6 );
 
 	nMatch++;
 
@@ -369,7 +369,7 @@ BUFFER *get_players_html()
 		wch->level,
 		wch->tot_level,
 		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
-		wch->race < MAX_PC_RACE ? racestr : "      ",
+		(wch->race && wch->race->playable) ? racestr : "      ",
 		class,
 		area_type,
 		(IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ?

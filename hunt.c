@@ -436,7 +436,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     argument = one_argument( argument, arg2 );
 
     if (!IS_NPC(ch)
-    && str_cmp(race_table[ch->race].name, "sith")
+    && (!ch->race || str_cmp(ch->race->id, "sith"))
     && get_skill(ch,gsn_hunt) == 0 )
     {
 	send_to_char("Huh?\n\r",ch);

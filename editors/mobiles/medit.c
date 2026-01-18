@@ -70,7 +70,7 @@ MEDIT(medit_show)
 	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Body Type: {C[{x%7d{C]{x  Race: {C[{x%s{C]{x\n\r",
 		pMob->vnum,
 		pMob->body_type,
-		race_table[pMob->race].name);
+		pMob->race ? pMob->race->name : "unknown");
 	add_buf(buffer, buf);
 
     sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->persist ? "{RYES" : "{gno"));
@@ -2719,23 +2719,23 @@ MEDIT(medit_damdice)
 MEDIT(medit_race)
 {
     MOB_INDEX_DATA *pMob;
-    int race;
+    RACE_DATA *race;
 
     if (argument[0] != '\0'
-    && (race = race_lookup(argument)) != 0)
+    && (race = race_lookup(argument)) != NULL)
     {
 	EDIT_MOB(ch, pMob);
 
 	pMob->race = race;
-	pMob->act[0]	  |= race_table[race].act;
-	pMob->act[1]	  |= race_table[race].act2;
-	pMob->affected_by[0] |= race_table[race].aff;
-	pMob->off_flags   |= race_table[race].off;
-	pMob->imm_flags   |= race_table[race].imm;
-	pMob->res_flags   |= race_table[race].res;
-	pMob->vuln_flags  |= race_table[race].vuln;
-	pMob->form        |= race_table[race].form;
-	pMob->parts       |= race_table[race].parts;
+	pMob->act[0]	  |= race->act[0];
+	pMob->act[1]	  |= race->act[1];
+	pMob->affected_by[0] |= race->aff[0];
+	pMob->off_flags   |= race->off;
+	pMob->imm_flags   |= race->imm;
+	pMob->res_flags   |= race->res;
+	pMob->vuln_flags  |= race->vuln;
+	pMob->form        |= race->form;
+	pMob->parts       |= race->parts;
 
 	send_to_char("Race set.\n\r", ch);
 	return true;
@@ -2744,15 +2744,17 @@ MEDIT(medit_race)
     if (argument[0] == '?')
     {
 	char buf[MAX_STRING_LENGTH];
+	int count = 0;
 
 	send_to_char("Available races are:", ch);
 
-	for (race = 0; race_table[race].name != NULL; race++)
+	for (race = race_list; race != NULL; race = race->next)
 	{
-	    if ((race % 3) == 0)
+	    if ((count % 3) == 0)
 		send_to_char("\n\r", ch);
-	    sprintf(buf, " %-15s", race_table[race].name);
+	    sprintf(buf, " %-15s", race->name);
 	    send_to_char(buf, ch);
+	    count++;
 	}
 
 	send_to_char("\n\r", ch);

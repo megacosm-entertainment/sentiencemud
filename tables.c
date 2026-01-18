@@ -3463,6 +3463,7 @@ const struct do_func_type do_func_table[] =
         { "do_cacheload", do_cacheload },
         { "do_cachejobs", do_cachejobs },
         { "do_cachestop", do_cachestop },
+        { NULL, NULL }
 };
 
 /* Table mapping connection states to display strings */

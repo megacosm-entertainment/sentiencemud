@@ -3915,22 +3915,22 @@ void update_pc_timers(CHAR_DATA *ch)
 void add_possible_races(CHAR_DATA *ch, char *string)
 {
     char buf[MSL];
-    int i;
+    RACE_DATA *race;
     bool found = false;
 
     sprintf(buf, " {B[{C");
-    for (i = 1; i < MAX_PC_RACE; i++)
+    for (race = race_list; race; race = race->next)
     {
-	if ((!pc_race_table[i].remort)
-	&& ((ch->alignment == 0 && pc_race_table[i].alignment == ALIGN_NONE)
-	||  (ch->alignment  < 0 && pc_race_table[i].alignment == ALIGN_EVIL)
-	||  (ch->alignment  > 0 && pc_race_table[i].alignment == ALIGN_GOOD)))
+	if (race->starting
+	&& ((ch->alignment == 0 && race->default_alignment == 0)
+	||  (ch->alignment  < 0 && race->default_alignment < 0)
+	||  (ch->alignment  > 0 && race->default_alignment > 0)))
 	{
 	    if (found)
 		strcat(buf, " ");
 
 	    found = true;
-	    strcat(buf, pc_race_table[i].name);
+	    strcat(buf, race->name);
 	}
     }
 

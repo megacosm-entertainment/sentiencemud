@@ -373,7 +373,7 @@ memset(&af,0,sizeof(af));
         while (ch->affected)
             affect_remove(ch, ch->affected);
 
-        ch->affected_by[0]= race_table[ch->race].aff;
+        ch->affected_by[0]= ch->race ? ch->race->aff[0] : 0;
 
 	if (!silent) {
 	    act("$n winces in pain as $e constrains the demon inside $m.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -442,13 +442,13 @@ if (ch->lworn) {
 	{
 	    ch->shifted = SHIFTED_SLAYER;
 	    pMob = IS_REMORT(ch) ? get_mob_index(get_reserved_vnum("mob_shifted_changeling")) : get_mob_index(get_reserved_vnum("mob_shifted_slayer"));
-	    ch->affected_by[0]|= race_table[pMob->race].aff;
+	    ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
 	}
 	else
 	{
             ch->shifted = SHIFTED_WEREWOLF;
 	    pMob = get_mob_index(get_reserved_vnum("mob_shifted_werewolf"));
-	    ch->affected_by[0]|= race_table[pMob->race].aff;
+	    ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
 	}
 
 	/* figure out how many classes - 1 to figure out how much stat boost to give. */

@@ -139,7 +139,7 @@ void do_war(CHAR_DATA *ch, char *argument)
 			((100 * wch->hit) / wch->max_hit),
 			wch->level,
 			wch->tot_level,
-			capitalize( race_table[ wch->race ].name ),
+			capitalize( wch->race ? wch->race->name : "unknown" ),
 			wch->name);
 		send_to_char( buf, ch );
 	    }
@@ -174,7 +174,7 @@ void do_war(CHAR_DATA *ch, char *argument)
 			(int)(wch->hit / wch->max_hit * 100),
 			wch->level,
 			wch->tot_level,
-			capitalize( race_table[ wch->race ].name ),
+			capitalize( wch->race ? wch->race->name : "unknown" ),
 			wch->name
 		       );
 		send_to_char( buf, ch );
@@ -230,7 +230,7 @@ void start_war()
 {
     CHAR_DATA *wch;
     int counter;
-    int race;
+    RACE_DATA *race;
     int evil;
     int good;
     char buf[ MAX_STRING_LENGTH ];
@@ -333,53 +333,49 @@ void auto_war_time_finish()
     if ( auto_war->war_type == AUTO_WAR_GENOCIDE )
     {
 	CHAR_DATA *wch;
-	int races[26];
+	int races[256];  /* Use UID as index, assuming UIDs < 256 */
 	int i = 0;
-	int max = 0;
-	int min = 0;
+	int max_uid = 0;
+	int min_uid = 0;
 	int quest_points = 0;
+	RACE_DATA *winning_race = NULL;
 
 	/* Initialise races array */
-	for ( i = 0; i < 26; i++ )
+	for ( i = 0; i < 256; i++ )
 	    races[i] = 0;
 
 	/* Find which race was most dominant */
 	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    races[wch->race]++;
+	{
+	    if (wch->race && wch->race->uid >= 0 && wch->race->uid < 256)
+		races[wch->race->uid]++;
+	}
 
 	/* Find greatest value in array */
-	for ( i = 0; i < 26; i++ )
+	for ( i = 0; i < 256; i++ )
 	{
-	    if ( races[ i ] > races[ max ] )
-		max = i;
+	    if ( races[ i ] > races[ max_uid ] )
+		max_uid = i;
 	}
 
-	min = max;
-	for ( i = 0; i < 26; i++ )
+	min_uid = max_uid;
+	for ( i = 0; i < 256; i++ )
 	{
-	    if ( races[ i ] < races[ min ] )
-		min = i;
+	    if ( races[ i ] < races[ min_uid ] && races[i] > 0 )
+		min_uid = i;
 	}
 
-	    /*
-	if ( min == max )
-	{
-	    sprintf( buf, "{RThe war was a draw.{x\n\r" );
-	    war_channel( buf );
-	    free_auto_war( auto_war );
-	    return;
-	}
-	    */
+	winning_race = race_lookup_uid(max_uid);
 
 	sprintf( buf, "{RThe winners of the {Y%s{R war were the {W%ss{R!{x\n\r",
 	    auto_war_table[ auto_war->war_type ].name,
-	    capitalize( race_table[ max ].name ) );
+	    winning_race ? capitalize( winning_race->name ) : "unknowns" );
 	war_channel( buf );
 
 	/* Reward winners*/
 	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	{
-	    if ( wch->race == max )
+	    if ( wch->race && wch->race->uid == max_uid )
 	    {
 		quest_points = 50;
 		sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
@@ -513,7 +509,7 @@ void test_for_end_of_war()
     if ( auto_war->war_type == AUTO_WAR_GENOCIDE )
     {
 	CHAR_DATA *wch;
-	int race;
+	RACE_DATA *winning_race;
 	bool ended = true;
 
 	/* End of war is when only one race is left */
@@ -524,12 +520,12 @@ void test_for_end_of_war()
 	    return;
 	}
 
-	race = auto_war->team_players->race;
+	winning_race = auto_war->team_players->race;
 
 	/* Is there another player of a different race */
 	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	{
-	    if ( wch->race != race )
+	    if ( wch->race != winning_race )
 		ended = false;
 	}
 
@@ -539,13 +535,13 @@ void test_for_end_of_war()
 
 	    sprintf( buf, "{RThe winners of the {Y%s{R war were the {W%ss{R!{x\n\r",
 		    auto_war_table[ auto_war->war_type ].name,
-		    capitalize( race_table[ race ].name ) );
+		    winning_race ? capitalize( winning_race->name ) : "unknowns" );
 	    war_channel( buf );
 
 	    /* Reward winners*/
 	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	    {
-		if ( wch->race == race )
+		if ( wch->race == winning_race )
 		{
 		    quest_points = 50;
 		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );

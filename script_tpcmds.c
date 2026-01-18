@@ -3766,7 +3766,7 @@ SCRIPT_CMD(do_tpaltermob)
 	else if(!str_cmp(field,"pktimer"))	ptr = (int*)&mob->pk_timer;
 	else if(!str_cmp(field,"pneuma"))	lptr = &mob->pneuma;
 	else if(!str_cmp(field,"practice"))	ptr = &mob->practice;
-	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = false; lookuprace = true; }
+	else if(!str_cmp(field,"race"))		{ min_sec = 7; allowarith = false; lookuprace = true; /* race is handled separately */ }
 	else if(!str_cmp(field,"ranged"))	ptr = (int*)&mob->ranged;
 	else if(!str_cmp(field,"recite"))	ptr = (int*)&mob->recite;
 	else if(!str_cmp(field,"res"))		{ lptr = &mob->res_flags;  allowarith = false; flags = imm_flags; }
@@ -3821,9 +3821,12 @@ SCRIPT_CMD(do_tpaltermob)
 		if( arg->type != ENT_STRING ) return;
 
 		// This is a race, can only be assigned
-		allowarith = false;
-		allowbitwise = false;
-		value = race_lookup(arg->d.str);
+		// Handle race assignment directly since it's now a pointer
+		RACE_DATA *new_race = race_lookup(arg->d.str);
+		if (new_race && op == OPR_ASSIGN) {
+			mob->race = new_race;
+		}
+		return;
 	}
 	else if( lookup_attack_type )
 	{

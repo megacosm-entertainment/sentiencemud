@@ -1773,7 +1773,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
 	case ENTITY_MOB_RACE:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)race_table[arg->d.mob->race].name : "unknown";
+		arg->d.str = (arg->d.mob && arg->d.mob->race) ? (char*)arg->d.mob->race->name : "unknown";
 		break;
 	case ENTITY_MOB_ROOM:
 		arg->type = ENT_ROOM;

@@ -112,17 +112,7 @@ typedef unsigned char			bool;
 //enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
 */
 
-#if !defined(false)
-#define false false
-#else
-#define false false
-#endif
-
-#if !defined(true)
-#define true true
-#else
-#define true true
-#endif
+/* true/false come from stdbool.h */
 typedef unsigned char sent_bool;
 #define TRISTATE_FALSE 0
 #define TRISTATE_TRUE 1
@@ -332,6 +322,7 @@ typedef struct	ban_data		BAN_DATA;
 typedef struct	bounty_data		BOUNTY_DATA;
 typedef struct	char_data		CHAR_DATA;
 typedef struct  event_data		EVENT_DATA;
+typedef struct	race_data		RACE_DATA;
 typedef struct	invasion_quest		INVASION_QUEST;
 typedef struct	chat_room_data		CHAT_ROOM_DATA;
 typedef struct	descriptor_data		DESCRIPTOR_DATA;
@@ -959,7 +950,6 @@ struct olc_point_area_data {
 #define MAX_LEVEL		155
 #define MAX_MOB_SKILL_LEVEL	1000
 #define MAX_NPC_SHIP_MOBS	10
-#define MAX_PC_RACE		27
 #define MAX_POA_LEVELS		5
 #define MAX_POSTAL_ITEMS        50
 #define MAX_POSTAL_WEIGHT	150
@@ -2155,39 +2145,88 @@ struct attack_type
 };
 
 
-struct race_type
+/*
+ * New unified race data structure
+ * Replaces both race_type and pc_race_type
+ * Loaded from JSON files in data/races/
+ */
+#define MAX_RACE_SKILLS		12
+#define MAX_RACE_STARTING_EQ	5
+#define RACE_HASH_SIZE		256
+
+struct race_data
 {
-    char *	name;			/* call name of the race */
-    bool	pc_race;		/* can be chosen by pcs */
-    int16_t	*pgrn;
-    int16_t	*pgprn;			/* PC race pointer */
-    long	act;			/* act bits for the race */
-    long	act2;			/* Vizz - act2 bits for the race */
-    long	aff;			/* aff bits for the race */
-    long	aff2;			/* aff2 bits for the race */
-    long	off;			/* off bits for the race */
-    long	imm;			/* imm bits for the race */
-    long        res;			/* res bits for the race */
-    long	vuln;			/* vuln bits for the race */
-    long	form;			/* default form flag for the race */
-    long	parts;			/* default parts for the race */
+    RACE_DATA *	next;			/* Linked list */
+    bool	valid;
+
+    /* Identity */
+    char *	id;			/* Unique string identifier (e.g., "vampire") */
+    int16_t	uid;			/* Numeric UID for serialization */
+    char *	name;			/* Display name */
+    char *	description;		/* Long description */
+    char *	comments;		/* Builder notes */
+
+    /* Flags */
+    bool	playable;		/* Can players choose this? */
+    bool	starting;		/* Available at character creation (not remort)? */
+
+    /* Combat/Inherent Properties */
+    long	act[2];			/* ACT flags */
+    long	aff[2];			/* Permanent affects */
+    long	off;			/* Offensive flags */
+    long	imm;			/* Immunities */
+    long	res;			/* Resistances */
+    long	vuln;			/* Vulnerabilities */
+    long	form;			/* Body form */
+    long	parts;			/* Body parts */
+
+    /* Player Character Data */
+    char *	who_name;		/* Who list display */
+    LLIST *	skills;			/* Racial skill list (skill name strings) */
+    int		stats[MAX_STATS];	/* Starting stats */
+    int		max_stats[MAX_STATS];	/* Maximum stats */
+    int		max_vitals[3];		/* Max HP/Mana/Move */
+    int		min_size;		/* Minimum size */
+    int		max_size;		/* Maximum size (usually same as min) */
+    int		default_alignment;	/* -1 evil, 0 neutral, 1 good */
+
+    /* Remort System */
+    char *	remort_race_id;		/* ID of prerequisite race (NULL if none) */
+    char *	remort_into_id;		/* ID of race this remorts into (NULL if none) */
+
+    /* Starting Equipment (VNUMs) */
+    long	starting_eq[MAX_RACE_STARTING_EQ];
 };
 
-struct pc_race_type  /* additional data for pc races */
+/* Race hash table entry for O(1) lookup */
+struct race_hash_entry
 {
-    char * name;			/* MUST be in race_type */
-    char * who_name;
-    char * skills[9];		  	/* bonus skills for the race */
-    int    stats[MAX_STATS];		/* starting stats */
-    int	   max_stats[MAX_STATS];	/* maximum stats */
-    int    max_vital_stats[3];		/* max hit points, mana, and move */
-    int	   size;
-    int    alignment;			/* good, neutral or evil */
-    int16_t	*pgrn;
-    int16_t	*prgrn;		/* Pointer to the REMORT race */
-    bool   remort;			/* is it a remort race? */
-    long   objects[5];			/* starting objects */
+    char *		key;		/* Race ID */
+    RACE_DATA *		value;		/* Race data */
+    struct race_hash_entry *next;	/* Collision chain */
 };
+
+typedef struct race_hash_entry RACE_HASH_ENTRY;
+
+/* Race system globals */
+extern RACE_DATA *		race_list;
+extern int			race_count;
+extern RACE_HASH_ENTRY *	race_hash_table[RACE_HASH_SIZE];
+
+/* Race lookup functions */
+RACE_DATA *	race_lookup(const char *id);		/* By string ID - primary */
+RACE_DATA *	race_lookup_uid(int16_t uid);		/* By numeric UID */
+RACE_DATA *	race_lookup_name(const char *name);	/* By display name (fuzzy) */
+bool		race_is_remort(RACE_DATA *race);	/* Is this a remort race? */
+bool		race_has_skill(RACE_DATA *race, const char *skill_name);	/* Has racial skill? */
+RACE_DATA *	race_get_remort_into(RACE_DATA *race);	/* Get remort destination */
+RACE_DATA *	race_get_prerequisite(RACE_DATA *race);	/* Get prerequisite race */
+
+/* Race loading */
+void		load_races(void);
+void		free_races(void);
+RACE_DATA *	new_race_data(void);
+void		free_race_data(RACE_DATA *race);
 
 #define MAX_HIT 	0
 #define MAX_MANA 	1
@@ -3995,7 +4034,7 @@ struct	mob_index_data
     int16_t		default_pos;
 
     int16_t		sex;
-    int16_t		race;
+    RACE_DATA *		race;
     long		wealth;
     long		form;
     long		parts;
@@ -4517,8 +4556,8 @@ struct	char_data
     char *      pronoun_himself_herself; // e.g., "themself", "zirself", "himself"
     verb_form_preference_t verb_preference;
 
-    int			race;
-    int			orace;
+    RACE_DATA *		race;
+    RACE_DATA *		orace;		/* Original race (before polymorph etc) */
     int			level;
     int			tot_level;
     int			trust;
@@ -7542,114 +7581,6 @@ extern int16_t	gsn_shriek;
 extern int16_t	gsn_dark_shroud;
 extern int16_t	gsn_soul_essence;
 
-
-
-
-
-
-extern int16_t gprn_human;
-extern int16_t gprn_elf;
-extern int16_t gprn_dwarf;
-extern int16_t gprn_titan;
-extern int16_t gprn_vampire;
-extern int16_t gprn_drow;
-extern int16_t gprn_sith;
-extern int16_t gprn_draconian;
-extern int16_t gprn_slayer;
-extern int16_t gprn_minotaur;
-extern int16_t gprn_angel;
-extern int16_t gprn_mystic;
-extern int16_t gprn_demon;
-extern int16_t gprn_lich;
-extern int16_t gprn_avatar;
-extern int16_t gprn_seraph;
-extern int16_t gprn_berserker;
-extern int16_t gprn_colossus;
-extern int16_t gprn_fiend;
-extern int16_t gprn_specter;
-extern int16_t gprn_naga;
-extern int16_t gprn_dragon;
-extern int16_t gprn_changeling;
-extern int16_t gprn_hell_baron;
-extern int16_t gprn_wraith;
-extern int16_t gprn_shaper;
-
-
-extern int16_t grn_human;
-extern int16_t grn_elf;
-extern int16_t grn_dwarf;
-extern int16_t grn_titan;
-extern int16_t grn_vampire;
-extern int16_t grn_drow;
-extern int16_t grn_sith;
-extern int16_t grn_draconian;
-extern int16_t grn_slayer;
-extern int16_t grn_minotaur;
-extern int16_t grn_angel;
-extern int16_t grn_mystic;
-extern int16_t grn_demon;
-extern int16_t grn_lich;
-extern int16_t grn_avatar;
-extern int16_t grn_seraph;
-extern int16_t grn_berserker;
-extern int16_t grn_colossus;
-extern int16_t grn_fiend;
-extern int16_t grn_specter;
-extern int16_t grn_naga;
-extern int16_t grn_dragon;
-extern int16_t grn_changeling;
-extern int16_t grn_hell_baron;
-extern int16_t grn_wraith;
-extern int16_t grn_shaper;
-extern int16_t grn_were_changed;
-extern int16_t grn_mob_vampire;
-extern int16_t grn_bat;
-extern int16_t grn_werewolf;
-extern int16_t grn_bear;
-extern int16_t grn_bugbear;
-extern int16_t grn_cat;
-extern int16_t grn_centipede;
-extern int16_t grn_dog;
-extern int16_t grn_doll;
-extern int16_t grn_fido;
-extern int16_t grn_fox;
-extern int16_t grn_goblin;
-extern int16_t grn_hobgoblin;
-extern int16_t grn_kobold;
-extern int16_t grn_lizard;
-extern int16_t grn_doxian;
-extern int16_t grn_orc;
-extern int16_t grn_pig;
-extern int16_t grn_rabbit;
-extern int16_t grn_school_monster;
-extern int16_t grn_snake;
-extern int16_t grn_song_bird;
-extern int16_t grn_golem;
-extern int16_t grn_unicorn;
-extern int16_t grn_griffon;
-extern int16_t grn_troll;
-extern int16_t grn_water_fowl;
-extern int16_t grn_giant;
-extern int16_t grn_wolf;
-extern int16_t grn_wyvern;
-extern int16_t grn_nileshian;
-extern int16_t grn_skeleton;
-extern int16_t grn_zombie;
-extern int16_t grn_wisp;
-extern int16_t grn_insect;
-extern int16_t grn_gnome;
-extern int16_t grn_angel_mob;
-extern int16_t grn_demon_mob;
-extern int16_t grn_rodent;
-extern int16_t grn_treant;
-extern int16_t grn_horse;
-extern int16_t grn_bird;
-extern int16_t grn_fungus;
-extern int16_t grn_unique;
-
-
-
-
 /*
  * Utility macros.
  */
@@ -7745,24 +7676,24 @@ extern int16_t grn_unique;
 /* Wilderness macros. */
 #define ROOM(room)		((room)->parent == -1 ? (room) : ((get_room_index((room)->parent))))
 
-/* Race checks! */
-#define IS_DROW(ch)		(ch->race == grn_drow || ch->race == grn_specter)
-#define IS_MINOTAUR(ch)		(ch->race == grn_minotaur || ch->race == grn_hell_baron)
-#define IS_SITH(ch)		(ch->race == grn_sith || ch->race == grn_naga)
-#define IS_LICH(ch)		(ch->race == grn_lich || ch->race == grn_wraith)
-#define IS_HUMAN(ch)		(ch->race == grn_human || ch->race == grn_avatar)
-#define IS_DWARF(ch)		(ch->race == grn_dwarf || ch->race == grn_berserker)
-#define IS_TITAN(ch)		(ch->race == grn_titan || ch->race == grn_colossus)
+/* Race check macros - use string ID comparison */
+#define IS_DROW(ch)		((ch)->race && (!str_cmp((ch)->race->id, "drow") || !str_cmp((ch)->race->id, "specter")))
+#define IS_MINOTAUR(ch)		((ch)->race && (!str_cmp((ch)->race->id, "minotaur") || !str_cmp((ch)->race->id, "hell baron")))
+#define IS_SITH(ch)		((ch)->race && (!str_cmp((ch)->race->id, "sith") || !str_cmp((ch)->race->id, "naga")))
+#define IS_LICH(ch)		((ch)->race && (!str_cmp((ch)->race->id, "lich") || !str_cmp((ch)->race->id, "wraith")))
+#define IS_HUMAN(ch)		((ch)->race && (!str_cmp((ch)->race->id, "human") || !str_cmp((ch)->race->id, "avatar")))
+#define IS_DWARF(ch)		((ch)->race && (!str_cmp((ch)->race->id, "dwarf") || !str_cmp((ch)->race->id, "berserker")))
+#define IS_TITAN(ch)		((ch)->race && (!str_cmp((ch)->race->id, "titan") || !str_cmp((ch)->race->id, "colossus")))
 #define IS_SAGE(ch)		(get_profession((ch), SECOND_SUBCLASS_THIEF) == CLASS_THIEF_SAGE)
-#define IS_ANGEL(ch)		(ch->race == grn_angel)
-#define IS_MYSTIC(ch)		(ch->race == grn_mystic)
-#define IS_DEMON(ch)		(ch->race == grn_demon)
-#define IS_REMORT(ch)		(race_table[ch->race].pgprn && pc_race_table[*race_table[ch->race].pgprn].remort)
-#define IS_VAMPIRE(ch)		(ch->race == grn_vampire || ch->race == grn_fiend)
-#define IS_SLAYER(ch)		(ch->race == grn_slayer || ch->race == grn_changeling)
-#define IS_DRACONIAN(ch)	(ch->race == grn_draconian || ch->race == grn_dragon)
-#define IS_DRAGON(ch)		(ch->race == grn_dragon)
-#define IS_ELF(ch)		(ch->race == grn_elf || ch->race == grn_seraph)
+#define IS_ANGEL(ch)		((ch)->race && !str_cmp((ch)->race->id, "angel"))
+#define IS_MYSTIC(ch)		((ch)->race && !str_cmp((ch)->race->id, "mystic"))
+#define IS_DEMON(ch)		((ch)->race && !str_cmp((ch)->race->id, "demon"))
+#define IS_REMORT(ch)		((ch)->race && race_is_remort((ch)->race))
+#define IS_VAMPIRE(ch)		((ch)->race && (!str_cmp((ch)->race->id, "vampire") || !str_cmp((ch)->race->id, "fiend")))
+#define IS_SLAYER(ch)		((ch)->race && (!str_cmp((ch)->race->id, "slayer") || !str_cmp((ch)->race->id, "changeling")))
+#define IS_DRACONIAN(ch)	((ch)->race && (!str_cmp((ch)->race->id, "draconian") || !str_cmp((ch)->race->id, "dragon")))
+#define IS_DRAGON(ch)		((ch)->race && !str_cmp((ch)->race->id, "dragon"))
+#define IS_ELF(ch)		((ch)->race && (!str_cmp((ch)->race->id, "elf") || !str_cmp((ch)->race->id, "seraph")))
 
 
 #define WAIT_STATE(ch, npulse)	((ch)->wait = UMAX((ch)->wait, (npulse)))
@@ -7969,8 +7900,6 @@ extern	const	struct	player_setting_type	pc_set_table	[];
 extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
 //extern  const   struct  cmd_type    cmd_table   [];
-extern  const	struct  race_type	race_table	[];
-extern	const	struct	pc_race_type	pc_race_table	[];
 extern  const	struct	spec_type	spec_table	[];
 extern	const	struct	liq_type	liq_table	[];
 extern	const	struct	skill_type	skill_table	[MAX_SKILL];
@@ -8829,7 +8758,7 @@ bool is_good_church( CHAR_DATA *ch );
 bool is_evil_church( CHAR_DATA *ch );
 bool wields_item_type( CHAR_DATA *ch, int weapon_type );
 char   *pirate_name_generator args(( void ));
-int get_remort_race( CHAR_DATA *ch );
+RACE_DATA *get_remort_race( CHAR_DATA *ch );
 bool is_darked( ROOM_INDEX_DATA *room );
 bool is_dead( CHAR_DATA *ch );
 void deduct_move( CHAR_DATA *ch, int amount );
@@ -9343,7 +9272,7 @@ const char *note_display_recipients_for(CHAR_DATA *viewer, NOTE_DATA *pnote);
 const char *note_display_recipients(NOTE_DATA *pnote);
 
 /* lookup.c */
-int	race_lookup	args( ( const char *name) );
+/* race_lookup now in json_race.c, returns RACE_DATA * */
 int	item_lookup	args( ( const char *name) );
 int	liq_lookup	args( ( const char *name) );
 char 	*get_weapon_class(OBJ_INDEX_DATA *obj);

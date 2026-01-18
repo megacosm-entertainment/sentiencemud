@@ -696,9 +696,9 @@ void do_train(CHAR_DATA *ch, char *argument)
         mod_mana = 0;
         mod_move = 0;
 
-        max_hit = pc_race_table[ch->race].max_vital_stats[MAX_HIT];
-        max_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA];
-        max_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE];
+        max_hit = ch->race ? ch->race->max_vitals[MAX_HIT] : 3000;
+        max_mana = ch->race ? ch->race->max_vitals[MAX_MANA] : 3000;
+        max_move = ch->race ? ch->race->max_vitals[MAX_MOVE] : 3000;
 
         // Use iterator to traverse lworn
         if (ch->lworn) {
@@ -1646,17 +1646,12 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 
 
 // Is sn a racial skill for a given race?
-bool is_racial_skill(int race, int sn)
+bool is_racial_skill(RACE_DATA *race, int sn)
 {
-    int i;
+    if (!race || sn < 0 || sn >= MAX_SKILL)
+        return false;
 
-    for (i = 0; pc_race_table[race].skills[i] != NULL; i++)
-    {
-	if (!str_cmp(skill_table[sn].name, pc_race_table[race].skills[i]))
-	    return true;
-    }
-
-    return false;
+    return race_has_skill(race, skill_table[sn].name);
 }
 
 
@@ -2276,7 +2271,7 @@ int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry)
 		return token_skill_rating(entry->token);
 	} else if( entry->sn > 0) {
 		if( IS_NPC(ch) ) {
-			if ((skill_table[entry->sn].race != -1 && ch->race != skill_table[entry->sn].race) || ch->tot_level < 10)
+			if ((skill_table[entry->sn].race != -1 && (!ch->race || ch->race->uid != skill_table[entry->sn].race)) || ch->tot_level < 10)
 				return 0;
 
 			return mob_skill_table[ch->tot_level];
@@ -2396,7 +2391,7 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 
     i = 0;
     ch->race = get_remort_race(ch);
-    sprintf(buf2, "%s", pc_race_table[ch->race].name);
+    sprintf(buf2, "%s", ch->race ? ch->race->name : "Unknown");
     while (buf2[i] != '\0')
     {
         buf2[i] = UPPER(buf2[i]);
@@ -2457,19 +2452,28 @@ void remort_player(CHAR_DATA *ch, int remort_class)
         set_perm_stat(ch, i, UMAX(val, 13));
     }
 
-    ch->affected_by_perm[0] = race_table[ch->race].aff;
-    ch->affected_by_perm[1] = race_table[ch->race].aff2;
-    ch->imm_flags_perm = race_table[ch->race].imm;
-    ch->res_flags_perm = race_table[ch->race].res;
-    ch->vuln_flags_perm = race_table[ch->race].vuln;
+    if (ch->race) {
+        ch->affected_by_perm[0] = ch->race->aff[0];
+        ch->affected_by_perm[1] = ch->race->aff[1];
+        ch->imm_flags_perm = ch->race->imm;
+        ch->res_flags_perm = ch->race->res;
+        ch->vuln_flags_perm = ch->race->vuln;
 
-    ch->form        = race_table[ch->race].form;
-    ch->parts       = race_table[ch->race].parts;
-    ch->lostparts	= 0;	// Restore anything lost
+        ch->form        = ch->race->form;
+        ch->parts       = ch->race->parts;
+        ch->lostparts	= 0;	// Restore anything lost
 
-    /* add skills for remort race*/
-    for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-        group_add(ch, pc_race_table[ch->race].skills[i], false);
+        /* add skills for remort race*/
+        if (ch->race->skills) {
+            ITERATOR skill_it;
+            char *skill_name;
+            iterator_start(&skill_it, ch->race->skills);
+            while ((skill_name = (char *)iterator_nextdata(&skill_it))) {
+                group_add(ch, skill_name, false);
+            }
+            iterator_stop(&skill_it);
+        }
+    }
 
     ch->pcdata->hit_before  = ch->pcdata->perm_hit;
     ch->pcdata->mana_before = ch->pcdata->perm_mana;

@@ -332,12 +332,12 @@ void advance_level(CHAR_DATA *ch, bool hide)
 	add_move = (ch->pcdata->move_before / 120);
     }
 
-    if (ch->pcdata->perm_hit + add_hp > pc_race_table[ch->race].max_vital_stats[MAX_HIT])
-	add_hp = pc_race_table[ch->race].max_vital_stats[MAX_HIT] - ch->pcdata->perm_hit;
-    if (ch->pcdata->perm_mana + add_mana > pc_race_table[ch->race].max_vital_stats[MAX_MANA])
-	add_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA] - ch->pcdata->perm_mana;
-    if (ch->pcdata->perm_move + add_move > pc_race_table[ch->race].max_vital_stats[MAX_MOVE])
-	add_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE] - ch->pcdata->perm_move;
+    if (ch->race && ch->pcdata->perm_hit + add_hp > ch->race->max_vitals[MAX_HIT])
+	add_hp = ch->race->max_vitals[MAX_HIT] - ch->pcdata->perm_hit;
+    if (ch->race && ch->pcdata->perm_mana + add_mana > ch->race->max_vitals[MAX_MANA])
+	add_mana = ch->race->max_vitals[MAX_MANA] - ch->pcdata->perm_mana;
+    if (ch->race && ch->pcdata->perm_move + add_move > ch->race->max_vitals[MAX_MOVE])
+	add_move = ch->race->max_vitals[MAX_MOVE] - ch->pcdata->perm_move;
 
     ch->max_hit += add_hp;
     ch->max_mana += add_mana;
@@ -616,7 +616,7 @@ int mana_gain(CHAR_DATA *ch)
 	if (IS_ELF(ch))
 		gain *= 2;
 
-	if (!str_cmp(race_table[ch->race].name, "lich"))
+	if (ch->race && !str_cmp(ch->race->id, "lich"))
 		gain = (gain * 5)/2;
 
 	if (ch->tot_level < 31 && !IS_REMORT(ch))
@@ -4178,7 +4178,7 @@ void gmcp_update( void )
 			AFFECT_DATA *paf;
 
 			UpdateGMCPString( d, GMCP_NAME, d->character->name );
-			UpdateGMCPString( d, GMCP_RACE, pc_race_table[d->character->race].name );
+			UpdateGMCPString( d, GMCP_RACE, d->character->race ? d->character->race->name : "unknown" );
 			UpdateGMCPString( d, GMCP_CLASS, sub_class_table[d->character->pcdata->sub_class_current].name[d->character->sex] );
 
 			UpdateGMCPNumber( d, GMCP_HP, d->character->hit );

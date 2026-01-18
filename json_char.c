@@ -687,7 +687,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "name", json_string(ch->name));
     json_object_set_new(basic, "level", json_integer(ch->level));
     json_object_set_new(basic, "tot_level", json_integer(ch->tot_level));
-    json_object_set_new(basic, "race", json_string(race_table[ch->race].name));
+    json_object_set_new(basic, "race", json_string(ch->race ? ch->race->id : "human"));
     json_object_set_new(basic, "sex", json_integer(ch->sex));
     json_object_set_new(basic, "body_type", json_integer(ch->body_type));
 

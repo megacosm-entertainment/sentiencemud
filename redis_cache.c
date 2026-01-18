@@ -211,7 +211,7 @@ CHAR_INFO_CACHE *char_to_info_cache(CHAR_DATA *ch)
     info->level = ch->level;
     info->tot_level = ch->tot_level;
     info->remorts = IS_REMORT(ch) ? 1 : 0;  // Simple remort flag based on race
-    info->race = strdup(race_table[ch->race].name);
+    info->race = strdup(ch->race ? ch->race->name : "unknown");
     info->title = strdup(ch->pcdata && ch->pcdata->title ? ch->pcdata->title : "");
     info->last_played = (long)current_time;
     info->is_active = (ch->desc != NULL);

@@ -1940,11 +1940,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		break;
 
 	case ITEM_BODY_PART:
-		sprintf(buf,
+		{
+			RACE_DATA *part_race = race_lookup_uid((int16_t)obj->value[1]);
+			sprintf(buf,
 				"{B[  {Wv0{B]{G Body Parts:{x    %s\n\r"
 				"{B[  {Wv1{B]{G Race:{x          %s\n\r",
 				flag_string(part_flags, obj->value[0]),
-				race_table[obj->value[1]].name);
+				part_race ? part_race->name : "unknown");
+		}
 
 		add_buf(buffer, buf);
 		break;
@@ -3174,8 +3177,11 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 
 		case 1:
-			send_to_char("RACE SET\n\r", ch);
-			pObj->value[1] = race_lookup(argument);
+			{
+				RACE_DATA *race = race_lookup(argument);
+				send_to_char("RACE SET\n\r", ch);
+				pObj->value[1] = race ? race->uid : 0;
+			}
 			break;
 
 		}

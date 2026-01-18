@@ -3236,7 +3236,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 	    ch->name,
 	    IS_NPC(ch) ? "" : ch->pcdata->title,
 		body_type_info[ch->body_type].name,
-	    race_table[ch->race].name,
+	    ch->race ? ch->race->name : "unknown",
 	    IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name,
 	    IS_NPC(ch) ? "mobile" : subclass);
 
@@ -3947,10 +3947,10 @@ void do_affects(CHAR_DATA * ch, char *argument)
         send_to_char(buf,ch);
     }
 
-    if (race_table[ch->race].aff != 0)
+    if (ch->race && ch->race->aff[0] != 0)
     {
         sprintf(buf, "{BRacial Affects: {G%s{x\n\r",
-			affect_bit_name(race_table[ch->race].aff));
+			affect_bit_name(ch->race->aff[0]));
         send_to_char(buf,ch);
     }
 
@@ -4661,7 +4661,7 @@ iterator_stop(&it);
 	       || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm"))
 	      && wch->tot_level >= LEVEL_IMMORTAL)
 	||   (church != NULL && wch->church == church)
-	||   !str_prefix(arg, race_table[wch->race].name)
+	||   (wch->race && !str_prefix(arg, wch->race->name))
 	||   !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex]))
 	    ;
 	else
@@ -4673,10 +4673,10 @@ iterator_stop(&it);
 	    strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
 	classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
-	if(wch->race >= MAX_PC_RACE)
+	if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
 		strcpy(racestr, "       ");
 	else
-		strcpy(racestr, pc_race_table[wch->race].who_name);
+		strcpy(racestr, wch->race->who_name);
 	racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
 
 	nMatch++;
@@ -4804,8 +4804,8 @@ void do_whois(CHAR_DATA * ch, char *argument)
 	}
 
 	/* If they are a player or a shaper, then use the PLAYER RACE name... */
-	if(!IS_IMMORTAL(wch) || wch->race == grn_shaper)
-		strcpy(racestr, pc_race_table[wch->race].name);
+	if(!IS_IMMORTAL(wch) || (wch->race && !str_cmp(wch->race->id, "shaper")))
+		strcpy(racestr, wch->race ? wch->race->name : "unknown");
 	else
 		strcpy(racestr, "Immortal");
 

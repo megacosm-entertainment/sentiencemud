@@ -2248,7 +2248,8 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 	char arg[MAX_INPUT_LENGTH];
 	char races[MSL];
 	CHAR_DATA *ch;
-	int race,i;
+	RACE_DATA *race;
+	int i;
 	HELP_DATA *help;
 
 	while (ISSPACE(*argument))
@@ -2272,8 +2273,8 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 			}
 			else
 			{
-				if ((race = race_lookup(argument)) != 0 &&
-					(help = lookup_help_exact(race_table[race].name, 0, topHelpCat)) != NULL)
+				if ((race = race_lookup(argument)) != NULL &&
+					(help = lookup_help_exact(race->name, 0, topHelpCat)) != NULL)
 				{
 					sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
 					send_to_char(buf, ch);
@@ -2292,19 +2293,19 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
 
-		if ((race = race_lookup(argument)) == 0) {
+		if ((race = race_lookup(argument)) == NULL) {
 			send_to_char("There is no such race.\n\r", ch);
 			send_to_char(races, ch);
 			return;
 		}
 
-		if (!race_table[race].pc_race || race == grn_shaper) {
+		if (!race->playable || !str_cmp(race->id, "shaper")) {
 			send_to_char("That isn't a player race.\n\r", ch);
 			send_to_char(races, ch);
 			return;
 		}
 
-		if (pc_race_table[race].remort) {
+		if (race_is_remort(race)) {
 			send_to_char("You cannot choose that race.\n\r", ch);
 			send_to_char(races, ch);
 			return;
@@ -2314,35 +2315,37 @@ ch->race = race;
 
 		/* initialize stats */
 		for (i = 0; i < MAX_STATS; i++) {
-			ch->perm_stat[i] = pc_race_table[race].stats[i];
+			ch->perm_stat[i] = race->stats[i];
 			ch->dirty_stat[i] = true;
 		}
-		ch->act[1]        = ch->act[1]|race_table[race].act2;
-		ch->affected_by[0] = ch->affected_by[0]|race_table[race].aff;
+		ch->act[1]        = ch->act[1]|race->act[1];
+		ch->affected_by[0] = ch->affected_by[0]|race->aff[0];
 
-		ch->imm_flags_perm = race_table[race].imm;
-		ch->res_flags_perm = race_table[race].res;
-		ch->vuln_flags_perm = race_table[race].vuln;
+		ch->imm_flags_perm = race->imm;
+		ch->res_flags_perm = race->res;
+		ch->vuln_flags_perm = race->vuln;
 		/* 20203003 - Tieryo - Fixing racial affects */
-		ch->affected_by_perm[0] = race_table[race].aff;
-		ch->affected_by_perm[1] = race_table[race].aff2;
+		ch->affected_by_perm[0] = race->aff[0];
+		ch->affected_by_perm[1] = race->aff[1];
 
-		ch->imm_flags	= ch->imm_flags|race_table[race].imm;
-		ch->res_flags	= ch->res_flags|race_table[race].res;
-		ch->vuln_flags	= ch->vuln_flags|race_table[race].vuln;
-		ch->form	= race_table[race].form;
-		ch->parts	= race_table[race].parts;
+		ch->imm_flags	= ch->imm_flags|race->imm;
+		ch->res_flags	= ch->res_flags|race->res;
+		ch->vuln_flags	= ch->vuln_flags|race->vuln;
+		ch->form	= race->form;
+		ch->parts	= race->parts;
 
 		/* add skills */
-		for (i = 0; i < 5; i++)
-		{
-			if (pc_race_table[race].skills[i] == NULL)
-				break;
-
-			group_add(ch,pc_race_table[race].skills[i],false);
+		if (race->skills) {
+			ITERATOR it;
+			char *skill_name;
+			iterator_start(&it, race->skills);
+			while ((skill_name = (char *)iterator_nextdata(&it))) {
+				group_add(ch, skill_name, false);
+			}
+			iterator_stop(&it);
 		}
 
-		ch->size = pc_race_table[race].size;
+		ch->size = race->min_size;
 
 		send_to_char("\n\r{YIs your body {wmasculine{Y, {Wfeminine{y, {Wneutral{Y, or {Wother{Y?{x ", ch);
 		d->connected = CON_GET_NEW_BODY_TYPE;
@@ -3040,7 +3043,7 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     } else {
         // Mortal's Race and Class
         sprintf(label, "{CRace:{x");
-        sprintf(value, "{G%s{x", ch->race ? race_table[ch->race].name : "Unknown");
+        sprintf(value, "{G%s{x", ch->race ? ch->race->name : "Unknown");
         sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
         write_to_buffer(d, buf, 0);
 

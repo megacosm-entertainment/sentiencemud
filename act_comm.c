@@ -1927,17 +1927,14 @@ void do_group(CHAR_DATA *ch, char *argument)
 				sprintf(name, "%s", pers(gch, ch)) ;
 				name[0] = UPPER(name[0]);
 
-				if( IS_NPC(gch))
+				if (gch->race)
 				{
-					
-					sprintf(race, "%s", race_table[gch->race].name);
+					sprintf(race, "%s", gch->race->name);
 					race[0] = UPPER(race[0]);
 				}
-
-				if (!IS_NPC(gch))
+				else
 				{
-					sprintf(race, "%s", pc_race_table[gch->race].name);
-					race[0] = UPPER(race[0]);
+					strcpy(race, "Unknown");
 				}
 
 				if( IS_NPC(gch) && IS_SET(gch->act[1], ACT2_HIRED) )

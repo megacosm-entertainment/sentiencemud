@@ -3501,10 +3501,10 @@ void do_project(CHAR_DATA *ch, char *argument)
         send_to_char("You focus your mind, and cosmically project yourself to the mortal realm.\n\r", ch);
         act("{W$n vanishes in a puff of smoke.{x", ch, NULL, NULL, TO_ROOM);
 
-        / Reset affects
+        // Reset affects
         while (ch->affected)
             affect_remove(ch, ch->affected);
-        ch->affected_by[0] = race_table[ch->race].aff;
+        ch->affected_by[0] = ch->race ? ch->race->aff[0] : 0;
         ch->affected_by[1] = 0;
 
 	char_from_room(ch);
@@ -3521,10 +3521,10 @@ void do_project(CHAR_DATA *ch, char *argument)
         send_to_char("You focus your mind, and cosmically project yourself to the mortal realm.\n\r", ch);
         act("{R$n vanishes in a puff of smoke.{x", ch, NULL, NULL, TO_ROOM);
 
-	/ Reset affects
+	// Reset affects
         while (ch->affected)
             affect_remove(ch, ch->affected);
-        ch->affected_by[0] = race_table[ch->race].aff;
+        ch->affected_by[0] = ch->race ? ch->race->aff[0] : 0;
         ch->affected_by[1] = 0;
 
 	char_from_room(ch);

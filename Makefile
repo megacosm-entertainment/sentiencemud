@@ -75,7 +75,6 @@ C_FILES = \
     handler.c \
     help.c \
     house.c \
-    html.c \
     hunt.c \
     interp.c \
     invasion.c \
@@ -130,6 +129,7 @@ C_FILES = \
     json_char.c \
     json_account.c \
     json_game_settings.c \
+    json_race.c \
     save.c \
     scan.c \
     script_commands.c \
