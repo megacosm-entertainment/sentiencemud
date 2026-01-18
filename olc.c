@@ -1124,57 +1124,35 @@ void medit(CHAR_DATA *ch, char *argument) {
     interpret(ch, arg);
 }
 
-void tedit(CHAR_DATA *ch, char *argument)
+// External tab definition from tedit.c
+extern const OLC_EDITOR_TABS tedit_tabs;
+
+// Callback to mark token area as changed
+static void tedit_mark_changed(void *pEdit, bool changed)
 {
+    CHAR_DATA *ch = (CHAR_DATA *)pEdit;
     TOKEN_INDEX_DATA *token_index;
-    AREA_DATA *area;
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int cmd;
+
+    if (!changed || !ch || !ch->desc) return;
 
     EDIT_TOKEN(ch, token_index);
+    if (token_index && token_index->area) {
+        SET_BIT(token_index->area->area_flags, AREA_CHANGED);
+    }
+}
 
-    area = token_index->area;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
+void tedit(CHAR_DATA *ch, char *argument)
+{
     if (ch->tot_level < LEVEL_IMMORTAL)
     {
-	send_to_char("TEdit:  Insufficient security - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
+        send_to_char("TEdit:  Insufficient security - action logged.\n\r", ch);
+        edit_done(ch);
+        return;
     }
 
-    if (!str_cmp(command, "done"))
-    {
-	edit_done(ch);
-	return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-    if (command[0] == '\0')
-    {
-	tedit_show(ch, argument);
-	return;
-    }
-
-    for (cmd = 0; tedit_table[cmd].name != NULL; cmd++)
-    {
-	if (!str_prefix(command, tedit_table[cmd].name))
-	{
-	    if ((*tedit_table[cmd].olc_fun) (ch, argument))
-	    {
-		SET_BIT(area->area_flags, AREA_CHANGED);
-		return;
-	    }
-	    else
-		return;
-	}
-    }
-
-    interpret(ch, arg);
+    // Use the new tabbed command processor
+    olc_process_command_tabbed(ch, argument, tedit_table, &tedit_tabs,
+                               tedit_show, tedit_mark_changed);
 }
 
 
@@ -1285,7 +1263,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg, "create"))
     {
 	if (tedit_create(ch, argument))
-	    ch->desc->editor = ED_TOKEN;
+	    olc_init_editor(ch, ED_TOKEN, ch->desc->pEdit);
 
 	return;
     }
@@ -1298,8 +1276,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
-    ch->desc->pEdit = (void *)token_index;
-    ch->desc->editor = ED_TOKEN;
+    olc_init_editor(ch, ED_TOKEN, (void *)token_index);
 }
 
 

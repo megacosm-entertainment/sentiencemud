@@ -137,11 +137,10 @@ void process_olc_command(
                     (*mark_changed_func)(ch, true); // Calls generic_olc_mark_changed
                 }
             }
-            }
             // Command was found and handled (or attempted), so return.
             return;
         }
-    
+    }
 
     // If command not found in OLC table, fall back to the main interpreter
     interpret(ch, arg_for_interpret);
@@ -270,7 +269,9 @@ void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names)
 	char tab1[MSL];
 	char tab2[MSL];
 	char buf[MIL];
-	
+	char cmd_buf[32];
+	char text_buf[MIL];
+
 	tab1[0] = '\0';
 	tab2[0] = '\0';
 	for(int i = 0; tab_names[i]; i++)
@@ -283,16 +284,19 @@ void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names)
 		else
 			strcat(tab1, " ");
 
-		strcpy(buf, formatf("%d %s", i + 1, tab_names[i]));
+		formatf_to(buf, sizeof(buf), "%d %s", i + 1, tab_names[i]);
 		if (tab == i)
 		{
-			strcat(tab2,"{x/{Y");
+			strcat(tab2,"{D/{Y");
 			strcat(tab2,buf);
 		}
 		else
 		{
-			strcat(tab2,"{x{_/");
-			strcat(tab2, (char *)MXPCreateSend(ch->desc, formatf("%d", i+1), formatf("{g%s{x", buf)));
+			strcat(tab2,"{D/");
+			// Use formatf_to to avoid static buffer overlap issues
+			formatf_to(cmd_buf, sizeof(cmd_buf), "%d", i + 1);
+			formatf_to(text_buf, sizeof(text_buf), "{g%s{x", buf);
+			strcat(tab2, (char *)MXPCreateSend(ch->desc, cmd_buf, text_buf));
 		}
 		int l=strlen(tab1);
 		int b=strlen(buf);
@@ -301,9 +305,9 @@ void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names)
 		memset(&tab1[l], '_', b);
 
 		if (tab == i)
-			strcat(tab2, "{x\\");
+			strcat(tab2, "{D\\{x");
 		else
-			strcat(tab2, "{x{_\\{x");
+			strcat(tab2, "{D\\{x");
 	}
 	strcat(tab1, "\n\r");
 	strcat(tab2, "_{x\n\r");
@@ -428,9 +432,493 @@ int olc_buffer_show_flags_ex(CHAR_DATA *ch, BUFFER *buffer,
 }
 
 int olc_buffer_show_flags(CHAR_DATA *ch, BUFFER *buffer,
-		const struct flag_type *flag_table, 
-		long value, char *command, char *heading, 
+		const struct flag_type *flag_table,
+		long value, char *command, char *heading,
 		const char *colors)
 {
 	return olc_buffer_show_flags_ex(ch, buffer, flag_table, value, command, heading, 77, 16, 5, colors);
+}
+
+/*
+ * ==========================================================================
+ * OLC Editor Framework - New Unified Tab and Display System
+ * ==========================================================================
+ */
+
+/*
+ * Layout Context Management
+ */
+
+OLC_LAYOUT_CTX *olc_layout_new(CHAR_DATA *ch)
+{
+    OLC_LAYOUT_CTX *ctx;
+
+    ctx = alloc_mem(sizeof(OLC_LAYOUT_CTX));
+    ctx->ch = ch;
+    ctx->buffer = new_buf();
+    ctx->screen_width = get_olc_screen_width(ch);
+    ctx->current_tab = ch->desc ? ch->desc->nEditTab : 0;
+
+    // Calculate column widths based on screen size
+    // Label takes ~20% of width, value takes the rest minus padding
+    if (ctx->screen_width <= 80) {
+        ctx->label_width = OLC_MIN_LABEL_WIDTH;
+    } else if (ctx->screen_width >= 140) {
+        ctx->label_width = OLC_MAX_LABEL_WIDTH;
+    } else {
+        // Scale linearly between min and max
+        ctx->label_width = OLC_MIN_LABEL_WIDTH +
+            ((ctx->screen_width - 80) * (OLC_MAX_LABEL_WIDTH - OLC_MIN_LABEL_WIDTH)) / 60;
+    }
+
+    // Value width is remaining space minus some padding for brackets/spacing
+    ctx->value_width = ctx->screen_width - ctx->label_width - 6;
+    if (ctx->value_width < 40) ctx->value_width = 40;
+
+    return ctx;
+}
+
+void olc_layout_free(OLC_LAYOUT_CTX *ctx)
+{
+    if (!ctx) return;
+
+    if (ctx->buffer) {
+        free_buf(ctx->buffer);
+    }
+    free_mem(ctx, sizeof(OLC_LAYOUT_CTX));
+}
+
+/*
+ * Initialize editor state when entering an editor.
+ * Call this from do_*edit functions to set up the editor consistently.
+ */
+void olc_init_editor(CHAR_DATA *ch, int editor_type, void *pEdit)
+{
+    if (!ch || !ch->desc) return;
+
+    ch->desc->pEdit = pEdit;
+    ch->desc->editor = editor_type;
+    ch->desc->nEditTab = 0;  // Always start on first tab
+}
+
+/*
+ * Check if MXP is fully enabled for this character.
+ * Both protocol support AND player preference must be true.
+ */
+static bool olc_use_mxp(CHAR_DATA *ch)
+{
+    if (!ch || !ch->desc) return false;
+    return isMXP(ch->desc) && IS_SET(ch->comm, COMM_MXP);
+}
+
+/*
+ * Safe MXP wrapper - copies result immediately to avoid static buffer issues.
+ * MXPCreateSend uses formatf internally which has rotating static buffers.
+ * This function copies the result before it can be overwritten.
+ */
+static void olc_mxp_send(CHAR_DATA *ch, const char *command,
+                         const char *text, char *dest, size_t dest_size)
+{
+    const char *result;
+
+    // If no command or MXP not fully enabled, just copy the text
+    if (!command || command[0] == '\0' || !olc_use_mxp(ch)) {
+        strncpy(dest, text, dest_size - 1);
+        dest[dest_size - 1] = '\0';
+        return;
+    }
+
+    // MXP is enabled - get result and immediately copy it
+    result = MXPCreateSend(ch->desc, command, text);
+    strncpy(dest, result, dest_size - 1);
+    dest[dest_size - 1] = '\0';
+}
+
+/*
+ * Tab System
+ */
+
+void olc_render_tabs(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_TABS *tabs)
+{
+    char line1[MSL];
+    char line2[MSL];
+    char buf[MIL];
+    char mxp_buf[MIL];
+    int i;
+    int pos1 = 0, pos2 = 0;
+    bool use_mxp;
+
+    if (!ctx || !ctx->buffer || !tabs || tabs->tab_count < 1) return;
+
+    // Use centralized MXP check
+    use_mxp = olc_use_mxp(ctx->ch);
+
+    // Build both lines at once to avoid buffer issues
+    // Line 1: underscores for each tab roof
+    // Line 2: /label\ for each tab
+    //
+    // Visual goal:
+    //  __________   _________   __________
+    // /1 General\__/2 Values\__/3 Scripts\_
+    //
+    // The underscore count = label length + 2 (for / and \)
+    // First tab: leading space on line1, no leading char on line2
+
+    pos1 = 0;
+    pos2 = 0;
+
+    for (i = 0; i < tabs->tab_count; i++) {
+        const char *name = tabs->tabs[i].name;
+        int label_len;
+
+        // Use short name if screen is narrow
+        if (ctx->screen_width < 100 && tabs->tabs[i].short_name) {
+            name = tabs->tabs[i].short_name;
+        }
+
+        // Calculate the label text: "N Name"
+        label_len = sprintf(buf, "%d %s", i + 1, name);
+
+        // Line 1: underscores only over the label text, not the slashes
+        // First tab gets a leading space (over the '/'), others don't
+        if (i == 0) {
+            line1[pos1++] = ' ';  // Space over the opening '/'
+        }
+        memset(line1 + pos1, '_', label_len);  // Over label only
+        pos1 += label_len;
+
+        // Build line 2 content for this tab
+        if (ctx->current_tab == i) {
+            // Active tab - yellow
+            pos2 += sprintf(line2 + pos2, "/{Y%s{x\\", buf);
+        } else {
+            // Inactive tab - green with optional MXP
+            if (use_mxp) {
+                const char *mxp_result;
+                char cmd[32];
+                sprintf(cmd, "%d", i + 1);
+                mxp_result = MXPCreateSend(ctx->ch->desc, cmd, buf);
+                strncpy(mxp_buf, mxp_result, sizeof(mxp_buf) - 1);
+                mxp_buf[sizeof(mxp_buf) - 1] = '\0';
+                pos2 += sprintf(line2 + pos2, "/{g%s{x\\", mxp_buf);
+            } else {
+                pos2 += sprintf(line2 + pos2, "/{g%s{x\\", buf);
+            }
+        }
+
+        // Add spacing between tabs (not after last)
+        if (i < tabs->tab_count - 1) {
+            // Line 2: backslash already added, now add floor "__"
+            line2[pos2++] = '_';
+            line2[pos2++] = '_';
+            // Line 1: spaces over '\', '__', and next '/'
+            line1[pos1++] = ' ';  // over this tab's '\'
+            line1[pos1++] = ' ';  // over first '_'
+            line1[pos1++] = ' ';  // over second '_'
+            line1[pos1++] = ' ';  // over next tab's '/'
+        } else {
+            // Last tab: just space over the trailing '\'
+            line1[pos1++] = ' ';
+        }
+    }
+
+    // Terminate lines
+    line1[pos1++] = '\n';
+    line1[pos1++] = '\r';
+    line1[pos1] = '\0';
+
+    line2[pos2++] = '\n';
+    line2[pos2++] = '\r';
+    line2[pos2] = '\0';
+
+    add_buf(ctx->buffer, line1);
+    add_buf(ctx->buffer, line2);
+    add_buf(ctx->buffer, "\n\r");
+}
+
+bool olc_tab_switch(CHAR_DATA *ch, const char *argument, const OLC_EDITOR_TABS *tabs)
+{
+    char arg[MAX_INPUT_LENGTH];
+    int tab_num;
+    int i;
+
+    if (!ch || !ch->desc || !tabs || tabs->tab_count < 1) return false;
+    if (!argument || argument[0] == '\0') return false;
+
+    // Make a copy to work with
+    one_argument((char *)argument, arg);
+
+    // Check for numeric tab selection (1, 2, 3, etc.)
+    if (is_number(arg)) {
+        tab_num = atoi(arg);
+        if (tab_num >= 1 && tab_num <= tabs->tab_count) {
+            ch->desc->nEditTab = tab_num - 1;
+            return true;
+        }
+        return false;
+    }
+
+    // Check for "tab <name>" command
+    if (!str_cmp(arg, "tab")) {
+        char tab_name[MAX_INPUT_LENGTH];
+        argument = one_argument((char *)argument, arg); // skip "tab"
+        one_argument((char *)argument, tab_name);
+
+        if (tab_name[0] == '\0') {
+            send_to_char("Switch to which tab?\n\r", ch);
+            return true; // Consumed the command
+        }
+
+        // Match by prefix
+        for (i = 0; i < tabs->tab_count; i++) {
+            if (!str_prefix(tab_name, tabs->tabs[i].name) ||
+                (tabs->tabs[i].short_name && !str_prefix(tab_name, tabs->tabs[i].short_name))) {
+                ch->desc->nEditTab = i;
+                return true;
+            }
+        }
+
+        send_to_char("No such tab.\n\r", ch);
+        return true; // Consumed the command even though invalid
+    }
+
+    return false;
+}
+
+/*
+ * Field Renderers
+ */
+
+void olc_render_string(OLC_LAYOUT_CTX *ctx, const char *label,
+                       const char *command, const char *value)
+{
+    char buf[MSL];
+    char label_buf[MIL];
+    int pad;
+
+    if (!ctx || !ctx->buffer) return;
+
+    // Format label with MXP if command provided (safely copied)
+    olc_mxp_send(ctx->ch, command, label, label_buf, sizeof(label_buf));
+
+    // Calculate padding
+    pad = ctx->label_width - strlen_no_colours(label);
+    if (pad < 0) pad = 0;
+
+    // Render the field
+    if (IS_NULLSTR(value)) {
+        sprintf(buf, "{Y%s%*s {D(unset){x\n\r", label_buf, pad, "");
+    } else {
+        sprintf(buf, "{Y%s%*s {C%s{x\n\r", label_buf, pad, "", value);
+    }
+
+    add_buf(ctx->buffer, buf);
+}
+
+void olc_render_number(OLC_LAYOUT_CTX *ctx, const char *label,
+                       const char *command, long value)
+{
+    char buf[MSL];
+    char label_buf[MIL];
+    int pad;
+
+    if (!ctx || !ctx->buffer) return;
+
+    // Format label with MXP if command provided (safely copied)
+    olc_mxp_send(ctx->ch, command, label, label_buf, sizeof(label_buf));
+
+    // Calculate padding
+    pad = ctx->label_width - strlen_no_colours(label);
+    if (pad < 0) pad = 0;
+
+    sprintf(buf, "{Y%s%*s {C%ld{x\n\r", label_buf, pad, "", value);
+    add_buf(ctx->buffer, buf);
+}
+
+void olc_render_dice(OLC_LAYOUT_CTX *ctx, const char *label,
+                     const char *command, DICE_DATA *dice)
+{
+    char buf[MSL];
+    char label_buf[MIL];
+    int pad;
+
+    if (!ctx || !ctx->buffer) return;
+
+    // Format label with MXP if command provided (safely copied)
+    olc_mxp_send(ctx->ch, command, label, label_buf, sizeof(label_buf));
+
+    // Calculate padding
+    pad = ctx->label_width - strlen_no_colours(label);
+    if (pad < 0) pad = 0;
+
+    if (!dice) {
+        sprintf(buf, "{Y%s%*s {D(unset){x\n\r", label_buf, pad, "");
+    } else {
+        sprintf(buf, "{Y%s%*s {C%dd%d+%d{x\n\r",
+            label_buf, pad, "", dice->number, dice->size, dice->bonus);
+    }
+
+    add_buf(ctx->buffer, buf);
+}
+
+void olc_render_flags(OLC_LAYOUT_CTX *ctx, const char *label,
+                      const char *command, const struct flag_type *table,
+                      long value)
+{
+    // Use the existing olc_buffer_show_flags_ex with framework colors
+    // Colors: label, bracket, stat-set, stat-unset, flag-set, flag-unset, readonly
+    static const char colors[] = "YCCWGDD";
+
+    if (!ctx || !ctx->buffer || !table) return;
+
+    olc_buffer_show_flags_ex(ctx->ch, ctx->buffer, table, value,
+        (char *)(command ? command : ""), (char *)label,
+        ctx->screen_width - 3, ctx->label_width, 5, colors);
+}
+
+void olc_render_type(OLC_LAYOUT_CTX *ctx, const char *label,
+                     const char *command, const struct flag_type *table,
+                     int value)
+{
+    char buf[MSL];
+    char label_buf[MIL];
+    const char *type_name = "unknown";
+    int pad;
+
+    if (!ctx || !ctx->buffer) return;
+
+    // Look up the type name
+    if (table) {
+        type_name = flag_string(table, value);
+    }
+
+    // Format label with MXP if command provided (safely copied)
+    olc_mxp_send(ctx->ch, command, label, label_buf, sizeof(label_buf));
+
+    // Calculate padding
+    pad = ctx->label_width - strlen_no_colours(label);
+    if (pad < 0) pad = 0;
+
+    sprintf(buf, "{Y%s%*s {C(%s){x\n\r", label_buf, pad, "", type_name);
+    add_buf(ctx->buffer, buf);
+}
+
+void olc_render_text(OLC_LAYOUT_CTX *ctx, const char *label,
+                     const char *command, const char *text)
+{
+    char buf[MSL];
+    char label_buf[MIL];
+
+    if (!ctx || !ctx->buffer) return;
+
+    // If there's a label, render it first with MXP
+    if (label && label[0] != '\0') {
+        olc_mxp_send(ctx->ch, command, label, label_buf, sizeof(label_buf));
+        sprintf(buf, "{Y%s{x\n\r", label_buf);
+        add_buf(ctx->buffer, buf);
+    }
+
+    // Render the text content with indentation
+    if (IS_NULLSTR(text)) {
+        add_buf(ctx->buffer, "   {D(unset){x\n\r");
+    } else {
+        // Simple indented output - could add word wrapping later
+        char text_buf[MSL];
+        add_buf(ctx->buffer, "   ");
+        strncpy(text_buf, text, sizeof(text_buf) - 1);
+        text_buf[sizeof(text_buf) - 1] = '\0';
+        add_buf(ctx->buffer, text_buf);
+        // Ensure ends with newline
+        if (text[strlen(text) - 1] != '\n' && text[strlen(text) - 1] != '\r') {
+            add_buf(ctx->buffer, "\n\r");
+        }
+    }
+}
+
+void olc_render_section(OLC_LAYOUT_CTX *ctx, const char *title)
+{
+    char buf[MSL];
+    int title_len;
+    int dash_count;
+    int pos;
+
+    if (!ctx || !ctx->buffer) return;
+
+    add_buf(ctx->buffer, "\n\r");
+
+    if (title && title[0] != '\0') {
+        title_len = strlen(title);
+        dash_count = (ctx->screen_width - title_len - 6) / 2;
+        if (dash_count < 3) dash_count = 3;
+
+        // Format: --- Title --- (built without formatf to avoid static buffer issues)
+        pos = 0;
+        buf[pos++] = '{';
+        buf[pos++] = 'G';
+        memset(buf + pos, '-', dash_count);
+        pos += dash_count;
+        buf[pos++] = ' ';
+        buf[pos++] = '{';
+        buf[pos++] = 'W';
+        strcpy(buf + pos, title);
+        pos += title_len;
+        buf[pos++] = '{';
+        buf[pos++] = 'G';
+        buf[pos++] = ' ';
+        memset(buf + pos, '-', dash_count);
+        pos += dash_count;
+        buf[pos++] = '{';
+        buf[pos++] = 'x';
+        buf[pos++] = '\n';
+        buf[pos++] = '\r';
+        buf[pos] = '\0';
+
+        add_buf(ctx->buffer, buf);
+    }
+}
+
+void olc_render_hr(OLC_LAYOUT_CTX *ctx)
+{
+    char buf[MSL];
+    int dash_count;
+
+    if (!ctx || !ctx->buffer) return;
+
+    dash_count = ctx->screen_width - 4;
+    if (dash_count < 10) dash_count = 10;
+    if (dash_count > (int)sizeof(buf) - 10) dash_count = sizeof(buf) - 10;
+
+    sprintf(buf, "{G");
+    memset(buf + 2, '-', dash_count);
+    buf[2 + dash_count] = '\0';
+    strcat(buf, "{x\n\r");
+
+    add_buf(ctx->buffer, buf);
+}
+
+/*
+ * Enhanced command processor with tab support
+ */
+
+void olc_process_command_tabbed(
+    CHAR_DATA *ch,
+    char *argument,
+    const struct olc_cmd_type olc_table[],
+    const OLC_EDITOR_TABS *tabs,
+    OLC_FUN *show_func,
+    void (*mark_changed_func)(void *pEdit, bool changed))
+{
+    // First, check if this is a tab switch command
+    if (tabs && tabs->tab_count > 0) {
+        if (olc_tab_switch(ch, argument, tabs)) {
+            // Tab was switched, show the editor
+            if (show_func) {
+                (*show_func)(ch, "");
+            }
+            return;
+        }
+    }
+
+    // Not a tab command, process normally
+    process_olc_command(ch, argument, olc_table, show_func, mark_changed_func);
 }

@@ -10245,6 +10245,18 @@ char *formatf(const char *fmt, ...)
 	return buf[i];
 }
 
+/*
+ * Safe version of formatf that writes to a caller-provided buffer.
+ * Use this when you need to preserve the result across multiple formatf/MXP calls.
+ */
+void formatf_to(char *dest, size_t dest_size, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(dest, dest_size, fmt, args);
+	va_end(args);
+}
+
 bool check_social_status(CHAR_DATA *ch)
 {
 	if (IS_SOCIAL(ch))

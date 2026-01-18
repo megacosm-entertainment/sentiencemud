@@ -32,6 +32,25 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+
+/*
+ * Token Editor Tab Definitions
+ */
+const OLC_EDITOR_TABS tedit_tabs = {
+    10, {
+        { "General",  "Gen" },
+        { "Values",   "Val" },
+        { "Scripts",  "Scr" },
+		{ "Another", "Ano" },
+		{ "More", "Mre" },
+		{ "Even More" "EMre" },
+		{ "7th", "T7"},
+		{ "8th", "T8"},
+		{ "9th", "T9"},
+		{ "A Really Long Tab Name", "Rly"}
+    }
+};
 
 
 TEDIT(tedit_create)
@@ -85,81 +104,112 @@ TEDIT(tedit_create)
 }
 
 
+/*
+ * Tab-specific display functions for token editor
+ */
+
+static void tedit_show_general(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index)
+{
+    olc_render_string(ctx, "Name:",  "name",  token_index->name);
+    olc_render_string(ctx, "Area:",  NULL,    token_index->area->name);
+    olc_render_number(ctx, "Vnum:",  NULL,    token_index->vnum);
+    // token_table uses item_type struct, not flag_type - render as string
+    olc_render_string(ctx, "Type:",  "type",  token_table[token_index->type].name);
+    olc_render_flags(ctx,  "Flags:", "flags", token_flags, token_index->flags);
+    olc_render_number(ctx, "Timer:", "timer", token_index->timer);
+
+    olc_render_section(ctx, "Description");
+    olc_render_text(ctx, NULL, "desc", token_index->description);
+
+    olc_render_section(ctx, "Builder Comments");
+    olc_render_text(ctx, NULL, "comments", token_index->comments);
+}
+
+static void tedit_show_values(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index)
+{
+    char label[MIL];
+    char cmd[MIL];
+    int i;
+
+    add_buf(ctx->buffer, "{YDefault Values:{x\n\r\n\r");
+
+    for (i = 0; i < MAX_TOKEN_VALUES; i++) {
+        const char *value_name = token_index_getvaluename(token_index, i);
+
+        // Build label like "Value [0]: Rating"
+        if (value_name && value_name[0] != '\0') {
+            sprintf(label, "Value [%d]: %s", i, value_name);
+        } else {
+            sprintf(label, "Value [%d]:", i);
+        }
+
+        sprintf(cmd, "value %d", i);
+        olc_render_number(ctx, label, cmd, token_index->value[i]);
+    }
+
+    // Show index variables if any
+    if (token_index->index_vars) {
+        olc_render_section(ctx, "Index Variables");
+        olc_show_index_vars(ctx->buffer, token_index->index_vars);
+    }
+}
+
+static void tedit_show_scripts(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index)
+{
+    add_buf(ctx->buffer, "{YAttached Token Programs:{x\n\r\n\r");
+
+    if (token_index->progs) {
+        olc_show_progs(ctx->buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
+    } else {
+        add_buf(ctx->buffer, "   {D(none){x\n\r");
+    }
+
+    add_buf(ctx->buffer, "\n\r{DSyntax: addtprog <vnum> <trigger> <phrase>{x\n\r");
+    add_buf(ctx->buffer, "{D        deltprog <number>{x\n\r");
+}
+
 TEDIT(tedit_show)
 {
     TOKEN_INDEX_DATA *token_index;
-//    ITERATOR it;
-//    PROG_LIST *trigger;
+    OLC_LAYOUT_CTX *ctx;
     char buf[MSL];
-    int i;
-	BUFFER *buffer = new_buf();
 
     EDIT_TOKEN(ch, token_index);
 
-    sprintf(buf, "Name:                   {Y[{x%-20s{Y]{x\n\r", token_index->name);
-    add_buf(buffer, buf);
-    sprintf(buf, "Area:                   {Y[{x%-20s{Y]{x\n\r", token_index->area->name);
-    add_buf(buffer, buf);
-    sprintf(buf, "Vnum:                   {Y[{x%-20ld{Y]{x\n\r", token_index->vnum);
-    add_buf(buffer, buf);
-    sprintf(buf, "Type:                   {Y[{x%-20s{Y]{x\n\r", token_table[token_index->type].name);
-    add_buf(buffer, buf);
-    sprintf(buf, "Flags:                  {Y[{x%-20s{Y]{x\n\r", flag_string(token_flags, token_index->flags));
-    add_buf(buffer, buf);
-    sprintf(buf, "Timer:                  {Y[{x%-20d{Y]{x ticks\n\r", token_index->timer);
-    add_buf(buffer, buf);
+    ctx = olc_layout_new(ch);
 
-    sprintf(buf, "Description:\n\r%s\n\r", token_index->description);
-    add_buf(buffer, buf);
+    // Header with token name and vnum
+    sprintf(buf, "{WToken: {C%s{W [{x%ld{W]{x\n\r\n\r",
+        token_index->name, token_index->vnum);
+    add_buf(ctx->buffer, buf);
 
-    sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", token_index->comments);
-    add_buf(buffer, buf);
+    // Render tab bar
+    olc_render_tabs(ctx, &tedit_tabs);
 
-
-
-    buf[0] = '\0';/* not enabled yet
-    if (token_index->ed)
-    {
-	EXTRA_DESCR_DATA *ed;
-
-	strcat(buf,
-		"Desc Kwds:    [{x");
-	for (ed = token_index->ed; ed; ed = ed->next)
-	{
-	    strcat(buf, ed->keyword);
-	    if (ed->next)
-		strcat(buf, " ");
-	}
-	strcat(buf, "]\n\r");
-
-	send_to_char(buf, ch);
-    } */
-
-    add_buf(buffer, "{YDefault values:{x\n\r");
-    for (i = 0; i < MAX_TOKEN_VALUES; i++) {
-    	sprintf(buf,
-		"Value {Y[{x%d{Y]:{x %-20s {Y[{x%ld{Y]{x\n\r",
-		i, token_index_getvaluename(token_index, i), token_index->value[i]);
-
-	add_buf(buffer, buf);
+    // Dispatch to tab-specific display
+    switch (ctx->current_tab) {
+        case 0:
+            tedit_show_general(ctx, token_index);
+            break;
+        case 1:
+            tedit_show_values(ctx, token_index);
+            break;
+        case 2:
+            tedit_show_scripts(ctx, token_index);
+            break;
+        default:
+            tedit_show_general(ctx, token_index);
+            break;
     }
-    if (token_index->progs)
-		olc_show_progs(buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
 
-	if (token_index->index_vars)
-		olc_show_index_vars(buffer, token_index->index_vars);
+    // Output to character
+    if (!ch->lines && strlen(ctx->buffer->string) > MAX_STRING_LENGTH) {
+        send_to_char("Too much to display. Please enable scrolling.\n\r", ch);
+    } else {
+        page_to_char(ctx->buffer->string, ch);
+    }
 
-	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-	{
-		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-	}
-	else
-	{
-		page_to_char(buffer->string, ch);
-	}
-
-	free_buf(buffer);
-
+    olc_layout_free(ctx);
     return false;
 }
 

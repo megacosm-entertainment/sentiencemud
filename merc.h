@@ -9586,6 +9586,7 @@ void obj_update_nest_clones(OBJ_DATA *obj);
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic);
 
 char *formatf(const char *fmt, ...);
+void formatf_to(char *dest, size_t dest_size, const char *fmt, ...);  // Safe version - writes to provided buffer
 void log_stringf(const char *fmt,...);
 bool interrupt_script( CHAR_DATA *ch, bool silent );
 CHAR_DATA *obj_carrier(OBJ_DATA *obj);
