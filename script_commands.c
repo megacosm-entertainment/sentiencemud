@@ -292,7 +292,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get mobile or object TARGET
 	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("AddAffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "AddAffect - Error in parsing.");
 		return;
 	}
 
@@ -307,7 +307,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	}
 
 	if(!mob && !obj) {
-		bug("Addaffect - NULL target.", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - NULL target.");
 		return;
 	}
 
@@ -315,7 +315,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get APPLY TYPE
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -330,7 +330,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get AFFECT GROUP
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -351,7 +351,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get SKILL number (built-in skill)
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -364,7 +364,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get LEVEL
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -380,7 +380,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get LOCATION
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -395,7 +395,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get MODIFIER
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -408,7 +408,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get DURATION
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 		return;
 	}
 
@@ -425,7 +425,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -440,7 +440,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR2
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 			switch(arg->type) {
@@ -455,7 +455,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -471,7 +471,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -487,7 +487,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -503,7 +503,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -521,7 +521,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -537,7 +537,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -554,7 +554,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	// Get WEAR-LOCATION of object
 	if(rest && *rest) {
 		if(!(rest = expand_argument(info,rest,arg))) {
-			bug("Addaffect - Error in parsing.",0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 			return;
 		}
 
@@ -598,7 +598,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	//
 	// Get mobile or object TARGET
 	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("AddAffectName - Error in parsing.",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "AddAffectName - Error in parsing.");
 		return;
 	}
 
@@ -736,7 +736,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 			switch(arg->type) {
@@ -748,7 +748,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR2
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 			switch(arg->type) {
@@ -762,7 +762,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 						switch(arg->type) {
@@ -777,7 +777,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -793,7 +793,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -809,7 +809,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -827,7 +827,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -843,7 +843,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			//
 			// Get BITVECTOR
 			if(!(rest = expand_argument(info,rest,arg))) {
-				bug("Addaffect - Error in parsing.",0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
 				return;
 			}
 
@@ -4832,7 +4832,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 				}
 
 				if (!value) {
-					bug("Alterobj - adjust called with operator / and value 0", 0);
+					log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Alterobj - adjust called with operator / and value 0");
 					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 						buf[0], field);
 					scriptcmd_bug(info, msg);
@@ -4852,7 +4852,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 						buf[0], field);
 					scriptcmd_bug(info, msg);
-					bug("Alterobj - adjust called with operator % and value 0", 0);
+					log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Alterobj - adjust called with operator % and value 0");
 					return;
 				}
 				*lptr %= value;
@@ -5026,7 +5026,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 				}
 
 				if (!value) {
-					bug("Alterobj - adjust called with operator / and value 0", 0);
+					log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Alterobj - adjust called with operator / and value 0");
 					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 						buf[0], field);
 					scriptcmd_bug(info, msg);
@@ -5046,7 +5046,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 						buf[0], field);
 					scriptcmd_bug(info, msg);
-					bug("Alterobj - adjust called with operator % and value 0", 0);
+					log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Alterobj - adjust called with operator % and value 0");
 					return;
 				}
 				*ptr %= value;

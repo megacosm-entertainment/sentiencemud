@@ -306,11 +306,11 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
             free_string(encrypted_key);
             save_account(acct);
         } else {
-            log_string(formatf("setup_mfa_for_char: No account character entry found for %s", ch->name));
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "setup_mfa_for_char: No account character entry found for %s", ch->name);
             return false;
         }
     } else {
-        log_string(formatf("setup_mfa_for_char: No account found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "setup_mfa_for_char: No account found for %s", ch->name);
         return false;
     }
 
@@ -535,7 +535,7 @@ void generate_key(CHAR_DATA *ch, char *key)
     }
     
     if (!has_auth_data || !acct_char) {
-        log_string(formatf("generate_key: No account character entry found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "generate_key: No account character entry found for %s", ch->name);
         return;
     }
     
@@ -584,7 +584,7 @@ void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *encryp
     
     // If no account data, we can't send email
     if (!has_auth_data || !acct_char) {
-        log_string(formatf("send_qr_email_for_char: No account character entry found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "send_qr_email_for_char: No account character entry found for %s", ch->name);
         return;
     }
     
@@ -638,7 +638,7 @@ void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email) {
     
     // If no account data, we can't send email
     if (!has_auth_data || !acct_char) {
-        log_string(formatf("send_recovery_codes_email_for_char: No account character entry found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "send_recovery_codes_email_for_char: No account character entry found for %s", ch->name);
         return;
     }
     

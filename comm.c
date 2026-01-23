@@ -60,6 +60,8 @@
 #include <signal.h>
 #include <time.h>
 #include <zlib.h>
+
+#include "log.h"
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
 #include <openssl/ssl.h>
@@ -325,6 +327,11 @@ bool parse_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+	int rc = log_init("zlog.conf");
+	if (rc) {
+		fprintf(stderr, "log_init failed\n");
+		return -1;
+	}
 
     struct timeval now_time;
     int control_telnet = 0;
@@ -462,7 +469,7 @@ int main(int argc, char **argv)
 
 	game_settings = game_settings_zero;
 	if (game_settings_read()==1) exit(1);
-	log_string("Global game settings loaded.");
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "Global game settings loaded.");
 
     /*
      * Get the port number.
@@ -537,27 +544,24 @@ int main(int argc, char **argv)
 	if (game_settings.enable_telnet)
 	{
     	control_telnet = init_socket(telnet_port);
-		sprintf(log_buf, "Telnet socket bound to port %d.", telnet_port);
-		log_string(log_buf);
+		log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Telnet socket bound to port %d.", telnet_port);
 	}
 	if (game_settings.enable_tls && game_settings.tls_port)
 	{
 		control_tls = init_tls_socket(tls_port);
-		sprintf(log_buf, "TLS socket bound to port %d.", tls_port);
-		log_string(log_buf);
+		log_message_f(LOG_LEVEL_INFO, LOG_INIT, "TLS socket bound to port %d.", tls_port);
 	}
 	if (game_settings.enable_websocket_tls && game_settings.websocket_tls_port)
 	{
 		control_websocket = init_tls_socket(websocket_port);
-		sprintf(log_buf, "WebSocket TLS socket bound to port %d.", websocket_port);
-		log_string(log_buf);
+		log_message_f(LOG_LEVEL_INFO, LOG_INIT, "WebSocket TLS socket bound to port %d.", websocket_port);
 	}
 
     boot_db();
 
     // Initialize Redis cache (optional - game works without it)
     if (!redis_init()) {
-        log_string("WARNING: Redis cache unavailable - character list display will be slower");
+        log_message(LOG_LEVEL_WARN, LOG_WARN, "Redis cache unavailable - character list display will be slower");
     } else {
         // Warm cache with recently active characters (Phase 1 - currently no-op)
         // Future: This will pre-cache character.json files in Phase 3
@@ -566,11 +570,10 @@ int main(int argc, char **argv)
 
     // Initialize async cache system for background dump/load operations
     if (!async_cache_init()) {
-        log_string("WARNING: Async cache system failed to initialize");
+        log_message(LOG_LEVEL_WARN, LOG_WARN, "Async cache system failed to initialize");
     }
 
-    sprintf(log_buf, "Sentience is up on %d.", telnet_port);
-    log_string(log_buf);
+    log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Sentience is up on port %d.", telnet_port);
     game_loop(control_telnet, control_tls, control_websocket);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
@@ -634,7 +637,7 @@ int main(int argc, char **argv)
     /*
      * That's all, folks.
      */
-    log_string("Normal termination of game.");
+    log_message(LOG_LEVEL_INFO, LOG_INFO, "Normal termination of game.");
 
     // Shutdown async cache system (wait for pending operations)
     async_cache_shutdown();
@@ -642,6 +645,7 @@ int main(int argc, char **argv)
     // Shutdown Redis connection
     redis_shutdown();
 
+	log_shutdown();
     CleanupLogs();
 
     exit(0);
@@ -844,25 +848,25 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
             switch (errno)
             {
                 case EBADF:
-                    bug("Invalid file descriptor passed to Select()", 0);
+                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Invalid file descriptor passed to Select()");
                     perror("Game_loop: select: poll");
                     exit(1);
                     break;
                 case EINTR:
-                    bug("A non-blocked signal was caught.", 0);
+log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
                     break;
                 case EINVAL:
-                    bug("Negative 'n' descriptor passed to Select()", 0);
+                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Negative 'n' descriptor passed to Select()");
                     perror("Game_loop: select: poll");
                     exit(1);
                     break;
                 case ENOMEM:
-                    bug("Select() was unable to allocate memory for internal tables.", 0);
+                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Select() was unable to allocate memory for internal tables.");
                     perror("Game_loop: select: poll");
                     exit(1);
                     break;
                 default:
-                    bug("Unknown error.", 0);
+                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Unknown error.");
                     perror("Game_loop: select: poll");
                     exit(1);
                     break;
@@ -894,7 +898,7 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
 
             // Check for handshake timeouts (5 seconds to prevent slowloris attacks)
             if (current_time - d->conn->last_activity > 5) {
-                log_stringf("Closing stalled %s handshake connection",
+                log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Closing stalled %s handshake connection",
                            connection_get_protocol_name(d->conn));
                 close_socket(d);
                 continue;
@@ -935,12 +939,12 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
 
                     // Log successful handshake when debugging
                     if (game_settings.dev_server)
-                        log_stringf("%s handshake completed successfully",
+                        log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "%s handshake completed successfully",
                                    connection_get_protocol_name(d->conn));
                 } else {
                     // Check if handshake failed (vs still in progress)
                     if (d->conn->state != CONN_STATE_CONNECTING) {
-                        log_stringf("%s handshake failed",
+                        log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s handshake failed",
                                    connection_get_protocol_name(d->conn));
                         close_socket(d);
                         continue;
@@ -1078,7 +1082,7 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
             // Close connections with stalled handshakes (5 seconds to prevent slowloris)
             if (d->conn && d->conn->handshake_in_progress &&
                 current_time - d->conn->last_activity > 5) {
-                log_stringf("Closing stalled %s handshake connection",
+                log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Closing stalled %s handshake connection",
                            connection_get_protocol_name(d->conn));
                 close_socket(d);
                 continue;
@@ -1088,7 +1092,7 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
             if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && 
                 current_time - d->last_activity > 120 && 
                 !d->healthcheck) {
-                log_string("Closing idle connection (timeout).");
+                log_message(LOG_LEVEL_INFO, LOG_INFO, "Closing idle connection (timeout).");
                 close_socket(d);
             }
         }
@@ -1127,24 +1131,24 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
 		    switch (errno)
 		    {
 			case EBADF:
-	    		bug ("Invalid file descriptor passed to Select()", 0);
+	    		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Invalid file descriptor passed to Select()");
 	    		perror("Game_loop: select: stall");
 			    exit(1);
 	    		break;
-			case EINTR:	bug("A non-blocked signal was caught.", 0);
+			case EINTR:	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
 		    	break;
 			case EINVAL:
-	    		bug ("Negative \'n\' descriptor passed to Select()", 0);
+	    		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Negative 'n' descriptor passed to Select()");
 	    		perror("Game_loop: select: stall");
 			    exit(1);
 	    		break;
 			case ENOMEM:
-	    		bug ("Select() was unable to allocate memory for internal tables.", 0);
+	    		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Select() was unable to allocate memory for internal tables.");
 	    		perror("Game_loop: select: stall");
 			    exit(1);
 	    		break;
 			default:
-	    		bug ("Unknown error.", 0);
+	    		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Unknown error.");
 	    		perror("Game_loop: select: stall");
 			    exit(1);
 	    		break;
@@ -1201,7 +1205,7 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
     }
 
     if (!conn) {
-        log_string("init_descriptor: Failed to create connection object");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "init_descriptor: Failed to create connection object");
         close(desc);
         free_descriptor(dnew);
         return;
@@ -1213,7 +1217,7 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
     // Create protocol layer for this connection
     dnew->proto = protocol_layer_create_for_connection(conn, dnew);
     if (!dnew->proto) {
-        log_string("init_descriptor: Failed to create protocol layer");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "init_descriptor: Failed to create protocol layer");
         connection_close(conn);
         connection_free(conn);
         close(desc);
@@ -1254,8 +1258,7 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
             (addr >>  8) & 0xFF, (addr      ) & 0xFF
         );
         if (game_settings.dev_server || check_ban(buf, BAN_ALL)) {
-            sprintf(log_buf, "Sock.sinaddr:  %s", buf);
-            log_string(log_buf);
+            log_message_f(LOG_LEVEL_INFO, LOG_INFO, "Sock.sinaddr:  %s", buf);
         }
         from = gethostbyaddr((char *) &sock.sin_addr,
             sizeof(sock.sin_addr), AF_INET);
@@ -1320,8 +1323,7 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     if ((ch = dclose->character) != NULL)
     {
-        sprintf(log_buf, "Closing link to %s.", ch->name);
-        log_string(log_buf);
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO, "Closing link to %s.", ch->name);
         /* cut down on wiznet spam when rebooting */
         if (dclose->connected == CON_PLAYING && !merc_down)
         {
@@ -1364,7 +1366,7 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 		if (d != NULL)
 		    d->next = dclose->next;
 		else
-	    	bug("Close_socket: dclose not found.", 0);
+	    	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Close_socket: dclose not found.");
     }
 
     if (dclose->out_compress) {
@@ -1398,10 +1400,10 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
 	if (dclose->account) {
     	dclose->account->refcount--;
-    	log_stringf("close_socket: Account %s refcount decreased to %d",
+    	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "close_socket: Account %s refcount decreased to %d",
     	           dclose->account->username, dclose->account->refcount);
     	if (dclose->account->refcount <= 0) {
-        	log_stringf("close_socket: Freeing account %s (refcount %d)",
+        	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "close_socket: Freeing account %s (refcount %d)",
         	           dclose->account->username, dclose->account->refcount);
         	list_remlink(loaded_accounts, dclose->account, false);
         	free_account(dclose->account);
@@ -1429,8 +1431,7 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
     iStart = 0;
     if (strlen(d->inbuf) >= sizeof(d->inbuf) - 10)
     {
-        sprintf(log_buf, "%s input overflow!", d->host);
-        log_string(log_buf);
+        log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s input overflow!", d->host);
         write_to_descriptor(d, "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
         return false;
     }
@@ -1600,8 +1601,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	    && d->connected == CON_PLAYING
 	    && !IS_IMMORTAL(d->character))
 	    {
-		sprintf(log_buf, "%s input spamming!", d->host);
-		log_string(log_buf);
+		log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s input spamming!", d->host);
 
 		wiznet("Spam spam spam $N spam spam spam!",
 		       d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
@@ -2199,7 +2199,7 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
 
         if (d->outsize >= 128000)
 	{
-	    bug("Buffer overflow. Closing.\n\r",0);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Buffer overflow. Closing.\n\r");
 	    close_socket(d);
 	    return;
  	}
@@ -2283,13 +2283,12 @@ bool write_to_descriptor(DESCRIPTOR_DATA *d, char *txt, int length)
 
 void plogf (char *fmt, ...)
 {
-    char buf[2 * MSL];
-    va_list args;
-    va_start (args, fmt);
-    vsprintf (buf, fmt, args);
-    va_end (args);
-
-    log_string (buf);
+	char buf[2 * MSL];
+	va_list args;
+	va_start (args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end (args);
+	log_message(LOG_LEVEL_INFO, LOG_INFO, buf);
 }
 
 /*
@@ -2561,7 +2560,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
         return false;
     
     // Add logging to help diagnose issues
-    log_stringf("check_reconnect: Found existing character %s, descriptor: %s", 
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "check_reconnect: Found existing character %s, descriptor: %s",
                 ch->name, ch->desc ? "connected" : "linkdead");
     
     // Set reconnect_ch regardless of authentication - we'll need it later
@@ -2635,7 +2634,7 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     CHAR_DATA *ch;
     
     if (!d->reconnect_ch || !d->reconnecting) {
-        log_string("complete_reconnect: Missing reconnect_ch or reconnecting flag");
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "complete_reconnect: Missing reconnect_ch or reconnecting flag");
         return;
     }
     
@@ -2675,7 +2674,7 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     
     // Log the reconnection
-    log_stringf("%s@%s reconnected.", ch->name, d->host);
+    log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", ch->name, d->host);
     wiznet("$N has reconnected.", ch, NULL, WIZ_LINKS, 0, 0);
     
     // Update protocol
@@ -2708,7 +2707,7 @@ if (ch && ch->desc) {
             
         if (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
             // Socket is probably dead, close it properly
-            log_string("Detected broken connection during reconnect");
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Detected broken connection during reconnect");
             close_socket(ch->desc);
             return;
         }
@@ -2736,8 +2735,7 @@ if (ch && ch->desc) {
     act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     
     // Log the reconnection
-    sprintf(buf, "%s@%s reconnected.", ch->name, d->host);
-    log_string(buf);
+    log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", ch->name, d->host);
     wiznet("$N has relinked.", ch, NULL, WIZ_LINKS, 0, 0);
     
     // Update protocol settings
@@ -3207,7 +3205,7 @@ void act_new(char *format, CHAR_DATA *ch,
     {
         if (!vch)
         {
-            bug("Act: null vch with TO_VICT.", 0);
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: null vch with TO_VICT.");
             return;
         }
 
@@ -3262,15 +3260,15 @@ void act_new(char *format, CHAR_DATA *ch,
 
                 switch (*str)
                 {
-                default:  bug("Act: bad code %d.", *str);
+                default:  log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code %d.", *str);
                           i = " <@@@> ";
                           break;
                 /* Thx alex for 't' idea */
                 case 't': if (arg1) i = (const char *) arg1; /* Cast to const char * */
-                          else bug("Act: bad code $t for 'arg1'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $t for 'arg1'");
                           break;
                 case 'T': if (arg2) i = (const char *) arg2; /* Cast to const char * */
-                          else bug("Act: bad code $T for 'arg2'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $T for 'arg2'");
                           break;
                 case 'v': if (vch2&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(vch2)))
@@ -3278,7 +3276,7 @@ void act_new(char *format, CHAR_DATA *ch,
                           else
                             i = pers(vch2,  to ); 
                           }
-                          else bug("Act: bad code $v for 'vch2' or 'to'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $v for 'vch2' or 'to'");
                           break;
                 case 'n': if (ch&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(ch)))
@@ -3286,7 +3284,7 @@ void act_new(char *format, CHAR_DATA *ch,
                           else
                             i = pers(ch,  to );
                           }
-                          else bug("Act: bad code $n for 'ch' or 'to'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $n for 'ch' or 'to'");
                           break;
                 case 'N': if (vch&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(vch)))
@@ -3294,62 +3292,62 @@ void act_new(char *format, CHAR_DATA *ch,
                           else
                             i = pers(vch,  to );
                           }
-                          else bug("Act: bad code $N for 'ch' or 'to'",0); 
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $N for 'ch' or 'to'"); 
                           break;
                 case 'e': if (ch) i = get_he_she(ch);
-                          else bug("Act: bad code $e for 'ch'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $e for 'ch'");
                           break;
                 case 'E': if (vch) i = get_he_she(vch); 
-                          else bug("Act: bad code $E for 'vch'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $E for 'vch'");
                           break;
                 case 'm': if (ch) i = get_him_her(ch); 
-                          else bug("Act: bad code $m for 'ch'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $m for 'ch'");
                           break;
                 case 'M': if (vch) i = get_him_her(vch);
-                          else bug("Act: bad code $M for 'vch'",0); 
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $M for 'vch'"); 
                           break;
                 case 's': if (ch) i = get_his_her(ch); 
-                          else bug("Act: bad code $s for 'ch'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $s for 'ch'");
                           break;
                 case 'S': if (vch) i = get_his_her(vch); 
-                          else bug("Act: bad code $S for 'vch'",0); 
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $S for 'vch'"); 
                           break;
                 /* ADDED NEW PRONOUN CASES - ensure get_his_hers and get_himself_herself are declared and defined */
                 /* Assuming you might add these, for example:
                 case 'f': // Reflexive: himself/herself
                     if (ch) i = get_himself_herself(ch);
-                    else bug("Act: bad code $f for 'ch'", 0);
+                    else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $f for 'ch'");
                     break;
                 case 'F': // Reflexive: himself/herself for vch
                     if (vch) i = get_himself_herself(vch);
-                    else bug("Act: bad code $F for 'vch'", 0);
+                    else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $F for 'vch'");
                     break;
                 case 'q': // Possessive Pronoun: his/hers
                     if (ch) i = get_his_hers(ch);
-                    else bug("Act: bad code $q for 'ch'", 0);
+                    else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $q for 'ch'");
                     break;
                 case 'Q': // Possessive Pronoun: his/hers for vch
                     if (vch) i = get_his_hers(vch);
-                    else bug("Act: bad code $Q for 'vch'", 0);
+                    else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $Q for 'vch'");
                     break;
                 */
                 case 'z': if (ch) i = ch_verb;
-                            else bug("Act: bad code $z for 'ch'",0);
+                            else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $z for 'ch'");
                             break;
                 case 'Z': if (vch) i = vch_verb; 
-                        else bug("Act: bad code $Z for 'vch'",0);
+                        else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $Z for 'vch'");
                         break;
 
                 case 'p': if (to&&obj1) i = (see_all || can_see_obj(to, obj1))
                             ? obj1->short_descr  
                             : "something";       
-                          else bug("Act: bad code $p for 'to' or 'obj1'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $p for 'to' or 'obj1'");
                     break;
 
                 case 'P': if (to&&obj2) i = (see_all || can_see_obj(to, obj2))
                             ? obj2->short_descr
                             : "something";
-                          else bug("Act: bad code $P for 'to' or 'obj2'",0);
+                          else log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Act: bad code $P for 'to' or 'obj2'");
                     break;
 
                 case 'd':
@@ -4023,7 +4021,7 @@ void init_ssl_cleanup_queue(void)
 {
     ssl_ctx_cleanup_queue = list_create(false);
     if (!ssl_ctx_cleanup_queue) {
-        bug("Could not create SSL cleanup queue", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Could not create SSL cleanup queue");
         exit(1);
     }
 }
@@ -4048,7 +4046,7 @@ void add_ssl_ctx_to_cleanup(SSL_CTX *old_ctx)
     data->time_added = current_time;
     
     list_appendlink(ssl_ctx_cleanup_queue, data);
-    log_string("SSL context added to cleanup queue");
+    log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "SSL context added to cleanup queue");
 }
 
 /*
@@ -4070,7 +4068,7 @@ void process_ssl_cleanup_queue(void)
             // Safe to free this context now
             SSL_CTX_free(data->ctx);
             list_remlink(ssl_ctx_cleanup_queue, data, true);
-            log_string("Freed old SSL context from cleanup queue");
+            log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Freed old SSL context from cleanup queue");
         }
     }
     iterator_stop(&it);
@@ -4088,18 +4086,18 @@ void refresh_ssl_context(void)
     if (current_time - last_refresh < 3600 && ssl_errors_since_reset < 5)
         return;
         
-    log_string("Refreshing SSL context...");
-    
+    log_message(LOG_LEVEL_INFO, LOG_INFO, "Refreshing SSL context...");
+
     // Create new context
     SSL_CTX *new_ctx = create_context();
     if (!new_ctx) {
-        log_string("ERROR: Failed to create new SSL context");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to create new SSL context");
         return;
     }
-    
+
     // Configure the new context
     if (!configure_context(new_ctx)) {
-        log_string("ERROR: Failed to configure new SSL context");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to configure new SSL context");
         SSL_CTX_free(new_ctx);
         return;
     }
@@ -4116,5 +4114,5 @@ void refresh_ssl_context(void)
     
     last_refresh = current_time;
     ssl_errors_since_reset = 0;
-    log_string("SSL context refreshed successfully");
+    log_message(LOG_LEVEL_INFO, LOG_INFO, "SSL context refreshed successfully");
 }

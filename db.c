@@ -41,6 +41,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdarg.h>
+#include "log.h"
 #include "strings.h"
 #include "merc.h"
 #include "db.h"
@@ -664,11 +665,14 @@ void init_string_space()
 {
 	if ((string_space = calloc(1, MAX_STRING)) == NULL)
 	{
-	    bug("Boot_db: can't alloc %d string space.", MAX_STRING);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Boot_db: can't alloc %d string space.", MAX_STRING);
 	    exit(1);
 	}
 	top_string	= string_space;
 }
+
+
+
 
 /* Top-level booting function*/
 void boot_db(void)
@@ -676,6 +680,8 @@ void boot_db(void)
     int i;
     FILE *fp;
 	static GLOBAL_DATA gconfig_zero;
+
+	log_init(DATA_DIR "zlog.conf");
 
 
 	// If shutdown.txt exists, nuke it.
@@ -686,7 +692,7 @@ void boot_db(void)
     {
 	if ((string_space = calloc(1, MAX_STRING)) == NULL)
 	{
-	    bug("Boot_db: can't alloc %d string space.", MAX_STRING);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Boot_db: can't alloc %d string space.", MAX_STRING);
 	    exit(1);
 	}
 	top_string	= string_space;
@@ -823,7 +829,7 @@ void boot_db(void)
 	loaded_special_keys = list_create(false);
 
 	if (!load_commands()) exit(1);
-	log_string("commands loaded.");
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "commands loaded.");
 
     /*
      * Read in all the area files.
@@ -832,7 +838,7 @@ void boot_db(void)
 		FILE *fpList;
         char log_buf[MAX_STRING_LENGTH];
 
-        log_string("db.c, boot_db: Loading areas from area.lst file...");
+        log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading areas from area.lst file...");
 
 		if ((fpList = fopen(AREA_LIST, "r")) == NULL) {
 			perror(AREA_LIST);
@@ -859,8 +865,7 @@ void boot_db(void)
                 exit(2);        // NIBS: changed this so we know it exited because of this
             }
 
-			sprintf(log_buf, "Loading areafile '%s'", strArea);
-			log_string(log_buf);
+			log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile '%s'", strArea);
 
 
 			area = read_area_new(fpArea);
@@ -877,7 +882,7 @@ void boot_db(void)
 			link->area = area;
 			link->uid = area->uid;
 			if( !list_appendlink(loaded_areas, link) ) {
-				bug("Failed to add area to loaded list due to memory issues with 'list_appendlink'.", 0);
+				log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to add area to loaded list due to memory issues with 'list_appendlink'.");
 				abort();
 			}
 		}
@@ -893,65 +898,65 @@ void boot_db(void)
      * Reset all areas once.
      * Load up the notes and ban files.
      */
-    log_string("Doing fix_rooms");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_rooms");
     fix_rooms();
-    log_string("Doing fix_vlinks");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
     fix_vlinks();
 
-    log_string("Loading blueprints");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading blueprints");
 	load_blueprints();
 
-    log_string("Loading dungeon definitions");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading dungeon definitions");
 	load_dungeons();
 
-	log_string("Loading ships");
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading ships");
 	load_ships();
 
-    log_string("Doing variable_index_fix");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing variable_index_fix");
     variable_index_fix();
-    log_string("Doing variable_fix");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing variable_fix");
     variable_fix_global();
-    log_string("Doing fix_mobprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_mobprogs");
     fix_mobprogs();
-    log_string("Doing fix_objprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_objprogs");
     fix_objprogs();
-    log_string("Doing fix_roomprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_roomprogs");
     fix_roomprogs();
-    log_string("Doing fix_tokenprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_tokenprogs");
     fix_tokenprogs();
-    log_string("Doing fix_areaprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_areaprogs");
     fix_areaprogs();
-    log_string("Doing fix_instanceprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_instanceprogs");
     fix_instanceprogs();
-    log_string("Doing fix_dungeonprogs");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_dungeonprogs");
     fix_dungeonprogs();
 
-    log_string("Loading persistance");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading persistance");
     if(!persist_load()) {
 		perror("Persistance");
 	    exit(1);
 	}
 
-    log_string("Opening churches, new format");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Opening churches, new format");
     read_churches_new();
 
     fBootDb	= false;
-    log_string("Doing generate_poa_resets");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing generate_poa_resets");
     generate_poa_resets(-1);
-    log_string("Doing area_update");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing area_update");
     area_update(true);
-    log_string("Doing load_notes");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing load_notes");
     load_notes();
-    log_string("Doing load_bans");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing load_bans");
     load_bans();
-    //log_string("Doing load_reboot_objs");
+    //log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing load_reboot_objs");
     //load_reboot_objs();
 
 
-    log_string("Opening projects");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Opening projects");
     read_projects();
 
-    log_string("Opening immortal staff");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Opening immortal staff");
     read_immstaff();
 
 	load_socials_file();
@@ -967,26 +972,26 @@ void boot_db(void)
 
     help_greeting = str_dup("hello");
 
-    log_string("Doing read_gq");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing read_gq");
     read_gq();
 
-    log_string("Doing read_chat_rooms");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing read_chat_rooms");
     read_chat_rooms();
 
-//    log_string("Reading permanent objs");
+//    log_message(LOG_LEVEL_INFO, LOG_INIT, "Reading permanent objs");
 //    read_permanent_objs();
 
-	log_string("Loading instances");
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading instances");
 	load_instances();
 
-    log_string("Reading helpfiles");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Reading helpfiles");
     read_helpfiles_new();
 
     index_helpfiles(1, topHelpCat);
 
 /*    load_sailing_boats();*/
 /*    load_npc_ships();*/
-    log_string("Doing read_mail");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing read_mail");
     read_mail();
 /*  reset_npc_sailing_boats();*/
 	stats_load_time = current_time;
@@ -1017,7 +1022,7 @@ void boot_db(void)
 
     }
 
-    log_string("Checking area versions");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Checking area versions");
     check_area_versions();
 
     gconfig_write();
@@ -1165,8 +1170,7 @@ void fix_mobprogs(void)
 				iterator_start(&it, mob->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					if (!(trigger->script = get_script_index(trigger->vnum, PRG_MPROG))) {
-						bug("Fix_mobprogs: code vnum %d not found.", trigger->vnum);
-						bug("Fix_mobprogs: on mobile %ld", mob->vnum);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
 						exit(1);
 					}
 				}
@@ -1190,8 +1194,7 @@ void fix_objprogs(void)
 				iterator_start(&it, obj->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					if (!(trigger->script = get_script_index(trigger->vnum, PRG_OPROG))) {
-						bug("Fix_objprogs: code vnum %d not found.", trigger->vnum);
-						bug("Fix_objprogs: on object %ld", obj->vnum);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
 						exit(1);
 					}
 				}
@@ -1214,8 +1217,7 @@ void fix_roomprogs(void)
 				iterator_start(&it, room->progs->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					if (!(trigger->script = get_script_index(trigger->vnum, PRG_RPROG))) {
-						bug("Fix_roomprogs: code vnum %d not found.", trigger->vnum);
-						bug("Fix_roomprogs: on room %ld", room->vnum);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
 						exit(1);
 					}
 				}
@@ -1239,8 +1241,7 @@ void fix_tokenprogs(void)
 				iterator_start(&it, token->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					if (!(trigger->script = get_script_index(trigger->vnum, PRG_TPROG))) {
-						bug("Fix_tokenprogs: code vnum %d not found.", trigger->vnum);
-						bug("Fix_tokenprogs: on token %ld", token->vnum);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_tokenprogs: code vnum %d not found on token %ld", trigger->vnum, token->vnum);
 						exit(1);
 					}
 				}
@@ -1265,8 +1266,7 @@ void fix_areaprogs(void)
 			iterator_start(&it, pArea->progs->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 				if (!(trigger->script = get_script_index(trigger->vnum, PRG_APROG))) {
-					bug("fix_areaprogs: code vnum %d not found.", trigger->vnum);
-					bug("fix_areaprogs: on area %ld", pArea->uid);
+					log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "fix_areaprogs: code vnum %d not found on area %ld", trigger->vnum, pArea->uid);
 					exit(1);
 				}
 			}
@@ -1288,8 +1288,7 @@ void fix_instanceprogs(void)
 				iterator_start(&it, blueprint->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					if (!(trigger->script = get_script_index(trigger->vnum, PRG_IPROG))) {
-						bug("Fix_instanceprogs: code vnum %d not found.", trigger->vnum);
-						bug("Fix_instanceprogs: on blueprint %ld", blueprint->vnum);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
 						exit(1);
 					}
 				}
@@ -1313,8 +1312,7 @@ void fix_dungeonprogs(void)
 				iterator_start(&it, dungeon_index->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					if (!(trigger->script = get_script_index(trigger->vnum, PRG_DPROG))) {
-						bug("Fix_dungeonprogs: code vnum %d not found.", trigger->vnum);
-						bug("Fix_dungeonprogs: on dungeon_index %ld", dungeon_index->vnum);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
 						exit(1);
 					}
 				}
@@ -1478,15 +1476,14 @@ void room_update(ROOM_INDEX_DATA *room)
 			--token->timer;
 			if (token->timer <= 0) {
 				if( room->source )
-					sprintf(buf, "room update: token %s(%ld) clone room %s(%ld, %1d:%1d) was extracted because of timer",
+					log_message_f(LOG_LEVEL_INFO, LOG_INFO, "room update: token %s(%ld) clone room %s(%ld, %1d:%1d) was extracted because of timer",
 						token->name, token->pIndexData->vnum, room->name, room->vnum, (int)room->id[0], (int)room->id[1]);
 				else if( room->wilds )
-					sprintf(buf, "room update: token %s(%ld) wilds room %s(%ld, %ld, %ld) was extracted because of timer",
+					log_message_f(LOG_LEVEL_INFO, LOG_INFO, "room update: token %s(%ld) wilds room %s(%ld, %ld, %ld) was extracted because of timer",
 						token->name, token->pIndexData->vnum, room->name, room->wilds->uid, room->x, room->y);
 				else
-					sprintf(buf, "room update: token %s(%ld) room %s(%ld) was extracted because of timer",
+					log_message_f(LOG_LEVEL_INFO, LOG_INFO, "room update: token %s(%ld) room %s(%ld) was extracted because of timer",
 						token->name, token->pIndexData->vnum, room->name, room->vnum);
-				log_string(buf);
 				p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
 				token_from_room(token);
 				free_token(token);
@@ -1735,19 +1732,19 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 		switch (pReset->command)
 		{
 		default:
-			bug("Reset_room: bad command %c.", pReset->command);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: bad command %c.", pReset->command);
 			break;
 
 		case 'M':
 			if (!(pMobIndex = get_mob_index(pReset->arg1)))
 			{
-				bug("Reset_room: 'M': bad vnum %ld.", pReset->arg1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'M': bad vnum %ld.", pReset->arg1);
 				continue;
 			}
 
 			if ((pRoomIndex = get_room_index(pReset->arg3)) == NULL)
 			{
-				bug("Reset_area: 'R': bad vnum %ld.", pReset->arg3);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_area: 'R': bad vnum %ld.", pReset->arg3);
 				continue;
 			}
 
@@ -1861,18 +1858,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 		case 'O':
 			if (!(pObjIndex = get_obj_index(pReset->arg1)))
 			{
-				bug("Reset_room: 'O' 1 : bad vnum %ld", pReset->arg1);
-				sprintf (buf,"%ld %ld %ld %ld",pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
-				bug(buf,1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1, pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
 				continue;
 			}
 
 			if (!(pRoomIndex = get_room_index(pReset->arg3)))
 			{
-				bug("Reset_room: 'O' 2 : bad vnum %ld.", pReset->arg3);
-				sprintf (buf,"%ld %ld %ld %ld",pReset->arg1, pReset->arg2, pReset->arg3,
-				pReset->arg4);
-				bug(buf,1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 2 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg3, pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
 				continue;
 			}
 
@@ -1918,13 +1910,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 		case 'P':
 			if (!(pObjIndex = get_obj_index(pReset->arg1)))
 			{
-				bug("Reset_room: 'P': bad vnum %ld.", pReset->arg1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg1);
 				continue;
 			}
 
 			if (!(pObjToIndex = get_obj_index(pReset->arg3)))
 			{
-				bug("Reset_room: 'P': bad vnum %ld.", pReset->arg3);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg3);
 				continue;
 			}
 
@@ -1964,7 +1956,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 		case 'E':
 			if (!(pObjIndex = get_obj_index(pReset->arg1)))
 			{
-				bug("Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1);
 				continue;
 			}
 
@@ -1973,8 +1965,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
 			if (!LastMob)
 			{
-				bug("Reset_room: 'E' or 'G': null mob for vnum %ld.",
-				pReset->arg1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': null mob for vnum %ld.", pReset->arg1);
 				last = false;
 				break;
 			}
@@ -2009,7 +2000,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 		case 'R':
 			if (!(pRoomIndex = get_room_index(pReset->arg1)))
 			{
-				bug("Reset_room: 'R': bad vnum %ld.", pReset->arg1);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'R': bad vnum %ld.", pReset->arg1);
 				continue;
 			}
 
@@ -2177,7 +2168,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 	if (pMobIndex == NULL)
 	{
-		bug("Create_mobile: NULL pMobIndex.", 0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Create_mobile: NULL pMobIndex.");
 		exit(1);
 	}
 
@@ -2813,7 +2804,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 
     if (pObjIndex == NULL)
     {
-	bug("Create_object: NULL pObjIndex.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Create_object: NULL pObjIndex.");
 	return NULL;
     }
 
@@ -2950,7 +2941,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
             break;
 
 	default:
-	    bug("create_object: vnum %ld bad type.", pObjIndex->vnum);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "create_object: vnum %ld bad type.", pObjIndex->vnum);
 
 	    break;
     }
@@ -3021,7 +3012,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     }
 
     if(pObjIndex->persist) {
-		log_stringf("create_object_noid: Adding object %ld to persistance.", pObjIndex->vnum);
+		log_message_f(LOG_LEVEL_INFO, LOG_INFO, "create_object_noid: Adding object %ld to persistance.", pObjIndex->vnum);
     	persist_addobject(obj);
 	}
 
@@ -3152,7 +3143,7 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     variable_copylist(&parent->progs->vars,&clone->progs->vars,false);
 
 	if(parent->persist && !clone->persist) {
-		log_stringf("clone_object: Adding object %ld to persistance.", clone->pIndexData->vnum);
+		log_message_f(LOG_LEVEL_INFO, LOG_INFO, "clone_object: Adding object %ld to persistance.", clone->pIndexData->vnum);
 
 		persist_addobject(clone);
 	}
@@ -3185,7 +3176,7 @@ MOB_INDEX_DATA *get_mob_index(long vnum)
 
     if (fBootDb)
     {
-	bug("Get_mob_index: bad vnum %ld.", vnum);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_mob_index: bad vnum %ld.", vnum);
 	exit(1);
     }
 
@@ -3208,7 +3199,7 @@ OBJ_INDEX_DATA *get_obj_index(long vnum)
 
     if (fBootDb)
     {
-	bug("Get_obj_index: bad vnum %ld.", vnum);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_obj_index: bad vnum %ld.", vnum);
 	exit(1);
     }
 
@@ -3231,7 +3222,7 @@ ROOM_INDEX_DATA *get_room_index(long vnum)
 
     if (fBootDb)
     {
-	bug("Get_room_index: bad vnum %ld.", vnum);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_room_index: bad vnum %ld.", vnum);
         return NULL;
     }
 
@@ -3382,7 +3373,7 @@ long fread_number(FILE *fp)
 
     if (!ISDIGIT(c))
     {
-	bug("Fread_number: bad format (%c).", c);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_number: bad format (%c).", c);
 	exit(1);
     }
 
@@ -3490,7 +3481,7 @@ char *fread_string(FILE *fp)
     plast = top_string + sizeof(char *);
     if (plast > &string_space[MAX_STRING - MAX_STRING_LENGTH])
     {
-	bug("Fread_string: MAX_STRING %d exceeded.", MAX_STRING);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string: MAX_STRING %d exceeded.", MAX_STRING);
 	exit(1);
     }
 
@@ -3523,7 +3514,7 @@ char *fread_string(FILE *fp)
 
 	    case EOF:
 		/* temp fix */
-		bug("Fread_string: EOF", 0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string: EOF");
 		return NULL;
 		/* exit(1); */
 		break;
@@ -3625,7 +3616,7 @@ char *fread_string_eol(FILE *fp)
     plast = top_string + sizeof(char *);
     if (plast > &string_space[MAX_STRING - MAX_STRING_LENGTH])
     {
-	bug("Fread_string: MAX_STRING %d exceeded.", MAX_STRING);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string: MAX_STRING %d exceeded.", MAX_STRING);
 	exit(1);
     }
 
@@ -3653,7 +3644,7 @@ char *fread_string_eol(FILE *fp)
 		break;
 
 	    case EOF:
-		bug("Fread_string_eol  EOF", 0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string_eol EOF");
 		exit(1);
 		break;
 
@@ -3829,7 +3820,7 @@ char *fread_word(FILE *fp)
 		char buf[MAX_STRING_LENGTH];
 
 	if (feof(fp)) {
-    bug("Fread_word: EOF encountered", 0);
+    log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_word: EOF encountered");
     return str_dup("");
 }
 
@@ -3862,8 +3853,7 @@ char *fread_word(FILE *fp)
 	}
     }
 
-	sprintf(buf, "Fread_word: word too long (%s).", word);
-	bug(buf, 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_word: word too long (%s).", word);
     exit(1);
     return NULL;
 }
@@ -3890,7 +3880,7 @@ void *alloc_mem(int sMem)
 
     if (iList == MAX_MEM_LIST)
     {
-        bug("Alloc_mem: size %d too large.", sMem);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Alloc_mem: size %d too large.", sMem);
         exit(1);
     }
 
@@ -3930,10 +3920,7 @@ void free_mem(void *pMem, int sMem)
 
     if (*magic != MAGIC_NUM)
     {
-        bug("Attempt to recycle invalid memory of size %d.",sMem);
-        bug("Magic: %08X.",*magic);
-        bug("Magic NUM: %08X.",MAGIC_NUM);
-        bug((char*) pMem + sizeof(*magic),0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Attempt to recycle invalid memory of size %d. Magic: %08X, expected: %08X",sMem, *magic, MAGIC_NUM);
 	abort();
         return;
     }
@@ -3949,7 +3936,7 @@ void free_mem(void *pMem, int sMem)
 
     if (iList == MAX_MEM_LIST)
     {
-        bug("Free_mem: size %d too large.", sMem);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Free_mem: size %d too large.", sMem);
         abort();
     }
 
@@ -3982,7 +3969,7 @@ void *alloc_perm(long sMem)
     /* They asked for too much memory*/
     if (sMem > MAX_PERM_BLOCK)
     {
-	bug("Alloc_perm: %d too large.", sMem);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Alloc_perm: %d too large.", sMem);
 	abort();
     }
 
@@ -4193,13 +4180,13 @@ int str_cmp(const char *astr, const char *bstr)
     char ch;
     if (astr == NULL)
     {
-	bug("Str_cmp: null astr.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null astr.");
 	return -1;
     }
 
     if (bstr == NULL)
     {
-	bug("Str_cmp: null bstr.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null bstr.");
 	return 1;
     }
 
@@ -4218,13 +4205,13 @@ int str_cmp_nocolour(const char *astr, const char *bstr)
     char ch;
     if (astr == NULL)
     {
-	bug("Str_cmp: null astr.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null astr.");
 	return -1;
     }
 
     if (bstr == NULL)
     {
-	bug("Str_cmp: null bstr.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null bstr.");
 	return 1;
     }
 
@@ -4254,13 +4241,13 @@ bool str_prefix(const char *astr, const char *bstr)
 {
     if (astr == NULL)
     {
-	bug("Strn_cmp: null astr.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Strn_cmp: null astr.");
 	return true;
     }
 
     if (bstr == NULL)
     {
-	bug("Strn_cmp: null bstr.", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Strn_cmp: null bstr.");
 	return true;
     }
 
@@ -4388,9 +4375,10 @@ void append_file(CHAR_DATA *ch, char *file, char *str)
 }
 
 
-void bug(const char *str, int param)
+void bug(const char *str, ...)
 {
     char buf[MAX_STRING_LENGTH];
+    va_list args;
 
     if (fpArea != NULL)
     {
@@ -4414,14 +4402,17 @@ void bug(const char *str, int param)
 	}
 
 	sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
-	log_string(buf);
+	log_message(LOG_LEVEL_BUG, "sentience", buf);
 	        if (fBootDb && game_settings.note_boot_errors)
             boot_error_log("%s", buf);
     }
 
     strcpy(buf, "[*****] BUG: ");
-    sprintf(buf + strlen(buf), str, param);
-    log_string(buf);
+    va_start(args, str);
+    vsnprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), str, args);
+    va_end(args);
+
+    log_message(LOG_LEVEL_BUG, "sentience", buf);
 	    if (fBootDb && game_settings.note_boot_errors)
         boot_error_log("%s", buf);
 }
@@ -4432,23 +4423,17 @@ void bug(const char *str, int param)
  */
 void log_string(const char *str)
 {
-    char *strtime;
-
-    strtime                    = ctime(&current_time);
-    strtime[strlen(strtime)-1] = '\0';
-    printf("%s :: %s\n", strtime, str);
-    return;
+    log_message(LOG_LEVEL_INFO, "sentience", str);
 }
 
 void log_stringf(const char *fmt,...)
 {
-	char buf[2 * MSL];
-	va_list args;
-	va_start (args, fmt);
-	vsprintf (buf, fmt, args);
-	va_end (args);
-
-	log_string (buf);
+    char buf[2 * MSL];
+    va_list args;
+    va_start (args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end (args);
+    log_message(LOG_LEVEL_INFO, "sentience", buf);
 }
 
 
@@ -4505,7 +4490,7 @@ NPC_SHIP_INDEX_DATA *get_npc_ship_index(long vnum)
 
     if (fBootDb)
     {
-	bug("Get_npc_ship_index: bad vnum %ld.", vnum);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_npc_ship_index: bad vnum %ld.", vnum);
         return NULL;
 	/*exit(1);*/
     }
@@ -4523,7 +4508,7 @@ void reset_npc_sailing_boats()
     int i;
     long index;
 
-    log_string("Resetting npc boats...");
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resetting npc boats...");
     if ((pArea = get_wilderness_area()) == NULL)
 	return;
 
@@ -4545,7 +4530,7 @@ void reset_npc_sailing_boats()
 	if (npc_ship_index == NULL)
 	    continue;
 
-	log_string("Resetting boat");
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "Resetting boat");
 	npc_ship = create_npc_sailing_boat(npc_ship_index->vnum);
 
 	index = (long)((long)npc_ship_index->original_y *
@@ -4561,7 +4546,7 @@ void reset_npc_sailing_boats()
 
 	if (get_room_index(index) == NULL)
 	{
-	    bug("While resetting npc boats, the room index was NULL.", index);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "While resetting npc boats, the room index was NULL (index %ld).", index);
 	    continue;
 	}
 
@@ -4582,7 +4567,7 @@ AREA_DATA *get_wilderness_area()
     }
 
     if (temp == NULL)
-	log_string("Couldn't find area Wilderness.");
+	log_message(LOG_LEVEL_WARN, LOG_WARN, "Couldn't find area Wilderness.");
 
     return temp;
 }
@@ -4792,7 +4777,7 @@ char *fread_string_len(FILE *fp)
     plast = top_string + sizeof(char *);
     if (plast > &string_space[MAX_STRING - MAX_STRING_LENGTH])
     {
-	bug("Fread_string_new: MAX_STRING %d exceeded.", MAX_STRING);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string_new: MAX_STRING %d exceeded.", MAX_STRING);
 	exit(1);
     }
 
@@ -4805,7 +4790,7 @@ char *fread_string_len(FILE *fp)
     len = 0;
 
     if (!ISDIGIT(c)) {
-	bug("Fread_string_new: bad format (%c).", c);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string_new: bad format (%c).", c);
 	exit(1);
     }
 
@@ -4818,7 +4803,7 @@ char *fread_string_len(FILE *fp)
     ungetc(c, fp);
 
 	if(len < 1 || len > MSL) {
-		bug("Fread_string_new: bad string size (%d).", len);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string_new: bad string size (%d).", len);
 		exit(1);
 	}
 
@@ -4841,7 +4826,7 @@ char *fread_string_len(FILE *fp)
 
 	    case EOF:
 		/* temp fix */
-		bug("Fread_string_new: EOF", 0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string_new: EOF");
 		return NULL;
 		/* exit(1); */
 		break;
@@ -4902,7 +4887,7 @@ char *fread_file(FILE *fp)
     plast = top_string + sizeof(char *);
     if (plast > &string_space[MAX_STRING - MAX_STRING_LENGTH])
     {
-	bug("Fread_string_new: MAX_STRING %d exceeded.", MAX_STRING);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_string_new: MAX_STRING %d exceeded.", MAX_STRING);
 	exit(1);
     }
 
@@ -5489,7 +5474,7 @@ void persist_addmobile(register CHAR_DATA *mob)
 	if( list_hasdata(persist_mobs, mob)) return;
 
 	if( !list_appendlink(persist_mobs, mob) ) {
-		bug("Failed to add mobile as persistant due to memory issues with 'list_appendlink'.",0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to add mobile as persistant due to memory issues with 'list_appendlink'.");
 		if( fBootDb )
 			abort();
 	} else
@@ -5498,20 +5483,20 @@ void persist_addmobile(register CHAR_DATA *mob)
 
 void persist_addobject(register OBJ_DATA *obj)
 {
-	log_stringf("persist_addobject: Adding object %ld to persistance.", obj->pIndexData->vnum);
+	log_message_f(LOG_LEVEL_INFO, LOG_INFO, "persist_addobject: Adding object %ld to persistance.", obj->pIndexData->vnum);
 
 	if( list_hasdata(persist_objs, obj)) {
-		log_stringf("persist_addobject: Object %ld already in persistance.", obj->pIndexData->vnum);
+		log_message_f(LOG_LEVEL_INFO, LOG_INFO, "persist_addobject: Object %ld already in persistance.", obj->pIndexData->vnum);
 		return;
 	}
 
 	if( !list_appendlink(persist_objs, obj) ) {
-		bug("Failed to add object as persistant due to memory issues with 'list_appendlink'.",0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to add object as persistant due to memory issues with 'list_appendlink'.");
 		if( fBootDb )
 			abort();
 	} else {
 		obj->persist = true;
-		log_stringf("persist_addobject: Object %ld flagged as persistant.", obj->pIndexData->vnum);
+		log_message_f(LOG_LEVEL_INFO, LOG_INFO, "persist_addobject: Object %ld flagged as persistant.", obj->pIndexData->vnum);
 	}
 }
 
@@ -5528,7 +5513,7 @@ void persist_addroom(register ROOM_INDEX_DATA *room)
 	if( list_hasdata(persist_rooms, room)) return;
 
 	if( !list_appendlink(persist_rooms, room) ) {
-		bug("Failed to add room as persistant due to memory issues with 'list_appendlink'.",0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to add room as persistant due to memory issues with 'list_appendlink'.");
 		if( fBootDb )
 			abort();
 	} else
@@ -6253,7 +6238,7 @@ void persist_save(void)
 //	log_stringf("persist_save: Saving persistance...");
 
 	if (!(fp = fopen(PERSIST_FILE, "w"))) {
-		bug("persist.save: Couldn't open file.",0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist.save: Couldn't open file.");
 	} else {
 		// Save objects
 		iterator_start(&it, persist_objs);
@@ -6374,8 +6359,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 	vnum = fread_number(fp);
 	if ((token_index = get_token_index(vnum)) == NULL) {
-		sprintf(buf, "persist_load_token: no token index found for vnum %ld", vnum);
-		bug(buf, 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_token: no token index found for vnum %ld", vnum);
 		return NULL;
 	}
 
@@ -6429,8 +6413,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "persist_load_token: no match for word %s", word);
-			bug(buf, 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_token: no match for word %s", word);
 			fread_to_eol(fp);
 		}
 	}
@@ -6554,7 +6537,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					sn = skill_lookup(fread_word(fp));
 					if (sn < 0)
-						bug("persist_load_object: unknown skill.",0);
+						log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_object: unknown skill.");
 					else
 						paf->type = sn;
 
@@ -6590,7 +6573,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					name = create_affect_cname(fread_word(fp));
 					if (!name) {
-						log_string("persist_load_object: could not create affect name.");
+						log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: could not create affect name.");
 						free_affect(paf);
 					} else {
 						paf->custom_name = name;
@@ -6631,7 +6614,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf->type = flag_value(catalyst_types,fread_word(fp));
 					if(paf->type == NO_FLAG) {
-						log_string("persist_load_object: invalid catalyst type.");
+						log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
 						paf->where = TO_CATALYST_DORMANT;
@@ -6652,7 +6635,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf->type = flag_value(catalyst_types,fread_word(fp));
 					if(paf->type == NO_FLAG) {
-						log_string("persist_load_object: invalid catalyst type.");
+						log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
 						paf->where = TO_CATALYST_ACTIVE;
@@ -6673,7 +6656,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf->type = flag_value(catalyst_types,fread_word(fp));
 					if(paf->type == NO_FLAG) {
-						log_string("persist_load_object: invalid catalyst type.");
+						log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
 						paf->where = TO_CATALYST_DORMANT;
@@ -6694,7 +6677,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf->type = flag_value(catalyst_types,fread_word(fp));
 					if(paf->type == NO_FLAG) {
-						log_string("persist_load_object: invalid catalyst type.");
+						log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
 						paf->where = TO_CATALYST_ACTIVE;
@@ -6887,8 +6870,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						spell->next = obj->spells;
 						obj->spells = spell;
 					} else {
-						sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
-						bug(buf,0);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
 					}
 				}
 
@@ -7121,7 +7103,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					if( paf ) {
 						sn = skill_lookup(fread_word(fp));
 						if (sn < 0)
-							log_string("fread_char: unknown skill.");
+							log_message(LOG_LEVEL_WARN, LOG_WARN, "fread_char: unknown skill.");
 						else
 		                    paf->type = sn;
 						paf->custom_name = NULL;
@@ -7385,8 +7367,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					if( toxin < MAX_TOXIN)
 						ch->toxin[toxin] = fread_number(fp);
 					else {
-						sprintf(buf,"%s:%s bad toxin type", __FILE__, __FUNCTION__);
-						bug(buf, 0);
+						log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_mobile: bad toxin type");
 						fread_to_eol(fp);
 					}
 					fMatch = true;
@@ -7661,8 +7642,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		room = get_room_index(vnum);
 
 		if( !room ) {
-			sprintf(buf, "persist_load_room: undefined room index at vnum %ld.", vnum);
-			bug(buf,0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: undefined room index at vnum %ld.", vnum);
 			return NULL;
 		}
 	} else if( rtype == 'V' ) {
@@ -7674,8 +7654,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		wilds = get_wilds_from_uid(NULL, w);
 
 		if( !wilds ) {
-			sprintf(buf, "persist_load_room: undefined wilds uid %d.", w);
-			bug(buf,0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: undefined wilds uid %d.", w);
 			return NULL;
 		}
 
@@ -7684,8 +7663,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			room = create_wilds_vroom(wilds, x, y);
 
 			if( !room ) {
-				sprintf(buf, "persist_load_room: unable to create vroom for wilds %d at (%d,%d).", w, x, y);
-				bug(buf,0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: unable to create vroom for wilds %d at (%d,%d).", w, x, y);
 				return NULL;
 			}
 		}
@@ -7703,8 +7681,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 		if( !source ) {
 			fread_to_eol(fp);
-			sprintf(buf, "persist_load_room: undefined room index at vnum %ld.", vnum);
-			bug(buf,0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: undefined room index at vnum %ld.", vnum);
 			return NULL;
 		}
 
@@ -7717,8 +7694,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		if( !room ) {
 			room = create_virtual_room_nouid( source, false, false, false );
 			if( !room ) {
-				sprintf(buf, "persist_load_room: could not create clone room for %ld with uid %09d:%09d.", vnum, x, y);
-				bug(buf,0);
+				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: could not create clone room for %ld with uid %09d:%09d.", vnum, x, y);
 				return NULL;
 			}
 
@@ -7981,8 +7957,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 					// This is non-fatal if non-existant.  It will just clear it.
 					if( !wilds ) {
-						sprintf(buf, "persist_load_room: undefined wilds UID for viewwilds %d.", w);
-						bug(buf,0);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: undefined wilds UID for viewwilds %d.", w);
 					}
 
 					room->viewwilds = wilds;
@@ -7997,8 +7972,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if( !str_cmp(word, "XYZ") ) {
 					if( room->wilds ) {
 						fread_to_eol(fp);
-						sprintf(buf, "persist_load_room: XYZ coordinates found for wilds room %ld @ (%ld, %ld).", room->wilds->uid, room->x, room->y);
-						bug(buf,0);
+						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: XYZ coordinates found for wilds room %ld @ (%ld, %ld).", room->wilds->uid, room->x, room->y);
 					} else {
 						room->x = fread_number(fp);
 						room->y = fread_number(fp);
@@ -8107,17 +8081,17 @@ bool persist_load(void)
 	ROOM_INDEX_DATA *room;
 	bool good = true;
 
-	log_string("persist_load: loading persist entities...");
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: loading persist entities...");
 
 	if (!(fp = fopen(PERSIST_FILE, "r"))) {
-		bug("persist.dat: Couldn't open file.",0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist.dat: Couldn't open file.");
 		return true;
 	} else {
         // Check for empty file
         int c = fgetc(fp);
         if (c == EOF) {
             fclose(fp);
-            log_string("persist_load: persist file is empty.");
+            log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: persist file is empty.");
             return true;
         }
         ungetc(c, fp);
@@ -8179,9 +8153,9 @@ bool persist_load(void)
 	}
 
 	if(good)
-		log_string("persist_load: done...");
+		log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: done...");
 	else
-		log_string("persist_load: error...");
+		log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load: error...");
 
 
 	return good;
@@ -8197,7 +8171,7 @@ bool save_instances()
 	FILE *fp = fopen(INSTANCES_FILE, "w");
 	if (fp == NULL)
 	{
-		bug("Couldn't save instances.dat", 0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't save instances.dat");
 		return false;
 	}
 
@@ -8244,7 +8218,7 @@ void load_instances()
 	FILE *fp = fopen(INSTANCES_FILE, "r");
 	if (fp == NULL)
 	{
-		bug("Couldn't load instances.dat", 0);
+		log_message(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't load instances.dat");
 		return;
 	}
 
@@ -8293,8 +8267,7 @@ void load_instances()
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_instances: no match for word %.50s", word);
-			bug(buf, 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_instances: no match for word %.50s", word);
 		}
 
 	}

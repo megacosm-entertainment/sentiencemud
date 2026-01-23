@@ -1063,7 +1063,7 @@ void medit(CHAR_DATA *ch, char *argument) {
     EDIT_MOB(ch, pMob);
     if (!pMob) { // Should ideally not happen if EDIT_MOB sets up correctly
         sprintf(buf, "medit: pMob is NULL for %s.", ch->name);
-        bug(buf, 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
         edit_done(ch);
         return;
     }
@@ -1071,7 +1071,7 @@ void medit(CHAR_DATA *ch, char *argument) {
 
     if (pArea == NULL) {
         sprintf(buf, "medit: pArea is NULL for mob vnum %ld!", pMob->vnum);
-        bug(buf, 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
         // Attempt to find area by vnum if pMob->area is somehow unset but vnum is valid
         // This is a fallback, the root cause of pArea being NULL should be investigated
         if ( (pArea = get_vnum_area(pMob->vnum)) != NULL) {
@@ -3589,7 +3589,7 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 	sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
 		"obj, %s, vnum %ld", objIndex->short_descr,
 		objIndex->vnum);
-	bug(buf, 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
 	return;
     }
 
@@ -3657,7 +3657,7 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 	sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
 		"obj, %s, vnum %ld", obj->short_descr,
 		obj->pIndexData->vnum);
-	bug(buf, 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
 	return;
     }
 
@@ -3899,13 +3899,13 @@ bool has_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 {
     if (mob == NULL && obj == NULL)
     {
-	bug("check_imp_sig: both mob and obj were null.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "check_imp_sig: both mob and obj were null.");
 	return false;
     }
 
     if (mob != NULL && obj != NULL)
     {
-	bug("check_imp_sig: had both mob and obj.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "check_imp_sig: had both mob and obj.");
 	return false;
     }
 
@@ -3935,12 +3935,12 @@ void use_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 {
     if (mob == NULL && obj == NULL)
     {
-	bug("use_imp_sig: both mob and obj were null.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "use_imp_sig: both mob and obj were null.");
 	return;
     }
 
     if (mob != NULL && obj != NULL)
-	bug("use_imp_sig: had both mob and obj.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "use_imp_sig: had both mob and obj.");
 
     if (mob != NULL)
     {

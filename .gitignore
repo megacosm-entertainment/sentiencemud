@@ -51,3 +51,7 @@ nibchanges.txt
 .build/
 .depend
 gmon.out
+deps/
+build/
+.claude
+.deps

@@ -3,7 +3,10 @@
 #
 cmake_minimum_required (VERSION 3.10)
 
-project(sent)sa
+project(sent)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.deps/zlog/src)
+
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.deps/zlog ${CMAKE_CURRENT_BINARY_DIR}/.deps/zlog)
 
 # Get Git version, build date, and commit URL
 # Assumes date.sh and giturl.sh are in the same directory as CMakeLists.txt or in PATH
@@ -95,6 +98,7 @@ set(SOURCE_FILES
     fight2.c
     gq.c
     handler.c
+    log.c
     help.c
     house.c
     html.c
@@ -102,6 +106,7 @@ set(SOURCE_FILES
     interp.c
     invasion.c
     io/common.c
+    json_race.c
     lookup.c
     magic.c
     magic2.c
@@ -151,6 +156,7 @@ set(SOURCE_FILES
     async_cache.c
     json_char.c
     json_account.c
+    json_game_settings.c
     save.c
     scan.c
     script_commands.c
@@ -187,9 +193,11 @@ target_compile_definitions(sent PRIVATE
     COMMIT="${GIT_URL}"
 )
 
+target_include_directories(sent PRIVATE ${CMAKE_SOURCE_DIR}/deps/zlog/src)
+
 # Libraries: Using the more comprehensive list from GCC Makefile
 # pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson
-target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson)
+target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson zlog)
 
 # Install step (optional, example)
 # install(TARGETS sent DESTINATION bin)

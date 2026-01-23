@@ -345,14 +345,14 @@ void do_accnote(CHAR_DATA *ch, char *argument)
 void string_end_accnote(CHAR_DATA *ch)
 {
     if (!ch || !ch->desc) {
-        bug("string_end_accnote: NULL character or descriptor", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "string_end_accnote: NULL character or descriptor");
         return;
     }
     
     ACCOUNT_DATA *account = (ACCOUNT_DATA *)ch->desc->editor_ptr;
     
     if (!account) {
-        bug("string_end_accnote: NULL account", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "string_end_accnote: NULL account");
         return;
     }
 
@@ -373,7 +373,7 @@ void string_end_accnote(CHAR_DATA *ch)
 
     // If not found, log it but continue (we'll save anyway)
     if (!found) {
-        bug("string_end_accnote: account not in loaded_accounts list", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "string_end_accnote: account not in loaded_accounts list");
         // Add it back to the list
         if (loaded_accounts)
             list_appendlink(loaded_accounts, account);

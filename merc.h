@@ -4,9 +4,11 @@
 // 2014-05-21 NIB - comment this to return SHOWDAMAGE functionality to immortals and testport only
 #define DEBUG_ALLOW_SHOW_DAMAGE
 
+#include "log.h"
+
 #define DEBUG_LINES
 #ifdef DEBUG_LINES
-#define __D__ log_stringf("%s:%s:%d",__FILE__, __func__,__LINE__);
+#define __D__ log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "%s:%s:%d",__FILE__, __func__,__LINE__);
 #else
 #define __D__
 #endif
@@ -8325,8 +8327,10 @@ char *	strreplace	args( ( char *Str, char *OldStr, char *NewStr ) );
 char *	capitalize	args( ( const char *str ) );
 char *	cap		args( ( const char *str ) );
 void	append_file	args( ( CHAR_DATA *ch, char *file, char *str ) );
-void	bug		args( ( const char *str, int param ) );
-void	log_string	args( ( const char *str ) );
+void bug(const char *str, ...);
+void log_string(const char *str);
+void log_stringf(const char *fmt, ...);
+
 void	tail_chain	args( ( void ) );
 void    boat_attack (CHAR_DATA *ch );
 /* VIZZWILDS
@@ -8816,7 +8820,7 @@ TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, int count);
 void fix_magic_object_index(OBJ_INDEX_DATA *obj);
 void extract_event(EVENT_DATA *event);
 void extract_project_inquiry(PROJECT_INQUIRY_DATA *pinq);
-void log_string_to_list(char *argument, LOG_ENTRY_DATA *list);
+
 void save_logs();
 int get_curr_group_stat(CHAR_DATA *ch, int stat);
 int get_perm_group_stat(CHAR_DATA *ch, int stat);
@@ -9587,7 +9591,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 char *formatf(const char *fmt, ...);
 void formatf_to(char *dest, size_t dest_size, const char *fmt, ...);  // Safe version - writes to provided buffer
-void log_stringf(const char *fmt,...);
+
 bool interrupt_script( CHAR_DATA *ch, bool silent );
 CHAR_DATA *obj_carrier(OBJ_DATA *obj);
 

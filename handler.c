@@ -1151,7 +1151,7 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 			ch->pcdata->mod_learned[paf->location - APPLY_SKILL] += mod;
 			break;
 		}
-	    bug("Affect_modify: unknown location %d.", paf->location);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Affect_modify: unknown location %d.", paf->location);
 	    return;
     }
 
@@ -1387,7 +1387,7 @@ void affect_remove(CHAR_DATA *ch, AFFECT_DATA *paf)
 {
 	if (ch->affected == NULL)
 	{
-		bug("Affect_remove: no affect.", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Affect_remove: no affect.");
 		return;
 	}
 
@@ -1410,7 +1410,7 @@ void affect_remove(CHAR_DATA *ch, AFFECT_DATA *paf)
 
 		if (prev == NULL)
 		{
-			bug("Affect_remove: cannot find paf.", 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Affect_remove: cannot find paf.");
 			return;
 		}
 	}
@@ -1472,7 +1472,7 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 
 	if (obj->affected == NULL)
 	{
-		bug("Affect_remove_object: no affects on object.", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Affect_remove_object: no affects on object.");
 		return false;
 	}
 
@@ -1523,7 +1523,7 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 
 		if (prev == NULL)
 		{
-			bug("Affect_remove_object: cannot find paf.", 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Affect_remove_object: cannot find paf.");
 			return reset_ch;
 		}
 	}
@@ -1842,7 +1842,7 @@ void char_from_room(CHAR_DATA *ch)
 
     if (ch->in_room == NULL)
     {
-	bug("Char_from_room: NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_from_room: NULL.");
 	return;
     }
 
@@ -1914,7 +1914,7 @@ void char_from_room(CHAR_DATA *ch)
 		}
 
 		if (prev == NULL)
-			bug("Char_from_room: ch not found.", 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_from_room: ch not found.");
     }
 
     list_remlink(ch->in_room->lpeople, ch, false);
@@ -1963,7 +1963,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     {
 	ROOM_INDEX_DATA *room;
 
-	bug("Char_to_room: destination room NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_to_room: destination room NULL.");
 
 	if ((room = get_room_index(get_reserved_vnum("room_default_recall"))) != NULL)
 	    char_to_room(ch,room);
@@ -2165,7 +2165,7 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 {
     if (obj == NULL || ch == NULL)
     {
-        bug("obj_to_char: null obj or ch", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "obj_to_char: null obj or ch");
         return;
     }
 
@@ -2242,7 +2242,7 @@ int count_char_locker(CHAR_DATA *ch)
 
     if (ch == NULL)
     {
-	bug("handler.c, count_char_locker: NULL ch.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "handler.c, count_char_locker: NULL ch.");
 	return -1;
     }
 
@@ -2262,7 +2262,7 @@ void obj_from_locker(OBJ_DATA *obj)
 
     if ((ch = obj->carried_by) == NULL)
     {
-	bug("Obj_from_char: null ch.", 0);
+log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Obj_from_char: null ch.");
 	return;
     }
 
@@ -2282,7 +2282,7 @@ void obj_from_locker(OBJ_DATA *obj)
         }
 
         if (prev == NULL)
-            bug("locker get: obj not in list.", 0);
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "locker get: obj not in list.");
     }
 
     --obj->pIndexData->lockered;
@@ -2305,7 +2305,7 @@ void obj_from_char(OBJ_DATA *obj)
 
     if ((ch = obj->carried_by) == NULL)
     {
-        bug("Obj_from_char: null ch.", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Obj_from_char: null ch.");
         return;
     }
 
@@ -2397,7 +2397,7 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 
     if (get_eq_char(ch, iWear) != NULL)
     {
-    bug("Equip_char: already equipped (%d).", iWear);
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Equip_char: already equipped (%d).", iWear);
     return;
     }
 
@@ -2493,7 +2493,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
     if (obj->wear_loc == WEAR_NONE)
     {
-        bug("Unequip_char: already unequipped.", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Unequip_char: already unequipped.");
         return false;    // @@@NIB : 20070128
     }
 
@@ -2626,7 +2626,7 @@ void obj_from_room(OBJ_DATA *obj)
 
 	if ((in_room = obj->in_room) == NULL)
 	{
-		bug("obj_from_room: NULL.", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "obj_from_room: NULL.");
 		return;
 	}
 
@@ -2655,7 +2655,7 @@ void obj_from_room(OBJ_DATA *obj)
 		if (prev == NULL)
 		{
 			sprintf(buf, "Obj_from_room: obj not found.");
-			bug(buf, 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
 			return;
 		}
 	}
@@ -2820,7 +2820,7 @@ void obj_from_obj(OBJ_DATA *obj)
 
     if ((obj_from = obj->in_obj) == NULL)
     {
-		bug("Obj_from_obj: null obj_from.", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Obj_from_obj: null obj_from.");
 		return;
     }
 
@@ -2844,7 +2844,7 @@ void obj_from_obj(OBJ_DATA *obj)
 
 		if (prev == NULL)
 		{
-		    bug("Obj_from_obj: obj not found.", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Obj_from_obj: obj not found.");
 		    return;
 		}
     }
@@ -2875,7 +2875,7 @@ void extract_chat_room(CHAT_ROOM_DATA *chat)
 
     if (chat == NULL)
     {
-	bug("Tried to extract null chat.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Tried to extract null chat.");
 	return;
     }
 
@@ -2888,7 +2888,7 @@ void extract_chat_room(CHAT_ROOM_DATA *chat)
 
     if (temp_chat == NULL)
     {
-	bug("Couldn't extract chat as chat was NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't extract chat as chat was NULL.");
 	return;
     }
 
@@ -2903,7 +2903,7 @@ void extract_chat_room(CHAT_ROOM_DATA *chat)
 
     if (temp_chat == NULL)
     {
-	bug("Extract_chat: chat not found.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Extract_chat: chat not found.");
 	return;
     }
 
@@ -2922,7 +2922,7 @@ void extract_church(CHURCH_DATA *church)
 
     if (church == NULL)
     {
-        bug("Tried to extract null church.", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Tried to extract null church.");
         return;
     }
 
@@ -2958,7 +2958,7 @@ void extract_obj(OBJ_DATA *obj)
 
     if (obj == NULL)
     {
-	bug("Tried to extract null object.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Tried to extract null object.");
 	return;
     }
 
@@ -3308,7 +3308,7 @@ CHAR_DATA *get_cart_pulled(OBJ_DATA *obj)
 {
     if (obj == NULL)
     {
-	bug("In get_cart_pulled the obj was null.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "In get_cart_pulled the obj was null.");
 	return NULL;
     }
 
@@ -3335,7 +3335,7 @@ CHAR_DATA *get_char_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argument)
 
     if (ch && room)
     {
-	bug("get_char_room received multiple types (ch/room)", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_char_room received multiple types (ch/room)");
 	//return NULL;
     }
 
@@ -3799,12 +3799,12 @@ OBJ_DATA *get_obj_here(CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argument)
     int number;
 
     if (ch && room) {
-        bug("get_obj_here received both a ch and a room",0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_obj_here received both a ch and a room");
         return NULL;
     }
 
     if (!ch && !room) {
-        bug("get_obj_here received neither a ch nor a room",0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_obj_here received neither a ch nor a room");
         return NULL;
     }
 
@@ -3854,7 +3854,7 @@ OBJ_DATA *get_obj_here_number(CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argume
 
     if (ch && room)
     {
-		bug("get_obj_here received a ch and a room",0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_obj_here received a ch and a room");
 		return NULL;
     }
 
@@ -3900,7 +3900,7 @@ OBJ_DATA *get_obj_inv(CHAR_DATA *ch, char *argument, bool worn)
     int number;
 
     if (!ch) {
-        bug("get_obj_inv received NULL ch",0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_obj_inv received NULL ch");
         return NULL;
     }
 
@@ -3949,7 +3949,7 @@ OBJ_DATA *get_obj_inv_only(CHAR_DATA *ch, char *argument, bool worn)
     int number;
 
     if (!ch) {
-        bug("get_obj_inv_only received NULL ch",0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_obj_inv_only received NULL ch");
         return NULL;
     }
 
@@ -4031,13 +4031,13 @@ void deduct_cost(CHAR_DATA *ch, int cost)
 
     if (ch->gold < 0)
     {
-	bug("deduct costs: gold %d < 0",ch->gold);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "deduct costs: gold %d < 0",ch->gold);
 	ch->gold = 0;
     }
 
     if (ch->silver < 0)
     {
-	bug("deduct costs: silver %d < 0",ch->silver);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "deduct costs: silver %d < 0",ch->silver);
 	ch->silver = 0;
     }
 }
@@ -4053,7 +4053,7 @@ OBJ_DATA *create_money(int gold, int silver)
 
     if (gold < 0 || silver < 0 || (gold == 0 && silver == 0))
     {
-	bug("Create_money: zero or negative money.",UMIN(gold,silver));
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Create_money: zero or negative money.",UMIN(gold,silver));
 	gold = UMAX(0,gold);
 	silver = UMAX(1,silver);
     }
@@ -4458,7 +4458,7 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
 {
     if (obj == NULL)
     {
-	bug("can_see_obj, obj was NULL!!!", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_see_obj, obj was NULL!!!");
         return false;
     }
 
@@ -4586,7 +4586,7 @@ void char_to_crew(CHAR_DATA *ch, SHIP_DATA *ship)
 
     if (ship == NULL)
     {
-	bug("SHIP WAS NULL with a char_to_crew.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "SHIP WAS NULL with a char_to_crew.");
 	return;
     }
 
@@ -4608,7 +4608,7 @@ void char_to_invasion(CHAR_DATA *ch, INVASION_QUEST *invasion)
 {
     if (invasion == NULL)
     {
-	bug("INVASION WAS NULL with a char_to_invasion.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "INVASION WAS NULL with a char_to_invasion.");
 	return;
     }
 
@@ -4654,7 +4654,7 @@ void char_from_crew(CHAR_DATA *ch)
 #if 0
 	if (ch->belongs_to_ship == NULL)
 	{
-		bug("Char_from_crew: belongs_to_ship was null.", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_from_crew: belongs_to_ship was null.");
 		return;
 	}
 
@@ -4676,7 +4676,7 @@ void char_from_crew(CHAR_DATA *ch)
 		}
 
 		if (prev == NULL)
-			bug("Char_from_crew: ch not found.", 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_from_crew: ch not found.");
 	}
 
 	ch->belongs_to_ship  = NULL;
@@ -4741,7 +4741,7 @@ void hunt_char(CHAR_DATA *ch, CHAR_DATA *victim)
 
     if (!IS_NPC(ch)) {
 	sprintf(buf, "hunt_char: non-NPC %s", ch->name);
-	bug(buf, 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
 	return;
     }
 
@@ -4785,7 +4785,7 @@ void stop_hunt(CHAR_DATA *ch, bool dead)
 	}
 
 	if (prev == NULL)
-	    bug("stop_hunt: ch not found.", 0);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "stop_hunt: ch not found.");
     }
 
     ch->hunting  = NULL;
@@ -4812,8 +4812,7 @@ AREA_DATA *find_area(char *name)
     }
 
     if (temp == NULL) {
-	sprintf(buf, "find_area: couldn't find area %s", name);
-	log_string(buf);
+	log_message_f(LOG_LEVEL_WARN, LOG_WARN, "find_area: couldn't find area %s", name);
     }
 
     return temp;
@@ -4860,14 +4859,14 @@ void resurrect_pc(CHAR_DATA *ch)
     if (!IS_DEAD(ch))
     {
         sprintf(buf, "resurrect_pc: %s is not dead!", ch->name);
-        bug(buf, 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
         return;
     }
 
     if (IS_NPC(ch))
     {
         sprintf(buf, "resurrect_pc: %s is an NPC!", ch->short_descr);
-        bug(buf, 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
         return;
     }
 
@@ -4950,7 +4949,7 @@ bool is_global_mob(CHAR_DATA *mob)
 
     if (!IS_NPC(mob))
     {
-	bug("is_global_mob: not an npc!", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "is_global_mob: not an npc!");
 	return false;
     }
 
@@ -5013,7 +5012,7 @@ bool is_darked(ROOM_INDEX_DATA *room)
 
     if (room == NULL)
     {
-	bug("is_darked: in_room was null.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "is_darked: in_room was null.");
 	return false;
     }
 
@@ -5056,7 +5055,7 @@ bool can_see_shift(CHAR_DATA *ch, CHAR_DATA *victim)
 
     if (ch == NULL || victim == NULL)
     {
-        bug("can_see_shift: called with null ch or victim!", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_see_shift: called with null ch or victim!");
         return false;
     }
 
@@ -5087,7 +5086,7 @@ bool can_scare(CHAR_DATA *ch)
     ITERATOR it;
 
     if (ch == NULL) {
-        bug("can_scare: NULL ch", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_scare: NULL ch");
         return false;
     }
 
@@ -5352,15 +5351,12 @@ AREA_DATA *find_area_at_land_coords(int x, int y )
 
     for (temp = area_first; temp != NULL; temp = temp->next)
     {
-	if ( temp->land_x == x && temp->land_y == y ) {
+	if ( temp->land_x == x && temp->land_y == y )
 	    break;
-  }
     }
 
     if ( temp == NULL )
-    {
-	bug("Couldn't find area.", 0);
-    }
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't find area.");
 
     return temp;
 }
@@ -5381,9 +5377,7 @@ AREA_DATA *find_area_at_coords(int x, int y )
     }
 
     if ( temp == NULL )
-    {
-	bug("Couldn't find area.", 0);
-    }
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't find area.");
 
     return temp;
 }
@@ -5461,7 +5455,7 @@ bool is_using_anyone(OBJ_DATA *obj)
 
     if (obj->in_room == NULL)
     {
-	bug("Got is_using_obj with obj->in_room NULL!", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Got is_using_obj with obj->in_room NULL!");
 	return false;
     }
 
@@ -5603,7 +5597,7 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
 
     if (victim == NULL)
     {
-        bug("can_hunt: victim was null!", 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_hunt: victim was null!");
         return false;
     }
 
@@ -5842,7 +5836,7 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
     if (room == NULL)
     {
-	bug ("check_ice_storm: room was null", 0);
+	log_message(LOG_LEVEL_BUG, LOG_ERROR, "check_ice_storm: room was null");
 	return false;
     }
 
@@ -6060,9 +6054,8 @@ bool dislink_room(ROOM_INDEX_DATA *pRoom)
 	    sprintf(cmd, "%ld delete", pRoom->vnum);
 	    rp_change_exit(pRoom, cmd, i);
 	    changed = true;
-	    sprintf(buf, "dislink_room: dislinked room %s (%ld)",
+	    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "dislink_room: dislinked room %s (%ld)",
 	        pRoom->name, pRoom->vnum);
-	    log_string(buf);
 	}
     }
 
@@ -6075,13 +6068,13 @@ bool is_in_nature(CHAR_DATA *ch)
 {
     if (ch == NULL)
     {
-	bug("is_in_nature: ch null", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "is_in_nature: ch null");
 	return false;
     }
 
     if (ch->in_room == NULL)
     {
-	bug("is_in_nature: ch->in_room null", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "is_in_nature: ch->in_room null");
 	return false;
     }
 
@@ -6166,7 +6159,7 @@ int get_profession(CHAR_DATA *ch, int class_type)
 
     if (ch->pcdata == NULL)
     {
-	bug("get_profession: null pcdata on a pc", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_profession: null pcdata on a pc");
 	return CLASS_NPC;
     }
 
@@ -6196,7 +6189,7 @@ int get_profession(CHAR_DATA *ch, int class_type)
 	case SECOND_SUBCLASS_WARRIOR:	return ch->pcdata->second_sub_class_warrior;
 
 	default:
-	    bug("get_profession: bad class_type %d", class_type);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "get_profession: bad class_type %d", class_type);
 	    return CLASS_NPC;
     }
 }
@@ -6209,7 +6202,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 	return;
 
     if (ch->pcdata == NULL) {
-	bug("set_profession: null pcdata on a pc", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: null pcdata on a pc");
 	return;
     }
 
@@ -6219,7 +6212,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 	    if (class_value == CLASS_MAGE)
 		ch->pcdata->class_mage = CLASS_MAGE;
 	    else
-		bug("set_profession: trying to set a non-mage class for mage class spot", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-mage class for mage class spot");
 
 	    break;
 
@@ -6227,7 +6220,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 	    if (class_value == CLASS_CLERIC)
 		ch->pcdata->class_mage = CLASS_CLERIC;
 	    else
-		bug("set_profession: trying to set a non-cleric class for cleric class spot", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-cleric class for cleric class spot");
 
 	    break;
 
@@ -6235,7 +6228,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 	    if (class_value == CLASS_THIEF)
 		ch->pcdata->class_mage = CLASS_THIEF;
 	    else
-		bug("set_profession: trying to set a non-thief class for thief class spot", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-thief class for thief class spot");
 
 	    break;
 
@@ -6243,7 +6236,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 	    if (class_value == CLASS_WARRIOR)
 		ch->pcdata->class_mage = CLASS_WARRIOR;
 	    else
-		bug("set_profession: trying to set a non-warrior class for warrior class spot", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-warrior class for warrior class spot");
 
 	    break;
 
@@ -6254,7 +6247,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_MAGE_SORCERER:	ch->pcdata->sub_class_mage = CLASS_MAGE_SORCERER;	break;
 		case CLASS_MAGE_WIZARD:		ch->pcdata->sub_class_mage = CLASS_MAGE_WIZARD;		break;
 		default:
-		    bug("set_profession: trying to set a non-mage subclass for mage subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-mage subclass for mage subclass spot");
 		    break;
 	    }
 
@@ -6265,7 +6258,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_CLERIC_DRUID:	ch->pcdata->sub_class_cleric = CLASS_CLERIC_DRUID;	break;
 		case CLASS_CLERIC_MONK:		ch->pcdata->sub_class_cleric = CLASS_CLERIC_MONK;	break;
 		default:
-		    bug("set_profession: trying to set a non-cleric subclass for cleric subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-cleric subclass for cleric subclass spot");
 		    break;
 	    }
 
@@ -6276,7 +6269,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_THIEF_ROGUE:		ch->pcdata->sub_class_thief = CLASS_THIEF_ROGUE;	break;
 		case CLASS_THIEF_BARD:		ch->pcdata->sub_class_thief = CLASS_THIEF_BARD;		break;
 		default:
-		    bug("set_profession: trying to set a non-thief subclass for thief subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-thief subclass for thief subclass spot");
 		    break;
 	    }
 	case SUBCLASS_WARRIOR:
@@ -6286,7 +6279,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_WARRIOR_GLADIATOR:	ch->pcdata->sub_class_warrior = CLASS_WARRIOR_GLADIATOR;	break;
 		case CLASS_WARRIOR_PALADIN:	ch->pcdata->sub_class_warrior = CLASS_WARRIOR_PALADIN;		break;
 		default:
-		    bug("set_profession: trying to set a non-warrior subclass for warrior subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-warrior subclass for warrior subclass spot");
 		    break;
 	    }
 
@@ -6297,7 +6290,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_MAGE_GEOMANCER:	ch->pcdata->second_sub_class_mage = CLASS_MAGE_GEOMANCER;	break;
 		case CLASS_MAGE_ILLUSIONIST:	ch->pcdata->second_sub_class_mage = CLASS_MAGE_ILLUSIONIST;	break;
 		default:
-		    bug("set_profession: trying to set a non-mage subclass for mage second subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-mage subclass for mage second subclass spot");
 		    break;
 	    }
 
@@ -6308,7 +6301,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_CLERIC_RANGER:	ch->pcdata->second_sub_class_cleric = CLASS_CLERIC_RANGER;	break;
 		case CLASS_CLERIC_ADEPT:	ch->pcdata->second_sub_class_cleric = CLASS_CLERIC_ADEPT;	break;
 		default:
-		    bug("set_profession: trying to set a non-cleric subclass for cleric second subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-cleric subclass for cleric second subclass spot");
 		    break;
 	    }
 
@@ -6319,7 +6312,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_THIEF_NINJA:		ch->pcdata->second_sub_class_thief = CLASS_THIEF_NINJA;		break;
 		case CLASS_THIEF_SAGE:		ch->pcdata->second_sub_class_thief = CLASS_THIEF_SAGE;		break;
 		default:
-		    bug("set_profession: trying to set a non-thief subclass for thief second subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-thief subclass for thief second subclass spot");
 		    break;
 	    }
 
@@ -6330,12 +6323,12 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 		case CLASS_WARRIOR_DESTROYER:	ch->pcdata->second_sub_class_warrior = CLASS_WARRIOR_DESTROYER;	break;
 		case CLASS_WARRIOR_CRUSADER:	ch->pcdata->second_sub_class_warrior = CLASS_WARRIOR_CRUSADER;	break;
 		default:
-		    bug("set_profession: trying to set a non-warrior subclass for warrior second subclass spot", 0);
+		    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: trying to set a non-warrior subclass for warrior second subclass spot");
 		    break;
 	    }
 
 	default:
-	    bug("set_profession: bad class_type %d", class_type);
+	    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_profession: bad class_type %d", class_type);
 	    return;
     }
 }
@@ -6390,12 +6383,12 @@ void exit_name(ROOM_INDEX_DATA *room, int door, char *kwd)
     char article[MSL];
 
     if (room == NULL) {
-	bug("exit_name: room was null", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "exit_name: room was null");
 	return;
     }
 
     if ((ex = room->exit[door]) == NULL) {
-	bug("exit_name: null exit", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "exit_name: null exit");
 	return;
     }
 
@@ -6438,19 +6431,19 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 {
     if (!ch)
     {
-	bug("can_give_obj: ch NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_give_obj: ch NULL.");
 	return false;
     }
 
     if (!obj)
     {
-	bug("can_give_obj: obj NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_give_obj: obj NULL.");
 	return false;
     }
 
     if (!victim)
     {
-	bug("can_give_obj: victim NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_give_obj: victim NULL.");
 	return false;
     }
 
@@ -6511,13 +6504,13 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 {
     if (!ch && !silent)
     {
-	bug("can_drop_obj: ch NULL while not silent.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_drop_obj: ch NULL while not silent.");
 	return false;
     }
 
     if (!obj)
     {
-	bug("can_drop_obj: obj NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_drop_obj: obj NULL.");
 	return false;
     }
 
@@ -6573,25 +6566,25 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
     if (!ch)
     {
-	bug("can_get_obj: ch NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_get_obj: ch NULL.");
 	return false;
     }
 
     if (!obj)
     {
-	bug("can_get_obj: obj NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_get_obj: obj NULL.");
 	return false;
     }
 
     if (mail && container)
     {
-	bug("can_get_obj: received mail and container", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_get_obj: received mail and container");
 	return false;
     }
 
     if (container && obj->in_obj != container)
     {
-	bug("can_get_obj: obj not in container", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_get_obj: obj not in container");
 	return false;
     }
 
@@ -6710,25 +6703,25 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
     if (!ch && !silent)
     {
-	bug("can_put_obj: ch NULL when not silent.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_put_obj: ch NULL when not silent.");
 	return false;
     }
 
     if (!obj)
     {
-	bug("can_put_obj: obj NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_put_obj: obj NULL.");
 	return false;
     }
 
     if (!container && !mail)
     {
-	bug("can_put_obj: container AND mail NULL.", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_put_obj: container AND mail NULL.");
 	return false;
     }
 
     if (container && mail)
     {
-	bug("can_put_obj: received container and mail", 0);
+	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "can_put_obj: received container and mail");
 	return false;
     }
 
@@ -7061,7 +7054,7 @@ void token_from_char(TOKEN_DATA *token)
 	char buf[MSL];
 
 	if (token->player == NULL) {
-		bug("token_from_char: called on token with no player", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_char: called on token with no player");
 		return;
 	}
 
@@ -7083,10 +7076,9 @@ void token_from_char(TOKEN_DATA *token)
 	else if(token->type == TOKEN_SPELL) skill_entry_removespell(token->player, 0, token);
 	else if(token->type == TOKEN_SONG) skill_entry_removesong(token->player, -1, token);
 
-	sprintf(buf, "token_from_char: removed token %s(%ld) from char %s(%ld)",
+	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_from_char: removed token %s(%ld) from char %s(%ld)",
 		token->name, token->pIndexData->vnum,
 		HANDLE(token->player), IS_NPC(token->player) ? token->player->pIndexData->vnum : 0);
-	log_string(buf);
 
 	list_remlink(token->player->ltokens, token, false);
 
@@ -7104,7 +7096,7 @@ void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
 	char buf[MSL];
 
 	if (token == NULL || ch == NULL) {
-		bug("token_to_char: NULL", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_char: NULL");
 		return;
 	}
 
@@ -7121,10 +7113,9 @@ void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
 	else if(token->type == TOKEN_SPELL) skill_entry_addspell(token->player, 0, token, source, flags);
 	else if(token->type == TOKEN_SONG) skill_entry_addsong(token->player,-1,token, source);
 
-	sprintf(buf, "token_to_char: gave token %s(%ld) to char %s(%ld)",
+	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_to_char: gave token %s(%ld) to char %s(%ld)",
 		token->name, token->pIndexData->vnum,
 		HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-	log_string(buf);
 }
 
 void token_to_char(TOKEN_DATA *token, CHAR_DATA *ch)
@@ -7161,7 +7152,7 @@ void token_from_obj(TOKEN_DATA *token)
 	char buf[MSL];
 
 	if (token->object == NULL) {
-		bug("token_from_obj: called on token with no object", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_obj: called on token with no object");
 		return;
 	}
 
@@ -7173,9 +7164,8 @@ void token_from_obj(TOKEN_DATA *token)
 		token_prev = token_tmp;
 	}
 
-	sprintf(buf, "token_from_obj: removed token %s(%ld) from object %s(%ld)",
+	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_from_obj: removed token %s(%ld) from object %s(%ld)",
 		token->name, token->pIndexData->vnum, token->object->short_descr, VNUM(token->object));
-	log_string(buf);
 
 	list_remlink(token->object->ltokens, token, false);
 
@@ -7194,7 +7184,7 @@ void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj)
 	char buf[MSL];
 
 	if (token == NULL || obj == NULL) {
-		bug("token_to_obj: NULL", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_obj: NULL");
 		return;
 	}
 
@@ -7206,9 +7196,8 @@ void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj)
 
 	list_addlink(obj->ltokens, token);
 
-	sprintf(buf, "token_to_obj: gave token %s(%ld) to object %s(%ld)",
+	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_to_obj: gave token %s(%ld) to object %s(%ld)",
 		token->name, token->pIndexData->vnum, obj->short_descr, VNUM(obj));
-	log_string(buf);
 }
 
 
@@ -7224,7 +7213,7 @@ void token_from_room(TOKEN_DATA *token)
 	char buf[MSL];
 
 	if (token->room == NULL) {
-		bug("token_from_room: called on token with no room", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_room: called on token with no room");
 		return;
 	}
 
@@ -7246,9 +7235,8 @@ void token_from_room(TOKEN_DATA *token)
 		sprintf(buf, "token_from_room: removed token %s(%ld) from room %s(%ld)",
 			token->name, token->pIndexData->vnum, token->room->name, token->room->vnum);
 
-	sprintf(buf, "token_from_obj: removed token %s(%ld) from room %s(%ld)",
+	log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_from_room: removed token %s(%ld) from room %s(%ld)",
 		token->name, token->pIndexData->vnum, token->room->name, token->room->vnum);
-	log_string(buf);
 
 	list_remlink(token->room->ltokens, token, false);
 
@@ -7267,7 +7255,7 @@ void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room)
 	char buf[MSL];
 
 	if (token == NULL || room == NULL) {
-		bug("token_to_room: NULL", 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_room: NULL");
 		return;
 	}
 
@@ -7280,15 +7268,14 @@ void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room)
 	list_addlink(room->ltokens, token);
 
 	if( room->wilds )
-		sprintf(buf, "token_to_room: gave token %s(%ld) to vroom <%ld, %ld, %ld>",
+		log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_to_room: gave token %s(%ld) to vroom <%ld, %ld, %ld>",
 			token->name, token->pIndexData->vnum, room->wilds->uid, room->x, room->y);
 	else if( room->source )
-		sprintf(buf, "token_to_room: gave token %s(%ld) to croom %s(%ld %08lX:%08lX)",
+		log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_to_room: gave token %s(%ld) to croom %s(%ld %08lX:%08lX)",
 			token->name, token->pIndexData->vnum, room->name, room->source->vnum, room->id[0], room->id[1]);
 	else
-		sprintf(buf, "token_to_room: gave token %s(%ld) to room %s(%ld)",
+		log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_to_room: gave token %s(%ld) to room %s(%ld)",
 			token->name, token->pIndexData->vnum, room->name, room->vnum);
-	log_string(buf);
 }
 
 
@@ -7344,10 +7331,9 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 			 spell_tmp->next = spell;
 		     }
 
-		     sprintf(buf, "Obj %s (%ld): Added spell %s, level %d, random %d.\n\r",
+		     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Obj %s (%ld): Added spell %s, level %d, random %d.",
 			     obj->short_descr, obj->vnum,
 			     skill_table[obj->value[val]].name, spell->level, spell->repop);
-		     log_string(buf);
 		 }
 
 		 obj->value[val] = 0; // Reset val to 0 since it won't any longer be needed
@@ -7389,10 +7375,9 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 			 spell_tmp->next = spell;
 		     }
 
-		     sprintf(buf, "Obj %s (%ld): Added spell %s, level %d, random %d.\n\r",
+		     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Obj %s (%ld): Added spell %s, level %d, random %d.",
 			     obj->short_descr, obj->vnum,
 			     skill_table[obj->value[val]].name, spell->level, spell->repop);
-		     log_string(buf);
 		 }
 		 obj->value[val] = 0;
 	     }
@@ -8294,7 +8279,7 @@ bool room_to_environment(ROOM_INDEX_DATA *clone,CHAR_DATA *mob, OBJ_DATA *obj, R
 		clone->next_clone = mob->clone_rooms;
 		mob->clone_rooms = clone;
 		if( !list_appendlink(mob->lclonerooms, clone) ) {
-			bug("Failed to add clone room to environment due to memory issues with 'list_appendlink',", 0);
+			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Failed to add clone room to environment due to memory issues with 'list_appendlink',");
 			abort();
 		}
 		clone->environ.mob = mob;
@@ -8307,7 +8292,7 @@ bool room_to_environment(ROOM_INDEX_DATA *clone,CHAR_DATA *mob, OBJ_DATA *obj, R
 		clone->next_clone = obj->clone_rooms;
 		obj->clone_rooms = clone;
 		if( !list_appendlink(obj->lclonerooms, clone) ) {
-			bug("Failed to add clone room to environment due to memory issues with 'list_appendlink',", 0);
+			log_message(LOG_LEVEL_CRITICAL, LOG_CRITICAL, "Failed to add clone room to environment due to memory issues with 'list_appendlink'");
 			abort();
 		}
 
@@ -8323,7 +8308,7 @@ bool room_to_environment(ROOM_INDEX_DATA *clone,CHAR_DATA *mob, OBJ_DATA *obj, R
 		clone->next_clone = room->clone_rooms;
 		room->clone_rooms = clone;
 		if( !list_appendlink(room->lclonerooms, clone) ) {
-			bug("Failed to add clone room to environment due to memory issues with 'list_appendlink',", 0);
+			log_message(LOG_LEVEL_CRITICAL, LOG_CRITICAL, "Failed to add clone room to environment due to memory issues with 'list_appendlink'");
 			abort();
 		}
 		clone->environ.room = room;
@@ -8335,7 +8320,7 @@ bool room_to_environment(ROOM_INDEX_DATA *clone,CHAR_DATA *mob, OBJ_DATA *obj, R
 		clone->next_clone = token->clone_rooms;
 		token->clone_rooms = clone;
 		if( !list_appendlink(token->lclonerooms, clone) ) {
-			bug("Failed to add clone room to environment due to memory issues with 'list_appendlink',", 0);
+			log_message(LOG_LEVEL_CRITICAL, LOG_CRITICAL, "Failed to add clone room to environment due to memory issues with 'list_appendlink'");
 			abort();
 		}
 
@@ -10907,7 +10892,7 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
     
     // Log for debugging
     if (!account) {
-        log_string(formatf("Account lookup for '%s' failed - no account found", identifier));
+        log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Account lookup for '%s' failed - no account found", identifier);
     }
     else if (*loaded) {
         // Ensure loaded accounts get added to the global list
@@ -11001,7 +10986,7 @@ bool delete_character(CHAR_DATA *ch)
         return true;
     } else {
 		sprintf(buf, "delete_character: Failed to move %s to %s: %s", old_path, new_path, strerror(errno));
-		bug(buf, 0);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
         return false;
     }
 }
@@ -11033,7 +11018,7 @@ void generate_discord_who() {
     // Open the file for writing
     file = fopen(PLAYER_LIST, "w");
     if (!file) {
-        log_string("Error: Unable to open player list file for writing.");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Unable to open player list file for writing.");
         return;
     }
 
@@ -11157,18 +11142,18 @@ bool generate_crypt_salt(char *salt_buffer, size_t salt_buffer_size) {
 // Returns true on success, false on failure.
 bool set_encrypted_password(char **target_password_field, int *target_version_field, const char *plaintext_password) {
     if (!plaintext_password || !target_password_field || !target_version_field) {
-        bug("set_encrypted_password: NULL argument.", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "set_encrypted_password: NULL argument.");
         return false;
     }
     if (strlen(plaintext_password) == 0) { // Do not set empty passwords
-        bug("set_encrypted_password: Attempt to set empty password.",0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "set_encrypted_password: Attempt to set empty password.");
         return false;
     }
 
 
-    char salt[128]; 
+    char salt[128];
     if (!generate_crypt_salt(salt, sizeof(salt))) {
-        bug("set_encrypted_password: Failed to generate salt.", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "set_encrypted_password: Failed to generate salt.");
         // CRITICAL: If salt generation fails, you might fall back to a less secure method or abort.
         // For now, we abort. Ensure rand() is seeded and salt generation is robust.
         return false;
@@ -11176,9 +11161,7 @@ bool set_encrypted_password(char **target_password_field, int *target_version_fi
 
     char *hashed_password = crypt(plaintext_password, salt);
     if (!hashed_password) {
-        char err_buf[MAX_STRING_LENGTH];
-        sprintf(err_buf, "set_encrypted_password: crypt() failed. Salt: %s. Error: %s. Check crypt support for %s.", salt, strerror(errno), CRYPT_SALT_METHOD_PREFIX);
-        bug(err_buf, 0);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "set_encrypted_password: crypt() failed. Salt: %s. Error: %s. Check crypt support for %s.", salt, strerror(errno), CRYPT_SALT_METHOD_PREFIX);
         // This indicates a system-level issue or unsupported crypt method.
         return false;
     }
@@ -11348,7 +11331,7 @@ void crypto_init(void)
     if (key_file) {
         // Read existing key
         if (fread(crypto_key, 1, AES_KEY_SIZE, key_file) != AES_KEY_SIZE) {
-            log_string("WARNING: Failed to read crypto key file, generating new one");
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Failed to read crypto key file, generating new one");
             RAND_bytes(crypto_key, AES_KEY_SIZE);
         }
         fclose(key_file);
@@ -11359,11 +11342,11 @@ void crypto_init(void)
         if (key_file) {
             fwrite(crypto_key, 1, AES_KEY_SIZE, key_file);
             fclose(key_file);
-            
+
             // Make the key file readable only by the server user
             chmod(MFA_ENC_KEY, 0600);
         } else {
-            log_string("ERROR: Failed to create crypto key file");
+            log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to create crypto key file");
         }
     }
     

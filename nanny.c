@@ -92,8 +92,8 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
         else
             write_to_buffer(d, "The game is wizlocked.\n\r", 0);
             
+        log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Wizlocked: %s tried to connect from %s.", argument, d->host);
         sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        log_string(buf);
         wiznet(buf, NULL, NULL, WIZ_LOGINS, 0, 0);
         close_socket(d);
         return;
@@ -104,8 +104,7 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
         if (DEV_SKIP_PASSWORD) {
             // Log and proceed as if password was accepted
             ProtocolNoEcho(d, false);
-            sprintf(log_buf, "Account %s@%s has connected (dev server, password skipped).", d->account->username, d->host);
-            log_string(log_buf);
+            log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Account %s@%s has connected (dev server, password skipped).", d->account->username, d->host);
 
             if (DEV_SKIP_MFA) {
                 d->connected = CON_ACCOUNT_MENU;
@@ -275,9 +274,8 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 
     if (!password_ok) {
         // Log bad password attempts
-        sprintf(log_buf, "Denying access to account %s@%s (bad password).",
+        log_message_f(LOG_LEVEL_WARN, LOG_SECURITY, "Denying access to account %s@%s (bad password).",
             acct->username, d->host);
-        log_string(log_buf);
         
         if (game_settings.enable_email)
             write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to reset.\n\r", 0);
@@ -312,8 +310,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     ProtocolNoEcho(d, false);
 
     // Log the successful connection
-    sprintf(log_buf, "Account %s@%s has connected.", acct->username, d->host);
-    log_string(log_buf);
+    log_message_f(LOG_LEVEL_INFO, LOG_INFO, "Account %s@%s has connected.", acct->username, d->host);
 
     // Check if they need to provide email
     if (IS_NULLSTR(acct->email) && game_settings.enable_email) { // Added game_settings.enable_email check
@@ -1243,8 +1240,8 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->reconnect_ch = NULL;
                 d->reconnecting = false;
                 
-                log_string("Direct login: Loading default character");
-                
+                log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Direct login: Loading default character");
+
                 // Load the character - this should create a new character
                 if (!load_char_obj(d, ch_entry->name)) {
                     write_to_buffer(d, "Error loading character.\n\r", 0);
@@ -1254,7 +1251,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 
                 // Verify the character was loaded correctly
                 if (!d->character) {
-                    log_string("Direct login: Character loaded but d->character is NULL");
+                    log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Direct login: Character loaded but d->character is NULL");
                     write_to_buffer(d, "Error loading character data.\n\r", 0);
                     display_account_menu(d);
                     return;
@@ -1334,8 +1331,8 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->reconnect_ch = NULL;
                 d->reconnecting = false;
                 
-                log_string("Direct login: Loading most recent character");
-                
+                log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Direct login: Loading most recent character");
+
                 // Load the character
                 if (!load_char_obj(d, recent_char->name)) {
                     write_to_buffer(d, "Error loading character.\n\r", 0);
@@ -1344,12 +1341,12 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 }
                 
                 if (!d->character) {
-                    log_string("Direct login: Character loaded but d->character is NULL");
+                    log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Direct login: Character loaded but d->character is NULL");
                     write_to_buffer(d, "Error loading character data.\n\r", 0);
                     display_account_menu(d);
                     return;
                 }
-                
+
                 // Get account character data - reuse the variables declared at the top
                 has_auth_data = get_character_auth_data(d->character, acct, &acct_char);
                 
@@ -1723,8 +1720,7 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 
         if (IS_SET(ch->act[0], PLR_DENY))
         {
-            sprintf(log_buf, "Denying access to %s@%s.", argument, d->host);
-            log_string(log_buf);
+            log_message_f(LOG_LEVEL_WARN, LOG_SECURITY, "Denying access to %s@%s.", argument, d->host);
             write_to_buffer(d, "You are denied access.\n\r", 0);
             close_socket(d);
             return;
@@ -1749,8 +1745,7 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
                 else
                     write_to_buffer(d, "The game is wizlocked.\n\r", 0);
 
-                sprintf(buf, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
-                log_string(buf);
+                log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
                 sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
                 wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
                 close_socket(d);
@@ -2025,7 +2020,7 @@ void login_break_connect(DESCRIPTOR_DATA *d, char *argument)
     // Safety check - we should always have an account at this point
     // If not, log it as a bug and fall back to legacy behavior
     if (!d->account) {
-        bug("login_break_connect: Called without an account context", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "login_break_connect: Called without an account context");
     }
     
     switch(*argument)
@@ -2429,7 +2424,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     
     // First, make sure we have a valid character
     if (!ch) {
-        bug("login_read_motd: null character", 0);
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "login_read_motd: null character");
         close_socket(d);
         return;
     }
@@ -2455,7 +2450,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         int existing_inv = existing->lcarrying ? list_size(existing->lcarrying) : 0;
         int temp_inv = ch->lcarrying ? list_size(ch->lcarrying) : 0;
         if (existing_inv > 100 || temp_inv > 100) {
-            log_stringf("RECONNECT: existing=%s has %d items, temp has %d items",
+            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "RECONNECT: existing=%s has %d items, temp has %d items",
                        existing->name ? existing->name : "(unknown)", existing_inv, temp_inv);
         }
 
@@ -2482,7 +2477,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         // LOG: Check inventory count after freeing temp character
         int existing_inv_after = existing->lcarrying ? list_size(existing->lcarrying) : 0;
         if (existing_inv_after > 100) {
-            log_stringf("RECONNECT: After free_char, existing=%s now has %d items (was %d)",
+            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "RECONNECT: After free_char, existing=%s now has %d items (was %d)",
                        existing->name ? existing->name : "(unknown)", existing_inv_after, existing_inv);
         }
 
@@ -2502,8 +2497,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         }
         
         // Log the reconnection
-        sprintf(buf, "%s@%s reconnected.", existing->name, d->host);
-        log_string(buf);
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", existing->name, d->host);
         wiznet("$N has relinked.", existing, NULL, WIZ_LINKS, 0, 0);
         
         // Update connection tracking
@@ -2981,7 +2975,7 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     // Verify we have what we need
     if (!has_auth_data || !acct_char) {
         write_to_buffer(d, "\n\r{RERROR: Unable to find character data in your account.{x\n\r", 0);
-        log_string("display_character_menu: Missing account character data");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "display_character_menu: Missing account character data");
         free_char(ch);
         d->character = NULL;
         display_account_menu(d);
@@ -3767,7 +3761,7 @@ void login_verify_unlink_password(DESCRIPTOR_DATA *d, char *argument)
     // Get auth data from account_character - this should always succeed for linked characters
     if (!get_character_auth_data(ch, acct, &acct_char)) {
         // If we're trying to unlink, but can't find the account_character data, something's wrong
-        log_string("login_verify_unlink_password: Called on character with no account data");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "login_verify_unlink_password: Called on character with no account data");
         ProtocolNoEcho(d, false);
         write_to_buffer(d, "Error verifying character. Please contact staff.\n\r", 0);
         display_character_menu(d);
@@ -3924,7 +3918,7 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     // Get auth data from account_character
     if (!get_character_auth_data(ch, acct, &acct_char)) {
         // This should not happen with properly linked characters
-        log_string("ERROR: login_get_char_password called with no account character data");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "login_get_char_password called with no account character data");
         ProtocolNoEcho(d, false);
         write_to_buffer(d, "Error with character authentication. Please contact staff.\n\r", 0);
         display_character_menu(d);
@@ -4019,23 +4013,23 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
 
     // Validation check
     if (!ch) {
-        log_string("ERROR: proceed_to_game called with NULL character");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "proceed_to_game called with NULL character");
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
 
-    log_stringf("proceed_to_game: %s preparing to enter game", ch->name);
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: %s preparing to enter game", ch->name);
 
     // Load remaining character data if not fully loaded (inventory, equipment, skills, affects)
     if (ch->pcdata && !ch->pcdata->fully_loaded) {
         char strsave[MAX_INPUT_LENGTH];
         sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
 
-        log_stringf("proceed_to_game: Loading remaining data for %s", ch->name);
+        log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: Loading remaining data for %s", ch->name);
 
         if (!json_read_char_remaining(ch, strsave)) {
-            log_stringf("ERROR: Failed to load remaining data for %s", ch->name);
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load remaining data for %s", ch->name);
             write_to_buffer(d, "\n\r{RError loading character data. Please try again or contact staff.{x\n\r", 0);
             free_char(ch);
             d->character = NULL;
@@ -4044,11 +4038,11 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
             return;
         }
 
-        log_stringf("proceed_to_game: Successfully loaded remaining data for %s", ch->name);
+        log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: Successfully loaded remaining data for %s", ch->name);
     }
 
     if (!list_haslink(loaded_chars, ch)) {
-        log_string("proceed_to_game: Adding to loaded_chars");
+        log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: Adding to loaded_chars");
         list_appendlink(loaded_chars, ch);
     }
     /*
@@ -4240,8 +4234,7 @@ void login_get_account_mfa(DESCRIPTOR_DATA *d, char *argument)
     
     // Log the successful connection
     ProtocolNoEcho(d, false);
-    sprintf(log_buf, "Account %s@%s has connected.", acct->username, d->host);
-    log_string(log_buf);
+    log_message_f(LOG_LEVEL_INFO, LOG_INFO, "Account %s@%s has connected.", acct->username, d->host);
 
     // Check if they need to provide email
     if (IS_NULLSTR(acct->email)) {
@@ -4447,7 +4440,7 @@ void login_verify_delete_password(DESCRIPTOR_DATA *d, char *argument)
     if (status == PWD_CHECK_SUCCESS_SHA256_CUSTOM || status == PWD_CHECK_SUCCESS_PLAINTEXT) {
         if (!set_encrypted_password(&acct_char->pwd, &acct_char->pwd_vers, argument)) {
             // Continue with deletion, but log the failure to upgrade
-            log_string("Failed to upgrade password format during delete verification");
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Failed to upgrade password format during delete verification");
         } else {
             save_account(acct); // Save the upgraded password
         }
@@ -4719,7 +4712,7 @@ void login_confirm_staff_password(DESCRIPTOR_DATA *d, char *argument)
     // Get the account_character that was created
     if (!get_character_auth_data(ch, acct, &acct_char)) {
         // This should not happen if account_add_character was called properly
-        log_string("ERROR: login_confirm_staff_password called with no account character data");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "login_confirm_staff_password called with no account character data");
         free_string(d->new_password_buffer);
         d->new_password_buffer = NULL;
         write_to_buffer(d, "Error creating staff character. Please try again.\n\r", 0);
@@ -5256,8 +5249,7 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
 		else if (ch->pcdata->class_warrior != -1)
 			ch->pcdata->sub_class_warrior = iClass;
 
-		sprintf(log_buf, "%s@%s new player.", ch->name, d->host);
-		log_string(log_buf);
+		log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s new player.", ch->name, d->host);
 
 		SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
 
@@ -5320,7 +5312,7 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
 		case CLASS_THIEF:	weapon = gsn_dagger;		break;
 		case CLASS_WARRIOR:	weapon = gsn_sword;		break;
 		default:
-			bug("nanny: bad current class in weapon pick", 0);
+			log_message(LOG_LEVEL_BUG, LOG_ERROR, "nanny: bad current class in weapon pick");
 			weapon = gsn_sword;
 			break;
 		}
@@ -5587,8 +5579,7 @@ bool is_reconnecting(CHAR_DATA *ch)
     
     // Debug output for tracing
     char debug_buf[MAX_STRING_LENGTH];
-    sprintf(debug_buf, "[DEBUG] is_reconnecting checking: %s", ch->name);
-    log_string(debug_buf);
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "[DEBUG] is_reconnecting checking: %s", ch->name);
     
     // Direct scan of loaded_chars for more reliable results
     CHAR_DATA *real_existing = NULL;
@@ -5606,12 +5597,11 @@ bool is_reconnecting(CHAR_DATA *ch)
             !str_cmp(ch->name, real_existing->name) &&
             real_existing->in_room != NULL) {
             
-            sprintf(debug_buf, "[DEBUG] Found reconnect match: %s (%p), desc: %s", 
-                    real_existing->name, 
+            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "[DEBUG] Found reconnect match: %s (%p), desc: %s",
+                    real_existing->name,
                     (void*)real_existing,
                     real_existing->desc ? "connected" : "linkdead");
-            log_string(debug_buf);
-            
+
             iterator_stop(&it);
             return true;
         }
@@ -5619,7 +5609,7 @@ bool is_reconnecting(CHAR_DATA *ch)
     iterator_stop(&it);
     
     // If we're here, we didn't find a matching character
-    log_string("[DEBUG] No reconnect match found");
+    log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "[DEBUG] No reconnect match found");
     return false;
 }
 
@@ -6083,30 +6073,28 @@ void process_direct_login(DESCRIPTOR_DATA *d)
     char debug_buf[MAX_STRING_LENGTH];
     
     // Add debug logging
-    sprintf(debug_buf, "process_direct_login: Character %s", 
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Character %s",
             ch ? ch->name : "NULL");
-    log_string(debug_buf);
-    
+
     // Verify character exists
     if (!ch) {
         write_to_buffer(d, "\n\r{RERROR: Character not loaded properly.{x\n\r", 0);
-        log_string("process_direct_login: Character is NULL");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "process_direct_login: Character is NULL");
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
-    
+
     // Get authentication data - critical step
     has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-    
-    sprintf(debug_buf, "process_direct_login: auth_data=%d, acct_char=%s", 
+
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: auth_data=%d, acct_char=%s",
             has_auth_data, acct_char ? "found" : "NULL");
-    log_string(debug_buf);
-    
+
     // Verify we have what we need
     if (!has_auth_data || !acct_char) {
         write_to_buffer(d, "\n\r{RERROR: Unable to find character data in your account.{x\n\r", 0);
-        log_string("process_direct_login: Missing account character data");
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "process_direct_login: Missing account character data");
         free_char(ch);
         d->character = NULL;
         display_account_menu(d);
@@ -6127,14 +6115,13 @@ void process_direct_login(DESCRIPTOR_DATA *d)
     
     // Check for reconnection first - this must happen before authentication
     bool is_reconnecting_attempt = check_reconnect(d, ch->name, false);
-    
-    sprintf(debug_buf, "process_direct_login: reconnect check=%d, connected=%d", 
+
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: reconnect check=%d, connected=%d",
             is_reconnecting_attempt, d->connected);
-    log_string(debug_buf);
-    
+
     // If check_reconnect changed our connection state, return and let that handle it
     if (is_reconnecting_attempt && d->connected != CON_ACCOUNT_MENU) {
-        log_string("process_direct_login: Letting reconnect handler take over");
+        log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Letting reconnect handler take over");
         return;
     }
     
@@ -6155,7 +6142,7 @@ void process_direct_login(DESCRIPTOR_DATA *d)
         }
         
         if (has_char_pwd) {
-            log_string("process_direct_login: Character requires password");
+            log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Character requires password");
             write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_GET_CHAR_PASSWORD;
@@ -6176,33 +6163,33 @@ void process_direct_login(DESCRIPTOR_DATA *d)
         }
 
         if (has_char_mfa) {
-            log_string("process_direct_login: Character requires MFA");
+            log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Character requires MFA");
             write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_GET_CHAR_MFA;
             return;
         }
-        
-        if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff && 
+
+        if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff &&
             !IS_NULLSTR(acct->mfa_key) && !has_char_mfa) {
-            log_string("process_direct_login: Staff character requires account MFA");
+            log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Staff character requires account MFA");
             write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
             return;
         }
     }
-    
+
     // Now handle reconnection if needed - only if no authentication was required
     if (is_reconnecting_attempt) {
-        log_string("process_direct_login: Processing reconnection now");
+        log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Processing reconnection now");
         // Need to call with true to actually complete the reconnect
         check_reconnect(d, ch->name, true);
         return;
     }
-    
+
     // No authentication needed, proceed directly to game
-    log_string("process_direct_login: Proceeding to game");
+    log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Proceeding to game");
     proceed_to_game(d);
 }
 
@@ -6215,7 +6202,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 	switch (d->connected) {
 	default:
-		bug("Nanny: bad d->connected %d.", d->connected);
+		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Nanny: bad d->connected %d.", d->connected);
 		connection_remove(d);
 		close_socket(d);
 		return;
