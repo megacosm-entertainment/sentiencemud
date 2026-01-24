@@ -9,6 +9,7 @@
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
+#include <time.h>
 #include "zlog.h"
 
 #ifdef MUD_DEBUG
@@ -286,6 +287,30 @@ static void crash_bt_error(void *data, const char *msg, int errnum) {
     (void)write(fd, msg, strlen(msg));
     (void)write(fd, "]\n", 2);
 }
+
+// Check if process is being traced (running under debugger)
+// Async-signal-safe: uses only open/read/close
+static bool is_being_traced(void) {
+    int fd = open("/proc/self/status", O_RDONLY);
+    if (fd < 0) return false;
+
+    char buf[1024];
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+
+    if (n <= 0) return false;
+    buf[n] = '\0';
+
+    // Look for "TracerPid:\t<pid>" - non-zero means being traced
+    const char *tracer = strstr(buf, "TracerPid:");
+    if (!tracer) return false;
+
+    tracer += 10;  // Skip "TracerPid:"
+    while (*tracer == ' ' || *tracer == '\t') tracer++;
+
+    // If TracerPid is non-zero, we're being traced
+    return (*tracer != '0' || (tracer[1] >= '0' && tracer[1] <= '9'));
+}
 #endif
 
 static void crash_signal_handler(int sig, siginfo_t *info, void *context) {
@@ -316,15 +341,43 @@ static void crash_signal_handler(int sig, siginfo_t *info, void *context) {
     }
 
     // Write crash dump file (fallback when core dumps don't work)
-    if (crash_core_dir[0] != '\0' && state) {
+    if (state) {
         char dump_path[600];
+        char core_path[600];
+        char timestamp[32];
+        const char *dump_dir = ".";  // Default to current directory
         pid_t pid = getpid();
+        int dump_fd = -1;
+
+        // Generate human-readable timestamp: YYYY-MM-DD_HH-MM-SS
+        time_t now = time(NULL);
+        struct tm *tm_info = localtime(&now);
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H-%M-%S", tm_info);
+
+        // Try configured directory first, fall back to current directory
+        if (crash_core_dir[0] != '\0') {
+            snprintf(dump_path, sizeof(dump_path), "%s/crash_%s.txt", crash_core_dir, timestamp);
+            dump_fd = open(dump_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (dump_fd >= 0) {
+                dump_dir = crash_core_dir;
+            } else {
+                const char *fallback_msg = "Warning: Cannot write to configured dump dir, using current directory\n";
+                (void)write(STDERR_FILENO, fallback_msg, strlen(fallback_msg));
+            }
+        }
+
+        // Fall back to current directory if configured dir failed or wasn't set
+        if (dump_fd < 0) {
+            snprintf(dump_path, sizeof(dump_path), "./crash_%s.txt", timestamp);
+            dump_fd = open(dump_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            dump_dir = ".";
+        }
 
         // Write text stack trace
-        snprintf(dump_path, sizeof(dump_path), "%s/crash.%d.txt", crash_core_dir, (int)pid);
-        int dump_fd = open(dump_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (dump_fd >= 0) {
-            const char *dump_header = "=== CRASH DUMP ===\nSignal: ";
+            char dump_header[256];
+            snprintf(dump_header, sizeof(dump_header),
+                "=== CRASH DUMP ===\nTime: %s\nPID: %d\nSignal: ", timestamp, (int)pid);
             (void)write(dump_fd, dump_header, strlen(dump_header));
             (void)write(dump_fd, signame, strlen(signame));
             (void)write(dump_fd, "\n\nStack trace:\n", 15);
@@ -338,27 +391,35 @@ static void crash_signal_handler(int sig, siginfo_t *info, void *context) {
         }
 
         // Try to generate a GDB-loadable core file using gcore
-        // This works even when kernel core_pattern is broken
-        char core_path[600];
-        snprintf(core_path, sizeof(core_path), "%s/core.%d", crash_core_dir, (int)pid);
-        char gcore_cmd[700];
-        snprintf(gcore_cmd, sizeof(gcore_cmd), "gcore -o %s/core %d 2>/dev/null", crash_core_dir, (int)pid);
+        // Skip if running under debugger (gcore can't attach while being traced)
+        if (is_being_traced()) {
+            const char *debug_msg = "Skipping gcore (running under debugger)\n";
+            (void)write(STDERR_FILENO, debug_msg, strlen(debug_msg));
+        } else {
+            // gcore -o specifies output prefix, it appends .PID automatically
+            snprintf(core_path, sizeof(core_path), "%s/core_%s.%d", dump_dir, timestamp, (int)pid);
+            char gcore_cmd[700];
+            snprintf(gcore_cmd, sizeof(gcore_cmd), "gcore -o %s/core_%s %d 2>&1", dump_dir, timestamp, (int)pid);
 
-        // fork+exec is safer in signal handler than system()
-        pid_t child = fork();
-        if (child == 0) {
-            // Child process - run gcore
-            execl("/bin/sh", "sh", "-c", gcore_cmd, (char *)NULL);
-            _exit(1);
-        } else if (child > 0) {
-            // Parent - wait for gcore to complete (with timeout via alarm would be better)
-            int status;
-            waitpid(child, &status, 0);
-            if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-                const char *core_msg = "GDB core file written to: ";
-                (void)write(STDERR_FILENO, core_msg, strlen(core_msg));
-                (void)write(STDERR_FILENO, core_path, strlen(core_path));
-                (void)write(STDERR_FILENO, "\n", 1);
+            // fork+exec is safer in signal handler than system()
+            pid_t child = fork();
+            if (child == 0) {
+                // Child process - run gcore
+                execl("/bin/sh", "sh", "-c", gcore_cmd, (char *)NULL);
+                _exit(1);
+            } else if (child > 0) {
+                // Parent - wait for gcore to complete
+                int status;
+                waitpid(child, &status, 0);
+                if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                    const char *core_msg = "GDB core file written to: ";
+                    (void)write(STDERR_FILENO, core_msg, strlen(core_msg));
+                    (void)write(STDERR_FILENO, core_path, strlen(core_path));
+                    (void)write(STDERR_FILENO, "\n", 1);
+                } else {
+                    const char *core_err = "Warning: gcore failed (may not be installed or lacks permissions)\n";
+                    (void)write(STDERR_FILENO, core_err, strlen(core_err));
+                }
             }
         }
     }

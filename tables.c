@@ -3339,6 +3339,7 @@ const struct do_func_type do_func_table[] =
         { "do_string",                  do_string },
         { "do_switch",                  do_switch },
         { "do_testport",                do_testport },
+        { "do_test",                    do_test },
         { "do_tlist",                   do_tlist },
         { "do_token",                   do_token },
         { "do_tshow",                   do_tshow },
@@ -3753,6 +3754,9 @@ const struct game_setting_type game_settings_table[] = {
     { "redis_timeout_sec",    &game_settings.redis_timeout_sec,    SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (seconds)",                         true,  false, false },
     { "redis_timeout_usec",   &game_settings.redis_timeout_usec,   SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (microseconds)",                    true,  false, false },
 
+    /* Debug/Logging Settings */
+    { "crash_dump_dir",       &game_settings.crash_dump_dir,       SETTING_TYPE_STRING, SETTING_CAT_DEBUG,    "Directory for crash dumps and core files",                   true,  false, false },
+
     { NULL, NULL, 0, 0, NULL, false, false }  /* Terminator */
 };
 
@@ -3766,7 +3770,8 @@ const char *setting_category_names[] = {
     "Global",
     "Security",
     "MSSP",
-    "Redis"
+    "Redis",
+    "Debug"
 };
 
 /* Setting type names for display purposes */

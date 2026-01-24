@@ -1660,9 +1660,7 @@ void save_changesets(void)
     log_string("Game setting changeset history saved (for rollback/audit).");
 }
 
-/*
- * Load changesets from a file
- */
+
 /*
  * Load changesets from a file
  */

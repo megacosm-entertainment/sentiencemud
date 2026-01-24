@@ -9130,6 +9130,18 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 /* dummy command for whatever, used in debugging only */
 void do_test(CHAR_DATA *ch, char *argument)
 {
+    if (!str_cmp(argument, "crash")) {
+        send_to_char("Testing crash handler - triggering segfault...\n\r", ch);
+        volatile int *p = NULL;
+        *p = 42;  // This will cause SIGSEGV
+    } else if (!str_cmp(argument, "abort")) {
+        send_to_char("Testing crash handler - triggering abort...\n\r", ch);
+        abort();  // This will cause SIGABRT
+    } else {
+        send_to_char("Test commands:\n\r", ch);
+        send_to_char("  test crash  - Trigger a segfault (SIGSEGV)\n\r", ch);
+        send_to_char("  test abort  - Trigger an abort (SIGABRT)\n\r", ch);
+    }
 }
 
 

@@ -472,6 +472,10 @@ int main(int argc, char **argv)
 	if (game_settings_read()==1) exit(1);
 	plogf(LOG_INIT, "Global game settings loaded.");
 
+	// Install crash handler for stack traces and core dumps
+	log_install_crash_handler(game_settings.crash_dump_dir[0] ?
+		game_settings.crash_dump_dir : NULL);
+
     /*
      * Get the port number.
      */

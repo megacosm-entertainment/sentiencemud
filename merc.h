@@ -305,11 +305,12 @@ struct script_type {
 #define SETTING_CAT_SECURITY 6
 #define SETTING_CAT_MSSP 7
 #define SETTING_CAT_REDIS 8
+#define SETTING_CAT_DEBUG 9
 
 #define MIN_SECURITY_GAMEEDIT 9
 
 #define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
-#define SETTING_CAT_MAX 9 /* Number of setting categories */
+#define SETTING_CAT_MAX 10 /* Number of setting categories */
 
 #define AES_KEY_SIZE 32  // 256 bits
 #define AES_IV_SIZE 16   // 128 bits
@@ -1367,6 +1368,9 @@ struct game_settings_data
     bool mssp_roleplaying;       // Roleplaying enforced?
     bool mssp_training_system;   // Training system?
     bool mssp_world_originality; // Based on an established setting?
+
+    /* Debug/Logging Settings */
+    char *crash_dump_dir;        // Directory for crash dumps and core files (NULL = current directory)
 };
 
 /* Changeset structures */

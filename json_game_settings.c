@@ -163,7 +163,8 @@ json_t *game_settings_to_json(void)
         "global",
         "security",
         "mssp",
-        "redis"
+        "redis",
+        "debug"
     };
     int i;
 
@@ -238,7 +239,8 @@ bool json_to_game_settings(json_t *root)
         "global",
         "security",
         "mssp",
-        "redis"
+        "redis",
+        "debug"
     };
     int i;
 
@@ -499,6 +501,9 @@ static void init_game_settings_defaults(void)
     game_settings.redis_password = "";
     game_settings.redis_timeout_sec = 1;
     game_settings.redis_timeout_usec = 500000;
+
+    /* Debug/Logging Settings */
+    game_settings.crash_dump_dir = "";
 }
 
 int json_game_settings_read(void)

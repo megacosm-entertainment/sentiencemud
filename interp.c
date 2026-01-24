@@ -447,6 +447,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "string",		do_string,	POS_DEAD,	L5,  LOG_ALWAYS, 1, true },
     { "switch",		do_switch,	POS_DEAD,	L4,  LOG_ALWAYS, 1, true },
     { "testport",	do_testport,POS_DEAD,	ML,  LOG_ALWAYS, 1, true },	// 20140521 Nibs
+    { "test",		do_test,	POS_DEAD,	ML,  LOG_ALWAYS, 1, true },	// Debug crash testing
 
     { "tlist",		do_tlist,	POS_DEAD,	L5,  LOG_NORMAL, 1, true },
     { "token",		do_token,	POS_DEAD,	L5,  LOG_NORMAL, 1, true },
