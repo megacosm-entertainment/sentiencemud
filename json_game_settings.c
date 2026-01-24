@@ -10,12 +10,13 @@
 #include "merc.h"
 #include "tables.h"
 #include "json_game_settings.h"
+#include "secret.h"
 
 #define GAME_SETTINGS_JSON_FILE DATA_DIR "system/game_settings.json"
 #define GAME_SETTINGS_DAT_BACKUP DATA_DIR "system/game_settings.dat.backup"
 
 // Environment variable prefix
-#define ENV_PREFIX "SENTIENCE_"
+
 
 /***************************************************************************
  * Utility Functions                                                       *
@@ -50,8 +51,8 @@ static void setting_to_env_name(const char *setting_name, char *env_name, size_t
     size_t i, j;
 
     // Add prefix
-    snprintf(env_name, buf_size, "%s", ENV_PREFIX);
-    j = strlen(ENV_PREFIX);
+    snprintf(env_name, buf_size, "%s", game_settings.env_var_prefix);
+    j = strlen(game_settings.env_var_prefix);
 
     // Convert to uppercase
     for (i = 0; setting_name[i] && j < buf_size - 1; i++, j++) {
@@ -60,92 +61,208 @@ static void setting_to_env_name(const char *setting_name, char *env_name, size_t
     env_name[j] = '\0';
 }
 
+// Convert environment variable name to setting name
+// Example: "SENTIENCE_EMAIL_HOST" -> "email_host"
+// Returns false if the key doesn't start with the expected prefix
+static bool env_name_to_setting(const char *env_name, char *setting_name, size_t buf_size)
+{
+    size_t prefix_len = strlen(game_settings.env_var_prefix);
+    size_t i;
+
+    // Check if key starts with our prefix (case-insensitive)
+    if (strncasecmp(env_name, game_settings.env_var_prefix, prefix_len) != 0) {
+        return false;
+    }
+
+    // Convert to lowercase setting name
+    for (i = 0; env_name[prefix_len + i] && i < buf_size - 1; i++) {
+        setting_name[i] = tolower(env_name[prefix_len + i]);
+    }
+    setting_name[i] = '\0';
+
+    return true;
+}
+
+// Find a setting by name in game_settings_table
+static const struct game_setting_type *find_setting_by_name(const char *name)
+{
+    for (int i = 0; game_settings_table[i].name != NULL; i++) {
+        if (strcasecmp(game_settings_table[i].name, name) == 0) {
+            return &game_settings_table[i];
+        }
+    }
+    return NULL;
+}
+
+// Apply an override value to a setting
+// Returns true if applied, false if skipped
+static bool apply_override(const char *env_name, const char *value, const char *source)
+{
+    char setting_name[256];
+    const struct game_setting_type *setting;
+
+    // Convert env name to setting name
+    if (!env_name_to_setting(env_name, setting_name, sizeof(setting_name))) {
+        return false;  // Doesn't match our prefix
+    }
+
+    // Find the setting
+    setting = find_setting_by_name(setting_name);
+    if (!setting) {
+        return false;  // Not a recognized setting
+    }
+
+    // Skip core settings - they are not overridable
+    if (setting->category == SETTING_CAT_CORE) {
+        return false;
+    }
+
+    // Apply the override based on type
+    switch (setting->type) {
+        case SETTING_TYPE_BOOL: {
+            bool *ptr = (bool *)setting->ptr;
+            if (strcasecmp(value, "true") == 0 ||
+                strcasecmp(value, "yes") == 0 ||
+                strcmp(value, "1") == 0) {
+                *ptr = true;
+                log_stringf("  Override (%s): %s = true", source, setting->name);
+            } else if (strcasecmp(value, "false") == 0 ||
+                       strcasecmp(value, "no") == 0 ||
+                       strcmp(value, "0") == 0) {
+                *ptr = false;
+                log_stringf("  Override (%s): %s = false", source, setting->name);
+            }
+            break;
+        }
+
+        case SETTING_TYPE_INT: {
+            int *ptr = (int *)setting->ptr;
+            *ptr = atoi(value);
+            log_stringf("  Override (%s): %s = %d", source, setting->name, *ptr);
+            break;
+        }
+
+        case SETTING_TYPE_STRING:
+        case SETTING_TYPE_EXTSTR: {
+            char **ptr = (char **)setting->ptr;
+
+            // Don't log sensitive settings
+            if (setting->sensitive) {
+                log_stringf("  Override (%s): %s = <redacted>", source, setting->name);
+            } else {
+                log_stringf("  Override (%s): %s = %s", source, setting->name, value);
+            }
+
+            // Free old value if it exists
+            if (*ptr && *ptr != str_empty) {
+                free_string(*ptr);
+            }
+            *ptr = str_dup(value);
+            break;
+        }
+
+        case SETTING_TYPE_FLOAT: {
+            float *ptr = (float *)setting->ptr;
+            *ptr = atof(value);
+            log_stringf("  Override (%s): %s = %.2f", source, setting->name, *ptr);
+            break;
+        }
+    }
+
+    return true;
+}
+
+// Callback for secret_iterate - applies overrides from secrets mount
+static bool secret_override_callback(const char *key, const char *value, void *user_data)
+{
+    int *count = (int *)user_data;
+    if (apply_override(key, value, "mount")) {
+        (*count)++;
+        return true;
+    }
+    return false;
+}
+
 const char *json_get_env_for_setting(const char *setting_name)
 {
     char env_name[256];
     setting_to_env_name(setting_name, env_name, sizeof(env_name));
-    return getenv(env_name);
+    return secret_get(env_name);
 }
 
 bool json_setting_is_env_override(const char *setting_name)
 {
-    const char *env_value = json_get_env_for_setting(setting_name);
-    return (env_value != NULL && env_value[0] != '\0');
+    char env_name[256];
+    setting_to_env_name(setting_name, env_name, sizeof(env_name));
+    const char *secret_value = secret_get(env_name);
+    return (secret_value != NULL && secret_value[0] != '\0');
 }
 
 void json_apply_env_overrides(void)
 {
-    const struct game_setting_type *setting;
-    const char *env_value;
-    char env_name[256];
-    int i;
+    extern char **environ;
+    int mount_count = 0;
+    int env_count = 0;
 
-    log_string("Checking for environment variable overrides...");
+    log_string("Applying secret overrides...");
 
-    for (i = 0; game_settings_table[i].name != NULL; i++) {
-        setting = &game_settings_table[i];
-        env_value = json_get_env_for_setting(setting->name);
+    // First, apply overrides from secrets mount (if available)
+    // This iterates only through secrets that actually exist
+    int result = secret_iterate(secret_override_callback, &mount_count);
+    if (result >= 0) {
+        log_stringf("  Applied %d override(s) from secrets mount", mount_count);
+    }
 
-        if (!env_value) {
-            continue;  // No override for this setting
-        }
+    // Then, scan environment variables for any with our prefix
+    // This catches env vars not in the mount (or when no mount is configured)
+    if (environ) {
+        size_t prefix_len = strlen(game_settings.env_var_prefix);
 
-        setting_to_env_name(setting->name, env_name, sizeof(env_name));
-
-        // Apply the override based on type
-        switch (setting->type) {
-            case SETTING_TYPE_BOOL: {
-                bool *ptr = (bool *)setting->ptr;
-                if (strcasecmp(env_value, "true") == 0 ||
-                    strcasecmp(env_value, "yes") == 0 ||
-                    strcmp(env_value, "1") == 0) {
-                    *ptr = true;
-                    log_stringf("  Override: %s = true", env_name);
-                } else if (strcasecmp(env_value, "false") == 0 ||
-                           strcasecmp(env_value, "no") == 0 ||
-                           strcmp(env_value, "0") == 0) {
-                    *ptr = false;
-                    log_stringf("  Override: %s = false", env_name);
-                }
-                break;
+        for (char **env = environ; *env != NULL; env++) {
+            // Check if this env var starts with our prefix
+            if (strncasecmp(*env, game_settings.env_var_prefix, prefix_len) != 0) {
+                continue;
             }
 
-            case SETTING_TYPE_INT: {
-                int *ptr = (int *)setting->ptr;
-                *ptr = atoi(env_value);
-                log_stringf("  Override: %s = %d", env_name, *ptr);
-                break;
+            // Parse KEY=VALUE
+            char *eq = strchr(*env, '=');
+            if (!eq) continue;
+
+            // Extract key
+            size_t key_len = eq - *env;
+            char key[256];
+            if (key_len >= sizeof(key)) continue;
+            strncpy(key, *env, key_len);
+            key[key_len] = '\0';
+
+            // Get value (skip the '=')
+            const char *value = eq + 1;
+
+            // Skip if this was already applied from mount
+            // (secret_get returns mount value if available)
+            if (result >= 0) {
+                const char *mount_value = secret_get(key);
+                // If mount has this key, it was already applied
+                if (mount_value && secret_using_mount()) {
+                    continue;
+                }
             }
 
-            case SETTING_TYPE_STRING:
-            case SETTING_TYPE_EXTSTR: {
-                char **ptr = (char **)setting->ptr;
-
-                // Don't log sensitive settings
-                if (setting->sensitive) {
-                    log_stringf("  Override: %s = <redacted>", env_name);
-                } else {
-                    log_stringf("  Override: %s = %s", env_name, env_value);
-                }
-
-                // Free old value if it exists
-                if (*ptr && *ptr != str_empty) {
-                    free_string(*ptr);
-                }
-                *ptr = str_dup(env_value);
-                break;
-            }
-
-            case SETTING_TYPE_FLOAT: {
-                float *ptr = (float *)setting->ptr;
-                *ptr = atof(env_value);
-                log_stringf("  Override: %s = %.2f", env_name, *ptr);
-                break;
+            // Apply the override
+            if (apply_override(key, value, "env")) {
+                env_count++;
             }
         }
     }
-}
 
+    if (env_count > 0) {
+        log_stringf("  Applied %d override(s) from environment variables", env_count);
+    }
+
+    if (mount_count == 0 && env_count == 0) {
+        log_string("  No overrides found");
+    }
+}
 /***************************************************************************
  * JSON Serialization                                                      *
  ***************************************************************************/
@@ -154,24 +271,28 @@ json_t *game_settings_to_json(void)
 {
     json_t *root = json_object();
     json_t *categories[SETTING_CAT_MAX];  // One for each category
+    // NOTE: SETTING_CAT_* values start at 1, not 0, so index 0 is unused
     const char *category_names[] = {
-        "email",
-        "missions",
-        "lockers",
-        "vaults",
-        "coffers",
-        "global",
-        "security",
-        "mssp",
-        "redis",
-        "debug"
+        NULL,        // index 0 - unused (SETTING_CAT values start at 1)
+        "core",      // SETTING_CAT_CORE = 1
+        "email",     // SETTING_CAT_EMAIL = 2
+        "missions",  // SETTING_CAT_MISSION = 3
+        "lockers",   // SETTING_CAT_LOCKER = 4
+        "vaults",    // SETTING_CAT_VAULT = 5
+        "coffers",   // SETTING_CAT_COFFER = 6
+        "global",    // SETTING_CAT_GLOBAL = 7
+        "security",  // SETTING_CAT_SECURITY = 8
+        "mssp",      // SETTING_CAT_MSSP = 9
+        "redis",     // SETTING_CAT_REDIS = 10
+        "debug"      // SETTING_CAT_DEBUG = 11
     };
     int i;
 
-    // Create category objects
-    for (i = 0; i < SETTING_CAT_MAX; i++) {
+    // Create category objects (start at 1 since SETTING_CAT values start at 1)
+    for (i = 1; i < SETTING_CAT_MAX; i++) {
         categories[i] = json_object();
     }
+    categories[0] = NULL;  // Unused
 
     // Add metadata
     json_object_set_new(root, "_version", json_string("1.0"));
@@ -182,6 +303,12 @@ json_t *game_settings_to_json(void)
         const struct game_setting_type *setting = &game_settings_table[i];
         json_t *category = categories[setting->category];
         json_t *value = NULL;
+
+        // Skip settings that are overridden by environment variables
+        // (they shouldn't be saved since the override takes precedence)
+        if (json_setting_is_env_override(setting->name)) {
+            continue;
+        }
 
         switch (setting->type) {
             case SETTING_TYPE_BOOL: {
@@ -220,8 +347,8 @@ json_t *game_settings_to_json(void)
         }
     }
 
-    // Add all categories to root
-    for (i = 0; i < SETTING_CAT_MAX; i++) {
+    // Add all categories to root (start at 1 since SETTING_CAT values start at 1)
+    for (i = 1; i < SETTING_CAT_MAX; i++) {
         json_object_set_new(root, category_names[i], categories[i]);
     }
 
@@ -230,17 +357,20 @@ json_t *game_settings_to_json(void)
 
 bool json_to_game_settings(json_t *root)
 {
+    // NOTE: SETTING_CAT_* values start at 1, not 0, so index 0 is unused
     const char *category_names[] = {
-        "email",
-        "missions",
-        "lockers",
-        "vaults",
-        "coffers",
-        "global",
-        "security",
-        "mssp",
-        "redis",
-        "debug"
+        NULL,        // index 0 - unused (SETTING_CAT values start at 1)
+        "core",      // SETTING_CAT_CORE = 1
+        "email",     // SETTING_CAT_EMAIL = 2
+        "missions",  // SETTING_CAT_MISSION = 3
+        "lockers",   // SETTING_CAT_LOCKER = 4
+        "vaults",    // SETTING_CAT_VAULT = 5
+        "coffers",   // SETTING_CAT_COFFER = 6
+        "global",    // SETTING_CAT_GLOBAL = 7
+        "security",  // SETTING_CAT_SECURITY = 8
+        "mssp",      // SETTING_CAT_MSSP = 9
+        "redis",     // SETTING_CAT_REDIS = 10
+        "debug"      // SETTING_CAT_DEBUG = 11
     };
     int i;
 
@@ -315,18 +445,20 @@ bool json_to_game_settings(json_t *root)
 // Initialize defaults (extracted from game_settings_read)
 static void init_game_settings_defaults(void)
 {
-    /* Basic settings */
-    game_settings.game_name = "";
-    game_settings.login_string = "";
-    game_settings.server_description = "";
+    /* Core Settings (not overridable by environment variables) */
+    game_settings.env_var_prefix = "SENTIENCE_";
+    game_settings.secrets_mount = str_empty;
+    game_settings.game_name = str_empty;
+    game_settings.login_string = str_empty;
+    game_settings.server_description = str_empty;
     game_settings.testport = false;
     game_settings.dev_server = false;
     game_settings.wizlock = false;
     game_settings.new_acct_lock = false;
     game_settings.new_char_lock = false;
-    game_settings.wizlock_msg = "";
-    game_settings.new_acct_lock_msg = "";
-    game_settings.new_char_lock_msg = "";
+    game_settings.wizlock_msg = str_empty;
+    game_settings.new_acct_lock_msg = str_empty;
+    game_settings.new_char_lock_msg = str_empty;
     game_settings.logall = false;
     game_settings.note_boot_errors = false;
 
@@ -368,11 +500,11 @@ static void init_game_settings_defaults(void)
     /* Email */
     game_settings.enable_email = false;
     game_settings.email_port = 0;
-    game_settings.email_username = "";
-    game_settings.email_host = "";
-    game_settings.email_password = "";
-    game_settings.email_from_addr = "";
-    game_settings.email_from_name = "";
+    game_settings.email_username = str_empty;
+    game_settings.email_host = str_empty;
+    game_settings.email_password = str_empty;
+    game_settings.email_from_addr = str_empty;
+    game_settings.email_from_name = str_empty;
 
     /* Missions */
     game_settings.max_mission_allowance = 0;
@@ -412,7 +544,7 @@ static void init_game_settings_defaults(void)
     game_settings.coffer_enabled = false;
     game_settings.coffer_rent = false;
     game_settings.coffer_rent_cost = 0;
-    game_settings.coffer_rent_currency = "";
+    game_settings.coffer_rent_currency = str_empty;
     game_settings.coffer_rent_time = 0;
     game_settings.coffer_rent_time_max = 0;
 
@@ -424,33 +556,33 @@ static void init_game_settings_defaults(void)
     game_settings.enable_websocket_tls = false;
     game_settings.websocket_tls_port = 0;
     game_settings.enable_web = false;
-    game_settings.ssl_cert_path = "";
-    game_settings.ssl_key_path = "";
+    game_settings.ssl_cert_path = str_empty;
+    game_settings.ssl_key_path = str_empty;
     game_settings.enable_insecure_warning = false;
-    game_settings.insecure_warning_msg = "";
+    game_settings.insecure_warning_msg = str_empty;
 
     /* MSSP */
     game_settings.mssp_players = 0;
     game_settings.mssp_uptime = 0;
     game_settings.mssp_crawl_delay = 0;
-    game_settings.mssp_hostname = "";
+    game_settings.mssp_hostname = str_empty;
     game_settings.mssp_port = 0;
     game_settings.mssp_tls_port = 0;
-    game_settings.mssp_codebase = "";
-    game_settings.mssp_contact = "";
+    game_settings.mssp_codebase = str_empty;
+    game_settings.mssp_contact = str_empty;
     game_settings.mssp_created = 0;
-    game_settings.mssp_ip = "";
-    game_settings.mssp_language = "";
-    game_settings.mssp_location = "";
+    game_settings.mssp_ip = str_empty;
+    game_settings.mssp_language = str_empty;
+    game_settings.mssp_location = str_empty;
     game_settings.mssp_minimum_age = 0;
-    game_settings.mssp_website = "";
-    game_settings.mssp_family = "";
-    game_settings.mssp_genre = "";
-    game_settings.mssp_status = "";
-    game_settings.mssp_gamesystem = "";
-    game_settings.mssp_intermud = "";
-    game_settings.mssp_subgenre = "";
-    game_settings.mssp_discord_server = "";
+    game_settings.mssp_website = str_empty;
+    game_settings.mssp_family = str_empty;
+    game_settings.mssp_genre = str_empty;
+    game_settings.mssp_status = str_empty;
+    game_settings.mssp_gamesystem = str_empty;
+    game_settings.mssp_intermud = str_empty;
+    game_settings.mssp_subgenre = str_empty;
+    game_settings.mssp_discord_server = str_empty;
     game_settings.mssp_areas = 0;
     game_settings.mssp_helpfiles = 0;
     game_settings.mssp_mobiles = 0;
@@ -486,8 +618,8 @@ static void init_game_settings_defaults(void)
     game_settings.mssp_player_clans = false;
     game_settings.mssp_player_crafting = false;
     game_settings.mssp_player_guilds = false;
-    game_settings.mssp_equipment_system = "";
-    game_settings.mssp_multiplaying = "";
+    game_settings.mssp_equipment_system = str_empty;
+    game_settings.mssp_multiplaying = str_empty;
     game_settings.mssp_playerkilling = false;
     game_settings.mssp_quest_system = false;
     game_settings.mssp_roleplaying = false;
@@ -496,14 +628,14 @@ static void init_game_settings_defaults(void)
 
     /* Redis Settings */
     game_settings.enable_redis = true;  /* Default to enabled */
-    game_settings.redis_host = "127.0.0.1";
+    game_settings.redis_host = str_dup("127.0.0.1");
     game_settings.redis_port = 6379;
-    game_settings.redis_password = "";
+    game_settings.redis_password = str_empty;
     game_settings.redis_timeout_sec = 1;
     game_settings.redis_timeout_usec = 500000;
 
     /* Debug/Logging Settings */
-    game_settings.crash_dump_dir = "";
+    game_settings.crash_dump_dir = str_empty;
 }
 
 int json_game_settings_read(void)

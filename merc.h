@@ -296,21 +296,22 @@ struct script_type {
 #define SETTING_TYPE_FLOAT 4
 
 /* Setting category constants */
-#define SETTING_CAT_EMAIL 0
-#define SETTING_CAT_MISSION 1
-#define SETTING_CAT_LOCKER 2
-#define SETTING_CAT_VAULT 3
-#define SETTING_CAT_COFFER 4
-#define SETTING_CAT_GLOBAL 5
-#define SETTING_CAT_SECURITY 6
-#define SETTING_CAT_MSSP 7
-#define SETTING_CAT_REDIS 8
-#define SETTING_CAT_DEBUG 9
+#define SETTING_CAT_CORE 1
+#define SETTING_CAT_EMAIL 2
+#define SETTING_CAT_MISSION 3
+#define SETTING_CAT_LOCKER 4
+#define SETTING_CAT_VAULT 5
+#define SETTING_CAT_COFFER 6
+#define SETTING_CAT_GLOBAL 7
+#define SETTING_CAT_SECURITY 8
+#define SETTING_CAT_MSSP 9
+#define SETTING_CAT_REDIS 10
+#define SETTING_CAT_DEBUG 11
 
 #define MIN_SECURITY_GAMEEDIT 9
 
 #define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
-#define SETTING_CAT_MAX 10 /* Number of setting categories */
+#define SETTING_CAT_MAX 12 /* Number of setting categories */
 
 #define AES_KEY_SIZE 32  // 256 bits
 #define AES_IV_SIZE 16   // 128 bits
@@ -1188,6 +1189,10 @@ struct global_data
 
 struct game_settings_data
 {
+    /* Core Settings (not overridable by environment variables) */
+    char *env_var_prefix;   // Prefix for environment variable overrides (default: "SENTIENCE_")
+    char *secrets_mount;    // Path to Doppler/secrets mount (JSON format, empty if not using)
+
     /* Email Settings */
     bool enable_email;
     char *email_username;  // Username for the email account.

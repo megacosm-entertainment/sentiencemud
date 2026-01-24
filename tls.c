@@ -73,6 +73,7 @@
  #include "tables.h"
  #include "wilds.h"
  #include "protocol.h"
+ #include "secret.h"
  
  /*
   * Socket and TCP/IP stuff.
@@ -131,33 +132,57 @@ bool configure_context(SSL_CTX *context)
     // Set up ECDH parameters
     SSL_CTX_set_ecdh_auto(context, 1);
 
-    // Load certificate - try environment variable first, then file
-    const char *ssl_cert_data = getenv("SENTIENCE_SSL_CERT_DATA");
-    const char *ssl_key_data = getenv("SENTIENCE_SSL_KEY_DATA");
+    // Load certificate - try secrets (mount or env var) first, then file
+    const char *ssl_cert_data = secret_get("SENTIENCE_SSL_CERT_DATA");
+    const char *ssl_key_data = secret_get("SENTIENCE_SSL_KEY_DATA");
 
     if (ssl_cert_data && ssl_cert_data[0] != '\0') {
-        // Load certificate from environment variable (PEM format)
-        log_string("Loading SSL certificate from environment variable");
+        // Load certificate chain from secrets (PEM format)
+        // This handles full chains: server cert + intermediates + root
+        const char *source = secret_using_mount() ? "secrets mount" : "environment variable";
+        log_stringf("Override applied: SSL_CERT_DATA from %s", source);
         BIO *bio = BIO_new_mem_buf(ssl_cert_data, -1);
         if (!bio) {
             log_string("SSL error: Failed to create BIO for certificate data");
             return false;
         }
 
+        // Read the first certificate (server certificate)
         X509 *cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-        BIO_free(bio);
-
         if (!cert) {
-            log_string("SSL error: Failed to parse certificate from environment variable");
+            BIO_free(bio);
+            log_string("SSL error: Failed to parse server certificate from secrets");
             return false;
         }
 
         if (SSL_CTX_use_certificate(context, cert) <= 0) {
             X509_free(cert);
-            log_string("SSL error: Failed to use certificate from environment variable");
+            BIO_free(bio);
+            log_string("SSL error: Failed to use server certificate from secrets");
             return false;
         }
         X509_free(cert);
+
+        // Read any additional certificates (intermediate/root CA certs) and add to chain
+        int chain_count = 0;
+        while ((cert = PEM_read_bio_X509(bio, NULL, NULL, NULL)) != NULL) {
+            // SSL_CTX_add_extra_chain_cert takes ownership of cert on success
+            if (SSL_CTX_add_extra_chain_cert(context, cert) <= 0) {
+                X509_free(cert);
+                BIO_free(bio);
+                log_string("SSL error: Failed to add chain certificate from secrets");
+                return false;
+            }
+            chain_count++;
+        }
+
+        // Clear any "no more certificates" error from the loop
+        ERR_clear_error();
+        BIO_free(bio);
+
+        if (chain_count > 0) {
+            log_stringf("SSL: Loaded certificate chain with %d intermediate/CA cert(s) from secrets", chain_count);
+        }
     } else {
         // Load certificate from file (original behavior)
         if (SSL_CTX_use_certificate_chain_file(context, game_settings.ssl_cert_path) <= 0) {
@@ -167,8 +192,9 @@ bool configure_context(SSL_CTX *context)
     }
 
     if (ssl_key_data && ssl_key_data[0] != '\0') {
-        // Load private key from environment variable (PEM format)
-        log_string("Loading SSL private key from environment variable");
+        // Load private key from secrets (PEM format)
+        const char *source = secret_using_mount() ? "secrets mount" : "environment variable";
+        log_stringf("Override applied: SSL_KEY_DATA from %s", source);
         BIO *bio = BIO_new_mem_buf(ssl_key_data, -1);
         if (!bio) {
             log_string("SSL error: Failed to create BIO for private key data");
@@ -179,13 +205,13 @@ bool configure_context(SSL_CTX *context)
         BIO_free(bio);
 
         if (!pkey) {
-            log_string("SSL error: Failed to parse private key from environment variable");
+            log_string("SSL error: Failed to parse private key from secrets");
             return false;
         }
 
         if (SSL_CTX_use_PrivateKey(context, pkey) <= 0) {
             EVP_PKEY_free(pkey);
-            log_string("SSL error: Failed to use private key from environment variable");
+            log_string("SSL error: Failed to use private key from secrets");
             return false;
         }
         EVP_PKEY_free(pkey);

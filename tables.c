@@ -3573,6 +3573,10 @@ const struct flag_type acct_flags[] =
 
 
 const struct game_setting_type game_settings_table[] = {
+    /* Core Settings - NOT overridable by environment variables */
+    { "env_var_prefix",      &game_settings.env_var_prefix,       SETTING_TYPE_STRING, SETTING_CAT_CORE,     "Prefix for environment variable overrides",                  false, false, false },
+    { "secrets_mount",       &game_settings.secrets_mount,        SETTING_TYPE_STRING, SETTING_CAT_CORE,     "Path to Doppler/secrets mount (JSON format)",                 false, false, false },
+
     /* Email Settings */
     { "email_enable",        &game_settings.enable_email,         SETTING_TYPE_BOOL,   SETTING_CAT_EMAIL,    "Enable email functionality",                                 true,  false, false },
     { "email_username",      &game_settings.email_username,       SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Username for the email account",                             true,  false, true },
@@ -3761,17 +3765,20 @@ const struct game_setting_type game_settings_table[] = {
 };
 
 /* Setting category names for display purposes */
+/* NOTE: SETTING_CAT_* values start at 1, not 0, so index 0 is unused */
 const char *setting_category_names[] = {
-    "Email",
-    "Missions",
-    "Lockers",
-    "Vault",
-    "Coffers",
-    "Global",
-    "Security",
-    "MSSP",
-    "Redis",
-    "Debug"
+    NULL,        // index 0 - unused (SETTING_CAT values start at 1)
+    "Core",      // SETTING_CAT_CORE = 1
+    "Email",     // SETTING_CAT_EMAIL = 2
+    "Missions",  // SETTING_CAT_MISSION = 3
+    "Lockers",   // SETTING_CAT_LOCKER = 4
+    "Vault",     // SETTING_CAT_VAULT = 5
+    "Coffers",   // SETTING_CAT_COFFER = 6
+    "Global",    // SETTING_CAT_GLOBAL = 7
+    "Security",  // SETTING_CAT_SECURITY = 8
+    "MSSP",      // SETTING_CAT_MSSP = 9
+    "Redis",     // SETTING_CAT_REDIS = 10
+    "Debug"      // SETTING_CAT_DEBUG = 11
 };
 
 /* Setting type names for display purposes */

@@ -168,6 +168,7 @@ C_FILES = \
     script_tpcmds.c \
     script_vars.c \
     scripts.c \
+    secret.c \
     shoot.c \
     skills.c \
     special.c \

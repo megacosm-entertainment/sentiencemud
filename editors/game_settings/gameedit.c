@@ -153,13 +153,13 @@ GAMEEDIT(gameedit_show)
     buffer = new_buf();
 
     if (argument[0] == '\0') {
-        // Show all categories
-        for (i = 0; i < SETTING_CAT_MAX; i++) {
+        // Show all categories (start at 1 since SETTING_CAT values start at 1)
+        for (i = 1; i < SETTING_CAT_MAX; i++) {
             gameedit_display_category(buffer, ch, i);
         }
     } else {
-        // Check if it's a category name
-        for (i = 0; i < SETTING_CAT_MAX; i++) {
+        // Check if it's a category name (start at 1 since SETTING_CAT values start at 1)
+        for (i = 1; i < SETTING_CAT_MAX; i++) {
             if (!str_prefix(argument, setting_category_names[i])) {
                 gameedit_display_category(buffer, ch, i);
                 found = true;
