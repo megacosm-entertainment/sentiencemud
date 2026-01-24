@@ -4,9 +4,29 @@
 cmake_minimum_required (VERSION 3.10)
 
 project(sent)
+
+# Set default parallel build jobs to nproc/2
+include(ProcessorCount)
+ProcessorCount(NPROC)
+if(NPROC EQUAL 0)
+    set(NPROC 4)
+endif()
+math(EXPR DEFAULT_JOBS "${NPROC} / 2")
+if(DEFAULT_JOBS LESS 1)
+    set(DEFAULT_JOBS 1)
+endif()
+set(CMAKE_BUILD_PARALLEL_LEVEL ${DEFAULT_JOBS} CACHE STRING "Default parallel build jobs")
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.deps/zlog/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.deps/libbacktrace)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.deps/zlog ${CMAKE_CURRENT_BINARY_DIR}/.deps/zlog)
+
+# libbacktrace for stack trace file:line resolution (prebuilt)
+add_library(backtrace STATIC IMPORTED)
+set_target_properties(backtrace PROPERTIES
+    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/.deps/libbacktrace/.libs/libbacktrace.a
+)
 
 # Get Git version, build date, and commit URL
 # Assumes date.sh and giturl.sh are in the same directory as CMakeLists.txt or in PATH
@@ -157,6 +177,8 @@ set(SOURCE_FILES
     json_char.c
     json_account.c
     json_game_settings.c
+    json_persist.c
+    json_race.c
     save.c
     scan.c
     script_commands.c
@@ -191,13 +213,18 @@ target_compile_definitions(sent PRIVATE
     VERSION="${GIT_VERSION}"
     BUILD_DATE="${CUR_BUILD_DATE}"
     COMMIT="${GIT_URL}"
+    # MUD_DEBUG enables debug features like stack trace logging
+    $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:MUD_DEBUG>
 )
 
 target_include_directories(sent PRIVATE ${CMAKE_SOURCE_DIR}/deps/zlog/src)
 
 # Libraries: Using the more comprehensive list from GCC Makefile
 # pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson
-target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson zlog)
+target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson zlog backtrace)
+
+# Export symbols for stack trace support (backtrace_symbols needs this)
+target_link_options(sent PRIVATE -rdynamic)
 
 # Install step (optional, example)
 # install(TARGETS sent DESTINATION bin)

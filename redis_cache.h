@@ -159,17 +159,28 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json);
 json_t *redis_get_account_full(const char *account_name);
 
 /***************************************************************************
- * Future: World State Persistence                                        *
+ * World State Persistence (Phase 2)                                       *
  ***************************************************************************/
 
-// These will be implemented for world state persistence
-#ifdef REDIS_WORLD_STATE
-bool redis_cache_mob_state(CHAR_DATA *mob);
-bool redis_cache_room_state(ROOM_INDEX_DATA *room);
-bool redis_cache_obj_state(OBJ_DATA *obj);
-void redis_restore_world_state(void);
-void redis_save_world_state(void);
-#endif
+// Low-level cache operations
+bool redis_cache_persist_data(const char *key, const char *json_str);
+char *redis_get_persist_data(const char *key);
+bool redis_delete_persist_data(const char *key);
+
+// Dirty queue operations (for async disk writes)
+bool redis_queue_dirty_key(const char *key);
+char *redis_pop_dirty_key(int timeout_sec);
+long redis_dirty_queue_size(void);
+
+// High-level entity caching (cache + queue dirty)
+bool redis_cache_room_state(const char *room_id, const char *json_str);
+bool redis_cache_mobile_state(unsigned long id0, unsigned long id1, const char *json_str);
+bool redis_cache_object_state(unsigned long id0, unsigned long id1, const char *json_str);
+
+// Cache retrieval
+char *redis_get_room_state(const char *room_id);
+char *redis_get_mobile_state(unsigned long id0, unsigned long id1);
+char *redis_get_object_state(unsigned long id0, unsigned long id1);
 
 /***************************************************************************
  * Diagnostics & Monitoring                                               *

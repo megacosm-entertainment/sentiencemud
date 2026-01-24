@@ -6718,6 +6718,8 @@ extern long gc_max_time;
 /*
  * Skills include spells as a particular case.
  */
+typedef struct skill_type skill_t;
+
 struct	skill_type
 {
     char *	name;			/* Name of skill		*/
@@ -6739,6 +6741,21 @@ struct	skill_type
     char *	msg_disp;
     int		inks[3][2];
 };
+
+/*
+ * Function prototypes for skills and spells.
+ */
+int	get_skill			( CHAR_DATA *ch, int sn );
+int	get_weapon_skill	( CHAR_DATA *ch, int sn );
+int     get_skill_level         ( CHAR_DATA *ch, int sn );
+int	get_adept_level		( CHAR_DATA *ch, int sn );
+int	mana_cost		( CHAR_DATA *ch, int min_mana, int level );
+int	skill_lookup		( const char *name );
+const skill_t *skill_type_lookup( const char *name );
+int	slot_lookup		( int slot );
+bool	saves_spell		( int level, CHAR_DATA *victim, int16_t dam_type );
+bool	saves_dispel		( CHAR_DATA *ch, CHAR_DATA *victim, int spell_level);
+void 	check_improve		( CHAR_DATA *ch, int sn, bool success, int multiplier );
 
 struct mob_index_skill_data {
 	MOB_INDEX_SKILL_DATA *next;
@@ -8045,6 +8062,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define OLD_SOCIALS_FILE AREA_DIR "social.are"
 #define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
 #define RESERVED_FILE     SYSTEM_DIR "reserved.dat"
+#define ZLOG_CONF           SYSTEM_DIR "zlog.conf"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -8254,7 +8272,16 @@ char *stptok            args( (const char *s, char *tok, size_t toklen, char *br
 void	send_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	page_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	update_pc_timers( CHAR_DATA *ch );
-void    plogf             args( ( char * fmt, ... ) );
+#define plogf(category, format, ...) log_message_f(LOG_LEVEL_INFO, category, format, ##__VA_ARGS__)
+#define pwarnf(category, format, ...) log_message_f(LOG_LEVEL_WARN, category, format, ##__VA_ARGS__)
+#define perrf(category, format, ...) log_message_f(LOG_LEVEL_ERROR, category, format, ##__VA_ARGS__)
+#define pbugf(category, format, ...) log_message_f(LOG_LEVEL_BUG, category, format, ##__VA_ARGS__)
+#define pdebugf(category, format, ...) log_message_f(LOG_LEVEL_DEBUG, category, format, ##__VA_ARGS__)
+#define plog(category, message) log_message(LOG_LEVEL_INFO, category, message)
+#define pwarn(category, message) log_message(LOG_LEVEL_WARN, category, message)
+#define perr(category, message) log_message(LOG_LEVEL_ERROR, category, message)
+#define pbug(category, message) log_message(LOG_LEVEL_BUG, category, message)
+#define pdebug(category, message) log_message(LOG_LEVEL_DEBUG, category, message)
 void complete_reconnect(DESCRIPTOR_DATA *d);
 
 

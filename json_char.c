@@ -1477,11 +1477,35 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
  * COMPLETE Character Deserialization - WITH PROPER INITIALIZATION         *
  ***************************************************************************/
 
-// Internal implementation with load_heavy parameter
+// Forward declaration
+static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool load_heavy, const char *source_name);
+
+// Internal implementation with load_heavy parameter - loads from file
 static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool load_heavy)
 {
-    json_t *root, *metadata, *character, *inventory, *equipment, *locker, *skills, *affects, *classes_obj;
+    json_t *root;
     json_error_t error;
+    bool result;
+
+    // Load JSON file
+    root = json_load_file(filename, 0, &error);
+    if (!root) {
+        log_stringf("json_read_char: Failed to parse %s: %s", filename, error.text);
+        return false;
+    }
+
+    // Delegate to the from_json implementation
+    result = json_read_char_internal_from_json(ch, root, load_heavy, filename);
+
+    json_decref(root);
+    return result;
+}
+
+// Internal implementation that works directly on a json_t object
+// source_name is used for logging (could be filename or "redis")
+static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool load_heavy, const char *source_name)
+{
+    json_t *metadata, *character, *inventory, *equipment, *locker, *skills, *affects, *classes_obj;
     json_t *value, *array_elem;
     const char *str;
     size_t index;
@@ -1491,13 +1515,6 @@ static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool lo
 
     // Start timing
     gettimeofday(&start_time, NULL);
-
-    // Load JSON file
-    root = json_load_file(filename, 0, &error);
-    if (!root) {
-        log_stringf("json_read_char: Failed to parse %s: %s", filename, error.text);
-        return false;
-    }
 
     // Read metadata section
     metadata = json_object_get(root, "metadata");
@@ -1527,8 +1544,7 @@ static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool lo
     // Read character section
     character = json_object_get(root, "character");
     if (!character) {
-        log_stringf("json_read_char: No character section in %s", filename);
-        json_decref(root);
+        log_stringf("json_read_char: No character section in %s", source_name);
         return false;
     }
 
@@ -2230,8 +2246,6 @@ static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool lo
     }
     } // End if (load_heavy) - close the block that started at skills section
 
-    json_decref(root);
-
     // Mark load state
     if (ch->pcdata) {
         ch->pcdata->fully_loaded = load_heavy;
@@ -2247,7 +2261,7 @@ static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool lo
     log_stringf("PERFORMANCE json_read_char_internal: %s with %d objects (%s) - total: %ldms",
                ch->name, obj_count, load_heavy ? "full" : "basic", total_ms);
 
-    log_stringf("JSON: Loaded character %s from %s (%s)", ch->name, filename,
+    log_stringf("JSON: Loaded character %s from %s (%s)", ch->name, source_name,
                 load_heavy ? "full" : "basic");
     return true;
 }
@@ -2262,11 +2276,6 @@ bool json_read_char(CHAR_DATA *ch, const char *filename)
  * Basic Character Loading (Defers Heavy Data)                             *
  ***************************************************************************/
 
-// Internal helper to load character with optional section skipping
-// load_heavy: false = skip inventory/equipment/skills/affects (basic load)
-//             true  = load everything (full load)
-static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool load_heavy);
-
 // Load character WITHOUT inventory/equipment/skills/affects
 // This is significantly faster and used for character menu display
 bool json_read_char_basic(CHAR_DATA *ch, const char *filename)
@@ -2278,12 +2287,33 @@ bool json_read_char_basic(CHAR_DATA *ch, const char *filename)
     return result;
 }
 
-// Load remaining character data after json_read_char_basic()
-// Call this when character actually enters the game
-bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
+/***************************************************************************
+ * Direct JSON Object Functions (for Redis cache)                          *
+ ***************************************************************************/
+
+// Read full character from JSON object (for Redis cache)
+// Caller retains ownership of root - this function does not decref it
+bool json_read_char_from_json(CHAR_DATA *ch, json_t *root)
 {
-    json_t *root, *inventory, *equipment, *locker, *skills, *affects;
-    json_error_t error;
+    return json_read_char_internal_from_json(ch, root, true, "redis");
+}
+
+// Read basic character data from JSON object (for Redis cache)
+// Caller retains ownership of root - this function does not decref it
+bool json_read_char_basic_from_json(CHAR_DATA *ch, json_t *root)
+{
+    bool result = json_read_char_internal_from_json(ch, root, false, "redis");
+    if (result && ch->pcdata) {
+        ch->pcdata->fully_loaded = false; // Mark as partially loaded
+    }
+    return result;
+}
+
+// Load remaining character data from JSON object (for Redis cache)
+// Caller retains ownership of root - this function does not decref it
+bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
+{
+    json_t *inventory, *equipment, *locker, *skills, *affects;
     json_t *value, *array_elem;
     const char *str;
     size_t index;
@@ -2302,14 +2332,7 @@ bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
     // Start timing
     gettimeofday(&start_time, NULL);
 
-    // Load JSON file
-    root = json_load_file(filename, 0, &error);
-    if (!root) {
-        log_stringf("json_read_char_remaining: Failed to parse %s: %s", filename, error.text);
-        return false;
-    }
-
-    log_stringf("JSON: Loading remaining data for %s (inventory/equipment/skills/affects)", ch->name);
+    log_stringf("JSON: Loading remaining data for %s from redis (inventory/equipment/skills/affects)", ch->name);
 
     // Read inventory section
     inventory = json_object_get(root, "inventory");
@@ -2485,8 +2508,6 @@ bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
         }
     }
 
-    json_decref(root);
-
     // Mark as fully loaded
     ch->pcdata->fully_loaded = true;
 
@@ -2502,6 +2523,37 @@ bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
 
     log_stringf("JSON: Completed loading remaining data for %s", ch->name);
     return true;
+}
+
+// Load remaining character data after json_read_char_basic() - file-based wrapper
+// Call this when character actually enters the game
+bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
+{
+    json_t *root;
+    json_error_t error;
+    bool result;
+
+    if (!ch || !ch->pcdata) {
+        return false;
+    }
+
+    // If already fully loaded, nothing to do
+    if (ch->pcdata->fully_loaded) {
+        return true;
+    }
+
+    // Load JSON file
+    root = json_load_file(filename, 0, &error);
+    if (!root) {
+        log_stringf("json_read_char_remaining: Failed to parse %s: %s", filename, error.text);
+        return false;
+    }
+
+    // Delegate to the from_json implementation
+    result = json_read_char_remaining_from_json(ch, root);
+
+    json_decref(root);
+    return result;
 }
 
 bool json_read_char_inventory(CHAR_DATA *ch, json_t *root)

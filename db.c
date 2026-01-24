@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <dirent.h>
 #include <stdarg.h>
 #include "log.h"
 #include "strings.h"
@@ -51,6 +52,7 @@
 #include "olc_save.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "json_persist.h"
 
 /*
 #if !defined(OLD_RAND)
@@ -681,8 +683,7 @@ void boot_db(void)
     FILE *fp;
 	static GLOBAL_DATA gconfig_zero;
 
-	log_init(DATA_DIR "zlog.conf");
-
+	log_init(ZLOG_CONF);
 
 	// If shutdown.txt exists, nuke it.
 	unlink(SHUTDOWN_FILE);
@@ -1523,7 +1524,7 @@ void area_update(bool fBoot)
 		/* Check area's age and reset if necessary*/
 		if (fBoot || (pArea->age >= pArea->repop || (pArea->repop == 0 && pArea->age > 15) || pArea->age >= 120))
 		{
-			plogf("db.c, area_update: Resetting area %s.", pArea->name);
+			plogf(LOG_INFO, "Resetting area %s.", pArea->name);
 			reset_area(pArea);
 			sprintf(buf,"%s has just been reset.",pArea->name);
 			wiznet(buf,NULL,NULL,WIZ_RESETS,0,0);
@@ -1545,7 +1546,7 @@ void area_update(bool fBoot)
 
 					if (pWilds->age >= pWilds->repop)
 					{
-						plogf("Resetting wilds uid %ld, '%s'...", pWilds->uid, pWilds->name);
+						plogf(LOG_INFO, "Resetting wilds uid %ld, '%s'...", pWilds->uid, pWilds->name);
 						pWilds->age = 0;
 
 						// This.. doesn't do anything?
@@ -4412,7 +4413,7 @@ void bug(const char *str, ...)
     vsnprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), str, args);
     va_end(args);
 
-    log_message(LOG_LEVEL_BUG, "sentience", buf);
+    pbug(LOG_ERROR, buf);
 	    if (fBootDb && game_settings.note_boot_errors)
         boot_error_log("%s", buf);
 }
@@ -4423,7 +4424,7 @@ void bug(const char *str, ...)
  */
 void log_string(const char *str)
 {
-    log_message(LOG_LEVEL_INFO, "sentience", str);
+    plog(LOG_INFO, str);
 }
 
 void log_stringf(const char *fmt,...)
@@ -4433,7 +4434,7 @@ void log_stringf(const char *fmt,...)
     va_start (args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end (args);
-    log_message(LOG_LEVEL_INFO, "sentience", buf);
+    plogf(LOG_INFO, buf);
 }
 
 
@@ -6271,6 +6272,10 @@ void persist_save(void)
 		fprintf(fp, "#END\n");
 		fclose(fp);
 	}
+
+	/* Also save to JSON format */
+	json_persist_save_all();
+
 	// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
 	// log_stringf("persist_save: done.");
 }
@@ -8080,9 +8085,53 @@ bool persist_load(void)
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	bool good = true;
+	bool loaded_from_json = false;
+	bool needs_migration = false;
 
 	log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: loading persist entities...");
 
+	/* Initialize JSON persist directory structure */
+	if (!json_persist_init()) {
+		perr(LOG_INIT, "Failed to initialise JSON persist directories.");
+	}
+
+	/* Check if we should load from JSON or need migration */
+	needs_migration = json_persist_needs_migration();
+
+	if (!needs_migration) {
+		/* Try to load from JSON files first */
+		perr(LOG_INIT, "Attempting to load from JSON files...");
+		if (json_persist_load_all()) {
+			perr(LOG_INIT, "Successfully loaded from JSON files");
+			loaded_from_json = true;
+		} else {
+			/* Check if there are any JSON files at all - if not, fall through to persist.dat */
+			DIR *dir = opendir(PERSIST_JSON_OBJECTS);
+			if (dir) {
+				struct dirent *entry;
+				bool has_files = false;
+				while ((entry = readdir(dir)) != NULL) {
+					if (entry->d_name[0] != '.' && strstr(entry->d_name, ".json")) {
+						has_files = true;
+						break;
+					}
+				}
+				closedir(dir);
+				if (has_files) {
+					/* Had JSON files but failed to load - this is an error */
+					log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load: JSON files exist but failed to load");
+					return false;
+				}
+			}
+			log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: No JSON files found, falling back to persist.dat");
+		}
+	}
+
+	if (loaded_from_json) {
+		return true;
+	}
+
+	/* Load from persist.dat (old format) */
 	if (!(fp = fopen(PERSIST_FILE, "r"))) {
 		log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist.dat: Couldn't open file.");
 		return true;
@@ -8152,11 +8201,21 @@ bool persist_load(void)
 		fclose(fp);
 	}
 
-	if(good)
-		log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: done...");
-	else
-		log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load: error...");
+	if(good) {
+		log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: done loading from persist.dat...");
 
+		/* Migrate to JSON format */
+		if (needs_migration) {
+			log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: Migrating to JSON format...");
+			if (json_persist_save_all()) {
+				log_message(LOG_LEVEL_INFO, LOG_INIT, "persist_load: Migration to JSON complete");
+			} else {
+				log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist_load: Migration to JSON failed");
+			}
+		}
+	} else {
+		log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load: error...");
+	}
 
 	return good;
 }

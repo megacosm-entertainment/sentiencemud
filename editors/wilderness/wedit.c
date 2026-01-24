@@ -106,12 +106,12 @@ WEDIT ( wedit_create )
         while(pLastWilds->next)
             pLastWilds = pLastWilds->next;
 
-        plogf("olc_act.c, wedit_create(): Adding Wilds to existing linked-list.");
+        plogf(LOG_INFO, "olc_act.c, wedit_create(): Adding Wilds to existing linked-list.");
         pLastWilds->next = pWilds;
     }
     else
     {
-        plogf("olc_act.c, wedit_create(): Adding first Wilds to linked-list.");
+        plogf(LOG_INFO, "olc_act.c, wedit_create(): Adding first Wilds to linked-list.");
         pArea->wilds = pWilds;
     }
 
@@ -326,7 +326,7 @@ WEDIT ( wedit_terrain )
             return false;
         }
 
-        plogf ("Deleting terrain struct for token '%c'", token);
+        plogf (LOG_INFO, "Deleting terrain struct for token '%c'", token);
         del_terrain (pWilds, pTerrain);
         send_to_char ("[Wedit] Terrain token deleted.\n\r", ch);
         return true;
@@ -505,7 +505,7 @@ WEDIT ( wedit_vlink )
 
         if (!pWilds)
         {
-            plogf("wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
+            plogf(LOG_INFO, "wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
             return false;
         }
 
@@ -596,7 +596,7 @@ WEDIT ( wedit_vlink )
 
         if (!pWilds)
         {
-            plogf("wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
+            plogf(LOG_INFO, "wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
             return false;
         }
 
@@ -633,7 +633,7 @@ WEDIT ( wedit_vlink )
 
         if (!pWilds)
         {
-            plogf("wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
+            plogf(LOG_INFO, "wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
             return false;
         }
 
@@ -669,7 +669,7 @@ WEDIT ( wedit_vlink )
 
         if (!pWilds)
         {
-            plogf("wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
+            plogf(LOG_INFO, "wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
             return false;
         }
 
@@ -719,7 +719,7 @@ WEDIT ( wedit_vlink )
 
         if (!pWilds)
         {
-            plogf("wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
+            plogf(LOG_INFO, "wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
             return false;
         }
 
@@ -754,7 +754,7 @@ WEDIT ( wedit_vlink )
 
         if (!pWilds)
         {
-            plogf("wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
+            plogf(LOG_INFO, "wilds.c, wedit_vlink(): Failed to link vlink ch->in_wilds is NULL");
             return false;
         }
 
@@ -784,19 +784,19 @@ WEDIT ( wedit_vlink )
 	    int vlnum;
         if (!ch->in_room)
         {
-            plogf("wilds.c, vlinks(): ch->in_room invalid.");
+            plogf(LOG_INFO, "wilds.c, vlinks(): ch->in_room invalid.");
             return false;
         }
         else
             if (!ch->in_room->area)
             {
-                plogf("wilds.c, vlinks(): ch->in_room->area invalid.");
+                plogf(LOG_INFO, "wilds.c, vlinks(): ch->in_room->area invalid.");
                 return false;
             }
             else
                 if (!ch->in_room->area->wilds)
                 {
-                    plogf("wilds.c, vlinks(): ch->in_room->area->wilds invalid.");
+                    plogf(LOG_INFO, "wilds.c, vlinks(): ch->in_room->area->wilds invalid.");
                     return false;
                 }
 

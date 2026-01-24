@@ -153,7 +153,7 @@ void json_apply_env_overrides(void)
 json_t *game_settings_to_json(void)
 {
     json_t *root = json_object();
-    json_t *categories[8];  // One for each category
+    json_t *categories[SETTING_CAT_MAX];  // One for each category
     const char *category_names[] = {
         "email",
         "missions",
@@ -162,12 +162,13 @@ json_t *game_settings_to_json(void)
         "coffers",
         "global",
         "security",
-        "mssp"
+        "mssp",
+        "redis"
     };
     int i;
 
     // Create category objects
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < SETTING_CAT_MAX; i++) {
         categories[i] = json_object();
     }
 
@@ -219,7 +220,7 @@ json_t *game_settings_to_json(void)
     }
 
     // Add all categories to root
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < SETTING_CAT_MAX; i++) {
         json_object_set_new(root, category_names[i], categories[i]);
     }
 
@@ -236,7 +237,8 @@ bool json_to_game_settings(json_t *root)
         "coffers",
         "global",
         "security",
-        "mssp"
+        "mssp",
+        "redis"
     };
     int i;
 
@@ -489,6 +491,14 @@ static void init_game_settings_defaults(void)
     game_settings.mssp_roleplaying = false;
     game_settings.mssp_training_system = false;
     game_settings.mssp_world_originality = false;
+
+    /* Redis Settings */
+    game_settings.enable_redis = true;  /* Default to enabled */
+    game_settings.redis_host = "127.0.0.1";
+    game_settings.redis_port = 6379;
+    game_settings.redis_password = "";
+    game_settings.redis_timeout_sec = 1;
+    game_settings.redis_timeout_usec = 500000;
 }
 
 int json_game_settings_read(void)

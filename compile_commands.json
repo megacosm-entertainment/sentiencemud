@@ -1,0 +1,284 @@
+[
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/buf.c.o -c /sentience/src/.deps/zlog/src/buf.c",
+  "file": "/sentience/src/.deps/zlog/src/buf.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/buf.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/category.c.o -c /sentience/src/.deps/zlog/src/category.c",
+  "file": "/sentience/src/.deps/zlog/src/category.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/category.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/category_table.c.o -c /sentience/src/.deps/zlog/src/category_table.c",
+  "file": "/sentience/src/.deps/zlog/src/category_table.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/category_table.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/conf.c.o -c /sentience/src/.deps/zlog/src/conf.c",
+  "file": "/sentience/src/.deps/zlog/src/conf.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/conf.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/consumer.c.o -c /sentience/src/.deps/zlog/src/consumer.c",
+  "file": "/sentience/src/.deps/zlog/src/consumer.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/consumer.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/event.c.o -c /sentience/src/.deps/zlog/src/event.c",
+  "file": "/sentience/src/.deps/zlog/src/event.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/event.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/fifo.c.o -c /sentience/src/.deps/zlog/src/fifo.c",
+  "file": "/sentience/src/.deps/zlog/src/fifo.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/fifo.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/format.c.o -c /sentience/src/.deps/zlog/src/format.c",
+  "file": "/sentience/src/.deps/zlog/src/format.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/format.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/level.c.o -c /sentience/src/.deps/zlog/src/level.c",
+  "file": "/sentience/src/.deps/zlog/src/level.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/level.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/level_list.c.o -c /sentience/src/.deps/zlog/src/level_list.c",
+  "file": "/sentience/src/.deps/zlog/src/level_list.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/level_list.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/lockfile.c.o -c /sentience/src/.deps/zlog/src/lockfile.c",
+  "file": "/sentience/src/.deps/zlog/src/lockfile.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/lockfile.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/mdc.c.o -c /sentience/src/.deps/zlog/src/mdc.c",
+  "file": "/sentience/src/.deps/zlog/src/mdc.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/mdc.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/record.c.o -c /sentience/src/.deps/zlog/src/record.c",
+  "file": "/sentience/src/.deps/zlog/src/record.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/record.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/record_table.c.o -c /sentience/src/.deps/zlog/src/record_table.c",
+  "file": "/sentience/src/.deps/zlog/src/record_table.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/record_table.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/rotater.c.o -c /sentience/src/.deps/zlog/src/rotater.c",
+  "file": "/sentience/src/.deps/zlog/src/rotater.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/rotater.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/rule.c.o -c /sentience/src/.deps/zlog/src/rule.c",
+  "file": "/sentience/src/.deps/zlog/src/rule.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/rule.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/spec.c.o -c /sentience/src/.deps/zlog/src/spec.c",
+  "file": "/sentience/src/.deps/zlog/src/spec.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/spec.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/thread.c.o -c /sentience/src/.deps/zlog/src/thread.c",
+  "file": "/sentience/src/.deps/zlog/src/thread.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/thread.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/zc_arraylist.c.o -c /sentience/src/.deps/zlog/src/zc_arraylist.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_arraylist.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/zc_arraylist.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/zc_hashtable.c.o -c /sentience/src/.deps/zlog/src/zc_hashtable.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_hashtable.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/zc_hashtable.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/zc_profile.c.o -c /sentience/src/.deps/zlog/src/zc_profile.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_profile.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/zc_profile.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/zc_util.c.o -c /sentience/src/.deps/zlog/src/zc_util.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_util.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/zc_util.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc -Dzlog_EXPORTS -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE -fPIC   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog.dir/zlog.c.o -c /sentience/src/.deps/zlog/src/zlog.c",
+  "file": "/sentience/src/.deps/zlog/src/zlog.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog.dir/zlog.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/buf.c.o -c /sentience/src/.deps/zlog/src/buf.c",
+  "file": "/sentience/src/.deps/zlog/src/buf.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/buf.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/category.c.o -c /sentience/src/.deps/zlog/src/category.c",
+  "file": "/sentience/src/.deps/zlog/src/category.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/category.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/category_table.c.o -c /sentience/src/.deps/zlog/src/category_table.c",
+  "file": "/sentience/src/.deps/zlog/src/category_table.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/category_table.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/conf.c.o -c /sentience/src/.deps/zlog/src/conf.c",
+  "file": "/sentience/src/.deps/zlog/src/conf.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/conf.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/consumer.c.o -c /sentience/src/.deps/zlog/src/consumer.c",
+  "file": "/sentience/src/.deps/zlog/src/consumer.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/consumer.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/event.c.o -c /sentience/src/.deps/zlog/src/event.c",
+  "file": "/sentience/src/.deps/zlog/src/event.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/event.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/fifo.c.o -c /sentience/src/.deps/zlog/src/fifo.c",
+  "file": "/sentience/src/.deps/zlog/src/fifo.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/fifo.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/format.c.o -c /sentience/src/.deps/zlog/src/format.c",
+  "file": "/sentience/src/.deps/zlog/src/format.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/format.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/level.c.o -c /sentience/src/.deps/zlog/src/level.c",
+  "file": "/sentience/src/.deps/zlog/src/level.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/level.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/level_list.c.o -c /sentience/src/.deps/zlog/src/level_list.c",
+  "file": "/sentience/src/.deps/zlog/src/level_list.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/level_list.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/lockfile.c.o -c /sentience/src/.deps/zlog/src/lockfile.c",
+  "file": "/sentience/src/.deps/zlog/src/lockfile.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/lockfile.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/mdc.c.o -c /sentience/src/.deps/zlog/src/mdc.c",
+  "file": "/sentience/src/.deps/zlog/src/mdc.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/mdc.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/record.c.o -c /sentience/src/.deps/zlog/src/record.c",
+  "file": "/sentience/src/.deps/zlog/src/record.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/record.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/record_table.c.o -c /sentience/src/.deps/zlog/src/record_table.c",
+  "file": "/sentience/src/.deps/zlog/src/record_table.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/record_table.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/rotater.c.o -c /sentience/src/.deps/zlog/src/rotater.c",
+  "file": "/sentience/src/.deps/zlog/src/rotater.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/rotater.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/rule.c.o -c /sentience/src/.deps/zlog/src/rule.c",
+  "file": "/sentience/src/.deps/zlog/src/rule.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/rule.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/spec.c.o -c /sentience/src/.deps/zlog/src/spec.c",
+  "file": "/sentience/src/.deps/zlog/src/spec.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/spec.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/thread.c.o -c /sentience/src/.deps/zlog/src/thread.c",
+  "file": "/sentience/src/.deps/zlog/src/thread.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/thread.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/zc_arraylist.c.o -c /sentience/src/.deps/zlog/src/zc_arraylist.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_arraylist.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/zc_arraylist.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/zc_hashtable.c.o -c /sentience/src/.deps/zlog/src/zc_hashtable.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_hashtable.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/zc_hashtable.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/zc_profile.c.o -c /sentience/src/.deps/zlog/src/zc_profile.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_profile.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/zc_profile.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/zc_util.c.o -c /sentience/src/.deps/zlog/src/zc_util.c",
+  "file": "/sentience/src/.deps/zlog/src/zc_util.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/zc_util.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog_s.dir/zlog.c.o -c /sentience/src/.deps/zlog/src/zlog.c",
+  "file": "/sentience/src/.deps/zlog/src/zlog.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog_s.dir/zlog.c.o"
+},
+{
+  "directory": "/sentience/src/.deps/zlog/src",
+  "command": "/usr/bin/cc  -I/sentience/src/.deps/zlog/src -std=c99 -pedantic -D_DEFAULT_SOURCE   -g -Wall -Wstrict-prototypes -o CMakeFiles/zlog-chk-conf.dir/zlog-chk-conf.c.o -c /sentience/src/.deps/zlog/src/zlog-chk-conf.c",
+  "file": "/sentience/src/.deps/zlog/src/zlog-chk-conf.c",
+  "output": ".deps/zlog/src/CMakeFiles/zlog-chk-conf.dir/zlog-chk-conf.c.o"
+}
+]

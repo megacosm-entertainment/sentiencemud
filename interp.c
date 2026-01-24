@@ -1317,7 +1317,7 @@ if (ch->pk_question)
 
     allowed = is_allowed(command);
 
-	if (!selected_command->enabled && found)
+	if (found && !selected_command->enabled)
 	{
 		sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
 		send_to_char(buf,ch);

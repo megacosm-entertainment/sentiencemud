@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <pthread.h>
 #include <jansson.h>
 #include "redis_cache.h"
 #include "merc.h"
@@ -19,6 +20,7 @@ static redisContext *redis_ctx = NULL;
 static bool redis_available = false;
 static bool redis_json_available = false;
 static REDIS_STATS stats = {0};
+static pthread_mutex_t redis_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /***************************************************************************
  * Connection Management                                                   *
@@ -70,7 +72,9 @@ bool redis_init(void)
 
     if (redis_password && redis_password[0] != '\0') {
         log_string("Redis: Authenticating...");
+        pthread_mutex_lock(&redis_mutex);
         reply = redisCommand(redis_ctx, "AUTH %s", redis_password);
+        pthread_mutex_unlock(&redis_mutex);
 
         if (reply == NULL) {
             log_string("Redis: AUTH command failed - connection error");
@@ -98,7 +102,9 @@ bool redis_init(void)
     }
 
     // Test connection
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "PING");
+    pthread_mutex_unlock(&redis_mutex);
     if (reply == NULL) {
         log_string("Redis: PING failed");
         redisFree(redis_ctx);
@@ -114,7 +120,9 @@ bool redis_init(void)
 
         // Check for RedisJSON module
         log_string("Redis: Checking for RedisJSON module...");
+        pthread_mutex_lock(&redis_mutex);
         reply = redisCommand(redis_ctx, "MODULE LIST");
+        pthread_mutex_unlock(&redis_mutex);
         if (reply && reply->type == REDIS_REPLY_ARRAY) {
             for (size_t i = 0; i < reply->elements; i++) {
                 redisReply *module = reply->element[i];
@@ -306,6 +314,7 @@ bool redis_cache_char_info(CHAR_DATA *ch)
     }
 
     // Cache as Redis hash (easy to query individual fields)
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx,
         "HMSET %s "
         "name %s "
@@ -341,6 +350,7 @@ bool redis_cache_char_info(CHAR_DATA *ch)
         log_stringf("Redis: Failed to cache info for %s", ch->name);
         stats.errors++;
         free_char_info_cache(info);
+        pthread_mutex_unlock(&redis_mutex);
         return false;
     }
 
@@ -353,6 +363,7 @@ bool redis_cache_char_info(CHAR_DATA *ch)
     }
 
     stats.sets++;
+    pthread_mutex_unlock(&redis_mutex);
     free_char_info_cache(info);
 
     log_stringf("Redis: Cached info for %s", ch->name);
@@ -374,17 +385,20 @@ CHAR_INFO_CACHE *redis_get_char_info(const char *name)
 
     key = redis_key("char", name, "info");
 
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "HGETALL %s", key);
 
     if (reply == NULL || reply->type != REDIS_REPLY_ARRAY || reply->elements == 0) {
         if (reply) freeReplyObject(reply);
         stats.misses++;
+        pthread_mutex_unlock(&redis_mutex);
         return NULL;
     }
 
     info = (CHAR_INFO_CACHE *)calloc(1, sizeof(CHAR_INFO_CACHE));
     if (!info) {
         freeReplyObject(reply);
+        pthread_mutex_unlock(&redis_mutex);
         return NULL;
     }
 
@@ -448,6 +462,7 @@ CHAR_INFO_CACHE *redis_get_char_info(const char *name)
 
     freeReplyObject(reply);
     stats.hits++;
+    pthread_mutex_unlock(&redis_mutex);
 
     return info;
 }
@@ -463,11 +478,13 @@ bool redis_set_char_active(const char *name, bool active)
 
     key = redis_key("char", name, "active");
 
+    pthread_mutex_lock(&redis_mutex);
     if (active) {
         reply = redisCommand(redis_ctx, "SET %s 1 EX %d", key, REDIS_TTL_CHAR_ACTIVE);
     } else {
         reply = redisCommand(redis_ctx, "DEL %s", key);
     }
+    pthread_mutex_unlock(&redis_mutex);
 
     if (reply) {
         freeReplyObject(reply);
@@ -489,6 +506,7 @@ bool redis_is_char_active(const char *name)
     }
 
     key = redis_key("char", name, "active");
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "EXISTS %s", key);
 
     if (reply && reply->type == REDIS_REPLY_INTEGER) {
@@ -498,6 +516,7 @@ bool redis_is_char_active(const char *name)
     if (reply) {
         freeReplyObject(reply);
     }
+    pthread_mutex_unlock(&redis_mutex);
 
     return active;
 }
@@ -511,6 +530,7 @@ void redis_invalidate_char(const char *name)
     }
 
     // Delete all character keys (use pattern matching)
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "DEL %s %s",
         redis_key("char", name, "info"),
         redis_key("char", name, "active"));
@@ -520,6 +540,7 @@ void redis_invalidate_char(const char *name)
         stats.deletes++;
         freeReplyObject(reply);
     }
+    pthread_mutex_unlock(&redis_mutex);
 }
 
 void redis_warm_cache(int max_chars)
@@ -584,6 +605,7 @@ REDIS_STATS *redis_get_stats(void)
         return &stats;
     }
 
+    pthread_mutex_lock(&redis_mutex);
     // Get key count
     reply = redisCommand(redis_ctx, "DBSIZE");
     if (reply && reply->type == REDIS_REPLY_INTEGER) {
@@ -600,6 +622,7 @@ REDIS_STATS *redis_get_stats(void)
         }
     }
     if (reply) freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
 
     return &stats;
 }
@@ -673,12 +696,14 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
 
     key = redis_key("char", ch->name, "full");
 
+    pthread_mutex_lock(&redis_mutex);
     if (redis_json_available) {
         // Use RedisJSON module for native JSON storage
         json_str = json_dumps(char_json, JSON_COMPACT);
         if (!json_str) {
             log_stringf("Redis: Failed to serialize JSON for %s", ch->name);
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
 
@@ -693,6 +718,7 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
                 log_stringf("Redis: JSON.SET connection error for %s", ch->name);
             }
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
         freeReplyObject(reply);
@@ -703,6 +729,7 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
         if (!json_str) {
             log_stringf("Redis: Failed to serialize JSON for %s", ch->name);
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
 
@@ -717,6 +744,7 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
                 log_stringf("Redis: SET connection error for %s", ch->name);
             }
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
         freeReplyObject(reply);
@@ -729,6 +757,7 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
     }
 
     stats.sets++;
+    pthread_mutex_unlock(&redis_mutex);
     log_stringf("Redis: Cached full character data for %s (%s mode)",
                 ch->name, redis_json_available ? "RedisJSON" : "fallback");
     return true;
@@ -747,6 +776,7 @@ json_t *redis_get_char_full(const char *name)
 
     key = redis_key("char", name, "full");
 
+    pthread_mutex_lock(&redis_mutex);
     if (redis_json_available) {
         // Use RedisJSON module
         reply = redisCommand(redis_ctx, "JSON.GET %s $", key);
@@ -754,6 +784,7 @@ json_t *redis_get_char_full(const char *name)
         if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
             if (reply) freeReplyObject(reply);
             stats.misses++;
+            pthread_mutex_unlock(&redis_mutex);
             return NULL;
         }
 
@@ -778,11 +809,13 @@ json_t *redis_get_char_full(const char *name)
                 stats.misses++;
                 log_stringf("Redis: Failed to parse RedisJSON response for %s", name);
             }
+            pthread_mutex_unlock(&redis_mutex);
             return result;
         }
 
         freeReplyObject(reply);
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return NULL;
 
     } else {
@@ -792,6 +825,7 @@ json_t *redis_get_char_full(const char *name)
         if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
             if (reply) freeReplyObject(reply);
             stats.misses++;
+            pthread_mutex_unlock(&redis_mutex);
             return NULL;
         }
 
@@ -802,16 +836,19 @@ json_t *redis_get_char_full(const char *name)
             if (result) {
                 stats.hits++;
                 log_stringf("Redis: Retrieved full character data for %s (fallback mode)", name);
+                pthread_mutex_unlock(&redis_mutex);
                 return result;
             } else {
                 stats.errors++;
                 log_stringf("Redis: Failed to parse JSON for %s: %s", name, error.text);
+                pthread_mutex_unlock(&redis_mutex);
                 return NULL;
             }
         }
 
         freeReplyObject(reply);
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return NULL;
     }
 }
@@ -828,6 +865,7 @@ bool redis_update_char_gold(const char *name, long gold)
     key = redis_key("char", name, "full");
 
     // Use JSONPath to update just the gold field
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "JSON.SET %s $.character.gold %ld", key, gold);
 
     if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
@@ -836,10 +874,12 @@ bool redis_update_char_gold(const char *name, long gold)
             freeReplyObject(reply);
         }
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return false;
     }
 
     freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
     log_stringf("Redis: Updated gold for %s to %ld (partial update)", name, gold);
     return true;
 }
@@ -856,6 +896,7 @@ bool redis_update_char_exp(const char *name, long exp)
     key = redis_key("char", name, "full");
 
     // Use JSONPath to update just the experience field
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "JSON.SET %s $.character.exp %ld", key, exp);
 
     if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
@@ -864,10 +905,12 @@ bool redis_update_char_exp(const char *name, long exp)
             freeReplyObject(reply);
         }
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return false;
     }
 
     freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
     log_stringf("Redis: Updated exp for %s to %ld (partial update)", name, exp);
     return true;
 }
@@ -884,6 +927,7 @@ bool redis_update_char_position(const char *name, int room_vnum)
     key = redis_key("char", name, "full");
 
     // Use JSONPath to update room position
+    pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "JSON.SET %s $.character.room %d", key, room_vnum);
 
     if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
@@ -892,10 +936,12 @@ bool redis_update_char_position(const char *name, int room_vnum)
             freeReplyObject(reply);
         }
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return false;
     }
 
     freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
     log_stringf("Redis: Updated position for %s to room %d (partial update)", name, room_vnum);
     return true;
 }
@@ -916,10 +962,12 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json)
 
     key = redis_key("account", account_name, "full");
 
+    pthread_mutex_lock(&redis_mutex);
     if (redis_json_available) {
         json_str = json_dumps(account_json, JSON_COMPACT);
         if (!json_str) {
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
 
@@ -929,6 +977,7 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json)
         if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
             if (reply) freeReplyObject(reply);
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
         freeReplyObject(reply);
@@ -937,6 +986,7 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json)
         json_str = json_dumps(account_json, JSON_COMPACT);
         if (!json_str) {
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
 
@@ -946,6 +996,7 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json)
         if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
             if (reply) freeReplyObject(reply);
             stats.errors++;
+            pthread_mutex_unlock(&redis_mutex);
             return false;
         }
         freeReplyObject(reply);
@@ -958,6 +1009,7 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json)
     }
 
     stats.sets++;
+    pthread_mutex_unlock(&redis_mutex);
     log_stringf("Redis: Cached full account data for %s", account_name);
     return true;
 }
@@ -975,12 +1027,14 @@ json_t *redis_get_account_full(const char *account_name)
 
     key = redis_key("account", account_name, "full");
 
+    pthread_mutex_lock(&redis_mutex);
     if (redis_json_available) {
         reply = redisCommand(redis_ctx, "JSON.GET %s $", key);
 
         if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
             if (reply) freeReplyObject(reply);
             stats.misses++;
+            pthread_mutex_unlock(&redis_mutex);
             return NULL;
         }
 
@@ -1001,11 +1055,13 @@ json_t *redis_get_account_full(const char *account_name)
             } else {
                 stats.misses++;
             }
+            pthread_mutex_unlock(&redis_mutex);
             return result;
         }
 
         freeReplyObject(reply);
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return NULL;
 
     } else {
@@ -1014,6 +1070,7 @@ json_t *redis_get_account_full(const char *account_name)
         if (reply == NULL || reply->type == REDIS_REPLY_NIL) {
             if (reply) freeReplyObject(reply);
             stats.misses++;
+            pthread_mutex_unlock(&redis_mutex);
             return NULL;
         }
 
@@ -1024,15 +1081,301 @@ json_t *redis_get_account_full(const char *account_name)
             if (result) {
                 stats.hits++;
                 log_stringf("Redis: Retrieved full account data for %s", account_name);
+                pthread_mutex_unlock(&redis_mutex);
                 return result;
             } else {
                 stats.errors++;
+                pthread_mutex_unlock(&redis_mutex);
                 return NULL;
             }
         }
 
         freeReplyObject(reply);
         stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
         return NULL;
     }
+}
+
+/***************************************************************************
+ * World State Caching (Phase 2 - Persistence)                             *
+ ***************************************************************************/
+
+/*
+ * Key format:
+ *   persist:room:<room_id>     - Room state (vnum, wilds_uid_x_y_z, or clone_vnum_id0_id1)
+ *   persist:mobile:<id0>_<id1> - Mobile state
+ *   persist:object:<id0>_<id1> - Object state
+ *   persist:dirty              - List of dirty keys to write to disk
+ */
+
+static char *redis_persist_key(const char *type, const char *id)
+{
+    static char buf[256];
+    snprintf(buf, sizeof(buf), "persist:%s:%s", type, id);
+    return buf;
+}
+
+/*
+ * Cache a JSON string to Redis with TTL
+ */
+bool redis_cache_persist_data(const char *key, const char *json_str)
+{
+    redisReply *reply;
+    bool result = false;
+
+    if (!redis_is_available() || !key || !json_str) {
+        return false;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "SETEX %s %d %s",
+                        key, REDIS_TTL_WORLD_STATE, json_str);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        log_stringf("Redis: SETEX error for %s: %s", key, reply->str);
+        freeReplyObject(reply);
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    freeReplyObject(reply);
+    stats.sets++;
+    pthread_mutex_unlock(&redis_mutex);
+    return true;
+}
+
+/*
+ * Get cached JSON string from Redis
+ * Returns NULL if not found or error (caller must free with free())
+ */
+char *redis_get_persist_data(const char *key)
+{
+    redisReply *reply;
+    char *result = NULL;
+
+    if (!redis_is_available() || !key) {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "GET %s", key);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return NULL;
+    }
+
+    if (reply->type == REDIS_REPLY_NIL) {
+        freeReplyObject(reply);
+        stats.misses++;
+        pthread_mutex_unlock(&redis_mutex);
+        return NULL;
+    }
+
+    if (reply->type == REDIS_REPLY_STRING) {
+        result = strdup(reply->str);
+        freeReplyObject(reply);
+        stats.hits++;
+        pthread_mutex_unlock(&redis_mutex);
+        return result;
+    }
+
+    freeReplyObject(reply);
+    stats.errors++;
+    pthread_mutex_unlock(&redis_mutex);
+    return NULL;
+}
+
+/*
+ * Delete a cached key from Redis
+ */
+bool redis_delete_persist_data(const char *key)
+{
+    redisReply *reply;
+
+    if (!redis_is_available() || !key) {
+        return false;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "DEL %s", key);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return true;
+}
+
+/*
+ * Push a key to the dirty queue for background writing
+ */
+bool redis_queue_dirty_key(const char *key)
+{
+    redisReply *reply;
+
+    if (!redis_is_available() || !key) {
+        return false;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    /* Use LPUSH to add to the front of the dirty queue */
+    reply = redisCommand(redis_ctx, "LPUSH persist:dirty %s", key);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        log_stringf("Redis: LPUSH error for dirty queue: %s", reply->str);
+        freeReplyObject(reply);
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return true;
+}
+
+/*
+ * Pop a key from the dirty queue (non-blocking)
+ * Returns NULL if queue is empty
+ * Caller must free the returned string
+ * Note: timeout_sec kept for API compatibility but unused
+ */
+char *redis_pop_dirty_key(int timeout_sec)
+{
+    redisReply *reply;
+    char *result = NULL;
+    (void)timeout_sec;  /* unused - we use non-blocking RPOP now */
+
+    if (!redis_is_available()) {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    /* Use RPOP (non-blocking) to avoid holding mutex during blocking wait */
+    reply = redisCommand(redis_ctx, "RPOP persist:dirty");
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return NULL;
+    }
+
+    /* RPOP returns the value string or nil if empty */
+    if (reply->type == REDIS_REPLY_STRING) {
+        result = strdup(reply->str);
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return result;
+}
+
+/*
+ * Get the current size of the dirty queue
+ */
+long redis_dirty_queue_size(void)
+{
+    redisReply *reply;
+    long size = 0;
+
+    if (!redis_is_available()) {
+        return 0;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "LLEN persist:dirty");
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    if (reply->type == REDIS_REPLY_INTEGER) {
+        size = reply->integer;
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return size;
+}
+
+/*
+ * High-level functions for caching persist entities
+ */
+
+bool redis_cache_room_state(const char *room_id, const char *json_str)
+{
+    char *key = redis_persist_key("room", room_id);
+    if (!redis_cache_persist_data(key, json_str)) {
+        return false;
+    }
+    return redis_queue_dirty_key(key);
+}
+
+bool redis_cache_mobile_state(unsigned long id0, unsigned long id1, const char *json_str)
+{
+    char id_buf[64];
+    char *key;
+
+    snprintf(id_buf, sizeof(id_buf), "%lu_%lu", id0, id1);
+    key = redis_persist_key("mobile", id_buf);
+
+    if (!redis_cache_persist_data(key, json_str)) {
+        return false;
+    }
+    return redis_queue_dirty_key(key);
+}
+
+bool redis_cache_object_state(unsigned long id0, unsigned long id1, const char *json_str)
+{
+    char id_buf[64];
+    char *key;
+
+    snprintf(id_buf, sizeof(id_buf), "%lu_%lu", id0, id1);
+    key = redis_persist_key("object", id_buf);
+
+    if (!redis_cache_persist_data(key, json_str)) {
+        return false;
+    }
+    return redis_queue_dirty_key(key);
+}
+
+char *redis_get_room_state(const char *room_id)
+{
+    return redis_get_persist_data(redis_persist_key("room", room_id));
+}
+
+char *redis_get_mobile_state(unsigned long id0, unsigned long id1)
+{
+    char id_buf[64];
+    snprintf(id_buf, sizeof(id_buf), "%lu_%lu", id0, id1);
+    return redis_get_persist_data(redis_persist_key("mobile", id_buf));
+}
+
+char *redis_get_object_state(unsigned long id0, unsigned long id1)
+{
+    char id_buf[64];
+    snprintf(id_buf, sizeof(id_buf), "%lu_%lu", id0, id1);
+    return redis_get_persist_data(redis_persist_key("object", id_buf));
 }

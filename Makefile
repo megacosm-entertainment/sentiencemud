@@ -1,14 +1,37 @@
 CC      = gcc
 PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng -lhiredis -ljansson
+
+# Parallel build: use half of available cores by default
+# Override with: make JOBS=N or make -jN
+NPROC := $(shell nproc 2>/dev/null || echo 4)
+JOBS ?= $(shell echo $$(($(NPROC) / 2)))
+MAKEFLAGS += -j$(JOBS)
+
+# Dependency directories
+DEPS_DIR = .deps
+ZLOG_DIR = $(DEPS_DIR)/zlog
+JANSSON_DIR = $(DEPS_DIR)/jansson-2.14
+LIBCOTP_DIR = $(DEPS_DIR)/libcotp
+LIBQUICKMAIL_DIR = $(DEPS_DIR)/libquickmail-0.1.30
+LIBBACKTRACE_DIR = $(DEPS_DIR)/libbacktrace
+
+# Include paths for dependencies
+INCLUDES = -I$(ZLOG_DIR)/src -I$(JANSSON_DIR)/src -I$(LIBCOTP_DIR)/src -I$(LIBQUICKMAIL_DIR) -I$(LIBBACKTRACE_DIR)
+
+# Library paths for dependencies
+LIB_PATHS = -L$(ZLOG_DIR)/lib -L$(JANSSON_DIR)/src/.libs -L$(LIBCOTP_DIR) -L$(LIBQUICKMAIL_DIR)/.libs -L$(LIBBACKTRACE_DIR)/.libs
+
+# Libraries - zlog added, others linked from system or local builds
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
 GIT_URL := "$(shell sh giturl.sh)"
 
-C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -MMD -MP
-L_FLAGS =  $(PROF) $(LIBS)
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DMUD_DEBUG -MMD -MP $(INCLUDES)
+# -rdynamic exports symbols for stack trace support (backtrace_symbols)
+L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
 
 EXE	= sent
 
@@ -79,6 +102,7 @@ C_FILES = \
     interp.c \
     invasion.c \
     io/common.c \
+    log.c \
     lookup.c \
     magic.c \
     magic2.c \
@@ -129,6 +153,7 @@ C_FILES = \
     json_char.c \
     json_account.c \
     json_game_settings.c \
+    json_persist.c \
     json_race.c \
     save.c \
     scan.c \

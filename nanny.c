@@ -2606,10 +2606,13 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
             char_to_room(ch, ch->in_room);
         } else if (ch->in_wilds != NULL) {
             if (check_for_bad_room(ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y)) {
-                plogf("nanny.c, join_world(): Transferring char to VRoom");
+                plogf(LOG_INFO, "Transferring %s to VRoom", ch->name);
                 char_to_vroom(ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
             } else {
-                plogf("nanny.c, join_world(): Previous VRoom invalid. Relocating to Temple");
+                perrf(LOG_INFO, "Previous VRoom invalid. Relocating %s to default room (%d - %s)", ch->name, 
+                    get_reserved_vnum("room_default_recall"),
+                    get_room_index(get_reserved_vnum("room_default_recall")) ?
+                        get_room_index(get_reserved_vnum("room_default_recall"))->name : "Unknown");
                 ch->in_wilds = NULL;
                 ch->at_wilds_x = -1;
                 ch->at_wilds_y = -1;
@@ -4023,12 +4026,29 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
 
     // Load remaining character data if not fully loaded (inventory, equipment, skills, affects)
     if (ch->pcdata && !ch->pcdata->fully_loaded) {
-        char strsave[MAX_INPUT_LENGTH];
-        sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
+        bool load_success = false;
 
         log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: Loading remaining data for %s", ch->name);
 
-        if (!json_read_char_remaining(ch, strsave)) {
+        // Try Redis first for faster load
+        json_t *cached_json = redis_get_char_full(ch->name);
+        if (cached_json) {
+            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: Loading remaining data for %s from Redis cache", ch->name);
+            load_success = json_read_char_remaining_from_json(ch, cached_json);
+            json_decref(cached_json);
+            if (!load_success) {
+                log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: Redis load failed for %s, falling back to disk", ch->name);
+            }
+        }
+
+        // Fall back to disk if Redis didn't work
+        if (!load_success) {
+            char strsave[MAX_INPUT_LENGTH];
+            sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
+            load_success = json_read_char_remaining(ch, strsave);
+        }
+
+        if (!load_success) {
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load remaining data for %s", ch->name);
             write_to_buffer(d, "\n\r{RError loading character data. Please try again or contact staff.{x\n\r", 0);
             free_char(ch);

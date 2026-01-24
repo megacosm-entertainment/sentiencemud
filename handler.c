@@ -1990,7 +1990,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     // Prevent catastrophes
     if (ch->next_in_room == ch)
     {
-        plogf("[SERIOUS!] char_to_room(): error! char %s (vnum %ld)'s next_in_room is itself!\n",
+        pbugf(LOG_INFO, "[SERIOUS!] error! char %s (vnum %ld)'s next_in_room is itself!\n",
 	     IS_NPC(ch) ? ch->short_descr : ch->name,
 	     IS_NPC(ch) ? ch->pIndexData->vnum : 0);
         extract_char(ch, false);
@@ -1999,7 +1999,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
     if (ch->next == ch)
     {
-        plogf("[SERIOUS!] char_to_room(): error! char %s (vnum %ld)'s next is itself!\n",
+        pbugf(LOG_INFO, "[SERIOUS!] error! char %s (vnum %ld)'s next is itself!\n",
 	     IS_NPC(ch) ? ch->short_descr : ch->name,
 	     IS_NPC(ch) ? ch->pIndexData->vnum : 0);
         extract_char(ch, false);
@@ -2058,7 +2058,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 		// VIZZWILDS - Check char's wilds pointer
 			if (ch->in_wilds)
 			{
-				//plogf("handler.c, char_to_room(): %s is entering a wilds area.", ch->name);
+				//plogf(LOG_INFO, "handler.c, char_to_room(): %s is entering a wilds area.", ch->name);
 
 				if (ch->in_wilds->empty)
 				{

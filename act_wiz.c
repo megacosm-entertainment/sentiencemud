@@ -49,6 +49,7 @@
 #include "redis_cache.h"
 #include "async_cache.h"
 #include "json_game_settings.h"
+#include "log.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -4782,12 +4783,12 @@ void do_oload(CHAR_DATA *ch, char *argument)
             obj_to_char(obj, ch);
         else if (ch->in_room->wilds == NULL)
         {
-            plogf("act_wiz.c, do_oload(): Moving object to static room.");
+            plogf(LOG_INFO, "act_wiz.c, do_oload(): Moving object to static room.");
             obj_to_room(obj, ch->in_room);
         }
         else
         {
-            plogf("act_wiz.c, do_oload(): Moving object to vroom.");
+            plogf(LOG_INFO, "act_wiz.c, do_oload(): Moving object to vroom.");
             obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
         }
 
@@ -11170,6 +11171,7 @@ void do_cachestats(CHAR_DATA *ch, char *argument)
 
     // Use the redis_print_stats function which formats and displays stats
     redis_print_stats(ch);
+	log_stacktrace(LOG_LEVEL_ERROR, LOG_ERROR, "Unexpected null pointer in player data");
 }
 
 void do_cacheinfo(CHAR_DATA *ch, char *argument)

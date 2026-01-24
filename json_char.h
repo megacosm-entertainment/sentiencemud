@@ -54,6 +54,20 @@ bool json_read_char_remaining(CHAR_DATA *ch, const char *filename);
 bool json_is_json_file(const char *filename);
 
 /***************************************************************************
+ * Direct JSON Object Functions (for Redis cache)                          *
+ * These accept a pre-parsed json_t* instead of a filename                 *
+ ***************************************************************************/
+
+// Read full character from JSON object (for Redis cache)
+bool json_read_char_from_json(CHAR_DATA *ch, json_t *root);
+
+// Read basic character data from JSON object (for Redis cache)
+bool json_read_char_basic_from_json(CHAR_DATA *ch, json_t *root);
+
+// Load remaining character data from JSON object (for Redis cache)
+bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root);
+
+/***************************************************************************
  * Section-Specific Functions (for lazy loading)                          *
  ***************************************************************************/
 

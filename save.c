@@ -316,7 +316,10 @@ void save_char_obj(CHAR_DATA *ch)
     }
 
     // Remove carrying_temp code that's no longer needed
-    fclose(fpReserve);
+    if (fpReserve != NULL) {
+        fclose(fpReserve);
+        fpReserve = NULL;  // Mark as closed
+    }
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
 
 #if WRITE_OLD_PFILE_FORMAT
@@ -1105,7 +1108,10 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
         objNestList[iNest] = NULL;
 
     found = false;
-    fclose(fpReserve);
+    if (fpReserve != NULL) {
+        fclose(fpReserve);
+        fpReserve = NULL;  // Mark as closed so we know to reopen it
+    }
 
     /* decompress if .gz file exists */
     sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
@@ -1120,41 +1126,33 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
     log_string(buf);
 
     // Read-through cache: Try Redis first for faster load
+    bool loaded_from_cache = false;
     json_t *cached_json = redis_get_char_full(name);
     if (cached_json) {
-        // Found in Redis cache - write to temp file and load from there
-        // This allows us to use existing json_read_char functions without major refactoring
-        char temp_path[MAX_INPUT_LENGTH];
-        snprintf(temp_path, sizeof(temp_path), "%s.cache", strsave);
-
-        int result = json_dump_file(cached_json, temp_path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
+        // Found in Redis cache - load directly from JSON object
+        log_stringf("load_char_obj: Loading %s from Redis cache", name);
+        if (load_full) {
+            found = json_read_char_from_json(ch, cached_json);
+            if (!found) {
+                log_stringf("load_char_obj: Failed to load cached JSON for %s, falling back to disk", name);
+            }
+        } else {
+            found = json_read_char_basic_from_json(ch, cached_json);
+            if (!found) {
+                log_stringf("load_char_obj_basic: Failed to load cached JSON for %s, falling back to disk", name);
+            }
+        }
         json_decref(cached_json);
 
-        if (result == 0) {
-            log_stringf("load_char_obj: Loading %s from Redis cache", name);
-            found = true;
-            if (load_full) {
-                if (!json_read_char(ch, temp_path)) {
-                    log_stringf("load_char_obj: Failed to load cached JSON for %s, falling back to disk", name);
-                    found = false;
-                }
-            } else {
-                if (!json_read_char_basic(ch, temp_path)) {
-                    log_stringf("load_char_obj_basic: Failed to load cached JSON for %s, falling back to disk", name);
-                    found = false;
-                }
-            }
-            unlink(temp_path);  // Clean up temp file
-
-            // If cache load succeeded, skip disk read
-            if (found) {
-                goto load_success;
-            }
+        if (found) {
+            loaded_from_cache = true;
         }
     }
 
-    // Check if file exists and detect format (JSON vs old pfile)
-    if (json_is_json_file(strsave)) {
+    // Only try disk if cache didn't work
+    if (!loaded_from_cache) {
+        // Check if file exists and detect format (JSON vs old pfile)
+        if (json_is_json_file(strsave)) {
         // JSON format file
         found = true;
         if (load_full) {
@@ -1296,8 +1294,14 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
         }
 
         fclose(fp);
+        }
+        fpReserve = fopen(NULL_FILE, "r");
+    }  // end if (!loaded_from_cache)
+
+    // Ensure fpReserve is open (may have been closed and not reopened if loaded from cache)
+    if (fpReserve == NULL) {
+        fpReserve = fopen(NULL_FILE, "r");
     }
-    fpReserve = fopen(NULL_FILE, "r");
 
     // LOG: Count loaded items for diagnosis
     if (!IS_NPC(ch) && ch->lcarrying) {
@@ -1425,8 +1429,8 @@ if (found && !IS_NPC(ch) &&
                 ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
         }
     }
+    }  // end if (found && !IS_NPC(ch) && ...)
 
-load_success:
     // Performance logging for any character with inventory
     if (found && ch) {
         gettimeofday(&end_time, NULL);
@@ -1453,7 +1457,6 @@ load_success:
             redis_cache_char_info(ch);
         }
     }
-}
 
     return found;
 }
@@ -2782,11 +2785,11 @@ iterator_stop(&it);
 */
             if (!str_cmp (word, "Vroom"))
             {
-                plogf("save.c, fread_char(): Char is in a Vroom...");
+                plogf(LOG_INFO, "%s is in a Vroom...", ch->name);
                 ch->at_wilds_x = fread_number(fp);
                 ch->at_wilds_y = fread_number(fp);
-                plogf("save.c, fread_char():     @ ( %d, %d )",
-                      ch->at_wilds_x, ch->at_wilds_y);
+                plogf(LOG_INFO, "%s is at ( %d, %d )",
+                      ch->name, ch->at_wilds_x, ch->at_wilds_y);
                 pArea = get_area_from_uid (fread_number(fp));
                 ch->in_wilds = get_wilds_from_uid (pArea, fread_number(fp));
                 /* Vizz - room may not exist yet */
@@ -5562,7 +5565,10 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     account->email_verification_last_sent = 0;
 
     found = false;
-    fclose(fpReserve);
+    if (fpReserve != NULL) {
+        fclose(fpReserve);
+        fpReserve = NULL;  // Mark as closed
+    }
 
     /* decompress if .gz file exists */
     sprintf(strsave, "%s%c/%s%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name), ".gz");
@@ -6252,7 +6258,10 @@ void save_account(ACCOUNT_DATA *account)
         get_account_id(account);
 
     /* Close reserve file */
-    fclose(fpReserve);
+    if (fpReserve != NULL) {
+        fclose(fpReserve);
+        fpReserve = NULL;  // Mark as closed
+    }
 
     // Get account path
     json_get_account_path(account->username, strsave, sizeof(strsave));

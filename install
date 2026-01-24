@@ -1,0 +1,118 @@
+#!/bin/bash
+#
+# install - Install built binary to /sentience via symlink
+#
+# Usage: ./install [debug|release|reldeb] [--help]
+#
+# Creates/updates a symlink from /sentience/sent to .build/{config}/sent
+#
+
+INSTALL_DIR="/sentience"
+SRC_DIR="/sentience/src"
+
+show_help() {
+    cat << 'EOF'
+Usage: ./install [OPTIONS]
+
+Install built Sentience MUD binary to /sentience via symlink.
+
+Options:
+    debug, deb              Link to Debug build (default)
+    release, rel            Link to Release build
+    relwithdebinfo, reldeb  Link to RelWithDebInfo build
+    --help, -h              Show this help message
+
+Examples:
+    ./install               # Link to Debug build
+    ./install release       # Link to Release build
+    ./install reldeb        # Link to RelWithDebInfo build
+
+Source locations:
+    Debug:          .build/Debug/sent
+    Release:        .build/Release/sent
+    RelWithDebInfo: .build/RelWithDebInfo/sent
+
+Destination:
+    /sentience/sent -> /sentience/src/.build/{config}/sent
+
+Note: This creates a symlink, so rebuilding automatically updates
+      the installed binary. The running server should be stopped
+      before rebuilding if you want to pick up changes.
+EOF
+    exit 0
+}
+
+config_name="Debug"
+
+for arg in "$@"
+do
+    if [[ ${arg,,} == "release" ]] || [[ ${arg,,} == "rel" ]]; then
+        config_name="Release"
+    elif [[ ${arg,,} == "debug" ]] || [[ ${arg,,} == "deb" ]]; then
+        config_name="Debug"
+    elif [[ ${arg,,} == "relwithdebinfo" ]] || [[ ${arg,,} == "relwithdeb" ]] || [[ ${arg,,} == "reldeb" ]]; then
+        config_name="RelWithDebInfo"
+    elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
+        show_help
+    else
+        echo "Unknown argument '${arg}'."
+        echo "Use --help for usage information."
+        exit 1
+    fi
+done
+
+SOURCE="${SRC_DIR}/.build/${config_name}/sent"
+DEST="${INSTALL_DIR}/sent"
+
+# Check if source exists
+if [[ ! -f "$SOURCE" ]]; then
+    echo "Error: ${config_name} build not found at ${SOURCE}"
+    echo ""
+    echo "Build it first:"
+    echo "  ./build ${config_name,,}"
+    exit 1
+fi
+
+# Check if destination directory exists
+if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo "Error: Install directory ${INSTALL_DIR} does not exist."
+    exit 1
+fi
+
+# Get file info
+SOURCE_SIZE=$(stat -c%s "$SOURCE" 2>/dev/null || stat -f%z "$SOURCE" 2>/dev/null)
+SOURCE_DATE=$(stat -c%y "$SOURCE" 2>/dev/null | cut -d'.' -f1 || stat -f"%Sm" "$SOURCE" 2>/dev/null)
+
+echo "Installing ${config_name} build..."
+echo "  Source: ${SOURCE}"
+echo "  Size:   $(numfmt --to=iec-i --suffix=B ${SOURCE_SIZE} 2>/dev/null || echo "${SOURCE_SIZE} bytes")"
+echo "  Built:  ${SOURCE_DATE}"
+echo ""
+
+# Check current state
+if [[ -L "$DEST" ]]; then
+    current_target=$(readlink "$DEST")
+    if [[ "$current_target" == "$SOURCE" ]]; then
+        echo "Symlink already points to ${config_name} build."
+        echo "  ${DEST} -> ${SOURCE}"
+        exit 0
+    fi
+    echo "Updating symlink (was: ${current_target})..."
+    rm "$DEST"
+elif [[ -f "$DEST" ]]; then
+    echo "Replacing existing binary with symlink..."
+    rm "$DEST"
+fi
+
+# Create symlink
+ln -s "$SOURCE" "$DEST"
+
+if [[ $? -eq 0 ]]; then
+    echo ""
+    echo "Install complete:"
+    echo "  ${DEST} -> ${SOURCE}"
+else
+    echo ""
+    echo "Install failed."
+    exit 1
+fi

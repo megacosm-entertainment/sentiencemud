@@ -1,0 +1,128 @@
+#!/bin/bash
+#
+# build - Configure and build Sentience MUD in one step
+#
+# Usage: ./build [debug|release|reldeb] [clean] [gcc|clang] [--help]
+#
+# Combines ./config and ./compile into a single command.
+#
+
+show_help() {
+    cat << 'EOF'
+Usage: ./build [OPTIONS]
+
+Configure (if needed) and build Sentience MUD.
+
+Build Options:
+    debug, deb              Build Debug configuration (default)
+    release, rel            Build Release configuration
+    relwithdebinfo, reldeb  Build Release with debug info
+    clean                   Clean before building
+    reconfig                Force reconfiguration even if already configured
+
+Compiler Options:
+    gcc                     Use GCC compiler
+    clang                   Use Clang compiler
+
+Other:
+    --help, -h              Show this help message
+
+Examples:
+    ./build                 # Build Debug with default compiler
+    ./build release         # Build Release
+    ./build gcc debug       # Build Debug with GCC
+    ./build clean release   # Clean rebuild Release
+    ./build reconfig gcc    # Force reconfigure with GCC, then build
+
+Output locations:
+    Debug:          .build/Debug/sent
+    Release:        .build/Release/sent
+    RelWithDebInfo: .build/RelWithDebInfo/sent
+
+To install the binary to /sentience:
+    ./install [debug|release|reldeb]
+
+Alternative: Use Makefile for direct GCC builds:
+    make            # Build with GCC (outputs to ./sent)
+    make clean      # Clean build
+EOF
+    exit 0
+}
+
+compiler=""
+clean_opt=""
+build_cfg="--config Debug"
+config_name="Debug"
+force_reconfig=false
+
+for arg in "$@"
+do
+    if [[ ${arg,,} == "gcc" ]]; then
+        compiler="-DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc"
+    elif [[ ${arg,,} == "clang" ]]; then
+        compiler="-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang"
+    elif [[ ${arg,,} == "clean" ]]; then
+        clean_opt="--clean-first"
+    elif [[ ${arg,,} == "reconfig" ]]; then
+        force_reconfig=true
+    elif [[ ${arg,,} == "release" ]] || [[ ${arg,,} == "rel" ]]; then
+        build_cfg="--config Release"
+        config_name="Release"
+    elif [[ ${arg,,} == "debug" ]] || [[ ${arg,,} == "deb" ]]; then
+        build_cfg="--config Debug"
+        config_name="Debug"
+    elif [[ ${arg,,} == "relwithdebinfo" ]] || [[ ${arg,,} == "relwithdeb" ]] || [[ ${arg,,} == "reldeb" ]]; then
+        build_cfg="--config RelWithDebInfo"
+        config_name="RelWithDebInfo"
+    elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
+        show_help
+    else
+        echo "Unknown argument '${arg}'."
+        echo "Use --help for usage information."
+        exit 1
+    fi
+done
+
+# Check if we need to configure
+needs_config=false
+if [[ ! -d ".build" ]] || [[ ! -f ".build/build.ninja" ]]; then
+    needs_config=true
+fi
+if [[ "$force_reconfig" == true ]]; then
+    needs_config=true
+fi
+if [[ -n "$compiler" ]] && [[ -f ".build/build.ninja" ]]; then
+    # Compiler specified but already configured - need to reconfigure
+    needs_config=true
+fi
+
+# Configure if needed
+if [[ "$needs_config" == true ]]; then
+    echo "Configuring CMake build..."
+    mkdir -p .build
+    rm -rf .build/*
+    cmake -G "Ninja Multi-Config" -B .build . $compiler
+
+    if [[ $? -ne 0 ]]; then
+        echo ""
+        echo "Configuration failed."
+        exit 1
+    fi
+    echo ""
+fi
+
+# Build
+echo "Building ${config_name}..."
+cmake --build .build $clean_opt $build_cfg
+
+if [[ $? -eq 0 ]]; then
+    echo ""
+    echo "Build complete: .build/${config_name}/sent"
+    echo ""
+    echo "To install to /sentience:"
+    echo "  ./install ${config_name,,}"
+else
+    echo ""
+    echo "Build failed."
+    exit 1
+fi

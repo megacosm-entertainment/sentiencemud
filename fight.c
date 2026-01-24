@@ -6317,7 +6317,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 	// Check that the char was in a room or vroom to start with, and get the room reference
 	if ((was_in = ch->in_room) == NULL && ch->in_wilds == NULL)
 	{
-		plogf("fight.c, do_flee(): was_in == NULL (tried to flee from nowhere)");
+		pbugf(LOG_COMBAT, "%s was_in == NULL (tried to flee from nowhere)", ch->name);
 		return -1;
 	}
 
@@ -6338,7 +6338,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 
 			if (was_in->wilds == NULL)
 			{
-				plogf("fight.c, do_flee(): char is fleeing from a static room.");
+				pdebugf(LOG_COMBAT, "%s is fleeing from a static room.", ch->name);
 				// Check if door is a valid exit for this char
 				if (!(pexit = was_in->exit[door])
 					|| (!pexit->u1.to_room && pexit->wilds.wilds_uid == 0)
@@ -6351,7 +6351,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 			}
 			else
 			{
-				plogf("fight.c, do_flee(): char is fleeing from a wilds vroom.");
+				pdebugf(LOG_COMBAT, "%s is fleeing from a wilds vroom.", ch->name);
 			}
 
 			break;
@@ -6365,7 +6365,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 		{
 			EXIT_DATA *pexit;
 
-			plogf("fight.c, do_flee(): char is fleeing from a static room.");
+			pdebugf(LOG_COMBAT, "%s is fleeing from a static room.", ch->name);
 			// Check if door is a valid exit for this char
 			if (!(pexit = was_in->exit[door])
 				|| (!pexit->u1.to_room && pexit->wilds.wilds_uid == 0)
@@ -6379,7 +6379,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 		}
 		else
 		{
-			plogf("fight.c, do_flee(): char is fleeing from a wilds vroom.");
+			pdebugf(LOG_COMBAT, "%s is fleeing from a wilds vroom.", ch->name);
 		}
 
 		if( door >= 0 )

@@ -249,13 +249,13 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
 // First check pointer parameters are valid
     if ( !pTerrain )
     {
-        plogf("wilds.c, create_vroom(): pTerrain is NULL");
+        perr(LOG_ERROR, "pTerrain is NULL");
         abort();
     }
 
     if ( !pTerrain->template )
     {
-        plogf("wilds.c, create_vroom(): pTerrain->template is NULL");
+        perrf(LOG_ERROR, "pTerrain->template is NULL");
         abort();
     }
 
@@ -311,7 +311,7 @@ WILDS_VLINK *vroom_get_to_vlink(WILDS_DATA *pWilds, int x, int y, int door)
 
     if (!pWilds)
     {
-        plogf("wilds.c, vroom_get_to_vlink(): pRoomIndex->wilds is NULL.");
+        perr(LOG_ERROR, "pRoomIndex->wilds is NULL.");
         return NULL;
     }
 
@@ -337,7 +337,7 @@ bool vroom_has_from_vlinks(ROOM_INDEX_DATA *pRoomIndex)
 
     if (!pWilds)
     {
-        plogf("wilds.c, vroom_has_from_vlinks(): pRoomIndex->wilds is NULL.");
+        perrf(LOG_ERROR, "pRoomIndex->wilds is NULL.");
         return false;
     }
 
@@ -363,7 +363,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 // Check pointer parameter is valid
     if (!pRoomIndex)
     {
-        plogf("wilds.c, destroy_wilds_vroom(): pRoomIndex is NULL.");
+        perrf(LOG_ERROR, "pRoomIndex is NULL.");
         return;
     }
 
@@ -386,7 +386,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
     {
 //		sprintf(buf, "destroy_wilds_vroom: ??? %ld %ld - no wilds?", pRoomIndex->x, pRoomIndex->y);
 //		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-        plogf("wilds.c, destroy_wilds_vroom(): pRoomIndex->wilds is NULL.");
+        perrf(LOG_ERROR, "pRoomIndex->wilds is NULL.");
         return;
     }
 
@@ -476,12 +476,12 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     arraysize = pWilds->map_size_x * pWilds->map_size_y / 1024;
 
                     if (arraysize < 1024) /* if less than 1 meg, output in Kb */
-                        plogf("wilds.c, load_wilds(): Allocating %d x %d (%ld vrooms) = %ld Kb.",
+                        plogf(LOG_INFO, "Allocating %d x %d (%ld vrooms) = %ld Kb.",
                               pWilds->map_size_x, pWilds->map_size_y,
                               (pWilds->map_size_x * pWilds->map_size_y),
                               arraysize);
                     else /* Vizz - output in Mb */
-                        plogf("wilds.c, load_wilds(): Allocating %d x %d (%ld vrooms) = %ld Mb.",
+                        plogf(LOG_INFO, "Allocating %d x %d (%ld vrooms) = %ld Mb.",
                               pWilds->map_size_x, pWilds->map_size_y,
                               (pWilds->map_size_x * pWilds->map_size_y),
                               arraysize / 1024);
@@ -527,7 +527,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                 {
                     if (pWilds->uid == 0)
                     {
-                        plogf("wilds.c, load_wilds(): Wilds '%s' has no UID. Assigning next available one.",
+                        plogf(LOG_INFO, "Wilds '%s' has no UID. Assigning next available one.",
                               pWilds->name);
                         pWilds->uid = ++gconfig.next_wilds_uid;
 			gconfig_write();
@@ -562,7 +562,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                 if ( !str_cmp( word, "DefaultTerrain" ) )
                 {
                     pWilds->cDefaultTerrain = fgetc(fp);
-                    plogf("wilds.c, load_wilds(): Default Terrain type is '%c'.", pWilds->cDefaultTerrain);
+                    plogf(LOG_INFO, "Default Terrain type is '%c'.", pWilds->cDefaultTerrain);
                 }
 
                 break;
@@ -669,7 +669,7 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
     if (!pWilds)
     {
         #ifdef DEBUG
-            plogf("wilds.c, create_wilds_vroom(): pWilds = NULL");
+            pdebugf(LOG_DEBUG, "pWilds = NULL");
         #endif
         return(NULL);
     }
@@ -682,7 +682,7 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
         if (!nonroom)
         {
             #ifdef DEBUG
-                plogf("wilds.c, create_wilds_vroom(): INFO    - Terrain at coordinates is valid. Creating vroom.");
+                pdebugf(LOG_DEBUG, "    - Terrain at coordinates is valid. Creating vroom.");
             #endif
             pRoomIndex = create_vroom(pWilds,
                                 x + pWilds->startx,
@@ -692,7 +692,7 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
         else
         {
             #ifdef DEBUG
-                plogf("wilds.c, create_wilds_vroom(): FAILURE -  Terrain at coordinates is invalid. Returning NULL");
+                pdebugf(LOG_DEBUG, "FAILURE -  Terrain at coordinates is invalid. Returning NULL");
             #endif
             return (NULL);
         }
@@ -713,7 +713,7 @@ WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
     /* Check pointer is valid */
     if (!pWilds)
     {
-        plogf("wilds.c, get_terrain_by_coors(): Invalid pWilds pointer.");
+        perrf(LOG_ERROR, "Invalid pWilds pointer.");
         return(NULL);
     }
 
@@ -731,13 +731,13 @@ WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
     if (!found)
     {
         #ifdef DEBUG
-            plogf("wilds.c, get_terrain_by_coors(): Terrain type %c not found in list. Returning NULL.", j);
+            pdebugf(LOG_DEBUG, "Terrain type %c not found in list. Returning NULL.", j);
         #endif
         return (NULL);
     }
 
     #ifdef DEBUG
-        plogf("wilds.c, get_terrain_by_coors(): SUCCESS - Terrain found. Returning pTerrain", j);
+        pdebugf(LOG_DEBUG, "Terrain found. Returning pTerrain", j);
     #endif
     return (pTerrain);
 }
@@ -764,7 +764,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
 
     if (!fp)
     {
-        plogf ("wilds.c, fread_vlink(): Invalid fp pointer.");
+        pbug(LOG_ERROR, "Invalid fp pointer.");
         abort();
     }
 
@@ -779,7 +779,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
             case '#':
                 if (!str_cmp(word, "#-VLINK")) {
 			if(!pVLink->uid) {
-				plogf("wilds.c, fread(): Vlink (%ld, %ld) has no UID. Assigning next available one.",
+				pwarnf(LOG_INFO, "Vlink (%ld, %ld) has no UID. Assigning next available one.",
 				      pVLink->wildsorigin_x, pVLink->wildsorigin_y);
 				pVLink->uid = ++gconfig.next_vlink_uid;
 				gconfig_write();
@@ -806,7 +806,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
 
                     if (pVLink->door < 0 || pVLink->door > (MAX_DIR - 1))
                     {
-                        plogf("wilds.c, fread_vlink(): vlink has bad door number.");
+                        pbugf(LOG_ERROR, "vlink has bad door number.");
                         abort();
                     }
                 }
@@ -870,13 +870,13 @@ void fwrite_vlink (FILE *fp, WILDS_VLINK *pVLink)
 {
     if (!fp)
     {
-        plogf("wilds.c, fwrite_vlink(): Invalid fp");
+        pbugf(LOG_ERROR, "Invalid fp");
         return;
     }
 
     if (!pVLink)
     {
-        plogf("wilds.c, fwrite_vlink(): Invalid pVLink");
+        pbugf(LOG_ERROR, "Invalid pVLink");
         return;
     }
 
@@ -920,13 +920,13 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
  */
     if(!fp)
     {
-        plogf("wilds.c, fread_terrain(): Invalid fp");
+        pbugf(LOG_ERROR, "Invalid fp");
         abort();
     }
 
     if(!pWilds)
     {
-        plogf("wilds.c, fread_terrain(): Invalid pWilds");
+        pbugf(LOG_ERROR, "Invalid pWilds");
         abort();
     }
 
@@ -941,13 +941,13 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
             case '#':
                 if ( !str_cmp( word, "#-TERRAIN" ) )
                 {
-                    plogf("wilds.c, fread_terrain(): Finished reading terrain record.");
+                    plogf(LOG_INFO, "Finished reading terrain record.");
                     return (pTerrain);
                 }
                 else
                 if ( !str_cmp( word, "#ROOM" ) )
                 {
-                    plogf("wilds.c, fread_terrain(): Found #ROOM record.");
+                    plogf(LOG_INFO, "Found #ROOM record.");
                     // need to use sent's current room reading logic
                     pTerrain->template = read_room_new(fp, NULL, ROOMTYPE_TERRAIN);
                 }
@@ -958,7 +958,7 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
                 if ( !str_cmp( word, "Briefdesc"))
                 {
                     pTerrain->briefdesc = fread_string(fp);
-                    plogf("wilds.c, fread_terrain(): Briefdesc = '%s'.", pTerrain->briefdesc);
+                    plogf(LOG_INFO, "Briefdesc = '%s'.", pTerrain->briefdesc);
                 }
 
                 break;
@@ -967,7 +967,7 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
                 if ( !str_cmp( word, "Nonroom"))
                 {
                     pTerrain->nonroom = fread_number(fp);
-                    plogf("wilds.c, fread_terrain(): Nonroom = %d.", pTerrain->nonroom);
+                    plogf(LOG_INFO, "Nonroom = %d.", pTerrain->nonroom);
                 }
 
                 break;
@@ -976,13 +976,13 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
                 if ( !str_cmp( word, "Showchar"))
                 {
                     pTerrain->showchar = fread_string_eol(fp);
-                    plogf("wilds.c, fread_terrain(): Showchar = '%s'.", pTerrain->showchar);
+                    plogf(LOG_INFO, "Showchar = '%s'.", pTerrain->showchar);
                 }
                 else
                 if ( !str_cmp( word, "Showname"))
                 {
                     pTerrain->showname = fread_string(fp);
-                    plogf("wilds.c, fread_terrain(): Showname = '%s'.", pTerrain->showname);
+                    plogf(LOG_INFO, "Showname = '%s'.", pTerrain->showname);
                 }
 
                 break;
@@ -992,7 +992,7 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
                 {
                     fgetc(fp);
                     pTerrain->mapchar = fgetc(fp);
-                    plogf("wilds.c, fread_terrain(): Tile = '%c'.", pTerrain->mapchar);
+                    plogf(LOG_INFO, "Tile = '%c'.", pTerrain->mapchar);
 
                 }
 
@@ -1009,13 +1009,13 @@ void fwrite_terrain (FILE *fp, WILDS_TERRAIN *pTerrain)
 {
     if (!fp)
     {
-        plogf("wilds.c, fwrite_terrain(): Invalid fp");
+        pbugf(LOG_ERROR, "Invalid fp");
         return;
     }
 
     if (!pTerrain)
     {
-        plogf("wilds.c, fwrite_terrain(): Invalid pTerrain");
+        pbugf(LOG_ERROR, "Invalid pTerrain");
         return;
     }
 
@@ -1073,7 +1073,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
     // Check vlink pointer is valid
     if (!pVLink)
     {
-        plogf("wilds.c, link_vlink(): pVLink is NULL");
+        pbugf(LOG_ERROR, "pVLink is NULL");
         return (false);
     }
 
@@ -1103,7 +1103,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
 				if(pExit->short_desc) { free_string(pExit->short_desc); pExit->short_desc=NULL; }
 				if(pExit->keyword) { free_string(pExit->keyword); pExit->keyword=NULL; }
 			} else {
-				plogf("wilds.c, link_vlink(): Wilds-side vlink exit already exists.");
+				pwarnf(LOG_WARN, "Wilds-side vlink exit already exists.");
 				return (false);
 			}
 
@@ -1139,7 +1139,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
 			if( IS_SET(pRevRoom->room_flag[1], ROOM_BLUEPRINT) ||
 				IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
 			{
-				plogf("wilds.c, link_vlink(): Room involved in blueprints.");
+				plogf(LOG_INFO, "Room involved in blueprints.");
 			}
 			else
 			{
@@ -1175,7 +1175,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
         }
         else
         {
-            plogf("wilds.c, link_vlink(): Static room not found.");
+            pwarnf(LOG_WARN, "Static room not found.");
         }
 
     }
@@ -1200,13 +1200,13 @@ bool unlink_vlink(WILDS_VLINK *pVLink)
     // Check vlink pointer is valid
     if (!pVLink)
     {
-        plogf("wilds.c, unlink_vlink(): pVLink is NULL");
+        pbugf(LOG_ERROR, "pVLink is NULL");
         return (false);
     }
 
     if (pVLink->current_linkage == VLINK_UNLINKED)
     {
-        plogf("wilds.c, unlink_vlink(): current_linkage is VLINK_UNLINKED, so can't unlink.");
+        pbugf(LOG_ERROR, "current_linkage is VLINK_UNLINKED, so can't unlink.");
         return(false);
     }
     pWilds = pVLink->pWilds;
@@ -1240,7 +1240,7 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
 		link_vroom(pWildsRoom);
             }
             else
-                plogf("wilds.c, unlink_vlink(): wilds side of vlink - exit missing!");
+                pwarnf(LOG_WARN, "wilds side of vlink - exit missing!");
         }
 	/* Mark vlink as unlinked in from_wilds direction */
 	REMOVE_BIT(pVLink->current_linkage, VLINK_FROM_WILDS);
@@ -1259,7 +1259,7 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
                 found = true;
             }
             else
-                plogf("wilds.c, unlink_vlink(): reverse side of vlink - exit missing!");
+                pwarnf(LOG_WARN, "reverse side of vlink - exit missing!");
         }
 	REMOVE_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
     }
@@ -2490,7 +2490,7 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
 	}
 	else if (!ch->in_wilds)
     {
-        plogf("wilds.c, do_vlinks(): ch->in_wilds invalid.");
+        pbugf(LOG_ERROR, "%s: ch->in_wilds invalid.", ch->name  ? ch->name : "unknown");
         send_to_char("Vlinks: You don't appear to be in a wilds region.\n\r", ch);
         return;
     }
@@ -2635,7 +2635,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     // Check arguments are valid.
     if (pWilds == NULL)
     {
-        plogf ("wilds.c, char_to_vroom(): pWilds is NULL.");
+        pbugf(LOG_ERROR, "pWilds is NULL.");
 
 	// No wilds pointer, so send the char to the default room.
         if ((room = get_room_index (get_reserved_vnum("room_default"))) != NULL)
@@ -2645,7 +2645,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         }
 
 	// Just in case...
-        plogf("wilds.c, char_to_vroom(): Default room could not be found!");
+        pbugf(LOG_ERROR, "Default room could not be found!");
         return;
     }
 
@@ -2756,13 +2756,13 @@ void add_vlink (WILDS_DATA *pWilds, WILDS_VLINK *pVLink)
      */
     if (!pWilds)
     {
-        plogf("wilds.c, add_vlink(): Invalid pWilds pointer.");
+        pbugf(LOG_ERROR, "Invalid pWilds pointer.");
         abort();
     }
 
     if (!pVLink)
     {
-        plogf("wilds.c, add_vlink(): Invalid pVLink pointer.");
+        pbugf(LOG_ERROR, "Invalid pVLink pointer.");
         abort();
     }
 
@@ -2857,17 +2857,17 @@ bool del_terrain (WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 
     if (prev_pTerrain)
     {
-        plogf("prev_pTerrain->mapchar: '%c'", prev_pTerrain->mapchar);
+        plogf(LOG_INFO, "prev_pTerrain->mapchar: '%c'", prev_pTerrain->mapchar);
         prev_pTerrain->next = next_pTerrain;
     }
 
     if (next_pTerrain)
     {
-        plogf("next_pTerrain->mapchar: '%c'", next_pTerrain->mapchar);
+        plogf(LOG_INFO, "next_pTerrain->mapchar: '%c'", next_pTerrain->mapchar);
         next_pTerrain->prev = prev_pTerrain;
     }
 
-    plogf("pTerrain->mapchar: '%c'", pTerrain->mapchar);
+    plogf(LOG_INFO, "pTerrain->mapchar: '%c'", pTerrain->mapchar);
 
     if (pWilds->pTerrain == pTerrain)
         pWilds->pTerrain = next_pTerrain;
@@ -2930,13 +2930,13 @@ void link_vlinks (WILDS_DATA *pWilds)
 
     if (pWilds == NULL)
     {
-        plogf("wilds.c, link_vlinks(): Failed to link vlinks - pWilds pointer is NULL");
+        pbugf(LOG_ERROR, "Failed to link vlinks - pWilds pointer is NULL");
         return;
     }
 
     if (pWilds->pVLink == NULL)
     {
-        plogf("wilds.c, link_vlinks(): No Vlinks found.");
+        pwarnf(LOG_WARN, "No Vlinks found.");
         return;
     }
 
@@ -2944,14 +2944,14 @@ void link_vlinks (WILDS_DATA *pWilds)
     {
         if ((pRevLinkRoomIndex = get_room_index (pVLink->destvnum)) == NULL)
         {
-            plogf("wilds.c, apply_vlink(): destvnum %ld does not exist.", pVLink->destvnum);
+            perrf(LOG_ERROR, "destvnum %ld does not exist.", pVLink->destvnum);
             continue;
         }
 
         if (IS_SET(pRevLinkRoomIndex->room_flag[1], ROOM_BLUEPRINT) ||
         	IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
         {
-            plogf("wilds.c, apply_vlink(): destvnum %ld involved in blueprints.", pVLink->destvnum);
+            plogf(LOG_INFO, "destvnum %ld involved in blueprints.", pVLink->destvnum);
             continue;
 		}
 
@@ -2962,17 +2962,17 @@ void link_vlinks (WILDS_DATA *pWilds)
                 && pVLink->wildsorigin_y < pWilds->map_size_y)
             {
 				if (link_vlink(pVLink))
-					plogf("link_vlinks(): VLink %s from (%d, %d) to %ld Linked Successfully.",
+					plogf(LOG_INFO, "VLink %s from (%d, %d) to %ld Linked Successfully.",
 						dir_name[pVLink->door],
 						pVLink->wildsorigin_x,
 						pVLink->wildsorigin_y,
 						pVLink->destvnum);
 				else
-					plogf("wilds.c, link_vlinks(): VLink failed.");
+					perrf(LOG_ERROR, "VLink failed.");
 				continue;
             }
             else
-                plogf("wilds.c, link_vlinks(): VLink failed - coordinates are invalid.");
+                perrf(LOG_ERROR, "VLink failed - coordinates are invalid.");
 
 			continue;
         }
@@ -3011,7 +3011,7 @@ WILDS_DATA *get_wilds_from_uid (AREA_DATA *pArea, long uid)
         }
     }
 
-    plogf("wilds.c, get_wilds_from_uid(): Could not find wilds pointer from uid.");
+    perrf(LOG_ERROR, "Could not find wilds pointer from uid.");
     return (NULL);
 }
 
@@ -3046,7 +3046,7 @@ WILDS_VLINK *get_vlink_from_uid (WILDS_DATA *pWilds, long uid)
         }
     }
 
-    plogf("wilds.c, get_vlink_from_uid(): Could not find vlink pointer from uid.");
+    perrf(LOG_ERROR, "Could not find vlink pointer from uid.");
     return (NULL);
 }
 

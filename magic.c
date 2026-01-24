@@ -48,6 +48,26 @@
 #include "wilds.h"
 #include "scripts.h"
 
+/*
+ * Lookup a skill by name and return a pointer to the skill_type.
+ */
+const skill_t *skill_type_lookup(const char *name)
+{
+    int sn;
+
+    for (sn = 0; sn < MAX_SKILL; sn++)
+    {
+		if (skill_table[sn].name == NULL)
+			break;
+		if (LOWER(name[0]) == LOWER(skill_table[sn].name[0])
+			&&   !str_prefix(name, skill_table[sn].name))
+			return &skill_table[sn];
+    }
+
+    return NULL;
+}
+
+
 // Lookup a skill by name.
 int skill_lookup(const char *name)
 {

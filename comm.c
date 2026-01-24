@@ -77,6 +77,7 @@
 #include "protocol.h"
 #include "redis_cache.h"
 #include "async_cache.h"
+#include "json_persist.h"
 
 /*
  * Socket and TCP/IP stuff.
@@ -327,7 +328,7 @@ bool parse_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	int rc = log_init("zlog.conf");
+	int rc = log_init(ZLOG_CONF);
 	if (rc) {
 		fprintf(stderr, "log_init failed\n");
 		return -1;
@@ -469,7 +470,7 @@ int main(int argc, char **argv)
 
 	game_settings = game_settings_zero;
 	if (game_settings_read()==1) exit(1);
-	log_message(LOG_LEVEL_INFO, LOG_INIT, "Global game settings loaded.");
+	plogf(LOG_INIT, "Global game settings loaded.");
 
     /*
      * Get the port number.
@@ -482,7 +483,7 @@ int main(int argc, char **argv)
 		websocket_port = game_settings.websocket_tls_port;
 	if (game_settings.testport || game_settings.dev_server)
     	is_test_port = true;
-	
+
 	if (game_settings.dev_server)
 		{
 			newlock = true;
@@ -556,6 +557,7 @@ int main(int argc, char **argv)
 		control_websocket = init_tls_socket(websocket_port);
 		log_message_f(LOG_LEVEL_INFO, LOG_INIT, "WebSocket TLS socket bound to port %d.", websocket_port);
 	}
+	log_message(LOG_LEVEL_INFO, LOG_INIT, "Socket initialization complete");
 
     boot_db();
 
@@ -566,6 +568,14 @@ int main(int argc, char **argv)
         // Warm cache with recently active characters (Phase 1 - currently no-op)
         // Future: This will pre-cache character.json files in Phase 3
         redis_warm_cache(100);
+
+        // Warm cache with loaded persist entities (Phase 2)
+        json_persist_warm_cache();
+
+        // Start background persist worker (Phase 2 - async writes through Redis)
+        if (!json_persist_worker_start()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Persist worker failed to start - using synchronous writes");
+        }
     }
 
     // Initialize async cache system for background dump/load operations
@@ -601,8 +611,8 @@ int main(int argc, char **argv)
 	list_destroy(loaded_wilds);
 	list_destroy(list_churches);
 	if (game_settings.enable_telnet)
-    	close (control_telnet);
-	if (game_settings.enable_tls)
+            close (control_telnet);
+        if (game_settings.enable_tls)
 		close(control_tls);
 
 
@@ -611,10 +621,10 @@ int main(int argc, char **argv)
 
     if (gconfig_write()==1)
     {
-        plogf("comm.c, main(): Failed to write our gconfig.rc file!");
-        plogf("                Current UID's are:");
-        plogf("                                   NextAreaUID:	%ld", gconfig.next_area_uid);
-        plogf("                                   NextWildsUID:	%ld", gconfig.next_wilds_uid);
+        perrf(LOG_INIT, "comm.c, main(): Failed to write our gconfig.rc file!");
+        perrf(LOG_INIT, "                Current UID's are:");
+        perrf(LOG_INIT, "                                   NextAreaUID:	%ld", gconfig.next_area_uid);
+        perrf(LOG_INIT, "                                   NextWildsUID:	%ld", gconfig.next_wilds_uid);
     }
 
     // @@@@FIXME: FREE EVERYTHING!!!!
@@ -641,6 +651,9 @@ int main(int argc, char **argv)
 
     // Shutdown async cache system (wait for pending operations)
     async_cache_shutdown();
+
+    // Stop background persist worker (flushes dirty queue to disk)
+    json_persist_worker_stop();
 
     // Shutdown Redis connection
     redis_shutdown();
@@ -2281,16 +2294,6 @@ bool write_to_descriptor(DESCRIPTOR_DATA *d, char *txt, int length)
 
 #define DEBUG		true
 
-void plogf (char *fmt, ...)
-{
-	char buf[2 * MSL];
-	va_list args;
-	va_start (args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end (args);
-	log_message(LOG_LEVEL_INFO, LOG_INFO, buf);
-}
-
 /*
 void join_world(DESCRIPTOR_DATA * d)
 {
@@ -2298,7 +2301,7 @@ void join_world(DESCRIPTOR_DATA * d)
     char buf[MSL];
 
     ch = d->character;
-    plogf ("nanny.c, join_world(): Placing character in game.");
+    plogf (LOG_INFO, "nanny.c, join_world(): Placing character in game.");
     if (ch->pcdata == NULL || ch->pcdata->pwd[0] == '\0')
     {
         send_to_char ("Warning! Null password!\n\r", ch);
@@ -2345,14 +2348,14 @@ void join_world(DESCRIPTOR_DATA * d)
     {
         if (ch->in_room != NULL)
         {
-            plogf("nanny.c, join_world(): Transferring char to Real Room");
+            plogf(LOG_INFO, "nanny.c, join_world(): Transferring char to Real Room");
             char_to_room (ch, ch->in_room);
         }
         else
         {
             if (ch->in_wilds != NULL)
             {
-                plogf("nanny.c, join_world(): Transferring char to VRoom");
+                plogf(LOG_INFO, "nanny.c, join_world(): Transferring char to VRoom");
                 char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
             }
             else

@@ -1620,7 +1620,7 @@ void wedit (CHAR_DATA * ch, char *argument)
 
     if (!pWilds)
     {
-        plogf("olc.c, wedit(): pWilds is NULL");
+        perrf(LOG_ERROR, "pWilds is NULL");
         edit_done (ch);
         return;
     }
@@ -1786,12 +1786,12 @@ void do_wedit (CHAR_DATA * ch, char *argument)
                 while(pLastWilds->next)
                     pLastWilds = pLastWilds->next;
 
-                plogf("olc.c, do_wedit(): Adding Wilds to existing linked-list.");
+                perrf(LOG_INFO, "olc.c, do_wedit(): Adding Wilds to existing linked-list.");
                 pLastWilds->next = pWilds;
             }
             else
             {
-                plogf("olc.c, do_wedit(): Adding first Wilds to linked-list.");
+                perrf(LOG_INFO, "olc.c, do_wedit(): Adding first Wilds to linked-list.");
                 pArea->wilds = pWilds;
             }
 
@@ -1826,7 +1826,7 @@ void vledit (CHAR_DATA * ch, char *argument)
 
     if (!pVLink)
     {
-        plogf("olc.c, vledit(): pVLink is NULL");
+        perrf(LOG_ERROR, "olc.c, vledit(): pVLink is NULL");
         edit_done (ch);
         return;
     }
