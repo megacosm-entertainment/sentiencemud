@@ -19,6 +19,7 @@
 #include "merc.h"
 #include "tables.h"
 #include "json_char.h"
+#include "json_persist.h"
 #include "redis_cache.h"
 
 /***************************************************************************
@@ -199,9 +200,11 @@ CHAR_INFO_CACHE *json_to_char_info(json_t *json)
 
 json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
 {
-    json_t *json_obj, *contains_array, *affects_array, *extra_descr_array;
+    json_t *json_obj, *contains_array, *affects_array, *extra_descr_array, *spells_array, *tokens_array;
     AFFECT_DATA *paf;
     EXTRA_DESCR_DATA *ed;
+    SPELL_DATA *spell;
+    TOKEN_DATA *token;
     int i;
 
     if (!obj) {
@@ -214,14 +217,19 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
     json_object_set_new(json_obj, "vnum", json_integer(obj->pIndexData->vnum));
     json_object_set_new(json_obj, "nest_level", json_integer(nest_level));
 
-    if (obj->name && str_cmp(obj->name, obj->pIndexData->name)) {
+    // Use POINTER comparison (not string comparison) to match save.c behavior
+    // If the pointer differs from prototype, save it - even if content is identical
+    if (obj->name != obj->pIndexData->name) {
         json_object_set_new(json_obj, "name", json_string(obj->name));
     }
-    if (obj->short_descr && str_cmp(obj->short_descr, obj->pIndexData->short_descr)) {
+    if (obj->short_descr != obj->pIndexData->short_descr) {
         json_object_set_new(json_obj, "short_descr", json_string(obj->short_descr));
     }
-    if (obj->description && str_cmp(obj->description, obj->pIndexData->description)) {
+    if (obj->description != obj->pIndexData->description) {
         json_object_set_new(json_obj, "description", json_string(obj->description));
+    }
+    if (obj->full_description != obj->pIndexData->full_description) {
+        json_object_set_new(json_obj, "full_description", json_string(obj->full_description));
     }
 
     // Object state
@@ -245,6 +253,15 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
     }
     if (obj->cost != obj->pIndexData->cost) {
         json_object_set_new(json_obj, "cost", json_integer(obj->cost));
+    }
+    if (obj->fragility != obj->pIndexData->fragility) {
+        json_object_set_new(json_obj, "fragility", json_integer(obj->fragility));
+    }
+    if (obj->times_allowed_fixed != obj->pIndexData->times_allowed_fixed) {
+        json_object_set_new(json_obj, "times_allowed_fixed", json_integer(obj->times_allowed_fixed));
+    }
+    if (obj->times_fixed > 0) {
+        json_object_set_new(json_obj, "times_fixed", json_integer(obj->times_fixed));
     }
 
     // Extra flags (only if different from prototype)
@@ -315,6 +332,45 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
         json_object_set_new(json_obj, "affects", affects_array);
     } else {
         json_decref(affects_array);
+    }
+
+    // Spells (for wands, staves, scrolls, potions)
+    spells_array = json_array();
+    for (spell = obj->spells; spell; spell = spell->next) {
+        json_t *sp = json_object();
+        json_object_set_new(sp, "sn", json_integer(spell->sn));
+        json_object_set_new(sp, "level", json_integer(spell->level));
+        json_object_set_new(sp, "repop", json_integer(spell->repop));
+        json_array_append_new(spells_array, sp);
+    }
+    if (json_array_size(spells_array) > 0) {
+        json_object_set_new(json_obj, "spells", spells_array);
+    } else {
+        json_decref(spells_array);
+    }
+
+    // Object tokens
+    if (obj->tokens) {
+        tokens_array = json_array();
+        for (token = obj->tokens; token; token = token->next) {
+            json_t *tok_json = json_persist_token_to_json(token);
+            if (tok_json) {
+                json_array_append_new(tokens_array, tok_json);
+            }
+        }
+        if (json_array_size(tokens_array) > 0) {
+            json_object_set_new(json_obj, "obj_tokens", tokens_array);
+        } else {
+            json_decref(tokens_array);
+        }
+    }
+
+    // Script variables
+    if (obj->progs) {
+        json_t *vars = json_persist_scriptdata_to_json(obj->progs);
+        if (vars) {
+            json_object_set_new(json_obj, "variables", vars);
+        }
     }
 
     // Contains (nested objects)
@@ -996,6 +1052,37 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(quest, "questreceiver_type", json_integer(ch->quest->questreceiver_type));
         json_object_set_new(quest, "questreceiver", json_integer(ch->quest->questreceiver));
         json_object_set_new(quest, "countdown", json_integer(ch->countdown));
+        json_object_set_new(quest, "msg_complete", json_boolean(ch->quest->msg_complete));
+        json_object_set_new(quest, "scripted", json_boolean(ch->quest->scripted));
+
+        // Quest parts
+        if (ch->quest->parts) {
+            json_t *parts_array = json_array();
+            QUEST_PART_DATA *part;
+            for (part = ch->quest->parts; part; part = part->next) {
+                json_t *part_obj = json_object();
+                json_object_set_new(part_obj, "index", json_integer(part->index));
+                json_object_set_new(part_obj, "minutes", json_integer(part->minutes));
+                json_object_set_new(part_obj, "obj", json_integer(part->obj));
+                json_object_set_new(part_obj, "mob", json_integer(part->mob));
+                json_object_set_new(part_obj, "room", json_integer(part->room));
+                json_object_set_new(part_obj, "obj_sac", json_integer(part->obj_sac));
+                json_object_set_new(part_obj, "mob_rescue", json_integer(part->mob_rescue));
+                json_object_set_new(part_obj, "custom_task", json_boolean(part->custom_task));
+                json_object_set_new(part_obj, "complete", json_boolean(part->complete));
+                if (part->description) {
+                    json_object_set_new(part_obj, "description", json_string(part->description));
+                }
+                // For pickup quests, save the object vnum and room vnum
+                if (part->pObj && part->pObj->in_room && !part->complete) {
+                    json_object_set_new(part_obj, "pobj_vnum", json_integer(part->pObj->pIndexData->vnum));
+                    json_object_set_new(part_obj, "pobj_room", json_integer(part->pObj->in_room->vnum));
+                }
+                json_array_append_new(parts_array, part_obj);
+            }
+            json_object_set_new(quest, "parts", parts_array);
+        }
+
         json_object_set_new(basic, "quest", quest);
     }
 
@@ -1357,6 +1444,12 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         obj->description = str_dup(json_string_value(value));
     }
 
+    value = json_object_get(json_obj, "full_description");
+    if (value) {
+        free_string(obj->full_description);
+        obj->full_description = str_dup(json_string_value(value));
+    }
+
     // Object state
     value = json_object_get(json_obj, "item_type");
     if (value) {
@@ -1391,6 +1484,21 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     value = json_object_get(json_obj, "cost");
     if (value) {
         obj->cost = json_integer_value(value);
+    }
+
+    value = json_object_get(json_obj, "fragility");
+    if (value) {
+        obj->fragility = json_integer_value(value);
+    }
+
+    value = json_object_get(json_obj, "times_allowed_fixed");
+    if (value) {
+        obj->times_allowed_fixed = json_integer_value(value);
+    }
+
+    value = json_object_get(json_obj, "times_fixed");
+    if (value) {
+        obj->times_fixed = json_integer_value(value);
     }
 
     // Extra flags
@@ -1457,6 +1565,36 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
             paf->next = obj->affected;
             obj->affected = paf;
         }
+    }
+
+    // Spells (for wands, staves, scrolls, potions)
+    value = json_object_get(json_obj, "spells");
+    if (value && json_is_array(value)) {
+        json_array_foreach(value, index, array_elem) {
+            SPELL_DATA *spell = new_spell();
+            spell->sn = json_integer_value(json_object_get(array_elem, "sn"));
+            spell->level = json_integer_value(json_object_get(array_elem, "level"));
+            spell->repop = json_integer_value(json_object_get(array_elem, "repop"));
+            spell->next = obj->spells;
+            obj->spells = spell;
+        }
+    }
+
+    // Object tokens
+    value = json_object_get(json_obj, "obj_tokens");
+    if (value && json_is_array(value)) {
+        json_array_foreach(value, index, array_elem) {
+            TOKEN_DATA *token = json_persist_json_to_token(array_elem);
+            if (token) {
+                token_to_obj(token, obj);
+            }
+        }
+    }
+
+    // Script variables
+    value = json_object_get(json_obj, "variables");
+    if (value && json_is_array(value)) {
+        json_persist_json_to_scriptdata(value, &obj->progs);
     }
 
     // Contained objects (recursive)
@@ -2020,6 +2158,16 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         // Allocate quest structure if needed
         if (!ch->quest) {
             ch->quest = (QUEST_DATA *)alloc_perm(sizeof(QUEST_DATA));
+            // Initialize all fields to prevent garbage memory access
+            ch->quest->next = NULL;
+            ch->quest->parts = NULL;
+            ch->quest->questgiver_type = 0;
+            ch->quest->questgiver = 0;
+            ch->quest->questreceiver_type = 0;
+            ch->quest->questreceiver = 0;
+            ch->quest->msg_complete = false;
+            ch->quest->generating = false;
+            ch->quest->scripted = false;
         }
 
         value = json_object_get(quest, "questgiver_type");
@@ -2032,6 +2180,57 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->quest->questreceiver = json_integer_value(value);
         value = json_object_get(quest, "countdown");
         if (value) ch->countdown = json_integer_value(value);
+
+        // Additional quest flags
+        value = json_object_get(quest, "msg_complete");
+        if (value) ch->quest->msg_complete = json_boolean_value(value);
+        value = json_object_get(quest, "scripted");
+        if (value) ch->quest->scripted = json_boolean_value(value);
+
+        // Quest parts
+        json_t *parts_array = json_object_get(quest, "parts");
+        if (parts_array && json_is_array(parts_array)) {
+            QUEST_PART_DATA *last_part = NULL;
+            size_t part_idx;
+            json_t *part_elem;
+            json_array_foreach(parts_array, part_idx, part_elem) {
+                QUEST_PART_DATA *part = new_quest_part();
+
+                value = json_object_get(part_elem, "index");
+                if (value) part->index = json_integer_value(value);
+                value = json_object_get(part_elem, "minutes");
+                if (value) part->minutes = json_integer_value(value);
+                value = json_object_get(part_elem, "obj");
+                if (value) part->obj = json_integer_value(value);
+                value = json_object_get(part_elem, "mob");
+                if (value) part->mob = json_integer_value(value);
+                value = json_object_get(part_elem, "room");
+                if (value) part->room = json_integer_value(value);
+                value = json_object_get(part_elem, "obj_sac");
+                if (value) part->obj_sac = json_integer_value(value);
+                value = json_object_get(part_elem, "mob_rescue");
+                if (value) part->mob_rescue = json_integer_value(value);
+                value = json_object_get(part_elem, "custom_task");
+                if (value) part->custom_task = json_boolean_value(value);
+                value = json_object_get(part_elem, "complete");
+                if (value) part->complete = json_boolean_value(value);
+                value = json_object_get(part_elem, "description");
+                if (value) part->description = str_dup(json_string_value(value));
+
+                // Handle pickup quest objects
+                // Note: pObj reconstruction would need to happen elsewhere after world is loaded
+                // For now just leave it NULL - the quest system should handle missing objects
+
+                // Link into parts list (preserve order)
+                part->next = NULL;
+                if (!ch->quest->parts) {
+                    ch->quest->parts = part;
+                } else if (last_part) {
+                    last_part->next = part;
+                }
+                last_part = part;
+            }
+        }
     }
 
     // **FIX #3: Set room pointer directly WITHOUT calling char_to_room()**
