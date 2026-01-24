@@ -91,12 +91,12 @@ void load_reserved(void)
     char buf[MSL];
     
     if ((fp = fopen(RESERVED_FILE, "r")) == NULL) {
-        log_string("No reserved items file found. Creating new file at save.");
+        pwarnf(LOG_INIT, "No reserved items file found. Creating new file at save.");
         return;
     }
-    
-    log_string("Loading reserved items...");
-    
+
+    plogf(LOG_INIT, "Loading reserved items...");
+
     /* Clear existing items first */
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -162,20 +162,18 @@ void load_reserved(void)
             } else if (!str_cmp(word, "Description")) {
                 reserved->description = fread_string(fp);
             } else {
-                sprintf(buf, "Load_reserved: unknown field '%s'", word);
-                bug(buf, 0);
+                pwarnf(LOG_INIT, "Unknown field '%s'", word);
                 fread_to_eol(fp);
             }
         } else {
-            sprintf(buf, "Load_reserved: unexpected data outside block: %s", word);
-            bug(buf, 0);
+            pwarnf(LOG_INIT, "Unexpected data outside block: %s", word);
             fread_to_eol(fp);
         }
     }
     
     fclose(fp);
     
-    log_string(formatf("%d reserved items loaded.", list_size(reserved_vnums)));
+    plogf(LOG_INIT, "%d reserved items loaded.", list_size(reserved_vnums));
     reserved_changed = false;
 }
 
@@ -189,12 +187,12 @@ void save_reserved(void)
     RESERVED_DATA *reserved;
     
     if (!reserved_changed) {
-        log_string("Reserved items unchanged, not saving.");
+        plogf(LOG_INIT, "Reserved items unchanged, not saving.");
         return;
     }
     
     if ((fp = fopen(RESERVED_FILE, "w")) == NULL) {
-        bug("Save_reserved: couldn't open file for writing", 0);
+        pbugf(LOG_ERROR, "Couldn't open reserved file '%s' for writing", RESERVED_FILE);
         return;
     }
     
@@ -232,8 +230,8 @@ void save_reserved(void)
     fprintf(fp, "#END\n");
     fclose(fp);
     
-    log_string(formatf("%d reserved items saved to '%s'.", 
-                     list_size(reserved_vnums), RESERVED_FILE));
+    plogf(LOG_INIT, "%d reserved items saved to '%s'.", 
+                     list_size(reserved_vnums), RESERVED_FILE);
     reserved_changed = false;
 }
 
@@ -293,9 +291,9 @@ int get_reserved_vnum(const char *name)
     
     if (reserved)
         return reserved->id;
-    sprintf(buf, "get_reserved_vnum: Reserved item '%s' not found", name);
-    bug(buf, 0);
-        return -1;
+    
+    perrf(LOG_ERROR, "Reserved item '%s' not found", name);
+    return -1;
 }
 
 /*
@@ -1239,8 +1237,8 @@ void init_reserved_defaults(void)
         list_appendlink(reserved_vnums, reserved);
         reserved_changed = true;
     }
-    
-    log_string("Default reserved items loaded.");
+
+    plogf(LOG_INIT, "Default reserved items loaded.");
 }
 
 
