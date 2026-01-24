@@ -172,18 +172,17 @@ void save_command(FILE *fp, CMD_DATA *command)
 }
 
 void save_commands()
-{
+{   
     FILE *fp;
 
-    log_string("save_commands: saving " COMMANDS_FILE);
+    plogf(LOG_OLC, "save_commands: saving " COMMANDS_FILE);
     if ((fp = fopen(COMMANDS_FILE, "w")) == NULL)
     {
-        bug("save_commands: fopen", 0);
-        perror(COMMANDS_FILE);
+        pbugf(LOG_ERROR, "fopen failed for " COMMANDS_FILE);
     }
     else
     {
-        log_string(formatf("save_commands: Saving %ld commands", commands_list->size));
+        plogf(LOG_OLC, "save_commands: Saving %ld commands", commands_list->size);
         
         ITERATOR it;
         CMD_DATA *command;
@@ -195,12 +194,10 @@ void save_commands()
             count++;
         }
         iterator_stop(&it);
-    //log_string(formatf("Found %d commands from iterating. (save_commands)", count));
 
         iterator_start(&it, commands_list);
         while((command = (CMD_DATA *)iterator_nextdata(&it)))
         {
-    //        log_string(formatf("Saving command '%s'", command->name));
             save_command(fp, command);
         }
         iterator_stop(&it);
@@ -211,30 +208,7 @@ void save_commands()
 
 void insert_command(CMD_DATA *command)
 {
-    /*
-    ITERATOR it;
-    CMD_DATA *cmd;
-    iterator_start(&it, commands_list);
-    while((cmd = (CMD_DATA *)iterator_nextdata(&it)))
-    {
-        int cmp = str_cmp(command->name, cmd->name);
-        if (cmp < 0)
-        {
-            iterator_insert_before(&it, command);
-//            log_string(formatf("DBG2 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
-            break;
-        }
-    }
-    iterator_stop(&it);
-
-    if (!cmd)
-    {*/
         list_appendlink(commands_list, command);
-//        log_string(formatf("DBG1 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
-    //}
-
-    
-
 }
 
 CMD_DATA *load_command(FILE *fp)
@@ -284,7 +258,7 @@ CMD_DATA *load_command(FILE *fp)
                     char *name = fread_string(fp);
                     command->function = do_func_lookup(name);
                     if (!command->function) {
-                        log_stringf("load_command: Unknown function '%s' for command '%s' - disabling command",
+                        perrf(LOG_ERROR, "Unknown function '%s' for command '%s' - disabling command",
                             name, command->name);
                         command->enabled = false;
                     }
@@ -313,7 +287,7 @@ CMD_DATA *load_command(FILE *fp)
 
         if (!fMatch)
         {
-            bug(formatf("load_command: no match for '%s'\n\r", word), 0);
+            pbugf("No match for '%s'", word);
             fread_to_eol(fp);
         }
     }
@@ -364,21 +338,21 @@ bool load_commands()
 
     if (!IS_VALID(commands_list))
     {
-        log_string("load_commands: commands_list is not valid.");
+        pbugf(LOG_INIT, "commands_list is not valid.");
         return false;
     }
 
-    log_string("load_commands: loading " COMMANDS_FILE);
+    plogf(LOG_INIT, "loading " COMMANDS_FILE);
     if ((fp = fopen(COMMANDS_FILE, "r")) == NULL)
     {
-        log_string("load_commands: " COMMANDS_FILE " not found. Bootstrapping from cmd_table.");
+        pwarnf(LOG_INIT, COMMANDS_FILE " not found. Bootstrapping from cmd_table.");
 
         for (int i = 0; !IS_NULLSTR(cmd_table[i].name); i++)
         {
             if (*cmd_table[i].name == '\0')
                 continue;
-            
-            log_string(formatf("Bootstrapping command '%s'", cmd_table[i].name));
+
+            plogf(LOG_INIT, "Bootstrapping command '%s'", cmd_table[i].name);
             command = new_cmd();
             command->name = str_dup(cmd_table[i].name);
 //            command->type = cmd_table[i].cmd_type;
@@ -396,7 +370,6 @@ bool load_commands()
             command->enabled = true;
 
             insert_command(command);
-//            log_string(formatf("DBG3 Bootstrapped command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
         }
         save_commands();
     }
@@ -430,7 +403,7 @@ bool load_commands()
             }
         }
     }
-    log_string(formatf("load_commands: Loaded %ld commands", commands_list->size));
+    plogf(LOG_INIT, "Loaded %ld commands", commands_list->size);
 
     return true;
 }
