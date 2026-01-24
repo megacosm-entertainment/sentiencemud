@@ -1670,7 +1670,6 @@ void load_changesets(void)
     char *word;
     bool fMatch;
     GAME_SETTINGS_CHANGESET *changeset = NULL;
-    char buf[MAX_STRING_LENGTH];
     
     /* First, free any existing changesets */
     free_all_changesets();

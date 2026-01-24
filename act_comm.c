@@ -340,7 +340,7 @@ void church_echo(CHURCH_DATA *church, char *message)
 	DESCRIPTOR_DATA *d;
 
 	if (!church) {
-		bug("Attempted to church_echo from null church.", 0);
+		pbugf(LOG_ERROR, "Attempted to church_echo from null church.");
 		return;
 	}
 
@@ -1135,7 +1135,6 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	AFFECT_DATA *paf;
 	int id[2];
 	TOKEN_DATA *token, *token_next;
-	char buf[MSL];
 
 	if (IS_SWITCHED(ch))
 	{
@@ -1263,7 +1262,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 
 	sprintf(log_buf, "%s has quit.", ch->name);
 
-	log_string(log_buf);
+	plogf(LOG_INFO, log_buf);
 	wiznet("$N rejoins the real world.",
 	ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
 
@@ -1373,7 +1372,6 @@ void do_logout(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     AFFECT_DATA *paf;
     TOKEN_DATA *token, *token_next;
-    char buf[MSL];
     ACCOUNT_DATA *account = NULL;
 
     if (IS_SWITCHED(ch))
@@ -1464,9 +1462,8 @@ void do_logout(CHAR_DATA *ch, char *argument)
         {
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
-            sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on logout",
+            plogf(LOG_INFO, "token %s(%ld) char %s(%ld) was purged on logout",
                 token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-            log_string(buf);
             token_from_char(token);
             free_token(token);
         }
@@ -1475,8 +1472,8 @@ void do_logout(CHAR_DATA *ch, char *argument)
     send_to_char("You return to the account menu.\n\r", ch);
     act("$n has left the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    sprintf(log_buf, "%s has logged out to character selection.", ch->name);
-    log_string(log_buf);
+    plogf(LOG_INFO, "%s has logged out to character selection.", ch->name);
+
     wiznet("$N returns to character selection.", ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
 
     /* save wearing info */
@@ -1682,13 +1679,13 @@ void add_follower(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 {
 	if (!IS_VALID(ch))
 	{
-	bug("Add_follower: invalid ch.", 0);
+	pbugf(LOG_ERROR, "Invalid ch.");
 	return;
 	}
 
 	if (ch->master != NULL)
 	{
-	bug("Add_follower: non-null master.", 0);
+	pbugf(LOG_ERROR, "Non-null master.");
 	return;
 	}
 
@@ -1707,13 +1704,13 @@ void stop_follower(CHAR_DATA *ch, bool show)
 	{
 	if (!IS_VALID(ch))
 	{
-	bug("Stop_follower: invalid ch.", 0);
+	pbugf(LOG_ERROR, "Invalid ch.");
 	return;
 	}
 
 	if (ch->master == NULL)
 	{
-	bug("Stop_follower: null master.", 0);
+	pbugf(LOG_ERROR, "Null master.");
 	return;
 	}
 
@@ -2250,7 +2247,7 @@ void stop_grouped(CHAR_DATA *ch)
 	CHAR_DATA *leader;
 	if (!IS_VALID(ch))
 	{
-	bug("stop_grouped: invalid ch.", 0);
+	pbugf(LOG_ERROR, "Invalid ch.");
 	return;
 	}
 
@@ -2829,9 +2826,8 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	sprintf(buf, "do_toggle: no good vector/field for setting %s",
+	pbugf(LOG_ERROR, "do_toggle: no good vector/field for setting %s",
 	pc_set_table[i].name);
-	bug(buf, 0);
 	return;
 	}
 
@@ -2893,9 +2889,8 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	sprintf(buf, "do_toggle: no good vector/field for setting %s",
+	pbugf(LOG_ERROR, "do_toggle: no good vector/field for setting %s",
 	pc_set_table[i].name);
-	bug(buf, 0);
 	return;
 	}
 
@@ -3020,7 +3015,7 @@ void do_email(CHAR_DATA *ch, char *argument)
 	char buf[MSL];
 
 	if (IS_NPC(ch)) {
-	bug("do_email: NPC", 0);
+	pbugf(LOG_ERROR, "NPC");
 	return;
 	}
 
@@ -3055,7 +3050,7 @@ void do_flag(CHAR_DATA *ch, char *argument)
 	argument = one_argument_norm(argument, arg);
 
 	if (IS_NPC(ch)) {
-	bug("do_flag: NPC", 0);
+	pbugf(LOG_ERROR, "NPC");
 	return;
 	}
 

@@ -429,7 +429,7 @@ void save_immstaff()
     FILE *fp;
 
     if ((fp = fopen(STAFF_FILE, "w")) == NULL) {
-	bug("save_immstaff: couldn't open staff.dat for writing", 0);
+	pbugf(LOG_ERROR, "Couldn't open staff file '%s' for writing", STAFF_FILE);
 	return;
     }
 
@@ -476,7 +476,7 @@ void read_immstaff()
     IMMORTAL_DATA *immortal;
 
     if ((fp = fopen(STAFF_FILE, "r")) == NULL) {
-	bug("read_immstaff: couldn't open immstaff.dat", 0);
+	pbugf(LOG_ERROR, "Couldn't open staff file '%s'.", STAFF_FILE);
 	exit(1);
     }
 
@@ -503,7 +503,6 @@ void read_immstaff()
 IMMORTAL_DATA *read_immortal(FILE *fp)
 {
     IMMORTAL_DATA *immortal;
-    char buf[MSL];
 
     immortal = new_immortal();
 
@@ -545,8 +544,8 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 		break;
 
 	    default:
-		sprintf(buf, "read_immortal: no match for word %s", word);
-		bug(buf, 0);
+		pbugf(LOG_ERROR, "No match for word %s", word);
+
 		break;
 	}
     }
@@ -558,13 +557,11 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 		// TEMPORARY
 		if( !load_char_obj(&d, immortal->name) )
 		{
-		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
-		    bug(buf, 0);
+		    pbugf(LOG_ERROR, "Attempting to correct created timestamp failed for %s", immortal->name);
 		}
 		else if( !d.character || !d.character->pcdata )
 	    {
-		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
-		    bug(buf, 0);
+		    pbugf(LOG_ERROR, "Attempting to correct created timestamp failed for %s", immortal->name);
 		}
 		else
 		{
@@ -575,8 +572,7 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 	}
 
 
-    sprintf(buf, "read_immortal: immortal %s", immortal->name);
-    log_string(buf);
+    plogf(LOG_INFO, "Immortal %s", immortal->name);
     return immortal;
 }
 

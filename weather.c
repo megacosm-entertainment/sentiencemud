@@ -37,7 +37,6 @@
 // Creates a new storm
 STORM_DATA* create_storm(AREA_DATA *pArea, int storm_type, int x, int y, int radius, float dx, float dy, int speed, int life) {
   STORM_DATA *storm = NULL;
-  char buf[MSL];
 
   // create new storm structure
   storm = new_storm_data();
@@ -59,9 +58,8 @@ STORM_DATA* create_storm(AREA_DATA *pArea, int storm_type, int x, int y, int rad
   storm->speed = speed;
   storm->life = life;
 
-  sprintf(buf, "Create storm type %d at %d %d of radius %d in direction %f %f at speed %d and life %d",
+  plogf(LOG_INFO, "Create storm type %d at %d %d of radius %d in direction %f %f at speed %d and life %d",
      storm_type, x, y, radius, dx, dy, speed, life);
-  log_string(buf);
 
   return storm;
 }

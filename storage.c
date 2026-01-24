@@ -492,8 +492,8 @@ if (!account) {
         
         // If this character isn't in the list, add it to maintain proper state
         if (!found_current) {
-            log_string(formatf("Account data inconsistency: %s was not in %s's character list - restoring",
-                      ch->name, account->username));
+            pwarnf(LOG_WARN, "Account data inconsistency: %s was not in %s's character list - restoring",
+                      ch->name, account->username);
             account_add_character(account, ch);
         }
     }

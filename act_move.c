@@ -378,14 +378,13 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 	/* Check door variable is valid */
 	if (door < 0 || door >= MAX_DIR) {
-		bug("Do_move: bad door %d.", door);
+		pbugf(LOG_ERROR, "Bad door %d.", door);
 		return;
 	}
 
 	/* Check char's in_room index pointer is valid */
 	if (!ch->in_room) {
-		sprintf(buf, "move_char: ch->in_room was null for %s (%ld)", HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-		bug(buf, 0);
+		pbugf(LOG_ERROR, "move_char: ch->in_room was null for %s (%ld)", HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 		return;
 	}
 
@@ -749,10 +748,9 @@ void check_ambush(CHAR_DATA *ch)
 
     if (ch->in_room == NULL)
     {
-	sprintf(buf, "check_ambush: for %s (%ld), in_room was null!",
+	pbugf(LOG_ERROR, "For %s (%ld), in_room was null!",
 	    IS_NPC(ch) ? ch->short_descr : ch->name,
 	    IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-	bug(buf, 0);
 	return;
     }
 
@@ -955,10 +953,9 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 
 	if (!room || !in_room) {
 		if (ch->pIndexData)
-			bug("Room was null in can_move_room, ch vnum is ", ch->pIndexData->vnum);
+			pbugf(LOG_ERROR, "Room was null in can_move_room, ch vnum is %ld", ch->pIndexData->vnum);
 		else {
-			sprintf(buf, "Room was null in can_move_room, char was %s", ch->name);
-			bug(buf, 0);
+			pbugf(LOG_ERROR, "Room was null in can_move_room, char was %s", ch->name);
 		}
 		return false;
 	}
@@ -1149,9 +1146,8 @@ void do_search(CHAR_DATA *ch, char *argument)
     int door = 0;
     OBJ_DATA *obj;
 
-    sprintf(buf, "%s searched in %s (%ld) (argument=%s)", ch->name,
+    plogf(LOG_INFO, "%s searched in %s (%ld) (argument=%s)", ch->name,
 	    ch->in_room->name, ch->in_room->vnum, (IS_NULLSTR(argument)?"(nothing)":argument));
-    log_string(buf);
 
     if( IS_NULLSTR(argument) )
     {
@@ -1687,13 +1683,13 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 
 	if (ch == NULL)
 	{
-		bug("use_key: ch was null", 0);
+		pbugf(LOG_ERROR, "ch was null", 0);
 		return;
 	}
 
 	if (key == NULL)
 	{
-		bug("use_key: key was null", 0);
+		pbugf(LOG_ERROR, "key was null", 0);
 		return;
 	}
 
@@ -3283,7 +3279,7 @@ void do_fade(CHAR_DATA *ch, char *argument)
 
     if (!IS_VALID(ch))
     {
-        bug("act_comm.c, do_fade, invalid ch.", 0);
+        pbugf(LOG_ERROR, "invalid ch.");
         return;
     }
 
@@ -3746,7 +3742,7 @@ void check_traps(CHAR_DATA *ch, bool show)
 
 	if (ch == NULL)
 	{
-		bug("checked traps for null ch!", 0);
+		pbugf(LOG_ERROR, "checked traps for null ch!");
 		return;
 	}
 

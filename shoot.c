@@ -296,8 +296,7 @@ void ranged_end( CHAR_DATA *ch )
 
     if ( ch->projectile_victim == NULL || ch->projectile_victim[0] == '\0' )
     {
-	sprintf( buf, "ranged_end: ch->projectile_victim NULL, ch %s!", ch->name);
-	bug( buf, 0 );
+	perrf(LOG_ERROR, "ch->projectile_victim NULL, ch %s!", ch->name);
 	return;
     }
 
@@ -764,7 +763,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 
 	    if ( get_obj_index( get_reserved_vnum("obj_cloud_stinking") ) == NULL )
 	    {
-		bug("do_throw: stinking cloud had null index!\n\r", 0);
+		pbugf(LOG_ERROR, "stinking cloud had null index!\n\r");
 		return;
 	    }
 

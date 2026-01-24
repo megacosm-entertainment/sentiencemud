@@ -499,7 +499,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 				while (*rdesc == ' ') rdesc++;
 			// The entire line has no breaks
 			} else {
-				bug ("No spaces", 0);
+				pbugf(LOG_ERROR, "No spaces");
 				strncat(xbuf,rdesc,len);
 				strcat(xbuf,"-\n\r");
 				rdesc += len;
@@ -624,7 +624,7 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			while (*rdesc == ' ') rdesc++;
 		// The entire line has no breaks
 		} else {
-			bug ("No spaces", 0);
+			pbugf(LOG_ERROR, "No spaces");
 			strncat(xbuf,rdesc,len-2);
 			strcat(xbuf,"-\n\r");
 			rdesc += len - 2;

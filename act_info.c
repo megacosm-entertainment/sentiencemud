@@ -591,7 +591,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 
     if (ch == NULL)
     {
-	bug("show_list_to_char: ch was null!", 0);
+	pbugf(LOG_ERROR, "ch was null!");
 	return;
     }
 
@@ -672,7 +672,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 		pers(victim, ch));
 	    if (!add_buf(output, buf))
 	    {
-		log_string("act_info, corpse addbuf failed.");
+		perrf(LOG_ERROR, "Corpse addbuf failed.");
 		return;
 	    }
 	}
@@ -692,13 +692,13 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 	    sprintf(buf, "{Y({G%2d{Y) {x", prgnShow[iShow]);
 	    if (!add_buf(output, buf))
 	    {
-		log_string("act_info, addbuf, combine failed");
+		perrf(LOG_ERROR, "Addbuf, combine failed");
 		return;
 	    }
 	} else {
 	    if (!add_buf(output, "     "))
 	    {
-		log_string("act_info, addbuf, combine failed");
+		perrf(LOG_ERROR, "Addbuf, combine failed");
 		return;
 	    }
 	}
@@ -5090,7 +5090,7 @@ void set_title(CHAR_DATA * ch, char *title)
     char buf[MAX_STRING_LENGTH];
 
     if (IS_NPC(ch)) {
-	bug("Set_title: NPC.", 0);
+	pbugf(LOG_ERROR, "Set_title: NPC.");
 	return;
     }
 

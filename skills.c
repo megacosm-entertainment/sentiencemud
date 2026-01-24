@@ -560,8 +560,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	return false;
     }
 
-    sprintf(buf, "can_choose_subclass: invalid subclass for %s[%d]", ch->name, subclass);
-    bug(buf, 0);
+    pbugf(LOG_ERROR, "can_choose_subclass: invalid subclass for %s[%d]", ch->name, subclass);
     return false;
 }
 
@@ -890,7 +889,7 @@ void do_convert(CHAR_DATA *ch, char *argument)
 
     if (ch == NULL)
     {
-        bug("do_convert: NULL ch", 0);
+        pbugf(LOG_ERROR, "NULL ch pointer.");
         return;
     }
 
@@ -974,7 +973,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 	SKILL_ENTRY *entry;
 
 	if (ch == NULL) {
-		bug("do_skills: NULL ch pointer.", 0);
+		pbugf(LOG_ERROR, "NULL ch pointer.");
 		return;
 	}
 
@@ -1953,13 +1952,13 @@ bool should_have_skill( CHAR_DATA *ch, int sn )
 	SKILL_ENTRY *entry;
     if (ch == NULL)
     {
-    	bug("should_have_skill: null ch", 0 );
+    	pbugf(LOG_ERROR, "Null ch");
 		return false;
     }
 
     if (sn < 0 || sn > MAX_SKILL)
     {
-    	bug("should_have_skill: bad sn", 0 );
+    	pbugf(LOG_ERROR, "bad sn");
 		return false;
     }
 

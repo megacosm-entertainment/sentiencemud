@@ -31,6 +31,7 @@ typedef enum {
 #define LOG_COMBAT    "combat"    // Combat-related messages
 #define LOG_SCRIPTS   "scripts"   // Scripts-related messages
 #define LOG_OLC       "olc"       // OLC-related messages
+#define LOG_QUEST     "quest"     // Quest-related messages
 
 // Initialization and shutdown
 int log_init(const char *config_path);

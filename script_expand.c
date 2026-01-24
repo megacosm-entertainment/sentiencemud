@@ -5465,8 +5465,7 @@ EXPAND_TYPE(reserved_mobile)
         if (mob) {
             arg->d.num = mob->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved mobile named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved mobile named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5507,8 +5506,7 @@ EXPAND_TYPE(reserved_object)
         if (obj) {
             arg->d.num = obj->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved object named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved object named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5547,8 +5545,7 @@ EXPAND_TYPE(reserved_room)
         if (room) {
             arg->d.num = room->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved room named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved room named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5587,8 +5584,7 @@ EXPAND_TYPE(reserved_area)
         if (area) {
             arg->d.num = area->uid;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved area named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved area named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5627,8 +5623,7 @@ EXPAND_TYPE(reserved_token)
         if (token) {
             arg->d.num = token->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved token named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved token named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5667,8 +5662,7 @@ EXPAND_TYPE(reserved_rprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved rprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved rprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5706,8 +5700,7 @@ EXPAND_TYPE(reserved_oprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved oprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved oprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5745,8 +5738,7 @@ EXPAND_TYPE(reserved_mprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved mprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved mprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5783,8 +5775,7 @@ EXPAND_TYPE(reserved_tprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved tprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved tprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5821,8 +5812,7 @@ EXPAND_TYPE(reserved_aprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved aprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved aprog named %s", reserved_name);
             arg->d.num = 0;
         }
         

@@ -88,7 +88,6 @@ void load_reserved(void)
     char *word;
     bool in_block = false;
     RESERVED_DATA *reserved = NULL;
-    char buf[MSL];
     
     if ((fp = fopen(RESERVED_FILE, "r")) == NULL) {
         pwarnf(LOG_INIT, "No reserved items file found. Creating new file at save.");
@@ -287,7 +286,6 @@ RESERVED_DATA *find_reserved_by_id(int id, int type)
 int get_reserved_vnum(const char *name)
 {
     RESERVED_DATA *reserved = find_reserved(name);
-    char buf[MAX_STRING_LENGTH];
     
     if (reserved)
         return reserved->id;

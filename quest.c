@@ -395,8 +395,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
             if (mob == NULL)
             {
-                sprintf(buf, "do_quest(), quest request: MOB Was null, %s.\n\r", ch->name);
-                bug (buf, 0);
+                pbugf(LOG_QUEST, "MOB Was null, %s.\n\r", ch->name);
                 return;
             }
 
@@ -699,7 +698,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
         expreward = 0;
         i = 0;
 
-        log_string("quest.c, do_quest: (complete) Checking quest parts...");
+        plogf(LOG_QUEST, "(complete) Checking quest parts...");
 
         // Add up all the different rewards.
         for (part = ch->quest->parts; part != NULL; part = part->next)
@@ -952,7 +951,7 @@ void quest_update(void)
     DESCRIPTOR_DATA *d;
     CHAR_DATA *ch;
     char buf[MAX_STRING_LENGTH];
-    log_string("Update quests...");
+    plogf(LOG_QUEST, "Update quests...");
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
@@ -1023,7 +1022,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 
     if (IS_NPC(ch))
     {
-		bug("check_quest_rescue_mob: NPC", 0);
+		perrf(LOG_QUEST, "check_quest_rescue_mob: NPC");
 		return;
     }
 
@@ -1084,13 +1083,13 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
     if (obj == NULL || obj->item_type == ITEM_MONEY)
     {
-		bug("check_quest_retrieve_obj: bad obj!", 0);
+		pbugf(LOG_QUEST, "bad obj!");
 		return;
     }
 
     if (IS_NPC(ch))
     {
-		bug("check_quest_retrieve_obj: NPC", 0);
+		pbugf(LOG_QUEST, "NPC");
 		return;
     }
 
@@ -1132,7 +1131,7 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 
     if (IS_NPC(ch))
     {
-		bug("check_quest_slay_mob: NPC", 0);
+		pbugf(LOG_QUEST, "NPC");
 		return;
     }
 
@@ -1169,13 +1168,13 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 
     if (IS_NPC(ch))
     {
-		bug("check_quest_travel_room: NPC", 0);
+		pbugf(LOG_QUEST, "NPC");
 		return;
     }
 
     if (room == NULL)
     {
-		bug("check_quest_travel_room: checking a null room",0);
+		pbugf(LOG_QUEST, "checking a null room");
 		return;
     }
 
@@ -1216,7 +1215,7 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
 
     if (IS_NPC(ch))
     {
-		bug("check_quest_custom_task: NPC", 0);
+		pbugf(LOG_QUEST, "check_quest_custom_task: NPC");
 		return false;
     }
 

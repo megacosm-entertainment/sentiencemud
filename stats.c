@@ -91,7 +91,7 @@ BUFFER *get_stats( int type)
     {
 	sprintf( buf, "Sorry, these stats are currently unavailable.\n\r" );
 	add_buf( output, buf );
-	bug("get_stats: stats for type %d weren't loaded!", type );
+	pbugf(LOG_ERROR, "Stats for type %d weren't loaded!", type );
 	return output;
     }
 
