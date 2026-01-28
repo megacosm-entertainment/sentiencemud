@@ -357,6 +357,29 @@ bool parse_options(int argc, char **argv)
 	return true;
 }
 
+static void detect_test_mode_args(int argc, char **argv)
+{
+    int i;
+
+    for (i = 1; i < argc; i++)
+    {
+        if (argv[i][0] == '-' && !strncmp(argv[i], "-test", 5))
+        {
+            test_mode = true;
+            if (argv[i][5] == ':' && argv[i][6])
+            {
+                strncpy(test_pattern, argv[i] + 6, sizeof(test_pattern) - 1);
+                test_pattern[sizeof(test_pattern) - 1] = '\0';
+            }
+            else
+            {
+                strcpy(test_pattern, "all");
+            }
+            return;
+        }
+    }
+}
+
 
 int main(int argc, char **argv)
 {
@@ -365,6 +388,11 @@ int main(int argc, char **argv)
 		fprintf(stderr, "log_init failed\n");
 		return -1;
 	}
+
+    detect_test_mode_args(argc, argv);
+    if (test_mode) {
+        log_set_unit_test_only(true);
+    }
 
     struct timeval now_time;
     int control_telnet = 0;
@@ -565,7 +593,9 @@ int main(int argc, char **argv)
 
     //if(port == PORT_TEST || port == PORT_ALPHA || port == PORT_SYN) is_test_port = true;
 
-    RedirectOutput();
+    if (!test_mode) {
+        RedirectOutput();
+    }
 
     /* Vizz - load up our list of UIDs. Without this, we cannot assign unique UIDs to things */
     //gconfig = gconfig_zero;

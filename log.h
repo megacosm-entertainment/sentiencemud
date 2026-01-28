@@ -32,10 +32,12 @@ typedef enum {
 #define LOG_SCRIPTS   "scripts"   // Scripts-related messages
 #define LOG_OLC       "olc"       // OLC-related messages
 #define LOG_QUEST     "quest"     // Quest-related messages
+#define LOG_UNIT_TESTS "unit_tests" // Unit test framework messages
 
 // Initialization and shutdown
 int log_init(const char *config_path);
 void log_shutdown(void);
+void log_set_unit_test_only(bool enabled);
 
 // Logging functions - now macros to capture caller info
 #define log_message(level, category, message) \

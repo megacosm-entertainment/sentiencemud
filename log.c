@@ -94,20 +94,42 @@ static struct backtrace_state *get_backtrace_state(void) {
 }
 #endif // MUD_DEBUG
 
+static bool log_initialized = false;
+
 int log_init(const char *config_path) {
+    if (log_initialized) {
+        return 0;
+    }
+
     int rc = zlog_init(config_path);
     if (rc) {
         printf("Failed to initialize logger, rc=%d\n", rc);
         return -1;
     }
+
+    log_initialized = true;
     return 0;
 }
 
 void log_shutdown(void) {
+    if (!log_initialized) {
+        return;
+    }
+
     zlog_fini();
+    log_initialized = false;
+}
+
+static bool log_unit_tests_only = false;
+
+void log_set_unit_test_only(bool enabled) {
+    log_unit_tests_only = enabled;
 }
 
 void _log_message(log_level level, const char *category, const char *message, const char *file, long line, const char *func) {
+    if (log_unit_tests_only && (!category || strcmp(category, LOG_UNIT_TESTS) != 0)) {
+        return;
+    }
     zlog_category_t *c = zlog_get_category(category);
     if (c) {
         int zlevel;
@@ -126,6 +148,9 @@ void _log_message(log_level level, const char *category, const char *message, co
 }
 
 void _log_message_f(log_level level, const char *category, const char *file, long line, const char *func, const char *format, ...) {
+    if (log_unit_tests_only && (!category || strcmp(category, LOG_UNIT_TESTS) != 0)) {
+        return;
+    }
     zlog_category_t *c = zlog_get_category(category);
     if (c) {
         int zlevel;
