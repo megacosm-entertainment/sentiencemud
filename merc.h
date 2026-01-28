@@ -5567,6 +5567,18 @@ struct	reset_data
     long		arg4;
 };
 
+// Wide vnum runtime representation
+typedef struct wnum_data {
+    AREA_DATA *pArea;    // Pointer to area (runtime only)
+    long vnum;           // Local vnum within area
+} WNUM;
+
+// Wide vnum persistent representation (for save files)
+typedef struct wnum_load_data {
+    long auid;           // Area UID (persistent identifier)
+    long vnum;           // Local vnum
+} WNUM_LOAD;
+
 /*
  * Area definition.
  */
@@ -5580,6 +5592,16 @@ struct	area_data {
 /* VIZZWILDS */
 	WILDS_DATA *wilds;
 	long uid;
+
+    // Per-area hash tables (replace global ones)
+    MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
+    OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
+    ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
+
+    // Per-area vnum tracking
+    long bottom_mob_vnum, top_mob_vnum;
+    long bottom_obj_vnum, top_obj_vnum;
+    long bottom_room_vnum, top_room_vnum;
 
 	char *file_name;
 	char *name;
@@ -8909,6 +8931,15 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name);
 ROOM_INDEX_DATA *get_reserved_room_index(const char *name);
 MOB_INDEX_DATA *get_reserved_mob_index(const char *name);
 AREA_DATA *get_area_index(long uid);
+
+/* WNUM functions */
+bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum);
+const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea);
+const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea);
+const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea);
+const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea);
+const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea);
+
 void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);
 void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type);
 int get_colour_code_length_at_start(const char *p);

@@ -12090,6 +12090,146 @@ AREA_DATA *get_area_index(long uid)
     return NULL;
 }
 
+/*
+ * Parse a widevnum string into a WNUM structure.
+ * Formats supported:
+ *   "#1234"           - Relative to current_area (local area being worked on)
+ *   "5#1234"          - Absolute (area UID 5, vnum 1234)
+ *   "Plith#1234"      - Area name (finds area by name)
+ *   "'Multi Word'#42" - Quoted area name for names with spaces
+ *   "1234"            - If current_area is NULL, treated as global vnum lookup
+ * 
+ * Returns true if parsed successfully, false otherwise.
+ */
+bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
+{
+    char *hash_pos;
+    long auid = 0;
+    long vnum = 0;
+    
+    if (!argument || !wnum) {
+        return false;
+    }
+    
+    // Clear output
+    wnum->pArea = NULL;
+    wnum->vnum = 0;
+    
+    // Look for hash separator
+    hash_pos = strchr(argument, '#');
+    
+    if (hash_pos != NULL) {
+        // Has hash - parse both parts
+        if (hash_pos == argument) {
+            // "#vnum" format - relative to current area being worked on
+            if (!current_area) {
+                return false;
+            }
+            vnum = atol(hash_pos + 1);
+            wnum->pArea = current_area;
+            wnum->vnum = vnum;
+            return (vnum > 0);
+        } else {
+            // Extract left side (before #)
+            size_t left_len = hash_pos - argument;
+            char left_part[MSL];
+            strncpy(left_part, argument, left_len);
+            left_part[left_len] = '\0';
+            
+            // Parse right side (vnum)
+            vnum = atol(hash_pos + 1);
+            if (vnum <= 0) {
+                return false;
+            }
+            
+            // Check if left part is quoted area name
+            if (left_part[0] == '\'' && left_part[left_len-1] == '\'') {
+                // Remove quotes
+                left_part[left_len-1] = '\0';
+                wnum->pArea = find_area(left_part + 1);
+            } else if (is_number(left_part)) {
+                // Numeric area UID
+                auid = atol(left_part);
+                wnum->pArea = get_area_index(auid);
+            } else {
+                // Area name without quotes
+                wnum->pArea = find_area(left_part);
+            }
+            
+            wnum->vnum = vnum;
+            return (wnum->pArea != NULL && vnum > 0);
+        }
+    } else {
+        // No hash - simple number
+        vnum = atol(argument);
+        if (vnum <= 0) {
+            return false;
+        }
+        
+        if (current_area) {
+            // Treat as relative vnum
+            wnum->pArea = current_area;
+            wnum->vnum = vnum;
+            return true;
+        } else {
+            // Legacy support - for now just fail
+            // TODO: Could implement global search if needed
+            return false;
+        }
+    }
+}
+
+/*
+ * Convert a WNUM to string format for display/saving.
+ * Uses a rotating buffer for multiple calls in same statement.
+ * 
+ * If pRefArea is provided and matches pArea, uses relative format "#vnum"
+ * Otherwise uses absolute format "auid#vnum"
+ */
+const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea)
+{
+    static int i = 0;
+    static char output[4][MSL];
+    
+    i = (i + 1) & 3;  // Rotate through 4 buffers
+    
+    if (!pArea) {
+        sprintf(output[i], "0#%ld", vnum);
+    } else if (pArea == pRefArea) {
+        sprintf(output[i], "#%ld", vnum);
+    } else {
+        sprintf(output[i], "%ld#%ld", pArea->uid, vnum);
+    }
+    
+    return output[i];
+}
+
+const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea)
+{
+    return widevnum_string(wnum.pArea, wnum.vnum, pRefArea);
+}
+
+const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea)
+{
+    if (mob && mob->area)
+        return widevnum_string(mob->area, mob->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea)
+{
+    if (obj && obj->area)
+        return widevnum_string(obj->area, obj->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea)
+{
+    if (room && room->area)
+        return widevnum_string(room->area, room->vnum, pRefArea);
+    return "0#0";
+}
+
 // Default pronoun sets based on body_type
 const struct body_type_info_type body_type_info[BODY_TYPE_MAX] =
 {
