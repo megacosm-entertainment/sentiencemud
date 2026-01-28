@@ -2446,67 +2446,81 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     
     // If we found an existing instance of this character already in the game
     if (existing && existing != ch) {
-        // LOG: Inventory counts before reconnect
-        int existing_inv = existing->lcarrying ? list_size(existing->lcarrying) : 0;
-        int temp_inv = ch->lcarrying ? list_size(ch->lcarrying) : 0;
-        if (existing_inv > 100 || temp_inv > 100) {
+        // Check if the existing character is truly "active" in the game
+        // A character that is mid-extraction (after quit) will have in_room == NULL
+        // Only reconnect to characters that are still in a room (true linkdeath scenario)
+        if (existing->in_room == NULL) {
+            // Existing character is stale (mid-extraction or already extracted but not yet
+            // removed from loaded_chars). Use the freshly loaded character from disk/cache
+            // which has the correct saved state.
+            log_message_f(LOG_LEVEL_INFO, LOG_INFO,
+                "login_read_motd: Found stale character %s in loaded_chars (no room), using freshly loaded data",
+                existing->name ? existing->name : "(unknown)");
+
+            // Remove the stale character from loaded_chars and free it
+            list_remlink(loaded_chars, existing, false);
+            free_char(existing);
+            existing = NULL;
+            // Fall through to normal login with the freshly loaded 'ch'
+        } else {
+            // True linkdeath scenario - existing character is still in a room
+            // Use the existing character to preserve any unsaved in-game state
+
+            // LOG: Inventory counts before reconnect
+            int existing_inv = existing->lcarrying ? list_size(existing->lcarrying) : 0;
+            int temp_inv = ch->lcarrying ? list_size(ch->lcarrying) : 0;
             log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "RECONNECT: existing=%s has %d items, temp has %d items",
                        existing->name ? existing->name : "(unknown)", existing_inv, temp_inv);
-        }
 
-        // If the existing character has a descriptor, disconnect them
-        if (existing->desc) {
-            write_to_buffer(existing->desc, "\n\rSomeone else is logging in with your character.\n\r", 0);
-            close_socket(existing->desc);
-            existing->desc = NULL;
-        }
+            // If the existing character has a descriptor, disconnect them
+            if (existing->desc) {
+                write_to_buffer(existing->desc, "\n\rSomeone else is logging in with your character.\n\r", 0);
+                close_socket(existing->desc);
+                existing->desc = NULL;
+            }
 
-        // Save the room reference for later, but remove character from it FIRST
-        ROOM_INDEX_DATA *old_room = existing->in_room;
-        if (existing->in_room) {
-            char_from_room(existing);
-        }
+            // Save the room reference for later, but remove character from it FIRST
+            ROOM_INDEX_DATA *old_room = existing->in_room;
+            if (existing->in_room) {
+                char_from_room(existing);
+            }
 
-        // Transfer the descriptor to the existing character
-        existing->desc = d;
-        d->character = existing;
+            // Transfer the descriptor to the existing character
+            existing->desc = d;
+            d->character = existing;
 
-        // Free the temporary character
-        free_char(ch);
+            // Free the temporary character (freshly loaded one)
+            free_char(ch);
 
-        // LOG: Check inventory count after freeing temp character
-        int existing_inv_after = existing->lcarrying ? list_size(existing->lcarrying) : 0;
-        if (existing_inv_after > 100) {
+            // LOG: Check inventory count after freeing temp character
+            int existing_inv_after = existing->lcarrying ? list_size(existing->lcarrying) : 0;
             log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "RECONNECT: After free_char, existing=%s now has %d items (was %d)",
                        existing->name ? existing->name : "(unknown)", existing_inv_after, existing_inv);
-        }
 
-        // Set as playing
-        d->connected = CON_PLAYING;
+            // Set as playing
+            d->connected = CON_PLAYING;
 
-        // Send reconnection message and place in room
-        send_to_char("Reconnecting. Type replay to see missed tells.\n\r", existing);
-        
-        // Place character back in their room if they had one
-        if (old_room) {
-            char_to_room(existing, old_room);
-            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        } else if (get_room_index(get_reserved_vnum("room_default_recall"))) {
-            char_to_room(existing, get_room_index(get_reserved_vnum("room_default_recall")));
-            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            // Send reconnection message and place in room
+            send_to_char("Reconnecting. Type replay to see missed tells.\n\r", existing);
+
+            // Place character back in their room
+            if (old_room) {
+                char_to_room(existing, old_room);
+                act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+
+            // Log the reconnection
+            log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", existing->name, d->host);
+            wiznet("$N has relinked.", existing, NULL, WIZ_LINKS, 0, 0);
+
+            // Update connection tracking
+            connection_add(d);
+
+            // Update protocol
+            MXPSendTag(d, "<VERSION>");
+
+            return;
         }
-        
-        // Log the reconnection
-        log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", existing->name, d->host);
-        wiznet("$N has relinked.", existing, NULL, WIZ_LINKS, 0, 0);
-        
-        // Update connection tracking
-        connection_add(d);
-        
-        // Update protocol
-        MXPSendTag(d, "<VERSION>");
-        
-        return;
     }
 
     // This is a normal login, not a reconnect

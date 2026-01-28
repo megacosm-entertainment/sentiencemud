@@ -6320,9 +6320,17 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             acct_char->staff_rank = IS_IMMORTAL(ch) ? ch->pcdata->staff_rank : 0;
 
             if (ch->pcdata && ch->pcdata->class_current) {
-                if (acct_char->class_name)
+                const char *class_name_str = NULL;
+                // Validate sub_class_current before using it as an index
+                if (ch->pcdata->sub_class_current >= 0 &&
+                    sub_class_table[ch->pcdata->sub_class_current].name[0] != NULL) {
+                    int sex_idx = (ch->sex >= 0 && ch->sex <= 2) ? ch->sex : 0;
+                    class_name_str = sub_class_table[ch->pcdata->sub_class_current].name[sex_idx];
+                }
+                if (!IS_NULLSTR(class_name_str)) {
                     free_string(acct_char->class_name);
-                acct_char->class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
+                    acct_char->class_name = str_dup(class_name_str);
+                }
             }
 
             acct_char->id[0] = ch->id[0];
@@ -6513,8 +6521,17 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
         acct_char->staff = IS_IMMORTAL(ch);
         acct_char->staff_rank = IS_IMMORTAL(ch) ? ch->pcdata->staff_rank : 0;
 
-        if (ch->pcdata && ch->pcdata->sub_class_current)
-            acct_char->class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
+        if (ch->pcdata && ch->pcdata->sub_class_current) {
+            const char *class_name_str = NULL;
+            if (ch->pcdata->sub_class_current >= 0 &&
+                sub_class_table[ch->pcdata->sub_class_current].name[0] != NULL) {
+                int sex_idx = (ch->sex >= 0 && ch->sex <= 2) ? ch->sex : 0;
+                class_name_str = sub_class_table[ch->pcdata->sub_class_current].name[sex_idx];
+            }
+            if (!IS_NULLSTR(class_name_str)) {
+                acct_char->class_name = str_dup(class_name_str);
+            }
+        }
 
         if (ch->in_room != NULL)
             acct_char->last_area = str_dup(!IS_NULLSTR(ch->in_room->area->name) ? ch->in_room->area->name : "");
@@ -6797,11 +6814,22 @@ void update_account_character(CHAR_DATA *ch)
 
     if (acct_char->class_name)
         free_string(acct_char->class_name);
-        
-    if (ch->pcdata && ch->pcdata->sub_class_current)
-        acct_char->class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
-    else
+
+    if (ch->pcdata && ch->pcdata->sub_class_current) {
+        const char *class_name_str = NULL;
+        if (ch->pcdata->sub_class_current >= 0 &&
+            sub_class_table[ch->pcdata->sub_class_current].name[0] != NULL) {
+            int sex_idx = (ch->sex >= 0 && ch->sex <= 2) ? ch->sex : 0;
+            class_name_str = sub_class_table[ch->pcdata->sub_class_current].name[sex_idx];
+        }
+        if (!IS_NULLSTR(class_name_str)) {
+            acct_char->class_name = str_dup(class_name_str);
+        } else {
+            acct_char->class_name = str_dup("Adventurer");
+        }
+    } else {
         acct_char->class_name = str_dup("Adventurer");
+    }
         
     save_account(acct);
 }

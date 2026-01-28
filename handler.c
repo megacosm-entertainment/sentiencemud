@@ -2215,8 +2215,12 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 
     // Add to the LLIST only if it's not equipped (wear_loc == WEAR_NONE)
     // This ensures lcarrying only contains objects in the active inventory
-    if (obj->wear_loc == WEAR_NONE && !list_haslink(ch->lcarrying, obj))
+    if (obj->wear_loc == WEAR_NONE && !list_haslink(ch->lcarrying, obj)) {
         list_addlink(ch->lcarrying, obj);
+        log_stringf("obj_to_char: added vnum=%ld name='%s' to %s's lcarrying (now %d items)",
+                   obj->pIndexData->vnum, obj->name ? obj->name : "(null)",
+                   ch->name, list_size(ch->lcarrying));
+    }
 
     if (!IS_NPC(ch))
         check_quest_retrieve_obj(ch, obj, true);
@@ -3665,28 +3669,49 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
     OBJ_DATA *obj;
     int number = *nth;
     ITERATOR it;
-    
+
     if (!ch || (!ch->lcarrying && !ch->carrying)) {
         *nth = number;
         return NULL;
     }
-    
+
+    // DEBUG: Log what we're searching for
+    log_stringf("get_obj_carry_number: searching for '%s' in %s's inventory (%d items in lcarrying)",
+               argument ? argument : "(null)",
+               ch->name ? ch->name : "(unknown)",
+               ch->lcarrying ? list_size(ch->lcarrying) : 0);
+
     // Use the lcarrying LLIST
     if (ch->lcarrying) {
+        int item_num = 0;
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (obj->wear_loc == WEAR_NONE &&
-                (viewer ? can_see_obj(viewer, obj) : true) &&
-                is_name(argument, obj->name)) {
+            item_num++;
+            bool wear_ok = (obj->wear_loc == WEAR_NONE);
+            bool see_ok = (viewer ? can_see_obj(viewer, obj) : true);
+            bool name_ok = is_name(argument, obj->name);
+
+            // Log each item checked
+            log_stringf("  [%d] vnum=%ld name='%s' short='%s' wear_loc=%d wear_ok=%d see_ok=%d name_ok=%d",
+                       item_num,
+                       obj->pIndexData ? obj->pIndexData->vnum : 0,
+                       obj->name ? obj->name : "(null)",
+                       obj->short_descr ? obj->short_descr : "(null)",
+                       obj->wear_loc,
+                       wear_ok, see_ok, name_ok);
+
+            if (wear_ok && see_ok && name_ok) {
                 if (--number < 1) {
                     iterator_stop(&it);
+                    log_stringf("get_obj_carry_number: FOUND item at position %d", item_num);
                     return obj;
                 }
             }
         }
         iterator_stop(&it);
     }
-    
+
+    log_stringf("get_obj_carry_number: NOT FOUND '%s'", argument ? argument : "(null)");
     *nth = number;
     return NULL;
 }
@@ -9150,20 +9175,32 @@ void *iterator_currentdata(ITERATOR *it)
     }
     return NULL;
 }
-
+//extern bool it_debug;
 void *iterator_nextdata(ITERATOR *it)
 {
+	extern bool it_debug;
 	register LLIST_LINK *link = NULL;
 	//register LLIST_LINK *next = NULL;
 	if(it && it->list && it->list->valid && it->current) {
 		if( it->moved ) {
-			for(link = it->current->next; link && !link->data; link = link->next);
-		} else {
+			link = it->current->next;
+			if (it_debug)
+			log_stringf("iterator_nextdata[moved]: current=%p current->next=%p link=%p link->data=%p",
+				(void*)it->current, (void*)it->current->next, (void*)link, link ? link->data : NULL);
+			for(; link && !link->data; link = link->next);
+			if (it_debug)
+			log_stringf("iterator_nextdata[moved]: after loop link=%p", (void*)link);		} else {
 			for(link = it->current; link && !link->data; link = link->next);
 
 			it->moved = true;
 		}
 		it->current = link;
+	} else {
+		if (it_debug)
+		log_stringf("iterator_nextdata: condition FAILED - it=%p list=%p valid=%d current=%p",
+			(void*)it, it ? (void*)it->list : NULL,
+			(it && it->list) ? it->list->valid : -1,
+			it ? (void*)it->current : NULL);
 	}
 
 	return link ? link->data : NULL;

@@ -9962,6 +9962,7 @@ extern LLIST *gc_rooms;
 extern LLIST *gc_tokens;
 
 
+
 /*
  Introducing some variables to keep compiler from complaining. These are used in do_version.
 */

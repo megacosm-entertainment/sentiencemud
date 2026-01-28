@@ -18,6 +18,7 @@
 #include <jansson.h>
 #include "merc.h"
 #include "tables.h"
+#include "recycle.h"
 #include "json_char.h"
 #include "json_persist.h"
 #include "redis_cache.h"
@@ -217,6 +218,14 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
     json_object_set_new(json_obj, "vnum", json_integer(obj->pIndexData->vnum));
     json_object_set_new(json_obj, "nest_level", json_integer(nest_level));
 
+    // Save unique object ID if set
+    if (obj->id[0] || obj->id[1]) {
+        json_t *id_array = json_array();
+        json_array_append_new(id_array, json_integer(obj->id[0]));
+        json_array_append_new(id_array, json_integer(obj->id[1]));
+        json_object_set_new(json_obj, "id", id_array);
+    }
+
     // Use POINTER comparison (not string comparison) to match save.c behavior
     // If the pointer differs from prototype, save it - even if content is identical
     if (obj->name != obj->pIndexData->name) {
@@ -395,11 +404,16 @@ static json_t *inventory_to_json(CHAR_DATA *ch)
     json_t *inventory;
     OBJ_DATA *obj;
     ITERATOR it;
+    int total_in_list = 0;
+    int written_count = 0;
 
     inventory = json_array();
 
     // Use lcarrying (LIST structure) instead of carrying (deprecated linked list)
     if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
+        total_in_list = list_size(ch->lcarrying);
+        log_stringf("inventory_to_json: %s has %d items in lcarrying", ch->name, total_in_list);
+
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             // Only write top-level inventory items (not equipped, not in locker, not in containers)
@@ -407,10 +421,20 @@ static json_t *inventory_to_json(CHAR_DATA *ch)
                 json_t *json_obj = obj_to_json(obj, 0);
                 if (json_obj) {
                     json_array_append_new(inventory, json_obj);
+                    written_count++;
+                    log_stringf("  inventory_to_json: wrote vnum=%ld name='%s'",
+                               obj->pIndexData->vnum, obj->name ? obj->name : "(null)");
                 }
+            } else {
+                log_stringf("  inventory_to_json: SKIPPED vnum=%ld name='%s' locker=%d in_obj=%s wear_loc=%d",
+                           obj->pIndexData->vnum, obj->name ? obj->name : "(null)",
+                           obj->locker, obj->in_obj ? "yes" : "no", obj->wear_loc);
             }
         }
         iterator_stop(&it);
+        log_stringf("inventory_to_json: wrote %d top-level items for %s", written_count, ch->name);
+    } else {
+        log_stringf("inventory_to_json: %s has no lcarrying list!", ch->name);
     }
 
     return inventory;
@@ -1425,11 +1449,21 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         return NULL;
     }
 
+    // Load unique object ID if present
+    value = json_object_get(json_obj, "id");
+    if (value && json_is_array(value) && json_array_size(value) >= 2) {
+        obj->id[0] = json_integer_value(json_array_get(value, 0));
+        obj->id[1] = json_integer_value(json_array_get(value, 1));
+    }
+
     // Override fields if present in JSON
     value = json_object_get(json_obj, "name");
     if (value) {
         free_string(obj->name);
         obj->name = str_dup(json_string_value(value));
+        log_stringf("json_to_obj: vnum=%ld loaded custom name='%s'", vnum, obj->name);
+    } else {
+        log_stringf("json_to_obj: vnum=%ld using prototype name='%s'", vnum, obj->name ? obj->name : "(null)");
     }
 
     value = json_object_get(json_obj, "short_descr");
@@ -1607,6 +1641,44 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
             }
         }
     }
+
+    // CRITICAL: Add object to loaded_objects and assign ID
+    // This matches the behavior of fread_obj_new() in save.c
+    // Without this, objects won't be:
+    // - Found by owhere, get_obj_world, etc.
+    // - Saved when character is saved
+    // - Properly tracked by the game
+    if (!list_haslink(loaded_objects, obj)) {
+        list_appendlink(loaded_objects, obj);
+        obj->pIndexData->count++;
+        log_stringf("json_to_obj: Added vnum=%ld '%s' to loaded_objects (id=%lu/%lu)",
+                   obj->pIndexData->vnum, obj->short_descr ? obj->short_descr : "(null)",
+                   obj->id[0], obj->id[1]);
+    }
+
+    // Fix for scrolls/potions that have generic names - derive name from short_descr
+    // This matches the VERSION_PLAYER_006 fix in the pfile loading code
+    if (obj->pIndexData->vnum == get_reserved_vnum("obj_scroll")) {
+        if (!strcmp(obj->name, "scroll")) {
+            free_string(obj->name);
+            obj->name = short_to_name(obj->short_descr);
+            log_stringf("json_to_obj: Fixed scroll name from short_descr, now '%s'", obj->name);
+        }
+    }
+    if (obj->pIndexData->vnum == get_reserved_vnum("obj_potion")) {
+        if (!strcmp(obj->name, "potion")) {
+            free_string(obj->name);
+            obj->name = short_to_name(obj->short_descr);
+            log_stringf("json_to_obj: Fixed potion name from short_descr, now '%s'", obj->name);
+        }
+    }
+
+    // Assign a unique object ID if not already set
+    get_obj_id(obj);
+
+    // Apply object fixes (times_allowed_fixed, etc.)
+    obj->times_allowed_fixed = obj->pIndexData->times_allowed_fixed;
+    fix_object(obj);
 
     return obj;
 }

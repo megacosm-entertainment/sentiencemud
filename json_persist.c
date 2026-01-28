@@ -21,6 +21,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "recycle.h"
 #include "json_persist.h"
 #include "redis_cache.h"
 
@@ -636,6 +637,9 @@ TOKEN_DATA *json_persist_json_to_token(json_t *json)
         json_persist_json_to_scriptdata(scriptdata, &token->progs);
     }
 
+    /* Assign a unique token ID if not already set (loaded from JSON) */
+    get_token_id(token);
+
     return token;
 }
 
@@ -1150,6 +1154,19 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
             }
         }
     }
+
+    /* Add object to loaded_objects and assign ID if needed */
+    if (!list_haslink(loaded_objects, obj)) {
+        list_appendlink(loaded_objects, obj);
+        obj->pIndexData->count++;
+    }
+
+    /* Assign a unique object ID if not already set (loaded from JSON) */
+    get_obj_id(obj);
+
+    /* Apply object fixes */
+    obj->times_allowed_fixed = obj->pIndexData->times_allowed_fixed;
+    fix_object(obj);
 
     return obj;
 }
@@ -1827,6 +1844,14 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
         }
     }
 
+    /* Add mobile to loaded_chars and assign ID if needed */
+    if (!list_haslink(loaded_chars, ch)) {
+        list_appendlink(loaded_chars, ch);
+    }
+
+    /* Assign a unique mobile ID if not already set (loaded from JSON) */
+    get_mob_id(ch);
+
     return ch;
 }
 
@@ -2272,6 +2297,9 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
             }
         }
     }
+
+    /* Assign a unique vroom ID if this is a virtual room without an ID */
+    get_vroom_id(room);
 
     return room;
 }

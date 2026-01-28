@@ -742,9 +742,13 @@ void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNoth
 
     show_list_to_char(head, ch, fShort, fShowNothing);
 
-    // Optionally, restore next_content pointers to NULL
-    for (obj = head; obj; obj = obj->next_content)
+    // Restore next_content pointers to NULL
+    // Must save next pointer BEFORE clearing, or we lose our way through the list
+    OBJ_DATA *next_obj;
+    for (obj = head; obj; obj = next_obj) {
+        next_obj = obj->next_content;
         obj->next_content = NULL;
+    }
 }
 
 /* MOVED: senses/vision.c */
@@ -2340,140 +2344,113 @@ void do_look(CHAR_DATA * ch, char *argument)
 		}
 	}
 
-	/* look at an object in the inventory */
-ITERATOR it;
-iterator_start(&it, ch->lcarrying);
-while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-    perform_lore = false;
-    if (can_see_obj(ch, obj)) {
+	/* look at an object in inventory or worn */
+	if ((obj = get_obj_inv_only(ch, arg3, false)) != NULL)
+	{
+		/* Can person lore object */
 		perform_lore = false;
-		if (can_see_obj(ch, obj))
+		if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
+			((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||
+			!IS_SET(obj->extra[1], ITEM_NO_LORE) ||
+			(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||
+			(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||
+			(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))
+			perform_lore = true;
+
+		/* Check extra desc first */
+		pdesc = get_extra_descr(arg3, obj->extra_descr);
+		if (pdesc != NULL && pdesc->description != NULL)
 		{
-			/* Can person lore object */
-			perform_lore = false;
-			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
-				/* get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) &&*/
-				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-				perform_lore = true;
-
-			pdesc = get_extra_descr(arg3, obj->extra_descr);
-			if (pdesc != NULL && pdesc->description != NULL)
+			send_to_char(pdesc->description, ch);
+			if (perform_lore)
 			{
-				if (++count == number)
-				{
-					send_to_char(pdesc->description, ch);
-
-					if (perform_lore)
-					{
-						send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
-
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					//check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
-				else
-					continue;
+				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 			}
+			else
+				send_to_char("\n\r", ch);
 
-			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-			if (pdesc != NULL && pdesc->description != NULL)
-			{
-				if (++count == number)
-				{
-					send_to_char(pdesc->description, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
-
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
-				else
-					continue;
-			}
-
-			if (is_name(arg3, obj->name))
-			{
-				if (++count == number)
-				{
-					send_to_char(obj->full_description, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
-
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, true, 10);
-
-					if( obj->item_type == ITEM_SEXTANT )
-					{
-						look_sextant(ch, obj);
-					}
-					else if(obj->item_type == ITEM_MAP)
-					{
-						look_map(ch, obj);
-					}
-					else if(obj->item_type == ITEM_TELESCOPE)
-					{
-						look_through_telescope(ch, obj, argument);
-					}
-					else if(obj->item_type == ITEM_COMPASS)
-					{
-						look_compass(ch, obj);
-					}
-					else if((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) &&
-						affect_find(obj->affected, skill_lookup("third eye")) != NULL)
-					{
-						if ((victim = get_char_world(NULL, obj->owner)) != NULL)
-						{
-							if (victim == ch)
-							{
-								send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
-								return;
-							}
-
-							if (!can_see_room(ch,victim->in_room) ||
-								IS_SET(victim->in_room->room_flag[0], ROOM_NOVIEW) ||
-								IS_SET(victim->in_room->room_flag[0], ROOM_PRIVATE) ||
-								IS_SET(victim->in_room->room_flag[0], ROOM_SOLITARY))
-							{
-								send_to_char("{DAll you see is darkness.{x\n\r", ch);
-								return;
-							}
-
-							act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-
-							//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
-							show_room(ch,victim->in_room,true,false,false);
-						}
-						else
-							act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR, NULL, NULL);
-					}
-
-					return;
-				}
-			}
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+			return;
 		}
+
+		pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
+		if (pdesc != NULL && pdesc->description != NULL)
+		{
+			send_to_char(pdesc->description, ch);
+			if (perform_lore)
+			{
+				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+			}
+			else
+				send_to_char("\n\r", ch);
+
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+			check_improve(ch, gsn_lore, true, 10);
+			return;
+		}
+
+		/* Show object description */
+		send_to_char(obj->full_description, ch);
+		if (perform_lore)
+		{
+			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+			spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+		}
+		else
+			send_to_char("\n\r", ch);
+
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+		check_improve(ch, gsn_lore, true, 10);
+
+		/* Handle special object types */
+		if (obj->item_type == ITEM_SEXTANT)
+		{
+			look_sextant(ch, obj);
+		}
+		else if (obj->item_type == ITEM_MAP)
+		{
+			look_map(ch, obj);
+		}
+		else if (obj->item_type == ITEM_TELESCOPE)
+		{
+			look_through_telescope(ch, obj, argument);
+		}
+		else if (obj->item_type == ITEM_COMPASS)
+		{
+			look_compass(ch, obj);
+		}
+		else if ((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || 
+		          obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) &&
+		         affect_find(obj->affected, skill_lookup("third eye")) != NULL)
+		{
+			if ((victim = get_char_world(NULL, obj->owner)) != NULL)
+			{
+				if (victim == ch)
+				{
+					send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
+					return;
+				}
+
+				if (!can_see_room(ch, victim->in_room) ||
+				    IS_SET(victim->in_room->room_flag[0], ROOM_NOVIEW) ||
+				    IS_SET(victim->in_room->room_flag[0], ROOM_PRIVATE) ||
+				    IS_SET(victim->in_room->room_flag[0], ROOM_SOLITARY))
+				{
+					send_to_char("{DAll you see is darkness.{x\n\r", ch);
+					return;
+				}
+
+				act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+				show_room(ch, victim->in_room, true, false, false);
+			}
+			else
+				act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR, NULL, NULL);
+		}
+
+		return;
 	}
-	iterator_stop(&it);
-}
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 	{

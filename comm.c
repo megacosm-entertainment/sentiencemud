@@ -146,7 +146,7 @@ SSL_CTX *ctx;
 int ssl_errors_since_reset = 0;
 time_t last_ssl_error = 0;
 LLIST *ssl_ctx_cleanup_queue = NULL;
-
+bool it_debug = false;
 /*
  * OS-dependent local functions.
  */
