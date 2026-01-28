@@ -6855,473 +6855,235 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
 
 
 /* MOVED: room/minimap.c */
+/* Helper: Check if an exit can be traversed for mapping purposes */
+static bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door)
+{
+    EXIT_DATA *pexit;
+    ROOM_INDEX_DATA *to_room;
+
+    if (!room || door < 0 || door >= MAX_DIR)
+        return false;
+
+    pexit = room->exit[door];
+    if (!pexit)
+        return false;
+
+    /* Walkthrough exits aren't shown on map */
+    if (IS_SET(pexit->exit_info, EX_WALKTHROUGH))
+        return false;
+
+    /* Hidden exits that haven't been found */
+    if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
+        return false;
+
+    /* Can't see through closed non-transparent doors */
+    if (IS_SET(pexit->exit_info, EX_CLOSED) /*&& !IS_SET(pexit->exit_info, EX_TRANSPARENT)*/)
+        return false;
+
+    /* Check if destination room exists and is visible */
+    to_room = pexit->u1.to_room;
+    if (!to_room)
+        return false;
+
+    /* Can't see into dark rooms without proper vision */
+    if (!can_see_room(ch, to_room))
+        return false;
+
+    return true;
+}
+
+/* Helper: Draw a character on the map grid */
+static void draw_map_char(char *map, int x, int y, char ch)
+{
+    if (x >= 0 && x < 10 && y >= 0 && y < 7)
+        *(map + 10 * y + x) = ch;
+}
+
+/* Helper: Get the connector character for a direction */
+static char get_connector_char(int dir)
+{
+    switch(dir) {
+        case DIR_NORTH:
+        case DIR_SOUTH:
+            return '|';
+        case DIR_EAST:
+        case DIR_WEST:
+            return '-';
+        case DIR_NORTHEAST:
+        case DIR_SOUTHWEST:
+            return '/';
+        case DIR_NORTHWEST:
+        case DIR_SOUTHEAST:
+            return '\\';
+        default:
+            return ' ';
+    }
+}
+
+/* Direction offset vectors: {dx, dy, connector_dx, connector_dy} */
+static const struct {
+    int dx;          /* Room X offset */
+    int dy;          /* Room Y offset */
+    int conn_dx;     /* Connector X offset */
+    int conn_dy;     /* Connector Y offset */
+} dir_offsets[] = {
+    {  0, -2,  0, -1 },  /* DIR_NORTH */
+    {  2,  0,  1,  0 },  /* DIR_EAST */
+    {  0,  2,  0,  1 },  /* DIR_SOUTH */
+    { -2,  0, -1,  0 },  /* DIR_WEST */
+    {  0,  0,  0,  0 },  /* DIR_UP (not used in 2D map) */
+    {  0,  0,  0,  0 },  /* DIR_DOWN (not used in 2D map) */
+    {  2, -2,  1, -1 },  /* DIR_NORTHEAST */
+    { -2, -2, -1, -1 },  /* DIR_NORTHWEST */
+    {  2,  2,  1,  1 },  /* DIR_SOUTHEAST */
+    { -2,  2, -1,  1 }   /* DIR_SOUTHWEST */
+};
+
+/* Helper: Draw a single exit from a position, returns destination room if drawn */
+static ROOM_INDEX_DATA *draw_exit(CHAR_DATA *ch, ROOM_INDEX_DATA *from_room, 
+                                   char *map, int x, int y, int dir)
+{
+    EXIT_DATA *pexit;
+    ROOM_INDEX_DATA *to_room;
+
+    if (!is_exit_visible(ch, from_room, dir))
+        return NULL;
+
+    pexit = from_room->exit[dir];
+
+    /* Check for up/down floor indicators */
+    if (IS_SET(pexit->exit_info, EX_PREVFLOOR)) {
+        draw_map_char(map, x + dir_offsets[dir].dx, y + dir_offsets[dir].dy, '<');
+        return NULL;
+    }
+
+    if (IS_SET(pexit->exit_info, EX_NEXTFLOOR)) {
+        draw_map_char(map, x + dir_offsets[dir].dx, y + dir_offsets[dir].dy, '>');
+        return NULL;
+    }
+
+    to_room = pexit->u1.to_room;
+    if (!to_room)
+        return NULL;
+
+    /* Draw connector */
+    draw_map_char(map, x + dir_offsets[dir].conn_dx, y + dir_offsets[dir].conn_dy,
+                  get_connector_char(dir));
+
+    /* Draw destination room */
+    draw_map_char(map, x + dir_offsets[dir].dx, y + dir_offsets[dir].dy,
+                  determine_room_type(to_room));
+
+    return to_room;
+}
+
+/* Helper: Follow a cardinal direction and draw branching exits */
+static void follow_cardinal_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room,
+                                      char *map, int dir, int *x, int *y)
+{
+    ROOM_INDEX_DATA *room = start_room;
+    ROOM_INDEX_DATA *temp;
+    int perpendicular1, perpendicular2;
+    int max_steps;
+
+    /* Determine perpendicular directions */
+    if (dir == DIR_NORTH || dir == DIR_SOUTH) {
+        perpendicular1 = DIR_EAST;
+        perpendicular2 = DIR_WEST;
+        max_steps = (dir == DIR_NORTH) ? 2 : 2;  /* Can go 2 steps from center */
+    } else {
+        perpendicular1 = DIR_NORTH;
+        perpendicular2 = DIR_SOUTH;
+        max_steps = (dir == DIR_EAST) ? 2 : 2;
+    }
+
+    /* Follow the main direction */
+    for (int step = 0; step < max_steps; step++) {
+        room = draw_exit(ch, room, map, *x, *y, dir);
+        if (!room)
+            break;
+
+        /* Update position */
+        *x += dir_offsets[dir].dx;
+        *y += dir_offsets[dir].dy;
+
+        /* Check perpendicular exits from this position */
+        int perp_x = *x;
+        int perp_y = *y;
+
+        /* Follow perpendicular direction 1 */
+        temp = room;
+        for (int i = 0; i < 2 && temp; i++) {
+            temp = draw_exit(ch, temp, map, perp_x, perp_y, perpendicular1);
+            if (temp) {
+                perp_x += dir_offsets[perpendicular1].dx;
+                perp_y += dir_offsets[perpendicular1].dy;
+
+                /* Check perpendiculars from perpendicular rooms */
+                if (perpendicular1 == DIR_EAST || perpendicular1 == DIR_WEST) {
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_NORTH);
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_SOUTH);
+                }
+            }
+        }
+
+        /* Follow perpendicular direction 2 */
+        perp_x = *x;
+        perp_y = *y;
+        temp = room;
+        for (int i = 0; i < 2 && temp; i++) {
+            temp = draw_exit(ch, temp, map, perp_x, perp_y, perpendicular2);
+            if (temp) {
+                perp_x += dir_offsets[perpendicular2].dx;
+                perp_y += dir_offsets[perpendicular2].dy;
+
+                /* Check perpendiculars from perpendicular rooms */
+                if (perpendicular2 == DIR_EAST || perpendicular2 == DIR_WEST) {
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_NORTH);
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_SOUTH);
+                }
+            }
+        }
+    }
+}
+
 void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 {
-    ROOM_INDEX_DATA *room;
-    ROOM_INDEX_DATA *last_room;
-    ROOM_INDEX_DATA *temp;
-    ROOM_INDEX_DATA *temp2;
-    int x, y;
-    int counter;
-    int x2;
-    int y2;
+    int x = 5;  /* Center X position */
+    int y = 3;  /* Center Y position */
 
-    x = 5;
-    y = 3;
+    /* Clear map and place player at center */
+    memset(map, ' ', 100);
+    map[100] = '\0';
+    draw_map_char(map, x, y, '@');
 
-/* ok - looks like we're clearing the string. Using a memcpy would be way faster. */
-    for (counter = 0; counter < 100; counter++)
-    {
-        *(map + counter) = ' ';
+    /* Draw diagonal exits from center */
+    for (int dir = DIR_NORTHEAST; dir <= DIR_SOUTHWEST; dir++) {
+        draw_exit(ch, start_room, map, x, y, dir);
     }
 
-/* Terminating the string with a null char. */
-    *(map + 101) = '\0';
-/* Hmm - placing the char in the centre? */
-    *(map + 10 * y + x) = '@';
-
-/* Before we check the adjacent rooms, keep track of where we came from */
-    last_room = start_room;
-
- /* Check north */
-    while(last_room->exit[ DIR_NORTH ] != NULL
-          && y > 1
-          && !IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-    {
-        y--;
-
-        *(map + 10 * y + x) = '|';
-
-        if( IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * (y-1) + x) = '<';
-        	break;
-		}
-
-        if( IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * (y-1) + x) = '>';
-        	break;
-		}
-
-	if ((room = last_room->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-            break;
-
-      	last_room = room;
-        y--;
-        *(map + 10 * y + x) = determine_room_type(room);
-
-        /* Look east */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_EAST ] != NULL && x2 < 8
-              && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 + 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '>';
-				break;
-			}
-
-            if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * y2 + x2 + 2) = determine_room_type(temp);
-            x2++;
-            x2++;
-
-            if (temp->exit[ DIR_SOUTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-            {
-
-                *(map + 10 * (y2+1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '<';
-					break;
-				}
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '>';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-            }
-        }
-
-        /* Look west */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_WEST ] != NULL
-              && x2 > 1
-              && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 - 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '>';
-				break;
-			}
-
-
-            if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * y2 + x2 - 2) = determine_room_type(temp);
-            x2--;
-            x2--;
-
-            if (temp->exit[ DIR_SOUTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-            {
-                *(map + 10 * (y2+1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '<';
-					break;
-				}
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '>';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-            }
-        }
-    }
-
-    x = 5;
-    y = 3;
-
-    /* work out south */
-    last_room = start_room;
-
-    while(last_room->exit[ DIR_SOUTH ] != NULL
-          && y < 5
-          && !IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-    {
-        y++;
-
-        /* Intermediate char */
-        *(map + 10 * y + x) = '|';
-
-        if( IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * (y+1) + x) = '<';
-        	break;
-		}
-
-        if( IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * (y+1) + x) = '>';
-        	break;
-		}
-
-        if ((room = last_room->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-            break;
-
-        last_room = room;
-        y++;
-        *(map + 10 * y + x) = determine_room_type(room);
-
-        /* Look east */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_EAST ] != NULL
-              && x2 < 8
-              && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 + 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '>';
-				break;
-			}
-
-            if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * y2 + x2 + 2) = determine_room_type(temp);
-            x2++;
-            x2++;
-
-            if (temp->exit[ DIR_NORTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-            {
-                *(map + 10 * (y2-1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '>';
-					break;
-				}
-				if( IS_SET(temp->exit[ DIR_NORTH]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '<';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-            }
-        }
-
-        /* Look west */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_WEST ] != NULL
-              && x2 > 1
-              && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 - 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '>';
-				break;
-			}
-
-            if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)== NULL)
-                break;
-
-            *(map + 10 * y2 + x2 - 2) = determine_room_type(temp);
-            x2--;
-            x2--;
-
-            if (temp->exit[ DIR_NORTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-            {
-                *(map + 10 * (y2-1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '>';
-					break;
-				}
-				if( IS_SET(temp->exit[ DIR_NORTH]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '<';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-            }
-        }
-    }
-
-    x = 5;
-    y = 3;
-
-    /* Look east */
-    temp = start_room;
-    x2 = x;
-    y2 = y;
-
-    while(temp->exit[ DIR_EAST ] != NULL
-          && x2 < 8
-          && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
-    {
-        *(map + 10 * y2 + x2 + 1) = '-';
-
-        if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 + 2) = '<';
-        	break;
-		}
-
-        if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 + 2) = '>';
-        	break;
-		}
-
-        if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
-            break;
-
-        *(map + 10 * y2 + x2 + 2) = determine_room_type(temp);
-        x2++;
-        x2++;
-
-        if (temp->exit[ DIR_SOUTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2+1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-        }
-
-        if (temp->exit[ DIR_NORTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2-1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-        }
-    }
-
-    x = 5;
-    y = 3;
-
-    /* Look west */
-    temp = start_room;
-    x2 = x;
-    y2 = y;
-
-    while(temp->exit[ DIR_WEST ] != NULL
-          && x2 > 1
-          && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
-    {
-        *(map + 10 * y2 + x2 - 1) = '-';
-
-        if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 - 2) = '<';
-        	break;
-		}
-
-        if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 - 2) = '>';
-        	break;
-		}
-
-
-        if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)==NULL)
-            break;
-
-        *(map + 10 * y2 + x2 - 2) = determine_room_type(temp);
-        x2--;
-        x2--;
-
-        if (temp->exit[ DIR_SOUTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2+1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-        }
-
-        if (temp->exit[ DIR_NORTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2-1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-        }
-    }
+    /* Draw cardinal directions with branching (north, south, east, west) */
+    int pos_x, pos_y;
+
+    /* North */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_NORTH, &pos_x, &pos_y);
+
+    /* South */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_SOUTH, &pos_x, &pos_y);
+
+    /* East */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_EAST, &pos_x, &pos_y);
+
+    /* West */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_WEST, &pos_x, &pos_y);
 }
 
 /* MOVED: room/minimap.c */
@@ -7471,6 +7233,16 @@ void convert_map_char(char *buf, char ch)
 		*(buf++) = '{';
 		*(buf++) = 'B';
 		*(buf++) = '\\';
+		break;
+	case '^':   /* Up exit indicator */
+		*(buf++) = '{';
+		*(buf++) = 'C';  /* Cyan */
+		*(buf++) = '^';
+		break;
+	case 'v':   /* Down exit indicator */
+		*(buf++) = '{';
+		*(buf++) = 'C';  /* Cyan */
+		*(buf++) = 'v';
 		break;
 	case 'X':
 		*(buf++) = '{';
