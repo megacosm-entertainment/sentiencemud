@@ -17,6 +17,7 @@ Build Options:
     debug, deb              Build Debug configuration (default)
     release, rel            Build Release configuration
     relwithdebinfo, reldeb  Build Release with debug info
+    tests                   Enable integration test framework
     clean                   Clean before building
     reconfig                Force reconfiguration even if already configured
 
@@ -30,9 +31,11 @@ Other:
 Examples:
     ./build                 # Build Debug with default compiler
     ./build release         # Build Release
+    ./build tests           # Build Debug with test framework
     ./build gcc debug       # Build Debug with GCC
     ./build clean release   # Clean rebuild Release
     ./build reconfig gcc    # Force reconfigure with GCC, then build
+    ./build tests release   # Build Release with test framework
 
 Output locations:
     Debug:          .build/Debug/sent
@@ -54,6 +57,7 @@ clean_opt=""
 build_cfg="--config Debug"
 config_name="Debug"
 force_reconfig=false
+build_tests=""
 
 for arg in "$@"
 do
@@ -74,6 +78,8 @@ do
     elif [[ ${arg,,} == "relwithdebinfo" ]] || [[ ${arg,,} == "relwithdeb" ]] || [[ ${arg,,} == "reldeb" ]]; then
         build_cfg="--config RelWithDebInfo"
         config_name="RelWithDebInfo"
+    elif [[ ${arg,,} == "tests" ]]; then
+        build_tests="-DBUILD_TESTS=ON"
     elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
         show_help
     else
@@ -101,7 +107,7 @@ if [[ "$needs_config" == true ]]; then
     echo "Configuring CMake build..."
     mkdir -p .build
     rm -rf .build/*
-    cmake -G "Ninja Multi-Config" -B .build . $compiler
+    cmake -G "Ninja Multi-Config" -B .build . $compiler $build_tests
 
     if [[ $? -ne 0 ]]; then
         echo ""

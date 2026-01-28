@@ -17,12 +17,14 @@ Configure CMake build for Sentience MUD.
 Options:
     gcc         Use GCC compiler (default if not specified)
     clang       Use Clang compiler
+    tests       Enable integration test framework
     --help, -h  Show this help message
 
 Examples:
     ./config            # Configure with default compiler
     ./config gcc        # Configure with GCC
     ./config clang      # Configure with Clang
+    ./config tests      # Configure with test framework enabled
 
 After configuring, use ./compile to build:
     ./compile           # Build Debug (default)
@@ -36,6 +38,7 @@ EOF
 }
 
 compiler=""
+build_tests=""
 
 for arg in "$@"
 do
@@ -43,6 +46,8 @@ do
         compiler="-DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc"
     elif [[ ${arg,,} == "clang" ]]; then
         compiler="-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang"
+    elif [[ ${arg,,} == "tests" ]]; then
+        build_tests="-DBUILD_TESTS=ON"
     elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
         show_help
     else
@@ -55,7 +60,7 @@ done
 echo "Configuring CMake build..."
 mkdir -p .build
 rm -rf .build/*
-cmake -G "Ninja Multi-Config" -B .build . $compiler
+cmake -G "Ninja Multi-Config" -B .build . $compiler $build_tests
 
 if [[ $? -eq 0 ]]; then
     echo ""

@@ -7987,6 +7987,13 @@ extern		char 		  *	help_greeting;
 extern		bool			MOBtrigger;
 extern		bool			global;
 extern		bool			logAll;
+extern		bool			test_mode;    /* Run in test mode */
+extern		char			test_pattern[256]; /* Test pattern to run */
+
+// Integration test framework (test_integration.c) - only available when BUILD_TESTS is defined
+#ifdef BUILD_TESTS
+int run_integration_tests(const char *pattern);
+#endif
 extern		char			bug_buf		[];
 extern		char			log_buf		[];
 extern		time_t			current_time;

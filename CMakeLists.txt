@@ -5,6 +5,9 @@ cmake_minimum_required (VERSION 3.10)
 
 project(sent)
 
+# Build options
+option(BUILD_TESTS "Build unit tests" OFF)
+
 # Set default parallel build jobs to nproc/2
 include(ProcessorCount)
 ProcessorCount(NPROC)
@@ -208,6 +211,16 @@ set(SOURCE_FILES
     wilds.c
 )
 
+# Add test integration source file only when BUILD_TESTS is enabled
+if(BUILD_TESTS)
+    list(APPEND SOURCE_FILES 
+        test_integration.c
+        tests/framework/test_framework.c
+        tests/framework/test_loader.c
+        tests/integration/wnum_tests.c
+    )
+endif()
+
 add_executable(sent ${SOURCE_FILES})
 
 target_compile_definitions(sent PRIVATE
@@ -216,6 +229,8 @@ target_compile_definitions(sent PRIVATE
     COMMIT="${GIT_URL}"
     # MUD_DEBUG enables debug features like stack trace logging
     $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:MUD_DEBUG>
+    # BUILD_TESTS enables integration test framework
+    $<$<BOOL:${BUILD_TESTS}>:BUILD_TESTS>
 )
 
 target_include_directories(sent PRIVATE ${CMAKE_SOURCE_DIR}/deps/zlog/src)
@@ -226,6 +241,11 @@ target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail
 
 # Export symbols for stack trace support (backtrace_symbols needs this)
 target_link_options(sent PRIVATE -rdynamic)
+
+# Include tests if enabled
+if(BUILD_TESTS)
+    include(tests/CMakeLists.txt)
+endif()
 
 # Install step (optional, example)
 # install(TARGETS sent DESTINATION bin)

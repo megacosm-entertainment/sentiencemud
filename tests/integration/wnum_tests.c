@@ -1,0 +1,309 @@
+#ifdef BUILD_TESTS
+
+#include <stdio.h>
+#include <string.h>
+#include "../framework/test_framework.h"
+#include "../../merc.h"
+#include "../../log.h"
+
+// Forward declarations
+static test_result_t test_wnum_parsing(test_case_t *test);
+static test_result_t test_area_name_parsing(test_case_t *test);
+static test_result_t test_wnum_parsing_structured(test_case_t *test);
+static test_result_t test_area_existence_check(test_case_t *test);
+static test_result_t test_area_integrity_check(test_case_t *test);
+static test_result_t test_config_validator(test_case_t *test);
+static test_result_t test_uid_uniqueness_check(test_case_t *test);
+
+void register_wnum_tests(void) {
+    // These will be loaded from JSON files rather than registered directly
+    log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "WNUM test handlers registered");
+}
+
+static test_result_t test_wnum_parsing(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *area_json = json_object_get(test->config, "area");
+    json_t *test_cases = json_object_get(test->config, "test_cases");
+    
+    if (!json_is_string(area_json) || !json_is_array(test_cases)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid WNUM test configuration");
+        return TEST_ERROR;
+    }
+    
+    const char *area_name = json_string_value(area_json);
+    AREA_DATA *area = find_area((char*)area_name);
+    
+    if (!area) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Area not found for WNUM test: %s", area_name);
+        return TEST_FAILURE;
+    }
+    
+    size_t index;
+    json_t *test_case;
+    json_array_foreach(test_cases, index, test_case) {
+        const char *input = json_get_string(test_case, "input");
+        const char *context_area_name = json_get_string(test_case, "context_area");
+        int expected_vnum = json_get_int(test_case, "expected_vnum");
+        const char *expected_area_name = json_get_string(test_case, "expected_area");
+        
+        if (!input || expected_vnum == 0) {
+            log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid test case in WNUM test");
+            return TEST_ERROR;
+        }
+        
+        AREA_DATA *context_area = context_area_name ? find_area((char*)context_area_name) : NULL;
+        WNUM result;
+        
+        if (!parse_widevnum((char*)input, context_area, &result)) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "WNUM parsing failed for input: %s", input);
+            return TEST_FAILURE;
+        }
+        
+        if (result.vnum != expected_vnum) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                          "WNUM vnum mismatch for input '%s': expected %d, got %ld", 
+                          input, expected_vnum, result.vnum);
+            return TEST_FAILURE;
+        }
+        
+        if (expected_area_name) {
+            AREA_DATA *expected_area = find_area((char*)expected_area_name);
+            if (result.pArea != expected_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                              "WNUM area mismatch for input '%s': expected %s, got different area", 
+                              input, expected_area_name);
+                return TEST_FAILURE;
+            }
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_area_name_parsing(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *test_cases = json_object_get(test->config, "test_cases");
+    
+    if (!json_is_array(test_cases)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid area name test configuration");
+        return TEST_ERROR;
+    }
+    
+    size_t index;
+    json_t *test_case;
+    json_array_foreach(test_cases, index, test_case) {
+        const char *input = json_get_string(test_case, "input");
+        int expected_vnum = json_get_int(test_case, "expected_vnum");
+        const char *expected_area_name = json_get_string(test_case, "expected_area");
+        
+        if (!input || expected_vnum == 0 || !expected_area_name) {
+            log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid test case in area name test");
+            return TEST_ERROR;
+        }
+        
+        WNUM result;
+        if (!parse_widevnum((char*)input, NULL, &result)) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Area name parsing failed for input: %s", input);
+            return TEST_FAILURE;
+        }
+        
+        if (result.vnum != expected_vnum) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                          "Area name vnum mismatch for input '%s': expected %d, got %ld", 
+                          input, expected_vnum, result.vnum);
+            return TEST_FAILURE;
+        }
+        
+        AREA_DATA *expected_area = find_area((char*)expected_area_name);
+        if (result.pArea != expected_area) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                          "Area name area mismatch for input '%s': expected %s", 
+                          input, expected_area_name);
+            return TEST_FAILURE;
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+// Test case execution dispatcher
+test_result_t run_test_case(test_case_t *test) {
+    if (!test) {
+        return TEST_ERROR;
+    }
+    
+    printf("  [TEST] %s (%s)... ", test->name, test->test_type ? test->test_type : "unknown");
+    fflush(stdout);
+    log_message_f(LOG_LEVEL_INFO, LOG_DEBUG, "Running test case: %s (type: %s)", 
+                  test->name, test->test_type ? test->test_type : "unknown");
+    
+    // Dispatch based on test type
+    if (test->test_type) {
+        if (strcmp(test->test_type, "wnum_parser") == 0) {
+            return test_wnum_parsing_structured(test);
+        } else if (strcmp(test->test_type, "area_existence_check") == 0) {
+            return test_area_existence_check(test);
+        } else if (strcmp(test->test_type, "area_integrity_check") == 0) {
+            return test_area_integrity_check(test);
+        } else if (strcmp(test->test_type, "config_validator") == 0) {
+            return test_config_validator(test);
+        } else if (strcmp(test->test_type, "uid_uniqueness_check") == 0) {
+            return test_uid_uniqueness_check(test);
+        }
+    }
+    
+    // Fallback to name-based dispatch for backwards compatibility
+    if (strstr(test->name, "vnum_parsing")) {
+        return test_wnum_parsing(test);
+    } else if (strstr(test->name, "area_name_parsing")) {
+        return test_area_name_parsing(test);
+    }
+    
+    // If we have a registered execute function, use it
+    if (test->execute) {
+        return test->execute(test);
+    }
+    
+    log_message_f(LOG_LEVEL_WARN, LOG_DEBUG, "No handler found for test: %s (type: %s)", 
+                  test->name, test->test_type ? test->test_type : "unknown");
+    return TEST_SKIP;
+}
+
+static test_result_t test_wnum_parsing_structured(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *test_cases = json_object_get(input, "test_cases");
+    
+    if (!json_is_array(test_cases)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid structured WNUM test: no test_cases array");
+        return TEST_ERROR;
+    }
+    
+    size_t index;
+    json_t *test_case;
+    json_array_foreach(test_cases, index, test_case) {
+        const char *vnum_string = json_get_string(test_case, "vnum_string");
+        const char *context_area_name = json_get_string(test_case, "context_area");
+        
+        if (!vnum_string) {
+            log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid test case: missing vnum_string");
+            return TEST_ERROR;
+        }
+        
+        AREA_DATA *context_area = context_area_name ? find_area((char*)context_area_name) : NULL;
+        if (context_area_name && !context_area) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                          "Context area not found: %s", context_area_name);
+            return TEST_FAILURE;
+        }
+        
+        WNUM result;
+        if (!parse_widevnum((char*)vnum_string, context_area, &result)) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                          "WNUM parsing failed for input: %s", vnum_string);
+            return TEST_FAILURE;
+        }
+        
+        log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                      "WNUM parsed: %s -> vnum=%ld, area=%s",
+                      vnum_string, result.vnum, 
+                      result.pArea ? result.pArea->name : "NULL");
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_area_existence_check(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *required_areas = json_object_get(input, "required_areas");
+    
+    if (!json_is_array(required_areas)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid area existence test: no required_areas array");
+        return TEST_ERROR;
+    }
+    
+    size_t index;
+    json_t *area_spec;
+    json_array_foreach(required_areas, index, area_spec) {
+        const char *area_name = json_get_string(area_spec, "name");
+        int expected_uid = json_get_int(area_spec, "expected_uid");
+        
+        if (!area_name) {
+            log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid area spec: missing name");
+            return TEST_ERROR;
+        }
+        
+        AREA_DATA *area = find_area((char*)area_name);
+        if (!area) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Required area not found: %s", area_name);
+            return TEST_FAILURE;
+        }
+        
+        if (expected_uid > 0 && area->uid != expected_uid) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                          "Area %s has wrong UID: expected %d, got %ld",
+                          area_name, expected_uid, area->uid);
+            return TEST_FAILURE;
+        }
+        
+        log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Area found: %s (UID: %ld)", area_name, area->uid);
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_area_integrity_check(test_case_t *test) {
+    // Basic integrity check - could be expanded
+    if (!area_first) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "No areas loaded");
+        return TEST_FAILURE;
+    }
+    
+    log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Area integrity check passed");
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_config_validator(test_case_t *test) {
+    if (gconfig.next_area_uid <= 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid next_area_uid: %ld", gconfig.next_area_uid);
+        return TEST_FAILURE;
+    }
+    
+    log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Global config validation passed");
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_uid_uniqueness_check(test_case_t *test) {
+    // Simple UID uniqueness check
+    long uid_count[1000] = {0};
+    int area_count = 0;
+    
+    for (AREA_DATA *area = area_first; area; area = area->next) {
+        area_count++;
+        
+        if (area->uid > 0 && area->uid < 1000) {
+            if (uid_count[area->uid]++ > 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Duplicate area UID: %ld", area->uid);
+                return TEST_FAILURE;
+            }
+        }
+    }
+    
+    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "UID uniqueness check passed (%d areas)", area_count);
+    return TEST_SUCCESS;
+}
+
+#endif // BUILD_TESTS

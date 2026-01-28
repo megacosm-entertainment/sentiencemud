@@ -33,6 +33,11 @@ C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GN
 # -rdynamic exports symbols for stack trace support (backtrace_symbols)
 L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
 
+# Build with tests: make BUILD_TESTS=1
+ifdef BUILD_TESTS
+    C_FLAGS += -DBUILD_TESTS
+endif
+
 EXE	= sent
 
 C_FILES = \
@@ -182,6 +187,14 @@ C_FILES = \
     update.c \
     weather.c \
     wilds.c
+
+# Add test integration source file only when BUILD_TESTS is enabled
+ifdef BUILD_TESTS
+    C_FILES += test_integration.c \
+               tests/framework/test_framework.c \
+               tests/framework/test_loader.c \
+               tests/integration/wnum_tests.c
+endif
 
 O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
 

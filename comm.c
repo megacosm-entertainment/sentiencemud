@@ -122,6 +122,8 @@ extern void init_string_space();
  * Global variables.
  */
 bool			is_test_port;
+bool			test_mode = false;    /* Run in test mode */
+char			test_pattern[256];  /* Test pattern to run */
 int 		    telnet_port;
 int				tls_port;
 int				websocket_port;
@@ -168,6 +170,7 @@ bool	check_parse_name	args((char *name));
 bool	check_reconnect		args((DESCRIPTOR_DATA *d, char *name, bool fConn));
 bool	check_playing		args((DESCRIPTOR_DATA *d, char *name));
 int	main			args((int argc, char **argv));
+int	run_integration_tests	args((const char *pattern));
 bool	process_output		args((DESCRIPTOR_DATA *d, bool fPrompt));
 void	read_from_buffer	args((DESCRIPTOR_DATA *d));
 void	stop_idling		args((CHAR_DATA *ch));
@@ -302,10 +305,39 @@ bool parse_options(int argc, char **argv)
 
 			telnet_port = p;
 		}
-		else if ( argv[i][0] == '-' && (strlen(argv[i]) == 2) )
+		else if ( argv[i][0] == '-' && (strlen(argv[i]) >= 2) )
 		{
 			switch( argv[i][1] )
 			{
+				case 'N':
+					newlock = true;
+					break;
+
+				case 'T':
+					is_test_port = true;
+					break;
+
+				case 'W':
+					wizlock = true;
+					break;
+
+				case 't':
+					// Test mode: -test or -test:pattern
+					if(!strncmp(argv[i], "-test", 5)) {
+						test_mode = true;
+						if(argv[i][5] == ':' && argv[i][6]) {
+							// Extract test pattern: -test:unit
+							strncpy(test_pattern, argv[i] + 6, sizeof(test_pattern) - 1);
+							test_pattern[sizeof(test_pattern) - 1] = '\0';
+						} else {
+							// Default to all tests
+							strcpy(test_pattern, "all");
+						}
+					} else {
+						fprintf(stderr, "Invalid option found.");
+						return false;
+					}
+					break;
 
 				case '?':
 					// Silently return
@@ -496,15 +528,19 @@ int main(int argc, char **argv)
 
     if( !parse_options(argc, argv) )
     {
-		fprintf(stderr, "Usage: %s [port #] [-NTW]\n", argv[0]);
+		fprintf(stderr, "Usage: %s [port #] [-NTW] [-test[:pattern]]\n", argv[0]);
 		fprintf(stderr, "\n");
-		fprintf(stderr, "\tport #\tListening port for the server (>1024).  Default is 9000.\n");
+		fprintf(stderr, "\tport #\t\tListening port for the server (>1024).  Default is 9000.\n");
 		fprintf(stderr, "\n");
-		fprintf(stderr, "\t-N\tStart up with newlock active.\n");
-		fprintf(stderr, "\t-T\tStart up in Test Port mode.\n");
-		fprintf(stderr, "\t-W\tStart up with wizlock active.\n");
+		fprintf(stderr, "\t-N\t\tStart up with newlock active.\n");
+		fprintf(stderr, "\t-T\t\tStart up in Test Port mode.\n");
+		fprintf(stderr, "\t-W\t\tStart up with wizlock active.\n");
+		fprintf(stderr, "\t-test\t\tRun integration tests and exit.\n");
+		fprintf(stderr, "\t-test:unit\tRun only unit tests.\n");
+		fprintf(stderr, "\t-test:wnum\tRun only widevnum tests.\n");
+		fprintf(stderr, "\t-test:all\tRun all tests (default).\n");
 		fprintf(stderr, "\n");
-		fprintf(stderr, "\t-?\tShow this screen.\n");
+		fprintf(stderr, "\t-?\t\tShow this screen.\n");
 		fprintf(stderr, "\n");
 		exit(1);
 	}
@@ -588,6 +624,19 @@ int main(int argc, char **argv)
     }
 
     log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Sentience is up on port %d.", telnet_port);
+    
+    // Check if we're running in test mode
+    if (test_mode) {
+#ifdef BUILD_TESTS
+        int test_result = run_integration_tests(test_pattern);
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Integration tests completed with result: %d", test_result);
+        exit(test_result);
+#else
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Test mode requested but MUD was not compiled with BUILD_TESTS");
+        exit(1);
+#endif
+    }
+    
     game_loop(control_telnet, control_tls, control_websocket);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
@@ -4123,3 +4172,4 @@ void refresh_ssl_context(void)
     ssl_errors_since_reset = 0;
     log_message(LOG_LEVEL_INFO, LOG_INFO, "SSL context refreshed successfully");
 }
+
