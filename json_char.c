@@ -1437,7 +1437,7 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
 
     // Get vnum
     vnum = json_integer_value(json_object_get(json_obj, "vnum"));
-    pObjIndex = get_obj_index(vnum);
+    pObjIndex = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
     if (!pObjIndex) {
         log_stringf("json_to_obj: bad vnum %ld", vnum);
         return NULL;
@@ -2311,16 +2311,16 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     json_t *position = json_object_get(character, "position");
     if (position) {
         long room_vnum = json_integer_value(json_object_get(position, "room_vnum"));
-        ROOM_INDEX_DATA *room = get_room_index(room_vnum);
+        ROOM_INDEX_DATA *room = get_room_index_global(room_vnum);
         if (room) {
             ch->in_room = room;
         } else {
             // Fallback to default recall room if saved room doesn't exist
-            ch->in_room = get_room_index(11001);
+            ch->in_room = get_room_index_global(11001);
         }
     } else {
         // No position saved - use default recall
-        ch->in_room = get_room_index(11001);
+        ch->in_room = get_room_index_global(11001);
     }
 
     // Read inventory section (skip if not loading heavy data)
@@ -2457,7 +2457,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     if (tokens_array && json_is_array(tokens_array)) {
         json_array_foreach(tokens_array, index, array_elem) {
             long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
-            TOKEN_INDEX_DATA *pTokenIndex = get_token_index(vnum);
+            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
             if (!pTokenIndex) {
                 log_stringf("json_read_char_internal: bad token vnum %ld", vnum);
                 continue;
@@ -2724,7 +2724,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     if (tokens_array && json_is_array(tokens_array)) {
         json_array_foreach(tokens_array, index, array_elem) {
             long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
-            TOKEN_INDEX_DATA *pTokenIndex = get_token_index(vnum);
+            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
             if (!pTokenIndex) {
                 log_stringf("json_read_char_remaining: bad token vnum %ld", vnum);
                 continue;

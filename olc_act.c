@@ -930,15 +930,17 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 	return true;
     }
 
-    value = atoi(arg);
+value = atoi(arg);
 
-    if (!get_room_index(value))
+AREA_DATA *area = find_area_by_vnum(value);
+if (!area) area = get_system_area_fallback();
+if (!get_room_index(area, value))
     {
        bug("Rprog: A link cannot link non-existant room.\n\r",0);
        return false;
     }
 
-    if (get_room_index(value)->exit[rev_dir[door]])
+    if (get_room_index(area, value)->exit[rev_dir[door]])
     {
        bug("Rprog: Reverse-side exit to room already exists.", 0);
        return false;
@@ -950,7 +952,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 	pRoom->exit[door]->from_room = pRoom;
     }
 
-    pToRoom = pRoom->exit[door]->u1.to_room = get_room_index(value);
+    pToRoom = pRoom->exit[door]->u1.to_room = get_room_index(area, value);
     pRoom->exit[door]->orig_door = door;
 
     /*	pRoom->exit[door]->vnum = value;                Can't set vnum in ROM */
@@ -1115,8 +1117,11 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 		value = atol(arg);
 
-		ROOM_INDEX_DATA *pToRoom = get_room_index(value);
+value = atol(arg);
 
+AREA_DATA *area = find_area_by_vnum(value);
+if (!area) area = get_system_area_fallback();
+ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
 		if (!pToRoom)
 		{
 			send_to_char("REdit:  Cannot link to non-existant room.\n\r", ch);
@@ -1232,7 +1237,9 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 		value = atol(arg);
 
-		pToRoom = get_room_index(value);
+		AREA_DATA *area = find_area_by_vnum(value);
+		if (!area) area = get_system_area_fallback();
+		pToRoom = get_room_index(area, value);
 
 		if (!pToRoom)
 		{
@@ -1337,15 +1344,21 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return false;
 		}
 
-		value = atoi(arg);
+value = atoi(arg);
 
-		if (!get_obj_index(value))
+if (!get_obj_index_global(value))
+{
+    send_to_char("REdit:  Item doesn't exist.\n\r", ch);
+    return false;
+}
+
+if (get_obj_index_global(atol(argument))->item_type != ITEM_KEY)
 		{
 			send_to_char("REdit:  Item doesn't exist.\n\r", ch);
 			return false;
 		}
 
-		if (get_obj_index(atol(argument))->item_type != ITEM_KEY)
+		if (get_obj_index_global(atol(argument))->item_type != ITEM_KEY)
 		{
 			send_to_char("REdit:  Key doesn't exist.\n\r", ch);
 			return false;
@@ -1540,7 +1553,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
 				obj->value[3],
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none",
 				obj->value[5]);
 		}
 		else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
@@ -1555,7 +1568,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none",
 				obj->value[5]);
 		}
 		else if(obj->value[3] > 0)
@@ -1571,7 +1584,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
 				obj->value[3],
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none");
+				obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none");
 		}
 		else
 		{
@@ -1587,7 +1600,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none",
 				obj->value[5], obj->value[6],obj->value[7]);
 		}
 	    add_buf(buffer, buf);
@@ -1776,8 +1789,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		"{B[  {Wv4{B]{G Weight Mult:{x [%ld]\n\r",
 		obj->value[0],
 		flag_string(container_flags, obj->value[1]),
-                get_obj_index(obj->value[2])
-                    ? get_obj_index(obj->value[2])->short_descr
+                get_obj_index_global(obj->value[2])
+                    ? get_obj_index_global(obj->value[2])->short_descr
                     : "none",
                 obj->value[2],
                 obj->value[3],
@@ -1880,8 +1893,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r"
 		"{B[  {Wv2{B]{G Key:{x     %s [%ld]\n\r",
 		flag_string(container_flags, obj->value[1]),
-                get_obj_index(obj->value[2])
-                    ? get_obj_index(obj->value[2])->short_descr
+                get_obj_index_global(obj->value[2])
+                    ? get_obj_index_global(obj->value[2])->short_descr
                     : "none",
                 obj->value[2]);
 	    add_buf(buffer, buf);
@@ -2098,7 +2111,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 1:
 			if (atoi(argument) != 0)
 			{
-				if (!get_obj_index(atoi(argument)))
+				if (!get_obj_index_global(atoi(argument)))
 				{
 					send_to_char("No such object exists.\n\r\n\r", ch);
 					return false;
@@ -2459,13 +2472,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 4:
 			if (atoi(argument) != 0)
 			{
-				if (!get_obj_index(atoi(argument)))
+				if (!get_obj_index_global(atoi(argument)))
 				{
 					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
 					return false;
 				}
 
-				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
+				if (get_obj_index_global(atoi(argument))->item_type != ITEM_KEY)
 				{
 					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
 					return false;
@@ -2698,13 +2711,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 2:
 			if (atoi(argument) != 0)
 			{
-				if (!get_obj_index(atoi(argument)))
+				if (!get_obj_index_global(atoi(argument)))
 				{
 					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
 					return false;
 				}
 
-				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
+				if (get_obj_index_global(atoi(argument))->item_type != ITEM_KEY)
 				{
 					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
 					return false;
@@ -2947,13 +2960,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 2:
 			if (atoi(argument) != 0)
 			{
-				if (!get_obj_index(atoi(argument)))
+				if (!get_obj_index_global(atoi(argument)))
 				{
 					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
 					return false;
 				}
 
-				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
+				if (get_obj_index_global(atoi(argument))->item_type != ITEM_KEY)
 				{
 					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
 					return false;

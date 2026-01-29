@@ -80,8 +80,10 @@ SPELL_FUNC(spell_animate_dead)
 		}
 
 		vnum = CORPSE_MOBILE(obj) ? CORPSE_MOBILE(obj) : obj->orig_vnum;
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
 
-		index = get_mob_index(vnum);
+		index = get_mob_index(area, vnum);
 		victim = create_mobile(index, false);
 
 		// Regardless what wealth the normal mob has...
@@ -438,7 +440,9 @@ SPELL_FUNC(spell_raise_dead)
         } else {
             bool keep_mob = true;
 
-            victim = create_mobile(get_mob_index(obj->orig_vnum), false);
+            AREA_DATA *area = find_area_by_vnum(obj->orig_vnum);
+            if (!area) area = get_system_area_fallback();
+            victim = create_mobile(get_mob_index(area, obj->orig_vnum), false);
             // Regardless what wealth the normal mob has...
             victim->gold = 0;
             victim->silver = 0;

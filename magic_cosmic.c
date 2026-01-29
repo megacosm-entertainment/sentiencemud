@@ -29,7 +29,9 @@ SPELL_FUNC(spell_create_food)
 
 	i = number_range(100066, 100076);
 
-	food = create_object(get_obj_index(i), 0, true);
+	AREA_DATA *area = find_area_by_vnum(i);
+	if (!area) area = get_system_area_fallback();
+	food = create_object(get_obj_index(area, i), 0, true);
 	food->value[0] = level / 2;
 	food->value[1] = level;
 	obj_to_room(food, ch->in_room);

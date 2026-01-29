@@ -1781,7 +1781,7 @@ void do_area(CHAR_DATA *ch, char *argument)
 			else
 				sprintf(buf, "{WRecall:                  Wilds {X%lu at ???{X\n\r", pArea->recall.wuid);
 		} 
-		else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) 
+		else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) 
 		{
 			sprintf(buf, "{WRecall:                  {X%s\n\r", recall->name);
 		} 
@@ -1791,9 +1791,9 @@ void do_area(CHAR_DATA *ch, char *argument)
 		send_to_char(buf, ch);
 
     // One post office per area
-    	sprintf(buf, "{WPost Office              {X%s\n\r",
-        	get_room_index(pArea->post_office) == NULL ? "None" :
-	    	get_room_index(pArea->post_office)->name);
+	    	sprintf(buf, "{WPost Office              {X%s\n\r",
+	    		get_room_index(pArea, pArea->post_office) == NULL ? "None" :
+	    		get_room_index(pArea, pArea->post_office)->name);
     		send_to_char(buf, ch);
 
 
@@ -7428,10 +7428,7 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 				break;
 
 			case CONDITION_SCRIPT:
-				script = get_script_index(cd->phrase,PRG_RPROG);
-
-				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TRIG_NONE, 0,0,0,0,0) > 0)
-					best_cd = cd;
+			script = get_script_index_global(cd->phrase,PRG_RPROG);
 				break;
 			}
 		}

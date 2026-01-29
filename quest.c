@@ -110,10 +110,10 @@ const long quest_item_token_table[] =
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
 	char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
-	OBJ_INDEX_DATA *scroll_index = get_obj_index(vnum);
+	OBJ_INDEX_DATA *scroll_index = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
 	if( scroll_index == NULL )
 	{
-		scroll_index = get_obj_index(get_reserved_vnum("obj_quest_scroll"));
+		scroll_index = get_reserved_obj_index("obj_quest_scroll");
 	}
 
 	OBJ_DATA *scroll = create_object(scroll_index, 0, true);
@@ -1187,7 +1187,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 		if (part->complete == true)
 			continue;
 
-		target_room = get_room_index(part->room);
+		target_room = get_room_index((find_area_by_vnum(part->room) ?: get_system_area_fallback()), part->room);
 
 		/* Not going by room vnum to prevent multiple rooms with the same name */
 		if (target_room != NULL && !str_cmp(target_room->name, room->name))

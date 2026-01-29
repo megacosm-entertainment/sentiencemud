@@ -1268,7 +1268,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
                 room = get_random_room(ch, 1);
                 if (room == NULL)
-                    room = get_room_index(get_reserved_vnum("room_default_recall"));
+                    room = get_reserved_room_index("room_default_recall");
             }
 
             obj_from_room(cart);
@@ -1858,7 +1858,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
 	obj->cost = 0;
 
     obj_from_char(obj);
-    obj_to_room(obj, get_room_index(get_reserved_vnum("room_donation")));
+    obj_to_room(obj, get_reserved_room_index("room_donation"));
 
     for (prev = obj->in_room->people; prev; prev = prev->next_in_room)
 	send_to_char("{MYou hear a loud zap as an object drops from the shimmering rift onto the rug.{x\n\r", prev);
@@ -4754,7 +4754,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		temp = ch->in_room->area->trade_list;
 		while( temp != NULL)
 		{
-			obj_index = get_obj_index( temp->obj_vnum );
+			obj_index = get_obj_index( ch->in_room->area, temp->obj_vnum );
 			if ( is_name( trade_item, trade_table[temp->trade_type].name ) ||
 				is_name( trade_item, obj_index->name ) )
 			{
@@ -4793,7 +4793,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			deduct_cost( ch, cost );
 
 			/* Create object and stick it in the cart */
-			pObj = create_object( get_obj_index( temp->obj_vnum ), 1, true );
+			pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_vnum ), 1, true );
 			if ( pObj == NULL )
 			{
 				bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
@@ -4833,7 +4833,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			for (count = 0; count < counter; count++)
 			{
 				/* Create object and stick it in the cart */
-				pObj = create_object( get_obj_index( temp->obj_vnum ), 1, true );
+				pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_vnum ), 1, true );
 				if ( pObj == NULL )
 				{
 					bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
@@ -6237,7 +6237,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
 		for(temp = ch->in_room->area->trade_list; temp != NULL; temp = temp->next)
 		{
-			obj_index = get_obj_index(temp->obj_vnum);
+			obj_index = get_obj_index(ch->in_room->area, temp->obj_vnum);
 			if (obj_index->value[0] == pObj->value[0])
 			{
 				break;
@@ -6990,9 +6990,9 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	/*			no affect on looting as object placement is done at the*/
 	/*			time of death.*/
 	if (IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH))
-	    skull = create_object(get_obj_index(get_reserved_vnum("obj_skull_golden")), 0, false);
+	    skull = create_object(get_reserved_obj_index("obj_skull_golden"), 0, false);
 	else
-	    skull = create_object(get_obj_index(get_reserved_vnum("obj_skull_normal")), 0, false);
+	    skull = create_object(get_reserved_obj_index("obj_skull_normal"), 0, false);
 
 //	SET_BIT(obj->extra[0], ITEM_NOSKULL);
 	REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
@@ -7188,7 +7188,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
 
     check_improve(ch, gsn_brew, true, 2);
 
-    potion = create_object(get_obj_index(get_reserved_vnum("obj_potion")), 1, false);
+    potion = create_object(get_reserved_obj_index("obj_potion"), 1, false);
 
     sprintf(buf, potion->short_descr, potion_name);
 
@@ -7540,7 +7540,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
 
     check_improve(ch, gsn_scribe, true, 3);
 
-    scroll = create_object(get_obj_index(get_reserved_vnum("obj_scroll")), 1, false);
+    scroll = create_object(get_reserved_obj_index("obj_scroll"), 1, false);
 
     sprintf(buf, scroll->short_descr, scroll_name);
 
@@ -7704,7 +7704,7 @@ void bomb_end(CHAR_DATA *ch)
 	act("{Y$n creates a smoke bomb.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	act("{YYou complete the construction of a smoke bomb.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	obj = create_object(get_obj_index(get_reserved_vnum("obj_bomb_smoke")), ch->tot_level, false);
+	obj = create_object(get_reserved_obj_index("obj_bomb_smoke"), ch->tot_level, false);
 	obj->level = ch->tot_level;
 	if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch))
 	{

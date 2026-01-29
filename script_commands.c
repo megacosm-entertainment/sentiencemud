@@ -186,7 +186,7 @@ void do_apdump(CHAR_DATA *ch, char *argument)
 	one_argument(argument, buf);
 	vnum = atoi(buf);
 
-	if (!(aprg = get_script_index(vnum, PRG_APROG))) {
+	if (!(aprg = get_script_index_global(vnum, PRG_APROG))) {
 		send_to_char("No such AREAprogram.\n\r", ch);
 		return;
 	}
@@ -221,7 +221,7 @@ void do_ipdump(CHAR_DATA *ch, char *argument)
 	one_argument(argument, buf);
 	vnum = atoi(buf);
 
-	if (!(iprg = get_script_index(vnum, PRG_IPROG))) {
+	if (!(iprg = get_script_index_global(vnum, PRG_IPROG))) {
 		send_to_char("No such INSTANCEprogram.\n\r", ch);
 		return;
 	}
@@ -255,7 +255,7 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
 	one_argument(argument, buf);
 	vnum = atoi(buf);
 
-	if (!(dprg = get_script_index(vnum, PRG_DPROG))) {
+	if (!(dprg = get_script_index_global(vnum, PRG_DPROG))) {
 		send_to_char("No such DUNGEONprogram.\n\r", ch);
 		return;
 	}
@@ -1335,7 +1335,7 @@ SCRIPT_CMD(scriptcmd_call)
 	else if(info->dungeon) space = PRG_DPROG;
 	else return;
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
 		return;
 	}
 
@@ -2308,7 +2308,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 		sn = skill_lookup(arg->d.str);
 		if( sn <= 0 ) return;
 	} else if( arg->type == ENT_NUMBER ) {
-		token_index = get_token_index(arg->d.num);
+		token_index = get_token_index_global(arg->d.num);
 
 		if( !token_index ) return;
 	}
@@ -2457,7 +2457,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 	default: return;
 	}
 
-	if(vnum < 1 || !get_script_index(vnum, type)) return;
+	if(vnum < 1 || !get_script_index_global(vnum, type)) return;
 	BUFFER *buffer = new_buf();
 
 	expand_string(info,rest,buffer);
@@ -2873,7 +2873,7 @@ SCRIPT_CMD(scriptcmd_questcancel)
 		default: vnum = 0; break;
 		}
 
-		if (vnum < 1 || !(script = get_script_index(vnum, type)))
+		if (vnum < 1 || !(script = get_script_index_global(vnum, type)))
 			return;
 
 		// Don't care about response
@@ -3052,7 +3052,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, type)))
+	if (vnum < 1 || !(script = get_script_index_global(vnum, type)))
 		return;
 
 	mob->quest = new_quest();
@@ -3482,7 +3482,9 @@ SCRIPT_CMD(scriptcmd_questscroll)
 	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	if( arg->d.num < 1 || !get_obj_index(arg->d.num))
+	AREA_DATA *area = find_area_by_vnum(arg->d.num);
+	if (!area) area = get_system_area_fallback();
+	if( arg->d.num < 1 || !get_obj_index(area, arg->d.num))
 		return;
 
 	vnum = arg->d.num;
@@ -3614,7 +3616,7 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 		entry = skill_entry_findsn(mob->sorted_skills, sn);
 
 	} else if( arg->type == ENT_NUMBER ) {
-		token_index = get_token_index(arg->d.num);
+		token_index = get_token_index_global(arg->d.num);
 
 		if( !token_index ) return;
 
@@ -3816,7 +3818,9 @@ SCRIPT_CMD(scriptcmd_specialkey)
 	if( !sk )
 		return;
 
-	index = get_obj_index(sk->key_vnum);
+	AREA_DATA *area = find_area_by_vnum(sk->key_vnum);
+	if (!area) area = get_system_area_fallback();
+	index = get_obj_index(area, sk->key_vnum);
 
 	if( !index || index->item_type != ITEM_KEY )
 		return;
@@ -4465,7 +4469,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
 		return;
 	}
 
@@ -5191,6 +5195,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
+	AREA_DATA *area;
 
 	long *lptr = NULL;
 	int *ptr = NULL;
@@ -5218,7 +5223,9 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		room = arg->d.room;
 		break;
 	case ENT_NUMBER:
-		room = get_room_index(arg->d.num);
+		area = find_area_by_vnum(arg->d.num);
+		if (!area) area = get_system_area_fallback();
+		room = get_room_index(area, arg->d.num);
 		break;
 	default: room = NULL; break;
 	}

@@ -268,7 +268,10 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ( ( to_room = get_room_index( atol( arg2 ) ) ) == NULL )
+    long dest_vnum = atol(arg2);
+    AREA_DATA *dest_area = find_area_by_vnum(dest_vnum);
+    if (!dest_area) dest_area = get_system_area_fallback();
+    if ( ( to_room = get_room_index( dest_area, dest_vnum ) ) == NULL )
     {
 	send_to_char("The destination room doesn't exist.\n\r", ch );
 	return;
@@ -291,7 +294,9 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 			    to_room->vnum, to_room->name );
 	    act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 
-	    char_to_room( victim, get_room_index( 1 ) );
+	    AREA_DATA *fallback = find_area_by_vnum(1);
+	    if (!fallback) fallback = get_system_area_fallback();
+	    char_to_room( victim, get_room_index( fallback, 1 ) );
 	    do_quit(victim,NULL);
 	    return;
 	}
@@ -321,7 +326,9 @@ void do_gohome(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (ch->home != 0 && (location = get_room_index(ch->home)) == NULL)
+    AREA_DATA *home_area = find_area_by_vnum(ch->home);
+    if (!home_area) home_area = get_system_area_fallback();
+    if (ch->home != 0 && (location = get_room_index(home_area, ch->home)) == NULL)
     {
 	send_to_char("You don't own a home.{x\n\r", ch );
 	ch->home = 0;

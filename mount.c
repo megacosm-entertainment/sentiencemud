@@ -171,7 +171,7 @@ CHAR_DATA *find_personal_mount(char *name)
 
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
     {
-    	if ((mIndex = get_mob_index(vnum)) != NULL)
+    	if ((mIndex = get_mob_index(area, vnum)) != NULL)
 	{
 	    if (!str_cmp(mIndex->owner, name))
 	    {

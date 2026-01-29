@@ -118,7 +118,9 @@ BPEDIT( bpedit_show )
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
 			BLUEPRINT_SECTION *section = list_nthdata(bp->sections, special->section);
-			ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+			AREA_DATA *area = section ? section->area : NULL;
+			if (!area) area = get_system_area_fallback();
+			ROOM_INDEX_DATA *room = get_room_index(area, special->vnum);
 
 			if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
 			{
@@ -870,7 +872,7 @@ BPEDIT( bpedit_static )
 					return false;
 				}
 
-				if( !get_room_index(vnum) )
+				if( !get_room_index(bp->area, vnum) )
 				{
 					send_to_char("Room does not exist.\n\r", ch);
 					return false;
@@ -924,7 +926,8 @@ BPEDIT( bpedit_static )
 				return false;
 			}
 
-			if( !get_room_index(vnum) )
+			AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
+			if( !get_room_index(area, vnum) )
 			{
 				send_to_char("Room does not exist.\n\r", ch);
 				return false;
@@ -1294,7 +1297,8 @@ BPEDIT (bpedit_addiprog)
 
     slot = trigger_table[tindex].slot;
 
-    if ((code = get_script_index (atol(num), PRG_IPROG)) == NULL)
+    // Scripts are global, not area-scoped
+    if ((code = get_script_index_global(atol(num), PRG_IPROG)) == NULL)
     {
 	send_to_char("No such INSTANCEProgram.\n\r",ch);
 	return false;

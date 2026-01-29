@@ -131,7 +131,7 @@ SPELL_FUNC(spell_maze)
 	{
 		area = find_area("Maze-Level1");
 	}
-	while(!(room = get_room_index(number_range(area->min_vnum, area->max_vnum))));
+	while(!(room = get_room_index(area, number_range(area->min_vnum, area->max_vnum))));
 
 	if (victim->fighting) stop_fighting(victim, true);
 
@@ -200,7 +200,7 @@ SPELL_FUNC(spell_nexus)
 	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,true);
 
 	/* portal one */
-	portal = create_object(get_obj_index(get_reserved_vnum("obj_portal")),0, true);
+	portal = create_object(get_reserved_obj_index("obj_portal"),0, true);
 	portal->timer = 1 + level / 10;
 
 	if( to_room->wilds && IS_SET(to_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
@@ -214,7 +214,7 @@ SPELL_FUNC(spell_nexus)
 	else
 	{
 		portal->value[3] = to_room->vnum;
-		portal->value[4] = 0;
+		portal->value[4] = (to_room->area ? to_room->area->uid : 0);
 		portal->value[5] = 0;
 		portal->value[6] = to_room->id[0];	// If this is a clone room, these will be set
 		portal->value[7] = to_room->id[1];	// otherwise, they will be 0,0
@@ -228,7 +228,7 @@ SPELL_FUNC(spell_nexus)
 	if (to_room != from_room) {
 
 		/* portal two */
-		portal = create_object(get_obj_index(get_reserved_vnum("obj_portal")),0, true);
+		portal = create_object(get_reserved_obj_index("obj_portal"),0, true);
 		portal->timer = 1 + level/10;
 
 		if( from_room->wilds && IS_SET(from_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
@@ -242,7 +242,7 @@ SPELL_FUNC(spell_nexus)
 		else
 		{
 			portal->value[3] = from_room->vnum;
-			portal->value[4] = 0;
+			portal->value[4] = (from_room->area ? from_room->area->uid : 0);
 			portal->value[5] = 0;
 			portal->value[6] = from_room->id[0];
 			portal->value[7] = from_room->id[1];
@@ -266,12 +266,12 @@ SPELL_FUNC(spell_reflection)
 	CHAR_DATA *reflection;
 	char buf[MAX_STRING_LENGTH];
 
-	if (!get_mob_index(get_reserved_vnum("mob_reflection"))) {
+	if (!get_reserved_mob_index("mob_reflection")) {
 		bug("spell_reflection: get_mob_index was null!\n\r",0);
 		return false;
 	}
 
-	reflection = create_mobile(get_mob_index(get_reserved_vnum("mob_reflection")), false);
+	reflection = create_mobile(get_reserved_mob_index("mob_reflection"), false);
 
 	free_string(reflection->short_descr);
 	reflection->short_descr = str_dup(buf);

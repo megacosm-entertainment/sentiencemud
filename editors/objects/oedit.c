@@ -137,7 +137,7 @@ OEDIT(oedit_show)
 
     if( pObj->lock )
     {
-		OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->lock->key_vnum) : NULL;
+			OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->area, pObj->lock->key_vnum) : NULL;
 
 	    sprintf(buf,"Lock State:\n\r"
 	    			"  Key:         {B[{x%7ld{B]{x %s\n\r"
@@ -975,7 +975,7 @@ OEDIT(oedit_next)
     while (nextObj == NULL
     && next_vnum <= pObj->area->max_vnum)
     {
-	nextObj = get_obj_index(next_vnum);
+	nextObj = get_obj_index(pObj->area, next_vnum);
 	next_vnum++;
     }
 
@@ -1241,7 +1241,7 @@ OEDIT(oedit_lock)
 		if( is_number(argument) )
 		{
 			long vnum = atol(argument);
-			OBJ_INDEX_DATA *key = get_obj_index(vnum);
+			OBJ_INDEX_DATA *key = get_obj_index(pObj->area, vnum);
 
 			if( !key )
 			{
@@ -1364,7 +1364,7 @@ OEDIT(oedit_prev)
     while (prevObj == NULL
     && prev_vnum >= pObj->area->min_vnum)
     {
-	prevObj = get_obj_index(prev_vnum);
+	prevObj = get_obj_index(pObj->area, prev_vnum);
 	prev_vnum--;
     }
 
@@ -1788,12 +1788,12 @@ OEDIT(oedit_create)
 	OBJ_INDEX_DATA *temp_obj;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_obj = get_obj_index(auto_vnum);
+	temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
 	if (temp_obj != NULL)
 	{
 	    while (temp_obj != NULL)
 	    {
-		temp_obj = get_obj_index(auto_vnum);
+		temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
 		if (temp_obj == NULL) break;
 		auto_vnum++;
 	    }
@@ -1823,7 +1823,7 @@ OEDIT(oedit_create)
 	return false;
     }
 
-    if (get_obj_index(value))
+	if (get_obj_index(pArea, value))
     {
 	send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
 	return false;
@@ -1838,8 +1838,8 @@ OEDIT(oedit_create)
 	top_vnum_obj = value;
 
     iHash                 = value % MAX_KEY_HASH;
-    pObj->next		  = obj_index_hash[iHash];
-    obj_index_hash[iHash] = pObj;
+	pObj->next		  = pArea->obj_index_hash[iHash];
+	pArea->obj_index_hash[iHash] = pObj;
     ch->desc->pEdit	  = (void *)pObj;
 
     SET_BIT(pObj->area->area_flags, AREA_CHANGED);
@@ -2575,7 +2575,7 @@ OEDIT (oedit_addoprog)
 	}
 
 
-  if ((code = get_script_index (atol(num), PRG_OPROG)) == NULL)
+  if ((code = get_script_index_global(atol(num), PRG_OPROG)) == NULL)
   {
         send_to_char("No such OBJProgram.\n\r",ch);
         return false;

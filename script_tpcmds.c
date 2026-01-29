@@ -188,10 +188,10 @@ void do_tpdump(CHAR_DATA *ch, char *argument)
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *tprg;
 
-	one_argument(argument, buf);
-	if (!(tprg = get_script_index(atoi(buf), PRG_TPROG))) {
-		send_to_char("No such TOKENprogram.\n\r", ch);
-		return;
+one_argument(argument, buf);
+	if (!(tprg = get_script_index_global(atoi(buf), PRG_TPROG))) {
+	    send_to_char("No such TOKENprogram.\n\r", ch);
+	    return;
 	}
 	if (!area_has_read_access(ch,tprg->area)) {
 		send_to_char("You do not have permission to view that script.\n\r", ch);
@@ -273,7 +273,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 	if (arg3[0] != '\0' && !id_lookup) {
 		vnum = atol(arg3);
 
-		if (get_token_index(vnum) == NULL) {
+		if (get_token_index_global(vnum) == NULL) {
 			send_to_char("That token vnum does not exist.\n\r", ch);
 			return;
 		}
@@ -383,8 +383,9 @@ char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				}
 			} else
 			{
-				*room = get_room_index(x);
-				rest = rest2;
+			AREA_DATA *area = find_area_by_vnum(x);
+			if (!area) area = get_system_area_fallback();
+			*room = get_room_index(area, x);
 			}
 			break;
 
@@ -408,9 +409,11 @@ char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 							rest = rest2;
 
-							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
-						}
+                        id2 = arg->d.num;
+                        AREA_DATA *area = find_area_by_vnum(vnum);
+                        if (!area) area = get_system_area_fallback();
+                        *room = get_clone_room(get_room_index(area, vnum),id1,id2);
+                    }
 					}
 				}
 			} else if(!str_cmp(arg->d.str,"wilds")) {
@@ -441,7 +444,7 @@ char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -521,8 +524,11 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					room_used_for_wilderness.y = y;
 					*room = &room_used_for_wilderness;
 				}
-			} else
-				*room = get_room_index(x);
+			} else {
+				AREA_DATA *area = find_area_by_vnum(x);
+				if (!area) area = get_system_area_fallback();
+				*room = get_room_index(area, x);
+			}
 			break;
 
 		case ENT_STRING:
@@ -543,8 +549,10 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
-						}
+id2 = arg->d.num;
+AREA_DATA *area = find_area_by_vnum(vnum);
+if (!area) area = get_system_area_fallback();
+*room = get_clone_room(get_room_index(area, vnum),id1,id2);						}
 					}
 				}
 			} else if(!str_cmp(arg->d.str,"wilds")) {
@@ -576,7 +584,7 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -741,7 +749,7 @@ SCRIPT_CMD(do_tpadjust)
 		default: break;
 		}
 
-		if (vnum < 1 || !get_token_index(vnum)) {
+		if (vnum < 1 || !get_token_index_global(vnum)) {
 			bug("TpAdjust - invalid token vnum.", 0);
 			return;
 		}
@@ -909,7 +917,7 @@ SCRIPT_CMD(do_tpcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, PRG_TPROG))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_TPROG))) {
 		bug("TpCall: invalid prog from vnum %d.", VNUM(info->token));
 		return;
 	}
@@ -1434,7 +1442,7 @@ SCRIPT_CMD(do_tpgive)
 	default: break;
 	}
 
-	if (vnum < 1 || !(token_index = get_token_index(vnum))) {
+	if (vnum < 1 || !(token_index = get_token_index_global(vnum))) {
 		bug("TpGive - invalid token vnum.", 0);
 		return;
 	}
@@ -3234,11 +3242,15 @@ SCRIPT_CMD(do_tplink)
 		return;
 	}
 
-	if(id1 > 0 || id2 > 0)
-		dest = get_clone_room(get_room_index(vnum),id1,id2);
-	else if(vnum > 0)
-		dest = get_room_index(vnum);
-	else if(environ)
+	if(id1 > 0 || id2 > 0) {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		dest = get_clone_room(get_room_index(area, vnum),id1,id2);
+	} else if(vnum > 0) {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		dest = get_room_index(area, vnum);
+	} else if(environ)
 		dest = &room_pointer_environment;
 	else
 		dest = NULL;
@@ -3272,7 +3284,7 @@ SCRIPT_CMD(do_tpmload)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
+	if (vnum < 1 || !(pMobIndex = get_mob_index_global(vnum))) {
 		sprintf(buf, "Tpmload: bad mob index (%ld) from token %ld", vnum, VNUM(info->token));
 		bug(buf, 0);
 		return;
@@ -4923,7 +4935,7 @@ SCRIPT_CMD(do_tpinput)
 	default: return;
 	}
 
-	if(vnum < 1 || !get_script_index(vnum, PRG_TPROG)) return;
+	if(vnum < 1 || !get_script_index_global(vnum, PRG_TPROG)) return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("TpInput - Error in parsing.",0);
@@ -5128,7 +5140,13 @@ SCRIPT_CMD(do_tpalterexit)
 		}
 
 		switch(arg->type) {
-		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+case ENT_NUMBER:
+    {
+        AREA_DATA *area = find_area_by_vnum(arg->d.num);
+        if (!area) area = get_system_area_fallback();
+        room = get_room_index(area, arg->d.num);
+    }
+    break;
 		case ENT_ROOM:		room = arg->d.room; break;
 		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
 		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
@@ -5504,8 +5522,11 @@ SCRIPT_CMD(do_tpcloneroom)
 
 	vnum = arg->d.num;
 
-	source = get_room_index(vnum);
-	if(!source) return;
+vnum = arg->d.num;
+
+AREA_DATA *area = find_area_by_vnum(vnum);
+if (!area) area = get_system_area_fallback();
+source = get_room_index(area, vnum);	if(!source) return;
 
 	if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
 		return;
@@ -5954,7 +5975,9 @@ SCRIPT_CMD(do_tpdestroyroom)
 
 	vnum = arg->d.num;
 
-	room = get_room_index(vnum);
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
+	room = get_room_index(area, vnum);
 	if(!room) return;
 
 	// Get id
@@ -6208,7 +6231,7 @@ SCRIPT_CMD(do_tpxcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
 		bug("TpCall: invalid prog from vnum %d.", VNUM(info->token));
 		return;
 	}
@@ -6998,9 +7021,9 @@ SCRIPT_CMD(do_tpscriptwait)
 
 	if(!actor_mob && !actor_obj && !actor_token) return;
 
-	if(success < 1 || !get_script_index(success, prog_type)) return;
-	if(failure < 1 || !get_script_index(failure, prog_type)) return;
-	if(pulse > 0 && !get_script_index(pulse, prog_type)) return;
+	if(success < 1 || !get_script_index_global(success, prog_type)) return;
+	if(failure < 1 || !get_script_index_global(failure, prog_type)) return;
+	if(pulse > 0 && !get_script_index_global(pulse, prog_type)) return;
 
 	wait = UMAX(wait, 1);
 
@@ -7019,9 +7042,9 @@ SCRIPT_CMD(do_tpscriptwait)
 		mob->script_wait_id[0] = actor_token->id[0];
 		mob->script_wait_id[1] = actor_token->id[1];
 	}
-	mob->script_wait_success = get_script_index(success, prog_type);
-	mob->script_wait_failure = get_script_index(failure, prog_type);
-	mob->script_wait_pulse = (pulse > 0) ? get_script_index(pulse, prog_type) : NULL;
+	mob->script_wait_success = get_script_index_global(success, prog_type);
+	mob->script_wait_failure = get_script_index_global(failure, prog_type);
+	mob->script_wait_pulse = (pulse > 0) ? get_script_index_global(pulse, prog_type) : NULL;
 
 	//printf_to_char(mob, "script_wait started: %d\n\r", wait);
 
@@ -7592,8 +7615,11 @@ SCRIPT_CMD(do_tpcheckpoint)
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg->d.num > 0 )
-			mob->checkpoint = get_room_index(arg->d.num);
+		if( arg->d.num > 0 ) {
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			mob->checkpoint = get_room_index(area, arg->d.num);
+		}
 		break;
 	case ENT_ROOM:
 		if( arg->d.room != NULL )

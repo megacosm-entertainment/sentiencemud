@@ -1306,8 +1306,11 @@ bool variables_setindex_room (ppVARIABLE list,char *name,long vnum, bool saved)
 	var->type = VAR_ROOM;
 	if(fBootDb)
 		var->_.i = vnum;
-	else
-		var->_.r = get_room_index(vnum);
+	else {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		var->_.r = get_room_index(area, vnum);
+	}
 	var->save = saved;
 
 	return true;
@@ -2071,7 +2074,11 @@ void variable_index_fix(void)
 
 	while(cur) {
 		if(cur->type == VAR_ROOM) {
-			if(cur->_.i > 0) cur->_.r = get_room_index(cur->_.i);
+			if(cur->_.i > 0) {
+				AREA_DATA *area = find_area_by_vnum(cur->_.i);
+				if (!area) area = get_system_area_fallback();
+				cur->_.r = get_room_index(area, cur->_.i);
+			}
 		}
 		cur = cur->global_next;
 	}
@@ -2091,7 +2098,9 @@ void variable_fix(pVARIABLE var)
 
 	if(fBootDb && var->type == VAR_ROOM) {	// Fix room variables on boot...
 		if(var->_.i > 0) {
-			var->_.r = get_room_index(var->_.i);
+			AREA_DATA *area = find_area_by_vnum(var->_.i);
+			if (!area) area = get_system_area_fallback();
+			var->_.r = get_room_index(area, var->_.i);
 		}
 	} else if(var->type == VAR_CLONE_ROOM) {	// Dynamic
 		if(var->_.cr.r && (room = get_clone_room(var->_.cr.r, var->_.cr.a, var->_.cr.b)) ) {
@@ -2238,13 +2247,19 @@ void variable_fix(pVARIABLE var)
 
 					if( !lroom->room) iterator_remcurrent(&it);
 
-				} else if( lroom->id[2] > 0 || lroom->id[3] > 0) {	// Clone room
-					lroom->room = get_room_index(lroom->id[1]);
+} else if( lroom->id[2] > 0 || lroom->id[3] > 0) {	// Clone room
+    AREA_DATA *area = find_area_by_vnum(lroom->id[1]);
+    if (!area) area = get_system_area_fallback();
+    lroom->room = get_room_index(area, lroom->id[1]);
 
-					if( lroom->room )
-						lroom->room = get_clone_room((ROOM_INDEX_DATA *)(lroom->room), lroom->id[2], lroom->id[3]);
-				} else if( !(lroom->room = get_room_index(lroom->id[1])) )
-					iterator_remcurrent(&it);
+    if( lroom->room )
+        lroom->room = get_clone_room((ROOM_INDEX_DATA *)(lroom->room), lroom->id[2], lroom->id[3]);
+} else {
+    AREA_DATA *area = find_area_by_vnum(lroom->id[1]);
+    if (!area) area = get_system_area_fallback();
+    if( !(lroom->room = get_room_index(area, lroom->id[1])) )
+        iterator_remcurrent(&it);
+}
 			}
 
 		iterator_stop(&it);
@@ -2264,13 +2279,19 @@ void variable_fix(pVARIABLE var)
 					}
 
 					if( !lexit->room) iterator_remcurrent(&it);
-				} else if( lexit->id[2] > 0 || lexit->id[3] > 0) {	// Clone room, can wait
-					lexit->room = get_room_index(lexit->id[1]);
+} else if( lexit->id[2] > 0 || lexit->id[3] > 0) {	// Clone room, can wait
+    AREA_DATA *area = find_area_by_vnum(lexit->id[1]);
+    if (!area) area = get_system_area_fallback();
+    lexit->room = get_room_index(area, lexit->id[1]);
 
-					if( lexit->room )
-						lexit->room = get_clone_room((ROOM_INDEX_DATA *)(lexit->room), lexit->id[2], lexit->id[3]);
-				} else if( !(lexit->room = get_room_index(lexit->id[1])) )
-					iterator_remcurrent(&it);
+    if( lexit->room )
+        lexit->room = get_clone_room((ROOM_INDEX_DATA *)(lexit->room), lexit->id[2], lexit->id[3]);
+} else {
+    AREA_DATA *area = find_area_by_vnum(lexit->id[1]);
+    if (!area) area = get_system_area_fallback();
+    if( !(lexit->room = get_room_index(area, lexit->id[1])) )
+        iterator_remcurrent(&it);
+}
 
 			}
 		iterator_stop(&it);
@@ -3093,13 +3114,19 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_ROOM:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			long vnum = fread_number(fp);
+			AREA_DATA *area = find_area_by_vnum(vnum);
+			if (!area) area = get_system_area_fallback();
+			ROOM_INDEX_DATA *room = get_room_index(area, vnum);
 			return room && variables_setsave_room(vars, name, room, true);
 		}
 
 	case VAR_CLONE_ROOM:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			long vnum = fread_number(fp);
+			AREA_DATA *area = find_area_by_vnum(vnum);
+			if (!area) area = get_system_area_fallback();
+			ROOM_INDEX_DATA *room = get_room_index(area, vnum);
 			int x = fread_number(fp);
 			int y = fread_number(fp);
 
@@ -3129,14 +3156,20 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_DOOR:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			long vnum = fread_number(fp);
+			AREA_DATA *area = find_area_by_vnum(vnum);
+			if (!area) area = get_system_area_fallback();
+			ROOM_INDEX_DATA *room = get_room_index(area, vnum);
 
 			return room && variables_set_door(vars, name, room, fread_number(fp), true);
 		}
 
 	case VAR_CLONE_DOOR:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			long vnum = fread_number(fp);
+			AREA_DATA *area = find_area_by_vnum(vnum);
+			if (!area) area = get_system_area_fallback();
+			ROOM_INDEX_DATA * room = get_room_index(area, vnum);
 
 			int x = fread_number(fp);
 			int y = fread_number(fp);

@@ -215,7 +215,9 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
 		if (!is_number(arg) && !str_infix(arg, area->name)) {
 			if (!(room = location_to_room(&area->recall))) {
 				for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-					if ((rm = get_room_index(vnum)))
+					AREA_DATA *search_area = find_area_by_vnum(vnum);
+					if (!search_area) search_area = get_system_area_fallback();
+					if ((rm = get_room_index(search_area, vnum)))
 						room = rm;
 				}
 			}
@@ -233,7 +235,10 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
 
 	// Done to allow for going to cloned rooms, but only if they exist!
     if (is_number(arg1)) {
-	room = get_room_index(atol(arg1));
+	long room_vnum = atol(arg1);
+	AREA_DATA *room_area = find_area_by_vnum(room_vnum);
+	if (!room_area) room_area = get_system_area_fallback();
+	room = get_room_index(room_area, room_vnum);
 	if(is_number(arg2) && is_number(arg))
 	{
 		//log_stringf("get_clone_room: find_location(%ld,%lu,%lu)", room->vnum,atol(arg2),atol(arg));
@@ -1965,7 +1970,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
 	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_to_room: destination room NULL.");
 
-	if ((room = get_room_index(get_reserved_vnum("room_default_recall"))) != NULL)
+	if ((room = get_reserved_room_index("room_default_recall")) != NULL)
 	    char_to_room(ch,room);
 
 	return;
@@ -3139,12 +3144,15 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     {
         ROOM_INDEX_DATA *death_room;
 
-        death_room = get_room_index(get_reserved_vnum("room_death"));
+        death_room = get_reserved_room_index("room_death");
         if (IS_DEMON(ch))
         {
             int range;
             range = number_range(0, 7000);
-            death_room = get_room_index(200050 + range);
+            long demon_vnum = 200050 + range;
+            AREA_DATA *demon_area = find_area_by_vnum(demon_vnum);
+            if (!demon_area) demon_area = get_system_area_fallback();
+            death_room = get_room_index(demon_area, demon_vnum);
             ch->hit = number_range(1, ch->max_hit);
             ch->mana = number_range(1, ch->max_mana);
             ch->move = number_range(1, ch->max_move);
@@ -3154,7 +3162,10 @@ void extract_char(CHAR_DATA *ch, bool fPull)
         {
             int range;
             range = number_range(0, 7000);
-            death_room = get_room_index(300050 + range);
+            long angel_vnum = 300050 + range;
+            AREA_DATA *angel_area = find_area_by_vnum(angel_vnum);
+            if (!angel_area) angel_area = get_system_area_fallback();
+            death_room = get_room_index(angel_area, angel_vnum);
             ch->hit = number_range(1, ch->max_hit);
             ch->mana = number_range(1, ch->max_mana);
             ch->move = number_range(1, ch->max_move);
@@ -4084,12 +4095,12 @@ OBJ_DATA *create_money(int gold, int silver)
     }
 
     if (gold == 0 && silver == 1)
-	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_silver_single")), 0, true);
+	obj = create_object(get_reserved_obj_index("obj_coin_silver_single"), 0, true);
     else if (gold == 1 && silver == 0)
-	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_gold_single")), 0, true);
+	obj = create_object(get_reserved_obj_index("obj_coin_gold_single"), 0, true);
     else if (silver == 0)
     {
-        obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_gold_multiple")), 0, true);
+        obj = create_object(get_reserved_obj_index("obj_coin_gold_multiple"), 0, true);
         sprintf(buf, obj->short_descr, gold);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -4099,7 +4110,7 @@ OBJ_DATA *create_money(int gold, int silver)
     }
     else if (gold == 0)
     {
-        obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_silver_multiple")), 0, true);
+        obj = create_object(get_reserved_obj_index("obj_coin_silver_multiple"), 0, true);
         sprintf(buf, obj->short_descr, silver);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -4110,7 +4121,7 @@ OBJ_DATA *create_money(int gold, int silver)
 
     else
     {
-	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_mixed")), 0, true);
+	obj = create_object(get_reserved_obj_index("obj_coin_mixed"), 0, true);
 	sprintf(buf, obj->short_descr, silver, gold);
 	free_string(obj->short_descr);
 	obj->short_descr	= str_dup(buf);
@@ -4900,7 +4911,7 @@ void resurrect_pc(CHAR_DATA *ch)
     char_from_room(ch);
 
     if ((pRoom = location_to_room(&ch->recall)) == NULL)
-        pRoom = get_room_index(get_reserved_vnum("room_default_altar"));
+        pRoom = get_reserved_room_index("room_default_altar");
 
     char_to_room(ch, pRoom);
     location_clear(&ch->recall);
@@ -8189,7 +8200,9 @@ void get_random_room_target(ROOM_INDEX_DATA *room, OBJ_DATA **obj, CHAR_DATA **c
 ROOM_INDEX_DATA *idfind_vroom(register unsigned long id1, register unsigned long id2)
 {
 	ROOM_INDEX_DATA *room;
-	room = get_room_index((long)id1);
+	AREA_DATA *area = find_area_by_vnum((long)id1);
+	if (!area) area = get_system_area_fallback();
+	room = get_room_index(area, (long)id1);
 
 	if(!room) return NULL;
 
@@ -9446,7 +9459,9 @@ ROOM_INDEX_DATA *location_to_room(LOCATION *loc)
 		if(wilds && !(room = get_wilds_vroom(wilds,loc->id[0],loc->id[1])))
 			room = create_wilds_vroom(wilds,loc->id[0],loc->id[1]);
 	} else if(loc->id[0]) {
-		room = get_room_index(loc->id[0]);
+		AREA_DATA *area = find_area_by_vnum(loc->id[0]);
+		if (!area) area = get_system_area_fallback();
+		room = get_room_index(area, loc->id[0]);
 		if(room && (loc->id[1] || loc->id[2]))
 			room = get_clone_room(room,loc->id[1],loc->id[2]);
 	}
@@ -9684,8 +9699,11 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 
 			pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
 			if( pVLink != NULL ) {
-				if( !pVLink->pDestRoom )
-					nextdest.room = get_room_index(pVLink->destvnum);
+				if( !pVLink->pDestRoom ) {
+					AREA_DATA *dest_area = find_area_by_vnum(pVLink->destvnum);
+					if (!dest_area) dest_area = get_system_area_fallback();
+					nextdest.room = get_room_index(dest_area, pVLink->destvnum);
+				}
 				else
 					nextdest.room = pVLink->pDestRoom;
 
@@ -11821,6 +11839,23 @@ char *get_game_setting_value(char *setting_name, bool *sensitive)
     return value_buffer;
 }
 
+AREA_DATA *get_system_area_fallback(void)
+{
+	AREA_DATA *area = NULL;
+
+	if (!IS_NULLSTR(game_settings.system_area)) {
+		if (is_number(game_settings.system_area))
+			area = get_area_index(atol(game_settings.system_area));
+		else
+			area = find_area(game_settings.system_area);
+	}
+
+	if (!area)
+		area = area_first;
+
+	return area;
+}
+
 /*
  * Helper function to get area data by reserved name
  */
@@ -11837,7 +11872,10 @@ AREA_DATA *get_reserved_area_index(const char *name)
         if (reserved->type == RESERVED_AREA && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_area_index(reserved->id);
+			if (reserved->wnum.auid > 0)
+				return get_area_index(reserved->wnum.auid);
+
+			return get_system_area_fallback();
         }
     }
     iterator_stop(&it);
@@ -11852,6 +11890,7 @@ TOKEN_INDEX_DATA *get_reserved_token_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -11861,7 +11900,12 @@ TOKEN_INDEX_DATA *get_reserved_token_index(const char *name)
         if (reserved->type == RESERVED_TOKEN && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_token_index(reserved->id);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_token_index(wnum.pArea, wnum.vnum);
         }
     }
     iterator_stop(&it);
@@ -11876,6 +11920,7 @@ SCRIPT_DATA *get_reserved_rprog_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -11885,7 +11930,12 @@ SCRIPT_DATA *get_reserved_rprog_index(const char *name)
         if (reserved->type == RESERVED_RPROG && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_script_index(reserved->id, PRG_RPROG);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG);
         }
     }
     iterator_stop(&it);
@@ -11900,6 +11950,7 @@ SCRIPT_DATA *get_reserved_oprog_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -11909,7 +11960,12 @@ SCRIPT_DATA *get_reserved_oprog_index(const char *name)
         if (reserved->type == RESERVED_OPROG && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_script_index(reserved->id, PRG_OPROG);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG);
         }
     }
     iterator_stop(&it);
@@ -11924,6 +11980,7 @@ SCRIPT_DATA *get_reserved_mprog_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -11933,7 +11990,12 @@ SCRIPT_DATA *get_reserved_mprog_index(const char *name)
         if (reserved->type == RESERVED_MPROG && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_script_index(reserved->id, PRG_MPROG);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_script_index(wnum.pArea, wnum.vnum, PRG_MPROG);
         }
     }
     iterator_stop(&it);
@@ -11948,6 +12010,7 @@ SCRIPT_DATA *get_reserved_tprog_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -11957,7 +12020,12 @@ SCRIPT_DATA *get_reserved_tprog_index(const char *name)
         if (reserved->type == RESERVED_TPROG && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_script_index(reserved->id, PRG_TPROG);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG);
         }
     }
     iterator_stop(&it);
@@ -11972,6 +12040,7 @@ SCRIPT_DATA *get_reserved_aprog_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -11981,7 +12050,12 @@ SCRIPT_DATA *get_reserved_aprog_index(const char *name)
         if (reserved->type == RESERVED_APROG && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_script_index(reserved->id, PRG_APROG);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_script_index(wnum.pArea, wnum.vnum, PRG_APROG);
         }
     }
     iterator_stop(&it);
@@ -12009,6 +12083,7 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -12018,7 +12093,12 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
         if (reserved->type == RESERVED_MOB && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_mob_index(reserved->id);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_mob_index(wnum.pArea, wnum.vnum);
         }
     }
     iterator_stop(&it);
@@ -12033,6 +12113,7 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -12042,7 +12123,12 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
         if (reserved->type == RESERVED_OBJ && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_obj_index(reserved->id);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_obj_index(wnum.pArea, wnum.vnum);
         }
     }
     iterator_stop(&it);
@@ -12057,6 +12143,7 @@ ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
+	WNUM wnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -12066,7 +12153,12 @@ ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
         if (reserved->type == RESERVED_ROOM && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            return get_room_index(reserved->id);
+			wnum.pArea = get_area_index(reserved->wnum.auid);
+			if (!wnum.pArea) {
+				wnum.pArea = get_system_area_fallback();
+			}
+			wnum.vnum = reserved->wnum.vnum;
+			return get_room_index(wnum.pArea, wnum.vnum);
         }
     }
     iterator_stop(&it);
@@ -12097,7 +12189,7 @@ AREA_DATA *get_area_index(long uid)
  *   "5#1234"          - Absolute (area UID 5, vnum 1234)
  *   "Plith#1234"      - Area name (finds area by name)
  *   "'Multi Word'#42" - Quoted area name for names with spaces
- *   "1234"            - If current_area is NULL, treated as global vnum lookup
+ *   "1234"            - If current_area is NULL, treated as system area fallback
  * 
  * Returns true if parsed successfully, false otherwise.
  */
@@ -12166,16 +12258,19 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
             return false;
         }
         
-        if (current_area) {
-            // Treat as relative vnum
-            wnum->pArea = current_area;
-            wnum->vnum = vnum;
-            return true;
-        } else {
-            // Legacy support - for now just fail
-            // TODO: Could implement global search if needed
-            return false;
-        }
+		if (current_area) {
+			// Treat as relative vnum
+			wnum->pArea = current_area;
+			wnum->vnum = vnum;
+			return true;
+		} else {
+			// Fallback to configured system area
+			wnum->pArea = get_system_area_fallback();
+			if (!wnum->pArea)
+				return false;
+			wnum->vnum = vnum;
+			return true;
+		}
     }
 }
 

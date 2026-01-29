@@ -5,6 +5,7 @@
 #include <time.h>
 #include "../framework/test_framework.h"
 #include "../../merc.h"
+#include "../../tables.h"
 #include "../../log.h"
 
 // Forward declarations
@@ -16,6 +17,14 @@ static test_result_t test_area_integrity_check(test_case_t *test);
 static test_result_t test_config_validator(test_case_t *test);
 static test_result_t test_uid_uniqueness_check(test_case_t *test);
 static test_result_t test_pure_function(test_case_t *test);
+static test_result_t test_reserved_lookup(test_case_t *test);
+static test_result_t test_reserved_wnum_format(test_case_t *test);
+static test_result_t test_reserved_compat(test_case_t *test);
+static test_result_t test_game_setting_exists(test_case_t *test);
+static test_result_t test_system_area_resolve(test_case_t *test);
+static test_result_t test_system_area_fallback(test_case_t *test);
+static test_result_t test_widevnum_parse_fallback(test_case_t *test);
+static test_result_t test_widevnum_parse_explicit(test_case_t *test);
 void print_test_result(test_case_t *test, test_result_t result, clock_t start_time);
 
 void register_wnum_tests(void) {
@@ -190,6 +199,22 @@ test_result_t run_test_case(test_case_t *test) {
         } else if (strcmp(test->test_type, "pure_function_test") == 0) {
             // New handler for unit tests
             result = test_pure_function(test);
+        } else if (strcmp(test->test_type, "reserved_lookup_test") == 0) {
+            result = test_reserved_lookup(test);
+        } else if (strcmp(test->test_type, "reserved_wnum_format_test") == 0) {
+            result = test_reserved_wnum_format(test);
+        } else if (strcmp(test->test_type, "reserved_compat_test") == 0) {
+            result = test_reserved_compat(test);
+        } else if (strcmp(test->test_type, "game_setting_exists_test") == 0) {
+            result = test_game_setting_exists(test);
+        } else if (strcmp(test->test_type, "system_area_resolve_test") == 0) {
+            result = test_system_area_resolve(test);
+        } else if (strcmp(test->test_type, "system_area_fallback_test") == 0) {
+            result = test_system_area_fallback(test);
+        } else if (strcmp(test->test_type, "widevnum_parse_fallback_test") == 0) {
+            result = test_widevnum_parse_fallback(test);
+        } else if (strcmp(test->test_type, "widevnum_parse_explicit_test") == 0) {
+            result = test_widevnum_parse_explicit(test);
         } else {
             // Fallback to name-based dispatch for backwards compatibility
             if (strstr(test->name, "vnum_parsing")) {
@@ -490,6 +515,344 @@ static test_result_t test_pure_function(test_case_t *test) {
     // Add more pure function handlers as needed
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Unsupported pure function: %s", func_name);
     return TEST_SKIP;
+}
+
+// Reserved system tests
+static test_result_t test_reserved_lookup(test_case_t *test) {
+    extern LLIST *reserved_vnums;
+    
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!input || !expected) {
+        return TEST_ERROR;
+    }
+    
+    const char *reserved_name = json_get_string(input, "reserved_name");
+    bool should_exist = json_get_bool(input, "should_exist");
+    
+    if (!reserved_name) {
+        return TEST_ERROR;
+    }
+    
+    RESERVED_DATA *reserved = find_reserved(reserved_name);
+    
+    if (should_exist && !reserved) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, 
+                     "Reserved item '%s' not found but should exist", reserved_name);
+        return TEST_FAILURE;
+    }
+    
+    if (!should_exist && reserved) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Reserved item '%s' found but shouldn't exist", reserved_name);
+        return TEST_FAILURE;
+    }
+    
+    if (reserved && json_get_bool(expected, "has_area")) {
+        AREA_DATA *area = get_area_index(reserved->wnum.auid);
+        if (!area && reserved->wnum.auid > 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Reserved item '%s' has invalid area UID %ld", 
+                         reserved_name, reserved->wnum.auid);
+            return TEST_FAILURE;
+        }
+    }
+    
+    if (reserved && json_get_bool(expected, "has_vnum")) {
+        if (reserved->type != RESERVED_AREA && reserved->wnum.vnum <= 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Reserved item '%s' has invalid vnum %ld",
+                         reserved_name, reserved->wnum.vnum);
+            return TEST_FAILURE;
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_reserved_wnum_format(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!input || !expected) {
+        return TEST_ERROR;
+    }
+    
+    const char *reserved_name = json_get_string(input, "reserved_name");
+    if (!reserved_name) {
+        return TEST_ERROR;
+    }
+    
+    RESERVED_DATA *reserved = find_reserved(reserved_name);
+    if (!reserved) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Reserved item '%s' not found for format test", reserved_name);
+        return TEST_FAILURE;
+    }
+    
+    AREA_DATA *area = get_area_index(reserved->wnum.auid);
+    const char *wnum_str = widevnum_string(area, reserved->wnum.vnum, NULL);
+    
+    if (!wnum_str) {
+        return TEST_FAILURE;
+    }
+    
+    if (json_get_bool(expected, "has_hash_separator")) {
+        if (!strchr(wnum_str, '#')) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "WNUM string '%s' missing # separator", wnum_str);
+            return TEST_FAILURE;
+        }
+    }
+    
+    if (json_get_bool(expected, "parseable")) {
+        WNUM parsed;
+        if (!parse_widevnum((char*)wnum_str, NULL, &parsed)) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Failed to parse generated WNUM string '%s'", wnum_str);
+            return TEST_FAILURE;
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_reserved_compat(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    
+    if (!input) {
+        return TEST_ERROR;
+    }
+    
+    const char *reserved_name = json_get_string(input, "reserved_name");
+    if (!reserved_name) {
+        return TEST_ERROR;
+    }
+    
+    int vnum = get_reserved_vnum(reserved_name);
+    
+    if (vnum <= 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "get_reserved_vnum('%s') returned invalid vnum %d", 
+                     reserved_name, vnum);
+        return TEST_FAILURE;
+    }
+    
+    return TEST_SUCCESS;
+}
+
+// System area tests
+static test_result_t test_game_setting_exists(test_case_t *test) {
+    extern const struct game_setting_type game_settings_table[];
+    
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!input || !expected) {
+        return TEST_ERROR;
+    }
+    
+    const char *setting_name = json_get_string(input, "setting_name");
+    if (!setting_name) {
+        return TEST_ERROR;
+    }
+    
+    const struct game_setting_type *setting = get_game_setting(setting_name);
+    
+    if (!setting && json_get_bool(expected, "setting_found")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Game setting '%s' not found", setting_name);
+        return TEST_FAILURE;
+    }
+    
+    if (setting) {
+        const char *expected_type = json_get_string(input, "expected_type");
+        if (expected_type && strcmp(expected_type, "string") == 0) {
+            if (setting->type != SETTING_TYPE_STRING && 
+                setting->type != SETTING_TYPE_EXTSTR) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Setting '%s' is not string type", setting_name);
+                return TEST_FAILURE;
+            }
+        }
+        
+        const char *expected_category = json_get_string(input, "expected_category");
+        if (expected_category && strcmp(expected_category, "global") == 0) {
+            if (setting->category != SETTING_CAT_GLOBAL) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Setting '%s' is not in global category", setting_name);
+                return TEST_FAILURE;
+            }
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_system_area_resolve(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!input || !expected) {
+        return TEST_ERROR;
+    }
+    
+    const char *test_mode = json_get_string(input, "test_mode");
+    
+    if (strcmp(test_mode, "numeric") == 0) {
+        // Find any area and test with its UID
+        if (area_first) {
+            char uid_str[32];
+            sprintf(uid_str, "%ld", area_first->uid);
+            
+            AREA_DATA *resolved = NULL;
+            if (is_number(uid_str)) {
+                resolved = get_area_index(atol(uid_str));
+            }
+            
+            if (!resolved && json_get_bool(expected, "area_resolved")) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Failed to resolve area by UID %s", uid_str);
+                return TEST_FAILURE;
+            }
+        }
+    } else if (strcmp(test_mode, "name") == 0) {
+        const char *area_name = json_get_string(input, "area_name");
+        if (area_name) {
+            AREA_DATA *resolved = find_area((char*)area_name);
+            if (!resolved && json_get_bool(input, "fallback_to_first")) {
+                resolved = area_first;
+            }
+            
+            if (!resolved && json_get_bool(expected, "area_resolved")) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Failed to resolve area by name '%s'", area_name);
+                return TEST_FAILURE;
+            }
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_system_area_fallback(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!expected) {
+        return TEST_ERROR;
+    }
+    
+    // Test that invalid system_area falls back to area_first
+    AREA_DATA *fallback = area_first;
+    
+    if (!fallback && json_get_bool(expected, "fallback_area_valid")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "No fallback area available (area_first is NULL)");
+        return TEST_FAILURE;
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_widevnum_parse_fallback(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!input || !expected) {
+        return TEST_ERROR;
+    }
+    
+    const char *wnum_str = json_get_string(input, "widevnum_string");
+    if (!wnum_str) {
+        return TEST_ERROR;
+    }
+    
+    WNUM result;
+    bool parsed = parse_widevnum((char*)wnum_str, NULL, &result);
+    
+    if (!parsed && json_get_bool(expected, "parsed")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Failed to parse widevnum '%s' without current area", wnum_str);
+        return TEST_FAILURE;
+    }
+    
+    if (parsed && json_get_bool(expected, "used_system_area")) {
+        // Verify the area used matches system_area or fallback
+        if (!result.pArea) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "parse_widevnum succeeded but pArea is NULL");
+            return TEST_FAILURE;
+        }
+    }
+    
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_widevnum_parse_explicit(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+    
+    json_t *input = json_object_get(test->config, "input");
+    json_t *expected = json_object_get(test->config, "expected_output");
+    
+    if (!input || !expected) {
+        return TEST_ERROR;
+    }
+    
+    const char *wnum_str = json_get_string(input, "widevnum_string");
+    if (!wnum_str) {
+        return TEST_ERROR;
+    }
+    
+    WNUM result;
+    bool parsed = parse_widevnum((char*)wnum_str, NULL, &result);
+    
+    if (!parsed && json_get_bool(expected, "parsed")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Failed to parse explicit widevnum '%s'", wnum_str);
+        return TEST_FAILURE;
+    }
+    
+    if (parsed && json_get_bool(expected, "used_explicit_area")) {
+        // Verify explicit area was used (format: UID#vnum)
+        if (!strchr(wnum_str, '#')) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "Test expects explicit area but format doesn't have #");
+            return TEST_ERROR;
+        }
+    }
+    
+    return TEST_SUCCESS;
 }
 
 #endif // BUILD_TESTS

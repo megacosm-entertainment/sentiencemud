@@ -6,6 +6,10 @@ struct char_data;
 typedef struct char_data CHAR_DATA;
 struct list_type;
 typedef struct list_type LLIST;
+struct wnum_load_data;
+typedef struct wnum_load_data WNUM_LOAD;
+struct area_data;
+typedef struct area_data AREA_DATA;
 
 /* Reserved item types */
 #define RESERVED_MOB     0
@@ -26,7 +30,7 @@ typedef struct list_type LLIST;
 typedef struct reserved_data {
     char *name;            /* Name of the reserved item (e.g., "MOB_VNUM_DEATH") */
     int type;              /* Type (MOB, OBJ, ROOM, etc) */
-    int id;                /* The VNUM or other ID value */
+    WNUM_LOAD wnum;        /* Wide vnum storage (area uid + vnum) */
     bool removable;        /* Whether this item can be deleted */
     char *description;     /* Optional description */
 } RESERVED_DATA;

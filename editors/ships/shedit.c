@@ -70,7 +70,9 @@ SHEDIT( shedit_show )
 		sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
 	add_buf(buffer, buf);
 
-	OBJ_INDEX_DATA *obj = get_obj_index(ship->ship_object);
+	AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object);
+	if (!ship_area) ship_area = get_system_area_fallback();
+	OBJ_INDEX_DATA *obj = get_obj_index(ship_area, ship->ship_object);
 	if( obj )
 		sprintf(buf, "Ship Object: [%5ld] %s{x\n\r", obj->vnum, obj->short_descr);
 	else
@@ -325,7 +327,7 @@ SHEDIT( shedit_blueprint )
 		iterator_start(&sit, bp->special_rooms);
 		while( (special_room = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
-			ROOM_INDEX_DATA *room = get_room_index(special_room->vnum);
+			ROOM_INDEX_DATA *room = get_room_index(bp->area, special_room->vnum);
 
 			if( room )
 			{
@@ -350,7 +352,7 @@ SHEDIT( shedit_blueprint )
 			{
 				for( long vnum = section->lower_vnum; vnum <= section->upper_vnum; vnum++)
 				{
-					ROOM_INDEX_DATA *room = get_room_index(vnum);
+					ROOM_INDEX_DATA *room = get_room_index(bp->area, vnum);
 
 					if( room )
 					{
@@ -417,7 +419,9 @@ SHEDIT( shedit_object )
 	}
 
 	vnum = atol(argument);
-	obj = get_obj_index(vnum);
+	AREA_DATA *obj_area = find_area_by_vnum(vnum);
+	if (!obj_area) obj_area = get_system_area_fallback();
+	obj = get_obj_index(obj_area, vnum);
 	if( !obj )
 	{
 		send_to_char("That object does not exist.\n\r", ch);
@@ -818,7 +822,9 @@ SHEDIT( shedit_keys )
 		}
 
 		vnum = atol(argument);
-		if( !(key = get_obj_index(vnum)) )
+		AREA_DATA *key_area = find_area_by_vnum(vnum);
+		if (!key_area) key_area = get_system_area_fallback();
+		if( !(key = get_obj_index(key_area, vnum)) )
 		{
 			send_to_char("That object does not exist.\n\r", ch);
 			return false;

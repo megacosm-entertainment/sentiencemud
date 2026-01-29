@@ -53,7 +53,8 @@ BSEDIT( bsedit_show )
 
 	if( bs->recall > 0 )
 	{
-		ROOM_INDEX_DATA *recall_room = get_room_index(bs->recall);
+		AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
+		ROOM_INDEX_DATA *recall_room = get_room_index(area, bs->recall);
 		sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, recall_room ? recall_room->name : "-invalid-");
 	}
 	else
@@ -299,7 +300,8 @@ BSEDIT( bsedit_recall )
 		return false;
 	}
 
-	room = get_room_index(vnum);
+	AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
+	room = get_room_index(area, vnum);
 	if( room == NULL )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
@@ -472,7 +474,8 @@ BSEDIT( bsedit_link )
 			return false;
 		}
 
-		ROOM_INDEX_DATA *room = get_room_index(vnum);
+		AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
+		ROOM_INDEX_DATA *room = get_room_index(area, vnum);
 		if( !room )
 		{
 			send_to_char("That room does not exist.\n\r", ch);
@@ -625,7 +628,8 @@ BSEDIT( bsedit_link )
 			return false;
 		}
 
-		ROOM_INDEX_DATA *room = get_room_index(vnum);
+		AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
+		ROOM_INDEX_DATA *room = get_room_index(area, vnum);
 		if( !room )
 		{
 			send_to_char("That room does not exist.\n\r", ch);

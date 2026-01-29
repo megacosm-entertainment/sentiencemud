@@ -683,7 +683,9 @@ WEDIT ( wedit_vlink )
         if(pVLink) {
 		if(pVLink->current_linkage == VLINK_UNLINKED) {
 			if (is_number(arg3) && (value = atoi(arg3)) > 0) {
-				ROOM_INDEX_DATA *destRoom = get_room_index(value);
+				AREA_DATA *dest_area = find_area_by_vnum(value);
+				if (!dest_area) dest_area = get_system_area_fallback();
+				ROOM_INDEX_DATA *destRoom = get_room_index(dest_area, value);
 
 				if( !destRoom )
 				{

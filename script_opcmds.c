@@ -173,7 +173,7 @@ void do_opdump(CHAR_DATA *ch, char *argument)
 	SCRIPT_DATA *oprg;
 
 	one_argument(argument, buf);
-	if (!(oprg = get_script_index(atoi(buf), PRG_OPROG))) {
+	if (!(oprg = get_script_index_global(atoi(buf), PRG_OPROG))) {
 		send_to_char("No such OBJprogram.\n\r", ch);
 		return;
 	}
@@ -314,10 +314,12 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					*room = &room_used_for_wilderness;
 				}
 			} else
-			{
-				*room = get_room_index(x);
-				rest = rest2;
-			}
+{
+    AREA_DATA *area = find_area_by_vnum(x);
+    if (!area) area = get_system_area_fallback();
+    *room = get_room_index(area, x);
+    rest = rest2;
+}
 			break;
 
 		case ENT_STRING: // Special named locations
@@ -341,7 +343,9 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							AREA_DATA *area = find_area_by_vnum(vnum);
+							if (!area) area = get_system_area_fallback();
+							*room = get_clone_room(get_room_index(area, vnum),id1,id2);
 						}
 					}
 				}
@@ -372,9 +376,12 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				for (area = area_first; area; area = area->next) {
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
-							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
+                                AREA_DATA *area = find_area_by_vnum(vnum);
+                                if (!area) area = get_system_area_fallback();
+								if ((loc = get_room_index(area, vnum)))
 									break;
+                            }
 						}
 
 						break;
@@ -457,7 +464,12 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					*room = &room_used_for_wilderness;
 				}
 			} else
-				*room = get_room_index(x);
+			{
+				AREA_DATA *area = find_area_by_vnum(x);
+				if (!area) area = get_system_area_fallback();
+				*room = get_room_index(area, x);
+				rest = rest2;
+			}
 			break;
 
 		case ENT_STRING:
@@ -478,7 +490,9 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							AREA_DATA *area = find_area_by_vnum(vnum);
+							if (!area) area = get_system_area_fallback();
+							*room = get_clone_room(get_room_index(area, vnum),id1,id2);
 						}
 					}
 				}
@@ -511,9 +525,12 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 				for (area = area_first; area; area = area->next) {
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
-							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
+                                AREA_DATA *area = find_area_by_vnum(vnum);
+                                if (!area) area = get_system_area_fallback();
+								if ((loc = get_room_index(area, vnum)))
 									break;
+                            }
 						}
 
 						break;
@@ -725,7 +742,7 @@ SCRIPT_CMD(do_opcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, PRG_OPROG))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_OPROG))) {
 		bug("OpCall: invalid prog from vnum %d.", VNUM(info->obj));
 		return;
 	}
@@ -883,7 +900,7 @@ SCRIPT_CMD(do_opcast)
 		}
 	}
 
-	proxy = create_mobile(get_mob_index(get_reserved_vnum("mob_objcaster")), false);
+	proxy = create_mobile(get_mob_index_global(get_reserved_vnum("mob_objcaster")), false);
 	char_to_room(proxy, room);
 
 	proxy->level = info->obj->level;
@@ -893,7 +910,7 @@ SCRIPT_CMD(do_opcast)
 	proxy->short_descr = str_dup(info->obj->short_descr);
 
 	// Make sure they have a reagent for the powerful spells
-	reagent = create_object(get_obj_index(get_reserved_vnum("obj_black_moonstone_shard")), 1, false);
+	reagent = create_object(get_obj_index_global(get_reserved_vnum("obj_black_moonstone_shard")), 1, false);
 	obj_to_char(reagent,proxy);
 
 	switch (skill_table[sn].target) {
@@ -1965,11 +1982,15 @@ SCRIPT_CMD(do_oplink)
 		return;
 	}
 
-	if(id1 > 0 || id2 > 0)
-		dest = get_clone_room(get_room_index(vnum),id1,id2);
-	else if(vnum > 0)
-		dest = get_room_index(vnum);
-	else if(environ)
+	if(id1 > 0 || id2 > 0) {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		dest = get_clone_room(get_room_index(area, vnum),id1,id2);
+	} else if(vnum > 0) {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		dest = get_room_index(area, vnum);
+	} else if(environ)
 		dest = &room_pointer_environment;
 	else
 		dest = NULL;
@@ -2003,7 +2024,7 @@ SCRIPT_CMD(do_opmload)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
+	if (vnum < 1 || !(pMobIndex = get_mob_index_global(vnum))) {
 		sprintf(buf, "Opmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->obj));
 		bug(buf, 0);
 		return;
@@ -4752,7 +4773,7 @@ SCRIPT_CMD(do_opinput)
 	default: return;
 	}
 
-	if(vnum < 1 || !get_script_index(vnum, PRG_OPROG)) return;
+	if(vnum < 1 || !get_script_index_global(vnum, PRG_OPROG)) return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpInput - Error in parsing.",0);
@@ -4957,7 +4978,13 @@ SCRIPT_CMD(do_opalterexit)
 		}
 
 		switch(arg->type) {
-		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+		case ENT_NUMBER:
+    {
+        AREA_DATA *area = find_area_by_vnum(arg->d.num);
+        if (!area) area = get_system_area_fallback();
+        room = get_room_index(area, arg->d.num);
+    }
+    break;
 		case ENT_ROOM:		room = arg->d.room; break;
 		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
 		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
@@ -5334,7 +5361,9 @@ SCRIPT_CMD(do_opcloneroom)
 
 	vnum = arg->d.num;
 
-	source = get_room_index(vnum);
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
+	source = get_room_index(area, vnum);
 	if(!source) return;
 
 	if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
@@ -5789,7 +5818,9 @@ SCRIPT_CMD(do_opdestroyroom)
 
 	vnum = arg->d.num;
 
-	room = get_room_index(vnum);
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
+	room = get_room_index(area, vnum);
 	if(!room) return;
 
 	// Get id
@@ -6037,7 +6068,7 @@ SCRIPT_CMD(do_opxcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
 		bug("OpCall: invalid prog from vnum %d.", VNUM(info->obj));
 		return;
 	}
@@ -7235,9 +7266,9 @@ SCRIPT_CMD(do_opscriptwait)
 
 	if(!actor_mob && !actor_obj && !actor_token) return;
 
-	if(success < 1 || !get_script_index(success, prog_type)) return;
-	if(failure < 1 || !get_script_index(failure, prog_type)) return;
-	if(pulse > 0 && !get_script_index(pulse, prog_type)) return;
+	if(success < 1 || !get_script_index_global(success, prog_type)) return;
+	if(failure < 1 || !get_script_index_global(failure, prog_type)) return;
+	if(pulse > 0 && !get_script_index_global(pulse, prog_type)) return;
 
 	wait = UMAX(wait, 1);
 
@@ -7256,9 +7287,9 @@ SCRIPT_CMD(do_opscriptwait)
 		mob->script_wait_id[0] = actor_token->id[0];
 		mob->script_wait_id[1] = actor_token->id[1];
 	}
-	mob->script_wait_success = get_script_index(success, prog_type);
-	mob->script_wait_failure = get_script_index(failure, prog_type);
-	mob->script_wait_pulse = (pulse > 0) ? get_script_index(pulse, prog_type) : NULL;
+	mob->script_wait_success = get_script_index_global(success, prog_type);
+	mob->script_wait_failure = get_script_index_global(failure, prog_type);
+	mob->script_wait_pulse = (pulse > 0) ? get_script_index_global(pulse, prog_type) : NULL;
 
 	//printf_to_char(mob, "script_wait started: wait = %d\n\r", wait);
 	//printf_to_char(mob, "script_wait started: success = %d\n\r", success);
@@ -7320,8 +7351,11 @@ SCRIPT_CMD(do_opcheckpoint)
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg->d.num > 0 )
-			mob->checkpoint = get_room_index(arg->d.num);
+		if( arg->d.num > 0 ) {
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			mob->checkpoint = get_room_index(area, arg->d.num);
+		}
 		break;
 	case ENT_ROOM:
 		if( arg->d.room != NULL )

@@ -243,7 +243,7 @@ SPELL_FUNC(spell_stinking_cloud)
 		if (obj->item_type == ITEM_STINKING_CLOUD)
 			return false;
 
-	cloud = create_object(get_obj_index(get_reserved_vnum("obj_cloud_stinking")), 0, true);
+	cloud = create_object(get_reserved_obj_index("obj_cloud_stinking"), 0, true);
 	cloud->timer = 4;
 	cloud->level = ch->tot_level;
 	obj_to_room(cloud, ch->in_room);
@@ -473,7 +473,7 @@ SPELL_FUNC(spell_withering_cloud)
 	int dir = 0;
 	bool exists = false;
 
-	if (!(index = get_obj_index(get_reserved_vnum("obj_cloud_withering")))) {
+	if (!(index = get_reserved_obj_index("obj_cloud_withering"))) {
 		bug("spell_withering_cloud: null obj_index!\n", 0);
 		return false;
 	}

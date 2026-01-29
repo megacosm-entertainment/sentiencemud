@@ -35,7 +35,9 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     if (p_leader_vnum > 0 && p_mob_vnum > 0) { 
 			leader_vnum = p_leader_vnum;
       mob_vnum = p_mob_vnum;
-		  sprintf(buf, "Global Quest: %s has been overrun by an invasion force led by %s! Bring back the head for reward! (Max level %d)", pArea->name, get_mob_index(leader_vnum)->short_descr, max_level);
+		  AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
+		  if (!leader_area) leader_area = get_system_area_fallback();
+		  sprintf(buf, "Global Quest: %s has been overrun by an invasion force led by %s! Bring back the head for reward! (Max level %d)", pArea->name, get_mob_index(leader_area, leader_vnum)->short_descr, max_level);
     }
     else {
 			// check type of invasion
@@ -69,7 +71,11 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
 			 }
      }
 
-     if (get_mob_index(leader_vnum ) == NULL || get_mob_index(mob_vnum) == NULL)
+     AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
+     AREA_DATA *mob_area = find_area_by_vnum(mob_vnum);
+     if (!leader_area) leader_area = get_system_area_fallback();
+     if (!mob_area) mob_area = get_system_area_fallback();
+     if (get_mob_index(leader_area, leader_vnum) == NULL || get_mob_index(mob_area, mob_vnum) == NULL)
      {
 	 bug("create_invasion_quest: leader or mob vnum is null.", 0);
 	 return NULL;
@@ -89,13 +95,13 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
 
 
     // create leader
-    leader = create_mobile(get_mob_index(leader_vnum), false);
+    leader = create_mobile(get_mob_index(leader_area, leader_vnum), false);
     leader->invasion_quest = quest;
     quest->leader = leader;
 
     while(true) {
       vnum = number_range(pArea->min_vnum, pArea->max_vnum);
-      pRoom = get_room_index(vnum);
+      pRoom = get_room_index(pArea, vnum);
 
       if (pRoom != NULL) {
         break;
@@ -112,11 +118,11 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     // place mobs
     for (i = 0; i < number; i++) {
       CHAR_DATA *mob; 
-    	mob = create_mobile(get_mob_index(mob_vnum), false);
+    	mob = create_mobile(get_mob_index(mob_area, mob_vnum), false);
 
 			while(true) {
 				vnum = number_range(pArea->min_vnum, pArea->max_vnum);
-				pRoom = get_room_index(vnum);
+				pRoom = get_room_index(pArea, vnum);
 
 				if (pRoom != NULL) {
 					break;

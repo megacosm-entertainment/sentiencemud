@@ -610,7 +610,7 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
 	long vnum = atol(command);
 	AREA_DATA *ad;
 
-	if ( (pMcode = get_script_index(vnum,PRG_MPROG)) == NULL )
+	if ( (pMcode = get_script_index_global(vnum,PRG_MPROG)) == NULL )
 	{
 		send_to_char("MPEdit : That vnum does not exist.\n\r",ch);
 		return;
@@ -666,7 +666,7 @@ void do_opedit(CHAR_DATA *ch, char *argument)
 	long vnum = atol(command);
 	AREA_DATA *ad;
 
-	if ( (pOcode = get_script_index(vnum,PRG_OPROG)) == NULL )
+	if ( (pOcode = get_script_index_global(vnum,PRG_OPROG)) == NULL )
 	{
 		send_to_char("OPEdit : That vnum does not exist.\n\r",ch);
 		return;
@@ -722,7 +722,7 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
 	long vnum = atol(command);
 	AREA_DATA *ad;
 
-	if ( (pRcode = get_script_index(vnum,PRG_RPROG)) == NULL )
+	if ( (pRcode = get_script_index_global(vnum,PRG_RPROG)) == NULL )
 	{
 		send_to_char("RPEdit : That vnum does not exist.\n\r",ch);
 		return;
@@ -779,7 +779,7 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
 	long vnum = atol(command);
 	AREA_DATA *ad;
 
-	if ( (pTcode = get_script_index(vnum,PRG_TPROG)) == NULL )
+	if ( (pTcode = get_script_index_global(vnum,PRG_TPROG)) == NULL )
 	{
 		send_to_char("TPEdit : That vnum does not exist.\n\r",ch);
 		return;
@@ -834,7 +834,7 @@ void do_apedit(CHAR_DATA *ch, char *argument)
 		long vnum = atol(command);
 		AREA_DATA *ad;
 
-		if ( (pAcode = get_script_index(vnum,PRG_APROG)) == NULL )
+		if ( (pAcode = get_script_index_global(vnum,PRG_APROG)) == NULL )
 		{
 			send_to_char("APEdit : That vnum does not exist.\n\r",ch);
 			return;
@@ -882,7 +882,7 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
     {
 		long vnum = atol(command);
 
-		if ( (pIcode = get_script_index(vnum,PRG_IPROG)) == NULL )
+		if ( (pIcode = get_script_index_global(vnum,PRG_IPROG)) == NULL )
 		{
 			send_to_char("IPEdit : That vnum does not exist.\n\r",ch);
 			return;
@@ -921,7 +921,7 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
     {
 		long vnum = atol(command);
 
-		if ( (pDcode = get_script_index(vnum,PRG_DPROG)) == NULL )
+		if ( (pDcode = get_script_index_global(vnum,PRG_DPROG)) == NULL )
 		{
 			send_to_char("DPEdit : That vnum does not exist.\n\r",ch);
 			return;
@@ -963,11 +963,11 @@ MPEDIT (mpedit_create)
 	SCRIPT_DATA *temp_prog;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_MPROG );
+	temp_prog = get_script_index_global( auto_vnum, PRG_MPROG );
 	if ( temp_prog != NULL ) {
 		while ( temp_prog != NULL )
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_MPROG );
+			temp_prog = get_script_index_global( auto_vnum, PRG_MPROG );
 			if ( temp_prog == NULL ) break;
 			auto_vnum++;
 		}
@@ -996,7 +996,7 @@ MPEDIT (mpedit_create)
         return false;
     }
 
-    if ( get_script_index(value,PRG_MPROG) )
+    if ( get_script_index_global(value,PRG_MPROG) )
     {
 	send_to_char("MPEdit: Code vnum already exists.\n\r",ch);
 	return false;
@@ -1029,11 +1029,11 @@ OPEDIT (opedit_create)
 	SCRIPT_DATA *temp_prog;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_OPROG );
+	temp_prog = get_script_index_global( auto_vnum, PRG_OPROG );
 	if ( temp_prog != NULL ) {
 		while ( temp_prog != NULL )
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_OPROG );
+			temp_prog = get_script_index_global( auto_vnum, PRG_OPROG );
 			if ( temp_prog == NULL ) break;
 			auto_vnum++;
 		}
@@ -1068,7 +1068,7 @@ OPEDIT (opedit_create)
         return false;
     }
 
-    if ( get_script_index(value,PRG_OPROG) )
+    if ( get_script_index_global(value,PRG_OPROG) )
     {
 	send_to_char("OPEdit: Code vnum already exists.\n\r",ch);
 	return false;
@@ -1101,11 +1101,11 @@ RPEDIT (rpedit_create)
 	SCRIPT_DATA *temp_prog;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_RPROG );
+	temp_prog = get_script_index_global( auto_vnum, PRG_RPROG );
 	if ( temp_prog != NULL ) {
 		while ( temp_prog != NULL )
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_RPROG );
+			temp_prog = get_script_index_global( auto_vnum, PRG_RPROG );
 			if ( temp_prog == NULL ) break;
 			auto_vnum++;
 		}
@@ -1141,7 +1141,7 @@ RPEDIT (rpedit_create)
         return false;
     }
 
-    if ( get_script_index(value,PRG_RPROG) )
+    if ( get_script_index_global(value,PRG_RPROG) )
     {
 	send_to_char("RPEdit: Code vnum already exists.\n\r",ch);
 	return false;
@@ -1174,11 +1174,11 @@ TPEDIT (tpedit_create)
 	SCRIPT_DATA *temp_prog;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_TPROG );
+	temp_prog = get_script_index_global( auto_vnum, PRG_TPROG );
 	if ( temp_prog != NULL ) {
 		while ( temp_prog != NULL )
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_TPROG );
+			temp_prog = get_script_index_global( auto_vnum, PRG_TPROG );
 			if ( temp_prog == NULL ) break;
 			auto_vnum++;
 		}
@@ -1214,7 +1214,7 @@ TPEDIT (tpedit_create)
         return false;
     }
 
-    if ( get_script_index(value,PRG_TPROG) )
+    if ( get_script_index_global(value,PRG_TPROG) )
     {
 	send_to_char("TPEdit: Code vnum already exists.\n\r",ch);
 	return false;
@@ -1249,11 +1249,11 @@ APEDIT (apedit_create)
 		SCRIPT_DATA *temp_prog;
 
 		auto_vnum = ch->in_room->area->min_vnum;
-		temp_prog = get_script_index( auto_vnum, PRG_APROG );
+		temp_prog = get_script_index_global( auto_vnum, PRG_APROG );
 		if ( temp_prog != NULL ) {
 			while ( temp_prog != NULL )
 			{
-				temp_prog = get_script_index( auto_vnum, PRG_APROG );
+				temp_prog = get_script_index_global( auto_vnum, PRG_APROG );
 				if ( temp_prog == NULL ) break;
 				auto_vnum++;
 			}
@@ -1281,7 +1281,7 @@ APEDIT (apedit_create)
 	return false;
 	}
 
-	if ( get_script_index(value,PRG_APROG) )
+	if ( get_script_index_global(value,PRG_APROG) )
 	{
 	send_to_char("APEdit: Code vnum already exists.\n\r",ch);
 	return false;
@@ -1312,11 +1312,11 @@ IPEDIT (ipedit_create)
 		SCRIPT_DATA *temp_prog;
 
 		auto_vnum = 1;
-		temp_prog = get_script_index( auto_vnum, PRG_IPROG );
+		temp_prog = get_script_index_global( auto_vnum, PRG_IPROG );
 		if ( temp_prog != NULL ) {
 			while ( temp_prog != NULL )
 			{
-				temp_prog = get_script_index( auto_vnum, PRG_IPROG );
+				temp_prog = get_script_index_global( auto_vnum, PRG_IPROG );
 				if ( temp_prog == NULL ) break;
 				auto_vnum++;
 			}
@@ -1331,7 +1331,7 @@ IPEDIT (ipedit_create)
 		return false;
 	}
 
-	if ( get_script_index(value,PRG_IPROG) )
+	if ( get_script_index_global(value,PRG_IPROG) )
 	{
 		send_to_char("IPEdit: Code vnum already exists.\n\r",ch);
 		return false;
@@ -1365,11 +1365,11 @@ DPEDIT (dpedit_create)
 		SCRIPT_DATA *temp_prog;
 
 		auto_vnum = 1;
-		temp_prog = get_script_index( auto_vnum, PRG_DPROG );
+		temp_prog = get_script_index_global( auto_vnum, PRG_DPROG );
 		if ( temp_prog != NULL ) {
 			while ( temp_prog != NULL )
 			{
-				temp_prog = get_script_index( auto_vnum, PRG_DPROG );
+				temp_prog = get_script_index_global( auto_vnum, PRG_DPROG );
 				if ( temp_prog == NULL ) break;
 				auto_vnum++;
 			}
@@ -1384,7 +1384,7 @@ DPEDIT (dpedit_create)
 		return false;
 	}
 
-	if ( get_script_index(value,PRG_DPROG) )
+	if ( get_script_index_global(value,PRG_DPROG) )
 	{
 		send_to_char("DPEdit: Code vnum already exists.\n\r",ch);
 		return false;
@@ -1727,7 +1727,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     error = false;
     for( long vnum = min; vnum <= max; vnum++)
     {
-    	prg = get_script_index(vnum, type);
+    	prg = get_script_index_global(vnum, type);
     	if( !prg ) continue;
 
 		ad = get_vnum_area(prg->vnum);

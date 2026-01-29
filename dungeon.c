@@ -1229,7 +1229,7 @@ DUNGEON *create_dungeon(long vnum)
 	variable_copylist(&index->index_vars,&dng->progs->vars,false);
 
 	// TODO: update for widevnum
-	dng->entry_room = get_room_index(index->entry_room);
+	dng->entry_room = get_room_index(index->area, index->entry_room);
 	if( !dng->entry_room )
 	{
 		free_dungeon(dng);
@@ -1237,7 +1237,7 @@ DUNGEON *create_dungeon(long vnum)
 	}
 
 	// TODO: update for widevnum
-	dng->exit_room = get_room_index(index->exit_room);
+	dng->exit_room = get_room_index(index->area, index->exit_room);
 	if( !dng->exit_room )
 	{
 		free_dungeon(dng);
@@ -1341,8 +1341,11 @@ void extract_dungeon(DUNGEON *dungeon)
     }
 
 	room = dungeon->entry_room;
-	if( !room )
-		room = get_room_index(11001);
+	if( !room ) {
+		AREA_DATA *fallback_area = find_area_by_vnum(11001);
+		if (!fallback_area) fallback_area = get_system_area_fallback();
+		room = get_room_index(fallback_area, 11001);
+	}
 
 	// Dump all mobiles
 	iterator_start(&it, dungeon->mobiles);
@@ -1356,7 +1359,7 @@ void extract_dungeon(DUNGEON *dungeon)
 	// Dump objects
 	room = dungeon->entry_room;
 	if( !room )
-		room = get_room_index(get_reserved_vnum("room_donation"));
+		room = get_reserved_room_index("room_donation");
 
 	iterator_start(&it, dungeon->objects);
 	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
@@ -1871,8 +1874,11 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
 		ROOM_INDEX_DATA *room = dungeon->entry_room;
 
-		if( !room )
-			room = get_room_index(11001);
+		if( !room ) {
+			AREA_DATA *fallback_area = find_area_by_vnum(11001);
+			if (!fallback_area) fallback_area = get_system_area_fallback();
+			room = get_room_index(fallback_area, 11001);
+		}
 
 		// Should deal with their mount and pet if they have one
 		char_from_room(ch);
@@ -2108,8 +2114,8 @@ DUNGEON *dungeon_load(FILE *fp)
 	variable_copylist(&dungeon->index->index_vars,&dungeon->progs->vars,false);
 
 
-	dungeon->entry_room = get_room_index(dungeon->index->entry_room);
-	dungeon->exit_room = get_room_index(dungeon->index->exit_room);
+	dungeon->entry_room = get_room_index(dungeon->index->area, dungeon->index->entry_room);
+	dungeon->exit_room = get_room_index(dungeon->index->area, dungeon->index->exit_room);
 
 	while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
 	{

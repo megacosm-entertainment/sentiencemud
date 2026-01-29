@@ -534,7 +534,9 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 			{
 				long key_vnum = fread_number(fp);
 
-				OBJ_INDEX_DATA *key = get_obj_index(key_vnum);
+				AREA_DATA *key_area = find_area_by_vnum(key_vnum);
+				if (!key_area) key_area = get_system_area_fallback();
+				OBJ_INDEX_DATA *key = get_obj_index(key_area, key_vnum);
 				if( key )
 				{
 					list_appendlink(ship->special_keys, key);
@@ -718,7 +720,9 @@ SHIP_DATA *create_ship(long vnum)
 		return NULL;
 
 	// Verify the object index exists and is a ship
-	if( !(obj_index = get_obj_index(ship_index->ship_object)) )
+	AREA_DATA *ship_area = find_area_by_vnum(ship_index->ship_object);
+	if (!ship_area) ship_area = get_system_area_fallback();
+	if( !(obj_index = get_obj_index(ship_area, ship_index->ship_object)) )
 		return NULL;
 
 	if( obj_index->item_type != ITEM_SHIP )
@@ -4338,7 +4342,9 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		to_room = get_room_index(to_area->airship_land_spot);
+		AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot);
+		if (!land_area) land_area = get_system_area_fallback();
+		to_room = get_room_index(land_area, to_area->airship_land_spot);
 		if( !to_room )
 		{
 			ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -4389,7 +4395,9 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			to_room = get_room_index(to_area->airship_land_spot);
+			AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot);
+			if (!land_area) land_area = get_system_area_fallback();
+			to_room = get_room_index(land_area, to_area->airship_land_spot);
 			if( !to_room )
 			{
 				ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -5480,7 +5488,7 @@ if( IS_NULLSTR(argument) )
     }
 
     extract_obj(map);
-    map = create_object(get_obj_index(get_reserved_vnum("obj_nav_chart")), 0, false);
+    map = create_object(get_reserved_obj_index("obj_nav_chart"), 0, false);
     obj_to_char(map, ch);
 }
 		else
@@ -5496,7 +5504,7 @@ if( IS_NULLSTR(argument) )
 			{
 				// Replace blank scroll with map object
 				extract_obj(map);
-				map = create_object(get_obj_index(get_reserved_vnum("obj_nav_chart")), 0, false);
+				map = create_object(get_reserved_obj_index("obj_nav_chart"), 0, false);
 				obj_to_char(map, ch);
 			}
 			else if( map->item_type != ITEM_MAP )
@@ -6114,7 +6122,9 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		iterator_start(&it, ship->special_keys);
 		while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
 		{
-			OBJ_INDEX_DATA *key = get_obj_index(sk->key_vnum);
+AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum);
+						if (!key_area) key_area = get_system_area_fallback();
+						OBJ_INDEX_DATA *key = get_obj_index(key_area, sk->key_vnum);
 
 			if( key && key->item_type == ITEM_KEY )
 				strncpy(arg, key->short_descr, MIL-1);
@@ -6170,7 +6180,9 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		}
 
 		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
-		OBJ_INDEX_DATA *key_index = get_obj_index(sk->key_vnum);
+AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum);
+				if (!key_area) key_area = get_system_area_fallback();
+				OBJ_INDEX_DATA *key_index = get_obj_index(key_area, sk->key_vnum);
 
 		if( !key_index || key_index->item_type != ITEM_KEY )
 		{

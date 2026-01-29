@@ -451,6 +451,7 @@ static void init_game_settings_defaults(void)
     game_settings.game_name = str_empty;
     game_settings.login_string = str_empty;
     game_settings.server_description = str_empty;
+    game_settings.system_area = str_empty;
     game_settings.testport = false;
     game_settings.dev_server = false;
     game_settings.wizlock = false;

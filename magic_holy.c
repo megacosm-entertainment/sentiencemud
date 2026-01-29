@@ -207,7 +207,7 @@ SPELL_FUNC(spell_exorcism)
 	}
 
 	do
-		room = get_room_index(number_range(area->min_vnum, area->max_vnum));
+		room = get_room_index(area, number_range(area->min_vnum, area->max_vnum));
 	while (!room);
 
 	chance = (ch->tot_level - victim->tot_level) + (catalyst / lvl);

@@ -441,13 +441,13 @@ if (ch->lworn) {
 	if (IS_SLAYER(ch))
 	{
 	    ch->shifted = SHIFTED_SLAYER;
-	    pMob = IS_REMORT(ch) ? get_mob_index(get_reserved_vnum("mob_shifted_changeling")) : get_mob_index(get_reserved_vnum("mob_shifted_slayer"));
+	    pMob = IS_REMORT(ch) ? get_reserved_mob_index("mob_shifted_changeling") : get_reserved_mob_index("mob_shifted_slayer");
 	    ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
 	}
 	else
 	{
             ch->shifted = SHIFTED_WEREWOLF;
-	    pMob = get_mob_index(get_reserved_vnum("mob_shifted_werewolf"));
+	    pMob = get_reserved_mob_index("mob_shifted_werewolf");
 	    ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
 	}
 

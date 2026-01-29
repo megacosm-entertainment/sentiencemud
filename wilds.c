@@ -1118,7 +1118,9 @@ bool link_vlink(WILDS_VLINK *pVLink)
 			pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
 			pExit->door.lock = pExit->door.rs_lock;
 			pExit->u1.vnum = pVLink->destvnum;
-			pExit->u1.to_room = get_room_index(pExit->u1.vnum);
+			AREA_DATA *dest_area = find_area_by_vnum(pExit->u1.vnum);
+			if (!dest_area) dest_area = get_system_area_fallback();
+			pExit->u1.to_room = get_room_index(dest_area, pExit->u1.vnum);
 			pExit->orig_door = pVLink->door;    /* OLC */
 			pExit->wilds.x = 0;
 			pExit->wilds.y = 0;
@@ -1134,7 +1136,9 @@ bool link_vlink(WILDS_VLINK *pVLink)
     if (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS))
     {
         // if the static room happens to be loaded up
-        if ((pRevRoom=get_room_index(pVLink->destvnum))!=NULL)
+        AREA_DATA *rev_area = find_area_by_vnum(pVLink->destvnum);
+        if (!rev_area) rev_area = get_system_area_fallback();
+        if ((pRevRoom=get_room_index(rev_area, pVLink->destvnum))!=NULL)
         {
 			if( IS_SET(pRevRoom->room_flag[1], ROOM_BLUEPRINT) ||
 				IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
@@ -1249,7 +1253,9 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
     if (IS_SET(pVLink->current_linkage, VLINK_TO_WILDS))
     {
         /* Check if reverse-side exit exists */
-        if ((pRevRoom = get_room_index(pVLink->destvnum)) !=NULL)
+        AREA_DATA *rev_area2 = find_area_by_vnum(pVLink->destvnum);
+        if (!rev_area2) rev_area2 = get_system_area_fallback();
+        if ((pRevRoom = get_room_index(rev_area2, pVLink->destvnum)) !=NULL)
         {
             rev = rev_dir[pVLink->door];
             if ((pExit = pRevRoom->exit[rev]) != NULL)
@@ -2638,7 +2644,10 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         pbugf(LOG_ERROR, "pWilds is NULL.");
 
 	// No wilds pointer, so send the char to the default room.
-        if ((room = get_room_index (get_reserved_vnum("room_default"))) != NULL)
+        long default_vnum = get_reserved_vnum("room_default");
+        AREA_DATA *default_area = find_area_by_vnum(default_vnum);
+        if (!default_area) default_area = get_system_area_fallback();
+        if ((room = get_room_index(default_area, default_vnum)) != NULL)
         {
             char_to_room (ch, room);
             return;
@@ -2942,7 +2951,9 @@ void link_vlinks (WILDS_DATA *pWilds)
 
     for (pVLink = pWilds->pVLink;pVLink;pVLink = pVLink->next)
     {
-        if ((pRevLinkRoomIndex = get_room_index (pVLink->destvnum)) == NULL)
+        AREA_DATA *vlink_area = find_area_by_vnum(pVLink->destvnum);
+        if (!vlink_area) vlink_area = get_system_area_fallback();
+        if ((pRevLinkRoomIndex = get_room_index(vlink_area, pVLink->destvnum)) == NULL)
         {
             perrf(LOG_ERROR, "destvnum %ld does not exist.", pVLink->destvnum);
             continue;

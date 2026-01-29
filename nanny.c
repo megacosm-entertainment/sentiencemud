@@ -2588,8 +2588,8 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             moved_to_room = true;
             // Safely place in starting room
-            if (get_room_index(get_reserved_vnum("room_begin_new_character"))) {
-                char_to_room(ch, get_room_index(get_reserved_vnum("room_begin_new_character")));
+            if (get_reserved_room_index("room_begin_new_character")) {
+                char_to_room(ch, get_reserved_room_index("room_begin_new_character"));
                 do_function(ch, &do_changes, "catchup");
                 SET_BIT(ch->comm, COMM_NO_OOC);
                 SET_BIT(ch->comm, COMM_NO_FLAMING);
@@ -2625,21 +2625,21 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
             } else {
                 perrf(LOG_INFO, "Previous VRoom invalid. Relocating %s to default room (%d - %s)", ch->name, 
                     get_reserved_vnum("room_default_recall"),
-                    get_room_index(get_reserved_vnum("room_default_recall")) ?
-                        get_room_index(get_reserved_vnum("room_default_recall"))->name : "Unknown");
+                    get_reserved_room_index("room_default_recall") ?
+                        get_reserved_room_index("room_default_recall")->name : "Unknown");
                 ch->in_wilds = NULL;
                 ch->at_wilds_x = -1;
                 ch->at_wilds_y = -1;
-                if (get_room_index(get_reserved_vnum("room_default_recall")))
-                    char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+                if (get_reserved_room_index("room_default_recall"))
+                    char_to_room(ch, get_reserved_room_index("room_default_recall"));
             }
         } else {
             if (IS_IMMORTAL(ch)) {
-                if (get_room_index(get_reserved_vnum("room_chat_lobby")))
-                    char_to_room(ch, get_room_index(get_reserved_vnum("room_chat_lobby")));
+                if (get_reserved_room_index("room_chat_lobby"))
+                    char_to_room(ch, get_reserved_room_index("room_chat_lobby"));
             } else {
-                if (get_room_index(get_reserved_vnum("room_default_recall")))
-                    char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+                if (get_reserved_room_index("room_default_recall"))
+                    char_to_room(ch, get_reserved_room_index("room_default_recall"));
             }
         }
     }

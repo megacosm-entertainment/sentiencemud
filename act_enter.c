@@ -336,7 +336,10 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 	else
 	{
-		location = get_room_index(portal->value[3]);
+		// value[4] contains area UID, value[3] contains vnum
+		AREA_DATA *dest_area = portal->value[4] > 0 ? get_area_index(portal->value[4]) : NULL;
+		if (!dest_area) dest_area = get_system_area_fallback();
+		location = get_room_index(dest_area, portal->value[3]);
 		// Check if this portal points to a clone room, if so, find it
 		if( location != NULL && (portal->value[6] > 0 || portal->value[7] > 0)) {
 			//log_string("get_clone_room: portal");

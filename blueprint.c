@@ -65,7 +65,8 @@ void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 
 		if( bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
 		{
-			bl->room = get_room_index(bl->vnum);
+			AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
+			bl->room = get_room_index(area, bl->vnum);
 
 			if( bl->room )
 				bl->ex = bl->room->exit[bl->door];
@@ -883,9 +884,10 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 	section->section = parent;
 
 	// Clone rooms
+	AREA_DATA *area = parent->area ? parent->area : get_system_area_fallback();
 	for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
 	{
-		ROOM_INDEX_DATA *source = get_room_index(vnum);
+		ROOM_INDEX_DATA *source = get_room_index(area, vnum);
 
 		if( source )
 		{
@@ -961,7 +963,8 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 						}
 						else
 						{
-							dest = get_room_index(vnum);
+							AREA_DATA *dest_area = parent->area ? parent->area : get_system_area_fallback();
+							dest = get_room_index(dest_area, vnum);
 
 							if( !dest ||
 								IS_SET(dest->room_flag[1], ROOM_BLUEPRINT) ||
@@ -1392,7 +1395,7 @@ void extract_instance(INSTANCE *instance)
 
 	room = environ;
 	if( !room )
-		room = get_room_index(11001);
+		room = get_room_index_global(11001);
 
 	// Dump all mobiles
 	iterator_start(&it, instance->mobiles);
@@ -1406,7 +1409,7 @@ void extract_instance(INSTANCE *instance)
 	// Dump objects
 	room = environ;
 	if( !room )
-		room = get_room_index(get_reserved_vnum("room_donation"));
+room = get_reserved_room_index("room_donation");
 
 	iterator_start(&it, instance->objects);
 	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
@@ -1782,7 +1785,8 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 
 	for(long vnum = lower; vnum <= upper; vnum++)
 	{
-		ROOM_INDEX_DATA *room = get_room_index(vnum);
+AREA_DATA *bp_area = section->area ? section->area : get_system_area_fallback();
+			ROOM_INDEX_DATA *room = get_room_index(bp_area, vnum);
 
 		if( room )
 		{
@@ -2515,7 +2519,8 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id2 = fread_number(fp);
 
 				//log_string("get_clone_room: instance->entrance");
-				instance->entrance = get_clone_room(get_room_index(room_vnum), id1, id2);
+				AREA_DATA *bp_area = instance->blueprint->area ? instance->blueprint->area : get_system_area_fallback();
+				instance->entrance = get_clone_room(get_room_index(bp_area, room_vnum), id1, id2);
 
 				fMatch = true;
 				break;
@@ -2528,7 +2533,8 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id2 = fread_number(fp);
 
 				//log_string("get_clone_room: instance->exit");
-				instance->exit = get_clone_room(get_room_index(room_vnum), id1, id2);
+				AREA_DATA *bp_area = instance->blueprint->area ? instance->blueprint->area : get_system_area_fallback();
+				instance->exit = get_clone_room(get_room_index(bp_area, room_vnum), id1, id2);
 
 				fMatch = true;
 				break;
@@ -2574,7 +2580,8 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id2 = fread_number(fp);
 
 				//log_string("get_clone_room: instance->recall");
-				instance->recall = get_clone_room(get_room_index(room_vnum), id1, id2);
+				AREA_DATA *bp_area = instance->blueprint->area ? instance->blueprint->area : get_system_area_fallback();
+				instance->recall = get_clone_room(get_room_index(bp_area, room_vnum), id1, id2);
 
 				fMatch = true;
 				break;

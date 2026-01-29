@@ -359,7 +359,7 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         }
 
         // Check storage restrictions
-        if ((obj->pIndexData == get_obj_index(get_reserved_vnum("obj_skull_normal")) || obj->pIndexData == get_obj_index(get_reserved_vnum("obj_skull_golden"))) && obj->affected != NULL) {
+        if ((obj->pIndexData == get_reserved_obj_index("obj_skull_normal") || obj->pIndexData == get_reserved_obj_index("obj_skull_golden")) && obj->affected != NULL) {
             send_to_char("You can't store that enchanted item in your locker.\n\r", ch);
             return;
         }
@@ -779,7 +779,7 @@ if (!str_cmp(arg1, "rent")) {
         }
 
         // Check storage restrictions
-        if ((obj->pIndexData == get_obj_index(get_reserved_vnum("obj_skull_normal")) || obj->pIndexData == get_obj_index(get_reserved_vnum("obj_skull_golden"))) && obj->affected != NULL) {
+        if ((obj->pIndexData == get_reserved_obj_index("obj_skull_normal") || obj->pIndexData == get_reserved_obj_index("obj_skull_golden")) && obj->affected != NULL) {
             send_to_char("You can't store that enchanted item in your vault.\n\r", ch);
             if (loaded && account) free_account(account);
             return;

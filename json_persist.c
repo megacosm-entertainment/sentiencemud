@@ -395,14 +395,14 @@ static bool json_load_variable(json_t *json, pVARIABLE *vars)
 
             if (!str_cmp(rtype, "static")) {
                 long vnum = json_integer_value(json_object_get(value, "vnum"));
-                ROOM_INDEX_DATA *room = get_room_index(vnum);
+                ROOM_INDEX_DATA *room = get_room_index_global(vnum);
                 if (room) {
                     return variables_setsave_room(vars, (char *)name, room, true);
                 }
             } else if (!str_cmp(rtype, "clone")) {
                 /* Clone room references need deferred resolution */
                 long src_vnum = json_integer_value(json_object_get(value, "vnum"));
-                ROOM_INDEX_DATA *source = get_room_index(src_vnum);
+                ROOM_INDEX_DATA *source = get_room_index_global(src_vnum);
                 int id0 = json_integer_value(json_object_get(value, "id0"));
                 int id1 = json_integer_value(json_object_get(value, "id1"));
                 if (source) {
@@ -607,7 +607,7 @@ TOKEN_DATA *json_persist_json_to_token(json_t *json)
     if (!json) return NULL;
 
     vnum = json_integer_value(json_object_get(json, "vnum"));
-    pTokenIndex = get_token_index(vnum);
+    pTokenIndex = get_token_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
     if (!pTokenIndex) {
         log_stringf("json_persist_json_to_token: bad vnum %ld", vnum);
         return NULL;
@@ -907,7 +907,7 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     if (!json) return NULL;
 
     vnum = json_integer_value(json_object_get(json, "vnum"));
-    pObjIndex = get_obj_index(vnum);
+    pObjIndex = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
     if (!pObjIndex) {
         log_stringf("json_persist_json_to_object: bad vnum %ld", vnum);
         return NULL;
@@ -1039,7 +1039,7 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
 
         if (!str_cmp(type, "static")) {
             long room_vnum = json_integer_value(json_object_get(value, "vnum"));
-            obj->in_room = get_room_index(room_vnum);
+            obj->in_room = get_room_index_global(room_vnum);
         } else if (!str_cmp(type, "clone")) {
             /* Clone room - needs deferred resolution */
             obj->in_room = NULL;
@@ -1511,7 +1511,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     if (!json) return NULL;
 
     vnum = json_integer_value(json_object_get(json, "vnum"));
-    pMobIndex = get_mob_index(vnum);
+    AREA_DATA *area = find_area_by_vnum(vnum); if (!area) area = get_system_area_fallback(); pMobIndex = get_mob_index(area, vnum);
     if (!pMobIndex) {
         log_stringf("json_persist_json_to_mobile: bad vnum %ld", vnum);
         return NULL;
@@ -1598,7 +1598,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
 
         if (!str_cmp(type, "static")) {
             long room_vnum = json_integer_value(json_object_get(value, "vnum"));
-            ch->in_room = get_room_index(room_vnum);
+            ch->in_room = get_room_index_global(room_vnum);
         } else if (!str_cmp(type, "clone") || !str_cmp(type, "wilds")) {
             /* Clone/wilderness room - needs deferred resolution */
             ch->in_room = NULL;
@@ -2149,7 +2149,7 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
     /* Create or find room based on type */
     if (!str_cmp(room_type, "static")) {
         long vnum = json_integer_value(json_object_get(json, "vnum"));
-        room = get_room_index(vnum);
+        room = get_room_index_global(vnum);
         if (!room) {
             log_stringf("json_persist_json_to_room: bad vnum %ld", vnum);
             return NULL;
@@ -2157,7 +2157,7 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
         /* Static rooms exist - we just apply persistent changes */
     } else if (!str_cmp(room_type, "clone")) {
         long source_vnum = json_integer_value(json_object_get(json, "source_vnum"));
-        ROOM_INDEX_DATA *source = get_room_index(source_vnum);
+        ROOM_INDEX_DATA *source = get_room_index_global(source_vnum);
         if (!source) {
             log_stringf("json_persist_json_to_room: bad source vnum %ld", source_vnum);
             return NULL;
@@ -2655,7 +2655,7 @@ bool json_persist_load_all(void)
                         char_to_room(ch, ch->in_room);
                     } else {
                         /* Default to limbo or some safe room */
-                        ROOM_INDEX_DATA *safe_room = get_room_index(get_reserved_vnum("room_default"));
+                        ROOM_INDEX_DATA *safe_room = get_reserved_room_index("room_default");
                         if (safe_room) {
                             char_to_room(ch, safe_room);
                         }

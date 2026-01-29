@@ -216,7 +216,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     ch->manastore = 0;
 
     char_from_room(ch);
-    char_to_room(ch, get_room_index(get_reserved_vnum("room_chat_lobby")));
+    char_to_room(ch, get_reserved_room_index("room_chat_lobby"));
 
     act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
@@ -242,7 +242,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "do_chat_exit: before_social room was null!");
 	bug(buf, 0);
 
-	room = get_room_index(get_reserved_vnum("room_default_recall"));
+room = get_reserved_room_index("room_default_recall");
 
 	//REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
@@ -356,7 +356,9 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    room = get_room_index(chat->vnum);
+    AREA_DATA *chat_area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
+    if (!chat_area) chat_area = get_system_area_fallback();
+    room = get_room_index(chat_area, chat->vnum);
     if (room == NULL)
     {
 	sprintf(buf, "do_chat_join: %s, %s had null chat->vnum\n\r",
@@ -511,6 +513,7 @@ void chat_create(CHAR_DATA *ch, char *argument, bool perm)
 	chat->permanent = true;
     else
 	chat->permanent = false;
+    chat->area_uid = (ch->in_room && ch->in_room->area) ? ch->in_room->area->uid : 0;
     chat->vnum = ch->in_room->vnum;
     chat->created_by = str_dup(ch->name);
 
@@ -891,7 +894,7 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    to_room = get_room_index(get_reserved_vnum("room_chat_lobby"));
+    to_room = get_reserved_room_index("room_chat_lobby");
     sprintf(buf, "{YYou kick %s out of #%s.{x",
 	    ch == victim ? "yourself" : "$N",
 	    ch->in_room->chat_room->name);
@@ -1183,6 +1186,7 @@ void write_chat_rooms()
 	    fprintf(fp, "%s~\n", fix_string(chat->topic)) ;
 	    fprintf(fp, "%s~\n", fix_string(chat->password));
 	    fprintf(fp, "%s~\n", chat->created_by);
+	    fprintf(fp, "%ld\n", chat->area_uid);  // Save area UID for widevnum support
 	    fprintf(fp, "%ld\n", chat->vnum);
 	    fprintf(fp, "%d\n", chat->max_people);
 
@@ -1247,6 +1251,7 @@ void read_chat_rooms()
 	chat->password = fread_string(fp);
 	chat->permanent = true;
 	chat->created_by = fread_string(fp);
+	chat->area_uid = fread_number(fp);  // Load area UID for widevnum support
 	chat->vnum = fread_number(fp);
 	chat->max_people = fread_number(fp);
 	last_chat = chat;
@@ -1288,7 +1293,9 @@ void read_chat_rooms()
 	    }
 	}
 
-	room = get_room_index(chat->vnum);
+AREA_DATA *chat_area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
+        if (!chat_area) chat_area = get_system_area_fallback();
+        room = get_room_index(chat_area, chat->vnum);
 
 	if (room == NULL)
 	{
@@ -1362,7 +1369,9 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     line(ch, 65, NULL, NULL);
 
 
-    sprintf(buf, "{YRoom:{x %s\n\r", get_room_index(chat->vnum)->name);
+    sprintf(buf, "{YRoom:{x %s\n\r", get_room_index(
+        chat->area_uid > 0 ? get_area_index(chat->area_uid) : get_system_area_fallback(),
+        chat->vnum)->name);
     send_to_char(buf, ch);
     
     if (IS_IMMORTAL(ch))
@@ -1416,7 +1425,9 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     // or if they're an immortal
     if (ch->in_room->chat_room == chat || IS_IMMORTAL(ch))
     {
-        ROOM_INDEX_DATA *room = get_room_index(chat->vnum);
+        AREA_DATA *chat_area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
+        if (!chat_area) chat_area = get_system_area_fallback();
+        ROOM_INDEX_DATA *room = get_room_index(chat_area, chat->vnum);
         
         send_to_char("{YCurrent occupants:{x ", ch);
         count = 0;

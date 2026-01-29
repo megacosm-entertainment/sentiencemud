@@ -226,7 +226,7 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
             SCRIPT_DATA *prog;
 			iterator_start(&it, progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                prog = get_script_index(trigger->vnum, type);                
+                prog = get_script_index_global(trigger->vnum, type);                
 				sprintf(buf, "{C[{W%4d{C]{x %-12ld %-10s %-10s %-9s %-5s\n\r", cnt,
 					trigger->vnum, trigger_name(trigger->trig_type),
 					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");

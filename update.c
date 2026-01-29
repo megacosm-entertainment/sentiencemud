@@ -1860,7 +1860,10 @@ void char_update(void)
                         save_char_obj(ch);
 
                     char_from_room(ch);
-                    char_to_room(ch, get_room_index(get_reserved_vnum("room_limbo")));
+                    long limbo_vnum = get_reserved_vnum("room_limbo");
+                    AREA_DATA *limbo_area = find_area_by_vnum(limbo_vnum);
+                    if (!limbo_area) limbo_area = get_system_area_fallback();
+                    char_to_room(ch, get_room_index(limbo_area, limbo_vnum));
                 }
             }
 
@@ -2455,12 +2458,15 @@ void obj_update(void)
 						bug("Seed has 0 vnum.", obj->pIndexData->vnum);
 					else {
 						OBJ_DATA *new_obj;
-						if (get_obj_index(obj->value[1]) == NULL) {
+long seed_vnum = obj->value[1];
+AREA_DATA *seed_area = find_area_by_vnum(seed_vnum);
+if (!seed_area) seed_area = get_system_area_fallback();
+						if (get_obj_index(seed_area, seed_vnum) == NULL) {
 							bug("Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
 							continue;
 						}
 
-						new_obj = create_object(get_obj_index(obj->value[1]), obj->level, true);
+						new_obj = create_object(get_obj_index(seed_area, seed_vnum), obj->level, true);
 						obj_to_room(new_obj, obj->in_room);
 
 						p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
@@ -3407,7 +3413,10 @@ void pneuma_relic_update(void)
 
         if (chance > 80)
 	{
-	    pneuma = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 0, true);
+	    long pneuma_vnum = get_reserved_vnum("obj_pneuma_item");
+	    AREA_DATA *pneuma_area = find_area_by_vnum(pneuma_vnum);
+	    if (!pneuma_area) pneuma_area = get_system_area_fallback();
+	    pneuma = create_object(get_obj_index(pneuma_area, pneuma_vnum), 0, true);
 	    obj_to_room(pneuma, pneuma_relic->in_room);
 
             for (people = pneuma_relic->in_room->people; people != NULL; people = people->next_in_room)

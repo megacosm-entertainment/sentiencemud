@@ -1226,7 +1226,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	if (ch->in_room != NULL && ch->in_room->vnum == get_reserved_vnum("room_war_staging"))
 	{
 	char_from_room(ch);
-	char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+	char_to_room(ch, get_reserved_room_index("room_default_recall"));
 	}
 
 	test_for_end_of_war();

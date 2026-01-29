@@ -489,7 +489,7 @@ DNGEDIT( dngedit_show )
 	add_buf(buffer, buf);
 	// TODO: WIDEVNUM
 
-	room = get_room_index(dng->entry_room);
+	room = get_room_index(dng->area, dng->entry_room);
 	if( room )
 	{
 		sprintf(buf, "Entry:       [%ld] %-.30s\n\r", room->vnum, room->name);
@@ -499,7 +499,7 @@ DNGEDIT( dngedit_show )
 		add_buf(buffer, "Entry:       {Dinvalid{x\n\r");
 	// TODO: WIDEVNUM
 
-	room = get_room_index(dng->exit_room);
+	room = get_room_index(dng->area, dng->exit_room);
 	if( room )
 	{
 		sprintf(buf, "Exit:        [%ld] %-.30s\n\r", room->vnum, room->name);
@@ -2007,7 +2007,7 @@ DNGEDIT( dngedit_entry )
 
 	value = atol(argument);
 
-	if( !get_room_index(value) )
+	if( !get_room_index(dng->area, value) )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
 		return false;
@@ -2039,7 +2039,7 @@ DNGEDIT( dngedit_exit )
 
 	value = atol(argument);
 
-	if( !get_room_index(value) )
+	if( !get_room_index(dng->area, value) )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
 		return false;
@@ -5565,7 +5565,7 @@ DNGEDIT (dngedit_adddprog)
 
     slot = trigger_table[tindex].slot;
 
-    if ((code = get_script_index (atol(num), PRG_DPROG)) == NULL)
+    if ((code = get_script_index_global (atol(num), PRG_DPROG)) == NULL)
     {
 	send_to_char("No such DUNGEONProgram.\n\r",ch);
 	return false;

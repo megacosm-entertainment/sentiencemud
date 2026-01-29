@@ -169,16 +169,16 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		char *s = ch->desc->inputString;
 
 		if(ch->desc->input_mob) {
-			script = get_script_index(ch->desc->input_script,PRG_MPROG);
+			script = get_script_index_global(ch->desc->input_script,PRG_MPROG);
 			var = &ch->desc->input_mob->progs->vars;
 		} else if(ch->desc->input_obj) {
-			script = get_script_index(ch->desc->input_script,PRG_OPROG);
+			script = get_script_index_global(ch->desc->input_script,PRG_OPROG);
 			var = &ch->desc->input_obj->progs->vars;
 		} else if(ch->desc->input_room) {
-			script = get_script_index(ch->desc->input_script,PRG_RPROG);
+			script = get_script_index_global(ch->desc->input_script,PRG_RPROG);
 			var = &ch->desc->input_room->progs->vars;
 		} else if(ch->desc->input_tok) {
-			script = get_script_index(ch->desc->input_script,PRG_TPROG);
+			script = get_script_index_global(ch->desc->input_script,PRG_TPROG);
 			var = &ch->desc->input_tok->progs->vars;
 		}
 

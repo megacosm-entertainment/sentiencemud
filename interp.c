@@ -853,25 +853,19 @@ void interpret( CHAR_DATA *ch, char *argument )
 		char *v = ch->desc->input_var;
 
 		if(ch->desc->input_mob) {
-			script = get_script_index(ch->desc->input_script,PRG_MPROG);
-			var = &ch->desc->input_mob->progs->vars;
-		} else if(ch->desc->input_obj) {
-			script = get_script_index(ch->desc->input_script,PRG_OPROG);
-			var = &ch->desc->input_obj->progs->vars;
-		} else if(ch->desc->input_room) {
-			script = get_script_index(ch->desc->input_script,PRG_RPROG);
-			var = &ch->desc->input_room->progs->vars;
-		} else if(ch->desc->input_tok) {
-			script = get_script_index(ch->desc->input_script,PRG_TPROG);
-			var = &ch->desc->input_tok->progs->vars;
-		}
+		script = get_script_index_global(ch->desc->input_script,PRG_MPROG);
+		var = &ch->desc->input_mob->progs->vars;
+	} else if(ch->desc->input_obj) {
+		script = get_script_index_global(ch->desc->input_script,PRG_OPROG);
+		var = &ch->desc->input_obj->progs->vars;
+	} else if(ch->desc->input_room) {
+		script = get_script_index_global(ch->desc->input_script,PRG_RPROG);
+		var = &ch->desc->input_room->progs->vars;
+	} else if(ch->desc->input_tok) {
+		script = get_script_index_global(ch->desc->input_script,PRG_TPROG);
+		var = &ch->desc->input_tok->progs->vars;
+	}
 
-		// Clear this incase other scripts chain together
-		ch->desc->input = false;
-		ch->desc->input_var = NULL;
-		ch->desc->input_script = 0;
-		ch->desc->input_mob = NULL;
-		ch->desc->input_obj = NULL;
 		ch->desc->input_room = NULL;
 		ch->desc->input_tok = NULL;
 		if(ch->desc->input_prompt) free_string(ch->desc->input_prompt);
@@ -1246,8 +1240,15 @@ if (ch->pk_question)
 
 			char_from_room(ch);
 			char_from_room(victim);
-			char_to_room(ch, get_room_index(get_reserved_vnum("room_default_arena")));
-			char_to_room(victim, get_room_index(get_reserved_vnum("room_default_arena")));
+			{
+				ROOM_INDEX_DATA *arena = get_reserved_room_index("room_default_arena");
+				if (!arena)
+					arena = get_reserved_room_index("room_default");
+				if (arena) {
+					char_to_room(ch, arena);
+					char_to_room(victim, arena);
+				}
+			}
 
 			ch->challenged = NULL;
 			return;

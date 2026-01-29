@@ -170,7 +170,9 @@ void do_besteq(CHAR_DATA *ch, char *argument)
 
     for (number2 = 0; number2 < 100000; number2++)
     {
-	obj = get_obj_index((long) number2);
+	AREA_DATA *search_area = find_area_by_vnum((long) number2);
+	if (!search_area) continue;
+	obj = get_obj_index(search_area, (long) number2);
 
 	if (obj == NULL)
 	    continue;
@@ -487,52 +489,54 @@ void do_lore(CHAR_DATA *ch, char *argument)
     act("$n thinks, then scribbles something down on a scroll.",
         mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    iHash = 0;
     i = 0;
     sprintf(buf,
         "{YThe scroll says:{x\n\r"
 	"I have searched through my studies and books\n\r"
 	"and have found the following items pertaining to your\n\r"
 	"inquiry:\n\r\n\r");
-    for (objIndex = obj_index_hash[iHash]; iHash <= MAX_KEY_HASH;
-          objIndex = obj_index_hash[iHash++])
+    for (AREA_DATA *pArea = area_first; pArea != NULL; pArea = pArea->next)
     {
-	if (i >= 10)
-	    break;
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (objIndex = pArea->obj_index_hash[iHash]; objIndex != NULL; objIndex = objIndex->next)
+            {
+                if (i >= 10)
+                    break;
 
-        if (objIndex == NULL
-	|| objIndex->level < min
-	|| objIndex->level > max
-	|| !str_cmp(objIndex->area->name, "Imm Zone")
-	|| !str_cmp(objIndex->area->name, "The Godly Realm")
-	|| !objIndex->area->open
-	|| !IS_SET(objIndex->wear_flags, ITEM_TAKE)
-	|| (objIndex->item_type != ITEM_WEAPON
-	     && objIndex->item_type != ITEM_ARMOUR
-	     && objIndex->item_type != ITEM_ARTIFACT
-	     && objIndex->item_type != ITEM_LIGHT
-	     && objIndex->item_type != ITEM_CONTAINER
-	     && objIndex->item_type != ITEM_INSTRUMENT
-	     && objIndex->item_type != ITEM_RANGED_WEAPON)
-	|| (arg3[0] != '\0'
-	     && type != objIndex->item_type)
-	|| (arg4[0] != '\0'
-	     && type != ITEM_WEAPON
-	     && !IS_SET(objIndex->wear_flags, flag_value(wear_flags, arg4)))
-	|| (arg4[0] != '\0'
-	     && type == ITEM_RANGED_WEAPON
-	     && str_cmp(ranged_weapon_name(objIndex->value[0]), arg4))
-	|| (arg4[0] != '\0'
-	     && type == ITEM_WEAPON
-	     && str_cmp(weapon_name(objIndex->value[0]), arg4))
-	|| number_percent() < 33)
-	    continue;
+                if (objIndex == NULL
+                || objIndex->level < min
+                || objIndex->level > max
+                || !str_cmp(objIndex->area->name, "Imm Zone")
+                || !str_cmp(objIndex->area->name, "The Godly Realm")
+                || !objIndex->area->open
+                || !IS_SET(objIndex->wear_flags, ITEM_TAKE)
+                || (objIndex->item_type != ITEM_WEAPON
+                     && objIndex->item_type != ITEM_ARMOUR
+                     && objIndex->item_type != ITEM_ARTIFACT
+                     && objIndex->item_type != ITEM_LIGHT
+                     && objIndex->item_type != ITEM_CONTAINER
+                     && objIndex->item_type != ITEM_INSTRUMENT
+                     && objIndex->item_type != ITEM_RANGED_WEAPON)
+                || (arg3[0] != '\0'
+                     && type != objIndex->item_type)
+                || (arg4[0] != '\0'
+                     && type != ITEM_WEAPON
+                     && !IS_SET(objIndex->wear_flags, flag_value(wear_flags, arg4)))
+                || (arg4[0] != '\0'
+                     && type == ITEM_RANGED_WEAPON
+                     && str_cmp(ranged_weapon_name(objIndex->value[0]), arg4))
+                || (arg4[0] != '\0'
+                     && type == ITEM_WEAPON
+                     && str_cmp(weapon_name(objIndex->value[0]), arg4))
+                || number_percent() < 33)
+                    continue;
 
-	sprintf(sd, "%s", objIndex->short_descr);
-	sd[0] = UPPER(sd[0]);
-	{
-	if (!str_cmp(objIndex->area->name, "Maze-Level1")
-		    || !str_cmp(objIndex->area->name, "Maze-Level2")
+                sprintf(sd, "%s", objIndex->short_descr);
+                sd[0] = UPPER(sd[0]);
+                {
+                if (!str_cmp(objIndex->area->name, "Maze-Level1")
+                        || !str_cmp(objIndex->area->name, "Maze-Level2")
 		    || !str_cmp(objIndex->area->name, "Maze-Level3")
 		    || !str_cmp(objIndex->area->name, "Maze-Level4")
 		    || !str_cmp(objIndex->area->name, "Maze-Level5"))
@@ -552,12 +556,14 @@ void do_lore(CHAR_DATA *ch, char *argument)
 	strcat(buf, buf2);
 
 	i++;
+            }
+        }
     }
 
     sprintf(buf2, "\n\rThank you for your business.\n\r\n\rSigned, {m%s{x.", mob->short_descr);
     strcat(buf, buf2);
 
-    scroll = create_object(get_obj_index(get_reserved_vnum("obj_blank_scroll")), 1, false);
+    scroll = create_object(get_reserved_obj_index("obj_blank_scroll"), 1, false);
     free_string(scroll->name);
     free_string(scroll->short_descr);
     free_string(scroll->description);
@@ -1240,7 +1246,7 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
 
     check_improve(ch, gsn_tattoo, true, 2);
 
-    tattoo = create_object(get_obj_index(get_reserved_vnum("obj_blank_tattoo")), 1, false);
+    tattoo = create_object(get_reserved_obj_index("obj_blank_tattoo"), 1, false);
 
     free_string(tattoo->name);
     tattoo->name = str_dup("tattoo");

@@ -3404,14 +3404,14 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 
     sprintf(buf, "{YRecall Point:{x %ld - %s\n\r",
         church->recall_point.id[0],
-	get_room_index(church->recall_point.id[0]) == NULL ?
-	    "none" : get_room_index(church->recall_point.id[0])->name);
+	get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0]) == NULL ?
+	    "none" : get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0])->name);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YKey:{x %ld - %s\n\r",
         church->key,
-	get_obj_index(church->key) == NULL ?
-	    "none" : get_obj_index(church->key)->short_descr);
+	get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key) == NULL ?
+	    "none" : get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key)->short_descr);
     add_buf(buffer, buf);
 
 	sprintf(buf, "{YTreasure Room(s):{x\n\r");
@@ -4427,7 +4427,9 @@ if (!str_cmp(word, "#MEMBER")) {
                 KEY("ToggledPK", church->pk, fread_number(fp));
                                 if (!str_cmp(word, "TreasureRoom")) {
                     long vnum = fread_number(fp);
-                    ROOM_INDEX_DATA *room = get_room_index(vnum);
+                    AREA_DATA *room_area = find_area_by_vnum(vnum);
+                    if (!room_area) room_area = get_system_area_fallback();
+                    ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
                     bool is_default = (fread_number(fp) == 1);
                     
                     if (room) {

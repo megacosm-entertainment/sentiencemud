@@ -61,6 +61,91 @@ RESERVED(reserved_listid);
 extern LLIST *reserved_vnums;
 bool reserved_changed = false;
 
+static AREA_DATA *reserved_default_area(void)
+{
+    AREA_DATA *area = NULL;
+
+    if (!IS_NULLSTR(game_settings.system_area)) {
+        if (is_number(game_settings.system_area))
+            area = get_area_index(atol(game_settings.system_area));
+        else
+            area = find_area(game_settings.system_area);
+    }
+
+    if (!area)
+        area = area_first;
+
+    return area;
+}
+
+static bool reserved_parse_wnum(const char *input, WNUM *wnum)
+{
+    AREA_DATA *default_area = reserved_default_area();
+    char temp[MSL];
+
+    if (!input || !wnum)
+        return false;
+
+    strncpy(temp, input, sizeof(temp) - 1);
+    temp[sizeof(temp) - 1] = '\0';
+
+    if (parse_widevnum(temp, default_area, wnum))
+        return true;
+
+    if (is_number(temp) && default_area) {
+        wnum->pArea = default_area;
+        wnum->vnum = atol(temp);
+        return (wnum->vnum > 0);
+    }
+
+    return false;
+}
+
+static bool reserved_parse_area_uid(const char *input, long *auid)
+{
+    AREA_DATA *area;
+
+    if (!input || !auid)
+        return false;
+
+    if (is_number(input)) {
+        *auid = atol(input);
+        return (*auid > 0);
+    }
+
+    area = find_area((char *)input);
+    if (area) {
+        *auid = area->uid;
+        return true;
+    }
+
+    return false;
+}
+
+static const char *reserved_wnum_string(const RESERVED_DATA *reserved)
+{
+    static char out[32];
+    AREA_DATA *area;
+
+    if (!reserved)
+        return "0#0";
+
+    if (reserved->type == RESERVED_AREA) {
+        long auid = reserved->wnum.auid;
+        if (auid <= 0) {
+            AREA_DATA *fallback = reserved_default_area();
+            auid = fallback ? fallback->uid : 0;
+        }
+        snprintf(out, sizeof(out), "%ld", auid);
+        return out;
+    }
+
+    area = get_area_index(reserved->wnum.auid);
+    if (!area)
+        area = reserved_default_area();
+    return widevnum_string(area, reserved->wnum.vnum, NULL);
+}
+
 /* Reserved types and their text names */
 const struct reserved_type_name {
     const char *name;
@@ -124,7 +209,8 @@ void load_reserved(void)
                 reserved->description = NULL;
                 reserved->type = -1;
                 reserved->removable = false;
-                reserved->id = 0;
+                reserved->wnum.auid = 0;
+                reserved->wnum.vnum = 0;
             } else if (!str_cmp(word, "#-RESERVED")) {
                 if (in_block && reserved) {
                     /* Add to the list if it's valid */
@@ -157,7 +243,21 @@ void load_reserved(void)
             } else if (!str_cmp(word, "Removable")) {
                 reserved->removable = fread_number(fp) != 0;
             } else if (!str_cmp(word, "ID")) {
-                reserved->id = fread_number(fp);
+                reserved->wnum.auid = 0;
+                reserved->wnum.vnum = fread_number(fp);
+            } else if (!str_cmp(word, "AreaUID") || !str_cmp(word, "AUID")) {
+                reserved->wnum.auid = fread_number(fp);
+            } else if (!str_cmp(word, "Vnum") || !str_cmp(word, "VNUM")) {
+                reserved->wnum.vnum = fread_number(fp);
+            } else if (!str_cmp(word, "WNUM") || !str_cmp(word, "Wnum")) {
+                char *wnum_str = fread_string(fp);
+                WNUM wnum;
+
+                if (reserved_parse_wnum(wnum_str, &wnum)) {
+                    reserved->wnum.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                    reserved->wnum.vnum = wnum.vnum;
+                }
+                free_string(wnum_str);
             } else if (!str_cmp(word, "Description")) {
                 reserved->description = fread_string(fp);
             } else {
@@ -217,7 +317,11 @@ void save_reserved(void)
             fprintf(fp, "Name %s~\n", reserved->name);
             fprintf(fp, "Type %s\n", type_name);
             fprintf(fp, "Removable %d\n", reserved->removable ? 1 : 0);
-            fprintf(fp, "ID %d\n", reserved->id);
+            if (reserved->type == RESERVED_AREA) {
+                fprintf(fp, "AreaUID %ld\n", reserved->wnum.auid);
+            } else {
+                fprintf(fp, "Wnum %s\n", reserved_wnum_string(reserved));
+            }
             if (reserved->description && reserved->description[0])
                 fprintf(fp, "Description %s~\n", reserved->description);
             fprintf(fp, "#-RESERVED\n\n");
@@ -270,7 +374,15 @@ RESERVED_DATA *find_reserved_by_id(int id, int type)
         
     iterator_start(&it, reserved_vnums);
     while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
-        if (reserved->id == id && reserved->type == type) {
+        if (reserved->type != type)
+            continue;
+
+        if (type == RESERVED_AREA) {
+            if (reserved->wnum.auid == id) {
+                iterator_stop(&it);
+                return reserved;
+            }
+        } else if (reserved->wnum.vnum == id) {
             iterator_stop(&it);
             return reserved;
         }
@@ -288,7 +400,7 @@ int get_reserved_vnum(const char *name)
     RESERVED_DATA *reserved = find_reserved(name);
     
     if (reserved)
-        return reserved->id;
+        return reserved->wnum.vnum;
     
     perrf(LOG_ERROR, "Reserved item '%s' not found", name);
     return -1;
@@ -346,9 +458,9 @@ void do_reserved(CHAR_DATA *ch, char *argument)
         /* Show help */
         send_to_char("Reserved Item Editor Commands:\n\r", ch);
         send_to_char("  reserved list [type]     - List all reserved items (or by type)\n\r", ch);
-        send_to_char("  reserved listid <id> [type] - List items with a specific ID\n\r", ch);
+        send_to_char("  reserved listid <wnum> [type] - List items with a specific WNUM\n\r", ch);
         send_to_char("  reserved show <name>     - Show details of a reserved item\n\r", ch);
-        send_to_char("  reserved add <name> <type> <id> [removable]  - Add a new reserved item\n\r", ch);
+        send_to_char("  reserved add <name> <type> <wnum> [removable] - Add a new reserved item\n\r", ch);
         send_to_char("  reserved edit <name> <field> <value>         - Edit a reserved item\n\r", ch);
         send_to_char("  reserved delete <name>   - Delete a reserved item\n\r", ch);
         send_to_char("  reserved search <string> - Search for reserved items\n\r", ch);
@@ -373,6 +485,7 @@ RESERVED(reserved_listvnums)
     int name_width = 23; // Default width
     int max_name_len = 0;
     int table_width = 80;
+    int wnum_width = 18;
     int desc_width = 26; // Default width
     
     /* Check for type filter */
@@ -412,30 +525,30 @@ RESERVED(reserved_listvnums)
         
         /* Adjust description width to keep table width at 80 chars */
         /* Fixed columns: | (1) name (name_width) | (1) type (10) | (1) ID (6) | (1) remove (7) | (1) desc (desc_width) | (1) */
-        desc_width = table_width - (name_width + 10 + 6 + 7 + 6);
+        desc_width = table_width - (name_width + 10 + wnum_width + 7 + 6);
     }
     
     buffer = new_buf();
     
     /* Generate divider line based on column widths */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
     
     /* Generate header line */
-    sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-6s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
-            name_width, "Name", "Type", "ID", "Remove", desc_width, "Description");
+        sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-*s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
+            name_width, "Name", "Type", wnum_width, "WNUM", "Remove", desc_width, "Description");
     add_buf(buffer, buf);
     
     /* Repeat divider line */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
@@ -483,10 +596,10 @@ RESERVED(reserved_listvnums)
                 strcpy(desc_buf, "(none)");
             }
             
-            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-*s |{x\n\r",
+            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-*s{x | {%c%-7s{x | %-*s |{x\n\r",
                 name_width, name_buf,
                 type_name,
-                reserved->id,
+                wnum_width, reserved_wnum_string(reserved),
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
                 desc_width, desc_buf);
@@ -501,10 +614,10 @@ RESERVED(reserved_listvnums)
     }
     
     /* Table footer */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
@@ -563,7 +676,7 @@ RESERVED(reserved_show)
     sprintf(buf, "{Y| {WType:{x %-72s {Y|{x\n\r", type_name);
     send_to_char(buf, ch);
     
-    sprintf(buf, "{Y| {WID:{x %-74d {Y|{x\n\r", reserved->id);
+    sprintf(buf, "{Y| {WWNUM:{x %-72s {Y|{x\n\r", reserved_wnum_string(reserved));
     send_to_char(buf, ch);
     
     sprintf(buf, "{Y| {WRemovable:{x %-68s {Y|{x\n\r", reserved->removable ? "Yes" : "No");
@@ -611,7 +724,7 @@ RESERVED(reserved_show)
     sprintf(buf, "{Y| {WUsage Examples:{x %-64s {Y|{x\n\r", " ");
     send_to_char(buf, ch);
     
-    sprintf(buf, "{Y| {xIn code: {W%d = get_reserved_vnum(\"%s\"){x %-32s {Y|{x\n\r", reserved->id, reserved->name, "");
+    sprintf(buf, "{Y| {xIn code: {W%d = get_reserved_vnum(\"%s\"){x %-32s {Y|{x\n\r", reserved->wnum.vnum, reserved->name, "");
     send_to_char(buf, ch);
     
     switch (reserved->type) {
@@ -646,7 +759,8 @@ RESERVED(reserved_add)
     char id_str[MAX_INPUT_LENGTH];
     char removable_str[MAX_INPUT_LENGTH];
     int type = -1;
-    int id;
+    WNUM wnum;
+    long auid = 0;
     bool removable = true;
     RESERVED_DATA *reserved;
     
@@ -656,7 +770,7 @@ RESERVED(reserved_add)
     argument = one_argument(argument, removable_str);
     
     if (name[0] == '\0' || type_str[0] == '\0' || id_str[0] == '\0') {
-        send_to_char("Syntax: reserved add <name> <type> <id> [removable]\n\r", ch);
+        send_to_char("Syntax: reserved add <name> <type> <wnum> [removable]\n\r", ch);
         send_to_char("Types: mob, obj, room, area, skill, flag, command\n\r", ch);
         return false;
     }
@@ -680,12 +794,17 @@ RESERVED(reserved_add)
         return false;
     }
     
-    /* Validate ID */
-    if (!is_number(id_str)) {
-        send_to_char("ID must be a number.\n\r", ch);
-        return false;
+    if (type == RESERVED_AREA) {
+        if (!reserved_parse_area_uid(id_str, &auid)) {
+            send_to_char("Area must be a valid UID or area name.\n\r", ch);
+            return false;
+        }
+    } else {
+        if (!reserved_parse_wnum(id_str, &wnum)) {
+            send_to_char("WNUM must be a valid widevnum (e.g. 5#1234 or #1234).\n\r", ch);
+            return false;
+        }
     }
-    id = atoi(id_str);
     
     /* Check for removable flag */
     if (removable_str[0] != '\0') {
@@ -696,10 +815,10 @@ RESERVED(reserved_add)
     }
     
     /* Check for duplicate ID of same type */
-    reserved = find_reserved_by_id(id, type);
+    reserved = find_reserved_by_id(type == RESERVED_AREA ? (int)auid : (int)wnum.vnum, type);
     if (reserved) {
-        send_to_char(formatf("Warning: An item of the same type with ID %d already exists: %s\n\r",
-            id, reserved->name), ch);
+        send_to_char(formatf("Warning: An item of the same type with ID %ld already exists: %s\n\r",
+            type == RESERVED_AREA ? auid : wnum.vnum, reserved->name), ch);
         send_to_char("Adding anyway...\n\r", ch);
     }
     
@@ -708,7 +827,8 @@ RESERVED(reserved_add)
     reserved->name = str_dup(name);
     reserved->description = str_dup(argument);
     reserved->type = type;
-    reserved->id = id;
+    reserved->wnum.auid = (type == RESERVED_AREA) ? auid : (wnum.pArea ? wnum.pArea->uid : 0);
+    reserved->wnum.vnum = (type == RESERVED_AREA) ? 0 : wnum.vnum;
     reserved->removable = removable;
     
     /* Add to list */
@@ -718,8 +838,8 @@ RESERVED(reserved_add)
     
     reserved_changed = true;
     
-    send_to_char(formatf("Added reserved item: %s (type: %s, ID: %d)\n\r", 
-        name, reserved_types_get_name(type), id), ch);
+    send_to_char(formatf("Added reserved item: %s (type: %s, WNUM: %s)\n\r", 
+        name, reserved_types_get_name(type), reserved_wnum_string(reserved)), ch);
     
     return true;
 }
@@ -801,7 +921,7 @@ RESERVED(reserved_edit)
     
     if (name[0] == '\0' || field[0] == '\0') {
         send_to_char("Syntax: reserved edit <name> <field> <value>\n\r", ch);
-        send_to_char("Fields: name, type, id, removable, description\n\r", ch);
+        send_to_char("Fields: name, type, wnum, removable, description\n\r", ch);
         return false;
     }
     
@@ -854,26 +974,38 @@ RESERVED(reserved_edit)
         send_to_char("Reserved item type changed.\n\r", ch);
         reserved_changed = true;
     }
-    else if (!str_cmp(field, "id")) {
-        int id;
-        
-        if (argument[0] == '\0' || !is_number(argument)) {
-            send_to_char("You must specify a numeric ID.\n\r", ch);
+    else if (!str_cmp(field, "id") || !str_cmp(field, "wnum")) {
+        WNUM wnum;
+        long auid = 0;
+
+        if (argument[0] == '\0') {
+            send_to_char("You must specify a WNUM or area UID.\n\r", ch);
             return false;
         }
-        
-        id = atoi(argument);
-        
+
+        if (reserved->type == RESERVED_AREA) {
+            if (!reserved_parse_area_uid(argument, &auid)) {
+                send_to_char("Area must be a valid UID or area name.\n\r", ch);
+                return false;
+            }
+        } else {
+            if (!reserved_parse_wnum(argument, &wnum)) {
+                send_to_char("WNUM must be a valid widevnum (e.g. 5#1234 or #1234).\n\r", ch);
+                return false;
+            }
+        }
+
         /* Check for duplicate ID of same type */
-        RESERVED_DATA *existing = find_reserved_by_id(id, reserved->type);
+        RESERVED_DATA *existing = find_reserved_by_id(reserved->type == RESERVED_AREA ? (int)auid : (int)wnum.vnum, reserved->type);
         if (existing && existing != reserved) {
-            send_to_char(formatf("Warning: An item of the same type with ID %d already exists: %s\n\r",
-                id, existing->name), ch);
+            send_to_char(formatf("Warning: An item of the same type with ID %ld already exists: %s\n\r",
+                reserved->type == RESERVED_AREA ? auid : wnum.vnum, existing->name), ch);
             send_to_char("Changing anyway...\n\r", ch);
         }
-        
-        reserved->id = id;
-        send_to_char("Reserved item ID changed.\n\r", ch);
+
+        reserved->wnum.auid = (reserved->type == RESERVED_AREA) ? auid : (wnum.pArea ? wnum.pArea->uid : 0);
+        reserved->wnum.vnum = (reserved->type == RESERVED_AREA) ? 0 : wnum.vnum;
+        send_to_char("Reserved item WNUM changed.\n\r", ch);
         reserved_changed = true;
     }
     else if (!str_cmp(field, "removable")) {
@@ -939,6 +1071,7 @@ RESERVED(reserved_search)
     int name_width = 23; // Default width
     int max_name_len = 0;
     int table_width = 80;
+    int wnum_width = 18;
     int desc_width = 26; // Default width
     
     if (argument[0] == '\0') {
@@ -988,30 +1121,30 @@ RESERVED(reserved_search)
         name_width = UMAX(15, UMIN(40, max_name_len + 2));
         
         /* Adjust description width to keep table width at 80 chars */
-        desc_width = table_width - (name_width + 10 + 6 + 7 + 6);
+        desc_width = table_width - (name_width + 10 + wnum_width + 7 + 6);
     }
     
     buffer = new_buf();
     
     /* Generate divider line based on column widths */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
     
     /* Generate header line */
-    sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-6s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
-            name_width, "Name", "Type", "ID", "Remove", desc_width, "Description");
+        sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-*s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
+            name_width, "Name", "Type", wnum_width, "WNUM", "Remove", desc_width, "Description");
     add_buf(buffer, buf);
     
     /* Repeat divider line */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
@@ -1074,10 +1207,10 @@ RESERVED(reserved_search)
                 strcpy(desc_buf, "(none)");
             }
             
-            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-*s |{x\n\r",
+            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-18s{x | {%c%-7s{x | %-*s |{x\n\r",
                 name_width, name_buf,
                 type_name,
-                reserved->id,
+                reserved_wnum_string(reserved),
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
                 desc_width, desc_buf);
@@ -1157,7 +1290,10 @@ RESERVED(reserved_export)
             }
             
             /* Add the define statement */
-            sprintf(buf, "#define %-30s %d", reserved->name, reserved->id);
+            if (reserved->type == RESERVED_AREA)
+                sprintf(buf, "#define %-30s %ld", reserved->name, reserved->wnum.auid);
+            else
+                sprintf(buf, "#define %-30s %ld", reserved->name, reserved->wnum.vnum);
             
             /* Add description as comment if present */
             if (reserved->description && reserved->description[0]) {
@@ -1172,6 +1308,10 @@ RESERVED(reserved_export)
                 }
                 
                 sprintf(buf + strlen(buf), " /* %-76.76s */", desc_copy);
+            }
+
+            if (reserved->type != RESERVED_AREA) {
+                sprintf(buf + strlen(buf), " /* %s */", reserved_wnum_string(reserved));
             }
             
             strcat(buf, "\n");
@@ -1228,7 +1368,8 @@ void init_reserved_defaults(void)
         RESERVED_DATA *reserved = alloc_mem(sizeof(RESERVED_DATA));
         reserved->name = str_dup(defaults[i].name);
         reserved->type = defaults[i].type;
-        reserved->id = defaults[i].id;
+        reserved->wnum.auid = 0;
+        reserved->wnum.vnum = defaults[i].id;
         reserved->removable = defaults[i].removable;
         reserved->description = str_dup(defaults[i].description);
         
@@ -1248,11 +1389,14 @@ RESERVED(reserved_listid)
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     int count = 0;
-    int id = 0;
+    WNUM wnum;
+    long target_auid = 0;
+    long target_vnum = 0;
     int type = -1;
     int name_width = 23; // Default width
     int max_name_len = 0;
     int table_width = 80;
+    int wnum_width = 18;
     int desc_width = 26; // Default width
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -1265,12 +1409,10 @@ RESERVED(reserved_listid)
         return false;
     }
     
-    if (!is_number(arg1)) {
-        send_to_char("The ID must be a number.\n\r", ch);
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax: reserved listid <wnum> [type]\n\r", ch);
         return false;
     }
-    
-    id = atoi(arg1);
     
     /* Check for optional type filter */
     if (arg2[0] != '\0') {
@@ -1287,6 +1429,20 @@ RESERVED(reserved_listid)
         }
     }
     
+    if (type == RESERVED_AREA) {
+        if (!reserved_parse_area_uid(arg1, &target_auid)) {
+            send_to_char("Area must be a valid UID or area name.\n\r", ch);
+            return false;
+        }
+    } else {
+        if (!reserved_parse_wnum(arg1, &wnum)) {
+            send_to_char("WNUM must be a valid widevnum (e.g. 5#1234 or #1234).\n\r", ch);
+            return false;
+        }
+        target_auid = wnum.pArea ? wnum.pArea->uid : 0;
+        target_vnum = wnum.vnum;
+    }
+
     /* First pass: determine longest name for dynamic sizing */
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -1295,8 +1451,23 @@ RESERVED(reserved_listid)
         iterator_start(&it, reserved_vnums);
         while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
             /* Skip if not matching ID or type filter */
-            if (reserved->id != id)
-                continue;
+            if (type == RESERVED_AREA) {
+                long auid = reserved->wnum.auid;
+                if (auid <= 0) {
+                    AREA_DATA *fallback = reserved_default_area();
+                    auid = fallback ? fallback->uid : 0;
+                }
+                if (auid != target_auid)
+                    continue;
+            } else {
+                long auid = reserved->wnum.auid;
+                if (auid <= 0) {
+                    AREA_DATA *fallback = reserved_default_area();
+                    auid = fallback ? fallback->uid : 0;
+                }
+                if (auid != target_auid || reserved->wnum.vnum != target_vnum)
+                    continue;
+            }
                 
             if (type != -1 && reserved->type != type)
                 continue;
@@ -1311,36 +1482,47 @@ RESERVED(reserved_listid)
         name_width = UMAX(15, UMIN(40, max_name_len + 2));
         
         /* Adjust description width to keep table width at 80 chars */
-        desc_width = table_width - (name_width + 10 + 6 + 7 + 6);
+        desc_width = table_width - (name_width + 10 + wnum_width + 7 + 6);
     }
     
     buffer = new_buf();
     
-    sprintf(buf, "Reserved items with ID %d%s%s:\n\r\n\r", 
-            id,
+        {
+            char wnum_label[MSL];
+            AREA_DATA *label_area = get_area_index(target_auid);
+            if (!label_area)
+                label_area = reserved_default_area();
+            if (type == RESERVED_AREA)
+                snprintf(wnum_label, sizeof(wnum_label), "%ld", target_auid);
+            else
+                snprintf(wnum_label, sizeof(wnum_label), "%s", widevnum_string(label_area, target_vnum, NULL));
+
+            sprintf(buf, "Reserved items with WNUM %s%s%s:\n\r\n\r", 
+                wnum_label,
             type != -1 ? " of type " : "",
             type != -1 ? reserved_types_get_name(type) : "");
+        }
     add_buf(buffer, buf);
     
     /* Generate divider line based on column widths */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
     
     /* Generate header line */
-    sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-6s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
-            name_width, "Name", "Type", "ID", "Remove", desc_width, "Description");
+        sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-*s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
+            name_width, "Name", "Type", wnum_width, "WNUM", "Remove", desc_width, "Description");
     add_buf(buffer, buf);
     
     /* Repeat divider line */
-    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+        sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
             name_width, "-------------------------------------------------------------------------",
             10, "------------",
-            6, "--------",
+            wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
@@ -1354,8 +1536,23 @@ RESERVED(reserved_listid)
             const char *type_name = "unknown";
             
             /* Skip if not matching ID or type filter */
-            if (reserved->id != id)
-                continue;
+            if (type == RESERVED_AREA) {
+                long auid = reserved->wnum.auid;
+                if (auid <= 0) {
+                    AREA_DATA *fallback = reserved_default_area();
+                    auid = fallback ? fallback->uid : 0;
+                }
+                if (auid != target_auid)
+                    continue;
+            } else {
+                long auid = reserved->wnum.auid;
+                if (auid <= 0) {
+                    AREA_DATA *fallback = reserved_default_area();
+                    auid = fallback ? fallback->uid : 0;
+                }
+                if (auid != target_auid || reserved->wnum.vnum != target_vnum)
+                    continue;
+            }
                 
             if (type != -1 && reserved->type != type)
                 continue;
@@ -1391,10 +1588,10 @@ RESERVED(reserved_listid)
                 strcpy(desc_buf, "(none)");
             }
             
-            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-*s |{x\n\r",
+            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-*s{x | {%c%-7s{x | %-*s |{x\n\r",
                 name_width, name_buf,
                 type_name,
-                reserved->id,
+                wnum_width, reserved_wnum_string(reserved),
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
                 desc_width, desc_buf);
@@ -1417,7 +1614,18 @@ RESERVED(reserved_listid)
             desc_width, "-------------------------------------------------------------------");
     add_buf(buffer, buf);
     
-    sprintf(buf, "\n\r%d reserved items found with ID %d.\n\r", count, id);
+    {
+        char wnum_label[MSL];
+        AREA_DATA *label_area = get_area_index(target_auid);
+        if (!label_area)
+            label_area = reserved_default_area();
+        if (type == RESERVED_AREA)
+            snprintf(wnum_label, sizeof(wnum_label), "%ld", target_auid);
+        else
+            snprintf(wnum_label, sizeof(wnum_label), "%s", widevnum_string(label_area, target_vnum, NULL));
+
+        sprintf(buf, "\n\r%d reserved items found with WNUM %s.\n\r", count, wnum_label);
+    }
     add_buf(buffer, buf);
     
     page_to_char(buf_string(buffer), ch);

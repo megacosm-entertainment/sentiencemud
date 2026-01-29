@@ -1251,9 +1251,13 @@ void do_tedit(CHAR_DATA *ch, char *argument)
 
     if (is_number(arg))
     {
-	value = atoi(arg);
+	WNUM wnum;
+	if (!parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+	    send_to_char("Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+	    return;
+	}
 
-	if ((token_index = get_token_index(value)) == NULL)
+	if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL)
 	{
 	    send_to_char("That token vnum does not exist.\n\r", ch);
 	    return;
@@ -1373,7 +1377,13 @@ void do_redit(CHAR_DATA *ch, char *argument)
     }
     else if (!IS_NULLSTR(arg1))	/* redit <vnum> */
     {
-	pRoom = get_room_index(atol(arg1));
+	WNUM wnum;
+	if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+	    send_to_char("REdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+	    return;
+	}
+
+	pRoom = get_room_index(wnum.pArea, wnum.vnum);
 
 	if (!pRoom)
 	{
@@ -1420,8 +1430,13 @@ void do_oedit(CHAR_DATA *ch, char *argument)
 
     if (is_number(arg1))
     {
-	value = atol(arg1);
-	if (!(pObj = get_obj_index(value)))
+	WNUM wnum;
+	if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+	    send_to_char("OEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+	    return;
+	}
+
+	if (!(pObj = get_obj_index(wnum.pArea, wnum.vnum)))
 	{
 	    send_to_char("OEdit:  That vnum does not exist.\n\r", ch);
 	    return;
@@ -1481,8 +1496,13 @@ void do_medit(CHAR_DATA *ch, char *argument)
 
     if (is_number(arg1))
     {
-	value = atol(arg1);
-	if (!(pMob = get_mob_index(value)))
+	WNUM wnum;
+	if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+	    send_to_char("MEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+	    return;
+	}
+
+	if (!(pMob = get_mob_index(wnum.pArea, wnum.vnum)))
 	{
 	    send_to_char("MEdit:  That vnum does not exist.\n\r", ch);
 	    return;
@@ -1942,6 +1962,7 @@ void display_resets(CHAR_DATA *ch)
     int 		iReset = 0;
 
     EDIT_ROOM_VOID(ch, pRoom);
+    AREA_DATA *pArea = pRoom->area;
     final[0]  = '\0';
 
     send_to_char (
@@ -1969,23 +1990,32 @@ void display_resets(CHAR_DATA *ch)
 		break;
 
 	    case 'M':
-		if (!(pMobIndex = get_mob_index(pReset->arg1)))
+	    {
+		AREA_DATA *mob_area = find_area_by_vnum(pReset->arg1);
+		if (!mob_area) mob_area = get_system_area_fallback();
+		AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
+		if (!room_area) room_area = get_system_area_fallback();
+
+		if (!(pMobIndex = get_mob_index(mob_area, pReset->arg1)))
 		{
-		    sprintf(buf, "Load Mobile - Bad Mob %ld\n\r", pReset->arg1);
+		    sprintf(buf, "Load Mobile - Bad Mob %s\n\r", 
+			    widevnum_string(mob_area, pReset->arg1, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
 
-		if (!(pRoomIndex = get_room_index(pReset->arg3)))
+		if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
 		{
-		    sprintf(buf, "Load Mobile - Bad Room %ld\n\r", pReset->arg3);
+		    sprintf(buf, "Load Mobile - Bad Room %s\n\r", 
+			    widevnum_string(room_area, pReset->arg3, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
 
 		pMob = pMobIndex;
-		sprintf(buf, "M[%5ld] %-13.13s in room             R[%5ld] %2ld-%2ld %-15.15s\n\r",
-			   pReset->arg1, pMob->short_descr, pReset->arg3,
+		sprintf(buf, "M[%s] %-13.13s in room             R[%s] %2ld-%2ld %-15.15s\n\r",
+			   widevnum_string_mobile(pMobIndex, pArea), pMob->short_descr, 
+			   widevnum_string_room(pRoomIndex, pArea),
 			   pReset->arg2, pReset->arg4, pRoomIndex->name);
 		strcat(final, buf);
 
@@ -1996,81 +2026,99 @@ void display_resets(CHAR_DATA *ch)
 		{
 		    ROOM_INDEX_DATA *pRoomIndexPrev;
 
-		    pRoomIndexPrev = get_room_index(pRoomIndex->vnum - 1);
+		    pRoomIndexPrev = get_room_index(pRoomIndex->area, pRoomIndex->vnum - 1);
 		    if (pRoomIndexPrev
 			&& IS_SET(pRoomIndexPrev->room_flag[0], ROOM_PET_SHOP))
 			final[5] = 'P';
 		}
 
 		break;
+	    }
 
 	    case 'O':
-		if (!(pObjIndex = get_obj_index(pReset->arg1)))
+	    {
+		AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
+		if (!room_area) room_area = get_system_area_fallback();
+
+		if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
 		{
-		    sprintf(buf, "Load Object - Bad Object %ld\n\r",
-			pReset->arg1);
+		    sprintf(buf, "Load Object - Bad Object %s\n\r",
+			    widevnum_string(obj_area, pReset->arg1, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
 
 		pObj       = pObjIndex;
 
-		if (!(pRoomIndex = get_room_index(pReset->arg3)))
+		if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
 		{
-		    sprintf(buf, "Load Object - Bad Room %ld\n\r", pReset->arg3);
+		    sprintf(buf, "Load Object - Bad Room %s\n\r", 
+			    widevnum_string(room_area, pReset->arg3, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
 
-		sprintf(buf, "O[%5ld] %-13.13s in room             "
-			      "R[%5ld]       %-15.15s\n\r",
-			      pReset->arg1, pObj->short_descr,
-			      pReset->arg3, pRoomIndex->name);
+		sprintf(buf, "O[%s] %-13.13s in room             "
+			  "R[%s]       %-15.15s\n\r",
+			  widevnum_string_object(pObjIndex, pArea), pObj->short_descr,
+			  widevnum_string_room(pRoomIndex, pArea), pRoomIndex->name);
 		strcat(final, buf);
-
-		break;
+        break;
+        }
 
 	    case 'P':
-		if (!(pObjIndex = get_obj_index(pReset->arg1)))
+	    {
+		AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		AREA_DATA *obj_to_area = find_area_by_vnum(pReset->arg3);
+		if (!obj_to_area) obj_to_area = get_system_area_fallback();
+
+		if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
 		{
-		    sprintf(buf, "Put Object - Bad Object %ld\n\r",
-			pReset->arg1);
+		    sprintf(buf, "Put Object - Bad Object %s\n\r",
+			    widevnum_string(obj_area, pReset->arg1, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
 
 		pObj       = pObjIndex;
 
-		if (!(pObjToIndex = get_obj_index(pReset->arg3)))
+		if (!(pObjToIndex = get_obj_index(obj_to_area, pReset->arg3)))
 		{
-		    sprintf(buf, "Put Object - Bad To Object %ld\n\r",
-			pReset->arg3);
+		    sprintf(buf, "Put Object - Bad To Object %s\n\r",
+			    widevnum_string(obj_to_area, pReset->arg3, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
 
 		sprintf(buf,
-		    "O[%5ld] %-13.13s inside              O[%5ld] %2ld-%2ld %-15.15s\n\r",
-		    pReset->arg1,
+		    "O[%s] %-13.13s inside              O[%s] %2ld-%2ld %-15.15s\n\r",
+		    widevnum_string_object(pObjIndex, pArea),
 		    pObj->short_descr,
-		    pReset->arg3,
+		    widevnum_string_object(pObjToIndex, pArea),
 		    pReset->arg2,
 		    pReset->arg4,
 		    pObjToIndex->short_descr);
 		strcat(final, buf);
 
 		break;
+        }
 
 	    case 'G':
 	    case 'E':
-		if (!(pObjIndex = get_obj_index(pReset->arg1)))
+	    {
+		AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
+		if (!obj_area) obj_area = get_system_area_fallback();
+
+		if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
 		{
-		    sprintf(buf, "Give/Equip Object - Bad Object %ld\n\r",
-			pReset->arg1);
+		    sprintf(buf, "Give/Equip Object - Bad Object %s\n\r",
+			    widevnum_string(obj_area, pReset->arg1, pArea));
 		    strcat(final, buf);
 		    continue;
 		}
-
 		pObj       = pObjIndex;
 
 		if (!pMob)
@@ -2083,16 +2131,16 @@ void display_resets(CHAR_DATA *ch)
 		if (pMob->pShop)
 		{
 		sprintf(buf,
-		    "O[%5ld] %-13.13s in the inventory of S[%5ld]       %-15.15s\n\r",
-		    pReset->arg1,
+		    "O[%s] %-13.13s in the inventory of S[%s]       %-15.15s\n\r",
+		    widevnum_string_object(pObjIndex, pArea),
 		    pObj->short_descr,
-		    pMob->vnum,
+		    widevnum_string_mobile(pMobIndex, pArea),
 		    pMob->short_descr );
 		}
 		else
 		sprintf(buf,
-		    "O[%5ld] %-13.13s %-19.19s M[%5ld]       %-15.15s\n\r",
-		    pReset->arg1,
+		    "O[%s] %-13.13s %-19.19s M[%s]       %-15.15s\n\r",
+		    widevnum_string_object(pObjIndex, pArea),
 		    pObj->short_descr,
 		    (pReset->command == 'G') ?
 			flag_string(wear_loc_strings, WEAR_NONE)
@@ -2102,6 +2150,7 @@ void display_resets(CHAR_DATA *ch)
 		strcat(final, buf);
 
 		break;
+        }
 
 	    /*
 	     * Doors are set in rs_flags don't need to be displayed.
@@ -2124,7 +2173,8 @@ void display_resets(CHAR_DATA *ch)
 	     * End Doors Comment.
 	     */
 	    case 'R':
-		if (!(pRoomIndex = get_room_index(pReset->arg1)))
+        {
+		if (!(pRoomIndex = get_room_index((find_area_by_vnum(pReset->arg1) ?: get_system_area_fallback()), pReset->arg1)))
 		{
 		    sprintf(buf, "Randomize Exits - Bad Room %ld\n\r",
 			pReset->arg1);
@@ -2137,12 +2187,14 @@ void display_resets(CHAR_DATA *ch)
 		strcat(final, buf);
 
 		break;
+        }
 	}
 
 	ch->pcdata->immortal->last_olc_command = current_time;
 	send_to_char(final, ch);
     }
 }
+
 
 
 void add_reset(ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index)
@@ -2286,7 +2338,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 	{
 	    if (!str_cmp(arg2, "mob"))
 	    {
-		if (get_mob_index(is_number(arg3) ? atol(arg3) : 1) == NULL)
+		if (get_mob_index((find_area_by_vnum(is_number(arg3) ? atol(arg3) : 1) ?: get_system_area_fallback()), is_number(arg3) ? atol(arg3) : 1) == NULL)
 		{
 		    send_to_char("Mob no existe.\n\r",ch);
 		    return;
@@ -2307,7 +2359,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 		{
 		    OBJ_INDEX_DATA *temp;
 
-		    temp = get_obj_index(is_number(arg5) ? atol(arg5) : 1);
+		    temp = get_obj_index((find_area_by_vnum(is_number(arg5) ? atol(arg5) : 1) ?: get_system_area_fallback()), is_number(arg5) ? atol(arg5) : 1);
 		    if (temp == NULL) {
 			send_to_char("Object not found!\n\r", ch);
 			return;
@@ -2327,7 +2379,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 		else
 		if (!str_cmp(arg4, "room"))
 		{
-		    if (get_obj_index(atol(arg3)) == NULL)
+		    if (get_obj_index((find_area_by_vnum(atol(arg3)) ?: get_system_area_fallback()), atol(arg3)) == NULL)
 		      {
 		         send_to_char("Vnum does not exist.\n\r",ch);
 		         return;
@@ -2349,12 +2401,10 @@ void do_resets(CHAR_DATA *ch, char *argument)
 			}
 		    }
 
-		    if (get_obj_index(atol(arg3)) == NULL)
-		    {
-			send_to_char("Vnum does not exist.\n\r",ch);
-			return;
-		    }
-
+	    long obj_vnum = atol(arg3);
+	    AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
+	    if (!obj_area) obj_area = get_system_area_fallback();
+	    if (get_obj_index(obj_area, obj_vnum) == NULL)
 		    pReset->arg1 = atol(arg3);
 		    pReset->arg3 =
 		        (!str_cmp(arg4, "light")) ?
@@ -2576,13 +2626,13 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (get_room_index(old_v) == NULL)
+    if (get_room_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v) == NULL)
     {
  	send_to_char("That room doesn't exist.\n\r", ch);
 	return;
     }
 
-    if (get_room_index(new_v) != NULL)
+    if (get_room_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
     {
  	send_to_char("That room vnum is already taken.\n\r", ch);
 	return;
@@ -2612,7 +2662,9 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     edit_done(ch);
 
     ch->pcdata->immortal->last_olc_command = current_time;
-    old_room = get_room_index(old_v);
+    AREA_DATA *old_area = find_area_by_vnum(old_v);
+    if (!old_area) old_area = get_system_area_fallback();
+    old_room = get_room_index(old_area, old_v);
     new_room = new_room_index();
 
     new_room->area                 = area;
@@ -2683,13 +2735,13 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_mob = get_mob_index(old_v)) == NULL)
+    if ((old_mob = get_mob_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v)) == NULL)
     {
 	send_to_char("That mob doesn't exist.\n\r", ch);
 	return;
     }
 
-    if (get_mob_index(new_v) != NULL)
+    if (get_mob_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
     {
         send_to_char("That mob vnum is already taken.\n\r", ch);
 	return;
@@ -2814,13 +2866,13 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_obj = get_obj_index(old_v)) == NULL)
+    if ((old_obj = get_obj_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v)) == NULL)
     {
         send_to_char("That obj doesn't exist.\n\r", ch);
 	return;
     }
 
-    if (get_obj_index(new_v) != NULL)
+    if (get_obj_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
     {
         send_to_char("That obj vnum is already taken.\n\r", ch);
 	return;
@@ -2955,13 +3007,13 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_rpcode = get_script_index(old_v, PRG_RPROG)) == NULL)
+    if ((old_rpcode = get_script_index_global(old_v, PRG_RPROG)) == NULL)
     {
         send_to_char("That ROOMprog doesn't exist.\n\r", ch);
 	return;
     }
 
-    if (get_script_index(new_v, PRG_RPROG) != NULL)
+    if (get_script_index_global(new_v, PRG_RPROG) != NULL)
     {
 	send_to_char("That ROOMprog vnum is already taken.\n\r", ch);
 	return;
@@ -3031,13 +3083,13 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_mpcode = get_script_index(old_v, PRG_MPROG)) == NULL)
+    if ((old_mpcode = get_script_index_global(old_v, PRG_MPROG)) == NULL)
     {
 	send_to_char("That MOBprog doesn't exist.\n\r", ch);
 	return;
     }
 
-    if (get_script_index(new_v, PRG_MPROG) != NULL)
+    if (get_script_index_global(new_v, PRG_MPROG) != NULL)
     {
         send_to_char("That MOBprog vnum is already taken.\n\r", ch);
 	return;
@@ -3108,13 +3160,13 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_opcode = get_script_index(old_v, PRG_OPROG)) == NULL)
+    if ((old_opcode = get_script_index_global(old_v, PRG_OPROG)) == NULL)
     {
         send_to_char("That OBJprog doesn't exist.\n\r", ch);
 	return;
     }
 
-    if (get_script_index(new_v, PRG_OPROG) != NULL)
+    if (get_script_index_global(new_v, PRG_OPROG) != NULL)
     {
         send_to_char("That OBJprog vnum is already taken.\n\r", ch);
 	return;
@@ -3216,7 +3268,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((pRoomIndex = get_room_index(vnum)) != NULL
+	if ((pRoomIndex = get_room_index(pArea, vnum)) != NULL
 	&& vnum >= vnum_min
 	&& vnum <= vnum_max)
 	{
@@ -3276,7 +3328,7 @@ void do_mlist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((pMobIndex = get_mob_index(vnum)) != NULL)
+	if ((pMobIndex = get_mob_index(pArea, vnum)) != NULL)
 	{
 	    if (fAll || is_name(arg, pMobIndex->player_name))
 	    {
@@ -3356,7 +3408,7 @@ void do_olist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((pObjIndex = get_obj_index(vnum)))
+	if ((pObjIndex = get_obj_index(pArea, vnum)))
 	{
 	    if (fAll || is_name(arg, pObjIndex->name)
 	    || flag_value(type_flags, arg) == pObjIndex->item_type)
@@ -3416,7 +3468,9 @@ void do_mshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    if (!(pMob = get_mob_index(value)))
+    AREA_DATA *mob_area = find_area_by_vnum(value);
+    if (!mob_area) mob_area = get_system_area_fallback();
+    if (!(pMob = get_mob_index(mob_area, value)))
     {
        send_to_char("That mobile does not exist.\n\r", ch);
        return;
@@ -3450,7 +3504,9 @@ void do_oshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    if (!(pObj = get_obj_index(value)))
+    AREA_DATA *obj_area = find_area_by_vnum(value);
+    if (!obj_area) obj_area = get_system_area_fallback();
+    if (!(pObj = get_obj_index(obj_area, value)))
     {
 	send_to_char("That object does not exist.\n\r", ch);
 	return;
@@ -3482,7 +3538,9 @@ void do_rshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    if (!(pRoom = get_room_index(value)))
+    AREA_DATA *room_area = find_area_by_vnum(value);
+    if (!room_area) room_area = get_system_area_fallback();
+    if (!(pRoom = get_room_index(room_area, value)))
     {
 	send_to_char("That room does not exist.\n\r", ch);
 	return;
@@ -3773,7 +3831,10 @@ void do_dislink(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((room = get_room_index(atol(arg))) == NULL)
+    long vnum = atol(arg);
+    AREA_DATA *area = find_area_by_vnum(vnum);
+    if (!area) area = get_system_area_fallback();
+    if ((room = get_room_index(area, vnum)) == NULL)
     {
 	send_to_char("There is no such room.\n\r", ch);
 	return;
@@ -3877,7 +3938,7 @@ void do_rjunk(CHAR_DATA *ch, char *argument)
 
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
     {
-	if ((room = get_room_index(vnum)) != NULL
+	if ((room = get_room_index(area, vnum)) != NULL
 	&&     !str_cmp(room->name, argument))
 	{
 	    dislink_room(room);
@@ -3985,7 +4046,9 @@ void do_tshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    if (!(token_index = get_token_index(value)))
+    AREA_DATA *token_area = find_area_by_vnum(value);
+    if (!token_area) token_area = get_system_area_fallback();
+    if (!(token_index = get_token_index(token_area, value)))
     {
 	send_to_char("That token does not exist.\n\r", ch);
 	return;
@@ -4018,7 +4081,7 @@ void do_tlist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((token_index = get_token_index(vnum)))
+	if ((token_index = get_token_index(pArea, vnum)))
 	{
 	    if (fAll || is_name(arg, token_index->name))
 	    {

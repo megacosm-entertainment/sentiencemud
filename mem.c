@@ -2900,7 +2900,7 @@ void free_auto_war( AUTO_WAR *m_auto_war )
 	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	char_from_room( m_auto_war->team_players );
-	char_to_room( m_auto_war->team_players, get_room_index( get_reserved_vnum("room_default_recall") ) );
+	char_to_room( m_auto_war->team_players, get_reserved_room_index("room_default_recall") );
 	do_function( m_auto_war->team_players, &do_look, "auto");
 	char_from_team( m_auto_war->team_players );
     }

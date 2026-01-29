@@ -2750,10 +2750,11 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Place character if they're not already in a room
     if (!ch->in_room) {
-        if (get_room_index(get_reserved_vnum("room_default_recall")))
-            char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+        ROOM_INDEX_DATA *recall = get_reserved_room_index("room_default_recall");
+        if (recall)
+            char_to_room(ch, recall);
         else
-            char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+            char_to_room(ch, get_reserved_room_index("room_limbo"));
     }
     
     // Announce reconnection to room
@@ -2864,7 +2865,7 @@ void stop_idling(CHAR_DATA *ch)
 		ch->desc == NULL ||
 		ch->desc->connected != CON_PLAYING ||
 		ch->was_in_room == NULL ||
-		ch->in_room != get_room_index(get_reserved_vnum("room_limbo")))
+		ch->in_room != get_reserved_room_index("room_limbo"))
 		return;
 
 	if( ch->was_in_room_id[0] || ch->was_in_room_id[1] )

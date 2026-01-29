@@ -67,6 +67,23 @@
 #include "protocol.h"
 #include "connection.h"
 #include "protocol_layer.h"
+
+/* Forward declarations needed by reserved.h */
+struct area_data;
+typedef struct area_data AREA_DATA;
+
+// Wide vnum runtime representation
+typedef struct wnum_data {
+    AREA_DATA *pArea;    // Pointer to area (runtime only)
+    long vnum;           // Local vnum within area
+} WNUM;
+
+// Wide vnum persistent representation (for save files)
+typedef struct wnum_load_data {
+    long auid;           // Area UID (persistent identifier)
+    long vnum;           // Local vnum
+} WNUM_LOAD;
+
 #include "editors/reserved_vnums/reserved.h"
 
 
@@ -1248,6 +1265,7 @@ struct game_settings_data
     char *game_name;              // Name of the game, used in MSSP.
     char *login_string;           // Login string to present on connection.
     char *server_description;     // Description of server, eg. "2.0 Public Test Server"
+    char *system_area;            // Default/system area name or UID for widevnum/reserved lookups.
     bool testport;                // Is this a testport?
     bool dev_server;              // Is this a dev/alpha server?
     bool enable_passwd;           // Enable passwords?
@@ -5566,19 +5584,6 @@ struct	reset_data
     long		arg3;
     long		arg4;
 };
-
-// Wide vnum runtime representation
-typedef struct wnum_data {
-    AREA_DATA *pArea;    // Pointer to area (runtime only)
-    long vnum;           // Local vnum within area
-} WNUM;
-
-// Wide vnum persistent representation (for save files)
-typedef struct wnum_load_data {
-    long auid;           // Area UID (persistent identifier)
-    long vnum;           // Local vnum
-} WNUM_LOAD;
-
 /*
  * Area definition.
  */
@@ -5597,6 +5602,23 @@ struct	area_data {
     MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
     OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
     ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
+    TOKEN_INDEX_DATA *token_index_hash[MAX_KEY_HASH];
+    BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
+    BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
+    DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
+    SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+
+    // Per-area script indexes
+    SCRIPT_DATA *mprog_list;
+    SCRIPT_DATA *oprog_list;
+    SCRIPT_DATA *rprog_list;
+    SCRIPT_DATA *tprog_list;
+    SCRIPT_DATA *aprog_list;
+    SCRIPT_DATA *iprog_list;
+    SCRIPT_DATA *dprog_list;
+
+    // Per-area instances (runtime)
+    LLIST *instances;
 
     // Per-area vnum tracking
     long bottom_mob_vnum, top_mob_vnum;
@@ -6019,6 +6041,7 @@ struct ship_type
 struct ship_index_data
 {
 	SHIP_INDEX_DATA *next;
+    AREA_DATA *area;
 
 	long vnum;
 
@@ -6350,6 +6373,7 @@ struct blueprint_exit_data {
 struct blueprint_data {
 	BLUEPRINT *next;
 	bool valid;
+    AREA_DATA *area;
 
 	long vnum;
 
@@ -6570,6 +6594,7 @@ struct dungeon_index_data
 {
 	DUNGEON_INDEX_DATA *next;
 	bool valid;
+    AREA_DATA *area;
 
 	long vnum;
 
@@ -7148,6 +7173,7 @@ struct  chat_room_data
     int max_people;	/* limit of people allowed */
     int curr_people;	/* current amt. of people */
     bool permanent;	/* does it save after reboots, etc? */
+    long area_uid;	/* area UID for widevnum support */
     long vnum;		/* room vnum */
 };
 
@@ -7724,7 +7750,7 @@ extern int16_t	gsn_soul_essence;
 		                 && (ch)->pIndexData->vnum == get_reserved_vnum("mob_objcaster"))
 
 /* Wilderness macros. */
-#define ROOM(room)		((room)->parent == -1 ? (room) : ((get_room_index((room)->parent))))
+#define ROOM(room)		((room)->parent == -1 ? (room) : (get_room_index((room)->area, (room)->parent)))
 
 /* Race check macros - use string ID comparison */
 #define IS_DROW(ch)		((ch)->race && (!str_cmp((ch)->race->id, "drow") || !str_cmp((ch)->race->id, "specter")))
@@ -8336,7 +8362,6 @@ void    auto_war_echo   args( ( char *message ) );
 void 	war_channel( char *msg );
 
 /* db.c */
-TOKEN_INDEX_DATA *get_token_index(long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
 int     get_this_class args( ( CHAR_DATA *ch, int sn ) );
 void	reset_area      args( ( AREA_DATA * pArea ) );
@@ -8353,12 +8378,20 @@ OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) 
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
 EXTRA_DESCR_DATA *	get_extra_descr	args( ( const char *name, EXTRA_DESCR_DATA *ed ) );
-MID *	get_mob_index	args( ( long vnum ) );
-OID *	get_obj_index	args( ( long vnum ) );
-RID *	get_room_index	args( ( long vnum ) );
+MID *	get_mob_index	args( ( AREA_DATA *pArea, long vnum ) );
+OID *	get_obj_index	args( ( AREA_DATA *pArea, long vnum ) );
+RID *	get_room_index	args( ( AREA_DATA *pArea, long vnum ) );
+TOKEN_INDEX_DATA *get_token_index	args( ( AREA_DATA *pArea, long vnum ) );
+MID *	get_mob_index_global	args( ( long vnum ) );
+OID *	get_obj_index_global	args( ( long vnum ) );
+RID *	get_room_index_global	args( ( long vnum ) );
+TOKEN_INDEX_DATA *get_token_index_global	args( ( long vnum ) );
+AREA_DATA *find_area_by_vnum	args( ( long vnum ) );
+AREA_DATA *get_system_area_fallback	args( ( void ) );
 NID *	get_npc_ship_index args( ( long vnum ) );
 PC *	get_prog_index args( ( long vnum, int type ) );
-SCRIPT_DATA *	get_script_index args( ( long vnum, int type ) );
+SCRIPT_DATA *	get_script_index args( ( AREA_DATA *pArea, long vnum, int type ) );
+SCRIPT_DATA *	get_script_index_global args( ( long vnum, int type ) );
 char	fread_letter	args( ( FILE *fp ) );
 long	fread_number	args( ( FILE *fp ) );
 long 	fread_flag	args( ( FILE *fp ) );

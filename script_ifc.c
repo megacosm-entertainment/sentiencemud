@@ -1285,7 +1285,7 @@ DECL_IFC_FUN(ifc_mobexists)
 	if(ISARG_NUM(0)) {
 		MOB_INDEX_DATA *pMobIndex;
 
-		if (!(pMobIndex = get_mob_index(ARG_NUM(0))))
+		if (!(pMobIndex = get_mob_index_global(ARG_NUM(0))))
 			*ret = false;
 		else
 			*ret = (bool)(int)(get_char_world_index(NULL, pMobIndex) && 1);
@@ -1294,7 +1294,7 @@ DECL_IFC_FUN(ifc_mobexists)
 		if (is_number(ARG_STR(0))) {
 			MOB_INDEX_DATA *pMobIndex;
 
-			if (!(pMobIndex = get_mob_index(atol(ARG_STR(0)))))
+			if (!(pMobIndex = get_mob_index_global(atol(ARG_STR(0)))))
 				*ret = false;
 			else
 				*ret = (bool)(int)(get_char_world_index(NULL, pMobIndex) && 1);
@@ -2045,7 +2045,7 @@ DECL_IFC_FUN(ifc_tokencount)
 	TOKEN_DATA *tok;
 	int i;
 
-	if((ISARG_NUM(1) && !(ti = get_token_index(ARG_NUM(1)))))
+	if((ISARG_NUM(1) && !(ti = get_token_index_global(ARG_NUM(1)))))
 		return false;
 
 	if(ISARG_MOB(0)) tok = ARG_MOB(0)->tokens;
@@ -2062,7 +2062,7 @@ DECL_IFC_FUN(ifc_tokencount)
 DECL_IFC_FUN(ifc_tokenexists)
 {
 	TOKEN_INDEX_DATA *ti;
-	*ret = (ISARG_NUM(0) && (ti = get_token_index(ARG_NUM(0))) && ti->loaded > 0);
+	*ret = (ISARG_NUM(0) && (ti = get_token_index_global(ARG_NUM(0))) && ti->loaded > 0);
 	return true;
 }
 
@@ -4001,7 +4001,11 @@ DECL_IFC_FUN(ifc_istreasureroom)
 	else if(ISARG_STR(0)) church = find_church_name(ARG_STR(0));
 	else {
 		if(ISARG_ROOM(0)) here = ARG_ROOM(0);
-		else if(ISARG_NUM(0)) here = get_room_index(ARG_NUM(0));
+		else if(ISARG_NUM(0)) {
+			AREA_DATA *area = find_area_by_vnum(ARG_NUM(0));
+			if (!area) area = get_system_area_fallback();
+			here = get_room_index(area, ARG_NUM(0));
+		}
 
 		if(here) {
 			iterator_start(&it, list_churches);
@@ -4019,7 +4023,11 @@ DECL_IFC_FUN(ifc_istreasureroom)
 
 	if(church) {
 		if(ISARG_ROOM(1)) here = ARG_ROOM(1);
-		else if(ISARG_NUM(1)) here = get_room_index(ARG_NUM(1));
+		else if(ISARG_NUM(1)) {
+			AREA_DATA *area = find_area_by_vnum(ARG_NUM(1));
+			if (!area) area = get_system_area_fallback();
+			here = get_room_index(area, ARG_NUM(1));
+		}
 
 		*ret = here ? is_treasure_room(church, here) : false;
 	}
@@ -4508,7 +4516,7 @@ DECL_IFC_FUN(ifc_mobclones)
 	if(ISARG_ROOM(0)) {
 		location = ARG_ROOM(0);
 
-		if(ISARG_NUM(1)) index = get_mob_index(ARG_NUM(1));
+		if(ISARG_NUM(1)) index = get_mob_index_global(ARG_NUM(1));
 		else if(VALID_NPC(1)) index = ARG_MOB(1)->pIndexData;
 		//if(ISARG_MOBIDX(1)) index = ARG_MOBIDX(1);
 		else
@@ -4523,7 +4531,7 @@ DECL_IFC_FUN(ifc_mobclones)
 		else
 			return false;
 
-		index = get_mob_index(ARG_NUM(0));
+		index = get_mob_index_global(ARG_NUM(0));
 	} else if(VALID_NPC(0)) {
 		if(mob) location = mob->in_room;
 		else if(obj) location = obj_room(obj);
@@ -4572,7 +4580,7 @@ DECL_IFC_FUN(ifc_objclones)
 	if(ISARG_ROOM(0)) {
 		location = ARG_ROOM(0);
 
-		if(ISARG_NUM(1)) index = get_obj_index(ARG_NUM(1));
+		if(ISARG_NUM(1)) index = get_obj_index_global(ARG_NUM(1));
 		else if(ISARG_OBJ(1)) index = ARG_OBJ(1)->pIndexData;
 		//if(ISARG_OBJIDX(1)) index = ARG_OBJIDX(1);
 		else
@@ -4587,7 +4595,7 @@ DECL_IFC_FUN(ifc_objclones)
 		else
 			return false;
 
-		index = get_obj_index(ARG_NUM(0));
+		index = get_obj_index_global(ARG_NUM(0));
 	} else if(ISARG_OBJ(0)) {
 		if(mob) location = mob->in_room;
 		else if(obj) location = obj_room(obj);
@@ -4765,7 +4773,7 @@ DECL_IFC_FUN(ifc_loaded)
 			{
 				if( ISARG_NUM(1) )
 				{
-					MOB_INDEX_DATA *mobindex = get_mob_index(ARG_NUM(1));
+					MOB_INDEX_DATA *mobindex = get_mob_index_global(ARG_NUM(1));
 
 					if( mobindex )
 					{
@@ -4785,7 +4793,7 @@ DECL_IFC_FUN(ifc_loaded)
 			{
 				if( ISARG_NUM(1) )
 				{
-					OBJ_INDEX_DATA *objindex = get_obj_index(ARG_NUM(1));
+					OBJ_INDEX_DATA *objindex = get_obj_index_global(ARG_NUM(1));
 
 					*ret = objindex ? objindex->count : 0;
 				}

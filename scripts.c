@@ -6320,11 +6320,11 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 	variable_dynamic_fix_mobile(ch);
 
 	// Run the SYSTEM LOGIN ROOM SCRIPT
-	script = get_script_index(RPROG_VNUM_PLAYER_INIT,PRG_RPROG);
+	script = get_script_index_global(RPROG_VNUM_PLAYER_INIT,PRG_RPROG);
 	if(script) {
 		script_force_execute = true;
 		script_security = SYSTEM_SCRIPT_SECURITY;
-		execute_script(RPROG_VNUM_PLAYER_INIT, script, NULL, NULL, get_room_index(1), NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,TRIG_LOGIN,0,0,0,0,0);
+		execute_script(RPROG_VNUM_PLAYER_INIT, script, NULL, NULL, get_room_index_global(1), NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,TRIG_LOGIN,0,0,0,0,0);
 		script_security = INIT_SCRIPT_SECURITY;
 		script_force_execute = false;
 	}
@@ -6918,9 +6918,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: ROOM <ROOM-LIST> RANDOM - random valid room from the list
     } else if(!str_cmp(buf,"room")) {
         switch(arg->type) {
-        case ENT_NUMBER:
-            variables_set_room(vars,name,get_room_index(arg->d.num));
+        case ENT_NUMBER: {
+            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            if (!area) area = get_system_area_fallback();
+            variables_set_room(vars,name,get_room_index(area, arg->d.num));
             break;
+        }
         case ENT_ROOM:
             variables_set_room(vars,name,arg->d.room);
             break;
@@ -7114,14 +7117,19 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         }
 
         switch(arg->type) {
-        case ENT_NUMBER:
-            here = get_room_index(arg->d.num);
+        case ENT_NUMBER: {
+            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            if (!area) area = get_system_area_fallback();
+            here = get_room_index(area, arg->d.num);
             mobs = here ? here->people : NULL;
             break;
+        }
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                here = get_room_index(atoi(arg->d.str));
+                AREA_DATA *area = find_area_by_vnum(atoi(arg->d.str));
+                if (!area) area = get_system_area_fallback();
+                here = get_room_index(area, atoi(arg->d.str));
                 mobs = here ? here->people : NULL;
             }
             else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
@@ -7138,7 +7146,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-                MOB_INDEX_DATA *mob_index = get_mob_index(arg->d.num);
+                MOB_INDEX_DATA *mob_index = get_mob_index_global(arg->d.num);
                 if(!mob_index) return;
 
                 vch = get_char_world_index(NULL, mob_index);
@@ -7354,14 +7362,19 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 
         switch(arg->type) {
-        case ENT_NUMBER:
-            here = get_room_index(arg->d.num);
+        case ENT_NUMBER: {
+            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            if (!area) area = get_system_area_fallback();
+            here = get_room_index(area, arg->d.num);
             objs = here ? here->contents : NULL;
             break;
+        }
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                here = get_room_index(atoi(arg->d.str));
+                AREA_DATA *area = find_area_by_vnum(atoi(arg->d.str));
+                if (!area) area = get_system_area_fallback();
+                here = get_room_index(area, atoi(arg->d.str));
                 objs = here ? here->contents : NULL;
             }
             else if(!str_cmp(arg->d.str, "here"))
@@ -7380,7 +7393,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-                OBJ_INDEX_DATA *obj_index = get_obj_index(arg->d.num);
+                OBJ_INDEX_DATA *obj_index = get_obj_index_global(arg->d.num);
 
                 obj = get_obj_world_index(NULL, obj_index, false);
             }
@@ -7831,8 +7844,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: CROOM <ROOM VNUM> <IDa> <IDb>
     } else if(!str_cmp(buf,"croom")) {
         switch(arg->type) {
-        case ENT_NUMBER:
-            here = get_room_index(arg->d.num);
+        case ENT_NUMBER: 
+            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            if (!area) area = get_system_area_fallback();
+            here = get_room_index(area, arg->d.num);
             if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
                 return;
             id1 = arg->d.num;
@@ -7875,7 +7890,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         int dir;
 
         switch(arg->type) {
-        case ENT_NUMBER:    start_room = get_room_index(arg->d.num); break;
+        case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num);
+							if (!area) area = get_system_area_fallback();
+							start_room = get_room_index(area, arg->d.num);
+							break;
+						}
         case ENT_ROOM:      start_room = arg->d.room; break;
         case ENT_EXIT:      start_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
         }
@@ -7884,7 +7903,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             return;
 
         switch(arg->type) {
-        case ENT_NUMBER:    end_room = get_room_index(arg->d.num); break;
+                case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num);
+							if (!area) area = get_system_area_fallback();
+							end_room = get_room_index(area, arg->d.num);
+							break;
+				}
         case ENT_ROOM:      end_room = arg->d.room; break;
         case ENT_EXIT:      end_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
         }
@@ -8496,7 +8519,7 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
+	if (vnum < 1 || !(pMobIndex = get_mob_index_global(vnum))) {
 		sprintf(buf, "Mpmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->mob));
 		bug(buf, 0);
 		return NULL;
@@ -8518,7 +8541,9 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 		}
 		else if( arg->type == ENT_NUMBER )
 		{
-			room = get_room_index(arg->d.num);
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			room = get_room_index(area, arg->d.num);
 			var_name = rest;
 		}
 
@@ -8583,7 +8608,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	default: vnum = 0; break;
 	}
 
-	if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
+	if (!vnum || !(pObjIndex = get_obj_index_global(vnum))) {
 		bug("Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
 		return NULL;
 	}

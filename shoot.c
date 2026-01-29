@@ -761,7 +761,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    act("{YYou choke and gag as the fumes begin to take effect!",
 		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL );
 
-	    if ( get_obj_index( get_reserved_vnum("obj_cloud_stinking") ) == NULL )
+	if ( get_reserved_obj_index("obj_cloud_stinking") == NULL )
 	    {
 		pbugf(LOG_ERROR, "stinking cloud had null index!\n\r");
 		return;
@@ -779,7 +779,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 
 	    if ( !found )
 	    {
-		cloud = create_object( get_obj_index( get_reserved_vnum("obj_cloud_stinking") ),
+		cloud = create_object( get_reserved_obj_index("obj_cloud_stinking"),
 			0, true );
 		cloud->timer = 4;
 		obj_to_room( cloud, ch->in_room );

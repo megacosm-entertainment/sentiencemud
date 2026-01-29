@@ -207,7 +207,7 @@ void do_mpdump(CHAR_DATA *ch, char *argument)
 	one_argument(argument, buf);
 	vnum = atoi(buf);
 
-	if (!(mprg = get_script_index(vnum, PRG_MPROG))) {
+	if (!(mprg = get_script_index_global(vnum, PRG_MPROG))) {
 		send_to_char("No such MOBprogram.\n\r", ch);
 		return;
 	}
@@ -448,10 +448,12 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					*room = &room_used_for_wilderness;
 				}
 			} else
-			{
-					*room = get_room_index(x);
-					rest = rest2;
-			}
+{
+    AREA_DATA *area = find_area_by_vnum(x);
+    if (!area) area = get_system_area_fallback();
+    *room = get_room_index(area, x);
+    rest = rest2;
+}
 			break;
 
 		case ENT_STRING: // Special named locations
@@ -475,7 +477,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							*room = get_clone_room(get_room_index_global(vnum),id1,id2);
 						}
 					}
 				}
@@ -510,7 +512,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 						// Get the area's recall location
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -609,7 +611,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					*room = &room_used_for_wilderness;
 				}
 			} else
-				*room = get_room_index(x);
+				*room = get_room_index_global(x);
 			break;
 
 		case ENT_STRING:
@@ -635,7 +637,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							*room = get_clone_room(get_room_index_global(vnum),id1,id2);
 						}
 					}
 				}
@@ -663,7 +665,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 						*room = &room_used_for_wilderness;
 					}
 				} else
-					*room = get_room_index(x);
+					*room = get_room_index_global(x);
 			} else {
 				// Named locations: <name>
 				loc = NULL;
@@ -673,7 +675,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 						// Get the area's recall location
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -1077,7 +1079,7 @@ SCRIPT_CMD(do_mpcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, PRG_MPROG))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_MPROG))) {
 		bug("MpCall: invalid prog from vnum %d.", VNUM(info->mob));
 		return;
 	}
@@ -2782,9 +2784,9 @@ SCRIPT_CMD(do_mplink)
 	}
 
 	if(id1 > 0 || id2 > 0)
-		dest = get_clone_room(get_room_index(vnum),id1,id2);
+		dest = get_clone_room(get_room_index_global(vnum),id1,id2);
 	else if(vnum > 0)
-		dest = get_room_index(vnum);
+		dest = get_room_index_global(vnum);
 	else if(environ)
 		dest = &room_pointer_environment;
 	else
@@ -2819,7 +2821,7 @@ SCRIPT_CMD(do_mpmload)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
+	if (vnum < 1 || !(pMobIndex = get_mob_index_global(vnum))) {
 		sprintf(buf, "Mpmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->mob));
 		bug(buf, 0);
 		return;
@@ -5236,7 +5238,7 @@ SCRIPT_CMD(do_mpinput)
 	default: return;
 	}
 
-	if(vnum < 1 || !get_script_index(vnum, PRG_MPROG)) return;
+	if(vnum < 1 || !get_script_index_global(vnum, PRG_MPROG)) return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpInput - Error in parsing.",0);
@@ -5999,7 +6001,13 @@ SCRIPT_CMD(do_mpalterexit)
 		}
 
 		switch(arg->type) {
-		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+		case ENT_NUMBER:
+    {
+        AREA_DATA *area = find_area_by_vnum(arg->d.num);
+        if (!area) area = get_system_area_fallback();
+        room = get_room_index(area, arg->d.num);
+    }
+    break;
 		case ENT_ROOM:		room = arg->d.room; break;
 		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
 		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
@@ -6375,7 +6383,7 @@ SCRIPT_CMD(do_mpcloneroom)
 
 	vnum = arg->d.num;
 
-	source = get_room_index(vnum);
+	source = get_room_index_global(vnum);
 	if(!source) return;
 
 	if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
@@ -6819,7 +6827,7 @@ SCRIPT_CMD(do_mpdestroyroom)
 
 	vnum = arg->d.num;
 
-	room = get_room_index(vnum);
+	room = get_room_index_global(vnum);
 	if(!room) return;
 
 	// Get id
@@ -7076,7 +7084,7 @@ SCRIPT_CMD(do_mpxcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
 		bug("MpCall: invalid prog from vnum %d.", VNUM(info->mob));
 		return;
 	}
@@ -8274,9 +8282,9 @@ SCRIPT_CMD(do_mpscriptwait)
 
 	if(!actor_mob && !actor_obj && !actor_token) return;
 
-	if(success < 1 || !get_script_index(success, prog_type)) return;
-	if(failure < 1 || !get_script_index(failure, prog_type)) return;
-	if(pulse > 0 && !get_script_index(pulse, prog_type)) return;
+	if(success < 1 || !get_script_index_global(success, prog_type)) return;
+	if(failure < 1 || !get_script_index_global(failure, prog_type)) return;
+	if(pulse > 0 && !get_script_index_global(pulse, prog_type)) return;
 
 	wait = UMAX(wait, 1);
 
@@ -8295,9 +8303,9 @@ SCRIPT_CMD(do_mpscriptwait)
 		mob->script_wait_id[0] = actor_token->id[0];
 		mob->script_wait_id[1] = actor_token->id[1];
 	}
-	mob->script_wait_success = get_script_index(success, prog_type);
-	mob->script_wait_failure = get_script_index(failure, prog_type);
-	mob->script_wait_pulse = (pulse > 0) ? get_script_index(pulse, prog_type) : NULL;
+	mob->script_wait_success = get_script_index_global(success, prog_type);
+	mob->script_wait_failure = get_script_index_global(failure, prog_type);
+	mob->script_wait_pulse = (pulse > 0) ? get_script_index_global(pulse, prog_type) : NULL;
 
 	//printf_to_char(mob, "script_wait started: %d\n\r", wait);
 
@@ -8339,8 +8347,11 @@ SCRIPT_CMD(do_mpsaveplayer)
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg->d.num > 0 )
-			mob->checkpoint = get_room_index(arg->d.num);
+		if( arg->d.num > 0 ) {
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			mob->checkpoint = get_room_index(area, arg->d.num);
+		}
 		break;
 	case ENT_ROOM:
 		if( arg->d.room != NULL )
@@ -8383,8 +8394,11 @@ SCRIPT_CMD(do_mpcheckpoint)
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg->d.num > 0 )
-			mob->checkpoint = get_room_index(arg->d.num);
+		if( arg->d.num > 0 ) {
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			mob->checkpoint = get_room_index(area, arg->d.num);
+		}
 		break;
 	case ENT_ROOM:
 		if( arg->d.room != NULL )

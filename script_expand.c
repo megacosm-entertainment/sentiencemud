@@ -1785,8 +1785,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		{
 			if( IS_NPC(arg->d.mob) )
 				arg->d.room = arg->d.mob->home_room;
-			else if( arg->d.mob->home > 0 )
-				arg->d.room = get_room_index(arg->d.mob->home);
+			else if( arg->d.mob->home > 0 ) {
+				AREA_DATA *home_area = find_area_by_vnum(arg->d.mob->home);
+				if (!home_area) home_area = get_system_area_fallback();
+				arg->d.room = get_room_index(home_area, arg->d.mob->home);
+			}
 		}
 		else
 			arg->d.room = NULL;
@@ -3082,10 +3085,16 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_AREA_RECALL:
 		arg->type = ENT_ROOM;
 		arg->d.room = (arg->d.area && location_isset(&arg->d.area->recall)) ? location_to_room(&arg->d.area->recall) : NULL;
-		break;
+	if (arg->d.area && arg->d.area->post_office > 0) {
+		AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office);
+		if (!post_area) post_area = get_system_area_fallback();
+		arg->d.room = get_room_index(post_area, arg->d.area->post_office);
+	} else {
+		arg->d.room = NULL;
+	}
 	case ENTITY_AREA_POSTOFFICE:
 		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area->post_office) : NULL;
+		arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area, arg->d.area->post_office) : NULL;
 		break;
 	case ENTITY_AREA_LOWERVNUM:
 		arg->type = ENT_NUMBER;

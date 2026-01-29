@@ -1116,42 +1116,47 @@ void new_reset(ROOM_INDEX_DATA *pR, RESET_DATA *pReset)
  */
 void fix_rooms(void)
 {
+	AREA_DATA *pArea;
     ROOM_INDEX_DATA *room;
     EXIT_DATA *pexit;
     int iHash;
     int door;
 
-    for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
-    {
-	for (room = room_index_hash[iHash]; room != NULL; room = room->next)
+
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
 	{
-	    bool fexit;
-
-	    fexit = false;
-	    for (door = 0; door <= 9; door++)
-	    {
-		if ((pexit = room->exit[door]) != NULL)
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 		{
-		    if (pexit->u1.vnum <= 0
-		    ||   get_room_index(pexit->u1.vnum) == NULL)
-			pexit->u1.to_room = NULL;
-		    else
-		    {
-		   	fexit = true;
-			pexit->u1.to_room = get_room_index(pexit->u1.vnum);
-		    }
+			for (room = pArea->room_index_hash[iHash]; room != NULL; room = room->next)
+			{
+				bool fexit;
+
+				fexit = false;
+				for (door = 0; door <= 9; door++)
+				{
+					if ((pexit = room->exit[door]) != NULL)
+					{
+						if (pexit->u1.vnum <= 0
+						||   get_room_index(room->area, pexit->u1.vnum) == NULL)
+							pexit->u1.to_room = NULL;
+						else
+						{
+				   		fexit = true;
+							pexit->u1.to_room = get_room_index(room->area, pexit->u1.vnum);
+						}
+					}
+				}
+
+				/* only do this for non-wilds rooms*/
+				if (!fexit && room->wilds == NULL)
+					SET_BIT(room->room_flag[0],ROOM_NO_MOB);
+
+
+				/* Fix it so that rooms that have wilderness coords will link to the proper wilderness*/
+				if(room->w) room->viewwilds = get_wilds_from_uid(NULL,room->w);
+			}
 		}
-	    }
-
-	    /* only do this for non-wilds rooms*/
-	    if (!fexit && room->wilds == NULL)
-		SET_BIT(room->room_flag[0],ROOM_NO_MOB);
-
-
-		/* Fix it so that rooms that have wilderness coords will link to the proper wilderness*/
-	    if(room->w) room->viewwilds = get_wilds_from_uid(NULL,room->w);
 	}
-    }
 }
 
 
@@ -1160,22 +1165,25 @@ void fix_rooms(void)
  */
 void fix_mobprogs(void)
 {
+	AREA_DATA *pArea;
 	MOB_INDEX_DATA *mob;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (mob = mob_index_hash[iHash]; mob != NULL; mob = mob->next) if(mob->progs) {
-			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( mob->progs[slot] ) {
-				iterator_start(&it, mob->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					if (!(trigger->script = get_script_index(trigger->vnum, PRG_MPROG))) {
-						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
-						exit(1);
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next) if(mob->progs) {
+				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( mob->progs[slot] ) {
+					iterator_start(&it, mob->progs[slot]);
+					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+						if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_MPROG))) {
+							log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
+							exit(1);
+						}
 					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
 			}
 		}
 	}
@@ -1184,22 +1192,25 @@ void fix_mobprogs(void)
 
 void fix_objprogs(void)
 {
+	AREA_DATA *pArea;
 	OBJ_INDEX_DATA *obj;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (obj = obj_index_hash[iHash]; obj != NULL; obj = obj->next) if(obj->progs) {
-			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( obj->progs[slot] ) {
-				iterator_start(&it, obj->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					if (!(trigger->script = get_script_index(trigger->vnum, PRG_OPROG))) {
-						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
-						exit(1);
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next) if(obj->progs) {
+				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( obj->progs[slot] ) {
+					iterator_start(&it, obj->progs[slot]);
+					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+						if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_OPROG))) {
+							log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
+							exit(1);
+						}
 					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
 			}
 		}
 	}
@@ -1207,46 +1218,52 @@ void fix_objprogs(void)
 
 void fix_roomprogs(void)
 {
+	AREA_DATA *pArea;
 	ROOM_INDEX_DATA *room;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (room = room_index_hash[iHash]; room != NULL; room = room->next) if(room->progs->progs) {
-			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( room->progs->progs[slot] ) {
-				iterator_start(&it, room->progs->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					if (!(trigger->script = get_script_index(trigger->vnum, PRG_RPROG))) {
-						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
-						exit(1);
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (room = pArea->room_index_hash[iHash]; room != NULL; room = room->next) if(room->progs->progs) {
+				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( room->progs->progs[slot] ) {
+					iterator_start(&it, room->progs->progs[slot]);
+					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+						if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_RPROG))) {
+							log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
+							exit(1);
+						}
 					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
-			}
 
+			}
 		}
 	}
 }
 
 void fix_tokenprogs(void)
 {
+	AREA_DATA *pArea;
 	TOKEN_INDEX_DATA *token;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (token = token_index_hash[iHash]; token != NULL; token = token->next) if(token->progs) {
-			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( token->progs[slot] ) {
-				iterator_start(&it, token->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					if (!(trigger->script = get_script_index(trigger->vnum, PRG_TPROG))) {
-						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_tokenprogs: code vnum %d not found on token %ld", trigger->vnum, token->vnum);
-						exit(1);
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (token = pArea->token_index_hash[iHash]; token != NULL; token = token->next) if(token->progs) {
+				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( token->progs[slot] ) {
+					iterator_start(&it, token->progs[slot]);
+					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+						if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_TPROG))) {
+							log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_tokenprogs: code vnum %d not found on token %ld", trigger->vnum, token->vnum);
+							exit(1);
+						}
 					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
 			}
 		}
 	}
@@ -1266,7 +1283,7 @@ void fix_areaprogs(void)
 		for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs->progs[slot] ) {
 			iterator_start(&it, pArea->progs->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				if (!(trigger->script = get_script_index(trigger->vnum, PRG_APROG))) {
+				if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_APROG))) {
 					log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "fix_areaprogs: code vnum %d not found on area %ld", trigger->vnum, pArea->uid);
 					exit(1);
 				}
@@ -1278,22 +1295,25 @@ void fix_areaprogs(void)
 
 void fix_instanceprogs(void)
 {
+	AREA_DATA *pArea;
 	BLUEPRINT *blueprint;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (blueprint = blueprint_hash[iHash]; blueprint != NULL; blueprint = blueprint->next) if(blueprint->progs) {
-			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( blueprint->progs[slot] ) {
-				iterator_start(&it, blueprint->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					if (!(trigger->script = get_script_index(trigger->vnum, PRG_IPROG))) {
-						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
-						exit(1);
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (blueprint = pArea->blueprint_hash[iHash]; blueprint != NULL; blueprint = blueprint->next) if(blueprint->progs) {
+				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( blueprint->progs[slot] ) {
+					iterator_start(&it, blueprint->progs[slot]);
+					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+						if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_IPROG))) {
+							log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
+							exit(1);
+						}
 					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
 			}
 		}
 	}
@@ -1302,22 +1322,25 @@ void fix_instanceprogs(void)
 
 void fix_dungeonprogs(void)
 {
+	AREA_DATA *pArea;
 	DUNGEON_INDEX_DATA *dungeon_index;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (dungeon_index = dungeon_index_hash[iHash]; dungeon_index != NULL; dungeon_index = dungeon_index->next) if(dungeon_index->progs) {
-			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( dungeon_index->progs[slot] ) {
-				iterator_start(&it, dungeon_index->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					if (!(trigger->script = get_script_index(trigger->vnum, PRG_DPROG))) {
-						log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
-						exit(1);
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (dungeon_index = pArea->dungeon_index_hash[iHash]; dungeon_index != NULL; dungeon_index = dungeon_index->next) if(dungeon_index->progs) {
+				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( dungeon_index->progs[slot] ) {
+					iterator_start(&it, dungeon_index->progs[slot]);
+					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+						if (!(trigger->script = get_script_index(pArea, trigger->vnum, PRG_DPROG))) {
+							log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
+							exit(1);
+						}
 					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
 			}
 		}
 	}
@@ -1335,7 +1358,7 @@ void reset_wilds(WILDS_DATA *pWilds)
         {
             if (IS_SET(pVLink->current_linkage, VLINK_PORTAL))
             {
-	      obj = create_object(get_obj_index(get_reserved_vnum("obj_portal_abyss")), 0, true);
+	      obj = create_object(get_obj_index_global(get_reserved_vnum("obj_portal_abyss")), 0, true);
 	      obj_to_vroom(obj, pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y);
             }
         }
@@ -1440,7 +1463,7 @@ void reset_area(AREA_DATA *pArea)
 
 	for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
 	{
-	    if ((pRoom = get_room_index(vnum)))
+	    if ((pRoom = get_room_index(pArea, vnum)))
 			reset_room(pRoom, false);
 	}
 }
@@ -1556,14 +1579,17 @@ void area_update(bool fBoot)
 		}
 	}
 
-	for (hash = 0; hash < MAX_KEY_HASH; hash++)
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
 	{
-		for (room = room_index_hash[hash]; room; room = room->next)
+		for (hash = 0; hash < MAX_KEY_HASH; hash++)
 		{
-			// Persistant rooms are handled separately!
-			if (!room->persist && can_room_update(room))
+			for (room = pArea->room_index_hash[hash]; room; room = room->next)
 			{
-				room_update(room);
+				// Persistant rooms are handled separately!
+				if (!room->persist && can_room_update(room))
+				{
+					room_update(room);
+				}
 			}
 		}
 	}
@@ -1600,7 +1626,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 				switch(curr->command)
 				{
 				case 'M':
-					last_mob = get_mob_index(curr->arg1);
+					last_mob = get_mob_index(room->area, curr->arg1);
 					break;
 
 				case 'G':
@@ -1608,7 +1634,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 
 					if( (last_mob != NULL) &&
 						(last_mob->pShop != NULL) &&
-						((obj = get_obj_index(curr->arg1)) != NULL) &&
+						((obj = get_obj_index(room->area, curr->arg1)) != NULL) &&
 						(obj->item_type != ITEM_MONEY))
 					{
 
@@ -1737,13 +1763,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 			break;
 
 		case 'M':
-			if (!(pMobIndex = get_mob_index(pReset->arg1)))
+			if (!(pMobIndex = get_mob_index(pRoom->area, pReset->arg1)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'M': bad vnum %ld.", pReset->arg1);
 				continue;
 			}
 
-			if ((pRoomIndex = get_room_index(pReset->arg3)) == NULL)
+			if ((pRoomIndex = get_room_index(pRoom->area, pReset->arg3)) == NULL)
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_area: 'R': bad vnum %ld.", pReset->arg3);
 				continue;
@@ -1808,7 +1834,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(1,2);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
+					obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1817,7 +1843,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(2,3);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
+					obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1826,7 +1852,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(3,4);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
+					obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1835,7 +1861,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(4,6);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
+					obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1844,7 +1870,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(10,15);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
+					obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1857,13 +1883,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 			break;
 
 		case 'O':
-			if (!(pObjIndex = get_obj_index(pReset->arg1)))
+			if (!(pObjIndex = get_obj_index(pRoom->area, pReset->arg1)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1, pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
 				continue;
 			}
 
-			if (!(pRoomIndex = get_room_index(pReset->arg3)))
+			if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 2 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg3, pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
 				continue;
@@ -1909,13 +1935,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 			break;
 
 		case 'P':
-			if (!(pObjIndex = get_obj_index(pReset->arg1)))
+			if (!(pObjIndex = get_obj_index(pRoom->area, pReset->arg1)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg1);
 				continue;
 			}
 
-			if (!(pObjToIndex = get_obj_index(pReset->arg3)))
+			if (!(pObjToIndex = get_obj_index(pRoom->area, pReset->arg3)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg3);
 				continue;
@@ -1955,7 +1981,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
 		case 'G':
 		case 'E':
-			if (!(pObjIndex = get_obj_index(pReset->arg1)))
+			if (!(pObjIndex = get_obj_index(pRoom->area, pReset->arg1)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1);
 				continue;
@@ -1999,7 +2025,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 			break;
 
 		case 'R':
-			if (!(pRoomIndex = get_room_index(pReset->arg1)))
+			if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg1)))
 			{
 				log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'R': bad vnum %ld.", pReset->arg1);
 				continue;
@@ -2077,14 +2103,14 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	{
 	case STOCK_OBJECT:
 		if(to_stock->vnum > 0)
-			to_stock->obj = get_obj_index(to_stock->vnum);
+			to_stock->obj = get_obj_index_global(to_stock->vnum);
 		break;
 	case STOCK_PET:
 	case STOCK_MOUNT:
 	case STOCK_GUARD:
 	case STOCK_CREW:
 		if(to_stock->vnum > 0)
-			to_stock->mob = get_mob_index(to_stock->vnum);
+			to_stock->mob = get_mob_index_global(to_stock->vnum);
 		break;
 	case STOCK_SHIP:
 		if(to_stock->vnum > 0)
@@ -3165,11 +3191,13 @@ EXTRA_DESCR_DATA *get_extra_descr(const char *name, EXTRA_DESCR_DATA *ed)
 /*
  * Translates mob virtual number to its mob index struct.
  */
-MOB_INDEX_DATA *get_mob_index(long vnum)
+MOB_INDEX_DATA *get_mob_index(AREA_DATA *pArea, long vnum)
 {
     MOB_INDEX_DATA *mob;
 
-    for (mob = mob_index_hash[vnum % MAX_KEY_HASH]; mob != NULL; mob = mob->next)
+	if (!pArea) return NULL;
+
+	for (mob = pArea->mob_index_hash[vnum % MAX_KEY_HASH]; mob != NULL; mob = mob->next)
     {
 	if (mob->vnum == vnum)
 	    return mob;
@@ -3184,15 +3212,32 @@ MOB_INDEX_DATA *get_mob_index(long vnum)
     return NULL;
 }
 
+MOB_INDEX_DATA *get_mob_index_global(long vnum)
+{
+	AREA_DATA *pArea;
+	MOB_INDEX_DATA *mob;
+
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+	{
+		mob = get_mob_index(pArea, vnum);
+		if (mob)
+			return mob;
+	}
+
+	return NULL;
+}
+
 
 /*
  * Translates mob virtual number to its obj index struct.
  */
-OBJ_INDEX_DATA *get_obj_index(long vnum)
+OBJ_INDEX_DATA *get_obj_index(AREA_DATA *pArea, long vnum)
 {
     OBJ_INDEX_DATA *obj;
 
-    for (obj = obj_index_hash[vnum % MAX_KEY_HASH]; obj != NULL; obj = obj->next)
+	if (!pArea) return NULL;
+
+	for (obj = pArea->obj_index_hash[vnum % MAX_KEY_HASH]; obj != NULL; obj = obj->next)
     {
 	if (obj->vnum == vnum)
 	    return obj;
@@ -3207,15 +3252,32 @@ OBJ_INDEX_DATA *get_obj_index(long vnum)
     return NULL;
 }
 
+OBJ_INDEX_DATA *get_obj_index_global(long vnum)
+{
+	AREA_DATA *pArea;
+	OBJ_INDEX_DATA *obj;
+
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+	{
+		obj = get_obj_index(pArea, vnum);
+		if (obj)
+			return obj;
+	}
+
+	return NULL;
+}
+
 
 /*
  * Translates room virtual number to its room index struct.
  */
-ROOM_INDEX_DATA *get_room_index(long vnum)
+ROOM_INDEX_DATA *get_room_index(AREA_DATA *pArea, long vnum)
 {
     ROOM_INDEX_DATA *room;
 
-    for (room = room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next)
+	if (!pArea) return NULL;
+
+	for (room = pArea->room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next)
     {
 	if (room->vnum == vnum)
 	    return room;
@@ -3230,18 +3292,65 @@ ROOM_INDEX_DATA *get_room_index(long vnum)
     return NULL;
 }
 
+ROOM_INDEX_DATA *get_room_index_global(long vnum)
+{
+	AREA_DATA *pArea;
+	ROOM_INDEX_DATA *room;
 
-TOKEN_INDEX_DATA *get_token_index(long vnum)
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+	{
+		room = get_room_index(pArea, vnum);
+		if (room)
+			return room;
+	}
+
+	return NULL;
+}
+
+// Helper function for migration: Find which area owns a vnum by checking ranges
+// This allows bare vnums from legacy data to work during widevnum transition
+AREA_DATA *find_area_by_vnum(long vnum)
+{
+	AREA_DATA *pArea;
+
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+	{
+		if (vnum >= pArea->min_vnum && vnum <= pArea->max_vnum)
+			return pArea;
+	}
+
+	return NULL;
+}
+
+
+TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum)
 {
     TOKEN_INDEX_DATA *token_index;
 
-    for (token_index = token_index_hash[vnum % MAX_KEY_HASH]; token_index != NULL; token_index = token_index->next)
+	if (!pArea) return NULL;
+
+	for (token_index = pArea->token_index_hash[vnum % MAX_KEY_HASH]; token_index != NULL; token_index = token_index->next)
     {
 	if (token_index->vnum == vnum)
 	    return token_index;
     }
 
     return NULL;
+}
+
+TOKEN_INDEX_DATA *get_token_index_global(long vnum)
+{
+	AREA_DATA *pArea;
+	TOKEN_INDEX_DATA *token_index;
+
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+	{
+		token_index = get_token_index(pArea, vnum);
+		if (token_index)
+			return token_index;
+	}
+
+	return NULL;
 }
 
 bool is_singular_token(TOKEN_INDEX_DATA *index)
@@ -3257,32 +3366,34 @@ bool is_singular_token(TOKEN_INDEX_DATA *index)
 }
 
 
-SCRIPT_DATA *get_script_index(long  vnum, int type)
+SCRIPT_DATA *get_script_index(AREA_DATA *pArea, long vnum, int type)
 {
     SCRIPT_DATA *prg;
+
+    if (!pArea) return NULL;
 
     switch (type)
     {
 	case PRG_MPROG:
-	    prg = mprog_list;
+	    prg = pArea->mprog_list;
 	    break;
 	case PRG_OPROG:
-	    prg = oprog_list;
+	    prg = pArea->oprog_list;
 	    break;
 	case PRG_RPROG:
-	    prg = rprog_list;
+	    prg = pArea->rprog_list;
 	    break;
 	case PRG_TPROG:
-	    prg = tprog_list;
+	    prg = pArea->tprog_list;
 	    break;
 	case PRG_APROG:
-	    prg = aprog_list;
+	    prg = pArea->aprog_list;
 	    break;
 	case PRG_IPROG:
-	    prg = iprog_list;
+	    prg = pArea->iprog_list;
 	    break;
 	case PRG_DPROG:
-	    prg = dprog_list;
+	    prg = pArea->dprog_list;
 	    break;
 	default:
 	    return NULL;
@@ -3295,6 +3406,19 @@ SCRIPT_DATA *get_script_index(long  vnum, int type)
     return NULL;
 }
 
+// Global script lookup - searches all areas
+SCRIPT_DATA *get_script_index_global(long vnum, int type)
+{
+    AREA_DATA *pArea;
+    SCRIPT_DATA *prg;
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        if ((prg = get_script_index(pArea, vnum, type)) != NULL)
+            return prg;
+    }
+    return NULL;
+}
 
 
 /*
@@ -4467,10 +4591,12 @@ void load_reboot_objs()
 
     for (counter = 0; counter < 3; counter++)
     {
-        obj = create_object(get_obj_index(get_reserved_vnum("obj_black_moonstone_shard")), 0, true);
-        pRoom = get_random_room(NULL, 0);
+	pRoom = get_random_room(NULL, 0);
+	if (!pRoom)
+	    continue;
 
-        obj_to_room(obj, pRoom);
+	obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_black_moonstone_shard")), 0, true);
+	obj_to_room(obj, pRoom);
     }
 }
 
@@ -5224,7 +5350,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 
 		/* Transfer all players in the clone to its environment or the Beginning*/
 		environ = get_environment(clone);
-		if(!environ || environ == clone) environ = get_room_index(11001);
+		if(!environ || environ == clone) environ = get_room_index(room->area, 11001);
 
 		/* Emptying the room of players will not set off the wilderness check in char_from_room*/
 		/*	since no wilderness room will EVER use this.*/
@@ -5242,7 +5368,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 
 	} else {
 		// Dump all corpses or takable items to a special place
-		environ = get_room_index(8);		// FIXME: change this to a define
+		environ = get_room_index(room->area, 8);		// FIXME: change this to a define
 
 		while(clone->contents) {
 			for(obj = clone->contents; obj; obj = obj_next) {
@@ -5259,7 +5385,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 
 		/* Transfer all players in the clone to its environment or the Beginning*/
 		environ = get_environment(clone);
-		if(!environ || environ == clone) environ = get_room_index(11001);
+		if(!environ || environ == clone) environ = get_room_index(room->area, 11001);
 
 		/* Emptying the room of players will not set off the wilderness check in char_from_room*/
 		/*	since no wilderness room will EVER use this.*/
@@ -6363,7 +6489,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 //	log_string("persist_load: #TOKEN");
 
 	vnum = fread_number(fp);
-	if ((token_index = get_token_index(vnum)) == NULL) {
+	if ((token_index = get_token_index_global(vnum)) == NULL) {
 		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_token: no token index found for vnum %ld", vnum);
 		return NULL;
 	}
@@ -6450,7 +6576,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	//log_string("persist_load: #OBJECT");
 
 	vnum = fread_number(fp);
-	obj_index = get_obj_index(vnum);
+	obj_index = get_obj_index_global(vnum);
 	if( !obj_index )
 		return NULL;
 
@@ -6703,7 +6829,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					int a = fread_number(fp);
 					int b = fread_number(fp);
 
-					if( (src = get_room_index(v)) )
+					if( (src = get_room_index_global(v)) )
 						here = get_clone_room(src, a, b);
 
 					fMatch = true;
@@ -6718,14 +6844,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					int a = fread_number(fp);
 					int b = fread_number(fp);
 
-					if( (src = get_room_index(v)) )
+					if( (src = get_room_index_global(v)) )
 						deep_here = get_clone_room(src, a, b);
 
 					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepRoom") ) {
 					long rvnum = fread_number(fp);
-					deep_here = get_room_index(rvnum);
+					deep_here = get_room_index_global(rvnum);
 					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepVroom") ) {
@@ -6855,7 +6981,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 			case 'R':
 				if( !str_cmp(word, "Room") ) {
 					long rvnum = fread_number(fp);
-					here = get_room_index(rvnum);
+					here = get_room_index_global(rvnum);
 					fMatch = true;
 				}
 				break;
@@ -7013,7 +7139,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 	//log_string("persist_load: #MOBILE");
 
 	vnum = fread_number(fp);
-	index = get_mob_index(vnum);
+	index = get_mob_index_global(vnum);
 	if( !index )
 		return NULL;
 
@@ -7200,7 +7326,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					unsigned long id1 = fread_number(fp);
 					unsigned long id2 = fread_number(fp);
 
-					ROOM_INDEX_DATA *source = get_room_index(v);
+					ROOM_INDEX_DATA *source = get_room_index_global(v);
 
 
 					here = get_clone_room(source, id1, id2);
@@ -7225,14 +7351,14 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					int a = fread_number(fp);
 					int b = fread_number(fp);
 
-					if( (src = get_room_index(v)) )
+					if( (src = get_room_index_global(v)) )
 						deep_here = get_clone_room(src, a, b);
 
 					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepRoom") ) {
 					long rvnum = fread_number(fp);
-					deep_here = get_room_index(rvnum);
+					deep_here = get_room_index_global(rvnum);
 					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepVroom") ) {
@@ -7348,7 +7474,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				KEY("ResistPerm",	ch->res_flags_perm,	fread_flag(fp));
 
 				if(IS_KEY("Room")) {
-					here = get_room_index(fread_number(fp));
+					here = get_room_index_global(fread_number(fp));
 
 					fMatch = true;
 				}
@@ -7435,7 +7561,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 	if( !here ) here = deep_here;
 
-	if( !here ) here = get_room_index(get_reserved_vnum("room_default"));
+	if( !here ) here = get_reserved_room_index("room_default");
 
 	if( here ) ch->in_room = here;
 
@@ -7502,7 +7628,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 						ex->wilds.y = y;
 					} else {
 						if( y > 0 || z > 0 ) {		// Not guaranteed that the clone room has been created
-							room = get_room_index( x );
+							room = get_room_index_global( x );
 
 							if( room ) {
 								//log_string("get_clone_room: persist_load_exit");
@@ -7516,7 +7642,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 								room = clone;
 							}
 						} else
-							room = get_room_index( x );
+							room = get_room_index_global( x );
 						ex->u1.to_room = room;
 					}
 
@@ -7644,7 +7770,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		//log_string("persist_load: #ROOM");
 		vnum = fread_number(fp);
 
-		room = get_room_index(vnum);
+		room = get_room_index_global(vnum);
 
 		if( !room ) {
 			log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_room: undefined room index at vnum %ld.", vnum);
@@ -7682,7 +7808,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 		vnum = fread_number(fp);
 
-		source = get_room_index(vnum);
+		source = get_room_index_global(vnum);
 
 		if( !source ) {
 			fread_to_eol(fp);
@@ -7849,7 +7975,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 					x = fread_number(fp);
 					y = fread_number(fp);
 
-					source_room = get_room_index(vnum);
+					source_room = get_room_index_global(vnum);
 					if(source_room) {
 						environ_room = get_clone_room(source_room,x,y);
 
@@ -7892,7 +8018,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 					break;
 				}
 				if (!str_cmp(word,"EnvironROOM")) {
-					ROOM_INDEX_DATA *environ_room = get_room_index(fread_number(fp));
+					ROOM_INDEX_DATA *environ_room = get_room_index_global(fread_number(fp));
 					if(environ_room)
 						room_to_environment(room, NULL, NULL, environ_room, NULL);
 

@@ -89,8 +89,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 			for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 			{
 				i++;
-				mob_index = get_mob_index(gq_mob->vnum);
-
+			AREA_DATA *mob_area = find_area_by_vnum(gq_mob->vnum);
+			if (!mob_area) mob_area = get_system_area_fallback();
+			mob_index = get_mob_index(mob_area, gq_mob->vnum);
 				sprintf(buf, "{Y%-2d{x %-6ld %-30.30s %5d/%-5d\n\r",
 					i,
 					gq_mob->vnum,
@@ -105,8 +106,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 			for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
 			{
 				i++;
-				obj_index = get_obj_index(gq_obj->vnum);
-
+			AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum);
+			if (!obj_area) obj_area = get_system_area_fallback();
+			obj_index = get_obj_index(obj_area, gq_obj->vnum);
 				sprintf(buf, "{Y%-2d{x %-6ld %-30.30s %5d/%-5d\n\r",
 					i,
 					gq_obj->vnum,
@@ -281,13 +283,17 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	obj_vnum = atol(arg3);
 	max = atoi(arg5);
 
-	if (get_mob_index(vnum) == NULL)
+	AREA_DATA *mob_area = find_area_by_vnum(vnum);
+	if (!mob_area) mob_area = get_system_area_fallback();
+	if (get_mob_index(mob_area, vnum) == NULL)
 	{
 		send_to_char("That mob doesn't exist.\n\r", ch);
 		return;
 	}
 
-	if (get_obj_index(obj_vnum) == NULL && obj_vnum != 0)
+	AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
+	if (!obj_area) obj_area = get_system_area_fallback();
+	if (get_obj_index(obj_area, obj_vnum) == NULL && obj_vnum != 0)
 	{
 		send_to_char("That object doesn't exist.\n\r", ch);
 		return;
@@ -337,9 +343,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(buf, "Added mob %s (vnum %ld), object %s (vnum %ld), class %d.\n\r",
-		get_mob_index(vnum)->short_descr,
+		get_mob_index(mob_area, vnum)->short_descr,
 		vnum,
-		get_obj_index(obj_vnum) == NULL ? "none" : get_obj_index(obj_vnum)->short_descr,
+		(obj_vnum > 0 && get_obj_index(obj_area, obj_vnum)) ? get_obj_index(obj_area, obj_vnum)->short_descr : "none",
 		obj_vnum,
 		atoi(arg4));
 	send_to_char(buf, ch);
@@ -368,8 +374,13 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	i = 1;
 	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 	{
-		mob_index = get_mob_index(gq_mob->vnum);
-		obj_index = get_obj_index(gq_mob->obj);
+		AREA_DATA *list_mob_area = find_area_by_vnum(gq_mob->vnum);
+		if (!list_mob_area) list_mob_area = get_system_area_fallback();
+		mob_index = get_mob_index(list_mob_area, gq_mob->vnum);
+		
+		AREA_DATA *list_obj_area = find_area_by_vnum(gq_mob->obj);
+		if (!list_obj_area) list_obj_area = get_system_area_fallback();
+		obj_index = get_obj_index(list_obj_area, gq_mob->obj);
 		if (mob_index != NULL)
 		{
 		sprintf(buf,
@@ -428,8 +439,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	else
 		prev_gq_mob->next = gq_mob->next;
 
+	AREA_DATA *mob_area = find_area_by_vnum(gq_mob->vnum);
+	if (!mob_area) mob_area = get_system_area_fallback();
 	sprintf(buf, "Removed %s (vnum %ld)\n\r",
-		get_mob_index(gq_mob->vnum)->short_descr,
+		get_mob_index(mob_area, gq_mob->vnum)->short_descr,
 		gq_mob->vnum);
 	send_to_char(buf, ch);
 
@@ -471,7 +484,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	}
 
 	vnum = atol(arg2);
-	if (get_obj_index(vnum) == NULL)
+	AREA_DATA *obj_area = find_area_by_vnum(vnum);
+	if (!obj_area) obj_area = get_system_area_fallback();
+	if (get_obj_index(obj_area, vnum) == NULL)
 	{
 		send_to_char("That object doesn't exist.\n\r", ch);
 		return;
@@ -561,8 +576,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		global_quest.objects = gq_obj;
 	}
 
+	AREA_DATA *obj_area2 = find_area_by_vnum(vnum);
+	if (!obj_area2) obj_area2 = get_system_area_fallback();
 	sprintf(buf, "Added %s (vnum %ld), qp %d, prac %d, exp %ld, silver %d, gold %d, repop of %d%%, max amount %d.\n\r",
-		get_obj_index(vnum)->short_descr,
+		get_obj_index(obj_area2, vnum)->short_descr,
 		vnum,
 		qp,
 		prac,
@@ -609,8 +626,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	else
 		prev_gq_obj->next = gq_obj->next;
 
+	AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum);
+	if (!obj_area) obj_area = get_system_area_fallback();
 	sprintf(buf, "Removed %s (vnum %ld)\n\r",
-		get_obj_index(gq_obj->vnum)->short_descr,
+		get_obj_index(obj_area, gq_obj->vnum)->short_descr,
 		gq_obj->vnum);
 	send_to_char(buf, ch);
 
@@ -646,7 +665,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	i = 1;
 	for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
 	{
-		obj_index = get_obj_index(gq_obj->vnum);
+		AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		obj_index = get_obj_index(obj_area, gq_obj->vnum);
 		if (obj_index != NULL)
 		{
 		sprintf(buf,

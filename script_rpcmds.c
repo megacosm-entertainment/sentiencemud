@@ -169,7 +169,7 @@ void do_rpdump(CHAR_DATA *ch, char *argument)
 	SCRIPT_DATA *rprg;
 
 	one_argument(argument, buf);
-	if (!(rprg = get_script_index(atoi(buf), PRG_RPROG))) {
+	if (!(rprg = get_script_index_global(atoi(buf), PRG_RPROG))) {
 		send_to_char("No such ROOMprogram.\n\r", ch);
 		return;
 	}
@@ -202,7 +202,7 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!(room = get_room_index(atoi(arg)))) {
+	if (!(room = get_room_index_global(atoi(arg)))) {
 		send_to_char("No such room.\n\r", ch);
 		return;
 	}
@@ -316,10 +316,12 @@ char *rp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					*room = &room_used_for_wilderness;
 				}
 			} else
-			{
-				*room = get_room_index(x);
-				rest = rest2;
-			}
+{
+    AREA_DATA *area = find_area_by_vnum(x);
+    if (!area) area = get_system_area_fallback();
+    *room = get_room_index(area, x);
+    rest = rest2;
+}
 			break;
 
 		case ENT_STRING: // Special named locations
@@ -343,7 +345,9 @@ char *rp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							AREA_DATA *area = find_area_by_vnum(vnum);
+							if (!area) area = get_system_area_fallback();
+							*room = get_clone_room(get_room_index(area, vnum),id1,id2);
 						}
 					}
 				}
@@ -375,7 +379,7 @@ char *rp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -454,8 +458,11 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					room_used_for_wilderness.y = y;
 					*room = &room_used_for_wilderness;
 				}
-			} else
-				*room = get_room_index(x);
+} else {
+    AREA_DATA *area = find_area_by_vnum(x);
+    if (!area) area = get_system_area_fallback();
+    *room = get_room_index(area, x);
+}
 			break;
 
 		case ENT_STRING:
@@ -476,7 +483,9 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							AREA_DATA *area = find_area_by_vnum(vnum);
+							if (!area) area = get_system_area_fallback();
+							*room = get_clone_room(get_room_index(area, vnum),id1,id2);
 						}
 					}
 				}
@@ -510,7 +519,7 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -691,7 +700,7 @@ SCRIPT_CMD(do_rpcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, PRG_RPROG))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_RPROG))) {
 		bug("RpCall: invalid prog from vnum %d.", info->room->vnum);
 		return;
 	}
@@ -1725,11 +1734,15 @@ SCRIPT_CMD(do_rplink)
 		return;
 	}
 
-	if(id1 > 0 || id2 > 0)
-		dest = get_clone_room(get_room_index(vnum),id1,id2);
-	else if(vnum > 0)
-		dest = get_room_index(vnum);
-	else if(environ)
+	if(id1 > 0 || id2 > 0) {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		dest = get_clone_room(get_room_index(area, vnum),id1,id2);
+	} else if(vnum > 0) {
+		AREA_DATA *area = find_area_by_vnum(vnum);
+		if (!area) area = get_system_area_fallback();
+		dest = get_room_index(area, vnum);
+	} else if(environ)
 		dest = &room_pointer_environment;
 	else
 		dest = NULL;
@@ -1762,7 +1775,7 @@ SCRIPT_CMD(do_rpmload)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
+	if (vnum < 1 || !(pMobIndex = get_mob_index_global(vnum))) {
 		sprintf(buf, "Rpmload: bad mob index (%ld) from mob %ld", vnum, info->room->vnum);
 		bug(buf, 0);
 		return;
@@ -4412,7 +4425,7 @@ SCRIPT_CMD(do_rpinput)
 	default: return;
 	}
 
-	if(vnum < 1 || !get_script_index(vnum, PRG_RPROG)) return;
+	if(vnum < 1 || !get_script_index_global(vnum, PRG_RPROG)) return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("RpInput - Error in parsing.",0);
@@ -4618,7 +4631,12 @@ SCRIPT_CMD(do_rpalterexit)
 		}
 
 		switch(arg->type) {
-		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+		case ENT_NUMBER: {
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			room = get_room_index(area, arg->d.num);
+			break;
+		}
 		case ENT_ROOM:		room = arg->d.room; break;
 		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
 		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
@@ -4997,7 +5015,9 @@ SCRIPT_CMD(do_rpcloneroom)
 
 	vnum = arg->d.num;
 
-	source = get_room_index(vnum);
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
+	source = get_room_index(area, vnum);
 	if(!source) return;
 
 	if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
@@ -5446,7 +5466,9 @@ SCRIPT_CMD(do_rpdestroyroom)
 
 	vnum = arg->d.num;
 
-	room = get_room_index(vnum);
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
+	room = get_room_index(area, vnum);
 	if(!room) return;
 
 	// Get id
@@ -5691,7 +5713,7 @@ SCRIPT_CMD(do_rpxcall)
 	default: vnum = 0; break;
 	}
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
 		bug("RpCall: invalid prog from vnum %d.", info->room->vnum);
 		return;
 	}
@@ -6840,8 +6862,11 @@ SCRIPT_CMD(do_rpcheckpoint)
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg->d.num > 0 )
-			mob->checkpoint = get_room_index(arg->d.num);
+		if( arg->d.num > 0 ) {
+			AREA_DATA *area = find_area_by_vnum(arg->d.num);
+			if (!area) area = get_system_area_fallback();
+			mob->checkpoint = get_room_index(area, arg->d.num);
+		}
 		break;
 	case ENT_ROOM:
 		if( arg->d.room != NULL )

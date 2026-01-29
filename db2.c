@@ -372,12 +372,15 @@ void global_reset( void )
 	    && gq_mob->count + 1 > 50 )
 		continue;
 
-	    ch = create_mobile(get_mob_index(gq_mob->vnum), false);
+	    AREA_DATA *mob_area = find_area_by_vnum(gq_mob->vnum);
+	    if (!mob_area) mob_area = get_system_area_fallback();
+	    ch = create_mobile(get_mob_index(mob_area, gq_mob->vnum), false);
 	    if ( gq_mob->obj != 0 )
 	    {
-		obj = create_object( get_obj_index( gq_mob->obj ),
-			get_obj_index( gq_mob->obj )->level,
-			false);
+		AREA_DATA *obj_area = find_area_by_vnum(gq_mob->obj);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		OBJ_INDEX_DATA *obj_index = get_obj_index(obj_area, gq_mob->obj);
+		obj = create_object( obj_index, obj_index->level, false);
 		obj_to_char(obj, ch);
 	    }
 
@@ -400,7 +403,9 @@ void global_reset( void )
 
 	    if ( number_percent() < gq_obj->repop )
 	    {
-		obj = create_object(get_obj_index(gq_obj->vnum), 1, false);
+		AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		obj = create_object(get_obj_index(obj_area, gq_obj->vnum), 1, false);
 		obj_to_room( obj, room );
 	    }
 	}
@@ -582,7 +587,7 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 
     for (tries = 0; tries < 200; tries++)
     {
-		oIndex = get_obj_index( number_range( area->min_vnum, area->max_vnum));
+		oIndex = get_obj_index(area, number_range( area->min_vnum, area->max_vnum));
 		if ( oIndex == NULL )
 			continue;
 
@@ -640,11 +645,11 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
     for (attempts = 0; attempts < 1000; attempts++)
     {
         /* grab a pIndexData first to increase diversity */
-	mIndex = get_mob_index( number_range( area->min_vnum, area->max_vnum));
+	mIndex = get_mob_index(area, number_range( area->min_vnum, area->max_vnum));
 	first_vnum = area->min_vnum;
 	do
 	{
-	    first_room = get_room_index( first_vnum++ );
+	    first_room = get_room_index(area, first_vnum++ );
 	}
 	while ( first_room == NULL );
 
@@ -778,7 +783,7 @@ ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, i
 
 	for ( ; ; )
 	{
-		room = get_room_index( number_range( area->min_vnum, area->max_vnum));
+		room = get_room_index(area, number_range( area->min_vnum, area->max_vnum));
 		if( valid_random_room(ch, room, n_room_flags, n_room2_flags) )
 			break;
 	}
@@ -1332,7 +1337,9 @@ void do_dump( CHAR_DATA *ch, char *argument )
 
 				//Container attributes
 				if (obj->item_type == ITEM_CONTAINER) {
-					OBJ_INDEX_DATA *key = get_obj_index(obj->value[2]);
+					AREA_DATA *key_area = obj->value[2] > 0 ? find_area_by_vnum(obj->value[2]) : NULL;
+					if (key_area == NULL && obj->value[2] > 0) key_area = get_system_area_fallback();
+					OBJ_INDEX_DATA *key = key_area ? get_obj_index(key_area, obj->value[2]) : NULL;
 					fprintf(fp, "%s[%ld]	%ld	%ld	%s	", key == NULL ? "None" : key->short_descr,
 						key == NULL ? 0 : key->vnum, obj->value[3],
 					obj->value[4], flag_string( container_flags, obj->value[1] ));
@@ -1575,7 +1582,7 @@ void generate_poa_resets( int level )
 	int num_resets;
 	int count = 0;
 
-	if ( ( room = get_room_index( vnum)) == NULL )
+	if ( ( room = get_room_index(area, vnum)) == NULL )
 	    continue;
 
 	// Decide on # resets per room. Not hugely necesarry now but may be
@@ -1631,7 +1638,7 @@ MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area )
 
     do
     {
-	mob = get_mob_index( number_range( area->min_vnum, area->max_vnum));
+	mob = get_mob_index(area, number_range( area->min_vnum, area->max_vnum));
     }
     while ( mob == NULL && i++ < attempts );
 

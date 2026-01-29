@@ -505,7 +505,7 @@ void save_rooms_new(FILE *fp, AREA_DATA *area)
 
     for (j = 0; j < r; j++)
     {
-	for (room = room_index_hash[i];room;room = room->next)
+	for (room = area->room_index_hash[i];room;room = room->next)
 	    if (room->vnum && room->area == area)// Keep from saving room 0! JIC!!!
 		save_room_new(fp, room, ROOMTYPE_NORMAL);
 
@@ -530,7 +530,7 @@ void save_mobiles_new(FILE *fp, AREA_DATA *area)
 
     for (j = 0; j < r; j++)
     {
-	for (mob = mob_index_hash[i];mob;mob = mob->next)
+	for (mob = area->mob_index_hash[i];mob;mob = mob->next)
 	    if (mob->vnum && mob->area == area)// Keep from saving mob 0! JIC!!!
 		save_mobile_new(fp, mob);
 
@@ -556,7 +556,7 @@ void save_objects_new(FILE *fp, AREA_DATA *area)
 
     for (j = 0; j < r; j++)
     {
-	for (obj = obj_index_hash[i];obj;obj = obj->next)
+	for (obj = area->obj_index_hash[i];obj;obj = obj->next)
 	    if (obj->vnum && obj->area == area)// Keep from saving obj 0! JIC!!!
 		save_object_new(fp, obj);
 
@@ -581,7 +581,7 @@ void save_tokens(FILE *fp, AREA_DATA *area)
 
     for (j = 0; j < r; j++)
     {
-	for (token = token_index_hash[i];token;token = token->next)
+	for (token = area->token_index_hash[i];token;token = token->next)
 	    if (token->vnum && token->area == area)// Keep from saving token 0! JIC!!!
 		save_token(fp, token);
 
@@ -1152,27 +1152,27 @@ void save_scripts_new(FILE *fp, AREA_DATA *area)
 
     // rooms
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-	if ((scr = get_script_index(vnum, PRG_RPROG)))
+	if ((scr = get_script_index(area, vnum, PRG_RPROG)))
 	    save_script_new(fp,area,scr,"ROOM");
 
     // mobiles
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-	if ((scr = get_script_index(vnum, PRG_MPROG)))
+	if ((scr = get_script_index(area, vnum, PRG_MPROG)))
 	    save_script_new(fp,area,scr,"MOB");
 
     // objects
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-	if ((scr = get_script_index(vnum, PRG_OPROG)))
+	if ((scr = get_script_index(area, vnum, PRG_OPROG)))
 	    save_script_new(fp,area,scr,"OBJ");
 
     // tokens
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-	if ((scr = get_script_index(vnum, PRG_TPROG)))
+	if ((scr = get_script_index(area, vnum, PRG_TPROG)))
 	    save_script_new(fp,area,scr,"TOKEN");
 
 	// Areas
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-	if ((scr = get_script_index(vnum, PRG_APROG)))
+	if ((scr = get_script_index(area, vnum, PRG_APROG)))
 	    save_script_new(fp,area,scr,"AREA");
 }
 
@@ -1349,10 +1349,10 @@ AREA_DATA *read_area_new(FILE *fp)
 		    room = read_room_new(fp, area, ROOMTYPE_NORMAL);
 		    vnum = room->vnum;
 		    iHash                   = vnum % MAX_KEY_HASH;
-		    room->next        = room_index_hash[iHash];
+		    room->next        = area->room_index_hash[iHash];
 		    room->area = area;
 		    list_appendlink(area->room_list, room);	// Add to the area room list
-		    room_index_hash[iHash]  = room;
+		    area->room_index_hash[iHash]  = room;
 		    top_room++;
 		    top_vnum_room = top_vnum_room < vnum ? vnum : top_vnum_room; /* OLC */
 		}
@@ -1361,8 +1361,8 @@ AREA_DATA *read_area_new(FILE *fp)
 		    mob = read_mobile_new(fp, area);
 		    vnum = mob->vnum;
 		    iHash = vnum % MAX_KEY_HASH;
-		    mob->next = mob_index_hash[iHash];
-		    mob_index_hash[iHash] = mob;
+		    mob->next = area->mob_index_hash[iHash];
+		    area->mob_index_hash[iHash] = mob;
 		    mob->area = area;
 		    top_mob_index++;
 		    top_vnum_mob = top_vnum_mob < vnum ? vnum : top_vnum_mob;
@@ -1376,8 +1376,8 @@ AREA_DATA *read_area_new(FILE *fp)
 		    obj = read_object_new(fp, area);
 		    vnum = obj->vnum;
 		    iHash = vnum % MAX_KEY_HASH;
-		    obj->next = obj_index_hash[iHash];
-		    obj_index_hash[iHash] = obj;
+		    obj->next = area->obj_index_hash[iHash];
+		    area->obj_index_hash[iHash] = obj;
 		    obj->area = area;
 		    top_obj_index++;
 		    top_vnum_obj = top_vnum_obj < vnum ? vnum : top_vnum_obj;
@@ -1387,48 +1387,48 @@ AREA_DATA *read_area_new(FILE *fp)
 		    token = read_token(fp, area);
 		    vnum = token->vnum;
 		    iHash = vnum % MAX_KEY_HASH;
-		    token->next = token_index_hash[iHash];
-		    token_index_hash[iHash] = token;
+		    token->next = area->token_index_hash[iHash];
+		    area->token_index_hash[iHash] = token;
 		    token->area = area;
 		}
 		else if (!str_cmp(word, "#ROOMPROG"))
 		{
 		    rpr = read_script_new(fp, area, IFC_R);
 		    if(rpr) {
-			rpr->next = rprog_list;
-			rprog_list = rpr;
+			rpr->next = area->rprog_list;
+			area->rprog_list = rpr;
 		    }
 		}
 		else if (!str_cmp(word, "#MOBPROG"))
 		{
 		    mpr = read_script_new(fp, area, IFC_M);
 		    if(mpr) {
-		    mpr->next = mprog_list;
-		    mprog_list = mpr;
+		    mpr->next = area->mprog_list;
+		    area->mprog_list = mpr;
 		    }
 		}
 		else if (!str_cmp(word, "#OBJPROG"))
 		{
 		    opr = read_script_new(fp, area, IFC_O);
 		    if(opr) {
-			opr->next = oprog_list;
-			oprog_list = opr;
+			opr->next = area->oprog_list;
+			area->oprog_list = opr;
 		    }
 		}
 		else if (!str_cmp(word, "#TOKENPROG"))
 		{
 		    tpr = read_script_new(fp, area, IFC_T);
 		    if(tpr) {
-			tpr->next = tprog_list;
-			tprog_list = tpr;
+			tpr->next = area->tprog_list;
+			area->tprog_list = tpr;
 		    }
 		}
 		else if (!str_cmp(word, "#AREAPROG"))
 		{
 		    apr = read_script_new(fp, area, IFC_A);
 		    if(apr) {
-			apr->next = aprog_list;
-			aprog_list = apr;
+			apr->next = area->aprog_list;
+			area->aprog_list = apr;
 		    }
 		}
 		/* VIZZWILDS */

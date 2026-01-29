@@ -518,7 +518,7 @@ SPELL_FUNC(spell_spell_trap)
 		}
 	}
 
-	trap = create_object(get_obj_index(get_reserved_vnum("obj_spell_spelltrap")), level, true);
+	trap = create_object(get_reserved_obj_index("obj_spell_spelltrap"), level, true);
 	trap->timer = 4;
 	trap->level = ch->tot_level;
 	obj_to_room(trap, ch->in_room);

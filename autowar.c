@@ -89,7 +89,7 @@ void do_war(CHAR_DATA *ch, char *argument)
 	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 
 	char_from_room( ch );
-	char_to_room( ch, get_room_index( get_reserved_vnum("room_war_staging") ) );
+	char_to_room( ch, get_reserved_room_index("room_war_staging") );
 
 	send_to_char( "{YYou have joined the battle!{x\n\r", ch );
 	act( "{Y$n has joined the battle!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );

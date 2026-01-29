@@ -2953,7 +2953,9 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 	int min,max;
 
 	if(corpse->item_type == ITEM_CORPSE_NPC) {
-		MOB_INDEX_DATA *mob = get_mob_index(corpse->orig_vnum);
+		AREA_DATA *mob_area = find_area_by_vnum(corpse->orig_vnum);
+		if (!mob_area) mob_area = get_system_area_fallback();
+		MOB_INDEX_DATA *mob = get_mob_index(mob_area, corpse->orig_vnum);
 
 		// Check if the corpse has owner name/short information
 		if( IS_NULLSTR(corpse->owner_name) )
@@ -3077,10 +3079,12 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         name = ch->name;
         short_desc = ch->short_descr;
 
-        obj_index = (ch->corpse_vnum > 0) ? get_obj_index(ch->corpse_vnum) : NULL;
+        AREA_DATA *corpse_area = (ch->corpse_vnum > 0) ? find_area_by_vnum(ch->corpse_vnum) : NULL;
+        if (!corpse_area) corpse_area = get_system_area_fallback();
+        obj_index = (ch->corpse_vnum > 0) ? get_obj_index(corpse_area, ch->corpse_vnum) : NULL;
 
         if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
-            obj_index = get_obj_index(get_reserved_vnum("obj_corpse_npc"));
+            obj_index = get_reserved_obj_index("obj_corpse_npc");
 
         corpse = create_object(obj_index, 0, true);
         // [3,6]
@@ -3104,7 +3108,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
     } else { // PCs
         name		= ch->name;
         short_desc	= ch->name;
-        corpse		= create_object(get_obj_index(get_reserved_vnum("obj_corpse_pc")), 0, true);
+        corpse		= create_object(get_reserved_obj_index("obj_corpse_pc"), 0, true);
         // [25,40]
 
         // If the reckoning, put some pneuma in the corpse
@@ -3115,7 +3119,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
             for (count = 0; count < pneuma_num; count++)
             {
-            pneuma = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 0, true);
+            pneuma = create_object(get_reserved_obj_index("obj_pneuma_item"), 0, true);
             obj_to_obj(pneuma, corpse);
             }
         }
@@ -3410,7 +3414,9 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		char *name;
 
 		name		= IS_NPC(ch) ? ch->short_descr : ch->name;
-		obj		= create_object(get_obj_index(vnum), 0, true);
+		AREA_DATA *part_area = find_area_by_vnum(vnum);
+		if (!part_area) part_area = get_system_area_fallback();
+		obj		= create_object(get_obj_index(part_area, vnum), 0, true);
 		obj->level = ch->tot_level;
 		obj->timer	= head_time;
 
@@ -3708,7 +3714,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
             victim->in_room->name, victim->in_room->vnum);
         bug(buf, 0);
 
-        recall_room = get_room_index(get_reserved_vnum("room_default_recall"));
+        recall_room = get_reserved_room_index("room_default_recall");
     }
     location_from_room(&victim->recall,recall_room);
     stop_fighting(victim, true);
@@ -3766,7 +3772,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
         send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
 
         char_from_room(victim);
-        char_to_room(victim,get_room_index(get_reserved_vnum("room_newbie_repop")));
+        char_to_room(victim,get_reserved_room_index("room_newbie_repop"));
 
         victim->position = POS_RESTING;
         victim->dead = false;
@@ -3914,7 +3920,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
     victim->mana = victim->max_mana;
     victim->move = victim->max_move;
     char_from_room(victim);
-    char_to_room(victim, get_room_index(get_reserved_vnum("room_death")));
+    char_to_room(victim, get_reserved_room_index("room_death"));
 
     // Mark all carried and worn objects as UNSEEN
     if (victim->lcarrying) {
@@ -3992,7 +3998,7 @@ void death_mob_echo(CHAR_DATA *victim)
 	send_to_char("{C'This really is pointless, how many times more am I going to have to take you back?' says Death.{x\n\r", victim);
 	}
 
-	death_mob = create_mobile(get_mob_index(get_reserved_vnum("mob_death")), false);
+	death_mob = create_mobile(get_reserved_mob_index("mob_death"), false);
 	char_to_room(death_mob, victim->in_room);
 
 	act("Death taps $n's corpse three times with his scythe.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -8027,7 +8033,9 @@ CHAR_DATA* create_player_hunter(long vnum, CHAR_DATA *target)
 {
 	CHAR_DATA *challenger;
 
-	challenger = create_mobile( get_mob_index( vnum ), false );
+	AREA_DATA *area = find_area_by_vnum(vnum);
+	if (!area) area = get_system_area_fallback();
+	challenger = create_mobile( get_mob_index( area, vnum ), false );
 		challenger->target_name = target->name;
 
 		return challenger;

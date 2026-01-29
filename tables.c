@@ -3590,6 +3590,7 @@ const struct game_setting_type game_settings_table[] = {
     { "org_max_ranks",        &game_settings.org_max_ranks,        SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "How many ranks can an organization have",                    true,  false, false },
     { "max_orgs",            &game_settings.max_orgs,             SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum organizations that can exist",                       true,  false, false },
     { "org_pk_cost",        &game_settings.org_disable_pk_pneuma_cost,           SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Cost to disable PK for your church",               true,  false, false },
+    { "system_area",        &game_settings.system_area,           SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Default/system area name or UID for reserved and widevnum fallback", true, false, false },
 
 
 

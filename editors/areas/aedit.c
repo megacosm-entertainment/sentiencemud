@@ -114,7 +114,7 @@ AEDIT(aedit_show)
 				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
 		else
 			sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pArea->recall.wuid);
-	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) {
+	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
 			sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pArea->recall.id[0], recall->name);
 	} else
 			sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pArea->recall.id[0]);
@@ -127,8 +127,8 @@ AEDIT(aedit_show)
 	    flag_string(place_flags, pArea->place_flags));
     add_buf(buffer, buf);
 
-    sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea->airship_land_spot) == NULL ? "{XNone" :
-        get_room_index(pArea->airship_land_spot)->name, pArea->airship_land_spot);
+    sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea, pArea->airship_land_spot) == NULL ? "{XNone" :
+        get_room_index(pArea, pArea->airship_land_spot)->name, pArea->airship_land_spot);
     add_buf(buffer, buf);
 
 
@@ -335,14 +335,14 @@ AEDIT(aedit_airshipland)
 	return false;
     }
 
-    if (get_room_index(atol(argument)) == NULL) {
+    if (get_room_index(pArea, atol(argument)) == NULL) {
 	send_to_char("That room doesn't exist.\n\r", ch);
 	return false;
     }
 
     pArea->airship_land_spot = atol(argument);
     sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
-        pArea->name, atol(argument), get_room_index(atol(argument))->name);
+        pArea->name, atol(argument), get_room_index(pArea, atol(argument))->name);
     send_to_char(buf, ch);
     return true;
 }
@@ -389,7 +389,7 @@ AEDIT( aedit_add_trade )
 	min_price = atoi( arg5 );
 	max_price = atoi( arg6 );
 
-	if ( ( pObj = get_obj_index( obj_vnum ) ) == NULL )
+	if ( ( pObj = get_obj_index( pArea, obj_vnum ) ) == NULL )
 	{
 	    send_to_char( "That object does not exist!\n\r", ch );
 	    return false;
@@ -841,7 +841,7 @@ AEDIT(aedit_recall)
 		location_clear(&pArea->recall);
 		send_to_char("Recall cleared.\n\r", ch);
 	} else if(!arg2[0]) {
-		if(!get_room_index(vnum)) {
+		if(!get_room_index(pArea, vnum)) {
 			send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
 			return false;
 		}
@@ -1088,7 +1088,7 @@ AEDIT(aedit_postoffice)
 	return false;
     }
 
-    if ((room = get_room_index(vnum)) == NULL) {
+    if ((room = get_room_index(pArea, vnum)) == NULL) {
 	send_to_char("That room vnum doesn't exist.\n\r", ch);
 	return false;
     }
@@ -1129,7 +1129,7 @@ AEDIT (aedit_addaprog)
 
     slot = trigger_table[tindex].slot;
 
-    if ((code = get_script_index (atol(num), PRG_APROG)) == NULL)
+    if ((code = get_script_index_global(atol(num), PRG_APROG)) == NULL)
     {
 	send_to_char("No such AREAProgram.\n\r",ch);
 	return false;

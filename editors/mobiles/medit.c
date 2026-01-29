@@ -171,13 +171,13 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	if (pMob->corpse) {
-		OBJ_INDEX_DATA *obj = get_obj_index(pMob->corpse);
+		OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->corpse);
 		sprintf(buf, "Corpse Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
 		add_buf(buffer, buf);
 	}
 
 	if (pMob->zombie) {
-		OBJ_INDEX_DATA *obj = get_obj_index(pMob->zombie);
+		OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->zombie);
 		sprintf(buf, "Zombie Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
 		add_buf(buffer, buf);
 	}
@@ -395,7 +395,7 @@ MEDIT(medit_show)
 					strcpy(typ,"{GOBJECT{x  ");
 					if( pStock->vnum > 0 ) {
 
-						OBJ_INDEX_DATA *obj = get_obj_index(pStock->vnum);
+						OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pStock->vnum);
 
 						if( !obj ) {
 							strcpy(item, "-invalid-");
@@ -413,7 +413,7 @@ MEDIT(medit_show)
 					strcpy(typ,"{GPET{x     ");
 					if( pStock->vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
 
 						if( !mob ) {
 							strcpy(item, "-invalid-");
@@ -430,7 +430,7 @@ MEDIT(medit_show)
 					strcpy(typ,"{GMOUNT{x   ");
 					if( pStock->vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
 
 						if( !mob ) {
 							strcpy(item, "-invalid-");
@@ -447,7 +447,7 @@ MEDIT(medit_show)
 					strcpy(typ,"{GGUARD{x   ");
 					if( pStock->vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
 
 						if( !mob ) {
 							strcpy(item, "-invalid-");
@@ -465,7 +465,7 @@ MEDIT(medit_show)
 					strcpy(typ,"{GCREW{x    ");
 					if( pStock->vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
 
 						if( !mob || !mob->pCrew ) {
 							strcpy(item, "-invalid-");
@@ -635,7 +635,7 @@ MEDIT(medit_next)
     while (nextMob == NULL
     && next_vnum <= pMob->area->max_vnum)
     {
-	nextMob = get_mob_index(next_vnum);
+	    nextMob = get_mob_index(pMob->area, next_vnum);
 	next_vnum++;
     }
 
@@ -719,7 +719,7 @@ MEDIT(medit_prev)
     while (prevMob == NULL
     && prev_vnum >= pMob->area->min_vnum)
     {
-	prevMob = get_mob_index(prev_vnum);
+	prevMob = get_mob_index(pMob->area, prev_vnum);
 	prev_vnum--;
     }
 
@@ -790,12 +790,12 @@ MEDIT(medit_create)
 	MOB_INDEX_DATA *temp_mob;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_mob = get_mob_index(auto_vnum);
+	temp_mob = get_mob_index(ch->in_room->area, auto_vnum);
 	if (temp_mob != NULL)
 	{
 	    while (temp_mob != NULL)
 	    {
-		temp_mob = get_mob_index(auto_vnum);
+		temp_mob = get_mob_index(ch->in_room->area, auto_vnum);
 		if (temp_mob == NULL) break;
 		auto_vnum++;
 	    }
@@ -825,7 +825,7 @@ MEDIT(medit_create)
 	return false;
     }
 
-    if (get_mob_index(value))
+	if (get_mob_index(pArea, value))
     {
 	send_to_char("MEdit:  Mobile vnum already exists.\n\r", ch);
 	return false;
@@ -841,8 +841,8 @@ MEDIT(medit_create)
     pMob->act[0]			= ACT_IS_NPC;
     pMob->act[1]			= 0;
     iHash			= value % MAX_KEY_HASH;
-    pMob->next			= mob_index_hash[iHash];
-    mob_index_hash[iHash]	= pMob;
+	pMob->next			= pArea->mob_index_hash[iHash];
+	pArea->mob_index_hash[iHash]	= pMob;
     ch->desc->pEdit		= (void *)pMob;
 
 
@@ -1198,7 +1198,9 @@ MEDIT(medit_corpsevnum)
 
 	if (value > 0) {
 
-		if(!get_obj_index(value)) {
+		AREA_DATA *obj_area = find_area_by_vnum(value);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		if(!get_obj_index(obj_area, value)) {
 			send_to_char("Object does not exist.\n\r",ch);
 			return false;
 		} else {
@@ -1229,7 +1231,9 @@ MEDIT(medit_zombievnum)
 	value = atoi(argument);
 
 	if (value > 0) {
-		if(!get_obj_index(value)) {
+		AREA_DATA *obj_area = find_area_by_vnum(value);
+		if (!obj_area) obj_area = get_system_area_fallback();
+		if(!get_obj_index(obj_area, value)) {
 			send_to_char("Object does not exist.\n\r",ch);
 			return false;
 		} else {
@@ -1646,9 +1650,10 @@ MEDIT(medit_shop)
 			{
 				if(is_number(argument))
 				{
-					OBJ_INDEX_DATA *item = get_obj_index(atoi(argument));
-
-					if(!item)
+				long vnum = atoi(argument);
+				AREA_DATA *item_area = find_area_by_vnum(vnum);
+				if (!item_area) item_area = get_system_area_fallback();
+				OBJ_INDEX_DATA *item = get_obj_index(item_area, vnum);
 					{
 						send_to_char("Object does not exist.\n\r", ch);
 						return false;
@@ -1687,7 +1692,7 @@ MEDIT(medit_shop)
 			{
 				if(is_number(argument))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
 
 					if(!mob)
 					{
@@ -1723,7 +1728,7 @@ MEDIT(medit_shop)
 			{
 				if(is_number(argument))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
 
 					if(!mob)
 					{
@@ -1759,7 +1764,7 @@ MEDIT(medit_shop)
 			{
 				if(is_number(argument))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
 
 					if(!mob)
 					{
@@ -1795,7 +1800,7 @@ MEDIT(medit_shop)
 			{
 				if(is_number(argument))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
 
 					if(!mob)
 					{
@@ -1856,7 +1861,9 @@ MEDIT(medit_shop)
 						return false;
 					}
 
-					if( !IS_VALID(ship->blueprint) || !get_obj_index(ship->ship_object) )
+					AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object);
+					if (!ship_area) ship_area = get_system_area_fallback();
+					if( !IS_VALID(ship->blueprint) || !get_obj_index(ship_area, ship->ship_object) )
 					{
 						send_to_char("Ship is incomplete.  Cannot be sold yet.\n\r", ch);
 						return false;
@@ -2943,7 +2950,7 @@ MEDIT (medit_addmprog)
 		}
 	}
 
-    if ((code = get_script_index (atol(num), PRG_MPROG)) == NULL)
+    if ((code = get_script_index_global (atol(num), PRG_MPROG)) == NULL)
     {
 	send_to_char("No such MOBProgram.\n\r",ch);
 	return false;
@@ -3161,7 +3168,9 @@ MEDIT(medit_questor)
 		}
 
 		long vnum = atoi(argument);
-		if( !get_obj_index(vnum) )
+		AREA_DATA *scroll_area = find_area_by_vnum(vnum);
+		if (!scroll_area) scroll_area = get_system_area_fallback();
+		if( !get_obj_index(scroll_area, vnum) )
 		{
 			send_to_char("Object does not exist.\n\r", ch);
 			return false;

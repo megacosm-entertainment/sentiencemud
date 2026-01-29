@@ -82,7 +82,7 @@ TEDIT(tedit_create)
 	return false;
     }
 
-    if (get_token_index(value))
+	if (get_token_index(pArea, value))
     {
 	send_to_char("Token vnum already exists.\n\r", ch);
 	return false;
@@ -93,8 +93,8 @@ TEDIT(tedit_create)
     token_index->area = pArea;
 
     iHash = value % MAX_KEY_HASH;
-    token_index->next = token_index_hash[iHash];
-    token_index_hash[iHash] = token_index;
+	token_index->next = pArea->token_index_hash[iHash];
+	pArea->token_index_hash[iHash] = token_index;
 
     ch->desc->pEdit = (void *)token_index;
 
@@ -882,7 +882,7 @@ TEDIT (tedit_addtprog)
 	}
 
 
-    if ((code = get_script_index (atol(num), PRG_TPROG)) == NULL)
+    if ((code = get_script_index_global(atol(num), PRG_TPROG)) == NULL)
     {
 	send_to_char("No such TokenProgram.\n\r",ch);
 	return false;

@@ -119,7 +119,7 @@ int cd_phrase_lookup(int condition, char *phrase)
 
 	vnum = atoi(phrase);
 
-	if (!get_script_index(vnum,PRG_RPROG))
+	if (!get_script_index_global(vnum,PRG_RPROG))
 	    return -1;
 	else
 	    return vnum;

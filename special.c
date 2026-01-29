@@ -178,7 +178,7 @@ bool spec_protector(CHAR_DATA *ch)
 			act("$n throws you in gaol!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
 			char_from_room(victim);
-			char_to_room(victim, get_room_index(11308));
+			char_to_room(victim, get_room_index((find_area_by_vnum(11308) ?: get_system_area_fallback()), 11308));
 
 			break;
 		}

@@ -1878,19 +1878,22 @@ iterator_stop(&it);
 
 	    if (!str_cmp(word, "CloneRoom"))
 	    {
-		    ROOM_INDEX_DATA *room;
-		    long v = fread_number(fp);
-		    unsigned long id1 = fread_number(fp);
-		    unsigned long id2 = fread_number(fp);
+ROOM_INDEX_DATA *room;
+long v = fread_number(fp);
+unsigned long id1 = fread_number(fp);
+unsigned long id2 = fread_number(fp);
 
-		    room = get_room_index(v);
+AREA_DATA *area = find_area_by_vnum(v);
+if (!area) area = get_system_area_fallback();
+room = get_room_index(area, v);
 
+ch->in_room = get_clone_room(room,id1,id2);
 
-		    ch->in_room = get_clone_room(room,id1,id2);
-
-			if (ch->in_room == NULL)
-				ch->in_room = get_room_index(11001);
-		fMatch = true;
+if (ch->in_room == NULL) {
+    AREA_DATA *fallback_area = find_area_by_vnum(11001);
+    if (!fallback_area) fallback_area = get_system_area_fallback();
+    ch->in_room = get_room_index(fallback_area, 11001);
+}
 		break;
 	    }
 
@@ -2491,14 +2494,21 @@ iterator_stop(&it);
 	    KEY("Resist", ch->res_flags,	fread_flag(fp));
 	    KEY("ResistPerm", ch->res_flags_perm,	fread_flag(fp));
 
-	    if (!str_cmp(word, "Room"))
-	    {
-		ch->in_room = get_room_index(fread_number(fp));
-		if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
-		    ch->in_room = get_room_index(11001);
-		fMatch = true;
-		break;
-	    }
+if (!str_cmp(word, "Room"))
+{
+    long room_vnum = fread_number(fp);
+    AREA_DATA *area = find_area_by_vnum(room_vnum);
+    if (!area) area = get_system_area_fallback();
+    ch->in_room = get_room_index(area, room_vnum);
+    if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
+    {
+        AREA_DATA *fallback_area = find_area_by_vnum(11001);
+        if (!fallback_area) fallback_area = get_system_area_fallback();
+        ch->in_room = get_room_index(fallback_area, 11001);
+    }
+    fMatch = true;
+    break;
+}
 
 
 	    fMatchFound = false;/*
@@ -2769,7 +2779,7 @@ iterator_stop(&it);
 
 	    if (!str_cmp(word, "Vnum"))
 	    {
-		ch->pIndexData = get_mob_index(fread_number(fp));
+		ch->pIndexData = get_mob_index_global(fread_number(fp));
 
 
 		fMatch = true;
@@ -3231,10 +3241,10 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		first = false;  /* fp will be in right place */
 
 		vnum = fread_number(fp);
-		if ( get_obj_index(vnum)  == NULL)
+		if ( get_obj_index_global(vnum)  == NULL)
 			bug("Fread_obj: bad vnum %ld.", vnum);
 		else
-			obj = create_object_noid(get_obj_index(vnum),-1, false, false);
+			obj = create_object_noid(get_obj_index_global(vnum),-1, false, false);
 	}
 
 	if (obj == NULL)  /* either not found or old style */
@@ -3702,7 +3712,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 					if (!fVnum)
 					{
 						free_obj(obj);
-						obj = create_object(get_obj_index(get_reserved_vnum("obj_system_dummy")), 0 , false);
+						obj = create_object(get_obj_index_global(get_reserved_vnum("obj_system_dummy")), 0 , false);
 					}
 					if (!list_haslink(loaded_objects, obj))
 					{
@@ -3756,7 +3766,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 				long vnum;
 
 				vnum = fread_number(fp);
-				if ((pIndexData = get_obj_index(vnum)) != NULL)
+				if ((pIndexData = get_obj_index_global(vnum)) != NULL)
 				{
 					key = create_object(pIndexData, pIndexData->level, false);
 					obj_to_obj(key, obj);
@@ -3875,7 +3885,9 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 			{
 				ROOM_INDEX_DATA *room;
 
-				room = get_room_index(fread_number(fp));
+				AREA_DATA *area = find_area_by_vnum(fread_number(fp));
+				if (!area) area = get_system_area_fallback();
+				room = get_room_index(area, fread_number(fp));
 				obj->in_room = room;
 				fMatch = true;
 			}
@@ -3994,7 +4006,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 				long vnum;
 
 				vnum = fread_number(fp);
-				if ((obj->pIndexData = get_obj_index(vnum)) == NULL)
+				if ((obj->pIndexData = get_obj_index_global(vnum)) == NULL)
 					bug("Fread_obj: bad vnum %ld.", vnum);
 				else
 					fVnum = true;
@@ -4104,9 +4116,11 @@ void read_permanent_objs()
 				}
 				else
 				{
-				ROOM_INDEX_DATA *to_room = get_room_index(obj->in_room->vnum);
+				AREA_DATA *area = find_area_by_vnum(obj->in_room->vnum);
+				if (!area) area = get_system_area_fallback();
+				ROOM_INDEX_DATA *to_room = get_room_index(area, obj->in_room->vnum);
 				obj->in_room = NULL;
-				obj_to_room(obj, to_room == NULL ? get_room_index(1) : to_room);
+				obj_to_room(obj, to_room == NULL ? get_room_index(get_system_area_fallback(), 1) : to_room);
 				}
 			}
 			}
@@ -5141,7 +5155,7 @@ TOKEN_DATA *fread_token(FILE *fp)
     int vtype;
 
     vnum = fread_number(fp);
-    if ((token_index = get_token_index(vnum)) == NULL) {
+    if ((token_index = get_token_index_global(vnum)) == NULL) {
 	sprintf(buf, "fread_token: no token index found for vnum %ld", vnum);
 	bug(buf, 0);
 	return NULL;
@@ -5451,11 +5465,12 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			    i = fread_number(fp);
 			    part->obj = i;
 
-			    obj_i = get_obj_index(part->obj);
+			    obj_i = get_obj_index_global(part->obj);
 
-			    room_vnum = fread_number(fp);
-			    room = get_room_index(room_vnum);
-
+room_vnum = fread_number(fp);
+AREA_DATA *area = find_area_by_vnum(room_vnum);
+if (!area) area = get_system_area_fallback();
+room = get_room_index(area, room_vnum);
 			    obj = create_object(obj_i, 1, true);
 			    obj_to_room(obj, room);
 

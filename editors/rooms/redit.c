@@ -107,7 +107,7 @@ REDIT(redit_show)
 					pRoom->rs_recall.id[0],pRoom->rs_recall.id[1],pRoom->rs_recall.id[2]);
 			else
 				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pRoom->rs_recall.wuid);
-		} else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(pRoom->rs_recall.id[0]))) {
+			} else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(pRoom->area, pRoom->rs_recall.id[0]))) {
 				sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pRoom->rs_recall.id[0], recall->name);
 		} else
 				sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pRoom->rs_recall.id[0]);
@@ -783,11 +783,11 @@ REDIT(redit_create)
 	ROOM_INDEX_DATA *temp_room;
 
 	auto_vnum = ch->in_room->area->min_vnum;
-	temp_room = get_room_index(auto_vnum);
+	temp_room = get_room_index(ch->in_room->area, auto_vnum);
 	if (temp_room != NULL) {
 		while (temp_room != NULL)
 		{
-			temp_room = get_room_index(auto_vnum);
+				temp_room = get_room_index(ch->in_room->area, auto_vnum);
 			if (temp_room == NULL) break;
 			auto_vnum++;
 		}
@@ -815,7 +815,7 @@ REDIT(redit_create)
 	return false;
     }
 
-    if (get_room_index(value))
+	if (get_room_index(pArea, value))
     {
 	send_to_char("REdit:  Room vnum already exists.\n\r", ch);
 	return false;
@@ -843,8 +843,8 @@ REDIT(redit_create)
 	}
 
     iHash			= value % MAX_KEY_HASH;
-    pRoom->next			= room_index_hash[iHash];
-    room_index_hash[iHash]	= pRoom;
+	pRoom->next			= pArea->room_index_hash[iHash];
+	pArea->room_index_hash[iHash]	= pRoom;
     ch->desc->pEdit		= (void *)pRoom;
 
     SET_BIT(pRoom->area->area_flags, AREA_CHANGED);
@@ -935,7 +935,7 @@ REDIT(redit_recall)
 		rs_location_clear(&pRoom->rs_recall);
 		send_to_char("Recall cleared.\n\r", ch);
 	} else if(!arg2[0]) {
-		if(!get_room_index(vnum)) {
+		if(!get_room_index(pRoom->area, vnum)) {
 			send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
 			return false;
 		}
@@ -1037,7 +1037,10 @@ REDIT(redit_mreset)
 	return false;
     }
 
-    if (!(pMobIndex = get_mob_index(atoi(arg))))
+    long mob_vnum = atoi(arg);
+    AREA_DATA *mob_area = find_area_by_vnum(mob_vnum);
+    if (!mob_area) mob_area = get_system_area_fallback();
+    if (!(pMobIndex = get_mob_index(mob_area, mob_vnum)))
     {
 	send_to_char("REdit: No mobile has that vnum.\n\r", ch);
 	return false;
@@ -1105,7 +1108,10 @@ REDIT(redit_oreset)
 	return false;
     }
 
-    if (!(pObjIndex = get_obj_index(atoi(arg1))))
+    long obj_vnum = atoi(arg1);
+    AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
+    if (!obj_area) obj_area = get_system_area_fallback();
+    if (!(pObjIndex = get_obj_index(obj_area, obj_vnum)))
     {
 	send_to_char("REdit: No object has that vnum.\n\r", ch);
 	return false;
@@ -1650,7 +1656,7 @@ REDIT (redit_addrprog)
 		}
 	}
 
-    if ((code = get_script_index (atol(num), PRG_RPROG)) == NULL)
+    if ((code = get_script_index_global (atol(num), PRG_RPROG)) == NULL)
     {
 	send_to_char("No such ROOMProgram.\n\r",ch);
 	return false;
