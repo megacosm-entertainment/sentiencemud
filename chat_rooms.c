@@ -1251,7 +1251,10 @@ void read_chat_rooms()
 	chat->password = fread_string(fp);
 	chat->permanent = true;
 	chat->created_by = fread_string(fp);
-	chat->area_uid = fread_number(fp);  // Load area UID for widevnum support
+	
+	// Always read new format (area_uid, vnum, max_people)
+	// The file has been migrated to the new format
+	chat->area_uid = fread_number(fp);
 	chat->vnum = fread_number(fp);
 	chat->max_people = fread_number(fp);
 	last_chat = chat;
@@ -1293,9 +1296,16 @@ void read_chat_rooms()
 	    }
 	}
 
-AREA_DATA *chat_area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
-        if (!chat_area) chat_area = get_system_area_fallback();
-        room = get_room_index(chat_area, chat->vnum);
+	// Look up the area by UID
+	AREA_DATA *chat_area = get_area_index(chat->area_uid);
+	if (!chat_area) {
+		sprintf(buf, "read_chat_rooms: %s area_uid %ld not found, skipping",
+			chat->name, chat->area_uid);
+		bug(buf, 0);
+		continue;
+	}
+	
+	room = get_room_index(chat_area, chat->vnum);
 
 	if (room == NULL)
 	{

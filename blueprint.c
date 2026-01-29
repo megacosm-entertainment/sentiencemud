@@ -197,6 +197,16 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 		}
 	}
 
+	// Determine which area owns the rooms in this blueprint section
+	// by checking the lower_vnum (do this before fix_blueprint_section)
+	if (bs->lower_vnum > 0) {
+		bs->area = find_area_by_vnum(bs->lower_vnum);
+		if (!bs->area) {
+			bs->area = get_system_area_fallback();
+			log_message_f(LOG_LEVEL_WARN, LOG_INIT, "Blueprint section %ld references vnums starting at %ld but no area found", bs->vnum, bs->lower_vnum);
+		}
+	}
+
 	fix_blueprint_section(bs);
 	return bs;
 }
@@ -471,6 +481,12 @@ void load_blueprints()
 		{
 			BLUEPRINT_SECTION *bs = load_blueprint_section(fp);
 			int iHash = bs->vnum % MAX_KEY_HASH;
+
+			// Area was already set in load_blueprint_section()
+			if (bs->area) {
+				log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Blueprint section %ld linked to area '%s' (uid %ld, vnums %ld-%ld)", 
+					bs->vnum, bs->area->name, bs->area->uid, bs->area->min_vnum, bs->area->max_vnum);
+			}
 
 			bs->next = blueprint_section_hash[iHash];
 			blueprint_section_hash[iHash] = bs;
