@@ -42,6 +42,7 @@
 #include <sys/resource.h>
 #include <dirent.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include "log.h"
 #include "strings.h"
 #include "merc.h"
@@ -53,6 +54,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "json_persist.h"
+#include "json_area.h"
 
 /*
 #if !defined(OLD_RAND)
@@ -848,8 +850,9 @@ void boot_db(void)
 
 		for (; ;)
 		{
-			AREA_DATA *area;
+			AREA_DATA *area = NULL;
 			LLIST_AREA_DATA *link;
+			bool loaded_from_json = false;
 
 			strcpy(strArea, fread_word(fpList));
 			if (strArea[0] == '$')
@@ -858,18 +861,57 @@ void boot_db(void)
 			if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
 				continue;
 
-            char area_path[MAX_STRING_LENGTH];
-            sprintf(area_path, "%s%s", AREA_DIR, strArea);
+			/* Try JSON format first */
+			char json_filename[MAX_STRING_LENGTH];
+			char json_fullpath[MAX_STRING_LENGTH];
+			char *basename = strArea;
+			char *dot = strrchr(basename, '.');
+			
+			/* Build JSON filename (just the filename, no path) */
+			if (dot) {
+				char base[MAX_STRING_LENGTH];
+				strncpy(base, basename, dot - basename);
+				base[dot - basename] = '\0';
+				sprintf(json_filename, "%s.json", base);
+			} else {
+				sprintf(json_filename, "%s.json", basename);
+			}
+			
+			/* Build full path for existence check */
+			sprintf(json_fullpath, "%s%s", AREA_DIR, json_filename);
 
-            if ((fpArea = fopen(area_path, "r")) == NULL) {
-                perror(area_path);
-                exit(2);        // NIBS: changed this so we know it exited because of this
-            }
+			if (access(json_fullpath, F_OK) == 0) {
+				/* JSON file exists - try to load it */
+				log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading area from JSON: %s", json_fullpath);
+				area = json_area_load(json_filename);  /* Pass just filename, json_area_load adds AREA_DIR */
+				if (area) {
+					loaded_from_json = true;
+					log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Successfully loaded JSON area: %s", strArea);
+				} else {
+					log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load JSON area %s, falling back to .are format", json_fullpath);
+				}
+			}
 
-			log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile '%s'", strArea);
+			/* Fall back to .are format if JSON didn't work */
+			if (!loaded_from_json) {
+				char area_path[MAX_STRING_LENGTH];
+				sprintf(area_path, "%s%s", AREA_DIR, strArea);
 
+				if ((fpArea = fopen(area_path, "r")) == NULL) {
+					perror(area_path);
+					exit(2);        // NIBS: changed this so we know it exited because of this
+				}
 
-			area = read_area_new(fpArea);
+				log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile from .are format: '%s'", strArea);
+				area = read_area_new(fpArea);
+				fclose(fpArea);
+			}
+
+			if (!area) {
+				log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load area %s in any format", strArea);
+				exit(2);
+			}
+
 			area->next = NULL;
 
 			if (area_first == NULL)
@@ -903,6 +945,8 @@ void boot_db(void)
     fix_rooms();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
     fix_vlinks();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_shops");
+    fix_shops();
 
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading blueprints");
 	load_blueprints();
@@ -3219,11 +3263,17 @@ MOB_INDEX_DATA *get_mob_index_global(long vnum)
 	AREA_DATA *pArea;
 	MOB_INDEX_DATA *mob;
 
+	/* Search all areas by directly checking hash tables */
+	/* Don't call get_mob_index() as it will exit during boot if not found */
 	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
 	{
-		mob = get_mob_index(pArea, vnum);
-		if (mob)
-			return mob;
+		if (!pArea) continue;
+		
+		for (mob = pArea->mob_index_hash[vnum % MAX_KEY_HASH]; mob != NULL; mob = mob->next)
+		{
+			if (mob->vnum == vnum)
+				return mob;
+		}
 	}
 
 	return NULL;
@@ -3259,11 +3309,17 @@ OBJ_INDEX_DATA *get_obj_index_global(long vnum)
 	AREA_DATA *pArea;
 	OBJ_INDEX_DATA *obj;
 
+	/* Search all areas by directly checking hash tables */
+	/* Don't call get_obj_index() as it will exit during boot if not found */
 	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
 	{
-		obj = get_obj_index(pArea, vnum);
-		if (obj)
-			return obj;
+		if (!pArea) continue;
+		
+		for (obj = pArea->obj_index_hash[vnum % MAX_KEY_HASH]; obj != NULL; obj = obj->next)
+		{
+			if (obj->vnum == vnum)
+				return obj;
+		}
 	}
 
 	return NULL;
@@ -3299,11 +3355,17 @@ ROOM_INDEX_DATA *get_room_index_global(long vnum)
 	AREA_DATA *pArea;
 	ROOM_INDEX_DATA *room;
 
+	/* Search all areas by directly checking hash tables */
+	/* Don't call get_room_index() as it will exit during boot if not found */
 	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
 	{
-		room = get_room_index(pArea, vnum);
-		if (room)
-			return room;
+		if (!pArea) continue;
+		
+		for (room = pArea->room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next)
+		{
+			if (room->vnum == vnum)
+				return room;
+		}
 	}
 
 	return NULL;

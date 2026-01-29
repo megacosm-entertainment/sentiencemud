@@ -157,6 +157,7 @@ C_FILES = \
     async_cache.c \
     json_char.c \
     json_account.c \
+    json_area.c \
     json_game_settings.c \
     json_persist.c \
     json_race.c \

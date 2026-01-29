@@ -19,6 +19,7 @@
 #include "db.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "json_area.h"
 
 // VERSION_ROOM_001 special defines
 #define VR_001_EX_LOCKED		(C)
@@ -361,6 +362,7 @@ void save_area_new(AREA_DATA *area)
     FILE *fp;
     char filename[MSL];
     OLC_POINT_BOOST *boost;
+    bool use_json = true;  // Default to JSON format
 
 /*
 	// 20140521 NIB - allowing these to be saved
@@ -371,29 +373,87 @@ void save_area_new(AREA_DATA *area)
     }
     */
 
-    // There are some areas which should be saved specially
-    if (!str_cmp(area->name, "Geldoff's Maze"))
+    // There are some areas which should be saved specially (keep .are format for mazes)
+    if (!str_cmp(area->name, "Geldoff's Maze")) {
 	sprintf(filename, "../maze/template.geldmaze");
-    else if (!str_cmp(area->name, "Maze-Level1"))
+	use_json = false;  // Keep old format for mazes
+    }
+    else if (!str_cmp(area->name, "Maze-Level1")) {
 	sprintf(filename, "../maze/template.poa1");
-    else if (!str_cmp(area->name, "Maze-Level2"))
+	use_json = false;
+    }
+    else if (!str_cmp(area->name, "Maze-Level2")) {
 	sprintf(filename, "../maze/template.poa2");
-    else if (!str_cmp(area->name, "Maze-Level3"))
+	use_json = false;
+    }
+    else if (!str_cmp(area->name, "Maze-Level3")) {
 	sprintf(filename, "../maze/template.poa3");
-    else if (!str_cmp(area->name, "Maze-Level4"))
+	use_json = false;
+    }
+    else if (!str_cmp(area->name, "Maze-Level4")) {
 	sprintf(filename, "../maze/template.poa4");
-    else if (!str_cmp(area->name, "Maze-Level5"))
+	use_json = false;
+    }
+    else if (!str_cmp(area->name, "Maze-Level5")) {
 	sprintf(filename, "../maze/template.poa5");
+	use_json = false;
+    }
     else if (IS_SET(area->area_flags, AREA_TESTPORT) && is_test_port)
     {
 	sprintf(filename, "../../backups/%s", area->file_name);
 	REMOVE_BIT(area->area_flags, AREA_TESTPORT);
 	save_area_new(area);
 	SET_BIT(area->area_flags, AREA_TESTPORT);
+	return;
     }
-    else
-	sprintf(filename, AREA_DIR "%s", area->file_name);
+    else {
+	// Default: save as JSON in area/
+	char *basename = area->file_name;
+	char *dot = strrchr(basename, '.');
+	if (dot) {
+	    char base[MSL];
+	    strncpy(base, basename, dot - basename);
+	    base[dot - basename] = '\0';
+	    sprintf(filename, "area/%s.json", base);
+	} else {
+	    sprintf(filename, "area/%s.json", basename);
+	}
+    }
 
+    // Use JSON format for modern areas
+    if (use_json) {
+	sprintf(buf, "save_area_new: saving area %s to JSON file %s", area->name, filename);
+	log_string(buf);
+	
+	// For JSON, need to strip the .json extension and use area name
+	// json_area_save() will add JSON_AREA_DIR and handle extension
+	char area_file[MSL];
+	char *basename = area->file_name;
+	char *dot = strrchr(basename, '.');
+	if (dot) {
+	    strncpy(area_file, basename, dot - basename);
+	    area_file[dot - basename] = '\0';
+	    strcat(area_file, ".json");
+	} else {
+	    sprintf(area_file, "%s.json", basename);
+	}
+	
+	// Temporarily update area->file_name for json_area_save
+	char *old_filename = area->file_name;
+	area->file_name = str_dup(area_file);
+	
+	if (!json_area_save(area)) {
+	    sprintf(buf, "save_area_new: failed to save JSON file %s", filename);
+	    bug(buf, 0);
+	}
+	
+	// Restore original filename
+	free_string(area->file_name);
+	area->file_name = old_filename;
+	return;
+    }
+
+    // Old .are format for legacy areas (mazes)
     if ((fp = fopen(filename, "w")) == NULL) {
 		sprintf(buf, "save_area_new: couldn't open file %s", filename);
 		bug(buf, 0);
