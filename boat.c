@@ -1357,10 +1357,15 @@ SHIP_DATA *ship_load(FILE *fp)
 			{
 				OBJ_DATA *obj = persist_load_object(fp);
 
+
 				if( IS_VALID(obj) ) {
 					ship->ship = obj;
 					obj->ship = ship;
-					obj_to_room(obj, obj->in_room);
+					if (obj->in_room) {
+						obj_to_room(obj, obj->in_room);
+					} else {
+						log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "ship_load: loaded ship object vnum %ld, name '%s' with NULL in_room (not calling obj_to_room)", obj->pIndexData ? obj->pIndexData->vnum : -1L, obj->name ? obj->name : "(null)");
+					}
 				}
 
 				fMatch = true;

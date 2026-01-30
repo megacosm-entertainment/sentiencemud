@@ -2758,6 +2758,13 @@ static bool persist_worker_shutdown = false;
  * Key format: persist:<type>:<id>
  * Returns: 0=room, 1=mobile, 2=object, -1=error
  */
+/*
+ * Dirty key types:
+ *   0 = room (persist:room:id)
+ *   1 = mobile (persist:mobile:id)
+ *   2 = object (persist:object:id)
+ *   3 = area (persist:area:uid)
+ */
 static int parse_dirty_key(const char *key, char *id_buf, size_t id_size)
 {
     const char *type_start, *id_start;
@@ -2783,6 +2790,11 @@ static int parse_dirty_key(const char *key, char *id_buf, size_t id_size)
         strncpy(id_buf, id_start, id_size - 1);
         id_buf[id_size - 1] = '\0';
         return 2;
+    } else if (strncmp(type_start, "area:", 5) == 0) {
+        id_start = type_start + 5;
+        strncpy(id_buf, id_start, id_size - 1);
+        id_buf[id_size - 1] = '\0';
+        return 3;
     }
 
     return -1;
@@ -2818,6 +2830,19 @@ static bool write_dirty_key_to_disk(const char *key)
         break;
     case 2: /* Object */
         snprintf(path, sizeof(path), "%s%s.json", PERSIST_JSON_OBJECTS, id_buf);
+        break;
+    case 3: /* Area */
+        {
+            long area_uid = atol(id_buf);
+            char *filename = redis_get_area_filename(area_uid);
+            if (!filename) {
+                log_stringf("persist_worker: No filename found for area uid %ld", area_uid);
+                free(json_str);
+                return false;
+            }
+            snprintf(path, sizeof(path), "%s%s", AREA_DIR, filename);
+            free(filename);
+        }
         break;
     default:
         log_stringf("persist_worker: Unknown key type: %s", key);

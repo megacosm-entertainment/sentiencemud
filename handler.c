@@ -2745,52 +2745,26 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 
 void obj_to_vroom(OBJ_DATA *obj, WILDS_DATA *pWilds, int x, int y)
 {
-    ROOM_INDEX_DATA *pWildsRoom = NULL;
-
-/*
-    // Find the obj content list at these coors in the obj matrix
-    pVObj = pWilds->obj_matrix + (sizeof(OBJ_DATA *) * ((y * pWilds->map_size_x) + x));
-
-    // Add the obj to the obj content list just like if the room existed
-    if (pVObj == NULL)
-        pVObj = obj;
-    else
-    {
-        obj->next_content = pVObj;
-        pVObj = obj;
-    }
-*/
-    // Check if vroom is actually loaded right now
-    if ((pWildsRoom = get_wilds_vroom(pWilds, x, y)) != NULL)
-    {
-        obj->in_wilds               = pWilds;
-        obj->in_room                = pWildsRoom;
-        obj->carried_by             = NULL;
-        obj->in_obj                 = NULL;
-        obj->next_content           = pWildsRoom->contents;
-        pWildsRoom->contents        = obj;
+    ROOM_INDEX_DATA *pWildsRoom = get_wilds_vroom(pWilds, x, y);
+    if (!pWildsRoom)
+        pWildsRoom = create_wilds_vroom(pWilds, x, y);
+    if (pWildsRoom) {
+        obj->in_wilds = pWilds;
+        obj->in_room = pWildsRoom;
+        obj->carried_by = NULL;
+        obj->in_obj = NULL;
+        obj->next_content = pWildsRoom->contents;
+        pWildsRoom->contents = obj;
         list_addlink(pWildsRoom->lcontents, obj);
         list_addlink(pWildsRoom->lentity, obj);
-    }
-    else
-    {
-        obj->in_room                = NULL;
-        obj->carried_by             = NULL;
-        obj->in_obj                 = NULL;
-    }
-
-    obj->in_wilds               = pWilds;
-    obj->x                      = x;
-    obj->y                      = y;
-    pWilds->loaded_objs++;
-
-    obj->pIndexData->inrooms++;
-
-
-    if (objRepop == true)
-    {
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-	objRepop = false;
+        pWilds->loaded_objs++;
+        obj->x = x;
+        obj->y = y;
+        obj->pIndexData->inrooms++;
+        if (objRepop == true) {
+            p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+            objRepop = false;
+        }
     }
 }
 

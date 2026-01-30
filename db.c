@@ -55,6 +55,7 @@
 #include "wilds.h"
 #include "json_persist.h"
 #include "json_area.h"
+#include "redis_cache.h"
 
 /*
 #if !defined(OLD_RAND)
@@ -1071,6 +1072,28 @@ void boot_db(void)
     check_area_versions();
 
     gconfig_write();
+
+    /* Queue areas for async Redis cache warming */
+    if (redis_is_available()) {
+        AREA_DATA *area;
+        int queued = 0;
+
+        log_message(LOG_LEVEL_INFO, LOG_INIT, "Queueing areas for Redis cache warming");
+        for (area = area_first; area; area = area->next) {
+            if (area->uid > 0 && area->file_name) {
+                /* Serialize and queue for async caching */
+                char *json_str = json_area_serialize_to_string(area);
+                if (json_str) {
+                    redis_queue_area_cache_warm(area->uid, json_str);
+                    /* Also store the filename mapping */
+                    redis_set_area_filename(area->uid, area->file_name);
+                    free(json_str);
+                    queued++;
+                }
+            }
+        }
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Queued %d areas for cache warming", queued);
+    }
 
 	// Send boot errors to coders staff duty
     send_boot_errors_to_coders();
@@ -7134,7 +7157,11 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 	if( !here ) here = deep_here;
 
-	if( here ) obj->in_room = here;
+	if( here ) {
+		obj->in_room = here;
+	} else {
+		log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: could not resolve room for object vnum %ld, name '%s' (not calling obj_to_room)", obj->pIndexData ? obj->pIndexData->vnum : -1L, obj->name ? obj->name : "(null)");
+	}
 
 	if(obj->persist) persist_addobject(obj);
 

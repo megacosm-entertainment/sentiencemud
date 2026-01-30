@@ -15,6 +15,191 @@
 #include "recycle.h"
 #include "scripts.h"
 #include "json_area.h"
+#include "redis_cache.h"
+
+#include "wilds.h"
+
+// --- WILDS_TERRAIN JSON helpers ---
+static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
+    if (!terrain) return NULL;
+    json_t *json = json_object();
+    json_object_set_new(json, "mapchar", json_integer(terrain->mapchar));
+    json_object_set_new(json, "showchar", json_string(terrain->showchar ? terrain->showchar : ""));
+    json_object_set_new(json, "showname", json_string(terrain->showname ? terrain->showname : ""));
+    json_object_set_new(json, "briefdesc", json_string(terrain->briefdesc ? terrain->briefdesc : ""));
+    json_object_set_new(json, "nonroom", terrain->nonroom ? json_true() : json_false());
+    if (terrain->template) {
+        json_object_set_new(json, "template", json_area_serialize_room(terrain->template));
+    }
+    return json;
+}
+
+static WILDS_TERRAIN *json_to_wilds_terrain(json_t *json, WILDS_DATA *pWilds) {
+    if (!json) return NULL;
+    WILDS_TERRAIN *terrain = new_terrain(pWilds);
+    terrain->mapchar = (char)json_get_int_default(json, "mapchar", '?');
+    terrain->showchar = str_dup(json_get_string_default(json, "showchar", ""));
+    terrain->showname = str_dup(json_get_string_default(json, "showname", ""));
+    terrain->briefdesc = str_dup(json_get_string_default(json, "briefdesc", ""));
+    terrain->nonroom = json_get_bool_default(json, "nonroom", false);
+    json_t *template_json = json_object_get(json, "template");
+    if (template_json) {
+        terrain->template = json_area_deserialize_room(template_json, pWilds->pArea);
+    }
+    return terrain;
+}
+
+// --- WILDS_VLINK JSON helpers ---
+static json_t *wilds_vlink_to_json(WILDS_VLINK *vlink) {
+    if (!vlink) return NULL;
+    json_t *json = json_object();
+    json_object_set_new(json, "uid", json_integer(vlink->uid));
+    json_object_set_new(json, "wildsorigin_x", json_integer(vlink->wildsorigin_x));
+    json_object_set_new(json, "wildsorigin_y", json_integer(vlink->wildsorigin_y));
+    json_object_set_new(json, "door", json_integer(vlink->door));
+    json_object_set_new(json, "map_tile", json_string(vlink->map_tile ? vlink->map_tile : ""));
+    json_object_set_new(json, "destvnum", json_integer(vlink->destvnum));
+    json_object_set_new(json, "default_linkage", json_integer(vlink->default_linkage));
+    json_object_set_new(json, "current_linkage", json_integer(vlink->current_linkage));
+    json_object_set_new(json, "orig_description", json_string(vlink->orig_description ? vlink->orig_description : ""));
+    json_object_set_new(json, "orig_keyword", json_string(vlink->orig_keyword ? vlink->orig_keyword : ""));
+    json_object_set_new(json, "orig_rs_flags", json_integer(vlink->orig_rs_flags));
+    json_object_set_new(json, "orig_key", json_integer(vlink->orig_key));
+    json_object_set_new(json, "orig_lock", json_integer(vlink->orig_lock));
+    json_object_set_new(json, "orig_pick", json_integer(vlink->orig_pick));
+    json_object_set_new(json, "rev_description", json_string(vlink->rev_description ? vlink->rev_description : ""));
+    json_object_set_new(json, "rev_keyword", json_string(vlink->rev_keyword ? vlink->rev_keyword : ""));
+    json_object_set_new(json, "rev_rs_flags", json_integer(vlink->rev_rs_flags));
+    json_object_set_new(json, "rev_key", json_integer(vlink->rev_key));
+    json_object_set_new(json, "rev_lock", json_integer(vlink->rev_lock));
+    json_object_set_new(json, "rev_pick", json_integer(vlink->rev_pick));
+    // pWilds, pWildsVroom, pDestRoom not serialized
+    return json;
+}
+
+static WILDS_VLINK *json_to_wilds_vlink(json_t *json, WILDS_DATA *pWilds) {
+    if (!json) return NULL;
+    WILDS_VLINK *vlink = new_vlink();
+    vlink->pWilds = pWilds;
+    vlink->uid = json_get_int_default(json, "uid", 0);
+    vlink->wildsorigin_x = json_get_int_default(json, "wildsorigin_x", 0);
+    vlink->wildsorigin_y = json_get_int_default(json, "wildsorigin_y", 0);
+    vlink->door = json_get_int_default(json, "door", 0);
+    vlink->map_tile = str_dup(json_get_string_default(json, "map_tile", ""));
+    vlink->destvnum = json_get_int_default(json, "destvnum", 0);
+    vlink->default_linkage = json_get_int_default(json, "default_linkage", 0);
+    vlink->current_linkage = json_get_int_default(json, "current_linkage", 0);
+    vlink->orig_description = str_dup(json_get_string_default(json, "orig_description", ""));
+    vlink->orig_keyword = str_dup(json_get_string_default(json, "orig_keyword", ""));
+    vlink->orig_rs_flags = json_get_int_default(json, "orig_rs_flags", 0);
+    vlink->orig_key = json_get_int_default(json, "orig_key", 0);
+    vlink->orig_lock = json_get_int_default(json, "orig_lock", 0);
+    vlink->orig_pick = json_get_int_default(json, "orig_pick", 0);
+    vlink->rev_description = str_dup(json_get_string_default(json, "rev_description", ""));
+    vlink->rev_keyword = str_dup(json_get_string_default(json, "rev_keyword", ""));
+    vlink->rev_rs_flags = json_get_int_default(json, "rev_rs_flags", 0);
+    vlink->rev_key = json_get_int_default(json, "rev_key", 0);
+    vlink->rev_lock = json_get_int_default(json, "rev_lock", 0);
+    vlink->rev_pick = json_get_int_default(json, "rev_pick", 0);
+    // pWildsVroom, pDestRoom not deserialized
+    return vlink;
+}
+
+// --- WILDS_DATA JSON helpers ---
+static json_t *wilds_to_json(WILDS_DATA *wilds) {
+    if (!wilds) return NULL;
+    json_t *json = json_object();
+    json_object_set_new(json, "uid", json_integer(wilds->uid));
+    json_object_set_new(json, "name", json_string(wilds->name ? wilds->name : ""));
+    json_object_set_new(json, "wilds_format", json_integer(wilds->wilds_format));
+    json_object_set_new(json, "staticmap", json_string(wilds->staticmap ? wilds->staticmap : ""));
+    json_object_set_new(json, "map_size_x", json_integer(wilds->map_size_x));
+    json_object_set_new(json, "map_size_y", json_integer(wilds->map_size_y));
+    json_object_set_new(json, "startx", json_integer(wilds->startx));
+    json_object_set_new(json, "starty", json_integer(wilds->starty));
+    json_object_set_new(json, "sector_size_x", json_integer(wilds->sector_size_x));
+    json_object_set_new(json, "sector_size_y", json_integer(wilds->sector_size_y));
+    json_object_set_new(json, "cDefaultTerrain", json_integer(wilds->cDefaultTerrain));
+    // Terrain list
+    json_t *terrains = json_array();
+    for (WILDS_TERRAIN *t = wilds->pTerrain; t; t = t->next) {
+        json_t *tjson = wilds_terrain_to_json(t);
+        if (tjson) json_array_append_new(terrains, tjson);
+    }
+    json_object_set_new(json, "terrains", terrains);
+    // Vlink list
+    json_t *vlinks = json_array();
+    for (WILDS_VLINK *vl = wilds->pVLink; vl; vl = vl->next) {
+        json_t *vj = wilds_vlink_to_json(vl);
+        if (vj) json_array_append_new(vlinks, vj);
+    }
+    json_object_set_new(json, "vlinks", vlinks);
+    return json;
+}
+
+static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
+    if (!json) return NULL;
+    WILDS_DATA *wilds = new_wilds();
+    wilds->pArea = area;
+    wilds->uid = json_get_int_default(json, "uid", 0);
+    wilds->name = str_dup(json_get_string_default(json, "name", ""));
+    wilds->wilds_format = json_get_int_default(json, "wilds_format", 0);
+    wilds->map_size_x = json_get_int_default(json, "map_size_x", 0);
+    wilds->map_size_y = json_get_int_default(json, "map_size_y", 0);
+
+    // Allocate staticmap and map buffers like the .are loader does
+    const char *json_map = json_get_string_default(json, "staticmap", "");
+    int map_total = wilds->map_size_x * wilds->map_size_y;
+    if (map_total > 0) {
+        wilds->staticmap = allocate_wildsmap(wilds->map_size_x, wilds->map_size_y);
+        wilds->map = allocate_wildsmap(wilds->map_size_x, wilds->map_size_y);
+
+        // Copy map data directly - newlines in the JSON ARE terrain data, not separators
+        // The .are format stores rows with trailing newlines stripped, but embedded newlines
+        // (like at the start of the map) are valid terrain characters
+        memcpy(wilds->staticmap, json_map, map_total);
+        // Copy staticmap to map (working copy)
+        memcpy(wilds->map, wilds->staticmap, map_total);
+    } else {
+        wilds->staticmap = str_dup("");
+        wilds->map = str_dup("");
+    }
+    wilds->startx = json_get_int_default(json, "startx", 0);
+    wilds->starty = json_get_int_default(json, "starty", 0);
+    wilds->sector_size_x = json_get_int_default(json, "sector_size_x", 0);
+    wilds->sector_size_y = json_get_int_default(json, "sector_size_y", 0);
+    wilds->cDefaultTerrain = (char)json_get_int_default(json, "cDefaultTerrain", '?');
+    // Terrains
+    json_t *terrains = json_object_get(json, "terrains");
+    if (terrains && json_is_array(terrains)) {
+        size_t idx; json_t *tjson;
+        WILDS_TERRAIN *last = NULL;
+        json_array_foreach(terrains, idx, tjson) {
+            WILDS_TERRAIN *t = json_to_wilds_terrain(tjson, wilds);
+            if (t) {
+                if (!wilds->pTerrain) wilds->pTerrain = t;
+                else last->next = t;
+                t->prev = last;
+                last = t;
+            }
+        }
+    }
+    // Vlinks
+    json_t *vlinks = json_object_get(json, "vlinks");
+    if (vlinks && json_is_array(vlinks)) {
+        size_t idx; json_t *vj;
+        WILDS_VLINK *last = NULL;
+        json_array_foreach(vlinks, idx, vj) {
+            WILDS_VLINK *vl = json_to_wilds_vlink(vj, wilds);
+            if (vl) {
+                if (!wilds->pVLink) wilds->pVLink = vl;
+                else last->next = vl;
+                last = vl;
+            }
+        }
+    }
+    return wilds;
+}
 
 /* External references */
 extern const struct flag_type area_flags[];
@@ -216,6 +401,11 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
             json_object_set_new(root, "trade", trade_list);
     }
     
+    // Add wilds/wilderness serialization if present
+    if (area->wilds) {
+        json_t *wilds_json = wilds_to_json(area->wilds);
+        if (wilds_json) json_object_set_new(root, "wilderness", wilds_json);
+    }
     return root;
 }
 
@@ -288,6 +478,15 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
     
     /* Other settings */
     area->wilds_uid = json_get_int_default(json, "wilds_uid", 0);
+    // Wilderness/wilds deserialization
+    json_t *wilds_json = json_object_get(json, "wilderness");
+    if (wilds_json) {
+        area->wilds = json_to_wilds(wilds_json, area);
+        if (area->wilds) {
+            area->wilds_uid = area->wilds->uid;
+            // Register wilds in global list if needed (implementation-specific)
+        }
+    }
     area->repop = json_get_int_default(json, "repop", 15);
     area->post_office = json_get_int_default(json, "post_office", 0);
     area->airship_land_spot = json_get_int_default(json, "airship_land", 0);
@@ -322,23 +521,31 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
     
     if (!exit)
         return obj;
-    
+
     json_object_set_new(obj, "direction", json_string(dir_name[exit->orig_door]));
-    
+
     /* Destination - save the vnum from to_room if it exists */
     if (exit->u1.to_room && exit->u1.to_room->vnum > 0) {
-        /* Regular room exit - save vnum */
         json_object_set_new(obj, "to_area", json_integer(exit->u1.to_room->area ? exit->u1.to_room->area->uid : 0));
         json_object_set_new(obj, "to_vnum", json_integer(exit->u1.to_room->vnum));
     }
-    
-    /* Keywords and description */
+
+    /* Keywords and descriptions */
     if (exit->keyword && exit->keyword[0] != '\0')
         json_object_set_new(obj, "keywords", json_string(exit->keyword));
-    
+    if (exit->short_desc && exit->short_desc[0] != '\0')
+        json_object_set_new(obj, "description", json_string(exit->short_desc));
+    if (exit->long_desc && exit->long_desc[0] != '\0')
+        json_object_set_new(obj, "long_description", json_string(exit->long_desc));
+
+    /* Lock/key/pick fields */
+    json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_vnum));
+    json_object_set_new(obj, "lock_flags", json_integer(exit->door.lock.flags));
+    json_object_set_new(obj, "pick_chance", json_integer(exit->door.lock.pick_chance));
+
     /* Flags */
     json_object_set_new(obj, "flags", flags_to_json_array(exit->exit_info, exit_flags));
-    
+
     return obj;
 }
 
@@ -361,13 +568,11 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     
     /* Destination - will be linked in fix_exits() */
     long to_vnum = json_get_int_default(json, "to_vnum", 0);
-    
     if (to_vnum > 0) {
         exit->u1.vnum = to_vnum;
-        /* Store area UID for later resolution - we'll need to add a field for this */
         /* long to_area_uid = json_get_int_default(json, "to_area", 0); - not yet used */
     }
-    
+
     /* Wilderness exit */
     wilds_obj = json_object_get(json, "wilderness");
     if (wilds_obj) {
@@ -377,13 +582,20 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
         exit->wilds.wilds_uid = json_get_int_default(wilds_obj, "wilds_uid", 0);
         SET_BIT(exit->exit_info, EX_VLINK);
     }
-    
-    /* Keywords */
+
+    /* Keywords and descriptions */
     exit->keyword = str_dup(json_get_string_default(json, "keywords", ""));
-    
+    exit->short_desc = str_dup(json_get_string_default(json, "description", ""));
+    exit->long_desc = str_dup(json_get_string_default(json, "long_description", ""));
+
+    /* Lock/key/pick fields */
+    exit->door.lock.key_vnum = json_get_int_default(json, "key_vnum", 0);
+    exit->door.lock.flags = json_get_int_default(json, "lock_flags", 0);
+    exit->door.lock.pick_chance = json_get_int_default(json, "pick_chance", 100);
+
     /* Flags */
     exit->exit_info = json_array_to_flags(json_object_get(json, "flags"), exit_flags);
-    
+
     return exit;
 }
 
@@ -1004,18 +1216,120 @@ bool json_area_save(AREA_DATA *area)
     else
         json_decref(dprogs);
     
+    /* Cache in Redis immediately (if available) */
+    if (redis_is_available() && area->uid > 0 && area->file_name) {
+        char *json_str = json_dumps(root, JSON_COMPACT);
+        if (json_str) {
+            if (redis_cache_area_state(area->uid, area->file_name, json_str)) {
+                log_stringf("json_area_save: Cached area '%s' (UID %ld) in Redis", area->name, area->uid);
+            }
+            free(json_str);
+        }
+    }
+
     /* Write to file with pretty printing */
     ret = json_dump_file(root, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
     json_decref(root);
-    
+
     if (ret != 0) {
         log_stringf("json_area_save: Failed to write %s", path);
         return false;
     }
-    
+
     log_stringf("json_area_save: Saved area '%s' to %s", area->name, path);
-    
+
     return true;
+}
+
+/*
+ * Serialize area to compact JSON string for Redis caching.
+ * Returns: allocated string (caller must free), NULL on failure.
+ */
+char *json_area_serialize_to_string(AREA_DATA *area)
+{
+    json_t *root;
+    char *result;
+
+    if (!area) {
+        return NULL;
+    }
+
+    /* Create root JSON object */
+    root = json_object();
+    if (!root) return NULL;
+
+    json_object_set_new(root, "schema_version", json_string(JSON_AREA_SCHEMA_VERSION));
+
+    /* Serialize area metadata */
+    json_object_set_new(root, "area", json_area_serialize_metadata(area));
+
+    /* Serialize rooms */
+    json_t *rooms = json_array();
+    int hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    int hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
+
+    for (int j = 0; j < hash_count; j++) {
+        for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
+            if (room->vnum && room->area == area) {
+                json_t *room_json = json_area_serialize_room(room);
+                if (room_json) json_array_append_new(rooms, room_json);
+            }
+        }
+        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
+    }
+    json_object_set_new(root, "rooms", rooms);
+
+    /* Serialize mobiles */
+    json_t *mobiles = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    for (int j = 0; j < hash_count; j++) {
+        for (MOB_INDEX_DATA *mob = area->mob_index_hash[hash_index]; mob; mob = mob->next) {
+            if (mob->vnum && mob->area == area) {
+                json_t *mob_json = json_area_serialize_mobile(mob);
+                if (mob_json) json_array_append_new(mobiles, mob_json);
+            }
+        }
+        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
+    }
+    json_object_set_new(root, "mobiles", mobiles);
+
+    /* Serialize objects */
+    json_t *objects = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    for (int j = 0; j < hash_count; j++) {
+        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[hash_index]; obj; obj = obj->next) {
+            if (obj->vnum && obj->area == area) {
+                json_t *obj_json = json_area_serialize_object(obj);
+                if (obj_json) json_array_append_new(objects, obj_json);
+            }
+        }
+        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
+    }
+    json_object_set_new(root, "objects", objects);
+
+    /* Serialize tokens */
+    json_t *tokens = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    for (int j = 0; j < hash_count; j++) {
+        for (TOKEN_INDEX_DATA *token = area->token_index_hash[hash_index]; token; token = token->next) {
+            if (token->vnum && token->area == area) {
+                json_t *token_json = json_area_serialize_token(token);
+                if (token_json) json_array_append_new(tokens, token_json);
+            }
+        }
+        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
+    }
+    if (json_array_size(tokens) > 0) {
+        json_object_set_new(root, "tokens", tokens);
+    } else {
+        json_decref(tokens);
+    }
+
+    /* Convert to compact JSON string */
+    result = json_dumps(root, JSON_COMPACT);
+    json_decref(root);
+
+    return result;
 }
 
 /***************************************************************************

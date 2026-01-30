@@ -30,6 +30,9 @@ AREA_DATA *json_area_load(const char *filename);
 /* Save area to JSON file */
 bool json_area_save(AREA_DATA *area);
 
+/* Serialize area to JSON string (caller must free) */
+char *json_area_serialize_to_string(AREA_DATA *area);
+
 /* Fix up shop stock pointers after all areas are loaded */
 void fix_shops(void);
 

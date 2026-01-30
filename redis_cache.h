@@ -36,6 +36,7 @@
 #define REDIS_TTL_CHAR_FULL    (24 * 3600)  // 24 hours - full character JSON
 #define REDIS_TTL_CHAR_ACTIVE  (30 * 60)    // 30 minutes - is logged in?
 #define REDIS_TTL_WORLD_STATE  (7 * 24 * 3600)  // 7 days - persistent world
+#define REDIS_TTL_AREA_FULL    (7 * 24 * 3600)  // 7 days - areas rarely change
 
 /***************************************************************************
  * Data Structures                                                         *
@@ -157,6 +158,44 @@ bool redis_cache_account_full(const char *account_name, json_t *account_json);
 // Retrieve full account JSON from cache
 // Returns: json_t* if found (caller must json_decref), NULL if miss
 json_t *redis_get_account_full(const char *account_name);
+
+/***************************************************************************
+ * Area Caching                                                            *
+ * Pattern: Boot loads from disk, then async warms Redis.                  *
+ * Edits/saves update Redis immediately, queue async disk write.          *
+ ***************************************************************************/
+
+// Cache full area JSON
+// Key: "area:{uid}:full"
+// Returns: true if cached successfully
+bool redis_cache_area_full(long area_uid, const char *json_str);
+
+// Retrieve full area JSON from cache
+// Returns: allocated string if found (caller must free), NULL if miss
+char *redis_get_area_full(long area_uid);
+
+// Invalidate area cache entry
+void redis_invalidate_area(long area_uid);
+
+// Cache area and queue for async disk write
+// This is the main entry point for area saves
+// filename is needed for async disk writer to know where to save
+bool redis_cache_area_state(long area_uid, const char *filename, const char *json_str);
+
+// Get/set the cached filename for an area (used by async disk writer)
+char *redis_get_area_filename(long area_uid);
+bool redis_set_area_filename(long area_uid, const char *filename);
+
+// Async cache warming (call after boot, non-blocking)
+// Queues areas for background caching
+void redis_queue_area_cache_warm(long area_uid, const char *json_str);
+
+// Process one area from the cache warm queue (call from game loop)
+// Returns: true if processed an item, false if queue empty
+bool redis_process_area_cache_warm(void);
+
+// Get size of cache warm queue
+long redis_area_cache_warm_queue_size(void);
 
 /***************************************************************************
  * World State Persistence (Phase 2)                                       *

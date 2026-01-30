@@ -1702,9 +1702,14 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 	}
 
 	// Ships
+    
 	iterator_start(&it, loaded_ships);
 	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
 	{
+		// Skip ships without a valid room (can happen if ship failed to load properly)
+		if (!ship->ship || !ship->ship->in_room)
+			continue;
+
 		if( ship->ship->in_room->wilds == pWilds &&
 			(ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_endx) &&
 			(ship->ship->in_room->y >= vp_starty && ship->ship->in_room->y <= vp_endy) )
@@ -2078,7 +2083,8 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
                 if (!found)
                 {
-                    sprintf(j, "%c",pWilds->map[index]);
+                    j[0] = pWilds->map[index];
+                    j[1] = '\0';
                     if (!str_cmp(j, last_terrain))
                     {
                         sprintf(temp, last_terrain);
@@ -2302,7 +2308,8 @@ void show_map_to_char(CHAR_DATA * ch,
 /* Vizz - if no PC found in the room, display the terrain char */
                 if (!found)
                 {
-                    sprintf(j, "%c",pWilds->map[index]);
+                    j[0] = pWilds->map[index];
+                    j[1] = '\0';
                     if (!str_cmp(j, last_terrain))
                     {
                         sprintf(temp, last_terrain);

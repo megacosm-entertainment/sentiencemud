@@ -31,6 +31,7 @@ void            load_wilds args (( FILE *fp, AREA_DATA *pArea ));
 void            save_wilds args (( FILE *fp, AREA_DATA *pArea ));
 WILDS_DATA      *new_wilds args (( void ));
 void            free_wilds args (( WILDS_DATA *pWilds ));
+char            *allocate_wildsmap args (( int map_size_x, int map_size_y ));
 
 ROOM_INDEX_DATA *create_wilds_vroom args ((WILDS_DATA *pWilds, int x, int y));
 void            destroy_wilds_vroom args ((ROOM_INDEX_DATA *room));

@@ -16,6 +16,7 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
+#include "redis_cache.h"
 
 extern void persist_save(void);
 
@@ -80,6 +81,7 @@ void update_handler(void)
     static int pulse_msdp;
     static int pulse_ships;
 	static int pulse_gmcp;
+    static int pulse_cache_warm;
     char buf[MSL];
     int i;
 
@@ -108,12 +110,20 @@ void update_handler(void)
     // Process SSL context cleanup queue
     process_ssl_cleanup_queue();
 	// Load stats every 12 hours.
-	if (current_time >= stats_load_time + 43200) 
+	if (current_time >= stats_load_time + 43200)
 	{
 	    load_statistics();
 		stats_load_time = current_time;
     }
 	}
+
+    /* Process Redis area cache warming (non-blocking, 1 per pulse) */
+    if (--pulse_cache_warm <= 0) {
+        pulse_cache_warm = PULSE_PER_SECOND;  /* Once per second */
+        if (redis_process_area_cache_warm()) {
+            /* Processed one item, more may remain */
+        }
+    }
 
     if (--pulse_auction <= 0)
     {
