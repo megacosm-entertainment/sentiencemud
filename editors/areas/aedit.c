@@ -40,21 +40,21 @@ AEDIT(aedit_show)
     ROOM_INDEX_DATA *recall;
 //	ITERATOR it;
 //	PROG_LIST *trigger;
-	BUFFER *buffer;
-	buffer = new_buf();
+    BUFFER *buffer;
+    buffer = new_buf();
 
     EDIT_AREA(ch, pArea);
-	sprintf(buf, "{X======== {W%s{X ========\n\r", pArea->name);
-	add_buf(buffer, buf);
+    sprintf(buf, "{X======== {W%s{X ========\n\r", pArea->name);
+    add_buf(buffer, buf);
 
-	sprintf(buf, "{WArea: {R[{X%5ld{R]{X %s {R({WID: {X%ld{R){X\n\r", pArea->anum, pArea->name, pArea->uid);
-	add_buf(buffer, buf);
+    sprintf(buf, "{WArea: {R[{X%5ld{R]{X %s {R({WID: {X%ld{R){X\n\r", pArea->anum, pArea->name, pArea->uid);
+    add_buf(buffer, buf);
 
 //    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
 //    send_to_char(buf, ch);
 
-	sprintf(buf, "\n\r{WSystem Infomation:{X\n\r");
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r{WSystem Infomation:{X\n\r");
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WFile:        {R[{X%s{R]{X\n\r", pArea->file_name);
     add_buf(buffer, buf);
@@ -68,11 +68,11 @@ AEDIT(aedit_show)
     sprintf(buf, "{WPlayers:     {R[{X%d{R]{X\n\r", pArea->nplayer);
     add_buf(buffer, buf);
 
-	sprintf(buf, "{WCredits:     {R[{X%s{R]{X\n\r", pArea->credits);
+    sprintf(buf, "{WCredits:     {R[{X%s{R]{X\n\r", pArea->credits);
     add_buf(buffer, buf);
 
     sprintf(buf, "{WFlags:       {R[{X%s{R]{X\n\r",
-		   flag_string(area_flags, pArea->area_flags));
+           flag_string(area_flags, pArea->area_flags));
     add_buf(buffer, buf);
 
     sprintf(buf, "{WOpen:        {R[{X%s{R]{X\n\r", pArea->open ? "Yes" : "No");
@@ -82,49 +82,49 @@ AEDIT(aedit_show)
 // OLC Data
 //
 
-	sprintf(buf, "\n\r{WOLC Info:{X\n\r");
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r{WOLC Info:{X\n\r");
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WVnums:       {R[{X%ld-%ld{R]{X\n\r", pArea->min_vnum, pArea->max_vnum);
     add_buf(buffer, buf);
 
-	sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
+    sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
     add_buf(buffer, buf);
 
-	sprintf(buf, "{WSecurity:    {R[{X%d{R]{X\n\r", pArea->security);
+    sprintf(buf, "{WSecurity:    {R[{X%d{R]{X\n\r", pArea->security);
     add_buf(buffer, buf);
 
-	sprintf(buf, "{WBuilders:    {R[{X%s{R]{X\n\r", pArea->builders);
+    sprintf(buf, "{WBuilders:    {R[{X%s{R]{X\n\r", pArea->builders);
     add_buf(buffer, buf);
 
-	sprintf(buf, "{WSuggested Levels:  {R[{X%d-%d{R]{X\n\r", pArea->min_level, pArea->max_level);
-	add_buf(buffer, buf);
+    sprintf(buf, "{WSuggested Levels:  {R[{X%d-%d{R]{X\n\r", pArea->min_level, pArea->max_level);
+    add_buf(buffer, buf);
 
 //
 // Room Data
 //
 
-	sprintf(buf, "\n\r{WLocation Information:{X\n\r");
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r{WLocation Information:{X\n\r");
+    add_buf(buffer, buf);
 
-	if(pArea->recall.wuid) {
-		WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
-		if(wilds)
-			sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pArea->recall.wuid,
-				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
-		else
-			sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pArea->recall.wuid);
-	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
-			sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pArea->recall.id[0], recall->name);
-	} else
-			sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pArea->recall.id[0]);
-	add_buf(buffer, buf);
+    if(pArea->recall.wuid) {
+        WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
+        if(wilds)
+            sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pArea->recall.wuid,
+                pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
+        else
+            sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pArea->recall.wuid);
+    } else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
+            sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pArea->recall.id[0], recall->name);
+    } else
+            sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pArea->recall.id[0]);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WAreaWho:     {R[{X%s{R] [{X%s{R]{X\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
     add_buf(buffer, buf);
 
     sprintf(buf, "{WPlaceType:   {R[{X%s{R]{X\n\r",
-	    flag_string(place_flags, pArea->place_flags));
+        flag_string(place_flags, pArea->place_flags));
     add_buf(buffer, buf);
 
     sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea, pArea->airship_land_spot) == NULL ? "{XNone" :
@@ -133,20 +133,20 @@ AEDIT(aedit_show)
 
 
 
-	sprintf(buf, "\n\r{WWilderness Map Locations:{X\n\r");
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r{WWilderness Map Locations:{X\n\r");
+    add_buf(buffer, buf);
 
     if( pArea->wilds_uid > 0 )
     {
-		WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-    	sprintf(buf, "{WWilderness:     {R[{X%ld{R]{X %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
-	    add_buf(buffer, buf);
-	}
-	else
-	{
-    	sprintf(buf, "{WWilderness:     {Xnone\n\r");
-	    add_buf(buffer, buf);
-	}
+        WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+        sprintf(buf, "{WWilderness:     {R[{X%ld{R]{X %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
+        add_buf(buffer, buf);
+    }
+    else
+    {
+        sprintf(buf, "{WWilderness:     {Xnone\n\r");
+        add_buf(buffer, buf);
+    }
 
     sprintf(buf, "{WX,Y:            {R[{X%d, %d{R]{X\n\r", pArea->x, pArea->y);
     add_buf(buffer, buf);
@@ -160,38 +160,38 @@ AEDIT(aedit_show)
     {
         TRADE_ITEM *temp;
         sprintf(buf, "{WTrade Items available within this area:{X\n\r");
-		add_buf(buffer, buf);
-	 	sprintf(buf,"{MName               Obj_Vnum Rep.Time Rep.Amount  Max_Qty Min_Price Max_Price{x\n\r");
-		add_buf(buffer,buf);
+        add_buf(buffer, buf);
+         sprintf(buf,"{MName               Obj_Vnum Rep.Time Rep.Amount  Max_Qty Min_Price Max_Price{x\n\r");
+        add_buf(buffer,buf);
         temp = pArea->trade_list;
 
         while(temp != NULL)
-	{
-	    sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
-	    add_buf(buffer, buf);
+    {
+        sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
+        add_buf(buffer, buf);
             temp = temp->next;
-	}
+    }
 
     }
 
 
-	sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
+    add_buf(buffer, buf);
 
-	sprintf(buf, "\n\r{WPlayer Notes:{X\n\r%s\n\r", pArea->notes);
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r{WPlayer Notes:{X\n\r%s\n\r", pArea->notes);
+    add_buf(buffer, buf);
 
-	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
-	add_buf(buffer, buf);
+    sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
+    add_buf(buffer, buf);
 
 
-	if (pArea->progs->progs)
-		olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
+    if (pArea->progs->progs)
+        olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
 
-	if (pArea->index_vars)
-		olc_show_index_vars(buffer, pArea->index_vars);
-	page_to_char(buf_string(buffer), ch);
-	free_buf(buffer);
+    if (pArea->index_vars)
+        olc_show_index_vars(buffer, pArea->index_vars);
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
 
     return false;
 }
@@ -206,15 +206,15 @@ AEDIT(aedit_flags)
 
     if ((value = flag_value(area_flags, argument)) != NO_FLAG)
     {
-	TOGGLE_BIT(area->area_flags, value);
+    TOGGLE_BIT(area->area_flags, value);
 
-	send_to_char("Flag toggled.\n\r", ch);
-	return true;
+    send_to_char("Flag toggled.\n\r", ch);
+    return true;
     }
     else
     {
-	send_to_char("No such flag.\n\r", ch);
-	return false;
+    send_to_char("No such flag.\n\r", ch);
+    return false;
     }
 
     return false;
@@ -229,8 +229,8 @@ AEDIT(aedit_x)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax:  x [#x coord on map]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  x [#x coord on map]\n\r", ch);
+    return false;
     }
 
     pArea->x = atoi(argument);
@@ -247,8 +247,8 @@ AEDIT(aedit_y)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax:  y [#y coord on map]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  y [#y coord on map]\n\r", ch);
+    return false;
     }
 
     pArea->y = atoi(argument);
@@ -266,8 +266,8 @@ AEDIT(aedit_land_x)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax:  landx [#x coord on map]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  landx [#x coord on map]\n\r", ch);
+    return false;
     }
 
     pArea->land_x = atoi(argument);
@@ -285,8 +285,8 @@ AEDIT(aedit_land_y)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax:  landy [#y coord on map]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  landy [#y coord on map]\n\r", ch);
+    return false;
     }
 
     pArea->land_y = atoi(argument);
@@ -303,17 +303,17 @@ AEDIT(aedit_wilds)
 
     if (!is_number(argument))
     {
-		send_to_char("Syntax:  wilds [map uid]\n\r", ch);
-		return false;
+        send_to_char("Syntax:  wilds [map uid]\n\r", ch);
+        return false;
     }
 
     long wuid = atol(argument);
 
     if( !get_wilds_from_uid(NULL, wuid) )
     {
-		send_to_char("Invalid wilds map.\n\r", ch);
-		return false;
-	}
+        send_to_char("Invalid wilds map.\n\r", ch);
+        return false;
+    }
 
     pArea->wilds_uid = wuid;
     send_to_char("Wilderness Map UID set set.\n\r", ch);
@@ -331,13 +331,13 @@ AEDIT(aedit_airshipland)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax:  airshipland [vnum]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  airshipland [vnum]\n\r", ch);
+    return false;
     }
 
     if (get_room_index(pArea, atol(argument)) == NULL) {
-	send_to_char("That room doesn't exist.\n\r", ch);
-	return false;
+    send_to_char("That room doesn't exist.\n\r", ch);
+    return false;
     }
 
     pArea->airship_land_spot = atol(argument);
@@ -376,30 +376,30 @@ AEDIT( aedit_add_trade )
     argument = one_argument( argument, arg6);
 
     if ( arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0' || arg4[0] == '\0' ||
-			arg5[0] == '\0' || arg6[0] == '\0' )
+            arg5[0] == '\0' || arg6[0] == '\0' )
     {
-	send_to_char("addtrade obj_vnum replenish_time replenish_amount max_qty min_price max_price\n\r", ch);
-	return false;
+    send_to_char("addtrade obj_vnum replenish_time replenish_amount max_qty min_price max_price\n\r", ch);
+    return false;
     }
 
-	obj_vnum = atoi( arg1 );
-	replenish_time = atoi( arg2 );
-	replenish_amount = atoi( arg3 );
-	max_qty = atoi( arg4 );
-	min_price = atoi( arg5 );
-	max_price = atoi( arg6 );
+    obj_vnum = atoi( arg1 );
+    replenish_time = atoi( arg2 );
+    replenish_amount = atoi( arg3 );
+    max_qty = atoi( arg4 );
+    min_price = atoi( arg5 );
+    max_price = atoi( arg6 );
 
-	if ( ( pObj = get_obj_index( pArea, obj_vnum ) ) == NULL )
-	{
-	    send_to_char( "That object does not exist!\n\r", ch );
-	    return false;
-	}
+    if ( ( pObj = get_obj_index( pArea, obj_vnum ) ) == NULL )
+    {
+        send_to_char( "That object does not exist!\n\r", ch );
+        return false;
+    }
 
-	if ( pObj->value[0] == TRADE_NONE )
-	{
-		send_to_char( "That is not a valid trade item.\n\r", ch );
-		return false;
-	}
+    if ( pObj->value[0] == TRADE_NONE )
+    {
+        send_to_char( "That is not a valid trade item.\n\r", ch );
+        return false;
+    }
 
     new_trade_item(pArea, pObj->value[0], replenish_time, replenish_amount, max_qty, min_price, max_price, obj_vnum);
     send_to_char("Trade item added.\n\r", ch);
@@ -416,57 +416,57 @@ AEDIT( aedit_set_trade)
 
 AEDIT( aedit_view_trade )
 {
-	char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
     AREA_DATA *pTArea;
     TRADE_ITEM *pItem;
-	int i = 0;
+    int i = 0;
 
     char arg[MAX_STRING_LENGTH];
 
     argument = one_argument( argument, arg );
 
-	if ( ( arg[0] == '\0' ) || (( i = get_trade_item( arg )) == 0 ) )
-	{
-		send_to_char("viewtrade 'trade type'\n\r\n\rAvailable trade types are:\n", ch);
+    if ( ( arg[0] == '\0' ) || (( i = get_trade_item( arg )) == 0 ) )
+    {
+        send_to_char("viewtrade 'trade type'\n\r\n\rAvailable trade types are:\n", ch);
 
-		while( trade_table[ i ].trade_type != TRADE_LAST )
-		{
-			send_to_char( trade_table[ i ].name, ch );
-			send_to_char( "\n\r", ch );
-			i++;
-		}
+        while( trade_table[ i ].trade_type != TRADE_LAST )
+        {
+            send_to_char( trade_table[ i ].name, ch );
+            send_to_char( "\n\r", ch );
+            i++;
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	sprintf( buf, "Showing all trade types across areas for {G%s{x:\n\r",
-			trade_table[i].name );
-	send_to_char( buf, ch );
-	send_to_char( "\n\rArea            Type        Rep. Amt.   Rep Time.   Qty    MaxQty     Min    Max    Buy    Sell\n\r", ch );
-	send_to_char( "----------------------------------------------------------------------------------------------------\n\r", ch );
+    sprintf( buf, "Showing all trade types across areas for {G%s{x:\n\r",
+            trade_table[i].name );
+    send_to_char( buf, ch );
+    send_to_char( "\n\rArea            Type        Rep. Amt.   Rep Time.   Qty    MaxQty     Min    Max    Buy    Sell\n\r", ch );
+    send_to_char( "----------------------------------------------------------------------------------------------------\n\r", ch );
 
     for ( pTArea = area_first; pTArea != NULL; pTArea = pTArea->next )
     {
-		for ( pItem = pTArea->trade_list; pItem != NULL; pItem = pItem->next )
-		{
-			if ( pItem->trade_type == i )
-			{
-				sprintf( buf, "%-16s %-15s %-12ld %-9ld %-7ld %-7ld %-7ld %-7ld %-7ld %-7ld\n\r",
-						pTArea->name, ( pItem->replenish_amount > 0 ) ? "{RSupplier{x" : "{GConsumer{x",
-						pItem->replenish_amount,
-						pItem->replenish_time,
-						pItem->qty,
-						pItem->max_qty,
-						pItem->min_price,
-						pItem->max_price,
-						pItem->buy_price,
-						pItem->sell_price );
-				send_to_char( buf, ch );
-			}
-		}
-	}
+        for ( pItem = pTArea->trade_list; pItem != NULL; pItem = pItem->next )
+        {
+            if ( pItem->trade_type == i )
+            {
+                sprintf( buf, "%-16s %-15s %-12ld %-9ld %-7ld %-7ld %-7ld %-7ld %-7ld %-7ld\n\r",
+                        pTArea->name, ( pItem->replenish_amount > 0 ) ? "{RSupplier{x" : "{GConsumer{x",
+                        pItem->replenish_amount,
+                        pItem->replenish_time,
+                        pItem->qty,
+                        pItem->max_qty,
+                        pItem->min_price,
+                        pItem->max_price,
+                        pItem->buy_price,
+                        pItem->sell_price );
+                send_to_char( buf, ch );
+            }
+        }
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -484,32 +484,32 @@ AEDIT( aedit_remove_trade)
     //send_to_char(buf, ch);
     if ( arg1[0] == '\0')// || arg2[0] == '\0' || arg3[0] == '\0' || arg4[0] == '\0')
     {
-	send_to_char("removetrade name\n\r", ch);
-	return false;
+    send_to_char("removetrade name\n\r", ch);
+    return false;
     }
 
     type = find_trade_item(pArea, arg1);
 
     if (type == NULL)
     {
-	send_to_char("That is not a valid trade item.\n\r", ch);
-	return false;
+    send_to_char("That is not a valid trade item.\n\r", ch);
+    return false;
     }
 
 
     if  ( type == pArea->trade_list )
     {
-	pArea->trade_list = type->next;
+    pArea->trade_list = type->next;
     }
     else
-	for ( temp = pArea->trade_list; temp; temp = temp->next )
-	{
-	    if ( temp->next == type )
-	    {
-		temp->next = type->next;
-		break;
-	    }
-	}
+    for ( temp = pArea->trade_list; temp; temp = temp->next )
+    {
+        if ( temp->next == type )
+        {
+        temp->next = type->next;
+        break;
+        }
+    }
 
     free_trade_item(type);
     send_to_char("Trade item removed.\n\r", ch);
@@ -525,17 +525,17 @@ AEDIT(aedit_open)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:   open [Yes/No]\n\r", ch);
-	return false;
+    send_to_char("Syntax:   open [Yes/No]\n\r", ch);
+    return false;
     }
 
     if (!str_prefix(argument, "yes"))
     {
-	pArea->open = true;
+    pArea->open = true;
     }
     else
     {
-	pArea->open = false;
+    pArea->open = false;
     }
 
     send_to_char("Open set.\n\r", ch);
@@ -587,8 +587,8 @@ AEDIT(aedit_desc)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pArea->description);
-	return true;
+    string_append(ch, &pArea->description);
+    return true;
     }
 
     send_to_char("Syntax:  desc\n\r", ch);
@@ -603,8 +603,8 @@ AEDIT(aedit_comments)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pArea->comments);
-	return true;
+    string_append(ch, &pArea->comments);
+    return true;
     }
 
     send_to_char("Syntax:  comment\n\r", ch);
@@ -619,8 +619,8 @@ AEDIT(aedit_notes)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pArea->notes);
-	return true;
+    string_append(ch, &pArea->notes);
+    return true;
     }
 
     send_to_char("Syntax:  notes\n\r", ch);
@@ -643,14 +643,14 @@ AEDIT(aedit_repop)
 
     if (!is_number(argument))
     {
-	send_to_char("That's not a number!\n\r", ch);
-	return false;
+    send_to_char("That's not a number!\n\r", ch);
+    return false;
     }
 
     if ((value = atoi(argument)) < 5 || value > 120)
     {
-	send_to_char("Value is out of range. Range is 5-120 minutes.\n\r", ch);
-	return false;
+    send_to_char("Value is out of range. Range is 5-120 minutes.\n\r", ch);
+    return false;
     }
 
     pArea->repop = value;
@@ -667,8 +667,8 @@ AEDIT(aedit_credits)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:   credits [$credits]\n\r", ch);
-	return false;
+    send_to_char("Syntax:   credits [$credits]\n\r", ch);
+    return false;
     }
 
     free_string(pArea->credits);
@@ -686,33 +686,33 @@ AEDIT(aedit_areawho)
 
     if (argument[0] != '\0')
     {
-	EDIT_AREA(ch, pArea);
+    EDIT_AREA(ch, pArea);
 
-	if ( !str_prefix(argument, "blank") )
-	{
-	    pArea->area_who = AREA_BLANK;
+    if ( !str_prefix(argument, "blank") )
+    {
+        pArea->area_who = AREA_BLANK;
 
-	    send_to_char("Area who title cleared.\n\r", ch);
-	    return true;
-	}
+        send_to_char("Area who title cleared.\n\r", ch);
+        return true;
+    }
 
-	if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
-	{
-		if( value == AREA_INSTANCE || value == AREA_DUTY )
-		{
-			send_to_char("Area who title only allowed in blueprints.\n\r", ch);
-			return false;
-		}
+    if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
+    {
+        if( value == AREA_INSTANCE || value == AREA_DUTY )
+        {
+            send_to_char("Area who title only allowed in blueprints.\n\r", ch);
+            return false;
+        }
 
-	    pArea->area_who = value;
+        pArea->area_who = value;
 
-	    send_to_char("Area who title set.\n\r", ch);
-	    return true;
-	}
+        send_to_char("Area who title set.\n\r", ch);
+        return true;
+    }
     }
 
     send_to_char("Syntax:  areawho [title]\n\r"
-		  "Type '? areawho' for a list of who titles.\n\r", ch);
+          "Type '? areawho' for a list of who titles.\n\r", ch);
     return false;
 }
 
@@ -723,23 +723,23 @@ AEDIT(aedit_placetype)
 
     if (argument[0] != '\0')
     {
-		EDIT_AREA(ch, pArea);
+        EDIT_AREA(ch, pArea);
 
-		if(!str_cmp(argument, "none")) {
-			pArea->place_flags = PLACE_NOWHERE;
+        if(!str_cmp(argument, "none")) {
+            pArea->place_flags = PLACE_NOWHERE;
 
-			send_to_char("Area place type cleared.\n\r", ch);
-			return true;
-		} else if ((value = flag_value(place_flags, argument)) != NO_FLAG) {
-			pArea->place_flags = value;
+            send_to_char("Area place type cleared.\n\r", ch);
+            return true;
+        } else if ((value = flag_value(place_flags, argument)) != NO_FLAG) {
+            pArea->place_flags = value;
 
-			send_to_char("Area place type set.\n\r", ch);
-			return true;
-		}
+            send_to_char("Area place type set.\n\r", ch);
+            return true;
+        }
     }
 
     send_to_char("Syntax:  placetype [flag]\n\r"
-		  "Type '? placetype' for a list of possible values.\n\r", ch);
+          "Type '? placetype' for a list of possible values.\n\r", ch);
     return false;
 }
 
@@ -756,8 +756,8 @@ AEDIT(aedit_file)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  filename [$file]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  filename [$file]\n\r", ch);
+    return false;
     }
 
     /*
@@ -766,8 +766,8 @@ AEDIT(aedit_file)
     length = strlen(argument);
     if (length > 12)
     {
-	send_to_char("No more than twelve characters allowed.\n\r", ch);
-	return false;
+    send_to_char("No more than twelve characters allowed.\n\r", ch);
+    return false;
     }
 
     /*
@@ -775,11 +775,11 @@ AEDIT(aedit_file)
      */
     for (i = 0; i < length; i++)
     {
-	if (!ISALNUM(file[i]))
-	{
-	    send_to_char("Only letters and numbers are valid.\n\r", ch);
-	    return false;
-	}
+    if (!ISALNUM(file[i]))
+    {
+        send_to_char("Only letters and numbers are valid.\n\r", ch);
+        return false;
+    }
     }
 
     free_string(pArea->file_name);
@@ -802,8 +802,8 @@ AEDIT(aedit_age)
 
     if (!is_number(age) || age[0] == '\0')
     {
-	send_to_char("Syntax:  age [#xage]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  age [#xage]\n\r", ch);
+    return false;
     }
 
     pArea->age = atoi(age);
@@ -815,55 +815,55 @@ AEDIT(aedit_age)
 
 AEDIT(aedit_recall)
 {
-	AREA_DATA *pArea;
-	char arg1[MIL];
-	char arg2[MIL];
-	char arg3[MIL];
-	char arg4[MIL];
-	int vnum, x, y, z;
+    AREA_DATA *pArea;
+    char arg1[MIL];
+    char arg2[MIL];
+    char arg3[MIL];
+    char arg4[MIL];
+    int vnum, x, y, z;
 
-	EDIT_AREA(ch, pArea);
+    EDIT_AREA(ch, pArea);
 
-	argument = one_argument(argument, arg1);
-	argument = one_argument(argument, arg2);
-	argument = one_argument(argument, arg3);
-	argument = one_argument(argument, arg4);
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+    argument = one_argument(argument, arg4);
 
-	if (!is_number(arg1) || !arg1[0]) {
-		send_to_char("Syntax:  recall <vnum>\n\r", ch);
-		send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
-		return false;
-	}
+    if (!is_number(arg1) || !arg1[0]) {
+        send_to_char("Syntax:  recall <vnum>\n\r", ch);
+        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+        return false;
+    }
 
-	vnum = atoi(arg1);
+    vnum = atoi(arg1);
 
-	if(vnum < 1) {
-		location_clear(&pArea->recall);
-		send_to_char("Recall cleared.\n\r", ch);
-	} else if(!arg2[0]) {
-		if(!get_room_index(pArea, vnum)) {
-			send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
-			return false;
-		}
+    if(vnum < 1) {
+        location_clear(&pArea->recall);
+        send_to_char("Recall cleared.\n\r", ch);
+    } else if(!arg2[0]) {
+        if(!get_room_index(pArea, vnum)) {
+            send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
+            return false;
+        }
 
-		location_set(&pArea->recall,0,vnum,0,0);
-		send_to_char("Recall set.\n\r", ch);
-	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
-		send_to_char("Syntax:  recall <vnum>\n\r", ch);
-		send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
-		return false;
-	} else if(!get_wilds_from_uid(NULL,vnum)) {
-		send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
-		return false;
-	} else {
-		x = atoi(arg2);
-		y = atoi(arg3);
-		z = atoi(arg4);
-		location_set(&pArea->recall,vnum,x,y,z);
-		send_to_char("Recall set.\n\r", ch);
-	}
+        location_set(&pArea->recall,0,vnum,0,0);
+        send_to_char("Recall set.\n\r", ch);
+    } else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
+        send_to_char("Syntax:  recall <vnum>\n\r", ch);
+        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+        return false;
+    } else if(!get_wilds_from_uid(NULL,vnum)) {
+        send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
+        return false;
+    } else {
+        x = atoi(arg2);
+        y = atoi(arg3);
+        z = atoi(arg4);
+        location_set(&pArea->recall,vnum,x,y,z);
+        send_to_char("Recall set.\n\r", ch);
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -880,22 +880,22 @@ AEDIT(aedit_security)
 
     if (!is_number(sec) || sec[0] == '\0')
     {
-	send_to_char("Syntax:  security [#xlevel]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  security [#xlevel]\n\r", ch);
+    return false;
     }
 
     value = atoi(sec);
 
     if (value > ch->pcdata->security || value < 0)
     {
-	if (ch->pcdata->security != 0)
-	{
-	    sprintf(buf, "Security is 0-%d.\n\r", ch->pcdata->security);
-	    send_to_char(buf, ch);
-	}
-	else
-	    send_to_char("Security is 0 only.\n\r", ch);
-	return false;
+    if (ch->pcdata->security != 0)
+    {
+        sprintf(buf, "Security is 0-%d.\n\r", ch->pcdata->security);
+        send_to_char(buf, ch);
+    }
+    else
+        send_to_char("Security is 0 only.\n\r", ch);
+    return false;
     }
 
     pArea->security = value;
@@ -907,68 +907,68 @@ AEDIT(aedit_security)
 
 AEDIT(aedit_builder)
 {
-	AREA_DATA *pArea;
-	char name[MAX_STRING_LENGTH];
-	char buf[MAX_STRING_LENGTH];
+    AREA_DATA *pArea;
+    char name[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
 
-	EDIT_AREA(ch, pArea);
+    EDIT_AREA(ch, pArea);
 
-	one_argument(argument, name);
+    one_argument(argument, name);
 
-	if (name[0] == '\0')
-	{
-		send_to_char("Syntax:  builder [$name]  -toggles builder\n\r", ch);
-		send_to_char("Syntax:  builder All      -allows everyone\n\r", ch);
-		return false;
-	}
+    if (name[0] == '\0')
+    {
+        send_to_char("Syntax:  builder [$name]  -toggles builder\n\r", ch);
+        send_to_char("Syntax:  builder All      -allows everyone\n\r", ch);
+        return false;
+    }
 
-	name[0] = UPPER(name[0]);
+    name[0] = UPPER(name[0]);
 
-	if (strstr(pArea->builders, name) != NULL)
-	{
-		pArea->builders = string_replace(pArea->builders, name, "\0");
-		pArea->builders = string_unpad(pArea->builders);
+    if (strstr(pArea->builders, name) != NULL)
+    {
+        pArea->builders = string_replace(pArea->builders, name, "\0");
+        pArea->builders = string_unpad(pArea->builders);
 
-		if (pArea->builders[0] == '\0')
-		{
-			free_string(pArea->builders);
-			pArea->builders = str_dup("None");
-		}
-		send_to_char("Builder removed.\n\r", ch);
-		return true;
-	}
-	else
-	{
-		buf[0] = '\0';
+        if (pArea->builders[0] == '\0')
+        {
+            free_string(pArea->builders);
+            pArea->builders = str_dup("None");
+        }
+        send_to_char("Builder removed.\n\r", ch);
+        return true;
+    }
+    else
+    {
+        buf[0] = '\0';
 
-		if (!player_exists(name) && str_cmp(name, "All"))
-		{
-			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
-			return false;
-		}
+        if (!player_exists(name) && str_cmp(name, "All"))
+        {
+            act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
+            return false;
+        }
 
-		if (strstr(pArea->builders, "None") != NULL)
-		{
-			pArea->builders = string_replace(pArea->builders, "None", "\0");
-			pArea->builders = string_unpad(pArea->builders);
-		}
+        if (strstr(pArea->builders, "None") != NULL)
+        {
+            pArea->builders = string_replace(pArea->builders, "None", "\0");
+            pArea->builders = string_unpad(pArea->builders);
+        }
 
-		if (pArea->builders[0] != '\0')
-		{
-			strcat(buf, pArea->builders);
-			strcat(buf, " ");
-		}
+        if (pArea->builders[0] != '\0')
+        {
+            strcat(buf, pArea->builders);
+            strcat(buf, " ");
+        }
 
-		strcat(buf, name);
-		free_string(pArea->builders);
-		pArea->builders = string_proper(str_dup(buf));
+        strcat(buf, name);
+        free_string(pArea->builders);
+        pArea->builders = string_proper(str_dup(buf));
 
-		send_to_char("Builder added.\n\r", ch);
-		send_to_char(pArea->builders,ch);
-		return true;
-	}
+        send_to_char("Builder added.\n\r", ch);
+        send_to_char(pArea->builders,ch);
+        return true;
+    }
 
-	return false;
+    return false;
 }
 
 
@@ -988,27 +988,27 @@ AEDIT(aedit_vnum)
     if (!is_number(lower) || lower[0] == '\0'
     || !is_number(upper) || upper[0] == '\0')
     {
-	send_to_char("Syntax:  vnum [#xlower] [#xupper]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  vnum [#xlower] [#xupper]\n\r", ch);
+    return false;
     }
 
     if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
     {
-	send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
-	return false;
+    send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
+    return false;
     }
 
     if (!check_range(atoi(lower), atoi(upper)))
     {
-	send_to_char("AEdit:  Range must include only this area.\n\r", ch);
-	return false;
+    send_to_char("AEdit:  Range must include only this area.\n\r", ch);
+    return false;
     }
 
     if (get_vnum_area(ilower)
     && get_vnum_area(ilower) != pArea)
     {
-	send_to_char("AEdit:  Lower vnum already assigned.\n\r", ch);
-	return false;
+    send_to_char("AEdit:  Lower vnum already assigned.\n\r", ch);
+    return false;
     }
 
     pArea->min_vnum = ilower;
@@ -1017,8 +1017,8 @@ AEDIT(aedit_vnum)
     if (get_vnum_area(iupper)
     && get_vnum_area(iupper) != pArea)
     {
-	send_to_char("AEdit:  Upper vnum already assigned.\n\r", ch);
-	return true;	/* The lower value has been set. */
+    send_to_char("AEdit:  Upper vnum already assigned.\n\r", ch);
+    return true;	/* The lower value has been set. */
     }
 
     pArea->max_vnum = iupper;
@@ -1043,20 +1043,20 @@ AEDIT(aedit_levels)
     if (!is_number(lower) || lower[0] == '\0'
     || !is_number(upper) || upper[0] == '\0')
     {
-	send_to_char("Syntax:  levels [#xlower] [#xupper]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  levels [#xlower] [#xupper]\n\r", ch);
+    return false;
     }
 
     if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
     {
-	send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
-	return false;
+    send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
+    return false;
     }
 
     if ((ilower = atoi(lower)) > 120 || (iupper = atoi(upper)) < 1)
     {
-	send_to_char("AEdit:  Range must be between 1 and 120.\n\r", ch);
-	return false;
+    send_to_char("AEdit:  Range must be between 1 and 120.\n\r", ch);
+    return false;
     }
 
     pArea->min_level = ilower;
@@ -1079,18 +1079,18 @@ AEDIT(aedit_postoffice)
     EDIT_AREA(ch, pArea);
 
     if (argument[0] == '\0') {
-	send_to_char("Syntax:   postoffice <vnum in the area>\n\r", ch);
-	return false;
+    send_to_char("Syntax:   postoffice <vnum in the area>\n\r", ch);
+    return false;
     }
 
     if ((vnum = atol(argument)) < pArea->min_vnum || vnum > pArea->max_vnum) {
-	send_to_char("That vnum is not in the area.\n\r", ch);
-	return false;
+    send_to_char("That vnum is not in the area.\n\r", ch);
+    return false;
     }
 
     if ((room = get_room_index(pArea, vnum)) == NULL) {
-	send_to_char("That room vnum doesn't exist.\n\r", ch);
-	return false;
+    send_to_char("That room vnum doesn't exist.\n\r", ch);
+    return false;
     }
 
     sprintf(buf, "Set post office of %s to %s(%ld)\n\r", pArea->name, room->name, vnum);
@@ -1117,22 +1117,22 @@ AEDIT (aedit_addaprog)
 
     if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addaprog [vnum] [trigger] [phrase]\n\r",ch);
-	return false;
+    send_to_char("Syntax:   addaprog [vnum] [trigger] [phrase]\n\r",ch);
+    return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_APROG)) < 0) {
-	send_to_char("Valid flags are:\n\r",ch);
-	show_help(ch, "aprog");
-	return false;
+    send_to_char("Valid flags are:\n\r",ch);
+    show_help(ch, "aprog");
+    return false;
     }
 
     slot = trigger_table[tindex].slot;
 
     if ((code = get_script_index_global(atol(num), PRG_APROG)) == NULL)
     {
-	send_to_char("No such AREAProgram.\n\r",ch);
-	return false;
+    send_to_char("No such AREAProgram.\n\r",ch);
+    return false;
     }
 
     // Make sure this has a list of progs!
@@ -1142,7 +1142,7 @@ AEDIT (aedit_addaprog)
     list->vnum            = atol(num);
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-	list->trig_number		= atoi(list->trig_phrase);
+    list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
 
     list->script          = code;
@@ -1179,8 +1179,8 @@ AEDIT (aedit_delaprog)
     }
 
     if(!edit_deltrigger(pArea->progs->progs,value)) {
-	send_to_char("No such aprog.\n\r",ch);
-	return false;
+    send_to_char("No such aprog.\n\r",ch);
+    return false;
     }
 
     send_to_char("Aprog removed.\n\r", ch);
@@ -1193,13 +1193,13 @@ AEDIT(aedit_varset)
  
     EDIT_AREA(ch, pArea);
 
-	if (olc_varset(&pArea->index_vars, ch, argument, false))
-	{
-		// Install variable into the "live"
-		olc_varset(&pArea->progs->vars, ch, argument, true);
-		return true;
-	}
-	return false;
+    if (olc_varset(&pArea->index_vars, ch, argument, false))
+    {
+        // Install variable into the "live"
+        olc_varset(&pArea->progs->vars, ch, argument, true);
+        return true;
+    }
+    return false;
 }
 
 AEDIT(aedit_varclear)
@@ -1208,12 +1208,12 @@ AEDIT(aedit_varclear)
 
     EDIT_AREA(ch, pArea);
 
-	if (olc_varclear(&pArea->index_vars, ch, argument, false))
-	{
-		// Clear variable on "live"
-		olc_varclear(&pArea->progs->vars, ch, argument, true);
-		return true;
-	}
+    if (olc_varclear(&pArea->index_vars, ch, argument, false))
+    {
+        // Clear variable on "live"
+        olc_varclear(&pArea->progs->vars, ch, argument, true);
+        return true;
+    }
 
-	return false;
+    return false;
 }

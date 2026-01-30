@@ -41,20 +41,20 @@ void do_chat(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg, "enter"))
     {
-	do_function(ch, &do_chat_enter, argument);
-	return;
+    do_function(ch, &do_chat_enter, argument);
+    return;
     }
 
     if (!str_cmp(arg, "exit"))
     {
-	do_function(ch, &do_chat_exit, argument);
-	return;
+    do_function(ch, &do_chat_exit, argument);
+    return;
     }
 
     if (!str_cmp(arg, "list"))
     {
-	do_function(ch, &do_chat_list, argument);
-	return;
+    do_function(ch, &do_chat_list, argument);
+    return;
     }
 
     if (!str_cmp(arg, "show"))
@@ -65,79 +65,79 @@ void do_chat(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg, "join"))
     {
-	do_function(ch, &do_chat_join, argument);
-	return;
+    do_function(ch, &do_chat_join, argument);
+    return;
     }
 
     if (!str_cmp(arg, "create"))
     {
-	chat_create(ch, argument, false);
-	return;
+    chat_create(ch, argument, false);
+    return;
     }
 
     if (!str_cmp(arg, "permcreate"))
     {
-	if (!IS_IMMORTAL(ch))
-	{
-	    send_to_char("To request a permanent chat room, "
-		    "contact the Immortals.\n\r", ch);
-	    return;
-	}
-	chat_create(ch, argument, true);
-	return;
+    if (!IS_IMMORTAL(ch))
+    {
+        send_to_char("To request a permanent chat room, "
+            "contact the Immortals.\n\r", ch);
+        return;
+    }
+    chat_create(ch, argument, true);
+    return;
     }
 
     if (!str_cmp(arg, "topic"))
     {
-	do_function(ch, &do_chat_topic, argument);
-	return;
+    do_function(ch, &do_chat_topic, argument);
+    return;
     }
 
     if (!str_cmp(arg, "delete"))
     {
-	do_function(ch, &do_chat_delete, argument);
-	return;
+    do_function(ch, &do_chat_delete, argument);
+    return;
     }
 
     if (!str_cmp(arg, "op"))
     {
-	do_function(ch, &do_chat_op, argument);
-	return;
+    do_function(ch, &do_chat_op, argument);
+    return;
     }
 
     if (!str_cmp(arg, "kick"))
     {
-	do_function(ch, &do_chat_kick, argument);
-	return;
+    do_function(ch, &do_chat_kick, argument);
+    return;
     }
 
     if (!str_cmp(arg, "password"))
     {
-	do_function(ch, &do_chat_password, argument);
-	return;
+    do_function(ch, &do_chat_password, argument);
+    return;
     }
 
     if (!str_cmp(arg, "ban"))
     {
-	send_to_char("NOT IMPLEMENTED", ch);
-	return;
+    send_to_char("NOT IMPLEMENTED", ch);
+    return;
     }
 
     if (!str_cmp(arg, "setfounder"))
     {
-	if (ch->tot_level >= 151)
-	{
-	    do_function(ch, &do_chat_setfounder, argument);
-	}
+    if (ch->tot_level >= 151)
+    {
+        do_function(ch, &do_chat_setfounder, argument);
+    }
 
-	else
-	{
+    else
+    {
 send_to_char("Valid commands are:\n\r"
         "ENTER EXIT LIST CREATE JOIN DELETE TOPIC OP\n\r"
         "KICK PASSWORD SHOW\n\r", ch);
-	}
+    }
 
-	return;
+    return;
     }
 
 send_to_char("Valid commands are:\n\r"
@@ -154,62 +154,62 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
     if (IS_SOCIAL(ch))
     {
-	send_to_char("You're already in chat.\n\r", ch);
-	return;
+    send_to_char("You're already in chat.\n\r", ch);
+    return;
     }
 
     if (ch->in_room == NULL)
     {
-	char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
 
-	sprintf(buf, "do_chat_enter: %s with null in_room!",
-		ch->name);
-	bug(buf, 0);
-	return;
+    sprintf(buf, "do_chat_enter: %s with null in_room!",
+        ch->name);
+    bug(buf, 0);
+    return;
     }
 
     if (!str_prefix("Maze-Level", ch->in_room->area->name)) {
         send_to_char("You can't enter chat from here.\n\r", ch);
-	return;
+    return;
     }
 
     recall = location_to_room(&ch->in_room->area->recall);
 
     if (!IS_IMMORTAL(ch) && (!recall || ch->in_room != recall || !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)))
     {
-	send_to_char("You can only enter chat from the recall point of the area you are in.{x\n\r", ch);
-	return;
+    send_to_char("You can only enter chat from the recall point of the area you are in.{x\n\r", ch);
+    return;
     }
 
     if (ch->fighting != NULL)
     {
-	send_to_char("You must stop fighting first.{x\n\r", ch);
-	return;
+    send_to_char("You must stop fighting first.{x\n\r", ch);
+    return;
     }
 
     if (ch->no_recall > 0 && !IS_IMMORTAL(ch))
     {
-	send_to_char("You can't gather enough energy for that.\n\r", ch);
-	return;
+    send_to_char("You can't gather enough energy for that.\n\r", ch);
+    return;
     }
 
-	location_from_room(&ch->before_social,ch->in_room);
+    location_from_room(&ch->before_social,ch->in_room);
 
     act("{WA ghostly spirit appears before $n and pulls $m to another dimension.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("{WA ghostly spirit appears before you and pulls you to another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     for (token = ch->tokens; token != NULL; token = token_next) {
-	token_next = token->next;
+    token_next = token->next;
 
-	if (IS_SET(token->flags, TOKEN_PURGE_RIFT)) {
-		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
-	    sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged because of rift",
-		    token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum :
-		    0);
-	    log_string(buf);
-	    token_from_char(token);
-	    free_token(token);
-	}
+    if (IS_SET(token->flags, TOKEN_PURGE_RIFT)) {
+        p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+        sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged because of rift",
+            token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum :
+            0);
+        log_string(buf);
+        token_from_char(token);
+        free_token(token);
+    }
     }
 
     // Reset manastore upon entering the rift
@@ -231,25 +231,25 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't in chat.\n\r", ch);
-	return;
+    send_to_char("You aren't in chat.\n\r", ch);
+    return;
     }
 
     room = location_to_room(&ch->before_social);
     location_clear(&ch->before_social);
 
     if (!room) {
-	sprintf(buf, "do_chat_exit: before_social room was null!");
-	bug(buf, 0);
+    sprintf(buf, "do_chat_exit: before_social room was null!");
+    bug(buf, 0);
 
 room = get_reserved_room_index("room_default_recall");
 
-	//REMOVE_BIT(ch->comm, COMM_SOCIAL);
+    //REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
-	char_from_room(ch);
+    char_from_room(ch);
 
-	char_to_room(ch, room);
-	return;
+    char_to_room(ch, room);
+    return;
     }
 
     act("{W$n has left chat.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -274,16 +274,16 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You must be in chat to do that.\n\r", ch);
-	return;
+    send_to_char("You must be in chat to do that.\n\r", ch);
+    return;
     }
 
     sprintf(buf, "{Y%s %-32s %-7s %-10s %5s{x\n\r",
-	    "Num",
-	    "Name",
-	    "People",
-	    "Creator",
-	    "Ops");
+        "Num",
+        "Name",
+        "People",
+        "Creator",
+        "Ops");
     send_to_char(buf, ch);
 
     line(ch, 70, NULL, NULL);
@@ -291,27 +291,27 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
     i = 0;
     for (chat = chat_room_list; chat != NULL; chat = chat->next)
     {
-	i++;
+    i++;
 
-	for (op = chat->ops; op != NULL; op = op->next)
-	{
-	    sprintf(buf2, "%s ", op->name);
-	}
+    for (op = chat->ops; op != NULL; op = op->next)
+    {
+        sprintf(buf2, "%s ", op->name);
+    }
 
-	sprintf(buf, "{Y%2i){x %-31.27s {M%2d/%-5d{x %-12s %-12.12s{x\n\r",
-		i,
-		chat->name,
-		chat->curr_people,
-		chat->max_people,
-		chat->created_by,
-		buf2);
-	send_to_char(buf, ch) ;
-	sprintf(buf, "    Topic: %s{x\n\r", chat->topic);
-	send_to_char(buf, ch);
+    sprintf(buf, "{Y%2i){x %-31.27s {M%2d/%-5d{x %-12s %-12.12s{x\n\r",
+        i,
+        chat->name,
+        chat->curr_people,
+        chat->max_people,
+        chat->created_by,
+        buf2);
+    send_to_char(buf, ch) ;
+    sprintf(buf, "    Topic: %s{x\n\r", chat->topic);
+    send_to_char(buf, ch);
     }
 
     if (i == 0)
-	send_to_char("No chat rooms found.\n\r", ch);
+    send_to_char("No chat rooms found.\n\r", ch);
 
     line(ch, 70, NULL, NULL);
 }
@@ -331,29 +331,29 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You must be in chat to join a chat room.\n\r", ch);
-	return;
+    send_to_char("You must be in chat to join a chat room.\n\r", ch);
+    return;
     }
 
     if (arg[0] == '\0')
     {
-	send_to_char("Join which chat room?\n\r", ch);
-	return;
+    send_to_char("Join which chat room?\n\r", ch);
+    return;
     }
 
     for (chat = chat_room_list; chat != NULL; chat = chat->next)
     {
-	if (!str_cmp(chat->name, arg))
-	{
-	    found = true;
-	    break;
-	}
+    if (!str_cmp(chat->name, arg))
+    {
+        found = true;
+        break;
+    }
     }
 
     if (!found)
     {
-	send_to_char("No such chat room found.\n\r", ch);
-	return;
+    send_to_char("No such chat room found.\n\r", ch);
+    return;
     }
 
     AREA_DATA *chat_area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
@@ -361,17 +361,17 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     room = get_room_index(chat_area, chat->vnum);
     if (room == NULL)
     {
-	sprintf(buf, "do_chat_join: %s, %s had null chat->vnum\n\r",
-		ch->name,
-		chat->name);
-	bug(buf, 0);
-	return;
+    sprintf(buf, "do_chat_join: %s, %s had null chat->vnum\n\r",
+        ch->name,
+        chat->name);
+    bug(buf, 0);
+    return;
     }
 
     if (room == ch->in_room)
     {
-	send_to_char("You're already there.\n\r", ch);
-	return;
+    send_to_char("You're already there.\n\r", ch);
+    return;
     }
     
     // Only check password if not creator and not an op
@@ -418,85 +418,85 @@ void chat_create(CHAR_DATA *ch, char *argument, bool perm)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You must be in chat to create a chat room.\n\r", ch);
-	return;
+    send_to_char("You must be in chat to create a chat room.\n\r", ch);
+    return;
     }
 
     if (arg[0] == '\0')
     {
-	sprintf(buf,
-		"Syntax:\n\rchat create <name> <max_people> [password]\n\r");
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf,
+        "Syntax:\n\rchat create <name> <max_people> [password]\n\r");
+    send_to_char(buf, ch);
+    return;
     }
 
     if (arg2[0] == '\0')
     {
-	send_to_char("Syntax:\n\r"
-		"chat create <name> <max_people> [password]\n\r", ch);
-	return;
+    send_to_char("Syntax:\n\r"
+        "chat create <name> <max_people> [password]\n\r", ch);
+    return;
     }
 
     for (chat = chat_room_list ; chat != NULL; chat = chat->next)
     {
-	i++;
+    i++;
 
-	if (!str_cmp(arg, chat->name))
-	{
-	    send_to_char("There is already a chat room with that name.\n\r", ch);
-	    return;
-	}
+    if (!str_cmp(arg, chat->name))
+    {
+        send_to_char("There is already a chat room with that name.\n\r", ch);
+        return;
+    }
     }
 
     if (i > MAX_CHAT_ROOMS)
     {
-	sprintf(buf, "Sorry, there are already %i chat rooms.\n\r", MAX_CHAT_ROOMS);
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf, "Sorry, there are already %i chat rooms.\n\r", MAX_CHAT_ROOMS);
+    send_to_char(buf, ch);
+    return;
     }
 
     if (ch->in_room->chat_room != NULL)
     {
-	send_to_char("There is already a chat room here.\n\r", ch);
-	return;
+    send_to_char("There is already a chat room here.\n\r", ch);
+    return;
     }
 
     if (!is_number(arg2))
     {
-	send_to_char("Value must be numeric.\n\r", ch);
-	return;
+    send_to_char("Value must be numeric.\n\r", ch);
+    return;
     }
 
     num = atoi(arg2);
 
     if (num < 1 || num > MAX_IN_CHAT_ROOM)
     {
-	sprintf(buf, "Limit must be between 1 and %i people.\n\r",
-		MAX_IN_CHAT_ROOM);
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf, "Limit must be between 1 and %i people.\n\r",
+        MAX_IN_CHAT_ROOM);
+    send_to_char(buf, ch);
+    return;
     }
 
     // Keep people from blocking off areas of social with pws
     if (arg3[0] != '\0' && count_exits(ch->in_room) > 1)
     {
-	send_to_char("Sorry, you can't make a protected chat room in a room with more than one exit.\n\r", ch);
-	return;
+    send_to_char("Sorry, you can't make a protected chat room in a room with more than one exit.\n\r", ch);
+    return;
     }
 
     chat = new_chat_room();
 
     if (chat_room_list == NULL)
-	chat_room_list = chat;
+    chat_room_list = chat;
     else
     {
-	CHAT_ROOM_DATA *temp_chat;
-	temp_chat = chat_room_list;
-	while (temp_chat->next != NULL)
-	{
-	    temp_chat = temp_chat->next;
-	}
-	temp_chat->next = chat;
+    CHAT_ROOM_DATA *temp_chat;
+    temp_chat = chat_room_list;
+    while (temp_chat->next != NULL)
+    {
+        temp_chat = temp_chat->next;
+    }
+    temp_chat->next = chat;
     }
 
     chat->next = NULL;
@@ -504,29 +504,29 @@ void chat_create(CHAR_DATA *ch, char *argument, bool perm)
     chat->name  = str_dup(arg);
 
     if (arg3[0] != '\0')
-	chat->password = str_dup(arg3) ;
+    chat->password = str_dup(arg3) ;
     else
-	chat->password = str_dup ("none");
+    chat->password = str_dup ("none");
     chat->max_people = num;
     chat->curr_people = 1;
     if (perm == true)
-	chat->permanent = true;
+    chat->permanent = true;
     else
-	chat->permanent = false;
+    chat->permanent = false;
     chat->area_uid = (ch->in_room && ch->in_room->area) ? ch->in_room->area->uid : 0;
     chat->vnum = ch->in_room->vnum;
     chat->created_by = str_dup(ch->name);
 
     sprintf(buf, "You created {Y#%s{x in {Y%s{x, max of {Y%d{x people.{x\n\r",
-	    chat->name,
-	    ch->in_room->name,
-	    chat->max_people);
+        chat->name,
+        ch->in_room->name,
+        chat->max_people);
     send_to_char(buf, ch);
 
     if (chat->password != NULL)
     {
-	sprintf(buf, "Password is {Y\"%s\"{x.\n\r", chat->password);
-	send_to_char(buf, ch);
+    sprintf(buf, "Password is {Y\"%s\"{x.\n\r", chat->password);
+    send_to_char(buf, ch);
     }
 
     /* link the new chatroom to the room and player */
@@ -554,31 +554,31 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't even in chat.\n\r", ch);
-	return;
+    send_to_char("You aren't even in chat.\n\r", ch);
+    return;
     }
 
     chat = ch->in_room->chat_room;
     if (chat == NULL)
     {
-	send_to_char("You aren't in a chat room.\n\r", ch);
-	return;
+    send_to_char("You aren't in a chat room.\n\r", ch);
+    return;
     }
 
     if (!is_op(chat, ch->name))
     {
-	send_to_char("Only ops may change the topic.\n\r", ch);
-	return;
+    send_to_char("Only ops may change the topic.\n\r", ch);
+    return;
     }
 
     if (argument[0] == '\0')
     {
-	send_to_char("Change topic to what?\n\r", ch);
-	return;
+    send_to_char("Change topic to what?\n\r", ch);
+    return;
     }
 
     if (strlen_no_colours(argument) > 150)
-	{
+    {
         send_to_char("Chat topic must be under 150 characters.\n\r", ch);
         return;
     }
@@ -586,7 +586,7 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
     smash_tilde(argument);
 
     if (chat->topic != NULL)
-	free_string(chat->topic);
+    free_string(chat->topic);
 
     chat->topic = str_dup(argument);
 
@@ -606,30 +606,30 @@ void do_chat_delete(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't even in chat.\n\r", ch);
-	return;
+    send_to_char("You aren't even in chat.\n\r", ch);
+    return;
     }
 
     if (ch->in_room->chat_room == NULL)
     {
-	send_to_char("There is no chat room here.\n\r", ch);
-	return;
+    send_to_char("There is no chat room here.\n\r", ch);
+    return;
     }
 
     if (ch->in_room->chat_room->permanent == true
     && ch->tot_level < MAX_LEVEL)
     {
-	send_to_char(
-	    "You may not delete a permanent chat room.\n\r"
-	    "To have this chatroom deleted contact coder@megacosm.net\n\r", ch);
-	return;
+    send_to_char(
+        "You may not delete a permanent chat room.\n\r"
+        "To have this chatroom deleted contact coder@megacosm.net\n\r", ch);
+    return;
     }
 
     if (str_cmp(ch->name, ch->in_room->chat_room->created_by)
     && !IS_IMMORTAL(ch))
     {
-	send_to_char("Only the creator of a chat room can delete it.\n\r", ch);
-	return;
+    send_to_char("Only the creator of a chat room can delete it.\n\r", ch);
+    return;
     }
 
     chat = ch->in_room->chat_room;
@@ -660,14 +660,14 @@ void do_chat_op(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't in chat.\n\r", ch);
-	return;
+    send_to_char("You aren't in chat.\n\r", ch);
+    return;
     }
 
     if (ch->in_room->chat_room == NULL)
     {
-	send_to_char("You aren't in a chat room.\n\r", ch);
-	return;
+    send_to_char("You aren't in a chat room.\n\r", ch);
+    return;
     }
 
     chat = ch->in_room->chat_room;
@@ -675,58 +675,58 @@ void do_chat_op(CHAR_DATA *ch, char *argument)
     /* show them a list of ops if no argument */
     if (arg[0] == '\0')
     {
-	int i = 0;
+    int i = 0;
 
-	buffer = new_buf();
+    buffer = new_buf();
 
-	add_buf(buffer, "{YCurrent operators:{x\n\r");
-	add_buf(buffer, "{Y---------------------------------------------------------------{x\n\r");
-	for (op = ch->in_room->chat_room->ops; op != NULL; op = op->next)
-	{
-	    i++;
+    add_buf(buffer, "{YCurrent operators:{x\n\r");
+    add_buf(buffer, "{Y---------------------------------------------------------------{x\n\r");
+    for (op = ch->in_room->chat_room->ops; op != NULL; op = op->next)
+    {
+        i++;
 
-	    if (op->name != NULL)
-	    {
-		sprintf(buf, "%-12s ", op->name);
-		add_buf(buffer, buf);
-	    }
+        if (op->name != NULL)
+        {
+        sprintf(buf, "%-12s ", op->name);
+        add_buf(buffer, buf);
+        }
 
-	    if (i % 4 == 0 && op->next != NULL)
-		add_buf(buffer, "\n\r");
-	}
+        if (i % 4 == 0 && op->next != NULL)
+        add_buf(buffer, "\n\r");
+    }
 
         if (i == 0)
-	{
-	    add_buf(buffer, "No operators found.");
-	}
+    {
+        add_buf(buffer, "No operators found.");
+    }
 
-	add_buf(buffer, "\n\r");
+    add_buf(buffer, "\n\r");
 
-	add_buf(buffer, "{Y---------------------------------------------------------------{x\n\r");
+    add_buf(buffer, "{Y---------------------------------------------------------------{x\n\r");
 
-	page_to_char(buf_string(buffer), ch);
-	free_buf(buffer);
-	return;
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+    return;
     }
 
     if (!is_op(chat, ch->name) && !IS_IMMORTAL(ch))
     {
-	send_to_char("Only ops may add and remove operators.\n\r", ch);
-	return;
+    send_to_char("Only ops may add and remove operators.\n\r", ch);
+    return;
     }
 
     if (!player_exists(arg))
     {
-	send_to_char("That player doesn't exist.\n\r", ch);
-	return;
+    send_to_char("That player doesn't exist.\n\r", ch);
+    return;
     }
 
     arg[0] = UPPER(arg[0]);
 
     if (is_op(chat, arg))
-	chat_rem_op(ch, arg);
+    chat_rem_op(ch, arg);
     else
-	chat_add_op(ch, arg);
+    chat_add_op(ch, arg);
 
     write_chat_rooms();
 }
@@ -739,21 +739,21 @@ bool is_op(CHAT_ROOM_DATA *chat, char *arg)
 
     if (chat == NULL)
     {
-	sprintf(buf, "is_op: null chat_room");
-	bug(buf, 0);
-	return false;
+    sprintf(buf, "is_op: null chat_room");
+    bug(buf, 0);
+    return false;
     }
 
     if (chat->ops == NULL)
-	return false;
+    return false;
 
     for (op = chat->ops; op != NULL; op = op->next)
     {
-	if (op->name == NULL)
-	    continue;
+    if (op->name == NULL)
+        continue;
 
-	if (!str_cmp(op->name, arg))
-	    return true;
+    if (!str_cmp(op->name, arg))
+        return true;
     }
 
     return false;
@@ -772,13 +772,13 @@ void chat_add_op(CHAR_DATA *ch, char *arg)
 
     if ((vch = get_char_room(ch, NULL, arg)) != NULL)
     {
-	act("{Y$n adds you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("{Y$n adds you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 
     for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
     {
-	if (str_cmp(vch->name, arg))
-	    act("{Y$n adds $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT, NULL, NULL);
+    if (str_cmp(vch->name, arg))
+        act("{Y$n adds $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT, NULL, NULL);
     }
 
     op = new_chat_op();
@@ -806,49 +806,49 @@ void chat_rem_op(CHAR_DATA *ch, char *arg)
     /* see if they are an op in the room */
     for (op = ch->in_room->chat_room->ops; op != NULL; prev_op = op, op = op->next)
     {
-	op_count++;
+    op_count++;
 
-	if (!str_cmp(op->name, arg))
-	{
-	    found = true;
-	    break;
-	}
+    if (!str_cmp(op->name, arg))
+    {
+        found = true;
+        break;
+    }
     }
 
     if (!found)
     {
-	send_to_char("That person isn't an op here.\n\r", ch);
-	return;
+    send_to_char("That person isn't an op here.\n\r", ch);
+    return;
     }
 
     sprintf(buf, "{YYou remove %s as an operator.{x\n\r",
-	    (!str_cmp(ch->name, arg)) ? "yourself" : op->name);
+        (!str_cmp(ch->name, arg)) ? "yourself" : op->name);
     send_to_char(buf, ch);
 
     vch = get_char_room(ch, NULL, arg);
     if (vch != NULL && ch != vch)
     {
-	act("{Y$n removes you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("{Y$n removes you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 
     if (!str_cmp(ch->name, arg))
     {
-	sprintf(buf, "{Y$n removes $mself as an operator.{x");
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    sprintf(buf, "{Y$n removes $mself as an operator.{x");
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
     else
     {
-	for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
-	{
-	    if (str_cmp(vch->name, arg))
-		act("{Y$n removes $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT, NULL, NULL);
-	}
+    for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
+    {
+        if (str_cmp(vch->name, arg))
+        act("{Y$n removes $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT, NULL, NULL);
+    }
     }
 
     if (prev_op != NULL)
-	prev_op->next = op->next;
+    prev_op->next = op->next;
     else
-	op->chat_room->ops = op->next;
+    op->chat_room->ops = op->next;
 
     free_chat_op(op);
 }
@@ -865,52 +865,52 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-		send_to_char("You aren't even in chat.\n\r", ch);
-		return;
+        send_to_char("You aren't even in chat.\n\r", ch);
+        return;
     }
 
     if (ch->in_room->chat_room == NULL)
     {
-		send_to_char("You aren't in a chat room.\n\r", ch);
-		return;
+        send_to_char("You aren't in a chat room.\n\r", ch);
+        return;
     }
 
     if (!is_op(ch->in_room->chat_room, ch->name))
     {
-		send_to_char("Only ops may kick people out.\n\r", ch);
-		return;
+        send_to_char("Only ops may kick people out.\n\r", ch);
+        return;
     }
 
     if (arg[0] == '\0')
     {
-		send_to_char("Kick whom?\n\r" , ch);
-		return;
+        send_to_char("Kick whom?\n\r" , ch);
+        return;
     }
 
     victim = get_char_room(ch, NULL, arg);
     if (victim == NULL)
     {
-		send_to_char ("They aren't here.\n\r", ch);
-		return;
+        send_to_char ("They aren't here.\n\r", ch);
+        return;
     }
 
     to_room = get_reserved_room_index("room_chat_lobby");
     sprintf(buf, "{YYou kick %s out of #%s.{x",
-	    ch == victim ? "yourself" : "$N",
-	    ch->in_room->chat_room->name);
+        ch == victim ? "yourself" : "$N",
+        ch->in_room->chat_room->name);
     act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     if (ch != victim)
     {
-		sprintf(buf, "{Y%s kicks you out of #%s.{x",
-			ch->name, ch->in_room->chat_room->name);
-		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+        sprintf(buf, "{Y%s kicks you out of #%s.{x",
+            ch->name, ch->in_room->chat_room->name);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 
     sprintf(buf, "{Y%s kicks %s out of #%s.{x",
-	    ch->name,
-	    ch == victim ? "$mself" : victim->name,
-	    ch->in_room->chat_room->name);
+        ch->name,
+        ch == victim ? "$mself" : victim->name,
+        ch->in_room->chat_room->name);
     act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 
     char_from_room(victim);
@@ -931,88 +931,88 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't even in chat.\n\r", ch);
-	return;
+    send_to_char("You aren't even in chat.\n\r", ch);
+    return;
     }
 
     if (ch->in_room->chat_room == NULL)
     {
-	send_to_char("You aren't in a chat room.\n\r", ch);
-	return;
+    send_to_char("You aren't in a chat room.\n\r", ch);
+    return;
     }
 
     if (!is_op(ch->in_room->chat_room, arg))
     {
-	send_to_char("You must be an op to ban somebody.\n\r", ch);
-	return;
+    send_to_char("You must be an op to ban somebody.\n\r", ch);
+    return;
     }
 
     chat = ch->in_room->chat_room;
 
     if (arg[0] == '\0')
     {
-	int i = 0;
+    int i = 0;
 
-	send_to_char("{YCurrent bans:{x\n\r"
-		"{Y------------{x\n\r", ch);
-	for (ban = ch->in_room->chat_room->bans; ban != NULL; ban = ban->next)
-	{
-	    i++;
+    send_to_char("{YCurrent bans:{x\n\r"
+        "{Y------------{x\n\r", ch);
+    for (ban = ch->in_room->chat_room->bans; ban != NULL; ban = ban->next)
+    {
+        i++;
 
-	    if (ban->name != NULL)
-	    {
-		sprintf(buf, "%s ", ban->name);
-		send_to_char(buf, ch);
-	    }
+        if (ban->name != NULL)
+        {
+        sprintf(buf, "%s ", ban->name);
+        send_to_char(buf, ch);
+        }
 
-	    // 4 names to a line
-	    if (i % 4 == 0)
-		send_to_char ("\n\r", ch);
-	}
+        // 4 names to a line
+        if (i % 4 == 0)
+        send_to_char ("\n\r", ch);
+    }
 
-	if (i == 0)
-	    send_to_char("No bans.", ch);
+    if (i == 0)
+        send_to_char("No bans.", ch);
 
-	send_to_char("\n\r", ch);
-	return;
+    send_to_char("\n\r", ch);
+    return;
     }
 
     // count the bans too see if there are too many.
     for (ban = chat->bans; ban != NULL; ban = ban->next)
     {
-	n++;
+    n++;
 
-	if (n > 50)
-	{
-	    send_to_char("There are too many bans already!\n\r", ch);
-	    return;
-	}
+    if (n > 50)
+    {
+        send_to_char("There are too many bans already!\n\r", ch);
+        return;
+    }
     }
 
     // see if we are adding or removing
     for (ban = chat->bans; ban != NULL; ban = ban->next)
     {
-	if (!str_cmp(ban->name, arg))
-	    add = false;
-	else
-	    add = true;
+    if (!str_cmp(ban->name, arg))
+        add = false;
+    else
+        add = true;
     }
 
     if (strlen(arg) > 12)
-	arg[12] = '\0';
+    arg[12] = '\0';
 
     if (add)
     {
-	chat_add_ban(ch, arg);
-	sprintf(buf, "{YBanned \"%s\" from #%s.{x\n\r",
-		arg, chat->name);
-	send_to_char(buf, ch);
+    chat_add_ban(ch, arg);
+    sprintf(buf, "{YBanned \"%s\" from #%s.{x\n\r",
+        arg, chat->name);
+    send_to_char(buf, ch);
     }
     else
     {
-	chat_remove_ban(chat, ban);
-	sprintf(buf, "{YUnbanned \"%s\" from #%s.{x\n\r",
-		ban->name, chat->name);
+    chat_remove_ban(chat, ban);
+    sprintf(buf, "{YUnbanned \"%s\" from #%s.{x\n\r",
+        ban->name, chat->name);
     }
 }
 
@@ -1041,16 +1041,16 @@ void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban)
 
     prev_ban = NULL;
     for (ban = chat->bans;
-	  ban != NULL;
-	  prev_ban = ban, ban = ban->next)
+      ban != NULL;
+      prev_ban = ban, ban = ban->next)
     {
 
-	if (prev_ban != NULL)
-	    prev_ban->next = ban->next;
-	else
-	    ban->chat_room->bans = ban->next;
+    if (prev_ban != NULL)
+        prev_ban->next = ban->next;
+    else
+        ban->chat_room->bans = ban->next;
 
-	free_chat_ban(ban);
+    free_chat_ban(ban);
     }
 }
 
@@ -1062,40 +1062,40 @@ void do_chat_password(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't even in chat.\n\r", ch);
-	return;
+    send_to_char("You aren't even in chat.\n\r", ch);
+    return;
     }
 
     if (ch->in_room->chat_room == NULL)
     {
-	send_to_char("You aren't in a chat room.\n\r", ch);
-	return;
+    send_to_char("You aren't in a chat room.\n\r", ch);
+    return;
     }
 
     if (!is_op(ch->in_room->chat_room, ch->name))
     {
-	send_to_char("Only ops can change the password.\n\r", ch);
-	return;
+    send_to_char("Only ops can change the password.\n\r", ch);
+    return;
     }
 
     argument = one_argument_norm(argument, arg);
 
     if (arg[0] == '\0')
     {
-	send_to_char("Change the password to what?\n\r" , ch);
-	return;
+    send_to_char("Change the password to what?\n\r" , ch);
+    return;
     }
 
     // Keep people from blocking off areas of social with pws
     if (count_exits(ch->in_room) > 1)
     {
-	send_to_char("Sorry, you can't make a protected chat room in a room with more than one exit.\n\r", ch);
-	return;
+    send_to_char("Sorry, you can't make a protected chat room in a room with more than one exit.\n\r", ch);
+    return;
     }
 
     sprintf(buf, "{YYou have changed the password of #%s to '%s'.{x",
-	ch->in_room->chat_room->name,
-	arg);
+    ch->in_room->chat_room->name,
+    arg);
 
     send_to_char(buf, ch);
 
@@ -1116,27 +1116,27 @@ void do_chat_setfounder(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-	send_to_char("Syntax: chat setfounder <#room> <founder>\n\r", ch);
-	return;
+    send_to_char("Syntax: chat setfounder <#room> <founder>\n\r", ch);
+    return;
     }
 
     for (chat_room = chat_room_list; chat_room != NULL;
           chat_room = chat_room->next)
     {
-	if (!str_cmp(chat_room->name, arg))
-	    break;
+    if (!str_cmp(chat_room->name, arg))
+        break;
     }
 
     if (chat_room == NULL)
     {
-	send_to_char("There is no such chatroom.\n\r", ch);
-	return;
+    send_to_char("There is no such chatroom.\n\r", ch);
+    return;
     }
 
     if (!player_exists(arg2))
     {
-	send_to_char("That player doesn't exist.\n\r", ch);
-	return;
+    send_to_char("That player doesn't exist.\n\r", ch);
+    return;
     }
 
     arg2[0] = UPPER(arg2[0]);
@@ -1160,7 +1160,7 @@ void write_chat_rooms()
     if (fp == NULL)
     {
         bug("Couldn't load chat_rooms.dat", 0);
-	exit(1);
+    exit(1);
     }
 
     count = 0;
@@ -1180,30 +1180,30 @@ void write_chat_rooms()
 
     for (chat = chat_room_list; chat != NULL; chat = chat->next)
     {
- 	if (chat->permanent == true)
-	{
-   	    fprintf(fp, "%s~\n", fix_string(chat->name));
-	    fprintf(fp, "%s~\n", fix_string(chat->topic)) ;
-	    fprintf(fp, "%s~\n", fix_string(chat->password));
-	    fprintf(fp, "%s~\n", chat->created_by);
-	    fprintf(fp, "%ld\n", chat->area_uid);  // Save area UID for widevnum support
-	    fprintf(fp, "%ld\n", chat->vnum);
-	    fprintf(fp, "%d\n", chat->max_people);
+     if (chat->permanent == true)
+    {
+           fprintf(fp, "%s~\n", fix_string(chat->name));
+        fprintf(fp, "%s~\n", fix_string(chat->topic)) ;
+        fprintf(fp, "%s~\n", fix_string(chat->password));
+        fprintf(fp, "%s~\n", chat->created_by);
+        fprintf(fp, "%ld\n", chat->area_uid);  // Save area UID for widevnum support
+        fprintf(fp, "%ld\n", chat->vnum);
+        fprintf(fp, "%d\n", chat->max_people);
 
-	    /* write ops */
-	    op_count = 0;
-	    for (op = chat->ops; op != NULL; op = op->next)
-	    {
+        /* write ops */
+        op_count = 0;
+        for (op = chat->ops; op != NULL; op = op->next)
+        {
                 op_count++;
-	    }
+        }
 
-	    fprintf(fp, "%d\n", op_count);
+        fprintf(fp, "%d\n", op_count);
 
             for (op = chat->ops; op != NULL; op = op->next)
             {
-	  	fprintf(fp, "%s~\n", op->name);
-	    }
-	}
+          fprintf(fp, "%s~\n", op->name);
+        }
+    }
     }
     fclose(fp);
 }
@@ -1243,82 +1243,82 @@ void read_chat_rooms()
     {
         chat = new_chat_room();
 
-	if (last_chat != NULL)
-	    last_chat->next = chat;
+    if (last_chat != NULL)
+        last_chat->next = chat;
 
-	chat->name = fread_string(fp);
-	chat->topic = fread_string(fp);
-	chat->password = fread_string(fp);
-	chat->permanent = true;
-	chat->created_by = fread_string(fp);
-	
-	// Always read new format (area_uid, vnum, max_people)
-	// The file has been migrated to the new format
-	chat->area_uid = fread_number(fp);
-	chat->vnum = fread_number(fp);
-	chat->max_people = fread_number(fp);
-	last_chat = chat;
+    chat->name = fread_string(fp);
+    chat->topic = fread_string(fp);
+    chat->password = fread_string(fp);
+    chat->permanent = true;
+    chat->created_by = fread_string(fp);
+    
+    // Always read new format (area_uid, vnum, max_people)
+    // The file has been migrated to the new format
+    chat->area_uid = fread_number(fp);
+    chat->vnum = fread_number(fp);
+    chat->max_people = fread_number(fp);
+    last_chat = chat;
 
-	sprintf(buf,
-	"*** Chat room %s, pass %s, created_by %s, vnum %ld, max %i",
-	    chat->name,
-	    chat->password,
-	    chat->created_by,
-	    chat->vnum,
-	    chat->max_people);
-	log_string(buf);
+    sprintf(buf,
+    "*** Chat room %s, pass %s, created_by %s, vnum %ld, max %i",
+        chat->name,
+        chat->password,
+        chat->created_by,
+        chat->vnum,
+        chat->max_people);
+    log_string(buf);
 
-	op_count = fread_number(fp);
-	if (op_count == 0)
-  	    log_string("No operators.");
-	else
-	{
-	    int i;
+    op_count = fread_number(fp);
+    if (op_count == 0)
+          log_string("No operators.");
+    else
+    {
+        int i;
 
-	    last_op = NULL;
-	    for (i = 0; i < op_count; i++)
-	    {
-	        op = new_chat_op();
-		if (last_op != NULL)
-		    last_op->next = op;
+        last_op = NULL;
+        for (i = 0; i < op_count; i++)
+        {
+            op = new_chat_op();
+        if (last_op != NULL)
+            last_op->next = op;
 
-		op->name = fread_string(fp);
-		op->next = NULL;
-		op->chat_room = chat;
+        op->name = fread_string(fp);
+        op->next = NULL;
+        op->chat_room = chat;
 
-		sprintf(buf, "Operator: %s for #%s",
-				op->name, chat->name);
-		log_string(buf);
-		last_op = op;
+        sprintf(buf, "Operator: %s for #%s",
+                op->name, chat->name);
+        log_string(buf);
+        last_op = op;
 
-		if (chat->ops == NULL)
-			chat->ops = op;
-	    }
-	}
+        if (chat->ops == NULL)
+            chat->ops = op;
+        }
+    }
 
-	// Look up the area by UID
-	AREA_DATA *chat_area = get_area_index(chat->area_uid);
-	if (!chat_area) {
-		sprintf(buf, "read_chat_rooms: %s area_uid %ld not found, skipping",
-			chat->name, chat->area_uid);
-		bug(buf, 0);
-		continue;
-	}
-	
-	room = get_room_index(chat_area, chat->vnum);
+    // Look up the area by UID
+    AREA_DATA *chat_area = get_area_index(chat->area_uid);
+    if (!chat_area) {
+        sprintf(buf, "read_chat_rooms: %s area_uid %ld not found, skipping",
+            chat->name, chat->area_uid);
+        bug(buf, 0);
+        continue;
+    }
+    
+    room = get_room_index(chat_area, chat->vnum);
 
-	if (room == NULL)
-	{
-	    sprintf(buf, "read_chat_rooms: %s had null room!",
-	        chat->name);
-	    bug(buf, 0);
-	    exit(1);
-	}
+    if (room == NULL)
+    {
+        sprintf(buf, "read_chat_rooms: %s had null room!",
+            chat->name);
+        bug(buf, 0);
+        exit(1);
+    }
 
-	room->chat_room = chat;
+    room->chat_room = chat;
 
-	if (counter == 0)
-	    chat_room_list = chat;
+    if (counter == 0)
+        chat_room_list = chat;
     }
 
     fclose(fp);

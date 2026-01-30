@@ -43,29 +43,29 @@ void do_project(CHAR_DATA *ch, char *argument)
 
     if (arg[0] != '\0')
     {
-	/* list projects */
-	if (!str_prefix(arg, "list")) /* Project list [status] */
-	    do_function(ch, &do_plist, argument);
-	else /* Project show [project] */
-	if (!str_prefix(arg, "show"))
-	    do_function(ch, &do_pshow, argument);
-	else /* Project inquiry [project] [list|add|view #|edit #|close #] */
-	if (!str_prefix(arg, "inquiry"))
-	    do_function(ch, &do_pinquiry, argument);
-	else /* Project delete [project] wipes it out */
-	if (!str_prefix(arg, "delete"))
-	    do_function(ch, &do_pdelete, argument);
+    /* list projects */
+    if (!str_prefix(arg, "list")) /* Project list [status] */
+        do_function(ch, &do_plist, argument);
+    else /* Project show [project] */
+    if (!str_prefix(arg, "show"))
+        do_function(ch, &do_pshow, argument);
+    else /* Project inquiry [project] [list|add|view #|edit #|close #] */
+    if (!str_prefix(arg, "inquiry"))
+        do_function(ch, &do_pinquiry, argument);
+    else /* Project delete [project] wipes it out */
+    if (!str_prefix(arg, "delete"))
+        do_function(ch, &do_pdelete, argument);
     }
     else
     {
-	send_to_char("Syntax:  project list\n\r"
-		     "         project show [project]\n\r"
-		     "         project inquiry [project] [list|add|view #|edit #|reply #|close #]\n\r", ch);
-	if (ch->tot_level >= MAX_LEVEL - 1)
-	    send_to_char("         project inquiry [project] [close #|open #|delete #]\n\r", ch);
+    send_to_char("Syntax:  project list\n\r"
+             "         project show [project]\n\r"
+             "         project inquiry [project] [list|add|view #|edit #|reply #|close #]\n\r", ch);
+    if (ch->tot_level >= MAX_LEVEL - 1)
+        send_to_char("         project inquiry [project] [close #|open #|delete #]\n\r", ch);
 
-	if (ch->tot_level == MAX_LEVEL)
-	    send_to_char("         project delete [project]", ch);
+    if (ch->tot_level == MAX_LEVEL)
+        send_to_char("         project delete [project]", ch);
 
     }
 
@@ -90,47 +90,47 @@ void do_plist(CHAR_DATA *ch, char *argument)
     i = 0;
     for (project = project_list; project != NULL; project = project->next)
     {
-	if (!can_view_project(ch, project))
-	    continue;
+    if (!can_view_project(ch, project))
+        continue;
 
-	if ((!str_cmp(argument, "open") 	&& !IS_SET(project->project_flags, PROJECT_OPEN))
-	||  (!str_cmp(argument, "closed") 	&& IS_SET(project->project_flags, PROJECT_OPEN))
-	||  (!str_cmp(argument, "assigned") 	&& !IS_SET(project->project_flags, PROJECT_ASSIGNED))
-	||  (!str_cmp(argument, "unassigned") 	&& IS_SET(project->project_flags, PROJECT_ASSIGNED))
-	||  (!str_cmp(argument, "hold") 	&& !IS_SET(project->project_flags, PROJECT_HOLD)))
-	    continue;
+    if ((!str_cmp(argument, "open") 	&& !IS_SET(project->project_flags, PROJECT_OPEN))
+    ||  (!str_cmp(argument, "closed") 	&& IS_SET(project->project_flags, PROJECT_OPEN))
+    ||  (!str_cmp(argument, "assigned") 	&& !IS_SET(project->project_flags, PROJECT_ASSIGNED))
+    ||  (!str_cmp(argument, "unassigned") 	&& IS_SET(project->project_flags, PROJECT_ASSIGNED))
+    ||  (!str_cmp(argument, "hold") 	&& !IS_SET(project->project_flags, PROJECT_HOLD)))
+        continue;
 
 
-	/* Figure out status first */
-	if (IS_SET(project->project_flags, PROJECT_OPEN))
-	    sprintf(status, "Open");
-	else
-	    sprintf(status, "Closed");
+    /* Figure out status first */
+    if (IS_SET(project->project_flags, PROJECT_OPEN))
+        sprintf(status, "Open");
+    else
+        sprintf(status, "Closed");
 
-	if (IS_SET(project->project_flags, PROJECT_ASSIGNED))
-	    strcat(status, " Assigned");
-	else
-	    strcat(status, " Unnassigned");
+    if (IS_SET(project->project_flags, PROJECT_ASSIGNED))
+        strcat(status, " Assigned");
+    else
+        strcat(status, " Unnassigned");
 
-	if (IS_SET(project->project_flags, PROJECT_HOLD))
-	    strcat(status, " Hold");
+    if (IS_SET(project->project_flags, PROJECT_HOLD))
+        strcat(status, " Hold");
 
-	sprintf(buf, "{g[{G%3d{g] {x%-20.20s %-40.40s %-12s %-24s {%c%-9d\n\r",
-		i,
-		project->name,
-		project->summary,
-		project->leader,
-		status,
-		project->completed > 66 ? 'W' :
-		project->completed > 33 ? 'Y' :
-		'R',
-		project->completed);
-	add_buf(buffer, buf);
-	i++;
+    sprintf(buf, "{g[{G%3d{g] {x%-20.20s %-40.40s %-12s %-24s {%c%-9d\n\r",
+        i,
+        project->name,
+        project->summary,
+        project->leader,
+        status,
+        project->completed > 66 ? 'W' :
+        project->completed > 33 ? 'Y' :
+        'R',
+        project->completed);
+    add_buf(buffer, buf);
+    i++;
     }
 
     if (project_list == NULL)
-	add_buf(buffer, "No projects found.\n\r");
+    add_buf(buffer, "No projects found.\n\r");
     add_buf(buffer, "{g--------------------------------------------------------------------------------------------------------------------{x\n\r");
 
     page_to_char(buf_string(buffer), ch);
@@ -151,18 +151,18 @@ void do_pshow(CHAR_DATA *ch, char *argument)
     buffer = new_buf();
 
     if (arg[0] == '\0')
-	add_buf(buffer, "Syntax:  project show [project #|project name]\n\r");
+    add_buf(buffer, "Syntax:  project show [project #|project name]\n\r");
     else
     {
-	if ((project = find_project(arg)) == NULL || !can_view_project(ch, project))
-	    add_buf(buffer, "Project not found.\n\r");
-	else
-	{
-	    old_edit = ch->desc->pEdit;
-	    ch->desc->pEdit = (void *) project;
-	    pedit_show(ch, arg2);
-	    ch->desc->pEdit = old_edit;
-	}
+    if ((project = find_project(arg)) == NULL || !can_view_project(ch, project))
+        add_buf(buffer, "Project not found.\n\r");
+    else
+    {
+        old_edit = ch->desc->pEdit;
+        ch->desc->pEdit = (void *) project;
+        pedit_show(ch, arg2);
+        ch->desc->pEdit = old_edit;
+    }
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -176,29 +176,29 @@ void do_pdelete(CHAR_DATA *ch, char *argument)
     PROJECT_DATA *project, *project_tmp, *project_last = NULL;
 
     if ((project = find_project(argument)) == NULL) {
-	send_to_char("That project does not exist.\n\r", ch);
-	return ;
+    send_to_char("That project does not exist.\n\r", ch);
+    return ;
     }
 
     if (!can_edit_project(ch, project)) {
-	send_to_char("You are not authorized to delete projects.\n\t", ch);
-	return;
+    send_to_char("You are not authorized to delete projects.\n\t", ch);
+    return;
     }
 
     for (project_tmp = project_list; project_tmp != NULL; project_tmp = project_tmp->next) {
         if (project_tmp == project)
-	    break;
+        break;
 
-	project_last = project_tmp;
+    project_last = project_tmp;
     }
 
     if (project_last == NULL) {
-	project_list = project_list->next;
-	free_project(project_tmp);
+    project_list = project_list->next;
+    free_project(project_tmp);
     }
     else {
-	project_last->next = project->next;
-	free_project(project_tmp);
+    project_last->next = project->next;
+    free_project(project_tmp);
     }
 
     send_to_char("Project deleted.\n\r", ch);
@@ -207,16 +207,16 @@ void do_pdelete(CHAR_DATA *ch, char *argument)
 bool has_access_project(CHAR_DATA *ch, PROJECT_DATA *project)
 {
     if (ch->tot_level == MAX_LEVEL)
-		return true;
+        return true;
 
     if (!str_cmp(ch->name, project->leader))
-		return true;
+        return true;
 
-	if (find_project_builder(project, ch->name))
-		return true;
+    if (find_project_builder(project, ch->name))
+        return true;
 
     if (!IS_SET(project->project_flags, PROJECT_OPEN))
-		return false;
+        return false;
 
     return false;
 }
@@ -238,188 +238,188 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg, "read"))
     {
-	pinq = NULL;
+    pinq = NULL;
 
-	if (count_project_inquiries(ch) == 0)
-	    add_buf(buffer, "No new inquiries.\n\r");
+    if (count_project_inquiries(ch) == 0)
+        add_buf(buffer, "No new inquiries.\n\r");
 
-	show_oldest_unread_inquiry(ch);
+    show_oldest_unread_inquiry(ch);
 
-	EXIT_PROJECT_FUNCTION;
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (arg[0] == '\0')
     {
-	add_buf(buffer, "Syntax:  project inquiry [project] [list|add [subject]|view #|edit #|reply #|open #]\n\r");
-	EXIT_PROJECT_FUNCTION;
+    add_buf(buffer, "Syntax:  project inquiry [project] [list|add [subject]|view #|edit #|reply #|open #]\n\r");
+    EXIT_PROJECT_FUNCTION;
     }
 
     if ((project = find_project(arg)) == NULL || !has_access_project(ch, project))
     {
-	add_buf(buffer, "Project not found.\n\r");
-	EXIT_PROJECT_FUNCTION;
+    add_buf(buffer, "Project not found.\n\r");
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (arg2[0] == '\0' || !str_cmp(arg2, "list"))
     {
-	show_project_inquiries(project, ch);
+    show_project_inquiries(project, ch);
 
-	EXIT_PROJECT_FUNCTION;
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (!str_cmp(arg2, "add"))
     {
-	pinq = new_project_inquiry();
-	pinq->date = current_time;
-	pinq->sender = str_dup(ch->name);
-	pinq->project = project;
+    pinq = new_project_inquiry();
+    pinq->date = current_time;
+    pinq->sender = str_dup(ch->name);
+    pinq->project = project;
 
-	/* add to end of list */
-	for (pinq_tmp = project->inquiries; pinq_tmp != NULL; pinq_tmp = pinq_tmp->next) {
-	    if (pinq_tmp->next == NULL)
-		break;
-	}
+    /* add to end of list */
+    for (pinq_tmp = project->inquiries; pinq_tmp != NULL; pinq_tmp = pinq_tmp->next) {
+        if (pinq_tmp->next == NULL)
+        break;
+    }
 
-	if (project->inquiries == NULL)
-	    project->inquiries = pinq;
-	else
-	    pinq_tmp->next = pinq;
+    if (project->inquiries == NULL)
+        project->inquiries = pinq;
+    else
+        pinq_tmp->next = pinq;
 
-	if (project_inquiry_list == NULL)
-	    project_inquiry_list = pinq;
-	else
-	{
-	    pinq->next_global = project_inquiry_list;
-	    project_inquiry_list = pinq;
-	}
+    if (project_inquiry_list == NULL)
+        project_inquiry_list = pinq;
+    else
+    {
+        pinq->next_global = project_inquiry_list;
+        project_inquiry_list = pinq;
+    }
 
-	ch->pcdata->inquiry_subject = pinq; //Set the "enter subject" prompt
-	add_buf(buffer, "Enter inquiry subject: ");
-	EXIT_PROJECT_FUNCTION;
+    ch->pcdata->inquiry_subject = pinq; //Set the "enter subject" prompt
+    add_buf(buffer, "Enter inquiry subject: ");
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (arg3[0] == '\0')
     {
-	add_buf(buffer, "Syntax:  project inquiry read\n\r"
-		        "         project inquiry [project] [list|add|view #|edit #|reply #]\n\r");
-	add_buf(buffer, "         project inquiry [project] [close #|open #|delete #]\n\r");
-	EXIT_PROJECT_FUNCTION;
+    add_buf(buffer, "Syntax:  project inquiry read\n\r"
+                "         project inquiry [project] [list|add|view #|edit #|reply #]\n\r");
+    add_buf(buffer, "         project inquiry [project] [close #|open #|delete #]\n\r");
+    EXIT_PROJECT_FUNCTION;
     }
 
     /* All subcommands past this point require an inquiry argument, so let's find it */
     if ((pinq = find_project_inquiry(project, arg3)) == NULL)
     {
-	add_buf(buffer, "Project inquiry not found.\n\r");
-	EXIT_PROJECT_FUNCTION;
+    add_buf(buffer, "Project inquiry not found.\n\r");
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (arg2[0] == '\0' || !str_cmp(arg2, "view") || !str_cmp(arg2, "show"))
     {
-	show_project_inquiry(pinq, ch);
-	EXIT_PROJECT_FUNCTION;
+    show_project_inquiry(pinq, ch);
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (!str_cmp(arg2, "edit"))
     {
-	if (str_cmp(ch->name, pinq->sender))
-	{
-	    add_buf(buffer, "Only the poster of an inquiry can edit it.\n\r");
-	    EXIT_PROJECT_FUNCTION;
-	}
+    if (str_cmp(ch->name, pinq->sender))
+    {
+        add_buf(buffer, "Only the poster of an inquiry can edit it.\n\r");
+        EXIT_PROJECT_FUNCTION;
+    }
 
-	send_to_char("Editing inquiry.\n\r",ch);
-	string_append(ch, &pinq->text);
-	projects_changed = true;
-	EXIT_PROJECT_FUNCTION;
+    send_to_char("Editing inquiry.\n\r",ch);
+    string_append(ch, &pinq->text);
+    projects_changed = true;
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (!str_cmp(arg2, "close"))
     {
-	if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
-	{
-	    add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
-	    EXIT_PROJECT_FUNCTION;
-	}
+    if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
+    {
+        add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
+        EXIT_PROJECT_FUNCTION;
+    }
 
-	pinq->closed = current_time;
-	pinq->closed_by = str_dup(ch->name);
-	send_to_char("Inquiry closed.\n\r", ch);
-	projects_changed = true;
-	EXIT_PROJECT_FUNCTION;
+    pinq->closed = current_time;
+    pinq->closed_by = str_dup(ch->name);
+    send_to_char("Inquiry closed.\n\r", ch);
+    projects_changed = true;
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (!str_cmp(arg2, "open"))
     {
-	if (!pinq->closed)
-	{
-	    add_buf(buffer, "That inquiry isn't closed.\n\r");
-	    EXIT_PROJECT_FUNCTION;
-	}
+    if (!pinq->closed)
+    {
+        add_buf(buffer, "That inquiry isn't closed.\n\r");
+        EXIT_PROJECT_FUNCTION;
+    }
 
-	if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
-	{
-	    add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
-	    EXIT_PROJECT_FUNCTION;
-	}
+    if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
+    {
+        add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
+        EXIT_PROJECT_FUNCTION;
+    }
 
-	pinq->closed = 0;
-	free_string(pinq->closed_by);
-	pinq->closed_by = str_dup("N/A");
-	add_buf(buffer, "Inquiry opened.\n\r");
-	projects_changed = true;
-	EXIT_PROJECT_FUNCTION;
+    pinq->closed = 0;
+    free_string(pinq->closed_by);
+    pinq->closed_by = str_dup("N/A");
+    add_buf(buffer, "Inquiry opened.\n\r");
+    projects_changed = true;
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (!str_cmp(arg2, "reply"))
     {
-	 if (!has_access_project(ch, project)) {
-	   send_to_char("You must be a builder on that project to reply to inquiries within it.\n\r", ch);
-	   return;
-	   }
-	if (pinq->closed)
-	{
-	    sprintf(buf, "That inquiry has been closed by %s.\n\r", pinq->closed_by);
-	    add_buf(buffer, buf);
-	    EXIT_PROJECT_FUNCTION;
-	}
+     if (!has_access_project(ch, project)) {
+       send_to_char("You must be a builder on that project to reply to inquiries within it.\n\r", ch);
+       return;
+       }
+    if (pinq->closed)
+    {
+        sprintf(buf, "That inquiry has been closed by %s.\n\r", pinq->closed_by);
+        add_buf(buffer, buf);
+        EXIT_PROJECT_FUNCTION;
+    }
 
-	reply = new_project_inquiry();
-	reply->sender = str_dup(ch->name);
-	sprintf(buf, "Re: %s", pinq->subject);
-	reply->subject = str_dup(buf);
-	reply->parent = pinq;
+    reply = new_project_inquiry();
+    reply->sender = str_dup(ch->name);
+    sprintf(buf, "Re: %s", pinq->subject);
+    reply->subject = str_dup(buf);
+    reply->parent = pinq;
 
-	for (pinq_tmp = pinq->replies; pinq_tmp != NULL; pinq_tmp = pinq_tmp->next)
-	{
-	    if (pinq_tmp->next == NULL)
-		break;
-	}
+    for (pinq_tmp = pinq->replies; pinq_tmp != NULL; pinq_tmp = pinq_tmp->next)
+    {
+        if (pinq_tmp->next == NULL)
+        break;
+    }
 
-	if (pinq_tmp)
-	    pinq_tmp->next = reply;
-	else
-	    pinq->replies = reply;
+    if (pinq_tmp)
+        pinq_tmp->next = reply;
+    else
+        pinq->replies = reply;
 
-	add_buf(buffer, "Posting reply.\n\r");
-	string_append(ch, &reply->text);
+    add_buf(buffer, "Posting reply.\n\r");
+    string_append(ch, &reply->text);
 
-	projects_changed = true;
-	EXIT_PROJECT_FUNCTION;
+    projects_changed = true;
+    EXIT_PROJECT_FUNCTION;
     }
 
     if (!str_cmp(arg2, "delete"))
     {
-	if (ch->tot_level < MAX_LEVEL)
-	{
-	    add_buf(buffer, "Only an implementor can delete project inquiries.\n\r");
-	    EXIT_PROJECT_FUNCTION;
-	}
+    if (ch->tot_level < MAX_LEVEL)
+    {
+        add_buf(buffer, "Only an implementor can delete project inquiries.\n\r");
+        EXIT_PROJECT_FUNCTION;
+    }
 
-	extract_project_inquiry(pinq);
+    extract_project_inquiry(pinq);
 
-	add_buf(buffer, "Inquiry deleted.\n\r");
-	projects_changed = true;
-	EXIT_PROJECT_FUNCTION;
+    add_buf(buffer, "Inquiry deleted.\n\r");
+    projects_changed = true;
+    EXIT_PROJECT_FUNCTION;
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -436,37 +436,37 @@ void do_build(CHAR_DATA *ch, char *argument)
     PROJECT_BUILDER_DATA *pb;
 
     if (IS_NPC(ch)) {
-	bug("do_build: NPC", 0);
-	return;
+    bug("do_build: NPC", 0);
+    return;
     }
 
     if (argument[0] == '\0') {
-	if (IS_SET(ch->act[0], PLR_BUILDING)) {
-	    if (IS_SET(ch->act[0], PLR_BUILDING) && ch->pcdata->immortal->build_project != NULL)
-		act("You stop building in $t.", ch, NULL, NULL, NULL, NULL, ch->pcdata->immortal->build_project->name, NULL, TO_CHAR, NULL, NULL);
-	    REMOVE_BIT(ch->act[0], PLR_BUILDING);
-	    ch->pcdata->immortal->build_project = NULL;
-	    ch->pcdata->immortal->builder = NULL;
-	    return;
-	}
+    if (IS_SET(ch->act[0], PLR_BUILDING)) {
+        if (IS_SET(ch->act[0], PLR_BUILDING) && ch->pcdata->immortal->build_project != NULL)
+        act("You stop building in $t.", ch, NULL, NULL, NULL, NULL, ch->pcdata->immortal->build_project->name, NULL, TO_CHAR, NULL, NULL);
+        REMOVE_BIT(ch->act[0], PLR_BUILDING);
+        ch->pcdata->immortal->build_project = NULL;
+        ch->pcdata->immortal->builder = NULL;
+        return;
+    }
 
-	send_to_char("Syntax: build [project]\n\r", ch);
-	return;
+    send_to_char("Syntax: build [project]\n\r", ch);
+    return;
     }
 
     if ((project = find_project(argument)) == NULL
     ||   !can_view_project(ch, project)) {
-	send_to_char("No such project.\n\r", ch);
-	return;
+    send_to_char("No such project.\n\r", ch);
+    return;
     }
 
     if ((pb = find_project_builder(project, ch->name)) == NULL) {
-	act("You aren't a builder on project $t.", ch, NULL, NULL, NULL, NULL, project->name, NULL, TO_CHAR, NULL, NULL);
-	return;
+    act("You aren't a builder on project $t.", ch, NULL, NULL, NULL, NULL, project->name, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     if (IS_SET(ch->act[0], PLR_BUILDING) && ch->pcdata->immortal->build_project->name != NULL)
-	act("You stop building in $t.", ch, NULL, NULL, NULL, NULL, ch->pcdata->immortal->build_project->name, NULL, TO_CHAR, NULL, NULL);
+    act("You stop building in $t.", ch, NULL, NULL, NULL, NULL, ch->pcdata->immortal->build_project->name, NULL, TO_CHAR, NULL, NULL);
 
     ch->pcdata->immortal->build_project = project;
 
@@ -486,12 +486,12 @@ PROJECT_DATA *find_project(char *argument)
     int val = -1;
 
     if (is_number(argument))
-	val = atoi(argument);
+    val = atoi(argument);
 
     for (i = 0, project = project_list; project != NULL; project = project->next, i++)
     {
-	if ((val != -1 && i == val) || (argument[0] != '\0' && !str_infix(argument, project->name)))
-	    break;
+    if ((val != -1 && i == val) || (argument[0] != '\0' && !str_infix(argument, project->name)))
+        break;
     }
 
     return project;
@@ -509,33 +509,33 @@ void show_project_inquiry(PROJECT_INQUIRY_DATA *pinq, CHAR_DATA *ch)
     buffer = new_buf();
 
     sprintf(buf,
-	    "{GProject:          {x%s\n\r"
-	    "{GPosted by:        {x%s\n\r"
-	    "{GSubject:          {x%s\n\r"
-	    "{GDate posted:      {x%s"
-	    "{G------------------------------------------------------------------------{x\n\r"
-	    "%s",
-	    pinq->project->name,
-	    pinq->sender,
-	    pinq->subject,
-	    (char *)ctime(&pinq->date), pinq->text);
+        "{GProject:          {x%s\n\r"
+        "{GPosted by:        {x%s\n\r"
+        "{GSubject:          {x%s\n\r"
+        "{GDate posted:      {x%s"
+        "{G------------------------------------------------------------------------{x\n\r"
+        "%s",
+        pinq->project->name,
+        pinq->sender,
+        pinq->subject,
+        (char *)ctime(&pinq->date), pinq->text);
     add_buf(buffer, buf);
     add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
 
     /* Show replies */
     for (i = 0, reply = pinq->replies; reply != NULL; reply = reply->next, i++) {
-	sprintf(buf, "{g[{G%3d{g]{x %-12s: %-27.27s %20s{x\n\r",
-		i, reply->sender, reply->subject, (char *) ctime(&reply->date));
-	add_buf(buffer, buf);
+    sprintf(buf, "{g[{G%3d{g]{x %-12s: %-27.27s %20s{x\n\r",
+        i, reply->sender, reply->subject, (char *) ctime(&reply->date));
+    add_buf(buffer, buf);
 
-	add_buf(buffer, reply->text);
-	add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
+    add_buf(buffer, reply->text);
+    add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
     }
 
     if (pinq->closed) {
-	sprintf(buf, "{GInquiry closed:{x %-31s %20s", pinq->closed_by, (char *) ctime(&pinq->closed));
-	add_buf(buffer, buf);
-	add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
+    sprintf(buf, "{GInquiry closed:{x %-31s %20s", pinq->closed_by, (char *) ctime(&pinq->closed));
+    add_buf(buffer, buf);
+    add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
     }
 
     EXIT_PROJECT_FUNCTION;
@@ -551,11 +551,11 @@ PROJECT_BUILDER_DATA *find_project_builder(PROJECT_DATA *project, char *argument
     int val = -1;
 
     if (is_number(argument))
-	val = atoi(argument);
+    val = atoi(argument);
 
     for (i = 0, pb = project->builders; pb != NULL; pb = pb->next, i++) {
-	if ((val != -1 && i == val) || (argument[0] != '\0' && !str_cmp(argument, pb->name)))
-	    break;
+    if ((val != -1 && i == val) || (argument[0] != '\0' && !str_cmp(argument, pb->name)))
+        break;
     }
 
     return pb;
@@ -573,8 +573,8 @@ PROJECT_INQUIRY_DATA *find_project_inquiry(PROJECT_DATA *project, char *argument
     val = atoi(argument);
 
     for (i = 0, pinq = project->inquiries; pinq != NULL; pinq = pinq->next, i++) {
-	if (val != -1 && i == val)
-	    break;
+    if (val != -1 && i == val)
+        break;
     }
 
     return pinq;
@@ -592,26 +592,26 @@ void show_oldest_unread_inquiry(CHAR_DATA *ch)
     PROJECT_INQUIRY_DATA *pinq_oldest_unread = NULL;
 
     for (pinq = project_inquiry_list; pinq != NULL; pinq = pinq->next_global) {
-	if (has_access_project(ch, pinq->project))
-	{
-	    reply = get_last_post(pinq);
-	    if (reply->date > ch->pcdata->last_project_inquiry
-	    && !(pinq_oldest_unread != NULL && pinq->date > pinq_oldest_unread->date)
-	    && str_cmp(ch->name, reply->sender))
-		pinq_oldest_unread = reply;
-	}
+    if (has_access_project(ch, pinq->project))
+    {
+        reply = get_last_post(pinq);
+        if (reply->date > ch->pcdata->last_project_inquiry
+        && !(pinq_oldest_unread != NULL && pinq->date > pinq_oldest_unread->date)
+        && str_cmp(ch->name, reply->sender))
+        pinq_oldest_unread = reply;
+    }
     }
 
     if (pinq_oldest_unread != NULL)
     {
-	/* For a reply, show the whole parent thread */
-	if (pinq_oldest_unread->parent != NULL)
-	    show_project_inquiry(pinq_oldest_unread->parent, ch);
-	else
-	    show_project_inquiry(pinq_oldest_unread, ch);
+    /* For a reply, show the whole parent thread */
+    if (pinq_oldest_unread->parent != NULL)
+        show_project_inquiry(pinq_oldest_unread->parent, ch);
+    else
+        show_project_inquiry(pinq_oldest_unread, ch);
 
-	ch->pcdata->last_project_inquiry =
-	    UMAX(pinq_oldest_unread->date, ch->pcdata->last_project_inquiry);
+    ch->pcdata->last_project_inquiry =
+        UMAX(pinq_oldest_unread->date, ch->pcdata->last_project_inquiry);
     }
 }
 
@@ -623,16 +623,16 @@ int count_project_inquiries(CHAR_DATA *ch)
     PROJECT_INQUIRY_DATA *pinq, *reply;
 
     if (IS_NPC(ch))
-	return 0;
+    return 0;
 
     i = 0;
     for (pinq = project_inquiry_list; pinq != NULL; pinq = pinq->next_global) {
-	if (has_access_project(ch, pinq->project)) {
-	    reply = get_last_post(pinq);
-	    if (reply->date > ch->pcdata->last_project_inquiry
-	    &&  str_cmp(ch->name, reply->sender))
-		i++;
-	}
+    if (has_access_project(ch, pinq->project)) {
+        reply = get_last_post(pinq);
+        if (reply->date > ch->pcdata->last_project_inquiry
+        &&  str_cmp(ch->name, reply->sender))
+        i++;
+    }
     }
 
 
@@ -647,7 +647,7 @@ long get_total_minutes(PROJECT_DATA *project)
     long mins = 0;
 
     for (pb = project->builders; pb != NULL; pb = pb->next)
-	mins += pb->minutes;
+    mins += pb->minutes;
 
     return mins;
 }
@@ -669,14 +669,14 @@ bool can_view_project(CHAR_DATA *ch, PROJECT_DATA *project)
 
     // All 154+ can view any project
     if (ch->tot_level >= MAX_LEVEL - 1)
-	return true;
+    return true;
 
     if (ch->pcdata->security >= project->security)
-	return true;
+    return true;
 
     for (pb = project->builders; pb != NULL; pb = pb->next) {
-	if (!str_cmp(ch->name, pb->name))
-	    return true;
+    if (!str_cmp(ch->name, pb->name))
+        return true;
     }
 
     return false;
@@ -686,10 +686,10 @@ bool can_view_project(CHAR_DATA *ch, PROJECT_DATA *project)
 bool can_edit_project(CHAR_DATA *ch, PROJECT_DATA *project)
 {
     if (ch->tot_level == MAX_LEVEL)
-	return true;
+    return true;
 
     if (!str_cmp(ch->name, project->leader))
-	return true;
+    return true;
 
     return false;
 }
@@ -707,7 +707,7 @@ void show_project_inquiries(PROJECT_DATA *project, CHAR_DATA *ch)
     buffer = new_buf();
 
     sprintf(buf, "\n\r{G%-5s %-38.38s %-12s %-10s %-8s %-20s{x\n\r",
-	    "#", "Inquiry subject", "Sender", "Status", "Replies", "Last post");
+        "#", "Inquiry subject", "Sender", "Status", "Replies", "Last post");
     add_buf(buffer, buf);
 
     sprintf(buf, "{g------------------------------------------------------------------------------------------------------{x\n\r");
@@ -715,20 +715,20 @@ void show_project_inquiries(PROJECT_DATA *project, CHAR_DATA *ch)
 
     for (i = 0, inquiry = project->inquiries; inquiry != NULL; inquiry = inquiry->next, i++) {
         last_post = (get_last_post(inquiry))->date;
-	sprintf(buf, "{g[{G%3d{g] {x%-38.38s %-12s %-10s %-8d %-20s",
-		i,
-		inquiry->subject,
-		inquiry->sender,
-		inquiry->closed ? "Closed" : "Open",
-		count_replies(inquiry),
-		(char *) ctime(&last_post));
-	add_buf(buffer, buf);
+    sprintf(buf, "{g[{G%3d{g] {x%-38.38s %-12s %-10s %-8d %-20s",
+        i,
+        inquiry->subject,
+        inquiry->sender,
+        inquiry->closed ? "Closed" : "Open",
+        count_replies(inquiry),
+        (char *) ctime(&last_post));
+    add_buf(buffer, buf);
     }
 
     if (project->inquiries == NULL)
     {
-	sprintf(buf, "No inquiries.\n\r");
-	add_buf(buffer, buf);
+    sprintf(buf, "No inquiries.\n\r");
+    add_buf(buffer, buf);
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -751,7 +751,7 @@ int count_replies(PROJECT_INQUIRY_DATA *pinq)
     int i;
 
     for (i = 0, pinq_tmp = pinq->replies; pinq_tmp != NULL; pinq_tmp = pinq_tmp->next)
-	i++;
+    i++;
 
     return i;
 }
@@ -765,16 +765,16 @@ PROJECT_INQUIRY_DATA *get_last_post(PROJECT_INQUIRY_DATA *pinq)
 
     reply_latest = NULL;
     for (latest_time = pinq->date, reply = pinq->replies; reply != NULL; reply = reply->next) {
-		if (reply->date > latest_time) {
-		    latest_time = reply->date;
-		    reply_latest = reply;
-		}
+        if (reply->date > latest_time) {
+            latest_time = reply->date;
+            reply_latest = reply;
+        }
     }
 
     if (reply_latest == NULL)
-		return pinq; // IE the original post itself
+        return pinq; // IE the original post itself
     else
-		return reply_latest; // The latest reply to the original post
+        return reply_latest; // The latest reply to the original post
 }
 
 
@@ -820,14 +820,14 @@ void save_projects()
     FILE *fp;
 
     if ((fp = fopen(PROJECTS_FILE, "w")) == NULL) {
-	bug("write_projects: couldn't open file!", 0);
-	return;
+    bug("write_projects: couldn't open file!", 0);
+    return;
     }
 
     log_string("project.c, save_projects - saving projects");
 
     if (project_list != NULL)
-	save_project(fp, project_list);
+    save_project(fp, project_list);
 
     fprintf(fp, "#END\n");
 
@@ -844,7 +844,7 @@ void save_project(FILE *fp, PROJECT_DATA *project)
 
     /* write recursively to preserve order */
     if (project->next != NULL)
-	save_project(fp, project->next);
+    save_project(fp, project->next);
 
     fprintf(fp, "#PROJECT\n");
     fprintf(fp, "Name %s~\n", project->name);
@@ -857,13 +857,13 @@ void save_project(FILE *fp, PROJECT_DATA *project)
     fprintf(fp, "Completed %d\n", project->completed);
 
     for (string = project->areas; string != NULL; string = string->next)
-	fprintf(fp, "Area %s~\n", string->string);
+    fprintf(fp, "Area %s~\n", string->string);
 
     if (project->builders != NULL)
-	save_project_builder(fp, project->builders);
+    save_project_builder(fp, project->builders);
 
     if (project->inquiries != NULL)
-	save_project_inquiry(fp, project->inquiries);
+    save_project_inquiry(fp, project->inquiries);
 
     fprintf(fp, "#-PROJECT\n");
 }
@@ -873,7 +873,7 @@ void save_project(FILE *fp, PROJECT_DATA *project)
 void save_project_builder(FILE *fp, PROJECT_BUILDER_DATA *pb)
 {
     if (pb->next != NULL)
-	save_project_builder(fp, pb->next);
+    save_project_builder(fp, pb->next);
 
     fprintf(fp, "#BUILDER\n");
     fprintf(fp, "Name %s~\n", pb->name);
@@ -887,7 +887,7 @@ void save_project_builder(FILE *fp, PROJECT_BUILDER_DATA *pb)
 void save_project_inquiry(FILE *fp, PROJECT_INQUIRY_DATA *pinq)
 {
     if (pinq->next != NULL)
-	save_project_inquiry(fp, pinq->next);
+    save_project_inquiry(fp, pinq->next);
 
     fprintf(fp, "#INQUIRY\n");
     fprintf(fp, "SentBy %s~\n", pinq->sender);
@@ -899,7 +899,7 @@ void save_project_inquiry(FILE *fp, PROJECT_INQUIRY_DATA *pinq)
 
     /* replies */
     if (pinq->replies)
-	save_project_inquiry(fp, pinq->replies);
+    save_project_inquiry(fp, pinq->replies);
     fprintf(fp, "#-INQUIRY\n");
 }
 
@@ -918,23 +918,23 @@ void read_projects()
     fp = fopen(PROJECTS_FILE, "r");
     if (fp == NULL)
     {
-	bug("Couldn't read projects.dat", 0);
-	exit(1);
+    bug("Couldn't read projects.dat", 0);
+    exit(1);
     }
 
     for (;;)
     {
-	word = fread_word(fp);
-	if (!str_cmp(word, "#PROJECT"))
-	{
-	    project = read_project(fp);
+    word = fread_word(fp);
+    if (!str_cmp(word, "#PROJECT"))
+    {
+        project = read_project(fp);
 
-	    project->next = project_list;
-	    project_list = project;
-	}
+        project->next = project_list;
+        project_list = project;
+    }
 
-	if (!str_cmp(word, "#END"))
-	    break;
+    if (!str_cmp(word, "#END"))
+        break;
     }
 
     fclose(fp);
@@ -953,98 +953,98 @@ PROJECT_DATA *read_project(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-PROJECT"))
     {
-	fMatch = false;
-	switch (word[0])
-	{
-	    case '#':
-		if (!str_cmp(word, "#BUILDER")) {
-		    pb = read_project_builder(fp);
+    fMatch = false;
+    switch (word[0])
+    {
+        case '#':
+        if (!str_cmp(word, "#BUILDER")) {
+            pb = read_project_builder(fp);
 
-		    pb->next = project->builders;
-		    project->builders = pb;
-		    pb->project = project;
-		    fMatch = true;
-		    break;
-		}
+            pb->next = project->builders;
+            project->builders = pb;
+            pb->project = project;
+            fMatch = true;
+            break;
+        }
 
-		if (!str_cmp(word, "#INQUIRY")) {
-		    pinq = read_project_inquiry(fp);
-		    pinq->project = project;
+        if (!str_cmp(word, "#INQUIRY")) {
+            pinq = read_project_inquiry(fp);
+            pinq->project = project;
 
-		    pinq->next = project->inquiries;
-		    project->inquiries = pinq;
+            pinq->next = project->inquiries;
+            project->inquiries = pinq;
 
-		    if (project_inquiry_list == NULL)
-			project_inquiry_list = pinq;
-		    else {
-			pinq->next_global = project_inquiry_list;
-			project_inquiry_list = pinq;
-		    }
+            if (project_inquiry_list == NULL)
+            project_inquiry_list = pinq;
+            else {
+            pinq->next_global = project_inquiry_list;
+            project_inquiry_list = pinq;
+            }
 
-		    fMatch = true;
-		    break;
-		}
+            fMatch = true;
+            break;
+        }
 
-	    case 'A':
-		if (!str_cmp(word, "Area")) {
-		    STRING_DATA *string, *string_tmp;
+        case 'A':
+        if (!str_cmp(word, "Area")) {
+            STRING_DATA *string, *string_tmp;
 
-		    fMatch = true;
-		    string = new_string_data();
-		    string->string = fread_string(fp);
+            fMatch = true;
+            string = new_string_data();
+            string->string = fread_string(fp);
 
-		    if (project->areas == NULL)
-			project->areas = string;
-		    else
-		    {
-			for (string_tmp = project->areas; string_tmp != NULL; string_tmp = string_tmp->next) {
-			    if (string_tmp->next == NULL)
-				break;
-			}
+            if (project->areas == NULL)
+            project->areas = string;
+            else
+            {
+            for (string_tmp = project->areas; string_tmp != NULL; string_tmp = string_tmp->next) {
+                if (string_tmp->next == NULL)
+                break;
+            }
 
-			string_tmp->next = string;
-		    }
-		}
+            string_tmp->next = string;
+            }
+        }
 
-		    break;
+            break;
 
-	    case 'C':
-		KEY("Completed", project->completed,	fread_number(fp));
-		KEY("Created",	project->created,	fread_number(fp));
-		break;
+        case 'C':
+        KEY("Completed", project->completed,	fread_number(fp));
+        KEY("Created",	project->created,	fread_number(fp));
+        break;
 
-	    case 'D':
-		KEYS("Description",project->description, fread_string(fp));
-		break;
+        case 'D':
+        KEYS("Description",project->description, fread_string(fp));
+        break;
 
-	    case 'L':
-		KEYS("Leader",	project->leader,	fread_string(fp));
-		break;
+        case 'L':
+        KEYS("Leader",	project->leader,	fread_string(fp));
+        break;
 
-	    case 'N':
-		KEYS("Name",	project->name,		fread_string(fp));
-		break;
+        case 'N':
+        KEYS("Name",	project->name,		fread_string(fp));
+        break;
 
-	    case 'P':
-		KEY("ProjectFlags", project->project_flags, fread_number(fp));
-		break;
+        case 'P':
+        KEY("ProjectFlags", project->project_flags, fread_number(fp));
+        break;
 
-	    case 'S':
-		KEY("Security",project->security,	fread_number(fp));
+        case 'S':
+        KEY("Security",project->security,	fread_number(fp));
                 KEY("Summary",	project->summary,	fread_string(fp));
 
-		break;
+        break;
 
-	    default:
-		sprintf(buf, "read_projects: no match for word %s", word);
-		bug(buf, 0);
-		break;
-	}
+        default:
+        sprintf(buf, "read_projects: no match for word %s", word);
+        bug(buf, 0);
+        break;
+    }
     }
 
     sprintf(buf,"read_project: reading project %s (%s), leader %s, sec %d, flags %s",
-	    project->name, project->summary, project->leader,
-	    project->security, flag_string(project_flags, project->project_flags));
+        project->name, project->summary, project->leader,
+        project->security, flag_string(project_flags, project->project_flags));
     log_string(buf);
 
     return project;
@@ -1059,26 +1059,26 @@ PROJECT_BUILDER_DATA *read_project_builder(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-BUILDER"))
     {
-	fMatch = false;
-	switch (word[0])
-	{
-	    case 'A':
+    fMatch = false;
+    switch (word[0])
+    {
+        case 'A':
                 KEY("Assigned", pb->assigned,	fread_number(fp));
-		break;
+        break;
 
-	    case 'M':
-		KEY("Minutes",	pb->minutes,	fread_number(fp));
-		break;
+        case 'M':
+        KEY("Minutes",	pb->minutes,	fread_number(fp));
+        break;
 
-	    case 'N':
-		KEYS("Name",	pb->name,	fread_string(fp));
-		break;
+        case 'N':
+        KEYS("Name",	pb->name,	fread_string(fp));
+        break;
 
-	    default:
-		sprintf(buf, "read_project_builder: no match for word %s", word);
-		bug(buf, 0);
-		break;
-	}
+        default:
+        sprintf(buf, "read_project_builder: no match for word %s", word);
+        bug(buf, 0);
+        break;
+    }
     }
 
 
@@ -1095,45 +1095,45 @@ PROJECT_INQUIRY_DATA *read_project_inquiry(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-INQUIRY"))
     {
-	fMatch = false;
-	switch (word[0])
-	{
-	    case '#':
-		if (!str_cmp(word, "#INQUIRY")) {
-		    reply = read_project_inquiry(fp);
+    fMatch = false;
+    switch (word[0])
+    {
+        case '#':
+        if (!str_cmp(word, "#INQUIRY")) {
+            reply = read_project_inquiry(fp);
 
-		    reply->next = pinq->replies;
-		    pinq->replies = reply;
-		    reply->parent = pinq;
+            reply->next = pinq->replies;
+            pinq->replies = reply;
+            reply->parent = pinq;
 
-		    fMatch = true;
-		}
+            fMatch = true;
+        }
 
-	    case 'C':
-		KEY("Closed",	pinq->closed,	fread_number(fp));
-		KEYS("ClosedBy",pinq->closed_by,fread_string(fp));
-		break;
+        case 'C':
+        KEY("Closed",	pinq->closed,	fread_number(fp));
+        KEYS("ClosedBy",pinq->closed_by,fread_string(fp));
+        break;
 
-	    case 'D':
-		KEY("Date",	pinq->date,	fread_number(fp));
-		break;
+        case 'D':
+        KEY("Date",	pinq->date,	fread_number(fp));
+        break;
 
-	    case 'S':
-		KEYS("SentBy",	pinq->sender,	fread_string(fp));
-		KEY("SentTime",	pinq->date,	fread_number(fp));
-		KEYS("Subject",	pinq->subject,	fread_string(fp));
-		break;
+        case 'S':
+        KEYS("SentBy",	pinq->sender,	fread_string(fp));
+        KEY("SentTime",	pinq->date,	fread_number(fp));
+        KEYS("Subject",	pinq->subject,	fread_string(fp));
+        break;
 
             case 'T':
-		KEYS("Text",	pinq->text,	fread_string(fp));
-	        break;
+        KEYS("Text",	pinq->text,	fread_string(fp));
+            break;
 
 
-	    default:
-		sprintf(buf, "read_project_builder: no match for word %s", word);
-		bug(buf, 0);
-		break;
-	}
+        default:
+        sprintf(buf, "read_project_builder: no match for word %s", word);
+        bug(buf, 0);
+        break;
+    }
     }
 
     return pinq;

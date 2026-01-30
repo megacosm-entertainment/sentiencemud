@@ -42,13 +42,13 @@ const OLC_EDITOR_TABS tedit_tabs = {
         { "General",  "Gen" },
         { "Values",   "Val" },
         { "Scripts",  "Scr" },
-		{ "Another", "Ano" },
-		{ "More", "Mre" },
-		{ "Even More" "EMre" },
-		{ "7th", "T7"},
-		{ "8th", "T8"},
-		{ "9th", "T9"},
-		{ "A Really Long Tab Name", "Rly"}
+        { "Another", "Ano" },
+        { "More", "Mre" },
+        { "Even More" "EMre" },
+        { "7th", "T7"},
+        { "8th", "T8"},
+        { "9th", "T9"},
+        { "A Really Long Tab Name", "Rly"}
     }
 };
 
@@ -65,27 +65,27 @@ TEDIT(tedit_create)
     value = atol(argument);
     if (argument[0] == '\0' || value == '\0')
     {
-	send_to_char("Syntax: tedit create [vnum]\n\r", ch);
-	return false;
+    send_to_char("Syntax: tedit create [vnum]\n\r", ch);
+    return false;
     }
 
     pArea = get_vnum_area(value);
     if (pArea == NULL)
     {
-	send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return false;
+    send_to_char("That vnum is not assigned an area.\n\r", ch);
+    return false;
     }
 
     if (!IS_BUILDER(ch, pArea))
     {
-	send_to_char("You aren't a builder in that area.\n\r", ch);
-	return false;
+    send_to_char("You aren't a builder in that area.\n\r", ch);
+    return false;
     }
 
-	if (get_token_index(pArea, value))
+    if (get_token_index(pArea, value))
     {
-	send_to_char("Token vnum already exists.\n\r", ch);
-	return false;
+    send_to_char("Token vnum already exists.\n\r", ch);
+    return false;
     }
 
     token_index = new_token_index();
@@ -93,8 +93,8 @@ TEDIT(tedit_create)
     token_index->area = pArea;
 
     iHash = value % MAX_KEY_HASH;
-	token_index->next = pArea->token_index_hash[iHash];
-	pArea->token_index_hash[iHash] = token_index;
+    token_index->next = pArea->token_index_hash[iHash];
+    pArea->token_index_hash[iHash] = token_index;
 
     ch->desc->pEdit = (void *)token_index;
 
@@ -222,8 +222,8 @@ TEDIT(tedit_name)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  name [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  name [string]\n\r", ch);
+    return false;
     }
 
     free_string(token_index->name);
@@ -242,29 +242,29 @@ TEDIT(tedit_type)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  type [general|quest|affect|skill|spell]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  type [general|quest|affect|skill|spell]\n\r", ch);
+    return false;
     }
 
     for (i = 0; token_table[i].name != NULL; i++) {
-	if (!str_prefix(argument, token_table[i].name))
-	    break;
+    if (!str_prefix(argument, token_table[i].name))
+        break;
     }
 
     if (token_table[i].name == NULL) {
-	send_to_char("That token type doesn't exist.\n\r", ch);
-	return false;
+    send_to_char("That token type doesn't exist.\n\r", ch);
+    return false;
     }
 
-	if(i == TOKEN_SPELL && ch->tot_level < MAX_LEVEL) {
-		send_to_char("Only IMPs can make spell tokens.\n\r", ch);
-		return false;
-	}
+    if(i == TOKEN_SPELL && ch->tot_level < MAX_LEVEL) {
+        send_to_char("Only IMPs can make spell tokens.\n\r", ch);
+        return false;
+    }
 
-	if(i == TOKEN_SONG && ch->tot_level < MAX_LEVEL) {
-		send_to_char("Only IMPs can make song tokens.\n\r", ch);
-		return false;
-	}
+    if(i == TOKEN_SONG && ch->tot_level < MAX_LEVEL) {
+        send_to_char("Only IMPs can make song tokens.\n\r", ch);
+        return false;
+    }
 
     token_index->type = token_table[i].type;
     act("Set token type to $t.", ch, NULL, NULL, NULL, NULL, token_table[i].name, NULL, TO_CHAR, NULL, NULL);
@@ -281,8 +281,8 @@ TEDIT(tedit_flags)
     if (argument[0] == '\0'
     || ((value = flag_value(token_flags, argument)) == NO_FLAG))
     {
-	send_to_char("Syntax:  flags [token flag]\n\rType '? tokenflags' for a list of flags.\n\r", ch);
-	return false;
+    send_to_char("Syntax:  flags [token flag]\n\rType '? tokenflags' for a list of flags.\n\r", ch);
+    return false;
     }
 
     TOGGLE_BIT(token_index->flags, value);
@@ -299,14 +299,14 @@ TEDIT(tedit_timer)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  timer [number of ticks]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  timer [number of ticks]\n\r", ch);
+    return false;
     }
 
     if ((value = atoi(argument)) < 0 || value > 65000)
     {
-	send_to_char("Invalid value. Must be a number of ticks between 0 and 65,000.\n\r", ch);
-	return false;
+    send_to_char("Invalid value. Must be a number of ticks between 0 and 65,000.\n\r", ch);
+    return false;
     }
 
     token_index->timer = value;
@@ -333,219 +333,219 @@ TEDIT(tedit_ed)
 
     if (command[0] == '\0' || keyword[0] == '\0')
     {
-	send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-	send_to_char("         ed edit [keyword]\n\r", ch);
-	send_to_char("         ed delete [keyword]\n\r", ch);
-	send_to_char("         ed show [keyword]\n\r", ch);
-	send_to_char("         ed format [keyword]\n\r", ch);
-	send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
-	send_to_char("         ed environment [keyword]\n\r", ch);
+    send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+    send_to_char("         ed edit [keyword]\n\r", ch);
+    send_to_char("         ed delete [keyword]\n\r", ch);
+    send_to_char("         ed show [keyword]\n\r", ch);
+    send_to_char("         ed format [keyword]\n\r", ch);
+    send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
+    send_to_char("         ed environment [keyword]\n\r", ch);
 
 
-	return false;
+    return false;
     }
 
     if (!str_cmp(command, "environment"))
     {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
-	    return false;
-	}
+    if (keyword[0] == '\0')
+    {
+        send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
+        return false;
+    }
 
-	ed			=   new_extra_descr();
-	ed->keyword		=   str_dup(keyword);
-	ed->description		= NULL;
-	ed->next		=   token_index->ed;
-	token_index->ed	=   ed;
+    ed			=   new_extra_descr();
+    ed->keyword		=   str_dup(keyword);
+    ed->description		= NULL;
+    ed->next		=   token_index->ed;
+    token_index->ed	=   ed;
 
-	send_to_char("Enviromental extra description added.\n\r", ch);
+    send_to_char("Enviromental extra description added.\n\r", ch);
 
-	return true;
+    return true;
     }
 
     if (!str_cmp(command, "copy"))
     {
-	EXTRA_DESCR_DATA *ed2;
+    EXTRA_DESCR_DATA *ed2;
 
-    	if (keyword[0] == '\0' || copy_item[0] == '\0')
-	{
-	   send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
-	   return false;
+        if (keyword[0] == '\0' || copy_item[0] == '\0')
+    {
+       send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
+       return false;
         }
 
-	for (ed = token_index->ed; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	}
+    for (ed = token_index->ed; ed; ed = ed->next)
+    {
+        if (is_name(keyword, ed->keyword))
+        break;
+    }
 
-	if (!ed)
-	{
-	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-	    return false;
-	}
+    if (!ed)
+    {
+        send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
+        return false;
+    }
 
-	ed2			=   new_extra_descr();
-	ed2->keyword		=   str_dup(copy_item);
-	if( ed->description )
-		ed2->description		= str_dup(ed->description);
-	else
-		ed2->description		= NULL;
-	ed2->next		=   token_index->ed;
-	token_index->ed	=   ed2;
+    ed2			=   new_extra_descr();
+    ed2->keyword		=   str_dup(copy_item);
+    if( ed->description )
+        ed2->description		= str_dup(ed->description);
+    else
+        ed2->description		= NULL;
+    ed2->next		=   token_index->ed;
+    token_index->ed	=   ed2;
 
-	send_to_char("Done.\n\r", ch);
+    send_to_char("Done.\n\r", ch);
 
-	return true;
+    return true;
     }
 
     if (!str_cmp(command, "add"))
     {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-	    return false;
-	}
+    if (keyword[0] == '\0')
+    {
+        send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+        return false;
+    }
 
-	ed			=   new_extra_descr();
-	ed->keyword		=   str_dup(keyword);
-	ed->description		=   str_dup("");
-	ed->next		=   token_index->ed;
-	token_index->ed	=   ed;
+    ed			=   new_extra_descr();
+    ed->keyword		=   str_dup(keyword);
+    ed->description		=   str_dup("");
+    ed->next		=   token_index->ed;
+    token_index->ed	=   ed;
 
-	string_append(ch, &ed->description);
+    string_append(ch, &ed->description);
 
-	return true;
+    return true;
     }
 
 
     if (!str_cmp(command, "edit"))
     {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
-	    return false;
-	}
+    if (keyword[0] == '\0')
+    {
+        send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
+        return false;
+    }
 
-	for (ed = token_index->ed; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	}
+    for (ed = token_index->ed; ed; ed = ed->next)
+    {
+        if (is_name(keyword, ed->keyword))
+        break;
+    }
 
-	if (!ed)
-	{
-	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-	    return false;
-	}
+    if (!ed)
+    {
+        send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
+        return false;
+    }
 
-	if( !ed->description )
-		ed->description = str_dup("");
+    if( !ed->description )
+        ed->description = str_dup("");
 
-	string_append(ch, &ed->description);
+    string_append(ch, &ed->description);
 
-	return true;
+    return true;
     }
 
 
     if (!str_cmp(command, "delete"))
     {
-	EXTRA_DESCR_DATA *ped = NULL;
+    EXTRA_DESCR_DATA *ped = NULL;
 
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
-	    return false;
-	}
+    if (keyword[0] == '\0')
+    {
+        send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
+        return false;
+    }
 
-	for (ed = token_index->ed; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	    ped = ed;
-	}
+    for (ed = token_index->ed; ed; ed = ed->next)
+    {
+        if (is_name(keyword, ed->keyword))
+        break;
+        ped = ed;
+    }
 
-	if (!ed)
-	{
-	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-	    return false;
-	}
+    if (!ed)
+    {
+        send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
+        return false;
+    }
 
-	if (!ped)
-	    token_index->ed = ed->next;
-	else
-	    ped->next = ed->next;
+    if (!ped)
+        token_index->ed = ed->next;
+    else
+        ped->next = ed->next;
 
-	free_extra_descr(ed);
+    free_extra_descr(ed);
 
-	send_to_char("Extra description deleted.\n\r", ch);
-	return true;
+    send_to_char("Extra description deleted.\n\r", ch);
+    return true;
     }
 
 
     if (!str_cmp(command, "format"))
     {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed format [keyword]\n\r", ch);
-	    return false;
-	}
-
-	for (ed = token_index->ed; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	}
-
-	if (!ed)
-	{
-	    send_to_char("TEDIT:  Extra description keyword not found.\n\r", ch);
-	    return false;
-	}
-
-	if( !ed->description )
-	{
-	    send_to_char("TEdit:  Extra description is an environmental extra description.\n\r", ch);
-	    return false;
-	}
-
-	ed->description = format_string(ed->description);
-
-	send_to_char("Extra description formatted.\n\r", ch);
-	return true;
+    if (keyword[0] == '\0')
+    {
+        send_to_char("Syntax:  ed format [keyword]\n\r", ch);
+        return false;
     }
 
-	if (!str_cmp(command, "show"))
-	{
-		if (keyword[0] == '\0')
-		{
-			send_to_char("Syntax:  ed show [keyword]\n\r", ch);
-			return false;
-		}
+    for (ed = token_index->ed; ed; ed = ed->next)
+    {
+        if (is_name(keyword, ed->keyword))
+        break;
+    }
 
-		for (ed = token_index->ed; ed; ed = ed->next)
-		{
-			if (is_name(keyword, ed->keyword))
-				break;
-		}
+    if (!ed)
+    {
+        send_to_char("TEDIT:  Extra description keyword not found.\n\r", ch);
+        return false;
+    }
 
-		if (!ed)
-		{
-			send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-			return false;
-		}
+    if( !ed->description )
+    {
+        send_to_char("TEdit:  Extra description is an environmental extra description.\n\r", ch);
+        return false;
+    }
 
-		if (!ed->description)
-		{
-			send_to_char("TEdit:  Cannot show environmental extra description.\n\r", ch);
-			return false;
-		}
+    ed->description = format_string(ed->description);
 
-		page_to_char(ed->description, ch);
+    send_to_char("Extra description formatted.\n\r", ch);
+    return true;
+    }
 
-		return true;
-	}
+    if (!str_cmp(command, "show"))
+    {
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed show [keyword]\n\r", ch);
+            return false;
+        }
+
+        for (ed = token_index->ed; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+                break;
+        }
+
+        if (!ed)
+        {
+            send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
+
+        if (!ed->description)
+        {
+            send_to_char("TEdit:  Cannot show environmental extra description.\n\r", ch);
+            return false;
+        }
+
+        page_to_char(ed->description, ch);
+
+        return true;
+    }
 
     tedit_ed(ch, "");
     return true;
@@ -560,8 +560,8 @@ TEDIT(tedit_description)
 
     if (argument[0] != '\0')
     {
-	send_to_char("Syntax:  desc\n\r", ch);
-	return false;
+    send_to_char("Syntax:  desc\n\r", ch);
+    return false;
     }
 
     string_append(ch, &token_index->description);
@@ -576,8 +576,8 @@ TEDIT(tedit_comments)
 
     if (argument[0] != '\0')
     {
-	send_to_char("Syntax:  comment\n\r", ch);
-	return false;
+    send_to_char("Syntax:  comment\n\r", ch);
+    return false;
     }
 
     string_append(ch, &token_index->comments);
@@ -599,171 +599,171 @@ TEDIT(tedit_value)
     argument = one_argument(argument, arg2);
 
     if (arg[0] == '\0' || arg2[0] == '\0') {
-	send_to_char("Syntax:  value <number> <value>\n\r", ch);
-	return false;
+    send_to_char("Syntax:  value <number> <value>\n\r", ch);
+    return false;
     }
 
     if ((value_num = atoi(arg)) < 0 || value_num >= MAX_TOKEN_VALUES) {
-	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES);
-	send_to_char(buf, ch);
-	return false;
+    sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES);
+    send_to_char(buf, ch);
+    return false;
     }
 
-	if(token_index->type == TOKEN_SPELL) {
-		switch(value_num) {
-		case TOKVAL_SPELL_RATING:			// Max rating
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Max rating must be within range of 0 (for 100%%) to 1000000.\n\r", ch);
-				return false;
-			}
+    if(token_index->type == TOKEN_SPELL) {
+        switch(value_num) {
+        case TOKVAL_SPELL_RATING:			// Max rating
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Max rating must be within range of 0 (for 100%%) to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Max rating set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_DIFFICULTY:			// Difficulty
-			value_value = atoi(arg2);
-			if(value_value < 1 || value_value > 1000000) {
-				send_to_char("Difficulty must be within range of 1 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Max rating set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_DIFFICULTY:			// Difficulty
+            value_value = atoi(arg2);
+            if(value_value < 1 || value_value > 1000000) {
+                send_to_char("Difficulty must be within range of 1 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Difficulty set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_TARGET:			// Target Type
-			value_value = flag_value(spell_target_types, arg2);
-			if(value_value == NO_FLAG) value_value = TAR_IGNORE;
+            send_to_char("Difficulty set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_TARGET:			// Target Type
+            value_value = flag_value(spell_target_types, arg2);
+            if(value_value == NO_FLAG) value_value = TAR_IGNORE;
 
-			send_to_char("Target type set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_POSITION:			// Minimum Position
+            send_to_char("Target type set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_POSITION:			// Minimum Position
 
-			if ((value_value = flag_value(position_flags, arg2)) == NO_FLAG) {
-				send_to_char("Invalid position for spell.\n\r", ch);
-				return false;
-			}
+            if ((value_value = flag_value(position_flags, arg2)) == NO_FLAG) {
+                send_to_char("Invalid position for spell.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Minimum position set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_MANA:			// Mana cost
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Mana cost must be within range of 0 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Minimum position set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_MANA:			// Mana cost
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Mana cost must be within range of 0 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Mana cost set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_LEARN:			// Learn cost
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Mana cost set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_LEARN:			// Learn cost
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Learn cost set.\n\r", ch);
-			break;
-		default:
-			// Need to check for various things.
-			value_value = atol(arg2);
+            send_to_char("Learn cost set.\n\r", ch);
+            break;
+        default:
+            // Need to check for various things.
+            value_value = atol(arg2);
 
-			sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
-			send_to_char(buf, ch);
-			break;
-		}
+            sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
+            send_to_char(buf, ch);
+            break;
+        }
 
-		token_index->value[value_num] = value_value;
-	} else if(token_index->type == TOKEN_SKILL) {
-		switch(value_num) {
-		case TOKVAL_SPELL_RATING:			// Max rating
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Max rating must be within range of 0 (for 100%%) to 1000000.\n\r", ch);
-				return false;
-			}
+        token_index->value[value_num] = value_value;
+    } else if(token_index->type == TOKEN_SKILL) {
+        switch(value_num) {
+        case TOKVAL_SPELL_RATING:			// Max rating
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Max rating must be within range of 0 (for 100%%) to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Max rating set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_DIFFICULTY:			// Difficulty
-			value_value = atoi(arg2);
-			if(value_value < 1 || value_value > 1000000) {
-				send_to_char("Difficulty must be within range of 1 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Max rating set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_DIFFICULTY:			// Difficulty
+            value_value = atoi(arg2);
+            if(value_value < 1 || value_value > 1000000) {
+                send_to_char("Difficulty must be within range of 1 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Difficulty set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_LEARN:			// Learn cost
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Difficulty set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_LEARN:			// Learn cost
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Learn cost set.\n\r", ch);
-			break;
-		default:
-			// Need to check for various things.
-			value_value = atol(arg2);
+            send_to_char("Learn cost set.\n\r", ch);
+            break;
+        default:
+            // Need to check for various things.
+            value_value = atol(arg2);
 
-			sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
-			send_to_char(buf, ch);
-			break;
-		}
+            sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
+            send_to_char(buf, ch);
+            break;
+        }
 
-		token_index->value[value_num] = value_value;
-	} else if(token_index->type == TOKEN_SONG) {
-		switch(value_num) {
-		case TOKVAL_SPELL_TARGET:			// Target Type
-			value_value = flag_value(song_target_types, arg2);
-			//Not sure what this one is for?
+        token_index->value[value_num] = value_value;
+    } else if(token_index->type == TOKEN_SONG) {
+        switch(value_num) {
+        case TOKVAL_SPELL_TARGET:			// Target Type
+            value_value = flag_value(song_target_types, arg2);
+            //Not sure what this one is for?
 //			if();
 
-			if(	value_value == NO_FLAG )
-			{
-				send_to_char("Invalid target for the song.\n\r", ch);
-				send_to_char("See '? song_targets' \n\r", ch);
-				return false;
-			}
+            if(	value_value == NO_FLAG )
+            {
+                send_to_char("Invalid target for the song.\n\r", ch);
+                send_to_char("See '? song_targets' \n\r", ch);
+                return false;
+            }
 
 
-			send_to_char("Target type set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_MANA:			// Mana cost
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Mana cost must be within range of 0 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Target type set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_MANA:			// Mana cost
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Mana cost must be within range of 0 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Mana cost set.\n\r", ch);
-			break;
-		case TOKVAL_SPELL_LEARN:			// Learn cost
-			value_value = atoi(arg2);
-			if(value_value < 0 || value_value > 1000000) {
-				send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
-				return false;
-			}
+            send_to_char("Mana cost set.\n\r", ch);
+            break;
+        case TOKVAL_SPELL_LEARN:			// Learn cost
+            value_value = atoi(arg2);
+            if(value_value < 0 || value_value > 1000000) {
+                send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
+                return false;
+            }
 
-			send_to_char("Learn cost set.\n\r", ch);
-			break;
-		default:
-			// Need to check for various things.
-			value_value = atol(arg2);
+            send_to_char("Learn cost set.\n\r", ch);
+            break;
+        default:
+            // Need to check for various things.
+            value_value = atol(arg2);
 
-			sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
-			send_to_char(buf, ch);
-			break;
-		}
+            sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
+            send_to_char(buf, ch);
+            break;
+        }
 
-		token_index->value[value_num] = value_value;
-	} else {
-		// Need to check for various things.
-		value_value = atol(arg2);
+        token_index->value[value_num] = value_value;
+    } else {
+        // Need to check for various things.
+        value_value = atol(arg2);
 
-		token_index->value[value_num] = value_value;
-		sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
-		send_to_char(buf, ch);
-	}
+        token_index->value[value_num] = value_value;
+        sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
+        send_to_char(buf, ch);
+    }
     return true;
 }
 
@@ -780,25 +780,25 @@ TEDIT(tedit_valuename)
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0' || argument[0] == '\0') {
-	send_to_char("Syntax:  valuename <number> <string>\n\r", ch);
-	return false;
+    send_to_char("Syntax:  valuename <number> <string>\n\r", ch);
+    return false;
     }
 
     if ((value_num = atoi(arg)) < 0 || value_num >= MAX_TOKEN_VALUES) {
-	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES);
-	send_to_char(buf, ch);
-	return false;
+    sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES);
+    send_to_char(buf, ch);
+    return false;
     }
 
     if (strlen(argument) <= 2) {
-	send_to_char("Value name must have at least 3 characters.\n\r", ch);
-	return false;
+    send_to_char("Value name must have at least 3 characters.\n\r", ch);
+    return false;
     }
 
     free_string(token_index->value_name[value_num]);
     token_index->value_name[value_num] = str_dup(argument);
     sprintf(buf, "Set token %ld's value %d to be named '%s'.\n\r", token_index->vnum,
-	    value_num, argument);
+        value_num, argument);
     send_to_char(buf, ch);
     return true;
 }
@@ -821,86 +821,86 @@ TEDIT (tedit_addtprog)
 
     if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addtprog [vnum] [trigger] [phrase]\n\r",ch);
-	return false;
+    send_to_char("Syntax:   addtprog [vnum] [trigger] [phrase]\n\r",ch);
+    return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_TPROG)) < 0) {
-	send_to_char("Valid flags are:\n\r",ch);
-	show_help(ch, "tprog");
-	return false;
+    send_to_char("Valid flags are:\n\r",ch);
+    show_help(ch, "tprog");
+    return false;
     }
 
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
 
-	if(value == TRIG_SPELLCAST) {
-		if( !str_cmp(phrase, "*") )
-		{
-			strcpy(phrase, "0");
-		}
-		else
-		{
-			int sn = skill_lookup(phrase);
-			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
-				send_to_char("Invalid spell for trigger.\n\r",ch);
-				return false;
-			}
-			sprintf(phrase,"%d",sn);
-		}
-	}
-	else if( value == TRIG_EXIT ||
-			 value == TRIG_EXALL ||
-			 value == TRIG_KNOCK ||
-			 value == TRIG_KNOCKING)
-	{
-		if( !str_cmp(phrase, "*") )
-		{
-			strcpy(phrase, "-1");
-		}
-		else
-		{
-			int door = parse_door(phrase);
-			if( door < 0 ) {
-				send_to_char("Invalid direction for exit/exall/knock/knocking trigger.\n\r", ch);
-				return false;
-			}
-			sprintf(phrase,"%d",door);
-		}
-	} else if( value == TRIG_OPEN || value == TRIG_CLOSE) {
-		if( !str_cmp(phrase, "*") )
-		{
-			strcpy(phrase, "-1");
-		}
-		else
-		{
-			int door = parse_door(phrase);
-			if( door >= 0 && door < MAX_DIR ) {
-				sprintf(phrase,"%d",door);
-			}
-		}
-	}
+    if(value == TRIG_SPELLCAST) {
+        if( !str_cmp(phrase, "*") )
+        {
+            strcpy(phrase, "0");
+        }
+        else
+        {
+            int sn = skill_lookup(phrase);
+            if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+                send_to_char("Invalid spell for trigger.\n\r",ch);
+                return false;
+            }
+            sprintf(phrase,"%d",sn);
+        }
+    }
+    else if( value == TRIG_EXIT ||
+             value == TRIG_EXALL ||
+             value == TRIG_KNOCK ||
+             value == TRIG_KNOCKING)
+    {
+        if( !str_cmp(phrase, "*") )
+        {
+            strcpy(phrase, "-1");
+        }
+        else
+        {
+            int door = parse_door(phrase);
+            if( door < 0 ) {
+                send_to_char("Invalid direction for exit/exall/knock/knocking trigger.\n\r", ch);
+                return false;
+            }
+            sprintf(phrase,"%d",door);
+        }
+    } else if( value == TRIG_OPEN || value == TRIG_CLOSE) {
+        if( !str_cmp(phrase, "*") )
+        {
+            strcpy(phrase, "-1");
+        }
+        else
+        {
+            int door = parse_door(phrase);
+            if( door >= 0 && door < MAX_DIR ) {
+                sprintf(phrase,"%d",door);
+            }
+        }
+    }
 
 
     if ((code = get_script_index_global(atol(num), PRG_TPROG)) == NULL)
     {
-	send_to_char("No such TokenProgram.\n\r",ch);
-	return false;
+    send_to_char("No such TokenProgram.\n\r",ch);
+    return false;
     }
 
     // Make sure this has a list of progs!
     if(!token_index->progs) token_index->progs = new_prog_bank();
 
     if(!token_index->progs) {
-	send_to_char("Could not define token_index->progs!\n\r",ch);
-	return false;
+    send_to_char("Could not define token_index->progs!\n\r",ch);
+    return false;
     }
 
     list                  = new_trigger();
     list->vnum            = atol(num);
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-	list->trig_number		= atoi(list->trig_phrase);
+    list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
     list->script          = code;
     //SET_BIT(token_index->mprog_flags,value);
@@ -935,8 +935,8 @@ TEDIT (tedit_deltprog)
     }
 
     if(!edit_deltrigger(token_index->progs,value)) {
-	send_to_char("No such mprog.\n\r",ch);
-	return false;
+    send_to_char("No such mprog.\n\r",ch);
+    return false;
     }
 
     send_to_char("Tprog removed.\n\r", ch);
@@ -949,7 +949,7 @@ TEDIT(tedit_varset)
 
     EDIT_TOKEN(ch, token_index);
 
-	return olc_varset(&token_index->index_vars, ch, argument, false);
+    return olc_varset(&token_index->index_vars, ch, argument, false);
 }
 
 TEDIT(tedit_varclear)
@@ -958,32 +958,32 @@ TEDIT(tedit_varclear)
 
     EDIT_TOKEN(ch, token_index);
 
-	return olc_varclear(&token_index->index_vars, ch, argument, false);
+    return olc_varclear(&token_index->index_vars, ch, argument, false);
 }
 
 char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v)
 {
-	if(token->type == TOKEN_SPELL )
-	{
-		if( v == TOKVAL_SPELL_RATING ) return "Rating";
-		else if( v == TOKVAL_SPELL_DIFFICULTY ) return "Difficulty";
-		else if( v == TOKVAL_SPELL_TARGET ) return "Spell Target";
-		else if( v == TOKVAL_SPELL_POSITION ) return "Min Position";
-		else if( v == TOKVAL_SPELL_MANA ) return "Mana Cost";
-		else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
-	}
-	else if( token->type == TOKEN_SKILL )
-	{
-		if( v == TOKVAL_SPELL_RATING ) return "Rating";
-		else if( v == TOKVAL_SPELL_DIFFICULTY ) return "Difficulty";
-		else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
-	}
-	else if( token->type == TOKEN_SONG )
-	{
-		if( v == TOKVAL_SPELL_TARGET ) return "Song Target";
-		else if( v == TOKVAL_SPELL_MANA ) return "Mana Cost";
-		else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
-	}
+    if(token->type == TOKEN_SPELL )
+    {
+        if( v == TOKVAL_SPELL_RATING ) return "Rating";
+        else if( v == TOKVAL_SPELL_DIFFICULTY ) return "Difficulty";
+        else if( v == TOKVAL_SPELL_TARGET ) return "Spell Target";
+        else if( v == TOKVAL_SPELL_POSITION ) return "Min Position";
+        else if( v == TOKVAL_SPELL_MANA ) return "Mana Cost";
+        else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
+    }
+    else if( token->type == TOKEN_SKILL )
+    {
+        if( v == TOKVAL_SPELL_RATING ) return "Rating";
+        else if( v == TOKVAL_SPELL_DIFFICULTY ) return "Difficulty";
+        else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
+    }
+    else if( token->type == TOKEN_SONG )
+    {
+        if( v == TOKVAL_SPELL_TARGET ) return "Song Target";
+        else if( v == TOKVAL_SPELL_MANA ) return "Mana Cost";
+        else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
+    }
 
-	return token->value_name[v];
+    return token->value_name[v];
 }

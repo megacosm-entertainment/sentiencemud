@@ -58,90 +58,90 @@ void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 CMD_DATA *get_cmd_data(char *name)
 {
-	ITERATOR it;
-	CMD_DATA *command;
-	iterator_start(&it, commands_list);
-	while((command = (CMD_DATA *)iterator_nextdata(&it)))
-	{
-		if (!str_prefix(name, command->name))
-			break;
-	}
-	iterator_stop(&it);
+    ITERATOR it;
+    CMD_DATA *command;
+    iterator_start(&it, commands_list);
+    while((command = (CMD_DATA *)iterator_nextdata(&it)))
+    {
+        if (!str_prefix(name, command->name))
+            break;
+    }
+    iterator_stop(&it);
 
-	return command;
+    return command;
 }
 
 /*
 DO_FUN * do_func_lookup(char *name)
 { 
-	for (int i = 0; do_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, do_func_table[i].name))
-			return do_func_table[i].func;
-	}
+    for (int i = 0; do_func_table[i].name != NULL; i++)
+    {
+        if (!str_cmp(name, do_func_table[i].name))
+            return do_func_table[i].func;
+    }
 
-	return NULL;
+    return NULL;
 }
 
 char do_func_name(DO_FUN *func)
 {
-	for (int i = 0; do_func_table[i].name != NULL; i++)
-	{
-		if (do_func_table[i].func == func)
-			return do_func_table[i].name;
-	}
+    for (int i = 0; do_func_table[i].name != NULL; i++)
+    {
+        if (do_func_table[i].func == func)
+            return do_func_table[i].name;
+    }
 
-	return NULL;
+    return NULL;
 }
 
 char do_func_display(DO_FUN *func)
 {
-	if ( !func ) return NULL;
+    if ( !func ) return NULL;
 
-	for (int i = 0; do_func_table[i].name != NULL; i++)
-	{
-		if (do_func_table[i].func == func)
-			return do_func_table[i].name;
-	}
+    for (int i = 0; do_func_table[i].name != NULL; i++)
+    {
+        if (do_func_table[i].func == func)
+            return do_func_table[i].name;
+    }
 
-	return "(invalid)";
+    return "(invalid)";
 }
 */
 
 #define FUNC_LOOKUPS(f,t,n) \
 t * f##_func_lookup(char *name) \
 { \
-	for (int i = 0; f##_func_table[i].name != NULL; i++) \
-	{ \
-		if (!str_cmp(name, f##_func_table[i].name)) \
-			return f##_func_table[i].func; \
-	} \
+    for (int i = 0; f##_func_table[i].name != NULL; i++) \
+    { \
+        if (!str_cmp(name, f##_func_table[i].name)) \
+            return f##_func_table[i].func; \
+    } \
  \
-	return NULL; \
+    return NULL; \
 } \
  \
 char *f##_func_name(t *func) \
 { \
-	for (int i = 0; f##_func_table[i].name != NULL; i++) \
-	{ \
-		if (f##_func_table[i].func == func) \
-			return f##_func_table[i].name; \
-	} \
+    for (int i = 0; f##_func_table[i].name != NULL; i++) \
+    { \
+        if (f##_func_table[i].func == func) \
+            return f##_func_table[i].name; \
+    } \
  \
-	return NULL; \
+    return NULL; \
 } \
  \
 char *f##_func_display(t *func) \
 { \
-	if ( n ) return NULL; \
+    if ( n ) return NULL; \
  \
-	for (int i = 0; f##_func_table[i].name != NULL; i++) \
-	{ \
-		if (f##_func_table[i].func == func) \
-			return f##_func_table[i].name; \
-	} \
+    for (int i = 0; f##_func_table[i].name != NULL; i++) \
+    { \
+        if (f##_func_table[i].func == func) \
+            return f##_func_table[i].name; \
+    } \
  \
-	return "(invalid)"; \
+    return "(invalid)"; \
 } \
  \
 
@@ -163,7 +163,7 @@ void save_command(FILE *fp, CMD_DATA *command)
     fprintf(fp, "Comments %s~\n", command->comments);
     fprintf(fp, "Description %s~\n", command->description);
     if (command->help_keywords != NULL && !IS_NULLSTR(command->help_keywords->string))
-	    fprintf(fp, "HelpKeywords %s~\n", command->help_keywords->string);
+        fprintf(fp, "HelpKeywords %s~\n", command->help_keywords->string);
     if (!IS_NULLSTR(command->reason))
         fprintf(fp, "Reason %s~\n", command->reason);
     if (!IS_NULLSTR(command->summary))
@@ -242,11 +242,11 @@ CMD_DATA *load_command(FILE *fp)
             case 'H':
                 if (!str_cmp(word, "HelpKeywords"))
                 {
-		            STRING_DATA *help;
+                    STRING_DATA *help;
 
                     help = new_string_data();
-		            help->string = fread_string(fp);
-			        command->help_keywords = help;
+                    help->string = fread_string(fp);
+                    command->help_keywords = help;
                         fMatch = true;
                         break;
                 }
@@ -514,41 +514,41 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
     
 
     if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-	{
-		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-	}
-	else
-	{
-		page_to_char(buffer->string, ch);
-	}
+    {
+        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    }
+    else
+    {
+        page_to_char(buffer->string, ch);
+    }
 
-	free_buf(buffer);
+    free_buf(buffer);
 }
 
 CMDEDIT( cmdedit_create )
 {
-	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax:  create <name>\n\r", ch);
-		return false;
-	}
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  create <name>\n\r", ch);
+        return false;
+    }
 
-	smash_tilde(argument);
-	if (get_cmd_data(argument) != NULL)
-	{
-		send_to_char("That name is already in use.\n\r", ch);
-		return false;
-	}
+    smash_tilde(argument);
+    if (get_cmd_data(argument) != NULL)
+    {
+        send_to_char("That name is already in use.\n\r", ch);
+        return false;
+    }
 
-	CMD_DATA *command = new_cmd();
-	command->name = str_dup(argument);
-	insert_command(command);
+    CMD_DATA *command = new_cmd();
+    command->name = str_dup(argument);
+    insert_command(command);
 
-	ch->pcdata->immortal->last_olc_command = current_time;
-	olc_set_editor(ch, ED_CMDEDIT, command);
+    ch->pcdata->immortal->last_olc_command = current_time;
+    olc_set_editor(ch, ED_CMDEDIT, command);
 
-	send_to_char("Command created.\n\r", ch);
-	return true;
+    send_to_char("Command created.\n\r", ch);
+    return true;
 }
 
 CMDEDIT (cmdedit_show)
@@ -584,20 +584,20 @@ CMDEDIT (cmdedit_show)
     add_buf(buffer, formatf("\n\rDescription:\n\r   %s\n\r", string_indent(command->description,3)));
 
     add_buf(buffer, "\n\r-----\n\r{WCoders' Comments:{X\n\r");
-	add_buf(buffer, command->comments);
-	add_buf(buffer, "\n\r-----\n\r");
+    add_buf(buffer, command->comments);
+    add_buf(buffer, "\n\r-----\n\r");
 
     if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-	{
-		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-	}
-	else
-	{
-		page_to_char(buffer->string, ch);
-	}
+    {
+        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    }
+    else
+    {
+        page_to_char(buffer->string, ch);
+    }
 
-	free_buf(buffer);
-	return false;
+    free_buf(buffer);
+    return false;
 }
 
 CMDEDIT( cmdedit_delete )
@@ -608,63 +608,63 @@ CMDEDIT( cmdedit_delete )
 
 CMDEDIT( cmdedit_name )
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
 
-	smash_tilde(argument);
-	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax:  name <name>\n\r", ch);
-		return false;
-	}
+    smash_tilde(argument);
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  name <name>\n\r", ch);
+        return false;
+    }
 
-	CMD_DATA *other = get_cmd_data(argument);
-	if (other && other != command)
-	{
-		send_to_char("That name is already in use.\n\r", ch);
-		return false;
-	}
+    CMD_DATA *other = get_cmd_data(argument);
+    if (other && other != command)
+    {
+        send_to_char("That name is already in use.\n\r", ch);
+        return false;
+    }
 
-	free_string(command->name);
-	command->name = str_dup(argument);
-	list_remlink(commands_list, command, false);
-	insert_command(command);
+    free_string(command->name);
+    command->name = str_dup(argument);
+    list_remlink(commands_list, command, false);
+    insert_command(command);
 
-	send_to_char("COMMAND Name set.\n\r", ch);
-	return true;
+    send_to_char("COMMAND Name set.\n\r", ch);
+    return true;
 }
 
 CMDEDIT( cmdedit_description )
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
 
-	if (argument[0] == '\0')
-	{
-		string_append(ch, &command->description);
-		return true;
-	}
+    if (argument[0] == '\0')
+    {
+        string_append(ch, &command->description);
+        return true;
+    }
 
-	send_to_char("Syntax:  description\n\r", ch);
-	return false;
+    send_to_char("Syntax:  description\n\r", ch);
+    return false;
 }
 
 CMDEDIT( cmdedit_comments )
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
 
-	if (argument[0] == '\0')
-	{
-		string_append(ch, &command->comments);
-		return true;
-	}
+    if (argument[0] == '\0')
+    {
+        string_append(ch, &command->comments);
+        return true;
+    }
 
-	send_to_char("Syntax:  comments\n\r", ch);
-	return false;
+    send_to_char("Syntax:  comments\n\r", ch);
+    return false;
 }
 
 CMDEDIT( cmdedit_type )
@@ -748,7 +748,7 @@ CMDEDIT (cmdedit_position )
     char arg[MAX_INPUT_LENGTH];
     int value;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
@@ -801,27 +801,27 @@ CMDEDIT (cmdedit_log )
 
 CMDEDIT( cmdedit_enabled )
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
 
-	if (!str_cmp(argument,"yes")) {
-		command->enabled = true;
-		send_to_char("Command has been enabled.\n\r", ch);
-	} else if (!str_cmp(argument,"no")) {
+    if (!str_cmp(argument,"yes")) {
+        command->enabled = true;
+        send_to_char("Command has been enabled.\n\r", ch);
+    } else if (!str_cmp(argument,"no")) {
         if (!command->function)
-		{
-			send_to_char("Command must have a function assigned before it can be enabled.\n\r", ch);
-			return false;
-		}
-		command->enabled = false;
-		send_to_char("Command has been disabled.\n\r", ch);
-	} else {
-		send_to_char("Syntax:  enabled yes|no\n\r", ch);
-		return false;
-	}
+        {
+            send_to_char("Command must have a function assigned before it can be enabled.\n\r", ch);
+            return false;
+        }
+        command->enabled = false;
+        send_to_char("Command has been disabled.\n\r", ch);
+    } else {
+        send_to_char("Syntax:  enabled yes|no\n\r", ch);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 CMDEDIT ( cmdedit_reason )
@@ -833,8 +833,8 @@ CMDEDIT ( cmdedit_reason )
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  reason <set <string>|clear>\n\r", ch);
-	return false;
+    send_to_char("Syntax:  reason <set <string>|clear>\n\r", ch);
+    return false;
     }
 
     argument = one_argument(argument, arg);
@@ -855,8 +855,8 @@ CMDEDIT ( cmdedit_reason )
         }
             
         free_string(command->reason);
-	    if (str_suffix("{x", argument))
-	        strcat(argument, "{x");
+        if (str_suffix("{x", argument))
+            strcat(argument, "{x");
         command->reason = str_dup(argument);
         command->reason[0] = UPPER(command->reason[0] );
 
@@ -874,22 +874,22 @@ CMDEDIT ( cmdedit_reason )
 
 CMDEDIT( cmdedit_flags )
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
 
-	long value;
-	if ((value = flag_value(command_flags, argument)) == NO_FLAG)
-	{
-		send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd\">? cmd\t</send>' for valid list.\n\r", ch);
-		show_flag_cmds(ch, command_flags);
-		return false;
-	}
+    long value;
+    if ((value = flag_value(command_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd\">? cmd\t</send>' for valid list.\n\r", ch);
+        show_flag_cmds(ch, command_flags);
+        return false;
+    }
 
-	TOGGLE_BIT(command->command_flags, value);
+    TOGGLE_BIT(command->command_flags, value);
 
-	send_to_char("Command Flags toggled.\n\r", ch);
-	return true;
+    send_to_char("Command Flags toggled.\n\r", ch);
+    return true;
 }
 
 CMDEDIT (cmdedit_function )
@@ -977,11 +977,11 @@ CMDEDIT (cmdedit_help )
     {
         argument++;
         int index;
-		if ((index = atoi(argument)) < 0 || index > 32000)
+        if ((index = atoi(argument)) < 0 || index > 32000)
         {
-			send_to_char("That help index is out of range.\n\r", ch);
-			return false;
-		} else 
+            send_to_char("That help index is out of range.\n\r", ch);
+            return false;
+        } else 
             pHelp = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
         
         if (pHelp == NULL)
@@ -996,16 +996,16 @@ CMDEDIT (cmdedit_help )
         pHelp = lookup_help_exact(argument, get_staff_rank(ch), topHelpCat);
         if (pHelp == NULL)
         {
-	        act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
-	        return false;
+            act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
+            return false;
         }
     }
 
     int i = 0;
     while (argument[i] != '\0')
     {
-	argument[i] = UPPER(argument[i]);
-	i++;
+    argument[i] = UPPER(argument[i]);
+    i++;
     }
 
     help = new_string_data();
@@ -1024,8 +1024,8 @@ CMDEDIT ( cmdedit_summary )
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  summary [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  summary [string]\n\r", ch);
+    return false;
     }
 
     free_string(command->summary);
@@ -1144,20 +1144,20 @@ CMDEDIT ( cmdedit_order )
 
 CMDEDIT( cmdedit_additional )
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	EDIT_CMD(ch, command);
+    EDIT_CMD(ch, command);
 
-	long value;
-	if ((value = flag_value(command_addl_types, argument)) == NO_FLAG)
-	{
-		send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd_types\">? cmd_types\t</send>' for valid list.\n\r", ch);
-		show_flag_cmds(ch, command_types);
-		return false;
-	}
+    long value;
+    if ((value = flag_value(command_addl_types, argument)) == NO_FLAG)
+    {
+        send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd_types\">? cmd_types\t</send>' for valid list.\n\r", ch);
+        show_flag_cmds(ch, command_types);
+        return false;
+    }
 
-	TOGGLE_BIT(command->addl_types, value);
+    TOGGLE_BIT(command->addl_types, value);
 
-	send_to_char("Additional command types toggled.\n\r", ch);
-	return true;
+    send_to_char("Additional command types toggled.\n\r", ch);
+    return true;
 }

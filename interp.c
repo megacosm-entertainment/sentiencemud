@@ -77,8 +77,8 @@ const	struct	cmd_type	cmd_table	[] =
 
     // Other common commands, placed here so one and two letter abbreviations work.
     { "?",			do_help,	POS_DEAD,	 0,  LOG_NEVER,  1, true },
-	{ "area",		do_area,	POS_DEAD,		0,	LOG_NEVER,	1,	false},
-	{ "areas",		do_areas,	POS_DEAD,		0, LOG_NEVER,	1, false},
+    { "area",		do_area,	POS_DEAD,		0,	LOG_NEVER,	1,	false},
+    { "areas",		do_areas,	POS_DEAD,		0, LOG_NEVER,	1, false},
     { "at",         do_at,          POS_DEAD,        0,  LOG_ALWAYS, 0, false },
     { "auction",    do_auction,     POS_SLEEPING,    0,  LOG_ALWAYS, 1, false},
     { "bar",		do_bar,		POS_RESTING,	 0,  LOG_NORMAL, 1, false},
@@ -218,14 +218,14 @@ const	struct	cmd_type	cmd_table	[] =
     { "yell",			do_yell,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
 
     // Object manipulation commands
-	{ "activate",		do_activate,	POS_RESTING, 0, LOG_NORMAL, 1, false },
+    { "activate",		do_activate,	POS_RESTING, 0, LOG_NORMAL, 1, false },
     { "bind",			do_bind,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "blow",			do_blow,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "brandish",		do_brandish,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "brew",			do_brew,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "close",			do_close,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "combine",		do_combine,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
-	{ "deactivate",		do_activate,	POS_RESTING, 0, LOG_NORMAL, 1, false },
+    { "deactivate",		do_activate,	POS_RESTING, 0, LOG_NORMAL, 1, false },
     { "deposit",		do_deposit,	POS_RESTING,	 0,  LOG_ALWAYS, 1, false },
     { "drink",			do_drink,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "drop",			do_drop,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
@@ -562,9 +562,9 @@ const	struct	cmd_type	cmd_table	[] =
     { "ships",		do_ships,	POS_DEAD,	0,		LOG_NORMAL, 1, true },
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, true },
-	{ "statsreload", do_reloadstats,	POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
-	{ "cmdlist", do_cmdlist, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
-	{ "cmdedit", do_cmdedit, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "statsreload", do_reloadstats,	POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "cmdlist", do_cmdlist, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "cmdedit", do_cmdedit, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, false }
 };
@@ -573,235 +573,235 @@ bool forced_command = false;	// 20070511NIB: Used to prevent forces to do any re
 
 bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 {
-	char buf[MIL], *p;
-	ITERATOR tit, pit;
-	TOKEN_DATA *token;
-	OBJ_DATA *obj;
-	CHAR_DATA *mob;
-	PROG_LIST *prg;
+    char buf[MIL], *p;
+    ITERATOR tit, pit;
+    TOKEN_DATA *token;
+    OBJ_DATA *obj;
+    CHAR_DATA *mob;
+    PROG_LIST *prg;
 //	SCRIPT_DATA *script;
 //	unsigned long uid[2];
-	int slot;
-	int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
+    int slot;
+    int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
 
 //	log_stringf("check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
 //	printf_to_char(ch, "check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
 
-	slot = TRIGSLOT_VERB;
+    slot = TRIGSLOT_VERB;
 
-	// Save the UID - TODO: this looks incomplete
+    // Save the UID - TODO: this looks incomplete
 //	uid[0] = ch->id[0];
 //	uid[1] = ch->id[1];
 
-	// Check for tokens FIRST
-	iterator_start(&tit, ch->ltokens);
-	while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-		if(token->pIndexData->progs) {
+    // Check for tokens FIRST
+    iterator_start(&tit, ch->ltokens);
+    while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+        if(token->pIndexData->progs) {
 //			log_stringf("check_verbs: ch(%s) token(%ld, %s)", ch->name, token->pIndexData->vnum, token->name);
-			script_token_addref(token);
-			script_destructed = false;
-			iterator_start(&pit, token->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+            script_token_addref(token);
+            script_destructed = false;
+            iterator_start(&pit, token->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 //				log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s)", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
-				if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command, prg->trig_phrase)) {
+                if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command, prg->trig_phrase)) {
 //					log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s) executing", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
-					if( ret != PRET_NOSCRIPT) {
-						iterator_stop(&pit);
+                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
+                    if( ret != PRET_NOSCRIPT) {
+                        iterator_stop(&pit);
 
-						script_token_remref(token);
-						return ret;
-					}
+                        script_token_remref(token);
+                        return ret;
+                    }
 
-				}
-			}
-			iterator_stop(&pit);
-			script_token_remref(token);
-		}
-	}
-	iterator_stop(&tit);
-	if( ret_val != PRET_NOSCRIPT ) return true;
+                }
+            }
+            iterator_stop(&pit);
+            script_token_remref(token);
+        }
+    }
+    iterator_stop(&tit);
+    if( ret_val != PRET_NOSCRIPT ) return true;
 
-	p = one_argument(argument,buf);
+    p = one_argument(argument,buf);
 //	if(!str_cmp(buf,"here")) {
-		ROOM_INDEX_DATA *room = ch->in_room;
-		ROOM_INDEX_DATA *source;
-		//bool isclone;
+        ROOM_INDEX_DATA *room = ch->in_room;
+        ROOM_INDEX_DATA *source;
+        //bool isclone;
 
-		if(room->source) {
-			source = room->source;
-			//isclone = true;
-			//uid[0] = room->id[0];
-			//uid[1] = room->id[1];
-		} else {
-			source = room;
-			//isclone = false;
-		}
+        if(room->source) {
+            source = room->source;
+            //isclone = true;
+            //uid[0] = room->id[0];
+            //uid[1] = room->id[1];
+        } else {
+            source = room;
+            //isclone = false;
+        }
 
-		script_room_addref(room);
+        script_room_addref(room);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, room->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if ((is_trigger_type(prg->trig_type,TRIG_VERB) || is_trigger_type(prg->trig_type,TRIG_VERBSELF)) && !str_prefix(command, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&tit);
-							iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, room->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if ((is_trigger_type(prg->trig_type,TRIG_VERB) || is_trigger_type(prg->trig_type,TRIG_VERBSELF)) && !str_prefix(command, prg->trig_phrase)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&tit);
+                            iterator_stop(&pit);
 
-							script_token_remref(token);
-							script_room_remref(room);
-							return ret;
-						}
+                            script_token_remref(token);
+                            script_room_remref(room);
+                            return ret;
+                        }
 
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-			script_destructed = false;
-			iterator_start(&pit, source->progs->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
-				} else if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command,prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
-				}
-					if( ret != PRET_NOSCRIPT) {
-						iterator_stop(&pit);
+        if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
+            script_destructed = false;
+            iterator_start(&pit, source->progs->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
+                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+                } else if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command,prg->trig_phrase)) {
+                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
+                }
+                    if( ret != PRET_NOSCRIPT) {
+                        iterator_stop(&pit);
 
-						script_room_remref(room);
-						return ret;
-					}
+                        script_room_remref(room);
+                        return ret;
+                    }
 
 
-			}
-			iterator_stop(&pit);
+            }
+            iterator_stop(&pit);
 
-		}
-		script_room_remref(room);
+        }
+        script_room_remref(room);
 
-		if( ret_val != PRET_NOSCRIPT ) return true;
+        if( ret_val != PRET_NOSCRIPT ) return true;
 //	}
 
-	// Get mobile...
-	mob = strcmp(buf,"self") ? get_char_room(ch, NULL, buf) : ch;
-	if(mob) {
-		script_mobile_addref(mob);
+    // Get mobile...
+    mob = strcmp(buf,"self") ? get_char_room(ch, NULL, buf) : ch;
+    if(mob) {
+        script_mobile_addref(mob);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, mob->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&tit);
-							iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, mob->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&tit);
+                            iterator_stop(&pit);
 
-							script_token_remref(token);
-							script_mobile_remref(mob);
-							return ret;
-						}
+                            script_token_remref(token);
+                            script_mobile_remref(mob);
+                            return ret;
+                        }
 
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		if(ret_val == PRET_NOSCRIPT && IS_NPC(mob) && mob->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, mob->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
-					if( ret != PRET_NOSCRIPT) {
-						iterator_stop(&pit);
+        if(ret_val == PRET_NOSCRIPT && IS_NPC(mob) && mob->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, mob->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
+                    ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+                    if( ret != PRET_NOSCRIPT) {
+                        iterator_stop(&pit);
 
-						script_mobile_remref(mob);
-						return ret;
-					}
+                        script_mobile_remref(mob);
+                        return ret;
+                    }
 
-				}
-			}
-			iterator_stop(&pit);
-		}
-		script_mobile_remref(mob);
+                }
+            }
+            iterator_stop(&pit);
+        }
+        script_mobile_remref(mob);
 
-		if( ret_val != PRET_NOSCRIPT ) return true;
-	}
+        if( ret_val != PRET_NOSCRIPT ) return true;
+    }
 
-	// Get obj...
-	if ((obj = get_obj_here(ch, NULL, buf))) {
-		script_object_addref(obj);
+    // Get obj...
+    if ((obj = get_obj_here(ch, NULL, buf))) {
+        script_object_addref(obj);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, obj->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&tit);
-							iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, obj->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&tit);
+                            iterator_stop(&pit);
 
-							script_token_remref(token);
-							script_object_remref(obj);
-							return ret;
-						}
+                            script_token_remref(token);
+                            script_object_remref(obj);
+                            return ret;
+                        }
 
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		if(ret_val == PRET_NOSCRIPT && obj->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, obj->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
-					if( ret != PRET_NOSCRIPT) {
-						iterator_stop(&pit);
+        if(ret_val == PRET_NOSCRIPT && obj->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, obj->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
+                    ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+                    if( ret != PRET_NOSCRIPT) {
+                        iterator_stop(&pit);
 
-						script_object_remref(obj);
-						return ret;
-					}
+                        script_object_remref(obj);
+                        return ret;
+                    }
 
-				}
-			}
-			iterator_stop(&pit);
-		}
+                }
+            }
+            iterator_stop(&pit);
+        }
 
-		script_object_remref(obj);
+        script_object_remref(obj);
 
-		if( ret_val != PRET_NOSCRIPT ) return true;
-	}
+        if( ret_val != PRET_NOSCRIPT ) return true;
+    }
 
-	return false;
+    return false;
 }
 
 // The main entry point for executing commands.
@@ -816,79 +816,79 @@ void interpret( CHAR_DATA *ch, char *argument )
     char cmd_copy[MAX_INPUT_LENGTH] ;
     char buf[MSL];
 //    const struct cmd_type* selected_command = NULL;
-	CMD_DATA *selected_command = NULL;
-	CMD_DATA *cmd = NULL;
+    CMD_DATA *selected_command = NULL;
+    CMD_DATA *cmd = NULL;
 
     // Strip leading spaces
     while (ISSPACE(*argument))
-	argument++;
+    argument++;
 
     if ( argument[0] == '\0' )
-	return;
+    return;
 
     // Frozen people can't do anything
     if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_FREEZE))
     {
-	send_to_char( "You're totally frozen!\n\r", ch );
-	return;
+    send_to_char( "You're totally frozen!\n\r", ch );
+    return;
     }
 
     // Neither can paralyzed people
     if (ch->paralyzed > 0 && !is_allowed( argument ))
     {
-	send_to_char("You are paralyzed and can't move a muscle!\n\r", ch );
-	return;
+    send_to_char("You are paralyzed and can't move a muscle!\n\r", ch );
+    return;
     }
 
-	// Deal with scripted input
-	if(ch->desc && ch->desc->input && ch->desc->input_script > 0 && ch->desc->inputString == NULL) {
+    // Deal with scripted input
+    if(ch->desc && ch->desc->input && ch->desc->input_script > 0 && ch->desc->inputString == NULL) {
 
-		int ret;
-		SCRIPT_DATA *script = NULL;
-		VARIABLE **var = NULL;
-		CHAR_DATA *mob = ch->desc->input_mob;
-		OBJ_DATA *obj = ch->desc->input_obj;
-		ROOM_INDEX_DATA *room = ch->desc->input_room;
-		TOKEN_DATA *tok = ch->desc->input_tok;
-		char *v = ch->desc->input_var;
+        int ret;
+        SCRIPT_DATA *script = NULL;
+        VARIABLE **var = NULL;
+        CHAR_DATA *mob = ch->desc->input_mob;
+        OBJ_DATA *obj = ch->desc->input_obj;
+        ROOM_INDEX_DATA *room = ch->desc->input_room;
+        TOKEN_DATA *tok = ch->desc->input_tok;
+        char *v = ch->desc->input_var;
 
-		if(ch->desc->input_mob) {
-		script = get_script_index_global(ch->desc->input_script,PRG_MPROG);
-		var = &ch->desc->input_mob->progs->vars;
-	} else if(ch->desc->input_obj) {
-		script = get_script_index_global(ch->desc->input_script,PRG_OPROG);
-		var = &ch->desc->input_obj->progs->vars;
-	} else if(ch->desc->input_room) {
-		script = get_script_index_global(ch->desc->input_script,PRG_RPROG);
-		var = &ch->desc->input_room->progs->vars;
-	} else if(ch->desc->input_tok) {
-		script = get_script_index_global(ch->desc->input_script,PRG_TPROG);
-		var = &ch->desc->input_tok->progs->vars;
-	}
+        if(ch->desc->input_mob) {
+        script = get_script_index_global(ch->desc->input_script,PRG_MPROG);
+        var = &ch->desc->input_mob->progs->vars;
+    } else if(ch->desc->input_obj) {
+        script = get_script_index_global(ch->desc->input_script,PRG_OPROG);
+        var = &ch->desc->input_obj->progs->vars;
+    } else if(ch->desc->input_room) {
+        script = get_script_index_global(ch->desc->input_script,PRG_RPROG);
+        var = &ch->desc->input_room->progs->vars;
+    } else if(ch->desc->input_tok) {
+        script = get_script_index_global(ch->desc->input_script,PRG_TPROG);
+        var = &ch->desc->input_tok->progs->vars;
+    }
 
-		ch->desc->input_room = NULL;
-		ch->desc->input_tok = NULL;
-		if(ch->desc->input_prompt) free_string(ch->desc->input_prompt);
-		ch->desc->input_prompt = NULL;
+        ch->desc->input_room = NULL;
+        ch->desc->input_tok = NULL;
+        if(ch->desc->input_prompt) free_string(ch->desc->input_prompt);
+        ch->desc->input_prompt = NULL;
 
-		if(script) {
+        if(script) {
 //			send_to_char("Executing script...\n\r",ch);
-			if(v) {
+            if(v) {
 //				send_to_char("Var:",ch);
 //				send_to_char(v,ch);
 //				send_to_char("...\n\r",ch);
-				variables_set_string(var,v,argument,false);
-			}
+                variables_set_string(var,v,argument,false);
+            }
 
-			ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
-			if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
-				do_function(ch, &do_quit, NULL);
-		}
+            ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
+            if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
+                do_function(ch, &do_quit, NULL);
+        }
 
-		if(v) free_string(v);
+        if(v) free_string(v);
 
-		if(script) return;
-	}
+        if(script) return;
+    }
 
 
 
@@ -903,14 +903,14 @@ void interpret( CHAR_DATA *ch, char *argument )
     strcpy( logline, argument );
     if ( !ISALPHA(argument[0]) && !ISDIGIT(argument[0]) )
     {
-	command[0] = argument[0];
-	command[1] = '\0';
-	argument++;
-	while ( ISSPACE(*argument) )
-	    argument++;
+    command[0] = argument[0];
+    command[1] = '\0';
+    argument++;
+    while ( ISSPACE(*argument) )
+        argument++;
     }
     else
-	argument = one_argument( argument, command );
+    argument = one_argument( argument, command );
 
     // Questions which people must answer before they can go on with life!
 
@@ -918,86 +918,86 @@ void interpret( CHAR_DATA *ch, char *argument )
     // Disabled pneuma/dp loss for now - Tieryo
     if (ch->remove_question)
     {
-	if (!str_prefix(command, "yes"))
-	{
-	    if (!str_cmp(ch->name, ch->remove_question->name))
-	    {
-		if (!str_cmp(ch->name, ch->remove_question->church->founder))
-		{
-		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		    sprintf(buf, "{Y[%s has quit %s]{x\n\r", ch->remove_question->name, ch->church->name);
-		    gecho( buf );
+    if (!str_prefix(command, "yes"))
+    {
+        if (!str_cmp(ch->name, ch->remove_question->name))
+        {
+        if (!str_cmp(ch->name, ch->remove_question->church->founder))
+        {
+            act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            sprintf(buf, "{Y[%s has quit %s]{x\n\r", ch->remove_question->name, ch->church->name);
+            gecho( buf );
 //		    ch->pneuma = 0;
 //		    ch->deitypoints = 0;
-		    extract_church( ch->church );
-		    ch->remove_question = NULL;
-		    sprintf( buf, "%s has quit.", ch->name );
-		    append_church_log( ch->church, ch->name );
-		}
-		else
-		{
-		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		    sprintf(buf, "{Y[%s has quit %s]{x\n\r", ch->remove_question->name, ch->church->name);
-		    gecho( buf );
-		    sprintf( buf, "%s has quit.", ch->name );
-		    append_church_log( ch->church, ch->name );
+            extract_church( ch->church );
+            ch->remove_question = NULL;
+            sprintf( buf, "%s has quit.", ch->name );
+            append_church_log( ch->church, ch->name );
+        }
+        else
+        {
+            act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            sprintf(buf, "{Y[%s has quit %s]{x\n\r", ch->remove_question->name, ch->church->name);
+            gecho( buf );
+            sprintf( buf, "%s has quit.", ch->name );
+            append_church_log( ch->church, ch->name );
 //		    ch->pneuma = 0;
 //		    ch->deitypoints = 0;
-		    remove_member(ch->remove_question);
-		    ch->remove_question = NULL;
-		}
-	    }
-	    return;
-	}
-	else
+            remove_member(ch->remove_question);
+            ch->remove_question = NULL;
+        }
+        }
+        return;
+    }
+    else
         if (!str_prefix(command, "no"))
         {
-	    ch->remove_question = NULL;
-	    return;
-	}
-	else
-	{
-	    send_to_char("Please answer yes or no.\n\r", ch);
-	    return;
-	}
+        ch->remove_question = NULL;
+        return;
+    }
+    else
+    {
+        send_to_char("Please answer yes or no.\n\r", ch);
+        return;
+    }
     }
 
-	if (!IS_NPC(ch) && ch->pcdata->mfa_question)
-	{
-		if (command[0] != '\0')
-		{
-			    // Validate the MFA code
-        		if (check_mfa(ch, command)) {
-            		ch->pcdata->mfa_enabled = true;
-					//ch->pcdata->qr_code_expiration = 0;
-            		send_to_char("Your MFA key has been validated and enabled.\n\r", ch);
-        		} else {
-            		send_to_char("The code you provided is incorrect. Please try '2fa confirm' again.\n\r", ch);
-        		}
-				ch->pcdata->mfa_question = false;
-				return;
-		}
-		else
-		{
-			send_to_char("{YEnter your MFA code:{x ", ch);
-			return;
-		}
-	}
+    if (!IS_NPC(ch) && ch->pcdata->mfa_question)
+    {
+        if (command[0] != '\0')
+        {
+                // Validate the MFA code
+                if (check_mfa(ch, command)) {
+                    ch->pcdata->mfa_enabled = true;
+                    //ch->pcdata->qr_code_expiration = 0;
+                    send_to_char("Your MFA key has been validated and enabled.\n\r", ch);
+                } else {
+                    send_to_char("The code you provided is incorrect. Please try '2fa confirm' again.\n\r", ch);
+                }
+                ch->pcdata->mfa_question = false;
+                return;
+        }
+        else
+        {
+            send_to_char("{YEnter your MFA code:{x ", ch);
+            return;
+        }
+    }
 
     if (!IS_NPC(ch) && ch->pcdata->inquiry_subject != NULL) {
-	if (command[0] != '\0') {
-	    sprintf(buf, "%s %s", command, argument);
-	    buf[0] = UPPER(buf[0]);
-	    ch->pcdata->inquiry_subject->subject = str_dup(buf);
-	    send_to_char("Inquiry added. Starting editor...\n\r", ch);
-	    string_append(ch, &ch->pcdata->inquiry_subject->text);
-	    ch->pcdata->inquiry_subject = NULL;
-	    projects_changed = true;
-	}
-	else
-	    send_to_char("{YEnter inquiry subject:{x ", ch);
+    if (command[0] != '\0') {
+        sprintf(buf, "%s %s", command, argument);
+        buf[0] = UPPER(buf[0]);
+        ch->pcdata->inquiry_subject->subject = str_dup(buf);
+        send_to_char("Inquiry added. Starting editor...\n\r", ch);
+        string_append(ch, &ch->pcdata->inquiry_subject->text);
+        ch->pcdata->inquiry_subject = NULL;
+        projects_changed = true;
+    }
+    else
+        send_to_char("{YEnter inquiry subject:{x ", ch);
 
-	return;
+    return;
     }
 
 // Toggle church PK?
@@ -1025,311 +1025,311 @@ if (ch->pk_question)
     // Toggle personal PK?
     if (ch->personal_pk_question)
     {
-	char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
 
-	if (!str_prefix(command, "yes"))
-	{
-	    if (!IS_SET( ch->act[0], PLR_PK ) )
-	    {
-		SET_BIT( ch->act[0], PLR_PK );
-		send_to_char("You have toggled PK. Good luck!\n\r", ch );
-		sprintf( buf, "%s has toggled PK on!", ch->name );
-		crier_announce( buf );
-		ch->pneuma -= 5000;
-	    }
-	    else
-	    {
-		REMOVE_BIT( ch->act[0], PLR_PK );
-		send_to_char("You have toggled PK off.\n\r", ch );
-		sprintf( buf, "%s is no longer PK.", ch->name );
-		crier_announce( buf );
-		ch->pneuma -= 5000;
-	    }
+    if (!str_prefix(command, "yes"))
+    {
+        if (!IS_SET( ch->act[0], PLR_PK ) )
+        {
+        SET_BIT( ch->act[0], PLR_PK );
+        send_to_char("You have toggled PK. Good luck!\n\r", ch );
+        sprintf( buf, "%s has toggled PK on!", ch->name );
+        crier_announce( buf );
+        ch->pneuma -= 5000;
+        }
+        else
+        {
+        REMOVE_BIT( ch->act[0], PLR_PK );
+        send_to_char("You have toggled PK off.\n\r", ch );
+        sprintf( buf, "%s is no longer PK.", ch->name );
+        crier_announce( buf );
+        ch->pneuma -= 5000;
+        }
 
-	    ch->personal_pk_question = false;
-	    return;
-	}
-	else
+        ch->personal_pk_question = false;
+        return;
+    }
+    else
         if (!str_prefix(command, "no"))
         {
-	    ch->personal_pk_question = false;
-	    return;
-	}
-	else
-	{
-	    if ( IS_SET( ch->act[0], PLR_PK ) )
-	    {
-		send_to_char("Toggle PK off? (y/n)\n\r", ch );
-	    }
-	    else
-	    {
-		send_to_char("Toggle PK on? (y/n)\n\r", ch );
-	    }
-	    return;
-	}
+        ch->personal_pk_question = false;
+        return;
+    }
+    else
+    {
+        if ( IS_SET( ch->act[0], PLR_PK ) )
+        {
+        send_to_char("Toggle PK off? (y/n)\n\r", ch );
+        }
+        else
+        {
+        send_to_char("Toggle PK on? (y/n)\n\r", ch );
+        }
+        return;
+    }
     }
 
     // Cross-zone gohall?
     if (ch->cross_zone_question)
     {
-	char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
 
-	if (!str_prefix(command, "yes"))
-	{
-	    long pneuma_cost;
-	    long dp_cost;
+    if (!str_prefix(command, "yes"))
+    {
+        long pneuma_cost;
+        long dp_cost;
 
-	    pneuma_cost = 500;
-	    dp_cost = 50000;
+        pneuma_cost = 500;
+        dp_cost = 50000;
 
-	    if ( ch->church == NULL )
-		return;
+        if ( ch->church == NULL )
+        return;
 
-	    ch->church->pneuma -= pneuma_cost;
-	    ch->church->dp -= dp_cost;
-	    sprintf( buf, "{Y[%s has recalled cross-zone, draining %ld pneuma and %ld karma!]{x\n\r", ch->name, pneuma_cost, dp_cost );
-	    msg_church_members( ch->church, buf );
-	    ch->cross_zone_question = false;
+        ch->church->pneuma -= pneuma_cost;
+        ch->church->dp -= dp_cost;
+        sprintf( buf, "{Y[%s has recalled cross-zone, draining %ld pneuma and %ld karma!]{x\n\r", ch->name, pneuma_cost, dp_cost );
+        msg_church_members( ch->church, buf );
+        ch->cross_zone_question = false;
 
-	    act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    char_from_room(ch);
-	    char_to_room(ch, location_to_room(&ch->church->recall_point));
-	    act("$n appears in the room.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    do_function(ch, &do_look, "auto");
-	    return;
-	}
-	else
+        act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        char_from_room(ch);
+        char_to_room(ch, location_to_room(&ch->church->recall_point));
+        act("$n appears in the room.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        do_function(ch, &do_look, "auto");
+        return;
+    }
+    else
         if (!str_prefix(command, "no"))
         {
-	    send_to_char("Cross-zone recall cancelled.\n\r", ch );
-	    ch->cross_zone_question = false;
-	    return;
-	}
-	else
-	{
-	    send_to_char("Recall cross-zone? (yes/no)\n\r", ch );
-	    return;
-	}
+        send_to_char("Cross-zone recall cancelled.\n\r", ch );
+        ch->cross_zone_question = false;
+        return;
+    }
+    else
+    {
+        send_to_char("Recall cross-zone? (yes/no)\n\r", ch );
+        return;
+    }
     }
 
     // Remorting!
     if (ch->remort_question) {
-		int iClass;
-		if(!str_cmp(command, "help")) {
-			for (iClass = CLASS_WARRIOR_WARLORD; iClass < MAX_SUB_CLASS; iClass++) {
-				if (!str_cmp(argument, sub_class_table[iClass].name[ch->sex]))
-					break;
-			}
+        int iClass;
+        if(!str_cmp(command, "help")) {
+            for (iClass = CLASS_WARRIOR_WARLORD; iClass < MAX_SUB_CLASS; iClass++) {
+                if (!str_cmp(argument, sub_class_table[iClass].name[ch->sex]))
+                    break;
+            }
 
-			if (iClass == MAX_SUB_CLASS || !can_choose_subclass(ch, iClass)) {
-				send_to_char("Not a valid subclass.\n\r", ch);
-				show_multiclass_choices(ch, ch);
-				return;
-			}
+            if (iClass == MAX_SUB_CLASS || !can_choose_subclass(ch, iClass)) {
+                send_to_char("Not a valid subclass.\n\r", ch);
+                show_multiclass_choices(ch, ch);
+                return;
+            }
 
-			do_function(ch, do_help, sub_class_table[iClass].name[0]);
+            do_function(ch, do_help, sub_class_table[iClass].name[0]);
 
-		} else {
-			for (iClass = CLASS_WARRIOR_WARLORD; iClass < MAX_SUB_CLASS; iClass++) {
-				if (!str_cmp(command, sub_class_table[iClass].name[ch->sex]))
-					break;
-			}
+        } else {
+            for (iClass = CLASS_WARRIOR_WARLORD; iClass < MAX_SUB_CLASS; iClass++) {
+                if (!str_cmp(command, sub_class_table[iClass].name[ch->sex]))
+                    break;
+            }
 
-			if (iClass == MAX_SUB_CLASS || !can_choose_subclass(ch, iClass)) {
-				send_to_char("Not a valid subclass.\n\r", ch);
-				show_multiclass_choices(ch, ch);
-				return;
-			}
+            if (iClass == MAX_SUB_CLASS || !can_choose_subclass(ch, iClass)) {
+                send_to_char("Not a valid subclass.\n\r", ch);
+                show_multiclass_choices(ch, ch);
+                return;
+            }
 
-			remort_player(ch, iClass);	// MWUHAHAHA
-		}
-		return;
-	}
+            remort_player(ch, iClass);	// MWUHAHAHA
+        }
+        return;
+    }
 
     // Convert church to a different alignment?
     if (!IS_NPC(ch) && ch->pcdata->convert_church != -1)
     {
-		char buf[MAX_STRING_LENGTH];
+        char buf[MAX_STRING_LENGTH];
 
-		if (!str_prefix(command, "yes"))
-		{
-			long pneuma_cost;
-			long dp_cost;
-
-			pneuma_cost = 10000;
-			dp_cost = 2500000;
-
-			if ( ch->church == NULL )
-			return;
-
-			ch->church->pneuma -= pneuma_cost;
-			ch->church->dp -= dp_cost;
-			ch->church->alignment = ch->pcdata->convert_church;
-
-			sprintf( buf, "{Y[%s has converted to the faith of %s!]{x\n\r",
-				ch->church->name,
-				ch->church->alignment == CHURCH_GOOD ? "the Pious" :
-				ch->church->alignment == CHURCH_NEUTRAL ? "Neutrality" : "Malice" );
-			gecho( buf );
-			ch->pcdata->convert_church = -1;
-			return;
-		}
-		else if (!str_prefix(command, "no"))
+        if (!str_prefix(command, "yes"))
         {
-		    send_to_char("Church faith conversion cancelled.\n\r", ch );
-		    ch->pcdata->convert_church = -1;
-		    return;
-		}
-		else
-		{
-		    sprintf( buf, "Are you SURE you want to convert to the faith of %s? (y/n)\n\r"
-					"{R***WARNING***:{x all members who cannot follow that faith will be removed on their next login!!!\n\r",
-					ch->pcdata->convert_church == CHURCH_GOOD ? "the Pious" :
-					ch->pcdata->convert_church == CHURCH_NEUTRAL ? "Neutrality" : "Malice" );
-		    send_to_char( buf, ch );
-		    return;
-		}
+            long pneuma_cost;
+            long dp_cost;
+
+            pneuma_cost = 10000;
+            dp_cost = 2500000;
+
+            if ( ch->church == NULL )
+            return;
+
+            ch->church->pneuma -= pneuma_cost;
+            ch->church->dp -= dp_cost;
+            ch->church->alignment = ch->pcdata->convert_church;
+
+            sprintf( buf, "{Y[%s has converted to the faith of %s!]{x\n\r",
+                ch->church->name,
+                ch->church->alignment == CHURCH_GOOD ? "the Pious" :
+                ch->church->alignment == CHURCH_NEUTRAL ? "Neutrality" : "Malice" );
+            gecho( buf );
+            ch->pcdata->convert_church = -1;
+            return;
+        }
+        else if (!str_prefix(command, "no"))
+        {
+            send_to_char("Church faith conversion cancelled.\n\r", ch );
+            ch->pcdata->convert_church = -1;
+            return;
+        }
+        else
+        {
+            sprintf( buf, "Are you SURE you want to convert to the faith of %s? (y/n)\n\r"
+                    "{R***WARNING***:{x all members who cannot follow that faith will be removed on their next login!!!\n\r",
+                    ch->pcdata->convert_church == CHURCH_GOOD ? "the Pious" :
+                    ch->pcdata->convert_church == CHURCH_NEUTRAL ? "Neutrality" : "Malice" );
+            send_to_char( buf, ch );
+            return;
+        }
     }
 
     // Answer a challenge?
     // Display character names, no more "a Slayer/a Werewolf" displayed to everyone -- Areo
     if (ch->challenged != NULL)
     {
-		CHAR_DATA *victim = ch->challenged;
-		char buf[MAX_STRING_LENGTH];
+        CHAR_DATA *victim = ch->challenged;
+        char buf[MAX_STRING_LENGTH];
 
-		if (!str_prefix(command, "yes"))
-		{
-			sprintf(buf, "%s has accepted %s's challenge! May the battle begin!",
-				ch->name, victim->name);
-			crier_announce( buf );
+        if (!str_prefix(command, "yes"))
+        {
+            sprintf(buf, "%s has accepted %s's challenge! May the battle begin!",
+                ch->name, victim->name);
+            crier_announce( buf );
 
-			sprintf(buf, "{M%s has accepted your challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( ch, victim ) );
+            sprintf(buf, "{M%s has accepted your challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( ch, victim ) );
 
-			send_to_char(buf, victim);
+            send_to_char(buf, victim);
 
-			sprintf(buf, "{MYou have accepted %s's challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( victim, ch ) );
+            sprintf(buf, "{MYou have accepted %s's challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( victim, ch ) );
 
-			send_to_char(buf, ch);
+            send_to_char(buf, ch);
 
-			if (ch->fighting != NULL)
-				stop_fighting(ch, true);
+            if (ch->fighting != NULL)
+                stop_fighting(ch, true);
 
-			if (ch->cast > 0)
-				stop_casting(ch, true);
+            if (ch->cast > 0)
+                stop_casting(ch, true);
 
-			if (ch->script_wait > 0)
-				script_end_failure(ch, true);
+            if (ch->script_wait > 0)
+                script_end_failure(ch, true);
 
-			interrupt_script(ch,false);
+            interrupt_script(ch,false);
 
 
-			if (victim->fighting != NULL)
-				stop_fighting(victim, true);
+            if (victim->fighting != NULL)
+                stop_fighting(victim, true);
 
-			if (victim->cast > 0)
-				stop_casting(victim, true);
+            if (victim->cast > 0)
+                stop_casting(victim, true);
 
-			if(victim->script_wait > 0)
-				script_end_failure(victim, true);
+            if(victim->script_wait > 0)
+                script_end_failure(victim, true);
 
-			interrupt_script(victim,false);
+            interrupt_script(victim,false);
 
-			location_from_room(&ch->pcdata->room_before_arena,ch->in_room);
-			location_from_room(&victim->pcdata->room_before_arena,victim->in_room);
+            location_from_room(&ch->pcdata->room_before_arena,ch->in_room);
+            location_from_room(&victim->pcdata->room_before_arena,victim->in_room);
 
-			char_from_room(ch);
-			char_from_room(victim);
-			{
-				ROOM_INDEX_DATA *arena = get_reserved_room_index("room_default_arena");
-				if (!arena)
-					arena = get_reserved_room_index("room_default");
-				if (arena) {
-					char_to_room(ch, arena);
-					char_to_room(victim, arena);
-				}
-			}
+            char_from_room(ch);
+            char_from_room(victim);
+            {
+                ROOM_INDEX_DATA *arena = get_reserved_room_index("room_default_arena");
+                if (!arena)
+                    arena = get_reserved_room_index("room_default");
+                if (arena) {
+                    char_to_room(ch, arena);
+                    char_to_room(victim, arena);
+                }
+            }
 
-			ch->challenged = NULL;
-			return;
-		}
+            ch->challenged = NULL;
+            return;
+        }
 
-		if (!str_prefix(command, "no"))
-		{
-			sprintf( buf, "%s has declined %s's challenge!",
-				ch->name, victim->name);
-			crier_announce( buf );
+        if (!str_prefix(command, "no"))
+        {
+            sprintf( buf, "%s has declined %s's challenge!",
+                ch->name, victim->name);
+            crier_announce( buf );
 
-			sprintf(buf, "{M%s has declined your challenge!{x\n\r", ch->name);
-			send_to_char(buf, victim);
+            sprintf(buf, "{M%s has declined your challenge!{x\n\r", ch->name);
+            send_to_char(buf, victim);
 
-			sprintf(buf, "{MYou have declined %s's challenge!{x\n\r", victim->name);
-			send_to_char(buf, ch);
-			ch->challenged = NULL;
-			return;
-		}
+            sprintf(buf, "{MYou have declined %s's challenge!{x\n\r", victim->name);
+            send_to_char(buf, ch);
+            ch->challenged = NULL;
+            return;
+        }
 
-		sprintf(buf, "{M%s has challenged you to a fight to the death in the arena!\n\rDo you accept? (Yes/No)\n\r{x", victim->name);
-		send_to_char(buf, ch);
-		return;
+        sprintf(buf, "{M%s has challenged you to a fight to the death in the arena!\n\rDo you accept? (Yes/No)\n\r{x", victim->name);
+        send_to_char(buf, ch);
+        return;
     }
 
     // Find command in table.
     found = false;
-	if (!IS_SWITCHED(ch))
-	{
-		trust = get_staff_rank( ch );
-	}
-	else
-	{
-		trust = get_staff_rank( ch->desc->original );
-	}
+    if (!IS_SWITCHED(ch))
+    {
+        trust = get_staff_rank( ch );
+    }
+    else
+    {
+        trust = get_staff_rank( ch->desc->original );
+    }
 
 /*
-	selected_command = NULL;
+    selected_command = NULL;
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
-		if ( command[0] == cmd_table[cmd].name[0] &&
-			!str_prefix( command, cmd_table[cmd].name ) &&
-			(!forced_command || (cmd_table[cmd].level < LEVEL_IMMORTAL)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
-			(cmd_table[cmd].level <= trust || is_granted_command(ch, cmd_table[cmd].name)
-			|| (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) // AO 010417 For easy debugging on my port; dont judge me, im lazy :P
-		{
-			selected_command = &cmd_table[cmd];
-			found = true;
-			break;
-		}
+        if ( command[0] == cmd_table[cmd].name[0] &&
+            !str_prefix( command, cmd_table[cmd].name ) &&
+            (!forced_command || (cmd_table[cmd].level < LEVEL_IMMORTAL)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
+            (cmd_table[cmd].level <= trust || is_granted_command(ch, cmd_table[cmd].name)
+            || (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) // AO 010417 For easy debugging on my port; dont judge me, im lazy :P
+        {
+            selected_command = &cmd_table[cmd];
+            found = true;
+            break;
+        }
     }
 */
     ITERATOR it;
     iterator_start(&it, commands_list);
-	while(( cmd = (CMD_DATA *)iterator_nextdata(&it)))
-	{	
-		if ( command[0] == cmd->name[0] && 
-		!str_prefix(command, cmd->name) && 
-		(!forced_command || cmd->rank < STAFF_IMMORTAL) && 
-		(cmd->rank <= get_staff_rank(ch) || is_granted_command(ch, cmd->name)))
-		{
-			selected_command = cmd;
-			found = true;
-			break;
-		}
-	}
-	iterator_stop(&it);
+    while(( cmd = (CMD_DATA *)iterator_nextdata(&it)))
+    {	
+        if ( command[0] == cmd->name[0] && 
+        !str_prefix(command, cmd->name) && 
+        (!forced_command || cmd->rank < STAFF_IMMORTAL) && 
+        (cmd->rank <= get_staff_rank(ch) || is_granted_command(ch, cmd->name)))
+        {
+            selected_command = cmd;
+            found = true;
+            break;
+        }
+    }
+    iterator_stop(&it);
 
     allowed = is_allowed(command);
 
-	if (found && !selected_command->enabled)
-	{
-		sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
-		send_to_char(buf,ch);
-		if (!IS_NULLSTR(selected_command->reason))
-		{
-			sprintf(buf,"{RReason: {X%s{x\n\r",selected_command->reason);
-			send_to_char(buf,ch);
-		}
-		return;
-	}
+    if (found && !selected_command->enabled)
+    {
+        sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
+        send_to_char(buf,ch);
+        if (!IS_NULLSTR(selected_command->reason))
+        {
+            sprintf(buf,"{RReason: {X%s{x\n\r",selected_command->reason);
+            send_to_char(buf,ch);
+        }
+        return;
+    }
 
     // Check stuff relevant to interpretation.
 /*	
@@ -1338,9 +1338,9 @@ if (ch->pk_question)
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (found && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
         affect_strip(ch, gsn_hide);
-		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
-		act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
-		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+        REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
+        act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+        act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
     }
 
     if (is_affected(ch, skill_lookup("paralysis")) && !allowed)
@@ -1349,52 +1349,52 @@ if (ch->pk_question)
         return;
     }
 
-	if (ch->paroxysm > 0 && !allowed)
-	{
-		if (number_percent() < 20)
-		{
-			send_to_char("{YYou flail your arms about wildly.{x\n\r", ch);
-			act("$n flails $s arms about wildly, unable to control $mself.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		}
-		else if (number_percent() < 20)
-		{
-			send_to_char("{YYou cartwheel across the floor.{x\n\r", ch);
-			act("{Y$n cartwheels across the floor.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		}
-		else if (number_percent() < 20)
-		{
-			send_to_char("{YYou babble nonsensically and foam at the mouth.{x\n\r", ch );
-			act("{Y$n babbles nonsensically and foams at the mouth.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		}
-		else if (number_percent() < 20)
-		{
-			send_to_char("{YYour fall to the floor and begin to convulse.{x\n\r", ch );
-			act("{Y$n collapses to the floor and begins to have seizures.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-		}
-		else if (number_percent() < 20)
-		{
-			send_to_char("{YYou begin to spin around in circles.{x\n\r", ch);
-			act("$n spins around dizzifyingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		}
-		else
-		{
-			send_to_char("{YYou stare blankly at your feet.{x\n\r", ch);
-			act("$n stares blankly, unable to do anything.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		}
+    if (ch->paroxysm > 0 && !allowed)
+    {
+        if (number_percent() < 20)
+        {
+            send_to_char("{YYou flail your arms about wildly.{x\n\r", ch);
+            act("$n flails $s arms about wildly, unable to control $mself.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else if (number_percent() < 20)
+        {
+            send_to_char("{YYou cartwheel across the floor.{x\n\r", ch);
+            act("{Y$n cartwheels across the floor.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else if (number_percent() < 20)
+        {
+            send_to_char("{YYou babble nonsensically and foam at the mouth.{x\n\r", ch );
+            act("{Y$n babbles nonsensically and foams at the mouth.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else if (number_percent() < 20)
+        {
+            send_to_char("{YYour fall to the floor and begin to convulse.{x\n\r", ch );
+            act("{Y$n collapses to the floor and begins to have seizures.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+        }
+        else if (number_percent() < 20)
+        {
+            send_to_char("{YYou begin to spin around in circles.{x\n\r", ch);
+            act("$n spins around dizzifyingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else
+        {
+            send_to_char("{YYou stare blankly at your feet.{x\n\r", ch);
+            act("$n stares blankly, unable to do anything.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
 
-		return;
-	}
+        return;
+    }
 
     if (ch->cast > 0 && !allowed)
-		stop_casting(ch, true);
+        stop_casting(ch, true);
 
-	if (ch->script_wait > 0 && !allowed)
-		script_end_failure(ch, true);
+    if (ch->script_wait > 0 && !allowed)
+        script_end_failure(ch, true);
 
-	if(!allowed) interrupt_script(ch,false);
+    if(!allowed) interrupt_script(ch,false);
 
     if (ch->music > 0 && !allowed)
-		stop_music(ch, true);
+        stop_music(ch, true);
 
     if (ch->brew > 0 && !allowed)
         return;
@@ -1402,10 +1402,10 @@ if (ch->pk_question)
     if (ch->repair > 0 && !allowed)
     {
         act("You stop repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	act("$n stops repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	ch->repair_obj = NULL;
-	ch->repair_amt = 0;
-	ch->repair = 0;
+    act("$n stops repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    ch->repair_obj = NULL;
+    ch->repair_amt = 0;
+    ch->repair = 0;
     }
 
     if (ch->hide > 0 && !allowed)
@@ -1415,42 +1415,42 @@ if (ch->pk_question)
     }
 
     if (ch->bind > 0 && !allowed)
-	return;
+    return;
 
     if (ch->bomb > 0 && !allowed)
-	return;
+    return;
 
     if (ch->recite > 0 && !allowed)
     {
-	ch->recite = 0;
-	free_string( ch->cast_target_name );
-	ch->cast_target_name = NULL;
-	send_to_char("{WYou stop reciting.{x\n\r", ch );
+    ch->recite = 0;
+    free_string( ch->cast_target_name );
+    ch->cast_target_name = NULL;
+    send_to_char("{WYou stop reciting.{x\n\r", ch );
     }
 
     if ((ch->reverie > 0 || ch->trance > 0) && !allowed)
     {
-    	send_to_char("You can't break your meditation.\n\r",ch );
-	return;
+        send_to_char("You can't break your meditation.\n\r",ch );
+    return;
     }
 
     if (ch->scribe > 0 && !allowed)
-	return;
+    return;
 
     // You can move while shooting, but not much else
     if (ch->ranged > 0 && !allowed)
     {
-	if ( str_cmp( command, "north" )
-	&&   str_cmp( command, "east" )
-	&&   str_cmp( command, "south" )
-	&&   str_cmp( command, "west" )
-	&&   str_cmp( command, "northwest" )
-	&&   str_cmp( command, "northeast" )
-	&&   str_cmp( command, "southwest" )
-	&&   str_cmp( command, "southeast" )
-	&&   str_cmp( command, "up" )
-	&&   str_cmp( command, "down" ))
-	    stop_ranged( ch, true );
+    if ( str_cmp( command, "north" )
+    &&   str_cmp( command, "east" )
+    &&   str_cmp( command, "south" )
+    &&   str_cmp( command, "west" )
+    &&   str_cmp( command, "northwest" )
+    &&   str_cmp( command, "northeast" )
+    &&   str_cmp( command, "southwest" )
+    &&   str_cmp( command, "southeast" )
+    &&   str_cmp( command, "up" )
+    &&   str_cmp( command, "down" ))
+        stop_ranged( ch, true );
     }
 
     if (ch->resurrect > 0 && !allowed)
@@ -1468,81 +1468,81 @@ if (ch->pk_question)
     }
 
     // Stop abuse.
-	if (selected_command != NULL && found)
-	{
-    	if (IS_NPC(ch) && selected_command->level >= LEVEL_IMMORTAL)
-    	{
-			sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
-	    	ch->short_descr, ch->pIndexData->vnum, selected_command->name);
-			log_string(buf);
-			return;
-    	}
+    if (selected_command != NULL && found)
+    {
+        if (IS_NPC(ch) && selected_command->level >= LEVEL_IMMORTAL)
+        {
+            sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
+            ch->short_descr, ch->pIndexData->vnum, selected_command->name);
+            log_string(buf);
+            return;
+        }
 
-    	// Log and snoop.
-    	if ( selected_command->log == LOG_NEVER )
-		strcpy( logline, "" );
+        // Log and snoop.
+        if ( selected_command->log == LOG_NEVER )
+        strcpy( logline, "" );
 
-    	if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
-    	&&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
-    	{
-			char s[2 * MAX_INPUT_LENGTH];
-			char *ps;
-			int i;
+        if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
+        &&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
+        {
+            char s[2 * MAX_INPUT_LENGTH];
+            char *ps;
+            int i;
 
-			ps = s;
-			sprintf( log_buf, "Log %s: %s",
-	    	IS_NPC(ch) ? ch->short_descr : ch->name, logline );
+            ps = s;
+            sprintf( log_buf, "Log %s: %s",
+            IS_NPC(ch) ? ch->short_descr : ch->name, logline );
 
-			// Make sure that was is displayed is what is typed
-			for ( i = 0; log_buf[i]; i++ )
-			{
-	    		*ps++ = log_buf[i];
-	    		if ( log_buf[i] == '$' )
-					*ps++ = '$';
-	    		if ( log_buf[i] == '{' )
-					*ps++ = '{';
-			}
+            // Make sure that was is displayed is what is typed
+            for ( i = 0; log_buf[i]; i++ )
+            {
+                *ps++ = log_buf[i];
+                if ( log_buf[i] == '$' )
+                    *ps++ = '$';
+                if ( log_buf[i] == '{' )
+                    *ps++ = '{';
+            }
 
-			*ps = 0;
-			wiznet( s, ch, NULL, WIZ_SECURE, 0, get_staff_rank(ch));
-			if ( logline[0] != '\0' )
-	    		log_string( log_buf );
-    	}
-	}
+            *ps = 0;
+            wiznet( s, ch, NULL, WIZ_SECURE, 0, get_staff_rank(ch));
+            if ( logline[0] != '\0' )
+                log_string( log_buf );
+        }
+    }
 
     if ( ch->desc != NULL && ch->desc->snoop_by != NULL )
     {
-	write_to_buffer( ch->desc->snoop_by, "% ",    2 );
-	write_to_buffer( ch->desc->snoop_by, logline, 0 );
-	write_to_buffer( ch->desc->snoop_by, "\n\r",  2 );
+    write_to_buffer( ch->desc->snoop_by, "% ",    2 );
+    write_to_buffer( ch->desc->snoop_by, logline, 0 );
+    write_to_buffer( ch->desc->snoop_by, "\n\r",  2 );
     }
 
     // Command not found... try other places.
     // Modified 2010-08-16 - Changed order. Command -> Custom verbs -> Socials -- Tieryo
     if (!found)
     {
-    	if (check_verbs(ch,command,argument))
-			return;
+        if (check_verbs(ch,command,argument))
+            return;
 
-		if (check_social(ch, command, argument))
-			return;
+        if (check_social(ch, command, argument))
+            return;
 
-		send_to_char( "Huh?\n\r", ch);
-		if (IS_NPC(ch))
-			sprintf(buf, "NPC \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\">%s\t</send> (%ld) tried to use the command '%s' but it didn't exist.", ch->id[0], ch->id[1], ch->pIndexData->vnum, ch->pIndexData->vnum, ch->short_descr, ch->pIndexData->vnum, command);
-		else
-			sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
-		log_string(buf);
-		wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
-		return;
+        send_to_char( "Huh?\n\r", ch);
+        if (IS_NPC(ch))
+            sprintf(buf, "NPC \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\">%s\t</send> (%ld) tried to use the command '%s' but it didn't exist.", ch->id[0], ch->id[1], ch->pIndexData->vnum, ch->pIndexData->vnum, ch->short_descr, ch->pIndexData->vnum, command);
+        else
+            sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
+        log_string(buf);
+        wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
+        return;
     }
 
     // Command found, let's execute it
     if (ch->position == POS_FEIGN)
     {
-	do_function( ch, &do_feign, "");
-	if ( !str_cmp( selected_command->name, "feign") )
-	    return;
+    do_function( ch, &do_feign, "");
+    if ( !str_cmp( selected_command->name, "feign") )
+        return;
     }
 
     if (ch->position == POS_HELDUP)
@@ -1553,48 +1553,48 @@ if (ch->pk_question)
 
     if (ch->heldup != NULL)
     {
-	act( "You lose your concentration and $N escapes!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	act( "$n loses $s concentration, freeing you from the holdup!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
-	act( "$n loses $s concentration and $N frees $Mself!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
- 	stop_holdup(ch);
+    act( "You lose your concentration and $N escapes!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act( "$n loses $s concentration, freeing you from the holdup!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act( "$n loses $s concentration and $N frees $Mself!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+     stop_holdup(ch);
     }
 
     // Character not in position for command?
     if ( ch->position < selected_command->position )
     {
-	switch( ch->position )
-	{
-	case POS_DEAD:
-	    send_to_char( "Lie still; you are DEAD.\n\r", ch );
-	    break;
+    switch( ch->position )
+    {
+    case POS_DEAD:
+        send_to_char( "Lie still; you are DEAD.\n\r", ch );
+        break;
 
-	case POS_MORTAL:
-	case POS_INCAP:
-	    send_to_char( "You are far too hurt for that.\n\r", ch );
-	    break;
+    case POS_MORTAL:
+    case POS_INCAP:
+        send_to_char( "You are far too hurt for that.\n\r", ch );
+        break;
 
-	case POS_STUNNED:
-	    send_to_char( "You are too stunned to do that.\n\r", ch );
-	    break;
+    case POS_STUNNED:
+        send_to_char( "You are too stunned to do that.\n\r", ch );
+        break;
 
-	case POS_SLEEPING:
-	    send_to_char( "In your dreams, or what?\n\r", ch );
-	    break;
+    case POS_SLEEPING:
+        send_to_char( "In your dreams, or what?\n\r", ch );
+        break;
 
-	case POS_RESTING:
-	    send_to_char( "You are resting at the moment.\n\r", ch);
-	    break;
+    case POS_RESTING:
+        send_to_char( "You are resting at the moment.\n\r", ch);
+        break;
 
-	case POS_SITTING:
-	    send_to_char( "Better stand up first.\n\r",ch);
-	    break;
+    case POS_SITTING:
+        send_to_char( "Better stand up first.\n\r",ch);
+        break;
 
-	case POS_FIGHTING:
-	    send_to_char( "No way!  You are still fighting!\n\r", ch);
-	    break;
-	}
+    case POS_FIGHTING:
+        send_to_char( "No way!  You are still fighting!\n\r", ch);
+        break;
+    }
 
-	return;
+    return;
     }
 
     // Dispatch the command
@@ -1631,71 +1631,71 @@ bool check_social( CHAR_DATA *ch, char *command, char *argument )
     found  = false;
     for ( cmd = 0; social_table[cmd].name[0] != '\0'; cmd++ )
     {
-	if ( command[0] == social_table[cmd].name[0]
-	&&   !str_prefix( command, social_table[cmd].name ) )
-	{
-	    found = true;
-	    break;
-	}
+    if ( command[0] == social_table[cmd].name[0]
+    &&   !str_prefix( command, social_table[cmd].name ) )
+    {
+        found = true;
+        break;
+    }
     }
 
     if ( !found )
-	return false;
+    return false;
 
     switch ( ch->position )
     {
-	case POS_DEAD:
-	    send_to_char( "Lie still; you are DEAD.\n\r", ch );
-	    return true;
+    case POS_DEAD:
+        send_to_char( "Lie still; you are DEAD.\n\r", ch );
+        return true;
 
-	case POS_INCAP:
-	case POS_MORTAL:
-	    send_to_char( "You are hurt far too bad for that.\n\r", ch );
-	    return true;
+    case POS_INCAP:
+    case POS_MORTAL:
+        send_to_char( "You are hurt far too bad for that.\n\r", ch );
+        return true;
 
-	case POS_STUNNED:
-	    send_to_char( "You are too stunned to do that.\n\r", ch );
-	    return true;
+    case POS_STUNNED:
+        send_to_char( "You are too stunned to do that.\n\r", ch );
+        return true;
 
-	case POS_SLEEPING:
-	    /*
-	     * I just know this is the path to a 12" 'if' statement.  :(
-	     * But two players asked for it already!  -- Furey
-	     */
-	    if ( !str_cmp( social_table[cmd].name, "snore" ) )
-		break;
-	    send_to_char( "In your dreams, or what?\n\r", ch );
-	    return true;
+    case POS_SLEEPING:
+        /*
+         * I just know this is the path to a 12" 'if' statement.  :(
+         * But two players asked for it already!  -- Furey
+         */
+        if ( !str_cmp( social_table[cmd].name, "snore" ) )
+        break;
+        send_to_char( "In your dreams, or what?\n\r", ch );
+        return true;
     }
 
     one_argument( argument, arg );
     victim = NULL;
     if ( arg[0] == '\0' ) {
-		act( social_table[cmd].others_no_arg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL    );
-		act( social_table[cmd].char_no_arg,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
+        act( social_table[cmd].others_no_arg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL    );
+        act( social_table[cmd].char_no_arg,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
     }
     else if ( ( victim = get_char_room( ch, NULL, arg ) ) == NULL )
     {
-		send_to_char( "They aren't here.\n\r", ch );
+        send_to_char( "They aren't here.\n\r", ch );
     }
     else if ( victim == ch )
     {
-		act( social_table[cmd].others_auto,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL    );
-		act( social_table[cmd].char_auto,     ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
+        act( social_table[cmd].others_auto,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL    );
+        act( social_table[cmd].char_auto,     ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
     }
     else
     {
-		act( social_table[cmd].others_found,  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
-		act( social_table[cmd].char_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
-		act( social_table[cmd].vict_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL    );
+        act( social_table[cmd].others_found,  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
+        act( social_table[cmd].char_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
+        act( social_table[cmd].vict_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL    );
     }
 
     // 20140508NIB - Adding EMOTE triggering
 
     if( victim != NULL )
-		p_emoteat_trigger(victim, ch, social_table[cmd].name);
-	else
-		p_emote_trigger(ch, social_table[cmd].name);
+        p_emoteat_trigger(victim, ch, social_table[cmd].name);
+    else
+        p_emote_trigger(ch, social_table[cmd].name);
 
     return true;
 }
@@ -1721,22 +1721,22 @@ bool is_number( const char *arg )
 
 bool is_percent( char *arg )
 {
-	if ( *arg == '\0' )
-	return false;
+    if ( *arg == '\0' )
+    return false;
 
-	for ( ; *arg != '%' && *arg != '\0'; arg++ )
-	{
-		if ( !ISDIGIT( *arg ) )
-			return false;
-	}
+    for ( ; *arg != '%' && *arg != '\0'; arg++ )
+    {
+        if ( !ISDIGIT( *arg ) )
+            return false;
+    }
 
-	if( *arg != '%' )
-		return false;
+    if( *arg != '%' )
+        return false;
 
-	// Skip the %
-	++arg;
+    // Skip the %
+    ++arg;
 
-	return !*arg;	// Does the string end a null
+    return !*arg;	// Does the string end a null
 }
 
 
@@ -1748,14 +1748,14 @@ int number_argument( char *argument, char *arg )
 
     for ( pdot = argument; *pdot != '\0'; pdot++ )
     {
-	if ( *pdot == '.' )
-	{
-	    *pdot = '\0';
-	    number = atoi( argument );
-	    *pdot = '.';
-	    strcpy( arg, pdot+1 );
-	    return number;
-	}
+    if ( *pdot == '.' )
+    {
+        *pdot = '\0';
+        number = atoi( argument );
+        *pdot = '.';
+        strcpy( arg, pdot+1 );
+        return number;
+    }
     }
 
     strcpy( arg, argument );
@@ -1792,27 +1792,27 @@ char *one_argument_norm( char *argument, char *arg_first )
     char cEnd;
 
     while ( ISSPACE(*argument) )
-	argument++;
+    argument++;
 
     cEnd = ' ';
     if ( *argument == '\'' || *argument == '"' )
-	cEnd = *argument++;
+    cEnd = *argument++;
 
     while ( *argument != '\0' )
     {
-	if ( *argument == cEnd )
-	{
-	    argument++;
-	    break;
-	}
-	*arg_first = *argument;
-	arg_first++;
-	argument++;
+    if ( *argument == cEnd )
+    {
+        argument++;
+        break;
+    }
+    *arg_first = *argument;
+    arg_first++;
+    argument++;
     }
     *arg_first = '\0';
 
     while ( ISSPACE(*argument) )
-	argument++;
+    argument++;
 
     return argument;
 }
@@ -1824,27 +1824,27 @@ char *one_argument( char *argument, char *arg_first )
     char cEnd;
 
     while ( ISSPACE(*argument) )
-	argument++;
+    argument++;
 
     cEnd = ' ';
     if ( *argument == '\'' || *argument == '"' )
-	cEnd = *argument++;
+    cEnd = *argument++;
 
     while ( *argument != '\0' )
     {
-	if ( *argument == cEnd )
-	{
-	    argument++;
-	    break;
-	}
-	*arg_first = LOWER(*argument);
-	arg_first++;
-	argument++;
+    if ( *argument == cEnd )
+    {
+        argument++;
+        break;
+    }
+    *arg_first = LOWER(*argument);
+    arg_first++;
+    argument++;
     }
     *arg_first = '\0';
 
     while ( ISSPACE(*argument) )
-	argument++;
+    argument++;
 
     return argument;
 }
@@ -1892,103 +1892,103 @@ void do_commands( CHAR_DATA *ch, char *argument )
     char buf[MAX_STRING_LENGTH], mxp_str[1024];
 //    int cmd;
     int col;
-	long cmdtype = 0;
-	CMD_DATA *command;
-	col = 0;
+    long cmdtype = 0;
+    CMD_DATA *command;
+    col = 0;
 
-	if (argument[0] == '\0')
-	{
-		
-		for (cmdtype = 0; cmdtype < MAX_COMMAND_TYPES; cmdtype++ )
-		{
-			if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
-			continue;
+    if (argument[0] == '\0')
+    {
+        
+        for (cmdtype = 0; cmdtype < MAX_COMMAND_TYPES; cmdtype++ )
+        {
+            if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
+            continue;
 
-			sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
-			send_to_char(buf, ch);
-			ITERATOR cit;
-			iterator_start(&cit, commands_list);
-			col = 0;
-			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
-			{
-				if (command->type != cmdtype)
-					continue;
+            sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
+            send_to_char(buf, ch);
+            ITERATOR cit;
+            iterator_start(&cit, commands_list);
+            col = 0;
+            while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+            {
+                if (command->type != cmdtype)
+                    continue;
 
-				if (command->level <= LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
-				{
+                if (command->level <= LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+                {
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
-					if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
-						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-					else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
-						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-					else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
-						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
-					else
-						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-				
+                    if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+                        sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                    else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+                        sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                    else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+                        sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+                    else
+                        sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                
 //				list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
 //			}
-	   		 		sprintf( buf, "%s", mxp_str );
-	    			send_to_char( buf, ch );
-	    			if ( ++col % 6 == 0 )
-					send_to_char( "\n\r", ch );
+                        sprintf( buf, "%s", mxp_str );
+                    send_to_char( buf, ch );
+                    if ( ++col % 6 == 0 )
+                    send_to_char( "\n\r", ch );
 
-				}
-			}
-			iterator_stop(&cit);
-			send_to_char( "\n\r", ch );
-		}
-	}
-	else
-	{
-		
-		if ((cmdtype = flag_value(command_types, argument)) == NO_FLAG)
-		{
-			send_to_char("Invalid command type.\n\r", ch);
-			return;
-		}
+                }
+            }
+            iterator_stop(&cit);
+            send_to_char( "\n\r", ch );
+        }
+    }
+    else
+    {
+        
+        if ((cmdtype = flag_value(command_types, argument)) == NO_FLAG)
+        {
+            send_to_char("Invalid command type.\n\r", ch);
+            return;
+        }
 
-		cmdtype = flag_value(command_types, argument);
-		if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NONE)
-		{
-			send_to_char("This command list is only for player commands\n\r", ch);
-			return;	
-		}
-			sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
-			send_to_char(buf, ch);
+        cmdtype = flag_value(command_types, argument);
+        if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NONE)
+        {
+            send_to_char("This command list is only for player commands\n\r", ch);
+            return;	
+        }
+            sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
+            send_to_char(buf, ch);
 
-	ITERATOR cit;
+    ITERATOR cit;
 
-	iterator_start(&cit, commands_list);
-	col = 0;
-			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
-			{
-				if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
-				{
+    iterator_start(&cit, commands_list);
+    col = 0;
+            while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+            {
+                if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+                {
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
-					if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
-						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-					else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
-						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-					else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
-						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
-					else
-						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-				
+                    if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+                        sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                    else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+                        sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                    else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+                        sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+                    else
+                        sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                
 //				list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
 //			}
-	   		 		sprintf( buf, "%s", mxp_str );
-	    			send_to_char( buf, ch );
-	    			if ( ++col % 6 == 0 )
-					send_to_char( "\n\r", ch );
+                        sprintf( buf, "%s", mxp_str );
+                    send_to_char( buf, ch );
+                    if ( ++col % 6 == 0 )
+                    send_to_char( "\n\r", ch );
 
-				}
-			}
-			iterator_stop(&cit);
-			send_to_char( "\n\r", ch );
-	}
+                }
+            }
+            iterator_stop(&cit);
+            send_to_char( "\n\r", ch );
+    }
 
 
 /*	
@@ -1996,17 +1996,17 @@ void do_commands( CHAR_DATA *ch, char *argument )
     {
         if ( cmd_table[cmd].level <  LEVEL_HERO
         &&   cmd_table[cmd].rank <= get_staff_rank( ch )
-	&&   cmd_table[cmd].show )
-	{
-	    sprintf( buf, "%-12s", cmd_table[cmd].name );
-	    send_to_char( buf, ch );
-	    if ( ++col % 6 == 0 )
-		send_to_char( "\n\r", ch );
-	}
+    &&   cmd_table[cmd].show )
+    {
+        sprintf( buf, "%-12s", cmd_table[cmd].name );
+        send_to_char( buf, ch );
+        if ( ++col % 6 == 0 )
+        send_to_char( "\n\r", ch );
+    }
     }
 */
-	    if ( col % 6 != 0 )
-		send_to_char( "\n\r", ch );
+        if ( col % 6 != 0 )
+        send_to_char( "\n\r", ch );
 }
 
 // Output a table of imm-only commands.
@@ -2015,61 +2015,61 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
     char buf[MAX_STRING_LENGTH];
 //    int cmd;
     int col = 0;
-	long cmdtype = -1;
-	CMD_DATA *command;
-	int rank = 0;
+    long cmdtype = -1;
+    CMD_DATA *command;
+    int rank = 0;
 
-	if (argument[0] != '\0')
-	{
-		cmdtype = flag_value(command_types, argument);
-		sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
-		send_to_char(buf,ch);
-	}
+    if (argument[0] != '\0')
+    {
+        cmdtype = flag_value(command_types, argument);
+        sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
+        send_to_char(buf,ch);
+    }
 
-		if (cmdtype == NO_FLAG)
-		{
-			send_to_char("Invalid command type.\n\r", ch);
-			return;
-		}
+        if (cmdtype == NO_FLAG)
+        {
+            send_to_char("Invalid command type.\n\r", ch);
+            return;
+        }
 
-	
-	for ( rank = STAFF_IMMORTAL; rank <= get_staff_rank(ch); rank++ )
-	{
-		col = 0;
-		sprintf(buf, "\n\r{B*{G*{B* {XCommands for level {W%d{X {B*{G*{B*{X\n\r", rank);
-		send_to_char(buf,ch);
+    
+    for ( rank = STAFF_IMMORTAL; rank <= get_staff_rank(ch); rank++ )
+    {
+        col = 0;
+        sprintf(buf, "\n\r{B*{G*{B* {XCommands for level {W%d{X {B*{G*{B*{X\n\r", rank);
+        send_to_char(buf,ch);
 
-		ITERATOR it;
-		iterator_start(&it, commands_list);
-		while ((command = (CMD_DATA *)iterator_nextdata(&it)))
-		{
-			if (cmdtype != -1 && !IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
-				continue;
+        ITERATOR it;
+        iterator_start(&it, commands_list);
+        while ((command = (CMD_DATA *)iterator_nextdata(&it)))
+        {
+            if (cmdtype != -1 && !IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+                continue;
 
-			if (command->rank == rank && command->level <= get_staff_rank(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
-			{
-				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
-					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-				else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && IS_NULLSTR(command->summary))
-					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-				else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
-					sprintf(buf, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
-				else
-					sprintf(buf, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+            if (command->rank == rank && command->level <= get_staff_rank(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+            {
+                if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+                    sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && IS_NULLSTR(command->summary))
+                    sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+                else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+                    sprintf(buf, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+                else
+                    sprintf(buf, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
 
-				send_to_char( buf, ch );
-				if ( ++col % 6 == 0 )
-					send_to_char( "\n\r", ch );
-				
-			
-			}
-		}
-		iterator_stop(&it);
-		send_to_char( "\n\r", ch );
-	}
+                send_to_char( buf, ch );
+                if ( ++col % 6 == 0 )
+                    send_to_char( "\n\r", ch );
+                
+            
+            }
+        }
+        iterator_stop(&it);
+        send_to_char( "\n\r", ch );
+    }
 
     if ( col % 6 != 0 )
-	send_to_char( "\n\r", ch );
+    send_to_char( "\n\r", ch );
 }
 
 
@@ -2082,9 +2082,9 @@ bool is_allowed( char *command )
     || !str_cmp( command, "equipment")
     || !str_cmp( command, "inventory")
     || !str_cmp( command, "score") 
-	|| !str_cmp( command, "who" ) 
-	|| !str_cmp( command, "area" ) 
-	|| !str_cmp( command, "areas") )
+    || !str_cmp( command, "who" ) 
+    || !str_cmp( command, "area" ) 
+    || !str_cmp( command, "areas") )
         return true;
 
     return false;
@@ -2094,12 +2094,12 @@ bool is_allowed( char *command )
 void stop_music( CHAR_DATA *ch, bool messages )
 {
 
-	// Allow for custom messages as well as handling interrupted songs
-	if(ch->song_token) {
-		ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
-		if( p_percent_trigger(NULL,NULL,NULL,ch->song_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL) )
-			messages = false;
-	}
+    // Allow for custom messages as well as handling interrupted songs
+    if(ch->song_token) {
+        ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
+        if( p_percent_trigger(NULL,NULL,NULL,ch->song_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL) )
+            messages = false;
+    }
     free_string( ch->music_target_name );
     ch->music_target_name = NULL;
     ch->music = 0;
@@ -2110,7 +2110,7 @@ void stop_music( CHAR_DATA *ch, bool messages )
 
 
     if ( messages )
-		send_to_char("{YYou stop playing your song.{x\n\r", ch );
+        send_to_char("{YYou stop playing your song.{x\n\r", ch );
 }
 
 
@@ -2118,14 +2118,14 @@ void stop_music( CHAR_DATA *ch, bool messages )
 void stop_casting( CHAR_DATA *ch, bool messages )
 {
 
-	// Allow for custom messages as well as handling interrupted spells
-	if(ch->cast_token) {
-		ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
-		if( p_percent_trigger(NULL,NULL,NULL,ch->cast_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL) )
-			messages = false;
-	}
-	free_string(ch->casting_failure_message);
-	ch->casting_failure_message = NULL;
+    // Allow for custom messages as well as handling interrupted spells
+    if(ch->cast_token) {
+        ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
+        if( p_percent_trigger(NULL,NULL,NULL,ch->cast_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL) )
+            messages = false;
+    }
+    free_string(ch->casting_failure_message);
+    ch->casting_failure_message = NULL;
     free_string( ch->cast_target_name );
     ch->cast_target_name = NULL;
     ch->cast = 0;
@@ -2136,66 +2136,66 @@ void stop_casting( CHAR_DATA *ch, bool messages )
 
     if ( messages )
     {
-	send_to_char("{WYou stop your casting.{x\n\r", ch);
-	if (number_percent() < 10)
-	{
-	    send_to_char("{YSmall yellow sparks spiral around you then fade away.{x\n\r", ch);
-	    act("$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else
-	if (number_percent() < 20)
-	{
-	    send_to_char("{YYou hear a loud bang as your magic dissipates.{x\n\r", ch);
-	    act("{YYou hear a loud bang as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else
-	if (number_percent() < 30)
-	{
-	    send_to_char("{YA puff of smoke billows out of your ears.{x\n\r", ch);
-	    act("{YA puff of smoke billows out of $n's ears as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else
-	if (number_percent() < 40)
-	{
-	    send_to_char("{YYour skin turns multicoloured then turns back to normal.{x\n\r", ch);
-	    act("{Y$n's skin turns multicoloured momentarily as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else
-	if (number_percent() < 50)
-	{
-	    send_to_char("{YYour magic fizzles and dies.\n\r{x", ch );
-	    act("{Y$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else
-	if ( number_percent() < 60 )
-	{
-	    send_to_char("{YEnergy sizzles as you stop your casting.\n\r{x",
-		    ch );
-	    act("{YEnergy sizzles as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	}
-	else
-	if (number_percent() < 70 )
-	{
-	    send_to_char("{YSparks fly from your fingers as your magic dissipates.{x\n\r", ch );
-	    act("{YSparks fly from $n's fingers as $s magic dissipates.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	}
-	else
-	if (number_percent() < 80 )
-	{
-	    send_to_char("{YYou eyes flash with white light as you interrupt your spell.{x\n\r", ch );
-	    act("{Y$n's eyes flash with white light as $e interrupts $s spell.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	}
-	else
-	if ( number_percent() < 90 )
-	{
-	    send_to_char("{YYour hair stands on end for a moment as you stop your spell.{x\n\r", ch );
-	    act("{Y$n's hair stands on end for a moment as $e finishes $s spell.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	}
-	else
-	{
-	    send_to_char("{YYour magic dissipates into the air.{x\n\r", ch );
-	    act("{Y$n's magic dissipates into the air.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	}
+    send_to_char("{WYou stop your casting.{x\n\r", ch);
+    if (number_percent() < 10)
+    {
+        send_to_char("{YSmall yellow sparks spiral around you then fade away.{x\n\r", ch);
+        act("$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    if (number_percent() < 20)
+    {
+        send_to_char("{YYou hear a loud bang as your magic dissipates.{x\n\r", ch);
+        act("{YYou hear a loud bang as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    if (number_percent() < 30)
+    {
+        send_to_char("{YA puff of smoke billows out of your ears.{x\n\r", ch);
+        act("{YA puff of smoke billows out of $n's ears as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    if (number_percent() < 40)
+    {
+        send_to_char("{YYour skin turns multicoloured then turns back to normal.{x\n\r", ch);
+        act("{Y$n's skin turns multicoloured momentarily as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    if (number_percent() < 50)
+    {
+        send_to_char("{YYour magic fizzles and dies.\n\r{x", ch );
+        act("{Y$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    if ( number_percent() < 60 )
+    {
+        send_to_char("{YEnergy sizzles as you stop your casting.\n\r{x",
+            ch );
+        act("{YEnergy sizzles as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    }
+    else
+    if (number_percent() < 70 )
+    {
+        send_to_char("{YSparks fly from your fingers as your magic dissipates.{x\n\r", ch );
+        act("{YSparks fly from $n's fingers as $s magic dissipates.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    }
+    else
+    if (number_percent() < 80 )
+    {
+        send_to_char("{YYou eyes flash with white light as you interrupt your spell.{x\n\r", ch );
+        act("{Y$n's eyes flash with white light as $e interrupts $s spell.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    }
+    else
+    if ( number_percent() < 90 )
+    {
+        send_to_char("{YYour hair stands on end for a moment as you stop your spell.{x\n\r", ch );
+        act("{Y$n's hair stands on end for a moment as $e finishes $s spell.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    }
+    else
+    {
+        send_to_char("{YYour magic dissipates into the air.{x\n\r", ch );
+        act("{Y$n's magic dissipates into the air.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    }
     }
 }
 
@@ -2205,25 +2205,25 @@ void stop_ranged( CHAR_DATA *ch, bool messages )
 {
     if ( ch == NULL )
     {
-	bug( "stop_ranged: null ch", 0 );
-	return;
+    bug( "stop_ranged: null ch", 0 );
+    return;
     }
 
     if ( ch->projectile_weapon != NULL )
     {
-	if ( messages )
-	{
-	    act("You put down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
-	    act("$n puts down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	}
+    if ( messages )
+    {
+        act("You put down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+        act("$n puts down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    }
 
-	ch->ranged = 0;
-	ch->projectile_weapon = NULL;
-	free_string( ch->projectile_victim );
-	ch->projectile_victim = NULL;
-	ch->projectile_dir    = -1;
-	ch->projectile_range  = 0;
-	ch->projectile	      = NULL;
+    ch->ranged = 0;
+    ch->projectile_weapon = NULL;
+    free_string( ch->projectile_victim );
+    ch->projectile_victim = NULL;
+    ch->projectile_dir    = -1;
+    ch->projectile_range  = 0;
+    ch->projectile	      = NULL;
     }
 }
 
@@ -2233,14 +2233,14 @@ bool is_granted_command(CHAR_DATA *ch, char *name)
     COMMAND_DATA *cmd;
 
     if (IS_NPC(ch)) {
-	bug("is_granted_command: checking an NPC", 0);
-	return false;
+    bug("is_granted_command: checking an NPC", 0);
+    return false;
     }
 
     for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next)
     {
-	if (!str_cmp(cmd->name, name))
-	    return true;
+    if (!str_cmp(cmd->name, name))
+        return true;
     }
 
     return false;
@@ -2248,7 +2248,7 @@ bool is_granted_command(CHAR_DATA *ch, char *name)
 
 void cmd_under_construction(CHAR_DATA *ch)
 {
-	send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r\n\r", ch);
-	send_to_char("Command is under construction.  Please be patient until it is ready.\n\r\n\r", ch);
-	send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r", ch);
+    send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r\n\r", ch);
+    send_to_char("Command is under construction.  Please be patient until it is ready.\n\r\n\r", ch);
+    send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r", ch);
 }

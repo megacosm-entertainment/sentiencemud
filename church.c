@@ -109,41 +109,41 @@ static int cmp_church_uid(void *a, void *b);
 /* Church commands 
 const struct church_command_type church_command_table[] =
 {
-	{ "create",			CHURCH_RANK_NONE,	do_chcreate			},
-	{ "info",			CHURCH_RANK_NONE,	do_chinfo			},
-	{ "list",			CHURCH_RANK_NONE,	do_chlist			},
+    { "create",			CHURCH_RANK_NONE,	do_chcreate			},
+    { "info",			CHURCH_RANK_NONE,	do_chinfo			},
+    { "list",			CHURCH_RANK_NONE,	do_chlist			},
 
-	{ "deposit",		CHURCH_RANK_A,		do_chdeposit		},
-	{ "donate",			CHURCH_RANK_A, 		do_chdonate			},
-	{ "gohall",			CHURCH_RANK_A,		do_chgohall			},
-	{ "motd",			CHURCH_RANK_A,		do_chmotd		 	},
-	{ "quit",			CHURCH_RANK_A,		do_chrem			},
-	{ "rules",			CHURCH_RANK_A,		do_chrules 			},
-	{ "talk",			CHURCH_RANK_A, 		do_chtalk			},
-	{ "treasure",		CHURCH_RANK_A,		do_chtreasure		},
-	{ "where",			CHURCH_RANK_A,		do_chwhere 			},
+    { "deposit",		CHURCH_RANK_A,		do_chdeposit		},
+    { "donate",			CHURCH_RANK_A, 		do_chdonate			},
+    { "gohall",			CHURCH_RANK_A,		do_chgohall			},
+    { "motd",			CHURCH_RANK_A,		do_chmotd		 	},
+    { "quit",			CHURCH_RANK_A,		do_chrem			},
+    { "rules",			CHURCH_RANK_A,		do_chrules 			},
+    { "talk",			CHURCH_RANK_A, 		do_chtalk			},
+    { "treasure",		CHURCH_RANK_A,		do_chtreasure		},
+    { "where",			CHURCH_RANK_A,		do_chwhere 			},
 
-	{ "balance",		CHURCH_RANK_B,		do_chbalance 		},
-	{ "withdraw",		CHURCH_RANK_B,		do_chwithdraw 		},
+    { "balance",		CHURCH_RANK_B,		do_chbalance 		},
+    { "withdraw",		CHURCH_RANK_B,		do_chwithdraw 		},
 
-	{ "add",			CHURCH_RANK_D, 		do_chadd			},
-	{ "colour",			CHURCH_RANK_D, 		do_chcolour			},
-	{ "convert",		CHURCH_RANK_D,		do_chconvert 		},
-	{ "delmember",		CHURCH_RANK_D,		do_chrem			},
-	{ "demote",			CHURCH_RANK_D,		do_chdem			},
-	{ "excommunicate",	CHURCH_RANK_D,		do_chexcommunicate 	},
-	{ "overthrow",		CHURCH_RANK_D, 		do_choverthrow		},
-	{ "promote",		CHURCH_RANK_D, 		do_chprom			},
-	{ "set",			CHURCH_RANK_D, 		do_churchset		},
-	{ "setflag",		CHURCH_RANK_D, 		do_chflag			},
-	{ "toggle",			CHURCH_RANK_D, 		do_chtoggle			},
-	{ "transfer",		CHURCH_RANK_D, 		do_chtransfer		},
-	{ "trust",			CHURCH_RANK_D, 		do_chtrust			},
+    { "add",			CHURCH_RANK_D, 		do_chadd			},
+    { "colour",			CHURCH_RANK_D, 		do_chcolour			},
+    { "convert",		CHURCH_RANK_D,		do_chconvert 		},
+    { "delmember",		CHURCH_RANK_D,		do_chrem			},
+    { "demote",			CHURCH_RANK_D,		do_chdem			},
+    { "excommunicate",	CHURCH_RANK_D,		do_chexcommunicate 	},
+    { "overthrow",		CHURCH_RANK_D, 		do_choverthrow		},
+    { "promote",		CHURCH_RANK_D, 		do_chprom			},
+    { "set",			CHURCH_RANK_D, 		do_churchset		},
+    { "setflag",		CHURCH_RANK_D, 		do_chflag			},
+    { "toggle",			CHURCH_RANK_D, 		do_chtoggle			},
+    { "transfer",		CHURCH_RANK_D, 		do_chtransfer		},
+    { "trust",			CHURCH_RANK_D, 		do_chtrust			},
 
-	 Immortal commands
-	{ "delete",			CHURCH_RANK_IMM,	do_chdelete 		},
-	{ "advance",		CHURCH_RANK_IMM, 	do_chadvance		},
-	{ "deduct",			CHURCH_RANK_IMM,	do_chdeduct 		},
+     Immortal commands
+    { "delete",			CHURCH_RANK_IMM,	do_chdelete 		},
+    { "advance",		CHURCH_RANK_IMM, 	do_chadvance		},
+    { "deduct",			CHURCH_RANK_IMM,	do_chdeduct 		},
 
     { NULL,				-1,					NULL				}
 };
@@ -201,10 +201,10 @@ char *lookup_church_command (char *string)
     i = 0;
     while (church_command_table[i].command != NULL)
     {
-	if (!str_cmp(church_command_table[i].command, string))
-	    return church_command_table[i].command;
+    if (!str_cmp(church_command_table[i].command, string))
+        return church_command_table[i].command;
 
-	i++;
+    i++;
     }
 
     return NULL;
@@ -212,15 +212,15 @@ char *lookup_church_command (char *string)
 
 int church_get_min_positions(int size)
 {
-	// (SIZE-1)*(21-10)/(4-1) = (POSITIONS - 10)
-	// POSITIONS = (11 * SIZE + 19) / 3
+    // (SIZE-1)*(21-10)/(4-1) = (POSITIONS - 10)
+    // POSITIONS = (11 * SIZE + 19) / 3
 
-	// BAND(1) = 10
-	// CULT(2) = 13
-	// ORDER(3) = 17
-	// CHURCH(4) = 21
+    // BAND(1) = 10
+    // CULT(2) = 13
+    // ORDER(3) = 17
+    // CHURCH(4) = 21
 
-	return (11 * size + 19) / 3;
+    return (11 * size + 19) / 3;
 }
 
 void show_church_commands(CHAR_DATA *ch)
@@ -341,64 +341,64 @@ void do_chadd(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("For use on CHURCH ADD:\n\rHelp Church\n\r", ch);
-	return;
+    send_to_char("For use on CHURCH ADD:\n\rHelp Church\n\r", ch);
+    return;
     }
 
     found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
-	 temp_char = temp_char->next_in_room)
+     temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char)
-	&& IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
+    if (IS_NPC(temp_char)
+    && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
             found = true;
     }
 
     if (!found)
     {
-	send_to_char("You must be at an administration office.\n\r", ch);
-	return;
+    send_to_char("You must be at an administration office.\n\r", ch);
+    return;
     }
 
     if ((target = get_char_room(ch, NULL, arg)) == NULL)
     {
-	send_to_char("They aren't here.\n\r", ch);
-	return;
+    send_to_char("They aren't here.\n\r", ch);
+    return;
     }
 
     if (ch->church == NULL)
     {
-	send_to_char("You aren't in a registered group.\n\r", ch);
-	return;
+    send_to_char("You aren't in a registered group.\n\r", ch);
+    return;
     }
 
     if (target->church != NULL)
     {
-	send_to_char("That person is already in a registered group.\n\r", ch);
-	return;
+    send_to_char("That person is already in a registered group.\n\r", ch);
+    return;
     }
 
     if (IS_NPC(target))
     {
-	send_to_char("You may only add players to your church.\n\r", ch);
-	return;
+    send_to_char("You may only add players to your church.\n\r", ch);
+    return;
     }
 
     if (ch->church->alignment == CHURCH_EVIL
     && target->alignment > 0)
     {
-	send_to_char
-	("Only evil and neutral races can join an evil aligned group.\n\r", ch);
-	return;
+    send_to_char
+    ("Only evil and neutral races can join an evil aligned group.\n\r", ch);
+    return;
     }
 
     if (ch->church->alignment == CHURCH_GOOD
     && target->alignment < 0)
     {
-	send_to_char
+    send_to_char
         ("Only benevolent and neutral races can join a good aligned group.\n\r",
-	     ch);
-	return;
+         ch);
+    return;
     }
 
     i = 0;
@@ -407,14 +407,14 @@ void do_chadd(CHAR_DATA *ch, char *argument)
 
     if (i >= ch->church->max_positions)
     {
-	send_to_char("Your group is already full.\n\r", ch);
-	return;
+    send_to_char("Your group is already full.\n\r", ch);
+    return;
     }
 
     new_member = new_church_player();
     new_member->ch = target;
     new_member->name = str_dup(target->name);
-	new_member->rank = ch->church->default_rank;
+    new_member->rank = ch->church->default_rank;
     new_member->church = ch->church;
     new_member->sex = target->sex;
     new_member->alignment = target->alignment;
@@ -452,26 +452,26 @@ void do_chrules(CHAR_DATA * ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	if (ch->church == NULL)
-	{
-	    send_to_char("You aren't in a church.\n\r", ch);
-	    return;
-	}
+    if (ch->church == NULL)
+    {
+        send_to_char("You aren't in a church.\n\r", ch);
+        return;
+    }
 
-	output = new_buf();
+    output = new_buf();
 
-	if (ch->church->rules == NULL)
-	{
-	    send_to_char("No rules have been set yet.\n\r", ch);
-	    return;
-	}
+    if (ch->church->rules == NULL)
+    {
+        send_to_char("No rules have been set yet.\n\r", ch);
+        return;
+    }
 
-	add_buf(output, ch->church->rules);
+    add_buf(output, ch->church->rules);
 
-	page_to_char(buf_string(output), ch);
+    page_to_char(buf_string(output), ch);
 
-	free_buf(output);
-	return;
+    free_buf(output);
+    return;
     }
 
     if (!str_cmp(arg, "edit"))
@@ -502,26 +502,26 @@ void do_chmotd(CHAR_DATA * ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	if (ch->church == NULL)
-	{
-	    send_to_char("You aren't in a church.\n\r", ch);
-	    return;
-	}
+    if (ch->church == NULL)
+    {
+        send_to_char("You aren't in a church.\n\r", ch);
+        return;
+    }
 
-	output = new_buf();
+    output = new_buf();
 
-	if (ch->church->motd == NULL)
-	{
-	    send_to_char("No motd has been set yet.\n\r", ch);
-	    return;
-	}
+    if (ch->church->motd == NULL)
+    {
+        send_to_char("No motd has been set yet.\n\r", ch);
+        return;
+    }
 
-	add_buf(output, ch->church->motd);
+    add_buf(output, ch->church->motd);
 
-	page_to_char(buf_string(output), ch);
+    page_to_char(buf_string(output), ch);
 
-	free_buf(output);
-	return;
+    free_buf(output);
+    return;
     }
 
     if (!str_cmp(arg, "edit"))
@@ -553,14 +553,14 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Remove whom?\n\r", ch);
-	return;
+    send_to_char("Remove whom?\n\r", ch);
+    return;
     }
 
     member = NULL;
 
-	if (IS_IMMORTAL(ch))
-	{
+    if (IS_IMMORTAL(ch))
+    {
     CHURCH_DATA *church;
     found = false;
     ITERATOR it;
@@ -580,61 +580,61 @@ void do_chrem(CHAR_DATA *ch, char *argument)
     }
     iterator_stop(&it);
 
-		if (!found)
-		{
-		    send_to_char("Member not found.\n\r", ch);
-		    return;
-		}
+        if (!found)
+        {
+            send_to_char("Member not found.\n\r", ch);
+            return;
+        }
 
-		if (!str_cmp(ch->name, member->name))
-		{
-		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		}
-		else
-		{
-		    sprintf(buf, "{Y[You removed %s from %s]{x", member->name, church->name);
-	    	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        if (!str_cmp(ch->name, member->name))
+        {
+            act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        }
+        else
+        {
+            sprintf(buf, "{Y[You removed %s from %s]{x", member->name, church->name);
+            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-		    if (member->ch != NULL)
-		        act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		}
+            if (member->ch != NULL)
+                act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        }
 
-		remove_member(member);
+        remove_member(member);
     }
     else
     {
-		if (ch->church == NULL)
-		{
-		    send_to_char("You aren't in a registered group.\n\r", ch);
-		    return;
-		}
+        if (ch->church == NULL)
+        {
+            send_to_char("You aren't in a registered group.\n\r", ch);
+            return;
+        }
 
-		found = false;
-		for (member = ch->church->people; member != NULL; member = member->next)
-		{
-		    if (!str_prefix(member->name, arg) ||
-		    	(!str_cmp(member->name, ch->name) &&
-			    	(!str_cmp(arg, "self") || !str_cmp(arg, "me"))))
-	    	{
-				found = true;
-				break;
-	    	}
-		}
+        found = false;
+        for (member = ch->church->people; member != NULL; member = member->next)
+        {
+            if (!str_prefix(member->name, arg) ||
+                (!str_cmp(member->name, ch->name) &&
+                    (!str_cmp(arg, "self") || !str_cmp(arg, "me"))))
+            {
+                found = true;
+                break;
+            }
+        }
 
-		if (!found)
-		{
-			send_to_char("Member not found.\n\r", ch);
-			return;
-		}
+        if (!found)
+        {
+            send_to_char("Member not found.\n\r", ch);
+            return;
+        }
 
-		if (!IS_IMMORTAL(ch) &&
-			!has_church_permission(ch->church_member, CHURCH_PERM_MEMBERS) &&
-			str_cmp(arg, ch->name) && str_cmp(arg, "self") &&
-			str_cmp(arg, "me"))
-		{
-			act("Only a leader may remove members.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			return;
-		}
+        if (!IS_IMMORTAL(ch) &&
+            !has_church_permission(ch->church_member, CHURCH_PERM_MEMBERS) &&
+            str_cmp(arg, ch->name) && str_cmp(arg, "self") &&
+            str_cmp(arg, "me"))
+        {
+            act("Only a leader may remove members.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
 
     // With this:
     if (!can_modify_church_member(ch, member))
@@ -652,34 +652,34 @@ void do_chrem(CHAR_DATA *ch, char *argument)
         ch->remove_question = member;
     }
 
-		if ((!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me")) &&
-			!str_cmp(member->church->founder, ch->name))
-		{
-			send_to_char("{RWarning: {xIf you leave your church it will be disbanded.\n\r", ch);
-			send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
-			ch->remove_question = member;
-		}
-		else if (!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me"))
-		{
-			send_to_char("{RWarning: {xIf you leave this church you will be shunned by the gods.\n\r", ch);
-			send_to_char("You will NOT lose all deity points and ALL pneuma.\n\r", ch);
-			send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
-			ch->remove_question = member;
-		}
-		else
-		{
-			sprintf(buf, "{YYou have removed %s.{x", member->name);
-			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			sprintf(buf, "{Y[%s has been removed from %s]{x\n\r", member->name, ch->church->name);
-			gecho(buf);
+        if ((!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me")) &&
+            !str_cmp(member->church->founder, ch->name))
+        {
+            send_to_char("{RWarning: {xIf you leave your church it will be disbanded.\n\r", ch);
+            send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
+            ch->remove_question = member;
+        }
+        else if (!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me"))
+        {
+            send_to_char("{RWarning: {xIf you leave this church you will be shunned by the gods.\n\r", ch);
+            send_to_char("You will NOT lose all deity points and ALL pneuma.\n\r", ch);
+            send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
+            ch->remove_question = member;
+        }
+        else
+        {
+            sprintf(buf, "{YYou have removed %s.{x", member->name);
+            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            sprintf(buf, "{Y[%s has been removed from %s]{x\n\r", member->name, ch->church->name);
+            gecho(buf);
 
-			sprintf(buf, "%s removes %s.", ch->name, member->name);
+            sprintf(buf, "%s removes %s.", ch->name, member->name);
             add_church_log_entry(ch->church, ch->name, buf, CHLOG_MEMBERS, true);
 
-		    if (member->ch != NULL)
-				act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		    remove_member(member);
-		}
+            if (member->ch != NULL)
+                act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            remove_member(member);
+        }
     }
 
     save_church(ch->church);
@@ -698,39 +698,39 @@ void remove_member(CHURCH_PLAYER_DATA * member)
     {
         sprintf(buf, "remove_member: ch with null church %s",
             member->name);
-	return;
+    return;
     }
 
     found = false;
     prev_member = NULL;
     for (member2 = member->church->people; member2 != NULL;
-	 prev_member = member2, member2 = member2->next)
+     prev_member = member2, member2 = member2->next)
     {
-	if (member2 == member)
-	{
-	    found = true;
-	    break;
-	}
+    if (member2 == member)
+    {
+        found = true;
+        break;
+    }
     }
 
     if (!found)
-	return;
+    return;
 
     if (prev_member != NULL)
-	prev_member->next = member->next;
+    prev_member->next = member->next;
     else
-	member->church->people = member->next;
+    member->church->people = member->next;
 
     if (member->ch != NULL)
     {
-	member->ch->church = NULL;
-	free_string(member->ch->church_name);
+    member->ch->church = NULL;
+    free_string(member->ch->church_name);
 
-	member->ch->church_member = NULL;
+    member->ch->church_member = NULL;
         list_remlink(member->church->online_players, member->ch, false);
     }
 
-   	list_remlink(member->church->roster, member->name, false);
+       list_remlink(member->church->roster, member->name, false);
 
     free_church_player(member);
 }
@@ -759,48 +759,48 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 
     if (ch->church == NULL)
     {
-	send_to_char("You must be in a registered group.\n\r", ch);
-	return;
+    send_to_char("You must be in a registered group.\n\r", ch);
+    return;
     }
 
     if (is_dead(ch))
-	return;
+    return;
 
     if (ch->church->size < CHURCH_SIZE_CULT)
     {
-	send_to_char("Your group does not have a temple.\n\r", ch);
-	return;
+    send_to_char("Your group does not have a temple.\n\r", ch);
+    return;
     }
 
     if (PULLING_CART(ch))
     {
-	send_to_char("You must first drop what you are pulling.\n\r", ch);
-	return;
+    send_to_char("You must first drop what you are pulling.\n\r", ch);
+    return;
     }
 
     if (IS_AFFECTED(ch, AFF_CURSE))
     {
-	send_to_char("The curse keeps you where you are.\n\r", ch);
-	return;
+    send_to_char("The curse keeps you where you are.\n\r", ch);
+    return;
     }
 
     if ((location = location_to_room(&ch->church->recall_point)) == NULL)
     {
-	send_to_char("You don't have a recall point.\n\r", ch);
-	return;
+    send_to_char("You don't have a recall point.\n\r", ch);
+    return;
     }
 
     if (ch->fighting != NULL)
     {
-	send_to_char("You are fighting!\n\r", ch);
-	return;
+    send_to_char("You are fighting!\n\r", ch);
+    return;
     }
 
-	if (IS_DEAD(ch))
-	{
-		send_to_char("You can't gohall while dead.\n\r", ch);
-		return;
-	}
+    if (IS_DEAD(ch))
+    {
+        send_to_char("You can't gohall while dead.\n\r", ch);
+        return;
+    }
     if (ch->position == POS_SLEEPING)
     {
         send_to_char("Wake up first!\n\r", ch);
@@ -819,18 +819,18 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
         return;
     }
 
-	if ( !can_escape(ch) )
-		return;
+    if ( !can_escape(ch) )
+        return;
 
     pneuma_cost = 500;
     dp_cost = 50000;
 
     /* within areas (non-wilderness) */
     if ((ch->in_room->area->place_flags == PLACE_NOWHERE ||
-		ch->in_room->area->place_flags == PLACE_OTHER_PLANE ||
-		ch->in_room->area->place_flags == PLACE_ISLAND ||
-		!is_same_place(ch->in_room, location)) &&
-		!IS_WILDERNESS(ch->in_room))
+        ch->in_room->area->place_flags == PLACE_OTHER_PLANE ||
+        ch->in_room->area->place_flags == PLACE_ISLAND ||
+        !is_same_place(ch->in_room, location)) &&
+        !IS_WILDERNESS(ch->in_room))
     {
     if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) &&
         ch->church_member->rank->rank_type < RANK_TYPE_LEADER  && !has_church_permission(ch->church_member, CHURCH_PERM_GH_CROSS))
@@ -839,58 +839,58 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
         return;
     }
 
-		if (ch->church->pneuma < pneuma_cost || ch->church->dp < dp_cost)
-		{
-			sprintf(buf,
-				"It costs %ld pneuma and %ld dp to recall that far.\n\r"
-				"Your church doesn't have enough.\n\r", pneuma_cost, dp_cost);
-			send_to_char(buf, ch);
-			return;
-		}
+        if (ch->church->pneuma < pneuma_cost || ch->church->dp < dp_cost)
+        {
+            sprintf(buf,
+                "It costs %ld pneuma and %ld dp to recall that far.\n\r"
+                "Your church doesn't have enough.\n\r", pneuma_cost, dp_cost);
+            send_to_char(buf, ch);
+            return;
+        }
 
-		sprintf(buf, "{RWARNING:{x you are about to recall cross-zone.\n\rThis will cost your church %ld pneuma and %ld karma.\n\r", pneuma_cost, dp_cost);
-		send_to_char(buf, ch);
+        sprintf(buf, "{RWARNING:{x you are about to recall cross-zone.\n\rThis will cost your church %ld pneuma and %ld karma.\n\r", pneuma_cost, dp_cost);
+        send_to_char(buf, ch);
 
-		send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
+        send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
 
-		ch->cross_zone_question = true;
-		return;
+        ch->cross_zone_question = true;
+        return;
     }
 
     if (!str_cmp(ch->in_room->area->name, "Wilderness"))
     {
 
-	if (((location->area->place_flags == PLACE_FIRST_CONTINENT) && get_region(ch->in_room) != REGION_FIRST_CONTINENT) ||
-		((location->area->place_flags == PLACE_SECOND_CONTINENT) && get_region(ch->in_room) != REGION_SECOND_CONTINENT) ||
-		((location->area->place_flags == PLACE_THIRD_CONTINENT) && get_region(ch->in_room) != REGION_THIRD_CONTINENT) ||
-		((location->area->place_flags == PLACE_FOURTH_CONTINENT) && get_region(ch->in_room) != REGION_FOURTH_CONTINENT))
-	{
-	    if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) && !has_church_permission(ch->church_member, CHURCH_PERM_GH_CROSS))
-	    {
-		send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
-		return;
-	    }
+    if (((location->area->place_flags == PLACE_FIRST_CONTINENT) && get_region(ch->in_room) != REGION_FIRST_CONTINENT) ||
+        ((location->area->place_flags == PLACE_SECOND_CONTINENT) && get_region(ch->in_room) != REGION_SECOND_CONTINENT) ||
+        ((location->area->place_flags == PLACE_THIRD_CONTINENT) && get_region(ch->in_room) != REGION_THIRD_CONTINENT) ||
+        ((location->area->place_flags == PLACE_FOURTH_CONTINENT) && get_region(ch->in_room) != REGION_FOURTH_CONTINENT))
+    {
+        if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) && !has_church_permission(ch->church_member, CHURCH_PERM_GH_CROSS))
+        {
+        send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
+        return;
+        }
 
-	    if (ch->church->pneuma < pneuma_cost
-	    || ch->church->dp < dp_cost)
-	    {
-		sprintf(buf,
-		    "It costs %ld pneuma and %ld dp to recall that far.\n\r"
-		    "Your church doesn't have enough.\n\r",
-		    pneuma_cost, dp_cost);
-		send_to_char(buf, ch);
-		return;
-	    }
+        if (ch->church->pneuma < pneuma_cost
+        || ch->church->dp < dp_cost)
+        {
+        sprintf(buf,
+            "It costs %ld pneuma and %ld dp to recall that far.\n\r"
+            "Your church doesn't have enough.\n\r",
+            pneuma_cost, dp_cost);
+        send_to_char(buf, ch);
+        return;
+        }
 
-	    sprintf(buf,
-		    "{RWARNING:{x you are about to recall cross-zone.\n\rThis will cost your church %ld pneuma and %ld karma.\n\r", pneuma_cost, dp_cost);
-	    send_to_char(buf, ch);
+        sprintf(buf,
+            "{RWARNING:{x you are about to recall cross-zone.\n\rThis will cost your church %ld pneuma and %ld karma.\n\r", pneuma_cost, dp_cost);
+        send_to_char(buf, ch);
 
-	    send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
+        send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
 
-	    ch->cross_zone_question = true;
-	    return;
-	}
+        ch->cross_zone_question = true;
+        return;
+    }
     }
 
     act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -912,44 +912,44 @@ void do_chflag(CHAR_DATA *ch, char *argument)
 
     if (ch->church == NULL)
     {
-	send_to_char("You must be in a registered group.\n\r", ch);
-	return;
+    send_to_char("You must be in a registered group.\n\r", ch);
+    return;
     }
 
     found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
-	 temp_char = temp_char->next_in_room)
+     temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
-	{
-	    found = true;
-	    break;
-	}
+    if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
+    {
+        found = true;
+        break;
+    }
     }
 
     if (!found)
     {
-	send_to_char("You must be at a group administration office.\n\r", ch);
-	return;
+    send_to_char("You must be at a group administration office.\n\r", ch);
+    return;
     }
 
     if (arg1[0] == '\0')
     {
-	send_to_char("church setflag 'flag'", ch);
-	return;
+    send_to_char("church setflag 'flag'", ch);
+    return;
     }
 
     if (strlen_no_colours(arg1) > 16)
     {
         sprintf(buf, "Sorry %s, that flag is too long.", pers(ch, temp_char));
-	do_say(temp_char, buf);
+    do_say(temp_char, buf);
         return;
     }
 
     act("$n scribbles something down on a piece of parchment.",
-	temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("{C$n says 'Very well $N, your flag has now been changed.'{x",
-	temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     if (ch->church->flag != NULL)
         free_string(ch->church->flag);
@@ -979,24 +979,24 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
 
     if (ch->church == NULL)
     {
-	send_to_char(
-	"You must be in a registered group to deposit.\n\r", ch);
-	return;
+    send_to_char(
+    "You must be in a registered group to deposit.\n\r", ch);
+    return;
     }
 
 
     found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
-	 temp_char = temp_char->next_in_room)
+     temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
-	    found = true;
+    if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
+        found = true;
     }
 
     if (!found)
     {
-	send_to_char("You must be at a group administration office.\n\r", ch);
-	return;
+    send_to_char("You must be at a group administration office.\n\r", ch);
+    return;
     }
 
     argument = one_argument(argument, arg1);
@@ -1010,35 +1010,35 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
          && str_cmp(arg1,"gold")))
     {
         send_to_char("Syntax: church deposit dp|pneuma|gold <amount>\n\r", ch);
-	return;
+    return;
     }
 
     if (!is_number(arg2))
     {
-	send_to_char("You must provide a number.\n\r", ch);
-	return;
+    send_to_char("You must provide a number.\n\r", ch);
+    return;
     }
 
     if (amount <= 0)
     {
-	send_to_char("Invalid amount.\n\r", ch);
-	return;
+    send_to_char("Invalid amount.\n\r", ch);
+    return;
     }
 
     if ((!str_cmp(arg1, "dp") && amount > ch->deitypoints)
-	 || (!str_cmp(arg1, "pneuma") && amount > ch->pneuma)
-	 || (!str_cmp(arg1, "gold") && amount > ch->gold))
+     || (!str_cmp(arg1, "pneuma") && amount > ch->pneuma)
+     || (!str_cmp(arg1, "gold") && amount > ch->gold))
     {
-	send_to_char("You don't have that much.\n\r", ch);
-	return;
+    send_to_char("You don't have that much.\n\r", ch);
+    return;
     }
 
     if (!str_cmp(arg1, "pneuma"))
     {
-    	ch->church->pneuma += amount;
-    	ch->pneuma -= amount;
-	ch->church_member->dep_pneuma += amount;
-    	sprintf(buf, "{Y[%d pneuma transferred.]{x\n\r", amount);
+        ch->church->pneuma += amount;
+        ch->pneuma -= amount;
+    ch->church_member->dep_pneuma += amount;
+        sprintf(buf, "{Y[%d pneuma transferred.]{x\n\r", amount);
     }
 
     if (!str_cmp(arg1, "dp"))
@@ -1081,46 +1081,46 @@ void do_chbalance(CHAR_DATA * ch, char *argument)
 
     if (ch->church == NULL && !IS_IMMORTAL(ch))
     {
-	send_to_char("You must be in a registered group.\n\r", ch);
-	return;
+    send_to_char("You must be in a registered group.\n\r", ch);
+    return;
     }
 
     if (IS_IMMORTAL(ch))
     {
-	if (arg[0] == '\0')
-	{
-	    send_to_char("Syntax: church balance <#>\n\r", ch);
-	    return;
-	}
+    if (arg[0] == '\0')
+    {
+        send_to_char("Syntax: church balance <#>\n\r", ch);
+        return;
+    }
 
-	if ((church = find_church(atoi(arg))) == NULL)
-	{
-	    send_to_char("Church not found.\n\r", ch);
-	    return;
-	}
+    if ((church = find_church(atoi(arg))) == NULL)
+    {
+        send_to_char("Church not found.\n\r", ch);
+        return;
+    }
 
-	sprintf(buf, "%s has %ld pneuma, %ld karma, and %ld gold.\n\r",
-	    church->name,
-	    church->pneuma,
-	    church->dp,
-	    church->gold);
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf, "%s has %ld pneuma, %ld karma, and %ld gold.\n\r",
+        church->name,
+        church->pneuma,
+        church->dp,
+        church->gold);
+    send_to_char(buf, ch);
+    return;
     }
 
     found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
-	 temp_char = temp_char->next_in_room)
+     temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
-	    found = true;
+    if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
+        found = true;
     }
 
     if (!found)
     {
-	send_to_char("You must be at a group administration office.\n\r",
-		     ch);
-	return;
+    send_to_char("You must be at a group administration office.\n\r",
+             ch);
+    return;
     }
 
     sprintf(buf,
@@ -1145,31 +1145,31 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 
     if (ch->church != NULL)
     {
-	send_to_char(
+    send_to_char(
         "You're in a church already!\n\r", ch);
-	return;
+    return;
     }
 
     found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
-	 temp_char = temp_char->next_in_room)
+     temp_char = temp_char->next_in_room)
     {
         log_string(temp_char->name);
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
-	    found = true;
+    if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
+        found = true;
     }
 
     if (!found)
     {
-	send_to_char("You must be at an administration office.\n\r", ch);
-	return;
+    send_to_char("You must be at an administration office.\n\r", ch);
+    return;
     }
 
     if (ch->deitypoints < 3000000)
     {
-	send_to_char(
+    send_to_char(
         "You must have 3,000,000 deity points to create a band.\n\r", ch);
-	return;
+    return;
     }
 
 if (list_size(list_churches) >= MAX_CHURCHES) {
@@ -1189,67 +1189,67 @@ if (list_size(list_churches) >= MAX_CHURCHES) {
 
     if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
     {
-	send_to_char("CHURCH CREATE \"name\" 'flag' evil|good|neutral\n\r", ch);
-	send_to_char(
-	"For information on creating a band:\n\rHelp Church\n\r", ch);
-	return;
+    send_to_char("CHURCH CREATE \"name\" 'flag' evil|good|neutral\n\r", ch);
+    send_to_char(
+    "For information on creating a band:\n\rHelp Church\n\r", ch);
+    return;
     }
 
     if (str_cmp(arg3, "evil")
     && str_cmp(arg3, "good")
     && str_cmp(arg3, "neutral"))
     {
-	send_to_char(
-	"Your group must be registered as evil, good or neutral.\n\r", ch);
-	return;
+    send_to_char(
+    "Your group must be registered as evil, good or neutral.\n\r", ch);
+    return;
     }
 
-	church = NULL;
-	player = NULL;
-	if( (church = new_church()) &&
-		(player = new_church_player()) &&
-		list_appendlink(church->online_players, ch) &&
-		list_appendlink(church->roster, ch->name) &&
-		list_appendlink(list_churches,church) ) {
+    church = NULL;
+    player = NULL;
+    if( (church = new_church()) &&
+        (player = new_church_player()) &&
+        list_appendlink(church->online_players, ch) &&
+        list_appendlink(church->roster, ch->name) &&
+        list_appendlink(list_churches,church) ) {
 
 
-		church->name = str_dup(arg1);
+        church->name = str_dup(arg1);
         church->version = VERSION_CHURCH;
-		church->max_positions = 10;
-		church->pneuma = 0;
-		church->size = CHURCH_SIZE_BAND;
-		church->flag = str_dup(arg2);
-		church->founder_last_login = current_time;
-		church->created = current_time;
-		church->rules = str_dup("No rules have been set yet.\n\r");
-		church->motd = str_dup("No motd has been set yet.\n\r");
-		church->founder = str_dup(ch->name);
+        church->max_positions = 10;
+        church->pneuma = 0;
+        church->size = CHURCH_SIZE_BAND;
+        church->flag = str_dup(arg2);
+        church->founder_last_login = current_time;
+        church->created = current_time;
+        church->rules = str_dup("No rules have been set yet.\n\r");
+        church->motd = str_dup("No motd has been set yet.\n\r");
+        church->founder = str_dup(ch->name);
         church->owner = str_dup(ch->name);
 
         get_church_id(church);
 
-		if (!str_cmp(arg3, "evil"))
-			church->alignment = CHURCH_EVIL;
-		else if (!str_cmp(arg3, "good"))
-			church->alignment = CHURCH_GOOD;
-		else
-			church->alignment = CHURCH_NEUTRAL;
+        if (!str_cmp(arg3, "evil"))
+            church->alignment = CHURCH_EVIL;
+        else if (!str_cmp(arg3, "good"))
+            church->alignment = CHURCH_GOOD;
+        else
+            church->alignment = CHURCH_NEUTRAL;
 
-		player->next = NULL;
-		player->ch = ch;
-		player->name = str_dup(ch->name);
-		player->church = church;
-		player->sex = ch->sex;
+        player->next = NULL;
+        player->ch = ch;
+        player->name = str_dup(ch->name);
+        player->church = church;
+        player->sex = ch->sex;
 
-		church->people = player;
-		ch->church = church;
-		ch->church_name = str_dup(church->name);
-		ch->church_member = player;
+        church->people = player;
+        ch->church = church;
+        ch->church_name = str_dup(church->name);
+        ch->church_member = player;
 
-		ch->deitypoints -= 3000000;
+        ch->deitypoints -= 3000000;
 
-		sprintf(buf, "{Y[%s has registered the Band of %s{Y]{x\n\r", ch->name, church->name);
-		gecho(buf);
+        sprintf(buf, "{Y[%s has registered the Band of %s{Y]{x\n\r", ch->name, church->name);
+        gecho(buf);
 
     // After creating the church structure
     initialize_church_ranks(church);
@@ -1266,15 +1266,15 @@ if (list_size(list_churches) >= MAX_CHURCHES) {
         player->rank = leader_rank;
     }
 
-		save_church(ch->church);
-	} else {
-		if( church ) {
-			list_remlink(list_churches, church, false);
-			free_church(church);
-		}
-		if( player ) free_church_player( player);
-		send_to_char("The gods do not smile upon you at this moment.", ch);
-	}
+        save_church(ch->church);
+    } else {
+        if( church ) {
+            list_remlink(list_churches, church, false);
+            free_church(church);
+        }
+        if( player ) free_church_player( player);
+        send_to_char("The gods do not smile upon you at this moment.", ch);
+    }
 }
 
 
@@ -1371,75 +1371,75 @@ void do_chlist(CHAR_DATA *ch, char *argument)
     }
     else
     {
-	if ((church = find_church(atoi(arg))) == NULL)
-	{
-	    send_to_char("Group number not found.\n\r", ch);
-	    return;
-	}
+    if ((church = find_church(atoi(arg))) == NULL)
+    {
+        send_to_char("Group number not found.\n\r", ch);
+        return;
+    }
 
-	send_to_char("{YThe ", ch);
-	if (church->size == CHURCH_SIZE_BAND)
-	{
-	    send_to_char("Band", ch);
-	}
-	else if (church->size == CHURCH_SIZE_CULT)
-	{
-	    send_to_char("Cult", ch);
-	}
-	else if (church->size == CHURCH_SIZE_ORDER)
-	{
-	    send_to_char("Order", ch);
-	}
-	else if (church->size == CHURCH_SIZE_CHURCH)
-	{
-	    send_to_char("Church", ch);
-	}
+    send_to_char("{YThe ", ch);
+    if (church->size == CHURCH_SIZE_BAND)
+    {
+        send_to_char("Band", ch);
+    }
+    else if (church->size == CHURCH_SIZE_CULT)
+    {
+        send_to_char("Cult", ch);
+    }
+    else if (church->size == CHURCH_SIZE_ORDER)
+    {
+        send_to_char("Order", ch);
+    }
+    else if (church->size == CHURCH_SIZE_CHURCH)
+    {
+        send_to_char("Church", ch);
+    }
 
-	sprintf(buf, " of %s. %s{x\n\r",
-			church->name,
-			(IS_IMMORTAL(ch)) ?
-			((char *) ctime(&church->founder_last_login)) :
-			"");
-	send_to_char(buf, ch);
-	send_to_char("{YNo.  Name                  Rank{x\n\r", ch);
-	send_to_char("{Y-----------------------------------------{x\n\r", ch);
-	counter = 0;
-	for (member = church->people; member != NULL; member = member->next)
-	{
-	    bool online = false;
-	    DESCRIPTOR_DATA *d;
+    sprintf(buf, " of %s. %s{x\n\r",
+            church->name,
+            (IS_IMMORTAL(ch)) ?
+            ((char *) ctime(&church->founder_last_login)) :
+            "");
+    send_to_char(buf, ch);
+    send_to_char("{YNo.  Name                  Rank{x\n\r", ch);
+    send_to_char("{Y-----------------------------------------{x\n\r", ch);
+    counter = 0;
+    for (member = church->people; member != NULL; member = member->next)
+    {
+        bool online = false;
+        DESCRIPTOR_DATA *d;
 
-	    if (member->ch != NULL && member->ch->desc != NULL)
-	    {
+        if (member->ch != NULL && member->ch->desc != NULL)
+        {
                 CHAR_DATA *wch = NULL;
 
-		d = member->ch->desc;
+        d = member->ch->desc;
 
-		if (d->connected == CON_PLAYING)
-		{
-	 	    wch = (d->original != NULL) ? d->original : d->character;
-		}
+        if (d->connected == CON_PLAYING)
+        {
+             wch = (d->original != NULL) ? d->original : d->character;
+        }
 
-		if (wch != NULL)
-	 	    online = true;
-	    }
+        if (wch != NULL)
+             online = true;
+        }
 
-	    counter++;
-	    sprintf(buf, "{G%-3d %s{Y%-21s %-15s %s%s{x\n\r",
-		    counter,
-	 	    online ? "{M*" : " ",
-		    member->name,
-		    get_chrank(member),
-		    IS_SET(member->flags, CHURCH_PLAYER_EXCOMMUNICATED) ? "{RExcommunicated{x"
-			     : "",
-			!str_cmp(member->name, church->founder) ? "{G[F]{X" : "");
-	    send_to_char(buf, ch);
-	}
+        counter++;
+        sprintf(buf, "{G%-3d %s{Y%-21s %-15s %s%s{x\n\r",
+            counter,
+             online ? "{M*" : " ",
+            member->name,
+            get_chrank(member),
+            IS_SET(member->flags, CHURCH_PLAYER_EXCOMMUNICATED) ? "{RExcommunicated{x"
+                 : "",
+            !str_cmp(member->name, church->founder) ? "{G[F]{X" : "");
+        send_to_char(buf, ch);
+    }
 
-	send_to_char("{Y-----------------------------------------{x\n\r",
-		     ch);
-	sprintf(buf, "{Y%d member(s).{x\n\r", counter);
-	send_to_char(buf, ch);
+    send_to_char("{Y-----------------------------------------{x\n\r",
+             ch);
+    sprintf(buf, "{Y%d member(s).{x\n\r", counter);
+    send_to_char(buf, ch);
     }
 }
 
@@ -1454,131 +1454,131 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 
     if (ch->church == NULL)
     {
-	send_to_char("You aren't in a church.\n\r", ch);
-	return;
+    send_to_char("You aren't in a church.\n\r", ch);
+    return;
     }
 
     if (argument[0] == '\0')
     {
         if (IS_SET(ch->comm, COMM_NOCT))
-	{
-	    send_to_char("You will now hear church talks.\n\r", ch);
-	    REMOVE_BIT(ch->comm, COMM_NOCT);
-	}
-	else
-	{
-	    send_to_char("You will no longer hear church talks.\n\r", ch);
-	    SET_BIT(ch->comm, COMM_NOCT);
-	}
+    {
+        send_to_char("You will now hear church talks.\n\r", ch);
+        REMOVE_BIT(ch->comm, COMM_NOCT);
+    }
+    else
+    {
+        send_to_char("You will no longer hear church talks.\n\r", ch);
+        SET_BIT(ch->comm, COMM_NOCT);
+    }
 
-	return;
+    return;
     }
 
     if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
     {
         send_to_char("You can't seem to gather enough energy to do it.\n\r", ch);
-	return;
+    return;
     }
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-	CHAR_DATA *victim;
+    CHAR_DATA *victim;
 
-	victim = d->original ? d->original : d->character;
+    victim = d->original ? d->original : d->character;
 
-	if (d->connected == CON_PLAYING
-	&& d->character != ch
-	&& !is_ignoring(d->character, ch)
-	&& !IS_SET(d->character->comm, COMM_NOCT)
-	&& d->character->church == ch->church)
-	{
-	    counter++;
-	    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))
-	    {
-		sprintf(buf, "%s[%s%s%s] says '%s %s%s%s'{x\n\r",
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    ch->name,
-		    ch->church->colour2,
-		    ch->pcdata->flag,
-		    ch->church->colour1,
-		    argument,
-		    ch->church->colour2);
-	    }
-	    else
-	    {
-		sprintf(buf, "%s[%s%s%s] says '%s%s%s'{x\n\r",
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    ch->name,
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    argument,
-		    ch->church->colour2);
-	    }
-	    send_to_char(buf, d->character);
-	}
+    if (d->connected == CON_PLAYING
+    && d->character != ch
+    && !is_ignoring(d->character, ch)
+    && !IS_SET(d->character->comm, COMM_NOCT)
+    && d->character->church == ch->church)
+    {
+        counter++;
+        if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))
+        {
+        sprintf(buf, "%s[%s%s%s] says '%s %s%s%s'{x\n\r",
+            ch->church->colour2,
+            ch->church->colour1,
+            ch->name,
+            ch->church->colour2,
+            ch->pcdata->flag,
+            ch->church->colour1,
+            argument,
+            ch->church->colour2);
+        }
+        else
+        {
+        sprintf(buf, "%s[%s%s%s] says '%s%s%s'{x\n\r",
+            ch->church->colour2,
+            ch->church->colour1,
+            ch->name,
+            ch->church->colour2,
+            ch->church->colour1,
+            argument,
+            ch->church->colour2);
+        }
+        send_to_char(buf, d->character);
+    }
     }
 
     if (ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(ch, FLAG_CT))
     {
-	if (counter > 1)
-	{
-	    sprintf(buf, "%s[%s%d%s] people heard you say '%s %s%s%s'{x\n\r",
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    counter,
-		    ch->church->colour2,
-		    ch->pcdata->flag,
-		    ch->church->colour1,
-		    argument,
-		    ch->church->colour2);
-	    send_to_char(buf, ch);
-	}
-	else if (counter == 1)
-	{
-	    sprintf(buf, "%s[%s%d%s] person heard you say '%s %s%s%s'{x\n\r",
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    counter,
-		    ch->church->colour2,
-		    ch->pcdata->flag,
-		    ch->church->colour1,
-		    argument,
-		    ch->church->colour2);
-	    send_to_char(buf, ch);
-	}
-	else
-	    send_to_char("No one hears your voice.\n\r", ch);
+    if (counter > 1)
+    {
+        sprintf(buf, "%s[%s%d%s] people heard you say '%s %s%s%s'{x\n\r",
+            ch->church->colour2,
+            ch->church->colour1,
+            counter,
+            ch->church->colour2,
+            ch->pcdata->flag,
+            ch->church->colour1,
+            argument,
+            ch->church->colour2);
+        send_to_char(buf, ch);
+    }
+    else if (counter == 1)
+    {
+        sprintf(buf, "%s[%s%d%s] person heard you say '%s %s%s%s'{x\n\r",
+            ch->church->colour2,
+            ch->church->colour1,
+            counter,
+            ch->church->colour2,
+            ch->pcdata->flag,
+            ch->church->colour1,
+            argument,
+            ch->church->colour2);
+        send_to_char(buf, ch);
+    }
+    else
+        send_to_char("No one hears your voice.\n\r", ch);
     }
     else
     {
-	if (counter > 1)
-	{
-	    sprintf(buf, "%s[%s%d%s] people heard you say '%s%s%s'{x\n\r",
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    counter,
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    argument,
-		    ch->church->colour2);
-	    send_to_char(buf, ch);
-	}
-	else if (counter == 1)
-	{
-	    sprintf(buf, "%s[%s%d%s] person heard you say '%s%s%s'{x\n\r",
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    counter,
-		    ch->church->colour2,
-		    ch->church->colour1,
-		    argument,
-		    ch->church->colour2);
-	    send_to_char(buf, ch);
-	}
-	else
-	    send_to_char("No one hears your voice.\n\r", ch);
+    if (counter > 1)
+    {
+        sprintf(buf, "%s[%s%d%s] people heard you say '%s%s%s'{x\n\r",
+            ch->church->colour2,
+            ch->church->colour1,
+            counter,
+            ch->church->colour2,
+            ch->church->colour1,
+            argument,
+            ch->church->colour2);
+        send_to_char(buf, ch);
+    }
+    else if (counter == 1)
+    {
+        sprintf(buf, "%s[%s%d%s] person heard you say '%s%s%s'{x\n\r",
+            ch->church->colour2,
+            ch->church->colour1,
+            counter,
+            ch->church->colour2,
+            ch->church->colour1,
+            argument,
+            ch->church->colour2);
+        send_to_char(buf, ch);
+    }
+    else
+        send_to_char("No one hears your voice.\n\r", ch);
     }
 
 }
@@ -1610,21 +1610,21 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char
-	    ("For use on CHURCH EXCOMMUNICATE: \n\rHelp Church\n\r", ch);
-	return;
+    send_to_char
+        ("For use on CHURCH EXCOMMUNICATE: \n\rHelp Church\n\r", ch);
+    return;
     }
 
     for (member = ch->church->people; member != NULL; member = member->next)
     {
-	if (!str_cmp(member->name, arg))
-	    break;
+    if (!str_cmp(member->name, arg))
+        break;
     }
 
     if (member == NULL)
     {
-	send_to_char("That isn't a member of your church.\n\r", ch);
-	return;
+    send_to_char("That isn't a member of your church.\n\r", ch);
+    return;
     }
 
     if (member->rank->rank_type == RANK_TYPE_LEADER)
@@ -1709,10 +1709,10 @@ while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
 }
 iterator_stop(&it);
 
-	line (ch, 83, NULL, NULL);
-	sprintf(buf, "{Y%d group(s) found.{x\n\r", i);
+    line (ch, 83, NULL, NULL);
+    sprintf(buf, "{Y%d group(s) found.{x\n\r", i);
 
-	send_to_char(buf, ch);
+    send_to_char(buf, ch);
 }
 
 
@@ -1726,8 +1726,8 @@ void msg_church_members(CHURCH_DATA *church, char *argument)
 
     for (member = church->people; member != NULL; member = member->next)
     {
-	if (member->ch != NULL)
-	    send_to_char(argument, member->ch);
+    if (member->ch != NULL)
+        send_to_char(argument, member->ch);
     }
 }
 
@@ -1857,15 +1857,15 @@ if (ch->pcdata->staff_rank < STAFF_SUPREMACY ||
     if (arg[0] == '\0')
     {
         send_to_char("Advance which church?\n\r", ch);
-	show_chlist_to_char(ch);
+    show_chlist_to_char(ch);
         return;
     }
 
     if (!is_number(arg))
     {
         send_to_char("That's not even a number!\n\r", ch);
-		show_chlist_to_char(ch);
-		return;
+        show_chlist_to_char(ch);
+        return;
     }
 
     if ((church = find_church(atoi (arg))) == NULL)
@@ -1876,20 +1876,20 @@ if (ch->pcdata->staff_rank < STAFF_SUPREMACY ||
 
     if (church->size == CHURCH_SIZE_CHURCH)
     {
-		send_to_char("They're already at the maximum level.\n\r", ch);
-		return;
+        send_to_char("They're already at the maximum level.\n\r", ch);
+        return;
     }
 
     church->size += 1;
 
-	// Update their max roster size if necessary
+    // Update their max roster size if necessary
     int max_pos = church_get_min_positions(church->size);
     church->max_positions = UMAX(church->max_positions, max_pos);
 
     sprintf(buf, "{Y[%s is now %s %s!]{x\n\r",
         church->name,
         church->size == CHURCH_SIZE_ORDER ? "an" : "a",
-	get_chsize_from_number(church->size));
+    get_chsize_from_number(church->size));
 
     gecho(buf);
 
@@ -1995,11 +1995,11 @@ char *get_chsize_from_number(int size)
     if (size == CHURCH_SIZE_BAND)
         return "Band";
     else if (size == CHURCH_SIZE_CULT)
- 	return "Cult";
+     return "Cult";
     else if (size == CHURCH_SIZE_ORDER)
- 	return "Order";
+     return "Order";
     else
- 	return "Church";
+     return "Church";
 }
 
 
@@ -2019,14 +2019,14 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 
     if (arg[0] != '\0')
     {
-	/* Edit your church info*/
-	if (!str_cmp(arg, "edit"))
-	{
-	    if ((church = ch->church) == NULL || ch->church_member == NULL)
-	    {
-		send_to_char("You aren't in a church.\n\r", ch);
-		return;
-	    }
+    /* Edit your church info*/
+    if (!str_cmp(arg, "edit"))
+    {
+        if ((church = ch->church) == NULL || ch->church_member == NULL)
+        {
+        send_to_char("You aren't in a church.\n\r", ch);
+        return;
+        }
 
     if (ch->church_member->rank->rank_type < RANK_TYPE_LEADER
         && !has_church_permission(ch->church_member, CHURCH_PERM_MANAGE))
@@ -2035,248 +2035,248 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
         return;
     }
 
-	    string_append(ch, &ch->church->info);
-	    save_church(ch->church);
-	    return;
-	}
+        string_append(ch, &ch->church->info);
+        save_church(ch->church);
+        return;
+    }
 
-	/* imms can look up info on churches for convenience*/
-	if (IS_STAFF(ch, STAFF_ASCENDANT))
-	{
-	    if ((church = find_church(atoi(arg))) == NULL)
-	    {
-		send_to_char("There is no such church.\n\r", ch);
-		return;
-	    }
+    /* imms can look up info on churches for convenience*/
+    if (IS_STAFF(ch, STAFF_ASCENDANT))
+    {
+        if ((church = find_church(atoi(arg))) == NULL)
+        {
+        send_to_char("There is no such church.\n\r", ch);
+        return;
+        }
 
-	    show_church_info(church, ch);
-	    return;
-	}
+        show_church_info(church, ch);
+        return;
+    }
 
         /* Look up info of another church*/
-	if ((church = find_church(atoi(arg))) == NULL)
-	{
-	    send_to_char("There is no such church.\n\r", ch);
-	    return;
-	}
+    if ((church = find_church(atoi(arg))) == NULL)
+    {
+        send_to_char("There is no such church.\n\r", ch);
+        return;
+    }
 
-	box_width = 70;
+    box_width = 70;
 
-	buffer = new_buf();
+    buffer = new_buf();
 
         /* Top edge*/
-	add_buf(buffer, "{b.");
-	for (x = 0; x < box_width; x++)
-	    add_buf(buffer, "-");
+    add_buf(buffer, "{b.");
+    for (x = 0; x < box_width; x++)
+        add_buf(buffer, "-");
 
         add_buf(buffer, ".{x\n\r");
 
-	/* Blank line*/
-	add_buf(buffer, "{b|");
-	for (x = 0; x < box_width; x++)
-	    add_buf(buffer, " ");
+    /* Blank line*/
+    add_buf(buffer, "{b|");
+    for (x = 0; x < box_width; x++)
+        add_buf(buffer, " ");
 
-	add_buf(buffer, "{b|\n\r");
+    add_buf(buffer, "{b|\n\r");
 
         /* Name*/
-	sprintf(buf, "{b|    {WThe %s of %s{x",
-	    get_chsize_from_number(church->size), church->name);
-	for (x = strlen(buf) - 7; x < box_width; x++)
-	    strcat(buf, " ");
+    sprintf(buf, "{b|    {WThe %s of %s{x",
+        get_chsize_from_number(church->size), church->name);
+    for (x = strlen(buf) - 7; x < box_width; x++)
+        strcat(buf, " ");
 
-	strcat(buf, "{b|{x\n\r");
-	add_buf(buffer, buf);
+    strcat(buf, "{b|{x\n\r");
+    add_buf(buffer, buf);
 
-	add_buf(buffer, "{b|");
+    add_buf(buffer, "{b|");
 
-	for (x = 0; x < box_width; x++)
-	    add_buf(buffer, " ");
+    for (x = 0; x < box_width; x++)
+        add_buf(buffer, " ");
 
-	add_buf(buffer, "{b|\n\r");
+    add_buf(buffer, "{b|\n\r");
 
-	/* Date created
-	sprintf(buf2, "{b|    {xDate Created: %s{x",
-	    church->created == 0 ? "No Record" : time_string);
-	strcat(buf, buf2);
+    /* Date created
+    sprintf(buf2, "{b|    {xDate Created: %s{x",
+        church->created == 0 ? "No Record" : time_string);
+    strcat(buf, buf2);
 
-	free_string(time_string);
-	*/
+    free_string(time_string);
+    */
 
-	/* PK record*/
-	if (IS_SET(church->settings, CHURCH_SHOW_PKS))
-	{
-	    sprintf(buf, "{b|    {YPlayer kills:          {x%ld", church->pk_wins);
-	    for (x = strlen(buf) - 7; x < box_width; x++)
-		strcat(buf, " ");
+    /* PK record*/
+    if (IS_SET(church->settings, CHURCH_SHOW_PKS))
+    {
+        sprintf(buf, "{b|    {YPlayer kills:          {x%ld", church->pk_wins);
+        for (x = strlen(buf) - 7; x < box_width; x++)
+        strcat(buf, " ");
 
-	    strcat(buf, "{b|{x\n\r");
-	    add_buf(buffer, buf);
+        strcat(buf, "{b|{x\n\r");
+        add_buf(buffer, buf);
 
-	    sprintf(buf, "{b|    {YChaotic player kills:  {x%ld", church->cpk_wins);
-	    for (x = strlen(buf) - 7; x < box_width; x++)
-		strcat(buf, " ");
+        sprintf(buf, "{b|    {YChaotic player kills:  {x%ld", church->cpk_wins);
+        for (x = strlen(buf) - 7; x < box_width; x++)
+        strcat(buf, " ");
 
-	    strcat(buf, "{b|{x\n\r");
-	    add_buf(buffer, buf);
+        strcat(buf, "{b|{x\n\r");
+        add_buf(buffer, buf);
 
-	    sprintf(buf, "{b|    {YWars won:              {x%ld", church->wars_won);
-	    for (x = strlen(buf) - 7; x < box_width; x++)
-		strcat(buf, " ");
+        sprintf(buf, "{b|    {YWars won:              {x%ld", church->wars_won);
+        for (x = strlen(buf) - 7; x < box_width; x++)
+        strcat(buf, " ");
 
-	    strcat(buf, "{b|{x\n\r");
-	    add_buf(buffer, buf);
-	}
+        strcat(buf, "{b|{x\n\r");
+        add_buf(buffer, buf);
+    }
 
-	/* Blank line*/
-	add_buf(buffer, "{b|");
-	for (x = 0; x < box_width; x++)
-	    add_buf(buffer, " ");
+    /* Blank line*/
+    add_buf(buffer, "{b|");
+    for (x = 0; x < box_width; x++)
+        add_buf(buffer, " ");
 
-	add_buf(buffer, "{b|\n\r");
+    add_buf(buffer, "{b|\n\r");
 
-	/* Info*/
-	sprintf(buf, "{b|    {x");
+    /* Info*/
+    sprintf(buf, "{b|    {x");
 
         for (i = 0, x = 6; church->info[i] != '\0'; i++)
-	{
-	    if (church->info[i] == '\n')
-	    {
-		i++;
-		for (; x < box_width + 2; x++)
-		    strcat(buf, " ");
+    {
+        if (church->info[i] == '\n')
+        {
+        i++;
+        for (; x < box_width + 2; x++)
+            strcat(buf, " ");
 
-		strcat(buf, "{b|\n\r");
-		strcat(buf, "{b|    {x");
-		x = 6;
-		continue;
-	    }
+        strcat(buf, "{b|\n\r");
+        strcat(buf, "{b|    {x");
+        x = 6;
+        continue;
+        }
 
-	    sprintf(buf2, "%c", church->info[i]);
-	    strcat(buf, buf2);
-	    if (church->info[i] != '{'
-	    &&  !(i > 0 && church->info[i-1] == '{'))
-		x++;
+        sprintf(buf2, "%c", church->info[i]);
+        strcat(buf, buf2);
+        if (church->info[i] != '{'
+        &&  !(i > 0 && church->info[i-1] == '{'))
+        x++;
 
-	    if (x == box_width - 2)
-	    {
-		for (x = 0; x < 4; x++)
-		    strcat(buf, " ");
+        if (x == box_width - 2)
+        {
+        for (x = 0; x < 4; x++)
+            strcat(buf, " ");
 
-		x = 6;
-		strcat(buf, "{b|{x\n\r");
-		strcat(buf, "{b|    {x");
-	    }
-	}
+        x = 6;
+        strcat(buf, "{b|{x\n\r");
+        strcat(buf, "{b|    {x");
+        }
+    }
 
-	for (; x < box_width + 2; x++)
-	    strcat(buf, " ");
+    for (; x < box_width + 2; x++)
+        strcat(buf, " ");
 
-	strcat(buf, "{b|\n\r");
+    strcat(buf, "{b|\n\r");
 
-	add_buf(buffer, buf);
+    add_buf(buffer, buf);
 
-	/* Bottom edge*/
-	add_buf(buffer, "{b``");
-	for (x = 0; x < box_width; x++)
-	    add_buf(buffer, "-");
+    /* Bottom edge*/
+    add_buf(buffer, "{b``");
+    for (x = 0; x < box_width; x++)
+        add_buf(buffer, "-");
 
         add_buf(buffer, "'{x\n\r");
 
-	page_to_char(buf_string(buffer), ch);
-	free_buf(buffer);
-	return;
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+    return;
     }
     else
     {
-	church = ch->church;
-	if (church == NULL)
-	{
-	    send_to_char("You aren't in a church.\n\r", ch);
-	    return;
-	}
+    church = ch->church;
+    if (church == NULL)
+    {
+        send_to_char("You aren't in a church.\n\r", ch);
+        return;
+    }
     }
 
     /* Show own church info*/
     if (IS_SET(church->settings, CHURCH_SHOW_PKS))
     {
-	sprintf(buf,
-	    "{Y #  %-12s %-10s %-10s %-10s %-8s %-8s %-4s{x\n\r",
-	    "Name", "Pneuma", "Karma", "Gold", "PK", "CPK", "Wars");
-	send_to_char(buf, ch);
-	line(ch,78, NULL, NULL);
-	i = 0;
+    sprintf(buf,
+        "{Y #  %-12s %-10s %-10s %-10s %-8s %-8s %-4s{x\n\r",
+        "Name", "Pneuma", "Karma", "Gold", "PK", "CPK", "Wars");
+    send_to_char(buf, ch);
+    line(ch,78, NULL, NULL);
+    i = 0;
 
-	for (member = church->people; member != NULL; member = member->next)
-	{
-	    i++;
+    for (member = church->people; member != NULL; member = member->next)
+    {
+        i++;
 
-	    sprintf(buf,
-		"{Y%2d){x %-12s %-10ld %-10ld %-8ld",
-		i,
-		member->name,
-		member->dep_pneuma,
-		member->dep_dp,
-		member->dep_gold);
+        sprintf(buf,
+        "{Y%2d){x %-12s %-10ld %-10ld %-8ld",
+        i,
+        member->name,
+        member->dep_pneuma,
+        member->dep_dp,
+        member->dep_gold);
 
-	    sprintf(buf2, "%4ld-%-4ld", member->pk_wins, member->pk_losses);
-	    strcat(buf, buf2);
+        sprintf(buf2, "%4ld-%-4ld", member->pk_wins, member->pk_losses);
+        strcat(buf, buf2);
 
-	    sprintf(buf2, "%4ld-%-4ld", member->cpk_wins, member->cpk_losses);
-	    strcat(buf, buf2);
+        sprintf(buf2, "%4ld-%-4ld", member->cpk_wins, member->cpk_losses);
+        strcat(buf, buf2);
 
-	    sprintf(buf2, "%4ld\n\r", member->wars_won);
-	    strcat(buf, buf2);
+        sprintf(buf2, "%4ld\n\r", member->wars_won);
+        strcat(buf, buf2);
 
-	    send_to_char(buf, ch);
-	}
+        send_to_char(buf, ch);
+    }
 
-	line(ch,78, NULL, NULL);
+    line(ch,78, NULL, NULL);
     }
     else
     {
-	sprintf(buf,
-	    "{Y #  %-12s %-10s %-10s %-10s{x\n\r",
-	    "Name", "Pneuma", "Karma", "Gold");
-	send_to_char(buf, ch);
-	line(ch, 55, NULL, NULL);
-	i = 0;
+    sprintf(buf,
+        "{Y #  %-12s %-10s %-10s %-10s{x\n\r",
+        "Name", "Pneuma", "Karma", "Gold");
+    send_to_char(buf, ch);
+    line(ch, 55, NULL, NULL);
+    i = 0;
 
-	for (member = church->people; member != NULL; member = member->next)
-	{
-	    i++;
+    for (member = church->people; member != NULL; member = member->next)
+    {
+        i++;
 
-	    sprintf(buf,
-		"{Y%2d){x %-12s %-10ld %-10ld %-8ld\n\r",
-		i,
-		member->name,
-		member->dep_pneuma,
-		member->dep_dp,
-		member->dep_gold);
+        sprintf(buf,
+        "{Y%2d){x %-12s %-10ld %-10ld %-8ld\n\r",
+        i,
+        member->name,
+        member->dep_pneuma,
+        member->dep_dp,
+        member->dep_gold);
 
-	    send_to_char(buf, ch);
-	}
+        send_to_char(buf, ch);
+    }
 
-	line(ch, 55, NULL, NULL);
+    line(ch, 55, NULL, NULL);
     }
 
     CHURCH_TREASURE_ROOM *treasure;
     ITERATOR it;
-	iterator_start(&it, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
-		if( treasure->room != NULL )
-		{
-			ROOM_INDEX_DATA *room = treasure->room;
-			for (OBJ_DATA *obj = room->contents; obj != NULL; obj = obj->next_content)
-			{
-				if (is_relic(obj->pIndexData))
-				{
-					sprintf(buf, "{M*{x Your church is currently in the possession of %s.\n\r", obj->short_descr);
-					send_to_char(buf, ch);
-				}
-			}
-		}
-	}
-	iterator_stop(&it);
+    iterator_start(&it, church->treasure_rooms);
+    while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+        if( treasure->room != NULL )
+        {
+            ROOM_INDEX_DATA *room = treasure->room;
+            for (OBJ_DATA *obj = room->contents; obj != NULL; obj = obj->next_content)
+            {
+                if (is_relic(obj->pIndexData))
+                {
+                    sprintf(buf, "{M*{x Your church is currently in the possession of %s.\n\r", obj->short_descr);
+                    send_to_char(buf, ch);
+                }
+            }
+        }
+    }
+    iterator_stop(&it);
 }
 
 
@@ -2308,17 +2308,17 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
     {
         if (IS_NPC(temp_char)
         && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
-	{
-	    found_admin = true;
-	    break;
-	}
+    {
+        found_admin = true;
+        break;
+    }
     }
 
     if (!found_admin)
     {
         send_to_char(
-	    "You must be at an administration office.\n\r", ch);
-	return;
+        "You must be at an administration office.\n\r", ch);
+    return;
     }
 
     if (arg[0]  == '\0'
@@ -2332,20 +2332,20 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
     {
         send_to_char(
             "Syntax: church transfer <#> <pneuma|dp|gold> <amount>\n\r", ch);
-	show_chlist_to_char(ch);
-	return;
+    show_chlist_to_char(ch);
+    return;
     }
 
     if ((church = find_church(atoi(arg))) == NULL )
     {
         send_to_char("No church with that number was found.\n\r", ch);
-	return;
+    return;
     }
 
     if (church == ch->church)
     {
- 	send_to_char("That would be quite pointless.\n\r", ch);
-	return;
+     send_to_char("That would be quite pointless.\n\r", ch);
+    return;
     }
 
     amount = atol(arg3);
@@ -2361,52 +2361,52 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg2, "pneuma"))
     {
         ch->church->pneuma -= amount;
-	church->pneuma     += amount;
+    church->pneuma     += amount;
 
-	sprintf(buf,
-	    "{Y[%s transferred %ld pneuma into %s's account.]\n\r",
-	    ch->name, amount, church->name);
-	msg_church_members(ch->church, buf);
+    sprintf(buf,
+        "{Y[%s transferred %ld pneuma into %s's account.]\n\r",
+        ch->name, amount, church->name);
+    msg_church_members(ch->church, buf);
 
-	sprintf(buf,
-	"{Y[%s transferred %ld pneuma from %s into your account.]{x\n\r",
-	    ch->name, amount, ch->church->name);
-	msg_church_members(church, buf);
-	return;
+    sprintf(buf,
+    "{Y[%s transferred %ld pneuma from %s into your account.]{x\n\r",
+        ch->name, amount, ch->church->name);
+    msg_church_members(church, buf);
+    return;
     }
 
     if (!str_cmp(arg2, "dp"))
     {
         ch->church->dp    -= amount;
-	church->dp        += amount;
+    church->dp        += amount;
 
-	sprintf(buf,
-	    "{Y[%s transferred %ld karma into %s's account.]\n\r",
-	    ch->name, amount, church->name);
-	msg_church_members(ch->church, buf);
+    sprintf(buf,
+        "{Y[%s transferred %ld karma into %s's account.]\n\r",
+        ch->name, amount, church->name);
+    msg_church_members(ch->church, buf);
 
-	sprintf(buf,
-	    "{Y[%s transferred %ld karma from %s into your account.]{x\n\r",
-	    ch->name, amount, ch->church->name);
-	msg_church_members(church, buf);
-	return;
+    sprintf(buf,
+        "{Y[%s transferred %ld karma from %s into your account.]{x\n\r",
+        ch->name, amount, ch->church->name);
+    msg_church_members(church, buf);
+    return;
     }
 
     if (!str_cmp(arg2, "gold"))
     {
         ch->church->gold -= amount;
-	church->gold     += amount;
+    church->gold     += amount;
 
-	sprintf(buf,
-	    "{Y[%s transferred %ld gold into %s's account.]\n\r",
-	    ch->name, amount, church->name);
-	    msg_church_members(ch->church, buf);
+    sprintf(buf,
+        "{Y[%s transferred %ld gold into %s's account.]\n\r",
+        ch->name, amount, church->name);
+        msg_church_members(ch->church, buf);
 
-	    sprintf(buf,
-	    "{Y[%s transferred %ld gold from %s into your account.]{x\n\r",
-			    ch->name, amount, ch->church->name);
-	    msg_church_members(church, buf);
-	    return;
+        sprintf(buf,
+        "{Y[%s transferred %ld gold from %s into your account.]{x\n\r",
+                ch->name, amount, ch->church->name);
+        msg_church_members(church, buf);
+        return;
     }
 
     // After successful transfer, add a detailed log entry
@@ -2442,26 +2442,26 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_CHURCHMASTER))
-	{
-	    found = true;
-	    break;
-	}
+    if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_CHURCHMASTER))
+    {
+        found = true;
+        break;
+    }
     }
 
     if (!found)
     {
-	send_to_char("You can't do that here.\n\r", ch);
-	return;
+    send_to_char("You can't do that here.\n\r", ch);
+    return;
     }
 
     if ( arg[0] == '\0'
     ||   arg2[0] == '\0')
     {
         send_to_char(
-	    "Syntax: church withdraw <pneuma|dp|gold> <amount>\n\r"
-	    "        church withdraw <person> <pneuma|dp|gold> <amount> (leaders only)\n\r", ch);
-	return;
+        "Syntax: church withdraw <pneuma|dp|gold> <amount>\n\r"
+        "        church withdraw <person> <pneuma|dp|gold> <amount> (leaders only)\n\r", ch);
+    return;
     }
 
     if (arg3[0] != '\0')
@@ -2473,212 +2473,212 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
         return;
     }
 
-	if (arg3[0] == '\0'
-	|| (str_cmp(arg2, "pneuma")
-	     && str_cmp(arg2, "dp")
-	     && str_cmp(arg2, "gold")))
-	{
-	    send_to_char("Syntax: church withdraw <person> <pneuma|dp|gold> <amount>\n\r", ch);
-	    return;
-	}
+    if (arg3[0] == '\0'
+    || (str_cmp(arg2, "pneuma")
+         && str_cmp(arg2, "dp")
+         && str_cmp(arg2, "gold")))
+    {
+        send_to_char("Syntax: church withdraw <person> <pneuma|dp|gold> <amount>\n\r", ch);
+        return;
+    }
 
-	victim = get_char_room(ch, NULL, arg);
-	if (victim == NULL)
-	{
-	    send_to_char("They must be in the same room as you.\n\r", ch);
-	    return;
-	}
+    victim = get_char_room(ch, NULL, arg);
+    if (victim == NULL)
+    {
+        send_to_char("They must be in the same room as you.\n\r", ch);
+        return;
+    }
 
-	amt = atol(arg3);
-	if ((!str_cmp(arg2, "pneuma") && ch->church->pneuma < amt)
-	|| (!str_cmp(arg2, "dp") && ch->church->dp < amt)
-	|| (!str_cmp(arg2, "gold") && ch->church->gold < amt))
-	{
-	    sprintf(buf, "Your church doesn't have that much %s.\n\r", arg2);
-	    send_to_char(buf, ch);
-	    return;
-	}
+    amt = atol(arg3);
+    if ((!str_cmp(arg2, "pneuma") && ch->church->pneuma < amt)
+    || (!str_cmp(arg2, "dp") && ch->church->dp < amt)
+    || (!str_cmp(arg2, "gold") && ch->church->gold < amt))
+    {
+        sprintf(buf, "Your church doesn't have that much %s.\n\r", arg2);
+        send_to_char(buf, ch);
+        return;
+    }
 
-	if (!str_cmp(arg2, "pneuma"))
-	{
-	    sprintf(buf, "{Y[You transferred %ld pneuma to %s.]{x\n\r",
-	    	amt, victim->name);
-	    send_to_char(buf, ch);
+    if (!str_cmp(arg2, "pneuma"))
+    {
+        sprintf(buf, "{Y[You transferred %ld pneuma to %s.]{x\n\r",
+            amt, victim->name);
+        send_to_char(buf, ch);
 
-	    sprintf(buf, "{Y[%s has transferred %ld pneuma to you from %s.]{x\n\r", ch->name, amt, ch->church->name);
-	    send_to_char(buf, victim);
+        sprintf(buf, "{Y[%s has transferred %ld pneuma to you from %s.]{x\n\r", ch->name, amt, ch->church->name);
+        send_to_char(buf, victim);
 
-	    for (member = ch->church->people; member != NULL;
-	          member = member->next)
-	    {
-		if (member->ch != NULL && member->ch->desc != NULL
-		&& (!has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW) || !has_church_permission(ch->church_member, CHURCH_PERM_FINANCES)) && member->ch != ch
-		&& member->ch != victim)
-		{
-		    sprintf(buf, "{Y[%s has transferred %ld pneuma to %s.]{x\n\r", ch->name, amt, victim->name);
-		    send_to_char(buf, member->ch);
-		}
-	    }
+        for (member = ch->church->people; member != NULL;
+              member = member->next)
+        {
+        if (member->ch != NULL && member->ch->desc != NULL
+        && (!has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW) || !has_church_permission(ch->church_member, CHURCH_PERM_FINANCES)) && member->ch != ch
+        && member->ch != victim)
+        {
+            sprintf(buf, "{Y[%s has transferred %ld pneuma to %s.]{x\n\r", ch->name, amt, victim->name);
+            send_to_char(buf, member->ch);
+        }
+        }
 
-	    ch->church->pneuma -= amt;
-	    victim->pneuma += amt;
-	    return;
-	}
+        ch->church->pneuma -= amt;
+        victim->pneuma += amt;
+        return;
+    }
 
-	if (!str_cmp(arg2, "dp"))
-	{
-	    sprintf(buf, "{Y[You transferred %ld dp to %s.]{x\n\r",
-	    	amt, victim->name);
-	    send_to_char(buf, ch);
+    if (!str_cmp(arg2, "dp"))
+    {
+        sprintf(buf, "{Y[You transferred %ld dp to %s.]{x\n\r",
+            amt, victim->name);
+        send_to_char(buf, ch);
 
-	    sprintf(buf, "{Y[%s has transferred %ld dp to you from %s.]{x\n\r", ch->name, amt, ch->church->name);
-	    send_to_char(buf, victim);
+        sprintf(buf, "{Y[%s has transferred %ld dp to you from %s.]{x\n\r", ch->name, amt, ch->church->name);
+        send_to_char(buf, victim);
 
-	    for (member = ch->church->people; member != NULL;
-	          member = member->next)
-	    {
-		if (member->ch != NULL && member->ch->desc != NULL
-		&& (!has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW) || !has_church_permission(ch->church_member, CHURCH_PERM_FINANCES)) && member->ch != ch
-		&& member->ch != victim)
-		{
-		    sprintf(buf, "{Y[%s has transferred %ld dp to %s.]{x\n\r", ch->name, amt, victim->name);
-		    send_to_char(buf, member->ch);
-		}
-	    }
+        for (member = ch->church->people; member != NULL;
+              member = member->next)
+        {
+        if (member->ch != NULL && member->ch->desc != NULL
+        && (!has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW) || !has_church_permission(ch->church_member, CHURCH_PERM_FINANCES)) && member->ch != ch
+        && member->ch != victim)
+        {
+            sprintf(buf, "{Y[%s has transferred %ld dp to %s.]{x\n\r", ch->name, amt, victim->name);
+            send_to_char(buf, member->ch);
+        }
+        }
 
-	    ch->church->dp -= amt;
-	    victim->deitypoints += amt;
-	    return;
-	}
+        ch->church->dp -= amt;
+        victim->deitypoints += amt;
+        return;
+    }
 
-	if (!str_cmp(arg2, "gold"))
-	{
-	    sprintf(buf, "{Y[You transferred %ld gold to %s.]{x\n\r",
-	    	amt, victim->name);
-	    send_to_char(buf, ch);
+    if (!str_cmp(arg2, "gold"))
+    {
+        sprintf(buf, "{Y[You transferred %ld gold to %s.]{x\n\r",
+            amt, victim->name);
+        send_to_char(buf, ch);
 
-	    sprintf(buf, "{Y[%s has transferred %ld gold to you from %s.]{x\n\r", ch->name, amt, ch->church->name);
-	    send_to_char(buf, victim);
+        sprintf(buf, "{Y[%s has transferred %ld gold to you from %s.]{x\n\r", ch->name, amt, ch->church->name);
+        send_to_char(buf, victim);
 
-	    for (member = ch->church->people; member != NULL;
-	          member = member->next)
-	    {
+        for (member = ch->church->people; member != NULL;
+              member = member->next)
+        {
     if (ch->church_member->rank->rank_type < RANK_TYPE_LEADER
         && !has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW))
     {
         send_to_char("Only a leader may transfer balance to church members.\n\r", ch);
         return;
     }
-	    }
+        }
 
-	    ch->church->gold -= amt;
-	    victim->gold += amt;
-	    return;
-	}
+        ch->church->gold -= amt;
+        victim->gold += amt;
+        return;
+    }
     }
     else
     {
-	amt = atol(arg2);
-	if (amt <= 0)
-	{
-	    send_to_char("That amount is invalid.\n\r", ch);
-	    return;
-	}
+    amt = atol(arg2);
+    if (amt <= 0)
+    {
+        send_to_char("That amount is invalid.\n\r", ch);
+        return;
+    }
 
-	if (!str_cmp(arg, "pneuma"))
-	{
-	    if (amt > ch->church_member->dep_pneuma)
-	    {
-		send_to_char(
-			"You can't take out more than you put in.\n\r", ch);
-		return;
-	    }
+    if (!str_cmp(arg, "pneuma"))
+    {
+        if (amt > ch->church_member->dep_pneuma)
+        {
+        send_to_char(
+            "You can't take out more than you put in.\n\r", ch);
+        return;
+        }
 
-	    if (amt > ch->church->pneuma)
-	    {
-		send_to_char(
-			"Sorry, there's not that much in the account.\n\r", ch);
-		return;
-	    }
+        if (amt > ch->church->pneuma)
+        {
+        send_to_char(
+            "Sorry, there's not that much in the account.\n\r", ch);
+        return;
+        }
 
-	    sprintf(buf, "{Y[%s has withdrawn %ld pneuma.]{x\n\r",
-		    ch->name, amt);
-	    msg_church_members(ch->church, buf);
+        sprintf(buf, "{Y[%s has withdrawn %ld pneuma.]{x\n\r",
+            ch->name, amt);
+        msg_church_members(ch->church, buf);
 
-	    /*
-	       if (ch->church->log != NULL)
-	       new_log = str_dup(ch->church->log);
-	       else
-	       new_log = str_dup("");
+        /*
+           if (ch->church->log != NULL)
+           new_log = str_dup(ch->church->log);
+           else
+           new_log = str_dup("");
 
-	       free_string(ch->church->log);
+           free_string(ch->church->log);
 
-	       sprintf(new_log, "\n\r[%s] %s withdrew %ld pneuma.",
-	       (char *) ctime(&current_time), ch->name, amt);
-	       ch->church->log = new_log; */
+           sprintf(new_log, "\n\r[%s] %s withdrew %ld pneuma.",
+           (char *) ctime(&current_time), ch->name, amt);
+           ch->church->log = new_log; */
 
-	    ch->church->pneuma -= amt;
-	    ch->church_member->dep_pneuma -= amt;
-	    ch->pneuma += amt;
-	}
+        ch->church->pneuma -= amt;
+        ch->church_member->dep_pneuma -= amt;
+        ch->pneuma += amt;
+    }
 
-	if (!str_cmp(arg, "dp") || !str_cmp(arg, "karma"))
-	{
-	    if (amt > ch->church_member->dep_dp)
-	    {
-		send_to_char(
-			"You can't take out more than you put in.\n\r", ch);
-		return;
-	    }
+    if (!str_cmp(arg, "dp") || !str_cmp(arg, "karma"))
+    {
+        if (amt > ch->church_member->dep_dp)
+        {
+        send_to_char(
+            "You can't take out more than you put in.\n\r", ch);
+        return;
+        }
 
-	    if (amt > ch->church->dp)
-	    {
-		send_to_char(
-			"Sorry, there's not that much in the account.\n\r", ch);
-		return;
-	    }
+        if (amt > ch->church->dp)
+        {
+        send_to_char(
+            "Sorry, there's not that much in the account.\n\r", ch);
+        return;
+        }
 
-	    sprintf(buf, "{Y[%s has withdrawn %ld karma.]{x\n\r",
-		    ch->name, amt);
-	    msg_church_members(ch->church, buf);
-	    /*
-		sprintf(buf, "\n\r[%s] %s withdrew %ld karma.",
-		(char *) ctime(&current_time), ch->name, amt);
-		strcat(ch->church->log, buf);
-	     */
-	    ch->church->dp -= amt;
-	    ch->church_member->dep_dp -= amt;
-	    ch->deitypoints += amt;
-	}
+        sprintf(buf, "{Y[%s has withdrawn %ld karma.]{x\n\r",
+            ch->name, amt);
+        msg_church_members(ch->church, buf);
+        /*
+        sprintf(buf, "\n\r[%s] %s withdrew %ld karma.",
+        (char *) ctime(&current_time), ch->name, amt);
+        strcat(ch->church->log, buf);
+         */
+        ch->church->dp -= amt;
+        ch->church_member->dep_dp -= amt;
+        ch->deitypoints += amt;
+    }
 
-	if (!str_cmp(arg, "gold"))
-	{
-	    if (amt > ch->church_member->dep_gold)
-	    {
-		send_to_char(
-			"You can't take out more than you put in.\n\r", ch);
-		return;
-	    }
+    if (!str_cmp(arg, "gold"))
+    {
+        if (amt > ch->church_member->dep_gold)
+        {
+        send_to_char(
+            "You can't take out more than you put in.\n\r", ch);
+        return;
+        }
 
-	    if (amt > ch->church->gold)
-	    {
-		send_to_char(
-			"Sorry, there's not that much in the account.\n\r", ch);
-		return;
-	    }
+        if (amt > ch->church->gold)
+        {
+        send_to_char(
+            "Sorry, there's not that much in the account.\n\r", ch);
+        return;
+        }
 
-	    sprintf(buf, "{Y[%s has withdrawn %ld gold.]{x\n\r",
-		    ch->name, amt);
-	    msg_church_members(ch->church, buf);
-	    /*
-	       sprintf(buf, "\n\r[%s] %s withdrew %ld gold.",
-	       (char *) ctime(&current_time), ch->name, amt);
-	       strcat(ch->church->log, buf);
-	     */
-	    ch->church->gold -= amt;
-	    ch->church_member->dep_gold -= amt;
-	    ch->gold += amt;
-	}
+        sprintf(buf, "{Y[%s has withdrawn %ld gold.]{x\n\r",
+            ch->name, amt);
+        msg_church_members(ch->church, buf);
+        /*
+           sprintf(buf, "\n\r[%s] %s withdrew %ld gold.",
+           (char *) ctime(&current_time), ch->name, amt);
+           strcat(ch->church->log, buf);
+         */
+        ch->church->gold -= amt;
+        ch->church_member->dep_gold -= amt;
+        ch->gold += amt;
+    }
     }
         // After successful withdrawal, add a log entry
     if (!str_cmp(arg, "pneuma") || !str_cmp(arg, "dp") || !str_cmp(arg, "gold"))
@@ -3026,8 +3026,8 @@ void do_choverthrow(CHAR_DATA *ch, char *argument)
 
     if ((church = ch->church) == NULL)
     {
-  	send_to_char("You aren't even in a church.\n\r", ch);
- 	return;
+      send_to_char("You aren't even in a church.\n\r", ch);
+     return;
     }
 
     if (is_church_owner(ch, church))
@@ -3038,15 +3038,15 @@ void do_choverthrow(CHAR_DATA *ch, char *argument)
 
     if (church->size == CHURCH_SIZE_CHURCH)
     {
-	send_to_char("You can't overthrow a church that big.\n\r", ch);
-	return;
+    send_to_char("You can't overthrow a church that big.\n\r", ch);
+    return;
     }
 
     member = NULL;
     for (member = church->people; member != NULL; member = member->next)
     {
-	if (member != ch->church_member) /* demote everyone else */
-	    member->rank = CHURCH_RANK_A;
+    if (member != ch->church_member) /* demote everyone else */
+        member->rank = CHURCH_RANK_A;
     }
 
     sprintf(buf,"{Y[%s has overthrown the %s of %s!]{x\n\r",
@@ -3079,31 +3079,31 @@ void do_chwhere(CHAR_DATA *ch, char *argument)
 
     if (ch->church == NULL)
     {
-	send_to_char("You aren't in a church.\n\r", ch);
-	return;
+    send_to_char("You aren't in a church.\n\r", ch);
+    return;
     }
 
     if (arg[0] == '\0')
     {
-	send_to_char(
-	"You detect the location of your fellow members:\n\r{x", ch);
-	found = false;
-	for (d = descriptor_list; d; d = d->next)
-	{
-	    if (d->connected == CON_PLAYING
-	    &&  (victim = d->character) != NULL
-	    &&  victim->church != NULL
-	    &&  victim->church == ch->church && !IS_NPC(victim)
-	    &&  victim->in_room != NULL)
-	    {
-		found = true;
-		    sprintf(buf, "{Y%-28s{X %s\n\r",
-			    pers(victim, ch), victim->in_room->name);
-		send_to_char(buf, ch);
-	    }
-	}
-	if (!found)
-	    send_to_char("None\n\r", ch);
+    send_to_char(
+    "You detect the location of your fellow members:\n\r{x", ch);
+    found = false;
+    for (d = descriptor_list; d; d = d->next)
+    {
+        if (d->connected == CON_PLAYING
+        &&  (victim = d->character) != NULL
+        &&  victim->church != NULL
+        &&  victim->church == ch->church && !IS_NPC(victim)
+        &&  victim->in_room != NULL)
+        {
+        found = true;
+            sprintf(buf, "{Y%-28s{X %s\n\r",
+                pers(victim, ch), victim->in_room->name);
+        send_to_char(buf, ch);
+        }
+    }
+    if (!found)
+        send_to_char("None\n\r", ch);
     }
 }
 
@@ -3159,14 +3159,14 @@ CHURCH_DATA *find_char_church(CHAR_DATA * ch)
     chr = NULL;
 
     if (ch->church == NULL)
-	return NULL;
+    return NULL;
 
     for (chr = church_first; chr != NULL; chr = chr->next)
     {
-	send_to_char(ch->church_name, ch);
+    send_to_char(ch->church_name, ch);
 
-	if (!str_cmp(ch->church_name, chr->name))
-	    return chr;
+    if (!str_cmp(ch->church_name, chr->name))
+        return chr;
     }
 
     return NULL;
@@ -3185,33 +3185,33 @@ int find_char_position_in_church(CHAR_DATA *ch)
 /* return the structure given a # from chlist */
 CHURCH_DATA *find_church(int number)
 {
-	CHURCH_DATA *church;
-	ITERATOR it;
+    CHURCH_DATA *church;
+    ITERATOR it;
 
-	iterator_start(&it, list_churches);
+    iterator_start(&it, list_churches);
 
-	while( (church = (CHURCH_DATA *)iterator_nextdata(&it)) && --number > 0);
+    while( (church = (CHURCH_DATA *)iterator_nextdata(&it)) && --number > 0);
 
-	iterator_stop(&it);
+    iterator_stop(&it);
 
-	return church;
+    return church;
 }
 
 CHURCH_DATA *find_church_name(char *name)
 {
-	CHURCH_DATA *church;
-	ITERATOR it;
+    CHURCH_DATA *church;
+    ITERATOR it;
 
-	iterator_start(&it, list_churches);
+    iterator_start(&it, list_churches);
 
-	while( (church = (CHURCH_DATA *)iterator_nextdata(&it)) ) {
-		if( !str_cmp( church->name, name ) )
-			break;
-	}
+    while( (church = (CHURCH_DATA *)iterator_nextdata(&it)) ) {
+        if( !str_cmp( church->name, name ) )
+            break;
+    }
 
-	iterator_stop(&it);
+    iterator_stop(&it);
 
-	return church;
+    return church;
 }
 
 /* is room players treasure church ? */
@@ -3222,23 +3222,23 @@ bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 
 
     if (!church) {
-		ITERATOR cit;
+        ITERATOR cit;
 
-		iterator_start(&cit, list_churches);
-		while(( church = (CHURCH_DATA *)iterator_nextdata(&cit)))
-			if( is_treasure_room(church, room) )
-				break;
-		iterator_stop(&cit);
+        iterator_start(&cit, list_churches);
+        while(( church = (CHURCH_DATA *)iterator_nextdata(&cit)))
+            if( is_treasure_room(church, room) )
+                break;
+        iterator_stop(&cit);
 
-		return church && true;
-	}
+        return church && true;
+    }
 
-	iterator_start(&it, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
-		if( treasure->room == room )
-			break;
-	}
-	iterator_stop(&it);
+    iterator_start(&it, church->treasure_rooms);
+    while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+        if( treasure->room == room )
+            break;
+    }
+    iterator_stop(&it);
 
     return treasure && true;
 }
@@ -3326,8 +3326,8 @@ char *time_for_log(void)
     i = 0;
     while (buf[i] != '\n')
     {
-	buf2[i] = buf[i];
-	i++;
+    buf2[i] = buf[i];
+    i++;
     }
 
     buf2[i] = '\0';
@@ -3372,71 +3372,71 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 
     switch(church->size)
     {
-	case CHURCH_SIZE_BAND:
-	    strcpy(buf2, "Band");
-	    break;
-	case CHURCH_SIZE_CULT:
-	    strcpy(buf2, "Cult");
-	    break;
-	case CHURCH_SIZE_ORDER:
-	    strcpy(buf2, "Order");
-	    break;
-	case CHURCH_SIZE_CHURCH:
-	    strcpy(buf2, "Church");
-	    break;
-	default:
-	    strcpy(buf2, "Unknown");
-	    break;
+    case CHURCH_SIZE_BAND:
+        strcpy(buf2, "Band");
+        break;
+    case CHURCH_SIZE_CULT:
+        strcpy(buf2, "Cult");
+        break;
+    case CHURCH_SIZE_ORDER:
+        strcpy(buf2, "Order");
+        break;
+    case CHURCH_SIZE_CHURCH:
+        strcpy(buf2, "Church");
+        break;
+    default:
+        strcpy(buf2, "Unknown");
+        break;
     }
 
     sprintf(buf, "{YSize:{x %s\n\r", buf2);
     add_buf(buffer, buf);
 
     if (church->alignment == CHURCH_GOOD)
-	sprintf(buf2, "Good");
+    sprintf(buf2, "Good");
     else if (church->alignment == CHURCH_EVIL)
-	sprintf(buf2, "Evil");
+    sprintf(buf2, "Evil");
     else
-	sprintf(buf2, "Neutral");
+    sprintf(buf2, "Neutral");
 
     sprintf(buf, "{YAlignment:{x %s\n\r", buf2);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YRecall Point:{x %ld - %s\n\r",
         church->recall_point.id[0],
-	get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0]) == NULL ?
-	    "none" : get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0])->name);
+    get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0]) == NULL ?
+        "none" : get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0])->name);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YKey:{x %ld - %s\n\r",
         church->key,
-	get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key) == NULL ?
-	    "none" : get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key)->short_descr);
+    get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key) == NULL ?
+        "none" : get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key)->short_descr);
     add_buf(buffer, buf);
 
-	sprintf(buf, "{YTreasure Room(s):{x\n\r");
-	add_buf(buffer, buf);
+    sprintf(buf, "{YTreasure Room(s):{x\n\r");
+    add_buf(buffer, buf);
 
     CHURCH_TREASURE_ROOM *treasure;
     ITERATOR it;
-	iterator_start(&it, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
-		if( treasure->room != NULL )
-		{
-			ROOM_INDEX_DATA *room = treasure->room;
-			sprintf(buf, "{x\t\t%ld - %s{x\n\r", room->vnum, room->name);
-			add_buf(buffer,buf);
-		}
-	}
-	iterator_stop(&it);
-	
+    iterator_start(&it, church->treasure_rooms);
+    while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+        if( treasure->room != NULL )
+        {
+            ROOM_INDEX_DATA *room = treasure->room;
+            sprintf(buf, "{x\t\t%ld - %s{x\n\r", room->vnum, room->name);
+            add_buf(buffer,buf);
+        }
+    }
+    iterator_stop(&it);
+    
 
     sprintf(buf, "{YPK record:{x %ld wins, %ld losses\n\r",
-    	church->pk_wins, church->pk_losses);
+        church->pk_wins, church->pk_losses);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YCPK record:{x %ld wins, %ld losses\n\r",
-    	church->cpk_wins, church->cpk_losses);
+        church->cpk_wins, church->cpk_losses);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YWars Won:{x %ld\n\r", church->wars_won);
@@ -3454,7 +3454,7 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 
     sprintf(buf,
         "{Y%-12s %-10s %-10s %-10s %-8s %-8s %-4s{x\n\r{x",
-	"Name", "Pneuma", "Karma", "Gold", "PK", "CPK", "Wars");
+    "Name", "Pneuma", "Karma", "Gold", "PK", "CPK", "Wars");
     add_buf(buffer, buf);
 
     i = 0;
@@ -3462,21 +3462,21 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     {
         i++;
 
-	sprintf(buf,
-	    "%-12s %-10ld %-10ld %-8ld",
-	    member->name,
-	    member->dep_pneuma,
-	    member->dep_dp,
-	    member->dep_gold);
+    sprintf(buf,
+        "%-12s %-10ld %-10ld %-8ld",
+        member->name,
+        member->dep_pneuma,
+        member->dep_dp,
+        member->dep_gold);
 
-	sprintf(buf2, "%4ld-%-4ld", member->pk_wins, member->pk_losses);
-	strcat(buf, buf2);
+    sprintf(buf2, "%4ld-%-4ld", member->pk_wins, member->pk_losses);
+    strcat(buf, buf2);
 
-	sprintf(buf2, "%4ld-%-4ld", member->cpk_wins, member->cpk_losses);
-	strcat(buf, buf2);
+    sprintf(buf2, "%4ld-%-4ld", member->cpk_wins, member->cpk_losses);
+    strcat(buf, buf2);
 
-	sprintf(buf2, "%4ld\n\r", member->wars_won);
-	strcat(buf, buf2);
+    sprintf(buf2, "%4ld\n\r", member->wars_won);
+    strcat(buf, buf2);
 
         add_buf(buffer, buf);
     }
@@ -3496,24 +3496,24 @@ void do_churchset(CHAR_DATA *ch, char *argument)
 
     if ((church = ch->church) == NULL)
     {
-	send_to_char("You aren't even in a church.\n\r", ch);
-	return;
+    send_to_char("You aren't even in a church.\n\r", ch);
+    return;
     }
 
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
-	send_to_char("Syntax: church set <field>\n\r"
-	             "For fields see \"help church\"", ch);
-	return;
+    send_to_char("Syntax: church set <field>\n\r"
+                 "For fields see \"help church\"", ch);
+    return;
     }
 
     /* find value to toggle */
     if ((value = flag_value(church_flags, arg)) == NO_FLAG)
     {
-	send_to_char("There is no such setting. See \"help church\" for available settings.\n\r", ch);
-	return;
+    send_to_char("There is no such setting. See \"help church\" for available settings.\n\r", ch);
+    return;
     }
 
     if (IS_SET(church->settings, value))
@@ -3553,63 +3553,63 @@ void do_chconvert(CHAR_DATA *ch, char *argument)
     || (str_cmp(arg, "good") && str_cmp(arg, "evil")
         && str_cmp(arg, "neutral")))
     {
-	send_to_char("Syntax: church convert <good|neutral|evil>\n\r", ch);
-	return;
+    send_to_char("Syntax: church convert <good|neutral|evil>\n\r", ch);
+    return;
     }
 
     if (!str_cmp(arg, "good"))
-	align = CHURCH_GOOD;
+    align = CHURCH_GOOD;
     else if (!str_cmp(arg, "neutral"))
-	align = CHURCH_NEUTRAL;
+    align = CHURCH_NEUTRAL;
     else
-	align = CHURCH_EVIL;
+    align = CHURCH_EVIL;
 
     if ((church = ch->church) == NULL)
     {
-	send_to_char("You aren't even in a church.\n\r", ch);
-	return;
+    send_to_char("You aren't even in a church.\n\r", ch);
+    return;
     }
 
     if (str_cmp(ch->name, church->founder))
     {
-	send_to_char("Only the founder of a church can change its faith.\n\r", ch);
-	return;
+    send_to_char("Only the founder of a church can change its faith.\n\r", ch);
+    return;
     }
 
     if (align == church->alignment)
     {
-	send_to_char("That would be pointless. Your church already follows that alignment.\n\r", ch);
-	return;
+    send_to_char("That would be pointless. Your church already follows that alignment.\n\r", ch);
+    return;
     }
 
     if ((ch->alignment < 0 && align == CHURCH_GOOD)
     ||   (ch->alignment > 0 && align == CHURCH_EVIL))
     {
-	send_to_char("You cannot convert to that alignment as you, the founder, cannot follow that faith.\n\r", ch);
-	return;
+    send_to_char("You cannot convert to that alignment as you, the founder, cannot follow that faith.\n\r", ch);
+    return;
     }
 
     if (church->alignment != CHURCH_NEUTRAL)
     {
-	send_to_char("Only neutral churches can change their faith.\n\r", ch);
-	return;
+    send_to_char("Only neutral churches can change their faith.\n\r", ch);
+    return;
     }
 
     pneuma_cost = 10000;
     dp_cost = 2500000;
     if (church->pneuma < pneuma_cost || church->dp < dp_cost)
     {
-	sprintf(buf, "It costs %ld pneuma and %ld karma to convert your alignment. You don't have enough.\n\r", pneuma_cost, dp_cost);
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf, "It costs %ld pneuma and %ld karma to convert your alignment. You don't have enough.\n\r", pneuma_cost, dp_cost);
+    send_to_char(buf, ch);
+    return;
     }
 
     ch->pcdata->convert_church = align;
     sprintf(buf, "Are you SURE you want to convert to the faith of %s? (y/n)\n\r"
                   "{R***WARNING***:{x all members who cannot follow that faith will be removed on their next login!!!\n\r",
        ch->pcdata->convert_church == CHURCH_GOOD ? "the Pious" :
-	  ch->pcdata->convert_church == CHURCH_NEUTRAL ? "Neutrality" :
-	  "Malice");
+      ch->pcdata->convert_church == CHURCH_NEUTRAL ? "Neutrality" :
+      "Malice");
     send_to_char(buf, ch);
 
     // After successful conversion (in the "yes" confirmation handler):
@@ -3625,87 +3625,87 @@ void do_chconvert(CHAR_DATA *ch, char *argument)
 
 void do_chdonate(CHAR_DATA *ch, char *argument)
 {
-	// church donate <obj>[ <room no>]
+    // church donate <obj>[ <room no>]
     OBJ_DATA *obj;
     char arg[MIL];
 
     if (ch->church == NULL)
     {
         send_to_char("You aren't in a church!\n\r", ch);
-		return;
+        return;
     }
 
     if(is_excommunicated(ch))
     {
         send_to_char("You have been excommunicated.\n\r", ch);
-		return;
-	}
+        return;
+    }
 
-	int avail = church_available_treasure_rooms(ch);
+    int avail = church_available_treasure_rooms(ch);
 
     if (avail < 1)
     {
-    	send_to_char("You do not have access to a treasure room.\n\r", ch);
-		return;
+        send_to_char("You do not have access to a treasure room.\n\r", ch);
+        return;
     }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
     if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
     {
-		send_to_char("You don't have that object.\n\r", ch);
-		return;
+        send_to_char("You don't have that object.\n\r", ch);
+        return;
     }
 
     int roomno = 1;
     if( !IS_NULLSTR(argument) )
     {
-		if(!is_number(argument))
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return;
-		}
+        if(!is_number(argument))
+        {
+            send_to_char("That is not a number.\n\r", ch);
+            return;
+        }
 
-		roomno = atoi(argument);
+        roomno = atoi(argument);
 
-		if( roomno < 1 || roomno > avail)
-		{
-			send_to_char("That is not a valid room number.\n\rPlease review the list in {WCHURCH TREASURE LIST{x.\n\r", ch);
-			return;
-		}
-	}
+        if( roomno < 1 || roomno > avail)
+        {
+            send_to_char("That is not a valid room number.\n\rPlease review the list in {WCHURCH TREASURE LIST{x.\n\r", ch);
+            return;
+        }
+    }
 
 
     CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch, ch->church, roomno);
     if( !treasure || !treasure->room )
     {
-		send_to_char("Something went wrong.  Could not find the treasure room.\n\r", ch);
-		return;
-	}
+        send_to_char("Something went wrong.  Could not find the treasure room.\n\r", ch);
+        return;
+    }
 
-	// Only check rooms after the default room
+    // Only check rooms after the default room
     if (roomno > 1 && ch->church_member->rank->rank_type < treasure->min_rank)
-	{
-		send_to_char("You do not have permission to use that room.\n\r", ch);
-		return;
-	}
+    {
+        send_to_char("You do not have permission to use that room.\n\r", ch);
+        return;
+    }
 
     if (count_items_list_nest(treasure->room->contents) > MAX_CHURCH_TREASURE)
     {
-    	send_to_char("That church temple treasure room is quite full already.\n\rPlease try another room.\n\r", ch);
-		return;
+        send_to_char("That church temple treasure room is quite full already.\n\rPlease try another room.\n\r", ch);
+        return;
     }
 
     if (obj->timer > 0 || IS_SET(obj->extra[1], ITEM_NO_DONATE))
     {
-		act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		return;
+        act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
     }
 
     if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
-		send_to_char("It's stuck to you.\n\r", ch);
-		return;
+        send_to_char("It's stuck to you.\n\r", ch);
+        return;
     }
 
     act("You toss $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -3725,37 +3725,37 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
     if (ch->church == NULL)
     {
         send_to_char("You aren't in a church!\n\r", ch);
-	return;
+    return;
     }
 
     if (!list_size(ch->church->treasure_rooms))
     {
-    	send_to_char("Your church doesn't have a treasure room.\n\r", ch);
-		return;
+        send_to_char("Your church doesn't have a treasure room.\n\r", ch);
+        return;
     }
 
     if ((obj = get_obj_carry(ch, argument, ch)) == NULL)
     {
-	send_to_char("You don't have that object.\n\r", ch);
-	return;
+    send_to_char("You don't have that object.\n\r", ch);
+    return;
     }
 
     if (count_items_list_nest(room->contents) > MAX_CHURCH_TREASURE)
     {
-    	send_to_char("Your church temple treasure room is quite full already.\n\r", ch);
-	return;
+        send_to_char("Your church temple treasure room is quite full already.\n\r", ch);
+    return;
     }
 
     if (obj->timer > 0 || IS_SET(obj->extra[1], ITEM_NO_DONATE))
     {
-    	act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	return;
+        act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    return;
     }
 
     if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
-    	send_to_char("It's stuck to you.\n\r", ch);
-	return;
+        send_to_char("It's stuck to you.\n\r", ch);
+    return;
     }
 
     act("You toss $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -3808,7 +3808,7 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "DeityPoints %ld\n", church->dp);
     fprintf(fp, "Flag %s~\n", fix_string(church->flag));
     fprintf(fp, "Founder %s~\n", church->founder);
-	fprintf(fp, "Owner %s~\n", church->owner);
+    fprintf(fp, "Owner %s~\n", church->owner);
     fprintf(fp, "LastLoginOwner %ld\n", (long int)church->owner_last_login);
     fprintf(fp, "LastLogID %ld\n", church->last_log_entry_id);
     fprintf(fp, "Gold %ld\n", church->gold);
@@ -3964,7 +3964,7 @@ void add_church_to_list(CHURCH_DATA *church, CHURCH_DATA *list)
     church->next = NULL;
 
     for (tmp = list; tmp->next != NULL; tmp = tmp->next)
-	;
+    ;
 
     tmp->next = church;
 }
@@ -4736,27 +4736,27 @@ bool is_in_treasure_room(OBJ_DATA *obj)
     ROOM_INDEX_DATA *room = obj->in_room;
 
     if (room == NULL)
-		return false;
+        return false;
 
-	return is_treasure_room(NULL, room);
+    return is_treasure_room(NULL, room);
 }
 
 bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 {
-	CHURCH_TREASURE_ROOM *treasure;
-	OBJ_DATA *obj = NULL;
-	ITERATOR rit, oit;
+    CHURCH_TREASURE_ROOM *treasure;
+    OBJ_DATA *obj = NULL;
+    ITERATOR rit, oit;
 
-	iterator_start(&rit, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit)) && !obj) {
-		iterator_start(&oit, treasure->room->lcontents);
-		while( (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-			if( obj->pIndexData->vnum == vnum )
-				break;
-		}
-		iterator_stop(&oit);
-	}
-	iterator_stop(&rit);
+    iterator_start(&rit, church->treasure_rooms);
+    while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit)) && !obj) {
+        iterator_start(&oit, treasure->room->lcontents);
+        while( (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+            if( obj->pIndexData->vnum == vnum )
+                break;
+        }
+        iterator_stop(&oit);
+    }
+    iterator_stop(&rit);
 
     return obj && true;
 }
@@ -4787,7 +4787,7 @@ void update_church_pks(void)
 bool is_excommunicated(CHAR_DATA *ch)
 {
     if (ch->church == NULL || ch->church_member == NULL)
-		return false;
+        return false;
 
     return IS_SET(ch->church_member->flags, CHURCH_PLAYER_EXCOMMUNICATED);
 }
@@ -4896,22 +4896,22 @@ CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *churc
 
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 {
-	if( nth < 1 ) return false;
+    if( nth < 1 ) return false;
 
-	CHURCH_TREASURE_ROOM *treasure;
-	ITERATOR it;
+    CHURCH_TREASURE_ROOM *treasure;
+    ITERATOR it;
 
-	iterator_start(&it, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		if( !--nth)
-		{
-			treasure->min_rank = min_rank;
-			return true;
-		}
-	}
-	iterator_stop(&it);
+    iterator_start(&it, church->treasure_rooms);
+    while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        if( !--nth)
+        {
+            treasure->min_rank = min_rank;
+            return true;
+        }
+    }
+    iterator_stop(&it);
 
-	return false;
+    return false;
 }
 
 int church_available_treasure_rooms(CHAR_DATA *ch)
@@ -6919,7 +6919,7 @@ CHURCH_TREASURE_ROOM *create_church_treasure_room(CHURCH_DATA *church, ROOM_INDE
     treasure->room = room;
     treasure->is_default = is_default;
     treasure->name = NULL;
-	treasure->min_rank = 0;
+    treasure->min_rank = 0;
     treasure->allowed_ranks = list_create(false);
     
     if (!treasure->allowed_ranks) {

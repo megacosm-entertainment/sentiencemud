@@ -131,85 +131,85 @@ char *format_and_colour_html( char *buf )
     b = newbuf;
     while( *a != '\0' )
     {
-	// Look for colour code
-	if ( enc )
-	{
-	    int skip = 0;
+    // Look for colour code
+    if ( enc )
+    {
+        int skip = 0;
 
-	    switch( *a )
-	    {
-		case 'r' :
-		    skip = copy_in_colour_code( b, "<font colour=\"990000\">" );
-		    break;
-		case 'R' :
-		    skip = copy_in_colour_code( b, "<font colour=\"FF0000\">" );
-		    break;
-		case 'x' :
-		    skip = copy_in_colour_code( b, "</font>" );
-		    break;
-		case 'C' :
-		    skip = copy_in_colour_code( b, "<font colour=\"6666FF\">" );
-		    break;
-		case 'c' :
-		    skip = copy_in_colour_code( b, "<font colour=\"33CCCC\">" );
-		    break;
-		case 'B' :
-		    skip = copy_in_colour_code( b, "<font colour=\"0000FF\">" );
-		    break;
-		case 'b' :
-		    skip = copy_in_colour_code( b, "<font colour=\"003399\">" );
-		    break;
-		case 'Y' :
-		    skip = copy_in_colour_code( b, "<font colour=\"FFFF00\">" );
-		    break;
-		case 'y' :
-		    skip = copy_in_colour_code( b, "<font colour=\"FFCC66\">" );
-		    break;
-		case 'W' :
-		    skip = copy_in_colour_code( b, "<font colour=\"FFFFFF\">" );
-		    break;
-		case 'w' :
-		    skip = copy_in_colour_code( b, "<font colour=\"CCCCCC\">" );
-		    break;
-		case 'G' :
-		    skip = copy_in_colour_code( b, "<font colour=\"00FF00\">" );
-		    break;
-		case 'g' :
-		    skip = copy_in_colour_code( b, "<font colour=\"009966\">" );
-		    break;
-		case 'M' :
-		    skip = copy_in_colour_code( b, "<font colour=\"CC00FF\">" );
-		    break;
-		case 'm' :
-		    skip = copy_in_colour_code( b, "<font colour=\"993399\">" );
-		    break;
-		case 'D' :
-		    skip = copy_in_colour_code( b, "<font colour=\"666666\">" );
-		    break;
-		case '{' :
-		    skip = copy_in_colour_code( b, "{" );
-		    break;
-		default:
-		    skip = copy_in_colour_code( b, "</font>" );
-	    }
-	    while( skip-- > 0 )
-	    {
-		b++;
-	    }
-	    enc = false;
-	}
-	else
-	    if ( *a == '{' )
-	    {
-		enc = true;
-	    }
-	    else
-	    {
-		*b = *a;
-		b++;
-	    }
+        switch( *a )
+        {
+        case 'r' :
+            skip = copy_in_colour_code( b, "<font colour=\"990000\">" );
+            break;
+        case 'R' :
+            skip = copy_in_colour_code( b, "<font colour=\"FF0000\">" );
+            break;
+        case 'x' :
+            skip = copy_in_colour_code( b, "</font>" );
+            break;
+        case 'C' :
+            skip = copy_in_colour_code( b, "<font colour=\"6666FF\">" );
+            break;
+        case 'c' :
+            skip = copy_in_colour_code( b, "<font colour=\"33CCCC\">" );
+            break;
+        case 'B' :
+            skip = copy_in_colour_code( b, "<font colour=\"0000FF\">" );
+            break;
+        case 'b' :
+            skip = copy_in_colour_code( b, "<font colour=\"003399\">" );
+            break;
+        case 'Y' :
+            skip = copy_in_colour_code( b, "<font colour=\"FFFF00\">" );
+            break;
+        case 'y' :
+            skip = copy_in_colour_code( b, "<font colour=\"FFCC66\">" );
+            break;
+        case 'W' :
+            skip = copy_in_colour_code( b, "<font colour=\"FFFFFF\">" );
+            break;
+        case 'w' :
+            skip = copy_in_colour_code( b, "<font colour=\"CCCCCC\">" );
+            break;
+        case 'G' :
+            skip = copy_in_colour_code( b, "<font colour=\"00FF00\">" );
+            break;
+        case 'g' :
+            skip = copy_in_colour_code( b, "<font colour=\"009966\">" );
+            break;
+        case 'M' :
+            skip = copy_in_colour_code( b, "<font colour=\"CC00FF\">" );
+            break;
+        case 'm' :
+            skip = copy_in_colour_code( b, "<font colour=\"993399\">" );
+            break;
+        case 'D' :
+            skip = copy_in_colour_code( b, "<font colour=\"666666\">" );
+            break;
+        case '{' :
+            skip = copy_in_colour_code( b, "{" );
+            break;
+        default:
+            skip = copy_in_colour_code( b, "</font>" );
+        }
+        while( skip-- > 0 )
+        {
+        b++;
+        }
+        enc = false;
+    }
+    else
+        if ( *a == '{' )
+        {
+        enc = true;
+        }
+        else
+        {
+        *b = *a;
+        b++;
+        }
 
-	a++;
+    a++;
     }
 
     *b = *a;
@@ -225,10 +225,10 @@ int copy_in_colour_code( char *new, char *colour )
     int skip = strlen( colour );
     while( *colour != '\0')
     {
-	*new = *colour;
+    *new = *colour;
 
-	colour++;
-	new++;
+    colour++;
+    new++;
     }
 
     return skip;
@@ -266,17 +266,17 @@ BUFFER *get_players_html()
     nMatch2 = 0; /* players online */
     for ( d = descriptor_list; d != NULL; d = d->next )
     {
-	CHAR_DATA *wch;
+    CHAR_DATA *wch;
 
-	if (d->connected != CON_PLAYING )
-	    continue;
+    if (d->connected != CON_PLAYING )
+        continue;
 
-	wch = (d->original != NULL) ? d->original : d->character;
+    wch = (d->original != NULL) ? d->original : d->character;
 
-	if ( wch )
-	{
-	    nMatch2++;
-	}
+    if ( wch )
+    {
+        nMatch2++;
+    }
     }
 
     buf[0] = '\0';
@@ -297,126 +297,126 @@ BUFFER *get_players_html()
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-	CHAR_DATA *wch;
-	char const *class;
-	char racestr[MAX_STRING_LENGTH];
+    CHAR_DATA *wch;
+    char const *class;
+    char racestr[MAX_STRING_LENGTH];
 
-	if (d->connected != CON_PLAYING)
-	    continue;
+    if (d->connected != CON_PLAYING)
+        continue;
 
-	wch = (d->original != NULL) ? d->original : d->character;
+    wch = (d->original != NULL) ? d->original : d->character;
 
-	if (wch->tot_level < iLevelLower
-		|| wch->tot_level > iLevelUpper
-		|| (fImmortalOnly && wch->tot_level < LEVEL_IMMORTAL)
-		|| (fChurchOnly && wch->church != church ))
-	    continue;
+    if (wch->tot_level < iLevelLower
+        || wch->tot_level > iLevelUpper
+        || (fImmortalOnly && wch->tot_level < LEVEL_IMMORTAL)
+        || (fChurchOnly && wch->church != church ))
+        continue;
 
-	class = sub_class_table[wch->pcdata->sub_class_current].who_name[wch->sex];
+    class = sub_class_table[wch->pcdata->sub_class_current].who_name[wch->sex];
 
-	switch (wch->level)
-	{
-	    default:
-		break;
-		{
-		    case MAX_LEVEL - 0:
-			class = "  {w-{W=I{DM{WP={w-{x   ";
-			break;
-		    case MAX_LEVEL - 1:
-			class = "  {RC{rr{Re{ra{Rt{ro{RR{x   ";
-			break;
-		    case MAX_LEVEL - 2:
-			class = " {WSup{Drem{WacY{x  ";
-			break;
-		    case MAX_LEVEL - 3:
-			class = " {bAsc{Bend{bant  ";
-			break;
-		    case MAX_LEVEL - 4:
-			if ( wch->sex == SEX_FEMALE )
-			    class = "  {wGo{Wdde{wss   ";
-			else
-			    class = "    {wG{Wo{wd     ";
-			break;
-		    case MAX_LEVEL - 5:
-			class = "  {BM{Ci{MN{Di{YG{Go{Wd   ";
-			break;
-		    case MAX_LEVEL - 6:
-			class = "  {x-{m=G{xIM{mP={x-  ";
-			break;
-		}
-	}
+    switch (wch->level)
+    {
+        default:
+        break;
+        {
+            case MAX_LEVEL - 0:
+            class = "  {w-{W=I{DM{WP={w-{x   ";
+            break;
+            case MAX_LEVEL - 1:
+            class = "  {RC{rr{Re{ra{Rt{ro{RR{x   ";
+            break;
+            case MAX_LEVEL - 2:
+            class = " {WSup{Drem{WacY{x  ";
+            break;
+            case MAX_LEVEL - 3:
+            class = " {bAsc{Bend{bant  ";
+            break;
+            case MAX_LEVEL - 4:
+            if ( wch->sex == SEX_FEMALE )
+                class = "  {wGo{Wdde{wss   ";
+            else
+                class = "    {wG{Wo{wd     ";
+            break;
+            case MAX_LEVEL - 5:
+            class = "  {BM{Ci{MN{Di{YG{Go{Wd   ";
+            break;
+            case MAX_LEVEL - 6:
+            class = "  {x-{m=G{xIM{mP={x-  ";
+            break;
+        }
+    }
 
-	/*
-	 * Format it up.
-	 */
+    /*
+     * Format it up.
+     */
 
-	sprintf( racestr, "{Y");
-	strncat( racestr, (wch->race && wch->race->who_name) ? wch->race->who_name : "      ", 6 );
+    sprintf( racestr, "{Y");
+    strncat( racestr, (wch->race && wch->race->who_name) ? wch->race->who_name : "      ", 6 );
 
-	nMatch++;
+    nMatch++;
 
-	area_type = get_char_where(wch);
-	sprintf(buf,
-		"<tr>"
-		"<td>{G%-3d{x</td>"
-		"<td>{G%-3d{x</td>"
-		"<td>{M%s{x</td>"
-		"<td>{Y%6s{x</td>"
-		"<td>{R%12s{x</td>"
-		"<td>{C%-6s{x</td> "
-		"<td>%s%s%s%s{G%-12s{x</td>"
-		"</tr>",
-		wch->level,
-		wch->tot_level,
-		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
-		(wch->race && wch->race->playable) ? racestr : "      ",
-		class,
-		area_type,
-		(IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ?
-		"{D(Dead) {x" : "",
-		wch->incog_level >= LEVEL_HERO ? "{D(Incog) {x" : "",
-		wch->invis_level >= LEVEL_HERO ? "{W(Wizi) {x" : "",
-		//IS_SET(wch->comm, COMM_AFK) ? "{M[AFK] {x" : "",
-		//IS_SET(wch->comm, COMM_QUIET) ? "{R[Q] {x" : "",
-		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
-		wch->name);
+    area_type = get_char_where(wch);
+    sprintf(buf,
+        "<tr>"
+        "<td>{G%-3d{x</td>"
+        "<td>{G%-3d{x</td>"
+        "<td>{M%s{x</td>"
+        "<td>{Y%6s{x</td>"
+        "<td>{R%12s{x</td>"
+        "<td>{C%-6s{x</td> "
+        "<td>%s%s%s%s{G%-12s{x</td>"
+        "</tr>",
+        wch->level,
+        wch->tot_level,
+        wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
+        (wch->race && wch->race->playable) ? racestr : "      ",
+        class,
+        area_type,
+        (IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ?
+        "{D(Dead) {x" : "",
+        wch->incog_level >= LEVEL_HERO ? "{D(Incog) {x" : "",
+        wch->invis_level >= LEVEL_HERO ? "{W(Wizi) {x" : "",
+        //IS_SET(wch->comm, COMM_AFK) ? "{M[AFK] {x" : "",
+        //IS_SET(wch->comm, COMM_QUIET) ? "{R[Q] {x" : "",
+        IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
+        wch->name);
 
-		free_string(area_type);
-		add_buf(output, buf);
+        free_string(area_type);
+        add_buf(output, buf);
 
-		if (wch->church != NULL)
-		{
-		    buf_size = 50 - fstr_len(&buf[0]);
+        if (wch->church != NULL)
+        {
+            buf_size = 50 - fstr_len(&buf[0]);
 
-		    for (line_counter = 0; line_counter < buf_size; line_counter++)
-		    {
-			add_buf(output, " ");
-		    }
-		    add_buf(output, "{Y[{x");
-		    add_buf(output, wch->church->flag);
-		    add_buf(output, "{Y]{x");
-		}
-		else
-		{
-		    add_buf(output, "");
-		}
+            for (line_counter = 0; line_counter < buf_size; line_counter++)
+            {
+            add_buf(output, " ");
+            }
+            add_buf(output, "{Y[{x");
+            add_buf(output, wch->church->flag);
+            add_buf(output, "{Y]{x");
+        }
+        else
+        {
+            add_buf(output, "");
+        }
 
-		if (IS_SET(wch->act[0],PLR_HELPER))
-		{
-		    add_buf(output, " {W[H]{X");
-		}
+        if (IS_SET(wch->act[0],PLR_HELPER))
+        {
+            add_buf(output, " {W[H]{X");
+        }
 
-		if (IS_SET(wch->comm, COMM_AFK))
-		{
-		    add_buf(output, " {M[AFK]{x");
-		}
+        if (IS_SET(wch->comm, COMM_AFK))
+        {
+            add_buf(output, " {M[AFK]{x");
+        }
 
-		if (IS_SET(wch->comm, COMM_QUIET) )
-		{
-		    add_buf(output, " {R[Q]{x");
-		}
+        if (IS_SET(wch->comm, COMM_QUIET) )
+        {
+            add_buf(output, " {R[Q]{x");
+        }
 
-		add_buf(output, "\n\r");
+        add_buf(output, "\n\r");
     }
 
     add_buf( output, "</table>" );

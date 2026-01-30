@@ -92,16 +92,16 @@ bool		check_terrain_exists args ((WILDS_DATA *pWilds, char token));
 
 
 int dir_offsets[MAX_DIR][2] = {
-	{0, -1},
-	{1, 0},
-	{0, 1},
-	{-1, 0},
-	{0, 0},
-	{0, 0},
-	{1, -1},
-	{-1, -1},
-	{1, 1},
-	{-1, 1},
+    {0, -1},
+    {1, 0},
+    {0, 1},
+    {-1, 0},
+    {0, 0},
+    {0, 0},
+    {1, -1},
+    {-1, -1},
+    {1, 1},
+    {-1, 1},
 };
 
 char *vlinkage_bit_name(int vlinkage)
@@ -290,14 +290,14 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
     {
         if (pRoomIndex->x == pVLink->wildsorigin_x
             && pRoomIndex->y == pVLink->wildsorigin_y
-	    && IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS))
+        && IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS))
         {
             link_vlink(pVLink);
         }
     }
 
-	// Nib - replaced the ugly repetitive code with this SAL (Simple Ass Loop) (tm)...
-	link_vroom(pRoomIndex);
+    // Nib - replaced the ugly repetitive code with this SAL (Simple Ass Loop) (tm)...
+    link_vroom(pRoomIndex);
 
 //	sprintf(buf, "create_vroom: %ld %ld %ld", pWilds->uid, pRoomIndex->x, pRoomIndex->y);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
@@ -307,7 +307,7 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
 
 WILDS_VLINK *vroom_get_to_vlink(WILDS_DATA *pWilds, int x, int y, int door)
 {
-	WILDS_VLINK *pVLink;
+    WILDS_VLINK *pVLink;
 
     if (!pWilds)
     {
@@ -318,10 +318,10 @@ WILDS_VLINK *vroom_get_to_vlink(WILDS_DATA *pWilds, int x, int y, int door)
     for (pVLink = pWilds->pVLink; pVLink ; pVLink = pVLink->next)
     {
         if (pVLink->wildsorigin_x == x &&
-        	pVLink->wildsorigin_y == y &&
-        	pVLink->door == door &&
-        	IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS))
-        	return pVLink;
+            pVLink->wildsorigin_y == y &&
+            pVLink->door == door &&
+            IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS))
+            return pVLink;
     }
 
     return NULL;
@@ -331,7 +331,7 @@ WILDS_VLINK *vroom_get_to_vlink(WILDS_DATA *pWilds, int x, int y, int door)
 bool vroom_has_from_vlinks(ROOM_INDEX_DATA *pRoomIndex)
 {
     WILDS_DATA *pWilds;
-	WILDS_VLINK *pVLink;
+    WILDS_VLINK *pVLink;
 
     pWilds = pRoomIndex->wilds;
 
@@ -344,7 +344,7 @@ bool vroom_has_from_vlinks(ROOM_INDEX_DATA *pRoomIndex)
     for (pVLink = pWilds->pVLink; pVLink ; pVLink = pVLink->next)
     {
         if (pRoomIndex->x == pVLink->wildsorigin_x && pRoomIndex->y == pVLink->wildsorigin_y &&
-        	IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS))
+            IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS))
         {
             return true;
         }
@@ -352,7 +352,7 @@ bool vroom_has_from_vlinks(ROOM_INDEX_DATA *pRoomIndex)
 
 
 
-	return false;
+    return false;
 }
 
 void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
@@ -373,12 +373,12 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
         return;
     }
 
-	// A persistant or non-wilderness room
-	if( pRoomIndex->persist || !IS_SET(pRoomIndex->room_flag[1], ROOM_VIRTUAL_ROOM)) {
+    // A persistant or non-wilderness room
+    if( pRoomIndex->persist || !IS_SET(pRoomIndex->room_flag[1], ROOM_VIRTUAL_ROOM)) {
 //		sprintf(buf, "destroy_wilds_vroom: %ld %ld - persist %s, virtual room %s", pRoomIndex->x, pRoomIndex->y, (pRoomIndex->persist ? "YES" : "NO"), (IS_SET(pRoomIndex->room2_flags, ROOM_VIRTUAL_ROOM)?"YES":"NO"));
 //		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-		return;
-	}
+        return;
+    }
 
     pWilds = pRoomIndex->wilds;
 
@@ -390,7 +390,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
         return;
     }
 
-	// A wilds room that has a vlink from this room will stay
+    // A wilds room that has a vlink from this room will stay
 //	if( vroom_has_from_vlinks(pRoomIndex) ) {
 //		sprintf(buf, "destroy_wilds_vroom: %ld %ld %ld - has from vlinks", pWilds->uid, pRoomIndex->x, pRoomIndex->y);
 //		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
@@ -398,20 +398,20 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 //	}
 
     if( pRoomIndex->progs ) {
-		if( pRoomIndex->progs->script_ref > 0 ) {
-			pRoomIndex->progs->extract_when_done = true;
-			return;
-		}
-	}
-
-    for(clone = pRoomIndex->clone_rooms; clone; clone = next_clone) {
-	    next_clone = clone->next_clone;
-	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CLONE_EXTRACT, NULL);
-	    room_from_environment(clone);
+        if( pRoomIndex->progs->script_ref > 0 ) {
+            pRoomIndex->progs->extract_when_done = true;
+            return;
+        }
     }
 
-	list_remlink(pWilds->loaded_vrooms,pRoomIndex, false);
-	pWilds->loaded_rooms--;
+    for(clone = pRoomIndex->clone_rooms; clone; clone = next_clone) {
+        next_clone = clone->next_clone;
+        p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CLONE_EXTRACT, NULL);
+        room_from_environment(clone);
+    }
+
+    list_remlink(pWilds->loaded_vrooms,pRoomIndex, false);
+    pWilds->loaded_rooms--;
 
 //	sprintf(buf, "destroy_wilds_vroom: %ld %ld %ld - destroying room", pWilds->uid, pRoomIndex->x, pRoomIndex->y);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
@@ -450,7 +450,7 @@ OBJ_DATA *allocate_obj_matrix(int map_size_x, int map_size_y)
 
 void load_wilds( FILE *fp, AREA_DATA *pArea )
 {
-	LLIST_WILDS_DATA *data;
+    LLIST_WILDS_DATA *data;
     WILDS_DATA *pWilds, *pLastWilds;
     WILDS_VLINK *temp_pVLink;
     WILDS_TERRAIN *pTerrain;
@@ -489,11 +489,11 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     pWilds->staticmap = allocate_wildsmap(pWilds->map_size_x, pWilds->map_size_y);
                     pWilds->map = allocate_wildsmap(pWilds->map_size_x, pWilds->map_size_y);
 
-		// Instead of using the string space when this is going to be stored elsewhere... use freads
+        // Instead of using the string space when this is going to be stored elsewhere... use freads
                     for (y = 0, j = 0; y < pWilds->map_size_y; y++, j+= pWilds->map_size_x) {
-			    fread(pWilds->staticmap+j,1,pWilds->map_size_x,fp);
-			    fread_to_eol(fp);
-		    }
+                fread(pWilds->staticmap+j,1,pWilds->map_size_x,fp);
+                fread_to_eol(fp);
+            }
 
                 /* Vizz - map a copy of the staticmap to apply things like vlinks, flooding etc to */
                     memcpy(pWilds->map, pWilds->staticmap,pWilds->map_size_x*pWilds->map_size_y);
@@ -517,12 +517,12 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     }
 
                 }
-		else
+        else
                 if ( !str_cmp( word, "#-VMAP" ) )
                 {
-					;
+                    ;
                 }
-		else
+        else
                 if ( !str_cmp( word, "#-WILDS" ) )
                 {
                     if (pWilds->uid == 0)
@@ -530,25 +530,25 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                         plogf(LOG_INFO, "Wilds '%s' has no UID. Assigning next available one.",
                               pWilds->name);
                         pWilds->uid = ++gconfig.next_wilds_uid;
-			gconfig_write();
+            gconfig_write();
                     }
 
-					if( (data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) {
-						data->wilds = pWilds;
-						data->uid = pWilds->uid;
+                    if( (data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) {
+                        data->wilds = pWilds;
+                        data->uid = pWilds->uid;
 
-						list_appendlink(loaded_wilds, data);
-					}
+                        list_appendlink(loaded_wilds, data);
+                    }
 
                     return;
                 }
-		else
-		if ( !str_cmp( word, "#TERRAIN" ) )
-		{
+        else
+        if ( !str_cmp( word, "#TERRAIN" ) )
+        {
                     pTerrain = fread_terrain( fp, pWilds );
                     add_terrain (pWilds, pTerrain);
                 }
-		else
+        else
                 if ( !str_cmp( word, "#VLINK" ) )
                 {
                     temp_pVLink = fread_vlink(fp);
@@ -598,14 +598,14 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
 // Looks for a loaded-up vroom matching the coordinates specified
 ROOM_INDEX_DATA *get_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
 {
-	ITERATOR it;
+    ITERATOR it;
     ROOM_INDEX_DATA *pVroom = NULL;
 
-	iterator_start(&it, pWilds->loaded_vrooms);
-	while(( pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while(( pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
         if (pVroom->x == x && pVroom->y == y)
-        	break;
-	iterator_stop(&it);
+            break;
+    iterator_stop(&it);
 
     return pVroom;
 }
@@ -717,7 +717,7 @@ WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
         return(NULL);
     }
 
-	j = pWilds->staticmap[(y * pWilds->map_size_x) + x];
+    j = pWilds->staticmap[(y * pWilds->map_size_x) + x];
 
     for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
     {
@@ -778,14 +778,14 @@ WILDS_VLINK *fread_vlink(FILE *fp)
         {
             case '#':
                 if (!str_cmp(word, "#-VLINK")) {
-			if(!pVLink->uid) {
-				pwarnf(LOG_INFO, "Vlink (%ld, %ld) has no UID. Assigning next available one.",
-				      pVLink->wildsorigin_x, pVLink->wildsorigin_y);
-				pVLink->uid = ++gconfig.next_vlink_uid;
-				gconfig_write();
-			}
+            if(!pVLink->uid) {
+                pwarnf(LOG_INFO, "Vlink (%ld, %ld) has no UID. Assigning next available one.",
+                      pVLink->wildsorigin_x, pVLink->wildsorigin_y);
+                pVLink->uid = ++gconfig.next_vlink_uid;
+                gconfig_write();
+            }
                     return (pVLink);
-	        }
+            }
 
             break;
 
@@ -1032,31 +1032,31 @@ void fwrite_terrain (FILE *fp, WILDS_TERRAIN *pTerrain)
 
 void link_vroom(ROOM_INDEX_DATA *pWildsRoom)
 {
-	EXIT_DATA *pexit;
-	int door;
-	long dest_x;
-	long dest_y;
+    EXIT_DATA *pexit;
+    int door;
+    long dest_x;
+    long dest_y;
 
-	if(check_for_bad_room(pWildsRoom->wilds,pWildsRoom->x,pWildsRoom->y)) {
-		for(door = 0; door < MAX_DIR; door++) if(!pWildsRoom->exit[door]) {
-			dest_x = pWildsRoom->x + dir_offsets[door][0];
-			dest_y = pWildsRoom->y + dir_offsets[door][1];
+    if(check_for_bad_room(pWildsRoom->wilds,pWildsRoom->x,pWildsRoom->y)) {
+        for(door = 0; door < MAX_DIR; door++) if(!pWildsRoom->exit[door]) {
+            dest_x = pWildsRoom->x + dir_offsets[door][0];
+            dest_y = pWildsRoom->y + dir_offsets[door][1];
 
-			if((dest_x == pWildsRoom->x && dest_y == pWildsRoom->y) || dest_x < 0 || dest_x >= pWildsRoom->wilds->map_size_x ||
-				dest_y < 0 || dest_y >= pWildsRoom->wilds->map_size_y ||
-				!check_for_bad_room(pWildsRoom->wilds,dest_x,dest_y)) continue;
+            if((dest_x == pWildsRoom->x && dest_y == pWildsRoom->y) || dest_x < 0 || dest_x >= pWildsRoom->wilds->map_size_x ||
+                dest_y < 0 || dest_y >= pWildsRoom->wilds->map_size_y ||
+                !check_for_bad_room(pWildsRoom->wilds,dest_x,dest_y)) continue;
 
-			pexit                   = new_exit();
-			pexit->u1.vnum          = 0;
-			pexit->orig_door        = door;
-			pexit->from_room	= pWildsRoom;
-			pexit->wilds.x          = dest_x;
-			pexit->wilds.y          = dest_y;
-			pexit->wilds.area_uid   = pWildsRoom->wilds->pArea->uid;
-			pexit->wilds.wilds_uid  = pWildsRoom->wilds->uid;
-			pWildsRoom->exit[door]  = pexit;
-		}
-	}
+            pexit                   = new_exit();
+            pexit->u1.vnum          = 0;
+            pexit->orig_door        = door;
+            pexit->from_room	= pWildsRoom;
+            pexit->wilds.x          = dest_x;
+            pexit->wilds.y          = dest_y;
+            pexit->wilds.area_uid   = pWildsRoom->wilds->pArea->uid;
+            pexit->wilds.wilds_uid  = pWildsRoom->wilds->uid;
+            pWildsRoom->exit[door]  = pexit;
+        }
+    }
 }
 
 bool link_vlink(WILDS_VLINK *pVLink)
@@ -1093,45 +1093,45 @@ bool link_vlink(WILDS_VLINK *pVLink)
         pWilds->map[(portal_y * pWilds->map_size_x)+ portal_x] = '0';
 
 
-	if (IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) {
-		// if the wilds room happens to be loaded up
-		if (pWildsRoom) {
-			if (!(pExit = pWildsRoom->exit[pVLink->door])) {
-				pExit = new_exit ();
-			} else if(!IS_SET(pExit->exit_info,EX_VLINK)) {
-				if(pExit->long_desc) { free_string(pExit->long_desc); pExit->long_desc=NULL; }
-				if(pExit->short_desc) { free_string(pExit->short_desc); pExit->short_desc=NULL; }
-				if(pExit->keyword) { free_string(pExit->keyword); pExit->keyword=NULL; }
-			} else {
-				pwarnf(LOG_WARN, "Wilds-side vlink exit already exists.");
-				return (false);
-			}
+    if (IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) {
+        // if the wilds room happens to be loaded up
+        if (pWildsRoom) {
+            if (!(pExit = pWildsRoom->exit[pVLink->door])) {
+                pExit = new_exit ();
+            } else if(!IS_SET(pExit->exit_info,EX_VLINK)) {
+                if(pExit->long_desc) { free_string(pExit->long_desc); pExit->long_desc=NULL; }
+                if(pExit->short_desc) { free_string(pExit->short_desc); pExit->short_desc=NULL; }
+                if(pExit->keyword) { free_string(pExit->keyword); pExit->keyword=NULL; }
+            } else {
+                pwarnf(LOG_WARN, "Wilds-side vlink exit already exists.");
+                return (false);
+            }
 
-			found = true;
-			pExit->short_desc = str_dup("");
-			pExit->long_desc = str_dup(pVLink->orig_description);
-			pExit->keyword = str_dup(pVLink->orig_keyword);
-			pExit->rs_flags = pVLink->orig_rs_flags | EX_VLINK;
-			pExit->exit_info = pExit->rs_flags;
-			pExit->door.rs_lock.key_vnum = pVLink->orig_key;
-			pExit->door.rs_lock.flags = pVLink->orig_lock;
-			pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
-			pExit->door.lock = pExit->door.rs_lock;
-			pExit->u1.vnum = pVLink->destvnum;
-			AREA_DATA *dest_area = find_area_by_vnum(pExit->u1.vnum);
-			if (!dest_area) dest_area = get_system_area_fallback();
-			pExit->u1.to_room = get_room_index(dest_area, pExit->u1.vnum);
-			pExit->orig_door = pVLink->door;    /* OLC */
-			pExit->wilds.x = 0;
-			pExit->wilds.y = 0;
-			pExit->wilds.area_uid = 0;
-			pExit->wilds.wilds_uid = 0;
+            found = true;
+            pExit->short_desc = str_dup("");
+            pExit->long_desc = str_dup(pVLink->orig_description);
+            pExit->keyword = str_dup(pVLink->orig_keyword);
+            pExit->rs_flags = pVLink->orig_rs_flags | EX_VLINK;
+            pExit->exit_info = pExit->rs_flags;
+            pExit->door.rs_lock.key_vnum = pVLink->orig_key;
+            pExit->door.rs_lock.flags = pVLink->orig_lock;
+            pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
+            pExit->door.lock = pExit->door.rs_lock;
+            pExit->u1.vnum = pVLink->destvnum;
+            AREA_DATA *dest_area = find_area_by_vnum(pExit->u1.vnum);
+            if (!dest_area) dest_area = get_system_area_fallback();
+            pExit->u1.to_room = get_room_index(dest_area, pExit->u1.vnum);
+            pExit->orig_door = pVLink->door;    /* OLC */
+            pExit->wilds.x = 0;
+            pExit->wilds.y = 0;
+            pExit->wilds.area_uid = 0;
+            pExit->wilds.wilds_uid = 0;
 
-			pWildsRoom->exit[pVLink->door] = pExit;
-			pExit->from_room = pWildsRoom;
-			SET_BIT(pVLink->current_linkage, VLINK_FROM_WILDS);
-		}
-	}
+            pWildsRoom->exit[pVLink->door] = pExit;
+            pExit->from_room = pWildsRoom;
+            SET_BIT(pVLink->current_linkage, VLINK_FROM_WILDS);
+        }
+    }
 
     if (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS))
     {
@@ -1140,42 +1140,42 @@ bool link_vlink(WILDS_VLINK *pVLink)
         if (!rev_area) rev_area = get_system_area_fallback();
         if ((pRevRoom=get_room_index(rev_area, pVLink->destvnum))!=NULL)
         {
-			if( IS_SET(pRevRoom->room_flag[1], ROOM_BLUEPRINT) ||
-				IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
-			{
-				plogf(LOG_INFO, "Room involved in blueprints.");
-			}
-			else
-			{
-				rev = rev_dir[pVLink->door];
+            if( IS_SET(pRevRoom->room_flag[1], ROOM_BLUEPRINT) ||
+                IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
+            {
+                plogf(LOG_INFO, "Room involved in blueprints.");
+            }
+            else
+            {
+                rev = rev_dir[pVLink->door];
 
-				if (pRevRoom->exit[rev]==NULL)
-				{
-					found = true;
-					pExit = new_exit ();
-					pExit->long_desc = str_dup(pVLink->rev_description);
-					pExit->keyword = str_dup(pVLink->rev_keyword);
-					pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
-					pExit->exit_info = pExit->rs_flags;
-					pExit->door.rs_lock.key_vnum = pVLink->rev_key;
-					pExit->door.rs_lock.flags = pVLink->rev_lock;
-					pExit->door.rs_lock.pick_chance = pVLink->rev_pick;
-					pExit->door.lock = pExit->door.rs_lock;
-					pExit->u1.vnum = 0;
-					pExit->u1.to_room = NULL;
-					pExit->wilds.x = pVLink->wildsorigin_x;
-					pExit->wilds.y = pVLink->wildsorigin_y;
-					pExit->wilds.area_uid = pVLink->pWilds->pArea->uid;
-					pExit->wilds.wilds_uid = pVLink->pWilds->uid;
-					pExit->orig_door = rev;    /* OLC */
+                if (pRevRoom->exit[rev]==NULL)
+                {
+                    found = true;
+                    pExit = new_exit ();
+                    pExit->long_desc = str_dup(pVLink->rev_description);
+                    pExit->keyword = str_dup(pVLink->rev_keyword);
+                    pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
+                    pExit->exit_info = pExit->rs_flags;
+                    pExit->door.rs_lock.key_vnum = pVLink->rev_key;
+                    pExit->door.rs_lock.flags = pVLink->rev_lock;
+                    pExit->door.rs_lock.pick_chance = pVLink->rev_pick;
+                    pExit->door.lock = pExit->door.rs_lock;
+                    pExit->u1.vnum = 0;
+                    pExit->u1.to_room = NULL;
+                    pExit->wilds.x = pVLink->wildsorigin_x;
+                    pExit->wilds.y = pVLink->wildsorigin_y;
+                    pExit->wilds.area_uid = pVLink->pWilds->pArea->uid;
+                    pExit->wilds.wilds_uid = pVLink->pWilds->uid;
+                    pExit->orig_door = rev;    /* OLC */
 
-					pRevRoom->exit[rev] = pExit;
-					pExit->from_room = pRevRoom;
-					SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
-				}
-				else
-					return (false);
-			}
+                    pRevRoom->exit[rev] = pExit;
+                    pExit->from_room = pRevRoom;
+                    SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
+                }
+                else
+                    return (false);
+            }
         }
         else
         {
@@ -1216,14 +1216,14 @@ bool unlink_vlink(WILDS_VLINK *pVLink)
     pWilds = pVLink->pWilds;
 
 portal_x = get_wilds_vroom_x_by_dir(pWilds,
-				    pVLink->wildsorigin_x,
-				    pVLink->wildsorigin_y,
-				    pVLink->door);
+                    pVLink->wildsorigin_x,
+                    pVLink->wildsorigin_y,
+                    pVLink->door);
 
 portal_y = get_wilds_vroom_y_by_dir(pWilds,
-				    pVLink->wildsorigin_x,
-				    pVLink->wildsorigin_y,
-				    pVLink->door);
+                    pVLink->wildsorigin_x,
+                    pVLink->wildsorigin_y,
+                    pVLink->door);
 
 /* Remove the vlink entrance from the wildsmap, restoring the original terrain tile */
 pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
@@ -1238,16 +1238,16 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
         {
             if ((pExit = pWildsRoom->exit[pVLink->door]) != NULL)
             {
-		    pWildsRoom->exit[pVLink->door] = NULL;
+            pWildsRoom->exit[pVLink->door] = NULL;
                 free_exit(pExit);
                 found = true;
-		link_vroom(pWildsRoom);
+        link_vroom(pWildsRoom);
             }
             else
                 pwarnf(LOG_WARN, "wilds side of vlink - exit missing!");
         }
-	/* Mark vlink as unlinked in from_wilds direction */
-	REMOVE_BIT(pVLink->current_linkage, VLINK_FROM_WILDS);
+    /* Mark vlink as unlinked in from_wilds direction */
+    REMOVE_BIT(pVLink->current_linkage, VLINK_FROM_WILDS);
     }
 
     if (IS_SET(pVLink->current_linkage, VLINK_TO_WILDS))
@@ -1260,14 +1260,14 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
             rev = rev_dir[pVLink->door];
             if ((pExit = pRevRoom->exit[rev]) != NULL)
             {
-		    pRevRoom->exit[rev] = NULL;
+            pRevRoom->exit[rev] = NULL;
                 free_exit(pExit);
                 found = true;
             }
             else
                 pwarnf(LOG_WARN, "reverse side of vlink - exit missing!");
         }
-	REMOVE_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
+    REMOVE_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
     }
 
     if (found)
@@ -1281,29 +1281,29 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
 
 WILDS_VLINK *find_vlink_to_coord(WILDS_DATA *pWilds, int x, int y)
 {
-	WILDS_VLINK *pVLink;
+    WILDS_VLINK *pVLink;
 
-	for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next) {
-		if((x == get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door)) &&
-			(y == get_wilds_vroom_y_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door)))
-			break;
-	}
+    for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next) {
+        if((x == get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door)) &&
+            (y == get_wilds_vroom_y_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door)))
+            break;
+    }
 
-	return pVLink;
+    return pVLink;
 }
 
 WILDS_VLINK *find_vlink_from_coord(WILDS_DATA *pWilds, int x, int y, int door)
 {
-	WILDS_VLINK *pVLink;
+    WILDS_VLINK *pVLink;
 
-	for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next) {
-		if(pVLink->wildsorigin_x == x &&
-			pVLink->wildsorigin_y == y &&
-			pVLink->door == door)
-			return pVLink;
-	}
+    for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next) {
+        if(pVLink->wildsorigin_x == x &&
+            pVLink->wildsorigin_y == y &&
+            pVLink->door == door)
+            return pVLink;
+    }
 
-	return NULL;
+    return NULL;
 }
 
 const char *vroom_dir_opened[] = {"{YN","{YE{b\n\r","{YS{b","{YW{B<{b-","{YU{b-{B({WA{B){b-","{YD{b-{B>{b","    {YNE{x\n\r","{YNW{b    ","    {YSE{x\n\r","{YSW{b    "};
@@ -1311,129 +1311,129 @@ const char *vroom_dir_closed[] = {"{b-","-\n\r","-{b","-{B<{b-","--{B({WA{B){b-"
 
 void vroom_show_valid_door(CHAR_DATA *ch, WILDS_DATA *pWilds, int wx, int wy, int door)
 {
-	WILDS_VLINK *vlink = find_vlink_from_coord(pWilds, wx, wy, door);
+    WILDS_VLINK *vlink = find_vlink_from_coord(pWilds, wx, wy, door);
 
-	if(vlink == NULL) {
-		int to_x;
-		int to_y;
+    if(vlink == NULL) {
+        int to_x;
+        int to_y;
 
-		if( door == DIR_UP || door == DIR_DOWN) {
-			send_to_char(vroom_dir_closed[door], ch);
-			return;
-		}
+        if( door == DIR_UP || door == DIR_DOWN) {
+            send_to_char(vroom_dir_closed[door], ch);
+            return;
+        }
 
-		to_x = get_wilds_vroom_x_by_dir(pWilds, wx, wy, door);
-		to_y = get_wilds_vroom_y_by_dir(pWilds, wx, wy, door);
+        to_x = get_wilds_vroom_x_by_dir(pWilds, wx, wy, door);
+        to_y = get_wilds_vroom_y_by_dir(pWilds, wx, wy, door);
 
-		if(!check_for_bad_room(pWilds, to_x, to_y)) {
-			send_to_char(vroom_dir_closed[door], ch);
-			return;
-		}
-	}
+        if(!check_for_bad_room(pWilds, to_x, to_y)) {
+            send_to_char(vroom_dir_closed[door], ch);
+            return;
+        }
+    }
 
-	send_to_char(vroom_dir_opened[door], ch);
+    send_to_char(vroom_dir_opened[door], ch);
 }
 
 void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int wx, int wy, CHAR_DATA *to)
 {
-	char buf[MAX_STRING_LENGTH];
-	int linelength = 0;
-	int count;
+    char buf[MAX_STRING_LENGTH];
+    int linelength = 0;
+    int count;
 
-	if (IS_IMMORTAL(to) && (IS_NPC(to) || IS_SET(to->act[0], PLR_HOLYLIGHT))) {
-		sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%d, %d) ]{x",
-			pWilds->pArea->anum, pWilds->pArea->name,
-			pWilds->uid, pWilds->name,
-			wx, wy);
+    if (IS_IMMORTAL(to) && (IS_NPC(to) || IS_SET(to->act[0], PLR_HOLYLIGHT))) {
+        sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%d, %d) ]{x",
+            pWilds->pArea->anum, pWilds->pArea->name,
+            pWilds->uid, pWilds->name,
+            wx, wy);
 
-		send_to_char(buf, to);
-	}
+        send_to_char(buf, to);
+    }
 
-	linelength = strlen(pTerrain->template->name);
-	linelength = 50 - linelength;
+    linelength = strlen(pTerrain->template->name);
+    linelength = 50 - linelength;
 
-	if (IS_SET(pTerrain->template->room_flag[0], ROOM_SAFE))
-		sprintf(buf, "\n\r {W%s", pTerrain->template->name);
-	else if (IS_SET(pTerrain->template->room_flag[0], ROOM_UNDERWATER))
-		sprintf(buf, "\n\r {C%s", pTerrain->template->name);
-	else
-		sprintf(buf, "\n\r {Y%s", pTerrain->template->name);
+    if (IS_SET(pTerrain->template->room_flag[0], ROOM_SAFE))
+        sprintf(buf, "\n\r {W%s", pTerrain->template->name);
+    else if (IS_SET(pTerrain->template->room_flag[0], ROOM_UNDERWATER))
+        sprintf(buf, "\n\r {C%s", pTerrain->template->name);
+    else
+        sprintf(buf, "\n\r {Y%s", pTerrain->template->name);
 
-	send_to_char(buf, to);
+    send_to_char(buf, to);
 
-	if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK) && IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
-		sprintf(buf, "  {M[CNPK ROOM]");
-		send_to_char(buf, to);
-		linelength -= 13;
-	} else if (IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
-		sprintf(buf, "  {M[CPK ROOM]");
-		send_to_char(buf, to);
-		linelength -= 12;
-	} else if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK)) {
-		sprintf(buf, "  {R[NPK ROOM]");
-		send_to_char(buf, to);
-		linelength -= 12;
-	}
+    if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK) && IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
+        sprintf(buf, "  {M[CNPK ROOM]");
+        send_to_char(buf, to);
+        linelength -= 13;
+    } else if (IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
+        sprintf(buf, "  {M[CPK ROOM]");
+        send_to_char(buf, to);
+        linelength -= 12;
+    } else if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK)) {
+        sprintf(buf, "  {R[NPK ROOM]");
+        send_to_char(buf, to);
+        linelength -= 12;
+    }
 
-	if (IS_SET(pTerrain->template->room_flag[1], ROOM_MULTIPLAY)) {
-		sprintf(buf, "  {W[FREE FOR ALL]");
-		send_to_char(buf, to);
-		linelength -= 16;
-	}
+    if (IS_SET(pTerrain->template->room_flag[1], ROOM_MULTIPLAY)) {
+        sprintf(buf, "  {W[FREE FOR ALL]");
+        send_to_char(buf, to);
+        linelength -= 16;
+    }
 
-	if (IS_SET(pTerrain->template->room_flag[0], ROOM_HOUSE_UNSOLD)) {
-		sprintf(buf, "  {R[PRIME REAL ESTATE]");
-		send_to_char(buf, to);
-		linelength -= 21;
-	}
+    if (IS_SET(pTerrain->template->room_flag[0], ROOM_HOUSE_UNSOLD)) {
+        sprintf(buf, "  {R[PRIME REAL ESTATE]");
+        send_to_char(buf, to);
+        linelength -= 21;
+    }
 
-	for (count = 0; count < linelength; count++)
-		send_to_char(" ", to);
+    for (count = 0; count < linelength; count++)
+        send_to_char(" ", to);
 
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_NORTHWEST);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_NORTH);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_NORTHEAST);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_NORTHWEST);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_NORTH);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_NORTHEAST);
 
-	send_to_char ("{B({b-----------------------------------------------{B){b  ", to);
+    send_to_char ("{B({b-----------------------------------------------{B){b  ", to);
 
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_WEST);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_UP);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_DOWN);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_EAST);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_WEST);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_UP);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_DOWN);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_EAST);
 
 
-	for (count = 0; count < 51; count++)
-		send_to_char(" ", to);
+    for (count = 0; count < 51; count++)
+        send_to_char(" ", to);
 
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_SOUTHWEST);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_SOUTH);
-	vroom_show_valid_door(to, pWilds, wx, wy, DIR_SOUTHEAST);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_SOUTHWEST);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_SOUTH);
+    vroom_show_valid_door(to, pWilds, wx, wy, DIR_SOUTHEAST);
 
-	send_to_char("\n\r", to);
+    send_to_char("\n\r", to);
 
 
 }
 
 bool is_wilds_coords(WILDS_COORD *coord, WILDS_DATA *wilds, int x, int y)
 {
-	if( !coord ) return false;
+    if( !coord ) return false;
 
-	if( coord->wilds != wilds ) return false;
+    if( coord->wilds != wilds ) return false;
 
-	if( coord->x != x ) return false;
+    if( coord->x != x ) return false;
 
-	if( coord->y != y ) return false;
+    if( coord->y != y ) return false;
 
-	return true;
+    return true;
 }
 
 static void set_map_tile(char **map, int x, int y, char color, char tile)
 {
-	// WARNING: NO SANITY CHECKS ARE MADE IN HERE FOR COORDINATES
-	char *mp = &map[y][2 * x];
+    // WARNING: NO SANITY CHECKS ARE MADE IN HERE FOR COORDINATES
+    char *mp = &map[y][2 * x];
 
-	mp[0] = color;
-	mp[1] = tile;
+    mp[0] = color;
+    mp[1] = tile;
 }
 
 void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
@@ -1441,574 +1441,574 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
                       int vx,
                       int vy,
                       int bonus_view_x,
-				      int bonus_view_y,
+                      int bonus_view_y,
                       bool olc)
 {
-	WILDS_TERRAIN *pTerrain;
-	WILDS_VLINK *pVLink;
-	int x, y;
-	long index;
-	DESCRIPTOR_DATA * d;
-	bool foundterrain = false;
-	char j[6];
-	char last_terrain[6];
-	char temp[6];
-	int squares_to_show_x;
-	int squares_to_show_y;
-	char last_colour_char;
-	char buf[MSL];
-	char padding1[MIL];
-	char padding2[MIL];
-	char tlcoor[MIL];
-	char trcoor[MIL];
-	char blcoor[MIL];
-	char brcoor[MIL];
-	int vp_startx, vp_starty, vp_endx, vp_endy;
-	int i, pad;
-	ITERATOR it;
-	SHIP_DATA *ship;
-	extern	LLIST *loaded_ships;
+    WILDS_TERRAIN *pTerrain;
+    WILDS_VLINK *pVLink;
+    int x, y;
+    long index;
+    DESCRIPTOR_DATA * d;
+    bool foundterrain = false;
+    char j[6];
+    char last_terrain[6];
+    char temp[6];
+    int squares_to_show_x;
+    int squares_to_show_y;
+    char last_colour_char;
+    char buf[MSL];
+    char padding1[MIL];
+    char padding2[MIL];
+    char tlcoor[MIL];
+    char trcoor[MIL];
+    char blcoor[MIL];
+    char brcoor[MIL];
+    int vp_startx, vp_starty, vp_endx, vp_endy;
+    int i, pad;
+    ITERATOR it;
+    SHIP_DATA *ship;
+    extern	LLIST *loaded_ships;
 
 
-	BUFFER *output = new_buf();
-	add_buf(output, "\n\r");
+    BUFFER *output = new_buf();
+    add_buf(output, "\n\r");
 
-	squares_to_show_x = get_squares_to_show_x(bonus_view_x);
-	squares_to_show_y = get_squares_to_show_y(bonus_view_y);
-	last_colour_char = ' ';
+    squares_to_show_x = get_squares_to_show_x(bonus_view_x);
+    squares_to_show_y = get_squares_to_show_y(bonus_view_y);
+    last_colour_char = ' ';
 
-	vp_startx = wx - squares_to_show_x;
-	vp_endx   = wx + squares_to_show_x;
-	vp_starty = wy - squares_to_show_y;
-	vp_endy   = wy + squares_to_show_y;
+    vp_startx = wx - squares_to_show_x;
+    vp_endx   = wx + squares_to_show_x;
+    vp_starty = wy - squares_to_show_y;
+    vp_endy   = wy + squares_to_show_y;
 
-	if (olc)
-	{
-		if (vp_startx < 0)
-		{
-			vp_startx = 0;
-			vp_endx   = (squares_to_show_x * 2);
-		}
-		else if (vp_startx > pWilds->map_size_x)
-		{
-			vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
-			vp_endx   = pWilds->map_size_x;
-		}
+    if (olc)
+    {
+        if (vp_startx < 0)
+        {
+            vp_startx = 0;
+            vp_endx   = (squares_to_show_x * 2);
+        }
+        else if (vp_startx > pWilds->map_size_x)
+        {
+            vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
+            vp_endx   = pWilds->map_size_x;
+        }
 
-		if (vp_starty < 0)
-		{
-			vp_starty = 0;
-			vp_endy   = (squares_to_show_y * 2);
-		}
-		else if (vp_startx > pWilds->map_size_x)
-		{
-			vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
-			vp_endx   = pWilds->map_size_x;
-		}
+        if (vp_starty < 0)
+        {
+            vp_starty = 0;
+            vp_endy   = (squares_to_show_y * 2);
+        }
+        else if (vp_startx > pWilds->map_size_x)
+        {
+            vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
+            vp_endx   = pWilds->map_size_x;
+        }
 
-		add_buf(output, "View Window                      Edit Window\n\r");
+        add_buf(output, "View Window                      Edit Window\n\r");
 
-		sprintf(tlcoor, "(%d, %d)", vp_startx, vp_starty);
-		sprintf(trcoor, "(%d, %d)", vp_endx, vp_starty);
-		pad = squares_to_show_x * 2 + 7;
+        sprintf(tlcoor, "(%d, %d)", vp_startx, vp_starty);
+        sprintf(trcoor, "(%d, %d)", vp_endx, vp_starty);
+        pad = squares_to_show_x * 2 + 7;
 
-		for( i=0; i < pad ; i++ )
-		{
-		   padding1[i] = ' ';
-		}
+        for( i=0; i < pad ; i++ )
+        {
+           padding1[i] = ' ';
+        }
 
-		padding1[i] = 0;
-		pad = ((squares_to_show_x * 2) - strlen(tlcoor)) - strlen(trcoor);
+        padding1[i] = 0;
+        pad = ((squares_to_show_x * 2) - strlen(tlcoor)) - strlen(trcoor);
 
-		for( i=0; i < pad ; i++ )
-		{
-		   padding2[i] = ' ';
-		}
+        for( i=0; i < pad ; i++ )
+        {
+           padding2[i] = ' ';
+        }
 
-		padding2[i] = 0;
-		sprintf(buf, "%s%s%s%s\n\r", padding1, tlcoor, padding2, trcoor);
-		add_buf(output, buf);
-	}
+        padding2[i] = 0;
+        sprintf(buf, "%s%s%s%s\n\r", padding1, tlcoor, padding2, trcoor);
+        add_buf(output, buf);
+    }
 
-	const int cols = 2 * squares_to_show_x + 1;
-	const int rows = 2 * squares_to_show_y + 1;
-	const int col_size = 2;	// XY -> X color code, Y tile
-	const int row_size = (col_size * cols);
+    const int cols = 2 * squares_to_show_x + 1;
+    const int rows = 2 * squares_to_show_y + 1;
+    const int col_size = 2;	// XY -> X color code, Y tile
+    const int row_size = (col_size * cols);
 
-	char **map_str = malloc(rows * sizeof(char *));
-	for( int r = 0; r < rows; r++)
-		map_str[r] = malloc(row_size);
+    char **map_str = malloc(rows * sizeof(char *));
+    for( int r = 0; r < rows; r++)
+        map_str[r] = malloc(row_size);
 
-	char **olc_str = NULL;
+    char **olc_str = NULL;
 
-	if( olc )
-	{
-		olc_str = malloc(rows * sizeof(char *));
-		for( int r = 0; r < rows; r++)
-			olc_str[r] = malloc(cols + 1);
-	}
+    if( olc )
+    {
+        olc_str = malloc(rows * sizeof(char *));
+        for( int r = 0; r < rows; r++)
+            olc_str[r] = malloc(cols + 1);
+    }
 
-	// Create map data
-	for (y = vp_starty;y <= vp_endy;y++)
-	{
-		char *mp = map_str[y - vp_starty];
-		char *op = NULL;
+    // Create map data
+    for (y = vp_starty;y <= vp_endy;y++)
+    {
+        char *mp = map_str[y - vp_starty];
+        char *op = NULL;
 
-		if( olc ) op = olc_str[y - vp_starty];
+        if( olc ) op = olc_str[y - vp_starty];
 
-		for (x = vp_startx;x <= vp_endx;x++)
-		{
-			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
-			{
-				index = y * pWilds->map_size_x + x;
-				sprintf(j, "%c",pWilds->map[index]);
-				if (!str_cmp(j, last_terrain))
-				{
-					sprintf(temp, last_terrain);
-				}
-				else
-				{
-					/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
-					foundterrain = false;
-					for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
-					{
-						if (pWilds->map[index] == pTerrain->mapchar)
-						{
-							sprintf(temp, pTerrain->showchar);
-							sprintf(last_terrain, temp);
-							foundterrain = true;
-						}
+        for (x = vp_startx;x <= vp_endx;x++)
+        {
+            if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
+            {
+                index = y * pWilds->map_size_x + x;
+                sprintf(j, "%c",pWilds->map[index]);
+                if (!str_cmp(j, last_terrain))
+                {
+                    sprintf(temp, last_terrain);
+                }
+                else
+                {
+                    /* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
+                    foundterrain = false;
+                    for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
+                    {
+                        if (pWilds->map[index] == pTerrain->mapchar)
+                        {
+                            sprintf(temp, pTerrain->showchar);
+                            sprintf(last_terrain, temp);
+                            foundterrain = true;
+                        }
 
-					}
+                    }
 
-					if (!foundterrain)
-					{
-						/* Vizz - highlight vlink entrances */
-						if (!strcmp(j, "0"))
-							sprintf(temp, "{YO");
-						else
-							/* Vizz - allow for non-terrain defined characters - display verbatim */
-							sprintf(temp, j);
-					}
-				}
+                    if (!foundterrain)
+                    {
+                        /* Vizz - highlight vlink entrances */
+                        if (!strcmp(j, "0"))
+                            sprintf(temp, "{YO");
+                        else
+                            /* Vizz - allow for non-terrain defined characters - display verbatim */
+                            sprintf(temp, j);
+                    }
+                }
 
-				*mp++ = temp[1];
-				*mp++ = temp[2];
+                *mp++ = temp[1];
+                *mp++ = temp[2];
 
-				if( olc )
-				{
-					*op++ = j[0];
-				}
-			}
-			else
-			{
-				if (!olc)
-				{
-					*mp++ = 'x';
-					if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
-					{
-						*mp++ = '.';
-					}
-					else
-					{
-						*mp++ = ' ';
-					}
-				}
-				else
-				{
-					*mp++ = 'x';
-					*mp++ = ' ';
-					*op++ = ' ';
-				}
-			}
-		}
+                if( olc )
+                {
+                    *op++ = j[0];
+                }
+            }
+            else
+            {
+                if (!olc)
+                {
+                    *mp++ = 'x';
+                    if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+                    {
+                        *mp++ = '.';
+                    }
+                    else
+                    {
+                        *mp++ = ' ';
+                    }
+                }
+                else
+                {
+                    *mp++ = 'x';
+                    *mp++ = ' ';
+                    *op++ = ' ';
+                }
+            }
+        }
 
-		if( olc )
-			*op = '\0';
-	}
+        if( olc )
+            *op = '\0';
+    }
 
-	///////////////////////////////////////
-	// Put various markers
+    ///////////////////////////////////////
+    // Put various markers
 
 
-	// Vlinks
-	for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next)
-	{
-		int vx = get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
-		int vy = get_wilds_vroom_y_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
+    // Vlinks
+    for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next)
+    {
+        int vx = get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
+        int vy = get_wilds_vroom_y_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
 
-		if( (vx >= vp_startx && vx <= vp_endx) &&
-			(vy >= vp_starty && vy <= vp_endy) )
-		{
-			set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVLink->map_tile[1], pVLink->map_tile[2]);
-		}
-	}
+        if( (vx >= vp_startx && vx <= vp_endx) &&
+            (vy >= vp_starty && vy <= vp_endy) )
+        {
+            set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVLink->map_tile[1], pVLink->map_tile[2]);
+        }
+    }
 
-	// Objects and Mobiles
+    // Objects and Mobiles
     ROOM_INDEX_DATA *pVroom;
-	iterator_start(&it, pWilds->loaded_vrooms);
-	while(( pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
-	{
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while(( pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+    {
 
         if ((pVroom->x >= vp_startx && pVroom->x <= vp_endx) &&
-        	(pVroom->y >= vp_starty && pVroom->y <= vp_endy))
+            (pVroom->y >= vp_starty && pVroom->y <= vp_endy))
         {
-			bool found = false;
-			for(CHAR_DATA *mob = pVroom->people; mob; mob = mob->next_in_room)
-			{
-				if( IS_NPC(mob) && IS_SET(mob->act[1], ACT2_SHOW_IN_WILDS) )
-				{
-					found = true;
-					break;
-				}
-			}
+            bool found = false;
+            for(CHAR_DATA *mob = pVroom->people; mob; mob = mob->next_in_room)
+            {
+                if( IS_NPC(mob) && IS_SET(mob->act[1], ACT2_SHOW_IN_WILDS) )
+                {
+                    found = true;
+                    break;
+                }
+            }
 
-			if( found )
-			{
-				set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '@');
-				continue;
-			}
+            if( found )
+            {
+                set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '@');
+                continue;
+            }
 
 
-			for(OBJ_DATA *obj = pVroom->contents; obj; obj = obj->next_content)
-			{
-				if( IS_SET(obj->extra[2], ITEM_SHOW_IN_WILDS))
-				{
-					found = true;
-					break;
-				}
-			}
+            for(OBJ_DATA *obj = pVroom->contents; obj; obj = obj->next_content)
+            {
+                if( IS_SET(obj->extra[2], ITEM_SHOW_IN_WILDS))
+                {
+                    found = true;
+                    break;
+                }
+            }
 
-			if( found )
-			{
-				set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '*');
-			}
-		}
-	}
-	iterator_stop(&it);
+            if( found )
+            {
+                set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '*');
+            }
+        }
+    }
+    iterator_stop(&it);
 
-	// Players
-	for (d = descriptor_list; d != NULL;d = d->next)
-	{
-		if (d->connected == CON_PLAYING && d->character != to &&
-			can_see(to, d->character) &&
-			(d->character->in_room->wilds == pWilds ||
-				(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room_flag[1],ROOM_VISIBLE_ON_MAP))) &&
-			(d->character->in_room->x >= vp_startx && d->character->in_room->x <= vp_endx) &&
-			(d->character->in_room->y >= vp_starty && d->character->in_room->y <= vp_endy))
-		{
-			set_map_tile(map_str, d->character->in_room->x - vp_startx, d->character->in_room->y - vp_starty, 'W', '@');
-		}
-	}
+    // Players
+    for (d = descriptor_list; d != NULL;d = d->next)
+    {
+        if (d->connected == CON_PLAYING && d->character != to &&
+            can_see(to, d->character) &&
+            (d->character->in_room->wilds == pWilds ||
+                (d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room_flag[1],ROOM_VISIBLE_ON_MAP))) &&
+            (d->character->in_room->x >= vp_startx && d->character->in_room->x <= vp_endx) &&
+            (d->character->in_room->y >= vp_starty && d->character->in_room->y <= vp_endy))
+        {
+            set_map_tile(map_str, d->character->in_room->x - vp_startx, d->character->in_room->y - vp_starty, 'W', '@');
+        }
+    }
 
-	// Ships
+    // Ships
     
-	iterator_start(&it, loaded_ships);
-	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
-	{
-		// Skip ships without a valid room (can happen if ship failed to load properly)
-		if (!ship->ship || !ship->ship->in_room)
-			continue;
+    iterator_start(&it, loaded_ships);
+    while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+    {
+        // Skip ships without a valid room (can happen if ship failed to load properly)
+        if (!ship->ship || !ship->ship->in_room)
+            continue;
 
-		if( ship->ship->in_room->wilds == pWilds &&
-			(ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_endx) &&
-			(ship->ship->in_room->y >= vp_starty && ship->ship->in_room->y <= vp_endy) )
-		{
-			get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
+        if( ship->ship->in_room->wilds == pWilds &&
+            (ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_endx) &&
+            (ship->ship->in_room->y >= vp_starty && ship->ship->in_room->y <= vp_endy) )
+        {
+            get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
 
-			set_map_tile(map_str, ship->ship->in_room->x - vp_startx, ship->ship->in_room->y - vp_starty, temp[1], temp[2]);
-		}
+            set_map_tile(map_str, ship->ship->in_room->x - vp_startx, ship->ship->in_room->y - vp_starty, temp[1], temp[2]);
+        }
 
-		for( int i = 0; i < 3; i++ )
-		{
-			WILDS_COORD wc = ship->last_coords[i];
+        for( int i = 0; i < 3; i++ )
+        {
+            WILDS_COORD wc = ship->last_coords[i];
 
-			if( wc.wilds == pWilds &&
-				(wc.x >= vp_startx && wc.x <= vp_endx) &&
-				(wc.y >= vp_starty && wc.y <= vp_endy))
-			{
-				set_map_tile(map_str, wc.x - vp_startx, wc.y - vp_starty, 'C', '~');
-			}
-		}
-	}
-	iterator_stop(&it);
+            if( wc.wilds == pWilds &&
+                (wc.x >= vp_startx && wc.x <= vp_endx) &&
+                (wc.y >= vp_starty && wc.y <= vp_endy))
+            {
+                set_map_tile(map_str, wc.x - vp_startx, wc.y - vp_starty, 'C', '~');
+            }
+        }
+    }
+    iterator_stop(&it);
 
-	// Viewer
-	if( (vx >= vp_startx && vx <= vp_endx) &&
-		(vy >= vp_starty && vy <= vp_endy) )
-	{
-		set_map_tile(map_str, vx - vp_startx, vy - vp_starty, 'M', '@');
-	}
+    // Viewer
+    if( (vx >= vp_startx && vx <= vp_endx) &&
+        (vy >= vp_starty && vy <= vp_endy) )
+    {
+        set_map_tile(map_str, vx - vp_startx, vy - vp_starty, 'M', '@');
+    }
 
-	last_colour_char = ' ';
-	for (y = 0; y < rows; y++)
-	{
-		char *mp = map_str[y];
+    last_colour_char = ' ';
+    for (y = 0; y < rows; y++)
+    {
+        char *mp = map_str[y];
 
-		for(x = 0; x < cols; x++, mp += col_size)
-		{
-			char color = mp[0];
-			char tile = mp[1];
+        for(x = 0; x < cols; x++, mp += col_size)
+        {
+            char color = mp[0];
+            char tile = mp[1];
 
-			if( color != last_colour_char )
-			{
-				temp[0] = '{';
-				temp[1] = color;
-				temp[2] = tile;
-				temp[3] = '\0';
-				last_colour_char = color;
-			}
-			else
-			{
-				temp[0] = tile;
-				temp[1] = '\0';
-			}
+            if( color != last_colour_char )
+            {
+                temp[0] = '{';
+                temp[1] = color;
+                temp[2] = tile;
+                temp[3] = '\0';
+                last_colour_char = color;
+            }
+            else
+            {
+                temp[0] = tile;
+                temp[1] = '\0';
+            }
 
-			add_buf(output, temp);
-		}
+            add_buf(output, temp);
+        }
 
-		if(olc)
-		{
-			add_buf(output, "       {x");
-			add_buf(output, olc_str[y]);
-			last_colour_char = ' ';
-		}
+        if(olc)
+        {
+            add_buf(output, "       {x");
+            add_buf(output, olc_str[y]);
+            last_colour_char = ' ';
+        }
 
-		add_buf(output, "\n\r");
-	}
+        add_buf(output, "\n\r");
+    }
 
-	if (olc)
-	{
-		sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
-		sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
+    if (olc)
+    {
+        sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
+        sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
 
-		pad = squares_to_show_x * 2 + 7;
-		for( i=0; i < pad ; i++ )
-		   padding1[i] = ' ';
-		padding1[i] = 0;
+        pad = squares_to_show_x * 2 + 7;
+        for( i=0; i < pad ; i++ )
+           padding1[i] = ' ';
+        padding1[i] = 0;
 
-		pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
-		for( i=0; i < pad ; i++ )
-		   padding2[i] = ' ';
-		padding2[i] = 0;
+        pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
+        for( i=0; i < pad ; i++ )
+           padding2[i] = ' ';
+        padding2[i] = 0;
 
-		sprintf(buf, "{x%s%s%s%s\n\r", padding1, blcoor, padding2, brcoor);
-		add_buf(output, buf);
-	}
+        sprintf(buf, "{x%s%s%s%s\n\r", padding1, blcoor, padding2, brcoor);
+        add_buf(output, buf);
+    }
 
-	add_buf(output, "{x");
+    add_buf(output, "{x");
 
-	send_to_char(output->string, to);
+    send_to_char(output->string, to);
 
 #if 0
-	for (y = vp_starty;y <= vp_endy;y++)
-	{
-		cString = 0;
-		for (x = vp_startx;x <= vp_endx;x++, mp+=col_size)
-		{
-			found = false;
+    for (y = vp_starty;y <= vp_endy;y++)
+    {
+        cString = 0;
+        for (x = vp_startx;x <= vp_endx;x++, mp+=col_size)
+        {
+            found = false;
 
-			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
-			{
-				if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0])
-				{
-					strcpy(temp,pVLink->map_tile);
-					found = true;
-				}
+            if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
+            {
+                if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0])
+                {
+                    strcpy(temp,pVLink->map_tile);
+                    found = true;
+                }
 
-				for (d = descriptor_list; d != NULL;d = d->next)
-				{
-					if (d->connected == CON_PLAYING && d->character != to &&
-						can_see(to, d->character) &&
-						(d->character->in_room->wilds == pWilds ||
-							(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
-						d->character->in_room->x == x &&
-						d->character->in_room->y == y)
-					{
-						sprintf(temp, "{W@");
-						found = true;
-					}
-				}
+                for (d = descriptor_list; d != NULL;d = d->next)
+                {
+                    if (d->connected == CON_PLAYING && d->character != to &&
+                        can_see(to, d->character) &&
+                        (d->character->in_room->wilds == pWilds ||
+                            (d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
+                        d->character->in_room->x == x &&
+                        d->character->in_room->y == y)
+                    {
+                        sprintf(temp, "{W@");
+                        found = true;
+                    }
+                }
 
-				iterator_start(&it, loaded_ships);
-				while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
-				{
-					if( ship->ship->in_room->wilds == pWilds &&
-						ship->ship->in_room->x == x &&
-						ship->ship->in_room->y == y )
-					{
-						get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
-						found = true;
-					}
-					else if(is_wilds_coords(&ship->last_coords[0], pWilds, x, y) ||
-						is_wilds_coords(&ship->last_coords[1], pWilds, x, y) ||
-						is_wilds_coords(&ship->last_coords[2], pWilds, x, y) )
-					{
-						sprintf(temp, "{C~");
-						found = true;
-					}
+                iterator_start(&it, loaded_ships);
+                while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+                {
+                    if( ship->ship->in_room->wilds == pWilds &&
+                        ship->ship->in_room->x == x &&
+                        ship->ship->in_room->y == y )
+                    {
+                        get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
+                        found = true;
+                    }
+                    else if(is_wilds_coords(&ship->last_coords[0], pWilds, x, y) ||
+                        is_wilds_coords(&ship->last_coords[1], pWilds, x, y) ||
+                        is_wilds_coords(&ship->last_coords[2], pWilds, x, y) )
+                    {
+                        sprintf(temp, "{C~");
+                        found = true;
+                    }
 
-				}
-				iterator_stop(&it);
+                }
+                iterator_stop(&it);
 
-				if ((vx == x) && (vy == y))
-				{
-					sprintf(temp, "{M@");
-					found = true;
-				}
+                if ((vx == x) && (vy == y))
+                {
+                    sprintf(temp, "{M@");
+                    found = true;
+                }
 
 
-				if (!found)
-				{
-					sprintf(j, "%c",pWilds->map[index]);
-					if (!str_cmp(j, last_terrain))
-					{
-						sprintf(temp, last_terrain);
-					}
-					else
-					{
-						/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
-						foundterrain = false;
-						for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
-						{
-							if (pWilds->map[index] == pTerrain->mapchar)
-							{
-								sprintf(temp, pTerrain->showchar);
-								sprintf(last_terrain, temp);
-								foundterrain = true;
-							}
+                if (!found)
+                {
+                    sprintf(j, "%c",pWilds->map[index]);
+                    if (!str_cmp(j, last_terrain))
+                    {
+                        sprintf(temp, last_terrain);
+                    }
+                    else
+                    {
+                        /* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
+                        foundterrain = false;
+                        for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
+                        {
+                            if (pWilds->map[index] == pTerrain->mapchar)
+                            {
+                                sprintf(temp, pTerrain->showchar);
+                                sprintf(last_terrain, temp);
+                                foundterrain = true;
+                            }
 
-						}
+                        }
 
-						if (!foundterrain)
-						{
-							/* Vizz - highlight vlink entrances */
-							if (!strcmp(j, "0"))
-								sprintf(temp, "{YO");
-							else
-								/* Vizz - allow for non-terrain defined characters - display verbatim */
-								sprintf(temp, j);
-						}
-					}
-				}
+                        if (!foundterrain)
+                        {
+                            /* Vizz - highlight vlink entrances */
+                            if (!strcmp(j, "0"))
+                                sprintf(temp, "{YO");
+                            else
+                                /* Vizz - allow for non-terrain defined characters - display verbatim */
+                                sprintf(temp, j);
+                        }
+                    }
+                }
 
-				if (last_char_same && (temp[2] != last_char || temp[1] != last_colour_char))
-				{
-					last_char_same = false;
-				}
+                if (last_char_same && (temp[2] != last_char || temp[1] != last_colour_char))
+                {
+                    last_char_same = false;
+                }
 
-				if (temp[2] == last_char && temp[1] == last_colour_char)
-				{
-					 last_char_same = true;
-				}
+                if (temp[2] == last_char && temp[1] == last_colour_char)
+                {
+                     last_char_same = true;
+                }
 
-				if (last_char_same)
-				{
-					 sprintf(temp, "%c", temp[2]);
-				}
+                if (last_char_same)
+                {
+                     sprintf(temp, "%c", temp[2]);
+                }
 
-				send_to_char(temp, to);
+                send_to_char(temp, to);
 
-				if (olc)
-				{
-					edit_mapstring[cString] = j[0];
-					cString++;
-				}
+                if (olc)
+                {
+                    edit_mapstring[cString] = j[0];
+                    cString++;
+                }
 
-				if (last_char_same)
-				{
-					last_char = temp[0];
-				}
-				else
-				{
-					last_char = temp[2];
-					last_colour_char = temp[1];
-				}
-			}
-			else
-			{
-				/* If we're displaying outside the map bounds, fill in with starfield */
-				if (!olc)
-				{
-					if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
-					{
-						last_char = '.'; last_colour_char = 'x';
-						send_to_char("{x.", to);
-					}
-					else
-						send_to_char(" ", to);
-				}
-				else
-				{
-					send_to_char(" ", to);
-				}
-				edit_mapstring[cString] = ' ';
-				cString++;
-			}
-		}
+                if (last_char_same)
+                {
+                    last_char = temp[0];
+                }
+                else
+                {
+                    last_char = temp[2];
+                    last_colour_char = temp[1];
+                }
+            }
+            else
+            {
+                /* If we're displaying outside the map bounds, fill in with starfield */
+                if (!olc)
+                {
+                    if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+                    {
+                        last_char = '.'; last_colour_char = 'x';
+                        send_to_char("{x.", to);
+                    }
+                    else
+                        send_to_char(" ", to);
+                }
+                else
+                {
+                    send_to_char(" ", to);
+                }
+                edit_mapstring[cString] = ' ';
+                cString++;
+            }
+        }
 
-		if (olc)
-		{
-			edit_mapstring[cString] = '\0';
-			sprintf(buf, "       {x%s{%c", edit_mapstring, last_colour_char);
-			send_to_char(buf, to);
-		}
-		send_to_char("\n\r", to);
-	}
+        if (olc)
+        {
+            edit_mapstring[cString] = '\0';
+            sprintf(buf, "       {x%s{%c", edit_mapstring, last_colour_char);
+            send_to_char(buf, to);
+        }
+        send_to_char("\n\r", to);
+    }
 
-	if (olc)
-	{
-		sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
-		sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
-		pad = squares_to_show_x * 2 + 7;
+    if (olc)
+    {
+        sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
+        sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
+        pad = squares_to_show_x * 2 + 7;
 
-		for( i=0; i < pad ; i++ )
-		{
-		   padding1[i] = ' ';
-		}
+        for( i=0; i < pad ; i++ )
+        {
+           padding1[i] = ' ';
+        }
 
-		padding1[i] = 0;
-		pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
+        padding1[i] = 0;
+        pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
 
-		for( i=0; i < pad ; i++ )
-		{
-		   padding2[i] = ' ';
-		}
+        for( i=0; i < pad ; i++ )
+        {
+           padding2[i] = ' ';
+        }
 
-		padding2[i] = 0;
-		sprintf(buf, "{x%s%s%s%s\n\r",
-				padding1, blcoor, padding2, brcoor);
-		send_to_char(buf, to);
-	}
+        padding2[i] = 0;
+        sprintf(buf, "{x%s%s%s%s\n\r",
+                padding1, blcoor, padding2, brcoor);
+        send_to_char(buf, to);
+    }
 
-	send_to_char("{x", to);
+    send_to_char("{x", to);
 #endif
 
-	free_buf(output);
+    free_buf(output);
 
-	if( map_str )
-	{
-		for( int r = 0; r < rows; r++ )
-		{
-			if( map_str[r] )
-				free(map_str[r]);
-		}
+    if( map_str )
+    {
+        for( int r = 0; r < rows; r++ )
+        {
+            if( map_str[r] )
+                free(map_str[r]);
+        }
 
-		free(map_str);
-	}
+        free(map_str);
+    }
 
-	if( olc_str )
-	{
-		for( int r = 0; r < rows; r++ )
-		{
-			if( olc_str[r] )
-				free(olc_str[r]);
-		}
+    if( olc_str )
+    {
+        for( int r = 0; r < rows; r++ )
+        {
+            if( olc_str[r] )
+                free(olc_str[r]);
+        }
 
-		free(olc_str);
-	}
+        free(olc_str);
+    }
 
-	return;
+    return;
 }
 
 void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonus_view_y, bool olc)
@@ -2019,16 +2019,16 @@ void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonu
         pWilds = ch->desc->pEdit;
     } else {
         pWilds = ch->in_wilds;
-	}
+    }
 
-	show_map_to_char_wyx(pWilds, ch->in_room->x, ch->in_room->y, to, ch->in_room->x, ch->in_room->y, bonus_view_x, bonus_view_y, olc);
+    show_map_to_char_wyx(pWilds, ch->in_room->x, ch->in_room->y, to, ch->in_room->x, ch->in_room->y, bonus_view_x, bonus_view_y, olc);
 }
 
 void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
-						int wx, int wy,
-						int vx, int vy,
-						int bonus_view_x, int bonus_view_y,
-						char *marker)
+                        int wx, int wy,
+                        int vx, int vy,
+                        int bonus_view_x, int bonus_view_y,
+                        char *marker)
 {
     WILDS_TERRAIN *pTerrain;
     WILDS_VLINK *pVLink;
@@ -2058,7 +2058,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     vp_endy   = wy + squares_to_show_y;
 
     if( IS_NULLSTR(marker) )
-    	marker = "{RX{x";
+        marker = "{RX{x";
 
     for (y = vp_starty;y <= vp_endy;y++)
     {
@@ -2070,10 +2070,10 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
             if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
             {
-				if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
-					strcpy(temp,pVLink->map_tile);
-					found = true;
-				}
+                if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
+                    strcpy(temp,pVLink->map_tile);
+                    found = true;
+                }
 
                 if ((vx == x) && (vy == y))
                 {
@@ -2130,7 +2130,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
                      sprintf(temp, "%c", temp[2]);
                 }
 
-				add_buf(buffer, temp);
+                add_buf(buffer, temp);
 
                 if (last_char_same)
                 {
@@ -2145,16 +2145,16 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
             else
             {
                 /* If we're displaying outside the map bounds, fill in with starfield */
-				if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
-				{
-					last_char = '.'; last_colour_char = 'x';
-					add_buf(buffer, "{x.");
-				}
-				else
-					add_buf(buffer, " ");
+                if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+                {
+                    last_char = '.'; last_colour_char = 'x';
+                    add_buf(buffer, "{x.");
+                }
+                else
+                    add_buf(buffer, " ");
             }
         }
-		add_buf(buffer, "\n\r");
+        add_buf(buffer, "\n\r");
     }
     return;
 }
@@ -2164,7 +2164,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 void show_map_to_char(CHAR_DATA * ch,
                       CHAR_DATA * to,
                       int bonus_view_x,
-		      int bonus_view_y,
+              int bonus_view_y,
                       bool olc)
 {
     WILDS_DATA *pWilds;
@@ -2279,10 +2279,10 @@ void show_map_to_char(CHAR_DATA * ch,
                 && y < pWilds->map_size_y)
             {
 
-		if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
-			strcpy(temp,pVLink->map_tile);
-			found = true;
-		}
+        if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
+            strcpy(temp,pVLink->map_tile);
+            found = true;
+        }
 
                 if (ch->in_room->x == x
                     && ch->in_room->y == y)
@@ -2294,11 +2294,11 @@ void show_map_to_char(CHAR_DATA * ch,
                 for (d = descriptor_list; d != NULL;d = d->next)
                 {
                     if (d->connected == CON_PLAYING && d->character != ch &&
-                    	can_see(ch, d->character) &&
-                    	(d->character->in_room->wilds == pWilds ||
-                    		(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
-                    	d->character->in_room->x == x &&
-                    	d->character->in_room->y == y)
+                        can_see(ch, d->character) &&
+                        (d->character->in_room->wilds == pWilds ||
+                            (d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
+                        d->character->in_room->x == x &&
+                        d->character->in_room->y == y)
                     {
                         sprintf(temp, "{W@{x");
                         found = true;
@@ -2458,7 +2458,7 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
 
         for (y = 0, j = 0; y < pWilds->map_size_y; y++, j+=pWilds->map_size_x)
         {
-	    fwrite(pWilds->staticmap+j,pWilds->map_size_x,1,fp);
+        fwrite(pWilds->staticmap+j,pWilds->map_size_x,1,fp);
 
             if (y < (pWilds->map_size_y - 1))
                 fprintf(fp, "\n");
@@ -2494,14 +2494,14 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
 
     if( is_number(argument) )
     {
-		pWilds = get_wilds_from_uid(NULL, atol(argument));
-		if( !pWilds )
-		{
-			send_to_char("Vlinks: That is not a wilds region.\n\r", ch);
-			return;
-		}
-	}
-	else if (!ch->in_wilds)
+        pWilds = get_wilds_from_uid(NULL, atol(argument));
+        if( !pWilds )
+        {
+            send_to_char("Vlinks: That is not a wilds region.\n\r", ch);
+            return;
+        }
+    }
+    else if (!ch->in_wilds)
     {
         pbugf(LOG_ERROR, "%s: ch->in_wilds invalid.", ch->name  ? ch->name : "unknown");
         send_to_char("Vlinks: You don't appear to be in a wilds region.\n\r", ch);
@@ -2525,14 +2525,14 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
                            dir_name[pVLink->door],
                            pVLink->destvnum,
                            (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) &&
-			    IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) ? "two-way" :
-			        IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) ? "to wilds" :
-			            IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS) ? "from wilds" :
+                IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) ? "two-way" :
+                    IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) ? "to wilds" :
+                        IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS) ? "from wilds" :
                                         "not set",
                            (IS_SET(pVLink->current_linkage, VLINK_TO_WILDS) &&
-			    IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS)) ? "two-way" :
-			        IS_SET(pVLink->current_linkage, VLINK_TO_WILDS) ? "to wilds" :
-			            IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS) ? "from wilds" :
+                IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS)) ? "two-way" :
+                    IS_SET(pVLink->current_linkage, VLINK_TO_WILDS) ? "to wilds" :
+                        IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS) ? "from wilds" :
                                         "not set");
             add_buf(buffer, buf);
         }
@@ -2585,8 +2585,8 @@ WILDS_DATA *new_wilds (void)
     pWilds->pVLink = NULL;
 //    pWilds->char_matrix = NULL;
 //    pWilds->obj_matrix = NULL;
-	pWilds->loaded_rooms = 0;
-	pWilds->loaded_vrooms = list_create(false);
+    pWilds->loaded_rooms = 0;
+    pWilds->loaded_vrooms = list_create(false);
     VALIDATE (pWilds);
 
     return pWilds;
@@ -2650,7 +2650,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     {
         pbugf(LOG_ERROR, "pWilds is NULL.");
 
-	// No wilds pointer, so send the char to the default room.
+    // No wilds pointer, so send the char to the default room.
         long default_vnum = get_reserved_vnum("room_default");
         AREA_DATA *default_area = find_area_by_vnum(default_vnum);
         if (!default_area) default_area = get_system_area_fallback();
@@ -2660,32 +2660,32 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
             return;
         }
 
-	// Just in case...
+    // Just in case...
         pbugf(LOG_ERROR, "Default room could not be found!");
         return;
     }
 
-	// Dude... mounts? :P
+    // Dude... mounts? :P
     if (MOUNTED(ch) && MOUNTED(ch)->in_room == ch->in_room
     && MOUNTED(ch)->in_room == NULL)
-	char_to_vroom(MOUNTED(ch), pWilds, x, y);
+    char_to_vroom(MOUNTED(ch), pWilds, x, y);
 
 
     ch->in_wilds = pWilds;
     ch->at_wilds_x = x;
     ch->at_wilds_y = y;
 
-	// Check if there's a loaded vroom for them, or load one up.
-	if(!(room = get_wilds_vroom(pWilds, x, y)))
-	    room = create_wilds_vroom(pWilds, x, y);
+    // Check if there's a loaded vroom for them, or load one up.
+    if(!(room = get_wilds_vroom(pWilds, x, y)))
+        room = create_wilds_vroom(pWilds, x, y);
 
-	ch->in_room = room;
-	ch->next_in_room = room->people;
+    ch->in_room = room;
+    ch->next_in_room = room->people;
 
-	list_addlink(room->lpeople, ch);
-	list_addlink(room->lentity, ch);
+    list_addlink(room->lpeople, ch);
+    list_addlink(room->lentity, ch);
 
-	room->people = ch;
+    room->people = ch;
 
     // Is the character a player?
     if (!IS_NPC (ch))
@@ -2737,9 +2737,9 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         if (af->level == 1)
             return;
 
-		plague.slot	= WEAR_NONE;
+        plague.slot	= WEAR_NONE;
         plague.where = TO_AFFECTS;
-		plague.custom_name = NULL;
+        plague.custom_name = NULL;
         plague.group = af->group;
         plague.type = gsn_plague;
         plague.level = af->level - 1;
@@ -2782,9 +2782,9 @@ void add_vlink (WILDS_DATA *pWilds, WILDS_VLINK *pVLink)
         abort();
     }
 
-	pVLink->pWilds = pWilds;
-	pVLink->next = pWilds->pVLink;
-	pWilds->pVLink = pVLink;
+    pVLink->pWilds = pWilds;
+    pVLink->next = pWilds->pVLink;
+    pWilds->pVLink = pVLink;
 
     return;
 }
@@ -2967,11 +2967,11 @@ void link_vlinks (WILDS_DATA *pWilds)
         }
 
         if (IS_SET(pRevLinkRoomIndex->room_flag[1], ROOM_BLUEPRINT) ||
-        	IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
+            IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
         {
             plogf(LOG_INFO, "destvnum %ld involved in blueprints.", pVLink->destvnum);
             continue;
-		}
+        }
 
         if (IS_SET(pVLink->default_linkage, (VLINK_FROM_WILDS|VLINK_TO_WILDS)))
         {
@@ -2979,20 +2979,20 @@ void link_vlinks (WILDS_DATA *pWilds)
                 && pVLink->wildsorigin_x < pWilds->map_size_x
                 && pVLink->wildsorigin_y < pWilds->map_size_y)
             {
-				if (link_vlink(pVLink))
-					plogf(LOG_INFO, "VLink %s from (%d, %d) to %ld Linked Successfully.",
-						dir_name[pVLink->door],
-						pVLink->wildsorigin_x,
-						pVLink->wildsorigin_y,
-						pVLink->destvnum);
-				else
-					perrf(LOG_ERROR, "VLink failed.");
-				continue;
+                if (link_vlink(pVLink))
+                    plogf(LOG_INFO, "VLink %s from (%d, %d) to %ld Linked Successfully.",
+                        dir_name[pVLink->door],
+                        pVLink->wildsorigin_x,
+                        pVLink->wildsorigin_y,
+                        pVLink->destvnum);
+                else
+                    perrf(LOG_ERROR, "VLink failed.");
+                continue;
             }
             else
                 perrf(LOG_ERROR, "VLink failed - coordinates are invalid.");
 
-			continue;
+            continue;
         }
     } /* end for */
 
@@ -3070,140 +3070,140 @@ WILDS_VLINK *get_vlink_from_uid (WILDS_DATA *pWilds, long uid)
 
 WILDS_VLINK *get_vlink_from_index (WILDS_DATA *pWilds, long index)
 {
-	WILDS_VLINK *pVLink;
-	long idx;
+    WILDS_VLINK *pVLink;
+    long idx;
 
-	if(!pWilds) return NULL;
+    if(!pWilds) return NULL;
 
-	for (idx = 0, pVLink = pWilds->pVLink; pVLink && idx < index; idx++, pVLink = pVLink->next);
+    for (idx = 0, pVLink = pWilds->pVLink; pVLink && idx < index; idx++, pVLink = pVLink->next);
 
-	return pVLink;
+    return pVLink;
 }
 
 CHAR_DATA *get_people_from_wilds(WILDS_DATA *pWilds, int x, int y)
 {
-	ROOM_INDEX_DATA *room;
-	register CHAR_DATA *people;
+    ROOM_INDEX_DATA *room;
+    register CHAR_DATA *people;
 
-	if ((room = get_wilds_vroom(pWilds, x, y)))
-		return room->people;
-	else {
-		for(people = pWilds->char_list; people; people = people->next_in_wilds) {
-			if(people->at_wilds_x == x && people->at_wilds_y == y) return people;
+    if ((room = get_wilds_vroom(pWilds, x, y)))
+        return room->people;
+    else {
+        for(people = pWilds->char_list; people; people = people->next_in_wilds) {
+            if(people->at_wilds_x == x && people->at_wilds_y == y) return people;
 
-			if(people->at_wilds_y > y || (people->at_wilds_y == y && people->at_wilds_x > x)) break;
-		}
-	}
+            if(people->at_wilds_y > y || (people->at_wilds_y == y && people->at_wilds_x > x)) break;
+        }
+    }
 
-	return NULL;
+    return NULL;
 }
 
 OBJ_DATA *get_contents_from_wilds(WILDS_DATA *pWilds, int x, int y)
 {
-	ROOM_INDEX_DATA *room;
-	register OBJ_DATA *obj;
+    ROOM_INDEX_DATA *room;
+    register OBJ_DATA *obj;
 
-	if ((room = get_wilds_vroom(pWilds, x, y)))
-		return room->contents;
-	else {
-		for(obj = pWilds->obj_list; obj; obj = obj->next_in_wilds) {
-			if(obj->x == x && obj->y == y) return obj;
+    if ((room = get_wilds_vroom(pWilds, x, y)))
+        return room->contents;
+    else {
+        for(obj = pWilds->obj_list; obj; obj = obj->next_in_wilds) {
+            if(obj->x == x && obj->y == y) return obj;
 
-			if(obj->y > y || (obj->y == y && obj->x > x)) break;
+            if(obj->y > y || (obj->y == y && obj->x > x)) break;
 
-		}
-	}
+        }
+    }
 
-	return NULL;
+    return NULL;
 }
 
 bool link_contents_wilds(WILDS_DATA *pWilds, int x, int y, OBJ_DATA *contents)
 {
-	register OBJ_DATA *prev, *obj;
+    register OBJ_DATA *prev, *obj;
 
-	if(!contents) return false;
+    if(!contents) return false;
 
-	for(prev = NULL, obj = pWilds->obj_list; obj; prev = obj, obj = obj->next_in_wilds) {
-		if(obj->x == x && obj->y == y) return false;
+    for(prev = NULL, obj = pWilds->obj_list; obj; prev = obj, obj = obj->next_in_wilds) {
+        if(obj->x == x && obj->y == y) return false;
 
-		if(obj->y > y || (obj->y == y && obj->x > x)) break;
-	}
+        if(obj->y > y || (obj->y == y && obj->x > x)) break;
+    }
 
-	if(prev) {
-		prev->next_in_wilds = contents;
-		contents->prev_in_wilds = prev;
-	} else if(pWilds->obj_list) {
-		pWilds->obj_list = contents;
-		contents->prev_in_wilds = NULL;
-	}
-	if(obj) {
-		obj->prev_in_wilds = contents;
-		contents->next_in_wilds = obj;
-	}
+    if(prev) {
+        prev->next_in_wilds = contents;
+        contents->prev_in_wilds = prev;
+    } else if(pWilds->obj_list) {
+        pWilds->obj_list = contents;
+        contents->prev_in_wilds = NULL;
+    }
+    if(obj) {
+        obj->prev_in_wilds = contents;
+        contents->next_in_wilds = obj;
+    }
 
-	return true;
+    return true;
 }
 
 OBJ_DATA *unlink_contents_wilds(WILDS_DATA *pWilds, int x, int y)
 {
-	register OBJ_DATA *obj;
+    register OBJ_DATA *obj;
 
-	for(obj = pWilds->obj_list; obj; obj = obj->next_in_wilds) {
-		if(obj->x == x && obj->y == y) {
-			// Change A->B->C to A->C
-			// or
-			// Change HEAD(B)->C to HEAD(C)
-			if(obj->prev_in_wilds)
-				obj->prev_in_wilds->next_in_wilds = obj->next_in_wilds;
-			else
-				pWilds->obj_list = obj->next_in_wilds;
+    for(obj = pWilds->obj_list; obj; obj = obj->next_in_wilds) {
+        if(obj->x == x && obj->y == y) {
+            // Change A->B->C to A->C
+            // or
+            // Change HEAD(B)->C to HEAD(C)
+            if(obj->prev_in_wilds)
+                obj->prev_in_wilds->next_in_wilds = obj->next_in_wilds;
+            else
+                pWilds->obj_list = obj->next_in_wilds;
 
-			// Change A<-B<-C to A<-C
-			// or
-			// nothing (B is the TAIL)
-			if(obj->next_in_wilds)
-				obj->next_in_wilds->prev_in_wilds = obj->prev_in_wilds;
+            // Change A<-B<-C to A<-C
+            // or
+            // nothing (B is the TAIL)
+            if(obj->next_in_wilds)
+                obj->next_in_wilds->prev_in_wilds = obj->prev_in_wilds;
 
-			obj->prev_in_wilds = obj->next_in_wilds = NULL;
-			return obj;
-		}
+            obj->prev_in_wilds = obj->next_in_wilds = NULL;
+            return obj;
+        }
 
-		if(obj->y > y || (obj->y == y && obj->x > x)) return NULL;
-	}
+        if(obj->y > y || (obj->y == y && obj->x > x)) return NULL;
+    }
 
-	return NULL;
+    return NULL;
 }
 
 // This will search the rooms
 ROOM_INDEX_DATA *wilds_seek_down(register WILDS_DATA *wilds, register int x, register int y, register int z, bool ground)
 {
-	register ROOM_INDEX_DATA *room, *highest = NULL, *vroom;
-	register int i;
+    register ROOM_INDEX_DATA *room, *highest = NULL, *vroom;
+    register int i;
 
-	for(i = 0; i < MAX_KEY_HASH; i++)
-		for(room = room_index_hash[i]; room; room = room->next) {
-			if((room->wilds == wilds || room->viewwilds == wilds) && room->x == x && room->y == y && room->z <= z) {
-				if(!highest || (room->z > highest->z)) highest = room;
-			}
-		}
+    for(i = 0; i < MAX_KEY_HASH; i++)
+        for(room = room_index_hash[i]; room; room = room->next) {
+            if((room->wilds == wilds || room->viewwilds == wilds) && room->x == x && room->y == y && room->z <= z) {
+                if(!highest || (room->z > highest->z)) highest = room;
+            }
+        }
 
-	// Limit the search to above ground...
-	if(ground) {
-		vroom = get_wilds_vroom(wilds, x, y);
-		if(!vroom) vroom = create_wilds_vroom(wilds, x, y);
+    // Limit the search to above ground...
+    if(ground) {
+        vroom = get_wilds_vroom(wilds, x, y);
+        if(!vroom) vroom = create_wilds_vroom(wilds, x, y);
 
-		if(highest->z < vroom->z)
-			highest = vroom;
-	}
+        if(highest->z < vroom->z)
+            highest = vroom;
+    }
 
-	return highest;
+    return highest;
 }
 
 void do_wlist(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     ITERATOR iter;
-	LLIST_WILDS_DATA *data;
+    LLIST_WILDS_DATA *data;
     WILDS_DATA *pWilds;
     BUFFER *buffer;
     //int place_type = 0;
@@ -3214,17 +3214,17 @@ void do_wlist(CHAR_DATA *ch, char *argument)
     add_buf(buffer, buf);
 
 
-	iterator_start(&iter, loaded_wilds);
-	while((data = (LLIST_WILDS_DATA *)iterator_nextdata(&iter)))
-	{
-		pWilds = data->wilds;
-		sprintf(buf,"[%7ld] [%-26.26s] [ %5d x %-5d ] %s\n\r", pWilds->uid,
-			(IS_NULLSTR(pWilds->name) ? "no name" : pWilds->name),
-			pWilds->map_size_x, pWilds->map_size_y,
-			((!IS_NULLSTR(pWilds->pArea->name)) ? pWilds->pArea->name : ""));
-		add_buf(buffer, buf);
-	}
-	iterator_stop(&iter);
+    iterator_start(&iter, loaded_wilds);
+    while((data = (LLIST_WILDS_DATA *)iterator_nextdata(&iter)))
+    {
+        pWilds = data->wilds;
+        sprintf(buf,"[%7ld] [%-26.26s] [ %5d x %-5d ] %s\n\r", pWilds->uid,
+            (IS_NULLSTR(pWilds->name) ? "no name" : pWilds->name),
+            pWilds->map_size_x, pWilds->map_size_y,
+            ((!IS_NULLSTR(pWilds->pArea->name)) ? pWilds->pArea->name : ""));
+        add_buf(buffer, buf);
+    }
+    iterator_stop(&iter);
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);

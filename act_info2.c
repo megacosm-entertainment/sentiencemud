@@ -28,17 +28,17 @@ void do_showdamage(CHAR_DATA *ch, char *argument)
 {
 #ifndef DEBUG_ALLOW_SHOW_DAMAGE
     if (!IS_IMMORTAL(ch) && !is_test_port) {
-	send_to_char("As a player, you may only see the damages of hits on the testport.\n\r", ch);
-	return;
+  send_to_char("As a player, you may only see the damages of hits on the testport.\n\r", ch);
+  return;
     }
 #endif
 
     if (IS_SET(ch->act[0], PLR_SHOWDAMAGE)) {
-		REMOVE_BIT(ch->act[0], PLR_SHOWDAMAGE);
-		send_to_char("You will no longer see the damages of hits.\n\r", ch);
+    REMOVE_BIT(ch->act[0], PLR_SHOWDAMAGE);
+    send_to_char("You will no longer see the damages of hits.\n\r", ch);
     } else {
-		SET_BIT(ch->act[0], PLR_SHOWDAMAGE);
-		send_to_char("You will now see the damages of hits.\n\r", ch);
+    SET_BIT(ch->act[0], PLR_SHOWDAMAGE);
+    send_to_char("You will now see the damages of hits.\n\r", ch);
     }
 }
 
@@ -46,30 +46,30 @@ void do_showdamage(CHAR_DATA *ch, char *argument)
 void do_autosurvey(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
-	return;
+  return;
 
     if (IS_SET(ch->act[1], PLR_AUTOSURVEY))
     {
-	REMOVE_BIT(ch->act[1], PLR_AUTOSURVEY);
-	send_to_char("You will no longer automatically survey on ships.\n\r", ch);
+  REMOVE_BIT(ch->act[1], PLR_AUTOSURVEY);
+  send_to_char("You will no longer automatically survey on ships.\n\r", ch);
     }
     else
     {
-	SET_BIT(ch->act[1], PLR_AUTOSURVEY);
-	send_to_char("You will now automatically survey on ships.\n\r", ch);
+  SET_BIT(ch->act[1], PLR_AUTOSURVEY);
+  send_to_char("You will now automatically survey on ships.\n\r", ch);
     }
 }
 
 void do_showversion(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH];
-	buf[0] = '\0';
+  char buf[MAX_STRING_LENGTH];
+  buf[0] = '\0';
 //	time_t  build_date;
 //	build_date = (time_t) &__BUILD_DATE;
 //	builddate = &__BUILD_DATE)
 //	sprintf(buf,"Build Date: %u\n\r",&build_date);
-	sprintf(buf,"Version: (\t<a href=\"%s\">%s\t</a>)\n\rCommit URL: %s\n\rBuild Date: %s\n\r", COMMIT, VERSION, COMMIT, BUILD_DATE);
-	send_to_char(buf,ch);
+  sprintf(buf,"Version: (\t<a href=\"%s\">%s\t</a>)\n\rCommit URL: %s\n\rBuild Date: %s\n\r", COMMIT, VERSION, COMMIT, BUILD_DATE);
+  send_to_char(buf,ch);
 
 }
 

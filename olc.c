@@ -28,55 +28,55 @@ AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 
 char *editor_name_table[] = {
-	" ",
-	"AEdit",
-	"REdit",
-	"OEdit",
-	"MEdit",
-	"MpEdit",
-	"OpEdit",
-	"RpEdit",
-	"ShEdit",
-	"HEdit",
-	"TpEdit",
-	"TEdit",
-	"PEdit",
-	"RSGEdit",
-	"WEdit",
-	"VLEdit",
-	"BSEdit",
-	"BPEdit",
-	"DNGEdit",
-	"ApEdit",
-	"IpEdit",
-	"DpEdit",
+    " ",
+    "AEdit",
+    "REdit",
+    "OEdit",
+    "MEdit",
+    "MpEdit",
+    "OpEdit",
+    "RpEdit",
+    "ShEdit",
+    "HEdit",
+    "TpEdit",
+    "TEdit",
+    "PEdit",
+    "RSGEdit",
+    "WEdit",
+    "VLEdit",
+    "BSEdit",
+    "BPEdit",
+    "DNGEdit",
+    "ApEdit",
+    "IpEdit",
+    "DpEdit",
     "CMDEdit",
 };
 
 int editor_max_tabs_table[] = {
-	0,		// -----
-	0,		// AEdit
-	0,		// REdit
-	0,		// OEdit
-	0,		// MEdit
-	0,		// MpEdit
-	0,		// OpEdit
-	0,		// RpEdit
-	0,		// ShEdit
-	0,		// HEdit
-	0,		// TpEdit
-	0,		// TEdit
-	0,		// PEdit
-	0,		// RSGEdit
-	0,		// WEdit
-	0,		// VLEdit
-	0,		// BSEdit
-	0,		// BPEdit
-	0,		// DNGEdit
-	0,		// ApEdit
-	0,		// IpEdit
-	0,		// DpEdit
-	0,		// CMDEdit
+    0,		// -----
+    0,		// AEdit
+    0,		// REdit
+    0,		// OEdit
+    0,		// MEdit
+    0,		// MpEdit
+    0,		// OpEdit
+    0,		// RpEdit
+    0,		// ShEdit
+    0,		// HEdit
+    0,		// TpEdit
+    0,		// TEdit
+    0,		// PEdit
+    0,		// RSGEdit
+    0,		// WEdit
+    0,		// VLEdit
+    0,		// BSEdit
+    0,		// BPEdit
+    0,		// DNGEdit
+    0,		// ApEdit
+    0,		// IpEdit
+    0,		// DpEdit
+    0,		// CMDEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -109,43 +109,43 @@ const struct editor_cmd_type editor_table[] =
 /* Interpreter Tables */
 const struct olc_cmd_type aedit_table[] =
 {
-	{	"?",			show_help			},
-	{	"addaprog",		aedit_addaprog		},
-	{	"addtrade",		aedit_add_trade 	},
-	{	"age",			aedit_age			},
-	{	"airshipland",	aedit_airshipland	},
-	{	"areawho",		aedit_areawho		},
-	{	"builder",		aedit_builder		},
-	{	"commands",		show_commands		},
-	{	"comments",		aedit_comments		},
-	{	"create",		aedit_create		},
-	{	"credits",		aedit_credits		},
-	{	"delaprog",		aedit_delaprog		},
-	{	"description",	aedit_desc			},
-	{	"filename",		aedit_file			},
-	{	"flags",		aedit_flags			},
-	{	"landx",		aedit_land_x		},
-	{	"landy",		aedit_land_y		},
+    {	"?",			show_help			},
+    {	"addaprog",		aedit_addaprog		},
+    {	"addtrade",		aedit_add_trade 	},
+    {	"age",			aedit_age			},
+    {	"airshipland",	aedit_airshipland	},
+    {	"areawho",		aedit_areawho		},
+    {	"builder",		aedit_builder		},
+    {	"commands",		show_commands		},
+    {	"comments",		aedit_comments		},
+    {	"create",		aedit_create		},
+    {	"credits",		aedit_credits		},
+    {	"delaprog",		aedit_delaprog		},
+    {	"description",	aedit_desc			},
+    {	"filename",		aedit_file			},
+    {	"flags",		aedit_flags			},
+    {	"landx",		aedit_land_x		},
+    {	"landy",		aedit_land_y		},
     {   "levels",       aedit_levels        },
-	{	"name",			aedit_name			},
+    {	"name",			aedit_name			},
     {   "notes",        aedit_notes         },
-	{	"open",			aedit_open			},
-	{	"placetype",    aedit_placetype		},
-	{	"postoffice",   aedit_postoffice	},
-	{	"recall",		aedit_recall		},
-	{	"removetrade",  aedit_remove_trade	},
-	{	"repop",		aedit_repop			},
-	{	"security",		aedit_security		},
-	{	"settrade",		aedit_set_trade		},
-	{	"show",			aedit_show			},
-	{	"varclear",		aedit_varclear		},
-	{	"varset",		aedit_varset		},
-	{	"viewtrade",	aedit_view_trade	},
-	{	"vnum",			aedit_vnum			},
-	{	"wilds",		aedit_wilds			},
-	{	"x",			aedit_x				},
-	{	"y",			aedit_y				},
-	{	NULL,			0,					}
+    {	"open",			aedit_open			},
+    {	"placetype",    aedit_placetype		},
+    {	"postoffice",   aedit_postoffice	},
+    {	"recall",		aedit_recall		},
+    {	"removetrade",  aedit_remove_trade	},
+    {	"repop",		aedit_repop			},
+    {	"security",		aedit_security		},
+    {	"settrade",		aedit_set_trade		},
+    {	"show",			aedit_show			},
+    {	"varclear",		aedit_varclear		},
+    {	"varset",		aedit_varset		},
+    {	"viewtrade",	aedit_view_trade	},
+    {	"vnum",			aedit_vnum			},
+    {	"wilds",		aedit_wilds			},
+    {	"x",			aedit_x				},
+    {	"y",			aedit_y				},
+    {	NULL,			0,					}
 };
 
 
@@ -196,60 +196,60 @@ const struct olc_cmd_type redit_table[] =
 
 const struct olc_cmd_type oedit_table[] =
 {
-	{ "?",				show_help				},
-	{ "addaffect",		oedit_addaffect			},
-	{ "addcatalyst",	oedit_addcatalyst		},
-	{ "addimmune",		oedit_addimmune			},
-	{ "addoprog",		oedit_addoprog			},
-	{ "addskill",		oedit_addskill			},
-	{ "addspell",		oedit_addspell			},
-	{ "allowedfixed",	oedit_allowed_fixed		},
-	{ "commands",		show_commands			},
-	{ "comments",		oedit_comments			},
-	{ "condition",		oedit_condition			},
-	{ "cost",			oedit_cost				},
-	{ "create",			oedit_create			},
-	{ "delaffect",		oedit_delaffect			},
-	{ "delcatalyst",	oedit_delcatalyst		},
-	{ "delimmune",		oedit_delimmune			},
-	{ "deloprog",		oedit_deloprog			},
-	{ "delspell",		oedit_delspell			},
-	{ "description",	oedit_desc				},
-	{ "ed",				oedit_ed				},
-	{ "extra",			oedit_extra				},
-	//{ "extra2",			oedit_extra2			},
-	//{ "extra3",			oedit_extra3			},
-	//{ "extra4",			oedit_extra4			},
-	{ "fragility",		oedit_fragility			},
-	{ "level",			oedit_level				},
-	{ "lock",			oedit_lock				},
-	{ "long",			oedit_long				},
-	{ "material",		oedit_material			},
-	{ "name",			oedit_name				},
-	{ "next",			oedit_next				},
-	//{ "oupdate",		oedit_update			},
-	{ "persist",		oedit_persist			},
-	{ "prev",			oedit_prev				},
-	{ "scriptkwd",		oedit_skeywds			},
-	{ "short",			oedit_short				},
-	{ "show",			oedit_show				},
-	{ "sign",			oedit_sign				},
-	{ "timer",			oedit_timer				},
-	{ "type",			oedit_type				},
-	{ "v0",				oedit_value0			},
-	{ "v1",				oedit_value1			},
-	{ "v2",				oedit_value2			},
-	{ "v3",				oedit_value3			},
-	{ "v4",				oedit_value4			},
-	{ "v5",				oedit_value5			},
-	{ "v6",				oedit_value6			},
-	{ "v7",				oedit_value7			},
-	{ "varclear",		oedit_varclear			},
-	{ "varset",			oedit_varset			},
-	{ "waypoints",		oedit_waypoints			},
-	{ "wear",			oedit_wear				},
-	{ "weight",			oedit_weight			},
-	{ NULL,				0,						}
+    { "?",				show_help				},
+    { "addaffect",		oedit_addaffect			},
+    { "addcatalyst",	oedit_addcatalyst		},
+    { "addimmune",		oedit_addimmune			},
+    { "addoprog",		oedit_addoprog			},
+    { "addskill",		oedit_addskill			},
+    { "addspell",		oedit_addspell			},
+    { "allowedfixed",	oedit_allowed_fixed		},
+    { "commands",		show_commands			},
+    { "comments",		oedit_comments			},
+    { "condition",		oedit_condition			},
+    { "cost",			oedit_cost				},
+    { "create",			oedit_create			},
+    { "delaffect",		oedit_delaffect			},
+    { "delcatalyst",	oedit_delcatalyst		},
+    { "delimmune",		oedit_delimmune			},
+    { "deloprog",		oedit_deloprog			},
+    { "delspell",		oedit_delspell			},
+    { "description",	oedit_desc				},
+    { "ed",				oedit_ed				},
+    { "extra",			oedit_extra				},
+    //{ "extra2",			oedit_extra2			},
+    //{ "extra3",			oedit_extra3			},
+    //{ "extra4",			oedit_extra4			},
+    { "fragility",		oedit_fragility			},
+    { "level",			oedit_level				},
+    { "lock",			oedit_lock				},
+    { "long",			oedit_long				},
+    { "material",		oedit_material			},
+    { "name",			oedit_name				},
+    { "next",			oedit_next				},
+    //{ "oupdate",		oedit_update			},
+    { "persist",		oedit_persist			},
+    { "prev",			oedit_prev				},
+    { "scriptkwd",		oedit_skeywds			},
+    { "short",			oedit_short				},
+    { "show",			oedit_show				},
+    { "sign",			oedit_sign				},
+    { "timer",			oedit_timer				},
+    { "type",			oedit_type				},
+    { "v0",				oedit_value0			},
+    { "v1",				oedit_value1			},
+    { "v2",				oedit_value2			},
+    { "v3",				oedit_value3			},
+    { "v4",				oedit_value4			},
+    { "v5",				oedit_value5			},
+    { "v6",				oedit_value6			},
+    { "v7",				oedit_value7			},
+    { "varclear",		oedit_varclear			},
+    { "varset",			oedit_varset			},
+    { "waypoints",		oedit_waypoints			},
+    { "wear",			oedit_wear				},
+    { "weight",			oedit_weight			},
+    { NULL,				0,						}
 };
 
 
@@ -444,71 +444,71 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
     if (d->incomm[0] == '\'' || d->incomm[0] == '"') return false;
     switch (d->editor)
     {
-	case ED_AREA:
-	    aedit(d->character, d->incomm);
-	    break;
-	case ED_ROOM:
-	    redit(d->character, d->incomm);
-	    break;
-	case ED_OBJECT:
-	    oedit(d->character, d->incomm);
-	    break;
-	case ED_MOBILE:
-	    medit(d->character, d->incomm);
-	    break;
-	case ED_MPCODE:
-	    mpedit(d->character, d->incomm);
-	    break;
-	case ED_OPCODE:
-	    opedit(d->character, d->incomm);
-	    break;
-	case ED_RPCODE:
-	    rpedit(d->character, d->incomm);
-	    break;
-	case ED_SHIP:
-	    shedit(d->character, d->incomm);
-	    break;
-	case ED_HELP:
-	    hedit(d->character, d->incomm);
-	    break;
-	case ED_TOKEN:
-	    tedit(d->character, d->incomm);
-	    break;
-	case ED_TPCODE:
-	    tpedit(d->character, d->incomm);
-	    break;
-	case ED_PROJECT:
+    case ED_AREA:
+        aedit(d->character, d->incomm);
+        break;
+    case ED_ROOM:
+        redit(d->character, d->incomm);
+        break;
+    case ED_OBJECT:
+        oedit(d->character, d->incomm);
+        break;
+    case ED_MOBILE:
+        medit(d->character, d->incomm);
+        break;
+    case ED_MPCODE:
+        mpedit(d->character, d->incomm);
+        break;
+    case ED_OPCODE:
+        opedit(d->character, d->incomm);
+        break;
+    case ED_RPCODE:
+        rpedit(d->character, d->incomm);
+        break;
+    case ED_SHIP:
+        shedit(d->character, d->incomm);
+        break;
+    case ED_HELP:
+        hedit(d->character, d->incomm);
+        break;
+    case ED_TOKEN:
+        tedit(d->character, d->incomm);
+        break;
+    case ED_TPCODE:
+        tpedit(d->character, d->incomm);
+        break;
+    case ED_PROJECT:
             pedit(d->character, d->incomm);
-	    break;
+        break;
 /* VIZZWILDS */
-	case ED_WILDS:
-	    wedit(d->character, d->incomm);
-	    break;
-	case ED_VLINK:
-		vledit(d->character, d->incomm);
-		break;
+    case ED_WILDS:
+        wedit(d->character, d->incomm);
+        break;
+    case ED_VLINK:
+        vledit(d->character, d->incomm);
+        break;
 
-	case ED_BPSECT:
-		bsedit(d->character, d->incomm);
-		break;
+    case ED_BPSECT:
+        bsedit(d->character, d->incomm);
+        break;
 
-	case ED_BLUEPRINT:
-		bpedit(d->character, d->incomm);
-		break;
+    case ED_BLUEPRINT:
+        bpedit(d->character, d->incomm);
+        break;
 
-	case ED_DUNGEON:
-		dngedit(d->character, d->incomm);
-		break;
+    case ED_DUNGEON:
+        dngedit(d->character, d->incomm);
+        break;
 
-	case ED_APCODE:
-	    apedit(d->character, d->incomm);
-	    break;
-	case ED_IPCODE:
-	    ipedit(d->character, d->incomm);
-	    break;
-	case ED_DPCODE:
-	    dpedit(d->character, d->incomm);
-	    break;
+    case ED_APCODE:
+        apedit(d->character, d->incomm);
+        break;
+    case ED_IPCODE:
+        ipedit(d->character, d->incomm);
+        break;
+    case ED_DPCODE:
+        dpedit(d->character, d->incomm);
+        break;
     case ED_CMDEDIT:
         cmdedit(d->character, d->incomm);
         break;
@@ -516,8 +516,8 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
         socialedit(d->character, d->incomm);
         break;
 
-	default:
-	    return false;
+    default:
+        return false;
     }
     return true;
 }
@@ -526,40 +526,40 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 // Return the edit name of character's editor (%o in prompt)
 char *olc_ed_name(CHAR_DATA *ch)
 {
-	if(ch->desc->editor > 0 && ch->desc->editor < elementsof(editor_name_table))
-		return editor_name_table[ch->desc->editor];
+    if(ch->desc->editor > 0 && ch->desc->editor < elementsof(editor_name_table))
+        return editor_name_table[ch->desc->editor];
 
-	return editor_name_table[0];
+    return editor_name_table[0];
 }
 
 int olc_ed_tabs(CHAR_DATA *ch)
 {
-	if(ch->desc->editor > 0 && ch->desc->editor < elementsof(editor_name_table))
-		return editor_max_tabs_table[ch->desc->editor];
+    if(ch->desc->editor > 0 && ch->desc->editor < elementsof(editor_name_table))
+        return editor_max_tabs_table[ch->desc->editor];
 
-	return 0;
+    return 0;
 }
 
 void olc_set_editor(CHAR_DATA *ch, int editor, void *data)
 {
-	ch->desc->pEdit = data;
-	ch->desc->editor = editor;
-	ch->desc->nEditTab = 0;
-	ch->desc->nMaxEditTabs = olc_ed_tabs(ch);
+    ch->desc->pEdit = data;
+    ch->desc->editor = editor;
+    ch->desc->nEditTab = 0;
+    ch->desc->nMaxEditTabs = olc_ed_tabs(ch);
 }
 
 void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument)
 {
-	int old_tab = ch->desc->nEditTab;
-	void *old_data = ch->desc->pEdit;
+    int old_tab = ch->desc->nEditTab;
+    void *old_data = ch->desc->pEdit;
 
-	ch->desc->nEditTab = 0;
-	ch->desc->pEdit = data;
+    ch->desc->nEditTab = 0;
+    ch->desc->pEdit = data;
 
-	(*show_fun)(ch, argument);
+    (*show_fun)(ch, argument);
 
-	ch->desc->nEditTab = old_tab;
-	ch->desc->pEdit = old_data;
+    ch->desc->nEditTab = old_tab;
+    ch->desc->pEdit = old_data;
 }
 
 // Return the edit vnum of character's editor (%O in prompt)
@@ -586,115 +586,115 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     buf[0] = '\0';
     switch (ch->desc->editor)
     {
-	case ED_AREA:
-	    pArea = (AREA_DATA *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", pArea ? pArea->anum : 0);
-	    break;
-	case ED_ROOM:
-	    pRoom = ch->in_room;
-	    sprintf(buf, "%ld", pRoom ? pRoom->vnum : 0);
-	    break;
-	case ED_OBJECT:
-	    pObj = (OBJ_INDEX_DATA *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", pObj ? pObj->vnum : 0);
-	    break;
-	case ED_MOBILE:
-	    pMob = (MOB_INDEX_DATA *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", pMob ? pMob->vnum : 0);
-	    break;
-	case ED_MPCODE:
-	case ED_OPCODE:
-	case ED_RPCODE:
-	case ED_TPCODE:
-	case ED_APCODE:
-	case ED_IPCODE:
-	case ED_DPCODE:
-	    prog = (SCRIPT_DATA *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", (long int)(prog ? prog->vnum : 0));
-	    break;
-	case ED_HELP:
-	    {
-		HELP_CATEGORY *hCat;
+    case ED_AREA:
+        pArea = (AREA_DATA *)ch->desc->pEdit;
+        sprintf(buf, "%ld", pArea ? pArea->anum : 0);
+        break;
+    case ED_ROOM:
+        pRoom = ch->in_room;
+        sprintf(buf, "%ld", pRoom ? pRoom->vnum : 0);
+        break;
+    case ED_OBJECT:
+        pObj = (OBJ_INDEX_DATA *)ch->desc->pEdit;
+        sprintf(buf, "%ld", pObj ? pObj->vnum : 0);
+        break;
+    case ED_MOBILE:
+        pMob = (MOB_INDEX_DATA *)ch->desc->pEdit;
+        sprintf(buf, "%ld", pMob ? pMob->vnum : 0);
+        break;
+    case ED_MPCODE:
+    case ED_OPCODE:
+    case ED_RPCODE:
+    case ED_TPCODE:
+    case ED_APCODE:
+    case ED_IPCODE:
+    case ED_DPCODE:
+        prog = (SCRIPT_DATA *)ch->desc->pEdit;
+        sprintf(buf, "%ld", (long int)(prog ? prog->vnum : 0));
+        break;
+    case ED_HELP:
+        {
+        HELP_CATEGORY *hCat;
 
-		help = (HELP_DATA *)ch->desc->pEdit;
+        help = (HELP_DATA *)ch->desc->pEdit;
 
-		if (help != NULL)
-		{
-		    hCat = help->hCat;
-		    sprintf(buf, "{x%s", help ? help->keyword : "");
+        if (help != NULL)
+        {
+            hCat = help->hCat;
+            sprintf(buf, "{x%s", help ? help->keyword : "");
 
-		    for (hCat = help->hCat; hCat->up != NULL; hCat = hCat->up)
-		    {
-			sprintf(buf2, "{W%s{B/", hCat->name);
-			strcat(buf2, buf);
-			strcpy(buf, buf2);
-		    }
+            for (hCat = help->hCat; hCat->up != NULL; hCat = hCat->up)
+            {
+            sprintf(buf2, "{W%s{B/", hCat->name);
+            strcat(buf2, buf);
+            strcpy(buf, buf2);
+            }
 
-		    sprintf(buf2, "{B/{x");
-		    strcat(buf2, buf);
-		    strcpy(buf, buf2);
-		}
-		else
-		{
-		    HELP_CATEGORY *hCatTmp;
+            sprintf(buf2, "{B/{x");
+            strcat(buf2, buf);
+            strcpy(buf, buf2);
+        }
+        else
+        {
+            HELP_CATEGORY *hCatTmp;
 
-		    hCat = ch->desc->hCat;
+            hCat = ch->desc->hCat;
 
-		    sprintf(buf, "{W%s{B/{x", ch->desc->hCat->name);
+            sprintf(buf, "{W%s{B/{x", ch->desc->hCat->name);
 
-		    for (hCatTmp = hCat->up; hCatTmp != NULL; hCatTmp = hCatTmp->up) {
-			sprintf(buf2, "{W%s{B/{x", hCatTmp->name);
-			strcat(buf2, buf);
-			strcpy(buf, buf2);
-		    }
-		}
-	    }
-	    break;
+            for (hCatTmp = hCat->up; hCatTmp != NULL; hCatTmp = hCatTmp->up) {
+            sprintf(buf2, "{W%s{B/{x", hCatTmp->name);
+            strcat(buf2, buf);
+            strcpy(buf, buf2);
+            }
+        }
+        }
+        break;
 
-	case ED_PROJECT:
-	    project = (PROJECT_DATA *)ch->desc->pEdit;
-	    if (project != NULL)
-		sprintf(buf, "%s", project->name);
-	    else
-		sprintf(buf, "None");
+    case ED_PROJECT:
+        project = (PROJECT_DATA *)ch->desc->pEdit;
+        if (project != NULL)
+        sprintf(buf, "%s", project->name);
+        else
+        sprintf(buf, "None");
 
-	    break;
+        break;
 
-	case ED_SHIP:
-	    pShip = (SHIP_INDEX_DATA *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", pShip ? pShip->vnum : 0);
-	    break;
+    case ED_SHIP:
+        pShip = (SHIP_INDEX_DATA *)ch->desc->pEdit;
+        sprintf(buf, "%ld", pShip ? pShip->vnum : 0);
+        break;
 
-	case ED_TOKEN:
-	    pTokenIndex = (TOKEN_INDEX_DATA *) ch->desc->pEdit;
-	    sprintf(buf, "%ld", pTokenIndex ? pTokenIndex->vnum : 0);
-	    break;
+    case ED_TOKEN:
+        pTokenIndex = (TOKEN_INDEX_DATA *) ch->desc->pEdit;
+        sprintf(buf, "%ld", pTokenIndex ? pTokenIndex->vnum : 0);
+        break;
 
 /* VIZZWILDS */
-	case ED_WILDS:
-	    pWilds = (WILDS_DATA *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", pWilds ? pWilds->uid : 0);
-	    break;
+    case ED_WILDS:
+        pWilds = (WILDS_DATA *)ch->desc->pEdit;
+        sprintf(buf, "%ld", pWilds ? pWilds->uid : 0);
+        break;
 
-	case ED_VLINK:
-		pVLink = (WILDS_VLINK *) ch->desc->pEdit;
-		sprintf(buf, "%ld", pVLink ? pVLink->uid : 0);
-		break;
+    case ED_VLINK:
+        pVLink = (WILDS_VLINK *) ch->desc->pEdit;
+        sprintf(buf, "%ld", pVLink ? pVLink->uid : 0);
+        break;
 
-	case ED_BPSECT:
-	    bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", bpsect ? bpsect->vnum : 0);
-	    break;
+    case ED_BPSECT:
+        bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit;
+        sprintf(buf, "%ld", bpsect ? bpsect->vnum : 0);
+        break;
 
-	case ED_BLUEPRINT:
-	    blueprint = (BLUEPRINT *)ch->desc->pEdit;
-	    sprintf(buf, "%ld", blueprint ? blueprint->vnum : 0);
-	    break;
+    case ED_BLUEPRINT:
+        blueprint = (BLUEPRINT *)ch->desc->pEdit;
+        sprintf(buf, "%ld", blueprint ? blueprint->vnum : 0);
+        break;
 
-	case ED_DUNGEON:
-	    dungeon = (DUNGEON_INDEX_DATA*)ch->desc->pEdit;
-	    sprintf(buf, "%ld", dungeon ? dungeon->vnum : 0);
-	    break;
+    case ED_DUNGEON:
+        dungeon = (DUNGEON_INDEX_DATA*)ch->desc->pEdit;
+        sprintf(buf, "%ld", dungeon ? dungeon->vnum : 0);
+        break;
 
     case ED_CMDEDIT:
         command = (CMD_DATA *)ch->desc->pEdit;
@@ -705,9 +705,9 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         break;
 
 
-	default:
-	    sprintf(buf, " ");
-	    break;
+    default:
+        sprintf(buf, " ");
+        break;
     }
 
     return buf;
@@ -726,14 +726,14 @@ void show_olc_cmds(CHAR_DATA *ch, const struct olc_cmd_type *olc_table)
     col = 0;
     for (cmd = 0; olc_table[cmd].name != NULL; cmd++)
     {
-	sprintf(buf, "%-15.15s", olc_table[cmd].name);
-	strcat(buf1, buf);
-	if (++col % 5 == 0)
-	    strcat(buf1, "\n\r");
+    sprintf(buf, "%-15.15s", olc_table[cmd].name);
+    strcat(buf1, buf);
+    if (++col % 5 == 0)
+        strcat(buf1, "\n\r");
     }
 
     if (col % 5 != 0)
-	strcat(buf1, "\n\r");
+    strcat(buf1, "\n\r");
 
     send_to_char(buf1, ch);
 }
@@ -742,83 +742,83 @@ void show_olc_cmds(CHAR_DATA *ch, const struct olc_cmd_type *olc_table)
 /* Display all OLC commands for your current editor */
 bool show_commands(CHAR_DATA *ch, char *argument)
 {
-	switch (ch->desc->editor)
-	{
-	case ED_AREA:
-		show_olc_cmds(ch, aedit_table);
-		break;
+    switch (ch->desc->editor)
+    {
+    case ED_AREA:
+        show_olc_cmds(ch, aedit_table);
+        break;
 
-	case ED_ROOM:
-		show_olc_cmds(ch, redit_table);
-		break;
+    case ED_ROOM:
+        show_olc_cmds(ch, redit_table);
+        break;
 
-	case ED_OBJECT:
-		show_olc_cmds(ch, oedit_table);
-		break;
+    case ED_OBJECT:
+        show_olc_cmds(ch, oedit_table);
+        break;
 
-	case ED_MOBILE:
-		show_olc_cmds(ch, medit_table);
-		break;
+    case ED_MOBILE:
+        show_olc_cmds(ch, medit_table);
+        break;
 
-	case ED_MPCODE:
-		show_olc_cmds(ch, mpedit_table);
-		break;
+    case ED_MPCODE:
+        show_olc_cmds(ch, mpedit_table);
+        break;
 
-	case ED_OPCODE:
-		show_olc_cmds(ch, opedit_table);
-		break;
+    case ED_OPCODE:
+        show_olc_cmds(ch, opedit_table);
+        break;
 
-	case ED_RPCODE:
-		show_olc_cmds(ch, rpedit_table);
-		break;
+    case ED_RPCODE:
+        show_olc_cmds(ch, rpedit_table);
+        break;
 
-	case ED_HELP:
-		show_olc_cmds(ch, hedit_table);
-		break;
+    case ED_HELP:
+        show_olc_cmds(ch, hedit_table);
+        break;
 
-	case ED_SHIP:
-		show_olc_cmds(ch, shedit_table);
-		break;
+    case ED_SHIP:
+        show_olc_cmds(ch, shedit_table);
+        break;
 
-	case ED_TOKEN:
-		show_olc_cmds(ch, tedit_table);
-		break;
+    case ED_TOKEN:
+        show_olc_cmds(ch, tedit_table);
+        break;
 
-	case ED_PROJECT:
-		show_olc_cmds(ch, pedit_table);
-		break;
+    case ED_PROJECT:
+        show_olc_cmds(ch, pedit_table);
+        break;
 
-	case ED_WILDS:
-		show_olc_cmds (ch, wedit_table);
-		break;
+    case ED_WILDS:
+        show_olc_cmds (ch, wedit_table);
+        break;
 
-	case ED_VLINK:
-		show_olc_cmds (ch, vledit_table);
-		break;
+    case ED_VLINK:
+        show_olc_cmds (ch, vledit_table);
+        break;
 
-	case ED_BPSECT:
-		show_olc_cmds(ch, bsedit_table);
-		break;
+    case ED_BPSECT:
+        show_olc_cmds(ch, bsedit_table);
+        break;
 
-	case ED_BLUEPRINT:
-		show_olc_cmds(ch, bpedit_table);
-		break;
+    case ED_BLUEPRINT:
+        show_olc_cmds(ch, bpedit_table);
+        break;
 
-	case ED_DUNGEON:
-		show_olc_cmds(ch, dngedit_table);
-		break;
+    case ED_DUNGEON:
+        show_olc_cmds(ch, dngedit_table);
+        break;
 
-	case ED_APCODE:
-		show_olc_cmds(ch, apedit_table);
-		break;
+    case ED_APCODE:
+        show_olc_cmds(ch, apedit_table);
+        break;
 
-	case ED_IPCODE:
-		show_olc_cmds(ch, ipedit_table);
-		break;
+    case ED_IPCODE:
+        show_olc_cmds(ch, ipedit_table);
+        break;
 
-	case ED_DPCODE:
-		show_olc_cmds(ch, dpedit_table);
-		break;
+    case ED_DPCODE:
+        show_olc_cmds(ch, dpedit_table);
+        break;
 
     case ED_CMDEDIT:
         show_olc_cmds(ch, cmdedit_table);
@@ -826,11 +826,11 @@ bool show_commands(CHAR_DATA *ch, char *argument)
     case ED_SOCIAL:
         show_olc_cmds(ch, socialedit_table);
         break;
-	}
+    }
 
 
 
-	return false;
+    return false;
 }
 
 // Given "anum" of an area, retrieve its area struct
@@ -876,10 +876,10 @@ bool edit_done(CHAR_DATA *ch)
 bool has_access_area(CHAR_DATA *ch, AREA_DATA *area)
 {
     if (ch->tot_level == MAX_LEVEL)
-	return true;
+    return true;
 
     if (!IS_BUILDER(ch, area))
-	return false;
+    return false;
 
     return true;
 }
@@ -900,37 +900,37 @@ void aedit(CHAR_DATA *ch, char *argument)
 
     if (get_staff_rank(ch) < STAFF_CREATOR)
     {
-	send_to_char("AEdit:  Insufficient security to edit area - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
+    send_to_char("AEdit:  Insufficient security to edit area - action logged.\n\r", ch);
+    edit_done(ch);
+    return;
     }
 
     if (!str_cmp(command, "done"))
     {
-	edit_done(ch);
-	return;
+    edit_done(ch);
+    return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
 
     if (command[0] == '\0')
     {
-	aedit_show(ch, argument);
-	return;
+    aedit_show(ch, argument);
+    return;
     }
 
     for (cmd = 0; aedit_table[cmd].name != NULL; cmd++)
     {
-	if (!str_prefix(command, aedit_table[cmd].name))
-	{
-	    if ((*aedit_table[cmd].olc_fun) (ch, argument))
-	    {
-		SET_BIT(pArea->area_flags, AREA_CHANGED);
-		return;
-	    }
-	    else
-		return;
-	}
+    if (!str_prefix(command, aedit_table[cmd].name))
+    {
+        if ((*aedit_table[cmd].olc_fun) (ch, argument))
+        {
+        SET_BIT(pArea->area_flags, AREA_CHANGED);
+        return;
+        }
+        else
+        return;
+    }
     }
 
     interpret(ch, arg);
@@ -955,14 +955,14 @@ void redit(CHAR_DATA *ch, char *argument)
     if (!IS_BUILDER(ch, pArea))
     {
         send_to_char("REdit:  Insufficient security to edit room - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
+    edit_done(ch);
+    return;
     }
 
     if (!str_cmp(command, "done"))
     {
-	edit_done(ch);
-	return;
+    edit_done(ch);
+    return;
     }
 
     if(room_is_clone(pRoom)) return;
@@ -970,22 +970,22 @@ void redit(CHAR_DATA *ch, char *argument)
     ch->pcdata->immortal->last_olc_command = current_time;
     if (command[0] == '\0')
     {
-	redit_show(ch, argument);
-	return;
+    redit_show(ch, argument);
+    return;
     }
 
     for (cmd = 0; redit_table[cmd].name != NULL; cmd++)
     {
-	if (!str_prefix(command, redit_table[cmd].name))
-	{
-	    if ((*redit_table[cmd].olc_fun) (ch, argument))
-	    {
-		SET_BIT(pArea->area_flags, AREA_CHANGED);
-		return;
-	    }
-	    else
-		return;
-	}
+    if (!str_prefix(command, redit_table[cmd].name))
+    {
+        if ((*redit_table[cmd].olc_fun) (ch, argument))
+        {
+        SET_BIT(pArea->area_flags, AREA_CHANGED);
+        return;
+        }
+        else
+        return;
+    }
     }
 
     interpret(ch, arg);
@@ -1009,36 +1009,36 @@ void oedit(CHAR_DATA *ch, char *argument)
 
     if (!IS_BUILDER(ch, pArea))
     {
-	send_to_char("OEdit: Insufficient security to edit object - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
+    send_to_char("OEdit: Insufficient security to edit object - action logged.\n\r", ch);
+    edit_done(ch);
+    return;
     }
 
     if (!str_cmp(command, "done"))
     {
-	edit_done(ch);
-	return;
+    edit_done(ch);
+    return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
     if (command[0] == '\0')
     {
-	oedit_show(ch, argument);
-	return;
+    oedit_show(ch, argument);
+    return;
     }
 
     for (cmd = 0; oedit_table[cmd].name != NULL; cmd++)
     {
-	if (!str_prefix(command, oedit_table[cmd].name))
-	{
-	    if ((*oedit_table[cmd].olc_fun) (ch, argument))
-	    {
-		SET_BIT(pArea->area_flags, AREA_CHANGED);
-		return;
-	    }
-	    else
-		return;
-	}
+    if (!str_prefix(command, oedit_table[cmd].name))
+    {
+        if ((*oedit_table[cmd].olc_fun) (ch, argument))
+        {
+        SET_BIT(pArea->area_flags, AREA_CHANGED);
+        return;
+        }
+        else
+        return;
+    }
     }
 
     interpret(ch, arg);
@@ -1168,37 +1168,37 @@ void pedit(CHAR_DATA *ch, char *argument)
 
     if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
     {
-	send_to_char("PEdit:  Insufficient security to edit projects - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
+    send_to_char("PEdit:  Insufficient security to edit projects - action logged.\n\r", ch);
+    edit_done(ch);
+    return;
     }
 
     if (!str_cmp(command, "done"))
     {
-	edit_done(ch);
-	return;
+    edit_done(ch);
+    return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
 
     if (command[0] == '\0')
     {
-	pedit_show(ch, argument);
-	return;
+    pedit_show(ch, argument);
+    return;
     }
 
     for (cmd = 0; pedit_table[cmd].name != NULL; cmd++)
     {
-	if (!str_prefix(command, pedit_table[cmd].name))
-	{
-	    if ((*pedit_table[cmd].olc_fun) (ch, argument))
-	    {
-		projects_changed = true;
-		return;
-	    }
-	    else
-		return;
-	}
+    if (!str_prefix(command, pedit_table[cmd].name))
+    {
+        if ((*pedit_table[cmd].olc_fun) (ch, argument))
+        {
+        projects_changed = true;
+        return;
+        }
+        else
+        return;
+    }
     }
 
     interpret(ch, arg);
@@ -1212,7 +1212,7 @@ void do_olc(CHAR_DATA *ch, char *argument)
     int  cmd;
 
     if (IS_NPC(ch))
-    	return;
+        return;
 
     argument = one_argument(argument, command);
 
@@ -1226,12 +1226,12 @@ void do_olc(CHAR_DATA *ch, char *argument)
     /* Search Table and Dispatch Command. */
     for (cmd = 0; editor_table[cmd].name != NULL; cmd++)
     {
-	if (!str_prefix(command, editor_table[cmd].name))
-	{
-	    ch->pcdata->immortal->last_olc_command = current_time;
-	    (*editor_table[cmd].do_fun) (ch, argument);
-	    return;
-	}
+    if (!str_prefix(command, editor_table[cmd].name))
+    {
+        ch->pcdata->immortal->last_olc_command = current_time;
+        (*editor_table[cmd].do_fun) (ch, argument);
+        return;
+    }
     }
 
     /* Invalid command, send help. */
@@ -1245,38 +1245,38 @@ void do_tedit(CHAR_DATA *ch, char *argument)
     char arg[MAX_STRING_LENGTH];
 
     if (IS_NPC(ch))
-    	return;
+        return;
 
     argument = one_argument(argument,arg);
 
     if (is_number(arg))
     {
-	WNUM wnum;
-	if (!parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-	    send_to_char("Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
-	    return;
-	}
+    WNUM wnum;
+    if (!parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+        return;
+    }
 
-	if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL)
-	{
-	    send_to_char("That token vnum does not exist.\n\r", ch);
-	    return;
-	}
+    if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL)
+    {
+        send_to_char("That token vnum does not exist.\n\r", ch);
+        return;
+    }
     }
     else
     if (!str_cmp(arg, "create"))
     {
-	if (tedit_create(ch, argument))
-	    olc_init_editor(ch, ED_TOKEN, ch->desc->pEdit);
+    if (tedit_create(ch, argument))
+        olc_init_editor(ch, ED_TOKEN, ch->desc->pEdit);
 
-	return;
+    return;
     }
     else
     {
-	send_to_char(
-	"Syntax: tedit <vnum>\n\r"
-	"        tedit create <vnum>\n\r", ch);
-	return;
+    send_to_char(
+    "Syntax: tedit <vnum>\n\r"
+    "        tedit create <vnum>\n\r", ch);
+    return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
@@ -1292,44 +1292,44 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 
     if (get_staff_rank(ch) < STAFF_CREATOR)
     {
-	send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
-	return;
+    send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
+    return;
     }
 
     if (IS_NPC(ch))
-    	return;
+        return;
 
     pArea	= ch->in_room->area;
     argument	= one_argument(argument,arg);
 
     if (is_number(arg))
     {
-	value = atoi(arg);
-	if (!(pArea = get_area_data(value)))
-	{
-	    send_to_char("That area vnum does not exist.\n\r", ch);
-	    return;
-	}
+    value = atoi(arg);
+    if (!(pArea = get_area_data(value)))
+    {
+        send_to_char("That area vnum does not exist.\n\r", ch);
+        return;
+    }
     }
     else
     if (arg[0] != '\0' && (pArea = find_area_kwd(arg)) == NULL
     && str_cmp(arg, "create"))
     {
-	send_to_char("Area not found.\n\r", ch);
-	return;
+    send_to_char("Area not found.\n\r", ch);
+    return;
     }
     else
     if (!str_cmp(arg, "create"))
     {
-	if (ch->pcdata->security < 9 || get_staff_rank(ch) < STAFF_CREATOR)
-	{
-	    send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
-	    return;
-	}
+    if (ch->pcdata->security < 9 || get_staff_rank(ch) < STAFF_CREATOR)
+    {
+        send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
+        return;
+    }
 
-	aedit_create(ch, "");
-	ch->desc->editor = ED_AREA;
-	return;
+    aedit_create(ch, "");
+    ch->desc->editor = ED_AREA;
+    return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
@@ -1344,7 +1344,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
     char arg1[MAX_STRING_LENGTH];
 
     if (IS_NPC(ch))
-    	return;
+        return;
 
     argument = one_argument(argument, arg1);
 
@@ -1352,62 +1352,62 @@ void do_redit(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg1, "reset"))
     {
-	if (!has_access_area(ch, pRoom->area))
-	{
-	    send_to_char("Insufficient security to reset - action logged.\n\r" , ch);
-	    return;
-	}
+    if (!has_access_area(ch, pRoom->area))
+    {
+        send_to_char("Insufficient security to reset - action logged.\n\r" , ch);
+        return;
+    }
 
-	reset_room(pRoom, true);
-	send_to_char("Room reset.\n\r", ch);
-	return;
+    reset_room(pRoom, true);
+    send_to_char("Room reset.\n\r", ch);
+    return;
     }
     else
     if (!str_cmp(arg1, "create"))
     {
-	if (redit_create(ch, argument))
-	{
-	    ch->desc->editor = ED_ROOM;
-	    char_from_room(ch);
-	    char_to_room(ch, ch->desc->pEdit);
-	    SET_BIT(((ROOM_INDEX_DATA *)ch->desc->pEdit)->area->area_flags, AREA_CHANGED);
-	}
+    if (redit_create(ch, argument))
+    {
+        ch->desc->editor = ED_ROOM;
+        char_from_room(ch);
+        char_to_room(ch, ch->desc->pEdit);
+        SET_BIT(((ROOM_INDEX_DATA *)ch->desc->pEdit)->area->area_flags, AREA_CHANGED);
+    }
 
-	return;
+    return;
     }
     else if (!IS_NULLSTR(arg1))	/* redit <vnum> */
     {
-	WNUM wnum;
-	if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-	    send_to_char("REdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
-	    return;
-	}
+    WNUM wnum;
+    if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("REdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+        return;
+    }
 
-	pRoom = get_room_index(wnum.pArea, wnum.vnum);
+    pRoom = get_room_index(wnum.pArea, wnum.vnum);
 
-	if (!pRoom)
-	{
-	    send_to_char("REdit : Room does not exist.\n\r", ch);
-	    return;
-	}
-
-	if (!IS_BUILDER(ch, pRoom->area))
-	{
-	    send_to_char("REdit : Insufficient security to edit room - action logged.\n\r", ch);
-	    return;
-	}
-
-	char_from_room(ch);
-	char_to_room(ch, pRoom);
-    } else if(pRoom && IS_SET(pRoom->room_flag[1],ROOM_VIRTUAL_ROOM)) {
-	send_to_char("REdit : Virtual rooms may not be editted.\n\r", ch);
-	return;
+    if (!pRoom)
+    {
+        send_to_char("REdit : Room does not exist.\n\r", ch);
+        return;
     }
 
     if (!IS_BUILDER(ch, pRoom->area))
     {
-    	send_to_char("REdit : Insuficient security to edit room - action logged.\n\r", ch);
-    	return;
+        send_to_char("REdit : Insufficient security to edit room - action logged.\n\r", ch);
+        return;
+    }
+
+    char_from_room(ch);
+    char_to_room(ch, pRoom);
+    } else if(pRoom && IS_SET(pRoom->room_flag[1],ROOM_VIRTUAL_ROOM)) {
+    send_to_char("REdit : Virtual rooms may not be editted.\n\r", ch);
+    return;
+    }
+
+    if (!IS_BUILDER(ch, pRoom->area))
+    {
+        send_to_char("REdit : Insuficient security to edit room - action logged.\n\r", ch);
+        return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
@@ -1424,60 +1424,60 @@ void do_oedit(CHAR_DATA *ch, char *argument)
     long value;
 
     if (IS_NPC(ch))
-	return;
+    return;
 
     argument = one_argument(argument, arg1);
 
     if (is_number(arg1))
     {
-	WNUM wnum;
-	if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-	    send_to_char("OEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
-	    return;
-	}
+    WNUM wnum;
+    if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("OEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+        return;
+    }
 
-	if (!(pObj = get_obj_index(wnum.pArea, wnum.vnum)))
-	{
-	    send_to_char("OEdit:  That vnum does not exist.\n\r", ch);
-	    return;
-	}
+    if (!(pObj = get_obj_index(wnum.pArea, wnum.vnum)))
+    {
+        send_to_char("OEdit:  That vnum does not exist.\n\r", ch);
+        return;
+    }
 
-	if (!has_access_area(ch, pObj->area))
-	{
-	    send_to_char("Insufficient security to edit object - action logged.\n\r" , ch);
-	    return;
-	}
+    if (!has_access_area(ch, pObj->area))
+    {
+        send_to_char("Insufficient security to edit object - action logged.\n\r" , ch);
+        return;
+    }
 
-	ch->pcdata->immortal->last_olc_command = current_time;
-	ch->desc->pEdit = (void *)pObj;
-	ch->desc->editor = ED_OBJECT;
+    ch->pcdata->immortal->last_olc_command = current_time;
+    ch->desc->pEdit = (void *)pObj;
+    ch->desc->editor = ED_OBJECT;
     }
     else
     {
-	if (!str_cmp(arg1, "create"))
-	{
-	    value = atol(argument);
+    if (!str_cmp(arg1, "create"))
+    {
+        value = atol(argument);
 
-	    if (argument[0] != '\0')
-	    {
-		pArea = get_vnum_area(value);
+        if (argument[0] != '\0')
+        {
+        pArea = get_vnum_area(value);
 
-		if (!pArea)
-		{
-		    send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
-		    return;
-		}
+        if (!pArea)
+        {
+            send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
+            return;
+        }
 
-		if (!has_access_area(ch, pArea))
-		{
-		    send_to_char("Insufficient security to edit object - action logged.\n\r" , ch);
-		    return;
-		}
-	    }
+        if (!has_access_area(ch, pArea))
+        {
+            send_to_char("Insufficient security to edit object - action logged.\n\r" , ch);
+            return;
+        }
+        }
 
-	    if (oedit_create(ch, argument))
-		ch->desc->editor = ED_OBJECT;
-	}
+        if (oedit_create(ch, argument))
+        ch->desc->editor = ED_OBJECT;
+    }
     }
 }
 
@@ -1492,63 +1492,63 @@ void do_medit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg1);
 
     if (IS_NPC(ch))
-    	return;
+        return;
 
     if (is_number(arg1))
     {
-	WNUM wnum;
-	if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-	    send_to_char("MEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
-	    return;
-	}
+    WNUM wnum;
+    if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("MEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+        return;
+    }
 
-	if (!(pMob = get_mob_index(wnum.pArea, wnum.vnum)))
-	{
-	    send_to_char("MEdit:  That vnum does not exist.\n\r", ch);
-	    return;
-	}
+    if (!(pMob = get_mob_index(wnum.pArea, wnum.vnum)))
+    {
+        send_to_char("MEdit:  That vnum does not exist.\n\r", ch);
+        return;
+    }
 
-	if (!has_access_area(ch, pMob->area))
-	{
-	    send_to_char("Insufficient security to edit mob - action logged.\n\r" , ch);
-	    return;
-	}
+    if (!has_access_area(ch, pMob->area))
+    {
+        send_to_char("Insufficient security to edit mob - action logged.\n\r" , ch);
+        return;
+    }
 
-	ch->pcdata->immortal->last_olc_command = current_time;
-	ch->desc->pEdit = (void *)pMob;
-	ch->desc->editor = ED_MOBILE;
-	return;
+    ch->pcdata->immortal->last_olc_command = current_time;
+    ch->desc->pEdit = (void *)pMob;
+    ch->desc->editor = ED_MOBILE;
+    return;
     }
     else
     {
-	if (!str_cmp(arg1, "create"))
-	{
-	    value = atol(argument);
+    if (!str_cmp(arg1, "create"))
+    {
+        value = atol(argument);
 
-	    if (argument[0] != '\0') {
-		pArea = get_vnum_area(value);
+        if (argument[0] != '\0') {
+        pArea = get_vnum_area(value);
 
-		if (!pArea)
-		{
-		    send_to_char("MEdit:  That vnum is not assigned an area.\n\r", ch);
-		    return;
-		}
+        if (!pArea)
+        {
+            send_to_char("MEdit:  That vnum is not assigned an area.\n\r", ch);
+            return;
+        }
 
-		if (!IS_BUILDER(ch, pArea))
-		{
-		    send_to_char("Insufficient security to edit mob - action logged.\n\r" , ch);
-		    return;
-		}
-	    }
+        if (!IS_BUILDER(ch, pArea))
+        {
+            send_to_char("Insufficient security to edit mob - action logged.\n\r" , ch);
+            return;
+        }
+        }
 
-	    if (medit_create(ch, argument))
-	    {
-		//SET_BIT(pArea->area_flags, AREA_CHANGED);
-		ch->desc->editor = ED_MOBILE;
-	    }
-	}
+        if (medit_create(ch, argument))
+        {
+        //SET_BIT(pArea->area_flags, AREA_CHANGED);
+        ch->desc->editor = ED_MOBILE;
+        }
+    }
 
-	return;
+    return;
     }
 
     send_to_char("MEdit:  There is no default mobile to edit.\n\r", ch);
@@ -1564,61 +1564,61 @@ void do_pedit(CHAR_DATA *ch, char *argument)
 
     if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
     {
-	send_to_char("PEdit: Insufficient security to edit projects - action logged.\n\r", ch);
-	return;
+    send_to_char("PEdit: Insufficient security to edit projects - action logged.\n\r", ch);
+    return;
     }
 
     if (IS_NPC(ch))
-    	return;
+        return;
 
     argument = one_argument(argument,arg);
     if (arg[0] == '\0') {
-	send_to_char("Syntax: pedit <project #|project name>\n\r",  ch);
-	return;
+    send_to_char("Syntax: pedit <project #|project name>\n\r",  ch);
+    return;
     }
 
     if (is_number(arg))
     {
-	value = atoi(arg);
-	for (project = project_list, i = 0; project != NULL; project = project->next, i++) {
-	    if (i == value)
-		break;
-	}
+    value = atoi(arg);
+    for (project = project_list, i = 0; project != NULL; project = project->next, i++) {
+        if (i == value)
+        break;
+    }
 
-	if (project == NULL) {
-	    send_to_char("Project number not found.\n\r", ch);
-	    return;
-	}
+    if (project == NULL) {
+        send_to_char("Project number not found.\n\r", ch);
+        return;
+    }
     }
     else
     if (arg[0] != '\0' && str_cmp(arg, "create"))
     {
-	for (project = project_list; project != NULL; project = project->next) {
-	    if (!str_infix(arg, project->name))
-		break;
-	}
+    for (project = project_list; project != NULL; project = project->next) {
+        if (!str_infix(arg, project->name))
+        break;
+    }
 
-	if (project == NULL) {
-	    send_to_char("Project not found.\n\r", ch);
-	    return;
-	}
+    if (project == NULL) {
+        send_to_char("Project not found.\n\r", ch);
+        return;
+    }
     }
     else
     if (!str_cmp(arg, "create"))
     {
-	if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
-	{
-	    send_to_char("PEdit: Insufficient security to create project - action logged.\n\r", ch);
-	    return;
-	}
+    if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
+    {
+        send_to_char("PEdit: Insufficient security to create project - action logged.\n\r", ch);
+        return;
+    }
 
-	pedit_create(ch, "");
-	ch->desc->editor = ED_PROJECT;
-	return;
+    pedit_create(ch, "");
+    ch->desc->editor = ED_PROJECT;
+    return;
     }
     else {
-	send_to_char("Syntax: pedit <project #|project name>\n\r",  ch);
-	return;
+    send_to_char("Syntax: pedit <project #|project name>\n\r",  ch);
+    return;
     }
 
     ch->pcdata->immortal->last_olc_command = current_time;
@@ -1694,16 +1694,16 @@ void do_wedit (CHAR_DATA * ch, char *argument)
 {
     AREA_DATA *pArea = NULL;
     WILDS_DATA *pWilds = NULL,
-	       *pLastWilds = NULL;
+           *pLastWilds = NULL;
     WILDS_TERRAIN *pTerrain = NULL;
     char arg1[MIL],
-	 arg2[MIL],
-	 arg3[MIL],
-	 *pMap = NULL,
-	 *pStaticMap = NULL;
+     arg2[MIL],
+     arg3[MIL],
+     *pMap = NULL,
+     *pStaticMap = NULL;
     long value = 0,
-	 lScount = 0,
-	 lMapsize = 0;
+     lScount = 0,
+     lMapsize = 0;
     int size_x = 0,
         size_y = 0;
 
@@ -1768,7 +1768,7 @@ void do_wedit (CHAR_DATA * ch, char *argument)
                 {
                     size_x = atoi(arg2);
                     size_y = atoi(arg3);
-		    pArea = ch->in_room->area;
+            pArea = ch->in_room->area;
                 }
 
                 if (!has_access_area(ch, pArea))
@@ -1930,7 +1930,7 @@ void do_vledit (CHAR_DATA * ch, char *argument)
             send_to_char ("That vlink uid does not appear to exist.\n\r", ch);
             return;
         }
-	else
+    else
             found = true;
     }
     else if (!str_cmp (arg1, "show"))
@@ -1966,232 +1966,232 @@ void display_resets(CHAR_DATA *ch)
     final[0]  = '\0';
 
     send_to_char (
-	" No.  Loads    Description       Location         Vnum   Mx Mn Description"
-	"\n\r"
-	"==== ======== ============= =================== ======== ===== ==========="
-	"\n\r", ch);
+    " No.  Loads    Description       Location         Vnum   Mx Mn Description"
+    "\n\r"
+    "==== ======== ============= =================== ======== ===== ==========="
+    "\n\r", ch);
 
     for (pReset = pRoom->reset_first; pReset; pReset = pReset->next)
     {
-	OBJ_INDEX_DATA  *pObj;
-	MOB_INDEX_DATA  *pMobIndex;
-	OBJ_INDEX_DATA  *pObjIndex;
-	OBJ_INDEX_DATA  *pObjToIndex;
-	ROOM_INDEX_DATA *pRoomIndex;
+    OBJ_INDEX_DATA  *pObj;
+    MOB_INDEX_DATA  *pMobIndex;
+    OBJ_INDEX_DATA  *pObjIndex;
+    OBJ_INDEX_DATA  *pObjToIndex;
+    ROOM_INDEX_DATA *pRoomIndex;
 
-	final[0] = '\0';
-	sprintf(final, "[%2d] ", ++iReset);
+    final[0] = '\0';
+    sprintf(final, "[%2d] ", ++iReset);
 
-	switch (pReset->command)
-	{
-	    default:
-		sprintf(buf, "Bad reset command: %c.", pReset->command);
-		strcat(final, buf);
-		break;
+    switch (pReset->command)
+    {
+        default:
+        sprintf(buf, "Bad reset command: %c.", pReset->command);
+        strcat(final, buf);
+        break;
 
-	    case 'M':
-	    {
-		AREA_DATA *mob_area = find_area_by_vnum(pReset->arg1);
-		if (!mob_area) mob_area = get_system_area_fallback();
-		AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
-		if (!room_area) room_area = get_system_area_fallback();
+        case 'M':
+        {
+        AREA_DATA *mob_area = find_area_by_vnum(pReset->arg1);
+        if (!mob_area) mob_area = get_system_area_fallback();
+        AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
+        if (!room_area) room_area = get_system_area_fallback();
 
-		if (!(pMobIndex = get_mob_index(mob_area, pReset->arg1)))
-		{
-		    sprintf(buf, "Load Mobile - Bad Mob %s\n\r", 
-			    widevnum_string(mob_area, pReset->arg1, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
+        if (!(pMobIndex = get_mob_index(mob_area, pReset->arg1)))
+        {
+            sprintf(buf, "Load Mobile - Bad Mob %s\n\r", 
+                widevnum_string(mob_area, pReset->arg1, pArea));
+            strcat(final, buf);
+            continue;
+        }
 
-		if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
-		{
-		    sprintf(buf, "Load Mobile - Bad Room %s\n\r", 
-			    widevnum_string(room_area, pReset->arg3, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
+        if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
+        {
+            sprintf(buf, "Load Mobile - Bad Room %s\n\r", 
+                widevnum_string(room_area, pReset->arg3, pArea));
+            strcat(final, buf);
+            continue;
+        }
 
-		pMob = pMobIndex;
-		sprintf(buf, "M[%s] %-13.13s in room             R[%s] %2ld-%2ld %-15.15s\n\r",
-			   widevnum_string_mobile(pMobIndex, pArea), pMob->short_descr, 
-			   widevnum_string_room(pRoomIndex, pArea),
-			   pReset->arg2, pReset->arg4, pRoomIndex->name);
-		strcat(final, buf);
+        pMob = pMobIndex;
+        sprintf(buf, "M[%s] %-13.13s in room             R[%s] %2ld-%2ld %-15.15s\n\r",
+               widevnum_string_mobile(pMobIndex, pArea), pMob->short_descr, 
+               widevnum_string_room(pRoomIndex, pArea),
+               pReset->arg2, pReset->arg4, pRoomIndex->name);
+        strcat(final, buf);
 
-		/*
-		 * Check for pet shop.
-		 * -------------------
-		 */
-		{
-		    ROOM_INDEX_DATA *pRoomIndexPrev;
+        /*
+         * Check for pet shop.
+         * -------------------
+         */
+        {
+            ROOM_INDEX_DATA *pRoomIndexPrev;
 
-		    pRoomIndexPrev = get_room_index(pRoomIndex->area, pRoomIndex->vnum - 1);
-		    if (pRoomIndexPrev
-			&& IS_SET(pRoomIndexPrev->room_flag[0], ROOM_PET_SHOP))
-			final[5] = 'P';
-		}
+            pRoomIndexPrev = get_room_index(pRoomIndex->area, pRoomIndex->vnum - 1);
+            if (pRoomIndexPrev
+            && IS_SET(pRoomIndexPrev->room_flag[0], ROOM_PET_SHOP))
+            final[5] = 'P';
+        }
 
-		break;
-	    }
-
-	    case 'O':
-	    {
-		AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
-		if (!obj_area) obj_area = get_system_area_fallback();
-		AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
-		if (!room_area) room_area = get_system_area_fallback();
-
-		if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
-		{
-		    sprintf(buf, "Load Object - Bad Object %s\n\r",
-			    widevnum_string(obj_area, pReset->arg1, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
-
-		pObj       = pObjIndex;
-
-		if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
-		{
-		    sprintf(buf, "Load Object - Bad Room %s\n\r", 
-			    widevnum_string(room_area, pReset->arg3, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
-
-		sprintf(buf, "O[%s] %-13.13s in room             "
-			  "R[%s]       %-15.15s\n\r",
-			  widevnum_string_object(pObjIndex, pArea), pObj->short_descr,
-			  widevnum_string_room(pRoomIndex, pArea), pRoomIndex->name);
-		strcat(final, buf);
         break;
         }
 
-	    case 'P':
-	    {
-		AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
-		if (!obj_area) obj_area = get_system_area_fallback();
-		AREA_DATA *obj_to_area = find_area_by_vnum(pReset->arg3);
-		if (!obj_to_area) obj_to_area = get_system_area_fallback();
-
-		if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
-		{
-		    sprintf(buf, "Put Object - Bad Object %s\n\r",
-			    widevnum_string(obj_area, pReset->arg1, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
-
-		pObj       = pObjIndex;
-
-		if (!(pObjToIndex = get_obj_index(obj_to_area, pReset->arg3)))
-		{
-		    sprintf(buf, "Put Object - Bad To Object %s\n\r",
-			    widevnum_string(obj_to_area, pReset->arg3, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
-
-		sprintf(buf,
-		    "O[%s] %-13.13s inside              O[%s] %2ld-%2ld %-15.15s\n\r",
-		    widevnum_string_object(pObjIndex, pArea),
-		    pObj->short_descr,
-		    widevnum_string_object(pObjToIndex, pArea),
-		    pReset->arg2,
-		    pReset->arg4,
-		    pObjToIndex->short_descr);
-		strcat(final, buf);
-
-		break;
-        }
-
-	    case 'G':
-	    case 'E':
-	    {
-		AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
-		if (!obj_area) obj_area = get_system_area_fallback();
-
-		if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
-		{
-		    sprintf(buf, "Give/Equip Object - Bad Object %s\n\r",
-			    widevnum_string(obj_area, pReset->arg1, pArea));
-		    strcat(final, buf);
-		    continue;
-		}
-		pObj       = pObjIndex;
-
-		if (!pMob)
-		{
-		    sprintf(buf, "Give/Equip Object - No Previous Mobile\n\r");
-		    strcat(final, buf);
-		    break;
-		}
-
-		if (pMob->pShop)
-		{
-		sprintf(buf,
-		    "O[%s] %-13.13s in the inventory of S[%s]       %-15.15s\n\r",
-		    widevnum_string_object(pObjIndex, pArea),
-		    pObj->short_descr,
-		    widevnum_string_mobile(pMobIndex, pArea),
-		    pMob->short_descr );
-		}
-		else
-		sprintf(buf,
-		    "O[%s] %-13.13s %-19.19s M[%s]       %-15.15s\n\r",
-		    widevnum_string_object(pObjIndex, pArea),
-		    pObj->short_descr,
-		    (pReset->command == 'G') ?
-			flag_string(wear_loc_strings, WEAR_NONE)
-		      : flag_string(wear_loc_strings, pReset->arg3),
-		      pMob->vnum,
-		      pMob->short_descr);
-		strcat(final, buf);
-
-		break;
-        }
-
-	    /*
-	     * Doors are set in rs_flags don't need to be displayed.
-	     * If you want to display them then uncomment the new_reset
-	     * line in the case 'D' in load_resets in db.c and here.
-	     */
-	     /*
-	    case 'D':
-		pRoomIndex = get_room_index(pReset->arg1);
-		sprintf(buf, "R[%5ld] %s door of %-19.19s reset to %s\n\r",
-		    pReset->arg1,
-		    capitalize(dir_name[ pReset->arg2 ]),
-		    pRoomIndex->name,
-		    flag_string(door_resets, pReset->arg3));
-		strcat(final, buf);
-
-		break;
-		*/
-	    /*
-	     * End Doors Comment.
-	     */
-	    case 'R':
+        case 'O':
         {
-		if (!(pRoomIndex = get_room_index((find_area_by_vnum(pReset->arg1) ?: get_system_area_fallback()), pReset->arg1)))
-		{
-		    sprintf(buf, "Randomize Exits - Bad Room %ld\n\r",
-			pReset->arg1);
-		    strcat(final, buf);
-		    continue;
-		}
+        AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
+        if (!obj_area) obj_area = get_system_area_fallback();
+        AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
+        if (!room_area) room_area = get_system_area_fallback();
 
-		sprintf(buf, "R[%5ld] Exits are randomized in %s\n\r",
-		    pReset->arg1, pRoomIndex->name);
-		strcat(final, buf);
-
-		break;
+        if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
+        {
+            sprintf(buf, "Load Object - Bad Object %s\n\r",
+                widevnum_string(obj_area, pReset->arg1, pArea));
+            strcat(final, buf);
+            continue;
         }
-	}
 
-	ch->pcdata->immortal->last_olc_command = current_time;
-	send_to_char(final, ch);
+        pObj       = pObjIndex;
+
+        if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
+        {
+            sprintf(buf, "Load Object - Bad Room %s\n\r", 
+                widevnum_string(room_area, pReset->arg3, pArea));
+            strcat(final, buf);
+            continue;
+        }
+
+        sprintf(buf, "O[%s] %-13.13s in room             "
+              "R[%s]       %-15.15s\n\r",
+              widevnum_string_object(pObjIndex, pArea), pObj->short_descr,
+              widevnum_string_room(pRoomIndex, pArea), pRoomIndex->name);
+        strcat(final, buf);
+        break;
+        }
+
+        case 'P':
+        {
+        AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
+        if (!obj_area) obj_area = get_system_area_fallback();
+        AREA_DATA *obj_to_area = find_area_by_vnum(pReset->arg3);
+        if (!obj_to_area) obj_to_area = get_system_area_fallback();
+
+        if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
+        {
+            sprintf(buf, "Put Object - Bad Object %s\n\r",
+                widevnum_string(obj_area, pReset->arg1, pArea));
+            strcat(final, buf);
+            continue;
+        }
+
+        pObj       = pObjIndex;
+
+        if (!(pObjToIndex = get_obj_index(obj_to_area, pReset->arg3)))
+        {
+            sprintf(buf, "Put Object - Bad To Object %s\n\r",
+                widevnum_string(obj_to_area, pReset->arg3, pArea));
+            strcat(final, buf);
+            continue;
+        }
+
+        sprintf(buf,
+            "O[%s] %-13.13s inside              O[%s] %2ld-%2ld %-15.15s\n\r",
+            widevnum_string_object(pObjIndex, pArea),
+            pObj->short_descr,
+            widevnum_string_object(pObjToIndex, pArea),
+            pReset->arg2,
+            pReset->arg4,
+            pObjToIndex->short_descr);
+        strcat(final, buf);
+
+        break;
+        }
+
+        case 'G':
+        case 'E':
+        {
+        AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
+        if (!obj_area) obj_area = get_system_area_fallback();
+
+        if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
+        {
+            sprintf(buf, "Give/Equip Object - Bad Object %s\n\r",
+                widevnum_string(obj_area, pReset->arg1, pArea));
+            strcat(final, buf);
+            continue;
+        }
+        pObj       = pObjIndex;
+
+        if (!pMob)
+        {
+            sprintf(buf, "Give/Equip Object - No Previous Mobile\n\r");
+            strcat(final, buf);
+            break;
+        }
+
+        if (pMob->pShop)
+        {
+        sprintf(buf,
+            "O[%s] %-13.13s in the inventory of S[%s]       %-15.15s\n\r",
+            widevnum_string_object(pObjIndex, pArea),
+            pObj->short_descr,
+            widevnum_string_mobile(pMobIndex, pArea),
+            pMob->short_descr );
+        }
+        else
+        sprintf(buf,
+            "O[%s] %-13.13s %-19.19s M[%s]       %-15.15s\n\r",
+            widevnum_string_object(pObjIndex, pArea),
+            pObj->short_descr,
+            (pReset->command == 'G') ?
+            flag_string(wear_loc_strings, WEAR_NONE)
+              : flag_string(wear_loc_strings, pReset->arg3),
+              pMob->vnum,
+              pMob->short_descr);
+        strcat(final, buf);
+
+        break;
+        }
+
+        /*
+         * Doors are set in rs_flags don't need to be displayed.
+         * If you want to display them then uncomment the new_reset
+         * line in the case 'D' in load_resets in db.c and here.
+         */
+         /*
+        case 'D':
+        pRoomIndex = get_room_index(pReset->arg1);
+        sprintf(buf, "R[%5ld] %s door of %-19.19s reset to %s\n\r",
+            pReset->arg1,
+            capitalize(dir_name[ pReset->arg2 ]),
+            pRoomIndex->name,
+            flag_string(door_resets, pReset->arg3));
+        strcat(final, buf);
+
+        break;
+        */
+        /*
+         * End Doors Comment.
+         */
+        case 'R':
+        {
+        if (!(pRoomIndex = get_room_index((find_area_by_vnum(pReset->arg1) ?: get_system_area_fallback()), pReset->arg1)))
+        {
+            sprintf(buf, "Randomize Exits - Bad Room %ld\n\r",
+            pReset->arg1);
+            strcat(final, buf);
+            continue;
+        }
+
+        sprintf(buf, "R[%5ld] Exits are randomized in %s\n\r",
+            pReset->arg1, pRoomIndex->name);
+        strcat(final, buf);
+
+        break;
+        }
+    }
+
+    ch->pcdata->immortal->last_olc_command = current_time;
+    send_to_char(final, ch);
     }
 }
 
@@ -2204,32 +2204,32 @@ void add_reset(ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index)
 
     if (!room->reset_first)
     {
-	room->reset_first	= pReset;
-	room->reset_last	= pReset;
-	pReset->next		= NULL;
-	return;
+    room->reset_first	= pReset;
+    room->reset_last	= pReset;
+    pReset->next		= NULL;
+    return;
     }
 
     index--;
 
     if (index == 0)	/* First slot (1) selected. */
     {
-	pReset->next = room->reset_first;
-	room->reset_first = pReset;
-	return;
+    pReset->next = room->reset_first;
+    room->reset_first = pReset;
+    return;
     }
 
     // If negative slot(<= 0 selected) then this will find the last.
     for (reset = room->reset_first; reset->next; reset = reset->next)
     {
-	if (++iReset == index)
-	    break;
+    if (++iReset == index)
+        break;
     }
 
     pReset->next	= reset->next;
     reset->next		= pReset;
     if (!pReset->next)
-	room->reset_last = pReset;
+    room->reset_last = pReset;
 }
 
 
@@ -2255,8 +2255,8 @@ void do_resets(CHAR_DATA *ch, char *argument)
 
     if (!IS_BUILDER(ch, ch->in_room->area))
     {
-	send_to_char("Resets: Invalid security for editing this area.\n\r", ch);
-	return;
+    send_to_char("Resets: Invalid security for editing this area.\n\r", ch);
+    return;
     }
 
     area = ch->in_room->area;
@@ -2264,172 +2264,172 @@ void do_resets(CHAR_DATA *ch, char *argument)
     /* show resets */
     if (arg1[0] == '\0')
     {
-	if (ch->in_room->reset_first)
-	{
-	    send_to_char(
-		"Resets: M = mobile, R = room, O = object, "
-		"P = pet, S = shopkeeper\n\r", ch);
-	    display_resets(ch);
-	}
-	else
-	    send_to_char("No resets in this room.\n\r", ch);
+    if (ch->in_room->reset_first)
+    {
+        send_to_char(
+        "Resets: M = mobile, R = room, O = object, "
+        "P = pet, S = shopkeeper\n\r", ch);
+        display_resets(ch);
+    }
+    else
+        send_to_char("No resets in this room.\n\r", ch);
     }
 
     /* take index number and search for commands */
     if (is_number(arg1))
     {
-	ROOM_INDEX_DATA *pRoom = ch->in_room;
+    ROOM_INDEX_DATA *pRoom = ch->in_room;
 
-	/* delete a reset */
-	if (!str_cmp(arg2, "delete"))
-	{
-	    long insert_loc = atol(arg1);
+    /* delete a reset */
+    if (!str_cmp(arg2, "delete"))
+    {
+        long insert_loc = atol(arg1);
 
-	    if (!ch->in_room->reset_first)
-	    {
-		send_to_char("No resets in this area.\n\r", ch);
-		return;
-	    }
+        if (!ch->in_room->reset_first)
+        {
+        send_to_char("No resets in this area.\n\r", ch);
+        return;
+        }
 
-	    if (insert_loc - 1 <= 0)
-	    {
-		pReset = pRoom->reset_first;
-		pRoom->reset_first = pRoom->reset_first->next;
-		if (!pRoom->reset_first)
-		    pRoom->reset_last = NULL;
-	    }
-	    else
-	    {
-		long iReset = 0;
-		RESET_DATA *prev = NULL;
+        if (insert_loc - 1 <= 0)
+        {
+        pReset = pRoom->reset_first;
+        pRoom->reset_first = pRoom->reset_first->next;
+        if (!pRoom->reset_first)
+            pRoom->reset_last = NULL;
+        }
+        else
+        {
+        long iReset = 0;
+        RESET_DATA *prev = NULL;
 
-		for (pReset = pRoom->reset_first; pReset; pReset = pReset->next)
-		{
-		    if (++iReset == insert_loc)
-			break;
+        for (pReset = pRoom->reset_first; pReset; pReset = pReset->next)
+        {
+            if (++iReset == insert_loc)
+            break;
 
-		    prev = pReset;
-		}
+            prev = pReset;
+        }
 
-		if (!pReset)
-		{
-		    send_to_char("Reset not found.\n\r", ch);
-		    return;
-		}
+        if (!pReset)
+        {
+            send_to_char("Reset not found.\n\r", ch);
+            return;
+        }
 
-		if (prev)
-		    prev->next = prev->next->next;
-		else
-		    pRoom->reset_first = pRoom->reset_first->next;
+        if (prev)
+            prev->next = prev->next->next;
+        else
+            pRoom->reset_first = pRoom->reset_first->next;
 
-		for (pRoom->reset_last = pRoom->reset_first;
-		      pRoom->reset_last->next;
-		      pRoom->reset_last = pRoom->reset_last->next);
-	    }
+        for (pRoom->reset_last = pRoom->reset_first;
+              pRoom->reset_last->next;
+              pRoom->reset_last = pRoom->reset_last->next);
+        }
 
-	    free_reset_data(pReset);
-	    send_to_char("Reset deleted.\n\r", ch);
-	    SET_BIT(area->area_flags, AREA_CHANGED);
-	}
-	else
-	/* add a reset */
-	if ((!str_cmp(arg2, "mob") && is_number(arg3))
-	  || (!str_cmp(arg2, "obj") && is_number(arg3)))
-	{
-	    if (!str_cmp(arg2, "mob"))
-	    {
-		if (get_mob_index((find_area_by_vnum(is_number(arg3) ? atol(arg3) : 1) ?: get_system_area_fallback()), is_number(arg3) ? atol(arg3) : 1) == NULL)
-		{
-		    send_to_char("Mob no existe.\n\r",ch);
-		    return;
-		}
-		pReset = new_reset_data();
-		pReset->command = 'M';
-		pReset->arg1 = atol(arg3);
-		pReset->arg2 = is_number(arg4) ? atol(arg4) : 1; /* Max # */
-		pReset->arg3 = ch->in_room->vnum;
-		pReset->arg4 = is_number(arg5) ? atol(arg5) : 1; /* Min # */
-	    }
-	    else
-	    if (!str_cmp(arg2, "obj"))
-	    {
-		pReset = new_reset_data();
-		pReset->arg1    = atol(arg3);
-		if (!str_prefix(arg4, "inside"))
-		{
-		    OBJ_INDEX_DATA *temp;
+        free_reset_data(pReset);
+        send_to_char("Reset deleted.\n\r", ch);
+        SET_BIT(area->area_flags, AREA_CHANGED);
+    }
+    else
+    /* add a reset */
+    if ((!str_cmp(arg2, "mob") && is_number(arg3))
+      || (!str_cmp(arg2, "obj") && is_number(arg3)))
+    {
+        if (!str_cmp(arg2, "mob"))
+        {
+        if (get_mob_index((find_area_by_vnum(is_number(arg3) ? atol(arg3) : 1) ?: get_system_area_fallback()), is_number(arg3) ? atol(arg3) : 1) == NULL)
+        {
+            send_to_char("Mob no existe.\n\r",ch);
+            return;
+        }
+        pReset = new_reset_data();
+        pReset->command = 'M';
+        pReset->arg1 = atol(arg3);
+        pReset->arg2 = is_number(arg4) ? atol(arg4) : 1; /* Max # */
+        pReset->arg3 = ch->in_room->vnum;
+        pReset->arg4 = is_number(arg5) ? atol(arg5) : 1; /* Min # */
+        }
+        else
+        if (!str_cmp(arg2, "obj"))
+        {
+        pReset = new_reset_data();
+        pReset->arg1    = atol(arg3);
+        if (!str_prefix(arg4, "inside"))
+        {
+            OBJ_INDEX_DATA *temp;
 
-		    temp = get_obj_index((find_area_by_vnum(is_number(arg5) ? atol(arg5) : 1) ?: get_system_area_fallback()), is_number(arg5) ? atol(arg5) : 1);
-		    if (temp == NULL) {
-			send_to_char("Object not found!\n\r", ch);
-			return;
-		    }
+            temp = get_obj_index((find_area_by_vnum(is_number(arg5) ? atol(arg5) : 1) ?: get_system_area_fallback()), is_number(arg5) ? atol(arg5) : 1);
+            if (temp == NULL) {
+            send_to_char("Object not found!\n\r", ch);
+            return;
+            }
 
-		    if ((temp->item_type != ITEM_CONTAINER) &&
-		         (temp->item_type != ITEM_CORPSE_NPC))
-		    {
-			send_to_char("Object 2 isn't a container.\n\r", ch);
-			return;
-		    }
-		    pReset->command = 'P';
-		    pReset->arg2    = is_number(arg6) ? atol(arg6) : 1;
-		    pReset->arg3    = is_number(arg5) ? atol(arg5) : 1;
-		    pReset->arg4    = is_number(arg7) ? atol(arg7) : 1;
-		}
-		else
-		if (!str_cmp(arg4, "room"))
-		{
-		    if (get_obj_index((find_area_by_vnum(atol(arg3)) ?: get_system_area_fallback()), atol(arg3)) == NULL)
-		      {
-		         send_to_char("Vnum does not exist.\n\r",ch);
-		         return;
-		      }
-		    pReset->command  = 'O';
-		    pReset->arg2     = 0;
-		    pReset->arg3     = ch->in_room->vnum;
-		    pReset->arg4     = 0;
-		}
-		else
-		{
-		    if (flag_value(wear_loc_flags, arg4) == NO_FLAG)
-		    {
-			// Hack because WEAR_LIGHT is same value as NO_FLAG
-			if (str_cmp(arg4, "light"))
-			{
-			    send_to_char("Resets: '? wear-loc'\n\r", ch);
-			    return;
-			}
-		    }
+            if ((temp->item_type != ITEM_CONTAINER) &&
+                 (temp->item_type != ITEM_CORPSE_NPC))
+            {
+            send_to_char("Object 2 isn't a container.\n\r", ch);
+            return;
+            }
+            pReset->command = 'P';
+            pReset->arg2    = is_number(arg6) ? atol(arg6) : 1;
+            pReset->arg3    = is_number(arg5) ? atol(arg5) : 1;
+            pReset->arg4    = is_number(arg7) ? atol(arg7) : 1;
+        }
+        else
+        if (!str_cmp(arg4, "room"))
+        {
+            if (get_obj_index((find_area_by_vnum(atol(arg3)) ?: get_system_area_fallback()), atol(arg3)) == NULL)
+              {
+                 send_to_char("Vnum does not exist.\n\r",ch);
+                 return;
+              }
+            pReset->command  = 'O';
+            pReset->arg2     = 0;
+            pReset->arg3     = ch->in_room->vnum;
+            pReset->arg4     = 0;
+        }
+        else
+        {
+            if (flag_value(wear_loc_flags, arg4) == NO_FLAG)
+            {
+            // Hack because WEAR_LIGHT is same value as NO_FLAG
+            if (str_cmp(arg4, "light"))
+            {
+                send_to_char("Resets: '? wear-loc'\n\r", ch);
+                return;
+            }
+            }
 
-	    long obj_vnum = atol(arg3);
-	    AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
-	    if (!obj_area) obj_area = get_system_area_fallback();
-	    if (get_obj_index(obj_area, obj_vnum) == NULL)
-		    pReset->arg1 = atol(arg3);
-		    pReset->arg3 =
-		        (!str_cmp(arg4, "light")) ?
-			WEAR_LIGHT :
-			flag_value(wear_loc_flags, arg4);
+        long obj_vnum = atol(arg3);
+        AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
+        if (!obj_area) obj_area = get_system_area_fallback();
+        if (get_obj_index(obj_area, obj_vnum) == NULL)
+            pReset->arg1 = atol(arg3);
+            pReset->arg3 =
+                (!str_cmp(arg4, "light")) ?
+            WEAR_LIGHT :
+            flag_value(wear_loc_flags, arg4);
 
-		    if (pReset->arg3 == WEAR_NONE)
-			pReset->command = 'G';
-		    else
-			pReset->command = 'E';
-		}
-	    }
+            if (pReset->arg3 == WEAR_NONE)
+            pReset->command = 'G';
+            else
+            pReset->command = 'E';
+        }
+        }
 
-	    add_reset(ch->in_room, pReset, atol(arg1));
-	    SET_BIT(ch->in_room->area->area_flags, AREA_CHANGED);
-	    send_to_char("Reset added.\n\r", ch);
-	}
-	else
-	{
-	    send_to_char("Syntax: RESET <number> OBJ <vnum> <wear_loc>\n\r", ch);
-	    send_to_char("        RESET <number> OBJ <vnum> inside <vnum> [limit] [count]\n\r", ch);
-	    send_to_char("        RESET <number> OBJ <vnum> room\n\r", ch);
-	    send_to_char("        RESET <number> MOB <vnum> [max #x area] [max #x room]\n\r", ch);
-	    send_to_char("        RESET <number> DELETE\n\r", ch);
-	}
+        add_reset(ch->in_room, pReset, atol(arg1));
+        SET_BIT(ch->in_room->area->area_flags, AREA_CHANGED);
+        send_to_char("Reset added.\n\r", ch);
+    }
+    else
+    {
+        send_to_char("Syntax: RESET <number> OBJ <vnum> <wear_loc>\n\r", ch);
+        send_to_char("        RESET <number> OBJ <vnum> inside <vnum> [limit] [count]\n\r", ch);
+        send_to_char("        RESET <number> OBJ <vnum> room\n\r", ch);
+        send_to_char("        RESET <number> MOB <vnum> [max #x area] [max #x room]\n\r", ch);
+        send_to_char("        RESET <number> DELETE\n\r", ch);
+    }
     }
 }
 
@@ -2445,8 +2445,8 @@ void do_asearch(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Search through area list for which keyword?\n\r", ch);
-	return;
+    send_to_char("Search through area list for which keyword?\n\r", ch);
+    return;
     }
 
     sprintf(result, "[%3s] [%-27s] (%-5s-%5s) [%-10s] %3s [%-9s]\n\r",
@@ -2455,19 +2455,19 @@ void do_asearch(CHAR_DATA *ch, char *argument)
 
     for (pArea = area_first; pArea; pArea = pArea->next)
     {
-	if (!str_infix(arg, pArea->name))
-	{
-	    sprintf(buf,
-	    "[%3ld] %-27.27s (%-5ld-%5ld) %-12.12s [%d] [%-10.10s]\n\r",
-	        pArea->anum,
-		pArea->name,
-		pArea->min_vnum,
-		pArea->max_vnum,
-		pArea->file_name,
-		pArea->security,
-		pArea->builders);
-	    strcat(result, buf);
-	}
+    if (!str_infix(arg, pArea->name))
+    {
+        sprintf(buf,
+        "[%3ld] %-27.27s (%-5ld-%5ld) %-12.12s [%d] [%-10.10s]\n\r",
+            pArea->anum,
+        pArea->name,
+        pArea->min_vnum,
+        pArea->max_vnum,
+        pArea->file_name,
+        pArea->security,
+        pArea->builders);
+        strcat(result, buf);
+    }
     }
 
     send_to_char(result, ch);
@@ -2490,28 +2490,28 @@ void do_alist(CHAR_DATA *ch, char *argument)
     if (argument[0] != '\0'
     && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
     {
-	send_to_char("Syntax: alist\n\r"
-	             "        alist <placetype>\n\r", ch);
-	return;
+    send_to_char("Syntax: alist\n\r"
+                 "        alist <placetype>\n\r", ch);
+    return;
     }
 
     for (pArea = area_first; pArea; pArea = pArea->next)
     {
-	if (place_type == 0 || (pArea->place_flags == place_type))
-	{
-	sprintf(buf, "{D[{x%7ld{D]{x {D[{x%7ld{D]{x %s%-26.26s%s {D({x%-7ld{D-{x%7ld{D){x %-12.12s {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
-	     pArea->anum,
-	     pArea->uid,
-	     pArea->open ? "{G" : "{R",
-	     pArea->name,
-	     "{x",
-	     pArea->min_vnum,
-	     pArea->max_vnum,
-	     pArea->file_name,
-	     pArea->security,
-	     pArea->builders);
-	add_buf(buffer, buf);
-	}
+    if (place_type == 0 || (pArea->place_flags == place_type))
+    {
+    sprintf(buf, "{D[{x%7ld{D]{x {D[{x%7ld{D]{x %s%-26.26s%s {D({x%-7ld{D-{x%7ld{D){x %-12.12s {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
+         pArea->anum,
+         pArea->uid,
+         pArea->open ? "{G" : "{R",
+         pArea->name,
+         "{x",
+         pArea->min_vnum,
+         pArea->max_vnum,
+         pArea->file_name,
+         pArea->security,
+         pArea->builders);
+    add_buf(buffer, buf);
+    }
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -2531,51 +2531,51 @@ void hedit(CHAR_DATA *ch, char *argument)
 
     if (!IS_IMMORTAL(ch))
     {
-	send_to_char("HEdit: Insufficient security.\n\r",ch);
-	edit_done(ch);
-	return;
+    send_to_char("HEdit: Insufficient security.\n\r",ch);
+    edit_done(ch);
+    return;
     }
 
     if (!str_cmp(command, "done"))
     {
-	if (ch->desc->pEdit == NULL) 	// We aren't editing a helpfile
-	    edit_done(ch);
-	else {
-	    ch->desc->pEdit = NULL; 	// We're editing a helpfile.
-	    ch->desc->editor = ED_HELP;
-	}
+    if (ch->desc->pEdit == NULL) 	// We aren't editing a helpfile
+        edit_done(ch);
+    else {
+        ch->desc->pEdit = NULL; 	// We're editing a helpfile.
+        ch->desc->editor = ED_HELP;
+    }
 
-	return;
+    return;
     }
 
     if (command[0] == '\0')
     {
         hedit_show(ch, argument);
-	return;
+    return;
     }
 
     for (cmd = 0; hedit_table[cmd].name != NULL; cmd++)
     {
-	if (!str_prefix(command, hedit_table[cmd].name))
-	{
+    if (!str_prefix(command, hedit_table[cmd].name))
+    {
             if ((*hedit_table[cmd].olc_fun) (ch, argument ))
-	    {
-		ch->pcdata->immortal->last_olc_command = current_time;
-		if (ch->desc->pEdit != NULL) {
-		    HELP_DATA *help = (HELP_DATA *) ch->desc->pEdit;
+        {
+        ch->pcdata->immortal->last_olc_command = current_time;
+        if (ch->desc->pEdit != NULL) {
+            HELP_DATA *help = (HELP_DATA *) ch->desc->pEdit;
 
-		    free_string(help->modified_by);
-		    help->modified_by = str_dup(ch->name);
-		    help->modified = current_time;
-		} else {
-		    free_string(ch->desc->hCat->modified_by);
-		    ch->desc->hCat->modified_by = str_dup(ch->name);
-		    ch->desc->hCat->modified = current_time;
-		}
-	    }
+            free_string(help->modified_by);
+            help->modified_by = str_dup(ch->name);
+            help->modified = current_time;
+        } else {
+            free_string(ch->desc->hCat->modified_by);
+            ch->desc->hCat->modified_by = str_dup(ch->name);
+            ch->desc->hCat->modified = current_time;
+        }
+        }
 
-	    return;
-	}
+        return;
+    }
     }
 
     interpret(ch, arg);
@@ -2586,8 +2586,8 @@ void do_hedit(CHAR_DATA *ch, char *argument)
 {
     /* 2006-07-21 Removed as per Areo's suggestion (Syn)
     if (get_trust(ch) < MAX_LEVEL - 4) {
-	send_to_char("Insufficient security to edit helpfiles. Action logged.\n\r", ch);
-	return;
+    send_to_char("Insufficient security to edit helpfiles. Action logged.\n\r", ch);
+    return;
     }
     */
 
@@ -2623,40 +2623,40 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: rcopy <old_vnum> <new_vnum>\n\r", ch);
-	return;
+    return;
     }
 
     if (get_room_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v) == NULL)
     {
- 	send_to_char("That room doesn't exist.\n\r", ch);
-	return;
+     send_to_char("That room doesn't exist.\n\r", ch);
+    return;
     }
 
     if (get_room_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
     {
- 	send_to_char("That room vnum is already taken.\n\r", ch);
-	return;
+     send_to_char("That room vnum is already taken.\n\r", ch);
+    return;
     }
 
     area = get_vnum_area(old_v);
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You're not a builder in that area, so you can't "
-			 "copy from it.\n\r", ch);
-	return;
+             "copy from it.\n\r", ch);
+    return;
     }
 
     area = get_vnum_area(new_v);
     if (area == NULL)
     {
         send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return;
+    return;
     }
 
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You can't build in that area.\n\r", ch);
-	return;
+    return;
     }
 
     edit_done(ch);
@@ -2683,14 +2683,14 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     // Copy extra descs
     for (ed = old_room->extra_descr; ed != NULL; ed = ed->next)
     {
-	new_ed = new_extra_descr();
-	new_ed->keyword = str_dup(ed->keyword);
-	if( ed->description )
-		new_ed->description = str_dup(ed->description);
-	else
-		new_ed->description = NULL;
-	new_ed->next = new_room->extra_descr;
-	new_room->extra_descr = new_ed;
+    new_ed = new_extra_descr();
+    new_ed->keyword = str_dup(ed->keyword);
+    if( ed->description )
+        new_ed->description = str_dup(ed->description);
+    else
+        new_ed->description = NULL;
+    new_ed->next = new_room->extra_descr;
+    new_room->extra_descr = new_ed;
     }
 
     new_room->name = str_dup(old_room->name);
@@ -2728,8 +2728,8 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-	send_to_char("Syntax: mcopy <old_vnum> <new_vnum>\n\r", ch);
-	return;
+    send_to_char("Syntax: mcopy <old_vnum> <new_vnum>\n\r", ch);
+    return;
     }
 
     old_v = atol(arg);
@@ -2737,35 +2737,35 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 
     if ((old_mob = get_mob_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v)) == NULL)
     {
-	send_to_char("That mob doesn't exist.\n\r", ch);
-	return;
+    send_to_char("That mob doesn't exist.\n\r", ch);
+    return;
     }
 
     if (get_mob_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
     {
         send_to_char("That mob vnum is already taken.\n\r", ch);
-	return;
+    return;
     }
 
     area = get_vnum_area(old_v);
     if (!IS_BUILDER(ch, area))
     {
-	send_to_char("You're not a builder in that area, so you can't "
+    send_to_char("You're not a builder in that area, so you can't "
                      "copy from it.\n\r", ch);
-	return;
+    return;
     }
 
     area = get_vnum_area(new_v);
     if (area == NULL)
     {
-	send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return;
+    send_to_char("That vnum is not assigned an area.\n\r", ch);
+    return;
     }
 
     if (!IS_BUILDER(ch, area))
     {
-	send_to_char("You can't build in that area.\n\r", ch);
-	return;
+    send_to_char("You can't build in that area.\n\r", ch);
+    return;
     }
 
     edit_done(ch);
@@ -2860,7 +2860,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: ocopy <old_vnum> <new_vnum>\n\r", ch);
-	return;
+    return;
     }
 
     old_v = atol(arg);
@@ -2869,34 +2869,34 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     if ((old_obj = get_obj_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v)) == NULL)
     {
         send_to_char("That obj doesn't exist.\n\r", ch);
-	return;
+    return;
     }
 
     if (get_obj_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
     {
         send_to_char("That obj vnum is already taken.\n\r", ch);
-	return;
+    return;
     }
 
     area = get_vnum_area(old_v);
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You're not a builder in that area, so you can't "
-			"copy from it.\n\r", ch);
-	return;
+            "copy from it.\n\r", ch);
+    return;
     }
 
     area = get_vnum_area(new_v);
     if (area == NULL)
     {
         send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return;
+    return;
     }
 
     if (!IS_BUILDER(ch, area))
     {
-	send_to_char("You can't build in that area.\n\r", ch);
-	return;
+    send_to_char("You can't build in that area.\n\r", ch);
+    return;
     }
 
     edit_done(ch);
@@ -2918,30 +2918,30 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     // Copy extra descs
     for (ed = old_obj->extra_descr; ed != NULL; ed = ed->next)
     {
-	new_ed = new_extra_descr();
-	new_ed->keyword = str_dup(ed->keyword);
-	if(ed->description)
-		new_ed->description = str_dup(ed->description);
-	else
-		new_ed->description = NULL;
-	new_ed->next = new_obj->extra_descr;
-	new_obj->extra_descr = new_ed;
+    new_ed = new_extra_descr();
+    new_ed->keyword = str_dup(ed->keyword);
+    if(ed->description)
+        new_ed->description = str_dup(ed->description);
+    else
+        new_ed->description = NULL;
+    new_ed->next = new_obj->extra_descr;
+    new_obj->extra_descr = new_ed;
     }
 
     // Copy affects
     for (af = old_obj->affected; af != NULL; af = af->next)
     {
-	new_af = new_affect();
-	new_af->location = af->location;
-	new_af->modifier = af->modifier;
-	new_af->where = af->where;
-	new_af->type  = af->type;
-	new_af->duration = af->duration;
-	new_af->bitvector = af->bitvector;
-	new_af->level	 = af->level;
-	new_af->random  = af->random;
-	new_af->next    = new_obj->affected;
-	new_obj->affected = new_af;
+    new_af = new_affect();
+    new_af->location = af->location;
+    new_af->modifier = af->modifier;
+    new_af->where = af->where;
+    new_af->type  = af->type;
+    new_af->duration = af->duration;
+    new_af->bitvector = af->bitvector;
+    new_af->level	 = af->level;
+    new_af->random  = af->random;
+    new_af->next    = new_obj->affected;
+    new_obj->affected = new_af;
     }
 
     new_obj->name = str_dup(old_obj->name);
@@ -2965,13 +2965,13 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_obj->comments = old_obj->comments;
 
     for (i = 0; i <= 8; i++)
-	new_obj->value[i] = old_obj->value[i];
+    new_obj->value[i] = old_obj->value[i];
 
     // Only copy impsig if imp (to block cheaters)
     if (get_staff_rank(ch) == STAFF_IMPLEMENTOR)
-	new_obj->imp_sig = str_dup(old_obj->imp_sig);
+    new_obj->imp_sig = str_dup(old_obj->imp_sig);
     else
-	new_obj->imp_sig = str_dup("none");
+    new_obj->imp_sig = str_dup("none");
 
     new_obj->points = old_obj->points;
 
@@ -3001,7 +3001,7 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: rpcopy <old_vnum> <new_vnum>\n\r", ch);
-	return;
+    return;
     }
 
     old_v = atol(arg);
@@ -3010,34 +3010,34 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
     if ((old_rpcode = get_script_index_global(old_v, PRG_RPROG)) == NULL)
     {
         send_to_char("That ROOMprog doesn't exist.\n\r", ch);
-	return;
+    return;
     }
 
     if (get_script_index_global(new_v, PRG_RPROG) != NULL)
     {
-	send_to_char("That ROOMprog vnum is already taken.\n\r", ch);
-	return;
+    send_to_char("That ROOMprog vnum is already taken.\n\r", ch);
+    return;
     }
 
     area = get_vnum_area(old_v);
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You're not a builder in that area, so you can't "
-			"copy from it.\n\r", ch);
-	return;
+            "copy from it.\n\r", ch);
+    return;
     }
 
     area = get_vnum_area(new_v);
     if (area == NULL)
     {
         send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return;
+    return;
     }
 
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You can't build in that area.\n\r", ch);
-	return;
+    return;
     }
 
     edit_done(ch);
@@ -3076,8 +3076,8 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-	send_to_char("Syntax: mpcopy <old_vnum> <new_vnum>\n\r", ch);
-	return;
+    send_to_char("Syntax: mpcopy <old_vnum> <new_vnum>\n\r", ch);
+    return;
     }
 
     old_v = atol(arg);
@@ -3085,35 +3085,35 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
 
     if ((old_mpcode = get_script_index_global(old_v, PRG_MPROG)) == NULL)
     {
-	send_to_char("That MOBprog doesn't exist.\n\r", ch);
-	return;
+    send_to_char("That MOBprog doesn't exist.\n\r", ch);
+    return;
     }
 
     if (get_script_index_global(new_v, PRG_MPROG) != NULL)
     {
         send_to_char("That MOBprog vnum is already taken.\n\r", ch);
-	return;
+    return;
     }
 
     area = get_vnum_area(old_v);
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You're not a builder in that area, so you can't "
-			"copy from it.\n\r", ch);
-	return;
+            "copy from it.\n\r", ch);
+    return;
     }
 
     area = get_vnum_area(new_v);
     if (area == NULL)
     {
         send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return;
+    return;
     }
 
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You can't build in that area.\n\r", ch);
-	return;
+    return;
     }
 
     edit_done(ch);
@@ -3154,7 +3154,7 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: opcopy <old_vnum> <new_vnum>\n\r", ch);
-	return;
+    return;
     }
 
     old_v = atol(arg);
@@ -3163,20 +3163,20 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
     if ((old_opcode = get_script_index_global(old_v, PRG_OPROG)) == NULL)
     {
         send_to_char("That OBJprog doesn't exist.\n\r", ch);
-	return;
+    return;
     }
 
     if (get_script_index_global(new_v, PRG_OPROG) != NULL)
     {
         send_to_char("That OBJprog vnum is already taken.\n\r", ch);
-	return;
+    return;
     }
 
     area = get_vnum_area(old_v);
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You're not a builder in that area, so you can't "
- 		    "copy from it.\n\r", ch);
+             "copy from it.\n\r", ch);
         return;
     }
 
@@ -3189,8 +3189,8 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
 
     if (!IS_BUILDER(ch, area))
     {
-	send_to_char("You can't build in that area.\n\r", ch);
-	return;
+    send_to_char("You can't build in that area.\n\r", ch);
+    return;
     }
 
     edit_done(ch);
@@ -3230,72 +3230,72 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (arg[0] != '\0' && arg2[0] != '\0')
-	    range = true;
+        range = true;
 
     if (range && (!is_number(arg) || !is_number (arg2)))
     {
-	send_to_char("Syntax: rlist\n\r"
-		     "        rlist [min vnum] [max vnum]\n\r", ch);
-	return;
+    send_to_char("Syntax: rlist\n\r"
+             "        rlist [min vnum] [max vnum]\n\r", ch);
+    return;
     }
 
     pArea = ch->in_room->area;
 
     if (range)
     {
-	vnum_min = atoi(arg);
-	vnum_max = atoi(arg2);
+    vnum_min = atoi(arg);
+    vnum_max = atoi(arg2);
 
-	if (vnum_min < pArea->min_vnum)
-	{
-	    send_to_char("Minimum vnum is not in the area.\n\r" , ch);
-	    return;
-	}
+    if (vnum_min < pArea->min_vnum)
+    {
+        send_to_char("Minimum vnum is not in the area.\n\r" , ch);
+        return;
+    }
 
-	if (vnum_max > pArea->max_vnum)
-	{
-	    send_to_char("Maximum vnum is not in the area.\n\r", ch);
-	    return;
-	}
+    if (vnum_max > pArea->max_vnum)
+    {
+        send_to_char("Maximum vnum is not in the area.\n\r", ch);
+        return;
+    }
     }
     else
     {
-	vnum_min = pArea->min_vnum;
-	vnum_max = pArea->max_vnum;
+    vnum_min = pArea->min_vnum;
+    vnum_max = pArea->max_vnum;
     }
 
     buf1  = new_buf();
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((pRoomIndex = get_room_index(pArea, vnum)) != NULL
-	&& vnum >= vnum_min
-	&& vnum <= vnum_max)
-	{
-	    char *noc;
-	    noc = nocolour(pRoomIndex->name);
-	    sprintf(buf, "[%5ld] %-17.16s", vnum, noc);
-	    free_string(noc);
-	    if (!add_buf(buf1, buf))
-	    {
-		send_to_char("Can't output that much data!\n\r"
-			"Use rlist <min vnum> <max vnum>\n\r", ch);
-		return;
-	    }
-	    if (++col % 3 == 0)
-	    {
-		if (!add_buf(buf1, "\n\r"))
-		{
-		    send_to_char("Can't output that much data!\n\r"
-			    "Use rlist <min vnum> <max vnum>\n\r", ch);
-		    return;
-		}
-	    }
-	}
+    if ((pRoomIndex = get_room_index(pArea, vnum)) != NULL
+    && vnum >= vnum_min
+    && vnum <= vnum_max)
+    {
+        char *noc;
+        noc = nocolour(pRoomIndex->name);
+        sprintf(buf, "[%5ld] %-17.16s", vnum, noc);
+        free_string(noc);
+        if (!add_buf(buf1, buf))
+        {
+        send_to_char("Can't output that much data!\n\r"
+            "Use rlist <min vnum> <max vnum>\n\r", ch);
+        return;
+        }
+        if (++col % 3 == 0)
+        {
+        if (!add_buf(buf1, "\n\r"))
+        {
+            send_to_char("Can't output that much data!\n\r"
+                "Use rlist <min vnum> <max vnum>\n\r", ch);
+            return;
+        }
+        }
+    }
     }
 
     if (col % 3 != 0)
-	add_buf(buf1, "\n\r");
+    add_buf(buf1, "\n\r");
 
     page_to_char(buf_string(buf1), ch);
     free_buf(buf1);
@@ -3317,8 +3317,8 @@ void do_mlist(CHAR_DATA *ch, char *argument)
     one_argument(argument, arg);
     if (arg[0] == '\0')
     {
-	send_to_char("Syntax:  mlist <all|name>\n\r", ch);
-	return;
+    send_to_char("Syntax:  mlist <all|name>\n\r", ch);
+    return;
     }
 
     buf1  = new_buf();
@@ -3328,30 +3328,30 @@ void do_mlist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((pMobIndex = get_mob_index(pArea, vnum)) != NULL)
-	{
-	    if (fAll || is_name(arg, pMobIndex->player_name))
-	    {
-		char *noc;
-		found = true;
-		noc = nocolour(pMobIndex->short_descr);
-		sprintf(buf, "{x[%5ld] %-17.16s{x", pMobIndex->vnum, noc);
-		add_buf(buf1, buf);
-		free_string(noc);
-		if (++col % 3 == 0)
-		    add_buf(buf1, "\n\r");
-	    }
-	}
+    if ((pMobIndex = get_mob_index(pArea, vnum)) != NULL)
+    {
+        if (fAll || is_name(arg, pMobIndex->player_name))
+        {
+        char *noc;
+        found = true;
+        noc = nocolour(pMobIndex->short_descr);
+        sprintf(buf, "{x[%5ld] %-17.16s{x", pMobIndex->vnum, noc);
+        add_buf(buf1, buf);
+        free_string(noc);
+        if (++col % 3 == 0)
+            add_buf(buf1, "\n\r");
+        }
+    }
     }
 
     if (!found)
     {
-	send_to_char("Mobile(s) not found in this area.\n\r", ch);
-	return;
+    send_to_char("Mobile(s) not found in this area.\n\r", ch);
+    return;
     }
 
     if (col % 3 != 0)
-	add_buf(buf1, "\n\r");
+    add_buf(buf1, "\n\r");
 
     page_to_char(buf_string(buf1), ch);
     free_buf(buf1);
@@ -3369,13 +3369,13 @@ int strlen_colours_limit( const char *str, int limit )
     count = 0;
     for ( i = 0; count < limit && str[i] != '\0'; i++ )
     {
-	if (str[i] == '{' )
-	{
-	    i++;
-	    continue;
-	}
+    if (str[i] == '{' )
+    {
+        i++;
+        continue;
+    }
 
-	count++;
+    count++;
     }
 
     return i - count;
@@ -3397,8 +3397,8 @@ void do_olist(CHAR_DATA *ch, char *argument)
     one_argument(argument, arg);
     if (arg[0] == '\0')
     {
-	send_to_char("Syntax:  olist <all|name|item_type>\n\r", ch);
-	return;
+    send_to_char("Syntax:  olist <all|name|item_type>\n\r", ch);
+    return;
     }
 
     pArea = ch->in_room->area;
@@ -3408,37 +3408,37 @@ void do_olist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((pObjIndex = get_obj_index(pArea, vnum)))
-	{
-	    if (fAll || is_name(arg, pObjIndex->name)
-	    || flag_value(type_flags, arg) == pObjIndex->item_type)
-	    {
-		found = true;/*
-		sprintf(buf2, "%s", pObjIndex->short_descr);
-		if ((i = (17 - strlen_no_colours(buf2))) > 0) {
-		   while (i > 0) {
-		       strcat(buf2, " ");
-		       i--;
-		   }
-		}*/
-		max = strlen_colours_limit(pObjIndex->short_descr,16) + 17;
-		sprintf(buf, "{x[%5ld] %-*.*s{x",
-		    pObjIndex->vnum, max, max - 1, pObjIndex->short_descr);
-		add_buf(buf1, buf);
-		if (++col % 3 == 0)
-		    add_buf(buf1, "\n\r");
-	    }
-	}
+    if ((pObjIndex = get_obj_index(pArea, vnum)))
+    {
+        if (fAll || is_name(arg, pObjIndex->name)
+        || flag_value(type_flags, arg) == pObjIndex->item_type)
+        {
+        found = true;/*
+        sprintf(buf2, "%s", pObjIndex->short_descr);
+        if ((i = (17 - strlen_no_colours(buf2))) > 0) {
+           while (i > 0) {
+               strcat(buf2, " ");
+               i--;
+           }
+        }*/
+        max = strlen_colours_limit(pObjIndex->short_descr,16) + 17;
+        sprintf(buf, "{x[%5ld] %-*.*s{x",
+            pObjIndex->vnum, max, max - 1, pObjIndex->short_descr);
+        add_buf(buf1, buf);
+        if (++col % 3 == 0)
+            add_buf(buf1, "\n\r");
+        }
+    }
     }
 
     if (!found)
     {
-	send_to_char("Object(s) not found in this area.\n\r", ch);
-	return;
+    send_to_char("Object(s) not found in this area.\n\r", ch);
+    return;
     }
 
     if (col % 3 != 0)
-	add_buf(buf1, "\n\r");
+    add_buf(buf1, "\n\r");
 
 //	sprintf(buf,"%d\n\r",strlen(buf1->string));
 //	send_to_char(buf,ch);
@@ -3457,8 +3457,8 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  mshow <vnum>\n\r", ch);
-	return;
+    send_to_char("Syntax:  mshow <vnum>\n\r", ch);
+    return;
     }
 
     if (!is_number(argument))
@@ -3493,8 +3493,8 @@ void do_oshow(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  oshow <vnum>\n\r", ch);
-	return;
+    send_to_char("Syntax:  oshow <vnum>\n\r", ch);
+    return;
     }
 
     if (!is_number(argument))
@@ -3508,8 +3508,8 @@ void do_oshow(CHAR_DATA *ch, char *argument)
     if (!obj_area) obj_area = get_system_area_fallback();
     if (!(pObj = get_obj_index(obj_area, value)))
     {
-	send_to_char("That object does not exist.\n\r", ch);
-	return;
+    send_to_char("That object does not exist.\n\r", ch);
+    return;
     }
 
     old_edit = ch->desc->pEdit;
@@ -3527,8 +3527,8 @@ void do_rshow(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  rshow <vnum>\n\r", ch);
-	return;
+    send_to_char("Syntax:  rshow <vnum>\n\r", ch);
+    return;
     }
 
     if (!is_number(argument))
@@ -3542,8 +3542,8 @@ void do_rshow(CHAR_DATA *ch, char *argument)
     if (!room_area) room_area = get_system_area_fallback();
     if (!(pRoom = get_room_index(room_area, value)))
     {
-	send_to_char("That room does not exist.\n\r", ch);
-	return;
+    send_to_char("That room does not exist.\n\r", ch);
+    return;
     }
 
     oldRoom = ch->in_room;
@@ -3564,12 +3564,12 @@ int calc_obj_armour(int level, int strength)
 {
     switch (strength)
     {
-	case OBJ_ARMOUR_LIGHT:		return level/10;
-	case OBJ_ARMOUR_MEDIUM:		return level/5;
-	case OBJ_ARMOUR_STRONG:		return level * 3/10;
-	case OBJ_ARMOUR_HEAVY:		return level * 2/5;
-	case OBJ_ARMOUR_NOSTRENGTH:
-	default:			return 0;
+    case OBJ_ARMOUR_LIGHT:		return level/10;
+    case OBJ_ARMOUR_MEDIUM:		return level/5;
+    case OBJ_ARMOUR_STRONG:		return level * 3/10;
+    case OBJ_ARMOUR_HEAVY:		return level * 2/5;
+    case OBJ_ARMOUR_NOSTRENGTH:
+    default:			return 0;
     }
 }
 
@@ -3582,9 +3582,9 @@ void set_mob_hitdice(MOB_INDEX_DATA *pMob)
     int hitNumDice;
 
     if (pMob->level < 10)
-	hp_per_level = 10;
+    hp_per_level = 10;
     else
-    	hp_per_level = pMob->level;
+        hp_per_level = pMob->level;
 
     hitBonus = ((hp_per_level) * (pMob->level / 2));
     hitNumDice = pMob->level * 0.8;
@@ -3644,11 +3644,11 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 
     if (objIndex->item_type != ITEM_WEAPON)
     {
-	sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
-		"obj, %s, vnum %ld", objIndex->short_descr,
-		objIndex->vnum);
-	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
-	return;
+    sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
+        "obj, %s, vnum %ld", objIndex->short_descr,
+        objIndex->vnum);
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
+    return;
     }
 
     // This allows certain objects to evade the auto-setting when
@@ -3657,42 +3657,42 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
     &&   str_cmp(objIndex->imp_sig, "(null)")
     &&   str_cmp(objIndex->imp_sig, "none"))
     {
-	sprintf(buf, "set_weapon_dice: imp sig \"%s\" found, not "
-		"auto-setting dice, obj %s, vnum %ld",
-		objIndex->imp_sig,
-		objIndex->short_descr, objIndex->vnum);
-	log_string(buf);
-	return;
+    sprintf(buf, "set_weapon_dice: imp sig \"%s\" found, not "
+        "auto-setting dice, obj %s, vnum %ld",
+        objIndex->imp_sig,
+        objIndex->short_descr, objIndex->vnum);
+    log_string(buf);
+    return;
     }
 
     num = (objIndex->level + 20) / 10;
     type = (objIndex->level + 20) / 4;
 
     if (IS_SET(objIndex->value[4], WEAPON_TWO_HANDS))
-	type = (type * 7)/5 - 1;
+    type = (type * 7)/5 - 1;
 
     switch(objIndex->value[0])
     {
-	case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
-	case WEAPON_SWORD:		type += 1;	num += 1; 	break;
-	case WEAPON_DAGGER:		type -= 2;	num += 1; 	break;
-	case WEAPON_SPEAR: 		type += 1;		  	break;
-	case WEAPON_MACE:		type += 2;		  	break;
-	case WEAPON_AXE:        	type += 2;		  	break;
-	case WEAPON_FLAIL:		type += 2;		 	break;
-	case WEAPON_WHIP:		type += 1;	num += 1; 	break;
-	case WEAPON_POLEARM:		type += 2;		  	break;
-	case WEAPON_STAKE:				  	  	break;
-	case WEAPON_QUARTERSTAFF:	type += 1;		  	break;
-	case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
-	case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
-	default: 						  	break;
+    case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
+    case WEAPON_SWORD:		type += 1;	num += 1; 	break;
+    case WEAPON_DAGGER:		type -= 2;	num += 1; 	break;
+    case WEAPON_SPEAR: 		type += 1;		  	break;
+    case WEAPON_MACE:		type += 2;		  	break;
+    case WEAPON_AXE:        	type += 2;		  	break;
+    case WEAPON_FLAIL:		type += 2;		 	break;
+    case WEAPON_WHIP:		type += 1;	num += 1; 	break;
+    case WEAPON_POLEARM:		type += 2;		  	break;
+    case WEAPON_STAKE:				  	  	break;
+    case WEAPON_QUARTERSTAFF:	type += 1;		  	break;
+    case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
+    case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
+    default: 						  	break;
     }
 
     if (IS_SET(objIndex->extra[1], ITEM_REMORT_ONLY))
     {
-	type += 2;
-	num += 2;
+    type += 2;
+    num += 2;
     }
 
     num = UMAX(1, num);
@@ -3712,11 +3712,11 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 
     if (obj->item_type != ITEM_WEAPON)
     {
-	sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
-		"obj, %s, vnum %ld", obj->short_descr,
-		obj->pIndexData->vnum);
-	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
-	return;
+    sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
+        "obj, %s, vnum %ld", obj->short_descr,
+        obj->pIndexData->vnum);
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
+    return;
     }
 
     // This allows certain objects to evade the auto-setting when
@@ -3725,42 +3725,42 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
     &&   str_cmp(obj->pIndexData->imp_sig, "(null)")
     &&   str_cmp(obj->pIndexData->imp_sig, "none"))
     {
-	sprintf(buf, "set_weapon_dice: imp sig \"%s\" found, not "
-		"auto-setting dice, obj %s, vnum %ld",
-		obj->pIndexData->imp_sig,
-		obj->short_descr, obj->pIndexData->vnum);
-	log_string(buf);
-	return;
+    sprintf(buf, "set_weapon_dice: imp sig \"%s\" found, not "
+        "auto-setting dice, obj %s, vnum %ld",
+        obj->pIndexData->imp_sig,
+        obj->short_descr, obj->pIndexData->vnum);
+    log_string(buf);
+    return;
     }
 
     num = (obj->level + 20) / 10;
     type = (obj->level + 20) / 4;
 
     if (IS_SET(obj->value[4], WEAPON_TWO_HANDS))
-	type = type * 7/5 - 1;
+    type = type * 7/5 - 1;
 
     switch(obj->value[0])
     {
-	case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
-	case WEAPON_SWORD:		type += 1;	num += 1; 	break;
-	case WEAPON_DAGGER:		type -= 2;	num += 1; 	break;
-	case WEAPON_SPEAR: 		type += 1;		  	break;
-	case WEAPON_MACE:		type += 2;		  	break;
-	case WEAPON_AXE:        	type += 2;		  	break;
-	case WEAPON_FLAIL:		type += 2;	num -= 1; 	break;
-	case WEAPON_WHIP:		type += 1;	num += 1; 	break;
-	case WEAPON_POLEARM:		type += 2;		  	break;
-	case WEAPON_STAKE:				  	  	break;
-	case WEAPON_QUARTERSTAFF:	type += 1;		  	break;
-	case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
-	case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
-	default: 						  	break;
+    case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
+    case WEAPON_SWORD:		type += 1;	num += 1; 	break;
+    case WEAPON_DAGGER:		type -= 2;	num += 1; 	break;
+    case WEAPON_SPEAR: 		type += 1;		  	break;
+    case WEAPON_MACE:		type += 2;		  	break;
+    case WEAPON_AXE:        	type += 2;		  	break;
+    case WEAPON_FLAIL:		type += 2;	num -= 1; 	break;
+    case WEAPON_WHIP:		type += 1;	num += 1; 	break;
+    case WEAPON_POLEARM:		type += 2;		  	break;
+    case WEAPON_STAKE:				  	  	break;
+    case WEAPON_QUARTERSTAFF:	type += 1;		  	break;
+    case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
+    case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
+    default: 						  	break;
     }
 
     if (IS_SET(obj->extra[1], ITEM_REMORT_ONLY))
     {
-	type += 2;
-	num += 2;
+    type += 2;
+    num += 2;
     }
 
     num = UMAX(1, num);
@@ -3827,8 +3827,8 @@ void do_dislink(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
     if (arg[0] == '\0' || !is_number(arg))
     {
-	send_to_char("Syntax: dislink <room vnum> [junk]\n\r", ch);
-	return;
+    send_to_char("Syntax: dislink <room vnum> [junk]\n\r", ch);
+    return;
     }
 
     long vnum = atol(arg);
@@ -3836,28 +3836,28 @@ void do_dislink(CHAR_DATA *ch, char *argument)
     if (!area) area = get_system_area_fallback();
     if ((room = get_room_index(area, vnum)) == NULL)
     {
-	send_to_char("There is no such room.\n\r", ch);
-	return;
+    send_to_char("There is no such room.\n\r", ch);
+    return;
     }
 
     if (!has_access_area(ch, room->area))
     {
-	send_to_char("Insufficient security to edit area - action logged.\n\r", ch);
-	sprintf(buf, "do_dislink: %s tried to dislink %s (vnum %ld) in area %s without permissions!",
-	    ch->name,
-	    room->name,
-	    room->vnum,
-	    room->area->name);
-	log_string(buf);
-	return;
+    send_to_char("Insufficient security to edit area - action logged.\n\r", ch);
+    sprintf(buf, "do_dislink: %s tried to dislink %s (vnum %ld) in area %s without permissions!",
+        ch->name,
+        room->name,
+        room->vnum,
+        room->area->name);
+    log_string(buf);
+    return;
     }
 
     if (dislink_room(room))
-	SET_BIT(room->area->area_flags, AREA_CHANGED);
+    SET_BIT(room->area->area_flags, AREA_CHANGED);
 
     if (!str_cmp(argument, "junk")) {
-	free_string(room->name);
-	room->name = str_dup("NULL");
+    free_string(room->name);
+    room->name = str_dup("NULL");
     }
 
     sprintf(buf, "Dislinked room %s (%ld)\n\r", room->name, room->vnum);
@@ -3868,17 +3868,17 @@ void do_dislink(CHAR_DATA *ch, char *argument)
 bool has_access_helpcat(CHAR_DATA *ch, HELP_CATEGORY *hcat)
 {
     if (IS_NPC(ch))
-	return false;
+    return false;
 
     if (ch->pcdata->security >= 9)
-    	return true;
+        return true;
 
     if (strstr(hcat->builders, ch->name)
     ||  strstr(hcat->builders, "All"))
-	return true;
+    return true;
 
     if (hcat->security < 9 && ch->pcdata->security > hcat->security)
-	return true;
+    return true;
 
     return false;
 }
@@ -3887,21 +3887,21 @@ bool has_access_helpcat(CHAR_DATA *ch, HELP_CATEGORY *hcat)
 bool has_access_help(CHAR_DATA *ch, HELP_DATA *help)
 {
     if (IS_NPC(ch))
-	return false;
+    return false;
 
     if (ch->pcdata->security >= 9)
-    	return true;
+        return true;
 
     if (strstr(help->builders, ch->name)
     ||  strstr(help->builders, "All")
     ||  strstr(help->hCat->builders, ch->name)
     ||  strstr(help->hCat->builders, "All"))
-	return true;
+    return true;
 
     if (help->security < 9 && help->hCat->security < 9
     &&  ch->pcdata->security >= help->security
     &&  ch->pcdata->security >= help->hCat->security)
-	return true;
+    return true;
 
     return false;
 }
@@ -3916,40 +3916,40 @@ void do_rjunk(CHAR_DATA *ch, char *argument)
     bool changed = false;
 
     if (ch->in_room == NULL)
-	return;
+    return;
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax: rjunk <room name>\n\r", ch);
-	return;
+    send_to_char("Syntax: rjunk <room name>\n\r", ch);
+    return;
     }
 
     area = ch->in_room->area;
 
     if (!has_access_area(ch, area))
     {
-	send_to_char("Insufficient security to edit area - action logged.\n\r", ch);
-	sprintf(buf, "do_dislink: %s tried to rjunk in area %s without permissions!",
-	    ch->name,
-	    area->name);
-	log_string(buf);
-	return;
+    send_to_char("Insufficient security to edit area - action logged.\n\r", ch);
+    sprintf(buf, "do_dislink: %s tried to rjunk in area %s without permissions!",
+        ch->name,
+        area->name);
+    log_string(buf);
+    return;
     }
 
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
     {
-	if ((room = get_room_index(area, vnum)) != NULL
-	&&     !str_cmp(room->name, argument))
-	{
-	    dislink_room(room);
-	    free_string(room->name);
-	    room->name = str_dup("Null");
-	    changed = true;
-	}
+    if ((room = get_room_index(area, vnum)) != NULL
+    &&     !str_cmp(room->name, argument))
+    {
+        dislink_room(room);
+        free_string(room->name);
+        room->name = str_dup("Null");
+        changed = true;
+    }
     }
 
     if (changed)
-	SET_BIT(area->area_flags, AREA_CHANGED);
+    SET_BIT(area->area_flags, AREA_CHANGED);
 
     send_to_char("Done.\n\r", ch);
 }
@@ -3960,32 +3960,32 @@ bool has_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 {
     if (mob == NULL && obj == NULL)
     {
-	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "check_imp_sig: both mob and obj were null.");
-	return false;
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "check_imp_sig: both mob and obj were null.");
+    return false;
     }
 
     if (mob != NULL && obj != NULL)
     {
-	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "check_imp_sig: had both mob and obj.");
-	return false;
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "check_imp_sig: had both mob and obj.");
+    return false;
     }
 
     if (mob != NULL)
     {
-	if (mob->sig == NULL
-	||  !str_cmp(mob->sig, "(none)")
-	||  !str_cmp(mob->sig, "none")
-	||  !str_cmp(mob->sig, "(null)"))
-	    return false;
+    if (mob->sig == NULL
+    ||  !str_cmp(mob->sig, "(none)")
+    ||  !str_cmp(mob->sig, "none")
+    ||  !str_cmp(mob->sig, "(null)"))
+        return false;
     }
 
     if (obj != NULL)
     {
-	if (obj->imp_sig == NULL
-	||  !str_cmp(obj->imp_sig, "(none)")
-	||  !str_cmp(obj->imp_sig, "none")
-	||  !str_cmp(obj->imp_sig, "(null)"))
-	    return false;
+    if (obj->imp_sig == NULL
+    ||  !str_cmp(obj->imp_sig, "(none)")
+    ||  !str_cmp(obj->imp_sig, "none")
+    ||  !str_cmp(obj->imp_sig, "(null)"))
+        return false;
     }
 
     return true;
@@ -3996,33 +3996,33 @@ void use_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 {
     if (mob == NULL && obj == NULL)
     {
-	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "use_imp_sig: both mob and obj were null.");
-	return;
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "use_imp_sig: both mob and obj were null.");
+    return;
     }
 
     if (mob != NULL && obj != NULL)
-	log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "use_imp_sig: had both mob and obj.");
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "use_imp_sig: had both mob and obj.");
 
     if (mob != NULL)
     {
-	if (mob->sig == NULL)
-	    return;
-	else
-	{
-	    free_string(mob->sig);
-	    mob->sig = str_dup("none");
-	}
+    if (mob->sig == NULL)
+        return;
+    else
+    {
+        free_string(mob->sig);
+        mob->sig = str_dup("none");
+    }
     }
 
     if (obj != NULL)
     {
-	if (obj->imp_sig == NULL)
-	    return;
-	else
-	{
-	    free_string(obj->imp_sig);
-	    obj->imp_sig = str_dup("none");
-	}
+    if (obj->imp_sig == NULL)
+        return;
+    else
+    {
+        free_string(obj->imp_sig);
+        obj->imp_sig = str_dup("none");
+    }
     }
 }
 
@@ -4035,8 +4035,8 @@ void do_tshow(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  tshow <vnum>\n\r", ch);
-	return;
+    send_to_char("Syntax:  tshow <vnum>\n\r", ch);
+    return;
     }
 
     if (!is_number(argument))
@@ -4050,8 +4050,8 @@ void do_tshow(CHAR_DATA *ch, char *argument)
     if (!token_area) token_area = get_system_area_fallback();
     if (!(token_index = get_token_index(token_area, value)))
     {
-	send_to_char("That token does not exist.\n\r", ch);
-	return;
+    send_to_char("That token does not exist.\n\r", ch);
+    return;
     }
 
     old_edit = ch->desc->pEdit;
@@ -4081,28 +4081,28 @@ void do_tlist(CHAR_DATA *ch, char *argument)
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
-	if ((token_index = get_token_index(pArea, vnum)))
-	{
-	    if (fAll || is_name(arg, token_index->name))
-	    {
-		found = true;
-		sprintf(buf, "{Y[{x%5ld{Y]{x %-17.16s{x",
-		    token_index->vnum, token_index->name);
-		add_buf(buf1, buf);
-		if (++col % 3 == 0)
-		    add_buf(buf1, "\n\r");
-	    }
-	}
+    if ((token_index = get_token_index(pArea, vnum)))
+    {
+        if (fAll || is_name(arg, token_index->name))
+        {
+        found = true;
+        sprintf(buf, "{Y[{x%5ld{Y]{x %-17.16s{x",
+            token_index->vnum, token_index->name);
+        add_buf(buf1, buf);
+        if (++col % 3 == 0)
+            add_buf(buf1, "\n\r");
+        }
+    }
     }
 
     if (!found)
     {
-	send_to_char("Token(s) not found in this area.\n\r", ch);
-	return;
+    send_to_char("Token(s) not found in this area.\n\r", ch);
+    return;
     }
 
     if (col % 3 != 0)
-	add_buf(buf1, "\n\r");
+    add_buf(buf1, "\n\r");
 
     page_to_char(buf_string(buf1), ch);
     free_buf(buf1);
@@ -4110,17 +4110,17 @@ void do_tlist(CHAR_DATA *ch, char *argument)
 
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 {
-	if(!shop || !shop->stock || nth < 1 ) return NULL;
+    if(!shop || !shop->stock || nth < 1 ) return NULL;
 
-	SHOP_STOCK_DATA *stock;
+    SHOP_STOCK_DATA *stock;
 
-	for(stock = shop->stock; stock; stock = stock->next)
-	{
-		if(!--nth)
-			return stock;
-	}
+    for(stock = shop->stock; stock; stock = stock->next)
+    {
+        if(!--nth)
+            return stock;
+    }
 
-	return NULL;
+    return NULL;
 
 
 }
@@ -4136,115 +4136,115 @@ const struct olc_cmd_type cmdedit_table[] =
     { "comments",   cmdedit_comments },
     { "create",     cmdedit_create  },
     { "description",    cmdedit_description },
-	{ "delete",			cmdedit_delete },
+    { "delete",			cmdedit_delete },
     { "enabled",        cmdedit_enabled },
-	{ "flags",			cmdedit_flags	},
+    { "flags",			cmdedit_flags	},
     { "function",       cmdedit_function },
     { "rank",          cmdedit_rank},
     { "log",            cmdedit_log },
     { "name",           cmdedit_name },
     { "order",          cmdedit_order },
     { "position",    cmdedit_position },
-	{ "reason",		cmdedit_reason },
+    { "reason",		cmdedit_reason },
     { "sethelp",           cmdedit_help },
     { "show",      cmdedit_show },
-	{ "summary",	cmdedit_summary },
-	{ "type",		cmdedit_type },
+    { "summary",	cmdedit_summary },
+    { "type",		cmdedit_type },
 };
 
 void do_cmdedit(CHAR_DATA *ch, char *argument)
 {
-	CMD_DATA *command;
-	char arg1[MSL];
+    CMD_DATA *command;
+    char arg1[MSL];
 
 //    ch->desc->editor = ED_CMDEDIT;
 
-	argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg1);
 
-	if (IS_NPC(ch))
-		return;
+    if (IS_NPC(ch))
+        return;
 
-	if (arg1[0] != '\0')
-	{
-		if (!str_cmp(arg1, "create"))
-		{
-			if (cmdedit_create(ch, argument))
-				ch->desc->editor = ED_CMDEDIT;
+    if (arg1[0] != '\0')
+    {
+        if (!str_cmp(arg1, "create"))
+        {
+            if (cmdedit_create(ch, argument))
+                ch->desc->editor = ED_CMDEDIT;
 
-			return;
-		}
+            return;
+        }
 
-		command = get_cmd_data(arg1);
-		if (!command)
-		{
-			send_to_char("No command by that name.\n\r", ch);
-			return;
-		}
+        command = get_cmd_data(arg1);
+        if (!command)
+        {
+            send_to_char("No command by that name.\n\r", ch);
+            return;
+        }
 
-		ch->pcdata->immortal->last_olc_command = current_time;
-		olc_set_editor(ch, ED_CMDEDIT, command);
-		return;
-	}
+        ch->pcdata->immortal->last_olc_command = current_time;
+        olc_set_editor(ch, ED_CMDEDIT, command);
+        return;
+    }
 
-	send_to_char("CMDEdit:  There is no default command to edit.\n\r", ch);
+    send_to_char("CMDEdit:  There is no default command to edit.\n\r", ch);
 }
 
 void cmdedit(CHAR_DATA *ch, char *argument)
 {
-	char command[MAX_INPUT_LENGTH];
-	char arg[MAX_STRING_LENGTH];
-	int  cmd;
+    char command[MAX_INPUT_LENGTH];
+    char arg[MAX_STRING_LENGTH];
+    int  cmd;
 
-	smash_tilde(argument);
-	strcpy(arg, argument);
-	argument = one_argument(argument, command);
+    smash_tilde(argument);
+    strcpy(arg, argument);
+    argument = one_argument(argument, command);
 
-	if (!str_cmp(command, "done"))
-	{
-		edit_done(ch);
-		return;
-	}
+    if (!str_cmp(command, "done"))
+    {
+        edit_done(ch);
+        return;
+    }
 
-	ch->pcdata->immortal->last_olc_command = current_time;
-	if (command[0] == '\0')
-	{
-		cmdedit_show(ch, argument);
-		return;
-	}
+    ch->pcdata->immortal->last_olc_command = current_time;
+    if (command[0] == '\0')
+    {
+        cmdedit_show(ch, argument);
+        return;
+    }
 
-	for (cmd = 0; cmdedit_table[cmd].name != NULL; cmd++)
-	{
-		if (!str_prefix(command, cmdedit_table[cmd].name))
-		{
-			if ((*cmdedit_table[cmd].olc_fun) (ch, argument))
-			{
-				save_commands();
-			}
-			return;
-		}
-	}
+    for (cmd = 0; cmdedit_table[cmd].name != NULL; cmd++)
+    {
+        if (!str_prefix(command, cmdedit_table[cmd].name))
+        {
+            if ((*cmdedit_table[cmd].olc_fun) (ch, argument))
+            {
+                save_commands();
+            }
+            return;
+        }
+    }
 
-	interpret(ch, arg);
+    interpret(ch, arg);
 }
 
 void do_cmdshow(CHAR_DATA *ch, char *argument)
 {
-	CMD_DATA *command;
+    CMD_DATA *command;
 
-	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
-		return;
-	}
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
+        return;
+    }
 
-	if (!(command = get_cmd_data(argument)))
-	{
-		send_to_char("That command does not exist.\n\r", ch);
-		return;
-	}
+    if (!(command = get_cmd_data(argument)))
+    {
+        send_to_char("That command does not exist.\n\r", ch);
+        return;
+    }
 
-	olc_show_item(ch, command, cmdedit_show, argument);
-	return;
+    olc_show_item(ch, command, cmdedit_show, argument);
+    return;
 }
 
 void socialedit(CHAR_DATA *ch, char *argument)

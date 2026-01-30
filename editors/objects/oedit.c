@@ -52,14 +52,14 @@ OEDIT(oedit_show)
     buffer = new_buf();
 
     sprintf(buf, "Name:         {B[{x%s{B]{x\n\rArea:         {B[{x%7ld{B] {x%s\n\r",
-	pObj->name,
-	!pObj->area ? -1        : pObj->area->anum,
-	!pObj->area ? "No Area" : pObj->area->name);
+    pObj->name,
+    !pObj->area ? -1        : pObj->area->anum,
+    !pObj->area ? "No Area" : pObj->area->name);
     add_buf(buffer, buf);
 
     sprintf(buf, "Vnum:         {B[{x%7ld{B]{x\n\rType:         {B[{x%s{B]{x\n\r",
-	pObj->vnum,
-	flag_string(type_flags, pObj->item_type));
+    pObj->vnum,
+    flag_string(type_flags, pObj->item_type));
     add_buf(buffer, buf);
 
     sprintf(buf, "Persist:      {B[%s{B]{x\n\r", (pObj->persist ? "{WON" : "{Doff"));
@@ -70,39 +70,39 @@ OEDIT(oedit_show)
     add_buf(buffer, buf);
 
     sprintf(buf, "Wear flags:   {B[{x%s{B]{x\n\r",
-	flag_string(wear_flags, pObj->wear_flags));
+    flag_string(wear_flags, pObj->wear_flags));
     add_buf(buffer, buf);
 
     sprintf(buf, "Imp sig:      {B[{x%s{B]{x\n\r",
-		    pObj->imp_sig);
+            pObj->imp_sig);
     add_buf(buffer, buf);
 
     sprintf(buf, "Creator sig:  {B[{x%s{B]{x\n\r",
-		    pObj->creator_sig);
+            pObj->creator_sig);
     add_buf(buffer, buf);
 
     sprintf(buf, "Script Kwds:  {B[{x%s{B]{x\n\r",
-    		pObj->skeywds);
+            pObj->skeywds);
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r",
-	bitvector_string(4, pObj->extra[0], extra_flags, pObj->extra[1], extra2_flags, pObj->extra[2], extra3_flags, pObj->extra[3], extra4_flags));
+    bitvector_string(4, pObj->extra[0], extra_flags, pObj->extra[1], extra2_flags, pObj->extra[2], extra3_flags, pObj->extra[3], extra4_flags));
     add_buf(buffer, buf);
 /*
     sprintf(buf, "Extra2 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra[1], pObj->extra[1]));
+            flag_string(extra[1], pObj->extra[1]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra3 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra[2], pObj->extra[2]));
+            flag_string(extra[2], pObj->extra[2]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra4 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra[3], pObj->extra[3]));
+            flag_string(extra[3], pObj->extra[3]));
     add_buf(buffer, buf);
 
     sprintf(buf, "OUpdate:      {B[{x%s{B]{x\n\r",
-    	pObj->update == true ? "Yes" : "No");
+        pObj->update == true ? "Yes" : "No");
     add_buf(buffer, buf);
 */
     sprintf(buf, "Timer:        {B[{x%d{B]{x\n\r",
@@ -110,25 +110,25 @@ OEDIT(oedit_show)
     add_buf(buffer, buf);
 
     sprintf(buf, "Material:     {B[{x%s{B]{x\n\r",                /* ROM */
-	pObj->material);
+    pObj->material);
     add_buf(buffer, buf);
 
     sprintf(buf, "Condition:    {B[{x%7d{B]{x\n\r",               /* ROM */
-	pObj->condition);
+    pObj->condition);
     add_buf(buffer, buf);
 
     sprintf(buf, "Fragility:    {B[{x%7s{B]{x\n\r",               /* ROM */
-	fragile_table[pObj->fragility].name);
+    fragile_table[pObj->fragility].name);
 
     add_buf(buffer, buf);
 
     sprintf(buf, "Allwd Fixed:  {B[{x%7d{B]{x\n\r",               /* ROM */
-	pObj->times_allowed_fixed);
+    pObj->times_allowed_fixed);
     add_buf(buffer, buf);
 
     sprintf(buf, "Weight:       {B[{x%7d{B]{x\n\r"
-		 "Cost:         {B[{x%7ld{B]{x\n\r",
-	pObj->weight, pObj->cost);
+         "Cost:         {B[{x%7ld{B]{x\n\r",
+    pObj->weight, pObj->cost);
     add_buf(buffer, buf);
 
     sprintf(buf, "Points:       {B[{x%7d{B]{x\n\r",
@@ -137,192 +137,192 @@ OEDIT(oedit_show)
 
     if( pObj->lock )
     {
-			OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->area, pObj->lock->key_vnum) : NULL;
+            OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->area, pObj->lock->key_vnum) : NULL;
 
-	    sprintf(buf,"Lock State:\n\r"
-	    			"  Key:         {B[{x%7ld{B]{x %s\n\r"
-	    			"  Flags:       {B[{x%s{B]{x\n\r"
-	    			"  Pick Chance: {B[{x%d%%{B]{x\n\r",
-	    			pObj->lock->key_vnum,
-	    			lock_key ? lock_key->short_descr : "none",
-	    			flag_string(lock_flags, pObj->lock->flags),
-	    			pObj->lock->pick_chance);
-	    add_buf(buffer, buf);
-	}
+        sprintf(buf,"Lock State:\n\r"
+                    "  Key:         {B[{x%7ld{B]{x %s\n\r"
+                    "  Flags:       {B[{x%s{B]{x\n\r"
+                    "  Pick Chance: {B[{x%d%%{B]{x\n\r",
+                    pObj->lock->key_vnum,
+                    lock_key ? lock_key->short_descr : "none",
+                    flag_string(lock_flags, pObj->lock->flags),
+                    pObj->lock->pick_chance);
+        add_buf(buffer, buf);
+    }
 
     if (pObj->extra_descr)
     {
-	EXTRA_DESCR_DATA *ed;
+    EXTRA_DESCR_DATA *ed;
 
-	add_buf(buffer, "Ex desc kwd: ");
+    add_buf(buffer, "Ex desc kwd: ");
 
-	for (ed = pObj->extra_descr; ed; ed = ed->next)
-	{
-	    add_buf(buffer, "[");
-	    sprintf(buf, "%s", ed->keyword);
-	    add_buf(buffer, buf);
-	    add_buf(buffer, "]");
-	}
+    for (ed = pObj->extra_descr; ed; ed = ed->next)
+    {
+        add_buf(buffer, "[");
+        sprintf(buf, "%s", ed->keyword);
+        add_buf(buffer, buf);
+        add_buf(buffer, "]");
+    }
 
-	add_buf(buffer, "\n\r");
+    add_buf(buffer, "\n\r");
     }
 
     sprintf(buf, "Short desc:{x   %s\n\rLong desc:{x\n\r     %s\n\r",
-	pObj->short_descr, pObj->description);
+    pObj->short_descr, pObj->description);
     add_buf(buffer, buf);
 
     add_buf(buffer, "Description:{x\n\r");
     sprintf(buf, "%s", pObj->full_description);
     add_buf(buffer, buf);
 
-	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pObj->comments);
-	add_buf(buffer, buf);
+    sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pObj->comments);
+    add_buf(buffer, buf);
 
     for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
     {
-		if( paf->where == TO_OBJECT )
-		{
-			if (cnt == 0)
-			{
-				sprintf(buf, "{Y%-6s %-20s %-10s %-10s{x\n\r", "Number", "Affects", "Modifier", "Random");
-				add_buf(buffer, buf);
+        if( paf->where == TO_OBJECT )
+        {
+            if (cnt == 0)
+            {
+                sprintf(buf, "{Y%-6s %-20s %-10s %-10s{x\n\r", "Number", "Affects", "Modifier", "Random");
+                add_buf(buffer, buf);
 
-				sprintf(buf, "{Y%-6s %-20s %-10s %-10s{x\n\r", "------", "-------", "--------", "------");
-				add_buf(buffer, buf);
-			}
+                sprintf(buf, "{Y%-6s %-20s %-10s %-10s{x\n\r", "------", "-------", "--------", "------");
+                add_buf(buffer, buf);
+            }
 
-			sprintf(buf, "{B[{W%4d{B] {%c%-20s{x %-20d %d%%\n\r",
-				cnt,
-				(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX)?'Y':'G',
-				affect_loc_name(paf->location),
-				paf->modifier,
-				paf->random);
+            sprintf(buf, "{B[{W%4d{B] {%c%-20s{x %-20d %d%%\n\r",
+                cnt,
+                (paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX)?'Y':'G',
+                affect_loc_name(paf->location),
+                paf->modifier,
+                paf->random);
 
-			add_buf(buffer, buf);
-			cnt++;
-		}
+            add_buf(buffer, buf);
+            cnt++;
+        }
     }
 
     for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
     {
-		if( paf->where == TO_IMMUNE || paf->where == TO_RESIST || paf->where == TO_VULN )
-		{
-			char* irv;
+        if( paf->where == TO_IMMUNE || paf->where == TO_RESIST || paf->where == TO_VULN )
+        {
+            char* irv;
 
-			if(paf->where == TO_IMMUNE)
-				irv = "Wimmunity";
-			else if(paf->where == TO_VULN)
-				irv = "Rvulnerability";
-			else
-				irv = "Gresistance";
+            if(paf->where == TO_IMMUNE)
+                irv = "Wimmunity";
+            else if(paf->where == TO_VULN)
+                irv = "Rvulnerability";
+            else
+                irv = "Gresistance";
 
-			if (cnt == 0)
-			{
-				sprintf(buf, "{C%-6s %-15s %-15s %-10s{x\n\r", "Number", "Adds", "Modifier", "Random");
-				add_buf(buffer, buf);
+            if (cnt == 0)
+            {
+                sprintf(buf, "{C%-6s %-15s %-15s %-10s{x\n\r", "Number", "Adds", "Modifier", "Random");
+                add_buf(buffer, buf);
 
-				sprintf(buf, "{C%-6s %-15s %-15s %-10s{x\n\r", "------", "-------", "--------", "------");
-				add_buf(buffer, buf);
-			}
+                sprintf(buf, "{C%-6s %-15s %-15s %-10s{x\n\r", "------", "-------", "--------", "------");
+                add_buf(buffer, buf);
+            }
 
-			sprintf(buf, "{B[{W%4d{B] {%-16s{x %-15s %d%%\n\r",
-				cnt,
-				irv,
-				imm_bit_name(paf->bitvector),
-				paf->random);
+            sprintf(buf, "{B[{W%4d{B] {%-16s{x %-15s %d%%\n\r",
+                cnt,
+                irv,
+                imm_bit_name(paf->bitvector),
+                paf->random);
 
-			add_buf(buffer, buf);
-			cnt++;
-		}
+            add_buf(buffer, buf);
+            cnt++;
+        }
     }
 
 
     if (pObj->spells)
     {
-	cnt = 0;
+    cnt = 0;
 
-	sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
-	add_buf(buffer, buf);
+    sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+    add_buf(buffer, buf);
 
-	sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
-	add_buf(buffer, buf);
+    sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+    add_buf(buffer, buf);
 
-	for (spell = pObj->spells; spell != NULL; spell = spell->next, cnt++)
-	{
-	    sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
-	        cnt,
-	        skill_table[spell->sn].name, spell->level, spell->repop);
-	    buf[0] = UPPER(buf[0]);
-	    add_buf(buffer, buf);
-	}
+    for (spell = pObj->spells; spell != NULL; spell = spell->next, cnt++)
+    {
+        sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+            cnt,
+            skill_table[spell->sn].name, spell->level, spell->repop);
+        buf[0] = UPPER(buf[0]);
+        add_buf(buffer, buf);
+    }
     }
 
     if (pObj->catalyst)
     {
-		cnt = 0;
-		char line_colour = 'x';
+        cnt = 0;
+        char line_colour = 'x';
 
-		sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "Number", "Type", "Strength", "Amount", "Random", "Script Name");
-		add_buf(buffer, buf);
+        sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "Number", "Type", "Strength", "Amount", "Random", "Script Name");
+        add_buf(buffer, buf);
 
-		sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "------", "----", "--------", "------", "------", "-----------");
-		add_buf(buffer, buf);
+        sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "------", "----", "--------", "------", "------", "-----------");
+        add_buf(buffer, buf);
 
-		for (paf = pObj->catalyst; paf; paf = paf->next, cnt++) {
-			line_colour = ( paf->where == TO_CATALYST_ACTIVE ) ? 'W' : 'x';
+        for (paf = pObj->catalyst; paf; paf = paf->next, cnt++) {
+            line_colour = ( paf->where == TO_CATALYST_ACTIVE ) ? 'W' : 'x';
 
-			char *name = (IS_NULLSTR(paf->custom_name)) ? "---" : paf->custom_name;
+            char *name = (IS_NULLSTR(paf->custom_name)) ? "---" : paf->custom_name;
 
-			if(paf->modifier < 0)
-				sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d {Wsource{%c %d%% %s{x\n\r", cnt, line_colour,
-					flag_string(catalyst_types,paf->type),paf->level,line_colour,paf->random, name);
-			else
-				sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d %-6d %d%% %s{x\n\r", cnt, line_colour,
-					flag_string(catalyst_types,paf->type),paf->level,paf->modifier,paf->random, name);
-			buf[0] = UPPER(buf[0]);
-			add_buf(buffer, buf);
-		}
+            if(paf->modifier < 0)
+                sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d {Wsource{%c %d%% %s{x\n\r", cnt, line_colour,
+                    flag_string(catalyst_types,paf->type),paf->level,line_colour,paf->random, name);
+            else
+                sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d %-6d %d%% %s{x\n\r", cnt, line_colour,
+                    flag_string(catalyst_types,paf->type),paf->level,paf->modifier,paf->random, name);
+            buf[0] = UPPER(buf[0]);
+            add_buf(buffer, buf);
+        }
     }
 
     if (list_size(pObj->waypoints) > 0)
     {
-		int cnt = 0;
-		ITERATOR wit;
-		WAYPOINT_DATA *wp;
-		WILDS_DATA *wilds;
+        int cnt = 0;
+        ITERATOR wit;
+        WAYPOINT_DATA *wp;
+        WILDS_DATA *wilds;
 
-		add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
-		add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
-		add_buf(buffer, "{B======================================================================={x\n\r");
+        add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+        add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+        add_buf(buffer, "{B======================================================================={x\n\r");
 
-		iterator_start(&wit, pObj->waypoints);
-		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-		{
-			wilds = get_wilds_from_uid(NULL, wp->w);
+        iterator_start(&wit, pObj->waypoints);
+        while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+        {
+            wilds = get_wilds_from_uid(NULL, wp->w);
 
-			char *wname = wilds ? wilds->name : "{D(null){x";
+            char *wname = wilds ? wilds->name : "{D(null){x";
 
-			int wwidth = get_colour_width(wname) + 20;
+            int wwidth = get_colour_width(wname) + 20;
 
-			sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
-				++cnt,
-				wwidth, wwidth, wname,
-				wp->y, wp->x, wp->name);
+            sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+                ++cnt,
+                wwidth, wwidth, wname,
+                wp->y, wp->x, wp->name);
 
-			add_buf(buffer, buf);
-		}
+            add_buf(buffer, buf);
+        }
 
-		iterator_stop(&wit);
+        iterator_stop(&wit);
 
-		add_buf(buffer, "\n\r");
-	}
+        add_buf(buffer, "\n\r");
+    }
 
 
     if (pObj->progs)
-		olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
+        olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
 
-	if (pObj->index_vars)
-		olc_show_index_vars(buffer, pObj->index_vars);
+    if (pObj->index_vars)
+        olc_show_index_vars(buffer, pObj->index_vars);
 
 
     print_obj_values(pObj, buffer);
@@ -357,64 +357,64 @@ OEDIT(oedit_addaffect)
     || !is_number(randm)
     || !is_number(mod))
     {
-	send_to_char("Syntax:  addaffect [location] [#xmod] [#rand]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  addaffect [location] [#xmod] [#rand]\n\r", ch);
+    return false;
     }
 
     if ((value = flag_value(apply_flags, loc)) == NO_FLAG) /* Hugin */
     {
         send_to_char("Valid affects are:\n\r", ch);
-	show_help(ch, "apply");
-	return false;
+    show_help(ch, "apply");
+    return false;
     }
 
     for (pAf = pObj->affected; pAf != NULL; pAf = pAf->next)
     {
-	if (pAf->where == TO_OBJECT && pAf->location == value)
-	{
-	    sprintf(buf, "There's already a %s modifier on that item.\n\r",
-	        flag_string(apply_flags, value));
-	    send_to_char(buf, ch);
-	    return false;
-	}
+    if (pAf->where == TO_OBJECT && pAf->location == value)
+    {
+        sprintf(buf, "There's already a %s modifier on that item.\n\r",
+            flag_string(apply_flags, value));
+        send_to_char(buf, ch);
+        return false;
+    }
     }
 
     switch(value)
     {
         case APPLY_HIT:
-	case APPLY_MANA:
-		pMod = (int) atoi(mod)/10;
-		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
-		break;
-	case APPLY_MOVE:
-		pMod = (int) atoi(mod)/20;
-		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
-		break;
-	case APPLY_DEX:
-	case APPLY_WIS:
-	case APPLY_INT:
-	case APPLY_STR:
-	case APPLY_CON:
-		pMod = atoi(mod);
-		if (atoi(mod) < 0) pAdd = true;
-		break;
-	case APPLY_AC:
-		pMod = (int) atoi(mod)/10;
-		if (pMod == 0) pMod = 1;
-		if (atoi(mod) > 0) pAdd = true;
-		break;
-	case APPLY_HITROLL:
-	case APPLY_DAMROLL:
-		pMod = (int) atoi(mod)/2;
-		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
-		break;
-	default:
-		pMod = 1;
-		pAdd = false;
-		break;
+    case APPLY_MANA:
+        pMod = (int) atoi(mod)/10;
+        if (pMod == 0) pMod = 1;
+        if (atoi(mod) < 0) pAdd = true;
+        break;
+    case APPLY_MOVE:
+        pMod = (int) atoi(mod)/20;
+        if (pMod == 0) pMod = 1;
+        if (atoi(mod) < 0) pAdd = true;
+        break;
+    case APPLY_DEX:
+    case APPLY_WIS:
+    case APPLY_INT:
+    case APPLY_STR:
+    case APPLY_CON:
+        pMod = atoi(mod);
+        if (atoi(mod) < 0) pAdd = true;
+        break;
+    case APPLY_AC:
+        pMod = (int) atoi(mod)/10;
+        if (pMod == 0) pMod = 1;
+        if (atoi(mod) > 0) pAdd = true;
+        break;
+    case APPLY_HITROLL:
+    case APPLY_DAMROLL:
+        pMod = (int) atoi(mod)/2;
+        if (pMod == 0) pMod = 1;
+        if (atoi(mod) < 0) pAdd = true;
+        break;
+    default:
+        pMod = 1;
+        pAdd = false;
+        break;
     }
 
     /*
@@ -454,11 +454,11 @@ OEDIT(oedit_addaffect)
     pAf->random	    =   atoi(randm);
 
     if (!pObj->affected)
-	pObj->affected = pAf;
+    pObj->affected = pAf;
     else
     {
-	for (pAf_tmp = pObj->affected; pAf_tmp->next != NULL; pAf_tmp = pAf_tmp->next)
-	    ;
+    for (pAf_tmp = pObj->affected; pAf_tmp->next != NULL; pAf_tmp = pAf_tmp->next)
+        ;
 
         pAf_tmp->next = pAf;
     }
@@ -491,68 +491,68 @@ OEDIT(oedit_addimmune)
     || randm[0] == '\0'
     || !is_number(randm))
     {
-		send_to_char("Syntax:  addimmune [immune|resist|vuln] [bit] [#rand]\n\r", ch);
-		return false;
+        send_to_char("Syntax:  addimmune [immune|resist|vuln] [bit] [#rand]\n\r", ch);
+        return false;
     }
 
     where = flag_value(apply_types, loc);
 
     if( where != TO_IMMUNE && where != TO_RESIST && where != TO_VULN )
     {
-		send_to_char("Syntax:  addimmune [immune|resist|vuln] [bit] [#rand]\n\r", ch);
-		return false;
-	}
+        send_to_char("Syntax:  addimmune [immune|resist|vuln] [bit] [#rand]\n\r", ch);
+        return false;
+    }
 
-	if( where == TO_IMMUNE )
-	{
-	    if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-	    {
-			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-			return false;
-	    }
-	}
+    if( where == TO_IMMUNE )
+    {
+        if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+        {
+            send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+            return false;
+        }
+    }
 
-	value = flag_value(imm_flags, mod);
-	if( value == NO_FLAG || value == 0 )
-	{
-	    send_to_char("Invalid bit flag\n\r"
-			  "Type '? imm' for a list of flags.\n\r", ch);
-		return false;
-	}
+    value = flag_value(imm_flags, mod);
+    if( value == NO_FLAG || value == 0 )
+    {
+        send_to_char("Invalid bit flag\n\r"
+              "Type '? imm' for a list of flags.\n\r", ch);
+        return false;
+    }
 
-	if ( (value & (~value + 1)) != value )
-	{
-		send_to_char("You can only put one flag per immunity modifier.\n\r", ch);
-		return false;
-	}
+    if ( (value & (~value + 1)) != value )
+    {
+        send_to_char("You can only put one flag per immunity modifier.\n\r", ch);
+        return false;
+    }
 
 
     for (pAf = pObj->affected; pAf != NULL; pAf = pAf->next)
     {
-		if ((pAf->where == TO_IMMUNE || pAf->where == TO_RESIST || pAf->where == TO_VULN) && ((pAf->bitvector & value) != 0))
-		{
-			sprintf(buf, "There's already an immunity modifier for %s on that item.\n\r",
-				flag_string(imm_flags, value));
-			send_to_char(buf, ch);
-			return false;
-		}
+        if ((pAf->where == TO_IMMUNE || pAf->where == TO_RESIST || pAf->where == TO_VULN) && ((pAf->bitvector & value) != 0))
+        {
+            sprintf(buf, "There's already an immunity modifier for %s on that item.\n\r",
+                flag_string(imm_flags, value));
+            send_to_char(buf, ch);
+            return false;
+        }
     }
 
     pMod = atoi(randm);
 
-	switch(where)
-	{
-		case TO_IMMUNE:
-			pMod = 5 * pMod / 2;
-			break;
-		case TO_RESIST:
-			break;
-		case TO_VULN:
-			pAdd = true;
-			break;
-	}
+    switch(where)
+    {
+        case TO_IMMUNE:
+            pMod = 5 * pMod / 2;
+            break;
+        case TO_RESIST:
+            break;
+        case TO_VULN:
+            pAdd = true;
+            break;
+    }
 
-	pMod = (pMod + 9) / 10;
+    pMod = (pMod + 9) / 10;
 
     if (!pAdd && (pObj->points - pMod) < 0)
     {
@@ -577,11 +577,11 @@ OEDIT(oedit_addimmune)
     pAf->random	    =   atoi(randm);
 
     if (!pObj->affected)
-	pObj->affected = pAf;
+    pObj->affected = pAf;
     else
     {
-	for (pAf_tmp = pObj->affected; pAf_tmp->next != NULL; pAf_tmp = pAf_tmp->next)
-	    ;
+    for (pAf_tmp = pObj->affected; pAf_tmp->next != NULL; pAf_tmp = pAf_tmp->next)
+        ;
 
         pAf_tmp->next = pAf;
     }
@@ -606,22 +606,22 @@ OEDIT(oedit_addspell)
     EDIT_OBJ(ch, pObj);
 
     if( ch->tot_level == MAX_LEVEL || has_imp_sig(NULL, pObj) )
-    	restricted = false;
+        restricted = false;
 
     if( ch->tot_level == MAX_LEVEL )
-    	spell_restricted = false;
+        spell_restricted = false;
 
     if (restricted &&
-    	!(pObj->item_type == ITEM_SCROLL ||
-    	pObj->item_type == ITEM_WAND ||
-    	pObj->item_type == ITEM_STAFF ||
-    	pObj->item_type == ITEM_POTION ||
-    	pObj->item_type == ITEM_PILL ||
-    	pObj->item_type == ITEM_TATTOO ||
-    	pObj->item_type == ITEM_PORTAL))
+        !(pObj->item_type == ITEM_SCROLL ||
+        pObj->item_type == ITEM_WAND ||
+        pObj->item_type == ITEM_STAFF ||
+        pObj->item_type == ITEM_POTION ||
+        pObj->item_type == ITEM_PILL ||
+        pObj->item_type == ITEM_TATTOO ||
+        pObj->item_type == ITEM_PORTAL))
     {
-		send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-		return false;
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+        return false;
     }
 
     argument = one_argument(argument, name);
@@ -631,14 +631,14 @@ OEDIT(oedit_addspell)
     if (name[0] == '\0' || level[0] == '\0' || rand[0] == '\0'
     ||  !is_number(level) || !is_number(rand))
     {
-	send_to_char("Syntax: addspell [spell name] [spell level] [random]\n\r", ch);
-	return false;
+    send_to_char("Syntax: addspell [spell name] [spell level] [random]\n\r", ch);
+    return false;
     }
 
     if ((sn = skill_lookup(name)) == -1 || (spell_restricted && (skill_table[sn].spell_fun == spell_null)))
     {
-		send_to_char("That's not a spell.\n\r", ch);
-		return false;
+        send_to_char("That's not a spell.\n\r", ch);
+        return false;
     }
 
     if (pObj->item_type != ITEM_SCROLL
@@ -648,27 +648,27 @@ OEDIT(oedit_addspell)
     &&  pObj->item_type != ITEM_STAFF
     &&  pObj->item_type != ITEM_WAND)
     {
-	for (spell_tmp = pObj->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next)
-	{
-	    if (spell_tmp->sn == sn)
-	    {
-		send_to_char("That spell is already on the object.\n\r", ch);
-		return false;
-	    }
-	}
+    for (spell_tmp = pObj->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next)
+    {
+        if (spell_tmp->sn == sn)
+        {
+        send_to_char("That spell is already on the object.\n\r", ch);
+        return false;
+        }
+    }
     }
 
     if ((i = atoi(level)) < 1 || i > get_trust(ch))
     {
-	sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
-	send_to_char(buf, ch);
-	return false;
+    sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+    send_to_char(buf, ch);
+    return false;
     }
 
     if ((i = atoi(rand)) < 1 || i > 100)
     {
-	send_to_char("Random repop must be a percentage 1-100.\n\r", ch);
-	return false;
+    send_to_char("Random repop must be a percentage 1-100.\n\r", ch);
+    return false;
     }
 
     spell 		= new_spell();
@@ -679,11 +679,11 @@ OEDIT(oedit_addspell)
 
     // Add to end of list
     if (pObj->spells == NULL)
-	pObj->spells = spell;
+    pObj->spells = spell;
     else
     {
-	for (spell_tmp = pObj->spells; spell_tmp->next != NULL; spell_tmp = spell_tmp->next)
-	    ;
+    for (spell_tmp = pObj->spells; spell_tmp->next != NULL; spell_tmp = spell_tmp->next)
+        ;
 
         spell_tmp->next = spell;
     }
@@ -708,8 +708,8 @@ OEDIT(oedit_addskill)
 
     if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
     {
-	send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	return false;
+    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+    return false;
     }
 
     argument = one_argument(argument, name);
@@ -718,26 +718,26 @@ OEDIT(oedit_addskill)
 
     if (name[0] == '\0' || mod[0] == '\0' || random[0] == '\0' ||  !is_number(mod) || !is_number(random))
     {
-	send_to_char("Syntax: addskill [skill name] [#modifier] [random]\n\r", ch);
-	return false;
+    send_to_char("Syntax: addskill [skill name] [#modifier] [random]\n\r", ch);
+    return false;
     }
 
     if ((sn = skill_lookup(name)) == -1)
     {
-	send_to_char("That's not a skill.\n\r", ch);
-	return false;
+    send_to_char("That's not a skill.\n\r", ch);
+    return false;
     }
 
     if ((i = atoi(mod)) < -100 || i > 100 || !i)
     {
-	send_to_char("Skill modifier must be a positive (1 to 100) or negative (-1 to -100) percentage.\n\r", ch);
-	return false;
+    send_to_char("Skill modifier must be a positive (1 to 100) or negative (-1 to -100) percentage.\n\r", ch);
+    return false;
     }
 
     if ((i = atoi(random)) < 1 || i > 100)
     {
-	send_to_char("Random repop must be a percentage 1-100.\n\r", ch);
-	return false;
+    send_to_char("Random repop must be a percentage 1-100.\n\r", ch);
+    return false;
     }
 
     pAf             =   new_affect();
@@ -752,11 +752,11 @@ OEDIT(oedit_addskill)
     pAf->random	    =   atoi(random);
 
     if (!pObj->affected)
-	pObj->affected = pAf;
+    pObj->affected = pAf;
     else
     {
-	for (pAf_tmp = pObj->affected; pAf_tmp->next != NULL; pAf_tmp = pAf_tmp->next)
-	    ;
+    for (pAf_tmp = pObj->affected; pAf_tmp->next != NULL; pAf_tmp = pAf_tmp->next)
+        ;
 
         pAf_tmp->next = pAf;
     }
@@ -784,8 +784,8 @@ OEDIT(oedit_addcatalyst)
 
     if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
     {
-	send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	return false;
+    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+    return false;
     }
 
     argument = one_argument(argument, type);
@@ -797,14 +797,14 @@ OEDIT(oedit_addcatalyst)
     if (!type[0] || !strength[0] || !charges[0] || !chance[0]
     ||  !is_number(strength) || (!is_number(charges) && str_prefix(charges,"source")) || !is_number(chance))
     {
-	send_to_char("Syntax: addcatalyst [type] [strength] [charges] [chance] [active] [name]\n\r", ch);
-	return false;
+    send_to_char("Syntax: addcatalyst [type] [strength] [charges] [chance] [active] [name]\n\r", ch);
+    return false;
     }
 
     if ((t = flag_value(catalyst_types,type)) == NO_FLAG)
     {
-	send_to_char("That's not a catalyst type.\n\r", ch);
-	return false;
+    send_to_char("That's not a catalyst type.\n\r", ch);
+    return false;
     }
 
     s = atoi(strength);
@@ -813,50 +813,50 @@ OEDIT(oedit_addcatalyst)
 
     if (s < 1 || s > CATALYST_MAXSTRENGTH)
     {
-		sprintf(buf, "Valid strengths are from 1 to %d.\n\r", CATALYST_MAXSTRENGTH);
-		send_to_char(buf, ch);
-		return false;
+        sprintf(buf, "Valid strengths are from 1 to %d.\n\r", CATALYST_MAXSTRENGTH);
+        send_to_char(buf, ch);
+        return false;
     }
 
-	if(!str_prefix(charges,"source"))
-		n = -1;
-	else if ((n = atoi(charges)) < 1) {
-		send_to_char("Invalid charges.\n\r", ch);
-		return false;
-	}
+    if(!str_prefix(charges,"source"))
+        n = -1;
+    else if ((n = atoi(charges)) < 1) {
+        send_to_char("Invalid charges.\n\r", ch);
+        return false;
+    }
 
-	c = URANGE(1,c,100);
+    c = URANGE(1,c,100);
 
     for(cat = pObj->catalyst; cat; cat = cat->next) {
-	    if(cat->where == w && cat->type == t && cat->level == s && cat->random == c) {
-		    if(cat->modifier < 0 || n < 0)
-			    cat->modifier = -1;
-		    else
-			    cat->modifier += n;
-		    break;
-	    }
+        if(cat->where == w && cat->type == t && cat->level == s && cat->random == c) {
+            if(cat->modifier < 0 || n < 0)
+                cat->modifier = -1;
+            else
+                cat->modifier += n;
+            break;
+        }
     }
 
-	if(!cat) {
-		pCat = new_affect();
-		pCat->next = NULL;
-		pCat->where = w;
-		pCat->modifier = n;
-		pCat->type = t;
-		pCat->level = s;
-		pCat->random = c;
+    if(!cat) {
+        pCat = new_affect();
+        pCat->next = NULL;
+        pCat->where = w;
+        pCat->modifier = n;
+        pCat->type = t;
+        pCat->level = s;
+        pCat->random = c;
 
-		if( !IS_NULLSTR(argument) )
-			pCat->custom_name = str_dup(argument);
+        if( !IS_NULLSTR(argument) )
+            pCat->custom_name = str_dup(argument);
 
-		// Add to end of list
-		if (!pObj->catalyst)
-			pObj->catalyst = pCat;
-		else {
-			for (cat = pObj->catalyst; cat->next != NULL; cat = cat->next);
-			cat->next = pCat;
-		}
-	}
+        // Add to end of list
+        if (!pObj->catalyst)
+            pObj->catalyst = pCat;
+        else {
+            for (cat = pObj->catalyst; cat->next != NULL; cat = cat->next);
+            cat->next = pCat;
+        }
+    }
 
     send_to_char("Added catalyst.\n\r", ch);
     return true;
@@ -873,8 +873,8 @@ OEDIT(oedit_delspell)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax: delspell [#]\n\r", ch);
-	return false;
+    send_to_char("Syntax: delspell [#]\n\r", ch);
+    return false;
     }
 
     n = atoi(argument);
@@ -882,29 +882,29 @@ OEDIT(oedit_delspell)
     spell_prev = NULL;
     for (spell = pObj->spells; spell != NULL; spell = spell->next)
     {
-	if (i == n)
-	    break;
+    if (i == n)
+        break;
 
-	i++;
-	spell_prev = spell;
+    i++;
+    spell_prev = spell;
     }
 
     if (spell == NULL)
     {
-	send_to_char("That spell isn't on the object.\n\r", ch);
-	return false;
+    send_to_char("That spell isn't on the object.\n\r", ch);
+    return false;
     }
 
     // First one on the list
     if (!spell_prev)
     {
-	pObj->spells = spell->next;
-	free_spell(spell);
+    pObj->spells = spell->next;
+    free_spell(spell);
     }
     else
     {
-	spell_prev->next = spell->next;
-	free_spell(spell);
+    spell_prev->next = spell->next;
+    free_spell(spell);
     }
 
     send_to_char("Spell removed.\n\r", ch);
@@ -922,8 +922,8 @@ OEDIT(oedit_delcatalyst)
 
     if (!is_number(argument))
     {
-	send_to_char("Syntax: delcatalyst [#]\n\r", ch);
-	return false;
+    send_to_char("Syntax: delcatalyst [#]\n\r", ch);
+    return false;
     }
 
     n = atoi(argument);
@@ -931,29 +931,29 @@ OEDIT(oedit_delcatalyst)
     catalyst_prev = NULL;
     for (catalyst = pObj->catalyst; catalyst != NULL; catalyst = catalyst->next)
     {
-	if (i == n)
-	    break;
+    if (i == n)
+        break;
 
-	i++;
-	catalyst_prev = catalyst;
+    i++;
+    catalyst_prev = catalyst;
     }
 
     if (catalyst == NULL)
     {
-	send_to_char("That catalyst isn't on the object.\n\r", ch);
-	return false;
+    send_to_char("That catalyst isn't on the object.\n\r", ch);
+    return false;
     }
 
     // First one on the list
     if (!catalyst_prev)
     {
-	pObj->catalyst = catalyst->next;
-	free_affect(catalyst);
+    pObj->catalyst = catalyst->next;
+    free_affect(catalyst);
     }
     else
     {
-	catalyst_prev->next = catalyst->next;
-	free_affect(catalyst);
+    catalyst_prev->next = catalyst->next;
+    free_affect(catalyst);
     }
 
     send_to_char("Catalyst removed.\n\r", ch);
@@ -975,379 +975,379 @@ OEDIT(oedit_next)
     while (nextObj == NULL
     && next_vnum <= pObj->area->max_vnum)
     {
-	nextObj = get_obj_index(pObj->area, next_vnum);
-	next_vnum++;
+    nextObj = get_obj_index(pObj->area, next_vnum);
+    next_vnum++;
     }
 
     if (nextObj == NULL)
     {
-	send_to_char("No next object in area.\n\r", ch);
+    send_to_char("No next object in area.\n\r", ch);
     }
     else
     {
-	edit_done(ch);
-	ch->desc->pEdit = (void *)nextObj;
-	ch->desc->editor = ED_OBJECT;
+    edit_done(ch);
+    ch->desc->pEdit = (void *)nextObj;
+    ch->desc->editor = ED_OBJECT;
     }
     return false;
 }
 
 OEDIT(oedit_waypoints)
 {
-	char buf[MSL];
-	char arg[MIL];
-	OBJ_INDEX_DATA *pObj;
+    char buf[MSL];
+    char arg[MIL];
+    OBJ_INDEX_DATA *pObj;
 
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	if( pObj->item_type != ITEM_MAP )
-	{
-		send_to_char("Only MAP objects can have waypoints.\n\r", ch);
-		return false;
-	}
+    if( pObj->item_type != ITEM_MAP )
+    {
+        send_to_char("Only MAP objects can have waypoints.\n\r", ch);
+        return false;
+    }
 
-	if( argument[0] == '\0' )
-	{
-		send_to_char("Syntax:  waypoints list\n\r", ch);
-		send_to_char("         waypoints add <wilds> <south> <east>[ <name>]\n\r", ch);
-		send_to_char("         waypoints delete <#>\n\r", ch);
-		return false;
-	}
+    if( argument[0] == '\0' )
+    {
+        send_to_char("Syntax:  waypoints list\n\r", ch);
+        send_to_char("         waypoints add <wilds> <south> <east>[ <name>]\n\r", ch);
+        send_to_char("         waypoints delete <#>\n\r", ch);
+        return false;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if( !str_prefix(arg, "list") )
-	{
-		if (list_size(pObj->waypoints) > 0)
-		{
-			int cnt = 0;
-			ITERATOR wit;
-			WAYPOINT_DATA *wp;
-			WILDS_DATA *wilds;
+    if( !str_prefix(arg, "list") )
+    {
+        if (list_size(pObj->waypoints) > 0)
+        {
+            int cnt = 0;
+            ITERATOR wit;
+            WAYPOINT_DATA *wp;
+            WILDS_DATA *wilds;
 
-			BUFFER *buffer = new_buf();
+            BUFFER *buffer = new_buf();
 
-			add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
-			add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
-			add_buf(buffer, "{B======================================================================={x\n\r");
+            add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+            add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+            add_buf(buffer, "{B======================================================================={x\n\r");
 
-			iterator_start(&wit, pObj->waypoints);
-			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-			{
-				wilds = get_wilds_from_uid(NULL, wp->w);
+            iterator_start(&wit, pObj->waypoints);
+            while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+            {
+                wilds = get_wilds_from_uid(NULL, wp->w);
 
-				char *wname = wilds ? wilds->name : "{D(null){x";
+                char *wname = wilds ? wilds->name : "{D(null){x";
 
-				int wwidth = get_colour_width(wname) + 20;
+                int wwidth = get_colour_width(wname) + 20;
 
-				sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
-					++cnt,
-					wwidth, wwidth, wname,
-					wp->y, wp->x, wp->name);
+                sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+                    ++cnt,
+                    wwidth, wwidth, wname,
+                    wp->y, wp->x, wp->name);
 
-				add_buf(buffer, buf);
-			}
+                add_buf(buffer, buf);
+            }
 
-			iterator_stop(&wit);
+            iterator_stop(&wit);
 
-			add_buf(buffer, "\n\r");
+            add_buf(buffer, "\n\r");
 
-			page_to_char(buffer->string, ch);
+            page_to_char(buffer->string, ch);
 
-			free_buf(buffer);
-		}
-		else
-			send_to_char("No waypoints to display.\n\r", ch);
+            free_buf(buffer);
+        }
+        else
+            send_to_char("No waypoints to display.\n\r", ch);
 
-		return false;
-	}
+        return false;
+    }
 
-	if( !str_prefix(arg, "add") )
-	{
-		char arg2[MIL];
-		char arg3[MIL];
-		char arg4[MIL];
+    if( !str_prefix(arg, "add") )
+    {
+        char arg2[MIL];
+        char arg3[MIL];
+        char arg4[MIL];
 
-		long uid;
-		WILDS_DATA *wilds;
-		int x, y;
+        long uid;
+        WILDS_DATA *wilds;
+        int x, y;
 
-		argument = one_argument(argument, arg2);
-		argument = one_argument(argument, arg3);
-		argument = one_argument(argument, arg4);
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
 
-		if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return false;
-		}
+        if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
+        {
+            send_to_char("That is not a number.\n\r", ch);
+            return false;
+        }
 
-		uid = atol(arg2);
-		wilds = get_wilds_from_uid(NULL, uid);
-		if( !wilds )
-		{
-			send_to_char("No such wilderness.\n\r", ch);
-			return false;
-		}
+        uid = atol(arg2);
+        wilds = get_wilds_from_uid(NULL, uid);
+        if( !wilds )
+        {
+            send_to_char("No such wilderness.\n\r", ch);
+            return false;
+        }
 
-		y = atoi(arg3);
-		x = atoi(arg4);
+        y = atoi(arg3);
+        x = atoi(arg4);
 
-		if( y < 0 || y >= wilds->map_size_y )
-		{
-			sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
-			send_to_char(buf, ch);
-			return false;
-		}
+        if( y < 0 || y >= wilds->map_size_y )
+        {
+            sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
+            send_to_char(buf, ch);
+            return false;
+        }
 
-		if( x < 0 || x >= wilds->map_size_x )
-		{
-			sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
-			send_to_char(buf, ch);
-			return false;
-		}
+        if( x < 0 || x >= wilds->map_size_x )
+        {
+            sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
+            send_to_char(buf, ch);
+            return false;
+        }
 
-		WAYPOINT_DATA *wp = new_waypoint();
+        WAYPOINT_DATA *wp = new_waypoint();
 
-		free_string(wp->name);
-		wp->name = nocolour(argument);
-		wp->w = uid;
-		wp->x = x;
-		wp->y = y;
+        free_string(wp->name);
+        wp->name = nocolour(argument);
+        wp->w = uid;
+        wp->x = x;
+        wp->y = y;
 
-		if( !pObj->waypoints )
-		{
-			pObj->waypoints = new_waypoints_list();
-		}
+        if( !pObj->waypoints )
+        {
+            pObj->waypoints = new_waypoints_list();
+        }
 
-		list_appendlink(pObj->waypoints, wp);
-		send_to_char("Waypoint added.\n\r", ch);
-		return true;
-	}
+        list_appendlink(pObj->waypoints, wp);
+        send_to_char("Waypoint added.\n\r", ch);
+        return true;
+    }
 
-	if( !str_prefix(arg, "delete") )
-	{
-		int value;
+    if( !str_prefix(arg, "delete") )
+    {
+        int value;
 
-		if( !is_number(argument) )
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return false;
-		}
+        if( !is_number(argument) )
+        {
+            send_to_char("That is not a number.\n\r", ch);
+            return false;
+        }
 
-		if( !IS_VALID(pObj->waypoints) )
-		{
-			send_to_char("There are no waypoints to delete.\n\r", ch);
-			return false;
-		}
+        if( !IS_VALID(pObj->waypoints) )
+        {
+            send_to_char("There are no waypoints to delete.\n\r", ch);
+            return false;
+        }
 
-		value = atoi(argument);
-		if( value < 1 || value > list_size(pObj->waypoints) )
-		{
-			send_to_char("No such waypoint.\n\r", ch);
-			return false;
-		}
+        value = atoi(argument);
+        if( value < 1 || value > list_size(pObj->waypoints) )
+        {
+            send_to_char("No such waypoint.\n\r", ch);
+            return false;
+        }
 
-		list_remnthlink(pObj->waypoints, value, true);
-		send_to_char("Waypoint deleted.\n\r", ch);
-		return true;
-	}
+        list_remnthlink(pObj->waypoints, value, true);
+        send_to_char("Waypoint deleted.\n\r", ch);
+        return true;
+    }
 
-	oedit_waypoints(ch, "");
-	return false;
+    oedit_waypoints(ch, "");
+    return false;
 }
 
 OEDIT(oedit_lock)
 {
-	char arg[MIL];
-	OBJ_INDEX_DATA *pObj;
+    char arg[MIL];
+    OBJ_INDEX_DATA *pObj;
 
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	if( argument[0] == '\0' )
-	{
-		send_to_char("Syntax:  lock add\n\r", ch);
-		send_to_char("         lock remove\n\r", ch);
-		send_to_char("         lock key [vnum]\n\r", ch);
-		send_to_char("         lock key clear\n\r", ch);
-		send_to_char("         lock flags [flags]\n\r", ch);
-		send_to_char("         lock pick [0-100]\n\r", ch);
-		return false;
-	}
+    if( argument[0] == '\0' )
+    {
+        send_to_char("Syntax:  lock add\n\r", ch);
+        send_to_char("         lock remove\n\r", ch);
+        send_to_char("         lock key [vnum]\n\r", ch);
+        send_to_char("         lock key clear\n\r", ch);
+        send_to_char("         lock flags [flags]\n\r", ch);
+        send_to_char("         lock pick [0-100]\n\r", ch);
+        return false;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if( !str_prefix(arg, "add") )
-	{
-		if( pObj->lock )
-		{
-			send_to_char("Object already has a lock state.\n\r", ch);
-			return false;
-		}
+    if( !str_prefix(arg, "add") )
+    {
+        if( pObj->lock )
+        {
+            send_to_char("Object already has a lock state.\n\r", ch);
+            return false;
+        }
 
-		// TODO: Add closeability to weapon_containers and drinkcontainers
-		if( pObj->item_type != ITEM_CONTAINER &&
-			pObj->item_type != ITEM_PORTAL &&
+        // TODO: Add closeability to weapon_containers and drinkcontainers
+        if( pObj->item_type != ITEM_CONTAINER &&
+            pObj->item_type != ITEM_PORTAL &&
 //			pObj->item_type != ITEM_WEAPON_CONTAINER &&
 //			pObj->item_type != ITEM_DRINKCONTAINER &&
-			pObj->item_type != ITEM_BOOK )
-		{
-			send_to_char("Invalid object type.\n\r", ch);
-			send_to_char("Only the following types may have lock state added:\n\r", ch);
-			send_to_char("{Y*{x CONTAINER\n\r", ch);
-			send_to_char("{Y*{x PORTAL\n\r", ch);
+            pObj->item_type != ITEM_BOOK )
+        {
+            send_to_char("Invalid object type.\n\r", ch);
+            send_to_char("Only the following types may have lock state added:\n\r", ch);
+            send_to_char("{Y*{x CONTAINER\n\r", ch);
+            send_to_char("{Y*{x PORTAL\n\r", ch);
 //			send_to_char("{Y*{x WEAPON_CONTAINER\n\r", ch);
 //			send_to_char("{Y*{x DRINKCONTAINER\n\r", ch);
-			send_to_char("{Y*{x BOOK\n\r", ch);
-			return false;
-		}
+            send_to_char("{Y*{x BOOK\n\r", ch);
+            return false;
+        }
 
-		pObj->lock = new_lock_state();
-		send_to_char("Lock State added.\n\r", ch);
-		return true;
-	}
+        pObj->lock = new_lock_state();
+        send_to_char("Lock State added.\n\r", ch);
+        return true;
+    }
 
-	if( !str_prefix(arg, "remove") )
-	{
-		if( !pObj->lock )
-		{
-			send_to_char("Object does not have a lock state.\n\r", ch);
-			return false;
-		}
+    if( !str_prefix(arg, "remove") )
+    {
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
+            return false;
+        }
 
 
-		free_lock_state(pObj->lock);
-		pObj->lock = NULL;
+        free_lock_state(pObj->lock);
+        pObj->lock = NULL;
 
-		send_to_char("Lock State removed.\n\r", ch);
-		return true;
-	}
+        send_to_char("Lock State removed.\n\r", ch);
+        return true;
+    }
 
-	if( !str_prefix(arg, "key") )
-	{
-		if( !pObj->lock )
-		{
-			send_to_char("Object does not have a lock state.\n\r", ch);
-			return false;
-		}
+    if( !str_prefix(arg, "key") )
+    {
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
+            return false;
+        }
 
-		if( argument[0] == '\0' )
-		{
-			send_to_char("Syntax:  lock key [vnum]\n\r", ch);
-			send_to_char("         lock key clear\n\r", ch);
-			return false;
-		}
+        if( argument[0] == '\0' )
+        {
+            send_to_char("Syntax:  lock key [vnum]\n\r", ch);
+            send_to_char("         lock key clear\n\r", ch);
+            return false;
+        }
 
-		if( is_number(argument) )
-		{
-			long vnum = atol(argument);
-			OBJ_INDEX_DATA *key = get_obj_index(pObj->area, vnum);
+        if( is_number(argument) )
+        {
+            long vnum = atol(argument);
+            OBJ_INDEX_DATA *key = get_obj_index(pObj->area, vnum);
 
-			if( !key )
-			{
-				send_to_char("That object does not exist.\n\r", ch);
-				return false;
-			}
+            if( !key )
+            {
+                send_to_char("That object does not exist.\n\r", ch);
+                return false;
+            }
 
-			if( key->item_type != ITEM_KEY )
-			{
-				send_to_char("That object is not a key.\n\r", ch);
-				return false;
-			}
+            if( key->item_type != ITEM_KEY )
+            {
+                send_to_char("That object is not a key.\n\r", ch);
+                return false;
+            }
 
-			pObj->lock->key_vnum = vnum;
-			send_to_char("Lock State key set.\n\r", ch);
-			return true;
-		}
-		else if( !str_prefix(argument, "clear") )
-		{
-			pObj->lock->key_vnum = 0;
-			send_to_char("Lock State key removed.\n\r", ch);
-			return true;
-		}
+            pObj->lock->key_vnum = vnum;
+            send_to_char("Lock State key set.\n\r", ch);
+            return true;
+        }
+        else if( !str_prefix(argument, "clear") )
+        {
+            pObj->lock->key_vnum = 0;
+            send_to_char("Lock State key removed.\n\r", ch);
+            return true;
+        }
 
-		oedit_lock(ch, "lock key");
-		return false;
-	}
+        oedit_lock(ch, "lock key");
+        return false;
+    }
 
-	if( !str_prefix(arg, "flags") )
-	{
-		if( !pObj->lock )
-		{
-			send_to_char("Object does not have a lock state.\n\r", ch);
-			return false;
-		}
+    if( !str_prefix(arg, "flags") )
+    {
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
+            return false;
+        }
 
-		int value = flag_value(lock_flags, argument);
+        int value = flag_value(lock_flags, argument);
 
-		if( value == NO_FLAG )
-		{
-			send_to_char("Syntax:  lock flags [flags]\n\r", ch);
-			send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
-			show_help(ch, "lock");
-			return false;
-		}
+        if( value == NO_FLAG )
+        {
+            send_to_char("Syntax:  lock flags [flags]\n\r", ch);
+            send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+            show_help(ch, "lock");
+            return false;
+        }
 
-		pObj->lock->flags ^= value;
-		send_to_char("Lock State flags changed.\n\r", ch);
-		return true;
-	}
+        pObj->lock->flags ^= value;
+        send_to_char("Lock State flags changed.\n\r", ch);
+        return true;
+    }
 
-	if( !str_prefix(arg, "pick") )
-	{
-		if( !pObj->lock )
-		{
-			send_to_char("Object does not have a lock state.\n\r", ch);
-			return false;
-		}
+    if( !str_prefix(arg, "pick") )
+    {
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
+            return false;
+        }
 
-		if( !is_number(argument) )
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return false;
-		}
+        if( !is_number(argument) )
+        {
+            send_to_char("That is not a number.\n\r", ch);
+            return false;
+        }
 
-		int value = atoi(argument);
-		if( value < 0 || value > 100 )
-		{
-			send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
-			return false;
-		}
+        int value = atoi(argument);
+        if( value < 0 || value > 100 )
+        {
+            send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+            return false;
+        }
 
-		pObj->lock->pick_chance = value;
-		send_to_char("Lock State pick chance set.\n\r", ch);
-		return true;
-	}
+        pObj->lock->pick_chance = value;
+        send_to_char("Lock State pick chance set.\n\r", ch);
+        return true;
+    }
 
-	oedit_lock(ch, "");
-	return false;
+    oedit_lock(ch, "");
+    return false;
 }
 
 OEDIT(oedit_persist)
 {
-	OBJ_INDEX_DATA *pObj;
+    OBJ_INDEX_DATA *pObj;
 
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
 
-	if (!str_cmp(argument,"on")) {
-	    if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL) {
-			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-			return false;
-	    }
+    if (!str_cmp(argument,"on")) {
+        if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL) {
+            send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+            return false;
+        }
 
-		pObj->persist = true;
-	    use_imp_sig(NULL, pObj);
-		send_to_char("Persistance enabled.\n\r", ch);
-	} else if (!str_cmp(argument,"off")) {
-		pObj->persist = false;
-		send_to_char("Persistance disabled.\n\r", ch);
-	} else {
-		send_to_char("Usage: persist on/off\n\r", ch);
-		return false;
-	}
+        pObj->persist = true;
+        use_imp_sig(NULL, pObj);
+        send_to_char("Persistance enabled.\n\r", ch);
+    } else if (!str_cmp(argument,"off")) {
+        pObj->persist = false;
+        send_to_char("Persistance disabled.\n\r", ch);
+    } else {
+        send_to_char("Usage: persist on/off\n\r", ch);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 OEDIT(oedit_prev)
@@ -1364,19 +1364,19 @@ OEDIT(oedit_prev)
     while (prevObj == NULL
     && prev_vnum >= pObj->area->min_vnum)
     {
-	prevObj = get_obj_index(pObj->area, prev_vnum);
-	prev_vnum--;
+    prevObj = get_obj_index(pObj->area, prev_vnum);
+    prev_vnum--;
     }
 
     if (prevObj == NULL)
     {
-	send_to_char("No previous object in area.\n\r", ch);
+    send_to_char("No previous object in area.\n\r", ch);
     }
     else
     {
-	edit_done(ch);
-	ch->desc->pEdit = (void *)prevObj;
-	ch->desc->editor = ED_OBJECT;
+    edit_done(ch);
+    ch->desc->pEdit = (void *)prevObj;
+    ch->desc->editor = ED_OBJECT;
     }
     return false;
 }
@@ -1398,48 +1398,48 @@ OEDIT(oedit_delaffect)
 
     if (!is_number(affect) || affect[0] == '\0')
     {
-	send_to_char("Syntax:  delaffect [#xaffect]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  delaffect [#xaffect]\n\r", ch);
+    return false;
     }
 
     value = atoi(affect);
 
     if (value < 0)
     {
-	send_to_char("Only non-negative affect-numbers allowed.\n\r", ch);
-	return false;
+    send_to_char("Only non-negative affect-numbers allowed.\n\r", ch);
+    return false;
     }
 
     if (!(pAf = pObj->affected))
     {
-	send_to_char("OEdit:  Non-existant affect.\n\r", ch);
-	return false;
+    send_to_char("OEdit:  Non-existant affect.\n\r", ch);
+    return false;
     }
 
-	pAf_prev = NULL;
+    pAf_prev = NULL;
     for(;pAf;pAf_prev = pAf, pAf = pAf_next)
     {
-		pAf_next = pAf->next;
+        pAf_next = pAf->next;
 
-		if( pAf->where == TO_OBJECT )
-		{
-			if( --value < 0 )
-			{
-				if( pAf_prev == NULL )
-					pObj->affected = pAf_next;
-				else
-					pAf_prev->next = pAf_next;
+        if( pAf->where == TO_OBJECT )
+        {
+            if( --value < 0 )
+            {
+                if( pAf_prev == NULL )
+                    pObj->affected = pAf_next;
+                else
+                    pAf_prev->next = pAf_next;
 
-				free_affect(pAf);
-				send_to_char("Affect removed.\n\r", ch);
-				return true;
-			}
-		}
+                free_affect(pAf);
+                send_to_char("Affect removed.\n\r", ch);
+                return true;
+            }
+        }
 
-	}
+    }
 
-	send_to_char("No such affect.\n\r", ch);
-	return false;
+    send_to_char("No such affect.\n\r", ch);
+    return false;
 }
 
 OEDIT(oedit_delimmune)
@@ -1458,48 +1458,48 @@ OEDIT(oedit_delimmune)
 
     if (!is_number(affect) || affect[0] == '\0')
     {
-	send_to_char("Syntax:  delimmune [#xaffect]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  delimmune [#xaffect]\n\r", ch);
+    return false;
     }
 
     value = atoi(affect);
 
     if (value < 0)
     {
-	send_to_char("Only non-negative affect-numbers allowed.\n\r", ch);
-	return false;
+    send_to_char("Only non-negative affect-numbers allowed.\n\r", ch);
+    return false;
     }
 
     if (!(pAf = pObj->affected))
     {
-	send_to_char("OEdit:  Non-existant affect.\n\r", ch);
-	return false;
+    send_to_char("OEdit:  Non-existant affect.\n\r", ch);
+    return false;
     }
 
-	pAf_prev = NULL;
+    pAf_prev = NULL;
     for(;pAf;pAf_prev = pAf, pAf = pAf_next)
     {
-		pAf_next = pAf->next;
+        pAf_next = pAf->next;
 
-		if( pAf->where == TO_IMMUNE || pAf->where == TO_RESIST || pAf->where == TO_VULN )
-		{
-			if( --value < 0 )
-			{
-				if( pAf_prev == NULL )
-					pObj->affected = pAf_next;
-				else
-					pAf_prev->next = pAf_next;
+        if( pAf->where == TO_IMMUNE || pAf->where == TO_RESIST || pAf->where == TO_VULN )
+        {
+            if( --value < 0 )
+            {
+                if( pAf_prev == NULL )
+                    pObj->affected = pAf_next;
+                else
+                    pAf_prev->next = pAf_next;
 
-				free_affect(pAf);
-				send_to_char("Immunity modifier removed.\n\r", ch);
-				return true;
-			}
-		}
+                free_affect(pAf);
+                send_to_char("Immunity modifier removed.\n\r", ch);
+                return true;
+            }
+        }
 
-	}
+    }
 
-	send_to_char("No such immunity modifier.\n\r", ch);
-	return false;
+    send_to_char("No such immunity modifier.\n\r", ch);
+    return false;
 }
 
 OEDIT(oedit_name)
@@ -1510,8 +1510,8 @@ OEDIT(oedit_name)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  name [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  name [string]\n\r", ch);
+    return false;
     }
 
     free_string(pObj->name);
@@ -1530,8 +1530,8 @@ OEDIT(oedit_sign)
 
     if (ch->tot_level < MAX_LEVEL)
     {
-	send_to_char("This is not for you to do.\n\r" , ch);
-	return false;
+    send_to_char("This is not for you to do.\n\r" , ch);
+    return false;
     }
 
     free_string(pObj->imp_sig);
@@ -1549,8 +1549,8 @@ OEDIT(oedit_skeywds)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  skwds [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  skwds [string]\n\r", ch);
+    return false;
     }
 
     free_string(pObj->skeywds);
@@ -1566,7 +1566,7 @@ OEDIT(oedit_varset)
 
     EDIT_OBJ(ch, pObj);
 
-	return olc_varset(&pObj->index_vars, ch, argument, false);
+    return olc_varset(&pObj->index_vars, ch, argument, false);
 }
 
 OEDIT(oedit_varclear)
@@ -1575,7 +1575,7 @@ OEDIT(oedit_varclear)
 
     EDIT_OBJ(ch, pObj);
 
-	return olc_varclear(&pObj->index_vars, ch, argument, false);
+    return olc_varclear(&pObj->index_vars, ch, argument, false);
 }
 
 
@@ -1587,8 +1587,8 @@ OEDIT(oedit_short)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  short [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  short [string]\n\r", ch);
+    return false;
     }
 
     free_string(pObj->short_descr);
@@ -1598,9 +1598,9 @@ OEDIT(oedit_short)
 
     if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
-	free_string(pObj->name);
-	pObj->name = short_to_name(pObj->short_descr);
-	send_to_char("Name keywords set.\n\r", ch);
+    free_string(pObj->name);
+    pObj->name = short_to_name(pObj->short_descr);
+    send_to_char("Name keywords set.\n\r", ch);
     }
     return true;
 }
@@ -1614,8 +1614,8 @@ OEDIT(oedit_long)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  long [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  long [string]\n\r", ch);
+    return false;
     }
 
     strcat(argument, "{x");
@@ -1633,12 +1633,12 @@ bool set_value(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argument, int value)
 {
     if (argument[0] == '\0')
     {
-	set_obj_values(ch, pObj, -1, "");
-	return false;
+    set_obj_values(ch, pObj, -1, "");
+    return false;
     }
 
     if (set_obj_values(ch, pObj, value, argument))
-	return true;
+    return true;
 
     return false;
 }
@@ -1653,8 +1653,8 @@ bool oedit_values(CHAR_DATA *ch, char *argument, int value)
 
     if (set_value(ch, pObj, argument, value))
     {
-	if (pObj->item_type == ITEM_WEAPON)
-	    set_weapon_dice(pObj);
+    if (pObj->item_type == ITEM_WEAPON)
+        set_weapon_dice(pObj);
 
         return true;
     }
@@ -1743,8 +1743,8 @@ OEDIT(oedit_weight)
 
     if (argument[0] == '\0' || !is_number(argument))
     {
-	send_to_char("Syntax:  weight [number]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  weight [number]\n\r", ch);
+    return false;
     }
 
     pObj->weight = atoi(argument);
@@ -1762,8 +1762,8 @@ OEDIT(oedit_cost)
 
     if (argument[0] == '\0' || !is_number(argument))
     {
-	send_to_char("Syntax:  cost [number]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  cost [number]\n\r", ch);
+    return false;
     }
 
     pObj->cost = atoi(argument);
@@ -1784,49 +1784,49 @@ OEDIT(oedit_create)
     value = atoi(argument);
     if (argument[0] == '\0' || value == 0)
     {
-	//send_to_char("Syntax:  oedit create [vnum]\n\r", ch);
-	OBJ_INDEX_DATA *temp_obj;
+    //send_to_char("Syntax:  oedit create [vnum]\n\r", ch);
+    OBJ_INDEX_DATA *temp_obj;
 
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
-	if (temp_obj != NULL)
-	{
-	    while (temp_obj != NULL)
-	    {
-		temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
-		if (temp_obj == NULL) break;
-		auto_vnum++;
-	    }
-	}
+    auto_vnum = ch->in_room->area->min_vnum;
+    temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
+    if (temp_obj != NULL)
+    {
+        while (temp_obj != NULL)
+        {
+        temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
+        if (temp_obj == NULL) break;
+        auto_vnum++;
+        }
+    }
 
-	if (auto_vnum > ch->in_room->area->max_vnum)
-	{
-	    send_to_char("Sorry, this area has no more space left.\n\r",
-		    ch);
-	    return false;
-	}
+    if (auto_vnum > ch->in_room->area->max_vnum)
+    {
+        send_to_char("Sorry, this area has no more space left.\n\r",
+            ch);
+        return false;
+    }
     }
 
     if (auto_vnum != 0)
-	value = auto_vnum;
+    value = auto_vnum;
 
     pArea = get_vnum_area(value);
     if (!pArea)
     {
-	send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
-	return false;
+    send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
+    return false;
     }
 
     if (!IS_BUILDER(ch, pArea))
     {
-	send_to_char("OEdit:  Vnum in an area you cannot build in.\n\r", ch);
-	return false;
+    send_to_char("OEdit:  Vnum in an area you cannot build in.\n\r", ch);
+    return false;
     }
 
-	if (get_obj_index(pArea, value))
+    if (get_obj_index(pArea, value))
     {
-	send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
-	return false;
+    send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
+    return false;
     }
 
     pObj              = new_obj_index();
@@ -1835,11 +1835,11 @@ OEDIT(oedit_create)
     pObj->creator_sig = str_dup(ch->name);
 
     if (value > top_vnum_obj)
-	top_vnum_obj = value;
+    top_vnum_obj = value;
 
     iHash                 = value % MAX_KEY_HASH;
-	pObj->next		  = pArea->obj_index_hash[iHash];
-	pArea->obj_index_hash[iHash] = pObj;
+    pObj->next		  = pArea->obj_index_hash[iHash];
+    pArea->obj_index_hash[iHash] = pObj;
     ch->desc->pEdit	  = (void *)pObj;
 
     SET_BIT(pObj->area->area_flags, AREA_CHANGED);
@@ -1850,227 +1850,227 @@ OEDIT(oedit_create)
 
 OEDIT(oedit_ed)
 {
-	OBJ_INDEX_DATA *pObj;
-	EXTRA_DESCR_DATA *ed;
-	char command[MAX_INPUT_LENGTH];
-	char keyword[MAX_INPUT_LENGTH];
-	char copy_item[MAX_INPUT_LENGTH];
-	EDIT_OBJ(ch, pObj);
+    OBJ_INDEX_DATA *pObj;
+    EXTRA_DESCR_DATA *ed;
+    char command[MAX_INPUT_LENGTH];
+    char keyword[MAX_INPUT_LENGTH];
+    char copy_item[MAX_INPUT_LENGTH];
+    EDIT_OBJ(ch, pObj);
 
-	argument = one_argument(argument, command);
-	argument = one_argument(argument, keyword);
-	argument = one_argument(argument, copy_item);
+    argument = one_argument(argument, command);
+    argument = one_argument(argument, keyword);
+    argument = one_argument(argument, copy_item);
 
-	if (command[0] == '\0')
-	{
-		send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-		send_to_char("         ed delete [keyword]\n\r", ch);
-		send_to_char("         ed edit [keyword]\n\r", ch);
-		send_to_char("         ed format [keyword]\n\r", ch);
-		send_to_char("         ed copy old_keyword new_keyword\n\r", ch);
-		send_to_char("         ed environment [keyword]\n\r", ch);
+    if (command[0] == '\0')
+    {
+        send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+        send_to_char("         ed delete [keyword]\n\r", ch);
+        send_to_char("         ed edit [keyword]\n\r", ch);
+        send_to_char("         ed format [keyword]\n\r", ch);
+        send_to_char("         ed copy old_keyword new_keyword\n\r", ch);
+        send_to_char("         ed environment [keyword]\n\r", ch);
 
-		return false;
-	}
+        return false;
+    }
 
     if (!str_cmp(command, "environment"))
     {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
-	    return false;
-	}
-
-	ed			=   new_extra_descr();
-	ed->keyword		=   str_dup(keyword);
-	ed->description		= NULL;
-	ed->next		=   pObj->extra_descr;
-	pObj->extra_descr	=   ed;
-
-	send_to_char("Enviromental extra description added.\n\r", ch);
-
-	return true;
+    if (keyword[0] == '\0')
+    {
+        send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
+        return false;
     }
 
-	if (!str_cmp(command, "copy"))
-	{
-		EXTRA_DESCR_DATA *ed2;
+    ed			=   new_extra_descr();
+    ed->keyword		=   str_dup(keyword);
+    ed->description		= NULL;
+    ed->next		=   pObj->extra_descr;
+    pObj->extra_descr	=   ed;
 
-		if (keyword[0] == '\0' || copy_item[0] == '\0')
-		{
-			send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
-			return false;
-		}
+    send_to_char("Enviromental extra description added.\n\r", ch);
 
-		for (ed = pObj->extra_descr; ed; ed = ed->next)
-		{
-			if (is_name(keyword, ed->keyword))
-			break;
-		}
+    return true;
+    }
 
-		if (!ed)
-		{
-			send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-			return false;
-		}
+    if (!str_cmp(command, "copy"))
+    {
+        EXTRA_DESCR_DATA *ed2;
 
-		ed2					= new_extra_descr();
-		ed2->keyword		= str_dup(copy_item);
-		ed2->next			= pObj->extra_descr;
-		pObj->extra_descr	= ed2;
-		ed2->description	= str_dup(ed->description);
+        if (keyword[0] == '\0' || copy_item[0] == '\0')
+        {
+            send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
+            return false;
+        }
 
-		send_to_char("Done.\n\r", ch);
+        for (ed = pObj->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+        }
 
-		return true;
-	}
+        if (!ed)
+        {
+            send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-	if (!str_cmp(command, "add"))
-	{
-		if (keyword[0] == '\0')
-		{
-			send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-			return false;
-		}
+        ed2					= new_extra_descr();
+        ed2->keyword		= str_dup(copy_item);
+        ed2->next			= pObj->extra_descr;
+        pObj->extra_descr	= ed2;
+        ed2->description	= str_dup(ed->description);
 
-		ed					= new_extra_descr();
-		ed->keyword			= str_dup(keyword);
-		ed->next			= pObj->extra_descr;
-		pObj->extra_descr	= ed;
+        send_to_char("Done.\n\r", ch);
 
-		string_append(ch, &ed->description);
+        return true;
+    }
 
-		return true;
-	}
+    if (!str_cmp(command, "add"))
+    {
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+            return false;
+        }
 
-	if (!str_cmp(command, "edit"))
-	{
-		if (keyword[0] == '\0')
-		{
-			send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
-			return false;
-		}
+        ed					= new_extra_descr();
+        ed->keyword			= str_dup(keyword);
+        ed->next			= pObj->extra_descr;
+        pObj->extra_descr	= ed;
 
-		for (ed = pObj->extra_descr; ed; ed = ed->next)
-		{
-			if (is_name(keyword, ed->keyword))
-			break;
-		}
+        string_append(ch, &ed->description);
 
-		if (!ed)
-		{
-			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-			return false;
-		}
+        return true;
+    }
 
-		if( !ed->description )
-			ed->description = str_dup("");
+    if (!str_cmp(command, "edit"))
+    {
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
+            return false;
+        }
 
-		string_append(ch, &ed->description);
+        for (ed = pObj->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+        }
 
-		return true;
-	}
+        if (!ed)
+        {
+            send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-	if (!str_cmp(command, "delete"))
-	{
-		EXTRA_DESCR_DATA *ped = NULL;
+        if( !ed->description )
+            ed->description = str_dup("");
 
-		if (keyword[0] == '\0')
-		{
-			send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
-			return false;
-		}
+        string_append(ch, &ed->description);
 
-		for (ed = pObj->extra_descr; ed; ed = ed->next)
-		{
-			if (is_name(keyword, ed->keyword))
-				break;
-			ped = ed;
-		}
+        return true;
+    }
 
-		if (!ed)
-		{
-			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-			return false;
-		}
+    if (!str_cmp(command, "delete"))
+    {
+        EXTRA_DESCR_DATA *ped = NULL;
 
-		if (!ped)
-			pObj->extra_descr = ed->next;
-		else
-			ped->next = ed->next;
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
+            return false;
+        }
 
-		free_extra_descr(ed);
+        for (ed = pObj->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+                break;
+            ped = ed;
+        }
 
-		send_to_char("Extra description deleted.\n\r", ch);
-		return true;
-	}
+        if (!ed)
+        {
+            send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
+
+        if (!ped)
+            pObj->extra_descr = ed->next;
+        else
+            ped->next = ed->next;
+
+        free_extra_descr(ed);
+
+        send_to_char("Extra description deleted.\n\r", ch);
+        return true;
+    }
 
 
-	if (!str_cmp(command, "format"))
-	{
-		if (keyword[0] == '\0')
-		{
-			send_to_char("Syntax:  ed format [keyword]\n\r", ch);
-			return false;
-		}
+    if (!str_cmp(command, "format"))
+    {
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed format [keyword]\n\r", ch);
+            return false;
+        }
 
-		for (ed = pObj->extra_descr; ed; ed = ed->next)
-		{
-			if (is_name(keyword, ed->keyword))
-				break;
-		}
+        for (ed = pObj->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+                break;
+        }
 
-		if (!ed)
-		{
-			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-			return false;
-		}
+        if (!ed)
+        {
+            send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-		if( !ed->description )
-		{
-			send_to_char("OEdit:  Extra description is an environmental extra description.\n\r", ch);
-			return false;
-		}
+        if( !ed->description )
+        {
+            send_to_char("OEdit:  Extra description is an environmental extra description.\n\r", ch);
+            return false;
+        }
 
-		ed->description = format_string(ed->description);
+        ed->description = format_string(ed->description);
 
-		send_to_char("Extra description formatted.\n\r", ch);
-		return true;
-	}
+        send_to_char("Extra description formatted.\n\r", ch);
+        return true;
+    }
 
-	if (!str_cmp(command, "show"))
-	{
-		if (keyword[0] == '\0')
-		{
-			send_to_char("Syntax:  ed show [keyword]\n\r", ch);
-			return false;
-		}
+    if (!str_cmp(command, "show"))
+    {
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed show [keyword]\n\r", ch);
+            return false;
+        }
 
-		for (ed = pObj->extra_descr; ed; ed = ed->next)
-		{
-			if (is_name(keyword, ed->keyword))
-				break;
-		}
+        for (ed = pObj->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+                break;
+        }
 
-		if (!ed)
-		{
-			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-			return false;
-		}
+        if (!ed)
+        {
+            send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-		if (!ed->description)
-		{
-			send_to_char("OEdit:  Cannot show environmental extra description.\n\r", ch);
-			return false;
-		}
+        if (!ed->description)
+        {
+            send_to_char("OEdit:  Cannot show environmental extra description.\n\r", ch);
+            return false;
+        }
 
-		page_to_char(ed->description, ch);
+        page_to_char(ed->description, ch);
 
-		return true;
-	}
+        return true;
+    }
 
-	oedit_ed(ch, "");
-	return false;
+    oedit_ed(ch, "");
+    return false;
 }
 
 
@@ -2081,30 +2081,30 @@ OEDIT(oedit_extra)
 
     if (argument[0] != '\0')
     {
-		EDIT_OBJ(ch, pObj);
-		
-		long extra[4];
+        EDIT_OBJ(ch, pObj);
+        
+        long extra[4];
 
-		if (!bitvector_lookup(argument, 4, extra, extra_flags, extra2_flags, extra3_flags, extra4_flags))
-		{
-			send_to_char("Invalid extra flag.\n\r", ch);
-			send_to_char("Type '? extra' for a list of flags.\n\r", ch);
-			return false;
-		}
+        if (!bitvector_lookup(argument, 4, extra, extra_flags, extra2_flags, extra3_flags, extra4_flags))
+        {
+            send_to_char("Invalid extra flag.\n\r", ch);
+            send_to_char("Type '? extra' for a list of flags.\n\r", ch);
+            return false;
+        }
 
-	    //TOGGLE_BIT(pObj->extra_flags, value);
-		TOGGLE_BIT(pObj->extra[0], extra[0]);
-		TOGGLE_BIT(pObj->extra[1], extra[1]);
-		TOGGLE_BIT(pObj->extra[2], extra[2]);
-		TOGGLE_BIT(pObj->extra[3], extra[3]);
+        //TOGGLE_BIT(pObj->extra_flags, value);
+        TOGGLE_BIT(pObj->extra[0], extra[0]);
+        TOGGLE_BIT(pObj->extra[1], extra[1]);
+        TOGGLE_BIT(pObj->extra[2], extra[2]);
+        TOGGLE_BIT(pObj->extra[3], extra[3]);
 
-	    send_to_char("Extra flag toggled.\n\r", ch);
-	    return true;
-	
+        send_to_char("Extra flag toggled.\n\r", ch);
+        return true;
+    
     }
 
     send_to_char("Syntax:  extra [flag]\n\r"
-		  "Type '? extra' for a list of flags.\n\r", ch);
+          "Type '? extra' for a list of flags.\n\r", ch);
     return false;
 }
 
@@ -2116,31 +2116,31 @@ OEDIT(oedit_extra2)
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
-	
-	// We should be adding checks to individual flags.
+    EDIT_OBJ(ch, pObj);
+    
+    // We should be adding checks to individual flags.
 
-	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
-	{
-	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	    return false;
-	}
+    if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
+    {
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+        return false;
+    }
 
 
-	if ((value = flag_value(extra2_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->extra2_flags, value);
+    if ((value = flag_value(extra2_flags, argument)) != NO_FLAG)
+    {
+        TOGGLE_BIT(pObj->extra2_flags, value);
 
-	    if (has_imp_sig(NULL, pObj))
-		use_imp_sig(NULL, pObj);
+        if (has_imp_sig(NULL, pObj))
+        use_imp_sig(NULL, pObj);
 
-	    send_to_char("Extra2 flag toggled.\n\r", ch);
-	    return true;
-	}
+        send_to_char("Extra2 flag toggled.\n\r", ch);
+        return true;
+    }
     }
 
     send_to_char("Syntax:  extra2 [flag]\n\r"
-		  "Type '? extra2' for a list of flags.\n\r", ch);
+          "Type '? extra2' for a list of flags.\n\r", ch);
     return false;
 }
 
@@ -2151,31 +2151,31 @@ OEDIT(oedit_extra3)
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	// We should be adding checks to individual flags.
+    // We should be adding checks to individual flags.
 
-	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
-	{
-	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	    return false;
-	}
+    if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
+    {
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+        return false;
+    }
 
 
-	if ((value = flag_value(extra3_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->extra3_flags, value);
+    if ((value = flag_value(extra3_flags, argument)) != NO_FLAG)
+    {
+        TOGGLE_BIT(pObj->extra3_flags, value);
 
-	    if (has_imp_sig(NULL, pObj))
-		use_imp_sig(NULL, pObj);
+        if (has_imp_sig(NULL, pObj))
+        use_imp_sig(NULL, pObj);
 
-	    send_to_char("Extra3 flag toggled.\n\r", ch);
-	    return true;
-	}
+        send_to_char("Extra3 flag toggled.\n\r", ch);
+        return true;
+    }
     }
 
     send_to_char("Syntax:  extra3 [flag]\n\r"
-		  "Type '? extra3' for a list of flags.\n\r", ch);
+          "Type '? extra3' for a list of flags.\n\r", ch);
     return false;
 }
 
@@ -2186,31 +2186,31 @@ OEDIT(oedit_extra4)
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	// We should be adding checks to individual flags.
+    // We should be adding checks to individual flags.
 
-	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
-	{
-	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	    return false;
-	}
+    if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
+    {
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+        return false;
+    }
 
 
-	if ((value = flag_value(extra4_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->extra4_flags, value);
+    if ((value = flag_value(extra4_flags, argument)) != NO_FLAG)
+    {
+        TOGGLE_BIT(pObj->extra4_flags, value);
 
-	    if (has_imp_sig(NULL, pObj))
-		use_imp_sig(NULL, pObj);
+        if (has_imp_sig(NULL, pObj))
+        use_imp_sig(NULL, pObj);
 
-	    send_to_char("Extra4 flag toggled.\n\r", ch);
-	    return true;
-	}
+        send_to_char("Extra4 flag toggled.\n\r", ch);
+        return true;
+    }
     }
 
     send_to_char("Syntax:  extra4 [flag]\n\r"
-		  "Type '? extra4' for a list of flags.\n\r", ch);
+          "Type '? extra4' for a list of flags.\n\r", ch);
     return false;
 }
 */
@@ -2222,112 +2222,112 @@ OEDIT(oedit_wear)
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	value = flag_value(wear_flags, argument);
+    value = flag_value(wear_flags, argument);
 
-	wear = (pObj->wear_flags ^ value) & ~(ITEM_TAKE|ITEM_CONCEALS|ITEM_NO_SAC);
+    wear = (pObj->wear_flags ^ value) & ~(ITEM_TAKE|ITEM_CONCEALS|ITEM_NO_SAC);
 
-	if((wear & -wear) != wear) {
-		send_to_char("You can't set an object to be worn in more than one spot at once.\n\r", ch);
-		return false;
-	}
+    if((wear & -wear) != wear) {
+        send_to_char("You can't set an object to be worn in more than one spot at once.\n\r", ch);
+        return false;
+    }
 
         if ((flag_value(wear_flags, argument) == ITEM_WEAR_BACK)
-	&&     pObj->item_type != ITEM_RANGED_WEAPON)
-	{
-	    send_to_char("Only ranged weapons can be slung behind the back.\n\r", ch);
-	    return false;
-	}
+    &&     pObj->item_type != ITEM_RANGED_WEAPON)
+    {
+        send_to_char("Only ranged weapons can be slung behind the back.\n\r", ch);
+        return false;
+    }
 
-	if ((flag_value(wear_flags, argument) == ITEM_WEAR_SHOULDER)
-	&&     pObj->item_type != ITEM_WEAPON_CONTAINER)
-	{
-	    send_to_char("Only weapon containers can be worn on the shoulder.\n\r", ch);
-	    return false;
-	}
+    if ((flag_value(wear_flags, argument) == ITEM_WEAR_SHOULDER)
+    &&     pObj->item_type != ITEM_WEAPON_CONTAINER)
+    {
+        send_to_char("Only weapon containers can be worn on the shoulder.\n\r", ch);
+        return false;
+    }
 
-	if ((value = flag_value(wear_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->wear_flags, value);
+    if ((value = flag_value(wear_flags, argument)) != NO_FLAG)
+    {
+        TOGGLE_BIT(pObj->wear_flags, value);
 
-	    send_to_char("Wear flag toggled.\n\r", ch);
+        send_to_char("Wear flag toggled.\n\r", ch);
 
-	    return true;
-	}
+        return true;
+    }
     }
 
     send_to_char("Syntax:  wear [flag]\n\r"
-		  "Type '? wear' for a list of flags.\n\r", ch);
+          "Type '? wear' for a list of flags.\n\r", ch);
     return false;
 }
 
 
 OEDIT(oedit_type)
 {
-	OBJ_INDEX_DATA *pObj;
-	int value;
-	int i;
+    OBJ_INDEX_DATA *pObj;
+    int value;
+    int i;
 
-	if (argument[0] != '\0')
-	{
-		EDIT_OBJ(ch, pObj);
+    if (argument[0] != '\0')
+    {
+        EDIT_OBJ(ch, pObj);
 
-		if ((value = flag_value(type_flags, argument)) != NO_FLAG)
-		{
-			if ((value == ITEM_KEYRING ||
-				 value == ITEM_BANK ||
-				 value == ITEM_SHARECERT ||
-				 value == ITEM_ROOM_DARKNESS ||
-				 value == ITEM_ROOM_FLAME ||
-				 value == ITEM_SMOKE_BOMB ||
-				 value == ITEM_MONEY ||
-				 value == ITEM_WITHERING_CLOUD ||
-				 value == ITEM_ROOM_ROOMSHIELD ||
-				 value == ITEM_CATALYST ||
-				 value == ITEM_SHIP ||
-				 value == ITEM_SHRINE) &&
-				ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("Sorry, only an IMP can set that item-type.\n\r",ch);
-				return false;
-			}
+        if ((value = flag_value(type_flags, argument)) != NO_FLAG)
+        {
+            if ((value == ITEM_KEYRING ||
+                 value == ITEM_BANK ||
+                 value == ITEM_SHARECERT ||
+                 value == ITEM_ROOM_DARKNESS ||
+                 value == ITEM_ROOM_FLAME ||
+                 value == ITEM_SMOKE_BOMB ||
+                 value == ITEM_MONEY ||
+                 value == ITEM_WITHERING_CLOUD ||
+                 value == ITEM_ROOM_ROOMSHIELD ||
+                 value == ITEM_CATALYST ||
+                 value == ITEM_SHIP ||
+                 value == ITEM_SHRINE) &&
+                ch->tot_level < MAX_LEVEL)
+            {
+                send_to_char("Sorry, only an IMP can set that item-type.\n\r",ch);
+                return false;
+            }
 
-			pObj->item_type = value;
+            pObj->item_type = value;
 
-			send_to_char("Type set.\n\r", ch);
+            send_to_char("Type set.\n\r", ch);
 
-			// Clear the values.
-			for (i = 0; i < 8; i++)
-			{
-				pObj->value[i] = 0;
-			}
+            // Clear the values.
+            for (i = 0; i < 8; i++)
+            {
+                pObj->value[i] = 0;
+            }
 
-			// Defaults
-			if( pObj->item_type == ITEM_TELESCOPE )
-			{
-				pObj->value[4] = -1;
-			}
+            // Defaults
+            if( pObj->item_type == ITEM_TELESCOPE )
+            {
+                pObj->value[4] = -1;
+            }
 
-			if( pObj->lock )
-			{
-				free_lock_state(pObj->lock);
-				pObj->lock = NULL;
-			}
+            if( pObj->lock )
+            {
+                free_lock_state(pObj->lock);
+                pObj->lock = NULL;
+            }
 
-			if( pObj->waypoints )
-			{
-				list_destroy(pObj->waypoints);
-				pObj->waypoints = NULL;
-			}
+            if( pObj->waypoints )
+            {
+                list_destroy(pObj->waypoints);
+                pObj->waypoints = NULL;
+            }
 
-			return true;
-		}
-	}
+            return true;
+        }
+    }
 
-	send_to_char("Syntax:  type [flag]\n\r"
-				"Type '? type' for a list of flags.\n\r", ch);
-	return false;
+    send_to_char("Syntax:  type [flag]\n\r"
+                "Type '? type' for a list of flags.\n\r", ch);
+    return false;
 }
 
 
@@ -2340,14 +2340,14 @@ OEDIT(oedit_material)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  material [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  material [string]\n\r", ch);
+    return false;
     }
 
     if ((num = material_lookup(argument)) == -1)
     {
-	send_to_char("Invalid material. Type '? material.'\n\r", ch);
-	return false;
+    send_to_char("Invalid material. Type '? material.'\n\r", ch);
+    return false;
     }
 
     free_string(pObj->material);
@@ -2369,8 +2369,8 @@ OEDIT(oedit_level)
 
     if (argument[0] == '\0' || !is_number(argument))
     {
-	send_to_char("Syntax:  level [number]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  level [number]\n\r", ch);
+    return false;
     }
 
     pObj->level = atoi(argument);
@@ -2379,14 +2379,14 @@ OEDIT(oedit_level)
 
     pObj->points = (int)pObj->level/10;
     sprintf(buf, "This object is now assigned {Y%d{x points.\n\r",
-		    pObj->points);
+            pObj->points);
     send_to_char(buf, ch);
 
     /* auto setting weapon dice stuff */
     if (pObj->item_type == ITEM_WEAPON)
     {
         set_weapon_dice(pObj);
-	send_to_char("Damage dice set.\n\r", ch);
+    send_to_char("Damage dice set.\n\r", ch);
     }
 
 
@@ -2394,14 +2394,14 @@ OEDIT(oedit_level)
     if (pObj->item_type == ITEM_ARMOUR)
     {
         armour=(int) calc_obj_armour(pObj->level, pObj->value[4]);
-	armour_exotic=(int) armour * .90;
+    armour_exotic=(int) armour * .90;
 
-	pObj->value[0] = armour;
-	pObj->value[1] = armour;
-	pObj->value[2] = armour;
-	pObj->value[3] = armour_exotic;
+    pObj->value[0] = armour;
+    pObj->value[1] = armour;
+    pObj->value[2] = armour;
+    pObj->value[3] = armour_exotic;
 
-	send_to_char("Armour class set.\n\r", ch);
+    send_to_char("Armour class set.\n\r", ch);
     }
 
     return true;
@@ -2440,51 +2440,51 @@ OEDIT(oedit_fragility)
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	if (!str_cmp(argument, "Solid"))
-	{
-	    if (!str_cmp(pObj->imp_sig, "none")
-	    && ch->tot_level < MAX_LEVEL)
-	    {
-		send_to_char("You can't do this without an IMP's "
-			"permission.\n\r", ch);
-		return false;
-	    }
+    if (!str_cmp(argument, "Solid"))
+    {
+        if (!str_cmp(pObj->imp_sig, "none")
+        && ch->tot_level < MAX_LEVEL)
+        {
+        send_to_char("You can't do this without an IMP's "
+            "permission.\n\r", ch);
+        return false;
+        }
 
-	    pObj->fragility = OBJ_FRAGILE_SOLID;
-	    set = true;
-	    use_imp_sig(NULL, pObj);
-	}
+        pObj->fragility = OBJ_FRAGILE_SOLID;
+        set = true;
+        use_imp_sig(NULL, pObj);
+    }
 
-	if (!str_cmp(argument, "Strong"))
-	{
-	    pObj->fragility = OBJ_FRAGILE_STRONG;
-	    set = true;
-	}
+    if (!str_cmp(argument, "Strong"))
+    {
+        pObj->fragility = OBJ_FRAGILE_STRONG;
+        set = true;
+    }
 
-	if (!str_cmp(argument, "Normal"))
-	{
-	    pObj->fragility = OBJ_FRAGILE_NORMAL;
-	    set = true;
-	}
+    if (!str_cmp(argument, "Normal"))
+    {
+        pObj->fragility = OBJ_FRAGILE_NORMAL;
+        set = true;
+    }
 
-	if (!str_cmp(argument, "Weak"))
-	{
-	    pObj->fragility = OBJ_FRAGILE_WEAK;
-	    set = true;
-	}
+    if (!str_cmp(argument, "Weak"))
+    {
+        pObj->fragility = OBJ_FRAGILE_WEAK;
+        set = true;
+    }
 
-	if (set)
-	{
-	    send_to_char("Fragility set.\n\r", ch);
-	    return true;
-	}
+    if (set)
+    {
+        send_to_char("Fragility set.\n\r", ch);
+        return true;
+    }
     }
 
     send_to_char("Syntax:  fragility  Solid|Strong|Normal|Weak\n\r"
-	    "Fragility.\n\r",
-	    ch);
+        "Fragility.\n\r",
+        ch);
     return false;
 }
 
@@ -2498,17 +2498,17 @@ OEDIT(oedit_allowed_fixed)
     && (value = atoi (argument)) >= 0
     && (value <= 100))
     {
-	EDIT_OBJ(ch, pObj);
+    EDIT_OBJ(ch, pObj);
 
-	pObj->times_allowed_fixed = value;
-	send_to_char("Allowed Fixed Set.\n\r", ch);
+    pObj->times_allowed_fixed = value;
+    send_to_char("Allowed Fixed Set.\n\r", ch);
 
-	return true;
+    return true;
     }
 
     send_to_char("Syntax:  Allowed_fixed [number]\n\r"
-		  "Number of times a person can fix the object.\n\r",
-		  ch);
+          "Number of times a person can fix the object.\n\r",
+          ch);
     return false;
 }
 
@@ -2534,45 +2534,45 @@ OEDIT (oedit_addoprog)
   }
 
     if ((tindex = trigger_index(trigger, PRG_OPROG)) < 0) {
-	send_to_char("Valid flags are:\n\r",ch);
-	show_help(ch, "oprog");
-	return false;
+    send_to_char("Valid flags are:\n\r",ch);
+    show_help(ch, "oprog");
+    return false;
     }
 
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
 
-	if(value == TRIG_SPELLCAST) {
-		if( !str_cmp(phrase, "*") )
-		{
-			strcpy(phrase, "0");
-		}
-		else
-		{
-			int sn = skill_lookup(phrase);
-			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
-				send_to_char("Invalid spell for trigger.\n\r",ch);
-				return false;
-			}
-			sprintf(phrase,"%d",sn);
-		}
-	}
-	else if( value == TRIG_EXIT || value == TRIG_EXALL )
-	{
-		if( !str_cmp(phrase, "*") )
-		{
-			strcpy(phrase, "-1");
-		}
-		else
-		{
-			int door = parse_door(phrase);
-			if( door < 0 ) {
-				send_to_char("Invalid direction for exit/exall trigger.\n\r", ch);
-				return false;
-			}
-			sprintf(phrase,"%d",door);
-		}
-	}
+    if(value == TRIG_SPELLCAST) {
+        if( !str_cmp(phrase, "*") )
+        {
+            strcpy(phrase, "0");
+        }
+        else
+        {
+            int sn = skill_lookup(phrase);
+            if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+                send_to_char("Invalid spell for trigger.\n\r",ch);
+                return false;
+            }
+            sprintf(phrase,"%d",sn);
+        }
+    }
+    else if( value == TRIG_EXIT || value == TRIG_EXALL )
+    {
+        if( !str_cmp(phrase, "*") )
+        {
+            strcpy(phrase, "-1");
+        }
+        else
+        {
+            int door = parse_door(phrase);
+            if( door < 0 ) {
+                send_to_char("Invalid direction for exit/exall trigger.\n\r", ch);
+                return false;
+            }
+            sprintf(phrase,"%d",door);
+        }
+    }
 
 
   if ((code = get_script_index_global(atol(num), PRG_OPROG)) == NULL)
@@ -2588,7 +2588,7 @@ OEDIT (oedit_addoprog)
     list->vnum            = atol(num);
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-	list->trig_number		= atoi(list->trig_phrase);
+    list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);
@@ -2610,21 +2610,21 @@ OEDIT (oedit_deloprog)
     one_argument(argument, oprog);
     if (!is_number(oprog) || oprog[0] == '\0')
     {
-	send_to_char("Syntax:  deloprog [#oprog]\n\r",ch);
-	return false;
+    send_to_char("Syntax:  deloprog [#oprog]\n\r",ch);
+    return false;
     }
 
     value = atol (oprog);
 
     if (value < 0)
     {
-	send_to_char("Only non-negative oprog-numbers allowed.\n\r",ch);
-	return false;
+    send_to_char("Only non-negative oprog-numbers allowed.\n\r",ch);
+    return false;
     }
 
     if(!edit_deltrigger(pObj->progs,value)) {
-	send_to_char("No such oprog.\n\r",ch);
-	return false;
+    send_to_char("No such oprog.\n\r",ch);
+    return false;
     }
 
     send_to_char("Oprog removed.\n\r", ch);
@@ -2639,8 +2639,8 @@ OEDIT(oedit_desc)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pObj->full_description);
-	return true;
+    string_append(ch, &pObj->full_description);
+    return true;
     }
 
     send_to_char("Syntax:  desc\n\r", ch);
@@ -2655,8 +2655,8 @@ OEDIT(oedit_comments)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pObj->comments);
-	return true;
+    string_append(ch, &pObj->comments);
+    return true;
     }
 
     send_to_char("Syntax:  comments\n\r", ch);
@@ -2671,19 +2671,19 @@ OEDIT(oedit_update)
 
     if (ch->tot_level < MAX_LEVEL - 2)
     {
-	send_to_char("Insufficient security to toggle update.\n\r", ch);
-	return false;
+    send_to_char("Insufficient security to toggle update.\n\r", ch);
+    return false;
     }
 
     if (pObj->update == true)
     {
-	pObj->update = false;
-	send_to_char("Update OFF.\n\r", ch);
+    pObj->update = false;
+    send_to_char("Update OFF.\n\r", ch);
     }
     else
     {
-	pObj->update = true;
-	send_to_char("Update ON.\n\r", ch);
+    pObj->update = true;
+    send_to_char("Update ON.\n\r", ch);
     }
 
     return true;
@@ -2700,20 +2700,20 @@ OEDIT(oedit_timer)
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
-	send_to_char("Syntax: timer <#ticks>\n\r", ch);
-	return false;
+    send_to_char("Syntax: timer <#ticks>\n\r", ch);
+    return false;
     }
 
     if (!is_number(arg))
     {
-	send_to_char("Argument must be numerical.\n\r", ch);
-	return false;
+    send_to_char("Argument must be numerical.\n\r", ch);
+    return false;
     }
 
     if ((time = atoi(arg)) < 0 || time > 10000)
     {
-	send_to_char("Range is 0 (doesn't decay) to 1000.\n\r", ch);
-	return false;
+    send_to_char("Range is 0 (doesn't decay) to 1000.\n\r", ch);
+    return false;
     }
 
     pObj->timer = time;

@@ -80,25 +80,25 @@ void update_handler(void)
     static int pulse_event;
     static int pulse_msdp;
     static int pulse_ships;
-	static int pulse_gmcp;
+    static int pulse_gmcp;
     static int pulse_cache_warm;
     char buf[MSL];
     int i;
 
     if (merc_down)
-    	return;
+        return;
 
     if (--pulse_area <= 0)
     {
         pulse_area = PULSE_AREA;
-	area_update(false);
+    area_update(false);
 //	write_permanent_objs();
-	persist_save();
-	write_mail();
-	save_projects();
-	save_immstaff();
-	save_instances();
-	generate_discord_who();
+    persist_save();
+    write_mail();
+    save_projects();
+    save_immstaff();
+    save_instances();
+    generate_discord_who();
 
     // SSL/TLS Circuit Breaker - auto-recover from SSL context corruption
     if (ssl_errors_since_reset > 5 && current_time - last_ssl_error < 300) {
@@ -109,13 +109,13 @@ void update_handler(void)
     
     // Process SSL context cleanup queue
     process_ssl_cleanup_queue();
-	// Load stats every 12 hours.
-	if (current_time >= stats_load_time + 43200)
-	{
-	    load_statistics();
-		stats_load_time = current_time;
+    // Load stats every 12 hours.
+    if (current_time >= stats_load_time + 43200)
+    {
+        load_statistics();
+        stats_load_time = current_time;
     }
-	}
+    }
 
     /* Process Redis area cache warming (non-blocking, 1 per pulse) */
     if (--pulse_cache_warm <= 0) {
@@ -133,167 +133,167 @@ void update_handler(void)
 
     if (--pulse_mail <= 0)
     {
-	pulse_mail = PULSE_MAIL;
-	mail_update();
+    pulse_mail = PULSE_MAIL;
+    mail_update();
     }
 
     if (--pulse_mobile <= 0)
     {
-	pulse_mobile = PULSE_MOBILE;
-	mobile_update();
+    pulse_mobile = PULSE_MOBILE;
+    mobile_update();
     }
 
     if (--pulse_violence <= 0)
     {
-	pulse_violence = PULSE_VIOLENCE;
-	violence_update();
+    pulse_violence = PULSE_VIOLENCE;
+    violence_update();
         update_hunting();
 
     }
 
     if (--pulse_msdp <= 0)
     {
-	pulse_msdp = PULSE_PER_SECOND;
-	msdp_update();
+    pulse_msdp = PULSE_PER_SECOND;
+    msdp_update();
     }
 
-	
+    
     if (--pulse_gmcp <= 0)
     {
-	pulse_gmcp = PULSE_PER_SECOND;
-	gmcp_update();
+    pulse_gmcp = PULSE_PER_SECOND;
+    gmcp_update();
     }
-	
+    
     // Check to see if boosts have run out.
     for (i = 0; boost_table[i].name != NULL; i++) {
-	if (i != BOOST_RECKONING && boost_table[i].timer != 0
-	&&  current_time > boost_table[i].timer)
-	{
-	    sprintf(buf, "%s {Dboost has ended.{x\n\r", boost_table[i].colour_name);
-	    gecho(buf);
-	    boost_table[i].timer = 0;
-	    boost_table[i].boost = 100;
-	}
+    if (i != BOOST_RECKONING && boost_table[i].timer != 0
+    &&  current_time > boost_table[i].timer)
+    {
+        sprintf(buf, "%s {Dboost has ended.{x\n\r", boost_table[i].colour_name);
+        gecho(buf);
+        boost_table[i].timer = 0;
+        boost_table[i].boost = 100;
+    }
     }
 
     // TICK
     if (--pulse_point <= 0)
     {
-	wiznet("TICK!", NULL, NULL, WIZ_TICKS, 0, 0);
-	pulse_point = PULSE_TICK;
+    wiznet("TICK!", NULL, NULL, WIZ_TICKS, 0, 0);
+    pulse_point = PULSE_TICK;
 
-	if (number_percent() < 20)
-	    write_churches_new();
+    if (number_percent() < 20)
+        write_churches_new();
 
-	//write_gq();
+    //write_gq();
         //update_ship_exits();
-	time_update();
-	char_update();
-	//update_invasion_quest(); Syn - don't do this. it seems to eat a lot of CPU time.
-	obj_update();
-	quest_update();
-    	pneuma_relic_update();
-	relic_update();
-	update_area_trade();
-	instance_update();
-	dungeon_update();
-	ships_ticks_update();
+    time_update();
+    char_update();
+    //update_invasion_quest(); Syn - don't do this. it seems to eat a lot of CPU time.
+    obj_update();
+    quest_update();
+        pneuma_relic_update();
+    relic_update();
+    update_area_trade();
+    instance_update();
+    dungeon_update();
+    ships_ticks_update();
 
 
-	/* 2006-07-27 This is now redundant, and this function seems to loop (Syn).
-	   Wilderness exits are cleaned up in char_from_room, which is much easier and more elegant.
-	if (top_wilderness_exit > MAX_WILDERNESS_EXITS)
-	    remove_wilderness_exits(); */
+    /* 2006-07-27 This is now redundant, and this function seems to loop (Syn).
+       Wilderness exits are cleaned up in char_from_room, which is much easier and more elegant.
+    if (top_wilderness_exit > MAX_WILDERNESS_EXITS)
+        remove_wilderness_exits(); */
 
-	//update_weather();
+    //update_weather();
 
-	// An autowar has started
-	if (auto_war_timer > 0)
-	{
-	    auto_war_timer--;
-	    if (auto_war_timer == 0)
-		start_war();
-	    else
-	    {
-		sprintf(buf, "{RGet ready! {RA {Y%s{R war will begin for levels {Y%d{R to {Y%d{R in {Y%d{R minutes!{x\n\r",
-			auto_war_table[ auto_war->war_type ].name,
-			auto_war->min,
-			auto_war->max,
-			auto_war_timer);
-		gecho(buf);
-		gecho("Type 'war join' to enter!\n\r");
-	    }
-	}
+    // An autowar has started
+    if (auto_war_timer > 0)
+    {
+        auto_war_timer--;
+        if (auto_war_timer == 0)
+        start_war();
+        else
+        {
+        sprintf(buf, "{RGet ready! {RA {Y%s{R war will begin for levels {Y%d{R to {Y%d{R in {Y%d{R minutes!{x\n\r",
+            auto_war_table[ auto_war->war_type ].name,
+            auto_war->min,
+            auto_war->max,
+            auto_war_timer);
+        gecho(buf);
+        gecho("Type 'war join' to enter!\n\r");
+        }
+    }
 
-	// End an autowar in progress
-	if (auto_war_battle_timer > 0)
-	{
-	    auto_war_battle_timer--;
-	    if (auto_war_battle_timer == 0)
-		auto_war_time_finish();
-	}
+    // End an autowar in progress
+    if (auto_war_battle_timer > 0)
+    {
+        auto_war_battle_timer--;
+        if (auto_war_battle_timer == 0)
+        auto_war_time_finish();
+    }
 
-	// Auto-reboot
-	if (reboot_timer > 0)
-	{
-	    if ((reboot_timer - current_time)/60 <= 0)
-	    {
-		CHAR_DATA *rebooting;
+    // Auto-reboot
+    if (reboot_timer > 0)
+    {
+        if ((reboot_timer - current_time)/60 <= 0)
+        {
+        CHAR_DATA *rebooting;
 
-		if ((rebooting = get_char_world(NULL, reboot_by)) == NULL)
-		{
-		    free_string(reboot_by);
-		    gecho("{WIMPLEMENTOR NOT PRESENT. REBOOT AVERTED.{x\n\r");
-		    reboot_timer = 0;
-		    down_timer = 0;
-		}
-		else
-		{
-		    free_string(reboot_by);
-			char duration_buf[MIL];
-			char upper_buf[MIL];
-			format_duration(down_timer, duration_buf, sizeof(duration_buf));
-			str_upper(duration_buf, upper_buf);
-			sprintf(buf, "{WREBOOTING. DOWNTIME WILL BE APPROXIMATELY %s.{x\n\r", upper_buf);
-			gecho(buf);
-			const char *reason = (reboot_reason != NULL) ? reboot_reason : "";
-			if (reason[0] != '\0')
-			{
-    			sprintf(buf, "{WREASON: %s{x\n\r", reason);
-    			gecho(buf);
-			}
-			reboot_shutdown = true;
-			do_function(rebooting, &do_shutdown, (char *)reason);
+        if ((rebooting = get_char_world(NULL, reboot_by)) == NULL)
+        {
+            free_string(reboot_by);
+            gecho("{WIMPLEMENTOR NOT PRESENT. REBOOT AVERTED.{x\n\r");
+            reboot_timer = 0;
+            down_timer = 0;
+        }
+        else
+        {
+            free_string(reboot_by);
+            char duration_buf[MIL];
+            char upper_buf[MIL];
+            format_duration(down_timer, duration_buf, sizeof(duration_buf));
+            str_upper(duration_buf, upper_buf);
+            sprintf(buf, "{WREBOOTING. DOWNTIME WILL BE APPROXIMATELY %s.{x\n\r", upper_buf);
+            gecho(buf);
+            const char *reason = (reboot_reason != NULL) ? reboot_reason : "";
+            if (reason[0] != '\0')
+            {
+                sprintf(buf, "{WREASON: %s{x\n\r", reason);
+                gecho(buf);
+            }
+            reboot_shutdown = true;
+            do_function(rebooting, &do_shutdown, (char *)reason);
 //		    do_function(rebooting, &do_shutdown, "");
-		}
-	    }
-	    else
-	    {
-		sprintf(buf, "{WREBOOT IN %ld MINUTE%s.{x\n\r",
-			(long int)((reboot_timer - current_time)/60),
-			(reboot_timer - current_time)/60 == 1 ? "" : "S");
-		gecho(buf);
-	    }
-	}
+        }
+        }
+        else
+        {
+        sprintf(buf, "{WREBOOT IN %ld MINUTE%s.{x\n\r",
+            (long int)((reboot_timer - current_time)/60),
+            (reboot_timer - current_time)/60 == 1 ? "" : "S");
+        gecho(buf);
+        }
+    }
     }
 
     if (--pulse_aggr <= 0)
     {
         pulse_aggr = PULSE_AGGR;
-	aggr_update();
+    aggr_update();
     }
 
     if ( --pulse_event        <= 0 )
     {
-	pulse_event             = PULSE_EVENT;
-	event_update();
+    pulse_event             = PULSE_EVENT;
+    event_update();
     }
 
     if ( --pulse_ships <= 0 )
     {
-		pulse_ships = PULSE_SHIPS;
-		ships_pulse_update();
-	}
+        pulse_ships = PULSE_SHIPS;
+        ships_pulse_update();
+    }
 
     tail_chain();
 }
@@ -310,18 +310,18 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
     ch->exp = 0;
     ch->pcdata->last_level =
-	(ch->played + (int) (current_time - ch->logon)) / 3600;
+    (ch->played + (int) (current_time - ch->logon)) / 3600;
 
     add_hp	= con_app[get_curr_stat(ch,STAT_CON)].hitp + number_range(
-		  class_table[get_profession(ch, CLASS_CURRENT)].hp_min,
-		  class_table[get_profession(ch, CLASS_CURRENT)].hp_max);
+          class_table[get_profession(ch, CLASS_CURRENT)].hp_min,
+          class_table[get_profession(ch, CLASS_CURRENT)].hp_max);
 
     add_mana 	= get_curr_stat(ch,STAT_INT)/4 +
-	          get_curr_stat(ch,STAT_WIS)/4 +
-		  number_range(1, 10);
+              get_curr_stat(ch,STAT_WIS)/4 +
+          number_range(1, 10);
 
     if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
-	add_mana /= 2;
+    add_mana /= 2;
 
     add_move	= get_curr_stat(ch, STAT_STR) / 2 + get_curr_stat(ch, STAT_DEX) / 2 + number_range(1, 3);
 
@@ -337,17 +337,17 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
     if (IS_REMORT(ch))
     {
-	add_hp = (ch->pcdata->hit_before / 120);
-	add_mana = (ch->pcdata->mana_before / 120);
-	add_move = (ch->pcdata->move_before / 120);
+    add_hp = (ch->pcdata->hit_before / 120);
+    add_mana = (ch->pcdata->mana_before / 120);
+    add_move = (ch->pcdata->move_before / 120);
     }
 
     if (ch->race && ch->pcdata->perm_hit + add_hp > ch->race->max_vitals[MAX_HIT])
-	add_hp = ch->race->max_vitals[MAX_HIT] - ch->pcdata->perm_hit;
+    add_hp = ch->race->max_vitals[MAX_HIT] - ch->pcdata->perm_hit;
     if (ch->race && ch->pcdata->perm_mana + add_mana > ch->race->max_vitals[MAX_MANA])
-	add_mana = ch->race->max_vitals[MAX_MANA] - ch->pcdata->perm_mana;
+    add_mana = ch->race->max_vitals[MAX_MANA] - ch->pcdata->perm_mana;
     if (ch->race && ch->pcdata->perm_move + add_move > ch->race->max_vitals[MAX_MOVE])
-	add_move = ch->race->max_vitals[MAX_MOVE] - ch->pcdata->perm_move;
+    add_move = ch->race->max_vitals[MAX_MOVE] - ch->pcdata->perm_move;
 
     ch->max_hit += add_hp;
     ch->max_mana += add_mana;
@@ -356,7 +356,7 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
     if ((ch->tot_level <= 10)
           || (ch->tot_level > 10 && number_percent() < 10))
-	ch->train += 1;
+    ch->train += 1;
 
     ch->pcdata->perm_hit	+= add_hp;
     ch->pcdata->perm_mana	+= add_mana;
@@ -364,16 +364,16 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
     if (!hide)
     {
-	sprintf(buf,
-	    "{MYou gain {W%d {Mhit point%s, {W%d {Mmana, {W%d {Mmove, "
-	    "and {W%d {Mpractice%s.\n\r{x",
-	    add_hp,
-	    add_hp == 1 ? "" : "s",
-	    add_mana,
-	    add_move,
-	    add_prac,
-	    add_prac == 1 ? "" : "s");
-	send_to_char(buf, ch);
+    sprintf(buf,
+        "{MYou gain {W%d {Mhit point%s, {W%d {Mmana, {W%d {Mmove, "
+        "and {W%d {Mpractice%s.\n\r{x",
+        add_hp,
+        add_hp == 1 ? "" : "s",
+        add_mana,
+        add_move,
+        add_prac,
+        add_prac == 1 ? "" : "s");
+    send_to_char(buf, ch);
     }
 }
 
@@ -381,263 +381,263 @@ void advance_level(CHAR_DATA *ch, bool hide)
 // Give a character exp
 void gain_exp(CHAR_DATA *ch, int gain, bool show)
 {
-	char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
 
-	// Allow scripts to affect gaining experience, as well as blocking the use of the xp
-	ch->tempstore[0] = gain;
-	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL))
-		return;
+    // Allow scripts to affect gaining experience, as well as blocking the use of the xp
+    ch->tempstore[0] = gain;
+    if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL))
+        return;
 
-	// Only update gain IF the value is less than what was originally put in, don't allow scripts to boost the XP at this point.
-	if( ch->tempstore[0] < gain )
-		gain = ch->tempstore[0];
+    // Only update gain IF the value is less than what was originally put in, don't allow scripts to boost the XP at this point.
+    if( ch->tempstore[0] < gain )
+        gain = ch->tempstore[0];
 
-	if (gain > 0 && show) {
-		sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
-		send_to_char(buf, ch);
-	}
+    if (gain > 0 && show) {
+        sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
+        send_to_char(buf, ch);
+    }
 
-	if (IS_IMMORTAL(ch)) return;
+    if (IS_IMMORTAL(ch)) return;
 
-	if(IS_NPC(ch)) {
-		if(!IS_SET(ch->act[1],ACT2_CANLEVEL) || ch->maxexp < 1) return;
-		ch->exp += gain;
+    if(IS_NPC(ch)) {
+        if(!IS_SET(ch->act[1],ACT2_CANLEVEL) || ch->maxexp < 1) return;
+        ch->exp += gain;
 
-		if(ch->exp >= ch->maxexp) {
-			if( !p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL) ) {
-				ch->exp = 0;
+        if(ch->exp >= ch->maxexp) {
+            if( !p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL) ) {
+                ch->exp = 0;
 
-				ch->level += 1;
-				ch->tot_level += 1;
-			}
-		}
-	} else {
-		if (ch->tot_level >= 120)
-			return;
+                ch->level += 1;
+                ch->tot_level += 1;
+            }
+        }
+    } else {
+        if (ch->tot_level >= 120)
+            return;
 
-		/* make sure you never get more than the exp for your level */
-		ch->exp = UMIN(exp_per_level(ch,ch->pcdata->points), ch->exp + gain);
+        /* make sure you never get more than the exp for your level */
+        ch->exp = UMIN(exp_per_level(ch,ch->pcdata->points), ch->exp + gain);
 
-		if (ch->tot_level < LEVEL_HERO && ch->level < MAX_CLASS_LEVEL &&
-			ch->exp >= exp_per_level(ch,ch->pcdata->points)) {
+        if (ch->tot_level < LEVEL_HERO && ch->level < MAX_CLASS_LEVEL &&
+            ch->exp >= exp_per_level(ch,ch->pcdata->points)) {
 
-			send_to_char("{MYou raise a level!!{x\n\r", ch);
-			ch->exp = 0;
-			ch->level += 1;
-			ch->tot_level += 1;
-			if( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) )
-				ch->deathsight_vision = ch->tot_level;
+            send_to_char("{MYou raise a level!!{x\n\r", ch);
+            ch->exp = 0;
+            ch->level += 1;
+            ch->tot_level += 1;
+            if( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) )
+                ch->deathsight_vision = ch->tot_level;
 
-			sprintf(buf,"%s gained level %d",ch->name,ch->level);
+            sprintf(buf,"%s gained level %d",ch->name,ch->level);
 
-			sprintf(buf, "All congratulate %s who is now level %d!!!", ch->name, ch->tot_level);
-			crier_announce(buf);
+            sprintf(buf, "All congratulate %s who is now level %d!!!", ch->name, ch->tot_level);
+            crier_announce(buf);
 
-			if (ch->level >= MAX_CLASS_LEVEL) {
-				if (ch->tot_level != 120) {
-					send_to_char("You are now ready to multiclass."
-						"\n\rType 'help multiclass' for more information.\n\r", ch);
-				}
-			}
+            if (ch->level >= MAX_CLASS_LEVEL) {
+                if (ch->tot_level != 120) {
+                    send_to_char("You are now ready to multiclass."
+                        "\n\rType 'help multiclass' for more information.\n\r", ch);
+                }
+            }
 
-			log_string(buf);
-			sprintf(buf,"$N has attained level %d!",ch->level);
-			wiznet(buf,ch,NULL,WIZ_LEVELS,0,0);
-			advance_level(ch,false);
+            log_string(buf);
+            sprintf(buf,"$N has attained level %d!",ch->level);
+            wiznet(buf,ch,NULL,WIZ_LEVELS,0,0);
+            advance_level(ch,false);
 
-			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL);
+            p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL);
 
-			save_char_obj(ch);
-		}
-	}
+            save_char_obj(ch);
+        }
+    }
 }
 
 
 int hit_gain(CHAR_DATA *ch)
 {
-	int gain;
-	int number;
-	long amount;
-	char buf[MAX_STRING_LENGTH];
+    int gain;
+    int number;
+    long amount;
+    char buf[MAX_STRING_LENGTH];
 
-	if (ch->in_room == NULL)
-	{
-		sprintf(buf, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-		bug(buf, 0);
-		return 0;
-	}
+    if (ch->in_room == NULL)
+    {
+        sprintf(buf, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+        bug(buf, 0);
+        return 0;
+    }
 
-	if (IS_NPC(ch))
-	{
-		gain =  5 + ch->level;
-		if (IS_AFFECTED(ch,AFF_REGENERATION))
-			gain *= 2;
+    if (IS_NPC(ch))
+    {
+        gain =  5 + ch->level;
+        if (IS_AFFECTED(ch,AFF_REGENERATION))
+            gain *= 2;
 
-		switch(ch->position)
-		{
-		default: 			gain /= 2;			break;
-		case POS_SLEEPING: 	gain = 3 * gain/2;	break;
-		case POS_RESTING:						break;
-		case POS_FIGHTING:	gain /= 3;			break;
-		}
-	}
-	else
-	{
-		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
-		gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
-		number = number_percent();
-		if (number < get_skill(ch,gsn_fast_healing))
-		{
-			gain += number * gain / 100;
-			if (ch->hit < ch->max_hit)
-				check_improve(ch,gsn_fast_healing,true,8);
-		}
+        switch(ch->position)
+        {
+        default: 			gain /= 2;			break;
+        case POS_SLEEPING: 	gain = 3 * gain/2;	break;
+        case POS_RESTING:						break;
+        case POS_FIGHTING:	gain /= 3;			break;
+        }
+    }
+    else
+    {
+        gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
+        gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
+        number = number_percent();
+        if (number < get_skill(ch,gsn_fast_healing))
+        {
+            gain += number * gain / 100;
+            if (ch->hit < ch->max_hit)
+                check_improve(ch,gsn_fast_healing,true,8);
+        }
 
-		switch (ch->position)
-		{
-		default:	   		gain = 3 * gain / 2;	break;
-		case POS_SLEEPING: 	gain = 3 * gain;		break;
-		case POS_RESTING:   gain = gain * 2; 		break;
-		case POS_FIGHTING: 	gain /= 2;				break;
-		}
-		/* Removing this for now. Tieryo 2023-03-06
-		if (ch->pcdata->condition[COND_HUNGER] == 0)
-			gain /= 2;
+        switch (ch->position)
+        {
+        default:	   		gain = 3 * gain / 2;	break;
+        case POS_SLEEPING: 	gain = 3 * gain;		break;
+        case POS_RESTING:   gain = gain * 2; 		break;
+        case POS_FIGHTING: 	gain /= 2;				break;
+        }
+        /* Removing this for now. Tieryo 2023-03-06
+        if (ch->pcdata->condition[COND_HUNGER] == 0)
+            gain /= 2;
 
-		if (ch->pcdata->condition[COND_THIRST] == 0)
-			gain /= 2;
-		*/
-	}
+        if (ch->pcdata->condition[COND_THIRST] == 0)
+            gain /= 2;
+        */
+    }
 
-	if (ch->in_room->heal_rate > 0)
-		gain = gain * ch->in_room->heal_rate / 100;
+    if (ch->in_room->heal_rate > 0)
+        gain = gain * ch->in_room->heal_rate / 100;
 
-	if (ch->on &&
-		ch->on->item_type == ITEM_FURNITURE &&
-		ch->on->value[3] > 0)
-		gain = gain * ch->on->value[3] / 100;
+    if (ch->on &&
+        ch->on->item_type == ITEM_FURNITURE &&
+        ch->on->value[3] > 0)
+        gain = gain * ch->on->value[3] / 100;
 
-	if (IS_AFFECTED(ch, AFF_POISON))
-		gain /= 4;
+    if (IS_AFFECTED(ch, AFF_POISON))
+        gain /= 4;
 
-	if (IS_AFFECTED(ch, AFF_PLAGUE))
-		gain /= 8;
+    if (IS_AFFECTED(ch, AFF_PLAGUE))
+        gain /= 8;
 
-	if (IS_AFFECTED(ch,AFF_REGENERATION) || (ch->tot_level < 31 && !IS_REMORT(ch)))
-		gain *= 2;
+    if (IS_AFFECTED(ch,AFF_REGENERATION) || (ch->tot_level < 31 && !IS_REMORT(ch)))
+        gain *= 2;
 
-	// Druids get 33% more in nature
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
-		gain += gain/3;
+    // Druids get 33% more in nature
+    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+        gain += gain/3;
 
-	/* If you have the relic you get 25% more */
-	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_HP_REGEN))
-		gain += gain / 4;
+    /* If you have the relic you get 25% more */
+    if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_HP_REGEN))
+        gain += gain / 4;
 
-	ch->tempstore[0] = gain;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_HITGAIN, NULL) )
-		return 0;
-	gain = UMAX(0, ch->tempstore[0]);
+    ch->tempstore[0] = gain;
+    if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_HITGAIN, NULL) )
+        return 0;
+    gain = UMAX(0, ch->tempstore[0]);
 
-	amount = UMIN(gain, ch->max_hit - ch->hit);
-	return amount;
+    amount = UMIN(gain, ch->max_hit - ch->hit);
+    return amount;
 }
 
 
 int mana_gain(CHAR_DATA *ch)
 {
-	int gain;
-	int number;
-	char buf[MSL];
+    int gain;
+    int number;
+    char buf[MSL];
 
-	if (ch->in_room == NULL)
-	{
-		sprintf(buf, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-		bug(buf, 0);
-		return 0;
-	}
+    if (ch->in_room == NULL)
+    {
+        sprintf(buf, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+        bug(buf, 0);
+        return 0;
+    }
 
-	if (IS_NPC(ch))
-	{
-		gain = 5 + ch->level;
-		switch (ch->position)
-		{
-		default:			gain /= 2;			break;
-		case POS_SLEEPING:	gain = 3 * gain/2;	break;
-		case POS_RESTING:						break;
-		case POS_FIGHTING:	gain /= 3;			break;
-		}
-	}
-	else
-	{
-		gain = get_curr_stat(ch,STAT_WIS) + get_curr_stat(ch,STAT_INT) + ch->tot_level;
-		number = number_percent();
+    if (IS_NPC(ch))
+    {
+        gain = 5 + ch->level;
+        switch (ch->position)
+        {
+        default:			gain /= 2;			break;
+        case POS_SLEEPING:	gain = 3 * gain/2;	break;
+        case POS_RESTING:						break;
+        case POS_FIGHTING:	gain /= 3;			break;
+        }
+    }
+    else
+    {
+        gain = get_curr_stat(ch,STAT_WIS) + get_curr_stat(ch,STAT_INT) + ch->tot_level;
+        number = number_percent();
 
-		if (number < get_skill(ch,gsn_meditation))
-		{
-			gain += number * gain / 100;
-			if (ch->mana < ch->max_mana)
-				check_improve(ch,gsn_meditation,true,8);
-		}
+        if (number < get_skill(ch,gsn_meditation))
+        {
+            gain += number * gain / 100;
+            if (ch->mana < ch->max_mana)
+                check_improve(ch,gsn_meditation,true,8);
+        }
 
-		if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
-			gain /= 2;
+        if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
+            gain /= 2;
 
-		switch (ch->position)
-		{
-		default:			gain = gain;		break;
-		case POS_SLEEPING:	gain = 2 * gain;	break;
-		case POS_RESTING:	gain = 3 * gain/2;	break;
-		case POS_FIGHTING:	gain /= 2;			break;
-		}
-		/* Removing this for now - Tieryo 2023-03-06
-		if (ch->pcdata->condition[COND_HUNGER]   == 0)
-			gain /= 2;
+        switch (ch->position)
+        {
+        default:			gain = gain;		break;
+        case POS_SLEEPING:	gain = 2 * gain;	break;
+        case POS_RESTING:	gain = 3 * gain/2;	break;
+        case POS_FIGHTING:	gain /= 2;			break;
+        }
+        /* Removing this for now - Tieryo 2023-03-06
+        if (ch->pcdata->condition[COND_HUNGER]   == 0)
+            gain /= 2;
 
-		if (ch->pcdata->condition[COND_THIRST] == 0)
-			gain /= 2;
-		*/
-	}
+        if (ch->pcdata->condition[COND_THIRST] == 0)
+            gain /= 2;
+        */
+    }
 
-	if (ch->in_room->mana_rate > 0)
-		gain = gain * ch->in_room->mana_rate / 100;
+    if (ch->in_room->mana_rate > 0)
+        gain = gain * ch->in_room->mana_rate / 100;
 
-	if (ch->on != NULL &&
-		ch->on->item_type == ITEM_FURNITURE &&
-		ch->on->value[4] > 0)
-		gain = gain * ch->on->value[4] / 100;
+    if (ch->on != NULL &&
+        ch->on->item_type == ITEM_FURNITURE &&
+        ch->on->value[4] > 0)
+        gain = gain * ch->on->value[4] / 100;
 
-	if (IS_AFFECTED(ch, AFF_POISON))
-		gain /= 4;
+    if (IS_AFFECTED(ch, AFF_POISON))
+        gain /= 4;
 
-	if (IS_AFFECTED(ch, AFF_PLAGUE))
-		gain /= 8;
+    if (IS_AFFECTED(ch, AFF_PLAGUE))
+        gain /= 8;
 
-	if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
-		gain /= 2;
+    if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
+        gain /= 2;
 
-	// Druids get 33% more in nature
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
-		gain += gain/3;
+    // Druids get 33% more in nature
+    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+        gain += gain/3;
 
-	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
-		gain += gain / 4;
+    if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
+        gain += gain / 4;
 
-	if (IS_ELF(ch))
-		gain *= 2;
+    if (IS_ELF(ch))
+        gain *= 2;
 
-	if (ch->race && !str_cmp(ch->race->id, "lich"))
-		gain = (gain * 5)/2;
+    if (ch->race && !str_cmp(ch->race->id, "lich"))
+        gain = (gain * 5)/2;
 
-	if (ch->tot_level < 31 && !IS_REMORT(ch))
-		gain *= 2;
+    if (ch->tot_level < 31 && !IS_REMORT(ch))
+        gain *= 2;
 
-	ch->tempstore[0] = gain;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MANAGAIN, NULL) )
-		return 0;
-	gain = UMAX(0, ch->tempstore[0]);
+    ch->tempstore[0] = gain;
+    if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MANAGAIN, NULL) )
+        return 0;
+    gain = UMAX(0, ch->tempstore[0]);
 
-	return UMIN(gain, ch->max_mana - ch->mana);
+    return UMIN(gain, ch->max_mana - ch->mana);
 }
 
 
@@ -650,70 +650,70 @@ int move_gain(CHAR_DATA *ch)
     if (ch->in_room == NULL)
     {
         sprintf(buf, "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-	    bug(buf, 0);
-		return 0;
+        bug(buf, 0);
+        return 0;
     }
 
     if (IS_NPC(ch))
     {
-		gain = ch->level;
+        gain = ch->level;
 
-		switch(ch->position)
-		{
-		default: 			gain /= 2;			break;
-		case POS_SLEEPING: 	gain = 3 * gain/2;	break;
-		case POS_RESTING:						break;
-		case POS_FIGHTING:	gain /= 3;			break;
-		}
-	}
+        switch(ch->position)
+        {
+        default: 			gain /= 2;			break;
+        case POS_SLEEPING: 	gain = 3 * gain/2;	break;
+        case POS_RESTING:						break;
+        case POS_FIGHTING:	gain /= 3;			break;
+        }
+    }
     else
     {
-		gain = UMAX(15, ch->level);
+        gain = UMAX(15, ch->level);
 
-		switch (ch->position)
-		{
-		case POS_SLEEPING:	gain += get_curr_stat(ch,STAT_DEX)*3;		break;
-		case POS_RESTING:	gain += get_curr_stat(ch,STAT_DEX) / 2 * 3;	break;
-		}
-		/* Removing this for now - Tieryo 2023-03-06
-		if (ch->pcdata->condition[COND_HUNGER]   == 0)
-			gain /= 2;
+        switch (ch->position)
+        {
+        case POS_SLEEPING:	gain += get_curr_stat(ch,STAT_DEX)*3;		break;
+        case POS_RESTING:	gain += get_curr_stat(ch,STAT_DEX) / 2 * 3;	break;
+        }
+        /* Removing this for now - Tieryo 2023-03-06
+        if (ch->pcdata->condition[COND_HUNGER]   == 0)
+            gain /= 2;
 
-		if (ch->pcdata->condition[COND_THIRST] == 0)
-			gain /= 2;
-		*/
-	}
+        if (ch->pcdata->condition[COND_THIRST] == 0)
+            gain /= 2;
+        */
+    }
 
-	if (ch->in_room->move_rate > 0)
-		gain = gain * ch->in_room->move_rate/100;
+    if (ch->in_room->move_rate > 0)
+        gain = gain * ch->in_room->move_rate/100;
 
-	if (ch->on != NULL &&
-		ch->on->item_type == ITEM_FURNITURE &&
-		ch->on->value[5] > 0)
-		gain = gain * ch->on->value[5] / 100;
+    if (ch->on != NULL &&
+        ch->on->item_type == ITEM_FURNITURE &&
+        ch->on->value[5] > 0)
+        gain = gain * ch->on->value[5] / 100;
 
-	if (IS_AFFECTED(ch, AFF_POISON))
-		gain /= 4;
+    if (IS_AFFECTED(ch, AFF_POISON))
+        gain /= 4;
 
-	if (IS_AFFECTED(ch, AFF_PLAGUE))
-		gain /= 8;
+    if (IS_AFFECTED(ch, AFF_PLAGUE))
+        gain /= 8;
 
-	if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
-		gain /= 2;
+    if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
+        gain /= 2;
 
-	// Druids get 33% more in nature
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
-		gain += gain/3;
+    // Druids get 33% more in nature
+    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+        gain += gain/3;
 
-	if (ch->tot_level < 31 && !IS_REMORT(ch))
-		gain *= 2;
+    if (ch->tot_level < 31 && !IS_REMORT(ch))
+        gain *= 2;
 
-	ch->tempstore[0] = gain;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MOVEGAIN, NULL) )
-		return 0;
-	gain = UMAX(0, ch->tempstore[0]);
+    ch->tempstore[0] = gain;
+    if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MOVEGAIN, NULL) )
+        return 0;
+    gain = UMAX(0, ch->tempstore[0]);
 
-	amount = UMIN(gain, ch->max_move - ch->move);
+    amount = UMIN(gain, ch->max_move - ch->move);
 
     return amount;
 }
@@ -722,68 +722,68 @@ int move_gain(CHAR_DATA *ch)
 // Regen sith toxins.
 int toxin_gain(CHAR_DATA *ch, int toxin)
 {
-	int gain;
-	char buf[MAX_STRING_LENGTH];
+    int gain;
+    char buf[MAX_STRING_LENGTH];
 
-	if (ch->in_room == NULL)
-	{
-		sprintf(buf, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-		bug(buf, 0);
-		return 0;
-	}
+    if (ch->in_room == NULL)
+    {
+        sprintf(buf, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+        bug(buf, 0);
+        return 0;
+    }
 
-	if (IS_NPC(ch))
-	{
-		gain =  5 + ch->level;
-		if (IS_AFFECTED(ch,AFF_REGENERATION))
-			gain *= 2;
+    if (IS_NPC(ch))
+    {
+        gain =  5 + ch->level;
+        if (IS_AFFECTED(ch,AFF_REGENERATION))
+            gain *= 2;
 
-		switch(ch->position)
-		{
-		default:	 		gain /= 2;			break;
-		case POS_SLEEPING: 	gain = 3 * gain/2;	break;
-		case POS_RESTING:						break;
-		case POS_FIGHTING:	gain /= 3;			break;
-		}
-	}
-	else
-	{
-		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3);
+        switch(ch->position)
+        {
+        default:	 		gain /= 2;			break;
+        case POS_SLEEPING: 	gain = 3 * gain/2;	break;
+        case POS_RESTING:						break;
+        case POS_FIGHTING:	gain /= 3;			break;
+        }
+    }
+    else
+    {
+        gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3);
 
-		switch (ch->position)
-		{
-		default:			gain = 3 * gain / 2;	break;
-		case POS_SLEEPING:	gain = 3 * gain;		break;
-		case POS_RESTING:	gain = gain * 2;		break;
-		case POS_FIGHTING:	gain /= 2;				break;
-		}
-		/* Removing this for now - Tieryo 2023-03-06
-		if (ch->pcdata->condition[COND_HUNGER]   == 0)
-			gain /= 2;
+        switch (ch->position)
+        {
+        default:			gain = 3 * gain / 2;	break;
+        case POS_SLEEPING:	gain = 3 * gain;		break;
+        case POS_RESTING:	gain = gain * 2;		break;
+        case POS_FIGHTING:	gain /= 2;				break;
+        }
+        /* Removing this for now - Tieryo 2023-03-06
+        if (ch->pcdata->condition[COND_HUNGER]   == 0)
+            gain /= 2;
 
-		if (ch->pcdata->condition[COND_THIRST] == 0)
-			gain /= 2;
-		*/
-	}
+        if (ch->pcdata->condition[COND_THIRST] == 0)
+            gain /= 2;
+        */
+    }
 
-	if (IS_AFFECTED(ch, AFF_POISON))
-		gain /= 4;
+    if (IS_AFFECTED(ch, AFF_POISON))
+        gain /= 4;
 
-	if (IS_AFFECTED(ch, AFF_PLAGUE))
-		gain /= 8;
+    if (IS_AFFECTED(ch, AFF_PLAGUE))
+        gain /= 8;
 
-	if (IS_AFFECTED(ch,AFF_REGENERATION))
-		gain *= 2;
+    if (IS_AFFECTED(ch,AFF_REGENERATION))
+        gain *= 2;
 
-	gain += number_range(1,2);
+    gain += number_range(1,2);
 
-	ch->tempstore[0] = gain;
-	ch->tempstore[1] = toxin;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TOXINGAIN, toxin_table[toxin].name) )
-		return 0;
-	gain = UMAX(0, ch->tempstore[0]);
+    ch->tempstore[0] = gain;
+    ch->tempstore[1] = toxin;
+    if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TOXINGAIN, toxin_table[toxin].name) )
+        return 0;
+    gain = UMAX(0, ch->tempstore[0]);
 
-	return (URANGE(1, gain, 15));
+    return (URANGE(1, gain, 15));
 }
 
 
@@ -798,40 +798,40 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
     && is_sustained(ch))
     {
         ch->pcdata->condition[iCond] = 48;
-		return;
+        return;
     }
 
     if (value == 0 || IS_NPC(ch) || ch->level >= LEVEL_IMMORTAL)
-		return;
+        return;
 
     condition = ch->pcdata->condition[iCond];
     if (condition == -1)
-		return;
+        return;
 
-	// When draining hunger/thirst, they have a CON% chance of not losing it.
-	if( (value < 0) && (iCond == COND_HUNGER || iCond == COND_THIRST) &&
-		(number_percent() < get_curr_stat(ch, STAT_CON)))
-		return;
+    // When draining hunger/thirst, they have a CON% chance of not losing it.
+    if( (value < 0) && (iCond == COND_HUNGER || iCond == COND_THIRST) &&
+        (number_percent() < get_curr_stat(ch, STAT_CON)))
+        return;
 
     ch->pcdata->condition[iCond] = URANGE(0, condition + value, 48);
     /* Removing this for now - Tieryo 2023-03-06
     if (ch->pcdata->condition[iCond] == 0)
     {
-	switch (iCond)
-	{
-	case COND_HUNGER:
-	    send_to_char("You are hungry.\n\r",  ch);
-	    break;
+    switch (iCond)
+    {
+    case COND_HUNGER:
+        send_to_char("You are hungry.\n\r",  ch);
+        break;
 
-	case COND_THIRST:
-	    send_to_char("You are thirsty.\n\r", ch);
-	    break;
+    case COND_THIRST:
+        send_to_char("You are thirsty.\n\r", ch);
+        break;
 
-	case COND_DRUNK:
-	    if (condition != 0)
-		send_to_char("You are sober.\n\r", ch);
-	    break;
-	}
+    case COND_DRUNK:
+        if (condition != 0)
+        send_to_char("You are sober.\n\r", ch);
+        break;
+    }
     }
     */
 }
@@ -843,264 +843,264 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
  */
 void mobile_update(void)
 {
-	ITERATOR it;
+    ITERATOR it;
     CHAR_DATA *ch;
     EXIT_DATA *pexit;
     int door;
     char buf[MSL];
 
-	iterator_start(&it, loaded_chars);
-	while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
+    iterator_start(&it, loaded_chars);
+    while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
-		if (ch->in_room == NULL || IS_AFFECTED(ch,AFF_CHARM))
-	    	continue;
+        if (ch->in_room == NULL || IS_AFFECTED(ch,AFF_CHARM))
+            continue;
 
-		// Done to allow for TOKEN random type scripts on players, but only if they have tokens!
-		if (!IS_NPC(ch)) {
-		    if(ch->tokens) {
+        // Done to allow for TOKEN random type scripts on players, but only if they have tokens!
+        if (!IS_NPC(ch)) {
+            if(ch->tokens) {
 
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+            p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
 
-			// Prereckoning
-			if (pre_reckoning > 0 && reckoning_timer > 0)
-			    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+            // Prereckoning
+            if (pre_reckoning > 0 && reckoning_timer > 0)
+                p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
 
-			// Reckoning
-			if (!pre_reckoning && reckoning_timer > 0)
-			    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
-		    }
-		    continue;
-		}
+            // Reckoning
+            if (!pre_reckoning && reckoning_timer > 0)
+                p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+            }
+            continue;
+        }
 
-		if (!can_room_update(ch->in_room))
-			continue;
+        if (!can_room_update(ch->in_room))
+            continue;
 
-		// A dirty hack to remove any Death mobs that have been stranded
-		if (ch->pIndexData->vnum == get_reserved_vnum("mob_death"))	// Replaced the name check to the vnum
-		{
-			CHAR_DATA *vch;
-			CHAR_DATA *vch_next;
-			for (vch = ch->in_room->people; vch != NULL; vch = vch_next)
-			{
-				vch_next = vch->next_in_room;
-				if (vch != ch && !IS_NPC(vch))
-				{
-					send_to_char("{C'Well then.' says Death. 'Looks like that corpse is adequately dead. Cya folks, im outta here.'{x\n\r", vch);
-					send_to_char("Death waves happily.\n\r", vch);
-					send_to_char("{DDeath sinks into the ground and disappears.{x\n\r", vch);
-				}
-			}
+        // A dirty hack to remove any Death mobs that have been stranded
+        if (ch->pIndexData->vnum == get_reserved_vnum("mob_death"))	// Replaced the name check to the vnum
+        {
+            CHAR_DATA *vch;
+            CHAR_DATA *vch_next;
+            for (vch = ch->in_room->people; vch != NULL; vch = vch_next)
+            {
+                vch_next = vch->next_in_room;
+                if (vch != ch && !IS_NPC(vch))
+                {
+                    send_to_char("{C'Well then.' says Death. 'Looks like that corpse is adequately dead. Cya folks, im outta here.'{x\n\r", vch);
+                    send_to_char("Death waves happily.\n\r", vch);
+                    send_to_char("{DDeath sinks into the ground and disappears.{x\n\r", vch);
+                }
+            }
 
-			extract_char(ch, true);
-			continue;
-		}
+            extract_char(ch, true);
+            continue;
+        }
 
-		// Examine call for special procedure
-		if (ch->spec_fun != 0)
-		{
-			if ((*ch->spec_fun)(ch))
-				continue;
-		}
+        // Examine call for special procedure
+        if (ch->spec_fun != 0)
+        {
+            if ((*ch->spec_fun)(ch))
+                continue;
+        }
 
-		if (ch->shop != NULL)
-		{
-			// Give shop owners gold
-			if ((ch->gold * 100 + ch->silver) < ch->pIndexData->wealth)
-			{
-				ch->gold += ch->pIndexData->wealth * number_range(1,20)/5000000;
-				ch->silver += ch->pIndexData->wealth * number_range(1,20)/50000;
-			}
+        if (ch->shop != NULL)
+        {
+            // Give shop owners gold
+            if ((ch->gold * 100 + ch->silver) < ch->pIndexData->wealth)
+            {
+                ch->gold += ch->pIndexData->wealth * number_range(1,20)/5000000;
+                ch->silver += ch->pIndexData->wealth * number_range(1,20)/50000;
+            }
 
-			// Restock their supplies
-			if( ch->shop->restock_interval > 0 ) {
-				if( ch->shop->next_restock < current_time ) {
+            // Restock their supplies
+            if( ch->shop->restock_interval > 0 ) {
+                if( ch->shop->next_restock < current_time ) {
 
-					bool restocked = false;
-					for(SHOP_STOCK_DATA *stock = ch->shop->stock; stock; stock = stock->next)
-					{
-						if( stock->max_quantity > 0 && stock->restock_rate > 0 && stock->quantity < stock->max_quantity)
-						{
-							stock->quantity += stock->restock_rate;
-							stock->quantity = UMIN(stock->quantity, stock->max_quantity);
-							restocked = true;
+                    bool restocked = false;
+                    for(SHOP_STOCK_DATA *stock = ch->shop->stock; stock; stock = stock->next)
+                    {
+                        if( stock->max_quantity > 0 && stock->restock_rate > 0 && stock->quantity < stock->max_quantity)
+                        {
+                            stock->quantity += stock->restock_rate;
+                            stock->quantity = UMIN(stock->quantity, stock->max_quantity);
+                            restocked = true;
 
-						}
-					}
+                        }
+                    }
 
-					if( restocked )
-						p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL);
+                    if( restocked )
+                        p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL);
 
-					ch->shop->next_restock = current_time + ch->shop->restock_interval * 60;
-				}
-			}
-		}
+                    ch->shop->next_restock = current_time + ch->shop->restock_interval * 60;
+                }
+            }
+        }
 
-		// Check mob triggers
+        // Check mob triggers
 
-		// Delay
-		if (ch->progs->delay > 0)
-		{
-			if (--ch->progs->delay <= 0)
-			{
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
-			continue;
-			}
-		}
+        // Delay
+        if (ch->progs->delay > 0)
+        {
+            if (--ch->progs->delay <= 0)
+            {
+            p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
+            continue;
+            }
+        }
 
         // Random
-		p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+        p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
 
-		// Prereckoning
-		if (pre_reckoning > 0 && reckoning_timer > 0) {
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
-		}
+        // Prereckoning
+        if (pre_reckoning > 0 && reckoning_timer > 0) {
+            p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+        }
 
-		// Reckoning
-		if (pre_reckoning == 0 && reckoning_timer > 0) {
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
-		}
+        // Reckoning
+        if (pre_reckoning == 0 && reckoning_timer > 0) {
+            p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+        }
 
 /*
-		// get rid of crew when they are past their hired date
-		if (ch->belongs_to_ship != NULL &&
-			!IS_NPC_SHIP(ch->belongs_to_ship) &&
-			current_time > ch->hired_to) {
-			extract_char(ch, true);
-			continue;
-		}
+        // get rid of crew when they are past their hired date
+        if (ch->belongs_to_ship != NULL &&
+            !IS_NPC_SHIP(ch->belongs_to_ship) &&
+            current_time > ch->hired_to) {
+            extract_char(ch, true);
+            continue;
+        }
 */
 
-		if( IS_NPC(ch) && IS_SET(ch->act[1], ACT2_HIRED) )
-		{
-			// If hired, check whether their timer has expired OR are no longer grouped (important)
-			if( ch->hired_to > 0 && (current_time > ch->hired_to || ch->leader == NULL) )
-			{
-				// CONTRACT_COMPLETE can allow the mob to remain in existence
-				// - when a script gets executed, you need to return a zero to extract the mob
-				// - when no script gets executed, extraction will be performed
-				if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL) <= 0)
-				{
-					extract_char(ch, true);
-					continue;
-				}
+        if( IS_NPC(ch) && IS_SET(ch->act[1], ACT2_HIRED) )
+        {
+            // If hired, check whether their timer has expired OR are no longer grouped (important)
+            if( ch->hired_to > 0 && (current_time > ch->hired_to || ch->leader == NULL) )
+            {
+                // CONTRACT_COMPLETE can allow the mob to remain in existence
+                // - when a script gets executed, you need to return a zero to extract the mob
+                // - when no script gets executed, extraction will be performed
+                if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL) <= 0)
+                {
+                    extract_char(ch, true);
+                    continue;
+                }
 
-				// Only get here when the return value is positive
-				// - script execution with no "end" called
-				// - end called with positive value
+                // Only get here when the return value is positive
+                // - script execution with no "end" called
+                // - end called with positive value
 
-				if( ch->master != NULL )
-				{
-					// Un..pet
-					if( ch->master->pet == ch )
-						ch->master->pet = NULL;
-				}
+                if( ch->master != NULL )
+                {
+                    // Un..pet
+                    if( ch->master->pet == ch )
+                        ch->master->pet = NULL;
+                }
 
-				// Check if they are being ridden
-				CHAR_DATA *rider = RIDDEN(ch);
-				if( rider != NULL )
-				{
-					// Silently dismount
-					rider->riding = false;
-					ch->riding = false;
-					ch->rider = NULL;
-					rider->mount = NULL;
-				}
+                // Check if they are being ridden
+                CHAR_DATA *rider = RIDDEN(ch);
+                if( rider != NULL )
+                {
+                    // Silently dismount
+                    rider->riding = false;
+                    ch->riding = false;
+                    ch->rider = NULL;
+                    rider->mount = NULL;
+                }
 
-				die_follower(ch);
-				REMOVE_BIT(ch->act[1], ACT2_HIRED);
-				ch->hired_to = 0;
-			}
-		}
+                die_follower(ch);
+                REMOVE_BIT(ch->act[1], ACT2_HIRED);
+                ch->hired_to = 0;
+            }
+        }
 
-		// That's all for sleeping / busy monster, and empty zones
-		if (ch->position != POS_STANDING)
-			continue;
+        // That's all for sleeping / busy monster, and empty zones
+        if (ch->position != POS_STANDING)
+            continue;
 
-		// Ship Quest masters
-		if (IS_SET(ch->act[1], ACT2_SHIP_QUESTMASTER) && number_percent() < 5) {
-			AREA_DATA *pArea = NULL;
+        // Ship Quest masters
+        if (IS_SET(ch->act[1], ACT2_SHIP_QUESTMASTER) && number_percent() < 5) {
+            AREA_DATA *pArea = NULL;
 
-			for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+            for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
 
-			if (pArea->invasion_quest != NULL && ch->in_room != NULL &&
-				ch->in_room->area->place_flags == pArea->place_flags) {
-				sprintf(buf, "We are offering a reward to anyone that can restore order in %s.", pArea->name);
-				do_say(ch, buf);
-			}
-			}
-		}
+            if (pArea->invasion_quest != NULL && ch->in_room != NULL &&
+                ch->in_room->area->place_flags == pArea->place_flags) {
+                sprintf(buf, "We are offering a reward to anyone that can restore order in %s.", pArea->name);
+                do_say(ch, buf);
+            }
+            }
+        }
 
-		// Scavenge
-		if (IS_SET(ch->act[0], ACT_SCAVENGER)
-		&&   ch->in_room->contents != NULL
-		&&   number_bits(6) == 0)
-		{
-			OBJ_DATA *obj;
-			OBJ_DATA *obj_best;
-			int max;
+        // Scavenge
+        if (IS_SET(ch->act[0], ACT_SCAVENGER)
+        &&   ch->in_room->contents != NULL
+        &&   number_bits(6) == 0)
+        {
+            OBJ_DATA *obj;
+            OBJ_DATA *obj_best;
+            int max;
 
-			max = 1;
-			obj_best = 0;
-			for (obj = ch->in_room->contents; obj; obj = obj->next_content)
-			{
-			if (!can_get_obj(ch, obj, NULL, NULL, true))
-				continue;
+            max = 1;
+            obj_best = 0;
+            for (obj = ch->in_room->contents; obj; obj = obj->next_content)
+            {
+            if (!can_get_obj(ch, obj, NULL, NULL, true))
+                continue;
 
-			if (CAN_WEAR(obj, ITEM_TAKE)
-			&&   obj->cost > max
-			&&   obj->cost > 0
-			&&   !is_quest_token(obj))
-			{
-				obj_best = obj;
-				max = obj->cost;
-			}
-			}
+            if (CAN_WEAR(obj, ITEM_TAKE)
+            &&   obj->cost > max
+            &&   obj->cost > 0
+            &&   !is_quest_token(obj))
+            {
+                obj_best = obj;
+                max = obj->cost;
+            }
+            }
 
-			if (obj_best != NULL)
-			{
-			act("$n gets $p.", ch, NULL, NULL, obj_best, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			obj_from_room(obj_best);
-			obj_to_char(obj_best, ch);
-			}
-		}
+            if (obj_best != NULL)
+            {
+            act("$n gets $p.", ch, NULL, NULL, obj_best, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            obj_from_room(obj_best);
+            obj_to_char(obj_best, ch);
+            }
+        }
 
-		if (ch->in_room == NULL)
-		{
-			sprintf(buf, "mobile_update: ch %s (%ld) had null in_room!",
-				IS_NPC(ch) ? ch->short_descr : ch->name,
-			IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-			bug(buf, 0);
-			continue;
-		}
+        if (ch->in_room == NULL)
+        {
+            sprintf(buf, "mobile_update: ch %s (%ld) had null in_room!",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+            IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+            bug(buf, 0);
+            continue;
+        }
 
-		/* Wander */
+        /* Wander */
 
-		/* Syn - Only do this for mobs that aren't grouped. Obviously
-		   to prevent grouped mobs from wandering off, since wandering
-		   can be done with a mprog, while the reverse cannot be done */
-		if (ch->leader == NULL // Following AND grouped
-		&&  ch->master == NULL // Following only
-		&&  !IS_SET(ch->act[0], ACT_SENTINEL)
-		&&  number_bits(3) == 0
-		&&  !IS_SET(ch->act[0], ACT_MOUNT)) {
-			door = number_range(0, MAX_DIR - 1);
-			if ((pexit = ch->in_room->exit[door]) != NULL
-			&&  pexit->u1.to_room != NULL
-			&&  !IS_SET(pexit->exit_info, EX_CLOSED)
-			&&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB)
-			&&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_WANDER)
-			&&  (!IS_SET(ch->act[1], ACT_STAY_LOCALE) ||
-				(pexit->u1.to_room->area == ch->in_room->area &&
-					(!ch->in_room->locale || !pexit->u1.to_room->locale || ch->in_room->locale == pexit->u1.to_room->locale)))
-			&&  (IS_SET(ch->act[1], ACT2_WILDS_WANDERER) || !pexit->u1.to_room->wilds)
-			&&  (!IS_SET(ch->act[0], ACT_STAY_AREA)
-			 || pexit->u1.to_room->area == ch->in_room->area)
-			&&  (!IS_SET(ch->act[0], ACT_OUTDOORS)
-			 || !IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS))
-			&&  (!IS_SET(ch->act[0], ACT_INDOORS)
-			 || IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS)))
-			move_char(ch, door, false);
-		}
+        /* Syn - Only do this for mobs that aren't grouped. Obviously
+           to prevent grouped mobs from wandering off, since wandering
+           can be done with a mprog, while the reverse cannot be done */
+        if (ch->leader == NULL // Following AND grouped
+        &&  ch->master == NULL // Following only
+        &&  !IS_SET(ch->act[0], ACT_SENTINEL)
+        &&  number_bits(3) == 0
+        &&  !IS_SET(ch->act[0], ACT_MOUNT)) {
+            door = number_range(0, MAX_DIR - 1);
+            if ((pexit = ch->in_room->exit[door]) != NULL
+            &&  pexit->u1.to_room != NULL
+            &&  !IS_SET(pexit->exit_info, EX_CLOSED)
+            &&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB)
+            &&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_WANDER)
+            &&  (!IS_SET(ch->act[1], ACT_STAY_LOCALE) ||
+                (pexit->u1.to_room->area == ch->in_room->area &&
+                    (!ch->in_room->locale || !pexit->u1.to_room->locale || ch->in_room->locale == pexit->u1.to_room->locale)))
+            &&  (IS_SET(ch->act[1], ACT2_WILDS_WANDERER) || !pexit->u1.to_room->wilds)
+            &&  (!IS_SET(ch->act[0], ACT_STAY_AREA)
+             || pexit->u1.to_room->area == ch->in_room->area)
+            &&  (!IS_SET(ch->act[0], ACT_OUTDOORS)
+             || !IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS))
+            &&  (!IS_SET(ch->act[0], ACT_INDOORS)
+             || IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS)))
+            move_char(ch, door, false);
+        }
     }
 }
 
@@ -1113,15 +1113,15 @@ void remove_port(long vnum_boat_dock, int door)
 
     if ((pWildRoom = get_room_index(vnum_boat_dock)) != NULL)
     {
-	rp_change_exit(get_room_index(6551), "west delete", DIR_WEST);
-	sprintf(buf, "west %ld", vnum_boat_dock-1);
-	rp_change_exit(pWildRoom, buf, DIR_WEST);
-	sprintf(buf, "north %ld", vnum_boat_dock-348);
-	rp_change_exit(pWildRoom, buf, DIR_NORTH);
-	sprintf(buf, "south %ld", vnum_boat_dock+348);
-	rp_change_exit(pWildRoom, buf, DIR_SOUTH);
-	sprintf(buf, "east %ld", vnum_boat_dock+1);
-	rp_change_exit(pWildRoom, buf, DIR_EAST);
+    rp_change_exit(get_room_index(6551), "west delete", DIR_WEST);
+    sprintf(buf, "west %ld", vnum_boat_dock-1);
+    rp_change_exit(pWildRoom, buf, DIR_WEST);
+    sprintf(buf, "north %ld", vnum_boat_dock-348);
+    rp_change_exit(pWildRoom, buf, DIR_NORTH);
+    sprintf(buf, "south %ld", vnum_boat_dock+348);
+    rp_change_exit(pWildRoom, buf, DIR_SOUTH);
+    sprintf(buf, "east %ld", vnum_boat_dock+1);
+    rp_change_exit(pWildRoom, buf, DIR_EAST);
     }
 #endif
 }
@@ -1134,13 +1134,13 @@ void create_port(long vnum_port, long vnum_boat_dock, int door)
     ROOM_INDEX_DATA *pWildRoom;
 
     if ((pWildRoom = get_room_index(vnum_boat_dock)) != NULL &&
-	    (pRoom = get_room_index(vnum_port)) != NULL)
+        (pRoom = get_room_index(vnum_port)) != NULL)
     {
-	rp_change_exit(pWildRoom, "west delete", DIR_WEST);
-	rp_change_exit(pWildRoom, "east delete", DIR_EAST);
-	rp_change_exit(pWildRoom, "south delete", DIR_SOUTH);
-	rp_change_exit(pWildRoom, "north delete", DIR_NORTH);
-	rp_change_exit(pRoom, "east 6551", DIR_EAST);
+    rp_change_exit(pWildRoom, "west delete", DIR_WEST);
+    rp_change_exit(pWildRoom, "east delete", DIR_EAST);
+    rp_change_exit(pWildRoom, "south delete", DIR_SOUTH);
+    rp_change_exit(pWildRoom, "north delete", DIR_NORTH);
+    rp_change_exit(pRoom, "east 6551", DIR_EAST);
     }
 #endif
 }
@@ -1155,147 +1155,147 @@ void update_public_boat(int time)
     ship_area = find_area("Ship");
     if (ship_area == NULL)
     {
-	bug("update_public_boat: ship area was null!", 0);
-	return;
+    bug("update_public_boat: ship area was null!", 0);
+    return;
     }
 
     if (find_area("Wilderness") == NULL)
     {
-	log_string("update_public_boat: no wilderness!");
-	return;
+    log_string("update_public_boat: no wilderness!");
+    return;
     }
 
     // Boat arrives in at Plith
     if (time == 7)
     {
-	room = get_room_index(744104);
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 6551", DIR_EAST);
+    room = get_room_index(744104);
+    rp_change_exit(room, "command delete", DIR_EAST);
+    rp_change_exit(room, "command 6551", DIR_EAST);
 
-	room = get_room_index(6551);
-	rp_change_exit(room, "command 744104", DIR_WEST);
+    room = get_room_index(6551);
+    rp_change_exit(room, "command 744104", DIR_WEST);
 
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Plith!'{x\n\r");
+    room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Plith!'{x\n\r");
 
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Plith!'{x", SECT_INSIDE);
+    sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Plith!'{x", SECT_INSIDE);
 
-	sector_echo(find_area("Plith"), "{YYou hear the large horns of the Endeavor as it enters Plith harbour!{x", SECT_CITY);
+    sector_echo(find_area("Plith"), "{YYou hear the large horns of the Endeavor as it enters Plith harbour!{x", SECT_CITY);
     }
     else
     // Boat leaves from Plith
     if (time == 9)
     {
-	room = get_room_index(744104);
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Achaeus!'{x\n\r");
+    room = get_room_index(744104);
+    room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Achaeus!'{x\n\r");
 
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 744105", DIR_EAST);
+    rp_change_exit(room, "command delete", DIR_EAST);
+    rp_change_exit(room, "command 744105", DIR_EAST);
 
-	room = get_room_index(6551);
-	rp_change_exit(room, "command delete", DIR_WEST);
+    room = get_room_index(6551);
+    rp_change_exit(room, "command delete", DIR_WEST);
 
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Achaeus!'{x", SECT_INSIDE);
+    sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Achaeus!'{x", SECT_INSIDE);
 
-	sector_echo(find_area("Plith"), "{YYou hear the large horns of the Endeavor as it leaves Plith harbour!{x", SECT_CITY);
+    sector_echo(find_area("Plith"), "{YYou hear the large horns of the Endeavor as it leaves Plith harbour!{x", SECT_CITY);
     }
     else
     // Boat arrives in at Achaeus
     if (time == 16)
     {
-	room = get_room_index(781122);
+    room = get_room_index(781122);
 
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 6551", DIR_EAST);
+    rp_change_exit(room, "command delete", DIR_EAST);
+    rp_change_exit(room, "command 6551", DIR_EAST);
 
-	room = get_room_index(6551);
-	rp_change_exit(room, "command 781122", DIR_WEST);
+    room = get_room_index(6551);
+    rp_change_exit(room, "command 781122", DIR_WEST);
 
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Achaeus!'{x\n\r");
+    room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Achaeus!'{x\n\r");
 
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Achaeus!'{x", SECT_INSIDE);
+    sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Achaeus!'{x", SECT_INSIDE);
 
-	sector_echo(find_area("Achaeus"), "{YYou hear the large horns of the Endeavor as it enters Achaeus harbour!{x", SECT_CITY);
+    sector_echo(find_area("Achaeus"), "{YYou hear the large horns of the Endeavor as it enters Achaeus harbour!{x", SECT_CITY);
     }
     else
     // Boat leaves from Achaeus
     if (time == 18)
     {
-	room = get_room_index(781122);
+    room = get_room_index(781122);
 
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 781123", DIR_EAST);
+    rp_change_exit(room, "command delete", DIR_EAST);
+    rp_change_exit(room, "command 781123", DIR_EAST);
 
-	room = get_room_index(6551);
-	rp_change_exit(room, "command delete", DIR_WEST);
+    room = get_room_index(6551);
+    rp_change_exit(room, "command delete", DIR_WEST);
 
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Olaria!'{x\n\r");
+    room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Olaria!'{x\n\r");
 
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Olaria!'{x", SECT_INSIDE);
+    sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Olaria!'{x", SECT_INSIDE);
 
-	sector_echo(find_area("Achaeus"), "{YYou hear the large horns of the Endeavor as it leaves Achaeus harbour!{x", SECT_CITY);
+    sector_echo(find_area("Achaeus"), "{YYou hear the large horns of the Endeavor as it leaves Achaeus harbour!{x", SECT_CITY);
     }
     else
     // Boat arrives in at Olaria
     if (time == 1)
     {
-	room = get_room_index(656895);
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 6551", DIR_EAST);
+    room = get_room_index(656895);
+    rp_change_exit(room, "command delete", DIR_EAST);
+    rp_change_exit(room, "command 6551", DIR_EAST);
 
-	room = get_room_index(6551);
-	rp_change_exit(room, "command 656895", DIR_WEST);
+    room = get_room_index(6551);
+    rp_change_exit(room, "command 656895", DIR_WEST);
 
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Olaria!'{x\n\r");
+    room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Olaria!'{x\n\r");
 
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Olaria!'{x", SECT_INSIDE);
+    sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Olaria!'{x", SECT_INSIDE);
 
-	sector_echo(find_area("Olaria"), "{YYou hear the large horns of the Endeavor as it enters Olaria harbour!{x", SECT_CITY);
+    sector_echo(find_area("Olaria"), "{YYou hear the large horns of the Endeavor as it enters Olaria harbour!{x", SECT_CITY);
     }
     else
     // Boat leaves from Olaria
     if (time == 3)
     {
-	room = get_room_index(656895);
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 656896", DIR_EAST);
+    room = get_room_index(656895);
+    rp_change_exit(room, "command delete", DIR_EAST);
+    rp_change_exit(room, "command 656896", DIR_EAST);
 
-	room = get_room_index(6551);
-	rp_change_exit(room, "command delete", DIR_WEST);
+    room = get_room_index(6551);
+    rp_change_exit(room, "command delete", DIR_WEST);
 
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Plith!'{x\n\r");
+    room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Plith!'{x\n\r");
 
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Plith!'{x", SECT_INSIDE);
+    sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Plith!'{x", SECT_INSIDE);
 
-	sector_echo(find_area("Olaria"), "{YYou hear the large horns of the Endeavor as it leaves Olaria harbour!{x", SECT_CITY);
+    sector_echo(find_area("Olaria"), "{YYou hear the large horns of the Endeavor as it leaves Olaria harbour!{x", SECT_CITY);
     }
 #endif
 }
 
 void reset_reckoning()
 {
-	reckoning_timer = 0;
+    reckoning_timer = 0;
 
-	if( reckoning_chance > RECKONING_CHANCE_MAX_RESET )
-		reckoning_chance /= 4;
-	else
-		reckoning_chance -= 5;
-	reckoning_chance = RECKONING_CHANCE_RESET(reckoning_chance);
+    if( reckoning_chance > RECKONING_CHANCE_MAX_RESET )
+        reckoning_chance /= 4;
+    else
+        reckoning_chance -= 5;
+    reckoning_chance = RECKONING_CHANCE_RESET(reckoning_chance);
 
-	reckoning_duration = RECKONING_DURATION_DEFAULT;
-	reckoning_intensity = RECKONING_INTENSITY_DEFAULT;
+    reckoning_duration = RECKONING_DURATION_DEFAULT;
+    reckoning_intensity = RECKONING_INTENSITY_DEFAULT;
 
-	if( reckoning_cooldown > 0 )
-	{
-		struct tm *reck_time = (struct tm *) localtime(&current_time);
-		reck_time->tm_min += UMAX(RECKONING_COOLDOWN_USE_MIN, reckoning_cooldown);
-		reckoning_cooldown_timer = (time_t) mktime(reck_time);
-	}
-	else
-		reckoning_cooldown_timer = 0;
+    if( reckoning_cooldown > 0 )
+    {
+        struct tm *reck_time = (struct tm *) localtime(&current_time);
+        reck_time->tm_min += UMAX(RECKONING_COOLDOWN_USE_MIN, reckoning_cooldown);
+        reckoning_cooldown_timer = (time_t) mktime(reck_time);
+    }
+    else
+        reckoning_cooldown_timer = 0;
 
-	reckoning_cooldown = 0;
+    reckoning_cooldown = 0;
 
-	boost_table[BOOST_RECKONING].boost = 100;
+    boost_table[BOOST_RECKONING].boost = 100;
 }
 
 
@@ -1313,54 +1313,54 @@ void time_update(void)
     // Update public boat.
     switch (time_info.hour)
     {
-	case  1: // Boat arrives in Olaria
-	    //update_public_boat(time_info.hour);
-	    break;
+    case  1: // Boat arrives in Olaria
+        //update_public_boat(time_info.hour);
+        break;
 
-	case  3: // Boat leaves from Olaria
-	    //update_public_boat(time_info.hour);
-	    break;
+    case  3: // Boat leaves from Olaria
+        //update_public_boat(time_info.hour);
+        break;
 
-	case  5:
-	    weather_info.sunlight = SUN_RISE;
-	    strcat(buf, "The day has begun.\n\r");
-	    break;
+    case  5:
+        weather_info.sunlight = SUN_RISE;
+        strcat(buf, "The day has begun.\n\r");
+        break;
 
-	case  6:
-	    weather_info.sunlight = SUN_LIGHT;
-	    strcat(buf, "The sun rises in the east.\n\r");
-	    break;
+    case  6:
+        weather_info.sunlight = SUN_LIGHT;
+        strcat(buf, "The sun rises in the east.\n\r");
+        break;
 
-	case 7: //Boat arrives in plith
-	    //update_public_boat(time_info.hour);
-	    break;
+    case 7: //Boat arrives in plith
+        //update_public_boat(time_info.hour);
+        break;
 
-	case 9: //Boat leaves in plith
-	    //update_public_boat(time_info.hour);
-	    break;
+    case 9: //Boat leaves in plith
+        //update_public_boat(time_info.hour);
+        break;
 
-	case 16: // Boat arrives in achaeus
-	    //update_public_boat(time_info.hour);
-	    break;
+    case 16: // Boat arrives in achaeus
+        //update_public_boat(time_info.hour);
+        break;
 
-	case 18: // Boat leaves achaeus
-	    //update_public_boat(time_info.hour);
-	    break;
+    case 18: // Boat leaves achaeus
+        //update_public_boat(time_info.hour);
+        break;
 
-	case 19:
-	    weather_info.sunlight = SUN_SET;
-	    strcat(buf, "The sun slowly disappears in the west.\n\r");
-	    break;
+    case 19:
+        weather_info.sunlight = SUN_SET;
+        strcat(buf, "The sun slowly disappears in the west.\n\r");
+        break;
 
-	case 20:
-	    weather_info.sunlight = SUN_DARK;
-	    strcat(buf, "{DThe night has begun.{x\n\r");
-	    break;
+    case 20:
+        weather_info.sunlight = SUN_DARK;
+        strcat(buf, "{DThe night has begun.{x\n\r");
+        break;
 
-	case 24:
-	    time_info.hour = 0;
-	    time_info.day++;
-	    break;
+    case 24:
+        time_info.hour = 0;
+        time_info.day++;
+        break;
     }
 
 #if 0
@@ -1381,12 +1381,12 @@ void time_update(void)
 //      sprintf(buf, "{YThe %s rises high into the sky then disappears!{x\n\r", plith_airship->ship->ship_name );
 //      echo_around(plith_airship->ship->ship->in_room, buf);
  //     room_echo(plith_airship->ship->ship->in_room, buf);
-				SHIP_STATE(plith_airship->captain, 8);
+                SHIP_STATE(plith_airship->captain, 8);
 //gecho("moo");
       //gecho( "ITS GONE TO fly back home!" );
 
-		//plith_airship->captain->ship_depart_time = 80;
-	//	plith_airship->captain->ship_dest_x = plith->x;
+        //plith_airship->captain->ship_depart_time = 80;
+    //	plith_airship->captain->ship_dest_x = plith->x;
 //		plith_airship->captain->ship_dest_y = plith->y;
   }
   else
@@ -1401,14 +1401,14 @@ void time_update(void)
 
     if (time_info.day   >= 35)
     {
-	time_info.day = 0;
-	time_info.month++;
+    time_info.day = 0;
+    time_info.month++;
     }
 
     if (time_info.month >= 12)
     {
-	time_info.month = 0;
-	time_info.year++;
+    time_info.month = 0;
+    time_info.year++;
     }
 
     hours = ((((time_info.year*12)+time_info.month)*35+time_info.day)*24+time_info.hour+MOON_OFFSET) % MOON_PERIOD;
@@ -1424,93 +1424,93 @@ void time_update(void)
     else if(hours < (4*MOON_CARDINAL_STEP - MOON_CARDINAL_HALF)) time_info.moon = MOON_WANING_CRESCENT;
     else time_info.moon = MOON_NEW;
 
-	if (!reckoning_timer && !pre_reckoning && reckoning_cooldown_timer < current_time &&
-		time_info.moon == MOON_FULL &&
-		weather_info.sunlight == SUN_DARK) {
-		struct tm *reck_time = (struct tm *) localtime(&current_time);
-		if (number_percent() < reckoning_chance) {
-			// Success
+    if (!reckoning_timer && !pre_reckoning && reckoning_cooldown_timer < current_time &&
+        time_info.moon == MOON_FULL &&
+        weather_info.sunlight == SUN_DARK) {
+        struct tm *reck_time = (struct tm *) localtime(&current_time);
+        if (number_percent() < reckoning_chance) {
+            // Success
 
 
-			reck_time->tm_min += reckoning_duration;
-		    reckoning_timer = (time_t) mktime(reck_time);
-		    reckoning_cooldown_timer = 0;
-			pre_reckoning = 1;
+            reck_time->tm_min += reckoning_duration;
+            reckoning_timer = (time_t) mktime(reck_time);
+            reckoning_cooldown_timer = 0;
+            pre_reckoning = 1;
 
-		} else {
-		    reckoning_timer = 0;
+        } else {
+            reckoning_timer = 0;
 
-			reck_time->tm_min += 10;	// This should make it through the night
-			reckoning_cooldown_timer = (time_t) mktime(reck_time);
+            reck_time->tm_min += 10;	// This should make it through the night
+            reckoning_cooldown_timer = (time_t) mktime(reck_time);
 
-			reckoning_chance += 5;
-			reckoning_chance = RECKONING_CHANCE(reckoning_chance);
+            reckoning_chance += 5;
+            reckoning_chance = RECKONING_CHANCE(reckoning_chance);
 
-			int rnd = number_range(-10,10);
-			reckoning_intensity += UMAX(0, rnd);
-			reckoning_intensity = RECKONING_INTENSITY(reckoning_intensity);
+            int rnd = number_range(-10,10);
+            reckoning_intensity += UMAX(0, rnd);
+            reckoning_intensity = RECKONING_INTENSITY(reckoning_intensity);
 
-			rnd = number_range(-5,5);
-			reckoning_duration += UMAX(0, rnd);
-			reckoning_duration = RECKONING_DURATION(reckoning_duration);
-		}
-	}
+            rnd = number_range(-5,5);
+            reckoning_duration += UMAX(0, rnd);
+            reckoning_duration = RECKONING_DURATION(reckoning_duration);
+        }
+    }
 
-	// If pre_reckoning > 0 then it is taking place
-	if (reckoning_timer > 0 && pre_reckoning > 0) {
-		if (pre_reckoning == 5) {
-			sprintf(buf, "{MA thick purple hazy mist descends around as you the reckoning takes hold!{x\n\r"
-				"{yYou feel a sudden urge to kill the innocent for personal gain!{x\n\r");
-			pre_reckoning = 0;
-			boost_table[BOOST_RECKONING].timer = reckoning_timer;
-			boost_table[BOOST_RECKONING].boost = 100 + URANGE(10,reckoning_intensity,200);	// Allow from 110 to 300%
-		} else {
-			switch(pre_reckoning++) {
-			case 1: sprintf(buf, "You notice a slight discolouration in the sky.\n\r"); break;
-			case 2: sprintf(buf, "{MThe sky dims as dark purple and maroon clouds roll in out of nowhere.{x\n\r"); break;
-			case 3: sprintf(buf, "{CA strong gust picks up, howling loudly as it rips across the land.{x\n\r"); break;
-			case 4: sprintf(buf, "{BSheets of cold blue lightning gather in the sky as a demonic terror grips the world.{x\n\r"); break;
-			}
-		}
-	}
+    // If pre_reckoning > 0 then it is taking place
+    if (reckoning_timer > 0 && pre_reckoning > 0) {
+        if (pre_reckoning == 5) {
+            sprintf(buf, "{MA thick purple hazy mist descends around as you the reckoning takes hold!{x\n\r"
+                "{yYou feel a sudden urge to kill the innocent for personal gain!{x\n\r");
+            pre_reckoning = 0;
+            boost_table[BOOST_RECKONING].timer = reckoning_timer;
+            boost_table[BOOST_RECKONING].boost = 100 + URANGE(10,reckoning_intensity,200);	// Allow from 110 to 300%
+        } else {
+            switch(pre_reckoning++) {
+            case 1: sprintf(buf, "You notice a slight discolouration in the sky.\n\r"); break;
+            case 2: sprintf(buf, "{MThe sky dims as dark purple and maroon clouds roll in out of nowhere.{x\n\r"); break;
+            case 3: sprintf(buf, "{CA strong gust picks up, howling loudly as it rips across the land.{x\n\r"); break;
+            case 4: sprintf(buf, "{BSheets of cold blue lightning gather in the sky as a demonic terror grips the world.{x\n\r"); break;
+            }
+        }
+    }
 
-	if (reckoning_timer > 0 && current_time > reckoning_timer) {
-		gecho("{MAs quickly as it appeared, the hazy purple mist dissipates. The reckoning has ended.{x\n\r");
-		reset_reckoning();
-	}
+    if (reckoning_timer > 0 && current_time > reckoning_timer) {
+        gecho("{MAs quickly as it appeared, the hazy purple mist dissipates. The reckoning has ended.{x\n\r");
+        reset_reckoning();
+    }
 
     if (buf[0] != '\0')
     {
-	for (d = descriptor_list; d != NULL; d = d->next)
-	{
-	    if (d->connected == CON_PLAYING
-		    &&   (d->character->in_room != NULL &&
-			d->character->in_room->sector_type != SECT_INSIDE)//IS_OUTSIDE(d->character)
-		    && !IN_EDEN(d->character)
-		    && !IN_NETHERWORLD(d->character)
-		    &&   IS_AWAKE(d->character)) {
-		send_to_char(buf, d->character);
-	    }
-	}
+    for (d = descriptor_list; d != NULL; d = d->next)
+    {
+        if (d->connected == CON_PLAYING
+            &&   (d->character->in_room != NULL &&
+            d->character->in_room->sector_type != SECT_INSIDE)//IS_OUTSIDE(d->character)
+            && !IN_EDEN(d->character)
+            && !IN_NETHERWORLD(d->character)
+            &&   IS_AWAKE(d->character)) {
+        send_to_char(buf, d->character);
+        }
+    }
     }
 
   buf[0] = '\0';
-	for (d = descriptor_list; d != NULL; d = d->next)
-	{
-	    if (pre_reckoning == 0 && reckoning_timer > 0)
-	    {
-		if (d->connected == CON_PLAYING
-		&& d->character->in_room != NULL
-		&& d->character->in_room->sector_type != SECT_INSIDE
-		&&   IS_AWAKE(d->character))
-		{
-		    if (number_percent() < 50)
-			sprintf(buf, "{YLightning crashes down around you!{x\n\r");
-		    else
-			sprintf(buf, "{YThe wind howls as it screams around you!{x\n\r");
-		    send_to_char(buf, d->character);
-		}
-	}
+    for (d = descriptor_list; d != NULL; d = d->next)
+    {
+        if (pre_reckoning == 0 && reckoning_timer > 0)
+        {
+        if (d->connected == CON_PLAYING
+        && d->character->in_room != NULL
+        && d->character->in_room->sector_type != SECT_INSIDE
+        &&   IS_AWAKE(d->character))
+        {
+            if (number_percent() < 50)
+            sprintf(buf, "{YLightning crashes down around you!{x\n\r");
+            else
+            sprintf(buf, "{YThe wind howls as it screams around you!{x\n\r");
+            send_to_char(buf, d->character);
+        }
+    }
     }
 }
 
@@ -1526,8 +1526,8 @@ void reset_waypoint( NPC_SHIP_DATA *npc_ship )
 
     if ( ship->current_waypoint != NULL && !(ship->current_waypoint->x==0 && ship->current_waypoint->y==0))
     {
-	index = (long)((long)ship->current_waypoint->y * ship->ship->in_room->area->map_size_x + (long)ship->current_waypoint->x + ship->ship->in_room->area->min_vnum + WILDERNESS_VNUM_OFFSET);
-	ship->destination = get_room_index(index);
+    index = (long)((long)ship->current_waypoint->y * ship->ship->in_room->area->map_size_x + (long)ship->current_waypoint->x + ship->ship->in_room->area->min_vnum + WILDERNESS_VNUM_OFFSET);
+    ship->destination = get_room_index(index);
     }
 #endif
 }
@@ -1545,85 +1545,85 @@ void update_area_trade( void )
     log_string( "Updating area trade data..." );
     for ( pArea = area_first; pArea != NULL; pArea = pArea->next )
     {
-	if ( pArea->trade_list == NULL )
-	{
-	    continue;
-	}
+    if ( pArea->trade_list == NULL )
+    {
+        continue;
+    }
 
-	for ( pItem = pArea->trade_list; pItem != NULL; pItem = pItem->next )
-	{
-	    int time = ++pItem->replenish_current_time;
+    for ( pItem = pArea->trade_list; pItem != NULL; pItem = pItem->next )
+    {
+        int time = ++pItem->replenish_current_time;
 
-	    if ( time >= pItem->replenish_time )
-	    {
-		pItem->replenish_current_time = 0;
-		pItem->qty += pItem->replenish_amount;
-		if ( pItem->qty < 0 )
-		{
-		    pItem->qty = 0;
-		}
+        if ( time >= pItem->replenish_time )
+        {
+        pItem->replenish_current_time = 0;
+        pItem->qty += pItem->replenish_amount;
+        if ( pItem->qty < 0 )
+        {
+            pItem->qty = 0;
+        }
 
-		if ( pItem->qty > pItem->max_qty )
-		{
-		    pItem->qty = pItem->max_qty;
-		}
+        if ( pItem->qty > pItem->max_qty )
+        {
+            pItem->qty = pItem->max_qty;
+        }
 
-		/* Is the area a supplier of the trade good */
-		if ( pItem->replenish_amount > 0 )
-		{
-		    /* As the quantity increases, the buy price drops */
-		    pItem->buy_price = UMAX( (long) (pItem->max_price *
-				((float)(pItem->max_qty - pItem->qty)/(float)pItem->max_qty)), pItem->min_price);
+        /* Is the area a supplier of the trade good */
+        if ( pItem->replenish_amount > 0 )
+        {
+            /* As the quantity increases, the buy price drops */
+            pItem->buy_price = UMAX( (long) (pItem->max_price *
+                ((float)(pItem->max_qty - pItem->qty)/(float)pItem->max_qty)), pItem->min_price);
 
-		    /* Sell price is 80% of buy price */
-		    pItem->sell_price = (long) (pItem->buy_price * 0.8);
+            /* Sell price is 80% of buy price */
+            pItem->sell_price = (long) (pItem->buy_price * 0.8);
 
-		    sprintf( buf, "Updating area %s, supplier trade item %s, to buy price %ld and sell price %ld, min price %ld max price %ld",
-			    pArea->name, trade_table[ pItem->trade_type ].name, pItem->buy_price, pItem->sell_price, pItem->min_price, pItem->max_price );
-		    log_string( buf );
-		}
-		else
-		{
-		    /* Otherwise we are a cosumer */
-		    TRADE_ITEM *pTempTrade = NULL;
-		    long max_qty = 0;
-		    AREA_DATA *pTempArea = NULL;
+            sprintf( buf, "Updating area %s, supplier trade item %s, to buy price %ld and sell price %ld, min price %ld max price %ld",
+                pArea->name, trade_table[ pItem->trade_type ].name, pItem->buy_price, pItem->sell_price, pItem->min_price, pItem->max_price );
+            log_string( buf );
+        }
+        else
+        {
+            /* Otherwise we are a cosumer */
+            TRADE_ITEM *pTempTrade = NULL;
+            long max_qty = 0;
+            AREA_DATA *pTempArea = NULL;
 
-		    // Look for largest max qty supplier in other areas and base sell price off that
-		    for ( pTempArea = area_first; pTempArea != NULL; pTempArea = pTempArea->next )
-		    {
-			if ( pTempArea == pArea || abs(get_coord_distance(pArea->x, pArea->y, pTempArea->x, pTempArea->y)) > 400)
-			{
-			    continue;
-			}
+            // Look for largest max qty supplier in other areas and base sell price off that
+            for ( pTempArea = area_first; pTempArea != NULL; pTempArea = pTempArea->next )
+            {
+            if ( pTempArea == pArea || abs(get_coord_distance(pArea->x, pArea->y, pTempArea->x, pTempArea->y)) > 400)
+            {
+                continue;
+            }
 
-			for ( pTempTrade = pTempArea->trade_list; pTempTrade != NULL; pTempTrade = pTempTrade->next )
-			{
-			    if ( pTempTrade->trade_type == pItem->trade_type && pTempTrade->replenish_amount > 0 )
-			    {
-				if ( pTempTrade->qty > max_qty )
-				{
-				    max_qty = pTempTrade->qty;
-				}
-			    }
-			}
-		    }
+            for ( pTempTrade = pTempArea->trade_list; pTempTrade != NULL; pTempTrade = pTempTrade->next )
+            {
+                if ( pTempTrade->trade_type == pItem->trade_type && pTempTrade->replenish_amount > 0 )
+                {
+                if ( pTempTrade->qty > max_qty )
+                {
+                    max_qty = pTempTrade->qty;
+                }
+                }
+            }
+            }
 
-		    // What happens if there is not supplier???
-		    if ( pTempTrade == NULL )
-		    {
-			pTempTrade = pItem;
-		    }
+            // What happens if there is not supplier???
+            if ( pTempTrade == NULL )
+            {
+            pTempTrade = pItem;
+            }
 
-		    // If there its lots of stock at the supplier then lower the sell price (not as much demand).
-		    pItem->sell_price = UMAX( (long) (pItem->max_price * ( (float) ( pTempTrade->max_qty - pTempTrade->qty ) / (float) pTempTrade->max_qty ) ), pItem->min_price );
+            // If there its lots of stock at the supplier then lower the sell price (not as much demand).
+            pItem->sell_price = UMAX( (long) (pItem->max_price * ( (float) ( pTempTrade->max_qty - pTempTrade->qty ) / (float) pTempTrade->max_qty ) ), pItem->min_price );
 
-		    // Buying is 20% more than sell price
-		    pItem->buy_price =(long) (pItem->sell_price * 1.2);
-		}
+            // Buying is 20% more than sell price
+            pItem->buy_price =(long) (pItem->sell_price * 1.2);
+        }
 
-	    }
-	}
+        }
+    }
     }
 }
 
@@ -2106,7 +2106,7 @@ void char_update(void)
 
             // Fire off deathtraps.
             if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
-            	!IS_SET(ch->in_room->room_flag[0], ROOM_CPK)) {		// no cpk-deathtraps
+                !IS_SET(ch->in_room->room_flag[0], ROOM_CPK)) {		// no cpk-deathtraps
                         {
         ROOM_INDEX_DATA *here = ch->in_room;
         ch->position = POS_STANDING;
@@ -2119,7 +2119,7 @@ void char_update(void)
 
             // The enchanted forest saps hit,mana, and move.
             if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST && ch->position == POS_SLEEPING)
-        	{
+            {
                 ch->hit = ch->hit - ch->max_hit/3;
 
                 update_pos(ch);
@@ -2178,7 +2178,7 @@ void char_update(void)
                 char buf[MAX_STRING_LENGTH];
 
                 send_to_char("{MHint: ", ch);
-             	sprintf(buf, "%s", hintsTable[number_percent() % 15].hint);
+                 sprintf(buf, "%s", hintsTable[number_percent() % 15].hint);
                 send_to_char(buf, ch);
                 send_to_char("{x", ch);
             }
@@ -2200,7 +2200,7 @@ void char_update(void)
             {
                 paf->duration--;
                 if (number_range(0,4) == 0 && paf->level > 0)
-              		paf->level--;  // spell strength fades with time
+                      paf->level--;  // spell strength fades with time
             }
             else if (paf->duration < 0) // infinite spells, like on eq
             {
@@ -2211,11 +2211,11 @@ void char_update(void)
                 if (paf_next == NULL || paf_next->type != paf->type ||
                     paf_next->duration > 0)
                 {
-            		if (paf->type > 0 && skill_table[paf->type].msg_off)
-            		{
+                    if (paf->type > 0 && skill_table[paf->type].msg_off)
+                    {
                         send_to_char(skill_table[paf->type].msg_off, ch);
                         send_to_char("\n\r", ch);
-            		}
+                    }
                 }
 
                 affect_remove(ch, paf);
@@ -2236,7 +2236,7 @@ void char_update(void)
                     MAX_BUILDER_IDLE_MINUTES, ch->name);
                 wiznet(buf, NULL, NULL, WIZ_BUILDING, 0, 0);
                 REMOVE_BIT(ch->act[0], PLR_BUILDING);
-        	} else  // Increment #minutes built by 1
+            } else  // Increment #minutes built by 1
                 ch->pcdata->immortal->builder->minutes++;
         }
 
@@ -2282,24 +2282,24 @@ void char_update(void)
 // Update all objs (performance-sensitive)
 void obj_update(void)
 {
-	ITERATOR it, tit;
-	TOKEN_DATA *token;
-	OBJ_DATA *obj;
-	AFFECT_DATA *paf, *paf_next;
-	CHAR_DATA *rch, *rch_next;
-	char *message;
-	char buf[MAX_STRING_LENGTH];
-	bool nuke_obj;
-	int spill_contents;
-	long uid[2];
+    ITERATOR it, tit;
+    TOKEN_DATA *token;
+    OBJ_DATA *obj;
+    AFFECT_DATA *paf, *paf_next;
+    CHAR_DATA *rch, *rch_next;
+    char *message;
+    char buf[MAX_STRING_LENGTH];
+    bool nuke_obj;
+    int spill_contents;
+    long uid[2];
 
-	log_string("Update objects...");
+    log_string("Update objects...");
 
-	iterator_start(&it, loaded_objects);
-	while(( obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    iterator_start(&it, loaded_objects);
+    while(( obj = (OBJ_DATA *)iterator_nextdata(&it))) {
 
-		if( !IS_VALID(obj) ) continue;
-		if( obj->gc ) continue;
+        if( !IS_VALID(obj) ) continue;
+        if( obj->gc ) continue;
 
         if (obj->carried_by != NULL) {
             bool is_valid = false;
@@ -2325,281 +2325,281 @@ void obj_update(void)
             }
         }
 
-		// Unmarked objects in the rift will not update.
-		// Principle objects that are normally allowed to tick in the rift: room spell objects
-		ROOM_INDEX_DATA *cur_room = obj_room(obj);
-		if( cur_room != NULL && cur_room->area->area_who == AREA_CHAT && !IS_SET(obj->extra[2], ITEM_RIFT_UPDATE))
-			continue;
+        // Unmarked objects in the rift will not update.
+        // Principle objects that are normally allowed to tick in the rift: room spell objects
+        ROOM_INDEX_DATA *cur_room = obj_room(obj);
+        if( cur_room != NULL && cur_room->area->area_who == AREA_CHAT && !IS_SET(obj->extra[2], ITEM_RIFT_UPDATE))
+            continue;
 
 
-		// Adjust obj affects - except for people in social
-		if (obj->carried_by == NULL || !IS_SOCIAL(obj->carried_by)) {
-			for (paf = obj->affected; paf != NULL; paf = paf_next) {
-				paf_next = paf->next;
+        // Adjust obj affects - except for people in social
+        if (obj->carried_by == NULL || !IS_SOCIAL(obj->carried_by)) {
+            for (paf = obj->affected; paf != NULL; paf = paf_next) {
+                paf_next = paf->next;
 
-				if (paf->duration > 0) {
-					paf->duration--;
+                if (paf->duration > 0) {
+                    paf->duration--;
 
-					// Affect strength fades with time
-					if (number_range(0,4) == 0 && paf->level > 0)
-					paf->level--;
+                    // Affect strength fades with time
+                    if (number_range(0,4) == 0 && paf->level > 0)
+                    paf->level--;
 
-				// Affect wears off, send message if applicable
-				} else if (!paf->duration) {
-					if (!paf_next || paf_next->type != paf->type || paf_next->duration > 0) {
-						if (paf->type > 0 && skill_table[paf->type].msg_obj) {
-							if (obj->carried_by != NULL) {
-								rch = obj->carried_by;
-								act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-							} else if (obj->in_room && obj->in_room->people) {
-								rch = obj->in_room->people;
-								act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-							}
-						}
-					}
-					affect_remove_obj(obj, paf);
+                // Affect wears off, send message if applicable
+                } else if (!paf->duration) {
+                    if (!paf_next || paf_next->type != paf->type || paf_next->duration > 0) {
+                        if (paf->type > 0 && skill_table[paf->type].msg_obj) {
+                            if (obj->carried_by != NULL) {
+                                rch = obj->carried_by;
+                                act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                            } else if (obj->in_room && obj->in_room->people) {
+                                rch = obj->in_room->people;
+                                act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                            }
+                        }
+                    }
+                    affect_remove_obj(obj, paf);
 
-					if (paf->type == skill_lookup("third eye"))
-					{
-		    			if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal"))
-		    			{
-							if ((rch = obj->carried_by) != NULL)
-			    			act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-						else if (obj->in_room != NULL)
-						{
-			    			sprintf(buf, "%s flares and vanishes.", obj->short_descr);
-			    			room_echo(obj->in_room, buf);
-						}
+                    if (paf->type == skill_lookup("third eye"))
+                    {
+                        if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal"))
+                        {
+                            if ((rch = obj->carried_by) != NULL)
+                            act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                        else if (obj->in_room != NULL)
+                        {
+                            sprintf(buf, "%s flares and vanishes.", obj->short_descr);
+                            room_echo(obj->in_room, buf);
+                        }
 
-						extract_obj(obj);
-		    			}
-		    			else // Golden skull
-		    			{
-							if (--obj->condition <= 0)
-							{
-			    				if ((rch = obj->carried_by) != NULL)
-									act("$p fumes violently and explodes!", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			    				else if (obj->in_room != NULL)
-			    				{
-									sprintf(buf, "%s fumes violently and explodes!", obj->short_descr);
-									room_echo(obj->in_room, buf);
-			    				}
+                        extract_obj(obj);
+                        }
+                        else // Golden skull
+                        {
+                            if (--obj->condition <= 0)
+                            {
+                                if ((rch = obj->carried_by) != NULL)
+                                    act("$p fumes violently and explodes!", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                                else if (obj->in_room != NULL)
+                                {
+                                    sprintf(buf, "%s fumes violently and explodes!", obj->short_descr);
+                                    room_echo(obj->in_room, buf);
+                                }
 
-			    				extract_obj(obj);
-							}
-							else
-							{
-			    				if ((rch = obj->carried_by) != NULL)
-									act("The dark enchantment upon $p wears off.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			    				else if (obj->in_room != NULL)
-			    				{
-									sprintf(buf, "The dark enchantment upon %s wears off.", obj->short_descr);
-									room_echo(obj->in_room, buf);
-			    				}
-							}
-		    			}
-					}
-				}
-			}
-		}
+                                extract_obj(obj);
+                            }
+                            else
+                            {
+                                if ((rch = obj->carried_by) != NULL)
+                                    act("The dark enchantment upon $p wears off.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                                else if (obj->in_room != NULL)
+                                {
+                                    sprintf(buf, "The dark enchantment upon %s wears off.", obj->short_descr);
+                                    room_echo(obj->in_room, buf);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-		uid[0] = obj->id[0];
-		uid[1] = obj->id[1];
-		// Oprog triggers - need a room to function in
-		if (obj_room(obj) != NULL) {
-			if (obj->progs->delay > 0) {
-				if (--obj->progs->delay <= 0)
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
+        uid[0] = obj->id[0];
+        uid[1] = obj->id[1];
+        // Oprog triggers - need a room to function in
+        if (obj_room(obj) != NULL) {
+            if (obj->progs->delay > 0) {
+                if (--obj->progs->delay <= 0)
+                    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
 
-				// Make sure the object is still there before proceeding
-				if(!obj->valid || obj->id[0] != uid[0] || obj->id[1] != uid[1])
-					continue;
-			}
+                // Make sure the object is still there before proceeding
+                if(!obj->valid || obj->id[0] != uid[0] || obj->id[1] != uid[1])
+                    continue;
+            }
 
-			if (!obj->locker)
-			{
+            if (!obj->locker)
+            {
 
-				p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+                p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
 
-				// Prereckoning
-				if (pre_reckoning > 0 && reckoning_timer > 0)
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+                // Prereckoning
+                if (pre_reckoning > 0 && reckoning_timer > 0)
+                    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
 
-				// Reckoning
-				if (!pre_reckoning && reckoning_timer > 0)
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
-			}
-		}
+                // Reckoning
+                if (!pre_reckoning && reckoning_timer > 0)
+                    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+            }
+        }
 
-		// Make sure the object is still there before proceeding
-		if(!obj->valid || obj->id[0] != uid[0] || obj->id[1] != uid[1])
-			continue;
+        // Make sure the object is still there before proceeding
+        if(!obj->valid || obj->id[0] != uid[0] || obj->id[1] != uid[1])
+            continue;
 
-		// Update tokens on object. Remove the one for which the timer has run out.
-		iterator_start(&tit, obj->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if (IS_SET(token->flags, TOKEN_REVERSETIMER)) {
-				++token->timer;
-			} else if (token->timer > 0) {
-				--token->timer;
-				if (token->timer <= 0) {
-					sprintf(buf, "obj update: token %s(%ld) obj %s(%ld) was extracted because of timer",
-							token->name, token->pIndexData->vnum, obj->short_descr, obj->pIndexData->vnum);
-					log_string(buf);
-					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
-					token_from_obj(token);
-					free_token(token);
-				}
-			}
-		}
-		iterator_stop(&tit);
+        // Update tokens on object. Remove the one for which the timer has run out.
+        iterator_start(&tit, obj->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if (IS_SET(token->flags, TOKEN_REVERSETIMER)) {
+                ++token->timer;
+            } else if (token->timer > 0) {
+                --token->timer;
+                if (token->timer <= 0) {
+                    sprintf(buf, "obj update: token %s(%ld) obj %s(%ld) was extracted because of timer",
+                            token->name, token->pIndexData->vnum, obj->short_descr, obj->pIndexData->vnum);
+                    log_string(buf);
+                    p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+                    token_from_obj(token);
+                    free_token(token);
+                }
+            }
+        }
+        iterator_stop(&tit);
 
-		// Make seeds grow.
-		if (obj->item_type == ITEM_SEED && obj->in_room != NULL && IS_OBJ_STAT(obj, ITEM_PLANTED)) {
-			obj->value[0]--;
-			if (obj->value[0] <= 0) {
+        // Make seeds grow.
+        if (obj->item_type == ITEM_SEED && obj->in_room != NULL && IS_OBJ_STAT(obj, ITEM_PLANTED)) {
+            obj->value[0]--;
+            if (obj->value[0] <= 0) {
 
-				// Force this object to prevent its own destruction as it will be destroyed by default
-				SET_BIT(obj->progs->entity_flags,PROG_NODESTRUCT);
+                // Force this object to prevent its own destruction as it will be destroyed by default
+                SET_BIT(obj->progs->entity_flags,PROG_NODESTRUCT);
 
-				if( !p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_GROW, NULL) )
-				{
-					if (obj->value[1] == 0)
-						bug("Seed has 0 vnum.", obj->pIndexData->vnum);
-					else {
-						OBJ_DATA *new_obj;
+                if( !p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_GROW, NULL) )
+                {
+                    if (obj->value[1] == 0)
+                        bug("Seed has 0 vnum.", obj->pIndexData->vnum);
+                    else {
+                        OBJ_DATA *new_obj;
 long seed_vnum = obj->value[1];
 AREA_DATA *seed_area = find_area_by_vnum(seed_vnum);
 if (!seed_area) seed_area = get_system_area_fallback();
-						if (get_obj_index(seed_area, seed_vnum) == NULL) {
-							bug("Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
-							continue;
-						}
+                        if (get_obj_index(seed_area, seed_vnum) == NULL) {
+                            bug("Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
+                            continue;
+                        }
 
-						new_obj = create_object(get_obj_index(seed_area, seed_vnum), obj->level, true);
-						obj_to_room(new_obj, obj->in_room);
+                        new_obj = create_object(get_obj_index(seed_area, seed_vnum), obj->level, true);
+                        obj_to_room(new_obj, obj->in_room);
 
-						p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-					}
-				}
-				extract_obj(obj);
-			}
-		}
+                        p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+                    }
+                }
+                extract_obj(obj);
+            }
+        }
 
-		// Ice storms - work in PK rooms
-		if (obj->in_room != NULL && obj->item_type == ITEM_ICE_STORM && is_room_pk(obj->in_room, true)) {
-			for (rch = obj->in_room->people; rch != NULL; rch = rch_next) {
-				rch_next = rch->next_in_room;
+        // Ice storms - work in PK rooms
+        if (obj->in_room != NULL && obj->item_type == ITEM_ICE_STORM && is_room_pk(obj->in_room, true)) {
+            for (rch = obj->in_room->people; rch != NULL; rch = rch_next) {
+                rch_next = rch->next_in_room;
 
-				switch (check_immune(rch, DAM_COLD)) {
-				case IS_IMMUNE:
-					break;
+                switch (check_immune(rch, DAM_COLD)) {
+                case IS_IMMUNE:
+                    break;
 
-				case IS_RESISTANT:
-					act("You shiver a bit, but are able to withstand the cold.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-					act("$n shivers a bit, but is able to withstand the cold.",  rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-					break;
+                case IS_RESISTANT:
+                    act("You shiver a bit, but are able to withstand the cold.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                    act("$n shivers a bit, but is able to withstand the cold.",  rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    break;
 
-				default:
-					act("You shiver from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-					act("$n shivers from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-					break;
-				}
-			}
+                default:
+                    act("You shiver from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                    act("$n shivers from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    break;
+                }
+            }
 
-			cold_effect(obj->in_room, 1, dice(4,8), TARGET_ROOM);
-		}
+            cold_effect(obj->in_room, 1, dice(4,8), TARGET_ROOM);
+        }
 
-		// Handle timers for decaying objs, etc
-		if ((obj->timer <= 0 || --obj->timer > 0))
-			continue;
+        // Handle timers for decaying objs, etc
+        if ((obj->timer <= 0 || --obj->timer > 0))
+            continue;
 
-		nuke_obj = true;
-		spill_contents = 100;
+        nuke_obj = true;
+        spill_contents = 100;
 
-		switch (obj->item_type)
-		{
-		// Simple messages
-		default:					message = "$p crumbles into dust."; break;
-		case ITEM_FOUNTAIN:			message = "$p dries up."; break;
-		case ITEM_ROOM_FLAME:		message = "{DThe flames die down and disappear.{x"; break;
-		case ITEM_ROOM_DARKNESS:	message = "{YThe light returns.{x"; break;
-		case ITEM_ROOM_ROOMSHIELD:	message = "{YThe energy field shielding the room fades away.{X"; break;
-		case ITEM_STINKING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
-		case ITEM_WITHERING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
-		case ITEM_FOOD:				message = "$p decomposes."; break;
-		case ITEM_ICE_STORM:		message = "{W$p dies down and melts.{x"; break;
-		case ITEM_POTION:			message = "$p has evaporated from disuse.";break;
-		case ITEM_TATTOO:			message = "$p fades away as the ink dries.";break;
-		case ITEM_PORTAL:			message = "$p fades out of existence."; break;
+        switch (obj->item_type)
+        {
+        // Simple messages
+        default:					message = "$p crumbles into dust."; break;
+        case ITEM_FOUNTAIN:			message = "$p dries up."; break;
+        case ITEM_ROOM_FLAME:		message = "{DThe flames die down and disappear.{x"; break;
+        case ITEM_ROOM_DARKNESS:	message = "{YThe light returns.{x"; break;
+        case ITEM_ROOM_ROOMSHIELD:	message = "{YThe energy field shielding the room fades away.{X"; break;
+        case ITEM_STINKING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
+        case ITEM_WITHERING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
+        case ITEM_FOOD:				message = "$p decomposes."; break;
+        case ITEM_ICE_STORM:		message = "{W$p dies down and melts.{x"; break;
+        case ITEM_POTION:			message = "$p has evaporated from disuse.";break;
+        case ITEM_TATTOO:			message = "$p fades away as the ink dries.";break;
+        case ITEM_PORTAL:			message = "$p fades out of existence."; break;
 
-		// Corpse decaying
-		case ITEM_CORPSE_NPC:
-		case ITEM_CORPSE_PC:
-			message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
+        // Corpse decaying
+        case ITEM_CORPSE_NPC:
+        case ITEM_CORPSE_PC:
+            message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
 
-			if (obj->carried_by)
-				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			else if (obj->in_room && obj->in_room->people)
-				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-			message = NULL;
+            if (obj->carried_by)
+                act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            else if (obj->in_room && obj->in_room->people)
+                act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+            message = NULL;
 
-			if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
-				spill_contents = corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
-				set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
-				spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
-				spill_contents /= 2;	// Split the difference
-				nuke_obj = false;
-			}
-			break;
+            if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
+                spill_contents = corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
+                set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
+                spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
+                spill_contents /= 2;	// Split the difference
+                nuke_obj = false;
+            }
+            break;
 
-		case ITEM_CONTAINER:
-			if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {
-				if (obj->contains)
-					message = "$p flickers and vanishes, spilling its contents on the floor.";
-				else
-					message = "$p flickers and vanishes.";
-			} else
-				message = "$p crumbles into dust.";
-			break;
-		}
+        case ITEM_CONTAINER:
+            if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {
+                if (obj->contains)
+                    message = "$p flickers and vanishes, spilling its contents on the floor.";
+                else
+                    message = "$p flickers and vanishes.";
+            } else
+                message = "$p crumbles into dust.";
+            break;
+        }
 
-		// Do we have any message to process?
-		if(!IS_NULLSTR(message)) {
-			if (obj->carried_by)
-				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			else if (obj->in_room && obj->in_room->people)
-				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-		}
+        // Do we have any message to process?
+        if(!IS_NULLSTR(message)) {
+            if (obj->carried_by)
+                act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            else if (obj->in_room && obj->in_room->people)
+                act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+        }
 
-		// Send the contents of decaying corpses somewhere, depending on where the corpse is.
-		if (spill_contents > 0 && (obj->item_type == ITEM_CORPSE_PC || obj->item_type == ITEM_CORPSE_NPC) && obj->contains) {
-			OBJ_DATA *t_obj, *next_obj;
+        // Send the contents of decaying corpses somewhere, depending on where the corpse is.
+        if (spill_contents > 0 && (obj->item_type == ITEM_CORPSE_PC || obj->item_type == ITEM_CORPSE_NPC) && obj->contains) {
+            OBJ_DATA *t_obj, *next_obj;
 
-			for (t_obj = obj->contains; t_obj != NULL; t_obj = next_obj) {
-				next_obj = t_obj->next_content;
+            for (t_obj = obj->contains; t_obj != NULL; t_obj = next_obj) {
+                next_obj = t_obj->next_content;
 
-				if(spill_contents >= 100 || number_percent() < spill_contents) {
-					obj_from_obj(t_obj);
+                if(spill_contents >= 100 || number_percent() < spill_contents) {
+                    obj_from_obj(t_obj);
 
-					if (obj->in_obj) // in another object
-						obj_to_obj(t_obj,obj->in_obj);
-					else if (obj->carried_by)
-						obj_to_char(t_obj,obj->carried_by);
-					else if (obj->in_room != NULL) // to the room
-						obj_to_room(t_obj,obj->in_room);
-					else { // junk it
-						bug("obj_update: decaying corpse room was null!@!# extracted", 0);
-						extract_obj(t_obj);
-					}
-				}
-			}
-		}
+                    if (obj->in_obj) // in another object
+                        obj_to_obj(t_obj,obj->in_obj);
+                    else if (obj->carried_by)
+                        obj_to_char(t_obj,obj->carried_by);
+                    else if (obj->in_room != NULL) // to the room
+                        obj_to_room(t_obj,obj->in_room);
+                    else { // junk it
+                        bug("obj_update: decaying corpse room was null!@!# extracted", 0);
+                        extract_obj(t_obj);
+                    }
+                }
+            }
+        }
 
-		if (nuke_obj && obj) extract_obj(obj);
-	}
+        if (nuke_obj && obj) extract_obj(obj);
+    }
 
-	iterator_stop(&it);
+    iterator_stop(&it);
 }
 
 
@@ -2630,455 +2630,455 @@ void aggr_update(void)
     while(( wch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
 
-	// if NPC then this is a good place to update casting as aggr_update runs frequently
-	if (IS_NPC(wch))
-	{
-	    if (wch->cast > 0)
-	    {
-			wch->cast--;
-			if (wch->cast <= 0)
-			{
-			    wch->cast = 0;
-			    cast_end(wch);
-			} else if(wch->cast_token && IS_SET(wch->cast_token->pIndexData->flags, TOKEN_SPELLBEATS))
- 				p_percent_trigger(NULL, NULL, NULL, wch->cast_token, wch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL);
+    // if NPC then this is a good place to update casting as aggr_update runs frequently
+    if (IS_NPC(wch))
+    {
+        if (wch->cast > 0)
+        {
+            wch->cast--;
+            if (wch->cast <= 0)
+            {
+                wch->cast = 0;
+                cast_end(wch);
+            } else if(wch->cast_token && IS_SET(wch->cast_token->pIndexData->flags, TOKEN_SPELLBEATS))
+                 p_percent_trigger(NULL, NULL, NULL, wch->cast_token, wch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL);
 
-	    }
+        }
 
-	    if (wch->script_wait > 0)
-	    {
-			wch->script_wait--;
-			if (wch->script_wait <= 0)
-			{
-			    script_end_success(wch);
-			}
-			else
-				script_end_pulse(wch);
-	    }
+        if (wch->script_wait > 0)
+        {
+            wch->script_wait--;
+            if (wch->script_wait <= 0)
+            {
+                script_end_success(wch);
+            }
+            else
+                script_end_pulse(wch);
+        }
 
 
-	    if (wch->bashed > 0)
-	    {
-		--wch->bashed;
-		if (wch->bashed <= 0)
-		{
-		    send_to_char("You scramble to your feet!\n\r", wch);
-		    act("$n scrambles to $s feet.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        if (wch->bashed > 0)
+        {
+        --wch->bashed;
+        if (wch->bashed <= 0)
+        {
+            send_to_char("You scramble to your feet!\n\r", wch);
+            act("$n scrambles to $s feet.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-		    wch->on = NULL;
+            wch->on = NULL;
 
-		    if (wch->fighting != NULL)
-			wch->position = POS_FIGHTING;
-		    else
-			wch->position = POS_STANDING;
-		}
-	    }
+            if (wch->fighting != NULL)
+            wch->position = POS_FIGHTING;
+            else
+            wch->position = POS_STANDING;
+        }
+        }
 
-	    if (wch != NULL && wch->ranged > 0)
-	    {
-		--wch->ranged;
-		if (wch->fighting != NULL && number_percent() > get_ranged_skill(wch) + get_curr_stat(wch, STAT_DEX))
-		{
-		    send_to_char("You lose your aim and lower your weapon.\n\r", wch);
-		    wch->ranged = 0;
-		}
-		else
-		    if (wch->ranged <= 0)
-			ranged_end(wch);
-	    }
-	}
+        if (wch != NULL && wch->ranged > 0)
+        {
+        --wch->ranged;
+        if (wch->fighting != NULL && number_percent() > get_ranged_skill(wch) + get_curr_stat(wch, STAT_DEX))
+        {
+            send_to_char("You lose your aim and lower your weapon.\n\r", wch);
+            wch->ranged = 0;
+        }
+        else
+            if (wch->ranged <= 0)
+            ranged_end(wch);
+        }
+    }
 
-	if (IS_NPC(wch) && IS_SET(wch->act[1], ACT2_TAKES_SKULLS)
-	&&  wch->in_room->contents != NULL)
-	{
-	    int i;
+    if (IS_NPC(wch) && IS_SET(wch->act[1], ACT2_TAKES_SKULLS)
+    &&  wch->in_room->contents != NULL)
+    {
+        int i;
 
             i = 0;
-	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
-	    {
-		if (is_name("corpse", obj->name))
-		    i++;
+        for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
+        {
+        if (is_name("corpse", obj->name))
+            i++;
 
-		if (number_percent() < 95)
-		    continue;
+        if (number_percent() < 95)
+            continue;
 
-		if (obj->item_type == ITEM_CORPSE_PC && IS_SET(CORPSE_PARTS(obj),PART_HEAD))
-		{
-		    sprintf(buf, "%d.corpse", i);
-		    do_function(wch, &do_skull, buf);
-		}
-	    }
-	}
+        if (obj->item_type == ITEM_CORPSE_PC && IS_SET(CORPSE_PARTS(obj),PART_HEAD))
+        {
+            sprintf(buf, "%d.corpse", i);
+            do_function(wch, &do_skull, buf);
+        }
+        }
+    }
 
-	if (wch->bitten > 0 && number_percent() >
-	    (get_curr_stat(wch, STAT_CON) - (wch->bitten_level - wch->tot_level)/3))
-	    bitten_update(wch);
+    if (wch->bitten > 0 && number_percent() >
+        (get_curr_stat(wch, STAT_CON) - (wch->bitten_level - wch->tot_level)/3))
+        bitten_update(wch);
 
-	// @@@NIB : 20070126 --------
-	if(wch->in_room) {
-		int chance = 0;
- 		if(!IS_IMMORTAL(wch)) {
-			if((tox = affect_find(wch->affected,gsn_toxic_fumes))) {
-				int cough = false;
-				// is the mobile in a Toxic Bog?
-				if(wch->in_room &&
-					(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
-					(wch->in_room->sector_type == SECT_TOXIC_BOG))) {
-					bool dec;
+    // @@@NIB : 20070126 --------
+    if(wch->in_room) {
+        int chance = 0;
+         if(!IS_IMMORTAL(wch)) {
+            if((tox = affect_find(wch->affected,gsn_toxic_fumes))) {
+                int cough = false;
+                // is the mobile in a Toxic Bog?
+                if(wch->in_room &&
+                    (IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
+                    (wch->in_room->sector_type == SECT_TOXIC_BOG))) {
+                    bool dec;
 
-					if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
-					if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 10;
+                    if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
+                    if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 10;
 
-					dec = (number_percent() < chance);
-					for(paf = tox;paf;paf = paf->next)
-						if (paf->type == gsn_toxic_fumes) {
-							if(paf->duration > 0)	// Switch all non-permanent affects to permanent
-								paf->duration = -paf->duration;
-							else if(!paf->duration)
-								paf->duration = -1;
-							else if(dec && paf->duration > -100)	// Make permanent affects "longer"
-								--paf->duration;
-							if(paf->level < 120)
-								paf->level = 120;
-						}
+                    dec = (number_percent() < chance);
+                    for(paf = tox;paf;paf = paf->next)
+                        if (paf->type == gsn_toxic_fumes) {
+                            if(paf->duration > 0)	// Switch all non-permanent affects to permanent
+                                paf->duration = -paf->duration;
+                            else if(!paf->duration)
+                                paf->duration = -1;
+                            else if(dec && paf->duration > -100)	// Make permanent affects "longer"
+                                --paf->duration;
+                            if(paf->level < 120)
+                                paf->level = 120;
+                        }
 
-					// Coughing messages
-					if(number_range(0,199) < chance) {
-						cough = true;
-						if(number_percent() < 50)
-							send_to_char("{xYou cough uncontrollably from the toxic fumes.\n\r", wch);
-						else
-							send_to_char("{xYou inhale the toxic fumes, coughing uncontrollably.\n\r", wch);
-						act("{x$n coughs uncontrollably from toxic fumes.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-					}
-				} else {
-					// Change all affects to non-permanent
-					for(paf = tox;paf;paf = paf->next)
-						if (paf->type == gsn_toxic_fumes && paf->duration < 0)
-							paf->duration = -paf->duration;
+                    // Coughing messages
+                    if(number_range(0,199) < chance) {
+                        cough = true;
+                        if(number_percent() < 50)
+                            send_to_char("{xYou cough uncontrollably from the toxic fumes.\n\r", wch);
+                        else
+                            send_to_char("{xYou inhale the toxic fumes, coughing uncontrollably.\n\r", wch);
+                        act("{x$n coughs uncontrollably from toxic fumes.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    }
+                } else {
+                    // Change all affects to non-permanent
+                    for(paf = tox;paf;paf = paf->next)
+                        if (paf->type == gsn_toxic_fumes && paf->duration < 0)
+                            paf->duration = -paf->duration;
 
-					// Coughing messages
-					if(number_percent() < 4) {
-						cough = true;
-						send_to_char("{xYou cough uncontrollably.\n\r", wch);
-						act("{x$n coughs uncontrollably.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-					}
-				}
+                    // Coughing messages
+                    if(number_percent() < 4) {
+                        cough = true;
+                        send_to_char("{xYou cough uncontrollably.\n\r", wch);
+                        act("{x$n coughs uncontrollably.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    }
+                }
 
-				// Do cough lag and damage
-				if(cough) {
-					cough = number_range(15,25);
-					DAZE_STATE(wch,cough);
-					cough = number_range(10,cough-1);
-					WAIT_STATE(wch,cough);
+                // Do cough lag and damage
+                if(cough) {
+                    cough = number_range(15,25);
+                    DAZE_STATE(wch,cough);
+                    cough = number_range(10,cough-1);
+                    WAIT_STATE(wch,cough);
 
-					if(number_percent() < 50)
-						damage(wch, wch, number_range(5,10), gsn_toxic_fumes, DAM_NONE, false);
-				}
-			} else {
-				if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
-				if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 50;
+                    if(number_percent() < 50)
+                        damage(wch, wch, number_range(5,10), gsn_toxic_fumes, DAM_NONE, false);
+                }
+            } else {
+                if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
+                if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 50;
 
-				if(chance > 0 && number_percent() < chance)
-					toxic_fumes_effect(wch,NULL);
-			}
-		}
-		chance = 0;
-		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 16;
-		if (wch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 16;
+                if(chance > 0 && number_percent() < chance)
+                    toxic_fumes_effect(wch,NULL);
+            }
+        }
+        chance = 0;
+        if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 16;
+        if (wch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 16;
 
-		if (chance > 0 && number_percent() < chance) {
+        if (chance > 0 && number_percent() < chance) {
 
-			if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
-				wch->mana -= number_range(5,15);
-				if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
-					wch->mana -= number_range(5,15);
-				if(wch->mana < 0) wch->mana = 0;
-				if(number_percent() < 10)
-					send_to_char("You feel your magical essence slipping away from you.\n\r", wch);
-			}
-		}
+            if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
+                wch->mana -= number_range(5,15);
+                if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
+                    wch->mana -= number_range(5,15);
+                if(wch->mana < 0) wch->mana = 0;
+                if(number_percent() < 10)
+                    send_to_char("You feel your magical essence slipping away from you.\n\r", wch);
+            }
+        }
 
-		chance = 0;
-		if(IS_SET(wch->in_room->room_flag[1], ROOM_BRIARS)) chance += 5;
-		if(wch->in_room->sector_type == SECT_BRAMBLE) chance += 5;
+        chance = 0;
+        if(IS_SET(wch->in_room->room_flag[1], ROOM_BRIARS)) chance += 5;
+        if(wch->in_room->sector_type == SECT_BRAMBLE) chance += 5;
 
-		if(chance > 0 && number_percent() < chance) {
-			if(number_percent() < 2)
-				send_to_char("{gThe sharp thorns scratch at your skin.{x\n\r", wch);
-			damage(wch, wch, number_range(chance/2,chance), TYPE_UNDEFINED, DAM_NONE, false);
-		}
-	}
-	// @@@NIB : 20070126 --------
+        if(chance > 0 && number_percent() < chance) {
+            if(number_percent() < 2)
+                send_to_char("{gThe sharp thorns scratch at your skin.{x\n\r", wch);
+            damage(wch, wch, number_range(chance/2,chance), TYPE_UNDEFINED, DAM_NONE, false);
+        }
+    }
+    // @@@NIB : 20070126 --------
 
 
-	if (wch->paralyzed > 0)
-	{
-	    --wch->paralyzed;
-	    if (wch->paralyzed <= 0)
-	    {
-		send_to_char("You feel the power of movement coming back to your muscles.\n\r", wch);
-		act("$n feels the power of movement coming back to $s muscles.",
-			wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		wch->paralyzed = 0;
-	    }
-	}
+    if (wch->paralyzed > 0)
+    {
+        --wch->paralyzed;
+        if (wch->paralyzed <= 0)
+        {
+        send_to_char("You feel the power of movement coming back to your muscles.\n\r", wch);
+        act("$n feels the power of movement coming back to $s muscles.",
+            wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        wch->paralyzed = 0;
+        }
+    }
 
-	// This is for inferno, withering cloud, etc.
-	if (wch->in_room != NULL
-	&&  number_percent() < 10
-	&&  !is_safe(wch, wch, false)
-	&&  ((IS_NPC(wch) && wch->shop == NULL) ||
-	    (IS_SET(wch->in_room->room_flag[0], ROOM_PK)
-	     || IS_SET(wch->in_room->room_flag[0], ROOM_CPK))
-   	     || is_pk(wch)))
-	{
-	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
-	    {
-		// Room flames (inferno)
-		if (obj->item_type == ITEM_ROOM_FLAME && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
-		{
-		    if (number_percent() <= 2)
-		    {
-			act("{RYou are scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			act("{R$n is scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			damage(wch, wch, number_range(50, 500),
-				TYPE_UNDEFINED, DAM_FIRE, false);
-		    }
-		    else
-		    if (number_percent() <= 2)
-		    {
-			/* Don't apply the blind affect twice */
-			if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
+    // This is for inferno, withering cloud, etc.
+    if (wch->in_room != NULL
+    &&  number_percent() < 10
+    &&  !is_safe(wch, wch, false)
+    &&  ((IS_NPC(wch) && wch->shop == NULL) ||
+        (IS_SET(wch->in_room->room_flag[0], ROOM_PK)
+         || IS_SET(wch->in_room->room_flag[0], ROOM_CPK))
+            || is_pk(wch)))
+    {
+        for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
+        {
+        // Room flames (inferno)
+        if (obj->item_type == ITEM_ROOM_FLAME && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
+        {
+            if (number_percent() <= 2)
+            {
+            act("{RYou are scorched by flames!{x",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{R$n is scorched by flames!{x",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            damage(wch, wch, number_range(50, 500),
+                TYPE_UNDEFINED, DAM_FIRE, false);
+            }
+            else
+            if (number_percent() <= 2)
+            {
+            /* Don't apply the blind affect twice */
+            if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
 
-			    act("{DYou are blinded by smoke!{x",
-				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			    act("{D$n is blinded by smoke!{x",
-				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                act("{DYou are blinded by smoke!{x",
+                    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("{D$n is blinded by smoke!{x",
+                    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-				af.slot	= WEAR_NONE;
-			    af.where     = TO_AFFECTS;
-			    af.group     = AFFGROUP_PHYSICAL;
-			    af.type      = gsn_blindness;
-			    af.level     = obj->level;
-			    af.location  = APPLY_HITROLL;
-			    af.modifier  = -4;
-			    af.duration  = 2;
-			    af.bitvector = AFF_BLIND;
-			    af.bitvector2 = 0;
-			    affect_to_char(wch, &af);
-			}
-		    }
-		    else
-		    if (number_percent() <= 2)
-		    {
-			act("{RYou are scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			act("{R$n is scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			fire_effect((void *) wch,obj->level,	number_range(0, wch->tot_level * 10),TARGET_CHAR);
-		    }
-		}
-		else
-		// Withering clouds (wither spell)
-		if (obj->item_type == ITEM_WITHERING_CLOUD)
-		{
-		    if (number_percent() <= 2)
-		    {
-			act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		    }
-		    else
-		    if (number_percent() <= 2)
-		    {
-			act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		    }
-		    if (number_percent() <= 2 && wch->fighting == NULL
-		    && IS_AWAKE(wch) && wch->position == POS_STANDING
-		    &&  !(IS_NPC(wch) && (IS_SET(wch->act[0],ACT_PROTECTED) || wch->shop != NULL))
-		    &&  !(!IS_NPC(wch) && IS_IMMORTAL(wch)))
-		    {
-			act("$n stumbles about choking and gagging!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			act("You stumble about choking and gagging!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			do_function(wch, &do_flee, NULL);
-		    }
-		    else
-		    if (number_percent() <= 2)
-		    {
-			act("$n is blinded by the toxic haze!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			act("You are blinded by the toxic haze around you!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			af.slot	= WEAR_NONE;
-			af.where     = TO_AFFECTS;
-			af.group	 = AFFGROUP_PHYSICAL;
-			af.type      = gsn_blindness;
-			af.level     = obj->level;
-			af.location  = APPLY_HITROLL;
-			af.modifier  = -4;
-			af.duration  = 2; //1+level > 3 ? 3 : 1+level;
-			af.bitvector = AFF_BLIND;
-			af.bitvector2 = 0;
-			affect_to_char(wch, &af);
-		    }
-		    else
-		    if (number_percent() <= 2
-		    && check_immune(wch, DAM_POISON) != IS_IMMUNE)
-		    {
-			act("$n is poisoned by the toxic haze!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			act("You are poisoned by the toxic haze around you!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			af.slot	= WEAR_NONE;
-			af.where     = TO_AFFECTS;
-			af.group	 = AFFGROUP_PHYSICAL;
-			af.type      = gsn_poison;
-			af.level     = obj->level * 3/4;
-			af.duration  = URANGE(1,obj->level / 2, 5);
-			af.location  = APPLY_STR;
-			af.modifier  = -1;
-			af.bitvector = AFF_POISON;
-			af.bitvector2 = 0;
-			affect_to_char(wch, &af);
-		    }
-		    else
-		    if (number_percent() <= 2)
-			acid_effect((void *)wch,obj->level,number_range(0, wch->tot_level * 10),TARGET_CHAR);
-		}
-		else
-		// Stinking clouds (smoke bombs)
-		if (obj->item_type == ITEM_STINKING_CLOUD)
-		{
-		    if (number_percent() <= 3)
-		    {
-			CHAR_DATA *victim, *vnext;
+                af.slot	= WEAR_NONE;
+                af.where     = TO_AFFECTS;
+                af.group     = AFFGROUP_PHYSICAL;
+                af.type      = gsn_blindness;
+                af.level     = obj->level;
+                af.location  = APPLY_HITROLL;
+                af.modifier  = -4;
+                af.duration  = 2;
+                af.bitvector = AFF_BLIND;
+                af.bitvector2 = 0;
+                affect_to_char(wch, &af);
+            }
+            }
+            else
+            if (number_percent() <= 2)
+            {
+            act("{RYou are scorched by flames!{x",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{R$n is scorched by flames!{x",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            fire_effect((void *) wch,obj->level,	number_range(0, wch->tot_level * 10),TARGET_CHAR);
+            }
+        }
+        else
+        // Withering clouds (wither spell)
+        if (obj->item_type == ITEM_WITHERING_CLOUD)
+        {
+            if (number_percent() <= 2)
+            {
+            act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+            else
+            if (number_percent() <= 2)
+            {
+            act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+            if (number_percent() <= 2 && wch->fighting == NULL
+            && IS_AWAKE(wch) && wch->position == POS_STANDING
+            &&  !(IS_NPC(wch) && (IS_SET(wch->act[0],ACT_PROTECTED) || wch->shop != NULL))
+            &&  !(!IS_NPC(wch) && IS_IMMORTAL(wch)))
+            {
+            act("$n stumbles about choking and gagging!",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            act("You stumble about choking and gagging!",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            do_function(wch, &do_flee, NULL);
+            }
+            else
+            if (number_percent() <= 2)
+            {
+            act("$n is blinded by the toxic haze!",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            act("You are blinded by the toxic haze around you!",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            af.slot	= WEAR_NONE;
+            af.where     = TO_AFFECTS;
+            af.group	 = AFFGROUP_PHYSICAL;
+            af.type      = gsn_blindness;
+            af.level     = obj->level;
+            af.location  = APPLY_HITROLL;
+            af.modifier  = -4;
+            af.duration  = 2; //1+level > 3 ? 3 : 1+level;
+            af.bitvector = AFF_BLIND;
+            af.bitvector2 = 0;
+            affect_to_char(wch, &af);
+            }
+            else
+            if (number_percent() <= 2
+            && check_immune(wch, DAM_POISON) != IS_IMMUNE)
+            {
+            act("$n is poisoned by the toxic haze!",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            act("You are poisoned by the toxic haze around you!",
+                wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            af.slot	= WEAR_NONE;
+            af.where     = TO_AFFECTS;
+            af.group	 = AFFGROUP_PHYSICAL;
+            af.type      = gsn_poison;
+            af.level     = obj->level * 3/4;
+            af.duration  = URANGE(1,obj->level / 2, 5);
+            af.location  = APPLY_STR;
+            af.modifier  = -1;
+            af.bitvector = AFF_POISON;
+            af.bitvector2 = 0;
+            affect_to_char(wch, &af);
+            }
+            else
+            if (number_percent() <= 2)
+            acid_effect((void *)wch,obj->level,number_range(0, wch->tot_level * 10),TARGET_CHAR);
+        }
+        else
+        // Stinking clouds (smoke bombs)
+        if (obj->item_type == ITEM_STINKING_CLOUD)
+        {
+            if (number_percent() <= 3)
+            {
+            CHAR_DATA *victim, *vnext;
 
-			for (victim = wch->in_room->people; victim != NULL; victim = vnext)
-			{
-			    vnext = victim->next_in_room;
+            for (victim = wch->in_room->people; victim != NULL; victim = vnext)
+            {
+                vnext = victim->next_in_room;
 
-			    if (IS_NPC(victim))
-			    {
-				if (victim->shop != NULL
-				||   IS_SET(victim->act[0], ACT_PROTECTED	)
-				||   IS_SET(victim->act[0], ACT_SENTINEL	))
-				    continue;
-			    }
+                if (IS_NPC(victim))
+                {
+                if (victim->shop != NULL
+                ||   IS_SET(victim->act[0], ACT_PROTECTED	)
+                ||   IS_SET(victim->act[0], ACT_SENTINEL	))
+                    continue;
+                }
 
-			    if (victim->tot_level <= obj->level
-			    &&  (victim->tot_level > 30 || IS_REMORT(victim))// no newbs!
-			    &&  victim->fighting == NULL
-			    &&  victim->position == POS_STANDING
-			    &&  number_percent() < 20)
-			    {
-				act("{GYou choke on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-				act("{G$n chokes on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-				do_flee(victim, NULL);
-			    }
-			}
-		    }
-		}
-	    }
-	}
+                if (victim->tot_level <= obj->level
+                &&  (victim->tot_level > 30 || IS_REMORT(victim))// no newbs!
+                &&  victim->fighting == NULL
+                &&  victim->position == POS_STANDING
+                &&  number_percent() < 20)
+                {
+                act("{GYou choke on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("{G$n chokes on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                do_flee(victim, NULL);
+                }
+            }
+            }
+        }
+        }
+    }
 
-	/*
-	if (IS_NPC(wch) && wch->boarded_ship != NULL)
-	{
-	    CHAR_DATA *captain;
-	    if (IS_NPC_SHIP(wch->boarded_ship))
-	    {
-		captain = wch->boarded_ship->npc_ship->captain;
-	    }
-	    else
-	    {
-		captain = wch->boarded_ship->owner;
-	    }
+    /*
+    if (IS_NPC(wch) && wch->boarded_ship != NULL)
+    {
+        CHAR_DATA *captain;
+        if (IS_NPC_SHIP(wch->boarded_ship))
+        {
+        captain = wch->boarded_ship->npc_ship->captain;
+        }
+        else
+        {
+        captain = wch->boarded_ship->owner;
+        }
 
-	    // If captain null then ship is scuttled
-	    if (wch->belongs_to_ship != wch->boarded_ship && captain == NULL)
-	    {
-		//    gecho("Ship scuttled");
-	    }
+        // If captain null then ship is scuttled
+        if (wch->belongs_to_ship != wch->boarded_ship && captain == NULL)
+        {
+        //    gecho("Ship scuttled");
+        }
 
-	    // It could be the mobs ship which is scuttled!
-	    if (wch->belongs_to_ship == wch->boarded_ship && captain == NULL)
-	    {
-		//  gecho("Mobs ship scuttled");
-	    }
-	}
+        // It could be the mobs ship which is scuttled!
+        if (wch->belongs_to_ship == wch->boarded_ship && captain == NULL)
+        {
+        //  gecho("Mobs ship scuttled");
+        }
+    }
 
-	// If mob isn't fighting and has boarded a ship then find enemy
-	if (IS_NPC(wch)
-	&&  wch->fighting == NULL
-	&&  wch->hunting == NULL
-	&&  wch->boarded_ship != NULL)
-	{
-	    int i;
-	    bool no_enemy_left = true;
+    // If mob isn't fighting and has boarded a ship then find enemy
+    if (IS_NPC(wch)
+    &&  wch->fighting == NULL
+    &&  wch->hunting == NULL
+    &&  wch->boarded_ship != NULL)
+    {
+        int i;
+        bool no_enemy_left = true;
 
-	    for (i = 0; i < MAX_SHIP_ROOMS; i++)
-	    {
-		ROOM_INDEX_DATA *pRoom;
-		if ((pRoom = wch->boarded_ship->ship_rooms[i]) != NULL)
-		{
-		    //gecho("look");
-		    for (vch = pRoom->people; vch != NULL; vch = vch_next)
-		    {
-			//	gecho(vch->short_descr);
-			//	gecho("\n\r");
-			//	if (vch->boarded_ship != NULL)
-			//	  gecho("boarded");
-			vch_next = vch->next_in_room;
+        for (i = 0; i < MAX_SHIP_ROOMS; i++)
+        {
+        ROOM_INDEX_DATA *pRoom;
+        if ((pRoom = wch->boarded_ship->ship_rooms[i]) != NULL)
+        {
+            //gecho("look");
+            for (vch = pRoom->people; vch != NULL; vch = vch_next)
+            {
+            //	gecho(vch->short_descr);
+            //	gecho("\n\r");
+            //	if (vch->boarded_ship != NULL)
+            //	  gecho("boarded");
+            vch_next = vch->next_in_room;
 
-			sprintf(buf,
-				"Currently looking at the %s who has boarded ship = %s,"
-				" the other is %s who has boarded ship = %s.. "
-				"they belong to %s and %s\n\r",
-				vch->short_descr,
-				vch->boarded_ship ? "yes" : "no",
-				wch->short_descr,
-				wch->boarded_ship ? "yes" : "no",
-				(vch->belongs_to_ship == NULL) ? "no" :
-				vch->belongs_to_ship->ship_name,
-				wch->belongs_to_ship->ship_name);
+            sprintf(buf,
+                "Currently looking at the %s who has boarded ship = %s,"
+                " the other is %s who has boarded ship = %s.. "
+                "they belong to %s and %s\n\r",
+                vch->short_descr,
+                vch->boarded_ship ? "yes" : "no",
+                wch->short_descr,
+                wch->boarded_ship ? "yes" : "no",
+                (vch->belongs_to_ship == NULL) ? "no" :
+                vch->belongs_to_ship->ship_name,
+                wch->belongs_to_ship->ship_name);
 
-			//	gecho(buf);
+            //	gecho(buf);
 
-			if (vch != wch &&
-				vch->boarded_ship == wch->boarded_ship &&
-				vch->belongs_to_ship != wch->belongs_to_ship)
-			{
-			    no_enemy_left = false;
-			    //	    gecho("FOUND!@!##@!!");
-			    if (wch->in_room == vch->in_room)
-			    {
-				set_fighting(wch, vch);
-			    }
-			    hunt_char(wch, vch);
-			}
-		    }
-		}
-	    }
-	    if (no_enemy_left)
-	    {
-		//gecho("\n\r{RAll enemy have been killed!{x");
-		for (vch = wch->belongs_to_ship->crew_list;
-			vch != NULL;
-			vch = vch_next)
-		{
-		    vch_next = vch->next_in_crew;
-		    vch->boarded_ship = NULL;
-		    char_from_room(vch);
-		    char_to_room(vch,
-			    get_room_index(vch->belongs_to_ship->first_room));
-		}
-	    }
-	}
+            if (vch != wch &&
+                vch->boarded_ship == wch->boarded_ship &&
+                vch->belongs_to_ship != wch->belongs_to_ship)
+            {
+                no_enemy_left = false;
+                //	    gecho("FOUND!@!##@!!");
+                if (wch->in_room == vch->in_room)
+                {
+                set_fighting(wch, vch);
+                }
+                hunt_char(wch, vch);
+            }
+            }
+        }
+        }
+        if (no_enemy_left)
+        {
+        //gecho("\n\r{RAll enemy have been killed!{x");
+        for (vch = wch->belongs_to_ship->crew_list;
+            vch != NULL;
+            vch = vch_next)
+        {
+            vch_next = vch->next_in_crew;
+            vch->boarded_ship = NULL;
+            char_from_room(vch);
+            char_to_room(vch,
+                get_room_index(vch->belongs_to_ship->first_room));
+        }
+        }
+    }
 
   // NPC Player hunters should be hunting players
   if (IS_NPC(wch) &&
@@ -3089,8 +3089,8 @@ void aggr_update(void)
      bool consider_going = false;
 
      if (target != NULL) {
-     	if (wch->in_room == target->in_room) {
-				set_fighting(wch, target);
+         if (wch->in_room == target->in_room) {
+                set_fighting(wch, target);
       }
       else {
         if (wch->in_room->area != target->in_room->area) {
@@ -3103,7 +3103,7 @@ void aggr_update(void)
             char_to_room(wch, target->in_room);
             act("{W$n has arrived.{x", wch, NULL, NULL, TO_ROOM);
           }
-			    hunt_char(wch, target);
+                hunt_char(wch, target);
         }
      }
      }
@@ -3119,80 +3119,80 @@ void aggr_update(void)
   }
 
     */
-	// Stop there for NPCs; for mortal PCs, aggress
-	if (IS_NPC(wch)
-	||  wch->level >= LEVEL_IMMORTAL
-	||  wch->in_room == NULL
-	||  !can_room_update(wch->in_room))
-	    continue;
+    // Stop there for NPCs; for mortal PCs, aggress
+    if (IS_NPC(wch)
+    ||  wch->level >= LEVEL_IMMORTAL
+    ||  wch->in_room == NULL
+    ||  !can_room_update(wch->in_room))
+        continue;
 
-	if (wch->boarded_ship == NULL)
-	{
-	    for (ch = wch->in_room->people; ch != NULL; ch = ch_next)
-	    {
-		int count;
+    if (wch->boarded_ship == NULL)
+    {
+        for (ch = wch->in_room->people; ch != NULL; ch = ch_next)
+        {
+        int count;
 
-		ch_next	= ch->next_in_room;
+        ch_next	= ch->next_in_room;
 
-		if (!IS_NPC(ch)
-		||  ch->in_room == NULL
-		||  (!IS_SET(ch->act[0], ACT_AGGRESSIVE) && ch->boarded_ship == NULL)
-		||  IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)
-		||  IS_AFFECTED(ch, AFF_CALM)
-		||  ch->fighting != NULL
-		||  IS_AFFECTED(ch, AFF_CHARM)
-		||  !IS_AWAKE(ch)
-		||  IS_SET(ch->act[0], ACT_WIMPY)
-		||  !can_see(ch, wch)
-		||  number_bits(1) == 0)
-		    continue;
+        if (!IS_NPC(ch)
+        ||  ch->in_room == NULL
+        ||  (!IS_SET(ch->act[0], ACT_AGGRESSIVE) && ch->boarded_ship == NULL)
+        ||  IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)
+        ||  IS_AFFECTED(ch, AFF_CALM)
+        ||  ch->fighting != NULL
+        ||  IS_AFFECTED(ch, AFF_CHARM)
+        ||  !IS_AWAKE(ch)
+        ||  IS_SET(ch->act[0], ACT_WIMPY)
+        ||  !can_see(ch, wch)
+        ||  number_bits(1) == 0)
+            continue;
 
-		// Evasion lets you get away from aggro mobs.
-		if (check_evasion(wch) == true)
-		{
-		    check_improve(wch, gsn_evasion, true, 8);
-		    continue;
-		}
-		else
-		    check_improve(wch, gsn_evasion, false, 8);
+        // Evasion lets you get away from aggro mobs.
+        if (check_evasion(wch) == true)
+        {
+            check_improve(wch, gsn_evasion, true, 8);
+            continue;
+        }
+        else
+            check_improve(wch, gsn_evasion, false, 8);
 
-		// Make the NPC agressor (ch) attack a RANDOM person in the room.
-		count = 0;
-		victim = NULL;
-		for (vch = wch->in_room->people; vch != NULL; vch = vch_next)
-		{
-		    vch_next = vch->next_in_room;
+        // Make the NPC agressor (ch) attack a RANDOM person in the room.
+        count = 0;
+        victim = NULL;
+        for (vch = wch->in_room->people; vch != NULL; vch = vch_next)
+        {
+            vch_next = vch->next_in_room;
 
-		    // If mob is boarding a ship then may attack anyone
-		    if (ch->boarded_ship != NULL
-		    &&   ch->belongs_to_ship != vch->belongs_to_ship
-		    &&   can_see(ch, vch))
-		    {
-			if (number_range(0, count) == 0)
-			    victim = vch;
+            // If mob is boarding a ship then may attack anyone
+            if (ch->boarded_ship != NULL
+            &&   ch->belongs_to_ship != vch->belongs_to_ship
+            &&   can_see(ch, vch))
+            {
+            if (number_range(0, count) == 0)
+                victim = vch;
 
-			count++;
-		    }
-		    else
-		    if (!IS_NPC(vch)
-		    &&  vch->level < LEVEL_IMMORTAL
-		    &&  ch->level >= vch->level - 5
-		    &&  (!IS_SET(ch->act[0], ACT_WIMPY) || !IS_AWAKE(vch))
-		    &&  can_see(ch, vch))
-		    {
-			if (number_range(0, count) == 0)
-			    victim = vch;
+            count++;
+            }
+            else
+            if (!IS_NPC(vch)
+            &&  vch->level < LEVEL_IMMORTAL
+            &&  ch->level >= vch->level - 5
+            &&  (!IS_SET(ch->act[0], ACT_WIMPY) || !IS_AWAKE(vch))
+            &&  can_see(ch, vch))
+            {
+            if (number_range(0, count) == 0)
+                victim = vch;
 
-			count++;
-		    }
-		}
+            count++;
+            }
+        }
 
-		if (victim == NULL)
-		    continue;
+        if (victim == NULL)
+            continue;
 
-		multi_hit(ch, victim, TYPE_UNDEFINED);
-	    }
-	}
+        multi_hit(ch, victim, TYPE_UNDEFINED);
+        }
+    }
     }
     iterator_stop(&it);
 }
@@ -3206,79 +3206,79 @@ void update_hunting(void)
 
     for (mob = hunt_last; mob != NULL; mob = mob->next_in_hunting)
     {
-	if (!IS_NPC(mob)
-	||  number_percent() < 20
-	||  mob->fighting != NULL
-	||  !IS_AWAKE(mob))
-	    continue;
+    if (!IS_NPC(mob)
+    ||  number_percent() < 20
+    ||  mob->fighting != NULL
+    ||  !IS_AWAKE(mob))
+        continue;
 
-	if (mob->hunting == NULL
-	||  IS_DEAD(mob->hunting)
-	||  IS_SET(mob->hunting->affected_by[0], AFF_HIDE)
-	||  mob->hunting->in_room == NULL
-	||  mob->hunting->in_room->area != mob->in_room->area
-	||  IS_SET(mob->hunting->in_room->room_flag[0], ROOM_SAFE)
-	||  !can_see(mob, mob->hunting)
-	||  number_percent() < get_skill(mob->hunting, gsn_trackless_step)/2
-	||  (check_evasion(mob->hunting) == true && number_percent() < 33))
-	    stop_hunt(mob, false);
-	else
-	{
-	    int result;
+    if (mob->hunting == NULL
+    ||  IS_DEAD(mob->hunting)
+    ||  IS_SET(mob->hunting->affected_by[0], AFF_HIDE)
+    ||  mob->hunting->in_room == NULL
+    ||  mob->hunting->in_room->area != mob->in_room->area
+    ||  IS_SET(mob->hunting->in_room->room_flag[0], ROOM_SAFE)
+    ||  !can_see(mob, mob->hunting)
+    ||  number_percent() < get_skill(mob->hunting, gsn_trackless_step)/2
+    ||  (check_evasion(mob->hunting) == true && number_percent() < 33))
+        stop_hunt(mob, false);
+    else
+    {
+        int result;
 
-	    if (mob->in_room == NULL)
-	    {
-		stop_hunt(mob, true);
-		continue;
-	    }
+        if (mob->in_room == NULL)
+        {
+        stop_hunt(mob, true);
+        continue;
+        }
 
             // Mob has found player
-  	    if (mob->in_room == mob->hunting->in_room)
-	    {
-		if (IS_SET(mob->in_room->room_flag[0],ROOM_SAFE)
-		||  IS_AFFECTED(mob, AFF_CALM)
-		||  IS_AFFECTED(mob, AFF_CHARM)
-		||  !IS_AWAKE(mob)
-		||  !can_see(mob, mob->hunting)
-		||  number_bits(1) == 0
-		||  check_evasion(mob->hunting) == true)
-		    continue;
+          if (mob->in_room == mob->hunting->in_room)
+        {
+        if (IS_SET(mob->in_room->room_flag[0],ROOM_SAFE)
+        ||  IS_AFFECTED(mob, AFF_CALM)
+        ||  IS_AFFECTED(mob, AFF_CHARM)
+        ||  !IS_AWAKE(mob)
+        ||  !can_see(mob, mob->hunting)
+        ||  number_bits(1) == 0
+        ||  check_evasion(mob->hunting) == true)
+            continue;
 
-		multi_hit(mob, mob->hunting, TYPE_UNDEFINED);
-		continue;
-	    }
+        multi_hit(mob, mob->hunting, TYPE_UNDEFINED);
+        continue;
+        }
 
-	    if (mob->in_room == NULL || mob->hunting == NULL || mob->hunting->in_room == NULL)
-	    {
-		direction = -1;
-		continue;
-	    }
-	    else
-		direction = find_path(mob->in_room->vnum, mob->hunting->in_room->vnum, mob, -600, false);
+        if (mob->in_room == NULL || mob->hunting == NULL || mob->hunting->in_room == NULL)
+        {
+        direction = -1;
+        continue;
+        }
+        else
+        direction = find_path(mob->in_room->vnum, mob->hunting->in_room->vnum, mob, -600, false);
 
-	    if (direction == -1)
-	    {
-		stop_hunt(mob, false);
-		continue;
-	    }
+        if (direction == -1)
+        {
+        stop_hunt(mob, false);
+        continue;
+        }
 
-	    move_char(mob, direction, false);
+        move_char(mob, direction, false);
 
-	    result = number_range(0, 2);
+        result = number_range(0, 2);
 
             if (number_percent() < 5)
-	    switch(result)
-	    {
-		case 0:
-		    act("{DYou get the feeling something is following you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	   	    break;
-		case 1:
-		    act("{DYou hear footsteps behind you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	   	    break;
-		case 2:
-		    act("{DYou hear noises as if something is looking for you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	   	    break;
-	    }
+        switch(result)
+        {
+        case 0:
+            act("{DYou get the feeling something is following you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+               break;
+        case 1:
+            act("{DYou hear footsteps behind you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+               break;
+        case 2:
+            act("{DYou hear noises as if something is looking for you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+               break;
+        }
         }
     }
 }
@@ -3294,116 +3294,116 @@ void update_hunting_pc(CHAR_DATA *ch)
 
     if (ch == NULL)
     {
-	bug("update_hunting_pc: null ch!", 0);
-	return;
+    bug("update_hunting_pc: null ch!", 0);
+    return;
     }
 
     if (victim == NULL)
     {
-	bug("update_hunting_pc: null victim = ch->hunting", 0);
-	return;
+    bug("update_hunting_pc: null victim = ch->hunting", 0);
+    return;
     }
 
     if (victim->in_room == NULL)
     {
-	bug("update_hunting_pc: victim in_room null!", 0);
-	ch->hunting = NULL;
-	return;
+    bug("update_hunting_pc: victim in_room null!", 0);
+    ch->hunting = NULL;
+    return;
     }
 
     if (ch->position != POS_STANDING)
     {
-	ch->hunting = NULL;
-	return;
+    ch->hunting = NULL;
+    return;
     }
 
-	if (IN_WILDERNESS(ch) || IN_WILDERNESS(victim))
-	{
-		send_to_char("You lost the trail.\n\r", ch);
-		ch->hunting = NULL;
-		return;
-	}
-	
+    if (IN_WILDERNESS(ch) || IN_WILDERNESS(victim))
+    {
+        send_to_char("You lost the trail.\n\r", ch);
+        ch->hunting = NULL;
+        return;
+    }
+    
     // Chance of failing
     chance = get_skill(ch, gsn_hunt) * 3/4
              + (get_curr_stat(ch, STAT_INT)
-	     +   get_curr_stat(ch, STAT_WIS)
-	     +   get_curr_stat(ch, STAT_DEX)) / 5;
+         +   get_curr_stat(ch, STAT_WIS)
+         +   get_curr_stat(ch, STAT_DEX)) / 5;
 
     if (number_percent() > chance && number_percent() < 25)
     {
-	send_to_char("You lost the trail.\n\r", ch);
-	act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	ch->hunting = NULL;
-	return;
+    send_to_char("You lost the trail.\n\r", ch);
+    act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    ch->hunting = NULL;
+    return;
     }
 
     direction = find_path(ch->in_room->vnum, victim->in_room->vnum, ch, -500, false);
 
     if (direction == -1)
     {
-	send_to_char("You lost the trail.\n\r", ch);
-	ch->hunting = NULL;
-	return;
+    send_to_char("You lost the trail.\n\r", ch);
+    ch->hunting = NULL;
+    return;
     }
     else
     {
-	if (number_percent() < 20)
-	{
-	    if (number_percent() < 20)
-	    {
-		send_to_char("You stop and sniff the air.\n\r", ch);
-		act("$n stops and sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    }
-	    else
-	    if (number_percent() < 40)
-	    {
-		send_to_char("You analyze some tracks.\n\r", ch);
-		act("$n analyzes some tracks.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    }
-	    else
-	    if (number_percent() < 60)
-	    {
-		send_to_char("You look around warily.\n\r", ch);
-		act("$n looks around warily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    }
-	    else
-	    if (number_percent() < 80)
-	    {
-		act("You scan the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		act("$n scans the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    }
-	    else
-	    {
-		act("You move towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		act("$n moves towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    }
-	}
+    if (number_percent() < 20)
+    {
+        if (number_percent() < 20)
+        {
+        send_to_char("You stop and sniff the air.\n\r", ch);
+        act("$n stops and sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else
+        if (number_percent() < 40)
+        {
+        send_to_char("You analyze some tracks.\n\r", ch);
+        act("$n analyzes some tracks.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else
+        if (number_percent() < 60)
+        {
+        send_to_char("You look around warily.\n\r", ch);
+        act("$n looks around warily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else
+        if (number_percent() < 80)
+        {
+        act("You scan the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n scans the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+        else
+        {
+        act("You move towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n moves towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+    }
 
-	if (number_percent() < 5)
-	    send_to_char("You get the feeling that someone is following you.\n\r", victim);
+    if (number_percent() < 5)
+        send_to_char("You get the feeling that someone is following you.\n\r", victim);
 
-	deduct_move(ch, 5);
+    deduct_move(ch, 5);
 
-	move_char(ch, direction, true);
+    move_char(ch, direction, true);
 
-	// Found them
-	if (ch->in_room == victim->in_room)
-	    ch->hunting = NULL;
+    // Found them
+    if (ch->in_room == victim->in_room)
+        ch->hunting = NULL;
 
-	// For NPCs, if you are hunting one mob and come across another
-	// of the same mob it stops.
-	for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
-	{
-	    if (IS_NPC(rch))
-	    {
-		if (rch->pIndexData == victim->pIndexData)
-		{
-		    ch->hunting = NULL;
-		    break;
-		}
-	    }
-	}
+    // For NPCs, if you are hunting one mob and come across another
+    // of the same mob it stops.
+    for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
+    {
+        if (IS_NPC(rch))
+        {
+        if (rch->pIndexData == victim->pIndexData)
+        {
+            ch->hunting = NULL;
+            break;
+        }
+        }
+    }
     }
 }
 
@@ -3419,30 +3419,30 @@ void pneuma_relic_update(void)
 
     if (pneuma_relic != NULL && pneuma_relic->in_room != NULL)
     {
-	chance = number_percent();
+    chance = number_percent();
 
         if (chance > 80)
-	{
-	    long pneuma_vnum = get_reserved_vnum("obj_pneuma_item");
-	    AREA_DATA *pneuma_area = find_area_by_vnum(pneuma_vnum);
-	    if (!pneuma_area) pneuma_area = get_system_area_fallback();
-	    pneuma = create_object(get_obj_index(pneuma_area, pneuma_vnum), 0, true);
-	    obj_to_room(pneuma, pneuma_relic->in_room);
+    {
+        long pneuma_vnum = get_reserved_vnum("obj_pneuma_item");
+        AREA_DATA *pneuma_area = find_area_by_vnum(pneuma_vnum);
+        if (!pneuma_area) pneuma_area = get_system_area_fallback();
+        pneuma = create_object(get_obj_index(pneuma_area, pneuma_vnum), 0, true);
+        obj_to_room(pneuma, pneuma_relic->in_room);
 
             for (people = pneuma_relic->in_room->people; people != NULL; people = people->next_in_room)
-	    {
-	        if (!IS_NPC(people))
-	        {
-		    sprintf(buf,
-		    "%s glows gently then neatly drops a bottled soul.\n\r",
-		        can_see_obj(people, pneuma_relic) ?
-			    pneuma_relic->short_descr :
-			    "Something");
-		    buf[0] = UPPER(buf[0]);
-		    send_to_char(buf, people);
-		}
-	    }
-	}
+        {
+            if (!IS_NPC(people))
+            {
+            sprintf(buf,
+            "%s glows gently then neatly drops a bottled soul.\n\r",
+                can_see_obj(people, pneuma_relic) ?
+                pneuma_relic->short_descr :
+                "Something");
+            buf[0] = UPPER(buf[0]);
+            send_to_char(buf, people);
+        }
+        }
+    }
     }
 }
 
@@ -3450,28 +3450,28 @@ void pneuma_relic_update(void)
 // Update relics, find out if they need to vanish.
 void relic_update(void)
 {
-	log_string("Update all relics...");
+    log_string("Update all relics...");
     if (pneuma_relic != NULL)
-	check_relic_vanish(pneuma_relic);
+    check_relic_vanish(pneuma_relic);
 
     if (damage_relic != NULL)
-	check_relic_vanish(damage_relic);
+    check_relic_vanish(damage_relic);
 
     if (xp_relic != NULL)
-	check_relic_vanish(xp_relic);
+    check_relic_vanish(xp_relic);
 
     if (hp_regen_relic != NULL)
-	check_relic_vanish(hp_regen_relic);
+    check_relic_vanish(hp_regen_relic);
 
     if (mana_regen_relic != NULL)
-	check_relic_vanish(mana_regen_relic);
+    check_relic_vanish(mana_regen_relic);
 }
 
 
 // Check if a relic needs to vanish from a treasure room.
 void check_relic_vanish(OBJ_DATA *relic)
 {
-	ITERATOR cit, rit, oit;
+    ITERATOR cit, rit, oit;
     ROOM_INDEX_DATA *to_room;
     CHURCH_DATA *church;
     CHURCH_TREASURE_ROOM *treasure;
@@ -3481,41 +3481,41 @@ void check_relic_vanish(OBJ_DATA *relic)
     int chance2 = 3;
 
     if (number_percent() < chance1 && number_percent() < chance2) {
-		to_room = get_random_room(NULL, 0);
+        to_room = get_random_room(NULL, 0);
 
-		sprintf(buf, "{M%s vanishes in a swirl of purple mist.{x\n\r", relic->short_descr);
-		buf[2] = UPPER(buf[2]);
-		room_echo(relic->in_room, buf);
+        sprintf(buf, "{M%s vanishes in a swirl of purple mist.{x\n\r", relic->short_descr);
+        buf[2] = UPPER(buf[2]);
+        room_echo(relic->in_room, buf);
 
-		// Inform church the relic has vanished
-		iterator_start(&cit, list_churches);
-		while((church = (CHURCH_DATA *)iterator_nextdata(&cit))) {
-			iterator_start(&rit, church->treasure_rooms);
-			while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit))) {
-				iterator_start(&oit, treasure->room->lcontents);
-				while(( obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-					if (obj == relic) {
-						sprintf(buf,
-							"{Y[You feel an ancient power depart your church as %s vanishes from your treasure room.]{x\n\r",
-								obj->short_descr);
-						church_echo(church, buf);
-						break;
-					}
-				}
-				iterator_stop(&oit);
-			}
-			iterator_stop(&rit);
-		}
-		iterator_stop(&cit);
+        // Inform church the relic has vanished
+        iterator_start(&cit, list_churches);
+        while((church = (CHURCH_DATA *)iterator_nextdata(&cit))) {
+            iterator_start(&rit, church->treasure_rooms);
+            while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit))) {
+                iterator_start(&oit, treasure->room->lcontents);
+                while(( obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+                    if (obj == relic) {
+                        sprintf(buf,
+                            "{Y[You feel an ancient power depart your church as %s vanishes from your treasure room.]{x\n\r",
+                                obj->short_descr);
+                        church_echo(church, buf);
+                        break;
+                    }
+                }
+                iterator_stop(&oit);
+            }
+            iterator_stop(&rit);
+        }
+        iterator_stop(&cit);
 
-		obj_from_room(relic);
-		obj_to_room(relic, to_room);
+        obj_from_room(relic);
+        obj_to_room(relic, to_room);
 
-		sprintf(buf, "relic_update: %s has vanished to %s (%ld)",
-			relic->short_descr,
-			to_room->name,
-			to_room->vnum);
-		log_string(buf);
+        sprintf(buf, "relic_update: %s has vanished to %s (%ld)",
+            relic->short_descr,
+            to_room->name,
+            to_room->vnum);
+        log_string(buf);
     }
 }
 
@@ -3528,54 +3528,54 @@ void bitten_update(CHAR_DATA *ch)
 
     if (number_percent() < 10)
     {
- 	if (percent > 90)
-	{
-	    send_to_char("{RYou feel slightly uncomfortable.{x\n\r",
-		    ch);
-	    act("{R$n begins to look uncomfortable.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else if (percent > 80)
-	{
-	    send_to_char("{RYou feel feverish.{x\n\r", ch);
-	    act("{R$n sneezes, looking feverish.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else if (percent > 70)
-	{
-	    sprintf(buf, "{RYou pale as the toxins race through your veins.{x\n\r");
-	    act("{R$n pales as venomous toxins race through $s body.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	    send_to_char(buf , ch);
-	}
-	else if (percent > 60)
-	{
-	    send_to_char("{RDizzy, you swoon back and forth.{x\n\r", ch);
-	    act("{R$n swoons back and forth, dizzy.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else if (percent > 50)
-	{
-	    send_to_char("{RYour glands swell up as poison races through them.{x\n\r", ch);
-	}
-	else if (percent > 40)
-	{
-	    send_to_char("{RYou twitch nervously as you feel an unfamiliar venom in your body.{x\n\r", ch);
-	    act("{R$n twitches nervously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
-	else if (percent > 30)
-	{
-	    send_to_char("{RYou lose your hearing for a moment.{x\n\r", ch);
-	}
-	else if (percent > 20)
-	{
-	    send_to_char("{RYour vision goes black for a second, then returns.{x\n\r", ch);
-	}
-	else if (percent > 10)
-	{
-	    send_to_char("{RYour eyes roll back in your head.{x\n\r", ch);
-	    act("{R$n's eyes roll back in $s head.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	}
+     if (percent > 90)
+    {
+        send_to_char("{RYou feel slightly uncomfortable.{x\n\r",
+            ch);
+        act("{R$n begins to look uncomfortable.{x", ch,
+            NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else if (percent > 80)
+    {
+        send_to_char("{RYou feel feverish.{x\n\r", ch);
+        act("{R$n sneezes, looking feverish.{x", ch,
+            NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else if (percent > 70)
+    {
+        sprintf(buf, "{RYou pale as the toxins race through your veins.{x\n\r");
+        act("{R$n pales as venomous toxins race through $s body.{x", ch,
+            NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        send_to_char(buf , ch);
+    }
+    else if (percent > 60)
+    {
+        send_to_char("{RDizzy, you swoon back and forth.{x\n\r", ch);
+        act("{R$n swoons back and forth, dizzy.{x", ch,
+            NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else if (percent > 50)
+    {
+        send_to_char("{RYour glands swell up as poison races through them.{x\n\r", ch);
+    }
+    else if (percent > 40)
+    {
+        send_to_char("{RYou twitch nervously as you feel an unfamiliar venom in your body.{x\n\r", ch);
+        act("{R$n twitches nervously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else if (percent > 30)
+    {
+        send_to_char("{RYou lose your hearing for a moment.{x\n\r", ch);
+    }
+    else if (percent > 20)
+    {
+        send_to_char("{RYour vision goes black for a second, then returns.{x\n\r", ch);
+    }
+    else if (percent > 10)
+    {
+        send_to_char("{RYour eyes roll back in your head.{x\n\r", ch);
+        act("{R$n's eyes roll back in $s head.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
     }
 
     damage(ch, ch, dice(UMAX(ch->bitten_level/8, 4),1), gsn_toxins, DAM_POISON, false);
@@ -3584,7 +3584,7 @@ void bitten_update(CHAR_DATA *ch)
     if (ch->bitten <= 0)
     {
         ch->bitten = 0;
-	bitten_end(ch);
+    bitten_end(ch);
     }
 }
 
@@ -3599,8 +3599,8 @@ void toxin_update(CHAR_DATA *ch)
 
     for (i = 0; i < MAX_TOXIN; i++)
     {
-	ch->toxin[i] = URANGE(0, ch->toxin[i], 100);
-	ch->toxin[i] = UMIN(100, ch->toxin[i] + toxin_gain(ch, i));
+    ch->toxin[i] = URANGE(0, ch->toxin[i], 100);
+    ch->toxin[i] = UMIN(100, ch->toxin[i] + toxin_gain(ch, i));
     }
 }
 
@@ -3614,229 +3614,229 @@ void locket_update(OBJ_DATA *obj)
 
     ch = obj->carried_by;
     if (ch == NULL)
-	return;
+    return;
 
     if (IS_AFFECTED(ch, AFF_POISON))
     {
-	sn = skill_lookup("cure poison");
+    sn = skill_lookup("cure poison");
 
-	act("$p shimmers softly.",
-		ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n's $p shimmers softly.",
-		ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("$p shimmers softly.",
+        ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    act("$n's $p shimmers softly.",
+        ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-	obj_cast_spell(sn , ch->level * 2, ch,
-		ch, obj);
-	return;
+    obj_cast_spell(sn , ch->level * 2, ch,
+        ch, obj);
+    return;
     }
 
     if (IS_AFFECTED(ch, AFF_PLAGUE))
     {
-	sn = skill_lookup("cure disease");
+    sn = skill_lookup("cure disease");
 
-	act("$p hums quietly for a second.",
-		ch, obj, NULL, TO_CHAR);
-	act("$n's $p hums quietly.",
-		ch, obj, NULL, TO_ROOM);
+    act("$p hums quietly for a second.",
+        ch, obj, NULL, TO_CHAR);
+    act("$n's $p hums quietly.",
+        ch, obj, NULL, TO_ROOM);
 
-	obj_cast_spell(sn , ch->level * 2, ch,
-		ch, obj);
-	return;
+    obj_cast_spell(sn , ch->level * 2, ch,
+        ch, obj);
+    return;
     }
 
     if (IS_AFFECTED(ch, AFF_CURSE))
     {
-	sn = skill_lookup("remove curse");
+    sn = skill_lookup("remove curse");
 
-	act("$p vibrates for a second, then quiets down.",
-		ch, obj, NULL, TO_CHAR);
-	act("$n's $p vibrates for a second.",
-		ch, obj, NULL, TO_ROOM);
+    act("$p vibrates for a second, then quiets down.",
+        ch, obj, NULL, TO_CHAR);
+    act("$n's $p vibrates for a second.",
+        ch, obj, NULL, TO_ROOM);
 
-	obj_cast_spell(sn , ch->level * 2, ch,
-		ch, obj);
-	return;
+    obj_cast_spell(sn , ch->level * 2, ch,
+        ch, obj);
+    return;
     }
 
     if (IS_AFFECTED(ch, AFF_BLIND))
     {
-	sn = skill_lookup("cure blindness");
+    sn = skill_lookup("cure blindness");
 
-	act("$p glimmers briefly.",
-		ch, obj, NULL, TO_CHAR);
-	act("$n's $p glimmers briefly.",
-		ch, obj, NULL, TO_ROOM);
+    act("$p glimmers briefly.",
+        ch, obj, NULL, TO_CHAR);
+    act("$n's $p glimmers briefly.",
+        ch, obj, NULL, TO_ROOM);
 
-	obj_cast_spell(sn , ch->level * 2, ch,
-		ch, obj);
-	return;
+    obj_cast_spell(sn , ch->level * 2, ch,
+        ch, obj);
+    return;
     }
 
     if (number_percent() < 20)
     {
         // Healing
         if (ch->hit < ch->max_hit)
-	{
-	    act("$p glows with a vibrant blue aura.",
-		    ch, obj, NULL, TO_CHAR);
-	    act("$n's $p glows with a vibrant blue aura.",
-		    ch, obj, NULL, TO_ROOM);
+    {
+        act("$p glows with a vibrant blue aura.",
+            ch, obj, NULL, TO_CHAR);
+        act("$n's $p glows with a vibrant blue aura.",
+            ch, obj, NULL, TO_ROOM);
 
-	    if (number_percent() > 60)
-		sn = skill_lookup("cure critical");
-	    else
-		sn = skill_lookup("heal");
+        if (number_percent() > 60)
+        sn = skill_lookup("cure critical");
+        else
+        sn = skill_lookup("heal");
 
-	    obj_cast_spell(sn, ch->level, ch, ch, obj);
+        obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-	    return;
-	}
+        return;
+    }
 
-	// Mana
-	if (ch->mana < ch->max_mana)
-	{
-	    int mana;
+    // Mana
+    if (ch->mana < ch->max_mana)
+    {
+        int mana;
 
-	    act("$p glows with a vibrant purple aura.",
-		    ch, obj, NULL, TO_CHAR);
-	    send_to_char("You feel energized!\n\r", ch);
-	    act("$n's $p glows with a vibrant purple aura.",
-		    ch, obj, NULL, TO_ROOM);
+        act("$p glows with a vibrant purple aura.",
+            ch, obj, NULL, TO_CHAR);
+        send_to_char("You feel energized!\n\r", ch);
+        act("$n's $p glows with a vibrant purple aura.",
+            ch, obj, NULL, TO_ROOM);
 
-	    mana = ch->max_mana/number_range(10, 20);
-	    mana = UMIN(mana, ch->max_mana - mana);
+        mana = ch->max_mana/number_range(10, 20);
+        mana = UMIN(mana, ch->max_mana - mana);
 
-	    ch->mana += mana;
+        ch->mana += mana;
 
-	    return;
-	}
+        return;
+    }
 
-	// Move
-	if (ch->move < ch->max_move)
-	{
-	    sn = skill_lookup( "refresh");
+    // Move
+    if (ch->move < ch->max_move)
+    {
+        sn = skill_lookup( "refresh");
 
-	    act("$p glows with a vibrant green aura.",
-		    ch, obj, NULL, TO_CHAR);
-	    act("$n's $p glows with a vibrant green aura.",
-		    ch, obj, NULL, TO_ROOM);
+        act("$p glows with a vibrant green aura.",
+            ch, obj, NULL, TO_CHAR);
+        act("$n's $p glows with a vibrant green aura.",
+            ch, obj, NULL, TO_ROOM);
 
-	    obj_cast_spell(sn, ch->level, ch, ch, obj);
+        obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-	    return;
-	}
+        return;
+    }
     }
 
     if (number_percent() < 15)
     {
-	switch(number_range(1, 6))
-	{
-	    case 1:
-		if (!IS_AFFECTED(ch, AFF_SANCTUARY))
-		{
-		    sn = skill_lookup( "sanctuary");
+    switch(number_range(1, 6))
+    {
+        case 1:
+        if (!IS_AFFECTED(ch, AFF_SANCTUARY))
+        {
+            sn = skill_lookup( "sanctuary");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	    case 2:
-		if (!IS_AFFECTED(ch, AFF_DETECT_INVIS))
-		{
-		    sn = skill_lookup( "detect invis");
+            return;
+            break;
+        }
+        case 2:
+        if (!IS_AFFECTED(ch, AFF_DETECT_INVIS))
+        {
+            sn = skill_lookup( "detect invis");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	    case 3:
-		if (!IS_AFFECTED(ch, AFF_DETECT_HIDDEN))
-		{
-		    sn = skill_lookup( "detect hidden");
+            return;
+            break;
+        }
+        case 3:
+        if (!IS_AFFECTED(ch, AFF_DETECT_HIDDEN))
+        {
+            sn = skill_lookup( "detect hidden");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	    case 4:
-		if (IS_AFFECTED2(ch, AFF2_IMPROVED_INVIS))
-		{
-		    sn = skill_lookup( "improved invisibility");
+            return;
+            break;
+        }
+        case 4:
+        if (IS_AFFECTED2(ch, AFF2_IMPROVED_INVIS))
+        {
+            sn = skill_lookup( "improved invisibility");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	    case 5:
-		if (!is_affected(ch, skill_lookup("shield")))
-		{
-		    sn = skill_lookup( "shield");
+            return;
+            break;
+        }
+        case 5:
+        if (!is_affected(ch, skill_lookup("shield")))
+        {
+            sn = skill_lookup( "shield");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	    case 6:
-		if (!is_affected(ch, skill_lookup("stone skin")))
-		{
-		    sn = skill_lookup( "stone skin");
+            return;
+            break;
+        }
+        case 6:
+        if (!is_affected(ch, skill_lookup("stone skin")))
+        {
+            sn = skill_lookup( "stone skin");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	    case 7:
-		if (!IS_AFFECTED2(ch, AFF2_ELECTRICAL_BARRIER))
-		{
-		    sn = skill_lookup( "electrical barrier");
+            return;
+            break;
+        }
+        case 7:
+        if (!IS_AFFECTED2(ch, AFF2_ELECTRICAL_BARRIER))
+        {
+            sn = skill_lookup( "electrical barrier");
 
-		    act("$p glows with a magical aura.",
-			    ch, obj, NULL, TO_CHAR);
-		    act("$n's $p glows with a magical aura.",
-			    ch, obj, NULL, TO_ROOM);
+            act("$p glows with a magical aura.",
+                ch, obj, NULL, TO_CHAR);
+            act("$n's $p glows with a magical aura.",
+                ch, obj, NULL, TO_ROOM);
 
-		    obj_cast_spell(sn, ch->level, ch, ch, obj);
+            obj_cast_spell(sn, ch->level, ch, ch, obj);
 
-		    return;
-		    break;
-		}
-	}
+            return;
+            break;
+        }
+    }
     }
 #endif
 }
@@ -3847,53 +3847,53 @@ void scare_update(CHAR_DATA *ch)
     CHAR_DATA *victim, *vnext;
 
     if (ch == NULL) {
-	bug("scare_update: NULL ch", 0);
-	return;
+    bug("scare_update: NULL ch", 0);
+    return;
     }
 
     if (ch->in_room == NULL) {
-	bug("scare_update: NULL ch->in_room", 0);
-	return;
+    bug("scare_update: NULL ch->in_room", 0);
+    return;
     }
 
     for (victim = ch->in_room->people; victim != NULL; victim = vnext)
     {
-	vnext = victim->next_in_room;
+    vnext = victim->next_in_room;
 
         // Certain NPCs are protected
-	if (IS_NPC(victim))
-	{
-	    if (victim->shop != NULL
-	    ||  IS_SET(victim->act[0], ACT_PROTECTED)
-	    ||  IS_SET(victim->act[0], ACT_SENTINEL))
-		continue;
-	}
+    if (IS_NPC(victim))
+    {
+        if (victim->shop != NULL
+        ||  IS_SET(victim->act[0], ACT_PROTECTED)
+        ||  IS_SET(victim->act[0], ACT_SENTINEL))
+        continue;
+    }
 
-	if (victim != ch
-	&&  victim->tot_level <= ch->tot_level
-	&&  victim->fighting == NULL
-	&&  victim->position == POS_STANDING
-	&&  ch->invis_level < LEVEL_IMMORTAL
-	&&  !is_same_group(victim, ch)
+    if (victim != ch
+    &&  victim->tot_level <= ch->tot_level
+    &&  victim->fighting == NULL
+    &&  victim->position == POS_STANDING
+    &&  ch->invis_level < LEVEL_IMMORTAL
+    &&  !is_same_group(victim, ch)
         &&  victim != MOUNTED(ch))
-	{
-	    if (number_percent() < 25)
-	    {
-		if (can_see(victim, ch))
-		{
-		    act("You balk with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
-		    act("$N balks with fear at the sight of you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		    act("$N balks with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-		}
-		else
-		{
-		    act("You balk with terror at a terrifying ominous presence in the room!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
-		    act("$n balks with terror at a terrifying ominous presence in the room!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		}
+    {
+        if (number_percent() < 25)
+        {
+        if (can_see(victim, ch))
+        {
+            act("You balk with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+            act("$N balks with fear at the sight of you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("$N balks with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        }
+        else
+        {
+            act("You balk with terror at a terrifying ominous presence in the room!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+            act("$n balks with terror at a terrifying ominous presence in the room!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
 
-		do_flee(victim, NULL);
-	    }
-	}
+        do_flee(victim, NULL);
+        }
+    }
     }
 }
 
@@ -3902,7 +3902,7 @@ void scare_update(CHAR_DATA *ch)
 void update_has_done(CHAR_DATA *ch)
 {
     if (IS_SET(ch->has_done, DONE_REVERIE))
-	REMOVE_BIT(ch->has_done, DONE_REVERIE);
+    REMOVE_BIT(ch->has_done, DONE_REVERIE);
 }
 
 void update_invasion_quest()
@@ -3916,64 +3916,64 @@ void update_invasion_quest()
 
     for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
 
-	if ( pArea->invasion_quest != NULL) {
-	    if (current_time > pArea->invasion_quest->expires) {
+    if ( pArea->invasion_quest != NULL) {
+        if (current_time > pArea->invasion_quest->expires) {
 
-		sprintf(buf, "The invasion at %s has ended.", pArea->name);
-		crier_announce(buf);
-		log_string(buf);
+        sprintf(buf, "The invasion at %s has ended.", pArea->name);
+        crier_announce(buf);
+        log_string(buf);
 
-		extract_invasion_quest(pArea->invasion_quest);
-		pArea->invasion_quest = NULL;
-	    }
-	    else {
-		current_quests++;
-	    }
-	}
+        extract_invasion_quest(pArea->invasion_quest);
+        pArea->invasion_quest = NULL;
+        }
+        else {
+        current_quests++;
+        }
+    }
     }
 
     // dont want too many quests at once
     if (current_quests < max_quests)
     {
-	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
 
-	    // Only towns should be invaded
-	    if (pArea->area_who != AREA_TOWNE) continue;
+        // Only towns should be invaded
+        if (pArea->area_who != AREA_TOWNE) continue;
 
-	    // Newbies are in Plith so better not invade Plith
-	    if (!str_cmp(pArea->name, "Plith")) {
-		continue;
-	    }
+        // Newbies are in Plith so better not invade Plith
+        if (!str_cmp(pArea->name, "Plith")) {
+        continue;
+        }
 
-	    // only seralia or athemia continents should be invaded
-	    if ( (pArea->place_flags == PLACE_FIRST_CONTINENT) ||
-		    (pArea->place_flags == PLACE_SECOND_CONTINENT) ||
-		    (pArea->place_flags == PLACE_THIRD_CONTINENT) ||
-		    (pArea->place_flags == PLACE_FOURTH_CONTINENT)) {
+        // only seralia or athemia continents should be invaded
+        if ( (pArea->place_flags == PLACE_FIRST_CONTINENT) ||
+            (pArea->place_flags == PLACE_SECOND_CONTINENT) ||
+            (pArea->place_flags == PLACE_THIRD_CONTINENT) ||
+            (pArea->place_flags == PLACE_FOURTH_CONTINENT)) {
 
-		if (number_percent() < 10) {
-		    int level = number_range(0, 3);
-		    switch(level) {
-			case 0:
-			    level = 30;
-			    break;
-			case 1:
-			    level = 60;
-			    break;
-			case 2:
-			    level = 90;
-			    break;
-			case 3:
-			    level = 120;
-			    break;
-		    }
+        if (number_percent() < 10) {
+            int level = number_range(0, 3);
+            switch(level) {
+            case 0:
+                level = 30;
+                break;
+            case 1:
+                level = 60;
+                break;
+            case 2:
+                level = 90;
+                break;
+            case 3:
+                level = 120;
+                break;
+            }
 //		    quest = create_invasion_quest(pArea, level, 0, 0);
 
-		    pArea->invasion_quest = quest;
-		    break;
-		}
-	    }
-	}
+            pArea->invasion_quest = quest;
+            break;
+        }
+        }
+    }
     }
 }
 
@@ -3983,55 +3983,55 @@ void update_invasion_quest()
 */
 void event_update(void)
 {
-	extern EVENT_DATA *next_event;
-	EVENT_DATA tmp;
-	EVENT_DATA *ev;
-	int depth, sec;
+    extern EVENT_DATA *next_event;
+    EVENT_DATA tmp;
+    EVENT_DATA *ev;
+    int depth, sec;
 
-	if (!events) return;
+    if (!events) return;
 
-	next_event = NULL;
+    next_event = NULL;
 
-	for (ev = events; ev; ev = next_event) {
-		next_event = ev->next;
+    for (ev = events; ev; ev = next_event) {
+        next_event = ev->next;
 
-		// Delay has expired - perform action and remove event from lists
-		if (ev->delay-- <= 0) {
-			tmp = *ev;
-			ev->args = NULL;
-			ev->info = NULL;
-			extract_event(ev);
+        // Delay has expired - perform action and remove event from lists
+        if (ev->delay-- <= 0) {
+            tmp = *ev;
+            ev->args = NULL;
+            ev->info = NULL;
+            extract_event(ev);
 
-			depth = script_call_depth;
-			sec = script_security;
-			script_call_depth = tmp.depth;
-			script_security = tmp.security;
+            depth = script_call_depth;
+            sec = script_security;
+            script_call_depth = tmp.depth;
+            script_security = tmp.security;
 
-			switch (tmp.event_type) {
+            switch (tmp.event_type) {
 
-			// These are used by QUEUES
-			case EVENT_MOBQUEUE:
-			case EVENT_OBJQUEUE:
-			case EVENT_ROOMQUEUE:
-			case EVENT_TOKENQUEUE:
-				do_function((void *)(tmp.info), tmp.function, tmp.args);
-				break;
-			case EVENT_ECHO:
-				room_echo((ROOM_INDEX_DATA *)tmp.entity,tmp.args);
-				break;
+            // These are used by QUEUES
+            case EVENT_MOBQUEUE:
+            case EVENT_OBJQUEUE:
+            case EVENT_ROOMQUEUE:
+            case EVENT_TOKENQUEUE:
+                do_function((void *)(tmp.info), tmp.function, tmp.args);
+                break;
+            case EVENT_ECHO:
+                room_echo((ROOM_INDEX_DATA *)tmp.entity,tmp.args);
+                break;
 
-			case EVENT_FUNCTION:
-				do_function((CHAR_DATA *)tmp.entity,tmp.function, tmp.args);
-				break;
-			}
+            case EVENT_FUNCTION:
+                do_function((CHAR_DATA *)tmp.entity,tmp.function, tmp.args);
+                break;
+            }
 
-			script_call_depth = depth;
-			script_security = sec;
+            script_call_depth = depth;
+            script_security = sec;
 
-			free_string(tmp.args);
-			if(tmp.info) free(tmp.info);
-		}
-	}
+            free_string(tmp.args);
+            if(tmp.info) free(tmp.info);
+        }
+    }
 }
 void msdp_update( void )
 {
@@ -4040,7 +4040,7 @@ void msdp_update( void )
 
     for ( d = descriptor_list; d != NULL; d = d->next )
     {
-	if ( d->character && d->connected == CON_PLAYING && !IS_NPC(d->character) )
+    if ( d->character && d->connected == CON_PLAYING && !IS_NPC(d->character) )
         {
             char buf[MAX_STRING_LENGTH];
             CHAR_DATA *pOpponent = d->character->fighting;
@@ -4105,7 +4105,7 @@ void msdp_update( void )
             /* Only update room stuff if they've changed room */
             if ( pRoom && pRoom->vnum != d->pProtocol->pVariables[eMSDP_ROOM_VNUM]->ValueInt )
             {
-				char *ptb; /* Pointer to buf */
+                char *ptb; /* Pointer to buf */
                 int i; /* Loop counter */
                 buf[0] = '\0';
 
@@ -4137,15 +4137,15 @@ void msdp_update( void )
 
                 ptb = buf;
 
-		ptb += sprintf(ptb, "\001EXITS\002%c", MSDP_TABLE_OPEN);
+        ptb += sprintf(ptb, "\001EXITS\002%c", MSDP_TABLE_OPEN);
 
-		for ( i = DIR_NORTH; i <= DIR_DOWN; ++i )
-		{
-			if ( pRoom->exit[i] != NULL && pRoom->exit[i]->u1.to_room != NULL && pRoom->exit[i]->u1.vnum != -1)
-			{
-				ptb += sprintf(ptb, "\001%s\002%ld", dir_name[i], pRoom->exit[i]->u1.to_room->vnum);
-			}
-		}
+        for ( i = DIR_NORTH; i <= DIR_DOWN; ++i )
+        {
+            if ( pRoom->exit[i] != NULL && pRoom->exit[i]->u1.to_room != NULL && pRoom->exit[i]->u1.vnum != -1)
+            {
+                ptb += sprintf(ptb, "\001%s\002%ld", dir_name[i], pRoom->exit[i]->u1.to_room->vnum);
+            }
+        }
 
                 ptb += sprintf(ptb, "%c", MSDP_TABLE_CLOSE);
 
@@ -4184,212 +4184,212 @@ void msdp_update( void )
 }
 void gmcp_update( void )
 {
-	DESCRIPTOR_DATA *d;
+    DESCRIPTOR_DATA *d;
 
-	for ( d = descriptor_list; d != NULL; d = d->next )
-	{
-		if ( d->character && d->connected == CON_PLAYING && !IS_NPC(d->character) )
+    for ( d = descriptor_list; d != NULL; d = d->next )
+    {
+        if ( d->character && d->connected == CON_PLAYING && !IS_NPC(d->character) )
         {
             char buf[MAX_STRING_LENGTH];
-			char buf2[MAX_STRING_LENGTH];
-			ROOM_INDEX_DATA *room = d->character->in_room;
-			CHAR_DATA *enemy = d->character->fighting;
-			AFFECT_DATA *paf;
+            char buf2[MAX_STRING_LENGTH];
+            ROOM_INDEX_DATA *room = d->character->in_room;
+            CHAR_DATA *enemy = d->character->fighting;
+            AFFECT_DATA *paf;
 
-			UpdateGMCPString( d, GMCP_NAME, d->character->name );
-			UpdateGMCPString( d, GMCP_RACE, d->character->race ? d->character->race->name : "unknown" );
-			UpdateGMCPString( d, GMCP_CLASS, sub_class_table[d->character->pcdata->sub_class_current].name[d->character->sex] );
+            UpdateGMCPString( d, GMCP_NAME, d->character->name );
+            UpdateGMCPString( d, GMCP_RACE, d->character->race ? d->character->race->name : "unknown" );
+            UpdateGMCPString( d, GMCP_CLASS, sub_class_table[d->character->pcdata->sub_class_current].name[d->character->sex] );
 
-			UpdateGMCPNumber( d, GMCP_HP, d->character->hit );
-			UpdateGMCPNumber( d, GMCP_MANA, d->character->mana );
-			UpdateGMCPNumber( d, GMCP_MOVE, d->character->move );
-			UpdateGMCPNumber( d, GMCP_MAX_HP, d->character->max_hit );
-			UpdateGMCPNumber( d, GMCP_MAX_MANA, d->character->max_mana );
-			UpdateGMCPNumber( d, GMCP_MAX_MOVE, d->character->max_move );
+            UpdateGMCPNumber( d, GMCP_HP, d->character->hit );
+            UpdateGMCPNumber( d, GMCP_MANA, d->character->mana );
+            UpdateGMCPNumber( d, GMCP_MOVE, d->character->move );
+            UpdateGMCPNumber( d, GMCP_MAX_HP, d->character->max_hit );
+            UpdateGMCPNumber( d, GMCP_MAX_MANA, d->character->max_mana );
+            UpdateGMCPNumber( d, GMCP_MAX_MOVE, d->character->max_move );
 
-			UpdateGMCPNumber( d, GMCP_STR, get_curr_stat( d->character, STAT_STR ) );
-			UpdateGMCPNumber( d, GMCP_INT, get_curr_stat( d->character, STAT_INT ) );
-			UpdateGMCPNumber( d, GMCP_WIS, get_curr_stat( d->character, STAT_WIS ) );
-			UpdateGMCPNumber( d, GMCP_DEX, get_curr_stat( d->character, STAT_DEX ) );
-			UpdateGMCPNumber( d, GMCP_CON, get_curr_stat( d->character, STAT_CON ) );
-			UpdateGMCPNumber( d, GMCP_STR_PERM, d->character->perm_stat[STAT_STR]);
-			UpdateGMCPNumber( d, GMCP_INT_PERM, d->character->perm_stat[STAT_INT]);
-			UpdateGMCPNumber( d, GMCP_WIS_PERM, d->character->perm_stat[STAT_WIS]);
-			UpdateGMCPNumber( d, GMCP_DEX_PERM, d->character->perm_stat[STAT_DEX]);
-			UpdateGMCPNumber( d, GMCP_CON_PERM, d->character->perm_stat[STAT_CON]);
-			UpdateGMCPNumber( d, GMCP_HITROLL, GET_HITROLL( d->character ) );
-			UpdateGMCPNumber( d, GMCP_DAMROLL, GET_DAMROLL( d->character ) );
-			UpdateGMCPNumber( d, GMCP_WIMPY, d->character->wimpy );
+            UpdateGMCPNumber( d, GMCP_STR, get_curr_stat( d->character, STAT_STR ) );
+            UpdateGMCPNumber( d, GMCP_INT, get_curr_stat( d->character, STAT_INT ) );
+            UpdateGMCPNumber( d, GMCP_WIS, get_curr_stat( d->character, STAT_WIS ) );
+            UpdateGMCPNumber( d, GMCP_DEX, get_curr_stat( d->character, STAT_DEX ) );
+            UpdateGMCPNumber( d, GMCP_CON, get_curr_stat( d->character, STAT_CON ) );
+            UpdateGMCPNumber( d, GMCP_STR_PERM, d->character->perm_stat[STAT_STR]);
+            UpdateGMCPNumber( d, GMCP_INT_PERM, d->character->perm_stat[STAT_INT]);
+            UpdateGMCPNumber( d, GMCP_WIS_PERM, d->character->perm_stat[STAT_WIS]);
+            UpdateGMCPNumber( d, GMCP_DEX_PERM, d->character->perm_stat[STAT_DEX]);
+            UpdateGMCPNumber( d, GMCP_CON_PERM, d->character->perm_stat[STAT_CON]);
+            UpdateGMCPNumber( d, GMCP_HITROLL, GET_HITROLL( d->character ) );
+            UpdateGMCPNumber( d, GMCP_DAMROLL, GET_DAMROLL( d->character ) );
+            UpdateGMCPNumber( d, GMCP_WIMPY, d->character->wimpy );
 
-			UpdateGMCPNumber( d, GMCP_AC_PIERCE, GET_AC( d->character, AC_PIERCE ) ); 
-			UpdateGMCPNumber( d, GMCP_AC_BASH, GET_AC( d->character, AC_BASH ) );
-			UpdateGMCPNumber( d, GMCP_AC_SLASH, GET_AC( d->character, AC_SLASH ) );
-			UpdateGMCPNumber( d, GMCP_AC_EXOTIC, GET_AC( d->character, AC_EXOTIC ) );
+            UpdateGMCPNumber( d, GMCP_AC_PIERCE, GET_AC( d->character, AC_PIERCE ) ); 
+            UpdateGMCPNumber( d, GMCP_AC_BASH, GET_AC( d->character, AC_BASH ) );
+            UpdateGMCPNumber( d, GMCP_AC_SLASH, GET_AC( d->character, AC_SLASH ) );
+            UpdateGMCPNumber( d, GMCP_AC_EXOTIC, GET_AC( d->character, AC_EXOTIC ) );
 
-			UpdateGMCPNumber( d, GMCP_ALIGNMENT, d->character->alignment );
-			UpdateGMCPNumber( d, GMCP_XP, d->character->exp );
-			UpdateGMCPNumber( d, GMCP_XP_MAX, exp_per_level( d->character, d->character->pcdata->points) );
-			UpdateGMCPNumber( d, GMCP_XP_TNL, ( ( d->character->level + 1 ) * exp_per_level( d->character, d->character->pcdata->points ) - d->character->exp ) );
-			UpdateGMCPNumber( d, GMCP_PRACTICE, d->character->practice );
-			UpdateGMCPNumber( d, GMCP_MONEY, d->character->gold );
+            UpdateGMCPNumber( d, GMCP_ALIGNMENT, d->character->alignment );
+            UpdateGMCPNumber( d, GMCP_XP, d->character->exp );
+            UpdateGMCPNumber( d, GMCP_XP_MAX, exp_per_level( d->character, d->character->pcdata->points) );
+            UpdateGMCPNumber( d, GMCP_XP_TNL, ( ( d->character->level + 1 ) * exp_per_level( d->character, d->character->pcdata->points ) - d->character->exp ) );
+            UpdateGMCPNumber( d, GMCP_PRACTICE, d->character->practice );
+            UpdateGMCPNumber( d, GMCP_MONEY, d->character->gold );
 
 
 
-			if(room->wilds) {
-				sprintf (buf, "%ld, %ld",
-					room->x, room->y);
-			} else if(room->source) {
-				sprintf (buf, "%ld",
-					room->source->vnum);
-			} else {
-				sprintf(buf, "%ld", room->vnum);
-			}
-			//sprintf( buf, "%ld", room->vnum );
-			//send_to_char(buf,d->character);
-
-			if ( room && strcmp( buf, d->pProtocol->GMCPVariable[GMCP_ROOM_VNUM] ) )
-			{
-				static const char *exit[] = { "n", "e", "s", "w", "u", "d" };
-				int i;
-				UpdateGMCPString( d, GMCP_AREA, d->character->in_room->area->name );
-				UpdateGMCPString( d, GMCP_ROOM_NAME, d->character->in_room->name );
-				UpdateGMCPNumber( d, GMCP_ROOM_VNUM, d->character->in_room->vnum );
-
-				buf[0] = '\0';
-				buf2[0] = '\0';
-
-				for ( i = DIR_NORTH; i <= DIR_DOWN; i++ )
-				{
-					if ( !room->exit[i] )
-						continue;
-
-					if (room->exit[i]->u1.to_room == NULL)
-					{
-						if (room->source)
-							log_stringf("BUG: Clone Room %ld (%ld %ld) has a NULL exit %d", room->source->vnum, room->id[0], room->id[1], i);
-						else
-							log_stringf("BUG: Room %ld has a NULL exit %d", room->vnum, i);
-						continue;
-					}
-
-					if (room->exit[i]->wilds.x)
-					{
-						sprintf (buf, "\"%s\": \"%d,%d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
-						strcat (buf,buf2);
-					}
-					if ( buf[0] == '\0' )
-					{
-						#ifndef COLOR_CODE_FIX
-						sprintf( buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
-						#else
-						sprintf( buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
-						#endif
-					}
-					else
-					{
-						if (room->wilds || room->exit[i]->wilds.x || room->exit[i]->wilds.y)
-						{
-							sprintf(buf, "\"%s\": \"%d, %d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
-						}
-						else if (room->exit[i]->u1.to_room == NULL)
-						{
-							if (room->source)
-								log_stringf("BUG: Clone Room %ld (%ld %ld) has a NULL exit %d", room->source->vnum, room->id[0], room->id[1], i);
-							else
-								log_stringf("BUG: Room %ld has a NULL exit %d", room->vnum, i);
-
-							sprintf(buf2, "\"%s\": \"???\"", exit[i]);
-						}
-						else if (room->source)
-						{
-							sprintf(buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->source->vnum);
-						}
-
-						else
-						{
-							sprintf( buf2, ", \"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
-						}
-						strcat( buf, buf2 );
-					}
-				}
-
-				UpdateGMCPString( d, GMCP_ROOM_EXITS, buf );
-			}
-
-			if ( enemy )
-			{
-				CHAR_DATA *ch;
-				buf[0] = '\0';
-				buf2[0] = '\0';
-
-				for ( ch = room->people; ch; ch = ch->next_in_room )
-				{
-					/* Don't check current ch as this will double up enemies. */
-					if ( ch == d->character )
-						continue;
-
-					if ( ch->fighting == d->character )
-					{
-						enemy = ch;
-						#ifndef COLOR_CODE_FIX
-						if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
-						else
-						{
-							sprintf( buf2, ", { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
-							strcat( buf, buf2 );
-						}
-						#else
-						if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
-						else
-						{
-							sprintf( buf2, ", {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
-							strcat( buf, buf2 );
-						}
-						#endif
-					}
-				}
-
-				strcat( buf, " ]" );
-				UpdateGMCPString( d, GMCP_ENEMY, buf );
-			}
-			else
-			{
-				UpdateGMCPString( d, GMCP_ENEMY, "" );
-			}
-
-			buf[0] = '\0';
-			buf2[0] = '\0';
-			
-			for ( paf = d->character->affected; paf; paf = paf->next )
-			{
-				#ifndef COLOR_CODE_FIX
-				if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
-				else
-				{
-					sprintf( buf2, ", { \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
-					strcat( buf, buf2 );
-				}
-				#else
-				if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
-				else
-				{
-					sprintf( buf2, ", {{ \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
-					strcat( buf, buf2 );
-				}
-				#endif                
+            if(room->wilds) {
+                sprintf (buf, "%ld, %ld",
+                    room->x, room->y);
+            } else if(room->source) {
+                sprintf (buf, "%ld",
+                    room->source->vnum);
+            } else {
+                sprintf(buf, "%ld", room->vnum);
             }
-			
+            //sprintf( buf, "%ld", room->vnum );
+            //send_to_char(buf,d->character);
 
-			if ( buf[0] == '\0' )
-				sprintf( buf, "[]" );
-			else
-				strcat( buf, " ]" );
+            if ( room && strcmp( buf, d->pProtocol->GMCPVariable[GMCP_ROOM_VNUM] ) )
+            {
+                static const char *exit[] = { "n", "e", "s", "w", "u", "d" };
+                int i;
+                UpdateGMCPString( d, GMCP_AREA, d->character->in_room->area->name );
+                UpdateGMCPString( d, GMCP_ROOM_NAME, d->character->in_room->name );
+                UpdateGMCPNumber( d, GMCP_ROOM_VNUM, d->character->in_room->vnum );
 
-			UpdateGMCPString( d, GMCP_AFFECT, buf );
-		}
+                buf[0] = '\0';
+                buf2[0] = '\0';
 
-		SendUpdatedGMCP( d );
-	}
+                for ( i = DIR_NORTH; i <= DIR_DOWN; i++ )
+                {
+                    if ( !room->exit[i] )
+                        continue;
 
-	return;
+                    if (room->exit[i]->u1.to_room == NULL)
+                    {
+                        if (room->source)
+                            log_stringf("BUG: Clone Room %ld (%ld %ld) has a NULL exit %d", room->source->vnum, room->id[0], room->id[1], i);
+                        else
+                            log_stringf("BUG: Room %ld has a NULL exit %d", room->vnum, i);
+                        continue;
+                    }
+
+                    if (room->exit[i]->wilds.x)
+                    {
+                        sprintf (buf, "\"%s\": \"%d,%d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
+                        strcat (buf,buf2);
+                    }
+                    if ( buf[0] == '\0' )
+                    {
+                        #ifndef COLOR_CODE_FIX
+                        sprintf( buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
+                        #else
+                        sprintf( buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
+                        #endif
+                    }
+                    else
+                    {
+                        if (room->wilds || room->exit[i]->wilds.x || room->exit[i]->wilds.y)
+                        {
+                            sprintf(buf, "\"%s\": \"%d, %d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
+                        }
+                        else if (room->exit[i]->u1.to_room == NULL)
+                        {
+                            if (room->source)
+                                log_stringf("BUG: Clone Room %ld (%ld %ld) has a NULL exit %d", room->source->vnum, room->id[0], room->id[1], i);
+                            else
+                                log_stringf("BUG: Room %ld has a NULL exit %d", room->vnum, i);
+
+                            sprintf(buf2, "\"%s\": \"???\"", exit[i]);
+                        }
+                        else if (room->source)
+                        {
+                            sprintf(buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->source->vnum);
+                        }
+
+                        else
+                        {
+                            sprintf( buf2, ", \"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
+                        }
+                        strcat( buf, buf2 );
+                    }
+                }
+
+                UpdateGMCPString( d, GMCP_ROOM_EXITS, buf );
+            }
+
+            if ( enemy )
+            {
+                CHAR_DATA *ch;
+                buf[0] = '\0';
+                buf2[0] = '\0';
+
+                for ( ch = room->people; ch; ch = ch->next_in_room )
+                {
+                    /* Don't check current ch as this will double up enemies. */
+                    if ( ch == d->character )
+                        continue;
+
+                    if ( ch->fighting == d->character )
+                    {
+                        enemy = ch;
+                        #ifndef COLOR_CODE_FIX
+                        if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+                        else
+                        {
+                            sprintf( buf2, ", { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+                            strcat( buf, buf2 );
+                        }
+                        #else
+                        if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+                        else
+                        {
+                            sprintf( buf2, ", {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+                            strcat( buf, buf2 );
+                        }
+                        #endif
+                    }
+                }
+
+                strcat( buf, " ]" );
+                UpdateGMCPString( d, GMCP_ENEMY, buf );
+            }
+            else
+            {
+                UpdateGMCPString( d, GMCP_ENEMY, "" );
+            }
+
+            buf[0] = '\0';
+            buf2[0] = '\0';
+            
+            for ( paf = d->character->affected; paf; paf = paf->next )
+            {
+                #ifndef COLOR_CODE_FIX
+                if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                else
+                {
+                    sprintf( buf2, ", { \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                    strcat( buf, buf2 );
+                }
+                #else
+                if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                else
+                {
+                    sprintf( buf2, ", {{ \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                    strcat( buf, buf2 );
+                }
+                #endif                
+            }
+            
+
+            if ( buf[0] == '\0' )
+                sprintf( buf, "[]" );
+            else
+                strcat( buf, " ]" );
+
+            UpdateGMCPString( d, GMCP_AFFECT, buf );
+        }
+
+        SendUpdatedGMCP( d );
+    }
+
+    return;
 }

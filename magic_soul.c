@@ -72,11 +72,11 @@ SPELL_FUNC(spell_soul_essence)
 
             if (boost_table[BOOST_PNEUMA].boost != 100)
             {
-        		send_to_char("{WPNEUMA boost!{x\n\r", ch);
-       			ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
+                send_to_char("{WPNEUMA boost!{x\n\r", ch);
+                   ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
             }
             else
-        		ch->pneuma += i;
+                ch->pneuma += i;
             
         } else
             send_to_char("You absorb soul essence, but it completely dissipates...\n\r", ch);

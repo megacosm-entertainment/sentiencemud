@@ -108,73 +108,73 @@ const long quest_item_token_table[] =
 
 
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
-	char *header, char *footer, char *prefix, char *suffix, int line_width)
+    char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
-	OBJ_INDEX_DATA *scroll_index = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
-	if( scroll_index == NULL )
-	{
-		scroll_index = get_reserved_obj_index("obj_quest_scroll");
-	}
+    OBJ_INDEX_DATA *scroll_index = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+    if( scroll_index == NULL )
+    {
+        scroll_index = get_reserved_obj_index("obj_quest_scroll");
+    }
 
-	OBJ_DATA *scroll = create_object(scroll_index, 0, true);
-	if( scroll != NULL )
-	{
-		/*
-		sprintf(buf2,
-			"{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
-			"((o))                                                                                         )\n\r"
-			"{W \\U/_________________________________________________________________________________________/\n\r"
-			"{W  |\n\r"
-			"{W  |  {xNoble %s{x,\n\r{W  |\n\r"
-			"{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
-			"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
-			"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
-			"{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
-			"{W  |  {xshall be justly rewarded.\n\r{W  |  {x\n\r",
-			ch->name, questgiver);
-		*/
+    OBJ_DATA *scroll = create_object(scroll_index, 0, true);
+    if( scroll != NULL )
+    {
+        /*
+        sprintf(buf2,
+            "{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
+            "((o))                                                                                         )\n\r"
+            "{W \\U/_________________________________________________________________________________________/\n\r"
+            "{W  |\n\r"
+            "{W  |  {xNoble %s{x,\n\r{W  |\n\r"
+            "{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
+            "{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
+            "{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
+            "{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
+            "{W  |  {xshall be justly rewarded.\n\r{W  |  {x\n\r",
+            ch->name, questgiver);
+        */
 
-		BUFFER *buffer = new_buf();
-		char buf[MSL];
+        BUFFER *buffer = new_buf();
+        char buf[MSL];
 
-		// Need to add overflow protection
-		char *replace1 = string_replace_static(header, "$PLAYER$", ch->name);
-		char *replace2 = string_replace_static(replace1, "$QUESTOR$", questgiver);
-		add_buf(buffer, replace2);
+        // Need to add overflow protection
+        char *replace1 = string_replace_static(header, "$PLAYER$", ch->name);
+        char *replace2 = string_replace_static(replace1, "$QUESTOR$", questgiver);
+        add_buf(buffer, replace2);
 
-		for (QUEST_PART_DATA *part = ch->quest->parts; part != NULL; part = part->next)
-		{
-			if( line_width > 0 && !IS_NULLSTR(suffix) )
-			{
-				int width = line_width + get_colour_width(part->description);
+        for (QUEST_PART_DATA *part = ch->quest->parts; part != NULL; part = part->next)
+        {
+            if( line_width > 0 && !IS_NULLSTR(suffix) )
+            {
+                int width = line_width + get_colour_width(part->description);
 
-				sprintf(buf, "%s%-*.*s%s\n\r", prefix, width, width, part->description, suffix);
-			}
-			else
-			{
-				sprintf(buf, "%s%s\n\r", prefix, part->description);
-			}
-			add_buf(buffer, buf);
-		}
+                sprintf(buf, "%s%-*.*s%s\n\r", prefix, width, width, part->description, suffix);
+            }
+            else
+            {
+                sprintf(buf, "%s%s\n\r", prefix, part->description);
+            }
+            add_buf(buffer, buf);
+        }
 
-		/*
-		sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
-			"{W /A\\                                                                                         \\\n\r"
-			"((o))                                                                                         )\n\r"
-			"{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
+        /*
+        sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
+            "{W /A\\                                                                                         \\\n\r"
+            "((o))                                                                                         )\n\r"
+            "{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
 
-		// Need to add overflow protection
-		replace1 = string_replace_static(footer, "$PLAYER$", ch->name);
-		replace2 = string_replace_static(replace1, "$QUESTOR$", questgiver);
-		add_buf(buffer, replace2);
+        // Need to add overflow protection
+        replace1 = string_replace_static(footer, "$PLAYER$", ch->name);
+        replace2 = string_replace_static(replace1, "$QUESTOR$", questgiver);
+        add_buf(buffer, replace2);
 
-		free_string(scroll->full_description);
-		scroll->full_description = str_dup(buffer->string);
+        free_string(scroll->full_description);
+        scroll->full_description = str_dup(buffer->string);
 
-		free_buf(buffer);
-	}
+        free_buf(buffer);
+    }
 
-	return scroll;
+    return scroll;
 }
 
 void do_quest(CHAR_DATA *ch, char *argument)
@@ -858,73 +858,73 @@ void do_quest(CHAR_DATA *ch, char *argument)
  */
 bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
-	QUEST_PART_DATA *part;
-	OBJ_DATA *scroll;
-	int parts;
-	int i;
+    QUEST_PART_DATA *part;
+    OBJ_DATA *scroll;
+    int parts;
+    int i;
 
-	ch->quest->generating = true;
-	ch->quest->scripted = false;
+    ch->quest->generating = true;
+    ch->quest->scripted = false;
 
-	if (ch->tot_level <= 30)
-		parts = number_range(1, 3);
-	else if (ch->tot_level <= 60)
-		parts = number_range(3, 6);
-	else if (ch->tot_level <= 90)
-		parts = number_range(7, 9);
-	else
-		parts = number_range(8, 15);
+    if (ch->tot_level <= 30)
+        parts = number_range(1, 3);
+    else if (ch->tot_level <= 60)
+        parts = number_range(3, 6);
+    else if (ch->tot_level <= 90)
+        parts = number_range(7, 9);
+    else
+        parts = number_range(8, 15);
 
-	/* fun */
-	bool bFun = number_percent() < 5;
-	if (bFun)
-		parts = parts * 2;
+    /* fun */
+    bool bFun = number_percent() < 5;
+    if (bFun)
+        parts = parts * 2;
 
-	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
+    QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
 
-	// MORE FUN
-	questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
-	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
-	questman->tempstore[2] = qd->scroll;		// Default quest scroll item
-	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
-		return false;
-	parts = questman->tempstore[0];				// Updated number of parts to do
-	if( parts < 1 ) parts = 1;					//    Require at least one part.
+    // MORE FUN
+    questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
+    questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
+    questman->tempstore[2] = qd->scroll;		// Default quest scroll item
+    if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
+        return false;
+    parts = questman->tempstore[0];				// Updated number of parts to do
+    if( parts < 1 ) parts = 1;					//    Require at least one part.
 
-	long scroll_vnum = questman->tempstore[2];	// Get value back
-	if( scroll_vnum < 1 )
-		scroll_vnum = qd->scroll;
+    long scroll_vnum = questman->tempstore[2];	// Get value back
+    if( scroll_vnum < 1 )
+        scroll_vnum = qd->scroll;
 
-	for (i = 0; i < parts; i++)
-	{
-		part = new_quest_part();
-		part->next = ch->quest->parts;
-		ch->quest->parts = part;
-		part->index = parts - i;
+    for (i = 0; i < parts; i++)
+    {
+        part = new_quest_part();
+        part->next = ch->quest->parts;
+        ch->quest->parts = part;
+        part->index = parts - i;
 
-		if (generate_quest_part(ch, questman, part, parts - i))
-			continue;
-		else
-			return false;
-	}
+        if (generate_quest_part(ch, questman, part, parts - i))
+            continue;
+        else
+            return false;
+    }
 
-	// create the scroll
-	scroll = generate_quest_scroll(ch, questman->short_descr, scroll_vnum,
-		qd->header, qd->footer, qd->prefix, qd->suffix, qd->line_width);
+    // create the scroll
+    scroll = generate_quest_scroll(ch, questman->short_descr, scroll_vnum,
+        qd->header, qd->footer, qd->prefix, qd->suffix, qd->line_width);
 
-	if( scroll == NULL )
-	{
-		// COMPLAIN
-		return false;
-	}
+    if( scroll == NULL )
+    {
+        // COMPLAIN
+        return false;
+    }
 
-	free_string(scroll->name);
-	free_string(scroll->short_descr);
-	free_string(scroll->description);
+    free_string(scroll->name);
+    free_string(scroll->short_descr);
+    free_string(scroll->description);
 
-	scroll->name = str_dup(qd->keywords);
-	scroll->short_descr = str_dup(qd->short_descr);
-	scroll->description = str_dup(qd->long_descr);
+    scroll->name = str_dup(qd->keywords);
+    scroll->short_descr = str_dup(qd->short_descr);
+    scroll->description = str_dup(qd->long_descr);
 
 
     act("$N gives $p to $n.", ch, questman, NULL, scroll, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -936,11 +936,11 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 /* Set up a quest part. */
 bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno)
 {
-	questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
+    questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
 
-	// The quest part must return a positive value to be valid
-	//  returning a zero due to "end 0" or not having the QUEST_PART trigger will be considered invalid
-	//  errors in script execution will be negative, so will be considered invalid.
+    // The quest part must return a positive value to be valid
+    //  returning a zero due to "end 0" or not having the QUEST_PART trigger will be considered invalid
+    //  errors in script execution will be negative, so will be considered invalid.
     return p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL) > 0;
 }
 
@@ -955,42 +955,42 @@ void quest_update(void)
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-	if (d->character != NULL && d->connected == CON_PLAYING)
-	{
-	    ch = d->character;
+    if (d->character != NULL && d->connected == CON_PLAYING)
+    {
+        ch = d->character;
 
-	    if (ch->quest == NULL && ch->nextquest > 0)
-	    {
-		ch->nextquest--;
-		if (ch->nextquest == 0)
-		{
-		    send_to_char("{WYou may now quest again.{x\n\r",ch);
-		    return;
-		}
-	    }
-	    else
-	    if (IS_QUESTING(ch) && !ch->quest->generating)
-	    {
-		if (--ch->countdown <= 0)
-		{
-		    ch->nextquest = 0;
-		    sprintf(buf,
-			"{RYou have run out of time for your quest!\n\r"
-			"You may quest again in %d minutes.{x\n\r",ch->nextquest);
-		    send_to_char(buf, ch);
-		    free_quest(ch->quest);
-		    ch->quest = NULL;
-		}
+        if (ch->quest == NULL && ch->nextquest > 0)
+        {
+        ch->nextquest--;
+        if (ch->nextquest == 0)
+        {
+            send_to_char("{WYou may now quest again.{x\n\r",ch);
+            return;
+        }
+        }
+        else
+        if (IS_QUESTING(ch) && !ch->quest->generating)
+        {
+        if (--ch->countdown <= 0)
+        {
+            ch->nextquest = 0;
+            sprintf(buf,
+            "{RYou have run out of time for your quest!\n\r"
+            "You may quest again in %d minutes.{x\n\r",ch->nextquest);
+            send_to_char(buf, ch);
+            free_quest(ch->quest);
+            ch->quest = NULL;
+        }
 
-		if (ch->countdown > 0 && ch->countdown < 6)
-		{
-		    sprintf(buf, "You only have {Y%d{x minutes remaining to "
-			    "finish your quest!\n\r", ch->countdown);
-		    send_to_char(buf, ch);
-		    return;
-		}
-	    }
-	}
+        if (ch->countdown > 0 && ch->countdown < 6)
+        {
+            sprintf(buf, "You only have {Y%d{x minutes remaining to "
+                "finish your quest!\n\r", ch->countdown);
+            send_to_char(buf, ch);
+            return;
+        }
+        }
+    }
     }
 }
 
@@ -1002,7 +1002,7 @@ bool is_quest_token(OBJ_DATA *obj)
     for (; quest_item_token_table[i] != 0; i++)
     {
         if (obj->pIndexData->vnum == quest_item_token_table[i])
-	    return true;
+        return true;
     }
 
     return false;
@@ -1022,8 +1022,8 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 
     if (IS_NPC(ch))
     {
-		perrf(LOG_QUEST, "check_quest_rescue_mob: NPC");
-		return;
+        perrf(LOG_QUEST, "check_quest_rescue_mob: NPC");
+        return;
     }
 
     i = 0;
@@ -1031,47 +1031,47 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
     {
         i++;
 
-		// already did it
-		if (part->complete == true)
-			continue;
+        // already did it
+        if (part->complete == true)
+            continue;
 
-		found = false;
-		mob = ch->in_room->people;
-		while (mob != NULL)
-		{
-			if (IS_NPC(mob) && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
-		    {
-				if( show ) {
-		        	sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
-		        	do_say(mob, buf);
-				}
+        found = false;
+        mob = ch->in_room->people;
+        while (mob != NULL)
+        {
+            if (IS_NPC(mob) && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
+            {
+                if( show ) {
+                    sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
+                    do_say(mob, buf);
+                }
 
-				if (mob->master != NULL)
-					stop_follower(mob,show);
+                if (mob->master != NULL)
+                    stop_follower(mob,show);
 
-				add_follower(mob, ch, show);
+                add_follower(mob, ch, show);
 
-				if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_AGGRESSIVE))
-				    REMOVE_BIT(mob->act[0], ACT_AGGRESSIVE);
+                if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_AGGRESSIVE))
+                    REMOVE_BIT(mob->act[0], ACT_AGGRESSIVE);
 
-				found = true;
-				break;
-		    }
+                found = true;
+                break;
+            }
 
-		    mob = mob->next_in_room;
-		}
+            mob = mob->next_in_room;
+        }
 
-		if (found && !part->complete)
-		{
-			if( show )
-			{
-				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-				send_to_char(buf, ch);
-			}
+        if (found && !part->complete)
+        {
+            if( show )
+            {
+                sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                send_to_char(buf, ch);
+            }
 
-			part->complete = true;
-			break;
-		}
+            part->complete = true;
+            break;
+        }
     }
 }
 
@@ -1083,40 +1083,40 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
     if (obj == NULL || obj->item_type == ITEM_MONEY)
     {
-		pbugf(LOG_QUEST, "bad obj!");
-		return;
+        pbugf(LOG_QUEST, "bad obj!");
+        return;
     }
 
     if (IS_NPC(ch))
     {
-		pbugf(LOG_QUEST, "NPC");
-		return;
+        pbugf(LOG_QUEST, "NPC");
+        return;
     }
 
     if (ch->quest != NULL)
     {
 
-		i = 0;
-		for (part = ch->quest->parts; part != NULL; part = part->next)
-		{
-			i++;
+        i = 0;
+        for (part = ch->quest->parts; part != NULL; part = part->next)
+        {
+            i++;
 
-			// already did it
-			if (part->complete == true)
-				continue;
+            // already did it
+            if (part->complete == true)
+                continue;
 
-			if (part->pObj == obj)
-			{
-				if( show )
-				{
-					char buf[MAX_STRING_LENGTH];
-					sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-					send_to_char(buf, ch);
-				}
+            if (part->pObj == obj)
+            {
+                if( show )
+                {
+                    char buf[MAX_STRING_LENGTH];
+                    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                    send_to_char(buf, ch);
+                }
 
-				part->complete = true;
-			}
-		}
+                part->complete = true;
+            }
+        }
     }
 }
 
@@ -1131,8 +1131,8 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 
     if (IS_NPC(ch))
     {
-		pbugf(LOG_QUEST, "NPC");
-		return;
+        pbugf(LOG_QUEST, "NPC");
+        return;
     }
 
     i = 0;
@@ -1140,20 +1140,20 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
     {
         i++;
 
-		// already did it
-		if (part->complete == true)
-			continue;
+        // already did it
+        if (part->complete == true)
+            continue;
 
         if (part->mob == mob->pIndexData->vnum && !part->complete)
-		{
-			if( show ) {
-				char buf[MAX_STRING_LENGTH];
-				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-				send_to_char(buf, ch);
-			}
+        {
+            if( show ) {
+                char buf[MAX_STRING_LENGTH];
+                sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                send_to_char(buf, ch);
+            }
 
-			part->complete = true;
-		}
+            part->complete = true;
+        }
     }
 }
 
@@ -1168,14 +1168,14 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 
     if (IS_NPC(ch))
     {
-		pbugf(LOG_QUEST, "NPC");
-		return;
+        pbugf(LOG_QUEST, "NPC");
+        return;
     }
 
     if (room == NULL)
     {
-		pbugf(LOG_QUEST, "checking a null room");
-		return;
+        pbugf(LOG_QUEST, "checking a null room");
+        return;
     }
 
     i = 0;
@@ -1183,40 +1183,40 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
     {
         i++;
 
-		// already did it
-		if (part->complete == true)
-			continue;
+        // already did it
+        if (part->complete == true)
+            continue;
 
-		target_room = get_room_index((find_area_by_vnum(part->room) ?: get_system_area_fallback()), part->room);
+        target_room = get_room_index((find_area_by_vnum(part->room) ?: get_system_area_fallback()), part->room);
 
-		/* Not going by room vnum to prevent multiple rooms with the same name */
-		if (target_room != NULL && !str_cmp(target_room->name, room->name))
-		{
+        /* Not going by room vnum to prevent multiple rooms with the same name */
+        if (target_room != NULL && !str_cmp(target_room->name, room->name))
+        {
 
-			if( show )
-			{
-				char buf[MAX_STRING_LENGTH];
-				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-				send_to_char(buf, ch);
-			}
+            if( show )
+            {
+                char buf[MAX_STRING_LENGTH];
+                sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                send_to_char(buf, ch);
+            }
 
-			part->complete = true;
-		}
+            part->complete = true;
+        }
     }
 }
 
 bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
 {
-	QUEST_PART_DATA *part;
-	int i;
+    QUEST_PART_DATA *part;
+    int i;
 
-	if (ch->quest == NULL)
-		return false;
+    if (ch->quest == NULL)
+        return false;
 
     if (IS_NPC(ch))
     {
-		pbugf(LOG_QUEST, "check_quest_custom_task: NPC");
-		return false;
+        pbugf(LOG_QUEST, "check_quest_custom_task: NPC");
+        return false;
     }
 
     i = 0;
@@ -1224,24 +1224,24 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
     {
         i++;
 
-		// Not the current task nor is a custom task
+        // Not the current task nor is a custom task
         if( task != i || !part->custom_task )
-			continue;
+            continue;
 
-		// already did it
-		if (part->complete == true)
-	    	continue;
+        // already did it
+        if (part->complete == true)
+            continue;
 
 
-		if( show )
-		{
-		    char buf[MAX_STRING_LENGTH];
-	    	sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-	    	send_to_char(buf, ch);
-		}
-	    part->complete = true;
+        if( show )
+        {
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+            send_to_char(buf, ch);
+        }
+        part->complete = true;
 
-	    return true;
+        return true;
     }
 
     return false;
@@ -1271,14 +1271,14 @@ bool is_quest_item(OBJ_DATA *obj)
 
     for (i = 0; quest_item_table[i] != 0; i++)
     {
-	if (obj->pIndexData->vnum == quest_item_table[i])
-	    return true;
+    if (obj->pIndexData->vnum == quest_item_table[i])
+        return true;
     }
 
     for (i = 0; quest2_item_table[i] != 0; i++)
     {
-	if (obj->pIndexData->vnum == quest2_item_table[i])
-	    return true;
+    if (obj->pIndexData->vnum == quest2_item_table[i])
+        return true;
     }
 
     return false;
@@ -1292,8 +1292,8 @@ QUEST_INDEX_DATA *get_quest_index(long vnum)
     for (quest_index = quest_index_list; quest_index != NULL;
           quest_index = quest_index->next)
     {
-	if (quest_index->vnum == vnum)
-	    return quest_index;
+    if (quest_index->vnum == vnum)
+        return quest_index;
     }
 */
     return NULL;
@@ -1306,38 +1306,38 @@ void check_quest_part_complete(CHAR_DATA *ch, int type)
 
 CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *mob;
+    CHAR_DATA *mob;
 
-	if (argument[0] == '\0')
-	{
-		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-		{
-			if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_RENEWER))
-			{
-				return mob;
-			}
-		}
+    if (argument[0] == '\0')
+    {
+        for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
+        {
+            if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_RENEWER))
+            {
+                return mob;
+            }
+        }
 
-		send_to_char("Renew with whom?\n\r", ch);
-		return NULL;
-	}
-	else
-	{
-		if ((mob = get_char_room(ch, NULL, argument)) == NULL)
-		{
-			send_to_char("They aren't here.\n\r", ch);
-			return NULL;
-		}
+        send_to_char("Renew with whom?\n\r", ch);
+        return NULL;
+    }
+    else
+    {
+        if ((mob = get_char_room(ch, NULL, argument)) == NULL)
+        {
+            send_to_char("They aren't here.\n\r", ch);
+            return NULL;
+        }
 
-		if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_RENEWER))
-		{
-			// Make a tell?
-			act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-			return NULL;
-		}
+        if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_RENEWER))
+        {
+            // Make a tell?
+            act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return NULL;
+        }
 
-		return mob;
-	}
+        return mob;
+    }
 
 }
 
@@ -1348,450 +1348,450 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 // RENEW OTHER <KEYWORD>[ <RENEWER>]
 void do_renew(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *mob;
-	OBJ_DATA *obj;
-	int cost;
-	char buf[MSL+1];
-	char arg1[MIL+1];
-	char arg2[MIL+1];
-	char arg3[MIL+1];
+    CHAR_DATA *mob;
+    OBJ_DATA *obj;
+    int cost;
+    char buf[MSL+1];
+    char arg1[MIL+1];
+    char arg2[MIL+1];
+    char arg3[MIL+1];
 
-	argument = one_argument(argument, arg1);
-	argument = one_argument(argument, arg2);
-	argument = one_argument(argument, arg3);
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
 
-	if (arg1[0] == '\0')
-	{
-		send_to_char("Renew what?\n\r", ch);
-		send_to_char("RENEW PET[ <RENEWER>]              to renew your pet.\n\r", ch);
-		send_to_char("RENEW MOUNT[ <RENEWER>]            to renew your mount.\n\r", ch);
-		send_to_char("RENEW GUARD <MOBILE>[ <RENEWER>]   to renew one of your guards.\n\r", ch);
-		send_to_char("RENEW OBJECT <OBJECT>[ <RENEWER>]  to renew an item.\n\r", ch);
-		send_to_char("RENEW CUSTOM <KEYWORD>[ <RENEWER>] to renew any custom service or good.\n\r", ch);
-		send_to_char("RENEW LIST[ <RENEWER>]             asks for a list of things that can be renewed.\n\r", ch);
-		return;
-	}
-
-
-	if( !str_prefix(arg1, "pet") )
-	{
-		mob = get_renewer_here(ch, arg2);
-		if( mob == NULL )
-			return;
-
-		if( ch->pet == NULL )
-		{
-			send_to_char("You don't have a pet.\n\r", ch);
-			return;
-		}
-
-		// Requires a pet
-		if( mob->shop != NULL )
-		{
-			cost = ch->pet->tot_level * ch->pet->tot_level;
-			mob->tempstore[0] = UMAX(cost, 1);
-			mob->tempstore[1] = STOCK_PET;
-			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
-				return;
-
-			// Check QUESTPOINTS
-			cost = mob->tempstore[0];
-			if( cost <= 0 )
-			{
-				sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
-
-			if (ch->questpoints < cost)
-			{
-				sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
-				do_say(mob, buf);
-				return;
-			}
-
-			mob->tempstore[0] = cost;
-			mob->tempstore[1] = STOCK_PET;
-			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_RENEW, NULL);
-
-			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
-			act(buf, ch->pet, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
-			ch->questpoints -= cost;
-		}
-		else
-		{
-			sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
-			do_say(mob, buf);
-		}
-		return;
-	}
-	else if(!str_prefix(arg1, "mount") )
-	{
-		mob = get_renewer_here(ch, arg2);
-		if( mob == NULL )
-			return;
-
-		if( !MOUNTED(ch) )
-		{
-			send_to_char("You aren't mounted.\n\r", ch);
-			return;
-		}
-
-		if( !str_cmp(ch->mount->owner, ch->name) )
-		{
-			// Yet?
-			send_to_char("Personal mounts cannot be renewed.\n\r", ch);
-			return;
-		}
-
-		if( mob->shop != NULL )
-		{
-			cost = 25 * ch->mount->tot_level * ch->mount->tot_level / 10;
-			mob->tempstore[0] = UMAX(cost, 1);
-			mob->tempstore[1] = STOCK_MOUNT;
-			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
-				return;
-
-			// Check QUESTPOINTS
-			cost = mob->tempstore[0];
-			if( cost <= 0 )
-			{
-				sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
-
-			if (ch->questpoints < cost)
-			{
-				sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
-				do_say(mob, buf);
-				return;
-			}
-
-			mob->tempstore[0] = cost;
-			mob->tempstore[1] = STOCK_MOUNT;
-			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_RENEW, NULL);
-
-			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
-			act(buf, ch->mount, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
-			ch->questpoints -= cost;
-		}
-		else
-		{
-			sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
-			do_say(mob, buf);
-		}
-
-		return;
-	}
-	else if(!str_prefix(arg1, "guard") )
-	{
-		mob = get_renewer_here(ch, arg3);
-		if( mob == NULL )
-			return;
-
-		CHAR_DATA *guard = get_char_room(ch, NULL, arg2);
-		if( guard == NULL )
-		{
-			send_to_char("They aren't here.\n\r", ch);
-			return;
-		}
-
-		if( guard->master != ch )
-		{
-			send_to_char("They are not following you.\n\r", ch);
-			return;
-		}
-
-		if( mob->shop != NULL )
-		{
-			cost = 5 * guard->tot_level * guard->tot_level;
-			mob->tempstore[0] = UMAX(cost, 1);
-			mob->tempstore[1] = STOCK_GUARD;
-			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
-				return;
-
-			// Check QUESTPOINTS
-			cost = mob->tempstore[0];
-			if( cost <= 0 )
-			{
-				sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
-
-			if (ch->questpoints < cost)
-			{
-				sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
-				do_say(mob, buf);
-				return;
-			}
-
-			mob->tempstore[0] = cost;
-			mob->tempstore[1] = STOCK_GUARD;
-			p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_RENEW, NULL);
-
-			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
-			act(buf, guard, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
-			ch->questpoints -= cost;
-		}
-		else
-		{
-			sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
-			do_say(mob, buf);
-		}
-
-		return;
-	}
-	else if( !str_prefix(arg1, "object") )
-	{
-		mob = get_renewer_here(ch, arg3);
-		if( mob == NULL )
-			return;
-
-		if ((obj = get_obj_carry(ch, arg2, ch)) == NULL)
-		{
-			sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-		cost = obj->cost/10;
-		mob->tempstore[0] = UMAX(cost, 1);
-		mob->tempstore[1] = STOCK_OBJECT;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRERENEW, NULL) <= 0)
-			return;
-
-		cost = mob->tempstore[0];
-		if( cost <= 0 )
-		{
-			sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+    if (arg1[0] == '\0')
+    {
+        send_to_char("Renew what?\n\r", ch);
+        send_to_char("RENEW PET[ <RENEWER>]              to renew your pet.\n\r", ch);
+        send_to_char("RENEW MOUNT[ <RENEWER>]            to renew your mount.\n\r", ch);
+        send_to_char("RENEW GUARD <MOBILE>[ <RENEWER>]   to renew one of your guards.\n\r", ch);
+        send_to_char("RENEW OBJECT <OBJECT>[ <RENEWER>]  to renew an item.\n\r", ch);
+        send_to_char("RENEW CUSTOM <KEYWORD>[ <RENEWER>] to renew any custom service or good.\n\r", ch);
+        send_to_char("RENEW LIST[ <RENEWER>]             asks for a list of things that can be renewed.\n\r", ch);
+        return;
+    }
 
 
-		if (ch->questpoints < cost)
-		{
-			sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that item.", pers(ch, mob), cost);
-			do_say(mob, buf);
-			return;
-		}
+    if( !str_prefix(arg1, "pet") )
+    {
+        mob = get_renewer_here(ch, arg2);
+        if( mob == NULL )
+            return;
 
-		mob->tempstore[0] = cost;
-		mob->tempstore[1] = STOCK_OBJECT;
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RENEW, NULL);
+        if( ch->pet == NULL )
+        {
+            send_to_char("You don't have a pet.\n\r", ch);
+            return;
+        }
 
-		sprintf(buf, "{YYou renew $p with $N for %d quest points.{x", cost);
-		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		ch->questpoints -= cost;
+        // Requires a pet
+        if( mob->shop != NULL )
+        {
+            cost = ch->pet->tot_level * ch->pet->tot_level;
+            mob->tempstore[0] = UMAX(cost, 1);
+            mob->tempstore[1] = STOCK_PET;
+            if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+                return;
 
-		return;
-	}
-	else if( !str_prefix(arg1, "custom") )
-	{
-		mob = get_renewer_here(ch, arg3);
-		if( mob == NULL )
-			return;
+            // Check QUESTPOINTS
+            cost = mob->tempstore[0];
+            if( cost <= 0 )
+            {
+                sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
 
-		mob->tempstore[0] = 0;	// Customs REQUIRE the script to specify the cost
-		mob->tempstore[1] = STOCK_CUSTOM;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, arg2) <= 0)
-			return;
+            if (ch->questpoints < cost)
+            {
+                sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
+                do_say(mob, buf);
+                return;
+            }
 
-		cost = mob->tempstore[0];
-		if( cost <= 0 )
-		{
-			sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+            mob->tempstore[0] = cost;
+            mob->tempstore[1] = STOCK_PET;
+            p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_RENEW, NULL);
+
+            sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
+            act(buf, ch->pet, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
+            ch->questpoints -= cost;
+        }
+        else
+        {
+            sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
+            do_say(mob, buf);
+        }
+        return;
+    }
+    else if(!str_prefix(arg1, "mount") )
+    {
+        mob = get_renewer_here(ch, arg2);
+        if( mob == NULL )
+            return;
+
+        if( !MOUNTED(ch) )
+        {
+            send_to_char("You aren't mounted.\n\r", ch);
+            return;
+        }
+
+        if( !str_cmp(ch->mount->owner, ch->name) )
+        {
+            // Yet?
+            send_to_char("Personal mounts cannot be renewed.\n\r", ch);
+            return;
+        }
+
+        if( mob->shop != NULL )
+        {
+            cost = 25 * ch->mount->tot_level * ch->mount->tot_level / 10;
+            mob->tempstore[0] = UMAX(cost, 1);
+            mob->tempstore[1] = STOCK_MOUNT;
+            if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+                return;
+
+            // Check QUESTPOINTS
+            cost = mob->tempstore[0];
+            if( cost <= 0 )
+            {
+                sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
+
+            if (ch->questpoints < cost)
+            {
+                sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
+                do_say(mob, buf);
+                return;
+            }
+
+            mob->tempstore[0] = cost;
+            mob->tempstore[1] = STOCK_MOUNT;
+            p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_RENEW, NULL);
+
+            sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
+            act(buf, ch->mount, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
+            ch->questpoints -= cost;
+        }
+        else
+        {
+            sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
+            do_say(mob, buf);
+        }
+
+        return;
+    }
+    else if(!str_prefix(arg1, "guard") )
+    {
+        mob = get_renewer_here(ch, arg3);
+        if( mob == NULL )
+            return;
+
+        CHAR_DATA *guard = get_char_room(ch, NULL, arg2);
+        if( guard == NULL )
+        {
+            send_to_char("They aren't here.\n\r", ch);
+            return;
+        }
+
+        if( guard->master != ch )
+        {
+            send_to_char("They are not following you.\n\r", ch);
+            return;
+        }
+
+        if( mob->shop != NULL )
+        {
+            cost = 5 * guard->tot_level * guard->tot_level;
+            mob->tempstore[0] = UMAX(cost, 1);
+            mob->tempstore[1] = STOCK_GUARD;
+            if(p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+                return;
+
+            // Check QUESTPOINTS
+            cost = mob->tempstore[0];
+            if( cost <= 0 )
+            {
+                sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
+
+            if (ch->questpoints < cost)
+            {
+                sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
+                do_say(mob, buf);
+                return;
+            }
+
+            mob->tempstore[0] = cost;
+            mob->tempstore[1] = STOCK_GUARD;
+            p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_RENEW, NULL);
+
+            sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
+            act(buf, guard, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
+            ch->questpoints -= cost;
+        }
+        else
+        {
+            sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
+            do_say(mob, buf);
+        }
+
+        return;
+    }
+    else if( !str_prefix(arg1, "object") )
+    {
+        mob = get_renewer_here(ch, arg3);
+        if( mob == NULL )
+            return;
+
+        if ((obj = get_obj_carry(ch, arg2, ch)) == NULL)
+        {
+            sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
+
+        cost = obj->cost/10;
+        mob->tempstore[0] = UMAX(cost, 1);
+        mob->tempstore[1] = STOCK_OBJECT;
+        if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRERENEW, NULL) <= 0)
+            return;
+
+        cost = mob->tempstore[0];
+        if( cost <= 0 )
+        {
+            sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
 
-		if (ch->questpoints < cost)
-		{
-			sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
-			do_say(mob, buf);
-			return;
-		}
+        if (ch->questpoints < cost)
+        {
+            sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that item.", pers(ch, mob), cost);
+            do_say(mob, buf);
+            return;
+        }
 
-		mob->tempstore[0] = cost;
-		mob->tempstore[1] = STOCK_CUSTOM;
-		free_string(mob->tempstring);
-		mob->tempstring = &str_empty[0];
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW, arg2);
+        mob->tempstore[0] = cost;
+        mob->tempstore[1] = STOCK_OBJECT;
+        p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RENEW, NULL);
 
-		if(!IS_NULLSTR(mob->tempstring))
-		{
-			sprintf(buf, "{YYou renew %s with $N for %d quest points.{x", mob->tempstring, cost);
-		}
-		else
-		{
-			sprintf(buf, "{YYou renew %s with $N for %d quest points.{x", arg2, cost);
-		}
-		act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		ch->questpoints -= cost;
+        sprintf(buf, "{YYou renew $p with $N for %d quest points.{x", cost);
+        act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        ch->questpoints -= cost;
 
-		return;
-	}
-	else if(!str_prefix(arg1, "list"))
-	{
-		mob = get_renewer_here(ch, arg2);
-		if( mob == NULL )
-			return;
+        return;
+    }
+    else if( !str_prefix(arg1, "custom") )
+    {
+        mob = get_renewer_here(ch, arg3);
+        if( mob == NULL )
+            return;
+
+        mob->tempstore[0] = 0;	// Customs REQUIRE the script to specify the cost
+        mob->tempstore[1] = STOCK_CUSTOM;
+        if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, arg2) <= 0)
+            return;
+
+        cost = mob->tempstore[0];
+        if( cost <= 0 )
+        {
+            sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
 
-		act("{YYou ask $N for a list of things $E can renew.{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		act("$n asks $N for a list of things $E can renew.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW_LIST, NULL))
-			return;
+        if (ch->questpoints < cost)
+        {
+            sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
+            do_say(mob, buf);
+            return;
+        }
 
-		sprintf(buf, "I don't really do anything special here.");
-		do_say(mob, buf);
-		return;
-	}
+        mob->tempstore[0] = cost;
+        mob->tempstore[1] = STOCK_CUSTOM;
+        free_string(mob->tempstring);
+        mob->tempstring = &str_empty[0];
+        p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW, arg2);
+
+        if(!IS_NULLSTR(mob->tempstring))
+        {
+            sprintf(buf, "{YYou renew %s with $N for %d quest points.{x", mob->tempstring, cost);
+        }
+        else
+        {
+            sprintf(buf, "{YYou renew %s with $N for %d quest points.{x", arg2, cost);
+        }
+        act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        ch->questpoints -= cost;
+
+        return;
+    }
+    else if(!str_prefix(arg1, "list"))
+    {
+        mob = get_renewer_here(ch, arg2);
+        if( mob == NULL )
+            return;
+
+
+        act("{YYou ask $N for a list of things $E can renew.{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n asks $N for a list of things $E can renew.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW_LIST, NULL))
+            return;
+
+        sprintf(buf, "I don't really do anything special here.");
+        do_say(mob, buf);
+        return;
+    }
 
 /*
-	if( mob->shop != NULL )
-	{
-		// ** Shopkeeper, find stock entries only **
+    if( mob->shop != NULL )
+    {
+        // ** Shopkeeper, find stock entries only **
 
-		// Find the stock item to renew
-		SHOP_STOCK_DATA *stock = get_stockonly_keeper(ch, mob, char *arg1);
-		if( stock == NULL )
-		{
-			sprintf(buf, "Sorry %s, I do not stock that.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+        // Find the stock item to renew
+        SHOP_STOCK_DATA *stock = get_stockonly_keeper(ch, mob, char *arg1);
+        if( stock == NULL )
+        {
+            sprintf(buf, "Sorry %s, I do not stock that.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
-		obj = NULL;
-		victim = NULL;
-		switch(stock->type)
-		{
-		case STOCK_OBJECT:
-			if( stock->obj == NULL )
-			{
-				sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
+        obj = NULL;
+        victim = NULL;
+        switch(stock->type)
+        {
+        case STOCK_OBJECT:
+            if( stock->obj == NULL )
+            {
+                sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
 
-			if( (obj = get_obj_vnum_carry(ch, stock->obj->vnum, mob)) == NULL )
-			{
-				sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
-			break;
-		case STOCK_PET:
-			if( stock->mob == NULL || ch->pet == NULL )
-			{
-				sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
+            if( (obj = get_obj_vnum_carry(ch, stock->obj->vnum, mob)) == NULL )
+            {
+                sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
+            break;
+        case STOCK_PET:
+            if( stock->mob == NULL || ch->pet == NULL )
+            {
+                sprintf(buf, "Sorry %s, but I cannot help you with that.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
 
-			if( ch->pet->pIndexData != stock->mob )
-			{
-				sprintf(buf, "You don't have that pet, %s.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
+            if( ch->pet->pIndexData != stock->mob )
+            {
+                sprintf(buf, "You don't have that pet, %s.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
 
-			if( stock->duration > 0 )
-			{
-				// This needs
-				if( !IS_SET(ch->pet->act[1], ACT2_HIRED) || (ch->pet->hired_to < 1) )
-				{
-					sprintf(buf, "Sorry %s, but you already own that pet.", pers(ch, mob));
-					do_say(mob, buf);
-					return;
-				}
-			}
-
-
-			if( (obj = get_obj_vnum_carry(ch, stock->obj->vnum, mob)) == NULL )
-			{
-				sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
-				do_say(mob, buf);
-				return;
-			}
-			break;
+            if( stock->duration > 0 )
+            {
+                // This needs
+                if( !IS_SET(ch->pet->act[1], ACT2_HIRED) || (ch->pet->hired_to < 1) )
+                {
+                    sprintf(buf, "Sorry %s, but you already own that pet.", pers(ch, mob));
+                    do_say(mob, buf);
+                    return;
+                }
+            }
 
 
-		// Call PRERENEW
-		mob->tempstore[0] = 0;
-		mob->tempstore[1] = stock->type;
-		mob->tempstore[2] = stock->vnum;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
-			return;
+            if( (obj = get_obj_vnum_carry(ch, stock->obj->vnum, mob)) == NULL )
+            {
+                sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
+                do_say(mob, buf);
+                return;
+            }
+            break;
 
 
-		// Check QUESTPOINTS
-		cost = mob->tempstore[0];
-		if( cost <= 0 )
-		{
-			sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-		if (ch->questpoints < cost)
-		{
-			sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
-			do_say(mob, buf);
-			return;
-		}
+        // Call PRERENEW
+        mob->tempstore[0] = 0;
+        mob->tempstore[1] = stock->type;
+        mob->tempstore[2] = stock->vnum;
+        if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+            return;
 
 
-		sprintf(buf, "You renew $p to $N for %d quest points.", cost);
-		act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        // Check QUESTPOINTS
+        cost = mob->tempstore[0];
+        if( cost <= 0 )
+        {
+            sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
-		// Call RENEW
-	}
-	else
-	{
-		if ((obj = get_obj_carry(ch, arg1, ch)) == NULL)
-		{
-			sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-		cost = obj->cost/10;
-		cost = UMAX(cost, 1);
-
-		mob->tempstore[0] = cost;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_PRERENEW, NULL) <= 0)
-			return;
-
-		cost = mob->tempstore[0];
-		if( cost <= 0 )
-		{
-			sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+        if (ch->questpoints < cost)
+        {
+            sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that.", pers(ch, mob), cost);
+            do_say(mob, buf);
+            return;
+        }
 
 
-		if (ch->questpoints < cost)
-		{
-			sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that item.", pers(ch, mob), cost);
-			do_say(mob, buf);
-			return;
-		}
+        sprintf(buf, "You renew $p to $N for %d quest points.", cost);
+        act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		sprintf(buf, "You renew $p to $N for %d quest points.", cost);
-		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        // Call RENEW
+    }
+    else
+    {
+        if ((obj = get_obj_carry(ch, arg1, ch)) == NULL)
+        {
+            sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
-		act("$n shows $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		act("$N chants a mantra over $p, then hands it back to $n.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        cost = obj->cost/10;
+        cost = UMAX(cost, 1);
 
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_RENEW, NULL);
+        mob->tempstore[0] = cost;
+        if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_PRERENEW, NULL) <= 0)
+            return;
 
-		ch->questpoints -= cost;
-	}
+        cost = mob->tempstore[0];
+        if( cost <= 0 )
+        {
+            sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
+
+
+        if (ch->questpoints < cost)
+        {
+            sprintf(buf, "Sorry %s, but it would take %d quest points for me to renew that item.", pers(ch, mob), cost);
+            do_say(mob, buf);
+            return;
+        }
+
+        sprintf(buf, "You renew $p to $N for %d quest points.", cost);
+        act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+        act("$n shows $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        act("$N chants a mantra over $p, then hands it back to $n.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+
+        p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_RENEW, NULL);
+
+        ch->questpoints -= cost;
+    }
 */
 
 }

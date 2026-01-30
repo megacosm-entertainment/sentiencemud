@@ -37,76 +37,76 @@
 
 struct npc_ship_type
 {
-	int npc_ship_type;
+    int npc_ship_type;
         int ship_type;
 };
 
 struct exp_table
 {
-	long exp;
+    long exp;
 };
 
 struct hint_type
 {
-	char *hint;
+    char *hint;
 };
 
 struct wepHitDice
 {
-	int num;
-	int type;
+    int num;
+    int type;
 };
 
 struct exp_type
 {
-	char class;
-	long exp;
+    char class;
+    long exp;
 };
 
 struct church_rank_type
 {
-	char * rank_name;
+    char * rank_name;
 };
 
 struct church_band_rank_type
 {
-	char * mrank_name; /* males */
-	char * frank_name; /* females */
+    char * mrank_name; /* males */
+    char * frank_name; /* females */
 };
 
 struct church_cult_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct church_order_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct church_church_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct court_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct talk_type
 {
-	char * from;
-	char * to;
+    char * from;
+    char * to;
 };
 
 struct string_type
 {
-	char * name;
+    char * name;
 };
 
 struct flag_type
@@ -114,7 +114,7 @@ struct flag_type
     char *name;
     long bit;
     bool settable;
-	char *description;
+    char *description;
 };
 
 struct church_type
@@ -148,20 +148,20 @@ struct size_type
 
 struct	bit_type
 {
-	const	struct	flag_type *	table;
-	char *				help;
+    const	struct	flag_type *	table;
+    char *				help;
 };
 
 struct do_func_type
 {
-	char *name;
-	DO_FUN *func;
+    char *name;
+    DO_FUN *func;
 };
 
 struct spell_func_type
 {
-	char *name;
-	SPELL_FUN *func;
+    char *name;
+    SPELL_FUN *func;
 };
 
 
@@ -179,7 +179,7 @@ struct game_setting_type {
     char *help;              /* Help text */
     bool olc_settable;       /* Can be modified through OLC */
     bool requires_reboot;    /* Requires reboot to take effect */
-	bool sensitive;		 /* Sensitive setting */
+    bool sensitive;		 /* Sensitive setting */
 };
 
 typedef struct church_log_meta_category {

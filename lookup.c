@@ -46,10 +46,10 @@ int flag_lookup (const char *name, const struct flag_type *flag_table)
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
-		!str_prefix(name,flag_table[flag].name) &&
-		flag_table[flag].settable)
-	    return flag_table[flag].bit;
+    if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+        !str_prefix(name,flag_table[flag].name) &&
+        flag_table[flag].settable)
+        return flag_table[flag].bit;
     }
 
     return 0;
@@ -61,9 +61,9 @@ int flag_find (const char *name, const struct flag_type *flag_table)
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
-		!str_prefix(name,flag_table[flag].name))
-	    return flag_table[flag].bit;
+    if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+        !str_prefix(name,flag_table[flag].name))
+        return flag_table[flag].bit;
     }
 
     return 0;
@@ -75,10 +75,10 @@ int stat_lookup (const char *name, const struct flag_type *flag_table, int inval
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
-		!str_prefix(name,flag_table[flag].name) &&
-		flag_table[flag].settable)
-	    return flag_table[flag].bit;
+    if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+        !str_prefix(name,flag_table[flag].name) &&
+        flag_table[flag].settable)
+        return flag_table[flag].bit;
     }
 
     return invalid;
@@ -90,9 +90,9 @@ int stat_find (const char *name, const struct flag_type *flag_table, int invalid
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
-		!str_prefix(name,flag_table[flag].name))
-	    return flag_table[flag].bit;
+    if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+        !str_prefix(name,flag_table[flag].name))
+        return flag_table[flag].bit;
     }
 
     return invalid;
@@ -104,9 +104,9 @@ int position_lookup (const char *name)
 
    for (pos = 0; position_table[pos].name != NULL; pos++)
    {
-	if (LOWER(name[0]) == LOWER(position_table[pos].name[0])
-	&&  !str_prefix(name,position_table[pos].name))
-	    return pos;
+    if (LOWER(name[0]) == LOWER(position_table[pos].name[0])
+    &&  !str_prefix(name,position_table[pos].name))
+        return pos;
    }
 
    return -1;
@@ -119,9 +119,9 @@ int sex_lookup (const char *name)
 
    for (sex = 0; sex_table[sex].name != NULL; sex++)
    {
-	if (LOWER(name[0]) == LOWER(sex_table[sex].name[0])
-	&&  !str_prefix(name,sex_table[sex].name))
-	    return sex;
+    if (LOWER(name[0]) == LOWER(sex_table[sex].name[0])
+    &&  !str_prefix(name,sex_table[sex].name))
+        return sex;
    }
 
    return -1;
@@ -167,9 +167,9 @@ int liq_lookup (const char *name)
 
     for ( liq = 0; liq_table[liq].liq_name != NULL; liq++)
     {
-	if (LOWER(name[0]) == LOWER(liq_table[liq].liq_name[0])
-	&& !str_prefix(name,liq_table[liq].liq_name))
-	    return liq;
+    if (LOWER(name[0]) == LOWER(liq_table[liq].liq_name[0])
+    && !str_prefix(name,liq_table[liq].liq_name))
+        return liq;
     }
 
     return -1;
@@ -178,56 +178,56 @@ int liq_lookup (const char *name)
 
 int material_lookup (register const char *name)
 {
-	register int i;
+    register int i;
 
-	for(i = 0; material_table[i].name; i++)
-		if (!str_prefix(name,material_table[i].name))
-			return i;
+    for(i = 0; material_table[i].name; i++)
+        if (!str_prefix(name,material_table[i].name))
+            return i;
 
-	return -1;
+    return -1;
 }
 
 
 char *get_weapon_class(OBJ_INDEX_DATA *obj)
 {
-	char *name = flag_name(weapon_class, obj->value[0]);
+    char *name = flag_name(weapon_class, obj->value[0]);
 
-	return name ? name : "unknown";
+    return name ? name : "unknown";
 }
 
 
 char *flag_name(register const struct flag_type *flag_table, register int bit)
 {
-	register int i;
+    register int i;
 
-	for (i = 0; flag_table[i].name; i++)
-		if (flag_table[i].bit == bit)
-			return flag_table[i].name;
+    for (i = 0; flag_table[i].name; i++)
+        if (flag_table[i].bit == bit)
+            return flag_table[i].name;
 
-	return NULL;
+    return NULL;
 }
 
 // @@@NIB : 20070120
 int damage_class_lookup(const char *name)
 {
-	int dc;
+    int dc;
 
-	if(*name) {
-		dc = flag_lookup(name, damage_classes);
-		if(dc == DAM_NONE) dc = DAM_BASH;
-	} else
-		dc = DAM_NONE;
+    if(*name) {
+        dc = flag_lookup(name, damage_classes);
+        if(dc == DAM_NONE) dc = DAM_BASH;
+    } else
+        dc = DAM_NONE;
 
-	return dc;
+    return dc;
 }
 
 // @@@NIB : 20070120
 int toxin_lookup (const char *name)
 {
-	int tox;
-	for (tox = 0; toxin_table[tox].name; tox++)
-		if (!str_prefix (name, toxin_table[tox].name))
-			return tox;
+    int tox;
+    for (tox = 0; toxin_table[tox].name; tox++)
+        if (!str_prefix (name, toxin_table[tox].name))
+            return tox;
 
-	return -1;
+    return -1;
 }

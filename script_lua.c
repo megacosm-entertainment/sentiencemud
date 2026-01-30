@@ -22,9 +22,9 @@
 #define LUA_EXT		".lua"
 
 struct script_lua_data {
-	lua_State *L;		// LUA state for the script
-	char *code;		// Compiled code...
-	unsigned long len;	// Length of compiled code
+    lua_State *L;		// LUA state for the script
+    char *code;		// Compiled code...
+    unsigned long len;	// Length of compiled code
 };
 
 /////////////////////////////////////////
@@ -32,95 +32,95 @@ struct script_lua_data {
 
 static int _lua_buildcode(lua_State* L, const void* p, size_t size, void* u)
 {
-	SCRIPT_LUA *lua = (SCRIPT_LUA *)u;
+    SCRIPT_LUA *lua = (SCRIPT_LUA *)u;
 
-	((void)(L));
+    ((void)(L));
 
-	if(size > 0) {
-		if(!lua->code) {
-			lua->code = alloc_mem(size);
-			if(!lua->code) return 1;
-			lua->len = 0;
-		} else {
-			char *code = alloc_mem(lua->len + size);
-			if(!code) return 1;
-			memcpy(code,lua->code,lua->len);
-			lua->code = code;
-		}
+    if(size > 0) {
+        if(!lua->code) {
+            lua->code = alloc_mem(size);
+            if(!lua->code) return 1;
+            lua->len = 0;
+        } else {
+            char *code = alloc_mem(lua->len + size);
+            if(!code) return 1;
+            memcpy(code,lua->code,lua->len);
+            lua->code = code;
+        }
 
-		memcpy(lua->code + lua->len,p,size);
-		lua->len += size;
-	}
-	return 0;
+        memcpy(lua->code + lua->len,p,size);
+        lua->len += size;
+    }
+    return 0;
 }
 
 bool script_readlua(SCRIPT_DATA *script, char *path)
 {
-	lua_State *L;
-	const Proto *f;
+    lua_State *L;
+    const Proto *f;
 
-	L = script->lua->L;
+    L = script->lua->L;
 
-	// Load the source string into the LUA state, which will compile the code
-	if(luaL_loadstring(L,script->edit_src)) return false;
+    // Load the source string into the LUA state, which will compile the code
+    if(luaL_loadstring(L,script->edit_src)) return false;
 
-	// Grab the compiled information
-	f = clvalue(L->top - 1)->l.p;
+    // Grab the compiled information
+    f = clvalue(L->top - 1)->l.p;
 
-	// Grab the actual compiled data
-	lua_lock(L);
-	luaU_dump(L,f,_lua_buildcode,script->lua,0);
-	lua_unlock(L);
+    // Grab the actual compiled data
+    lua_lock(L);
+    luaU_dump(L,f,_lua_buildcode,script->lua,0);
+    lua_unlock(L);
 
-	return true;
+    return true;
 }
 
 
 
 bool script_loadlua(SCRIPT_DATA *script)
 {
-	// File name format: lua/<TYPE><VNUM>.lua
-	char path[MSL];
-	char *types = "mort";
+    // File name format: lua/<TYPE><VNUM>.lua
+    char path[MSL];
+    char *types = "mort";
 
-	if(script->type == -1) return false;
+    if(script->type == -1) return false;
 
-	sprintf(path,LUA_PATH "%c%ld" LUA_EXT, types[script->type], script->vnum);
+    sprintf(path,LUA_PATH "%c%ld" LUA_EXT, types[script->type], script->vnum);
 
-	script->src = fread_filename(path);
-	script->edit_src = script->src;
-	script->lua = alloc_mem(sizeof(SCRIPT_LUA));
-	ISSET_BIT(script->flags,SCRIPT_LUA);
+    script->src = fread_filename(path);
+    script->edit_src = script->src;
+    script->lua = alloc_mem(sizeof(SCRIPT_LUA));
+    ISSET_BIT(script->flags,SCRIPT_LUA);
 
-	script->lua->L = lua_newstate();
-	if(!script->lua->L) return false;
+    script->lua->L = lua_newstate();
+    if(!script->lua->L) return false;
 
-	// The LUA state created here will be kept, why?
-	//	Because I want to have the option down the road to create global scripting
-	//	whereby the executed data and assigned values are kept, akin to how MUSHClient
-	//	has its scripting environment.
-	//
+    // The LUA state created here will be kept, why?
+    //	Because I want to have the option down the road to create global scripting
+    //	whereby the executed data and assigned values are kept, akin to how MUSHClient
+    //	has its scripting environment.
+    //
 
-	return script_readlua(script,path);
+    return script_readlua(script,path);
 }
 
 void script_freelua(SCRIPT_DATA *script)
 {
-	if(script && script->lua) {
-		// Free anything needed for this
-		if(script->lua->L) {
-			lua_close(script->lua->L);
-			script->lua->L = NULL;
-		}
+    if(script && script->lua) {
+        // Free anything needed for this
+        if(script->lua->L) {
+            lua_close(script->lua->L);
+            script->lua->L = NULL;
+        }
 
-		if(script->lua->code) {
-			free_mem(script->lua->code);
-			script->lua->code = NULL;
-		}
+        if(script->lua->code) {
+            free_mem(script->lua->code);
+            script->lua->code = NULL;
+        }
 
-		free_mem(script->lua);
-		script->lua = NULL;
-	}
+        free_mem(script->lua);
+        script->lua = NULL;
+    }
 }
 
 static void config_lua_globals(SCRIPT_BLOCK *block)
@@ -129,11 +129,11 @@ static void config_lua_globals(SCRIPT_BLOCK *block)
 
 void execute_lua_script(SCRIPT_BLOCK *block)
 {
-	block->next = script_call_stack;
-	script_call_stack = block;
+    block->next = script_call_stack;
+    script_call_stack = block;
 
 
-	block->ret_val = PRET_EXECUTED;
+    block->ret_val = PRET_EXECUTED;
 }
 
 
@@ -141,92 +141,92 @@ void execute_lua_script(SCRIPT_BLOCK *block)
 // Script API
 
 
-	{ "addaffect",			do_mpaddaffect,		true	},
-	{ "addaffectname",		do_mpaddaffectname,		true	},
-	{ "airshipaddwaypoint", 	do_mpairshipaddwaypoint,	true	},
-	{ "airshipsetcrash", 		do_mpairshipsetcrash,		true	},
-	{ "alterexit",			do_mpalterexit,		false	},
-	{ "altermob",			do_mpaltermob,			true	},
-	{ "alterobj",			do_mpalterobj,			true	},
-	{ "appear",			do_mpvis,			false	},
-	{ "asound", 			do_mpasound,			false	},
-	{ "assist",			do_mpassist,			false	},
-	{ "at",				do_mpat,			false	},
-	{ "awardgold",			do_mpawardgold,			true	},
-	{ "awardpneuma",		do_mpawardpneuma,		true	},
-	{ "awardprac",			do_mpawardprac,			true	},
-	{ "awardqp",			do_mpawardqp,			true	},
-	{ "awardxp",			do_mpawardxp,			true	},
-	{ "call",			do_mpcall,			false	},
-	{ "cancel",			do_mpcancel,			false	},
-	{ "cast",			do_mpcast,			false	},
-	{ "changevesselname",		do_mpchangevesselname,		true	},
-	{ "chargemoney",		do_mpchargemoney,		false	},
-	{ "damage",			do_mpdamage,			false	},
-	{ "decdeity",			do_mpdecdeity,			true	},
-	{ "decpneuma",			do_mpdecpneuma,			true	},
-	{ "decprac",			do_mpdecprac,			true	},
-	{ "decquest",			do_mpdecquest,			true	},
-	{ "dectrain",			do_mpdectrain,			true	},
-	{ "delay",			do_mpdelay,			false	},
-	{ "dequeue",			do_mpdequeue,			false	},
-	{ "disappear",    		do_mpinvis,			false	},
-	{ "echo",			do_mpecho,			false	},
-	{ "echoaround",			do_mpechoaround,		false	},
-	{ "echoat",			do_mpechoat,			false	},
-	{ "echobattlespam",		do_mpechobattlespam,		false	},
-	{ "echochurch",			do_mpechochurch,		false	},
-	{ "echogrouparound",		do_mpechogrouparound,		false	},
-	{ "echogroupat",		do_mpechogroupat,		false	},
-	{ "echoleadaround",		do_mpecholeadaround,		false	},
-	{ "echoleadat",			do_mpecholeadat,		false	},
-	{ "echonotvict",		do_mpechonotvict,		false	},
-	{ "flee",			do_mpflee,			false	},
-	{ "force",			do_mpforce,			false	},
-	{ "forget",			do_mpforget,			false	},
-	{ "gdamage",			do_mpgdamage,			false	},
-	{ "gecho",			do_mpgecho,			false	},
-	{ "gforce",			do_mpgforce,			false	},
-	{ "goto",			do_mpgoto,			false	},
-	{ "gtransfer",			do_mpgtransfer,			false	},
-	{ "hunt",			do_mphunt,			false	},
-	{ "input",			do_mpinput,			false	},
-	{ "interrupt",			do_mpinterrupt,			false	},
-	{ "junk",			do_mpjunk,			false	},
-	{ "kill",			do_mpkill,			false	},
-	{ "link",			do_mplink,			false	},
-	{ "mload",			do_mpmload,			false	},
-	{ "oload",			do_mpoload,			false	},
-	{ "otransfer",			do_mpotransfer,			false	},
-	{ "peace",			do_mppeace,			false	},
-	{ "prompt",			do_mpprompt,			false	},
-	{ "purge",			do_mppurge,			false	},
-	{ "queue",			do_mpqueue,			false	},
-	{ "raisedead",			do_mpraisedead,			true	},
-	{ "rawkill",			do_mprawkill,			false	},
-	{ "remember",			do_mpremember,			false	},
-	{ "remove",			do_mpremove,			false	},
-	{ "resetdice",			do_mpresetdice,			true	},
-	{ "selfdestruct",		do_mpselfdestruct,		false	},
-	{ "settimer",			do_mpsettimer,			false	},
-	{ "skimprove",			do_mpskimprove,			true	},
-	{ "stringobj",			do_mpstringobj,			true	},
-	{ "stringmob",			do_mpstringmob,			true	},
-	{ "stripaffect",		do_mpstripaffect,		true	},
-	{ "stripaffectname",		do_mpstripaffectname,		true	},
-	{ "take",			do_mptake,			false	},
-	{ "teleport", 			do_mpteleport,			false	},
-	{ "usecatalyst",		do_mpusecatalyst,		false	},
-	{ "varset",			do_mpvarset,			false	},
-	{ "varclear",			do_mpvarclear,			false	},
-	{ "varclearon",			do_mpvarclearon,		false	},
-	{ "varcopy",			do_mpvarcopy,			false	},
-	{ "varsave",			do_mpvarsave,			false	},
-	{ "varsaveon",			do_mpvarsaveon,			false	},
-	{ "varset",			do_mpvarset,			false	},
-	{ "varseton",			do_mpvarseton,			false	},
-	{ "vforce",			do_mpvforce,			false	},
-	{ "zot",			do_mpzot,			true	},
+    { "addaffect",			do_mpaddaffect,		true	},
+    { "addaffectname",		do_mpaddaffectname,		true	},
+    { "airshipaddwaypoint", 	do_mpairshipaddwaypoint,	true	},
+    { "airshipsetcrash", 		do_mpairshipsetcrash,		true	},
+    { "alterexit",			do_mpalterexit,		false	},
+    { "altermob",			do_mpaltermob,			true	},
+    { "alterobj",			do_mpalterobj,			true	},
+    { "appear",			do_mpvis,			false	},
+    { "asound", 			do_mpasound,			false	},
+    { "assist",			do_mpassist,			false	},
+    { "at",				do_mpat,			false	},
+    { "awardgold",			do_mpawardgold,			true	},
+    { "awardpneuma",		do_mpawardpneuma,		true	},
+    { "awardprac",			do_mpawardprac,			true	},
+    { "awardqp",			do_mpawardqp,			true	},
+    { "awardxp",			do_mpawardxp,			true	},
+    { "call",			do_mpcall,			false	},
+    { "cancel",			do_mpcancel,			false	},
+    { "cast",			do_mpcast,			false	},
+    { "changevesselname",		do_mpchangevesselname,		true	},
+    { "chargemoney",		do_mpchargemoney,		false	},
+    { "damage",			do_mpdamage,			false	},
+    { "decdeity",			do_mpdecdeity,			true	},
+    { "decpneuma",			do_mpdecpneuma,			true	},
+    { "decprac",			do_mpdecprac,			true	},
+    { "decquest",			do_mpdecquest,			true	},
+    { "dectrain",			do_mpdectrain,			true	},
+    { "delay",			do_mpdelay,			false	},
+    { "dequeue",			do_mpdequeue,			false	},
+    { "disappear",    		do_mpinvis,			false	},
+    { "echo",			do_mpecho,			false	},
+    { "echoaround",			do_mpechoaround,		false	},
+    { "echoat",			do_mpechoat,			false	},
+    { "echobattlespam",		do_mpechobattlespam,		false	},
+    { "echochurch",			do_mpechochurch,		false	},
+    { "echogrouparound",		do_mpechogrouparound,		false	},
+    { "echogroupat",		do_mpechogroupat,		false	},
+    { "echoleadaround",		do_mpecholeadaround,		false	},
+    { "echoleadat",			do_mpecholeadat,		false	},
+    { "echonotvict",		do_mpechonotvict,		false	},
+    { "flee",			do_mpflee,			false	},
+    { "force",			do_mpforce,			false	},
+    { "forget",			do_mpforget,			false	},
+    { "gdamage",			do_mpgdamage,			false	},
+    { "gecho",			do_mpgecho,			false	},
+    { "gforce",			do_mpgforce,			false	},
+    { "goto",			do_mpgoto,			false	},
+    { "gtransfer",			do_mpgtransfer,			false	},
+    { "hunt",			do_mphunt,			false	},
+    { "input",			do_mpinput,			false	},
+    { "interrupt",			do_mpinterrupt,			false	},
+    { "junk",			do_mpjunk,			false	},
+    { "kill",			do_mpkill,			false	},
+    { "link",			do_mplink,			false	},
+    { "mload",			do_mpmload,			false	},
+    { "oload",			do_mpoload,			false	},
+    { "otransfer",			do_mpotransfer,			false	},
+    { "peace",			do_mppeace,			false	},
+    { "prompt",			do_mpprompt,			false	},
+    { "purge",			do_mppurge,			false	},
+    { "queue",			do_mpqueue,			false	},
+    { "raisedead",			do_mpraisedead,			true	},
+    { "rawkill",			do_mprawkill,			false	},
+    { "remember",			do_mpremember,			false	},
+    { "remove",			do_mpremove,			false	},
+    { "resetdice",			do_mpresetdice,			true	},
+    { "selfdestruct",		do_mpselfdestruct,		false	},
+    { "settimer",			do_mpsettimer,			false	},
+    { "skimprove",			do_mpskimprove,			true	},
+    { "stringobj",			do_mpstringobj,			true	},
+    { "stringmob",			do_mpstringmob,			true	},
+    { "stripaffect",		do_mpstripaffect,		true	},
+    { "stripaffectname",		do_mpstripaffectname,		true	},
+    { "take",			do_mptake,			false	},
+    { "teleport", 			do_mpteleport,			false	},
+    { "usecatalyst",		do_mpusecatalyst,		false	},
+    { "varset",			do_mpvarset,			false	},
+    { "varclear",			do_mpvarclear,			false	},
+    { "varclearon",			do_mpvarclearon,		false	},
+    { "varcopy",			do_mpvarcopy,			false	},
+    { "varsave",			do_mpvarsave,			false	},
+    { "varsaveon",			do_mpvarsaveon,			false	},
+    { "varset",			do_mpvarset,			false	},
+    { "varseton",			do_mpvarseton,			false	},
+    { "vforce",			do_mpvforce,			false	},
+    { "zot",			do_mpzot,			true	},
 
 // echo.room		(<STRING>[,<LOCATION>])
 // echo.at		(<STRING>,<MOBILE>)

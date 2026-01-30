@@ -26,20 +26,20 @@ PEDIT(pedit_create)
     PROJECT_DATA *project_tmp;
 
     if (ch->tot_level < MAX_LEVEL) {
-	send_to_char("Currently, only Implementors can create projects.\n\r", ch);
-	return false;
+    send_to_char("Currently, only Implementors can create projects.\n\r", ch);
+    return false;
     }
 
     project = new_project();
     for (project_tmp = project_list; project_tmp != NULL; project_tmp = project_tmp->next) {
-	if (project_tmp->next == NULL)
-	    break;
+    if (project_tmp->next == NULL)
+        break;
     }
 
     if (project_tmp != NULL)
-	project_tmp->next = project;
+    project_tmp->next = project;
     else
-	project_list = project;
+    project_list = project;
 
     ch->desc->pEdit     =   (void *)project;
 
@@ -69,11 +69,11 @@ PEDIT(pedit_show)
     sprintf(areas, "No areas");
     for (i = 0, string = project->areas; string != NULL; string = string->next, i++) {
         if (i == 0)
-		    sprintf(areas, "%s", string->string);
-		else {
-		    sprintf(buf2, ", %s", string->string);
-		    strcat(areas, buf2);
-		}
+            sprintf(areas, "%s", string->string);
+        else {
+            sprintf(buf2, ", %s", string->string);
+            strcat(areas, buf2);
+        }
     }
 
     sprintf(buf, "Area(s):             {g[{x%-30.30s{g]{x\n\r", areas);
@@ -99,16 +99,16 @@ PEDIT(pedit_show)
 
     completed[0] = '\0';
     for (i = 0; i < project->completed; i += 4) {
-	if (i > 80)
-	    strcat(completed, "{G=");
-	else if (i > 60)
-	    strcat(completed, "{g=");
-	else if (i > 40)
-	    strcat(completed, "{Y=");
-	else if (i > 20)
-	    strcat(completed, "{r=");
-	else
-	    strcat(completed, "{R=");
+    if (i > 80)
+        strcat(completed, "{G=");
+    else if (i > 60)
+        strcat(completed, "{g=");
+    else if (i > 40)
+        strcat(completed, "{Y=");
+    else if (i > 20)
+        strcat(completed, "{r=");
+    else
+        strcat(completed, "{R=");
     }
 
     strcat(completed, "{x");
@@ -116,9 +116,9 @@ PEDIT(pedit_show)
 
     total_time = get_total_minutes(project);
     if (total_time % 60 == 0)
-	sprintf(time, "%ld hrs", total_time/60);
+    sprintf(time, "%ld hrs", total_time/60);
     else
-	sprintf(time, "%ld hrs %ld min", total_time/60, total_time % 60);
+    sprintf(time, "%ld hrs %ld min", total_time/60, total_time % 60);
     sprintf(buf, "Total building time: {g[{x%-30s{g]{x\n\r", time);
     send_to_char(buf, ch);
 
@@ -132,19 +132,19 @@ PEDIT(pedit_show)
     sprintf(buf, "{g------------------------------------------------------------------------------------------------------{x\n\r");
     send_to_char(buf, ch);
     for (i = 0, pb = project->builders; pb != NULL; pb = pb->next, i++) {
-	// Figure out time string
-	if (pb->minutes % 60 == 0)
-	    sprintf(time, "%ld hrs", pb->minutes/60);
-	else
-	    sprintf(time, "%ld hrs %ld min", pb->minutes/60, pb->minutes % 60);
+    // Figure out time string
+    if (pb->minutes % 60 == 0)
+        sprintf(time, "%ld hrs", pb->minutes/60);
+    else
+        sprintf(time, "%ld hrs %ld min", pb->minutes/60, pb->minutes % 60);
 
-	sprintf(buf, "{g[{G%3d{g] {x%-15s %-15s %s", i, pb->name, time, (char *) ctime(&pb->assigned));
-	send_to_char(buf, ch);
+    sprintf(buf, "{g[{G%3d{g] {x%-15s %-15s %s", i, pb->name, time, (char *) ctime(&pb->assigned));
+    send_to_char(buf, ch);
     }
 
     if (project->builders == NULL) {
-	sprintf(buf, "No builders.\n\r");
-	send_to_char(buf, ch);
+    sprintf(buf, "No builders.\n\r");
+    send_to_char(buf, ch);
     }
 
     show_project_inquiries(project, ch);
@@ -160,8 +160,8 @@ PEDIT(pedit_name)
     EDIT_PROJECT(ch, project);
 
     if (argument[0] == '\0') {
-	send_to_char("Syntax:  name [name]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  name [name]\n\r", ch);
+    return false;
     }
 
     free_string(project->name);
@@ -181,8 +181,8 @@ PEDIT(pedit_security)
 
     sec = atoi(argument);
     if (!is_number(argument) || argument[0] == '\0' || sec < 0 || sec > 9) {
-	send_to_char("Syntax:  security [0-9]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  security [0-9]\n\r", ch);
+    return false;
     }
 
     project->security = sec;
@@ -201,17 +201,17 @@ PEDIT(pedit_pflag)
 
     if (argument[0] != '\0')
     {
-	if ((value = flag_value(project_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(project->project_flags, value);
+    if ((value = flag_value(project_flags, argument)) != NO_FLAG)
+    {
+        TOGGLE_BIT(project->project_flags, value);
 
-	    send_to_char("Project flag toggled.\n\r", ch);
-	    return true;
-	}
+        send_to_char("Project flag toggled.\n\r", ch);
+        return true;
+    }
     }
 
     send_to_char("Syntax:  pflag [flag]\n\r"
-	    "Type '? projectflags' for a list of flags.\n\r", ch);
+        "Type '? projectflags' for a list of flags.\n\r", ch);
     return false;
 }
 
@@ -228,56 +228,56 @@ PEDIT(pedit_builder)
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  builder [immortal name]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  builder [immortal name]\n\r", ch);
+    return false;
     }
 
     /* taking a builder off */
     pb_prev = NULL;
     for (pb = project->builders; pb != NULL; pb = pb->next) {
-	if (!str_cmp(pb->name, arg)) {
-	    found = true;
-	    break;
-	}
+    if (!str_cmp(pb->name, arg)) {
+        found = true;
+        break;
+    }
 
-	pb_prev = pb;
+    pb_prev = pb;
     }
 
     if (found)
     {
-	if (pb_prev == NULL)
-	    project->builders = pb->next;
-	else
-	    pb_prev->next = pb->next;
+    if (pb_prev == NULL)
+        project->builders = pb->next;
+    else
+        pb_prev->next = pb->next;
 
-	act("Builder $t removed.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
-	free_project_builder(pb);
+    act("Builder $t removed.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
+    free_project_builder(pb);
     }
     else
     {
         if (find_immortal(arg) == NULL) {
-	    send_to_char("That immortal doesn't exist.\n\r", ch);
-	    return false;
-	}
+        send_to_char("That immortal doesn't exist.\n\r", ch);
+        return false;
+    }
 
-	pb = new_project_builder();
-	arg[0] = UPPER(arg[0]);
-	pb->name = str_dup(arg);
-	pb->assigned = current_time;
+    pb = new_project_builder();
+    arg[0] = UPPER(arg[0]);
+    pb->name = str_dup(arg);
+    pb->assigned = current_time;
 
-	for (pb_tmp = project->builders; pb_tmp != NULL; pb_tmp = pb_tmp->next) {
-	    if (pb_tmp->next == NULL)
-		break;
-	}
+    for (pb_tmp = project->builders; pb_tmp != NULL; pb_tmp = pb_tmp->next) {
+        if (pb_tmp->next == NULL)
+        break;
+    }
 
-	if (project->builders == NULL)
-	    project->builders = pb;
-	else
-	    pb_tmp->next = pb;
+    if (project->builders == NULL)
+        project->builders = pb;
+    else
+        pb_tmp->next = pb;
 
         pb->project = project;
 
-	act("Builder $t added.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
+    act("Builder $t added.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
     }
 
 
@@ -294,18 +294,18 @@ PEDIT(pedit_completed)
     EDIT_PROJECT(ch, project);
 
     if (argument[0] == '\0' || !is_number(argument)) {
-	send_to_char("Syntax:  completed [%%completed]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  completed [%%completed]\n\r", ch);
+    return false;
     }
 
     if ((val = atoi(argument)) < 0 || val > 100) {
-	send_to_char("Valid completion is 0-100%.\n\r", ch);
-	return false;
+    send_to_char("Valid completion is 0-100%.\n\r", ch);
+    return false;
     }
 
     if (ch->tot_level < MAX_LEVEL && str_cmp(ch->name, project->leader)) {
-	send_to_char("Sorry, only the project leader, the head builder, or an implementor can adjust project completion status.\n\r", ch);
-	return false;
+    send_to_char("Sorry, only the project leader, the head builder, or an implementor can adjust project completion status.\n\r", ch);
+    return false;
     }
 
     project->completed = val;
@@ -326,13 +326,13 @@ PEDIT(pedit_leader)
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  leader [immortal name]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  leader [immortal name]\n\r", ch);
+    return false;
     }
 
     if (get_char_world(NULL, arg) == NULL && !player_exists(arg)) {
-	send_to_char("Immortal not found.\n\r", ch);
-	return false;
+    send_to_char("Immortal not found.\n\r", ch);
+    return false;
     }
 
     free_string(project->leader);
@@ -365,8 +365,8 @@ PEDIT(pedit_summary)
     EDIT_PROJECT(ch, project);
 
     if (argument[0] == '\0') {
-	send_to_char("Syntax:  summary [string]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  summary [string]\n\r", ch);
+    return false;
     }
 
     free_string(project->summary);
@@ -390,56 +390,56 @@ PEDIT(pedit_area)
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  area [area name]\n\r", ch);
-	return false;
+    send_to_char("Syntax:  area [area name]\n\r", ch);
+    return false;
     }
 
     string_last = NULL;
     for (string = project->areas; string != NULL; string = string->next) {
-	if (!str_infix(arg, string->string))
-	    break;
+    if (!str_infix(arg, string->string))
+        break;
 
-	string_last = string;
+    string_last = string;
     }
 
     /* Found in list of areas, remove */
     if (string != NULL)
     {
-	if (!string_last)
-	   project->areas = string->next;
-	else
-	   string_last->next = string->next;
+    if (!string_last)
+       project->areas = string->next;
+    else
+       string_last->next = string->next;
 
-	act("Area $t removed.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR, NULL, NULL);
+    act("Area $t removed.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR, NULL, NULL);
 
-	free_string_data(string);
+    free_string_data(string);
     }
     else /* Not found, add to area list */
     {
-	for (area = area_first; area != NULL; area = area->next) {
-	    if (!str_infix(arg, area->name))
-		break;
-	}
+    for (area = area_first; area != NULL; area = area->next) {
+        if (!str_infix(arg, area->name))
+        break;
+    }
 
-	if (area == NULL) {
-	    send_to_char("Area not found.\n\r", ch);
-	    return false;
-	}
+    if (area == NULL) {
+        send_to_char("Area not found.\n\r", ch);
+        return false;
+    }
 
-	/* Add it to the end of the list */
-	for (string_last = project->areas; string_last != NULL; string_last = string_last->next) {
-	    if (string_last->next == NULL)
-		break;
-	}
+    /* Add it to the end of the list */
+    for (string_last = project->areas; string_last != NULL; string_last = string_last->next) {
+        if (string_last->next == NULL)
+        break;
+    }
 
-	string = new_string_data();
-	string->string = str_dup(area->name);
-	if (string_last)
-	    string_last->next = string;
-	else
-	    project->areas = string;
+    string = new_string_data();
+    string->string = str_dup(area->name);
+    if (string_last)
+        string_last->next = string;
+    else
+        project->areas = string;
 
-	act("Area $t added.", ch, NULL, NULL, NULL, NULL, area->name, NULL, TO_CHAR, NULL, NULL);
+    act("Area $t added.", ch, NULL, NULL, NULL, NULL, area->name, NULL, TO_CHAR, NULL, NULL);
     }
 
     return true;

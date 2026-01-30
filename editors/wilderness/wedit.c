@@ -37,7 +37,7 @@ extern void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain);
 
 WEDIT ( wedit_create )
 {
-	LLIST_WILDS_DATA *data;
+    LLIST_WILDS_DATA *data;
     WILDS_DATA *pWilds, *pLastWilds;
     WILDS_TERRAIN *pTerrain;
     AREA_DATA *pArea;
@@ -87,11 +87,11 @@ WEDIT ( wedit_create )
     pStaticMap = pWilds->staticmap;
 
     if((data = alloc_mem(sizeof(LLIST_WILDS_DATA)))) {
-		data->wilds = pWilds;
-		data->uid = pWilds->uid;
+        data->wilds = pWilds;
+        data->uid = pWilds->uid;
 
-		list_appendlink(loaded_wilds, pWilds);
-	}
+        list_appendlink(loaded_wilds, pWilds);
+    }
 
     for(lScount = 0;lScount < lMapsize; lScount++)
     {
@@ -373,7 +373,7 @@ WEDIT ( wedit_terrain )
         free_string (pTerrain->template->name);
         pTerrain->template->name = str_dup (argument);
 
-	correct_vrooms(pWilds, pTerrain);
+    correct_vrooms(pWilds, pTerrain);
 
         send_to_char ("[Wedit] Terrain showname set.\n\r", ch);
         return true;
@@ -402,54 +402,54 @@ WEDIT ( wedit_terrain )
 
     if (!str_cmp(arg2, "room_flag"))
     {
-	long room_flag[2];
-	if (bitvector_lookup(argument, 2, room_flag, room_flags, room2_flags))
-	{
-		TOGGLE_BIT(pTerrain->template->room_flag[0], room_flag[0]);
-		TOGGLE_BIT(pTerrain->template->room_flag[1], room_flag[1]);
-		correct_vrooms(pWilds, pTerrain);
-		send_to_char("Room flags toggled.\n\r", ch);
+    long room_flag[2];
+    if (bitvector_lookup(argument, 2, room_flag, room_flags, room2_flags))
+    {
+        TOGGLE_BIT(pTerrain->template->room_flag[0], room_flag[0]);
+        TOGGLE_BIT(pTerrain->template->room_flag[1], room_flag[1]);
+        correct_vrooms(pWilds, pTerrain);
+        send_to_char("Room flags toggled.\n\r", ch);
         return true;
-	/*
-	if ((value = flag_value(room_flags, argument)) == NO_FLAG)
-	{
-	    send_to_char("Syntax: terrain <token> room_flag <flag>\n\r", ch);
-	    return false;
-	}
+    /*
+    if ((value = flag_value(room_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Syntax: terrain <token> room_flag <flag>\n\r", ch);
+        return false;
+    }
 
-	TOGGLE_BIT(pTerrain->template->room_flag[0], value);
-	correct_vrooms(pWilds, pTerrain);
-	send_to_char("Room flags toggled.\n\r", ch);
+    TOGGLE_BIT(pTerrain->template->room_flag[0], value);
+    correct_vrooms(pWilds, pTerrain);
+    send_to_char("Room flags toggled.\n\r", ch);
         return true;
-	*/
+    */
     }
 /*
     if (!str_cmp(arg2, "room2flag"))
     {
-	if ((value = flag_value(room2_flags, argument)) == NO_FLAG)
-	{
-	    send_to_char("Syntax: terrain <token> room2flag <flag>\n\r", ch);
-	    return false;
-	}
+    if ((value = flag_value(room2_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Syntax: terrain <token> room2flag <flag>\n\r", ch);
+        return false;
+    }
 
-	TOGGLE_BIT(pTerrain->template->room2_flags, value);
-	correct_vrooms(pWilds, pTerrain);
-	send_to_char("Room2 flags toggled.\n\r", ch);
+    TOGGLE_BIT(pTerrain->template->room2_flags, value);
+    correct_vrooms(pWilds, pTerrain);
+    send_to_char("Room2 flags toggled.\n\r", ch);
         return true;
     }
 */
-	}
+    }
     if (!str_cmp(arg2, "sector"))
     {
-	if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
-	{
-	    send_to_char("Syntax: terrain <token> sector <sector>\n\r", ch);
-	    return false;
-	}
+    if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Syntax: terrain <token> sector <sector>\n\r", ch);
+        return false;
+    }
 
-	pTerrain->template->sector_type =  value;
-	correct_vrooms(pWilds, pTerrain);
-	send_to_char("Sector set.\n\r", ch);
+    pTerrain->template->sector_type =  value;
+    correct_vrooms(pWilds, pTerrain);
+    send_to_char("Sector set.\n\r", ch);
         return true;
     }
 
@@ -517,13 +517,13 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if (link_vlink(pVLink)) {
-			send_to_char("Wedit vlink: Found matching vlnum.\n\r", ch);
-			return true;
-		} else
-			printf_to_char(ch, "Wedit vlink: Found vlink %d, but could not link it.\n\r", vlnum);
-	} else
-		send_to_char("Wedit vlink unlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+        if (link_vlink(pVLink)) {
+            send_to_char("Wedit vlink: Found matching vlnum.\n\r", ch);
+            return true;
+        } else
+            printf_to_char(ch, "Wedit vlink: Found vlink %d, but could not link it.\n\r", vlnum);
+    } else
+        send_to_char("Wedit vlink unlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
@@ -540,13 +540,13 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if (unlink_vlink(pVLink)) {
-			send_to_char("Wedit vlink: Found matching vlnum.\n\r", ch);
-			return true;
-		} else
-			printf_to_char(ch, "Wedit vlink: Found vlink %d, but could not unlink it.\n\r", vlnum);
-	} else
-		send_to_char("Wedit vlink unlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+        if (unlink_vlink(pVLink)) {
+            send_to_char("Wedit vlink: Found matching vlnum.\n\r", ch);
+            return true;
+        } else
+            printf_to_char(ch, "Wedit vlink: Found vlink %d, but could not unlink it.\n\r", vlnum);
+    } else
+        send_to_char("Wedit vlink unlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
@@ -554,18 +554,18 @@ WEDIT ( wedit_vlink )
 // VIZZWILDS - CURRENT WORK IN PROGRESS - CREATE ROUTINE ADDITION
     if (!str_cmp(arg, "create"))
     {
-	    int x=0, y=0, door=0;
+        int x=0, y=0, door=0;
         WILDS_VLINK *temp_pVLink;
 
         if (arg2[0]) {
-		if((!is_number(arg2) || (x = atoi(arg2)) < 0 || x > (pWilds->map_size_x - 1)) ||
-			(!is_number(arg3) || (y = atoi(arg3)) < 0 || y > (pWilds->map_size_y - 1)) ||
-			((door = parse_direction(arg4)) < 0))
-	        {
-	            send_to_char("Syntax: vlink create [<x coord> <y coord> <direction>]", ch);
-	            return false;
-		}
-	}
+        if((!is_number(arg2) || (x = atoi(arg2)) < 0 || x > (pWilds->map_size_x - 1)) ||
+            (!is_number(arg3) || (y = atoi(arg3)) < 0 || y > (pWilds->map_size_y - 1)) ||
+            ((door = parse_direction(arg4)) < 0))
+            {
+                send_to_char("Syntax: vlink create [<x coord> <y coord> <direction>]", ch);
+                return false;
+        }
+    }
 
         temp_pVLink = new_vlink();
         temp_pVLink->uid = ++gconfig.next_vlink_uid;	// Give it a UID
@@ -608,20 +608,20 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if(pVLink->current_linkage == VLINK_UNLINKED) {
-			if(!str_prefix(arg3,"to_wilds")) pVLink->default_linkage = VLINK_TO_WILDS;
-			else if(!str_prefix(arg3,"from_wilds")) pVLink->default_linkage = VLINK_FROM_WILDS;
-			else if(!str_prefix(arg3,"two_way")) pVLink->default_linkage = VLINK_TO_WILDS|VLINK_FROM_WILDS;
-			else {
-				printf_to_char(ch, "Wedit vlink: Invalid linkage.  Valid values are {Wto_wilds{x, {Wfrom_wilds{x and {Wtwo_way{x.\n\r", vlnum);
-				return false;
-			}
-			send_to_char("Wedit vlink: Linkage set.\n\r", ch);
-			return true;
-		} else
-			printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-	} else
-		send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+        if(pVLink->current_linkage == VLINK_UNLINKED) {
+            if(!str_prefix(arg3,"to_wilds")) pVLink->default_linkage = VLINK_TO_WILDS;
+            else if(!str_prefix(arg3,"from_wilds")) pVLink->default_linkage = VLINK_FROM_WILDS;
+            else if(!str_prefix(arg3,"two_way")) pVLink->default_linkage = VLINK_TO_WILDS|VLINK_FROM_WILDS;
+            else {
+                printf_to_char(ch, "Wedit vlink: Invalid linkage.  Valid values are {Wto_wilds{x, {Wfrom_wilds{x and {Wtwo_way{x.\n\r", vlnum);
+                return false;
+            }
+            send_to_char("Wedit vlink: Linkage set.\n\r", ch);
+            return true;
+        } else
+            printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
+    } else
+        send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
@@ -645,19 +645,19 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if(pVLink->current_linkage == VLINK_UNLINKED) {
-			value = parse_direction(arg3);
-			if(value >= 0) {
-				pVLink->door = value;
-				send_to_char("Wedit vlink: Door set.\n\r", ch);
-				return true;
-			} else
-				printf_to_char(ch, "Wedit vlink: Invalid direction.\n\r", vlnum);
+        if(pVLink->current_linkage == VLINK_UNLINKED) {
+            value = parse_direction(arg3);
+            if(value >= 0) {
+                pVLink->door = value;
+                send_to_char("Wedit vlink: Door set.\n\r", ch);
+                return true;
+            } else
+                printf_to_char(ch, "Wedit vlink: Invalid direction.\n\r", vlnum);
 
-		} else
-			printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-	} else
-		send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+        } else
+            printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
+    } else
+        send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
@@ -681,34 +681,34 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if(pVLink->current_linkage == VLINK_UNLINKED) {
-			if (is_number(arg3) && (value = atoi(arg3)) > 0) {
-				AREA_DATA *dest_area = find_area_by_vnum(value);
-				if (!dest_area) dest_area = get_system_area_fallback();
-				ROOM_INDEX_DATA *destRoom = get_room_index(dest_area, value);
+        if(pVLink->current_linkage == VLINK_UNLINKED) {
+            if (is_number(arg3) && (value = atoi(arg3)) > 0) {
+                AREA_DATA *dest_area = find_area_by_vnum(value);
+                if (!dest_area) dest_area = get_system_area_fallback();
+                ROOM_INDEX_DATA *destRoom = get_room_index(dest_area, value);
 
-				if( !destRoom )
-				{
-					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);
-					return false;
-				}
+                if( !destRoom )
+                {
+                    send_to_char("Wedit vlink: Invalid destination.\n\r", ch);
+                    return false;
+                }
 
-				if( IS_SET(destRoom->room_flag[1], ROOM_BLUEPRINT) ||
-					IS_SET(destRoom->area->area_flags, AREA_BLUEPRINT) )
-				{
-					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);
-					return false;
-				}
+                if( IS_SET(destRoom->room_flag[1], ROOM_BLUEPRINT) ||
+                    IS_SET(destRoom->area->area_flags, AREA_BLUEPRINT) )
+                {
+                    send_to_char("Wedit vlink: Invalid destination.\n\r", ch);
+                    return false;
+                }
 
-				pVLink->destvnum = value;
-				send_to_char("Wedit vlink: Destination set.\n\r", ch);
-				return true;
-			} else
-				send_to_char("Wedit vlink: Invalid destination", ch);
-		} else
-			printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-	} else
-		send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+                pVLink->destvnum = value;
+                send_to_char("Wedit vlink: Destination set.\n\r", ch);
+                return true;
+            } else
+                send_to_char("Wedit vlink: Invalid destination", ch);
+        } else
+            printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
+    } else
+        send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
@@ -733,19 +733,19 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if(pVLink->current_linkage == VLINK_UNLINKED) {
-			if (is_number(arg3) && (x = atoi(arg3)) >= 0 && x < pWilds->map_size_x &&
-				is_number(arg4) && (y = atoi(arg4)) >= 0 && y < pWilds->map_size_y) {
-				pVLink->wildsorigin_x = x;
-				pVLink->wildsorigin_y = y;
-				send_to_char("Wedit vlink: Location set.\n\r", ch);
-				return true;
-			} else
-				send_to_char("Wedit vlink: Invalid location", ch);
-		} else
-			printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-	} else
-		send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+        if(pVLink->current_linkage == VLINK_UNLINKED) {
+            if (is_number(arg3) && (x = atoi(arg3)) >= 0 && x < pWilds->map_size_x &&
+                is_number(arg4) && (y = atoi(arg4)) >= 0 && y < pWilds->map_size_y) {
+                pVLink->wildsorigin_x = x;
+                pVLink->wildsorigin_y = y;
+                send_to_char("Wedit vlink: Location set.\n\r", ch);
+                return true;
+            } else
+                send_to_char("Wedit vlink: Invalid location", ch);
+        } else
+            printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
+    } else
+        send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
@@ -768,22 +768,22 @@ WEDIT ( wedit_vlink )
 
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
-		if (argsave[0]) {
-			free_string(pVLink->map_tile);
-			pVLink->map_tile = str_dup(argsave);
-			send_to_char("Wedit vlink: Map tile set.\n\r", ch);
-			return true;
-		} else
-			send_to_char("Wedit vlink: Invalid maptile", ch);
-	} else
-		send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
+        if (argsave[0]) {
+            free_string(pVLink->map_tile);
+            pVLink->map_tile = str_dup(argsave);
+            send_to_char("Wedit vlink: Map tile set.\n\r", ch);
+            return true;
+        } else
+            send_to_char("Wedit vlink: Invalid maptile", ch);
+    } else
+        send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
 
         return false;
     }
 
     if (!str_cmp(arg, "list"))
     {
-	    int vlnum;
+        int vlnum;
         if (!ch->in_room)
         {
             perrf(LOG_ERROR, "ch->in_room invalid.");
@@ -809,7 +809,7 @@ WEDIT ( wedit_vlink )
         for(vlnum = 0,pVLink=pWilds?pWilds->pVLink:ch->in_room->area->wilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
         {
             printf_to_char(ch, "%-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-8ld   %10s%10s%s{x\n\r",
-            		   vlnum++,
+                       vlnum++,
                            pVLink->uid,
                            pVLink->wildsorigin_x,
                            pVLink->wildsorigin_y,

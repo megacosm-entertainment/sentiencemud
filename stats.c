@@ -33,43 +33,43 @@ void do_stats( CHAR_DATA *ch, char *argument )
 
     if (arg[0] == '\0')
     {
-	send_to_char("Usage: Stats pkers | cpkers | quests | wealthiest | monsters | ratio\n\r", ch);
-	return;
+    send_to_char("Usage: Stats pkers | cpkers | quests | wealthiest | monsters | ratio\n\r", ch);
+    return;
     }
 
     if ( !str_cmp( arg, "pkers" ) )
     {
-	output = get_stats( REPORT_TOP_PLAYER_KILLERS );
+    output = get_stats( REPORT_TOP_PLAYER_KILLERS );
     }
     else
     if ( !str_cmp( arg, "cpkers" ) )
     {
-	output = get_stats( REPORT_TOP_CPLAYER_KILLERS );
+    output = get_stats( REPORT_TOP_CPLAYER_KILLERS );
     }
     else
     if ( !str_cmp( arg, "wealthiest" ) )
     {
-	output = get_stats( REPORT_TOP_WEALTHIEST );
+    output = get_stats( REPORT_TOP_WEALTHIEST );
     }
     else
     if ( !str_cmp( arg, "monsters" ) )
     {
-	output = get_stats( REPORT_TOP_MONSTER_KILLERS );
+    output = get_stats( REPORT_TOP_MONSTER_KILLERS );
     }
     else
     if ( !str_cmp( arg, "ratio" ) )
     {
-	output = get_stats( REPORT_TOP_WORST_RATIO );
+    output = get_stats( REPORT_TOP_WORST_RATIO );
     }
     else
     if ( !str_cmp( arg, "quests" ) )
     {
-	output = get_stats( REPORT_TOP_QUESTS );
+    output = get_stats( REPORT_TOP_QUESTS );
     }
     else
     {
-	send_to_char("Usage: Stats <pkers|cpkers|quests|monsters|wealthiest|ratio>\n\r", ch);
-	return;
+    send_to_char("Usage: Stats <pkers|cpkers|quests|monsters|wealthiest|ratio>\n\r", ch);
+    return;
     }
 
     page_to_char(buf_string(output), ch);
@@ -89,10 +89,10 @@ BUFFER *get_stats( int type)
 
     if ( stat_table[type].report_name == NULL )
     {
-	sprintf( buf, "Sorry, these stats are currently unavailable.\n\r" );
-	add_buf( output, buf );
-	pbugf(LOG_ERROR, "Stats for type %d weren't loaded!", type );
-	return output;
+    sprintf( buf, "Sorry, these stats are currently unavailable.\n\r" );
+    add_buf( output, buf );
+    pbugf(LOG_ERROR, "Stats for type %d weren't loaded!", type );
+    return output;
     }
 
     add_buf(output, stat_table[type].report_name);
@@ -109,8 +109,8 @@ BUFFER *get_stats( int type)
 
     for ( i = 0; i < 10; i++ )
     {
-	sprintf( buf, " {Y#%-4d{x %-40s %s\n\r", i+1, stat_table[type].name[i], stat_table[type].value[i] );
-	add_buf(output, buf);
+    sprintf( buf, " {Y#%-4d{x %-40s %s\n\r", i+1, stat_table[type].name[i], stat_table[type].value[i] );
+    add_buf(output, buf);
     }
 
     return output;
@@ -139,8 +139,8 @@ BUFFER *get_stats_for_html( int type)
     add_buf(output, "<tr><td colspan=\"3\">{B----------{C------------------{W--------------------------------------{C------------------{B---------{x</td></tr>");
     for ( i = 0; i < 10; i++ )
     {
-	sprintf( buf, "<tr><td width=\"10%%\">{Y#%-4d{x</td><td width=\"70%%\">%-40s</td><td width=\"20%%\">%s</td></tr>", i+1, stat_table[type].name[i], stat_table[type].value[i] );
-	add_buf(output, buf);
+    sprintf( buf, "<tr><td width=\"10%%\">{Y#%-4d{x</td><td width=\"70%%\">%-40s</td><td width=\"20%%\">%s</td></tr>", i+1, stat_table[type].name[i], stat_table[type].value[i] );
+    add_buf(output, buf);
     }
 
     add_buf(output, "</table>");

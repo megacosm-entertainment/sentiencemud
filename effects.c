@@ -100,7 +100,7 @@ void acid_effect(void *vo, int level, int dam, int target)
         break;
         case ITEM_CLOTHING:
         msg = "$p is corroded into scrap.";
-     	break;
+         break;
         case ITEM_STAFF:
         case ITEM_WAND:
         chance -= 10;
@@ -689,18 +689,18 @@ void shock_effect(void *vo, int level, int dam, int target)
 
 void damage_vampires( CHAR_DATA *ch, int dam )
 {
-	int chance;
+    int chance;
 
     dam -= get_age(ch) * 2;
     chance = get_skill( ch, gsn_temperance );
     if (chance > 0) {
-	if ( chance < 6 ) dam -= 5;
-	else if ( chance < 30 ) dam -= 20;
-	else if ( chance < 50 ) dam = dam * 5/6;
-	else if ( chance < 75 ) dam = dam * 3/4;
-	else if ( chance < 80 ) dam = dam * 2/3;
-	else if ( chance < 90 ) dam = dam * 3/5;
-	else dam = dam / 2;
+    if ( chance < 6 ) dam -= 5;
+    else if ( chance < 30 ) dam -= 20;
+    else if ( chance < 50 ) dam = dam * 5/6;
+    else if ( chance < 75 ) dam = dam * 3/4;
+    else if ( chance < 80 ) dam = dam * 2/3;
+    else if ( chance < 90 ) dam = dam * 3/5;
+    else dam = dam / 2;
     }
 
     check_improve( ch, gsn_temperance, true, 8 );
@@ -710,19 +710,19 @@ void damage_vampires( CHAR_DATA *ch, int dam )
     vamp_sun_message( ch, dam/4 );
 
     if ( ch->mana - dam/4 < 0 )
-    	ch->mana = 0;
+        ch->mana = 0;
     else
         ch->mana -= dam/4;
 
     if ( ch->move - dam/4 < 0 )
-    	ch->move = 0;
+        ch->move = 0;
     else
         ch->move -= dam/4;
 
     if ( ch->hit - dam/4 < 1 )
-	raw_kill( ch, false, false, RAWKILL_INCINERATE );
+    raw_kill( ch, false, false, RAWKILL_INCINERATE );
     else
-	ch->hit -= dam/4;
+    ch->hit -= dam/4;
 }
 
 void hurt_vampires( CHAR_DATA *ch)
@@ -734,32 +734,32 @@ void hurt_vampires( CHAR_DATA *ch)
     || !IS_OUTSIDE(ch)
     || IN_NETHERWORLD(ch)
     || (time_info.hour < 6 || time_info.hour > 16 ))
-	return;
+    return;
 
     switch ( weather_info.sky )
     {
-	case SKY_CLOUDLESS:
-	    dam = ch->max_hit/3;
-	    break;
-	case SKY_CLOUDY:
-	    dam = ch->max_hit/4;
-	    break;
-	case SKY_RAINING:
-	    dam = ch->max_hit/5;
-	    break;
-	default:
-	    dam = ch->max_hit/6;
-	    break;
+    case SKY_CLOUDLESS:
+        dam = ch->max_hit/3;
+        break;
+    case SKY_CLOUDY:
+        dam = ch->max_hit/4;
+        break;
+    case SKY_RAINING:
+        dam = ch->max_hit/5;
+        break;
+    default:
+        dam = ch->max_hit/6;
+        break;
     }
 
     if ( time_info.hour >= 9 && time_info.hour < 4 )
-	dam *= 2;
+    dam *= 2;
 
     if ( time_info.hour >= 16 )
-	dam /= 2;
+    dam /= 2;
 
     if (IS_AFFECTED(ch, gsn_stone_skin))
-	dam /= 2;
+    dam /= 2;
 
     damage_vampires(ch,dam);
 }
@@ -768,44 +768,44 @@ void hurt_vampires( CHAR_DATA *ch)
 void vamp_sun_message( CHAR_DATA *ch, int dam )
 {
     if ( dam == 0 )
-    	return;
+        return;
 
     if ( ch->hit - dam < 1 )
     {
-	act("Your head explodes as your body burns in the sunlight.",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
-	act("$n's head explodes as $s body burns in the sunlight.",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	return;
+    act("Your head explodes as your body burns in the sunlight.",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+    act("$n's head explodes as $s body burns in the sunlight.",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    return;
     }
 
     if ( dam / ch->max_hit < 20 )
     {
-	act("{R$n suffers as the sun's rays strike $s flesh.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	act("{YYou suffer from the light of the sun.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+    act("{R$n suffers as the sun's rays strike $s flesh.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act("{YYou suffer from the light of the sun.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }
     else if ( dam / ch->max_hit < 25 )
     {
-	act("{R$n writhes in pain inflicted by the sunlight.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	act("{YYou writhe in pain from the light of the sun.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{R$n writhes in pain inflicted by the sunlight.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act("{YYou writhe in pain from the light of the sun.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
     else if ( dam / ch->max_hit < 33 )
     {
-	act("{R$n screams in pain as $s flesh burns in the sunlight.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	act("{YYou writhe in agony as your flesh burns in the sun.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+    act("{R$n screams in pain as $s flesh burns in the sunlight.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act("{YYou writhe in agony as your flesh burns in the sun.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }
     else
     {
-	act( "{R$n shrieks in agony as $s flesh dissolves in the sunlight.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-	act("{YYou writhe in agony as your flesh dissolves in the direct sunlight.\n\r{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+    act( "{R$n shrieks in agony as $s flesh dissolves in the sunlight.{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act("{YYou writhe in agony as your flesh dissolves in the direct sunlight.\n\r{x",
+        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }
 }
 
@@ -819,57 +819,57 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 
     if (ch && saves_spell(level, victim,DAM_POISON) && saves_spell(level, victim,DAM_DISEASE))
     {
-	act("$n inhales the toxic fumes, but seems to ignore them.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
-	send_to_char("You breathe in the toxic fumes, but they have no affect.\n\r",victim);
-	return;
+    act("$n inhales the toxic fumes, but seems to ignore them.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
+    send_to_char("You breathe in the toxic fumes, but they have no affect.\n\r",victim);
+    return;
     }
 
     if(MOUNTED(victim)) {
-	send_to_char("You breathe in the toxic fumes, following from your mount with illness.\n\r", victim);
-	act("$n falls from $s mount after inhaling the toxic fumes.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
-	interpret(victim,"dismount");
+    send_to_char("You breathe in the toxic fumes, following from your mount with illness.\n\r", victim);
+    act("$n falls from $s mount after inhaling the toxic fumes.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
+    interpret(victim,"dismount");
     } else {
-	send_to_char("You collapse with illness from breathing in the toxic fumes.\n\r", victim);
-	act("$n collapses from inhaling the toxic fumes.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+    send_to_char("You collapse with illness from breathing in the toxic fumes.\n\r", victim);
+    act("$n collapses from inhaling the toxic fumes.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
     }
     // Interrupt what they are doing too!
     interpret(victim,"cringe");
     victim->position = POS_RESTING;
-	memset(&af,0,sizeof(af));
-	af.slot	= WEAR_NONE;
-	af.bitvector = 0;
-	af.modifier = 0;
-	af.group = AFFGROUP_BIOLOGICAL;
+    memset(&af,0,sizeof(af));
+    af.slot	= WEAR_NONE;
+    af.bitvector = 0;
+    af.modifier = 0;
+    af.group = AFFGROUP_BIOLOGICAL;
 
-    	if(!IS_SET(victim->imm_flags,IMM_POISON)) {
-		af.bitvector |= AFF_POISON;
-		af.modifier -= level / 30;
-	}
-    	if(!IS_SET(victim->imm_flags,IMM_DISEASE)) {
-		af.bitvector |= AFF_PLAGUE;
-		af.modifier -= level / 30;
-	}
+        if(!IS_SET(victim->imm_flags,IMM_POISON)) {
+        af.bitvector |= AFF_POISON;
+        af.modifier -= level / 30;
+    }
+        if(!IS_SET(victim->imm_flags,IMM_DISEASE)) {
+        af.bitvector |= AFF_PLAGUE;
+        af.modifier -= level / 30;
+    }
 
-	if(af.bitvector == (AFF_POISON|AFF_PLAGUE) && number_range(0,999) < level)
-		af.modifier -= number_range(1,3);
+    if(af.bitvector == (AFF_POISON|AFF_PLAGUE) && number_range(0,999) < level)
+        af.modifier -= number_range(1,3);
 
-	if(af.bitvector) {
-		af.where     = TO_AFFECTS;
-		af.type      = gsn_toxic_fumes;
-		af.level     = level;
-		af.duration  = duration;
-		af.location  = APPLY_STR;
-		af.bitvector2 = 0;
-		affect_to_char(victim, &af);
-	}
+    if(af.bitvector) {
+        af.where     = TO_AFFECTS;
+        af.type      = gsn_toxic_fumes;
+        af.level     = level;
+        af.duration  = duration;
+        af.location  = APPLY_STR;
+        af.bitvector2 = 0;
+        affect_to_char(victim, &af);
+    }
 
-	af.where     = TO_AFFECTS;
-	af.type      = gsn_toxic_fumes;
-	af.level     = level;
-	af.duration  = duration;
-	af.location  = APPLY_MOVE;
-	af.modifier  = -(level / 8);
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_FATIGUE;
-	affect_to_char(victim, &af);
+    af.where     = TO_AFFECTS;
+    af.type      = gsn_toxic_fumes;
+    af.level     = level;
+    af.duration  = duration;
+    af.location  = APPLY_MOVE;
+    af.modifier  = -(level / 8);
+    af.bitvector = 0;
+    af.bitvector2 = AFF2_FATIGUE;
+    affect_to_char(victim, &af);
 }

@@ -24,147 +24,147 @@ static char buf[MSL];
 
 void do_help(CHAR_DATA *ch, char *argument)
 {
-	HELP_DATA *help;
-	HELP_CATEGORY *hcat, *hcatnest;
-	BUFFER *buffer;
-	char buf[2*MSL], buf2[MSL];
-	char *p;
-	int index;
-	int i;
+    HELP_DATA *help;
+    HELP_CATEGORY *hcat, *hcatnest;
+    BUFFER *buffer;
+    char buf[2*MSL], buf2[MSL];
+    char *p;
+    int index;
+    int i;
 
-	if (argument[0] == '\0')
-		find_help_category_exact("summary", topHelpCat);
-		
+    if (argument[0] == '\0')
+        find_help_category_exact("summary", topHelpCat);
+        
 
-	// Category lookup - must be exact
-	if ((hcat = find_help_category_exact(argument, topHelpCat)) != NULL &&
-		get_staff_rank(ch) >= hcat->min_rank &&
-		lookup_help_exact(argument, get_staff_rank(ch), topHelpCat) == NULL) {
+    // Category lookup - must be exact
+    if ((hcat = find_help_category_exact(argument, topHelpCat)) != NULL &&
+        get_staff_rank(ch) >= hcat->min_rank &&
+        lookup_help_exact(argument, get_staff_rank(ch), topHelpCat) == NULL) {
 
-		buffer = new_buf();
+        buffer = new_buf();
 
-		sprintf(buf2, "{R%s{x", hcat == topHelpCat ? "summary" : hcat->name);
+        sprintf(buf2, "{R%s{x", hcat == topHelpCat ? "summary" : hcat->name);
 
-		// Capitalize category name
-		for (i = 0; buf2[i] != '\0'; i++) {
-			if (buf2[i] == '{')
-				i+= 2;
+        // Capitalize category name
+        for (i = 0; buf2[i] != '\0'; i++) {
+            if (buf2[i] == '{')
+                i+= 2;
 
-			buf2[i] = UPPER(buf2[i]);
-		}
+            buf2[i] = UPPER(buf2[i]);
+        }
 
-		sprintf(buf, "{R%s{x", buf2);
+        sprintf(buf, "{R%s{x", buf2);
 
-		// Add on higher-level categories
-		hcatnest = hcat;
-		while ((hcatnest = hcatnest->up) != NULL && hcatnest != topHelpCat) {
-			sprintf(buf2, "{R%s{x", hcatnest->name);
-			for (i = 0; buf2[i] != '\0'; i++)
-				buf2[i] = UPPER(buf2[i]);
+        // Add on higher-level categories
+        hcatnest = hcat;
+        while ((hcatnest = hcatnest->up) != NULL && hcatnest != topHelpCat) {
+            sprintf(buf2, "{R%s{x", hcatnest->name);
+            for (i = 0; buf2[i] != '\0'; i++)
+                buf2[i] = UPPER(buf2[i]);
 
-			strcat(buf2, " {r->{R ");
-			strcat(buf2, buf);
-			sprintf(buf, "%s", buf2);
-		}
+            strcat(buf2, " {r->{R ");
+            strcat(buf2, buf);
+            sprintf(buf, "%s", buf2);
+        }
 
-		sprintf(buf, "{b[{W%s{b]{x\n\r", buf2);
-		add_buf(buffer, buf);
+        sprintf(buf, "{b[{W%s{b]{x\n\r", buf2);
+        add_buf(buffer, buf);
 
-		i = 1;
-		for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
-			if (get_staff_rank(ch) >= hcatnest->min_rank) {
-				sprintf(buf2, "%s", hcatnest->name);
+        i = 1;
+        for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
+            if (get_staff_rank(ch) >= hcatnest->min_rank) {
+                sprintf(buf2, "%s", hcatnest->name);
 
 
-				p = buf2;
-				while (*p != '\0') {
-					*p = UPPER(*p);
-					p++;
-				}
+                p = buf2;
+                while (*p != '\0') {
+                    *p = UPPER(*p);
+                    p++;
+                }
 
 //				char buf3[sizeof(buf2)+50];
 
-				sprintf(buf, "{b[{BC{b]{W   \t<send href=\"help %s\">%.36s\t</send>%s %s", buf2, buf2, pad_string(buf2, 36, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
-				add_buf(buffer, buf);
-				i++;
-			}
-		}
+                sprintf(buf, "{b[{BC{b]{W   \t<send href=\"help %s\">%.36s\t</send>%s %s", buf2, buf2, pad_string(buf2, 36, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
+                add_buf(buffer, buf);
+                i++;
+            }
+        }
 
-		for (help = hcat->inside_helps; help != NULL; help = help->next) {
-			if (get_staff_rank(ch) >= help->min_rank) {
-				sprintf(buf, "{b[{B%-3d{b]{x \t<send href=\"help #%d\">%.20s\t</send>%s %s", help->index, help->index, help->keyword, pad_string(help->keyword, 20, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
-				add_buf(buffer, buf);
-				i++;
-			}
-		}
+        for (help = hcat->inside_helps; help != NULL; help = help->next) {
+            if (get_staff_rank(ch) >= help->min_rank) {
+                sprintf(buf, "{b[{B%-3d{b]{x \t<send href=\"help #%d\">%.20s\t</send>%s %s", help->index, help->index, help->keyword, pad_string(help->keyword, 20, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
+                add_buf(buffer, buf);
+                i++;
+            }
+        }
 
-		if ((i - 1) % 3 != 0)
-			add_buf(buffer, "\n\r");
+        if ((i - 1) % 3 != 0)
+            add_buf(buffer, "\n\r");
 
-		// Only output data and return if we've found some results
-		if ((i - 1) > 0) {
-			page_to_char(buf_string(buffer), ch);
-			free_buf(buffer);
+        // Only output data and return if we've found some results
+        if ((i - 1) > 0) {
+            page_to_char(buf_string(buffer), ch);
+            free_buf(buffer);
 
-		if (hcat == topHelpCat && argument[0] == '\0')
-		{
-			send_to_char("\n\r", ch);
-			send_to_char("Syntax: help <keyword(s)>\n\r"
-					"        help <category name|summary>\n\r"
-					"        help #<index>\n\r", ch);
-		
-		}
-		return;
-		}
-	}
+        if (hcat == topHelpCat && argument[0] == '\0')
+        {
+            send_to_char("\n\r", ch);
+            send_to_char("Syntax: help <keyword(s)>\n\r"
+                    "        help <category name|summary>\n\r"
+                    "        help #<index>\n\r", ch);
+        
+        }
+        return;
+        }
+    }
 
-	// help #<number> is used to lookup helpfiles by index.
-	if (*argument == '#') {
-		argument++;
+    // help #<number> is used to lookup helpfiles by index.
+    if (*argument == '#') {
+        argument++;
 
-		if ((index = atoi(argument)) < 0 || index > 32000) {
-			send_to_char("That help index is out of range.\n\r", ch);
-			return;
-		} else
-			help = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
+        if ((index = atoi(argument)) < 0 || index > 32000) {
+            send_to_char("That help index is out of range.\n\r", ch);
+            return;
+        } else
+            help = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
 
-		if (help == NULL)
-			send_to_char("No help found with that index.\n\r", ch);
-		else
-			show_help_to_ch(ch, help);
+        if (help == NULL)
+            send_to_char("No help found with that index.\n\r", ch);
+        else
+            show_help_to_ch(ch, help);
 
-		return;
-	}
+        return;
+    }
 
-	if (strlen(argument) < 3) {
-		send_to_char("You must specify at least 3 letters of a keyword.\n\r", ch);
-		return;
-	}
+    if (strlen(argument) < 3) {
+        send_to_char("You must specify at least 3 letters of a keyword.\n\r", ch);
+        return;
+    }
 
-	// Lookup by keyword
+    // Lookup by keyword
 
-	// Handle multiple entries w/ same keyword
-	if (count_num_helps(argument, get_staff_rank(ch), topHelpCat) > 1) {
-		act("{YMultiple entries found with keyword $t:{x", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
-		buffer = new_buf();
+    // Handle multiple entries w/ same keyword
+    if (count_num_helps(argument, get_staff_rank(ch), topHelpCat) > 1) {
+        act("{YMultiple entries found with keyword $t:{x", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
+        buffer = new_buf();
 
-		lookup_help_multiple(argument, get_staff_rank(ch), topHelpCat, buffer);
-		page_to_char(buf_string(buffer), ch);
-		free_buf(buffer);
-		return;
-	}
+        lookup_help_multiple(argument, get_staff_rank(ch), topHelpCat, buffer);
+        page_to_char(buf_string(buffer), ch);
+        free_buf(buffer);
+        return;
+    }
 
-	help = lookup_help(argument, get_staff_rank(ch), topHelpCat);
+    help = lookup_help(argument, get_staff_rank(ch), topHelpCat);
 
-	if (help == NULL || help->hCat->min_level > get_staff_rank(ch))
-	{
-		act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
-		sprintf(buf, "%s attempted to get help for '%s' but no helpfile was found.", ch->name, argument);
-		log_string(buf);
-		wiznet(buf, ch, NULL, WIZ_HELPS, 0, 0);
-	}
-	else
-		show_help_to_ch(ch, help);
+    if (help == NULL || help->hCat->min_level > get_staff_rank(ch))
+    {
+        act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
+        sprintf(buf, "%s attempted to get help for '%s' but no helpfile was found.", ch->name, argument);
+        log_string(buf);
+        wiznet(buf, ch, NULL, WIZ_HELPS, 0, 0);
+    }
+    else
+        show_help_to_ch(ch, help);
 }
 
 
@@ -189,27 +189,27 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
     add_buf(buffer, "{b-------------------------------------------------------------------------------{x\n\r");
 
     if (help->related_topics != NULL)
-	add_buf(buffer, "{bRelated topics:{x ");
+    add_buf(buffer, "{bRelated topics:{x ");
 
     i = 0;
     for (topic = help->related_topics; topic != NULL; topic = topic->next) {
-		if (lookup_help_exact(topic->string, get_staff_rank(ch), topHelpCat) != NULL)
-			sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_staff_rank(ch),topHelpCat)->index, topic->string);
-		else
-			sprintf(buf, "{R%s{X", topic->string);
-		add_buf(buffer, buf);
+        if (lookup_help_exact(topic->string, get_staff_rank(ch), topHelpCat) != NULL)
+            sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_staff_rank(ch),topHelpCat)->index, topic->string);
+        else
+            sprintf(buf, "{R%s{X", topic->string);
+        add_buf(buffer, buf);
 
-		if (topic->next != NULL)
-		    add_buf(buffer, "{B,{x ");
+        if (topic->next != NULL)
+            add_buf(buffer, "{B,{x ");
 
-		i++;
+        i++;
 
-		if (i % 7 == 0)
-		    add_buf(buffer, "\n\r");
+        if (i % 7 == 0)
+            add_buf(buffer, "\n\r");
     }
 
     if (i > 0 && i % 7 != 0)
-		add_buf(buffer, "\n\r");
+        add_buf(buffer, "\n\r");
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -224,14 +224,14 @@ int count_num_helps(char *keyword, int viewer_level, HELP_CATEGORY *hcat)
     int num = 0;
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
-	num += count_num_helps(keyword, viewer_level, hcatnest);
+    num += count_num_helps(keyword, viewer_level, hcatnest);
     }
 
     for (help = hcat->inside_helps; help != NULL; help = help->next) {
-	if (!str_infix(keyword, help->keyword)
-	&&  viewer_level >= help->min_level
-	&&  viewer_level >= help->hCat->min_level)
-	    num++;
+    if (!str_infix(keyword, help->keyword)
+    &&  viewer_level >= help->min_level
+    &&  viewer_level >= help->hCat->min_level)
+        num++;
     }
 
     return num;
@@ -244,14 +244,14 @@ HELP_CATEGORY *find_help_category_exact(char *name, HELP_CATEGORY *hcat)
     HELP_CATEGORY *hcatnest, *hcatfound;
 
     if (!str_cmp(name, "summary"))
-	return topHelpCat;
+    return topHelpCat;
 
     if (!str_cmp(hcat->name, name))
-	return hcat;
+    return hcat;
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
-	if ((hcatfound = find_help_category_exact(name, hcatnest)) != NULL)
-	    return hcatfound;
+    if ((hcatfound = find_help_category_exact(name, hcatnest)) != NULL)
+        return hcatfound;
     }
 
     return NULL;
@@ -265,15 +265,15 @@ HELP_DATA *lookup_help(char *keyword, int viewer_level, HELP_CATEGORY *hcat)
     HELP_CATEGORY *hcatNest;
 
     for (hcatNest = hcat->inside_cats; hcatNest != NULL; hcatNest = hcatNest->next) {
-	if ((help = lookup_help(keyword, viewer_level, hcatNest)) != NULL)
-	    return help;
+    if ((help = lookup_help(keyword, viewer_level, hcatNest)) != NULL)
+        return help;
     }
 
     for (help = hcat->inside_helps; help != NULL; help = help->next) {
-	if (!str_infix(keyword, help->keyword)
-	&&  viewer_level >= help->min_level
-	&&  viewer_level >= help->hCat->min_level)
-    	    return help;
+    if (!str_infix(keyword, help->keyword)
+    &&  viewer_level >= help->min_level
+    &&  viewer_level >= help->hCat->min_level)
+            return help;
     }
 
     return NULL;
@@ -287,15 +287,15 @@ HELP_DATA *lookup_help_exact(char *keyword, int viewer_level, HELP_CATEGORY *hca
     HELP_CATEGORY *hcatNest;
 
     for (hcatNest = hcat->inside_cats; hcatNest != NULL; hcatNest = hcatNest->next) {
-	if ((help = lookup_help_exact(keyword, viewer_level, hcatNest)) != NULL)
-	    return help;
+    if ((help = lookup_help_exact(keyword, viewer_level, hcatNest)) != NULL)
+        return help;
     }
 
     for (help = hcat->inside_helps; help != NULL; help = help->next) {
-	if (!str_cmp(keyword, help->keyword)
-	&&  viewer_level >= help->min_level
-	&&  viewer_level >= help->hCat->min_level)
-    	    return help;
+    if (!str_cmp(keyword, help->keyword)
+    &&  viewer_level >= help->min_level
+    &&  viewer_level >= help->hCat->min_level)
+            return help;
     }
 
     return NULL;
@@ -309,15 +309,15 @@ HELP_DATA *lookup_help_index(unsigned int index, int viewer_level, HELP_CATEGORY
     HELP_CATEGORY *hcatNest;
 
     for (hcatNest = hcat->inside_cats; hcatNest != NULL; hcatNest = hcatNest->next) {
-	if ((help = lookup_help_index(index, viewer_level, hcatNest)) != NULL)
-	    return help;
+    if ((help = lookup_help_index(index, viewer_level, hcatNest)) != NULL)
+        return help;
     }
 
     for (help = hcat->inside_helps; help != NULL; help = help->next) {
-	if (index == help->index
-	&&  viewer_level >= help->min_level
-	&&  viewer_level >= help->hCat->min_level)
-    	    return help;
+    if (index == help->index
+    &&  viewer_level >= help->min_level
+    &&  viewer_level >= help->hCat->min_level)
+            return help;
     }
 
     return NULL;
@@ -332,17 +332,17 @@ void lookup_category_multiple(char *keyword, int viewer_level, HELP_CATEGORY *hc
     char *p;
 
     if (!str_infix(keyword, hcat->name) && viewer_level >= hcat->min_level) {
-		sprintf(buf2, hcat->name);
+        sprintf(buf2, hcat->name);
 
-		for (p = buf2; *p != '\0'; p++)
-		    *p = UPPER(*p);
+        for (p = buf2; *p != '\0'; p++)
+            *p = UPPER(*p);
 
-		sprintf(buf, "{b[{BC  {b] {W%s{x\n\r", buf2);
-		add_buf(buffer, buf);
+        sprintf(buf, "{b[{BC  {b] {W%s{x\n\r", buf2);
+        add_buf(buffer, buf);
     }
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next)
-		lookup_category_multiple(keyword, viewer_level, hcatnest, buffer);
+        lookup_category_multiple(keyword, viewer_level, hcatnest, buffer);
 }
 
 
@@ -354,16 +354,16 @@ void lookup_help_multiple(char *keyword, int viewer_level, HELP_CATEGORY *hcat, 
     char buf[MSL];
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next)
-	lookup_help_multiple(keyword, viewer_level, hcatnest, buffer);
+    lookup_help_multiple(keyword, viewer_level, hcatnest, buffer);
 
     for (help = hcat->inside_helps; help != NULL; help = help->next) {
-	if (!str_infix(keyword, help->keyword)
-	&&  viewer_level >= help->min_level
-	&&  viewer_level >= help->hCat->min_level)
-	{
-			sprintf(buf, "{b[{B%-3d{b] \t<send href=\"help #%d\">{W%.24s\t</send>%s{x\n\r", help->index, help->index, help->keyword, pad_string(help->keyword, 24, NULL, NULL));
-	    add_buf(buffer, buf);
-	}
+    if (!str_infix(keyword, help->keyword)
+    &&  viewer_level >= help->min_level
+    &&  viewer_level >= help->hCat->min_level)
+    {
+            sprintf(buf, "{b[{B%-3d{b] \t<send href=\"help #%d\">{W%.24s\t</send>%s{x\n\r", help->index, help->index, help->keyword, pad_string(help->keyword, 24, NULL, NULL));
+        add_buf(buffer, buf);
+    }
     }
 }
 
@@ -375,23 +375,23 @@ int index_helpfiles(int index, HELP_CATEGORY *hcat)
     HELP_CATEGORY *hcatnest;
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next)
-	index = index_helpfiles(index, hcatnest);
+    index = index_helpfiles(index, hcatnest);
 
     for (help = hcat->inside_helps; help != NULL; help = help->next)
     {
-	help->index = index;
+    help->index = index;
 
-	if (!str_cmp(help->keyword, "MOTD"))
-	    motd = help->index;
-	else if (!str_cmp(help->keyword, "IMOTD"))
-	    imotd = help->index;
-	else if (!str_cmp(help->keyword, "RULES"))
-	    rules = help->index;
-	else if (!str_cmp(help->keyword, "WIZLIST IMMORTALS"))
-	    wizlist = help->index;
+    if (!str_cmp(help->keyword, "MOTD"))
+        motd = help->index;
+    else if (!str_cmp(help->keyword, "IMOTD"))
+        imotd = help->index;
+    else if (!str_cmp(help->keyword, "RULES"))
+        rules = help->index;
+    else if (!str_cmp(help->keyword, "WIZLIST IMMORTALS"))
+        wizlist = help->index;
 
-	index++;
-	top_help_index++;
+    index++;
+    top_help_index++;
     }
 
     return index;
@@ -406,14 +406,14 @@ HELP_DATA *find_helpfile(char *keyword, HELP_CATEGORY *hcat)
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next)
     {
-	if ((help = find_helpfile(keyword, hcatnest)) != NULL)
-	    return help;
+    if ((help = find_helpfile(keyword, hcatnest)) != NULL)
+        return help;
     }
 
     for (help = hcat->inside_helps; help != NULL; help = help->next)
     {
-	if (!str_prefix(keyword, help->keyword))
-	    break;
+    if (!str_prefix(keyword, help->keyword))
+        break;
     }
 
     return help;
@@ -426,17 +426,17 @@ void insert_help(HELP_DATA *help, HELP_DATA **list)
     HELP_DATA *helpTmp, *helpTmpPrev = NULL;
 
     for (helpTmp = *list; helpTmp != NULL; helpTmp = helpTmp->next) {
-	if (strcmp(help->keyword, helpTmp->keyword) <= 0)
-	    break;
+    if (strcmp(help->keyword, helpTmp->keyword) <= 0)
+        break;
 
-	helpTmpPrev = helpTmp;
+    helpTmpPrev = helpTmp;
     }
 
     help->next = helpTmp;
     if (helpTmpPrev != NULL)
-	helpTmpPrev->next = help;
+    helpTmpPrev->next = help;
     else
-	*list = help;
+    *list = help;
 }
 
 
@@ -447,8 +447,8 @@ HELP_CATEGORY *find_help_category(char *name, HELP_CATEGORY *list)
 
     for (hcat = list; hcat != NULL; hcat = hcat->next)
     {
-    	if (!str_prefix(name, hcat->name))
-	    return hcat;
+        if (!str_prefix(name, hcat->name))
+        return hcat;
     }
 
     return NULL;
@@ -461,8 +461,8 @@ void save_helpfiles_new()
     FILE *fp;
 
     if ((fp = fopen(HELP_FILE, "w")) == NULL) {
-	bug("save_helpfiles_new: couldn't open file for writing", 0);
-	return;
+    bug("save_helpfiles_new: couldn't open file for writing", 0);
+    return;
     }
 
     save_help_category_new(fp, topHelpCat);
@@ -478,18 +478,18 @@ void read_helpfiles_new()
     char *word;
 
     if ((fp = fopen(HELP_FILE, "r")) == NULL) {
-	bug("read_helpfiles_new: couldn't open file for reading", 0);
+    bug("read_helpfiles_new: couldn't open file for reading", 0);
         fp = fopen(HELP_FILE, "w");
-	fprintf(fp, "#HELPCATEGORY ~\n");
-	fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
-	fprintf(fp, "MinLevel 0\n");
-	fprintf(fp, "Creator System~\n");
+    fprintf(fp, "#HELPCATEGORY ~\n");
+    fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
+    fprintf(fp, "MinLevel 0\n");
+    fprintf(fp, "Creator System~\n");
         fprintf(fp, "Created %ld\n", (long int)current_time);
-	fprintf(fp, "ModifiedBy Nobody~\n");
-	fprintf(fp, "Modified 0\n");
-	fprintf(fp, "Security 9\n");
-	fprintf(fp, "#-HELPCATEGORY\n");
-	fclose(fp);
+    fprintf(fp, "ModifiedBy Nobody~\n");
+    fprintf(fp, "Modified 0\n");
+    fprintf(fp, "Security 9\n");
+    fprintf(fp, "#-HELPCATEGORY\n");
+    fclose(fp);
     }
 
     fp = fopen(HELP_FILE, "r");
@@ -497,11 +497,11 @@ void read_helpfiles_new()
     word = fread_word(fp);
 
     if (!str_cmp(word, "#HELPCATEGORY"))  {
-	topHelpCat = read_help_category_new(fp);
-	fclose(fp);
+    topHelpCat = read_help_category_new(fp);
+    fclose(fp);
     } else {
-	bug("read_helpfiles_new: bad format", 0);
-	exit(1);
+    bug("read_helpfiles_new: bad format", 0);
+    exit(1);
     }
 }
 
@@ -524,10 +524,10 @@ void save_help_category_new(FILE *fp, HELP_CATEGORY *hcat)
 
     // Recursively save subcategories inside it.
     for (hcatTmp = hcat->inside_cats; hcatTmp != NULL; hcatTmp = hcatTmp->next)
-    	save_help_category_new(fp, hcatTmp);
+        save_help_category_new(fp, hcatTmp);
 
     for (help = hcat->inside_helps; help != NULL; help = help->next)
-	save_help_new(fp, help);
+    save_help_new(fp, help);
 
     fprintf(fp, "#-HELPCATEGORY\n");
 }
@@ -547,9 +547,9 @@ void save_help_new(FILE *fp, HELP_DATA *help)
     fprintf(fp, "Security %d\n", help->security);
 
     if (help->related_topics != NULL) {
-	for (topic = help->related_topics; topic != NULL; topic = topic->next) {
-	    fprintf(fp, "RelatedTopic %s~\n", topic->string);
-	}
+    for (topic = help->related_topics; topic != NULL; topic = topic->next) {
+        fprintf(fp, "RelatedTopic %s~\n", topic->string);
+    }
     }
 
     fprintf(fp, "Text %s~\n", fix_string(help->text));
@@ -571,97 +571,97 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-HELPCATEGORY"))
     {
-	fMatch = false;
+    fMatch = false;
 
-	switch (word[0])
-	{
-	    case '#':
-	        if (!str_cmp(word, "#HELPCATEGORY"))
-		{
-		    hcatNest = read_help_category_new(fp);
+    switch (word[0])
+    {
+        case '#':
+            if (!str_cmp(word, "#HELPCATEGORY"))
+        {
+            hcatNest = read_help_category_new(fp);
 
-		    hcatNest->next = NULL;
+            hcatNest->next = NULL;
 
-		    if (hcat->inside_cats == NULL)
-			hcat->inside_cats = hcatNest;
-		    else {
-			for (hcatTmp = hcat->inside_cats; hcatTmp->next != NULL; hcatTmp = hcatTmp->next)
-			    ;
+            if (hcat->inside_cats == NULL)
+            hcat->inside_cats = hcatNest;
+            else {
+            for (hcatTmp = hcat->inside_cats; hcatTmp->next != NULL; hcatTmp = hcatTmp->next)
+                ;
 
-			hcatTmp->next = hcatNest;
-		    }
+            hcatTmp->next = hcatNest;
+            }
 
-		    hcatNest->up = hcat;
+            hcatNest->up = hcat;
 
-		    fMatch = true;
-		}
+            fMatch = true;
+        }
 
-		if (!str_cmp(word, "#HELP")) {
-		    help = read_help_new(fp);
+        if (!str_cmp(word, "#HELP")) {
+            help = read_help_new(fp);
 
-		    help->next = NULL;
-		    if (hcat->inside_helps == NULL)
-			hcat->inside_helps = help;
-		    else
-			insert_help(help, &hcat->inside_helps);
+            help->next = NULL;
+            if (hcat->inside_helps == NULL)
+            hcat->inside_helps = help;
+            else
+            insert_help(help, &hcat->inside_helps);
 
-		    help->hCat = hcat;
+            help->hCat = hcat;
 
-		    if (!str_cmp(help->keyword, "greeting"))
-			help_greeting = help->text;
+            if (!str_cmp(help->keyword, "greeting"))
+            help_greeting = help->text;
 
-		    fMatch = true;
-		}
+            fMatch = true;
+        }
 
-		break;
+        break;
 
-	    case 'B':
-	        KEYS("Builders",	hcat->builders,		fread_string(fp));
-		break;
+        case 'B':
+            KEYS("Builders",	hcat->builders,		fread_string(fp));
+        break;
 
-	    case 'C':
-	        KEYS("Creator",	hcat->creator,		fread_string(fp));
-		KEY("Created",		hcat->created,		fread_number(fp));
-		break;
+        case 'C':
+            KEYS("Creator",	hcat->creator,		fread_string(fp));
+        KEY("Created",		hcat->created,		fread_number(fp));
+        break;
 
-	    case 'D':
-	        KEYS("Description",	hcat->description,	fread_string(fp));
-		break;
+        case 'D':
+            KEYS("Description",	hcat->description,	fread_string(fp));
+        break;
 
-	    case 'M':
-		KEY("MinLevel",	hcat->min_level,	fread_number(fp));
-		KEY("Modified",	hcat->modified,		fread_number(fp));
-		KEYS("ModifiedBy",	hcat->modified_by,	fread_string(fp));
-		break;
+        case 'M':
+        KEY("MinLevel",	hcat->min_level,	fread_number(fp));
+        KEY("Modified",	hcat->modified,		fread_number(fp));
+        KEYS("ModifiedBy",	hcat->modified_by,	fread_string(fp));
+        break;
 
-		case 'R':
-		KEY("Rank",		hcat->min_rank,		fread_number(fp));
-		break;
+        case 'R':
+        KEY("Rank",		hcat->min_rank,		fread_number(fp));
+        break;
 
-	    case 'S':
-		KEY("Security",	hcat->security,		fread_number(fp));
-		break;
-	}
+        case 'S':
+        KEY("Security",	hcat->security,		fread_number(fp));
+        break;
+    }
 
-	if (!fMatch) {
-	    sprintf(buf, "read_help_category_new: no match for word %s", word);
-	    bug(buf, 0);
-	}
+    if (!fMatch) {
+        sprintf(buf, "read_help_category_new: no match for word %s", word);
+        bug(buf, 0);
+    }
     }
 
     if (!str_cmp(hcat->modified_by, "(null)")) {
-	free_string(hcat->modified_by);
-	hcat->modified_by = str_dup("Unknown");
+    free_string(hcat->modified_by);
+    hcat->modified_by = str_dup("Unknown");
     }
 
     if (!str_cmp(hcat->creator, "(null)")) {
-	free_string(hcat->creator);
-	hcat->creator = str_dup("Unknown");
+    free_string(hcat->creator);
+    hcat->creator = str_dup("Unknown");
     }
 
     if (!str_cmp(hcat->description, "(null)")) {
-	free_string(hcat->description);
-	hcat->description = str_dup("None\n\r");
+    free_string(hcat->description);
+    hcat->description = str_dup("None\n\r");
     }
 
     if (hcat->min_level == 150)
@@ -690,85 +690,85 @@ HELP_DATA *read_help_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-HELP"))
     {
-	fMatch = false;
+    fMatch = false;
 
-	switch (word[0])
-	{
-	    case 'B':
-	        KEYS("Builders",	help->builders,		fread_string(fp));
-		break;
+    switch (word[0])
+    {
+        case 'B':
+            KEYS("Builders",	help->builders,		fread_string(fp));
+        break;
 
-	    case 'C':
-	        KEYS("Creator",	help->creator,		fread_string(fp));
-		KEY("Created",		help->created,		fread_number(fp));
-		break;
+        case 'C':
+            KEYS("Creator",	help->creator,		fread_string(fp));
+        KEY("Created",		help->created,		fread_number(fp));
+        break;
 
-	    case 'M':
-	        KEY("MinLevel",	help->min_level,	fread_number(fp));
-		KEY("Modified",	help->modified,		fread_number(fp));
-		KEYS("ModifiedBy",	help->modified_by,	fread_string(fp));
-		break;
+        case 'M':
+            KEY("MinLevel",	help->min_level,	fread_number(fp));
+        KEY("Modified",	help->modified,		fread_number(fp));
+        KEYS("ModifiedBy",	help->modified_by,	fread_string(fp));
+        break;
 
             case 'R':
-			KEY("Rank",		help->min_rank,		fread_number(fp));
-		if (!str_cmp(word, "RelatedTopic")) {
-		    STRING_DATA *topic, *topic_tmp;
+            KEY("Rank",		help->min_rank,		fread_number(fp));
+        if (!str_cmp(word, "RelatedTopic")) {
+            STRING_DATA *topic, *topic_tmp;
 
                     topic = new_string_data();
 
-		    fMatch = true;
+            fMatch = true;
 
-		    topic->string = fread_string(fp);
+            topic->string = fread_string(fp);
 
-		    if (help->related_topics == NULL) {
-			topic->next = help->related_topics;
-			help->related_topics = topic;
-		    } else {
-			for (topic_tmp = help->related_topics; topic_tmp->next != NULL; topic_tmp = topic_tmp->next)
-			    ;
+            if (help->related_topics == NULL) {
+            topic->next = help->related_topics;
+            help->related_topics = topic;
+            } else {
+            for (topic_tmp = help->related_topics; topic_tmp->next != NULL; topic_tmp = topic_tmp->next)
+                ;
 
-			topic_tmp->next = topic;
-			topic->next = NULL;
-		    }
-		}
+            topic_tmp->next = topic;
+            topic->next = NULL;
+            }
+        }
 
-	    case 'S':
-		KEY("Security",	help->security,		fread_number(fp));
-		break;
+        case 'S':
+        KEY("Security",	help->security,		fread_number(fp));
+        break;
 
-	    case 'T':
-		if (!str_cmp(word, "Text")) {
-		    fMatch = true;
+        case 'T':
+        if (!str_cmp(word, "Text")) {
+            fMatch = true;
 
-		    help->text = fread_string(fp);
-		}
+            help->text = fread_string(fp);
+        }
 
-		break;
-	}
+        break;
+    }
 
-	if (!fMatch) {
-	    sprintf(buf, "read_help_new: no match for word %s", word);
-	    bug(buf, 0);
-	}
+    if (!fMatch) {
+        sprintf(buf, "read_help_new: no match for word %s", word);
+        bug(buf, 0);
+    }
     }
 
     // Fix up problems here. Mostly from old helpfiles being converted.
     if (!str_cmp(help->creator, "(null)")) {
-	free_string(help->creator);
-	help->creator = str_dup("Unknown");
+    free_string(help->creator);
+    help->creator = str_dup("Unknown");
     }
 
     if (!str_cmp(help->modified_by, "(null)")) {
-	free_string(help->modified_by);
-	help->modified_by = str_dup("Unknown");
+    free_string(help->modified_by);
+    help->modified_by = str_dup("Unknown");
     }
 
     if (!str_cmp(help->text, "(null)")) {
-	free_string(help->text);
-	help->text = str_dup("Unknown");
+    free_string(help->text);
+    help->text = str_dup("Unknown");
     }
 
-	if (help->min_level == 150)
+    if (help->min_level == 150)
         help->min_rank = STAFF_IMMORTAL;
     else if (help->min_level == 151 || help->min_level == 152)
         help->min_rank = STAFF_ASCENDANT;

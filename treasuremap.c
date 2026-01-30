@@ -23,272 +23,272 @@
 
 OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset, char *marker)
 {
-	int distance;
-	AREA_DATA *bestArea = NULL;
-	AREA_DATA *closestArea;
-	int bestDistance = 200;
+    int distance;
+    AREA_DATA *bestArea = NULL;
+    AREA_DATA *closestArea;
+    int bestDistance = 200;
 
-	if( !pWilds ) return NULL;
-	if( !scroll ) return NULL;
+    if( !pWilds ) return NULL;
+    if( !scroll ) return NULL;
 
-	int w = get_squares_to_show_x(0) - 1;
-	int h = get_squares_to_show_y(0) - 1;
+    int w = get_squares_to_show_x(0) - 1;
+    int h = get_squares_to_show_y(0) - 1;
 
-	int wx = vx + number_range(-w, w);
-	int wy = vy + number_range(-h, h);
+    int wx = vx + number_range(-w, w);
+    int wy = vy + number_range(-h, h);
 
-	// OFFSET% chance the marker is off by +/-1
-	if( number_percent() < offset )
-	{
-		vx += number_range(-1, 1);
-		vy += number_range(-1, 1);
-	}
+    // OFFSET% chance the marker is off by +/-1
+    if( number_percent() < offset )
+    {
+        vx += number_range(-1, 1);
+        vy += number_range(-1, 1);
+    }
 
-	if( IS_NULLSTR(marker) )
-		marker = "{RX{x";
+    if( IS_NULLSTR(marker) )
+        marker = "{RX{x";
 
-	// Get closest area
-	for (closestArea = area_first; closestArea != NULL; closestArea = closestArea->next)
-	{
-		if( !closestArea->open )
-			continue;
+    // Get closest area
+    for (closestArea = area_first; closestArea != NULL; closestArea = closestArea->next)
+    {
+        if( !closestArea->open )
+            continue;
 
-		distance = (int) sqrt(
-				( closestArea->x - vx ) * ( closestArea->x - vx ) +
-				( closestArea->y - vy ) * ( closestArea->y - vy ) );
+        distance = (int) sqrt(
+                ( closestArea->x - vx ) * ( closestArea->x - vx ) +
+                ( closestArea->y - vy ) * ( closestArea->y - vy ) );
 
-		if (distance < bestDistance)
-		{
-			bestDistance = distance;
-			bestArea = closestArea;
-		}
-	}
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            bestArea = closestArea;
+        }
+    }
 
-	if (scroll != NULL)
-	{
-		BUFFER *buffer = new_buf();
+    if (scroll != NULL)
+    {
+        BUFFER *buffer = new_buf();
 
-		get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy, 0, 0, marker);
+        get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy, 0, 0, marker);
 
-		if (scroll->full_description != NULL)
-			free_string(scroll->full_description);
+        if (scroll->full_description != NULL)
+            free_string(scroll->full_description);
 
-		if( bestArea )
-		{
-			add_buf(buffer, "\n\r");
-			add_buf(buffer, marker);
-			add_buf(buffer, "{x marks the spot! The location is near ");
-			add_buf(buffer, bestArea->name);
-			add_buf(buffer, ".\n\r");
-		}
-		else
-		{
-			add_buf(buffer, "\n\r{RX{x marks the spot!\n\r");
-		}
+        if( bestArea )
+        {
+            add_buf(buffer, "\n\r");
+            add_buf(buffer, marker);
+            add_buf(buffer, "{x marks the spot! The location is near ");
+            add_buf(buffer, bestArea->name);
+            add_buf(buffer, ".\n\r");
+        }
+        else
+        {
+            add_buf(buffer, "\n\r{RX{x marks the spot!\n\r");
+        }
 
-		scroll->full_description = str_dup(buffer->string);
+        scroll->full_description = str_dup(buffer->string);
 
-		free_buf(buffer);
+        free_buf(buffer);
 
-		if( scroll->item_type == ITEM_MAP )
-		{
-			scroll->value[0] = wx;
-			scroll->value[1] = wy;
-		}
-	}
+        if( scroll->item_type == ITEM_MAP )
+        {
+            scroll->value[0] = wx;
+            scroll->value[1] = wy;
+        }
+    }
 
-	return scroll;
+    return scroll;
 }
 
 bool valid_area_for_treasure(AREA_DATA *pArea)
 {
-	if( !pArea ) return false;
+    if( !pArea ) return false;
 
-	if( pArea->wilds_uid < 1 ) return false;
+    if( pArea->wilds_uid < 1 ) return false;
 
-	WILDS_DATA *wilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-	if( !wilds ) return false;
+    WILDS_DATA *wilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+    if( !wilds ) return false;
 
-	for( int x = -20; x <= 20; x++ )
-	{
-		for( int y = -20; y <= 20; y++ )
-		{
-			int d = x * x + y * y;
+    for( int x = -20; x <= 20; x++ )
+    {
+        for( int y = -20; y <= 20; y++ )
+        {
+            int d = x * x + y * y;
 
-			if( d >= 40000 ) continue;
+            if( d >= 40000 ) continue;
 
-			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->x + x, pArea->y + y);
+            WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->x + x, pArea->y + y);
 
-			if( pTerrain != NULL && !pTerrain->nonroom &&
-				pTerrain->template->sector_type != SECT_WATER_SWIM &&
-				pTerrain->template->sector_type != SECT_WATER_NOSWIM)
-				return true;
-		}
-	}
+            if( pTerrain != NULL && !pTerrain->nonroom &&
+                pTerrain->template->sector_type != SECT_WATER_SWIM &&
+                pTerrain->template->sector_type != SECT_WATER_NOSWIM)
+                return true;
+        }
+    }
 
-	return false;
+    return false;
 }
 
 OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *treasure)
 {
-	ROOM_INDEX_DATA *pRoom = NULL;
-	OBJ_DATA *scroll;
-	int vx, vy;
+    ROOM_INDEX_DATA *pRoom = NULL;
+    OBJ_DATA *scroll;
+    int vx, vy;
 
-	if( !IS_VALID(treasure) ) return NULL;
+    if( !IS_VALID(treasure) ) return NULL;
 
-	if( !pWilds ) return NULL;
+    if( !pWilds ) return NULL;
 
-	// Not in the same wilderness as the one specified
-	if( pArea )
-	{
-		if( !valid_area_for_treasure(pArea) )
-			return NULL;
+    // Not in the same wilderness as the one specified
+    if( pArea )
+    {
+        if( !valid_area_for_treasure(pArea) )
+            return NULL;
 
-		if( pArea->wilds_uid != pWilds->uid )
-			return NULL;
-	}
+        if( pArea->wilds_uid != pWilds->uid )
+            return NULL;
+    }
 
-	pRoom = obj_room(treasure);
+    pRoom = obj_room(treasure);
 
-	if( !pRoom || !IS_WILDERNESS(pRoom) || pRoom->wilds != pWilds || treasure->carried_by || treasure->in_obj)
-	{
-		if( treasure->carried_by )
-			obj_from_char(treasure);
-		else if( treasure->in_obj)
-			obj_from_obj(treasure);
-		else if( pRoom )
-			obj_from_room(treasure);
+    if( !pRoom || !IS_WILDERNESS(pRoom) || pRoom->wilds != pWilds || treasure->carried_by || treasure->in_obj)
+    {
+        if( treasure->carried_by )
+            obj_from_char(treasure);
+        else if( treasure->in_obj)
+            obj_from_obj(treasure);
+        else if( pRoom )
+            obj_from_room(treasure);
 
-		// Find location for map
-		while(true) {
-			if( pArea && pArea->open )
-			{
-				vx = number_range(-50, 50);
-				vy = number_range(-50, 50);
+        // Find location for map
+        while(true) {
+            if( pArea && pArea->open )
+            {
+                vx = number_range(-50, 50);
+                vy = number_range(-50, 50);
 
-				if( (vx * vx + vy * vy) >= 40000 )
-					continue;
+                if( (vx * vx + vy * vy) >= 40000 )
+                    continue;
 
-				vx += pArea->x;
-				vy += pArea->y;
-			}
-			else
-			{
-				vx = number_range(0, pWilds->map_size_x - 1);
-				vy = number_range(0, pWilds->map_size_y - 1);
-			}
+                vx += pArea->x;
+                vy += pArea->y;
+            }
+            else
+            {
+                vx = number_range(0, pWilds->map_size_x - 1);
+                vy = number_range(0, pWilds->map_size_y - 1);
+            }
 
-			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
+            WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
 
-			if( pTerrain != NULL && !pTerrain->nonroom &&
-				pTerrain->template->sector_type != SECT_WATER_SWIM &&
-				pTerrain->template->sector_type != SECT_WATER_NOSWIM)
-			{
-				break;
-			}
-		}
+            if( pTerrain != NULL && !pTerrain->nonroom &&
+                pTerrain->template->sector_type != SECT_WATER_SWIM &&
+                pTerrain->template->sector_type != SECT_WATER_NOSWIM)
+            {
+                break;
+            }
+        }
 
-		if( !(pRoom = get_wilds_vroom(pWilds, vx, vy)) )
-			pRoom = create_wilds_vroom(pWilds, vx, vy);
+        if( !(pRoom = get_wilds_vroom(pWilds, vx, vy)) )
+            pRoom = create_wilds_vroom(pWilds, vx, vy);
 
-		obj_to_room(treasure, pRoom);
-	}
-	else
-	{
-		// In a Wilderess Room already
-		vx = pRoom->x;
-		vy = pRoom->y;
-	}
+        obj_to_room(treasure, pRoom);
+    }
+    else
+    {
+        // In a Wilderess Room already
+        vx = pRoom->x;
+        vy = pRoom->y;
+    }
 
-	// create the scroll
-	long map_vnum = get_reserved_vnum("obj_treasure_map");
-	AREA_DATA *map_area = find_area_by_vnum(map_vnum);
-	if (!map_area) map_area = get_system_area_fallback();
-	scroll = create_object(get_obj_index(map_area, map_vnum), 0, true);
+    // create the scroll
+    long map_vnum = get_reserved_vnum("obj_treasure_map");
+    AREA_DATA *map_area = find_area_by_vnum(map_vnum);
+    if (!map_area) map_area = get_system_area_fallback();
+    scroll = create_object(get_obj_index(map_area, map_vnum), 0, true);
 
-	return create_wilderness_map(pWilds, vx, vy, scroll, 5, "{RX{x");
+    return create_wilderness_map(pWilds, vx, vy, scroll, 5, "{RX{x");
 }
 
 void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 {
-	char arg[MIL];
-	AREA_DATA *area = NULL;
+    char arg[MIL];
+    AREA_DATA *area = NULL;
 
-	if( !IN_WILDERNESS(ch) )
-	{
-		send_to_char("You must be in the wilderness.\n\r", ch);
-		return;
-	}
+    if( !IN_WILDERNESS(ch) )
+    {
+        send_to_char("You must be in the wilderness.\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if( arg[0] != '\0' )
-	{
-		for (area = area_first; area != NULL; area = area->next) {
-			if (!is_number(arg) && !str_infix(arg, area->name)) {
-				break;
-			}
-		}
-	}
+    if( arg[0] != '\0' )
+    {
+        for (area = area_first; area != NULL; area = area->next) {
+            if (!is_number(arg) && !str_infix(arg, area->name)) {
+                break;
+            }
+        }
+    }
 
-	bool generated = false;
-	OBJ_DATA *treasure = NULL;
-	if( argument[0] != '\0' )
-	{
-		treasure = get_obj_carry(ch, argument, ch);
+    bool generated = false;
+    OBJ_DATA *treasure = NULL;
+    if( argument[0] != '\0' )
+    {
+        treasure = get_obj_carry(ch, argument, ch);
 
-		if( treasure == NULL )
-		{
-			send_to_char("You do not have that.\n\r", ch);
-			return;
-		}
-	}
-	else
-	{
-		// find treasure
-		int i = number_range(0, MAX_TREASURES-1);
+        if( treasure == NULL )
+        {
+            send_to_char("You do not have that.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        // find treasure
+        int i = number_range(0, MAX_TREASURES-1);
 
-		// create object
-		long treasure_vnum = treasure_table[i];
-		AREA_DATA *treasure_area = find_area_by_vnum(treasure_vnum);
-		if (!treasure_area) treasure_area = get_system_area_fallback();
-		treasure = create_object(get_obj_index(treasure_area, treasure_vnum), 0, true);
+        // create object
+        long treasure_vnum = treasure_table[i];
+        AREA_DATA *treasure_area = find_area_by_vnum(treasure_vnum);
+        if (!treasure_area) treasure_area = get_system_area_fallback();
+        treasure = create_object(get_obj_index(treasure_area, treasure_vnum), 0, true);
 
-		if( !treasure )
-		{
-			send_to_char("Try again next time.\n\r", ch);
-			return;
-		}
+        if( !treasure )
+        {
+            send_to_char("Try again next time.\n\r", ch);
+            return;
+        }
 
-		generated = true;
-	}
+        generated = true;
+    }
 
-	OBJ_DATA *map = create_treasure_map(ch->in_room->wilds, area, treasure);
+    OBJ_DATA *map = create_treasure_map(ch->in_room->wilds, area, treasure);
 
-	if( map )
-	{
-		SET_BIT(treasure->extra[1], ITEM_BURIED);	// Bury the treasure, yar!
+    if( map )
+    {
+        SET_BIT(treasure->extra[1], ITEM_BURIED);	// Bury the treasure, yar!
 
-		obj_to_char(map, ch);
-		act("You spawn $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		act("$n spawns $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		return;
-	}
-	else
-	{
-		if( generated )
-		{
-			if( treasure->in_room )
-				extract_obj(treasure);
-			else
-			{
-				list_remlink(loaded_objects, treasure, false);
-				--treasure->pIndexData->count;
-				free_obj(treasure);
-			}
-		}
-		send_to_char("You seem to have misplaced the map.  Try again next time.\n\r", ch);
-		return;
-	}
+        obj_to_char(map, ch);
+        act("You spawn $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n spawns $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        return;
+    }
+    else
+    {
+        if( generated )
+        {
+            if( treasure->in_room )
+                extract_obj(treasure);
+            else
+            {
+                list_remlink(loaded_objects, treasure, false);
+                --treasure->pIndexData->count;
+                free_obj(treasure);
+            }
+        }
+        send_to_char("You seem to have misplaced the map.  Try again next time.\n\r", ch);
+        return;
+    }
 }

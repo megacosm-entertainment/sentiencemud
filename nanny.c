@@ -362,15 +362,15 @@ void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
         free_account(acct);
         d->account = NULL;
         d->connected = CON_GET_ACCOUNT_NAME;
-	if (!IS_NULLSTR(game_settings.login_string))
-	{
-		write_to_buffer(d, game_settings.login_string, 0);
-		write_to_buffer(d, "\n\r", 0);
-	}
-	else
-	{
-    	write_to_buffer(d, "\n\rBy what name do you wish to be known? ", 0);
-	}
+    if (!IS_NULLSTR(game_settings.login_string))
+    {
+        write_to_buffer(d, game_settings.login_string, 0);
+        write_to_buffer(d, "\n\r", 0);
+    }
+    else
+    {
+        write_to_buffer(d, "\n\rBy what name do you wish to be known? ", 0);
+    }
         break;
         
     default:
@@ -1683,15 +1683,15 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
 void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 {
 
-	char buf[MAX_STRING_LENGTH];
-	CHAR_DATA *ch;
-	bool fOld;
+    char buf[MAX_STRING_LENGTH];
+    CHAR_DATA *ch;
+    bool fOld;
 
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
+    ch = d->character;
 
     if (!argument[0]) {
         close_socket(d);
@@ -1837,12 +1837,12 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 void login_get_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
 
-	CHAR_DATA *ch;
+    CHAR_DATA *ch;
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
+    ch = d->character;
     if (check_mfa(ch, argument))
     {
 
@@ -2173,12 +2173,12 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_alignment(DESCRIPTOR_DATA *d, char *argument)
 {
-	CHAR_DATA *ch;
+    CHAR_DATA *ch;
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
+    ch = d->character;
     switch (argument[0])
     {
     case 'g' : case 'G' : ch->alignment = 750;  break;
@@ -2239,112 +2239,112 @@ void login_get_alignment(DESCRIPTOR_DATA *d, char *argument)
 void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 {
 
-	char buf[MAX_STRING_LENGTH];
-	char arg[MAX_INPUT_LENGTH];
-	char races[MSL];
-	CHAR_DATA *ch;
-	RACE_DATA *race;
-	int i;
-	HELP_DATA *help;
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    char races[MSL];
+    CHAR_DATA *ch;
+    RACE_DATA *race;
+    int i;
+    HELP_DATA *help;
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
+    ch = d->character;
     one_argument(argument,arg);
 
-		sprintf(races, "\n\r{YChoose your race");
-		add_possible_races(ch, races);
-		strcat(races, "{Y:{x ");
+        sprintf(races, "\n\r{YChoose your race");
+        add_possible_races(ch, races);
+        strcat(races, "{Y:{x ");
 
-		if (!strcmp(arg,"help"))
-		{
-			argument = one_argument(argument,arg);
-			if (argument[0] == '\0' || !str_prefix(argument, "races"))
-			{
-				send_to_char("{b++++++{B------{C++++++ {WRACES SUMMARY {C++++++{B------{b++++++{x\n\r\n\r", ch);
-				if ((help = lookup_help_exact("races grid", 0, topHelpCat)) != NULL)
-					send_to_char(help->text, ch);
-			}
-			else
-			{
-				if ((race = race_lookup(argument)) != NULL &&
-					(help = lookup_help_exact(race->name, 0, topHelpCat)) != NULL)
-				{
-					sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
-					send_to_char(buf, ch);
-					send_to_char(help->text, ch);
-				}
-				else
-					send_to_char("That's not a race.\n\r", ch);
-			}
+        if (!strcmp(arg,"help"))
+        {
+            argument = one_argument(argument,arg);
+            if (argument[0] == '\0' || !str_prefix(argument, "races"))
+            {
+                send_to_char("{b++++++{B------{C++++++ {WRACES SUMMARY {C++++++{B------{b++++++{x\n\r\n\r", ch);
+                if ((help = lookup_help_exact("races grid", 0, topHelpCat)) != NULL)
+                    send_to_char(help->text, ch);
+            }
+            else
+            {
+                if ((race = race_lookup(argument)) != NULL &&
+                    (help = lookup_help_exact(race->name, 0, topHelpCat)) != NULL)
+                {
+                    sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
+                    send_to_char(buf, ch);
+                    send_to_char(help->text, ch);
+                }
+                else
+                    send_to_char("That's not a race.\n\r", ch);
+            }
 
-			send_to_char(races, ch);
-			return;
-		}
+            send_to_char(races, ch);
+            return;
+        }
 
-		if (arg[0] == '\0') {
-			send_to_char(races, ch);
-			return;
-		}
+        if (arg[0] == '\0') {
+            send_to_char(races, ch);
+            return;
+        }
 
-		if ((race = race_lookup(argument)) == NULL) {
-			send_to_char("There is no such race.\n\r", ch);
-			send_to_char(races, ch);
-			return;
-		}
+        if ((race = race_lookup(argument)) == NULL) {
+            send_to_char("There is no such race.\n\r", ch);
+            send_to_char(races, ch);
+            return;
+        }
 
-		if (!race->playable || !str_cmp(race->id, "shaper")) {
-			send_to_char("That isn't a player race.\n\r", ch);
-			send_to_char(races, ch);
-			return;
-		}
+        if (!race->playable || !str_cmp(race->id, "shaper")) {
+            send_to_char("That isn't a player race.\n\r", ch);
+            send_to_char(races, ch);
+            return;
+        }
 
-		if (race_is_remort(race)) {
-			send_to_char("You cannot choose that race.\n\r", ch);
-			send_to_char(races, ch);
-			return;
-		}
+        if (race_is_remort(race)) {
+            send_to_char("You cannot choose that race.\n\r", ch);
+            send_to_char(races, ch);
+            return;
+        }
 
 ch->race = race;
 
-		/* initialize stats */
-		for (i = 0; i < MAX_STATS; i++) {
-			ch->perm_stat[i] = race->stats[i];
-			ch->dirty_stat[i] = true;
-		}
-		ch->act[1]        = ch->act[1]|race->act[1];
-		ch->affected_by[0] = ch->affected_by[0]|race->aff[0];
+        /* initialize stats */
+        for (i = 0; i < MAX_STATS; i++) {
+            ch->perm_stat[i] = race->stats[i];
+            ch->dirty_stat[i] = true;
+        }
+        ch->act[1]        = ch->act[1]|race->act[1];
+        ch->affected_by[0] = ch->affected_by[0]|race->aff[0];
 
-		ch->imm_flags_perm = race->imm;
-		ch->res_flags_perm = race->res;
-		ch->vuln_flags_perm = race->vuln;
-		/* 20203003 - Tieryo - Fixing racial affects */
-		ch->affected_by_perm[0] = race->aff[0];
-		ch->affected_by_perm[1] = race->aff[1];
+        ch->imm_flags_perm = race->imm;
+        ch->res_flags_perm = race->res;
+        ch->vuln_flags_perm = race->vuln;
+        /* 20203003 - Tieryo - Fixing racial affects */
+        ch->affected_by_perm[0] = race->aff[0];
+        ch->affected_by_perm[1] = race->aff[1];
 
-		ch->imm_flags	= ch->imm_flags|race->imm;
-		ch->res_flags	= ch->res_flags|race->res;
-		ch->vuln_flags	= ch->vuln_flags|race->vuln;
-		ch->form	= race->form;
-		ch->parts	= race->parts;
+        ch->imm_flags	= ch->imm_flags|race->imm;
+        ch->res_flags	= ch->res_flags|race->res;
+        ch->vuln_flags	= ch->vuln_flags|race->vuln;
+        ch->form	= race->form;
+        ch->parts	= race->parts;
 
-		/* add skills */
-		if (race->skills) {
-			ITERATOR it;
-			char *skill_name;
-			iterator_start(&it, race->skills);
-			while ((skill_name = (char *)iterator_nextdata(&it))) {
-				group_add(ch, skill_name, false);
-			}
-			iterator_stop(&it);
-		}
+        /* add skills */
+        if (race->skills) {
+            ITERATOR it;
+            char *skill_name;
+            iterator_start(&it, race->skills);
+            while ((skill_name = (char *)iterator_nextdata(&it))) {
+                group_add(ch, skill_name, false);
+            }
+            iterator_stop(&it);
+        }
 
-		ch->size = race->min_size;
+        ch->size = race->min_size;
 
-		send_to_char("\n\r{YIs your body {wmasculine{Y, {Wfeminine{y, {Wneutral{Y, or {Wother{Y?{x ", ch);
-		d->connected = CON_GET_NEW_BODY_TYPE;
-		return;
+        send_to_char("\n\r{YIs your body {wmasculine{Y, {Wfeminine{y, {Wneutral{Y, or {Wother{Y?{x ", ch);
+        d->connected = CON_GET_NEW_BODY_TYPE;
+        return;
 
 }
 
@@ -2371,38 +2371,38 @@ void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
 
-    	send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-		send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-		send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-		send_to_char("brand new subclasses.\n\r\n\r", ch);
+        send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
+        send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
+        send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
+        send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
+        send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
+        send_to_char("brand new subclasses.\n\r\n\r", ch);
 
-		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
+        send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
 
-		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-		for (iClass = 0; iClass < MAX_CLASS; iClass++)
-		{
-			if (iClass > 0)
-				strcat(buf, " ");
-			strcat(buf, class_table[iClass].name);
-		}
-		strcat(buf, "{B]{Y:{x ");
-		send_to_char(buf, ch);
-		d->connected = CON_GET_NEW_CLASS;
+        strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
+        for (iClass = 0; iClass < MAX_CLASS; iClass++)
+        {
+            if (iClass > 0)
+                strcat(buf, " ");
+            strcat(buf, class_table[iClass].name);
+        }
+        strcat(buf, "{B]{Y:{x ");
+        send_to_char(buf, ch);
+        d->connected = CON_GET_NEW_CLASS;
         return;
     }
 
 
 void login_read_imotd(DESCRIPTOR_DATA *d, char *argument)
 {
-	CHAR_DATA *ch;
+    CHAR_DATA *ch;
 
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
+    ch = d->character;
 
     write_to_buffer(d,"\n\r",2);
     do_function(ch, &do_motd, "");
@@ -5107,251 +5107,251 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
 {
-	char buf[MAX_STRING_LENGTH];
-	char arg[MAX_INPUT_LENGTH];
-	char classes[MSL];
-	CHAR_DATA *ch;
-	int iClass;
-	HELP_DATA *help;
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    char classes[MSL];
+    CHAR_DATA *ch;
+    int iClass;
+    HELP_DATA *help;
     ch = d->character;
 
-		sprintf(classes, "\n\r{YChoose your class {B[{Cmage cleric thief warrior{B]{Y:{x ");
-		if (!str_prefix("help", argument))
-		{
-			argument = one_argument(argument,arg);
-			if (argument[0] == '\0')
-			{
-				send_to_char("{b++++++{B------{C++++++ {WCLASSES AND SUBCLASSES{C++++++{B------{b++++++{x\n\r\n\r", ch);
-				if ((help = lookup_help_exact("classes professions", 0, topHelpCat)) != NULL)
-					send_to_char(help->text, ch);
-			}
-			else
-			{
-				if ((iClass = class_lookup(argument)) != -1 &&
-					(help = lookup_help_exact(class_table[iClass].name, 0, topHelpCat)) != NULL)
-				{
-					sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
-					send_to_char(buf, ch);
-					send_to_char(help->text, ch);
-				}
-				else
-					send_to_char("That's not a class.\n\r", ch);
-			}
+        sprintf(classes, "\n\r{YChoose your class {B[{Cmage cleric thief warrior{B]{Y:{x ");
+        if (!str_prefix("help", argument))
+        {
+            argument = one_argument(argument,arg);
+            if (argument[0] == '\0')
+            {
+                send_to_char("{b++++++{B------{C++++++ {WCLASSES AND SUBCLASSES{C++++++{B------{b++++++{x\n\r\n\r", ch);
+                if ((help = lookup_help_exact("classes professions", 0, topHelpCat)) != NULL)
+                    send_to_char(help->text, ch);
+            }
+            else
+            {
+                if ((iClass = class_lookup(argument)) != -1 &&
+                    (help = lookup_help_exact(class_table[iClass].name, 0, topHelpCat)) != NULL)
+                {
+                    sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
+                    send_to_char(buf, ch);
+                    send_to_char(help->text, ch);
+                }
+                else
+                    send_to_char("That's not a class.\n\r", ch);
+            }
 
-			send_to_char(classes, ch);
-		}
+            send_to_char(classes, ch);
+        }
 
-		if (argument[0] == '\0') {
-			send_to_char(classes, ch);
-			return;
-		}
+        if (argument[0] == '\0') {
+            send_to_char(classes, ch);
+            return;
+        }
 
-		if ((iClass = class_lookup(argument)) == -1)
-		{
-			send_to_char("{xThat's not a class.\n\r", ch);
-			send_to_char(classes, ch);
-			return;
-		}
+        if ((iClass = class_lookup(argument)) == -1)
+        {
+            send_to_char("{xThat's not a class.\n\r", ch);
+            send_to_char(classes, ch);
+            return;
+        }
 
-		ch->pcdata->class_current = iClass;
+        ch->pcdata->class_current = iClass;
 
-		switch(iClass)
-		{
-		case CLASS_MAGE:
-			ch->pcdata->class_mage = CLASS_MAGE;
-			ch->pcdata->class_cleric = -1;
-			ch->pcdata->class_thief = -1;
-			ch->pcdata->class_warrior = -1;
-			break;
-		case CLASS_CLERIC:
-			ch->pcdata->class_mage = -1;
-			ch->pcdata->class_cleric = CLASS_CLERIC;
-			ch->pcdata->class_thief = -1;
-			ch->pcdata->class_warrior = -1;
-			break;
-		case CLASS_THIEF:
-			ch->pcdata->class_mage = -1;
-			ch->pcdata->class_cleric = -1;
-			ch->pcdata->class_thief = CLASS_THIEF;
-			ch->pcdata->class_warrior = -1;
-			break;
-		case CLASS_WARRIOR:
-			ch->pcdata->class_mage = -1;
-			ch->pcdata->class_cleric = -1;
-			ch->pcdata->class_thief = -1;
-			ch->pcdata->class_warrior = CLASS_WARRIOR;
-			break;
-		}
+        switch(iClass)
+        {
+        case CLASS_MAGE:
+            ch->pcdata->class_mage = CLASS_MAGE;
+            ch->pcdata->class_cleric = -1;
+            ch->pcdata->class_thief = -1;
+            ch->pcdata->class_warrior = -1;
+            break;
+        case CLASS_CLERIC:
+            ch->pcdata->class_mage = -1;
+            ch->pcdata->class_cleric = CLASS_CLERIC;
+            ch->pcdata->class_thief = -1;
+            ch->pcdata->class_warrior = -1;
+            break;
+        case CLASS_THIEF:
+            ch->pcdata->class_mage = -1;
+            ch->pcdata->class_cleric = -1;
+            ch->pcdata->class_thief = CLASS_THIEF;
+            ch->pcdata->class_warrior = -1;
+            break;
+        case CLASS_WARRIOR:
+            ch->pcdata->class_mage = -1;
+            ch->pcdata->class_cleric = -1;
+            ch->pcdata->class_thief = -1;
+            ch->pcdata->class_warrior = CLASS_WARRIOR;
+            break;
+        }
 
-		send_to_char("\n\r{xFor each class there are a possible of three subclasses. Each subclass\n\r", ch);
-		send_to_char("is for a particular alignment. A good aligned person may choose from\n\r", ch);
-		send_to_char("the neutral or good subclasses. An evil aligned person may choose\n\r", ch);
-		send_to_char("from either evil, or neutral subclasses. A neutral aligned person\n\r", ch);
-		send_to_char("however may choose from either good, neutral or evil aligned subclasses.\n\r", ch);
-		send_to_char("For help on a specific subclass, type help <subclass name>.\n\r\n\r", ch);
+        send_to_char("\n\r{xFor each class there are a possible of three subclasses. Each subclass\n\r", ch);
+        send_to_char("is for a particular alignment. A good aligned person may choose from\n\r", ch);
+        send_to_char("the neutral or good subclasses. An evil aligned person may choose\n\r", ch);
+        send_to_char("from either evil, or neutral subclasses. A neutral aligned person\n\r", ch);
+        send_to_char("however may choose from either good, neutral or evil aligned subclasses.\n\r", ch);
+        send_to_char("For help on a specific subclass, type help <subclass name>.\n\r\n\r", ch);
 
-		strcpy(buf, "{YSelect the subclass you would like to begin with ");
-		add_possible_subclasses(ch, buf);
-		strcat(buf, "{Y:{x ");
+        strcpy(buf, "{YSelect the subclass you would like to begin with ");
+        add_possible_subclasses(ch, buf);
+        strcat(buf, "{Y:{x ");
 
-		send_to_char(buf, ch);
-		d->connected = CON_GET_SUB_CLASS;
+        send_to_char(buf, ch);
+        d->connected = CON_GET_SUB_CLASS;
     
 }
 
 void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
 {
-	char buf[MAX_STRING_LENGTH];
-	char arg[MAX_INPUT_LENGTH];
-	char subclasses[MSL];
-	CHAR_DATA *ch;
-	int iClass,i,weapon;
-	HELP_DATA *help;
-	long vector, *field;
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    char subclasses[MSL];
+    CHAR_DATA *ch;
+    int iClass,i,weapon;
+    HELP_DATA *help;
+    long vector, *field;
     ch = d->character;
-		sprintf(subclasses, "\n\r{YChoose your subclass ");
-		add_possible_subclasses(ch, subclasses);
-		strcat(subclasses, "{Y:{x ");
+        sprintf(subclasses, "\n\r{YChoose your subclass ");
+        add_possible_subclasses(ch, subclasses);
+        strcat(subclasses, "{Y:{x ");
 
-		if (!str_prefix("help", argument))
-		{
-			argument = one_argument(argument,arg);
-			if (argument[0] == '\0' || !str_prefix(argument, "subclasses") || !str_prefix(argument, "classes"))
-			{
-				send_to_char("{b++++++{B------{C++++++ {WCLASSES AND SUBCLASSES {C++++++{B------{b++++++{x\n\r\n\r", ch);
-				if ((help = lookup_help_exact("classes professions", 0, topHelpCat)) != NULL)
-					send_to_char(help->text, ch);
-			}
-			else
-			{
-				sprintf(buf, "%s", argument);
-				for (iClass = 0; iClass < MAX_SUB_CLASS; iClass++)
-				{
-					if (!str_prefix(buf, sub_class_table[iClass].name[ch->sex]) &&
-						!sub_class_table[iClass].remort)
-						break;
-				}
+        if (!str_prefix("help", argument))
+        {
+            argument = one_argument(argument,arg);
+            if (argument[0] == '\0' || !str_prefix(argument, "subclasses") || !str_prefix(argument, "classes"))
+            {
+                send_to_char("{b++++++{B------{C++++++ {WCLASSES AND SUBCLASSES {C++++++{B------{b++++++{x\n\r\n\r", ch);
+                if ((help = lookup_help_exact("classes professions", 0, topHelpCat)) != NULL)
+                    send_to_char(help->text, ch);
+            }
+            else
+            {
+                sprintf(buf, "%s", argument);
+                for (iClass = 0; iClass < MAX_SUB_CLASS; iClass++)
+                {
+                    if (!str_prefix(buf, sub_class_table[iClass].name[ch->sex]) &&
+                        !sub_class_table[iClass].remort)
+                        break;
+                }
 
-				if (iClass == MAX_SUB_CLASS)
-					send_to_char("That's not a subclass.\n\r", ch);
-				else
-				{
-					/* Kind of a hack for now*/
-					if (!str_cmp(sub_class_table[iClass].name[ch->sex], "witch") ||
-						!str_cmp(sub_class_table[iClass].name[ch->sex], "warlock"))
-						sprintf(buf, "Warlock Witch");
-					else if (!str_cmp(sub_class_table[iClass].name[ch->sex], "sorcerer") ||
-							!str_cmp(sub_class_table[iClass].name[ch->sex], "sorceress"))
-						sprintf(buf, "Sorcerer Sorceress");
-					else
-						sprintf(buf, sub_class_table[iClass].name[ch->sex]);
+                if (iClass == MAX_SUB_CLASS)
+                    send_to_char("That's not a subclass.\n\r", ch);
+                else
+                {
+                    /* Kind of a hack for now*/
+                    if (!str_cmp(sub_class_table[iClass].name[ch->sex], "witch") ||
+                        !str_cmp(sub_class_table[iClass].name[ch->sex], "warlock"))
+                        sprintf(buf, "Warlock Witch");
+                    else if (!str_cmp(sub_class_table[iClass].name[ch->sex], "sorcerer") ||
+                            !str_cmp(sub_class_table[iClass].name[ch->sex], "sorceress"))
+                        sprintf(buf, "Sorcerer Sorceress");
+                    else
+                        sprintf(buf, sub_class_table[iClass].name[ch->sex]);
 
-					if ((help = lookup_help_exact(buf, 0, topHelpCat)) != NULL)
-					{
-						sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
-						send_to_char(buf, ch);
-						send_to_char(help->text, ch);
-					}
-				}
-			}
+                    if ((help = lookup_help_exact(buf, 0, topHelpCat)) != NULL)
+                    {
+                        sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
+                        send_to_char(buf, ch);
+                        send_to_char(help->text, ch);
+                    }
+                }
+            }
 
-			send_to_char(subclasses, ch);
-			return;
-		}
+            send_to_char(subclasses, ch);
+            return;
+        }
 
-		if (argument[0] == '\0') {
-			send_to_char(subclasses, ch);
-			return;
-		}
+        if (argument[0] == '\0') {
+            send_to_char(subclasses, ch);
+            return;
+        }
 
-		iClass = sub_class_lookup(ch, argument);
-		if (iClass == -1)
-		{
-			send_to_char("{xThat's not a subclass you can choose.\n\r", ch);
-			send_to_char(subclasses, ch);
-			return;
-		}
+        iClass = sub_class_lookup(ch, argument);
+        if (iClass == -1)
+        {
+            send_to_char("{xThat's not a subclass you can choose.\n\r", ch);
+            send_to_char(subclasses, ch);
+            return;
+        }
 
-		ch->pcdata->sub_class_current = iClass;
+        ch->pcdata->sub_class_current = iClass;
 
-		if (ch->pcdata->class_mage != -1)
-			ch->pcdata->sub_class_mage = iClass;
-		else if (ch->pcdata->class_cleric != -1)
-			ch->pcdata->sub_class_cleric = iClass;
-		else if (ch->pcdata->class_thief != -1)
-			ch->pcdata->sub_class_thief = iClass;
-		else if (ch->pcdata->class_warrior != -1)
-			ch->pcdata->sub_class_warrior = iClass;
+        if (ch->pcdata->class_mage != -1)
+            ch->pcdata->sub_class_mage = iClass;
+        else if (ch->pcdata->class_cleric != -1)
+            ch->pcdata->sub_class_cleric = iClass;
+        else if (ch->pcdata->class_thief != -1)
+            ch->pcdata->sub_class_thief = iClass;
+        else if (ch->pcdata->class_warrior != -1)
+            ch->pcdata->sub_class_warrior = iClass;
 
-		log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s new player.", ch->name, d->host);
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s new player.", ch->name, d->host);
 
-		SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
+        SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
 
-		group_add(ch,"global skills",false);
-		group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
-		group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
+        group_add(ch,"global skills",false);
+        group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
+        group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
 
-		/* Make it so no notes appear*/
-		ch->pcdata->last_note = current_time;
-		ch->pcdata->last_idea = current_time;
-		ch->pcdata->last_penalty = current_time;
-		ch->pcdata->last_news = current_time;
-		ch->pcdata->last_changes = current_time;
+        /* Make it so no notes appear*/
+        ch->pcdata->last_note = current_time;
+        ch->pcdata->last_idea = current_time;
+        ch->pcdata->last_penalty = current_time;
+        ch->pcdata->last_news = current_time;
+        ch->pcdata->last_changes = current_time;
 
-		send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
-		buf[0] = '\0';
+        send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
+        buf[0] = '\0';
 
-		/* Set up default toggles*/
-		for (i = 0; pc_set_table[i].name != NULL; i++)
-		{
-			if (pc_set_table[i].default_state == SETTING_ON && get_staff_rank(ch) >= pc_set_table[i].min_rank)
-			{
-				if (pc_set_table[i].vector != 0)
-				{
-					vector = pc_set_table[i].vector;
-					field = &ch->act[0];
-				}
-				else if (pc_set_table[i].vector2 != 0)
-				{
-					vector = pc_set_table[i].vector2;
-					field = &ch->act[1];
-				}
-				else if (pc_set_table[i].vector_comm != 0)
-				{
-					vector = pc_set_table[i].vector_comm;
-					field = &ch->comm;
-				}
-				else
-					continue;
+        /* Set up default toggles*/
+        for (i = 0; pc_set_table[i].name != NULL; i++)
+        {
+            if (pc_set_table[i].default_state == SETTING_ON && get_staff_rank(ch) >= pc_set_table[i].min_rank)
+            {
+                if (pc_set_table[i].vector != 0)
+                {
+                    vector = pc_set_table[i].vector;
+                    field = &ch->act[0];
+                }
+                else if (pc_set_table[i].vector2 != 0)
+                {
+                    vector = pc_set_table[i].vector2;
+                    field = &ch->act[1];
+                }
+                else if (pc_set_table[i].vector_comm != 0)
+                {
+                    vector = pc_set_table[i].vector_comm;
+                    field = &ch->comm;
+                }
+                else
+                    continue;
 
-				if (pc_set_table[i].inverted)
-				{
-					REMOVE_BIT(*field, vector);
-				}
-				else
-				{
-					SET_BIT(*field, vector);
-				}
-			}
-		}
+                if (pc_set_table[i].inverted)
+                {
+                    REMOVE_BIT(*field, vector);
+                }
+                else
+                {
+                    SET_BIT(*field, vector);
+                }
+            }
+        }
 
-		ch->level     = 0;
-		ch->tot_level = 0;
+        ch->level     = 0;
+        ch->tot_level = 0;
 
-		/* Set up weapon skill*/
-		switch (ch->pcdata->class_current)
-		{
-		case CLASS_MAGE:	weapon = gsn_quarterstaff;	break;
-		case CLASS_CLERIC:	weapon = gsn_quarterstaff;	break;
-		case CLASS_THIEF:	weapon = gsn_dagger;		break;
-		case CLASS_WARRIOR:	weapon = gsn_sword;		break;
-		default:
-			log_message(LOG_LEVEL_BUG, LOG_ERROR, "nanny: bad current class in weapon pick");
-			weapon = gsn_sword;
-			break;
-		}
+        /* Set up weapon skill*/
+        switch (ch->pcdata->class_current)
+        {
+        case CLASS_MAGE:	weapon = gsn_quarterstaff;	break;
+        case CLASS_CLERIC:	weapon = gsn_quarterstaff;	break;
+        case CLASS_THIEF:	weapon = gsn_dagger;		break;
+        case CLASS_WARRIOR:	weapon = gsn_sword;		break;
+        default:
+            log_message(LOG_LEVEL_BUG, LOG_ERROR, "nanny: bad current class in weapon pick");
+            weapon = gsn_sword;
+            break;
+        }
 
-		ch->pcdata->learned[weapon] = 50;
+        ch->pcdata->learned[weapon] = 50;
 
     ch->level = 0;
 
@@ -5758,25 +5758,25 @@ void login_char_get_default_pronouns(DESCRIPTOR_DATA *d, char *argument) {
     if (LOWER(argument[0]) == 'y') {
         write_to_buffer(d, "\n\rDefault pronouns accepted.\n\r", 0);
 
-    	send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-		send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-		send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-		send_to_char("brand new subclasses.\n\r\n\r", ch);
+        send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
+        send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
+        send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
+        send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
+        send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
+        send_to_char("brand new subclasses.\n\r\n\r", ch);
 
-		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
+        send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
 
-		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-		for (iClass = 0; iClass < MAX_CLASS; iClass++)
-		{
-			if (iClass > 0)
-				strcat(buf, " ");
-			strcat(buf, class_table[iClass].name);
-		}
-		strcat(buf, "{B]{Y:{x ");
-		send_to_char(buf, ch);
-		d->connected = CON_GET_NEW_CLASS;
+        strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
+        for (iClass = 0; iClass < MAX_CLASS; iClass++)
+        {
+            if (iClass > 0)
+                strcat(buf, " ");
+            strcat(buf, class_table[iClass].name);
+        }
+        strcat(buf, "{B]{Y:{x ");
+        send_to_char(buf, ch);
+        d->connected = CON_GET_NEW_CLASS;
         return;
     } else if (LOWER(argument[0]) == 'n') {
         write_to_buffer(d, "\n\rOkay, let's set your custom pronouns.\n\r", 0);
@@ -5961,25 +5961,25 @@ void login_char_set_custom_pronouns_confirm(DESCRIPTOR_DATA *d, char *argument) 
 
     if (LOWER(argument[0]) == 'y') {
         write_to_buffer(d, "\n\rCustom pronoun settings confirmed.\n\r", 0);
-    	send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-		send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-		send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-		send_to_char("brand new subclasses.\n\r\n\r", ch);
+        send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
+        send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
+        send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
+        send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
+        send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
+        send_to_char("brand new subclasses.\n\r\n\r", ch);
 
-		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
+        send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
 
-		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-		for (iClass = 0; iClass < MAX_CLASS; iClass++)
-		{
-			if (iClass > 0)
-				strcat(buf, " ");
-			strcat(buf, class_table[iClass].name);
-		}
-		strcat(buf, "{B]{Y:{x ");
-		send_to_char(buf, ch);
-		d->connected = CON_GET_NEW_CLASS;
+        strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
+        for (iClass = 0; iClass < MAX_CLASS; iClass++)
+        {
+            if (iClass > 0)
+                strcat(buf, " ");
+            strcat(buf, class_table[iClass].name);
+        }
+        strcat(buf, "{B]{Y:{x ");
+        send_to_char(buf, ch);
+        d->connected = CON_GET_NEW_CLASS;
         return;
     } else if (LOWER(argument[0]) == 'n' || !str_cmp(argument, "back")) {
         write_to_buffer(d, "\n\rOkay, let's review the pronoun options for your chosen body type.\n\r", 0);
@@ -6231,72 +6231,72 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 {
 
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	switch (d->connected) {
-	default:
-		log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Nanny: bad d->connected %d.", d->connected);
-		connection_remove(d);
-		close_socket(d);
-		return;
+    switch (d->connected) {
+    default:
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Nanny: bad d->connected %d.", d->connected);
+        connection_remove(d);
+        close_socket(d);
+        return;
 /*
-	case CON_GET_NAME:
+    case CON_GET_NAME:
         login_get_name(d, argument);
-		break;
+        break;
 
-	case CON_GET_OLD_PASSWORD:
+    case CON_GET_OLD_PASSWORD:
         login_get_old_passwd(d, argument);
-		break;
+        break;
 
-	case CON_GET_MFA:
+    case CON_GET_MFA:
         login_get_mfa(d, argument);
-		break;
+        break;
 
-	case CON_CONFIRM_EMAIL_FOR_RESET:
+    case CON_CONFIRM_EMAIL_FOR_RESET:
         login_confirm_email_for_reset(d, argument);
-		break;
+        break;
         */
 
-	case CON_CHANGE_PASSWORD:
+    case CON_CHANGE_PASSWORD:
         login_change_passwd_initial(d, argument);
-		break;
+        break;
 
-	case CON_CHANGE_PASSWORD_CONFIRM:
+    case CON_CHANGE_PASSWORD_CONFIRM:
         login_change_passwd_confirm(d, argument);
-		break;
+        break;
 
-	case CON_BREAK_CONNECT:
+    case CON_BREAK_CONNECT:
         login_break_connect(d, argument);
-		break;
+        break;
 
-	case CON_CONFIRM_NEW_NAME:
+    case CON_CONFIRM_NEW_NAME:
         login_confirm_new_name(d, argument);
-		break;
+        break;
 /*
-	case CON_GET_NEW_PASSWORD:
+    case CON_GET_NEW_PASSWORD:
         login_get_new_passwd(d, argument);
-		break;
+        break;
 
-	case CON_CONFIRM_NEW_PASSWORD:
+    case CON_CONFIRM_NEW_PASSWORD:
         login_confirm_new_passwd(d, argument);
-		break;
+        break;
 */
-	case CON_GET_ASCII:
+    case CON_GET_ASCII:
         login_get_ascii(d, argument);
-		break;
+        break;
 
-	case CON_GET_ALIGNMENT:
+    case CON_GET_ALIGNMENT:
         login_get_alignment(d, argument);
-		break;
+        break;
 
-	case CON_GET_NEW_RACE:
+    case CON_GET_NEW_RACE:
         login_get_new_race(d, argument);
-		break;
+        break;
 
-	case CON_GET_NEW_SEX:
+    case CON_GET_NEW_SEX:
         login_get_new_sex(d, argument);
-		break;
+        break;
 
     case CON_GET_NEW_BODY_TYPE:
         login_get_char_body_type(d, argument);
@@ -6333,17 +6333,17 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
         break;
 
 
-	case CON_READ_IMOTD:
+    case CON_READ_IMOTD:
         login_read_imotd(d, argument);
-		break;
+        break;
 
-	case CON_READ_MOTD:
+    case CON_READ_MOTD:
         login_read_motd(d, argument);
-		break;
+        break;
 
-	/* Get the player's e-mail if it's not in the pfile already */
+    /* Get the player's e-mail if it's not in the pfile already */
     /*
-	case CON_GET_EMAIL:
+    case CON_GET_EMAIL:
         login_get_email(d, argument);
         break;
 */
@@ -6524,5 +6524,5 @@ case CON_SET_UNLINK_PASSWORD:
     break;
 
 
-	}
+    }
 }

@@ -33,42 +33,42 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     long mob_vnum;
 
     if (p_leader_vnum > 0 && p_mob_vnum > 0) { 
-			leader_vnum = p_leader_vnum;
+      leader_vnum = p_leader_vnum;
       mob_vnum = p_mob_vnum;
-		  AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
-		  if (!leader_area) leader_area = get_system_area_fallback();
-		  sprintf(buf, "Global Quest: %s has been overrun by an invasion force led by %s! Bring back the head for reward! (Max level %d)", pArea->name, get_mob_index(leader_area, leader_vnum)->short_descr, max_level);
+      AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
+      if (!leader_area) leader_area = get_system_area_fallback();
+      sprintf(buf, "Global Quest: %s has been overrun by an invasion force led by %s! Bring back the head for reward! (Max level %d)", pArea->name, get_mob_index(leader_area, leader_vnum)->short_descr, max_level);
     }
     else {
-			// check type of invasion
-			//invasion_type = number_range(0, 3);
-			switch(max_level) {
-			case 60: 
-				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl60");
-				 mob_vnum = get_reserved_vnum("mob_invasion_lvl60");
-				 sprintf(buf, "Global Quest: The goblin horde has invaded %s! (Max level 60)", pArea->name);
-				 break;
-			case 90: 
-				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl90");
-				 mob_vnum = get_reserved_vnum("mob_invasion_lvl90");
-				 sprintf(buf, "Global Quest: The undead have taken over %s, stop them at all costs! (Max level 90)", pArea->name);
-				 break;
-			case 120: 
-				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl120");
-				 mob_vnum = get_reserved_vnum("mob_invasion_lvl120");
-				 sprintf(buf, "Global Quest: Swarthy pirates have taken %s by storm! It is imperative that we take it back! (Max level 120)", pArea->name);
-				 break;
-			case 30: 
-				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl30");
-				 mob_vnum = get_reserved_vnum("mob_invasion_lvl30");
-				 sprintf(buf, "Global Quest: Bandits have stormed %s, we must take it back! (Max level 30)", pArea->name);
-				 break;
-			default:
-				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl30");
-				 mob_vnum = 11002;
-				 sprintf(buf, "Global Quest: Let it be known that %s has been invaded by bandits! (Max level 30)", pArea->name);
-				 break;
-			 }
+      // check type of invasion
+      //invasion_type = number_range(0, 3);
+      switch(max_level) {
+      case 60: 
+         leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl60");
+         mob_vnum = get_reserved_vnum("mob_invasion_lvl60");
+         sprintf(buf, "Global Quest: The goblin horde has invaded %s! (Max level 60)", pArea->name);
+         break;
+      case 90: 
+         leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl90");
+         mob_vnum = get_reserved_vnum("mob_invasion_lvl90");
+         sprintf(buf, "Global Quest: The undead have taken over %s, stop them at all costs! (Max level 90)", pArea->name);
+         break;
+      case 120: 
+         leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl120");
+         mob_vnum = get_reserved_vnum("mob_invasion_lvl120");
+         sprintf(buf, "Global Quest: Swarthy pirates have taken %s by storm! It is imperative that we take it back! (Max level 120)", pArea->name);
+         break;
+      case 30: 
+         leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl30");
+         mob_vnum = get_reserved_vnum("mob_invasion_lvl30");
+         sprintf(buf, "Global Quest: Bandits have stormed %s, we must take it back! (Max level 30)", pArea->name);
+         break;
+      default:
+         leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl30");
+         mob_vnum = 11002;
+         sprintf(buf, "Global Quest: Let it be known that %s has been invaded by bandits! (Max level 30)", pArea->name);
+         break;
+       }
      }
 
      AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
@@ -77,8 +77,8 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
      if (!mob_area) mob_area = get_system_area_fallback();
      if (get_mob_index(leader_area, leader_vnum) == NULL || get_mob_index(mob_area, mob_vnum) == NULL)
      {
-	 bug("create_invasion_quest: leader or mob vnum is null.", 0);
-	 return NULL;
+   bug("create_invasion_quest: leader or mob vnum is null.", 0);
+   return NULL;
      }
 
 
@@ -118,16 +118,16 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     // place mobs
     for (i = 0; i < number; i++) {
       CHAR_DATA *mob; 
-    	mob = create_mobile(get_mob_index(mob_area, mob_vnum), false);
+      mob = create_mobile(get_mob_index(mob_area, mob_vnum), false);
 
-			while(true) {
-				vnum = number_range(pArea->min_vnum, pArea->max_vnum);
-				pRoom = get_room_index(pArea, vnum);
+      while(true) {
+        vnum = number_range(pArea->min_vnum, pArea->max_vnum);
+        pRoom = get_room_index(pArea, vnum);
 
-				if (pRoom != NULL) {
-					break;
-				}
-			}
+        if (pRoom != NULL) {
+          break;
+        }
+      }
      
       // place mob
       char_to_room(mob, pRoom);
@@ -152,7 +152,7 @@ void extract_invasion_quest(INVASION_QUEST *quest) {
 
   if (quest->leader != NULL) {
     char_from_room(quest->leader);
-  	extract_char(quest->leader, false);
+    extract_char(quest->leader, false);
   }
 
   quest->leader = NULL;
@@ -171,7 +171,7 @@ void check_invasion_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *victim) {
   pArea = ch->in_room->area;
 
   if (!IS_NPC(ch) || IS_NPC(victim)) {
-		return;
+    return;
   }
 
   if (pArea->invasion_quest != NULL &&
@@ -180,12 +180,12 @@ void check_invasion_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *victim) {
       if ( pArea->invasion_quest != NULL) {
          if (pArea->invasion_quest->leader == NULL) {
           send_to_char("{YYou have completed the quest, return the head to a quest master!{x\n\r", ch);
-					sprintf(buf, "%s has restored order at %s. The invasion has ended.", ch->name, pArea->name);
-					crier_announce(buf);
-					log_string(buf);
+          sprintf(buf, "%s has restored order at %s. The invasion has ended.", ch->name, pArea->name);
+          crier_announce(buf);
+          log_string(buf);
 
-					extract_invasion_quest(pArea->invasion_quest);
-					pArea->invasion_quest = NULL; 
+          extract_invasion_quest(pArea->invasion_quest);
+          pArea->invasion_quest = NULL; 
           victim->invasion_quest = NULL;
         }
       }

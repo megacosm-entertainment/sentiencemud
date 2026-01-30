@@ -19,41 +19,41 @@
 
 SPELL_FUNC(spell_create_spring)
 {
-	OBJ_DATA *spring;
+    OBJ_DATA *spring;
 
-	spring = create_object(get_reserved_obj_index("obj_spring"), 0, true);
-	spring->timer = level;
-	obj_to_room(spring, ch->in_room);
-	act("$p flows from the ground.", ch, NULL, NULL, spring, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-	return true;
+    spring = create_object(get_reserved_obj_index("obj_spring"), 0, true);
+    spring->timer = level;
+    obj_to_room(spring, ch->in_room);
+    act("$p flows from the ground.", ch, NULL, NULL, spring, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+    return true;
 }
 
 
 SPELL_FUNC(spell_create_water)
 {
-	OBJ_DATA *obj = (OBJ_DATA *) vo;
-	int water;
+    OBJ_DATA *obj = (OBJ_DATA *) vo;
+    int water;
 
-	if (obj->item_type != ITEM_DRINK_CON) {
-		send_to_char("It is unable to hold water.\n\r", ch);
-		return false;
-	}
+    if (obj->item_type != ITEM_DRINK_CON) {
+        send_to_char("It is unable to hold water.\n\r", ch);
+        return false;
+    }
 
-	if (obj->value[2] != LIQ_WATER && obj->value[1]) {
-		send_to_char("It contains some other liquid.\n\r", ch);
-		return false;
-	}
+    if (obj->value[2] != LIQ_WATER && obj->value[1]) {
+        send_to_char("It contains some other liquid.\n\r", ch);
+        return false;
+    }
 
-	water = obj->value[0] - obj->value[1];
-	obj->value[2] = LIQ_WATER;
-	obj->value[1] += water;
-	if (!is_name("water", obj->name)) {
-		char buf[MAX_STRING_LENGTH];
+    water = obj->value[0] - obj->value[1];
+    obj->value[2] = LIQ_WATER;
+    obj->value[1] += water;
+    if (!is_name("water", obj->name)) {
+        char buf[MAX_STRING_LENGTH];
 
-		sprintf(buf, "%s water", obj->name);
-		free_string(obj->name);
-		obj->name = str_dup(buf);
-	}
-	act("$p is filled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	return true;
+        sprintf(buf, "%s water", obj->name);
+        free_string(obj->name);
+        obj->name = str_dup(buf);
+    }
+    act("$p is filled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return true;
 }

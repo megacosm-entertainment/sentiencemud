@@ -23,276 +23,276 @@
 
 SPELL_FUNC(spell_call_familiar)
 {
-	CHAR_DATA *victim;
-	ITERATOR it;
-	int lvl;
+    CHAR_DATA *victim;
+    ITERATOR it;
+    int lvl;
 
-	if(ch->num_grouped >= 9) {
-		send_to_char("You have too many people in your group already.\n\r", ch);
-		return false;
-	}
+    if(ch->num_grouped >= 9) {
+        send_to_char("You have too many people in your group already.\n\r", ch);
+        return false;
+    }
 
-	iterator_start(&it, loaded_chars);
-	while(( victim = (CHAR_DATA *)iterator_nextdata(&it)))
-	{
-		if (!IS_NPC(victim) || IS_SET(victim->act[0], ACT_PROTECTED) ||
-			IS_SET(victim->act[0], ACT_SENTINEL) ||
-			IS_SET(victim->act[0], ACT_PRACTICE) ||
-			IS_SET(victim->act[0], ACT_TRAIN) ||
-			IS_AFFECTED(victim,AFF_CHARM) ||
-			victim->master ||
-			victim->fighting)
-			continue;
+    iterator_start(&it, loaded_chars);
+    while(( victim = (CHAR_DATA *)iterator_nextdata(&it)))
+    {
+        if (!IS_NPC(victim) || IS_SET(victim->act[0], ACT_PROTECTED) ||
+            IS_SET(victim->act[0], ACT_SENTINEL) ||
+            IS_SET(victim->act[0], ACT_PRACTICE) ||
+            IS_SET(victim->act[0], ACT_TRAIN) ||
+            IS_AFFECTED(victim,AFF_CHARM) ||
+            victim->master ||
+            victim->fighting)
+            continue;
 
-		// Only same alignment
-		if (IS_GOOD(ch) && !IS_GOOD(victim)) continue;
-		if (IS_EVIL(ch) && !IS_EVIL(victim)) continue;
-		if (IS_NEUTRAL(ch) && !IS_NEUTRAL(victim)) continue;
+        // Only same alignment
+        if (IS_GOOD(ch) && !IS_GOOD(victim)) continue;
+        if (IS_EVIL(ch) && !IS_EVIL(victim)) continue;
+        if (IS_NEUTRAL(ch) && !IS_NEUTRAL(victim)) continue;
 
-		lvl = number_range((ch->tot_level / 2), (ch->tot_level - ch->tot_level / 10));
+        lvl = number_range((ch->tot_level / 2), (ch->tot_level - ch->tot_level / 10));
 
-		if (!victim->in_room)
-			continue;
+        if (!victim->in_room)
+            continue;
 
-		if (victim->tot_level >= (lvl-5) && victim->tot_level <= (lvl+5) &&
-			number_percent() < 25) {
+        if (victim->tot_level >= (lvl-5) && victim->tot_level <= (lvl+5) &&
+            number_percent() < 25) {
 
-			// DON'T CREATE! TRANSFER THE MOB!
+            // DON'T CREATE! TRANSFER THE MOB!
 
-			add_follower(victim, ch, false);
-			if (!add_grouped(victim, ch, false)) {
-				stop_follower(victim,false);
-				continue;
-			}
+            add_follower(victim, ch, false);
+            if (!add_grouped(victim, ch, false)) {
+                stop_follower(victim,false);
+                continue;
+            }
 
-			break;
-		}
-	}
-	iterator_stop(&it);
+            break;
+        }
+    }
+    iterator_stop(&it);
 
-	if (victim) {
-		if(victim->in_room != ch->in_room) {
-			act("{WA brilliant light consumes $n before $e vanishes into thin air.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-			char_from_room(victim);
-			char_to_room(victim, ch->in_room);
-			act("{W$N appears within a brilliant light next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-			act("{W$N appears within a brilliant light next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		} else {
-			act("{YA faint glow pulses around $N momentarily before $E moves next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-			act("{YA faint glow pulses around $N momentarily before $E moves next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		}
+    if (victim) {
+        if(victim->in_room != ch->in_room) {
+            act("{WA brilliant light consumes $n before $e vanishes into thin air.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            char_from_room(victim);
+            char_to_room(victim, ch->in_room);
+            act("{W$N appears within a brilliant light next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+            act("{W$N appears within a brilliant light next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        } else {
+            act("{YA faint glow pulses around $N momentarily before $E moves next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+            act("{YA faint glow pulses around $N momentarily before $E moves next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        }
 
-		SET_BIT(victim->affected_by[0], AFF_CHARM);
-		return true;
-	}
+        SET_BIT(victim->affected_by[0], AFF_CHARM);
+        return true;
+    }
 
-	return false;
+    return false;
 }
 
 SPELL_FUNC(spell_create_rose)
 {
-	OBJ_DATA *rose;
-	int chance;
-	long vnum;
+    OBJ_DATA *rose;
+    int chance;
+    long vnum;
 
-	chance = number_percent();
+    chance = number_percent();
 
-	if (chance <= 5) vnum = number_range(100167, 100171);
-	else if (chance > 5 && chance <= 10) vnum = number_range(100172, 100175);
-	else if (chance > 10 && chance <= 35) vnum = number_range(100082, 100089);
-	else vnum = number_range(100176, 100189);
+    if (chance <= 5) vnum = number_range(100167, 100171);
+    else if (chance > 5 && chance <= 10) vnum = number_range(100172, 100175);
+    else if (chance > 10 && chance <= 35) vnum = number_range(100082, 100089);
+    else vnum = number_range(100176, 100189);
 
-	AREA_DATA *area = find_area_by_vnum(vnum);
-	if (!area) area = get_system_area_fallback();
-	rose = create_object(get_obj_index(area, vnum), 0, true);
-	act("You have created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	act("$n has created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	if (ch->carry_number + 1 > can_carry_n(ch)) {
-		obj_to_room(rose, ch->in_room);
-		act("$p floats gently to the ground.", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-	} else
-		obj_to_char(rose, ch);
-	return true;
+    AREA_DATA *area = find_area_by_vnum(vnum);
+    if (!area) area = get_system_area_fallback();
+    rose = create_object(get_obj_index(area, vnum), 0, true);
+    act("You have created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n has created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    if (ch->carry_number + 1 > can_carry_n(ch)) {
+        obj_to_room(rose, ch->in_room);
+        act("$p floats gently to the ground.", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+    } else
+        obj_to_char(rose, ch);
+    return true;
 }
 
 
 SPELL_FUNC(spell_control_weather)
 {
-	char *target_name = (char *) vo;
+    char *target_name = (char *) vo;
 
-	if (!target_name) {
-		send_to_char ("Do you want it to get better or worse?\n\r", ch);
-		return false;
-	}
+    if (!target_name) {
+        send_to_char ("Do you want it to get better or worse?\n\r", ch);
+        return false;
+    }
 
-	if (!str_prefix(target_name, "better")) {
-		weather_info.change += dice(level / 3, 4);
-		send_to_char("The sky shimmers blue briefly.\n\r", ch);
-		return true;
-	} else if (!str_prefix(target_name, "worse")) {
-		weather_info.change -= dice(level / 3, 4);
-		send_to_char("The sky shimmers red briefly.\n\r", ch);
-		return true;
-	}
+    if (!str_prefix(target_name, "better")) {
+        weather_info.change += dice(level / 3, 4);
+        send_to_char("The sky shimmers blue briefly.\n\r", ch);
+        return true;
+    } else if (!str_prefix(target_name, "worse")) {
+        weather_info.change -= dice(level / 3, 4);
+        send_to_char("The sky shimmers red briefly.\n\r", ch);
+        return true;
+    }
 
-	send_to_char ("Do you want it to get better or worse?\n\r", ch);
-	return false;
+    send_to_char ("Do you want it to get better or worse?\n\r", ch);
+    return false;
 }
 
 SPELL_FUNC(spell_eagle_eye)
 {
-	long bonus_view;
-	SHIP_DATA *ship = get_room_ship(ch->in_room);
-	ROOM_INDEX_DATA *room = ch->in_room;
+    long bonus_view;
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+    ROOM_INDEX_DATA *room = ch->in_room;
 
-	if (IS_VALID(ship))
-		room = obj_room(ship->ship);
+    if (IS_VALID(ship))
+        room = obj_room(ship->ship);
 
-	if (!IS_WILDERNESS(room)) {
-		send_to_char("Eagles won't come near the city. You must be in the wilderness.\n\r", ch);
-		return false;
-	}
+    if (!IS_WILDERNESS(room)) {
+        send_to_char("Eagles won't come near the city. You must be in the wilderness.\n\r", ch);
+        return false;
+    }
 
-	act("You momentarily see through the eyes of an eagle.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	act("$n's eyes glaze over momentarily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("You momentarily see through the eyes of an eagle.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n's eyes glaze over momentarily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-	bonus_view = 20;
+    bonus_view = 20;
 
-	show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
+    show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
 
-	// Add an event, must be outside to see it
-	if(IS_OUTSIDE(ch))
-	{
-		wait_function(ch->in_room, NULL, EVENT_ECHO, number_range(1,2), NULL, "An eagle can be seen flying high in the sky...\n\r");
-	}
-	return true;
+    // Add an event, must be outside to see it
+    if(IS_OUTSIDE(ch))
+    {
+        wait_function(ch->in_room, NULL, EVENT_ECHO, number_range(1,2), NULL, "An eagle can be seen flying high in the sky...\n\r");
+    }
+    return true;
 }
 
 SPELL_FUNC(spell_ensnare)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
-	memset(&af,0,sizeof(af));
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
+    memset(&af,0,sizeof(af));
 
-	if (IS_AFFECTED(victim, AFF_WEB) ||
-		IS_AFFECTED2(victim, AFF2_ENSNARE)) {
-		act("$N is already entangled enough.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		return false;
-	}
+    if (IS_AFFECTED(victim, AFF_WEB) ||
+        IS_AFFECTED2(victim, AFF2_ENSNARE)) {
+        act("$N is already entangled enough.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	if (saves_spell(level,victim,DAM_OTHER)) {
-		send_to_char("Nothing happens.\n\r", ch);
-		return false;
-	}
+    if (saves_spell(level,victim,DAM_OTHER)) {
+        send_to_char("Nothing happens.\n\r", ch);
+        return false;
+    }
 
-	af.slot	= obj_wear_loc;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_PHYSICAL;
-	af.type = sn;
-	af.location = APPLY_DEX;
-	af.modifier = -3;
-	af.level = level + 1;
-	af.duration = 3; //2 + (int) ch->tot_level/10; //1+level > 3 ? 3 : 1+level;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_ENSNARE;
-	affect_to_char(victim, &af);
-	act("{gThick vines sprout from the ground to clutch you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
-	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-	return true;
+    af.slot	= obj_wear_loc;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_PHYSICAL;
+    af.type = sn;
+    af.location = APPLY_DEX;
+    af.modifier = -3;
+    af.level = level + 1;
+    af.duration = 3; //2 + (int) ch->tot_level/10; //1+level > 3 ? 3 : 1+level;
+    af.bitvector = 0;
+    af.bitvector2 = AFF2_ENSNARE;
+    affect_to_char(victim, &af);
+    act("{gThick vines sprout from the ground to clutch you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+    return true;
 }
 
 
 SPELL_FUNC(spell_master_weather)
 {
-	char *target_name = (char *) vo;
+    char *target_name = (char *) vo;
 
-	if (!str_prefix(target_name, "clear")) {
-		send_to_char("{YHuge gusts of winds mobilize in the sky as you summon wind elementals.{x\n\r", ch);
-		act("{Y$n summons elementals which sweep the sky clear of clouds.",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
-		weather_info.sky = SKY_CLOUDLESS;
-	} else if (!str_prefix(target_name, "cloudy")) {
-		send_to_char("{YElemental forces start pulling clouds into the sky.{x\n\r", ch);
-		act("{Y$n summons elemental forces which pull clouds into the sky.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		weather_info.sky = SKY_CLOUDY;
-	} else if (!str_prefix(target_name, "rainy")) {
-		send_to_char("{YThousands of tiny water elementals bring rain down from the heavens.{x\n\r", ch);
-		act("{Y$n summons thousands of tiny water elementals to bring rain down from the heavens.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		weather_info.sky = SKY_RAINING;
-	} else if (!str_prefix(target_name, "stormy")) {
-		send_to_char("{YFlashes of lightning arc across the sky you summon fire elementals.{x\n\r", ch);
-		act("{YFlashes of lightning arc across the sky as $n summons fire elementals.{x", ch,  NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		weather_info.sky = SKY_LIGHTNING;
-	} else {
-		send_to_char("You must specify rainy, stormy, cloudy, or clear.\n\r", ch);
-		return false;
-	}
+    if (!str_prefix(target_name, "clear")) {
+        send_to_char("{YHuge gusts of winds mobilize in the sky as you summon wind elementals.{x\n\r", ch);
+        act("{Y$n summons elementals which sweep the sky clear of clouds.",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+        weather_info.sky = SKY_CLOUDLESS;
+    } else if (!str_prefix(target_name, "cloudy")) {
+        send_to_char("{YElemental forces start pulling clouds into the sky.{x\n\r", ch);
+        act("{Y$n summons elemental forces which pull clouds into the sky.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        weather_info.sky = SKY_CLOUDY;
+    } else if (!str_prefix(target_name, "rainy")) {
+        send_to_char("{YThousands of tiny water elementals bring rain down from the heavens.{x\n\r", ch);
+        act("{Y$n summons thousands of tiny water elementals to bring rain down from the heavens.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        weather_info.sky = SKY_RAINING;
+    } else if (!str_prefix(target_name, "stormy")) {
+        send_to_char("{YFlashes of lightning arc across the sky you summon fire elementals.{x\n\r", ch);
+        act("{YFlashes of lightning arc across the sky as $n summons fire elementals.{x", ch,  NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        weather_info.sky = SKY_LIGHTNING;
+    } else {
+        send_to_char("You must specify rainy, stormy, cloudy, or clear.\n\r", ch);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 SPELL_FUNC(spell_vision)
 {
-	SHIP_DATA *ship = get_room_ship(ch->in_room);
-	ROOM_INDEX_DATA *room = ch->in_room;
-	long bonus_view;
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+    ROOM_INDEX_DATA *room = ch->in_room;
+    long bonus_view;
 
-	if (IS_VALID(ship))
-		room = obj_room(ship->ship);
+    if (IS_VALID(ship))
+        room = obj_room(ship->ship);
 
-	if (!IS_WILDERNESS(room) && /*!ON_SHIP(ch) &&*/
-		(!IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) ||
-		!IS_OUTSIDE(ch))) {
-		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		return false;
-	}
+    if (!IS_WILDERNESS(room) && /*!ON_SHIP(ch) &&*/
+        (!IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) ||
+        !IS_OUTSIDE(ch))) {
+        act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	act("$n blinks $s eyes.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-	act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n blinks $s eyes.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	WILDS_DATA *wilds = room->wilds;
-	if(IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS))
-		wilds = room->viewwilds;
+    WILDS_DATA *wilds = room->wilds;
+    if(IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS))
+        wilds = room->viewwilds;
 
-	bonus_view = 16;
+    bonus_view = 16;
 
-	show_map_to_char_wyx(wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
+    show_map_to_char_wyx(wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
 
-	return true;
+    return true;
 }
 
 SPELL_FUNC(spell_web)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
 
-	memset(&af,0,sizeof(af));
+    memset(&af,0,sizeof(af));
 
-	if (IS_AFFECTED(victim, AFF_WEB)) {
-		act("$N is already entangled in webs.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-		return false;
-	}
+    if (IS_AFFECTED(victim, AFF_WEB)) {
+        act("$N is already entangled in webs.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	if (saves_spell(level,victim,DAM_OTHER)) {
-		send_to_char("Nothing happens.\n\r", ch);
-		return false;
-	}
+    if (saves_spell(level,victim,DAM_OTHER)) {
+        send_to_char("Nothing happens.\n\r", ch);
+        return false;
+    }
 
-	af.slot	= obj_wear_loc;
-	af.where     = TO_AFFECTS;
-	af.group    = AFFGROUP_PHYSICAL;
-	af.type      = sn;
-	af.level     = level;
-	af.location  = APPLY_HITROLL;
-	af.modifier  = -4;
-	af.duration  = 3;
-	af.bitvector = AFF_WEB;
-	af.bitvector2 = 0;
-	affect_to_char(victim, &af);
-	send_to_char("You are enmeshed in webs!\n\r", victim);
-	act("$n engulfs $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-	if (ch != victim) act("You engulf $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    af.slot	= obj_wear_loc;
+    af.where     = TO_AFFECTS;
+    af.group    = AFFGROUP_PHYSICAL;
+    af.type      = sn;
+    af.level     = level;
+    af.location  = APPLY_HITROLL;
+    af.modifier  = -4;
+    af.duration  = 3;
+    af.bitvector = AFF_WEB;
+    af.bitvector2 = 0;
+    affect_to_char(victim, &af);
+    send_to_char("You are enmeshed in webs!\n\r", victim);
+    act("$n engulfs $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+    if (ch != victim) act("You engulf $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	return true;
+    return true;
 }
 

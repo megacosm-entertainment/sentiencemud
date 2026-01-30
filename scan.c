@@ -58,94 +58,94 @@ void scan_char(CHAR_DATA *victim, CHAR_DATA *ch, int depth, int door );
 
 void do_scan(CHAR_DATA *ch, char *argument)
 {
-	char arg1[MAX_INPUT_LENGTH];
-	int door;
-	int max_depth;
-	int skill;
+    char arg1[MAX_INPUT_LENGTH];
+    int door;
+    int max_depth;
+    int skill;
 
-	argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg1);
 
-	skill = get_skill(ch,gsn_scan);
+    skill = get_skill(ch,gsn_scan);
 
-	if (skill < 1)		max_depth = 4;
-	else if (skill < 85)	max_depth = 5;
-	else if (skill < 100)	max_depth = 6;
-	else			max_depth = 7;
+    if (skill < 1)		max_depth = 4;
+    else if (skill < 85)	max_depth = 5;
+    else if (skill < 100)	max_depth = 6;
+    else			max_depth = 7;
 
-	if (!arg1[0]) {
-		act("$n looks all around.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-		send_to_char("{YLooking around, you see:{x\n\r", ch);
-		scan_list(ch->in_room, ch, 0, -1, NULL);
+    if (!arg1[0]) {
+        act("$n looks all around.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        send_to_char("{YLooking around, you see:{x\n\r", ch);
+        scan_list(ch->in_room, ch, 0, -1, NULL);
 
-		for (door = 0; door < MAX_DIR; door++ ) {
-			visit_room_direction(ch, ch->in_room, max_depth, door, NULL, scan_list, NULL);
-			/*
-			scan_room = ch->in_room;
+        for (door = 0; door < MAX_DIR; door++ ) {
+            visit_room_direction(ch, ch->in_room, max_depth, door, NULL, scan_list, NULL);
+            /*
+            scan_room = ch->in_room;
 
-			for (depth = 1; depth < max_depth; depth++) {
-				if ((pExit = scan_room->exit[door])) {
-					// Hidden exits that haven't been found
-					if(IS_SET(pExit->exit_info,EX_HIDDEN) && !IS_SET(pExit->exit_info,EX_FOUND))
-						continue;
+            for (depth = 1; depth < max_depth; depth++) {
+                if ((pExit = scan_room->exit[door])) {
+                    // Hidden exits that haven't been found
+                    if(IS_SET(pExit->exit_info,EX_HIDDEN) && !IS_SET(pExit->exit_info,EX_FOUND))
+                        continue;
 
-					// Closed exits
-					if(IS_SET(pExit->exit_info, EX_CLOSED))
-						continue;
+                    // Closed exits
+                    if(IS_SET(pExit->exit_info, EX_CLOSED))
+                        continue;
 
-					if(!(dest = exit_destination(pExit)))
-						continue;
+                    if(!(dest = exit_destination(pExit)))
+                        continue;
 
-					if(!can_see_room (ch, dest))
-						continue;
+                    if(!can_see_room (ch, dest))
+                        continue;
 
-					scan_room = dest;
-					scan_list(dest, ch, depth, door);
-				}
-			}
-			*/
-		}
+                    scan_room = dest;
+                    scan_list(dest, ch, depth, door);
+                }
+            }
+            */
+        }
 
-		return;
-	}
+        return;
+    }
 
-	door = find_door(NULL, arg1, false);
-	if(door < 0) {
-		send_to_char("Which way do you want to scan?\n\r", ch);
-		return;
-	}
+    door = find_door(NULL, arg1, false);
+    if(door < 0) {
+        send_to_char("Which way do you want to scan?\n\r", ch);
+        return;
+    }
 
-	act("{YLooking $T, you see:{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR, NULL, NULL);
-	act("$n peers intently $T.", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+    act("{YLooking $T, you see:{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR, NULL, NULL);
+    act("$n peers intently $T.", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
 
-	visit_room_direction(ch, ch->in_room, max_depth, door, NULL, scan_list, NULL);
+    visit_room_direction(ch, ch->in_room, max_depth, door, NULL, scan_list, NULL);
 
-	/*
-	scan_room = ch->in_room;
-	for (depth = 1; depth < max_depth; depth++) {
-		if ((pExit = scan_room->exit[door])) {
-			// Hidden exits that haven't been found
-			if(IS_SET(pExit->exit_info,EX_HIDDEN) && !IS_SET(pExit->exit_info,EX_FOUND))
-				continue;
+    /*
+    scan_room = ch->in_room;
+    for (depth = 1; depth < max_depth; depth++) {
+        if ((pExit = scan_room->exit[door])) {
+            // Hidden exits that haven't been found
+            if(IS_SET(pExit->exit_info,EX_HIDDEN) && !IS_SET(pExit->exit_info,EX_FOUND))
+                continue;
 
-			// Closed exits
-			if(IS_SET(pExit->exit_info, EX_CLOSED))
-				continue;
+            // Closed exits
+            if(IS_SET(pExit->exit_info, EX_CLOSED))
+                continue;
 
-			if(!(dest = exit_destination(pExit)))
-				continue;
+            if(!(dest = exit_destination(pExit)))
+                continue;
 
-			if(!can_see_room (ch, dest))
-				continue;
+            if(!can_see_room (ch, dest))
+                continue;
 
-			scan_room = dest;
-			scan_list(dest, ch, depth, door);
-		}
+            scan_room = dest;
+            scan_list(dest, ch, depth, door);
+        }
 
-	}
-	*/
+    }
+    */
 
-	if (skill > 0)
-		check_improve( ch, gsn_scan, true, 1 );
+    if (skill > 0)
+        check_improve( ch, gsn_scan, true, 1 );
 }
 
 
@@ -154,24 +154,24 @@ bool scan_list(ROOM_INDEX_DATA *scan_room, CHAR_DATA *ch, int depth, int door, v
    CHAR_DATA *rch;
 
    if ( scan_room == NULL )
-		return false;
+        return false;
 
-	if(!can_see_room (ch, scan_room))
-		return false;
+    if(!can_see_room (ch, scan_room))
+        return false;
 
 
-	for (rch = scan_room->people; rch != NULL; rch=rch->next_in_room)
-	{
-		if (rch == ch)
-			continue;
+    for (rch = scan_room->people; rch != NULL; rch=rch->next_in_room)
+    {
+        if (rch == ch)
+            continue;
 
-		if (!IS_NPC(rch) && rch->invis_level > get_staff_rank(ch))
-			continue;
+        if (!IS_NPC(rch) && rch->invis_level > get_staff_rank(ch))
+            continue;
 
-		if (can_see(ch, rch) && rch->position != POS_FEIGN)
-			scan_char( rch, ch, depth, door );
-	}
-	return false;
+        if (can_see(ch, rch) && rch->position != POS_FEIGN)
+            scan_char( rch, ch, depth, door );
+    }
+    return false;
 }
 
 

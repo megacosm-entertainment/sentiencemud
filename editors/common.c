@@ -207,35 +207,35 @@ const char *format_ac_string(MOB_INDEX_DATA *pMob) {
 
 void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 {
-	char buf[MSL];
-	int cnt, slot;
+    char buf[MSL];
+    int cnt, slot;
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(progs[slot]) > 0) ++cnt;
+    for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+        if(list_size(progs[slot]) > 0) ++cnt;
 
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "Number", "Vnum      ", "Trigger", "Phrase", "Status      ", " Name");
-		add_buf(buffer, buf);
+    if (cnt > 0) {
+        sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "Number", "Vnum      ", "Trigger", "Phrase", "Status      ", " Name");
+        add_buf(buffer, buf);
 
-		sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "------", "-----------", "-------", "------", "------------", " -----");
-		add_buf(buffer, buf);
+        sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "------", "-----------", "-------", "------", "------------", " -----");
+        add_buf(buffer, buf);
 
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+        for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
             ITERATOR it;
             PROG_LIST *trigger;
             SCRIPT_DATA *prog;
-			iterator_start(&it, progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+            iterator_start(&it, progs[slot]);
+            while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                 prog = get_script_index_global(trigger->vnum, type);                
-				sprintf(buf, "{C[{W%4d{C]{x %-12ld %-10s %-10s %-9s %-5s\n\r", cnt,
-					trigger->vnum, trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
+                sprintf(buf, "{C[{W%4d{C]{x %-12ld %-10s %-10s %-9s %-5s\n\r", cnt,
+                    trigger->vnum, trigger_name(trigger->trig_type),
+                    trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
+                add_buf(buffer, buf);
+                cnt++;
+            }
+            iterator_stop(&it);
+        }
+    }
 }
 
 // Rewrite the below function to return a string to the above function
@@ -246,15 +246,15 @@ char *olc_show_script_status(SCRIPT_DATA *prog, int type)
     if (prog) {
 
         if(IS_SET(prog->flags,SCRIPT_DISABLED))
-			sprintf(status, "{D[DISABLED]{x   ");
-		else if(prog->lines > 1 && prog->src != prog->edit_src)
-			sprintf(status, "{G[MODIFIED]{x   ");
-		else if(prog->lines == 1)
-			sprintf(status, "{W[BLANK]{x      ");
-		else if(prog->code)
-			sprintf(status, "{x[COMPILED]{x   ");
-		else
-			sprintf(status, "{R[UNCOMPILED]{x ");
+            sprintf(status, "{D[DISABLED]{x   ");
+        else if(prog->lines > 1 && prog->src != prog->edit_src)
+            sprintf(status, "{G[MODIFIED]{x   ");
+        else if(prog->lines == 1)
+            sprintf(status, "{W[BLANK]{x      ");
+        else if(prog->code)
+            sprintf(status, "{x[COMPILED]{x   ");
+        else
+            sprintf(status, "{R[UNCOMPILED]{x ");
 
         return status;
     }
@@ -263,180 +263,180 @@ char *olc_show_script_status(SCRIPT_DATA *prog, int type)
 
 void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names)
 {
-	int tab = ch->desc->nEditTab;
+    int tab = ch->desc->nEditTab;
 
-	// Show Tabs
-	char tab1[MSL];
-	char tab2[MSL];
-	char buf[MIL];
-	char cmd_buf[32];
-	char text_buf[MIL];
+    // Show Tabs
+    char tab1[MSL];
+    char tab2[MSL];
+    char buf[MIL];
+    char cmd_buf[32];
+    char text_buf[MIL];
 
-	tab1[0] = '\0';
-	tab2[0] = '\0';
-	for(int i = 0; tab_names[i]; i++)
-	{
-		if (i > 0)
-		{
-			strcat(tab1, "   ");
-			strcat(tab2, "__");
-		}
-		else
-			strcat(tab1, " ");
+    tab1[0] = '\0';
+    tab2[0] = '\0';
+    for(int i = 0; tab_names[i]; i++)
+    {
+        if (i > 0)
+        {
+            strcat(tab1, "   ");
+            strcat(tab2, "__");
+        }
+        else
+            strcat(tab1, " ");
 
-		formatf_to(buf, sizeof(buf), "%d %s", i + 1, tab_names[i]);
-		if (tab == i)
-		{
-			strcat(tab2,"{D/{Y");
-			strcat(tab2,buf);
-		}
-		else
-		{
-			strcat(tab2,"{D/");
-			// Use formatf_to to avoid static buffer overlap issues
-			formatf_to(cmd_buf, sizeof(cmd_buf), "%d", i + 1);
-			formatf_to(text_buf, sizeof(text_buf), "{g%s{x", buf);
-			strcat(tab2, (char *)MXPCreateSend(ch->desc, cmd_buf, text_buf));
-		}
-		int l=strlen(tab1);
-		int b=strlen(buf);
-		tab1[l+b]=' ';
-		tab1[l+b+1]='\0';
-		memset(&tab1[l], '_', b);
+        formatf_to(buf, sizeof(buf), "%d %s", i + 1, tab_names[i]);
+        if (tab == i)
+        {
+            strcat(tab2,"{D/{Y");
+            strcat(tab2,buf);
+        }
+        else
+        {
+            strcat(tab2,"{D/");
+            // Use formatf_to to avoid static buffer overlap issues
+            formatf_to(cmd_buf, sizeof(cmd_buf), "%d", i + 1);
+            formatf_to(text_buf, sizeof(text_buf), "{g%s{x", buf);
+            strcat(tab2, (char *)MXPCreateSend(ch->desc, cmd_buf, text_buf));
+        }
+        int l=strlen(tab1);
+        int b=strlen(buf);
+        tab1[l+b]=' ';
+        tab1[l+b+1]='\0';
+        memset(&tab1[l], '_', b);
 
-		if (tab == i)
-			strcat(tab2, "{D\\{x");
-		else
-			strcat(tab2, "{D\\{x");
-	}
-	strcat(tab1, "\n\r");
-	strcat(tab2, "_{x\n\r");
-	add_buf(buffer, tab1);
-	add_buf(buffer, tab2);
-	add_buf(buffer, "\n\r");
+        if (tab == i)
+            strcat(tab2, "{D\\{x");
+        else
+            strcat(tab2, "{D\\{x");
+    }
+    strcat(tab1, "\n\r");
+    strcat(tab2, "_{x\n\r");
+    add_buf(buffer, tab1);
+    add_buf(buffer, tab2);
+    add_buf(buffer, "\n\r");
 }
 
 void olc_buffer_show_string(CHAR_DATA *ch, BUFFER *buffer, const char *value, char *command, char *heading, int indent, char *colors)
 {
-	char buf[MSL];
-	int l=indent-strlen_no_colours(heading);
-	l=UMAX(l,0);
-	sprintf(buf, formatf("{%c%%s%%%ds", colors[0],l), MXPCreateSend(ch->desc,command, heading), "");
-	add_buf(buffer, buf);
+    char buf[MSL];
+    int l=indent-strlen_no_colours(heading);
+    l=UMAX(l,0);
+    sprintf(buf, formatf("{%c%%s%%%ds", colors[0],l), MXPCreateSend(ch->desc,command, heading), "");
+    add_buf(buffer, buf);
 
-	if (IS_NULLSTR(value))
-		sprintf(buf, "{%c(unset){x\n\r", colors[1]);
-	else
-		sprintf(buf, "{%c%s{x\n\r", colors[2], value);
-	add_buf(buffer, buf);
+    if (IS_NULLSTR(value))
+        sprintf(buf, "{%c(unset){x\n\r", colors[1]);
+    else
+        sprintf(buf, "{%c%s{x\n\r", colors[2], value);
+    add_buf(buffer, buf);
 }
 
 int olc_buffer_show_flags_ex(CHAR_DATA *ch, BUFFER *buffer,
-		const struct flag_type *flag_table, 
-		long value, char *command, char *heading, 
-		int max_width /*77*/,int first_indent /*16*/, int indent /*5*/,
-		const char *colors)
+        const struct flag_type *flag_table, 
+        long value, char *command, char *heading, 
+        int max_width /*77*/,int first_indent /*16*/, int indent /*5*/,
+        const char *colors)
 {
-	int width;
-	int found_count=0;
-	bool type_table=is_stat(flag_table);
-	int lines=0;
+    int width;
+    int found_count=0;
+    bool type_table=is_stat(flag_table);
+    int lines=0;
 
-	char openbracket='[';
-	char closebracket=']';
-	if(type_table){
-		openbracket='(';
-		closebracket=')';
-	}
+    char openbracket='[';
+    char closebracket=']';
+    if(type_table){
+        openbracket='(';
+        closebracket=')';
+    }
 
-	char buf[MSL];
-	int l=first_indent-strlen_no_colours(heading);
-	l=UMAX(l,0);
-	sprintf(buf, formatf("{%c%%s%%%ds{%c%c", colors[0],l,colors[1],openbracket),
-		MXPCreateSend(ch->desc,command, heading), "");
-	width=first_indent;
+    char buf[MSL];
+    int l=first_indent-strlen_no_colours(heading);
+    l=UMAX(l,0);
+    sprintf(buf, formatf("{%c%%s%%%ds{%c%c", colors[0],l,colors[1],openbracket),
+        MXPCreateSend(ch->desc,command, heading), "");
+    width=first_indent;
 
-	char flagbuf[MSL];
-	flagbuf[0] = '\0';
+    char flagbuf[MSL];
+    flagbuf[0] = '\0';
 
-	bool match;
+    bool match;
     for(int flag = 0; !IS_NULLSTR(flag_table[flag].name); flag++)
     {
-		match=false;
-		if(type_table){
-			if(value==flag_table[flag].bit){
-				match=true;
-			}
-		}else{
-			if(IS_SET(value,flag_table[flag].bit)){
-				match=true;
-			}
-		}
+        match=false;
+        if(type_table){
+            if(value==flag_table[flag].bit){
+                match=true;
+            }
+        }else{
+            if(IS_SET(value,flag_table[flag].bit)){
+                match=true;
+            }
+        }
 
-		if(flag_table[flag].settable){
-			if (type_table)
-			{
-				if(match){
-					strcpy(flagbuf,formatf("{%c", colors[2]));
-				}else{
-					strcpy(flagbuf,formatf("{%c", colors[3]));
-				}
-			}
-			else
-			{
-				if(match){
-					strcpy(flagbuf,formatf("{%c", colors[4]));
-				}else{
-					strcpy(flagbuf,formatf("{%c", colors[5]));
-				}
-			}
-		}else{
-			if(match){
-				strcpy(flagbuf,formatf("{%c", colors[6]));
-			}else{
-				// we don't show these flags
-				continue;
-			}
-		}			
+        if(flag_table[flag].settable){
+            if (type_table)
+            {
+                if(match){
+                    strcpy(flagbuf,formatf("{%c", colors[2]));
+                }else{
+                    strcpy(flagbuf,formatf("{%c", colors[3]));
+                }
+            }
+            else
+            {
+                if(match){
+                    strcpy(flagbuf,formatf("{%c", colors[4]));
+                }else{
+                    strcpy(flagbuf,formatf("{%c", colors[5]));
+                }
+            }
+        }else{
+            if(match){
+                strcpy(flagbuf,formatf("{%c", colors[6]));
+            }else{
+                // we don't show these flags
+                continue;
+            }
+        }			
 
-		found_count++;
-		width+= strlen(flag_table[flag].name)+1;
-		if(width>max_width){
-			strcat(buf,"\r\n");
-			lines++;
-			strcat(buf,formatf(formatf("%%%ds", indent), ""));
-			width=indent + strlen(flag_table[flag].name) +1;
-		}
+        found_count++;
+        width+= strlen(flag_table[flag].name)+1;
+        if(width>max_width){
+            strcat(buf,"\r\n");
+            lines++;
+            strcat(buf,formatf(formatf("%%%ds", indent), ""));
+            width=indent + strlen(flag_table[flag].name) +1;
+        }
 
-		strcat(buf, flagbuf);
-		if(flag_table[flag].settable){
-			strcat(buf, MXPCreateSend(ch->desc,
-							 formatf("%s %s", command, flag_table[flag].name),
-							 	flag_table[flag].name));
-		}else{
-			strcat(buf, flag_table[flag].name);
-		}
-		strcat(buf," ");
-	}
-	if(found_count==0){
-		strcat(buf,"none ");
-	}
-	buf[strlen(buf)-1]='\0';
-	strcat(buf,formatf("{%c%c\n\r", colors[1], closebracket));
+        strcat(buf, flagbuf);
+        if(flag_table[flag].settable){
+            strcat(buf, MXPCreateSend(ch->desc,
+                             formatf("%s %s", command, flag_table[flag].name),
+                                 flag_table[flag].name));
+        }else{
+            strcat(buf, flag_table[flag].name);
+        }
+        strcat(buf," ");
+    }
+    if(found_count==0){
+        strcat(buf,"none ");
+    }
+    buf[strlen(buf)-1]='\0';
+    strcat(buf,formatf("{%c%c\n\r", colors[1], closebracket));
 
 
-	add_buf(buffer, buf);
+    add_buf(buffer, buf);
 
-	lines++;
-	return lines;
+    lines++;
+    return lines;
 }
 
 int olc_buffer_show_flags(CHAR_DATA *ch, BUFFER *buffer,
-		const struct flag_type *flag_table,
-		long value, char *command, char *heading,
-		const char *colors)
+        const struct flag_type *flag_table,
+        long value, char *command, char *heading,
+        const char *colors)
 {
-	return olc_buffer_show_flags_ex(ch, buffer, flag_table, value, command, heading, 77, 16, 5, colors);
+    return olc_buffer_show_flags_ex(ch, buffer, flag_table, value, command, heading, 77, 16, 5, colors);
 }
 
 /*
