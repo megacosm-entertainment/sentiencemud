@@ -1080,13 +1080,11 @@ void boot_db(void)
 
         log_message(LOG_LEVEL_INFO, LOG_INIT, "Queueing areas for Redis cache warming");
         for (area = area_first; area; area = area->next) {
-            if (area->uid > 0 && area->file_name) {
+            if (area->file_name && area->file_name[0]) {
                 /* Serialize and queue for async caching */
                 char *json_str = json_area_serialize_to_string(area);
                 if (json_str) {
-                    redis_queue_area_cache_warm(area->uid, json_str);
-                    /* Also store the filename mapping */
-                    redis_set_area_filename(area->uid, area->file_name);
+                    redis_queue_area_cache_warm(area->file_name, json_str);
                     free(json_str);
                     queued++;
                 }

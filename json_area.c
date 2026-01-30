@@ -1217,11 +1217,11 @@ bool json_area_save(AREA_DATA *area)
         json_decref(dprogs);
     
     /* Cache in Redis immediately (if available) */
-    if (redis_is_available() && area->uid > 0 && area->file_name) {
+    if (redis_is_available() && area->file_name && area->file_name[0]) {
         char *json_str = json_dumps(root, JSON_COMPACT);
         if (json_str) {
-            if (redis_cache_area_state(area->uid, area->file_name, json_str)) {
-                log_stringf("json_area_save: Cached area '%s' (UID %ld) in Redis", area->name, area->uid);
+            if (redis_cache_area_state(area->file_name, json_str)) {
+                log_stringf("json_area_save: Cached area '%s' in Redis", area->name);
             }
             free(json_str);
         }

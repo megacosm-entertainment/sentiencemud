@@ -1385,85 +1385,53 @@ char *redis_get_object_state(unsigned long id0, unsigned long id1)
  ***************************************************************************/
 
 /*
- * Area cache key format: persist:area:{uid}
- * Area dirty queue: persist:area:dirty (separate from entity dirty queue)
+ * Area cache key format: area:full:{normalized_name}
+ *   e.g., area:full:midgaard, area:full:newthalos
+ * Area dirty queue: uses main persist:dirty queue
  * Area warm queue: area:warm:queue (for async cache warming on boot)
+ *
+ * Normalized name = filename without .json suffix
  */
 
-static char *redis_area_key(long area_uid)
+/* Normalize area filename by stripping .json suffix */
+static void normalize_area_name(const char *filename, char *buf, size_t buf_size)
 {
-    static char buf[64];
-    snprintf(buf, sizeof(buf), "persist:area:%ld", area_uid);
+    size_t len;
+
+    if (!filename || !buf || buf_size == 0) {
+        if (buf && buf_size > 0) buf[0] = '\0';
+        return;
+    }
+
+    strncpy(buf, filename, buf_size - 1);
+    buf[buf_size - 1] = '\0';
+
+    /* Strip .json suffix if present */
+    len = strlen(buf);
+    if (len > 5 && strcmp(buf + len - 5, ".json") == 0) {
+        buf[len - 5] = '\0';
+    }
+}
+
+static char *redis_area_key(const char *area_name)
+{
+    static char buf[128];
+    snprintf(buf, sizeof(buf), "area:full:%s", area_name);
     return buf;
 }
 
-static char *redis_area_filename_key(long area_uid)
+bool redis_cache_area_full(const char *filename, const char *json_str)
 {
-    static char buf[64];
-    snprintf(buf, sizeof(buf), "area:filename:%ld", area_uid);
-    return buf;
-}
-
-/* Store the filename mapping for an area (needed for async disk writes) */
-bool redis_set_area_filename(long area_uid, const char *filename)
-{
-    redisReply *reply;
+    char area_name[64];
     char *key;
+    redisReply *reply;
 
-    if (!redis_is_available() || !filename || area_uid <= 0) {
+    if (!redis_is_available() || !json_str || !filename || !filename[0]) {
         return false;
     }
 
-    key = redis_area_filename_key(area_uid);
-
-    pthread_mutex_lock(&redis_mutex);
-    reply = redisCommand(redis_ctx, "SET %s %s EX %d", key, filename, REDIS_TTL_AREA_FULL);
-    pthread_mutex_unlock(&redis_mutex);
-
-    if (reply) {
-        freeReplyObject(reply);
-        return true;
-    }
-    return false;
-}
-
-/* Get the filename for an area from Redis */
-char *redis_get_area_filename(long area_uid)
-{
-    redisReply *reply;
-    char *key;
-    char *result = NULL;
-
-    if (!redis_is_available() || area_uid <= 0) {
-        return NULL;
-    }
-
-    key = redis_area_filename_key(area_uid);
-
-    pthread_mutex_lock(&redis_mutex);
-    reply = redisCommand(redis_ctx, "GET %s", key);
-
-    if (reply && reply->type == REDIS_REPLY_STRING) {
-        result = strdup(reply->str);
-    }
-
-    if (reply) {
-        freeReplyObject(reply);
-    }
-    pthread_mutex_unlock(&redis_mutex);
-    return result;
-}
-
-bool redis_cache_area_full(long area_uid, const char *json_str)
-{
-    char *key;
-    redisReply *reply;
-
-    if (!redis_is_available() || !json_str || area_uid <= 0) {
-        return false;
-    }
-
-    key = redis_area_key(area_uid);
+    normalize_area_name(filename, area_name, sizeof(area_name));
+    key = redis_area_key(area_name);
 
     pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "SET %s %s EX %d", key, json_str, REDIS_TTL_AREA_FULL);
@@ -1475,7 +1443,7 @@ bool redis_cache_area_full(long area_uid, const char *json_str)
     }
 
     if (reply->type == REDIS_REPLY_ERROR) {
-        log_stringf("Redis: SET error for area %ld: %s", area_uid, reply->str);
+        log_stringf("Redis: SET error for area %s: %s", area_name, reply->str);
         freeReplyObject(reply);
         stats.errors++;
         pthread_mutex_unlock(&redis_mutex);
@@ -1488,17 +1456,19 @@ bool redis_cache_area_full(long area_uid, const char *json_str)
     return true;
 }
 
-char *redis_get_area_full(long area_uid)
+char *redis_get_area_full(const char *filename)
 {
+    char area_name[64];
     char *key;
     char *result = NULL;
     redisReply *reply;
 
-    if (!redis_is_available() || area_uid <= 0) {
+    if (!redis_is_available() || !filename || !filename[0]) {
         return NULL;
     }
 
-    key = redis_area_key(area_uid);
+    normalize_area_name(filename, area_name, sizeof(area_name));
+    key = redis_area_key(area_name);
 
     pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "GET %s", key);
@@ -1521,47 +1491,46 @@ char *redis_get_area_full(long area_uid)
     return result;
 }
 
-void redis_invalidate_area(long area_uid)
+void redis_invalidate_area(const char *filename)
 {
+    char area_name[64];
     char *key;
     redisReply *reply;
 
-    if (!redis_is_available() || area_uid <= 0) {
+    if (!redis_is_available() || !filename || !filename[0]) {
         return;
     }
 
-    key = redis_area_key(area_uid);
+    normalize_area_name(filename, area_name, sizeof(area_name));
+    key = redis_area_key(area_name);
 
     pthread_mutex_lock(&redis_mutex);
     reply = redisCommand(redis_ctx, "DEL %s", key);
 
     if (reply) {
-        log_stringf("Redis: Invalidated area cache for uid %ld", area_uid);
+        log_stringf("Redis: Invalidated area cache for %s", area_name);
         stats.deletes++;
         freeReplyObject(reply);
     }
     pthread_mutex_unlock(&redis_mutex);
 }
 
-bool redis_cache_area_state(long area_uid, const char *filename, const char *json_str)
+bool redis_cache_area_state(const char *filename, const char *json_str)
 {
+    char area_name[64];
     char *key;
 
-    if (!filename || !json_str || area_uid <= 0) {
+    if (!json_str || !filename || !filename[0]) {
         return false;
     }
 
-    /* Store the filename mapping for async disk writer */
-    if (!redis_set_area_filename(area_uid, filename)) {
-        return false;
-    }
-
-    if (!redis_cache_area_full(area_uid, json_str)) {
+    if (!redis_cache_area_full(filename, json_str)) {
         return false;
     }
 
     /* Queue for async disk write using main persist:dirty queue */
-    key = redis_area_key(area_uid);
+    normalize_area_name(filename, area_name, sizeof(area_name));
+    key = redis_area_key(area_name);
     return redis_queue_dirty_key(key);
 }
 
@@ -1569,17 +1538,20 @@ bool redis_cache_area_state(long area_uid, const char *filename, const char *jso
  * Async cache warming - queue area for background caching
  * This avoids blocking boot while caching potentially large areas
  */
-void redis_queue_area_cache_warm(long area_uid, const char *json_str)
+void redis_queue_area_cache_warm(const char *filename, const char *json_str)
 {
     redisReply *reply;
-    char key_buf[64];
+    char area_name[64];
+    char key_buf[128];
 
-    if (!redis_is_available() || !json_str || area_uid <= 0) {
+    if (!redis_is_available() || !json_str || !filename || !filename[0]) {
         return;
     }
 
+    normalize_area_name(filename, area_name, sizeof(area_name));
+
     /* Store the JSON temporarily with a warm: prefix */
-    snprintf(key_buf, sizeof(key_buf), "area:warm:%ld", area_uid);
+    snprintf(key_buf, sizeof(key_buf), "area:warm:%s", area_name);
 
     pthread_mutex_lock(&redis_mutex);
     /* Store JSON data with short TTL (just for warming) */
@@ -1588,8 +1560,8 @@ void redis_queue_area_cache_warm(long area_uid, const char *json_str)
         freeReplyObject(reply);
     }
 
-    /* Queue the area UID for processing */
-    reply = redisCommand(redis_ctx, "LPUSH area:warm:queue %ld", area_uid);
+    /* Queue the area name for processing */
+    reply = redisCommand(redis_ctx, "LPUSH area:warm:queue %s", area_name);
     if (reply) {
         freeReplyObject(reply);
     }
@@ -1599,8 +1571,8 @@ void redis_queue_area_cache_warm(long area_uid, const char *json_str)
 bool redis_process_area_cache_warm(void)
 {
     redisReply *reply;
-    long area_uid;
-    char key_buf[64];
+    char area_name[64];
+    char key_buf[128];
     char *json_str;
 
     if (!redis_is_available()) {
@@ -1608,7 +1580,7 @@ bool redis_process_area_cache_warm(void)
     }
 
     pthread_mutex_lock(&redis_mutex);
-    /* Pop one area UID from the warm queue */
+    /* Pop one area name from the warm queue */
     reply = redisCommand(redis_ctx, "RPOP area:warm:queue");
 
     if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
@@ -1617,11 +1589,12 @@ bool redis_process_area_cache_warm(void)
         return false;
     }
 
-    area_uid = atol(reply->str);
+    strncpy(area_name, reply->str, sizeof(area_name) - 1);
+    area_name[sizeof(area_name) - 1] = '\0';
     freeReplyObject(reply);
 
     /* Get the temporarily stored JSON */
-    snprintf(key_buf, sizeof(key_buf), "area:warm:%ld", area_uid);
+    snprintf(key_buf, sizeof(key_buf), "area:warm:%s", area_name);
     reply = redisCommand(redis_ctx, "GET %s", key_buf);
 
     if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
@@ -1634,7 +1607,7 @@ bool redis_process_area_cache_warm(void)
 
     /* Move to permanent cache location */
     redisReply *set_reply = redisCommand(redis_ctx, "SET %s %s EX %d",
-        redis_area_key(area_uid), json_str, REDIS_TTL_AREA_FULL);
+        redis_area_key(area_name), json_str, REDIS_TTL_AREA_FULL);
     if (set_reply) {
         freeReplyObject(set_reply);
         stats.sets++;
@@ -1649,7 +1622,7 @@ bool redis_process_area_cache_warm(void)
     freeReplyObject(reply);
     pthread_mutex_unlock(&redis_mutex);
 
-    log_stringf("Redis: Warmed cache for area uid %ld", area_uid);
+    log_stringf("Redis: Warmed cache for area %s", area_name);
     return true;
 }
 

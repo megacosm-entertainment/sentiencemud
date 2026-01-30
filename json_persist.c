@@ -2769,29 +2769,34 @@ static int parse_dirty_key(const char *key, char *id_buf, size_t id_size)
 {
     const char *type_start, *id_start;
 
-    if (!key || strncmp(key, "persist:", 8) != 0) {
+    if (!key) {
         return -1;
     }
 
-    type_start = key + 8;
+    /* Handle persist:* keys (rooms, mobiles, objects) */
+    if (strncmp(key, "persist:", 8) == 0) {
+        type_start = key + 8;
 
-    if (strncmp(type_start, "room:", 5) == 0) {
-        id_start = type_start + 5;
-        strncpy(id_buf, id_start, id_size - 1);
-        id_buf[id_size - 1] = '\0';
-        return 0;
-    } else if (strncmp(type_start, "mobile:", 7) == 0) {
-        id_start = type_start + 7;
-        strncpy(id_buf, id_start, id_size - 1);
-        id_buf[id_size - 1] = '\0';
-        return 1;
-    } else if (strncmp(type_start, "object:", 7) == 0) {
-        id_start = type_start + 7;
-        strncpy(id_buf, id_start, id_size - 1);
-        id_buf[id_size - 1] = '\0';
-        return 2;
-    } else if (strncmp(type_start, "area:", 5) == 0) {
-        id_start = type_start + 5;
+        if (strncmp(type_start, "room:", 5) == 0) {
+            id_start = type_start + 5;
+            strncpy(id_buf, id_start, id_size - 1);
+            id_buf[id_size - 1] = '\0';
+            return 0;
+        } else if (strncmp(type_start, "mobile:", 7) == 0) {
+            id_start = type_start + 7;
+            strncpy(id_buf, id_start, id_size - 1);
+            id_buf[id_size - 1] = '\0';
+            return 1;
+        } else if (strncmp(type_start, "object:", 7) == 0) {
+            id_start = type_start + 7;
+            strncpy(id_buf, id_start, id_size - 1);
+            id_buf[id_size - 1] = '\0';
+            return 2;
+        }
+    }
+    /* Handle area:full:* keys (areas use different namespace) */
+    else if (strncmp(key, "area:full:", 10) == 0) {
+        id_start = key + 10;
         strncpy(id_buf, id_start, id_size - 1);
         id_buf[id_size - 1] = '\0';
         return 3;
@@ -2831,17 +2836,24 @@ static bool write_dirty_key_to_disk(const char *key)
     case 2: /* Object */
         snprintf(path, sizeof(path), "%s%s.json", PERSIST_JSON_OBJECTS, id_buf);
         break;
-    case 3: /* Area */
+    case 3: /* Area - extract filename from the cached JSON */
         {
-            long area_uid = atol(id_buf);
-            char *filename = redis_get_area_filename(area_uid);
+            json_t *root = json_loads(json_str, 0, NULL);
+            if (!root) {
+                log_stringf("persist_worker: Failed to parse area JSON for %s", id_buf);
+                free(json_str);
+                return false;
+            }
+            json_t *area_obj = json_object_get(root, "area");
+            const char *filename = area_obj ? json_string_value(json_object_get(area_obj, "filename")) : NULL;
             if (!filename) {
-                log_stringf("persist_worker: No filename found for area uid %ld", area_uid);
+                log_stringf("persist_worker: No filename in area JSON for %s", id_buf);
+                json_decref(root);
                 free(json_str);
                 return false;
             }
             snprintf(path, sizeof(path), "%s%s", AREA_DIR, filename);
-            free(filename);
+            json_decref(root);
         }
         break;
     default:

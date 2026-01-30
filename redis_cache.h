@@ -168,27 +168,24 @@ json_t *redis_get_account_full(const char *account_name);
 // Cache full area JSON
 // Key: "area:{uid}:full"
 // Returns: true if cached successfully
-bool redis_cache_area_full(long area_uid, const char *json_str);
+// filename: area filename (e.g., "midgaard.json") - .json suffix is stripped for key
+bool redis_cache_area_full(const char *filename, const char *json_str);
 
 // Retrieve full area JSON from cache
 // Returns: allocated string if found (caller must free), NULL if miss
-char *redis_get_area_full(long area_uid);
+char *redis_get_area_full(const char *filename);
 
 // Invalidate area cache entry
-void redis_invalidate_area(long area_uid);
+void redis_invalidate_area(const char *filename);
 
 // Cache area and queue for async disk write
 // This is the main entry point for area saves
-// filename is needed for async disk writer to know where to save
-bool redis_cache_area_state(long area_uid, const char *filename, const char *json_str);
-
-// Get/set the cached filename for an area (used by async disk writer)
-char *redis_get_area_filename(long area_uid);
-bool redis_set_area_filename(long area_uid, const char *filename);
+// The filename is extracted from the JSON when writing to disk
+bool redis_cache_area_state(const char *filename, const char *json_str);
 
 // Async cache warming (call after boot, non-blocking)
 // Queues areas for background caching
-void redis_queue_area_cache_warm(long area_uid, const char *json_str);
+void redis_queue_area_cache_warm(const char *filename, const char *json_str);
 
 // Process one area from the cache warm queue (call from game loop)
 // Returns: true if processed an item, false if queue empty
