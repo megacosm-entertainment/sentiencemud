@@ -1,0 +1,55 @@
+# Clang-Format configuration for Sentience MUD
+# Run manually: clang-format -i <file.c>
+# Check without modifying: clang-format --dry-run --Werror <file.c>
+
+Language: C
+BasedOnStyle: LLVM
+
+# === Indentation (enforced) ===
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# === Line length ===
+# Set high to avoid aggressive wrapping of existing code
+ColumnLimit: 120
+
+# === Braces - K&R style ===
+BreakBeforeBraces: Attach
+# Opening brace on same line as control statement/function
+
+# === Pointer alignment ===
+# CHAR_DATA *ch (pointer with variable, not type)
+PointerAlignment: Right
+SpaceAroundPointerQualifiers: Default
+
+# === Spacing ===
+SpaceBeforeParens: ControlStatements
+# if (x)  but  func(x)
+SpaceAfterCStyleCast: false
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# === Less aggressive options ===
+# Don't reflow comments - preserves existing formatting
+ReflowComments: false
+
+# Don't sort includes - could break compilation order dependencies
+SortIncludes: Never
+
+# Keep existing line breaks where reasonable
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+
+# Preserve alignment in assignments/declarations when already aligned
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+
+# Don't bin-pack arguments/parameters (keep one-per-line if already formatted that way)
+BinPackArguments: true
+BinPackParameters: true

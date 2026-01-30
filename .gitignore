@@ -56,3 +56,4 @@ build/
 .claude
 .deps
 .github/copilot-instructions.md
+CLAUDE.md

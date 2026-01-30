@@ -568,9 +568,13 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     
     /* Destination - will be linked in fix_exits() */
     long to_vnum = json_get_int_default(json, "to_vnum", 0);
+    long to_area_uid = json_get_int_default(json, "to_area", 0);
     if (to_vnum > 0) {
         exit->u1.vnum = to_vnum;
-        /* long to_area_uid = json_get_int_default(json, "to_area", 0); - not yet used */
+        /* Store destination area UID for cross-area exit linking */
+        if (to_area_uid > 0) {
+            exit->wilds.area_uid = to_area_uid;
+        }
     }
 
     /* Wilderness exit */

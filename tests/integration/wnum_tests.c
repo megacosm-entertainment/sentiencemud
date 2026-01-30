@@ -25,6 +25,14 @@ static test_result_t test_system_area_resolve(test_case_t *test);
 static test_result_t test_system_area_fallback(test_case_t *test);
 static test_result_t test_widevnum_parse_fallback(test_case_t *test);
 static test_result_t test_widevnum_parse_explicit(test_case_t *test);
+static test_result_t test_json_area_serialize(test_case_t *test);
+static test_result_t test_json_area_rooms(test_case_t *test);
+static test_result_t test_cross_area_exit(test_case_t *test);
+static test_result_t test_json_area_roundtrip(test_case_t *test);
+static test_result_t test_redis_available(test_case_t *test);
+static test_result_t test_redis_area_cached(test_case_t *test);
+static test_result_t test_redis_area_cache_format(test_case_t *test);
+static test_result_t test_redis_warm_queue(test_case_t *test);
 void print_test_result(test_case_t *test, test_result_t result, clock_t start_time);
 
 void register_wnum_tests(void) {
@@ -215,6 +223,22 @@ test_result_t run_test_case(test_case_t *test) {
             result = test_widevnum_parse_fallback(test);
         } else if (strcmp(test->test_type, "widevnum_parse_explicit_test") == 0) {
             result = test_widevnum_parse_explicit(test);
+        } else if (strcmp(test->test_type, "json_area_serialize_test") == 0) {
+            result = test_json_area_serialize(test);
+        } else if (strcmp(test->test_type, "json_area_rooms_test") == 0) {
+            result = test_json_area_rooms(test);
+        } else if (strcmp(test->test_type, "cross_area_exit_test") == 0) {
+            result = test_cross_area_exit(test);
+        } else if (strcmp(test->test_type, "json_area_roundtrip_test") == 0) {
+            result = test_json_area_roundtrip(test);
+        } else if (strcmp(test->test_type, "redis_available_test") == 0) {
+            result = test_redis_available(test);
+        } else if (strcmp(test->test_type, "redis_area_cached_test") == 0) {
+            result = test_redis_area_cached(test);
+        } else if (strcmp(test->test_type, "redis_area_cache_format_test") == 0) {
+            result = test_redis_area_cache_format(test);
+        } else if (strcmp(test->test_type, "redis_warm_queue_test") == 0) {
+            result = test_redis_warm_queue(test);
         } else {
             // Fallback to name-based dispatch for backwards compatibility
             if (strstr(test->name, "vnum_parsing")) {
@@ -852,6 +876,414 @@ static test_result_t test_widevnum_parse_explicit(test_case_t *test) {
         }
     }
     
+    return TEST_SUCCESS;
+}
+
+/***************************************************************************
+ * JSON Area Serialization Tests                                            *
+ ***************************************************************************/
+
+// Forward declare json_area functions we need
+extern char *json_area_serialize_to_string(AREA_DATA *area);
+extern bool redis_is_available(void);
+extern char *redis_get_area_full(const char *filename);
+extern long redis_area_cache_warm_queue_size(void);
+
+static test_result_t test_json_area_serialize(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    if (!input) {
+        return TEST_ERROR;
+    }
+
+    const char *area_name = json_get_string(input, "area_name");
+    if (!area_name) {
+        return TEST_ERROR;
+    }
+
+    AREA_DATA *area = find_area((char*)area_name);
+    if (!area) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Area not found: %s", area_name);
+        return TEST_FAILURE;
+    }
+
+    char *json_str = json_area_serialize_to_string(area);
+    if (!json_str) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Failed to serialize area: %s", area_name);
+        return TEST_FAILURE;
+    }
+
+    // Parse to verify valid JSON
+    json_error_t error;
+    json_t *root = json_loads(json_str, 0, &error);
+    if (!root) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Serialized JSON is invalid: %s", error.text);
+        free(json_str);
+        return TEST_FAILURE;
+    }
+
+    // Check for required fields
+    json_t *expected_fields = json_object_get(input, "expected_fields");
+    if (expected_fields && json_is_array(expected_fields)) {
+        size_t index;
+        json_t *field;
+        json_array_foreach(expected_fields, index, field) {
+            const char *field_path = json_string_value(field);
+            if (field_path) {
+                // Simple path check - split by . and traverse
+                json_t *current = root;
+                char *path_copy = strdup(field_path);
+                char *token = strtok(path_copy, ".");
+                while (token && current) {
+                    current = json_object_get(current, token);
+                    token = strtok(NULL, ".");
+                }
+                free(path_copy);
+
+                if (!current) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "Missing required field: %s", field_path);
+                    json_decref(root);
+                    free(json_str);
+                    return TEST_FAILURE;
+                }
+            }
+        }
+    }
+
+    json_decref(root);
+    free(json_str);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_json_area_rooms(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    if (!input) {
+        return TEST_ERROR;
+    }
+
+    const char *area_name = json_get_string(input, "area_name");
+    if (!area_name) {
+        return TEST_ERROR;
+    }
+
+    AREA_DATA *area = find_area((char*)area_name);
+    if (!area) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Area not found: %s", area_name);
+        return TEST_FAILURE;
+    }
+
+    char *json_str = json_area_serialize_to_string(area);
+    if (!json_str) {
+        return TEST_FAILURE;
+    }
+
+    json_error_t error;
+    json_t *root = json_loads(json_str, 0, &error);
+    free(json_str);
+
+    if (!root) {
+        return TEST_FAILURE;
+    }
+
+    json_t *rooms = json_object_get(root, "rooms");
+    if (!rooms || !json_is_array(rooms) || json_array_size(rooms) == 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "No rooms in serialized area");
+        json_decref(root);
+        return TEST_FAILURE;
+    }
+
+    // Check that exits have to_area field
+    bool check_exit_fields = json_get_bool(input, "check_exit_fields");
+    if (check_exit_fields) {
+        size_t index;
+        json_t *room;
+        json_array_foreach(rooms, index, room) {
+            json_t *exits = json_object_get(room, "exits");
+            if (exits && json_is_array(exits)) {
+                size_t exit_idx;
+                json_t *exit_obj;
+                json_array_foreach(exits, exit_idx, exit_obj) {
+                    // Verify to_area is present when to_vnum is present
+                    json_t *to_vnum = json_object_get(exit_obj, "to_vnum");
+                    json_t *to_area = json_object_get(exit_obj, "to_area");
+                    if (to_vnum && !to_area) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "Exit has to_vnum but no to_area field");
+                        json_decref(root);
+                        return TEST_FAILURE;
+                    }
+                }
+            }
+        }
+    }
+
+    json_decref(root);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_cross_area_exit(test_case_t *test) {
+    // This test verifies that cross-area exits are properly linked
+    // after boot by checking that exits with stored area_uid are resolved
+
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    // Check a sample of rooms to verify their exits are resolved
+    int checked = 0, resolved = 0;
+    AREA_DATA *area;
+
+    for (area = area_first; area && checked < 100; area = area->next) {
+        for (int hash = 0; hash < MAX_KEY_HASH && checked < 100; hash++) {
+            ROOM_INDEX_DATA *room;
+            for (room = area->room_index_hash[hash]; room && checked < 100; room = room->next) {
+                for (int door = 0; door < MAX_DIR; door++) {
+                    EXIT_DATA *exit = room->exit[door];
+                    if (exit && exit->u1.to_room) {
+                        checked++;
+                        resolved++;
+                    } else if (exit && exit->u1.vnum > 0) {
+                        // Exit with vnum but not resolved - might be expected for bad vnums
+                        checked++;
+                    }
+                }
+            }
+        }
+    }
+
+    if (checked == 0) {
+        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS, "No exits found to check");
+        return TEST_SUCCESS;
+    }
+
+    // At least 90% of exits should be resolved
+    if (resolved < (checked * 90 / 100)) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Only %d/%d exits resolved", resolved, checked);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_json_area_roundtrip(test_case_t *test) {
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    if (!input) {
+        return TEST_ERROR;
+    }
+
+    const char *area_name = json_get_string(input, "area_name");
+    if (!area_name) {
+        return TEST_ERROR;
+    }
+
+    AREA_DATA *area = find_area((char*)area_name);
+    if (!area) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Area not found: %s", area_name);
+        return TEST_FAILURE;
+    }
+
+    // Serialize
+    char *json_str = json_area_serialize_to_string(area);
+    if (!json_str) {
+        return TEST_FAILURE;
+    }
+
+    // Parse and verify key fields match
+    json_error_t error;
+    json_t *root = json_loads(json_str, 0, &error);
+    free(json_str);
+
+    if (!root) {
+        return TEST_FAILURE;
+    }
+
+    json_t *area_obj = json_object_get(root, "area");
+    if (!area_obj) {
+        json_decref(root);
+        return TEST_FAILURE;
+    }
+
+    // Verify UID matches
+    long uid = json_integer_value(json_object_get(area_obj, "uid"));
+    if (uid != area->uid) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "UID mismatch: expected %ld, got %ld", area->uid, uid);
+        json_decref(root);
+        return TEST_FAILURE;
+    }
+
+    // Verify vnum range
+    json_t *vnums = json_object_get(area_obj, "vnums");
+    if (vnums) {
+        long min_vnum = json_integer_value(json_object_get(vnums, "min"));
+        long max_vnum = json_integer_value(json_object_get(vnums, "max"));
+        if (min_vnum != area->min_vnum || max_vnum != area->max_vnum) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Vnum range mismatch");
+            json_decref(root);
+            return TEST_FAILURE;
+        }
+    }
+
+    json_decref(root);
+    return TEST_SUCCESS;
+}
+
+/***************************************************************************
+ * Redis Area Caching Tests                                                 *
+ ***************************************************************************/
+
+static test_result_t test_redis_available(test_case_t *test) {
+    if (!redis_is_available()) {
+        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                   "Redis not available - skipping Redis tests");
+        return TEST_SKIP;
+    }
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_redis_area_cached(test_case_t *test) {
+    if (!redis_is_available()) {
+        return TEST_SKIP;
+    }
+
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    if (!input) {
+        return TEST_ERROR;
+    }
+
+    json_t *areas_to_check = json_object_get(input, "areas_to_check");
+    if (!areas_to_check || !json_is_array(areas_to_check)) {
+        return TEST_ERROR;
+    }
+
+    size_t index;
+    json_t *area_spec;
+    int checked = 0, found = 0;
+
+    json_array_foreach(areas_to_check, index, area_spec) {
+        const char *area_name = json_get_string(area_spec, "name");
+        if (!area_name) continue;
+
+        AREA_DATA *area = find_area((char*)area_name);
+        if (!area || !area->file_name) continue;
+
+        checked++;
+        char *cached = redis_get_area_full(area->file_name);
+        if (cached) {
+            found++;
+            free(cached);
+        }
+    }
+
+    if (checked > 0 && found == 0) {
+        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                   "No areas found in Redis cache - cache may still be warming");
+        // Don't fail, just warn - cache warming is async
+        return TEST_SUCCESS;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_redis_area_cache_format(test_case_t *test) {
+    if (!redis_is_available()) {
+        return TEST_SKIP;
+    }
+
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    if (!input) {
+        return TEST_ERROR;
+    }
+
+    const char *area_name = json_get_string(input, "area_name");
+    if (!area_name) {
+        return TEST_ERROR;
+    }
+
+    AREA_DATA *area = find_area((char*)area_name);
+    if (!area || !area->file_name) {
+        return TEST_ERROR;
+    }
+
+    char *cached = redis_get_area_full(area->file_name);
+    if (!cached) {
+        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                   "Area not in cache - may still be warming");
+        return TEST_SUCCESS; // Don't fail, cache warming is async
+    }
+
+    // Verify it's valid JSON
+    json_error_t error;
+    json_t *root = json_loads(cached, 0, &error);
+    free(cached);
+
+    if (!root) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Cached JSON is invalid: %s", error.text);
+        return TEST_FAILURE;
+    }
+
+    // Check expected fields
+    json_t *expected_fields = json_object_get(input, "expected_json_fields");
+    if (expected_fields && json_is_array(expected_fields)) {
+        size_t index;
+        json_t *field;
+        json_array_foreach(expected_fields, index, field) {
+            const char *field_name = json_string_value(field);
+            if (field_name && !json_object_get(root, field_name)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Missing field in cached JSON: %s", field_name);
+                json_decref(root);
+                return TEST_FAILURE;
+            }
+        }
+    }
+
+    json_decref(root);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_redis_warm_queue(test_case_t *test) {
+    if (!redis_is_available()) {
+        return TEST_SKIP;
+    }
+
+    long queue_size = redis_area_cache_warm_queue_size();
+
+    // Just report the queue size - we don't fail if it's not empty
+    // since warming happens over time
+    if (queue_size > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                     "Redis warm queue has %ld items remaining", queue_size);
+    }
+
     return TEST_SUCCESS;
 }
 

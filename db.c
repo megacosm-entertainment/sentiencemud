@@ -1202,7 +1202,17 @@ void fix_rooms(void)
                     if ((pexit = room->exit[door]) != NULL)
                     {
                         // Find which area owns the destination vnum
-                        AREA_DATA *dest_area = find_area_by_vnum(pexit->u1.vnum);
+                        // Check for stored area UID first (widevnum/cross-area exits)
+                        // then fall back to legacy vnum range search
+                        AREA_DATA *dest_area = NULL;
+                        if (pexit->wilds.area_uid > 0 && pexit->wilds.wilds_uid == 0) {
+                            // Explicit area UID stored (widevnum cross-area exit)
+                            dest_area = get_area_from_uid(pexit->wilds.area_uid);
+                        }
+                        if (!dest_area) {
+                            // Fall back to legacy vnum range search
+                            dest_area = find_area_by_vnum(pexit->u1.vnum);
+                        }
                         if (pexit->u1.vnum <= 0 || !dest_area
                         ||   get_room_index(dest_area, pexit->u1.vnum) == NULL)
                             pexit->u1.to_room = NULL;
