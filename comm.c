@@ -629,12 +629,16 @@ int main(int argc, char **argv)
     }
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Socket initialization complete");
 
-    boot_db();
-
-    // Initialize Redis cache (optional - game works without it)
+    // Initialize Redis cache early (optional - game works without it)
+    // This must happen before boot_db() so areas can warm the cache during boot
     if (!redis_init()) {
         log_message(LOG_LEVEL_WARN, LOG_WARN, "Redis cache unavailable - character list display will be slower");
-    } else {
+    }
+
+    boot_db();
+
+    // Post-boot Redis cache warming (only if Redis is available)
+    if (redis_is_available()) {
         // Warm cache with recently active characters (Phase 1 - currently no-op)
         // Future: This will pre-cache character.json files in Phase 3
         redis_warm_cache(100);
