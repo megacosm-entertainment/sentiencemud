@@ -62,6 +62,15 @@ void do_ship_speed( CHAR_DATA *ch, char *argument );
 
 extern LLIST *loaded_instances;
 
+/**
+ * Global Variables - Ship System State
+ *
+ * @var ships_changed       Dirty flag indicating ship data needs saving
+ * @var top_ship_index_vnum Highest allocated ship template VNUM (for new ship creation)
+ * @var loaded_ships        List of all active SHIP_DATA instances in the game
+ * @var loaded_waypoints    List of all WAYPOINT_DATA navigation points
+ * @var loaded_waypoint_paths List of all WAYPOINT_PATH_DATA routes between waypoints
+ */
 bool ships_changed = false;
 long top_ship_index_vnum = 0;
 
@@ -69,15 +78,28 @@ LLIST *loaded_ships;
 LLIST *loaded_waypoints;
 LLIST *loaded_waypoint_paths;
 
-#define CREW_SKILL_SCOUTING		0
-#define CREW_SKILL_GUNNING		1
-#define CREW_SKILL_OARRING		2
-#define CREW_SKILL_MECHANICS	3
-#define CREW_SKILL_NAVIGATION	4
-#define CREW_SKILL_LEADERSHIP	5
+/**
+ * Crew Skill Indices
+ *
+ * Used to index into crew member skill ratings for improvement checks.
+ * Each NPC crew member has ratings 1-99 in these skills.
+ */
+#define CREW_SKILL_SCOUTING		0   /**< Ability to spot hazards/enemies */
+#define CREW_SKILL_GUNNING		1   /**< Accuracy with ship weapons */
+#define CREW_SKILL_OARRING		2   /**< Rowing/propulsion efficiency */
+#define CREW_SKILL_MECHANICS	3   /**< Ship repair and maintenance */
+#define CREW_SKILL_NAVIGATION	4   /**< Waypoint accuracy and route planning */
+#define CREW_SKILL_LEADERSHIP	5   /**< Crew morale and coordination */
 
-
-// Measured in 2 * ship->steering.heading / 45
+/**
+ * bearing_door - Maps ship heading to discrete compass direction
+ *
+ * Converts a heading angle (0-359) to one of 8 cardinal/ordinal directions.
+ * Index is calculated as: 2 * heading / 45
+ * This gives 16 segments, with adjacent pairs mapping to the same direction.
+ *
+ * Example: heading 45 -> index 2 -> DIR_NORTHEAST
+ */
 int bearing_door[] = {
     DIR_NORTH,				// 0
     DIR_NORTHEAST,			// 1
@@ -102,6 +124,16 @@ int bearing_door[] = {
 // Crew
 //
 
+/**
+ * crew_skill_improve - Attempt to improve an NPC crew member's skill
+ *
+ * Roll-based skill improvement for ship crew NPCs. Higher existing
+ * skill makes improvement less likely (diminishing returns).
+ * Skill must be between 1-99 to have any chance of improvement.
+ *
+ * @param ch     NPC crew member (must have ch->crew set)
+ * @param skill  CREW_SKILL_* constant indicating which skill to improve
+ */
 void crew_skill_improve(CHAR_DATA *ch, int skill)
 {
     SHIP_CREW_DATA *crew = ch->crew;
@@ -140,6 +172,20 @@ void crew_skill_improve(CHAR_DATA *ch, int skill)
 // Navigation
 //
 
+/**
+ * set_seek_point - Set a navigation target coordinate with skill-based accuracy
+ *
+ * Initializes a WILDS_COORD with target location. If navigator skill is
+ * less than 100, the actual target may be offset randomly based on
+ * skill difference (simulating navigation inaccuracy).
+ *
+ * @param coord  Output coordinate structure to populate
+ * @param wilds  Wilderness to navigate in (or NULL to lookup by w)
+ * @param w      Wilderness UID
+ * @param x      Target X coordinate
+ * @param y      Target Y coordinate
+ * @param skill  Navigator's navigation skill (0-100)
+ */
 void set_seek_point(WILDS_COORD *coord, WILDS_DATA *wilds, long w, int x, int y, int skill)
 {
     if( !wilds ) wilds = get_wilds_from_uid(NULL, w);
@@ -162,6 +208,20 @@ void set_seek_point(WILDS_COORD *coord, WILDS_DATA *wilds, long w, int x, int y,
     }
 }
 
+/**
+ * ship_seek_point - Process ship navigation toward current waypoint
+ *
+ * Called during ship movement to check if the ship has reached its
+ * current navigation target. If within ~2.44 blocks of target:
+ * - Awards skill improvement to navigator (crew or player)
+ * - Advances to next waypoint in route
+ * - Stops ship if no more waypoints remain
+ *
+ * Also adjusts ship heading to point toward the seek point.
+ *
+ * @param ship  Ship data to process navigation for
+ * @return      true to continue movement, false if ship should stop
+ */
 bool ship_seek_point(SHIP_DATA *ship)
 {
     ROOM_INDEX_DATA *room = obj_room(ship->ship);
@@ -246,6 +306,20 @@ bool ship_seek_point(SHIP_DATA *ship)
 // Steering
 //
 
+/**
+ * steering_calc_heading - Calculate movement vectors from current heading
+ *
+ * Converts the ship's current heading angle (0-359 degrees) into
+ * movement delta values for Bresenham-style line movement:
+ * - dx, dy: Scaled direction components (±1000 range)
+ * - ax, ay: Absolute values of dx, dy
+ * - sx, sy: Sign values (-1, 0, or 1)
+ * - compass: Nearest cardinal/ordinal direction (DIR_* constant)
+ *
+ * Also resets the movement accumulator.
+ *
+ * @param ship  Ship to calculate heading vectors for
+ */
 void steering_calc_heading(SHIP_DATA *ship)
 {
     ship->steering.dx = (int)(1000 * sin(3.14159 * ship->steering.heading / 180));
@@ -262,6 +336,17 @@ void steering_calc_heading(SHIP_DATA *ship)
     ship->steering.move = 0;
 }
 
+/**
+ * steering_calc_forceheading - Force ship heading from raw direction vector
+ *
+ * Sets ship's movement vectors directly from dx/dy values and
+ * back-calculates the heading angle. Used when external forces
+ * (currents, wind) override normal steering.
+ *
+ * @param ship  Ship to update
+ * @param dx    X component of forced direction
+ * @param dy    Y component of forced direction
+ */
 void steering_calc_forceheading(SHIP_DATA *ship, int dx, int dy)
 {
     ship->steering.dx = dx;
@@ -284,6 +369,16 @@ void steering_calc_forceheading(SHIP_DATA *ship, int dx, int dy)
     ship->steering.heading_target = heading;
 }
 
+/**
+ * steering_set_heading - Set ship's target heading
+ *
+ * Sets the desired heading angle. If this is the first heading set
+ * (heading was negative), also initializes current heading.
+ * Ship will gradually turn toward target heading.
+ *
+ * @param ship     Ship to update
+ * @param heading  Target heading in degrees (0-359, 0=North)
+ */
 void steering_set_heading(SHIP_DATA *ship, int heading)
 {
     // Initialize it
@@ -295,11 +390,32 @@ void steering_set_heading(SHIP_DATA *ship, int heading)
     ship->steering.heading_target = heading;
 }
 
+/**
+ * steering_set_turning - Set ship's turning direction
+ *
+ * Controls which direction the ship turns to reach target heading.
+ *
+ * @param ship       Ship to update
+ * @param direction  Turn direction: -1 = port (left), 1 = starboard (right)
+ */
 void steering_set_turning(SHIP_DATA *ship, char direction)
 {
     ship->steering.turning_dir = direction;
 }
 
+/**
+ * steering_update - Process gradual ship turning toward target heading
+ *
+ * Called each tick to incrementally adjust ship's heading toward its
+ * target. Turning rate depends on ship's turning stat and current
+ * power state (slower while stopped). When target heading is reached,
+ * notifies passengers and stops turning.
+ *
+ * If ship has a seek point set, recalculates force heading to point
+ * directly at destination after reaching target heading.
+ *
+ * @param ship  Ship to update steering for
+ */
 void steering_update(SHIP_DATA *ship)
 {
     if( ship->ship_power < SHIP_SPEED_STOPPED )
@@ -393,6 +509,22 @@ void steering_update(SHIP_DATA *ship)
     }
 }
 
+/**
+ * steering_movement - Calculate next movement step based on heading
+ *
+ * Uses Bresenham-style line algorithm to determine the next grid
+ * coordinate the ship should move to based on its current heading.
+ * Handles diagonal movement by accumulating fractional movement.
+ *
+ * Validates destination is traversable (water for ships, anywhere
+ * for airships).
+ *
+ * @param ship  Ship calculating movement for
+ * @param x     Output: next X coordinate
+ * @param y     Output: next Y coordinate
+ * @param door  Output: direction constant for exit messages
+ * @return      true if movement is valid, false if blocked/stopped
+ */
 bool steering_movement(SHIP_DATA *ship, int *x, int *y, int *door)
 {
     static int compasses[] = {
@@ -462,6 +594,18 @@ bool steering_movement(SHIP_DATA *ship, int *x, int *y, int *door)
 // Ship Types
 //
 
+/**
+ * load_ship_index - Load a ship template definition from file
+ *
+ * Reads a ship index (template) from the ships data file. Ship indices
+ * define the base stats for ship types: hull, armor, speed, cargo,
+ * weapons, blueprints, etc. Individual ships reference these templates.
+ *
+ * File format: #SHIP vnum followed by key-value pairs, ending with #-SHIP
+ *
+ * @param fp  Open file positioned at #SHIP line
+ * @return    New SHIP_INDEX_DATA populated from file
+ */
 SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 {
     SHIP_INDEX_DATA *ship;
@@ -581,6 +725,12 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
     return ship;
 }
 
+/**
+ * load_ships - Load all ship templates from ships.dat at boot time
+ *
+ * Reads SHIPS_FILE and populates ship_index_hash with all ship templates.
+ * Updates top_ship_index_vnum for new ship template creation.
+ */
 void load_ships()
 {
     FILE *fp = fopen(SHIPS_FILE, "r");
@@ -621,6 +771,15 @@ void load_ships()
     fclose(fp);
 }
 
+/**
+ * save_ship_index - Write a single ship template to file
+ *
+ * Serializes all properties of a SHIP_INDEX_DATA including name,
+ * description, stats, blueprint reference, and special keys.
+ *
+ * @param fp    Open file to write to
+ * @param ship  Ship template to save
+ */
 void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 {
     ITERATOR it;
@@ -661,6 +820,14 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
     fprintf(fp, "#-SHIP\n\n");
 }
 
+/**
+ * save_ships - Save all ship templates to disk
+ *
+ * Writes all ship templates from ship_index_hash to SHIPS_FILE.
+ * Clears ships_changed flag on success.
+ *
+ * @return  true on success, false if file couldn't be opened
+ */
 bool save_ships()
 {
     FILE *fp = fopen(SHIPS_FILE, "w");
@@ -687,6 +854,14 @@ bool save_ships()
     return true;
 }
 
+/**
+ * get_ship_index - Look up a ship template by VNUM
+ *
+ * Searches ship_index_hash for a template with the given VNUM.
+ *
+ * @param vnum  VNUM to search for
+ * @return      SHIP_INDEX_DATA if found, NULL otherwise
+ */
 SHIP_INDEX_DATA *get_ship_index(long vnum)
 {
     for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
@@ -703,9 +878,22 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
 
 /////////////////////////////////////////////////////////////////
 //
-// Ships
+// Ships (Runtime Instances)
 //
 
+/**
+ * create_ship - Create a new runtime ship instance from template
+ *
+ * Instantiates a ship from a SHIP_INDEX_DATA template:
+ * 1. Validates ship and object templates exist
+ * 2. Creates physical ship object (ITEM_SHIP)
+ * 3. Creates interior instance from blueprint
+ * 4. Initializes hitpoints, steering, cargo, etc.
+ * 5. Adds to loaded_ships list
+ *
+ * @param vnum  VNUM of ship template to instantiate
+ * @return      New SHIP_DATA, or NULL on failure
+ */
 SHIP_DATA *create_ship(long vnum)
 {
     OBJ_DATA *obj;						// Physical ship object
@@ -793,6 +981,18 @@ SHIP_DATA *create_ship(long vnum)
     return ship;
 }
 
+/**
+ * extract_ship - Remove and destroy a ship instance from the game
+ *
+ * Cleans up a runtime ship:
+ * - Removes from owner's ship list
+ * - Detaches from any docked ships
+ * - Removes from loaded_ships list
+ * - Extracts interior instance and physical object
+ * - Frees memory
+ *
+ * @param ship  Ship to destroy
+ */
 void extract_ship(SHIP_DATA *ship)
 {
     if( !IS_VALID(ship) ) return;
@@ -812,6 +1012,13 @@ void extract_ship(SHIP_DATA *ship)
     free_ship(ship);
 }
 
+/**
+ * ship_isowner_player - Check if a player owns a ship
+ *
+ * @param ship  Ship to check ownership of
+ * @param ch    Character to check as owner
+ * @return      true if ch owns ship, false otherwise
+ */
 bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 {
     if( !IS_VALID(ship) ) return false;
@@ -824,6 +1031,17 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
     return false;
 }
 
+/**
+ * get_ship_waypoint - Find a waypoint by number or name
+ *
+ * Searches the ship's waypoint list by index (1-based) or name match.
+ * Supports N.name syntax for matching Nth instance of a name.
+ *
+ * @param ship      Ship whose waypoints to search
+ * @param argument  Waypoint number or name (possibly with N. prefix)
+ * @param wilds     If non-NULL, only match waypoints in this wilderness
+ * @return          Matching WAYPOINT_DATA or NULL
+ */
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds)
 {
     if( is_number(argument) )
@@ -862,6 +1080,16 @@ WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wi
 }
 
 
+/**
+ * get_ship_route - Find a route by number or name
+ *
+ * Searches the ship's route list by index (1-based) or name match.
+ * Supports N.name syntax for matching Nth instance of a name.
+ *
+ * @param ship      Ship whose routes to search
+ * @param argument  Route number or name (possibly with N. prefix)
+ * @return          Matching SHIP_ROUTE or NULL
+ */
 SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument)
 {
     if( is_number(argument) )
@@ -899,6 +1127,14 @@ SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument)
     }
 }
 
+/**
+ * ship_cancel_route - Cancel current route navigation
+ *
+ * Stops following the current route, clears waypoint iterator,
+ * and resets seek point. Does not stop the ship's movement.
+ *
+ * @param ship  Ship to cancel route for
+ */
 void ship_cancel_route(SHIP_DATA *ship)
 {
     if( list_size(ship->route_waypoints) > 0 )
@@ -913,6 +1149,15 @@ void ship_cancel_route(SHIP_DATA *ship)
     memset(&ship->seek_point, 0, sizeof(ship->seek_point));
 }
 
+/**
+ * ship_stop - Bring ship to a complete halt
+ *
+ * Stops all ship movement: sail power, oar power, steering,
+ * navigation route. Resets sextant and movement accumulators.
+ * Also sets staggered wake fade times for visual trail effect.
+ *
+ * @param ship  Ship to stop
+ */
 void ship_stop(SHIP_DATA *ship)
 {
     ship->ship_power = SHIP_SPEED_STOPPED;
@@ -929,6 +1174,18 @@ void ship_stop(SHIP_DATA *ship)
     ship->last_times[2] = current_time + 5;
 }
 
+/**
+ * move_ship_success - Execute one step of ship movement
+ *
+ * Core ship movement function. Calculates next position based on
+ * steering, validates terrain (water for ships, any for airships),
+ * moves physical object, updates wake trail, and sends room messages.
+ *
+ * Stops ship if it runs aground on invalid terrain.
+ *
+ * @param ship  Ship to move
+ * @return      true if movement succeeded, false if blocked
+ */
 bool move_ship_success(SHIP_DATA *ship)
 {
     char buf[MSL];
@@ -1049,6 +1306,15 @@ bool move_ship_success(SHIP_DATA *ship)
     return true;
 }
 
+/**
+ * ship_set_move_steps - Calculate ship's movement steps per tick
+ *
+ * Determines how many grid squares the ship moves per movement tick
+ * based on sail power, oar power (scaled by active rowers), and
+ * the ship template's base move_steps. Clears sextant reading.
+ *
+ * @param ship  Ship to calculate movement for
+ */
 void ship_set_move_steps(SHIP_DATA *ship)
 {
     if( ship->ship_power > SHIP_SPEED_STOPPED || ship->oar_power > SHIP_SPEED_STOPPED )
@@ -1092,6 +1358,18 @@ void ship_set_move_steps(SHIP_DATA *ship)
     ship->ship_move = ship->index->move_delay;
 }
 
+/**
+ * ship_move_update - Process ship movement for one movement tick
+ *
+ * Called when ship_move countdown reaches zero. If ship is moving:
+ * - Updates steering (turning toward target heading)
+ * - Executes move_steps worth of movement
+ * - Performs auto-survey for navigation
+ * If stopped but turning, processes stationary rotation.
+ * Recalculates move_steps for next tick.
+ *
+ * @param ship  Ship to update movement for
+ */
 void ship_move_update(SHIP_DATA *ship)
 {
     if( ship->ship_power > SHIP_SPEED_STOPPED )
@@ -1121,6 +1399,16 @@ void ship_move_update(SHIP_DATA *ship)
     ship_set_move_steps(ship);
 }
 
+/**
+ * ship_pulse_update - Per-pulse update for a single ship
+ *
+ * Called every game pulse. Handles:
+ * - Movement countdown and triggering ship_move_update
+ * - Wake trail expiration (fading previous positions)
+ * - Exhausted oarsman recovery (resume rowing when stamina > 25%)
+ *
+ * @param ship  Ship to update
+ */
 void ship_pulse_update(SHIP_DATA *ship)
 {
     if( !IS_VALID(ship) ) return;
@@ -1166,7 +1454,12 @@ void ship_pulse_update(SHIP_DATA *ship)
     iterator_stop(&it);
 }
 
-// Called on the pulse
+/**
+ * ships_pulse_update - Global pulse update for all ships
+ *
+ * Called every game pulse. Iterates through loaded_ships and
+ * calls ship_pulse_update on each active ship.
+ */
 void ships_pulse_update()
 {
     ITERATOR it;
@@ -1180,6 +1473,14 @@ void ships_pulse_update()
     iterator_stop(&it);
 }
 
+/**
+ * ship_tick_update - Per-tick update for a single ship
+ *
+ * Called every game tick. Handles longer-term ship events:
+ * - Scuttling countdown (ship self-destructs when timer reaches 0)
+ *
+ * @param ship  Ship to update
+ */
 void ship_tick_update(SHIP_DATA *ship)
 {
     // Update scuttling
@@ -1194,7 +1495,12 @@ void ship_tick_update(SHIP_DATA *ship)
     }
 }
 
-// Called on the tick
+/**
+ * ships_ticks_update - Global tick update for all ships
+ *
+ * Called every game tick. Iterates through loaded_ships and
+ * calls ship_tick_update on each active ship.
+ */
 void ships_ticks_update()
 {
     ITERATOR it;
@@ -1208,6 +1514,15 @@ void ships_ticks_update()
     iterator_stop(&it);
 }
 
+/**
+ * ship_special_key_load - Load a special key tracking structure from file
+ *
+ * Reads key VNUM and list of key instance UIDs. Special keys track
+ * which specific key objects have been used on ship locks.
+ *
+ * @param fp  Open file positioned at key vnum
+ * @return    New SPECIAL_KEY_DATA with loaded data
+ */
 SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 {
     SPECIAL_KEY_DATA *sk;
@@ -1246,6 +1561,16 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 
 }
 
+/**
+ * ship_route_load - Load a navigation route from file
+ *
+ * Reads route name and list of waypoint indices, resolving each
+ * index to actual waypoints in the ship's waypoint list.
+ *
+ * @param fp    Open file positioned at route name
+ * @param ship  Ship owning the waypoints (must have waypoints loaded first)
+ * @return      New SHIP_ROUTE with loaded waypoints
+ */
 SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 {
     SHIP_ROUTE *route;
@@ -1286,6 +1611,17 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
     return route;
 }
 
+/**
+ * ship_load_find_crew - Find a crew member by UID during ship loading
+ *
+ * Searches the ship's crew list for a mobile with matching UID.
+ * Used to resolve role references (navigator, oarsman, etc.) during load.
+ *
+ * @param ship  Ship whose crew to search
+ * @param id1   First part of UID
+ * @param id2   Second part of UID
+ * @return      Matching CHAR_DATA or NULL
+ */
 CHAR_DATA *ship_load_find_crew(SHIP_DATA *ship, unsigned long id1, unsigned long id2)
 {
     ITERATOR it;
@@ -1307,6 +1643,21 @@ OBJ_DATA *persist_load_object(FILE *fp);
 CHAR_DATA *persist_load_mobile(FILE *fp);
 CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned long id2);
 
+/**
+ * ship_load - Load a complete ship instance from file
+ *
+ * Deserializes a saved ship including:
+ * - Ship index reference (template)
+ * - Interior instance (rooms, exits)
+ * - Physical ship object
+ * - Crew members and their roles (navigator, oarsmen, etc.)
+ * - Waypoints and routes
+ * - Special keys
+ * - Combat state, damage, flags
+ *
+ * @param fp  Open file positioned at ship index vnum
+ * @return    Loaded SHIP_DATA, or NULL if index not found
+ */
 SHIP_DATA *ship_load(FILE *fp)
 {
     SHIP_DATA *ship;
@@ -1598,6 +1949,16 @@ SHIP_DATA *ship_load(FILE *fp)
     return ship;
 }
 
+/**
+ * save_ship_uid - Write a UID field to file if set
+ *
+ * Helper function to conditionally write UID references.
+ * Only writes if at least one component is non-zero.
+ *
+ * @param fp     Open file to write to
+ * @param field  Field name to use
+ * @param uid    Two-part UID array
+ */
 void save_ship_uid(FILE *fp, char *field, unsigned long uid[2])
 {
     if( uid[0] > 0 || uid[1] > 0 )
@@ -1606,6 +1967,14 @@ void save_ship_uid(FILE *fp, char *field, unsigned long uid[2])
     }
 }
 
+/**
+ * ship_special_key_save - Write a special key tracking structure to file
+ *
+ * Saves key VNUM and all associated key instance UIDs.
+ *
+ * @param fp  Open file to write to
+ * @param sk  Special key data to save
+ */
 void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
 {
     ITERATOR it;
@@ -1626,6 +1995,26 @@ void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
 
 void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple);
 void persist_save_mobile(FILE *fp, CHAR_DATA *ch);
+
+/**
+ * ship_save - Write a complete ship instance to file
+ *
+ * Serializes entire ship state including:
+ * - Template reference and basic stats (name, type, hp, armor)
+ * - Owner UID, flags, movement state
+ * - Steering data (heading, target, turning)
+ * - Navigation (seek point, waypoints, routes)
+ * - Physical object and interior instance
+ * - Crew members and role assignments
+ * - Special keys
+ *
+ * Note: Routes must be saved after waypoints since they reference
+ * waypoints by index.
+ *
+ * @param fp    Open file to write to
+ * @param ship  Ship to save
+ * @return      true on success
+ */
 bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
     ITERATOR it, rit;
@@ -1769,6 +2158,15 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
     return true;
 }
 
+/**
+ * resolve_ships_player - Link ships to a player on login
+ *
+ * Called when a player enters the game. Scans all loaded ships
+ * and sets owner/char_attacked pointers for any ships that have
+ * matching owner_uid or char_attacked_uid.
+ *
+ * @param ch  Player character that just logged in
+ */
 void resolve_ships_player(CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return;
@@ -1791,6 +2189,12 @@ void resolve_ships_player(CHAR_DATA *ch)
     iterator_stop(&it);
 }
 
+/**
+ * resolve_ships - Link ship-to-ship references after loading
+ *
+ * Called after all ships are loaded to resolve inter-ship UID
+ * references to actual pointers (attacked, chased, boarded_by).
+ */
 void resolve_ships(void)
 {
     ITERATOR it;
@@ -1805,6 +2209,15 @@ void resolve_ships(void)
     iterator_stop(&it);
 }
 
+/**
+ * detach_ships_player - Unlink ships from a player on logout
+ *
+ * Called when a player leaves the game. Clears owner and
+ * char_attacked pointers for any ships referencing this player.
+ * The UIDs remain set for re-linking on next login.
+ *
+ * @param ch  Player character logging out
+ */
 void detach_ships_player(CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return;
@@ -1820,6 +2233,14 @@ void detach_ships_player(CHAR_DATA *ch)
     iterator_stop(&it);
 }
 
+/**
+ * detach_ships_ship - Clear references to a ship being extracted
+ *
+ * Called when a ship is being destroyed. Clears any ship_attacked,
+ * ship_chased, or boarded_by pointers from other ships that reference it.
+ *
+ * @param old_ship  Ship being extracted
+ */
 void detach_ships_ship(SHIP_DATA *old_ship)
 {
     ITERATOR it;
@@ -1835,6 +2256,15 @@ void detach_ships_ship(SHIP_DATA *old_ship)
 }
 
 
+/**
+ * get_ship_uids - Find a ship by two-part UID (wrapper)
+ *
+ * Convenience wrapper that takes UID parts as separate parameters.
+ *
+ * @param id1  First part of UID
+ * @param id2  Second part of UID
+ * @return     Matching ship or NULL
+ */
 SHIP_DATA *get_ship_uids(unsigned long id1, unsigned long id2)
 {
     unsigned long id[2];
@@ -1844,6 +2274,14 @@ SHIP_DATA *get_ship_uids(unsigned long id1, unsigned long id2)
     return get_ship_uid(id);
 }
 
+/**
+ * get_ship_uid - Find a ship by UID array
+ *
+ * Searches loaded_ships for a ship with matching UID.
+ *
+ * @param id  Two-element UID array to match
+ * @return    Matching ship or NULL
+ */
 SHIP_DATA *get_ship_uid(unsigned long id[2])
 {
     ITERATOR it;
@@ -1861,6 +2299,17 @@ SHIP_DATA *get_ship_uid(unsigned long id[2])
     return ship;
 }
 
+/**
+ * get_ship_nearby - Find another player's ship in the same room by name
+ *
+ * Searches for a ship matching the name that is in the specified room
+ * but NOT owned by the given character.
+ *
+ * @param name   Ship name to match
+ * @param room   Room to search in
+ * @param owner  Character to exclude (find ships NOT owned by this char)
+ * @return       Matching ship or NULL
+ */
 SHIP_DATA *get_ship_nearby(char *name, ROOM_INDEX_DATA *room, CHAR_DATA *owner)
 {
     ITERATOR it;
@@ -1878,6 +2327,17 @@ SHIP_DATA *get_ship_nearby(char *name, ROOM_INDEX_DATA *room, CHAR_DATA *owner)
     return ship;
 }
 
+/**
+ * is_ship_safe - Check if a ship is in a safe/protected state
+ *
+ * A ship is safe if it has SHIP_PROTECTED flag or is in a ROOM_SAFE_HARBOR.
+ * Used to prevent combat/attacks in safe areas.
+ *
+ * @param ch     Character attempting action (unused currently)
+ * @param ship   Ship to check safety of
+ * @param ship2  Other ship involved (or NULL for general safety check)
+ * @return       true if ship is safe from attack
+ */
 bool is_ship_safe(CHAR_DATA *ch, SHIP_DATA *ship, SHIP_DATA *ship2)
 {
     if( IS_SET(ship->ship_flags, SHIP_PROTECTED) )
@@ -1898,6 +2358,15 @@ bool is_ship_safe(CHAR_DATA *ch, SHIP_DATA *ship, SHIP_DATA *ship2)
     return true;
 }
 
+/**
+ * get_room_ship - Get the ship that owns a room
+ *
+ * Navigates from a room through its instance_section and instance
+ * to find the owning ship (if room is part of a ship interior).
+ *
+ * @param room  Room to check
+ * @return      Ship owning this room, or NULL
+ */
 SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room)
 {
     if( !room ) return NULL;
@@ -1908,6 +2377,13 @@ SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room)
     return room->instance_section->instance->ship;
 }
 
+/**
+ * ischar_onboard_ship - Check if a character is aboard a specific ship
+ *
+ * @param ch    Character to check
+ * @param ship  Ship to check
+ * @return      true if ch is in a room belonging to ship's interior
+ */
 bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship)
 {
     if( !IS_VALID(ch) || !ch->in_room ) return false;
@@ -1916,6 +2392,17 @@ bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship)
     return get_room_ship(ch->in_room) == ship;
 }
 
+/**
+ * get_ship_wildsicon - Get the map icon character for a ship
+ *
+ * Returns a colored 'O' representing the ship on wilderness maps:
+ * - NPC ships: dark gray (or red if scuttling)
+ * - Player ships: white (or bright red if scuttling)
+ *
+ * @param ship  Ship to get icon for
+ * @param buf   Output buffer
+ * @param len   Buffer size
+ */
 void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
 {
     if( IS_NPC_SHIP(ship) )
@@ -1936,6 +2423,20 @@ void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
     buf[len] = '\0';
 }
 
+/**
+ * get_ship_location - Format ship's location as a human-readable string
+ *
+ * Generates a location description for display to players:
+ * - Immortals with holylight see exact coordinates/VNUMs
+ * - Players see terrain type and nearest landmark/area
+ * - Ship owners with sextant reading see South/East coordinates
+ * - Region names used for ships far from any area
+ *
+ * @param ch    Character viewing the location (affects detail level)
+ * @param ship  Ship to describe location of
+ * @param buf   Output buffer
+ * @param len   Buffer size
+ */
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 {
     ROOM_INDEX_DATA *room = obj_room(ship->ship);
@@ -2062,6 +2563,15 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
     }
 }
 
+/**
+ * ship_autosurvey - Trigger automatic survey for players on moving ship
+ *
+ * Called after ship movement. For each connected player aboard the ship
+ * with PLR_AUTOSURVEY flag who is awake and can see outside (outdoor
+ * room, helm, or view room), executes the survey command.
+ *
+ * @param ship  Ship that just moved
+ */
 void ship_autosurvey( SHIP_DATA *ship )
 {
     DESCRIPTOR_DATA *d;
@@ -2087,6 +2597,15 @@ void ship_autosurvey( SHIP_DATA *ship )
 }
 
 
+/**
+ * ship_echo - Send a message to all players aboard a ship
+ *
+ * Broadcasts str to every connected player who is in a room
+ * belonging to the ship's interior instance.
+ *
+ * @param ship  Ship to broadcast to
+ * @param str   Message to send (can contain act codes)
+ */
 void ship_echo( SHIP_DATA *ship, char *str )
 {
     DESCRIPTOR_DATA *d;
@@ -2104,6 +2623,16 @@ void ship_echo( SHIP_DATA *ship, char *str )
     }
 }
 
+/**
+ * ship_echoaround - Send a message to all players aboard except one
+ *
+ * Broadcasts str to every connected player aboard the ship,
+ * excluding the specified character.
+ *
+ * @param ship  Ship to broadcast to
+ * @param ch    Character to exclude from message
+ * @param str   Message to send (ch available as $N in act codes)
+ */
 void ship_echoaround( SHIP_DATA *ship, CHAR_DATA *ch, char *str )
 {
     DESCRIPTOR_DATA *d;
@@ -2123,6 +2652,15 @@ void ship_echoaround( SHIP_DATA *ship, CHAR_DATA *ch, char *str )
 }
 
 
+/**
+ * ship_has_enough_crew - Check if ship has minimum crew for operation
+ *
+ * Placeholder for crew requirement check. Currently always returns true.
+ * TODO: Implement actual crew counting against min_crew requirement.
+ *
+ * @param ship  Ship to check
+ * @return      true if sufficient crew, false otherwise
+ */
 bool ship_has_enough_crew( SHIP_DATA *ship )
 {
     // TODO: Implement crew
@@ -2131,6 +2669,19 @@ bool ship_has_enough_crew( SHIP_DATA *ship )
 }
 
 
+/**
+ * do_ships - Staff command to manage ship instances
+ *
+ * Provides administrative control over ships:
+ * - ships list [player]: List all loaded ships (optionally filtered by owner)
+ * - ships load [vnum] [owner] [name]: Create a new ship from template
+ * - ships unload [#]: Destroy a ship instance
+ *
+ * Shows ship status including HP, armor, crew, movement state, etc.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Subcommand and arguments
+ */
 void do_ships(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -2360,6 +2911,16 @@ void do_ships(CHAR_DATA *ch, char *argument)
     do_ships(ch, "");
 }
 
+/**
+ * ship_can_issue_command - Check if character can issue ship commands
+ *
+ * Character must be at the ship's helm (ROOM_SHIP_HELM flag) to
+ * issue navigation commands.
+ *
+ * @param ch    Character trying to issue command
+ * @param ship  Ship (unused currently, could check roles)
+ * @return      true if at helm, false otherwise
+ */
 bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 {
     if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM))
@@ -2370,6 +2931,18 @@ bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
     return true;
 }
 
+/**
+ * ship_dispatch_message - Send command feedback and notify ship owner
+ *
+ * Sends error/status message to the command issuer. If the issuer
+ * is not the ship owner, also notifies the owner of the dispatched
+ * command.
+ *
+ * @param ch       Character who issued command
+ * @param ship     Ship the command was issued on
+ * @param error    Message to display
+ * @param command  Command that was executed (for owner notification)
+ */
 void ship_dispatch_message(CHAR_DATA *ch, SHIP_DATA *ship, char *error, char *command)
 {
     send_to_char(error, ch);
@@ -2383,6 +2956,16 @@ void ship_dispatch_message(CHAR_DATA *ch, SHIP_DATA *ship, char *error, char *co
 }
 
 
+/**
+ * do_ship_scuttle - Player command to destroy their ship
+ *
+ * Initiates ship scuttling (self-destruction). Ship will be destroyed
+ * after scuttle_time ticks. Only works for ship owner or against
+ * enemy ships not in safe harbor.
+ *
+ * @param ch        Character issuing scuttle command
+ * @param argument  Unused
+ */
 void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 {
 //	ROOM_INDEX_DATA *location;
@@ -2524,6 +3107,23 @@ void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_ship_steer - Player command to control ship direction
+ *
+ * With no argument: reports current heading and turn status.
+ * With direction: sets new heading or turning mode.
+ *
+ * Accepts:
+ * - Cardinal directions: north, south, east, west, etc.
+ * - Numeric degrees: 0-359 (0=North)
+ * - Relative: port (turn left), starboard (turn right)
+ *
+ * Requires being at helm (ROOM_SHIP_HELM) or having a first mate
+ * who will relay commands with a delay based on leadership skill.
+ *
+ * @param ch        Character issuing steer command
+ * @param argument  Direction, degrees, or port/starboard
+ */
 void do_ship_steer( CHAR_DATA *ch, char *argument )
 {
     char buf[MSL];
@@ -2815,6 +3415,21 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
     }
 }
 
+/**
+ * do_ship_engines - Control airship engine throttle
+ *
+ * Airship-specific speed control. With no argument, reports current
+ * engine status. Accepts speed values:
+ * - stop: Cut engines to idle
+ * - minimal: 1% power
+ * - half: 50% power
+ * - full: 100% power
+ * - percentage: 0-100%
+ * - explicit count: 1 to max move_steps
+ *
+ * @param ch        Character issuing command
+ * @param argument  Speed setting
+ */
 void do_ship_engines( CHAR_DATA *ch, char *argument )
 {
     char buf[MSL];
@@ -3048,6 +3663,23 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
     }
 }
 
+/**
+ * do_ship_sails - Control sailing ship speed via sails
+ *
+ * Sailing ship-specific speed control. With no argument, reports
+ * current sail status. Accepts speed values:
+ * - stop: Furl sails
+ * - minimal: 1% sail
+ * - half: 50% sail
+ * - full: 100% sail (full canvas)
+ * - percentage: 0-100%
+ * - explicit count: 1 to max move_steps
+ *
+ * Requires ship to have a heading set first.
+ *
+ * @param ch        Character issuing command
+ * @param argument  Speed setting
+ */
 void do_ship_sails( CHAR_DATA *ch, char *argument )
 {
     char buf[MSL];
@@ -3283,6 +3915,16 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
     }
 }
 
+/**
+ * do_ship_speed - Display current ship speed status
+ *
+ * Reports the ship's current effective speed as a descriptive message
+ * (stopped, minimal, half, full, etc.). This is a read-only status
+ * command, not used to change speed.
+ *
+ * @param ch        Character checking speed
+ * @param argument  Unused
+ */
 void do_ship_speed( CHAR_DATA *ch, char *argument )
 {
     //char buf[MSL];
@@ -3348,6 +3990,16 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
     return;
 }
 
+/**
+ * do_ship_aim - Aim ship cannons at a target (NYI)
+ *
+ * Placeholder for ship combat targeting system. Currently disabled
+ * with #if 0 block. Would allow aiming cannons at other ships or
+ * characters.
+ *
+ * @param ch        Character issuing aim command
+ * @param argument  Target specification
+ */
 void do_ship_aim( CHAR_DATA *ch, char *argument )
 {
 #if 0
@@ -3513,6 +4165,22 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 #endif
 }
 
+/**
+ * do_ship_navigate - Automated navigation command for ships
+ *
+ * Provides waypoint-based navigation:
+ * - navigate goto <waypoint>: Sail to a named waypoint
+ * - navigate seek <south> <east>: Sail to coordinates
+ * - navigate plot <wp1> <wp2> ...: Set multi-waypoint route
+ * - navigate cancel: Stop current navigation
+ * - navigate route: List available routes
+ * - navigate route go <route>: Follow a saved route
+ *
+ * Uses navigator crew skill or player navigation skill for accuracy.
+ *
+ * @param ch        Character issuing navigation command
+ * @param argument  Subcommand and parameters
+ */
 void do_ship_navigate(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -3955,6 +4623,20 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
     do_ship_navigate(ch, "");
 }
 
+/**
+ * do_ship_oars - Control oar-based propulsion
+ *
+ * Commands assigned oarsmen to row, providing supplemental or
+ * primary propulsion. Oarsmen drain stamina while rowing and
+ * rest when exhausted. With no argument, reports oar status.
+ *
+ * - oars stop: Oarsmen stop rowing
+ * - oars row: Oarsmen begin rowing at maximum power
+ * - oars <percentage>: Set oar power level
+ *
+ * @param ch        Character issuing command
+ * @param argument  Oar power setting
+ */
 void do_ship_oars( CHAR_DATA *ch, char *argument )
 {
     char buf[MSL];
@@ -4175,6 +4857,17 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 }
 
 
+/**
+ * do_ship_christen - Name a newly acquired ship
+ *
+ * Allows ship owner to give their ship a name. Can only be done once
+ * (ship must not already have a name). Name is limited to 30 characters
+ * excluding color codes. Updates the ship object's name, short_descr,
+ * and description to include the christened name.
+ *
+ * @param ch        Ship owner christening the vessel
+ * @param argument  Desired ship name (may include color codes)
+ */
 void do_ship_christen(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -4231,6 +4924,16 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
     act("{YYou christen the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_CHAR, NULL, NULL);
 }
 
+/**
+ * do_ship_land - Land an airship
+ *
+ * Airship-specific command to descend and land on the ground.
+ * Must be airborne and in a location suitable for landing.
+ * Sets ship power to SHIP_SPEED_LANDED state.
+ *
+ * @param ch        Character issuing land command
+ * @param argument  Unused
+ */
 void do_ship_land(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -4452,6 +5155,16 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_ship_launch - Launch a landed airship into the air
+ *
+ * Airship-specific command to take off from the ground. Must be
+ * in SHIP_SPEED_LANDED state and outdoors. Sets heading to north
+ * if no heading was set and moves ship into wilderness airspace.
+ *
+ * @param ch        Character issuing launch command
+ * @param argument  Unused
+ */
 void do_ship_launch(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -4591,11 +5304,28 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_ship_chase - Chase another ship (NYI)
+ *
+ * Placeholder for ship pursuit/chase mechanics. Not yet implemented.
+ *
+ * @param ch        Character issuing chase command
+ * @param argument  Target ship identifier
+ */
 void do_ship_chase(CHAR_DATA *ch, char *argument)
 {
     send_to_char("Not yet implemented.\n\r", ch);
 }
 
+/**
+ * do_ship_flag - Set the ship's flag design
+ *
+ * Allows ship owner to set or change the flag flying from the mast.
+ * Flag text can include color codes.
+ *
+ * @param ch        Ship owner setting the flag
+ * @param argument  Flag design/text
+ */
 void do_ship_flag(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship;
@@ -4635,6 +5365,15 @@ void do_ship_flag(CHAR_DATA *ch, char *argument)
     ship->flag = str_dup(argument);
 }
 
+/**
+ * do_ship_list - List all ships owned by the player
+ *
+ * Displays a formatted list of all ships the player owns, showing
+ * ship type, name, and current location. Can filter by name.
+ *
+ * @param ch        Player listing their ships
+ * @param argument  Optional name filter
+ */
 void do_ship_list(CHAR_DATA *ch, char *argument)
 {
     BUFFER *buffer;
@@ -4700,6 +5439,20 @@ void do_ship_list(CHAR_DATA *ch, char *argument)
     free_buf(buffer);
 }
 
+/**
+ * do_ship_waypoints - Manage ship navigation waypoints
+ *
+ * Allows ship owners to manage saved waypoints:
+ * - (no args): List all waypoints for this ship
+ * - add <name>: Save current location as a named waypoint
+ * - remove <#>: Delete a waypoint by number
+ * - rename <#> <name>: Rename an existing waypoint
+ *
+ * Waypoints can be used with ship navigate commands.
+ *
+ * @param ch        Ship owner managing waypoints
+ * @param argument  Subcommand and parameters
+ */
 void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -5567,6 +6320,22 @@ if( IS_NULLSTR(argument) )
     do_ship_waypoints(ch, "");
 }
 
+/**
+ * do_ship_routes - Manage saved navigation routes
+ *
+ * Routes are ordered sequences of waypoints for automated travel:
+ * - routes list: Show all saved routes
+ * - routes create <wp1> <wp2> ... <wpN>: Create new route
+ * - routes delete <#>: Remove a route
+ * - routes rename <#> <name>: Rename a route
+ * - routes add <#> <waypoint>: Append waypoint to route
+ * - routes insert <#> <waypoint> <pos>: Insert waypoint at position
+ * - routes remove <route#> <waypoint#>: Remove waypoint from route
+ * - routes move <#from> <#to/up/down>: Reorder routes
+ *
+ * @param ch        Ship owner managing routes
+ * @param argument  Subcommand and parameters
+ */
 void do_ship_routes(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -6075,6 +6844,16 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
     do_ship_routes(ch, "");
 }
 
+/**
+ * do_ship_keys - Manage special keys for ship access
+ *
+ * Displays and manages the special keys associated with the ship.
+ * Special keys control access to locked ship areas/containers.
+ * Lists key types and which specific key instances have been created.
+ *
+ * @param ch        Ship owner checking keys
+ * @param argument  Unused
+ */
 void do_ship_keys(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -6289,6 +7068,17 @@ AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum);
     do_ship_keys(ch, "");
 }
 
+/**
+ * crew_skill_rating - Format a crew skill as a visual bar
+ *
+ * Generates a colored star bar (0-10 stars) plus percentage display
+ * for crew skill ratings.
+ *
+ * @param field   Skill name to display
+ * @param rating  Skill value (0-100)
+ * @param buf     Output buffer
+ * @param len     Buffer length
+ */
 static void crew_skill_rating(char *field, int rating, char *buf, size_t len)
 {
     static char *ratings[11] = {
@@ -6312,6 +7102,21 @@ static void crew_skill_rating(char *field, int rating, char *buf, size_t len)
     snprintf(buf, len, "{C%-15.15s: {x[ %s {x] {W%d%%{x\n\r", field, ratings[rating10], rating);
 }
 
+/**
+ * do_ship_crew - Manage ship crew members and role assignments
+ *
+ * View and manage NPC crew:
+ * - (no args): List all crew with current role assignments
+ * - list: Same as no args
+ * - view <#>: View detailed stats for a crew member
+ * - assign <#> <role>: Assign crew to a role (firstmate, navigator, scout, oarsman)
+ * - unassign <role>: Remove crew from a role
+ *
+ * Crew members have skills that improve with use.
+ *
+ * @param ch        Ship owner managing crew
+ * @param argument  Subcommand and parameters
+ */
 void do_ship_crew(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -6794,6 +7599,33 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
     do_ship_crew(ch, "");
 }
 
+/**
+ * do_ship - Main ship command dispatcher
+ *
+ * Entry point for all ship-related player commands. Dispatches to
+ * the appropriate subcommand handler based on the first argument.
+ *
+ * Subcommands:
+ * - aim: Target ship weapons (NYI)
+ * - chase: Pursue another ship (NYI)
+ * - christen: Name the ship
+ * - crew: Manage crew assignments
+ * - engines: Airship throttle control
+ * - flag: Set ship flag design
+ * - keys: Manage special keys
+ * - land/launch: Airship vertical movement
+ * - list: Show owned ships
+ * - navigate: Automated navigation
+ * - oars: Rowing control
+ * - routes: Manage saved routes
+ * - sails: Sailboat speed control
+ * - scuttle: Destroy ship
+ * - steer: Direction control
+ * - waypoints: Manage navigation waypoints
+ *
+ * @param ch        Player issuing ship command
+ * @param argument  Subcommand and parameters
+ */
 void do_ship(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -6932,6 +7764,15 @@ void do_ship(CHAR_DATA *ch, char *argument)
     do_ship(ch, "");
 }
 
+/**
+ * find_ship_uid - Find a ship by UID parts
+ *
+ * Searches loaded_ships for a ship matching the given UID.
+ *
+ * @param id1  First UID component
+ * @param id2  Second UID component
+ * @return     Matching ship or NULL
+ */
 SHIP_DATA *find_ship_uid(unsigned long id1, unsigned long id2)
 {
     ITERATOR it;
@@ -6948,6 +7789,16 @@ SHIP_DATA *find_ship_uid(unsigned long id1, unsigned long id2)
     return ship;
 }
 
+/**
+ * get_owned_ship - Find a ship owned by a character by name or number
+ *
+ * Searches for a ship matching the argument by name or index.
+ * Supports N.name syntax for multiple ships with same name.
+ *
+ * @param ch        Character whose ships to search (unused for PCs)
+ * @param argument  Ship name or number
+ * @return          Matching ship or NULL
+ */
 SHIP_DATA *get_owned_ship(CHAR_DATA *ch, char *argument)
 {
     ITERATOR it;
@@ -6989,6 +7840,17 @@ SHIP_DATA *get_owned_ship(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * _is_terrain_land - Check if coordinates are land terrain
+ *
+ * Helper function to check if a wilderness coordinate is land
+ * (not water).
+ *
+ * @param wilds  Wilderness to check
+ * @param x      X coordinate
+ * @param y      Y coordinate
+ * @return       true if land, false if water/invalid
+ */
 bool _is_terrain_land(WILDS_DATA *wilds, int x, int y)
 {
     if(!wilds) return false;
@@ -7003,8 +7865,19 @@ bool _is_terrain_land(WILDS_DATA *wilds, int x, int y)
         terrain->template->sector_type != SECT_WATER_SWIM);
 }
 
-// Not very smart, just checks whether there is a SAFE_HARBOR water room next to land
-//  Does not check whether that room has access to the edge
+/**
+ * is_shipyard_valid - Check if an area can serve as a shipyard
+ *
+ * Verifies that the rectangular area contains at least one SAFE_HARBOR
+ * water tile adjacent to land. Does not verify navigability to open water.
+ *
+ * @param wuid  Wilderness UID
+ * @param x1    Min X coordinate of area
+ * @param y1    Min Y coordinate of area
+ * @param x2    Max X coordinate of area
+ * @param y2    Max Y coordinate of area
+ * @return      true if valid shipyard location exists
+ */
 bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
 {
     WILDS_DATA *wilds = get_wilds_from_uid(NULL, wuid);
@@ -7041,6 +7914,21 @@ bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
 }
 
 
+/**
+ * get_shipyard_location - Find a random valid spawn point in a shipyard
+ *
+ * Picks a random SAFE_HARBOR water tile adjacent to land within
+ * the shipyard bounds. Used for spawning newly built ships.
+ *
+ * @param wuid  Wilderness UID
+ * @param x1    Min X of shipyard area
+ * @param y1    Min Y of shipyard area
+ * @param x2    Max X of shipyard area
+ * @param y2    Max Y of shipyard area
+ * @param x     Output: spawn X coordinate
+ * @param y     Output: spawn Y coordinate
+ * @return      true if valid location found, false otherwise
+ */
 bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y)
 {
     // Verify the shipyard is valid still
@@ -7075,6 +7963,18 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
     }
 }
 
+/**
+ * purchase_ship - Create and place a ship purchased from a shop
+ *
+ * Called when a player buys a ship from a shipyard shop. Creates
+ * the ship, assigns ownership, adds to player's ship list, and
+ * places it at a random valid location in the shop's shipyard area.
+ *
+ * @param ch     Player purchasing the ship
+ * @param vnum   Ship template VNUM to create
+ * @param shop   Shop with shipyard configuration
+ * @return       New ship, or NULL on failure
+ */
 SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 {
     char buf[MSL];
@@ -7129,6 +8029,16 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
     return ship;
 }
 
+/**
+ * ships_player_owned - Count ships owned by a player
+ *
+ * Returns the number of ships owned by the given player, optionally
+ * filtered by ship template type.
+ *
+ * @param ch     Player to count ships for
+ * @param index  Ship template to filter by (NULL for all ships)
+ * @return       Number of matching ships
+ */
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index)
 {
     ITERATOR it;
@@ -7151,14 +8061,19 @@ int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index)
 
 /////////////////////////////////////////////////////////////////
 //
-// NPC Ships
+// NPC Ships (placeholder section)
 //
 
 /////////////////////////////////////////////////////////////////
 //
-// SHip Edit
+// Ship Edit (OLC Editor for Ship Templates)
 //
 
+/**
+ * shedit_table - Command table for ship template OLC editor
+ *
+ * Defines available commands when editing ship templates (SHIP_INDEX_DATA).
+ */
 const struct olc_cmd_type shedit_table[] =
 {
     { "?",					show_help			},
@@ -7185,11 +8100,28 @@ const struct olc_cmd_type shedit_table[] =
     { NULL,					0,					}
 };
 
+/**
+ * can_edit_ships - Check if character has ship template editing permissions
+ *
+ * Requires security level 9 and maximum total level.
+ *
+ * @param ch  Character to check
+ * @return    true if can edit ship templates
+ */
 bool can_edit_ships(CHAR_DATA *ch)
 {
     return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
 }
 
+/**
+ * list_ship_indexes - Display all ship templates
+ *
+ * Shows a formatted list of all SHIP_INDEX_DATA entries with
+ * VNUM, name, and ship class.
+ *
+ * @param ch        Staff member viewing list
+ * @param argument  Filter (unused currently)
+ */
 void list_ship_indexes(CHAR_DATA *ch, char *argument)
 {
     if( !can_edit_ships(ch) )
@@ -7248,11 +8180,26 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
     free_buf(buffer);
 }
 
+/**
+ * do_shlist - Staff command to list all ship templates
+ *
+ * @param ch        Staff member
+ * @param argument  Filter (passed to list_ship_indexes)
+ */
 void do_shlist(CHAR_DATA *ch, char *argument)
 {
     list_ship_indexes(ch, argument);
 }
 
+/**
+ * shedit - Ship template OLC editor interpreter
+ *
+ * Processes commands while editing a ship template. Dispatches to
+ * appropriate handler from shedit_table.
+ *
+ * @param ch        Staff member editing
+ * @param argument  Command and parameters
+ */
 void shedit(CHAR_DATA *ch, char *argument)
 {
     char command[MAX_INPUT_LENGTH];
@@ -7300,6 +8247,18 @@ void shedit(CHAR_DATA *ch, char *argument)
     interpret(ch, arg);
 }
 
+/**
+ * do_shedit - Enter ship template OLC editor
+ *
+ * Opens a ship template for editing by VNUM. Creates new template
+ * if 'create' is specified. Requires security level 9.
+ *
+ * Syntax: shedit <vnum>
+ *         shedit create
+ *
+ * @param ch        Staff member
+ * @param argument  Ship VNUM or 'create'
+ */
 void do_shedit(CHAR_DATA *ch, char *argument)
 {
     SHIP_INDEX_DATA *ship = NULL;
@@ -7346,6 +8305,17 @@ void do_shedit(CHAR_DATA *ch, char *argument)
                  "        shedit create <vnum>\n\r", ch);
 }
 
+/**
+ * do_shshow - Display ship template details without entering editor
+ *
+ * Shows the ship template's properties without requiring entry
+ * into the OLC editor. Useful for quick lookups.
+ *
+ * Syntax: shshow <vnum>
+ *
+ * @param ch        Staff member
+ * @param argument  Ship template VNUM
+ */
 void do_shshow(CHAR_DATA *ch, char *argument)
 {
     SHIP_INDEX_DATA *ship;
