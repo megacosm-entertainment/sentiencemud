@@ -44,11 +44,31 @@
 #include "wilds.h"
 
 
+/**
+ * dir_name - String names for each direction
+ *
+ * Array indexed by DIR_* constants (0-9) providing human-readable
+ * direction names. Used for display and parsing direction arguments.
+ *
+ * Index mapping:
+ *   [0] = "north"      [5] = "down"
+ *   [1] = "east"       [6] = "northeast"
+ *   [2] = "south"      [7] = "northwest"
+ *   [3] = "west"       [8] = "southeast"
+ *   [4] = "up"         [9] = "southwest"
+ */
 char *	const	dir_name	[]		=
 {
     "north", "east", "south", "west", "up", "down", "northeast",  "northwest", "southeast", "southwest"
 };
 
+/**
+ * parse_door - Convert direction string to numeric direction
+ *
+ * @param name  Direction name to parse (e.g., "north", "east")
+ *
+ * @return Direction constant (0-9) if found, -1 if invalid direction
+ */
 int parse_door(char *name)
 {
     int i;

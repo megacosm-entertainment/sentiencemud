@@ -60,7 +60,15 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
 void look_map(CHAR_DATA *ch, OBJ_DATA *map);
 
-/* MOVED: equip.c */
+/**
+ * where_name - Display strings for equipment wear locations
+ *
+ * Array of formatted strings showing where equipment is worn/used.
+ * Indexed by WEAR_* constants. Each string is color-coded and padded
+ * for aligned display in equipment listings.
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 char *const where_name[] = {
     "{Y<used as light>       {x",
     "{B<worn on finger>      {x",
@@ -116,7 +124,21 @@ char *const where_name[] = {
 
 };
 
-/* MOVED: equip.c */
+/**
+ * wear_params - Configuration matrix for wear location behaviors
+ *
+ * 2D array controlling how each wear location behaves. Indexed by WEAR_*.
+ * Columns:
+ *   [0] seen         - Item visible to others viewing your equipment
+ *   [1] show_empty   - Show "nothing" for empty slot when PLR_AUTOEQ enabled
+ *   [2] remove       - Can be manually removed by player
+ *   [3] shifted      - Slot available in shifted form (werewolf/slayer)
+ *   [4] affects      - Item's affects apply to character
+ *   [5] uneq_death   - Unequipped on character death
+ *   [6] always_remove - Always removed regardless of other conditions
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 int wear_params[MAX_WEAR][7] = {
 /*	seen,		autoeq		remove		shifted		affects		uneq_death	always_remove */
     { true,		true,		true,		false,		true,		true,		true },  // Light
@@ -174,7 +196,17 @@ int wear_params[MAX_WEAR][7] = {
 
 };
 
-/* MOVED: equip.c */
+/**
+ * wear_concealed - Mapping of wear locations to concealing locations
+ *
+ * Array indexed by WEAR_* that indicates which equipment slot can conceal
+ * items in that location. WEAR_NONE means the location cannot be concealed.
+ * Used for the concealed item system where items can be hidden under other
+ * equipment (e.g., WEAR_HANDS can conceal finger rings, WEAR_ABOUT can
+ * conceal neck/torso items).
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 int wear_concealed[] = {
     WEAR_NONE,
     WEAR_HANDS,
@@ -230,8 +262,15 @@ int wear_concealed[] = {
 
 };
 
-/* MOVED: equip.c
-   Determines the VIEWED order of the wear locations */
+/**
+ * wear_view_order - Display order for equipment listing
+ *
+ * Determines the sequence in which wear locations are displayed when
+ * viewing equipment. Arranged logically from head to toe, with tattoos
+ * shown near their body part and lodged items at the end.
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 int wear_view_order[] = {
     WEAR_LIGHT,
     WEAR_FINGER_L,
@@ -318,7 +357,27 @@ void convert_map_char(char *buf, char ch);
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim);
 
 
-/* MOVED: senses/vision.c */
+/**
+ * format_obj_to_char - Format an object's display string for a viewer
+ *
+ * Creates a formatted string describing an object as seen by a character.
+ * Includes status flags (invis, magical, glowing, humming, blessed, evil,
+ * kept, activated, planted, buried) and condition indicators.
+ *
+ * Special handling for:
+ * - Weapons: Shows (Broken) at condition 0
+ * - Commodities (ITEM_TRADE_TYPE): Shows trade class
+ * - Ships: Shows detailed state including movement, flags, and scuttle status
+ * - Carts: Shows who is pulling them
+ *
+ * @param obj     The object to format
+ * @param ch      The character viewing the object
+ * @param fShort  If true, use short_descr; if false, use long description
+ *
+ * @return Static buffer containing the formatted string
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 {
     static char buf[MAX_STRING_LENGTH];
@@ -564,11 +623,21 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 }
 
 
-/* MOVED: senses/vision.c */
-/*
- * ROOM VERSION
- * Show a list to a character.
- * Can coalesce duplicated items.
+/**
+ * show_list_to_char - Display a list of objects to a character
+ *
+ * Formats and displays a linked list of objects, coalescing duplicates
+ * with a count indicator (e.g., "(3) sword"). Handles special cases:
+ * - Hidden objects (ITEM_HIDDEN) are not shown
+ * - Mist items (ITEM_MIST) can obscure other objects based on value[0] %
+ * - Characters in POS_FEIGN are shown as corpses
+ *
+ * @param list          Head of the object linked list (via next_content)
+ * @param ch            The character viewing the list
+ * @param fShort        If true, use short descriptions
+ * @param fShowNothing  If true and list is empty, display "Nothing."
+ *
+ * Planned refactor: senses/vision.c (never executed)
  */
 void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
         bool fShowNothing)
@@ -725,6 +794,18 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     free_mem(prgnShow, count * sizeof(int));
 }
 
+/**
+ * show_llist_to_char - Display an LLIST of objects to a character
+ *
+ * Wrapper for show_list_to_char that accepts an LLIST instead of a
+ * traditional linked list. Temporarily rebuilds next_content links
+ * to create a compatible list, then calls show_list_to_char.
+ *
+ * @param llist         The LLIST containing objects
+ * @param ch            The character viewing the list
+ * @param fShort        If true, use short descriptions
+ * @param fShowNothing  If true and list is empty, display "Nothing."
+ */
 void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNothing)
 {
     OBJ_DATA *head = NULL, *last = NULL, *obj;
@@ -751,7 +832,28 @@ void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNoth
     }
 }
 
-/* MOVED: senses/vision.c */
+/**
+ * show_char_to_char_0 - Display a character's room description to viewer
+ *
+ * Formats a single character's appearance as seen in a room listing.
+ * Shows status indicators (invisible, AFK, lost link, charmed, etc.),
+ * auras (evil/good/dark shroud/blood), quest markers, and position.
+ *
+ * Handles:
+ * - Skip if feigning death or being ridden by someone else
+ * - Invisibility/improved invis markers
+ * - Wizi (immortal/mob) indicators
+ * - Morphed/shifted characters shown by appearance if viewer can't see through
+ * - Position-based messages (dead, incap, sleeping, sitting, fighting, etc.)
+ * - Furniture interactions (on/at furniture)
+ * - Mounted characters
+ * - Cocoon/entangled states
+ *
+ * @param victim  The character being viewed
+ * @param ch      The character doing the viewing
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1086,7 +1188,28 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * show_char_to_char_1 - Display detailed information when looking at a character
+ *
+ * Shows a character's full description, health condition, mount/rider status,
+ * hire contract info (for hired NPCs), and equipment. Used when a player
+ * explicitly looks at or examines another character.
+ *
+ * Displays:
+ * - Notifies victim they're being looked at (if visible)
+ * - Character's description or "nothing special"
+ * - Mount/rider information
+ * - Hired NPC contract expiration
+ * - Health condition (percentage-based messages)
+ * - Equipment list (if examining)
+ * - Kept/Unkept items (if examining self)
+ *
+ * @param victim   The character being looked at
+ * @param ch       The character doing the looking
+ * @param examine  If true, show equipment details
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1219,7 +1342,30 @@ show_llist_to_char(victim->lcarrying, ch, true, true);
     return;
 }
 
-/* MOVED: senses/vision.c */
+/**
+ * show_char_to_char - Display all visible characters in a room to viewer
+ *
+ * Iterates through a list of characters and shows each one using
+ * show_char_to_char_0. Handles visibility checks, mist obscurement,
+ * hidden characters, and special cases for third eye spell viewing.
+ *
+ * When victim is non-NULL, shows characters as seen by victim (third eye).
+ * Otherwise shows characters as seen by ch directly.
+ *
+ * Handles:
+ * - Mist items that obscure characters (value[1] = % chance to hide)
+ * - Hidden characters (AFF_HIDE vs AFF_DETECT_HIDDEN)
+ * - Invisible immortals (wizi check)
+ * - Wizi mobs (ACT2_WIZI_MOB)
+ * - Infrared vision in dark rooms
+ * - Mounted characters shown with their mount
+ *
+ * @param list    Head of character list (room->people)
+ * @param ch      The character who receives the output
+ * @param victim  If non-NULL, view room through this character's perspective
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 {
     CHAR_DATA *rch;
@@ -1307,7 +1453,19 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * check_blind - Check if a character can see (not blinded)
+ *
+ * Determines if a character's vision is functional. Returns true if
+ * the character can see, false if they are blinded.
+ *
+ * @param ch  The character to check
+ *
+ * @return true if character can see (has holylight or not blinded),
+ *         false if character is blinded
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 bool check_blind(CHAR_DATA * ch)
 {
     if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
@@ -1320,7 +1478,19 @@ bool check_blind(CHAR_DATA * ch)
 }
 
 
-/* MOVED: */
+/**
+ * do_scroll - Set the number of lines per page for output paging
+ *
+ * Allows players to configure how many lines of text are displayed
+ * before pausing for input. Used for managing long output.
+ *
+ * @param ch        The character setting scroll lines
+ * @param argument  Number of lines (10-100), or empty to display current setting
+ *
+ * Special values:
+ * - 0: Disables paging entirely
+ * - Empty: Shows current setting
+ */
 void do_scroll(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1364,7 +1534,14 @@ void do_scroll(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: */
+/**
+ * do_socials - Display a list of all available social commands
+ *
+ * Shows all social commands in the social_table, formatted in columns.
+ *
+ * @param ch        The character viewing socials
+ * @param argument  Unused
+ */
 void do_socials(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1385,7 +1562,16 @@ void do_socials(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: bulletin.c */
+/**
+ * do_motd - Display the Message of the Day
+ *
+ * Shows the current MOTD help entry to the character.
+ *
+ * @param ch        The character viewing the MOTD
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_motd(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
@@ -1395,7 +1581,16 @@ void do_motd(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: bulletin.c */
+/**
+ * do_imotd - Display the Immortal Message of the Day
+ *
+ * Shows the immortal-specific MOTD help entry.
+ *
+ * @param ch        The immortal viewing the IMOTD
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_imotd(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
@@ -1405,7 +1600,16 @@ void do_imotd(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: bulletin.c */
+/**
+ * do_rules - Display the game rules
+ *
+ * Shows the rules help entry to the character.
+ *
+ * @param ch        The character viewing the rules
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_rules(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
@@ -1415,7 +1619,15 @@ void do_rules(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: */
+/**
+ * do_wizlist - Display the list of immortals
+ *
+ * Shows all immortals from immortal_list with their names, duties,
+ * and years of service.
+ *
+ * @param ch        The character viewing the wizlist
+ * @param argument  Unused
+ */
 void do_wizlist(CHAR_DATA *ch, char *argument)
 {
     IMMORTAL_DATA *immortal;
@@ -1442,7 +1654,19 @@ void do_wizlist(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * do_prompt - Configure the command prompt display
+ *
+ * Sets a custom prompt string or toggles prompt visibility.
+ * Supports various substitution codes for dynamic information.
+ *
+ * @param ch        The character configuring their prompt
+ * @param argument  "all" for default prompt, empty to toggle, or custom string
+ *
+ * Max length: 100 visible characters (color codes don't count)
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_prompt(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1482,6 +1706,16 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     return;
 }
 
+/**
+ * do_survey - View the surrounding area from a ship or high vantage point
+ *
+ * When on a ship, displays the terrain, features, and points of interest
+ * visible from the vessel's location. Shows different information based
+ * on whether it's a water ship or airship.
+ *
+ * @param ch        The character surveying
+ * @param argument  "auto" for silent operation, or empty for normal
+ */
 void do_survey(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship;
@@ -1658,6 +1892,17 @@ void do_survey(CHAR_DATA *ch, char *argument)
     act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
+/**
+ * do_areas - Display a list of available areas
+ *
+ * Shows all open areas with their level ranges and lock status.
+ * Can be filtered by location (continent/island).
+ *
+ * @param ch        The character viewing areas
+ * @param argument  Optional filter: first/second/third/fourth/island/other/abyss/eden
+ *
+ * Output columns: Area Name, Level Range, Lock Status
+ */
 void do_areas(CHAR_DATA *ch, char *argument)
 {
 {
@@ -1715,6 +1960,18 @@ void do_areas(CHAR_DATA *ch, char *argument)
 }
 }
 
+/**
+ * do_area - Display detailed information about a specific area
+ *
+ * Shows comprehensive information about an area including credits,
+ * level range, repop time, location, recall point, post office,
+ * description, and special notes.
+ *
+ * @param ch        The character viewing area info
+ * @param argument  The name/keyword of the area to look up
+ *
+ * Blocked by: Area not open or has PLACE_NOWHERE
+ */
 void do_area(CHAR_DATA *ch, char *argument)
 {
     AREA_DATA *pArea;
@@ -1811,6 +2068,26 @@ void do_area(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * show_room - Display a room's contents to a character
+ *
+ * Comprehensive room display function showing room name, description,
+ * exits, objects, and characters. Handles multiple view modes and
+ * special room features like wilderness, brief mode, dark rooms, etc.
+ *
+ * @param ch         The character viewing the room
+ * @param room       The room to display
+ * @param remote     If true, viewing from another location (e.g., third eye)
+ * @param silent     If true, suppress some messages
+ * @param automatic  If true, called from movement (for auto-look)
+ *
+ * Features:
+ * - Respects COMM_BRIEF for shorter descriptions
+ * - Shows wilderness maps when appropriate
+ * - Handles dark rooms with light sources
+ * - Shows immortal-only room info when PLR_HOLYLIGHT
+ * - Triggers TRIG_LOOK room programs
+ */
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2157,6 +2434,34 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
     return;
 }
 
+/**
+ * do_look - Primary command for viewing surroundings and objects
+ *
+ * Handles all look-related operations: viewing rooms, examining objects,
+ * looking at characters, looking in containers, and looking in directions.
+ *
+ * Subcommands:
+ * - (no args) or "auto": Show current room
+ * - <direction>: Look through an exit
+ * - "in <container>": Look inside a container
+ * - <object>: Look at/examine an object
+ * - <character>: Look at a character
+ * - Extra description keywords from room/objects
+ *
+ * Special items handled:
+ * - Telescopes (look_through_telescope)
+ * - Compasses (look_compass)
+ * - Sextants (look_sextant)
+ * - Maps (look_map)
+ * - Corpses (shows inventory)
+ *
+ * @param ch        The character looking
+ * @param argument  What to look at (empty for room)
+ *
+ * Blocked by: Position < sleeping, sleeping, blind (without holylight)
+ *
+ * Triggers: TRIG_LOOK on objects and characters, TRIG_LORE_EX on NPCs
+ */
 void do_look(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2825,7 +3130,27 @@ void do_look(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * do_examine - Examine an object or character in detail
+ *
+ * More thorough than look - shows full description and triggers lore
+ * skill for item identification. Can examine items worn by or carried
+ * by other characters, items in the room, or containers.
+ *
+ * Special handling:
+ * - Worn items on characters (visible slots only)
+ * - Inventory items (if peeking)
+ * - Container contents (if examining a container)
+ * - Automatic lore identification based on level/remort status
+ *
+ * @param ch        The character examining
+ * @param argument  Target to examine, optionally "character item"
+ *
+ * Blocked by: Blind (without holylight)
+ * Triggers: TRIG_EXAMINE, TRIG_LORE_EX
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void do_examine(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2985,7 +3310,28 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * do_exits - Display visible exits from the current room
+ *
+ * Shows all exits the character can see, including doors, wilderness
+ * links, and environment exits. In "auto" mode, displays a compact
+ * single-line format for the prompt.
+ *
+ * Handles:
+ * - Wilderness virtual room exits
+ * - Vlinks to other wilderness locations
+ * - Static room exits
+ * - Hidden exits (only shown if found)
+ * - Closed doors (shown as closed)
+ * - Dark rooms (shown as "Too dark to tell")
+ *
+ * @param ch        The character viewing exits
+ * @param argument  "auto" for compact mode, or empty for detailed
+ *
+ * Blocked by: Blind (without holylight)
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void do_exits(CHAR_DATA * ch, char *argument)
 {
     extern char *const dir_name[];
@@ -3145,7 +3491,18 @@ void do_exits(CHAR_DATA * ch, char *argument)
     return;
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_worth - Display character's wealth
+ *
+ * Shows gold and silver carried, plus bank balance.
+ *
+ * @param ch        The character checking their worth
+ * @param argument  Unused
+ *
+ * Blocked by: IS_SWITCHED (morphed characters)
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_worth(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3176,7 +3533,27 @@ void do_worth(CHAR_DATA * ch, char *argument)
     return;
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_score - Display comprehensive character statistics
+ *
+ * Shows detailed character information in a formatted display including:
+ * - Name, title, race, class, subclass
+ * - HP, mana, move, experience
+ * - All attributes (str, int, wis, dex, con)
+ * - Armor class values (pierce, bash, slash, exotic)
+ * - Combat stats (hitroll, damroll)
+ * - Saves, alignment, carrying capacity
+ * - Quest points, gold, practices, trains
+ * - Church membership, PK timer
+ * - Play time and age
+ *
+ * @param ch        The character viewing their score
+ * @param argument  Unused
+ *
+ * Blocked by: IS_NPC, IS_SWITCHED (morphed characters)
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_score(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
@@ -3883,7 +4260,25 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_affects - Display all active affects on the character
+ *
+ * Shows a comprehensive list of all magical and status effects currently
+ * affecting the character, including:
+ * - Hidden/sneak status
+ * - Immunities, resistances, vulnerabilities
+ * - Class-based affects (e.g., sage detect hidden)
+ * - Racial affects
+ * - All spell/skill affects with durations and modifiers
+ *
+ * Groups affects by category (physical, magical, etc.) and shows
+ * remaining duration for each effect.
+ *
+ * @param ch        The character viewing their affects
+ * @param argument  Unused
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_affects(CHAR_DATA * ch, char *argument)
 {
     AFFECT_DATA *paf, *paf_last = NULL;
@@ -3999,14 +4394,22 @@ void do_affects(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: weather/time.c */
+/**
+ * day_name - Names for days of the week
+ *
+ * Planned refactor: weather/time.c (never executed)
+ */
 char *const day_name[] =
 {
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
     "Saturday", "Sunday"
 };
 
-/* MOVED: weather/time.c */
+/**
+ * month_name - Names for months of the year
+ *
+ * Planned refactor: weather/time.c (never executed)
+ */
 char *const month_name[] =
 {
     "January", "February", "March", "April", "May", "June",
@@ -4059,7 +4462,13 @@ const char *moon_phase_desc[][3] = {
 };
 
 
-/* MOVED: weather/moon.c */
+/**
+ * moon_face - ASCII art pattern for moon phases
+ *
+ * 19-line ASCII representation of the moon surface used by draw_moon.
+ *
+ * Planned refactor: weather/moon.c (never executed)
+ */
 char *moon_face[19] = {
     ".----------.",
     ".--':;:o;;::.;;:`--.",
@@ -4178,7 +4587,19 @@ char moon_shadow_colour_mxp = '1';
 
 char *moon_spacing = "                                        ";
 
-/* MOVED: weather/moon.c */
+/**
+ * draw_moon - Render an ASCII art moon with current phase
+ *
+ * Draws a visual representation of the moon based on the current
+ * game time. The phase is calculated from the lunar cycle and
+ * displayed using ASCII art with color codes. Supports MXP for
+ * enhanced coloring.
+ *
+ * @param ch      The character to display the moon to
+ * @param colour  Color scheme index for the moon display
+ *
+ * Planned refactor: weather/moon.c (never executed)
+ */
 void draw_moon(CHAR_DATA *ch,int colour)
 {
     int i,j,k,l,ll,ld;
@@ -4378,7 +4799,23 @@ void draw_moon(CHAR_DATA *ch,int colour)
 }
 
 
-/* MOVED: weather/time.c */
+/**
+ * do_time - Display current game time and server information
+ *
+ * Shows the current in-game time (hour, day, month), system time,
+ * last reboot time, moon phase (when outside), and active boost timers.
+ *
+ * @param ch        The character checking the time
+ * @param argument  "moon" to display ASCII art moon phase
+ *
+ * Features:
+ * - Moon phase description when outside
+ * - ASCII moon art with "moon" argument
+ * - Active XP/quest/gold boost timers
+ * - Reckoning event timer
+ *
+ * Planned refactor: weather/time.c (never executed)
+ */
 void do_time(CHAR_DATA * ch, char *argument)
 {
     extern char str_boot_time[];
@@ -4474,8 +4911,20 @@ void do_time(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: weather/weather.c
-   Uncommenting this function, as Whisp's weather system isn't yet functional -- Areo */
+/**
+ * do_weather - Display current weather conditions
+ *
+ * Shows the sky condition (cloudless, cloudy, rainy, lightning) and
+ * wind direction. Has special messages for Netherworld and during
+ * the Reckoning event.
+ *
+ * @param ch        The character checking the weather
+ * @param argument  Unused
+ *
+ * Blocked by: Not being outside
+ *
+ * Planned refactor: weather/weather.c (never executed)
+ */
 void do_weather(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4542,8 +4991,20 @@ void do_weather(CHAR_DATA *ch, char *argument)
 
 
 
-/* MOVED: game.c
-   Inclusive who-command */
+/**
+ * do_who_new - Display list of online players
+ *
+ * Shows all visible online players with their level, race, class,
+ * church membership, and current area/activity. Supports filtering
+ * by level range, class, race, and church.
+ *
+ * @param ch        The character viewing who list
+ * @param argument  Optional filters (level range, class, race, church)
+ *
+ * Format: [Level] Race Class Name Title (Church) - Area
+ *
+ * Planned refactor: game.c (never executed)
+ */
 void do_who_new(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -4726,7 +5187,17 @@ iterator_stop(&it);
     free_buf(output);
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_whois - Display detailed information about an online player
+ *
+ * Shows comprehensive information about a specific online player including
+ * name, title, race, class, church, idle time, area, and description.
+ *
+ * @param ch        The character viewing whois info
+ * @param argument  The name of the player to look up
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_whois(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4865,7 +5336,16 @@ void format_page(int16_t n, char *a, CHAR_DATA * ch)
 }
 
 
-/* MOVED: unsorted */
+/**
+ * fstr_len - Calculate visible string length excluding color codes
+ *
+ * Returns the length of a string not counting color code characters
+ * (sequences starting with '{').
+ *
+ * @param a  The string to measure
+ *
+ * @return Number of visible characters
+ */
 int fstr_len(char *a)
 {
     int counter = 0;
@@ -4880,7 +5360,16 @@ int fstr_len(char *a)
 }
 
 
-/* MOVED: game.c */
+/**
+ * do_count - Display the number of online players
+ *
+ * Shows current player count and the peak count for the day.
+ *
+ * @param ch        The character viewing the count
+ * @param argument  Unused
+ *
+ * Planned refactor: game.c (never executed)
+ */
 void do_count(CHAR_DATA * ch, char *argument)
 {
     int count;
@@ -4908,7 +5397,17 @@ void do_count(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * do_inventory - Display character's carried items
+ *
+ * Shows all items in the character's inventory (not worn), along with
+ * carrying capacity statistics (items and weight).
+ *
+ * @param ch        The character viewing inventory
+ * @param argument  Unused
+ *
+ * Planned refactor: player/inv.c (never executed)
+ */
 void do_inventory(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4929,15 +5428,41 @@ void do_inventory(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * do_equipment - Display character's worn equipment
+ *
+ * Shows all items currently equipped in wear locations.
+ * Wrapper for show_equipment with self as both viewer and target.
+ *
+ * @param ch        The character viewing their equipment
+ * @param argument  Unused
+ *
+ * Planned refactor: player/inv.c (never executed)
+ */
 void do_equipment(CHAR_DATA * ch, char *argument)
 {
     show_equipment(ch, ch);
 }
 
 
-/* MOVED: player/inv.c
-   Show victim's worn equipment to ch. */
+/**
+ * show_equipment - Display a character's worn equipment to a viewer
+ *
+ * Renders equipment in the order defined by wear_view_order, respecting
+ * visibility rules (concealed items, shifted forms, etc.). Shows empty
+ * slots when PLR_AUTOEQ is enabled for the viewer.
+ *
+ * @param ch      The character viewing the equipment
+ * @param victim  The character whose equipment is being viewed
+ *
+ * Features:
+ * - Respects wear_params for visibility and availability
+ * - Handles concealed items (checks wear_concealed)
+ * - Skips unavailable slots in shifted forms
+ * - Shows "nothing" for empty slots when PLR_AUTOEQ enabled
+ *
+ * Planned refactor: player/inv.c (never executed)
+ */
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 {
     BUFFER *buffer;
@@ -5007,13 +5532,34 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
     free_buf(buffer);
 }
 
-/* MOVED: bulletin.c */
+/**
+ * do_credits - Display game credits
+ *
+ * Shows the Diku MUD credits help entry.
+ *
+ * @param ch        The character viewing credits
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_credits(CHAR_DATA * ch, char *argument)
 {
     do_function(ch, &do_help, "diku");
 }
 
-/* MOVED: combat/assess.c */
+/**
+ * do_consider - Assess combat difficulty against a target
+ *
+ * Compares character's level to target's level and provides a
+ * descriptive assessment of the combat difficulty.
+ *
+ * @param ch        The character considering combat
+ * @param argument  Name of the target to consider
+ *
+ * Blocked by: Target not in room, target is safe (can't be attacked)
+ *
+ * Planned refactor: combat/assess.c (never executed)
+ */
 void do_consider(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5061,7 +5607,17 @@ void do_consider(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * set_title - Set a character's title
+ *
+ * Updates the character's title string, ensuring proper spacing
+ * and punctuation handling.
+ *
+ * @param ch     The character whose title is being set
+ * @param title  The new title string
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void set_title(CHAR_DATA * ch, char *title)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5082,7 +5638,18 @@ void set_title(CHAR_DATA * ch, char *title)
     ch->pcdata->title = str_dup(buf);
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_title - Set character's displayed title
+ *
+ * Allows players to set a custom title that appears after their name.
+ *
+ * @param ch        The character setting their title
+ * @param argument  The new title (max 45 chars)
+ *
+ * Blocked by: IS_NPC
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_title(CHAR_DATA * ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -5102,14 +5669,34 @@ void do_title(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * do_description - Edit character's description
+ *
+ * Opens the string editor to modify the character's description
+ * (what others see when they look at you).
+ *
+ * @param ch        The character editing their description
+ * @param argument  Unused
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_description(CHAR_DATA * ch, char *argument)
 {
     string_append(ch, &ch->description);
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * do_report - Announce current stats to the room
+ *
+ * Speaks the character's current HP, mana, move, and XP to
+ * everyone in the room.
+ *
+ * @param ch        The character reporting
+ * @param argument  Unused
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_report(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_INPUT_LENGTH];
@@ -5130,7 +5717,19 @@ void do_report(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: combat/melee.c */
+/**
+ * do_wimpy - Set automatic flee threshold
+ *
+ * Sets the HP value at which the character will automatically
+ * attempt to flee from combat.
+ *
+ * @param ch        The character setting wimpy
+ * @param argument  HP threshold (empty = 20% of max HP)
+ *
+ * Range: 0 to max_hit/2
+ *
+ * Planned refactor: combat/melee.c (never executed)
+ */
 void do_wimpy(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5159,7 +5758,23 @@ void do_wimpy(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 }
 
-/* MOVED: player/pfile.c */
+/**
+ * do_password - Change character's password
+ *
+ * Allows players to change their account password. Verifies the old
+ * password before accepting the new one. Handles migration from
+ * older password versions.
+ *
+ * @param ch        The character changing their password
+ * @param argument  Format: "<old password> <new password>"
+ *
+ * Blocked by: IS_NPC
+ * Security: 10 second wait on wrong password attempts
+ *
+ * NOTE: Password management should be migrated to the account system.
+ *
+ * Planned refactor: player/pfile.c (never executed)
+ */
 void do_password(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -5261,7 +5876,26 @@ void do_password(CHAR_DATA *ch, char *argument)
     send_to_char("Password changed.\n\r", ch);
 }
 
-/* MOVED: player/wealth.c */
+/**
+ * do_bank - Banking transactions for gold storage
+ *
+ * Handles all banking operations: deposit, withdraw, balance check,
+ * and wire transfer to other players.
+ *
+ * Subcommands:
+ * - balance: Show current bank balance
+ * - deposit <amount>: Deposit gold into bank
+ * - withdraw <amount>: Withdraw gold from bank
+ * - wire <amount> <player>: Transfer gold to another player's account
+ *
+ * @param ch        The character using the bank
+ * @param argument  Subcommand and arguments
+ *
+ * Requires: Being in a ROOM_BANK or carrying an ITEM_BANK object
+ * Blocked by: IS_NPC, IS_DEAD
+ *
+ * Planned refactor: player/wealth.c (never executed)
+ */
 void do_bank(CHAR_DATA * ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -5497,7 +6131,19 @@ iterator_stop(&it);
     send_to_char("Bank wire <amount> <person>\n\r", ch);
 }
 
-/* MOVED: player/punish.c */
+/**
+ * do_botter - Toggle botter flag on a player (immortal only)
+ *
+ * Marks or unmarks a player as a suspected bot/script user.
+ *
+ * @param ch        The immortal executing the command
+ * @param argument  Name of the player to flag
+ *
+ * Requires: MAX_LEVEL (highest immortal level)
+ * Blocked by: Target is NPC
+ *
+ * Planned refactor: player/punish.c (never executed)
+ */
 void do_botter(CHAR_DATA* ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -5541,8 +6187,16 @@ void do_botter(CHAR_DATA* ch, char *argument)
 }
 
 
-/* MOVED:
- @@@NIB : 20070126 : Added types */
+/**
+ * get_char_where - Get the display string for a character's location
+ *
+ * Returns a short string indicating where the character is for the
+ * who list display. Handles instances, dungeons, ships, and regular areas.
+ *
+ * @param ch  The character to get location for
+ *
+ * @return Newly allocated string with location indicator (caller must free)
+ */
 char *get_char_where(CHAR_DATA *ch)
 {
     if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
@@ -6743,7 +7397,17 @@ void do_scry(CHAR_DATA *ch, char *argument)
     free_buf(buffer);
 }
 
-/* MOVED: room/minimap.c */
+/**
+ * show_map_and_description - Display room minimap alongside description
+ *
+ * Creates a side-by-side display of the ASCII minimap and the room's
+ * description text for a more immersive room display.
+ *
+ * @param ch    The character viewing the room
+ * @param room  The room to display
+ *
+ * Planned refactor: room/minimap.c (never executed)
+ */
 void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
     char *tmp;
@@ -7252,7 +7916,19 @@ void convert_map_char(char *buf, char ch)
     }
 }
 
-/* MOVED: body/sith.c */
+/**
+ * do_toxins - Display current toxin levels (Sith class only)
+ *
+ * Shows all toxin types and their current percentage levels for
+ * the Sith race/class. Visual bar display changes color with level.
+ *
+ * @param ch        The character viewing toxins
+ * @param argument  Unused
+ *
+ * Requires: IS_SITH (Sith class/race)
+ *
+ * Planned refactor: body/sith.c (never executed)
+ */
 void do_toxins(CHAR_DATA *ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -7286,6 +7962,18 @@ void do_toxins(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_where - Locate players in the current area
+ *
+ * Shows a list of all visible players in the same area as the character,
+ * along with their current room names.
+ *
+ * @param ch        The character using where
+ * @param argument  Unused (immortals may have additional options)
+ *
+ * Filters: Hides morphed/shifted characters (unless viewer can see through),
+ *          feigning characters, characters in ROOM_NOWHERE
+ */
 void do_where(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -7338,7 +8026,17 @@ void do_where(CHAR_DATA * ch, char *argument)
     }
 }
 
-/* MOVED: unsorted */
+/**
+ * do_dice - Roll dice and announce the result
+ *
+ * Simulates rolling dice and displays the result to the room.
+ * Used for roleplay and games.
+ *
+ * @param ch        The character rolling dice
+ * @param argument  Format: "<number of dice> <sides per die>"
+ *
+ * Limits: 1-50 dice, 2-100 sides per die
+ */
 void do_dice(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -7384,7 +8082,13 @@ void do_dice(CHAR_DATA *ch, char *argument)
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
-/* MOVED: weather/seasons.c */
+/**
+ * calc_season - Calculate the current season based on game month
+ *
+ * @return SEASON_WINTER, SEASON_SPRING, SEASON_SUMMER, or SEASON_FALL
+ *
+ * Planned refactor: weather/seasons.c (never executed)
+ */
 int calc_season(void)
 {
     int season = 0;
@@ -7401,8 +8105,19 @@ int calc_season(void)
     return season;
 }
 
-/* MOVED: room/room.c
-   Figure out which desc to use for a room. */
+/**
+ * find_desc_for_room - Get the appropriate room description
+ *
+ * Selects the best room description based on conditional descriptions.
+ * Conditions checked: season, sky/weather, hour of day, script.
+ *
+ * @param room    The room to get description for
+ * @param viewer  The character viewing (for script conditions)
+ *
+ * @return The matching conditional description or default room description
+ *
+ * Planned refactor: room/room.c (never executed)
+ */
 char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 {
     CONDITIONAL_DESCR_DATA *best_cd = NULL;
@@ -7441,13 +8156,32 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
         return room->description;
 }
 
-/* MOVED: room/room.c
-   Show a room's description to a char. */
+/**
+ * show_room_description - Display a room's description to a character
+ *
+ * Wrapper that finds the appropriate description and sends it.
+ *
+ * @param ch    The character viewing
+ * @param room  The room to show
+ *
+ * Planned refactor: room/room.c (never executed)
+ */
 void show_room_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
     send_to_char(find_desc_for_room(room,ch),ch);
 }
 
+/**
+ * show_basic_mob_lore - Display basic information about an NPC
+ *
+ * Shows immune/resist/vulnerable flags, health percentage, and
+ * average damage for an NPC when using mob lore skill.
+ *
+ * @param ch      The character viewing
+ * @param victim  The NPC being examined
+ *
+ * Triggers: TRIG_LORE on the victim
+ */
 void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -7481,6 +8215,14 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 }
 
 
+/**
+ * do_expand - Extend a telescope to a specific magnification
+ *
+ * Adjusts a telescope's current zoom level within its min/max range.
+ *
+ * @param ch        The character using the telescope
+ * @param argument  Format: "<telescope> [distance]"
+ */
 void do_expand(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -7535,6 +8277,14 @@ void do_expand(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_collapse - Retract a telescope to a lower magnification
+ *
+ * Reduces a telescope's current zoom level within its min/max range.
+ *
+ * @param ch        The character using the telescope
+ * @param argument  Format: "<telescope> [distance]"
+ */
 void do_collapse(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -7592,6 +8342,19 @@ void do_collapse(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * look_sextant - Use a sextant to determine coordinates
+ *
+ * Calculates the character's position in the wilderness using
+ * navigation or survey skill. Accuracy depends on skill level
+ * and sextant quality.
+ *
+ * @param ch       The character using the sextant
+ * @param sextant  The ITEM_SEXTANT object being used
+ *
+ * Requires: Being in wilderness or on a ship
+ * Skills: gsn_navigation or gsn_survey
+ */
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 {
     if( IS_VALID(sextant) && sextant->item_type == ITEM_SEXTANT &&
@@ -7699,6 +8462,20 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 
 }
 
+/**
+ * look_through_telescope - View distant wilderness locations
+ *
+ * Uses a telescope to view areas at a distance in the wilderness.
+ * Requires the telescope to be expanded. Direction can be specified
+ * as a cardinal direction or degree heading.
+ *
+ * @param ch         The character looking through the telescope
+ * @param telescope  The ITEM_TELESCOPE object being used
+ * @param argument   Direction to look (direction name or degrees 0-359)
+ *
+ * Requires: Being in wilderness or on a ship, telescope expanded
+ * Skills: gsn_survey or gsn_navigation affect accuracy
+ */
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 {
     if( !IS_VALID(telescope) || telescope->item_type != ITEM_TELESCOPE )
@@ -7835,6 +8612,16 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
         telescope->value[4] = heading;
 }
 
+/**
+ * look_compass - Read a compass to determine direction
+ *
+ * Shows cardinal direction and bearing to various waypoints
+ * (church headquarters, quest targets, etc.) based on compass type
+ * and current position.
+ *
+ * @param ch       The character reading the compass
+ * @param compass  The ITEM_COMPASS object being used
+ */
 void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 {
     char buf[MSL], arg[MIL];
@@ -8001,6 +8788,17 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
     }
 }
 
+/**
+ * look_map - Read a cartographer's map to view waypoints
+ *
+ * Displays the list of waypoints recorded on the map along with
+ * their coordinates (wilderness, south, east values).
+ *
+ * @param ch   The character reading the map
+ * @param map  The ITEM_MAP object being read
+ *
+ * Skills: gsn_navigation affects ability to read coordinates
+ */
 void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 {
     bool success;

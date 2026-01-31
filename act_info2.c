@@ -23,7 +23,19 @@
 //extern long int   __BUILD_DATE;
 extern char __BUILD_DATE;
 
-/* MOVED: combat/assess.c */
+/**
+ * do_showdamage - Toggle display of combat damage numbers
+ *
+ * Enables/disables showing numerical damage values during combat.
+ * By default, only available to immortals or on test port.
+ *
+ * @param ch        The character toggling the setting
+ * @param argument  Unused
+ *
+ * Requires: IS_IMMORTAL or is_test_port (unless DEBUG_ALLOW_SHOW_DAMAGE)
+ *
+ * Planned refactor: combat/assess.c (never executed)
+ */
 void do_showdamage(CHAR_DATA *ch, char *argument)
 {
 #ifndef DEBUG_ALLOW_SHOW_DAMAGE
@@ -42,7 +54,19 @@ void do_showdamage(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: ship.c */
+/**
+ * do_autosurvey - Toggle automatic survey when on ships
+ *
+ * When enabled, automatically performs survey command when moving
+ * around on ships.
+ *
+ * @param ch        The character toggling the setting
+ * @param argument  Unused
+ *
+ * Blocked by: IS_NPC
+ *
+ * Planned refactor: ship.c (never executed)
+ */
 void do_autosurvey(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -60,6 +84,14 @@ void do_autosurvey(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_showversion - Display game version and build information
+ *
+ * Shows the current game version, commit URL, and build date.
+ *
+ * @param ch        The character viewing version info
+ * @param argument  Unused
+ */
 void do_showversion(CHAR_DATA *ch, char *argument)
 {
   char buf[MAX_STRING_LENGTH];
@@ -74,11 +106,35 @@ void do_showversion(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * list_attachment_callback - Callback for quickmail attachment listing
+ *
+ * Debug callback that prints attachment filenames. Used with quickmail
+ * library for email functionality.
+ *
+ * @param mailobj                        The quickmail object
+ * @param filename                       Attachment filename
+ * @param email_info_attachment_open     Open function pointer
+ * @param email_info_attachment_read     Read function pointer
+ * @param email_info_attachment_close    Close function pointer
+ * @param callbackdata                   Counter pointer for numbering
+ */
 void list_attachment_callback (quickmail mailobj, const char* filename, quickmail_attachment_open_fn email_info_attachment_open, quickmail_attachment_read_fn email_info_attachment_read, quickmail_attachment_close_fn email_info_attachment_close, void* callbackdata)
 {
   printf("[%i]: %s\n", ++*(int*)callbackdata, filename);
 }
 
+/**
+ * do_testemail - Send a test email to verify email configuration
+ *
+ * Sends a test email to the character's registered email address
+ * using the game's SMTP settings. Used for debugging email delivery.
+ *
+ * @param ch        The character sending the test email
+ * @param argument  Optional subject line override
+ *
+ * Requires: Email configuration (host, port, username, password, from_addr)
+ */
 void do_testemail (CHAR_DATA *ch, char *argument)
 {
 

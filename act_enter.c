@@ -42,6 +42,24 @@
 #include "wilds.h"
 
 
+/**
+ * do_disembark - Exit from a ship to the surrounding room
+ *
+ * Allows a character to leave a ship and return to the room where the ship
+ * is located. For airships, disembarking requires either the ship to be landed
+ * or the character to be flying.
+ *
+ * @param ch        The character disembarking
+ * @param argument  Unused
+ *
+ * Blocked by:
+ * - Character is in combat
+ * - Character is not currently on a ship
+ * - Airship is moving (doors locked)
+ * - Airship is stopped but not landed (requires flight ability)
+ *
+ * Side effects: Also moves any cart the character is pulling
+ */
 void do_disembark( CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;
@@ -98,6 +116,59 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_enter - Enter a portal or board a ship
+ *
+ * Handles entry into portals (ITEM_PORTAL) and ships (ITEM_SHIP). Supports
+ * multiple portal types including dungeon portals, random destination portals,
+ * area-random portals, wilderness coordinate portals, and standard room portals.
+ *
+ * Portal flags supported:
+ * - GATE_DUNGEON: Portal leads to/within a dungeon
+ * - GATE_DUNGEONRANDOM: Random room within current dungeon
+ * - GATE_INSTANCERANDOM: Random room within current instance
+ * - GATE_SECTIONRANDOM: Random room within current section
+ * - GATE_RANDOM: Completely random destination
+ * - GATE_AREARANDOM: Random room within portal's area
+ * - GATE_BUGGY: 5% chance of random destination
+ * - GATE_NOCURSE: Blocks cursed characters
+ * - GATE_SILENTENTRY: No entry message in source room
+ * - GATE_SILENTEXIT: No arrival message in destination room
+ * - GATE_NORMAL_EXIT: Uses normal movement messages
+ * - GATE_GOWITH: Portal moves with character
+ * - GATE_NOSNEAK: Strips sneak on entry
+ * - GATE_SNEAK: Attempts auto-sneak on entry
+ * - GATE_FORCE_BRIEF: Forces brief mode for the look
+ * - GATE_NOPRIVACY: Can enter private rooms
+ * - EX_ENVIRONMENT: Goes to source room's environment
+ * - EX_PREVFLOOR/EX_NEXTFLOOR: Dungeon floor navigation
+ *
+ * @param ch        The character entering
+ * @param argument  The name of the portal/ship to enter
+ *
+ * Blocked by:
+ * - Character is in combat
+ * - Portal not found in room (also searches adjacent rooms for ships)
+ * - Portal is closed (EX_CLOSED)
+ * - Character is cursed and portal has GATE_NOCURSE
+ * - Destination is private and portal lacks GATE_NOPRIVACY
+ * - Room is locked and TRIG_PREENTER fails
+ * - Mounted character trying to board ship
+ * - Flying airship with non-flying character
+ * - Moving vessel
+ *
+ * Triggers:
+ * - TRIG_PREENTER on destination room, portal
+ * - TRIG_ENTRY on portal, dungeon, instance, character
+ * - TRIG_GREET (mob, object, room programs) on arrival
+ *
+ * Side effects:
+ * - Moves character's cart
+ * - May cast portal spells on character
+ * - May apply sneak effect
+ * - Decrements portal charges (extracts at 0)
+ * - Followers attempt to follow through portal
+ */
 void do_enter( CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;

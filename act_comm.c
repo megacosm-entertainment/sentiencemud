@@ -48,20 +48,54 @@
 
 
 
-/* MOVED: */
+/**
+ * do_clear - Clear the player's terminal screen
+ *
+ * Sends ANSI escape codes to clear the screen and move cursor to home position.
+ * Works on terminals that support ANSI escape sequences.
+ *
+ * @param ch        The character executing the command
+ * @param argument  Unused
+ *
+ * Planned refactor: Destination unspecified in original MOVED comment
+ */
 void do_clear (CHAR_DATA * ch, char *argument)
 {
     send_to_char ("\x01B[2J\x01B[H", ch);
 }
 
-/* MOVED: player.c */
+/**
+ * do_delet - Safety stub for character deletion
+ *
+ * Prevents accidental deletion by requiring the full "delete" command.
+ * This catches users who type "delet" or other partial matches.
+ *
+ * @param ch        The character executing the command
+ * @param argument  Unused
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_delet(CHAR_DATA *ch, char *argument)
 {
     send_to_char("You must type the full command to delete yourself.\n\r",ch);
 }
 
 
-/* MOVED: player.c */
+/**
+ * do_delete - Permanently delete a player character
+ *
+ * Allows low-level characters to delete themselves. Requires confirmation
+ * by typing the command twice. Characters over level 15 or who have remorted
+ * must contact immortals for deletion (security measure).
+ *
+ * @param ch        The character attempting deletion
+ * @param argument  If non-empty during confirmation, cancels the deletion
+ *
+ * Security: Only allows self-deletion for characters level 15 or below
+ *           and who have not remorted.
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_delete(CHAR_DATA *ch, char *argument)
 {
     char strsave[MAX_INPUT_LENGTH];
@@ -101,8 +135,22 @@ void do_delete(CHAR_DATA *ch, char *argument)
     wiznet("$N is contemplating deletion.",ch,NULL,0,0,get_staff_rank(ch));
 }
 
-/* MOVED: channels.c
- Lists all channels and their status */
+/**
+ * do_channels - Display all communication channels and their current status
+ *
+ * Shows ON/OFF status for all available channels including gossip, OOC,
+ * yell, flaming, auction, music, etc. Also displays current prompt,
+ * player flag, and which channels display player flags.
+ *
+ * Immortals see additional channels (god channel).
+ * Helpers see the helper channel.
+ * Church members see church talk status.
+ *
+ * @param ch        The character viewing channel status
+ * @param argument  Unused
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_channels(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -211,7 +259,18 @@ void do_channels(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_quiet - Toggle quiet mode
+ *
+ * When quiet mode is enabled, the character will not receive most channel
+ * communications. Use qlist command to allow specific people to still
+ * reach you while in quiet mode.
+ *
+ * @param ch        The character toggling quiet mode
+ * @param argument  Unused
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_quiet(CHAR_DATA *ch, char * argument)
 {
     if (IS_SET(ch->comm,COMM_QUIET))
@@ -222,7 +281,18 @@ void do_quiet(CHAR_DATA *ch, char * argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_afk - Toggle Away From Keyboard mode
+ *
+ * Marks the character as AFK. Tells received while AFK are buffered
+ * and can be viewed later with 'replay'. An optional message can be
+ * set to inform people who try to contact you.
+ *
+ * @param ch        The character toggling AFK
+ * @param argument  Optional AFK message (max 250 characters)
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_afk(CHAR_DATA *ch, char * argument)
 {
     if (IS_NPC(ch)) return;
@@ -247,7 +317,17 @@ void do_afk(CHAR_DATA *ch, char * argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_replay - Display buffered tells received while AFK
+ *
+ * Shows all tells that were received while the character was AFK or
+ * otherwise unavailable. Clears the buffer after displaying.
+ *
+ * @param ch        The character viewing their buffered tells
+ * @param argument  Unused
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_replay(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch)) {
@@ -265,7 +345,19 @@ void do_replay(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * can_speak_channels - Check if a character can use communication channels
+ *
+ * Validates that the character is not blocked from using channels due to
+ * quiet mode, being in a ROOM_NOCOMM room, or having channels revoked.
+ *
+ * @param ch  The character to check
+ *
+ * @return true if character can speak on channels, false otherwise
+ *         Also sends appropriate error message to the character
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 bool can_speak_channels(CHAR_DATA *ch)
 {
     if (IS_SET(ch->comm,COMM_QUIET)) {
@@ -286,7 +378,18 @@ bool can_speak_channels(CHAR_DATA *ch)
     return true;
 }
 
-/* MOVED: channels.c */
+/**
+ * do_ooc - Out of Character global chat channel
+ *
+ * Allows players to communicate out of character across the entire game.
+ * If no argument is provided, toggles the channel on/off.
+ * Supports player flags and respects ignore lists.
+ *
+ * @param ch        The character speaking
+ * @param argument  Message to send, or empty to toggle channel
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_ooc(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -334,7 +437,17 @@ void do_ooc(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: church.c */
+/**
+ * church_echo - Send a message to all online members of a church
+ *
+ * Broadcasts a message to every connected player who belongs to the
+ * specified church organization.
+ *
+ * @param church   The church whose members should receive the message
+ * @param message  The message to send
+ *
+ * Planned refactor: church.c (never executed)
+ */
 void church_echo(CHURCH_DATA *church, char *message)
 {
     DESCRIPTOR_DATA *d;
@@ -353,7 +466,16 @@ void church_echo(CHURCH_DATA *church, char *message)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * gecho - Global echo to all connected players
+ *
+ * Sends a message to every player currently connected and playing.
+ * No filtering based on channel settings.
+ *
+ * @param message  The message to broadcast
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void gecho(char *message)
 {
     DESCRIPTOR_DATA *d;
@@ -363,7 +485,20 @@ void gecho(char *message)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_gossip - Global gossip communication channel
+ *
+ * Main social channel for global communication. If no argument, toggles
+ * channel on/off. Includes safeguards against accidental string editor
+ * commands (h, s, f, c, r, ld, lr, li, /).
+ * Applies drunk speech modification when character is intoxicated.
+ * Supports player flags and respects ignore lists.
+ *
+ * @param ch        The character speaking
+ * @param argument  Message to send, or empty to toggle channel
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];//, timebuf[25];
@@ -447,7 +582,18 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_flame - Flaming/heated debate communication channel
+ *
+ * Channel for heated discussions or arguments. If no argument, toggles
+ * channel on/off. Supports drunk speech modification, player flags, and
+ * respects ignore lists.
+ *
+ * @param ch        The character speaking
+ * @param argument  Message to send, or empty to toggle channel
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_flame(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -496,7 +642,20 @@ void do_flame(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_helper - Helper channel for designated helpers and immortals
+ *
+ * Communication channel restricted to players with PLR_HELPER flag or
+ * immortals. Regular players can turn the channel off but cannot turn
+ * it back on. Used for helping newbies and coordinating helper activities.
+ *
+ * @param ch        The character speaking
+ * @param argument  Message to send, or empty to toggle channel
+ *
+ * Restrictions: Only helpers/immortals can enable the channel
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_helper(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -552,7 +711,18 @@ void do_helper(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_hints - Toggle receiving system hints
+ *
+ * Controls whether the player receives game hints and tips. This is a
+ * receive-only channel - players cannot broadcast on it, only toggle
+ * whether they see hints.
+ *
+ * @param ch        The character toggling hints
+ * @param argument  If provided, informs user they cannot speak on this channel
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_hints(CHAR_DATA *ch, char *argument)
 {
     if (!argument[0]) {
@@ -566,7 +736,18 @@ void do_hints(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_music - Music sharing communication channel
+ *
+ * Channel for sharing music-related content. If no argument, toggles
+ * channel on/off. Supports drunk speech modification, player flags, and
+ * respects ignore lists.
+ *
+ * @param ch        The character speaking
+ * @param argument  Message to send, or empty to toggle channel
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_music(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -615,7 +796,19 @@ void do_music(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_immtalk - Immortal-only communication channel
+ *
+ * Private channel for staff/immortal communication. Only visible to
+ * characters with immortal status. If no argument, toggles channel on/off.
+ *
+ * @param ch        The immortal speaking
+ * @param argument  Message to send, or empty to toggle channel
+ *
+ * Access: Immortals only
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_immtalk(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -641,7 +834,28 @@ void do_immtalk(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: speech.c */
+/**
+ * do_say - Room-local speech with dynamic sentence formatting
+ *
+ * Allows a character to speak to everyone in the room. The output format
+ * varies based on punctuation:
+ *   - Exclamations (!) use "exclaims"
+ *   - Questions (?) use "asks"
+ *   - Statements (.) use "says"
+ * Format randomly alternates between styles like:
+ *   "'Hello!' exclaims Bob." or "Bob exclaims, 'Hello!'"
+ *
+ * Triggers TRIG_SPEECH on: mobs in room, objects in room, worn items,
+ * inventory items, and the room itself.
+ *
+ * @param ch        The character speaking
+ * @param argument  The message to say
+ *
+ * Blocked by: AFF2_SILENCE affect
+ * Modifiers: Drunk speech when intoxicated
+ *
+ * Planned refactor: speech.c (never executed)
+ */
 void do_say(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -833,7 +1047,17 @@ iterator_stop(&obj_it);
     }
 }
 
-/* MOVED: channels.c */
+/**
+ * do_tells - Toggle receiving private tells
+ *
+ * Allows the player to turn off/on receiving private messages (tells)
+ * from other players.
+ *
+ * @param ch        The character toggling tells
+ * @param argument  Unused
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_tells(CHAR_DATA *ch, char *argument)
 {
     if (IS_SET(ch->comm, COMM_NOTELLS))
@@ -851,7 +1075,27 @@ void do_tells(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_tell - Send a private message to another player
+ *
+ * Sends a private message to a specific player anywhere in the game.
+ * Handles various scenarios:
+ *   - Buffering messages for AFK recipients
+ *   - Buffering messages for link-dead players
+ *   - Respecting ignore lists (unless sender is higher-level immortal)
+ *   - Respecting quiet mode and tell restrictions
+ *   - Wizi level visibility for immortals
+ *
+ * Sets both sender's and recipient's reply pointer for easy replies.
+ * Supports player flags. Triggers TRIG_SPEECH on the recipient.
+ *
+ * @param ch        The character sending the tell
+ * @param argument  "<target> <message>"
+ *
+ * Blocked by: COMM_NOTELL (revoked by gods), ROOM_NOCOMM
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_tell(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1011,7 +1255,20 @@ void do_tell(CHAR_DATA *ch, char *argument)
 
 
 
-/* MOVED: channels.c */
+/**
+ * do_reply - Reply to the last person who sent you a tell
+ *
+ * Convenience command to quickly respond to the last person who sent
+ * you a private message. Uses the ch->reply pointer set by do_tell.
+ *
+ * Note: Uses victim->name directly rather than pers() to avoid issues
+ * with shaped vampires and shifted vampires/slayers.
+ *
+ * @param ch        The character replying
+ * @param argument  The reply message
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_reply(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -1031,7 +1288,20 @@ void do_reply(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_yell - Area-wide communication
+ *
+ * Broadcasts a message to all players in the same area. If no argument,
+ * toggles receiving yells on/off. Supports drunk speech, player flags,
+ * and respects ignore lists and quiet mode.
+ *
+ * @param ch        The character yelling
+ * @param argument  Message to yell, or empty to toggle receiving yells
+ *
+ * Blocked by: COMM_NOCHANNELS, ROOM_NOCOMM
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_yell(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL], msg[2*MSL];
@@ -1105,7 +1375,23 @@ void do_yell(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: speech.c */
+/**
+ * do_emote - Display a custom action/roleplay emote
+ *
+ * Allows the player to display a custom action message to everyone
+ * in the room. The character's name is prefixed to the message.
+ * Example: "emote laughs heartily" shows "Bob laughs heartily"
+ *
+ * Temporarily disables MOBtrigger to prevent script triggers from
+ * firing on emotes.
+ *
+ * @param ch        The character emoting
+ * @param argument  The emote text (action description)
+ *
+ * Restriction: Cannot be used while switched into another form
+ *
+ * Planned refactor: speech.c (never executed)
+ */
 void do_emote(CHAR_DATA *ch, char *argument)
 {
     if (IS_SWITCHED(ch))
@@ -1127,7 +1413,33 @@ void do_emote(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
+/**
+ * do_quit - Save character and exit the game
+ *
+ * Saves the character and disconnects from the game. Performs extensive
+ * cleanup including:
+ *   - Unshifting vampires/werewolves (preserves shift state for relogin)
+ *   - Releasing pulled carts
+ *   - Returning mail package items to inventory
+ *   - Removing PURGE_QUIT tokens (with TRIG_TOKEN_REMOVED trigger)
+ *   - Saving last worn equipment positions
+ *   - Removing worn item affects
+ *   - Resetting immortal bank accounts (below MAX_LEVEL)
+ *   - Resetting manastore
+ *   - Saving account metadata
+ *   - Updating Redis cache status
+ *   - Handling mounts (returning owned mounts home)
+ *   - Extracting quest objects
+ *   - Closing duplicate connections (anti-cheat)
+ *
+ * @param ch        The character quitting
+ * @param argument  If set, triggers TRIG_QUIT before quitting
+ *
+ * Restrictions: Cannot quit while fighting, in auction, stunned/dead,
+ *               in ROOM_NO_QUIT rooms, or while switched
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_quit(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d,*d_next;
@@ -1366,6 +1678,30 @@ iterator_stop(&it);
     }
 }
 
+/**
+ * do_logout - Return to account menu without disconnecting
+ *
+ * Saves the character and returns to the account/character selection menu.
+ * Similar to do_quit but doesn't close the connection - instead transitions
+ * the descriptor to CON_ACCOUNT_MENU state.
+ *
+ * Performs similar cleanup to do_quit:
+ *   - Unshifting vampires/werewolves
+ *   - Releasing pulled carts
+ *   - Returning mail package items
+ *   - Removing PURGE_QUIT tokens
+ *   - Saving worn equipment positions
+ *   - Removing worn item affects
+ *   - Resetting immortal bank accounts
+ *   - Resetting manastore
+ *   - Updating account character entry
+ *   - Handling mounts
+ *
+ * @param ch        The character logging out
+ * @param argument  If non-empty, triggers TRIG_QUIT before logout
+ *
+ * Restrictions: Same as do_quit (fighting, auction, stunned, no_quit room, switched)
+ */
 void do_logout(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
@@ -1583,7 +1919,19 @@ iterator_stop(&it);
 }
 
 
-/* MOVED: player.c */
+/**
+ * do_save - Manually save character data to disk
+ *
+ * Saves the character's current state to their pfile. Non-immortals
+ * receive a brief wait state to prevent save spam.
+ *
+ * @param ch        The character saving
+ * @param argument  Unused
+ *
+ * Restriction: Cannot save while switched into another form
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_save(CHAR_DATA *ch, char *argument)
 {
     if (IS_SWITCHED(ch))
@@ -1603,7 +1951,24 @@ void do_save(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * do_follow - Follow another character
+ *
+ * Makes the character follow another character in the room. Following
+ * causes the follower to automatically move when the leader moves.
+ * Following yourself stops following your current leader.
+ *
+ * @param ch        The character who wants to follow
+ * @param argument  Name of character to follow, or "self" to stop following
+ *
+ * Restrictions:
+ *   - Cannot follow while charmed (prefers current master)
+ *   - Cannot follow dead characters
+ *   - Cannot follow someone with PLR_NOFOLLOW unless immortal
+ *   - Cannot follow if you have followers of your own
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_follow(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1674,7 +2039,21 @@ void do_follow(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * add_follower - Make a character follow another
+ *
+ * Sets up the follower relationship between two characters. The follower
+ * will automatically move when the master moves. Also removes the follower
+ * from any current group.
+ *
+ * @param ch      The character who will follow
+ * @param master  The character to be followed
+ * @param show    Whether to display follow messages to both parties
+ *
+ * Errors: Logs error if ch is invalid or already has a master
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void add_follower(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 {
     if (!IS_VALID(ch))
@@ -1699,7 +2078,19 @@ void add_follower(CHAR_DATA *ch, CHAR_DATA *master, bool show)
     if(show) act("You now follow $N.",  ch, master, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
-/* MOVED: groups.c */
+/**
+ * stop_follower - Stop a character from following their master
+ *
+ * Breaks the follower relationship. Also removes charm effects if present,
+ * clears pet pointer if this was the master's pet, and removes from group.
+ *
+ * @param ch    The character who will stop following
+ * @param show  Whether to display stop-following messages
+ *
+ * Errors: Logs error if ch is invalid or has no master
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void stop_follower(CHAR_DATA *ch, bool show)
     {
     if (!IS_VALID(ch))
@@ -1735,8 +2126,16 @@ void stop_follower(CHAR_DATA *ch, bool show)
 }
 
 
-/* MOVED: groups.c
- Nukes charmed monsters and pets */
+/**
+ * nuke_pets - Remove all pets and mounts from a character
+ *
+ * Stops following and extracts the character's pet from the game.
+ * Also clears mount relationships.
+ *
+ * @param ch  The character whose pets/mounts should be removed
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void nuke_pets(CHAR_DATA *ch)
 {
     CHAR_DATA *pet;
@@ -1767,7 +2166,20 @@ void nuke_pets(CHAR_DATA *ch)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * die_follower - Clean up all follower/group relationships
+ *
+ * Called when a character dies or logs out. Handles:
+ *   - Stopping following if character was following someone
+ *   - Clearing master's pet pointer if this was their pet
+ *   - Removing from group
+ *   - Making all followers of this character stop following
+ *   - Reassigning group leadership for anyone in this character's group
+ *
+ * @param ch  The character whose relationships should be cleaned up
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void die_follower(CHAR_DATA *ch)
 {
     CHAR_DATA *fch;
@@ -1794,7 +2206,26 @@ void die_follower(CHAR_DATA *ch)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * do_order - Command a charmed mob or mount to perform an action
+ *
+ * Allows a character to give orders to their charmed followers or mount.
+ * Only certain safe commands are allowed to prevent abuse.
+ *
+ * @param ch        The character giving orders
+ * @param argument  "<target|mount> <command>"
+ *
+ * Allowed commands: movement (north/south/etc), stand, eat, drink,
+ *                   sit, rest, sleep, open, close
+ * Blocked commands: delete, mob (security)
+ *
+ * Restrictions:
+ *   - Cannot order while charmed yourself
+ *   - Target must be charmed by you, or be your mount
+ *   - Target must be in the same room
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_order(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1885,7 +2316,17 @@ void do_order(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * do_ungroup - Leave or disband the current group
+ *
+ * Removes the character from their group and cleans up all follower
+ * relationships by calling die_follower().
+ *
+ * @param ch        The character ungrouping
+ * @param argument  Unused
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_ungroup(CHAR_DATA *ch, char *argument)
 {
     send_to_char("Ungrouping.\n\r", ch);
@@ -1893,7 +2334,25 @@ void do_ungroup(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * do_group - View group status or add/remove group members
+ *
+ * Without argument: Displays all group members with their level, race,
+ * name, HP/mana/move stats, and hired NPC expiration times.
+ *
+ * With argument: Adds or removes the named character from the group.
+ * Only the group leader can add/remove members.
+ *
+ * @param ch        The character viewing/managing group
+ * @param argument  Name of character to add/remove, or empty to view
+ *
+ * Restrictions:
+ *   - Cannot manage group while following someone else
+ *   - Cannot remove charmed mobs from group
+ *   - Max group size: 9 members
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_group(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2003,7 +2462,23 @@ void do_group(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * do_split - Split gold and silver among group members in the room
+ *
+ * Divides the specified amount of currency equally among all non-charmed
+ * group members present in the same room. The splitter keeps any remainder.
+ *
+ * @param ch        The character splitting currency
+ * @param argument  "<silver> [gold]" - amounts to split
+ *
+ * Notes:
+ *   - Only counts group members in the same room
+ *   - Charmed mobs don't receive a share
+ *   - Requires at least 2 eligible recipients
+ *   - Splitter gets the remainder from division
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_split(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2121,8 +2596,19 @@ void do_split(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c
-   Group chat */
+/**
+ * do_gtell - Send a message to all group members
+ *
+ * Broadcasts a message to every member of the character's group,
+ * regardless of location (unlike split which requires same room).
+ *
+ * @param ch        The character sending the group message
+ * @param argument  The message to send
+ *
+ * Blocked by: COMM_NOTELL (revoked tells)
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_gtell(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *gch;
@@ -2161,7 +2647,21 @@ void do_gtell(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * is_same_group - Check if two characters are in the same group
+ *
+ * Determines if two characters share a group, considering:
+ *   - Same character (always true)
+ *   - Mount/rider relationships (treated as same group)
+ *   - Same group leader
+ *
+ * @param ach  First character to check
+ * @param bch  Second character to check
+ *
+ * @return true if characters are in the same group, false otherwise
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 {
     if (ach == NULL || bch == NULL)
@@ -2184,7 +2684,19 @@ bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 }
 
 
-/* MOVED: player.c */
+/**
+ * do_colour - Toggle ANSI color display
+ *
+ * Enables or disables color codes in game output. When off, color
+ * codes are stripped before sending text to the player.
+ *
+ * @param ch        The character toggling color
+ * @param argument  Unused (color configuration not implemented)
+ *
+ * Note: Color configuration was planned but never implemented.
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_colour(CHAR_DATA *ch, char *argument)
 {
     char arg[ MAX_STRING_LENGTH ];
@@ -2213,7 +2725,22 @@ void do_colour(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: groups.c */
+/**
+ * add_grouped - Add a character to a group
+ *
+ * Adds a character to another character's group. Enforces max group size
+ * of 9 members. Fires TRIG_GROUPED script trigger.
+ *
+ * @param ch      The character being added to the group
+ * @param master  The group leader
+ * @param show    Whether to display messages if group is full
+ *
+ * @return true if successfully added, false if group is full
+ *
+ * Triggers: TRIG_GROUPED
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 {
     if (master->num_grouped >= 9)
@@ -2241,7 +2768,19 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 }
 
 
-/* MOVED: groups.c */
+/**
+ * stop_grouped - Remove a character from their group
+ *
+ * Removes the character from their current group, decrements the leader's
+ * group count, and fires TRIG_UNGROUPED script trigger.
+ *
+ * @param ch  The character being removed from the group
+ *
+ * Triggers: TRIG_UNGROUPED
+ * Errors: Logs error if ch is invalid
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void stop_grouped(CHAR_DATA *ch)
 {
     CHAR_DATA *leader;
@@ -2270,8 +2809,18 @@ void stop_grouped(CHAR_DATA *ch)
 
 
 
-/* MOVED: channels.c
-   Town crier announcement.*/
+/**
+ * crier_announce - Broadcast a town crier announcement
+ *
+ * Sends a message formatted as a town crier announcement to all connected
+ * players who have announcements enabled and are not in quiet mode.
+ *
+ * @param argument  The announcement message
+ *
+ * Respects: COMM_NOANNOUNCE, COMM_QUIET
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void crier_announce(char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2292,8 +2841,16 @@ void crier_announce(char *argument)
 }
 
 
-/* MOVED: channels.c
- Toggle crier announcements */
+/**
+ * do_announcements - Toggle receiving town crier announcements
+ *
+ * Allows players to turn off/on receiving town crier broadcast messages.
+ *
+ * @param ch        The character toggling announcements
+ * @param argument  Unused
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_announcements(CHAR_DATA *ch, char *argument)
 {
     if (IS_SET(ch->comm,COMM_NOANNOUNCE))
@@ -2309,8 +2866,19 @@ void do_announcements(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c
- Award double exp in name of a victim. */
+/**
+ * double_xp - Award 30 minutes of double experience in a player's honor
+ *
+ * Broadcasts a ceremony message and activates or extends the double XP
+ * boost. If a boost is already active, extends it by 30 minutes.
+ * Sets boost to 200% (double).
+ *
+ * @param victim  The character being honored (name used in announcement)
+ *
+ * Modifies: boost_table[BOOST_EXPERIENCE]
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void double_xp(CHAR_DATA *victim)
 {
     struct tm *exp_time;
@@ -2329,7 +2897,23 @@ void double_xp(CHAR_DATA *victim)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_ignore - Manage the player's ignore list
+ *
+ * Without argument: Displays the current ignore list with names and reasons.
+ * With argument: Adds or removes a player from the ignore list.
+ *   - If the name is already ignored, removes them
+ *   - If new, validates the player exists (online or pfile) and adds them
+ *
+ * Ignored players cannot send tells or channel messages to this character.
+ *
+ * @param ch        The character managing their ignore list
+ * @param argument  "<name> [reason]" to add/remove, or empty to view list
+ *
+ * Note: Validates player existence via online lookup or pfile check
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_ignore(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -2453,7 +3037,17 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
+/**
+ * do_notify - Toggle login notifications
+ *
+ * Controls whether the player receives notifications when other players
+ * log into the game.
+ *
+ * @param ch        The character toggling notifications
+ * @param argument  Unused
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_notify(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -2472,8 +3066,17 @@ void do_notify(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c
- Toggle showing formation's HP percentage in combat.*/
+/**
+ * do_formstate - Toggle formation HP display in combat
+ *
+ * Controls whether the player sees HP percentages for their group
+ * formation members during combat.
+ *
+ * @param ch        The character toggling formation state display
+ * @param argument  Unused
+ *
+ * Planned refactor: groups.c (never executed)
+ */
 void do_formstate(CHAR_DATA *ch, char *argument)
 {
     if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
@@ -2491,8 +3094,19 @@ void do_formstate(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED:
- Echos to all rooms in an area with the given sector.*/
+/**
+ * sector_echo - Echo a message to all rooms in an area with a specific sector type
+ *
+ * Broadcasts a message to all players in rooms within the specified area
+ * that have the matching sector type. Excludes cloned rooms and instance
+ * sections. Immortals see a "SECTOR ECHO>" prefix.
+ *
+ * @param area     The area to broadcast in
+ * @param message  The message to send
+ * @param sector   The sector type to match (e.g., SECT_FOREST, SECT_WATER)
+ *
+ * Planned refactor: Destination unspecified in original MOVED comment
+ */
 void sector_echo(AREA_DATA *area, char *message, int sector)
 {
     DESCRIPTOR_DATA *d;
@@ -2517,6 +3131,16 @@ void sector_echo(AREA_DATA *area, char *message, int sector)
     }
 }
 
+/**
+ * area_echo - Echo a message to all rooms in an area
+ *
+ * Broadcasts a message to all players in rooms within the specified area.
+ * Excludes cloned rooms and instance sections.
+ * Immortals see an "AREA ECHO>" prefix.
+ *
+ * @param area     The area to broadcast in
+ * @param message  The message to send
+ */
 void area_echo(AREA_DATA *area, char *message)
 {
     DESCRIPTOR_DATA *d;
@@ -2541,8 +3165,17 @@ void area_echo(AREA_DATA *area, char *message)
 }
 
 
-/* MOVED: player.c
- Toggle or hide "<empty>" equipment slots.*/
+/**
+ * do_autoeq - Toggle showing empty equipment slots
+ *
+ * Controls whether the equipment display shows "<empty>" for slots
+ * without items equipped.
+ *
+ * @param ch        The character toggling the setting
+ * @param argument  Unused
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_autoeq(CHAR_DATA *ch, char *argument)
 {
     if (IS_SET(ch->act[0], PLR_AUTOEQ))
@@ -2560,8 +3193,23 @@ void do_autoeq(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c
- Quiet list -- allows certain people to tell you while you have quiet on.*/
+/**
+ * do_qlist - Manage the quiet list (who can tell you while in quiet mode)
+ *
+ * Without argument or "show": Displays the current quiet list.
+ * With "clear": Removes everyone from the quiet list.
+ * With a name: Adds or removes that player from the quiet list.
+ *
+ * Players on your quiet list can still send you tells even when you
+ * have quiet mode enabled.
+ *
+ * @param ch        The character managing their quiet list
+ * @param argument  "show", "clear", or a player name
+ *
+ * Max list size: 20 entries
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_qlist(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -2694,7 +3342,21 @@ void do_qlist(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: speech.c */
+/**
+ * do_whisper - Whisper privately to another character in the room
+ *
+ * Sends a private message to a specific person in the room. Others in
+ * the room see that a whisper occurred but not the content.
+ * Triggers TRIG_WHISPER on the recipient.
+ *
+ * @param ch        The character whispering
+ * @param argument  "<target> <message>"
+ *
+ * Blocked by: AFF2_SILENCE
+ * Triggers: TRIG_WHISPER on victim
+ *
+ * Planned refactor: speech.c (never executed)
+ */
 void do_whisper(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2738,8 +3400,17 @@ void do_whisper(CHAR_DATA *ch, char *argument)
     p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_WHISPER);
 }
 
-/* MOVED: bulletin.c
- Catchup on notes, news and changes*/
+/**
+ * do_catchup - Mark all notes, news, and changes as read
+ *
+ * Convenience command to catch up on all bulletin board systems at once.
+ * Calls catchup on notes, news, and changes.
+ *
+ * @param ch        The character catching up
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_catchup(CHAR_DATA *ch, char *argument)
 {
     do_function(ch, &do_note, "catchup");
@@ -2749,8 +3420,19 @@ void do_catchup(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: fight.c
- Set sense-danger range (sith) */
+/**
+ * do_danger - Set sense-danger skill range
+ *
+ * Configures how far away the sense-danger skill (sith class) can detect
+ * hostile players. Range is limited by skill level (skill/10 - 1, max 9).
+ *
+ * @param ch        The character setting danger range
+ * @param argument  The range value (0 to max_range)
+ *
+ * Requires: gsn_sense_danger skill
+ *
+ * Planned refactor: fight.c (never executed)
+ */
 void do_danger(CHAR_DATA *ch, char *argument)
 {
     int range;
@@ -2786,7 +3468,21 @@ void do_danger(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
+/**
+ * do_toggle - View or toggle various player settings
+ *
+ * Without argument: Displays all available toggle settings and their
+ * current status (ON/OFF).
+ * With argument: Toggles the specified setting.
+ *
+ * Settings are defined in pc_set_table and can affect act[], comm,
+ * or other character flags. Some settings are inverted (NO_* flags).
+ *
+ * @param ch        The character viewing/toggling settings
+ * @param argument  Setting name to toggle, or empty to view all
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_toggle(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -2922,7 +3618,19 @@ void do_toggle(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: channels.c */
+/**
+ * do_quote - Quote sharing communication channel
+ *
+ * Global channel for sharing quotes. If no argument, toggles channel on/off.
+ * Supports drunk speech, player flags, and respects ignore lists and quiet mode.
+ *
+ * @param ch        The character quoting
+ * @param argument  Quote text to share, or empty to toggle channel
+ *
+ * Blocked by: COMM_QUIET, ROOM_NOCOMM, COMM_NOCHANNELS
+ *
+ * Planned refactor: channels.c (never executed)
+ */
 void do_quote(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -3007,8 +3715,20 @@ void do_quote(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
-/* Allows people to view and change their set e-mail. */
+/**
+ * do_email - View or change the player's email address (DEPRECATED)
+ *
+ * Without argument: Displays the current email address.
+ * With argument: Sets a new email address (basic validation: min 5 chars, must contain @).
+ *
+ * NOTE: Email management has been moved to the account system. This character-level
+ * email field is deprecated and may be removed in a future refactor.
+ *
+ * @param ch        The character viewing/setting email
+ * @param argument  New email address, or empty to view current
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_email(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -3038,7 +3758,22 @@ void do_email(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
+/**
+ * do_flag - Set a personal chat flag or control flag visibility on channels
+ *
+ * With channel name: Toggles showing player flags on that channel.
+ * With "none": Removes the player's flag.
+ * With other text: Sets the text as the player's chat flag (max 10 visible chars).
+ *
+ * The flag is displayed alongside messages on channels where flag visibility is enabled.
+ *
+ * @param ch        The character managing their flag
+ * @param argument  "<channel>", "none", or flag text
+ *
+ * Channels: gossip, ooc, yell, flame, quote, helper, tells, music, ct
+ *
+ * Planned refactor: player.c (never executed)
+ */
 void do_flag(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -3103,8 +3838,24 @@ void do_flag(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 }
 
-/* MOVED: speech.c
-   NIB : 20070121 : Targeted speech to mobiles*/
+/**
+ * do_sayto - Targeted speech to a specific character in the room
+ *
+ * Similar to do_say but explicitly directed at a target. Uses the same
+ * dynamic sentence formatting based on punctuation (!/?/.).
+ * Triggers TRIG_SAYTO on the target (useful for NPC interactions).
+ *
+ * Added by NIB (Nibelung) 2007-01-21 for targeted speech to mobiles.
+ *
+ * @param ch        The character speaking
+ * @param argument  "<target> <message>"
+ *
+ * Blocked by: AFF2_SILENCE
+ * Triggers: TRIG_SAYTO on victim
+ * Modifiers: Drunk speech when intoxicated
+ *
+ * Planned refactor: speech.c (never executed)
+ */
 void do_sayto(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -3265,8 +4016,23 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 
 }
 
-/* MOVED: speech.c
- NIB : 20070121 : Targeted speech to objects*/
+/**
+ * do_intone - Speak to an object in the room
+ *
+ * Allows a character to direct speech at an object rather than a character.
+ * This is primarily used for triggering object scripts that respond to speech.
+ * The message is displayed to all characters in the room and triggers TRIG_SAYTO
+ * on the target object.
+ *
+ * @param ch        The character speaking
+ * @param argument  Format: "<object> <message>"
+ *
+ * Blocked by: AFF2_SILENCE (character is silenced)
+ * Drunk speech: Message is slurred if character is intoxicated
+ * Triggers: TRIG_SAYTO on target object
+ *
+ * Planned refactor: speech.c (never executed)
+ */
 void do_intone(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -3308,6 +4074,30 @@ void do_intone(CHAR_DATA *ch, char *argument)
     p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL,TRIG_SAYTO);
 }
 
+/**
+ * do_pronouns - View or set custom character pronouns
+ *
+ * Allows player characters to customize their pronouns for roleplay purposes.
+ * Supports all five pronoun forms (subjective, objective, possessive adjective,
+ * possessive pronoun, reflexive) plus verb conjugation preference.
+ *
+ * Subcommands:
+ * - (no args): Display current pronouns and usage examples
+ * - default: Reset all pronouns to body type defaults
+ * - he/subjective <value>: Set subjective pronoun (he/she/they)
+ * - him/objective <value>: Set objective pronoun (him/her/them)
+ * - his/possessive_adjective <value>: Set possessive adjective (his/her/their)
+ * - hers/possessive_pronoun <value>: Set possessive pronoun (his/hers/theirs)
+ * - himself/reflexive <value>: Set reflexive pronoun (himself/herself/themself)
+ * - verb <singular|plural|default>: Set verb conjugation preference
+ * - show <subj> <obj> <poss_adj> <poss_pron> <refl> [verb]: Preview pronoun set
+ *
+ * @param ch        The character setting pronouns (must be a player)
+ * @param argument  The subcommand and optional value
+ *
+ * Blocked by: IS_NPC (NPCs cannot set custom pronouns)
+ * Max length: 20 characters per pronoun
+ */
 void do_pronouns(CHAR_DATA *ch, char *argument) {
     char arg1[MIL], arg2[MIL];
     char buf[MSL];
