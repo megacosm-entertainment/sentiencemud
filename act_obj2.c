@@ -16,6 +16,23 @@
 #include "tables.h"
 
 
+/**
+ * do_deposit - Deposit items to NPCs for rewards
+ *
+ * Handles two deposit systems:
+ *
+ * 1. Global Quest deposits (ACT2_GQ_MASTER):
+ *    - Deposits matching quest objects
+ *    - Rewards: QP, practices, XP, gold, silver
+ *
+ * 2. Soul bottles (soultaker mobs):
+ *    - Deposits pneuma_item objects
+ *    - Rewards: Pneuma points (with boost multiplier if active)
+ *    - Soultaker must match character's alignment
+ *
+ * @param ch        Character depositing
+ * @param argument  Unused
+ */
 void do_deposit(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -145,6 +162,18 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_besteq - Find best equipment at a specific level (admin tool)
+ *
+ * Searches all object indexes to find the highest damage weapons
+ * at a specified level. Reports best weapon for each type:
+ * sword, dagger, polearm, axe, exotic.
+ *
+ * Uses average damage formula: (1 + value[2]) * value[1] / 2
+ *
+ * @param ch        Character (should be staff)
+ * @param argument  Level number to search
+ */
 void do_besteq(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -303,7 +332,18 @@ void do_besteq(CHAR_DATA *ch, char *argument)
 }
 
 
-/* could be used for various things in the future, atm just for crystal hammers*/
+/**
+ * do_strike - Use glass hammer to repair weapon/armor condition
+ *
+ * Strikes an item with a glass hammer to restore it to perfect condition.
+ * The hammer shatters after use. Only works on items that can decay
+ * (not SOLID fragility).
+ *
+ * Valid targets: ITEM_WEAPON, ITEM_ARMOUR, ITEM_INSTRUMENT
+ *
+ * @param ch        Character using the hammer
+ * @param argument  Name of item to repair
+ */
 void do_strike(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -372,6 +412,25 @@ void do_strike(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_lore - Query a loremaster NPC for equipment information
+ *
+ * Pays a loremaster (ACT2_LOREMASTER) to search for items matching
+ * specified criteria. Returns up to 10 random matching items on a scroll.
+ *
+ * Syntax: lore <min_level> <max_level> [item_type] [wear_loc/weapon_class]
+ *
+ * Filters:
+ * - Level range (max 15 level spread)
+ * - Item type: armor, weapon, ranged weapon, light, container, artifact, instrument
+ * - Wear location or weapon class
+ * - Excludes imm zones and closed areas
+ *
+ * Cost: 2000 + (max - min) * 10 silver
+ *
+ * @param ch        Character making the request
+ * @param argument  Search criteria string
+ */
 void do_lore(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob;
@@ -598,7 +657,16 @@ void do_lore(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Saves info about each piece of equipment, so next time the character types 'wear all', it knows what to put on.*/
+/**
+ * save_last_wear - Record current equipment configuration
+ *
+ * Saves the current wear location for all equipped items so that
+ * 'wear all' can restore the same configuration later. Clears
+ * last_wear_loc on all carried items, then sets it to current
+ * wear_loc on all worn items.
+ *
+ * @param ch  Character whose equipment configuration to save
+ */
 void save_last_wear(CHAR_DATA *ch)
 {
     OBJ_DATA *pObj = NULL;
@@ -620,6 +688,21 @@ void save_last_wear(CHAR_DATA *ch)
 }
 
 
+/**
+ * do_combine - Alchemically merge two scrolls or potions
+ *
+ * Combines two items of the same type (both scrolls or both potions)
+ * with identical spells. The resulting item has blended spell levels
+ * (2/3 of each source level). Potions also combine charges (max 3).
+ *
+ * Skill check determines outcome:
+ * - Success: Items combined with maximized spell pairing
+ * - Partial success: Combined with random spell pairing
+ * - Failure: Both items destroyed
+ *
+ * @param ch        Character combining items
+ * @param argument  "item1 item2" - the two items to combine
+ */
 void do_combine(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -842,11 +925,21 @@ void do_combine(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_keep - Toggle the KEPT flag on an item
+ *
+ * Marks an item as "kept" to prevent accidental dropping, selling,
+ * or giving away. Toggles the ITEM_KEPT flag on/off. Works on
+ * both carried and worn items.
+ *
+ * @param ch        Character keeping the item
+ * @param argument  Name of item to keep/unkeep
+ */
 void do_keep(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
     OBJ_DATA *obj = NULL;
-    
+
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
@@ -878,7 +971,15 @@ void do_keep(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Reset an obj for a new owner. Used in get, etc.*/
+/**
+ * reset_obj - Clear ownership-related flags for a new owner
+ *
+ * Clears the ITEM_KEPT flag and last_wear_loc when an object
+ * changes hands (e.g., picked up, given, looted). Called from
+ * get_obj and similar functions.
+ *
+ * @param obj  Object to reset
+ */
 void reset_obj(OBJ_DATA *obj)
 {
     if (IS_SET(obj->extra[1], ITEM_KEPT))
@@ -888,6 +989,18 @@ void reset_obj(OBJ_DATA *obj)
 }
 
 
+/**
+ * do_consume - Consume a corpse to restore health and satiate hunger
+ *
+ * Vampiric/ghoulish ability to devour corpses for sustenance.
+ * Restores 25% of missing health and counts as consuming blood
+ * for hunger/thirst/fullness conditions.
+ *
+ * Requires gsn_consume skill. Cannot use when full.
+ *
+ * @param ch        Character consuming
+ * @param argument  Name of corpse to consume
+ */
 void do_consume(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *corpse;
@@ -956,6 +1069,18 @@ void do_consume(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_touch - Activate a tattoo's magical effects
+ *
+ * Touches a worn tattoo to trigger its stored spells. Each use
+ * decrements the tattoo's charge counter (value[0]). After use,
+ * there's a chance (value[1]%) the tattoo fades permanently.
+ *
+ * @param ch        Character touching the tattoo
+ * @param argument  Name of tattoo to touch
+ *
+ * Triggers: TRIG_TOUCH (on tattoo, can cancel)
+ */
 void do_touch(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1008,6 +1133,18 @@ void do_touch(CHAR_DATA *ch, char *argument)
 
 }
 
+/**
+ * do_ruboff - Remove a tattoo from skin
+ *
+ * Rubs off a worn tattoo, destroying it. Cannot remove tattoos
+ * with the NOREMOVE flag (permanent ink).
+ *
+ * @param ch        Character removing the tattoo
+ * @param argument  Name of tattoo to remove
+ *
+ * Triggers: TRIG_PREREMOVE (on tattoo, can cancel)
+ *           TRIG_REMOVE (on tattoo, fires after removal)
+ */
 void do_ruboff(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1050,6 +1187,26 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
     extract_obj(obj);
 }
 
+/**
+ * do_ink - Create a tattoo on a character using magical inks
+ *
+ * Begins the tattooing process using gsn_tattoo skill. Consumes
+ * ink items that provide required catalyst essences for the spells.
+ * Up to 3 spells can be tattooed (must target characters).
+ *
+ * Syntax: ink <target> <location> <spell1> [spell2] [spell3]
+ *
+ * Requirements:
+ * - Ink items with matching catalyst types in inventory
+ * - Spells must be known and target TAR_CHAR_*
+ * - Target location must be empty
+ *
+ * Completes via ink_end() after TATTOO_STATE timer.
+ * ROOM_ALCHEMY bonus: 50% success boost
+ *
+ * @param ch        Character creating the tattoo
+ * @param argument  "target location spell1 [spell2] [spell3]"
+ */
 void do_ink(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -1198,6 +1355,29 @@ void do_ink(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * ink_end - Complete the tattooing process started by do_ink
+ *
+ * Called when TATTOO_STATE timer expires. Creates the tattoo object
+ * with embedded spells if skill check passes.
+ *
+ * Success chance based on:
+ * - Base skill in gsn_tattoo
+ * - Number of spells (more spells = harder)
+ * - ROOM_ALCHEMY bonus: 50% chance boost
+ *
+ * Tattoo properties:
+ * - Charges: 1 to (tot_level/20) uses
+ * - Fade chance: Based on skill (high skill = low fade)
+ * - Spell levels scale with caster level and success
+ *
+ * @param ch      Character who performed the tattooing
+ * @param victim  Character receiving the tattoo
+ * @param loc     Wear location for the tattoo
+ * @param sn      First spell number
+ * @param sn2     Second spell number (0 if none)
+ * @param sn3     Third spell number (0 if none)
+ */
 void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t sn2, int16_t sn3)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1308,6 +1488,21 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     tattoo->wear_loc = loc;
 }
 
+/**
+ * do_affix - Apply a loose tattoo to skin
+ *
+ * Applies a tattoo object from inventory to a specified body
+ * location. NPCs can optionally affix tattoos to other characters
+ * with an optional "silent" mode.
+ *
+ * Syntax: affix <tattoo> <location> [target] [silent]
+ *
+ * @param ch        Character affixing the tattoo
+ * @param argument  "tattoo location [target] [silent]"
+ *
+ * Triggers: TRIG_PREWEAR (on tattoo, can cancel)
+ *           TRIG_WEAR (on tattoo, fires after application)
+ */
 void do_affix(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1388,6 +1583,17 @@ void do_affix(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_activate - Toggle catalyst activation for spell fuel
+ *
+ * Activates or deactivates a catalyst item. Active catalysts
+ * (ITEM_ACTIVATED) are consumed to fuel more powerful spells.
+ * When toggled, updates catalyst affect where: TO_CATALYST_ACTIVE
+ * or TO_CATALYST_DORMANT.
+ *
+ * @param ch        Character toggling the catalyst
+ * @param argument  Name of catalyst to [de]activate
+ */
 void do_activate(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];

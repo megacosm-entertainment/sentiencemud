@@ -64,6 +64,19 @@ char *reboot_reason = NULL; // global
 
 
 
+/**
+ * gconfig_read - Load global configuration from gconfig.rc
+ *
+ * Reads system-wide configuration including:
+ * - Next UID counters for mobs, objects, tokens, vrooms, ships
+ * - Email settings (host, port, credentials)
+ * - Connection timeouts (disconnect, limbo)
+ * - Database version
+ *
+ * Also pre-computes next UID blocks for performance.
+ *
+ * @return 0 on success, 1 on failure
+ */
 int gconfig_read (void)
 {
     FILE *fp;
@@ -217,7 +230,22 @@ int gconfig_read (void)
     } /* end for */
 }
 
-// Old .dat format reader (kept for migration)
+/**
+ * game_settings_read_dat - Load game settings from legacy .dat format
+ *
+ * Old format reader kept for migration purposes. Reads game_settings.dat
+ * which contains all game configuration including:
+ * - Basic settings (game name, locks, logging)
+ * - Authentication (password requirements, MFA, login attempts)
+ * - Multiplaying rules
+ * - Game systems (alignment)
+ * - Timers (idle, disconnect)
+ * - Storage (lockers, vaults, coffers)
+ * - Protocols/ports (telnet, TLS, websocket)
+ * - MSSP (MUD Server Status Protocol) data
+ *
+ * @return 0 on success, 1 on failure
+ */
 int game_settings_read_dat (void)
 {
     FILE *fp;
@@ -655,7 +683,14 @@ int game_settings_read_dat (void)
 
 }
 
-// New JSON-based game_settings_read - automatically uses JSON or migrates from .dat
+/**
+ * game_settings_read - Load game settings, preferring JSON format
+ *
+ * Attempts to load game settings from JSON format first.
+ * Falls back to migration from legacy .dat format if needed.
+ *
+ * @return 0 on success, 1 on failure
+ */
 int game_settings_read(void)
 {
     // Try JSON format first
@@ -672,6 +707,14 @@ int game_settings_read(void)
 }
 
 
+/**
+ * gconfig_write - Save global configuration to gconfig.rc
+ *
+ * Writes UID counters and other global config to disk.
+ * Called after UID allocations to persist next-UID values.
+ *
+ * @return 0 on success, 1 on failure
+ */
 int gconfig_write(void)
 {
     FILE *fp;
@@ -701,7 +744,14 @@ int gconfig_write(void)
     return(0); /* Success*/
 }
 
-// Old .dat format writer (kept for migration)
+/**
+ * game_settings_write_dat - Save game settings in legacy .dat format
+ *
+ * Old format writer kept for migration/compatibility. Writes all
+ * game settings to game_settings.dat in the legacy format.
+ *
+ * @return 0 on success, 1 on failure
+ */
 static int game_settings_write_dat(void)
 {
     FILE *fp;
@@ -903,12 +953,33 @@ static int game_settings_write_dat(void)
     return(0); /* Success*/
 }
 
-// New JSON-based game_settings_write
+/**
+ * game_settings_write - Save game settings in JSON format
+ *
+ * Wrapper that calls the JSON-based settings writer.
+ *
+ * @return 0 on success, 1 on failure
+ */
 int game_settings_write(void)
 {
     return json_game_settings_write();
 }
 
+/**
+ * do_wiznet - Toggle wiznet channels for staff communication
+ *
+ * Controls which wiznet (staff communication) channels the
+ * immortal receives. Without arguments, toggles wiznet on/off.
+ *
+ * Syntax:
+ *   wiznet         - Toggle on/off
+ *   wiznet on/off  - Explicitly enable/disable
+ *   wiznet status  - Show current channel settings
+ *   wiznet <flag>  - Toggle specific channel
+ *
+ * @param ch        Immortal character
+ * @param argument  Channel name or command
+ */
 void do_wiznet(CHAR_DATA *ch, char *argument)
 {
     int flag;
@@ -1051,6 +1122,19 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * wiznet - Send a message to the wiznet staff channel
+ *
+ * Broadcasts a message to all connected immortals who have
+ * the appropriate wiznet flags enabled.
+ *
+ * @param string     Message to send
+ * @param ch         Character associated with the message (or NULL)
+ * @param obj        Object associated with the message (or NULL)
+ * @param flag       Required wiznet flag to receive message
+ * @param flag_skip  Wiznet flag that blocks receiving message
+ * @param min_level  Minimum staff rank required to see message
+ */
 void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
         long flag, long flag_skip, int min_level)
 {
@@ -1103,6 +1187,16 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
 }
 
 
+/**
+ * do_zot - Strike a character with lightning as punishment
+ *
+ * Admin command to zap a player/NPC with lightning, reducing
+ * their HP, mana, and movement to 1. MAX_LEVEL staff can zot
+ * entire rooms with "zot room".
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target name or "room" for area effect
+ */
 void do_zot(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1193,6 +1287,15 @@ void do_zot(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_nochannels - Revoke or restore a character's channel privileges
+ *
+ * Toggles the COMM_NOCHANNELS flag, preventing the target from
+ * using public communication channels.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target character name
+ */
 void do_nochannels(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH], buf[MAX_STRING_LENGTH];
@@ -1239,6 +1342,15 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_bamfin - Set custom arrival message for teleportation
+ *
+ * Sets the "poof in" message displayed when an immortal arrives
+ * via goto/transfer. Message must contain the immortal's name.
+ *
+ * @param ch        Immortal character
+ * @param argument  Custom message (empty to display current)
+ */
 void do_bamfin(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1269,6 +1381,15 @@ void do_bamfin(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_bamfout - Set custom departure message for teleportation
+ *
+ * Sets the "poof out" message displayed when an immortal leaves
+ * via goto/transfer. Message must contain the immortal's name.
+ *
+ * @param ch        Immortal character
+ * @param argument  Custom message (empty to display current)
+ */
 void do_bamfout(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1299,6 +1420,15 @@ void do_bamfout(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_deny - Permanently ban a player from the game
+ *
+ * Sets the PLR_DENY flag, saves the character, and forces
+ * them to quit. The player cannot reconnect while denied.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target player name
+ */
 void do_deny(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
@@ -1340,6 +1470,15 @@ void do_deny(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_disconnect - Forcibly disconnect a player or descriptor
+ *
+ * Closes the socket connection for a player or descriptor number.
+ * Can target by character name or descriptor ID.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Character name or descriptor number
+ */
 void do_disconnect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1400,6 +1539,15 @@ void do_disconnect(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_echo - Send a global message to all connected players
+ *
+ * Broadcasts a message to all players game-wide. The message
+ * appears without any prefix indicating who sent it.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Message to broadcast
+ */
 void do_echo(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
@@ -1423,6 +1571,15 @@ void do_echo(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_recho - Send a message to all players in the current room
+ *
+ * Broadcasts a message to all players in the same room as the
+ * staff member. Higher-rank staff see a "local>" prefix.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Message to broadcast
+ */
 void do_recho(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
@@ -1450,6 +1607,15 @@ void do_recho(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_zecho - Send a message to all players in the current area
+ *
+ * Broadcasts a message to all players in the same area/zone
+ * as the staff member. Higher-rank staff see a "zone>" prefix.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Message to broadcast
+ */
 void do_zecho(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
@@ -1475,6 +1641,15 @@ void do_zecho(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_pecho - Send a private message to a specific player
+ *
+ * Sends an echo message directly to a single target player.
+ * Both sender and recipient see the message.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "target message"
+ */
 void do_pecho(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1506,6 +1681,19 @@ void do_pecho(CHAR_DATA *ch, char *argument)
 
 
 
+/**
+ * do_transfer - Teleport a player to another location
+ *
+ * Moves a player (or all players) to a specified room or to
+ * the staff member's current location if no destination given.
+ *
+ * Syntax:
+ *   transfer <player> [destination] [quiet]
+ *   transfer all [destination]
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "player [location] [quiet]" or "all [location]"
+ */
 void do_transfer(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -1609,6 +1797,15 @@ void do_transfer(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_at - Execute a command at another location
+ *
+ * Temporarily teleports the staff member to execute a command
+ * at a different location, then returns them to their original room.
+ *
+ * @param ch        Staff member (level 150+)
+ * @param argument  "location command"
+ */
 void do_at(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1679,6 +1876,16 @@ void do_at(CHAR_DATA *ch, char *argument)
     iterator_stop(&wit);
 }
 
+/**
+ * do_startinvasion - Start an invasion quest in an area
+ *
+ * Creates a new invasion event with spawning mobs and a boss.
+ *
+ * Syntax: startinvasion <area> <leader_vnum> <mob_vnum> <max_level>
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "area leader_vnum mob_vnum max_level"
+ */
 void do_startinvasion(CHAR_DATA *ch, char *argument)
 {
     AREA_DATA *pArea;
@@ -1726,6 +1933,15 @@ void do_startinvasion(CHAR_DATA *ch, char *argument)
   pArea->invasion_quest = quest;
 }
 
+/**
+ * do_mapgoto - Teleport to wilderness coordinates
+ *
+ * Moves the staff member to specified X,Y coordinates in the
+ * Wilderness area map.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "X Y" coordinates
+ */
 void do_mapgoto(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *pRoom;
@@ -1764,6 +1980,15 @@ void do_mapgoto(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_goto - Teleport to a location
+ *
+ * Moves the staff member to a room by vnum, room name, or
+ * character/object name. Displays custom bamfout/bamfin messages.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Destination (vnum, name, or keyword)
+ */
 void do_goto(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;
@@ -1837,6 +2062,19 @@ void do_goto(CHAR_DATA *ch, char *argument)
     do_function(ch, &do_look, "auto");
 }
 
+/**
+ * do_goxy - Teleport to wilds coordinates
+ *
+ * Moves the staff member to specific X,Y coordinates within a
+ * wilds region. Can specify wilds UID or use current wilds.
+ *
+ * Syntax:
+ *   goxy <x> <y>        - Go to coords in current wilds
+ *   goxy <x> <y> <wuid> - Go to coords in specified wilds
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "X Y [wuid]"
+ */
 void do_goxy (CHAR_DATA * ch, char *argument)
 {
     AREA_DATA *pArea;
@@ -1968,6 +2206,23 @@ void do_goxy (CHAR_DATA * ch, char *argument)
 }
 
 
+/**
+ * do_stat - Display detailed statistics for game entities
+ *
+ * Unified stat command that dispatches to specific stat commands:
+ * - stat area <uid> - Area statistics (do_astat)
+ * - stat wilds <wuid> - Wilderness statistics (do_wstat)
+ * - stat obj <name> - Object statistics (do_ostat)
+ * - stat mob <name> - Mobile/character statistics (do_mstat)
+ * - stat room <vnum> - Room statistics (do_rstat)
+ * - stat token <target> <vnum> - Token statistics (do_tstat)
+ * - stat acct <name> - Account statistics (do_accstat)
+ *
+ * Without a type prefix, attempts to auto-detect the target type.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "[type] target"
+ */
 void do_stat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2057,6 +2312,15 @@ void do_stat(CHAR_DATA *ch, char *argument)
     send_to_char("Nothing by that name found anywhere.\n\r",ch);
 }
 
+/**
+ * do_astat - Display detailed area statistics
+ *
+ * Shows area information including vnum ranges, security level,
+ * builders, credits, age, flags, and associated wilderness regions.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Area UID (or empty for current area)
+ */
 void do_astat (CHAR_DATA * ch, char *argument)
 {
     AREA_DATA *pArea;
@@ -2148,6 +2412,19 @@ void do_astat (CHAR_DATA * ch, char *argument)
     return;
 }
 
+/**
+ * do_accstat - Display detailed account statistics
+ *
+ * Shows account information including characters (staff and regular),
+ * email, security settings, login history, and flags.
+ *
+ * Syntax:
+ *   accstat <accountname>
+ *   accstat player:<charname>
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Account name or "player:<charname>"
+ */
 void do_accstat(CHAR_DATA *ch, char *argument)
 {
      ACCOUNT_DATA *account;
@@ -2411,6 +2688,15 @@ if (staff_count == 0 && regular_count == 0) {
 }
 
 
+/**
+ * do_rstat - Display detailed room statistics
+ *
+ * Shows comprehensive room information including vnum, sector type,
+ * exits, flags, owner, clone source, scripts, objects, and characters.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Room vnum (or empty for current room)
+ */
 void do_rstat(CHAR_DATA *ch, char *argument)
 {
     BUFFER *output;
@@ -2694,7 +2980,15 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 }
 
 
-/* VIZZWILDS */
+/**
+ * do_wstat - Display detailed wilderness region statistics
+ *
+ * Shows wilds region information including UID, name, dimensions,
+ * parent area, and other wilds-specific properties.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Wilds UID (or empty for current wilds)
+ */
 void do_wstat (CHAR_DATA * ch, char *argument)
 {
     AREA_DATA *pArea;
@@ -2783,6 +3077,16 @@ void do_wstat (CHAR_DATA * ch, char *argument)
     return;
 }
 
+/**
+ * do_ostat - Display detailed object statistics
+ *
+ * Shows comprehensive object information including vnum, UID, type,
+ * wear flags, values, affects, spells, condition, timers, scripts,
+ * and containing inventory.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Object name or "IDa IDb" pair
+ */
 void do_ostat(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3105,6 +3409,16 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_mstat - Display detailed mobile/character statistics
+ *
+ * Shows comprehensive character information including stats, level,
+ * class, race, equipment, inventory, affects, scripts, events,
+ * position, combat info, and variables.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Character name or "IDa IDb" pair
+ */
 void do_mstat(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3460,6 +3774,20 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_tstat - Display detailed token statistics
+ *
+ * Shows token information including vnum, values, flags, and variables.
+ * Tokens can be on mobs, objects, or rooms.
+ *
+ * Syntax:
+ *   stat token mob <name> [count.]<vnum>
+ *   stat token obj <name> [count.]<vnum>
+ *   stat token room [count.]<vnum>
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "mob|obj|room <target> [count.]<vnum>"
+ */
 void do_tstat(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL], buf[MSL], buf2[MSL], arg2[MSL], arg3[MSL];
@@ -3610,6 +3938,19 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_vnum - Search for entities by name
+ *
+ * Unified vnum lookup command that dispatches to find commands:
+ * - vnum obj <name> - Find object vnums (do_ofind)
+ * - vnum mob <name> - Find mobile vnums (do_mfind)
+ * - vnum token <name> - Find token vnums (do_tfind)
+ *
+ * Without type prefix, searches all entity types.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "[type] name"
+ */
 void do_vnum(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3662,6 +4003,15 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_mfind - Find mobile indexes by name
+ *
+ * Searches all mobile index entries for matches to the given name.
+ * Lists all matching vnums and short descriptions.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for
+ */
 void do_mfind(CHAR_DATA *ch, char *argument)
 {
     /* extern long top_mob_index; */
@@ -3706,6 +4056,15 @@ void do_mfind(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_ofind - Find object indexes by name
+ *
+ * Searches all object index entries for matches to the given name.
+ * Lists all matching vnums and short descriptions.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for
+ */
 void do_ofind(CHAR_DATA *ch, char *argument)
 {
     /* extern long top_obj_index; */
@@ -3744,6 +4103,15 @@ void do_ofind(CHAR_DATA *ch, char *argument)
     send_to_char("No objects by that name.\n\r", ch);
 }
 
+/**
+ * do_tfind - Find token indexes by name
+ *
+ * Searches all token index entries for matches to the given name.
+ * Lists all matching vnums and names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
 void do_tfind(CHAR_DATA *ch, char *argument)
 {
     /* extern long top_mob_index; */
@@ -3789,6 +4157,15 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_rwhere - Find rooms by name
+ *
+ * Searches all room indexes for rooms with matching names.
+ * Lists up to 200 matching rooms with vnums.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Room name to search for
+ */
 void do_rwhere(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_INPUT_LENGTH];
@@ -3842,6 +4219,18 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_owhere - Find loaded object instances by name
+ *
+ * Searches all loaded objects for instances with matching names.
+ * Shows location (room, carried by, inside another object).
+ * Lists up to 200 matches.
+ *
+ * Output includes MXP links for stat/oshow/purge commands when supported.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Object name to search for
+ */
 void do_owhere(CHAR_DATA *ch, char *argument)
 {
     char buf[MIL*2];
@@ -3950,6 +4339,18 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_mwhere - Find mobile/character instances by name
+ *
+ * Searches for loaded mobiles or players matching the name.
+ * Without arguments, lists all connected players and their locations.
+ * Special argument "noroom" lists mobs without rooms (debugging).
+ *
+ * Output includes MXP links for stat/purge commands when supported.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Character name, "noroom", or empty for players
+ */
 void do_mwhere(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4069,18 +4470,47 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_reboo - Safety check for incomplete reboot command
+ *
+ * Prevents accidental reboot from abbreviated command input.
+ *
+ * @param ch        Staff member
+ * @param argument  Unused
+ */
 void do_reboo(CHAR_DATA *ch, char *argument)
 {
     send_to_char("If you want to REBOOT, spell it out.\n\r", ch);
 }
 
 
+/**
+ * do_reckonin - Safety check for incomplete reckoning command
+ *
+ * Prevents accidental reckoning from abbreviated command input.
+ *
+ * @param ch        Staff member
+ * @param argument  Unused
+ */
 void do_reckonin(CHAR_DATA *ch, char *argument)
 {
     send_to_char("This command cannot be abbreviated!\n\r", ch);
 }
 
 
+/**
+ * do_reboot - Schedule or cancel a server reboot
+ *
+ * Sets a countdown timer for server reboot. If a reboot is already
+ * scheduled, calling this again cancels it.
+ *
+ * Syntax: reboot <minutes> <downtime> [reason]
+ *
+ * Players are warned at intervals as the countdown progresses.
+ *
+ * @param ch        Staff member (must spell out command fully)
+ * @param argument  "minutes downtime [reason]"
+ */
 void do_reboot(CHAR_DATA *ch, char *argument)
 {
     int mins;
@@ -4155,12 +4585,32 @@ void do_reboot(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_shutdow - Safety check for incomplete shutdown command
+ *
+ * Prevents accidental shutdown from abbreviated command input.
+ *
+ * @param ch        Staff member
+ * @param argument  Unused
+ */
 void do_shutdow(CHAR_DATA *ch, char *argument)
 {
     send_to_char("If you want to SHUTDOWN, spell it out.\n\r", ch);
 }
 
 
+/**
+ * do_shutdown - Immediately shut down the server
+ *
+ * Performs a clean shutdown: saves all players, removes PURGE_REBOOT
+ * tokens, logs the shutdown, and terminates the server. If called
+ * while a reboot timer is active, performs a reboot instead.
+ *
+ * @param ch        Staff member (must spell out command fully)
+ * @param argument  Optional reason for shutdown
+ *
+ * Triggers: TRIG_TOKEN_REMOVED (on PURGE_REBOOT tokens)
+ */
 void do_shutdown(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4246,6 +4696,16 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_snoop - Spy on another player's session
+ *
+ * Attaches to a player's descriptor to see all their input/output.
+ * Snooping yourself cancels all active snoops. Cannot snoop
+ * higher-rank staff or create snoop loops.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target character name
+ */
 void do_snoop(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4325,6 +4785,16 @@ void do_snoop(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_switch - Take control of a mobile
+ *
+ * Transfers the staff member's descriptor into an NPC body,
+ * allowing them to control it directly. Use "return" to exit.
+ * Cannot switch into players or while in OLC.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target mobile name
+ */
 void do_switch(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH], buf[MAX_STRING_LENGTH];
@@ -4401,6 +4871,15 @@ void do_switch(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_return - Return to original body after switch
+ *
+ * Exits from a switched mobile body back to the staff member's
+ * original character. Restores communication settings.
+ *
+ * @param ch        Switched character (in mobile body)
+ * @param argument  Unused
+ */
 void do_return(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4442,7 +4921,16 @@ void do_return(CHAR_DATA *ch, char *argument)
 }
 
 
-/* for clone, to insure that cloning goes many levels deep */
+/**
+ * recursive_clone - Clone contained objects recursively
+ *
+ * Helper function for do_clone that copies objects inside containers
+ * to any depth.
+ *
+ * @param ch     Character performing the clone
+ * @param obj    Original container object
+ * @param clone  Cloned container to populate
+ */
 void recursive_clone(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *clone)
 {
     OBJ_DATA *c_obj, *t_obj;
@@ -4457,7 +4945,21 @@ void recursive_clone(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *clone)
 }
 
 
-/* command that is similar to load */
+/**
+ * do_clone - Create a copy of an existing object or mobile
+ *
+ * Clones an object or mobile that exists in the world, copying
+ * all properties including contained items. Mobiles include
+ * their inventory and equipment.
+ *
+ * Syntax:
+ *   clone object <name>
+ *   clone mobile <name>
+ *   clone <name>  (auto-detects type)
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "[type] target_name"
+ */
 void do_clone(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4559,6 +5061,18 @@ void do_clone(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_load - Load new objects or mobiles by vnum
+ *
+ * Unified load command that dispatches to mload or oload.
+ *
+ * Syntax:
+ *   load mob <vnum>
+ *   load obj <vnum> [amount]
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "mob|obj vnum [amount]"
+ */
 void do_load(CHAR_DATA *ch, char *argument)
 {
    char arg[MAX_INPUT_LENGTH];
@@ -4597,6 +5111,17 @@ void do_load(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_mload - Load a mobile by vnum
+ *
+ * Creates one or more instances of a mobile in the staff member's
+ * current room. Supports reserved name format ($name).
+ *
+ * Syntax: mload <vnum|$reserved_name> [amount]
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "vnum|$name [amount]" (amount 1-50)
+ */
 void do_mload(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -4719,6 +5244,20 @@ void do_mload(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_oload - Load an object by vnum
+ *
+ * Creates one or more instances of an object in the staff member's
+ * inventory. Requires area access permissions. Supports reserved
+ * name format ($name).
+ *
+ * Syntax: oload <vnum|$reserved_name> [amount]
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "vnum|$name [amount]" (amount 1-50)
+ *
+ * Triggers: TRIG_REPOP (on created objects)
+ */
 void do_oload(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -4851,6 +5390,20 @@ void do_oload(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_purge - Remove objects or mobiles from the game
+ *
+ * Deletes objects, mobiles, or clears an entire room. Cannot purge
+ * player characters. Items/mobs with NOPURGE flag require "force".
+ *
+ * Syntax:
+ *   purge mob <keyword|ida idb> [force]
+ *   purge obj <keyword|ida idb> [force]
+ *   purge room [force]
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "mob|obj|room target [force]"
+ */
 void do_purge(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5060,7 +5613,19 @@ void do_purge(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* Adding some new stuff to advance, for new immortals. It'll now display an intro screen to them. Perhaps the intro would be better as a helpfile, along the same lines as do_greeting? -- Areo 2006-08-23 */
+/**
+ * do_advance - Change a character's level
+ *
+ * Raises or lowers a character's level. When advancing to immortal
+ * levels (150+), creates immortal data structure. When demoting
+ * below immortal, removes immortal status.
+ *
+ * Cannot advance beyond your own trust level. Cannot delete
+ * implementors.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "character level"
+ */
 void do_advance(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5250,6 +5815,15 @@ void do_advance(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_trust - Set a character's trust level
+ *
+ * Trust level allows a character to use commands up to that level
+ * even if their actual level is lower. Set to 0 to reset.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "character level"
+ */
 void do_trust(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -5290,6 +5864,21 @@ void do_trust(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_restore - Fully heal and refresh a character
+ *
+ * Restores HP, mana, movement, hunger, thirst and removes
+ * negative effects. Can restore a single target, the room,
+ * or all players.
+ *
+ * Syntax:
+ *   restore [target]  - Restore target (or room if empty)
+ *   restore room      - Restore everyone in the room
+ *   restore all       - Restore all players (high level only)
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target name, "room", "all", or empty
+ */
 void do_restore(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH], buf[MAX_STRING_LENGTH];
@@ -5348,6 +5937,15 @@ void do_restore(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_freeze - Toggle a player's frozen state
+ *
+ * Frozen players cannot perform any actions. Toggles the PLR_FREEZE
+ * flag on the target. Cannot freeze higher-rank staff.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target player name
+ */
 void do_freeze(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
@@ -5400,6 +5998,20 @@ void do_freeze(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_log - Toggle logging of a player's commands
+ *
+ * Enables or disables command logging for a specific player or
+ * all players. Requires MAX_LEVEL. Logged commands are written
+ * to the log files.
+ *
+ * Syntax:
+ *   log <character>  - Toggle logging for that player
+ *   log all          - Toggle logging for all players
+ *
+ * @param ch        Staff member (MAX_LEVEL only)
+ * @param argument  Player name or "all"
+ */
 void do_log(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5465,6 +6077,15 @@ void do_log(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_notell - Toggle a player's ability to use tell
+ *
+ * Prevents or allows a player to use the tell command.
+ * Cannot affect higher-rank staff.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Target player name
+ */
 void do_notell(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
@@ -5509,6 +6130,14 @@ void do_notell(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_peace - Stop all combat in the current room
+ *
+ * Ends all fights and removes aggressive flag from NPCs.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Unused
+ */
 void do_peace(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *rch;
@@ -5525,6 +6154,20 @@ void do_peace(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_wizlock - Toggle or configure wizlock (staff-only login)
+ *
+ * When wizlocked, only immortals can log in. Can set a custom
+ * message shown to mortals attempting to connect.
+ *
+ * Syntax:
+ *   wizlock         - Toggle wizlock on/off
+ *   wizlock <msg>   - Set wizlock message
+ *   wizlock clear   - Clear wizlock message
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Message or "clear"
+ */
 void do_wizlock(CHAR_DATA *ch, char *argument)
 {
 
@@ -5567,6 +6210,19 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_newlock - Lock out new characters or accounts
+ *
+ * Prevents creation of new characters or accounts. Can set
+ * custom messages for each lock type.
+ *
+ * Syntax:
+ *   newlock char [message|clear]
+ *   newlock acct [message|clear]
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "char|acct [message|clear]"
+ */
 void do_newlock(CHAR_DATA *ch, char *argument)
 {
     newlock = !newlock;
@@ -5657,6 +6313,15 @@ void do_newlock(CHAR_DATA *ch, char *argument)
 
 }
 
+/**
+ * do_testport - Toggle test port mode
+ *
+ * Enables or disables test port mode for development/testing.
+ * Changes are saved to game settings.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Unused
+ */
 void do_testport(CHAR_DATA *ch, char *argument)
 {
 
@@ -5673,6 +6338,17 @@ void do_testport(CHAR_DATA *ch, char *argument)
     game_settings_write();
 }
 
+/**
+ * do_slookup - Look up skill/spell slot numbers
+ *
+ * Displays the skill number (sn) and slot for a skill or spell.
+ * Use "all" to list all skills.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Skill/spell name or "all"
+ *
+ * Note: Currently commented out.
+ */
 /*
 void do_slookup(CHAR_DATA *ch, char *argument)
 {
@@ -5713,6 +6389,23 @@ void do_slookup(CHAR_DATA *ch, char *argument)
 }
 */
 
+/**
+ * do_set - Unified command to modify game entities
+ *
+ * Dispatches to specific set commands based on entity type:
+ * - set char <name> <field> <value>  - Modify character (do_mset)
+ * - set obj <name> <field> <value>   - Modify object (do_oset)
+ * - set room <room> <field> <value>  - Modify room (do_rset)
+ * - set church <no.> <field> <value> - Modify church (do_chset)
+ * - set skill <name> <skill> <value> - Modify skill level (do_sset)
+ * - set sky <weather>                - Set weather
+ * - set time <unit> <#>              - Set time
+ * - set token <char> <vnum> <field> <op> <value> - Modify token (do_tkset)
+ * - set account <acct> <field> <value> - Modify account (do_accset)
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "type target field value"
+ */
 void do_set(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5817,7 +6510,20 @@ void do_set(CHAR_DATA *ch, char *argument)
 }
 
 
-/* set token <char name> <token vnum> <v#|timer> <operator> <value> */
+/**
+ * do_tkset - Modify token values or timer on a character
+ *
+ * Allows staff to adjust token value slots or timer using arithmetic operators.
+ * Supports addition, subtraction, multiplication, division, modulo, and direct
+ * assignment. After modification, displays the token's stat output.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "charname tokenvnum v#|timer operator value"
+ *                  - v# is 0 to MAX_TOKEN_VALUES-1, or "timer" for the timer field
+ *                  - operator is +, -, *, /, %, or = (direct set)
+ *
+ * Triggers: None (direct value manipulation)
+ */
 void do_tkset(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -5974,6 +6680,17 @@ void do_tkset(CHAR_DATA *ch, char *argument)
     interpret(ch, buf);
 }
 
+/**
+ * set_moon_phase - Calculate and set the current moon phase
+ *
+ * Computes the moon phase based on the game's time system using
+ * MOON_PERIOD, MOON_OFFSET, and MOON_CARDINAL_STEP constants.
+ * Sets time_info.moon to one of the eight lunar phases:
+ * MOON_NEW, MOON_WAXING_CRESCENT, MOON_FIRST_QUARTER, MOON_WAXING_GIBBOUS,
+ * MOON_FULL, MOON_WANING_GIBBOUS, MOON_LAST_QUARTER, MOON_WANING_CRESCENT.
+ *
+ * Triggers: None (time system utility)
+ */
 void set_moon_phase(void)
 {
     int hours;
@@ -5992,6 +6709,19 @@ void set_moon_phase(void)
     else time_info.moon = MOON_NEW;
 }
 
+/**
+ * do_accset - Modify account settings
+ *
+ * Allows staff to modify account-level properties including email address,
+ * character limit, staff character limit, and account flags. Will load
+ * offline accounts from disk if needed, saving changes before freeing.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "accountname field value"
+ *                  Valid fields: email, charlimit, stafflimit, flag
+ *
+ * Triggers: None (account system utility)
+ */
 void do_accset(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH], arg3[MAX_INPUT_LENGTH], buf[MSL];
@@ -6084,6 +6814,19 @@ void do_accset(CHAR_DATA *ch, char *argument)
     if (loaded) free_account(account); // Only free if we loaded it from disk
 }
 
+/**
+ * do_tset - Set game time values
+ *
+ * Allows staff to modify the in-game time system including hour, day,
+ * month, and year. Automatically recalculates moon phase after any
+ * time change.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "hour|day|month|year value"
+ *                  hour: 0-23, day: 0-34, month: 0-11, year: 0-25000
+ *
+ * Triggers: None (time system utility)
+ */
 void do_tset(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -6169,6 +6912,20 @@ void do_tset(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_sset - Set skill/spell proficiency for a player
+ *
+ * Allows staff to modify a player's skill or spell proficiency percentage.
+ * Can set individual skills by name or all skills at once using "all".
+ * Setting to 0 removes the skill entry; setting non-zero adds it if missing.
+ * Only works on player characters, not NPCs.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "playername skillname|all value"
+ *                  value: 0-100 (percentage proficiency)
+ *
+ * Triggers: None (skill system utility)
+ */
 void do_sset(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -6276,6 +7033,20 @@ void do_sset(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chset - Modify church (guild/clan) properties
+ *
+ * Allows staff to modify church attributes including name, founder,
+ * resources, limits, alignment, and special locations. Updates all
+ * online members when church name changes.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "churchnumber field value"
+ *                  Fields: name, founder, pneuma, dp, gold, max, size,
+ *                          align, recall, treasure, flag, key
+ *
+ * Triggers: None (church system utility)
+ */
 void do_chset(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -6651,6 +7422,21 @@ void do_chset(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_mset - Modify character/mobile attributes
+ *
+ * Allows staff to modify various character attributes including stats,
+ * resources, alignment, and player-specific fields like title and security.
+ * Works on both players and NPCs, though some fields are player-only.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "charname field value"
+ *                  Fields: str, int, wis, dex, con, sex, race, gold, silver,
+ *                          hp, mana, move, prac, align, train, thirst, hunger,
+ *                          drunk, security, pneuma, dp, qp, title
+ *
+ * Triggers: None (character attribute utility)
+ */
 void do_mset(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -7306,6 +8092,19 @@ void do_mset(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_string - Modify object string fields
+ *
+ * Allows staff to change the name, short description, or long description
+ * of an object in their inventory. Changes only affect the specific instance,
+ * not the prototype.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "objectname field string"
+ *                  Fields: name, short, long
+ *
+ * Triggers: None (object instance utility)
+ */
 void do_string(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -7359,6 +8158,20 @@ void do_string(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_oset - Modify object numeric attributes
+ *
+ * Allows staff to change numeric properties of loaded object instances
+ * including values, flags, wear location, level, weight, cost, and timer.
+ * Searches world-wide for the object.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "objectname field value"
+ *                  Fields: value0-4 (or v0-v4), extra, wear, level, weight,
+ *                          cost, timer
+ *
+ * Triggers: None (object instance utility)
+ */
 void do_oset(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -7471,6 +8284,18 @@ void do_oset(CHAR_DATA *ch, char *argument)
 
 
 
+/**
+ * do_rset - Modify room attributes
+ *
+ * Allows staff to change room flags and sector type for a specified
+ * location. Respects room ownership and privacy settings.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "location field value"
+ *                  Fields: flags, sector
+ *
+ * Triggers: None (room attribute utility)
+ */
 void do_rset(CHAR_DATA *ch, char *argument)
 {
     char arg1 [MAX_INPUT_LENGTH];
@@ -7540,6 +8365,19 @@ void do_rset(CHAR_DATA *ch, char *argument)
 
 
 
+/**
+ * do_sockets - Display connected user information
+ *
+ * Lists all active connections showing descriptor number, connection state,
+ * login time, idle time, character name, account name, and host address.
+ * TLS connections are highlighted in green. Supports filtering by character
+ * name, host, account, or connection state.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Optional: "name [host|account|state]" for filtering
+ *
+ * Triggers: None (connection display utility)
+ */
 void do_sockets(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
@@ -7678,6 +8516,20 @@ void do_sockets(CHAR_DATA *ch, char *argument)
     return;
 }
 
+/**
+ * do_force - Force a character to execute a command
+ *
+ * Forces a target character to execute the specified command. Can target
+ * a specific character by name, "room" to affect all lower-level characters
+ * in the room, "all" to affect all lower-ranked players (requires near-max
+ * level), or "gods" to affect all lower-ranked immortals. Blocks dangerous
+ * commands like "delete" and "mob".
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "target command" - target can be name, room, all, or gods
+ *
+ * Triggers: Varies based on forced command (the forced command may fire triggers)
+ */
 void do_force(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -7809,6 +8661,19 @@ void do_force(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_invis - Toggle staff invisibility
+ *
+ * Makes the staff member invisible to players below a certain staff rank.
+ * Without argument, toggles between visible and invisible at current rank.
+ * With a level argument, sets invisibility to that specific level (2 to
+ * current staff rank). When going invisible, clears the reply pointer.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Optional level (2 to staff rank)
+ *
+ * Triggers: None (staff utility)
+ */
 void do_invis(CHAR_DATA *ch, char *argument)
 {
     int level;
@@ -7853,6 +8718,19 @@ void do_invis(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_incognito - Toggle staff incognito mode
+ *
+ * Cloaks the staff member's presence from players below a certain staff rank.
+ * Unlike invis, the character is still visible but their immortal status is
+ * hidden. Without argument, toggles between cloaked and uncloaked at current
+ * rank. With a level argument, sets incognito to that specific level.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Optional level (2 to staff rank)
+ *
+ * Triggers: None (staff utility)
+ */
 void do_incognito(CHAR_DATA *ch, char *argument)
 {
     int level;
@@ -7897,6 +8775,18 @@ void do_incognito(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_holylight - Toggle holy light mode
+ *
+ * Enables or disables PLR_HOLYLIGHT flag which allows the staff member
+ * to see in darkness, through blindness, and view hidden objects/characters.
+ * Only works for player characters, not NPCs.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (staff utility)
+ */
 void do_holylight(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -7916,6 +8806,18 @@ void do_holylight(CHAR_DATA *ch, char *argument)
     return;
 }
 
+/**
+ * do_holywarp - Toggle holy warp mode
+ *
+ * Enables or disables PLR_HOLYWARP flag which allows the staff member
+ * to bypass movement restrictions and teleport freely. Only works for
+ * player characters, not NPCs.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (staff utility)
+ */
 void do_holywarp(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -7935,6 +8837,18 @@ void do_holywarp(CHAR_DATA *ch, char *argument)
     return;
 }
 
+/**
+ * do_holyaura - Toggle holy aura mode
+ *
+ * Enables or disables PLR_HOLYAURA flag which provides the staff member
+ * with divine protection and immunity to various effects. Only works for
+ * player characters, not NPCs.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (staff utility)
+ */
 void do_holyaura(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -7954,6 +8868,21 @@ void do_holyaura(CHAR_DATA *ch, char *argument)
     return;
 }
 
+/**
+ * do_olevel - Find loaded objects by level range
+ *
+ * Searches all loaded objects in the game for those within a specified
+ * level range. Can filter by item type and wear location. Shows object
+ * location (carrier or room). Limited to 200 results.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "min max [type] [wear_loc]"
+ *                  - min/max: level range to search
+ *                  - type: optional item type filter
+ *                  - wear_loc: optional wear location filter
+ *
+ * Triggers: None (search utility)
+ */
 void do_olevel(CHAR_DATA *ch, char *argument)
 {
     ITERATOR it;
@@ -8041,6 +8970,17 @@ void do_olevel(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_mlevel - Find loaded mobiles by level
+ *
+ * Searches all loaded characters (players and NPCs) for those matching
+ * a specific level. Displays vnum, short description, and room location.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Level number to search for
+ *
+ * Triggers: None (search utility)
+ */
 void do_mlevel(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_INPUT_LENGTH];
@@ -8088,6 +9028,18 @@ void do_mlevel(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_reckoning - Initiate or view The Reckoning event
+ *
+ * Starts a global PvP/chaos event called "The Reckoning" with default
+ * intensity of 100 and duration of 30 minutes. Only one reckoning can
+ * be active at a time. The "info" subcommand displays event information.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Empty to start, or "info" for event information
+ *
+ * Triggers: None (event system utility)
+ */
 void do_reckoning(CHAR_DATA *ch, char *argument)
 {
     struct tm *reck_time;
@@ -8127,6 +9079,19 @@ void do_reckoning(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_immortalise - Advance a player to immortal/remort status
+ *
+ * Allows staff to grant a max-level player their remort (immortalization),
+ * transforming them into a divine being with a chosen subclass. The player
+ * must be at maximum level and not already remorting. If no subclass is
+ * specified, shows available choices. Triggers dramatic global announcement.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "playername [subclass]"
+ *
+ * Triggers: None (advancement utility, but triggers global echo)
+ */
 void do_immortalise(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -8428,6 +9393,18 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_arealinks - Display inter-area room connections
+ *
+ * Shows all exits that link between different areas. Can display links
+ * for all areas or a specific area by vnum. Useful for understanding
+ * world connectivity and verifying proper area linking.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "all" for all areas, or vnum for specific area
+ *
+ * Triggers: None (area analysis utility)
+ */
 void do_arealinks(CHAR_DATA *ch, char *argument)
 {
     /*FILE *fp;*/
@@ -8681,6 +9658,18 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_sload - Load an NPC ship (DISABLED)
+ *
+ * Was intended to load an NPC ship by vnum into a specified room.
+ * Currently disabled via #if 0 preprocessor block. Would have supported
+ * loading ships including special handling for airships.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "shipvnum roomvnum"
+ *
+ * Triggers: None (ship loading - disabled)
+ */
 void do_sload(CHAR_DATA *ch, char *argument)
 {
 #if 0
@@ -8750,7 +9739,18 @@ void do_sload(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Strip items of a vnum or name from a ch.*/
+/**
+ * do_junk - Remove objects from a character's inventory
+ *
+ * Strips items matching a vnum or name from a character in the same room.
+ * Can remove just the first match or all matching objects with the "all"
+ * parameter. Extracts (destroys) matching objects permanently.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "charname vnum|objname [all]"
+ *
+ * Triggers: None (object extraction utility)
+ */
 void do_junk(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -8817,6 +9817,18 @@ void do_junk(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_alevel - Grant a player enough XP to level up
+ *
+ * Instantly grants the target player enough experience points to reach
+ * the next level. Calculates the difference between required XP and
+ * current XP and awards it.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name of player to level up
+ *
+ * Triggers: None (advancement utility)
+ */
 void do_alevel(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -8844,6 +9856,18 @@ void do_alevel(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_areset - Force an area to reset
+ *
+ * Immediately triggers a full reset of the specified area, repopulating
+ * mobiles and objects according to reset data. Also resets the area age
+ * counter to zero.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Area name (partial match supported)
+ *
+ * Triggers: TRIG_REPOP (on objects/mobs created by reset)
+ */
 void do_areset(CHAR_DATA *ch, char *argument)
 {
     AREA_DATA *area;
@@ -8875,6 +9899,18 @@ void do_areset(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_autosetname - Toggle automatic name keyword setting
+ *
+ * Toggles the PLR_AUTOSETNAME flag which controls whether name keywords
+ * are automatically generated when building/editing objects and mobiles.
+ * Useful for builders who want consistent naming conventions.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (builder preference utility)
+ */
 void do_autosetname(CHAR_DATA *ch, char *argument)
 {
     if (!IS_SET(ch->act[0], PLR_AUTOSETNAME))
@@ -8890,6 +9926,18 @@ void do_autosetname(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_autowar - Start or stop an automated PvP war event
+ *
+ * Initiates an automated war event with configurable type, player count,
+ * level range, and start timer. War types are defined in auto_war_table.
+ * Players can join with 'war join' command. Can also stop an ongoing war.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "stop" to end war, or "type minplayers minlevel maxlevel [timer]"
+ *
+ * Triggers: None (event system utility)
+ */
 void do_autowar(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -9022,6 +10070,20 @@ void do_autowar(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_vislist - Manage visibility to specific players while invisible
+ *
+ * Allows invisible staff to maintain a list of players who can still
+ * see them. Supports showing the current list, adding/removing players,
+ * and clearing the entire list. Useful for selective visibility while
+ * monitoring or assisting specific players.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Empty or "show" to view list, "clear" to remove all,
+ *                  or player name to toggle visibility
+ *
+ * Triggers: None (staff visibility utility)
+ */
 void do_vislist(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -9160,7 +10222,19 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 }
 
 
-/* dummy command for whatever, used in debugging only */
+/**
+ * do_test - Debug command for testing crash handlers
+ *
+ * Developer debugging command that can intentionally trigger crashes
+ * to test error handling and recovery systems. Supports triggering
+ * a segmentation fault (SIGSEGV) or abort signal (SIGABRT).
+ * WARNING: These will actually crash the server.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "crash" for segfault, "abort" for abort signal
+ *
+ * Triggers: None (debugging utility - causes server crash)
+ */
 void do_test(CHAR_DATA *ch, char *argument)
 {
     if (!str_cmp(argument, "crash")) {
@@ -9178,6 +10252,18 @@ void do_test(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_assignhelper - Toggle helper status on a player
+ *
+ * Grants or removes the PLR_HELPER flag on a player, allowing them to
+ * assist new players via the helper channel. Requires near-max level
+ * to use. Toggles the flag if the player already has helper status.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name of player to toggle helper status
+ *
+ * Triggers: None (player flag utility)
+ */
 void do_assignhelper(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -9235,6 +10321,19 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
 }
 
 
+/**
+ * do_otransfer - Transfer an object to a different location
+ *
+ * Moves an object from its current room to a specified destination.
+ * The object must be on the ground (not carried). If no destination
+ * is specified, transfers to the staff member's current room. Supports
+ * both regular rooms and wilderness locations.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "objectname [location]"
+ *
+ * Triggers: None (object transfer utility)
+ */
 void do_otransfer(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -9292,7 +10391,19 @@ void do_otransfer(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Go unwizi for one command only*/
+/**
+ * do_uninvis - Execute a command while temporarily visible
+ *
+ * Temporarily removes invisibility and incognito status, executes the
+ * specified command, then restores the previous visibility settings.
+ * Useful for staff who need to interact visibly without manually
+ * toggling invisibility on and off.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Command to execute while visible
+ *
+ * Triggers: Depends on the command executed
+ */
 void do_uninvis(CHAR_DATA *ch, char *argument)
 {
     int lev_wizi;
@@ -9316,8 +10427,20 @@ void do_uninvis(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Allows custom granting of commands to people to do away with all those
-   clumsy hacks. (Syn 2006-06-17) */
+/**
+ * do_addcommand - Grant a specific command to a player
+ *
+ * Allows custom granting of individual commands to players without
+ * changing their overall level or trust. Commands can be granted
+ * permanently and are saved with the character. Provides a cleaner
+ * alternative to level-based hacks for special permissions.
+ * (Syn 2006-06-17)
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "playername commandname"
+ *
+ * Triggers: None (permission utility)
+ */
 void do_addcommand(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -9403,6 +10526,18 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_remcommand - Remove a granted command from a player
+ *
+ * Removes a previously granted command from a player's custom command
+ * list. The command must have been previously added via addcommand.
+ * Does not affect commands available through normal level/trust.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "playername commandname"
+ *
+ * Triggers: None (permission utility)
+ */
 void do_remcommand(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -9465,7 +10600,21 @@ void do_remcommand(CHAR_DATA *ch, char *argument)
     free_command(cmd);
 }
 
-/* Adjusted boost to allow for up to 7 days (10080 minutes) - Tieryo */
+/**
+ * do_boost - Activate server-wide bonus multipliers
+ *
+ * Enables temporary global bonuses to experience, damage, quest points,
+ * or pneuma gain. Duration can be 1-10080 minutes (up to 7 days).
+ * Percentage boost can be 100-200% (defaults to 150%). Cannot be used
+ * to set reckoning boost (internal system only). Announces boost to
+ * all players. (Adjusted by Tieryo to allow up to 7 days)
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "type minutes [percent]" or "type off"
+ *                  Types: experience, damage, qp, pneuma
+ *
+ * Triggers: None (global bonus utility)
+ */
 void do_boost(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -9540,7 +10689,21 @@ void do_boost(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Allows imms to fuck with tokens directly. */
+/**
+ * do_token - Directly manipulate tokens on entities
+ *
+ * Allows staff to give or remove tokens from characters, objects, or
+ * rooms. Tokens are lightweight data containers used for scripting
+ * and tracking game state. Supports targeting by count prefix for
+ * multiple instances of the same token vnum. Special handling for
+ * permanent tokens requires security level 10 or test port mode.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "give|junk char|obj|room target [#.]vnum"
+ *
+ * Triggers: TRIG_TOKEN_GIVEN (when giving a token)
+ *           TRIG_TOKEN_REMOVED (when junking a token)
+ */
 void do_token(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -9762,11 +10925,20 @@ void do_token(CHAR_DATA *ch, char *argument)
 }
 
 
-/* Load an area from an .are file into memory. The same exact function used
-   in boot_db is used here. This allows us to build areas on the testport
-   and import them without shutting down the game. Extreme care should be taken
-   with this command, since it can be quite a performance drain.
-*/
+/**
+ * do_aload - Load an area file into memory at runtime
+ *
+ * Loads an area from an .are file without requiring a server reboot.
+ * Uses the same loading function as boot_db. Useful for importing areas
+ * built on testport to the live server. Currently only supports loading
+ * new areas; replacing existing areas is not yet implemented.
+ * WARNING: Can cause significant performance impact during load.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Filename of the area to load
+ *
+ * Triggers: None (area loading utility)
+ */
 void do_aload(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -9812,6 +10984,18 @@ void do_aload(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_immflag - Set the immortal flag/title displayed in who list
+ *
+ * Allows staff to set a custom flag string (up to 12 visible characters)
+ * that appears next to their name in the who list. Must start with a
+ * capital letter if alphabetic. Logs the change.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Flag string to display (max 12 visible chars)
+ *
+ * Triggers: None (staff customization utility)
+ */
 void do_immflag(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch)) {
@@ -9835,13 +11019,35 @@ void do_immflag(CHAR_DATA *ch, char *argument)
     act("Your immortal flag has been set to $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR, NULL, NULL);
 }
 
+/**
+ * do_reloadstats - Reload game statistics from disk
+ *
+ * Forces a reload of game statistics data and updates the load time.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (statistics utility)
+ */
 void do_reloadstats(CHAR_DATA *ch, char *argument)
 {
     load_statistics();
     stats_load_time = current_time;
 }
 
-// send obj values to a buffer
+/**
+ * print_live_obj_values - Format object values to a buffer
+ *
+ * Outputs item-type-specific value information for a loaded object
+ * instance. Highlights values that differ from the prototype in yellow.
+ * Supports many item types including light, wand/staff, portal, furniture,
+ * herb, potions, tattoos, weapons, armor, ships, and more.
+ *
+ * @param obj       Object to display values for
+ * @param buffer    Buffer to append formatted output to
+ *
+ * Triggers: None (display helper)
+ */
 void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
 {
     char buf[MAX_STRING_LENGTH];
@@ -10323,6 +11529,20 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
     }
 }
 
+/**
+ * do_pwreset - Reset password for a character or account
+ *
+ * Allows staff to initiate a password reset for a character or account.
+ * Supports two modes: "local" which generates a reset code displayed
+ * to staff, or "email" which sends a reset code to the specified email.
+ * For account resets, prefix target with "account:".
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "local|email target [email_address]"
+ *                  For accounts: "local|email account:name [email]"
+ *
+ * Triggers: None (authentication utility)
+ */
 void do_pwreset(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -10670,6 +11890,18 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_mfareset - Reset multi-factor authentication for a character or account
+ *
+ * Disables MFA and clears the MFA key for a character or account.
+ * Works on both online and offline characters. For account resets,
+ * prefix the target with "account:".
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Character name or "account:accountname"
+ *
+ * Triggers: None (authentication utility)
+ */
 void do_mfareset(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -10824,6 +12056,19 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_lvlaudit - Audit mobile levels in an area
+ *
+ * Calculates statistics about combat-available mobiles in an area.
+ * Filters out non-combat mobs (pets, trainers, shopkeepers, bankers,
+ * healers, quest masters, etc.) and mobs in safe rooms. Reports
+ * total count and average level of remaining mobs.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Area name or keyword to audit
+ *
+ * Triggers: None (area analysis utility)
+ */
 void do_lvlaudit(CHAR_DATA *ch, char *argument)
 {
     ITERATOR it;
@@ -10881,6 +12126,19 @@ void do_lvlaudit(CHAR_DATA *ch, char *argument)
     return;
 }
 
+/**
+ * do_acctlink - Link a character to an account
+ *
+ * Links an unlinked (or re-links) offline character to a specified account.
+ * The character must be offline. Adds the character to the account's
+ * character list and sets the character's account_name field. Handles
+ * both online and offline accounts.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  "accountname charactername"
+ *
+ * Triggers: None (account management utility)
+ */
 void do_acctlink(CHAR_DATA *ch, char *argument) {
     char account_name_arg[MAX_INPUT_LENGTH];
     char char_name_arg[MAX_INPUT_LENGTH];
@@ -11055,9 +12313,18 @@ void do_acctlink(CHAR_DATA *ch, char *argument) {
     target_account = NULL; // Nullify working pointer, its content is either managed elsewhere or freed.
 }
 
-/*
- * Unlinks a character from its account.
- * Syntax: acctunlink <character_name>
+/**
+ * do_acctunlink - Unlink a character from its account
+ *
+ * Removes the link between a character and their account. The character
+ * must be offline. After unlinking, a new random password is generated
+ * for the character and they are marked to require a password change
+ * on next login. Logs the operation.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name of character to unlink
+ *
+ * Triggers: None (account management utility)
  */
 void do_acctunlink(CHAR_DATA *ch, char *argument) {
     char char_name_arg[MAX_INPUT_LENGTH];
@@ -11191,7 +12458,18 @@ void do_acctunlink(CHAR_DATA *ch, char *argument) {
     d_char.character = NULL;
 }
 
-// Add a command for immortals to view GC stats
+/**
+ * do_gcstats - Display garbage collection statistics
+ *
+ * Shows statistics about the game's garbage collection system including
+ * counts of items waiting for cleanup (mobs, objects, rooms, tokens),
+ * total GC calls, items processed, average per call, and max time.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (system statistics utility)
+ */
 void do_gcstats(CHAR_DATA *ch, char *argument)
 {
     if (!IS_IMMORTAL(ch)) {
@@ -11213,6 +12491,18 @@ void do_gcstats(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 }
 
+/**
+ * do_cachestats - Display Redis cache statistics
+ *
+ * Shows statistics about the Redis caching system used for character
+ * information and other cached data. Calls redis_print_stats() to
+ * format and display the statistics.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (cache statistics utility)
+ */
 void do_cachestats(CHAR_DATA *ch, char *argument)
 {
     if (!IS_IMMORTAL(ch)) {
@@ -11225,6 +12515,19 @@ void do_cachestats(CHAR_DATA *ch, char *argument)
     log_stacktrace(LOG_LEVEL_ERROR, LOG_ERROR, "Unexpected null pointer in player data");
 }
 
+/**
+ * do_cacheinfo - Display cached character information
+ *
+ * Retrieves and displays cached character data from Redis, including
+ * name, title, level, race, classes, health/mana percentages, gold,
+ * experience, last played time, and online status. Useful for checking
+ * data without loading the full character.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Character name to look up
+ *
+ * Triggers: None (cache lookup utility)
+ */
 void do_cacheinfo(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -11309,6 +12612,18 @@ void do_cacheinfo(CHAR_DATA *ch, char *argument)
     free_char_info_cache(info);
 }
 
+/**
+ * do_cachedump - Dump cached character data to disk
+ *
+ * Queues an asynchronous operation to dump cached character data from
+ * Redis to disk. Non-blocking operation that returns a job ID for
+ * tracking. Use 'cachejobs' to check status.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Character name to dump
+ *
+ * Triggers: None (cache management utility)
+ */
 void do_cachedump(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -11342,6 +12657,18 @@ void do_cachedump(CHAR_DATA *ch, char *argument)
     send_to_char("Use 'cachejobs' to check status.\n\r", ch);
 }
 
+/**
+ * do_cacheload - Load character data from disk to cache
+ *
+ * Queues an asynchronous operation to load character data from disk
+ * into the Redis cache. Non-blocking operation that returns a job ID
+ * for tracking. Use 'cachejobs' to check status.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Character name to load
+ *
+ * Triggers: None (cache management utility)
+ */
 void do_cacheload(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -11375,6 +12702,19 @@ void do_cacheload(CHAR_DATA *ch, char *argument)
     send_to_char("Use 'cachejobs' to check status.\n\r", ch);
 }
 
+/**
+ * do_cachejobs - List async cache job status
+ *
+ * Displays statistics and recent jobs for the async cache system.
+ * Shows job ID, operation type (DUMP/LOAD/INVALIDATE), character name,
+ * status (Queued/Running/Complete/Failed), and timing information.
+ * Displays up to 20 recent jobs.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Not used
+ *
+ * Triggers: None (cache management utility)
+ */
 void do_cachejobs(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -11434,6 +12774,18 @@ void do_cachejobs(CHAR_DATA *ch, char *argument)
     send_to_char("\n\r", ch);
 }
 
+/**
+ * do_cachestop - Cancel a queued cache operation
+ *
+ * Attempts to cancel a queued async cache job by job ID. Can only
+ * cancel jobs that are still in the queue; running jobs cannot be
+ * stopped.
+ *
+ * @param ch        Immortal using the command
+ * @param argument  Job ID number to cancel
+ *
+ * Triggers: None (cache management utility)
+ */
 void do_cachestop(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];

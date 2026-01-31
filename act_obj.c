@@ -44,6 +44,17 @@
 #include "recycle.h"
 #include "tables.h"
 
+/**
+ * obj_has_money - Check if a container has money visible to character
+ *
+ * Iterates through a container's contents looking for ITEM_MONEY objects
+ * that the character can see.
+ *
+ * @param ch         Character checking for money
+ * @param container  Container object to search
+ *
+ * @return true if container has visible money, false otherwise
+ */
 bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container)
 {
     OBJ_DATA *obj;
@@ -59,6 +70,27 @@ bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container)
     return false;
 }
 
+/**
+ * get_obj - Transfer an object to a character's inventory
+ *
+ * Core function for picking up objects. Validates the character can take
+ * the object based on:
+ * - ITEM_TAKE wear flag must be set
+ * - Character's carry number limit
+ * - Character's carry weight limit
+ * - Object not being used by another character (furniture)
+ * - ITEM_TRAPPED check (causes damage and prevents pickup)
+ *
+ * Handles both ground pickup and container extraction. Resets object
+ * timer when taken from pit objects or corpses. Fires TRIG_GET triggers
+ * on object and room after successful transfer.
+ *
+ * @param ch         Character taking the object
+ * @param obj        Object being taken
+ * @param container  Container object (NULL if from ground)
+ *
+ * Triggers: TRIG_GET (on object and room)
+ */
 void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 {
     CHAR_DATA *gch;
@@ -137,6 +169,19 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
     return;
 }
 
+/**
+ * give_money - Give gold and silver coins to a character with messages
+ *
+ * Creates appropriate grammatically-correct messages based on coin amounts
+ * (singular/plural forms for gold and silver). Creates a money object and
+ * transfers it to the character's inventory.
+ *
+ * @param ch         Character receiving the money
+ * @param container  Container the money came from (for messaging, can be NULL)
+ * @param gold       Amount of gold coins
+ * @param silver     Amount of silver coins
+ * @param indent     If true, indent the output message with spaces
+ */
 void give_money(CHAR_DATA *ch, OBJ_DATA *container, int gold, int silver, bool indent)
 {
     char buf1[MSL];
@@ -189,6 +234,17 @@ void give_money(CHAR_DATA *ch, OBJ_DATA *container, int gold, int silver, bool i
     }
 }
 
+/**
+ * get_money_from_obj - Extract all money from a container
+ *
+ * Iterates through container contents, sums up all gold and silver
+ * from ITEM_MONEY objects that the character can see and get.
+ * Extracts each money object and creates a single consolidated
+ * money object for the character.
+ *
+ * @param ch         Character getting the money
+ * @param container  Container to extract money from
+ */
 void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container)
 {
     OBJ_DATA *obj;
@@ -214,7 +270,26 @@ void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container)
 }
 
 
-// Loots all lootable items, except for money
+/**
+ * loot_corpse - Bulk loot all items from a corpse (excluding money)
+ *
+ * Efficiently loots all items from a corpse with consolidated messaging.
+ * Groups identical objects by short_descr and displays counts rather than
+ * individual pickup messages for each object.
+ *
+ * Process:
+ * 1. Count non-money objects in corpse
+ * 2. Allocate arrays to track unique objects and counts
+ * 3. Group objects by matching short_descr
+ * 4. Display grouped messages: "(N) You get X from corpse"
+ * 5. Transfer objects and fire TRIG_GET triggers
+ * 6. Clean up allocated memory
+ *
+ * @param ch      Character looting the corpse
+ * @param corpse  Corpse object to loot
+ *
+ * Triggers: TRIG_GET (on each object)
+ */
 void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 {
     OBJ_DATA *obj, *obj_next;
@@ -338,7 +413,32 @@ void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 
 
 
-/* MOVED: object/object.c */
+/**
+ * do_get - Pick up objects from the ground or containers
+ *
+ * Versatile get command supporting multiple syntaxes:
+ * - get <item>              : Pick up single item from ground
+ * - get all                 : Pick up all items from ground
+ * - get all.<type>          : Pick up all matching items from ground
+ * - get <item> <container>  : Get item from container
+ * - get all <container>     : Get all items from container
+ * - get <N> gold/silver <container> : Get specific amount of coins
+ * - get money <corpse>      : Get all money from corpse
+ *
+ * Special handling:
+ * - NPC corpses owned by killer have priority looting
+ * - PC corpses have ownership protection
+ * - "loot" keyword triggers bulk looting with consolidated messages
+ * - Pit objects have level restrictions
+ * - Container open/close state checking
+ *
+ * @param ch        Character picking up objects
+ * @param argument  Target object and optional container specification
+ *
+ * Triggers: TRIG_GET (via get_obj)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/object.c
+ */
 void do_get(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -780,7 +880,31 @@ void do_get(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/object.c */
+/**
+ * do_put - Place objects into containers
+ *
+ * Puts objects from inventory into a target container. Supports:
+ * - put <item> <container>    : Put single item
+ * - put all <container>       : Put all carried items
+ * - put all.<type> <container>: Put all matching items
+ * - put <N> gold/silver <container>: Put coins in container
+ * - put all.gold/silver <container>: Put all coins
+ *
+ * Validates:
+ * - Container weight capacity
+ * - Container item count capacity (value[3])
+ * - CONT_PUT_ON flag for different messaging ("on" vs "in")
+ * - CONT_CLOSED flag
+ * - Special handling for furniture objects
+ * - Bulk operations with grouped messaging
+ *
+ * @param ch        Character putting objects
+ * @param argument  Item and container specification
+ *
+ * Triggers: TRIG_PUT (on container)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/object.c
+ */
 void do_put(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -1146,7 +1270,31 @@ void do_put(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/object.c */
+/**
+ * do_drop - Drop objects from inventory to the ground
+ *
+ * Drops items from inventory to the current room. Supports:
+ * - drop <item>       : Drop single item
+ * - drop all          : Drop all carried items
+ * - drop all.<type>   : Drop all matching items
+ * - drop <N> gold/silver: Drop specific amount of coins
+ * - drop all.gold/silver/coins: Drop all coins
+ *
+ * Special handling:
+ * - Social areas block non-immortal drops
+ * - Church drop boxes send items to church storage
+ * - Pit objects (donations) set item timer to 0
+ * - Duplicate items are grouped for consolidated messaging
+ * - TRIG_DROP can intercept and cancel drops
+ * - OBJ_NODROP items cannot be dropped by mortals
+ *
+ * @param ch        Character dropping objects
+ * @param argument  Item specification and optional amount
+ *
+ * Triggers: TRIG_DROP, TRIG_DROPGET
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/object.c
+ */
 void do_drop(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1458,7 +1606,33 @@ void do_drop(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/object.c */
+/**
+ * do_give - Give objects or money to another character
+ *
+ * Transfers items from inventory to another character. Supports:
+ * - give <item> <victim>      : Give single item
+ * - give all <victim>         : Give all carried items
+ * - give all.<type> <victim>  : Give all matching items
+ * - give <N> gold/silver <victim>: Give coins
+ * - give all.gold/silver <victim>: Give all coins
+ *
+ * Validates:
+ * - Target's carry weight capacity (exempts changers/bankers)
+ * - Target's carry count capacity
+ * - ITEM_NODROP flag prevents giving for mortals
+ * - Social area restrictions for non-immortals
+ * - Bulk operations use grouped messaging
+ *
+ * Money is transferred directly between character fields rather than
+ * creating an object. The temporary money object is extracted.
+ *
+ * @param ch        Character giving objects
+ * @param argument  Item and target specification
+ *
+ * Triggers: TRIG_GIVE (on object and victim)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/object.c
+ */
 void do_give(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -1758,7 +1932,23 @@ void do_give(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/shop.c */
+/**
+ * change_money - Exchange gold for silver or vice versa
+ *
+ * Handles currency conversion between gold and silver with a 5% fee.
+ * Conversion rates: 1 gold = 100 silver, so 1 gold becomes 95 silver
+ * and 10000 silver becomes 95 gold after fees.
+ *
+ * If the changer NPC doesn't have enough currency, their funds are
+ * temporarily boosted to complete the transaction.
+ *
+ * @param ch       Character requesting the exchange
+ * @param changer  NPC money changer performing exchange
+ * @param gold     Amount of gold being exchanged (0 if exchanging silver)
+ * @param silver   Amount of silver being exchanged (0 if exchanging gold)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/shop.c
+ */
 void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver)
 {
     char buf[MSL];
@@ -1786,7 +1976,28 @@ void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver)
     }
 }
 
-/* MOVED: object/donate.c */
+/**
+ * do_donate - Teleport an item to the donation room
+ *
+ * Instantly transfers an item from inventory to the designated donation room
+ * without requiring the character to physically travel there.
+ *
+ * Restrictions:
+ * - Cannot donate during combat
+ * - Cannot donate NODROP or KEPT items
+ * - Cannot donate NO_DONATE flagged items
+ * - Cannot donate corpses, owned items, MELT_DROP items, or timed items
+ * - Containers must be empty
+ * - Cannot donate while in the donation room itself
+ *
+ * Sets item cost to 0 upon donation.
+ * Notifies everyone in the donation room of the arrival.
+ *
+ * @param ch        Character donating
+ * @param argument  Item to donate
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/donate.c
+ */
 void do_donate(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -1865,7 +2076,25 @@ void do_donate(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_repair - Repair damaged equipment
+ *
+ * Two repair methods supported:
+ * 1. Self-repair using gsn_repair skill (if character has it)
+ *    - Repairs condition based on skill check
+ *    - Uses movement points as cost
+ *    - Full success restores 100% condition
+ *
+ * 2. NPC blacksmith repair (if smithy mob in room)
+ *    - Cost based on item value and damage amount
+ *    - "repair all" repairs everything equipped
+ *    - Skill-based repair takes time (interruptible)
+ *
+ * @param ch        Character repairing
+ * @param argument  Item to repair or "all"
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_repair(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -1988,7 +2217,30 @@ void do_repair(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/desc.c */
+/**
+ * do_restring - Change item's name/description at a restringer NPC
+ *
+ * Allows players to customize item descriptions for a cost.
+ * Preserves original values so items can be unrestringed later.
+ *
+ * Options:
+ * - restring <item> short <text> : Change short description (what you see)
+ * - restring <item> long <text>  : Change long description (ground view)
+ * - restring <item> desc         : Enter editor for full description
+ *
+ * Cost: 99 + max(1, item_cost/1000 + level/10) silver
+ *
+ * Restrictions:
+ * - Requires ACT_IS_RESTRINGER mob in room
+ * - NORESTRING items only allow color changes to short desc
+ * - Tabard items cannot be restringed
+ * - Minimum 5 character length for names
+ *
+ * @param ch        Character restringing
+ * @param argument  Item, field, and new value
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/desc.c
+ */
 void do_restring(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2140,7 +2392,24 @@ void do_restring(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/desc.c */
+/**
+ * do_unrestring - Restore item's original description
+ *
+ * Reverts a restringed item back to its original values.
+ * Requires ACT_IS_RESTRINGER mob in room.
+ * Cost: 500 silver
+ *
+ * Restores:
+ * - old_name -> name
+ * - old_short_descr -> short_descr
+ * - old_description -> description
+ * - old_full_description -> full_description
+ *
+ * @param ch        Character unrestringing
+ * @param argument  Item to restore
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/desc.c
+ */
 void do_unrestring(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2224,7 +2493,26 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: combat/hidden.c */
+/**
+ * do_envenom - Apply poison to food, drink, or weapons
+ *
+ * Uses gsn_envenom skill to poison consumables or weapons.
+ *
+ * Food/Drink: Sets poison flag (value[3] = 1). Blessed or burn-proof
+ * items are immune.
+ *
+ * Weapons: Applies temporary poison weapon affect with damage based
+ * on skill level. Duration scales with skill (level/2 + 1 hours).
+ * Weapon must be bladed type (sword, dagger, axe, polearm).
+ *
+ * Higher skill = lower chance of being seen when poisoning.
+ * Improves gsn_envenom on success/failure.
+ *
+ * @param ch        Character envenoming
+ * @param argument  Item to poison
+ *
+ * Planned refactor: MOVED comment indicates intended move to combat/hidden.c
+ */
 void do_envenom(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2358,7 +2646,23 @@ memset(&af,0,sizeof(af));
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_fill - Fill a drink container from a fountain
+ *
+ * Fills a drink container to capacity from a fountain in the room.
+ * Sets the liquid type to match the fountain's contents.
+ *
+ * Validations:
+ * - Must be holding a ITEM_DRINK_CON
+ * - Fountain (ITEM_FOUNTAIN) must be in room
+ * - Container must be empty or contain same liquid type
+ * - Container must not already be full
+ *
+ * @param ch        Character filling container
+ * @param argument  Container to fill
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_fill(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2423,7 +2727,25 @@ void do_fill(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_pour - Pour liquid between containers or onto ground
+ *
+ * Transfers liquid from one drink container to another, or empties
+ * a container onto the ground.
+ *
+ * Syntaxes:
+ * - pour <container> out        : Empty container onto ground
+ * - pour <container> <container>: Transfer to another container
+ * - pour <container> <person>   : Fill what they're holding
+ *
+ * Validates liquid compatibility between containers.
+ * Clears poison flag when emptying (value[3] = 0).
+ *
+ * @param ch        Character pouring
+ * @param argument  Source container and destination
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_pour(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH],buf[MAX_STRING_LENGTH];
@@ -2543,7 +2865,26 @@ void do_pour(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_drink - Consume liquid from container or fountain
+ *
+ * Drinks from fountains or drink containers, affecting character
+ * conditions (drunk, full, thirst, hunger) based on liquid type.
+ *
+ * Special handling:
+ * - Very drunk characters fail to reach their mouth
+ * - Vampires get special treatment from blood (liquid 14)
+ * - Poisoned drinks (value[3] != 0) apply poison affect
+ * - Fountains have infinite capacity
+ * - Social status check prevents drinking in certain areas
+ *
+ * @param ch        Character drinking
+ * @param argument  Container to drink from (optional, uses fountain if empty)
+ *
+ * Triggers: TRIG_DRINK
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_drink(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2680,7 +3021,32 @@ memset(&af,0,sizeof(af));
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_eat - Consume food or pills
+ *
+ * Eats ITEM_FOOD or ITEM_PILL objects from inventory.
+ *
+ * ITEM_FOOD:
+ * - Satisfies hunger (value[0] = food units)
+ * - value[3] != 0 means poisoned (applies poison affect)
+ *
+ * ITEM_PILL:
+ * - Casts up to 4 spells stored in values[1-4]
+ * - Level from value[0]
+ *
+ * Special items:
+ * - Golden apple: Grants enough XP to level up
+ *
+ * Immortals can eat anything.
+ * Extracts the item after consumption.
+ *
+ * @param ch        Character eating
+ * @param argument  Food or pill to eat
+ *
+ * Triggers: TRIG_EAT
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_eat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2776,7 +3142,28 @@ void do_eat(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * remove_obj - Remove an item from a specific wear slot
+ *
+ * Attempts to remove equipment from the specified wear location.
+ * Returns true if slot is now empty (either was empty or successfully removed).
+ *
+ * Checks:
+ * - ITEM_NOREMOVE flag blocks removal
+ * - WEAR_REMOVEEQ macro for slot-specific rules
+ * - WEAR_ALWAYSREMOVE overrides restrictions
+ * - TRIG_PREREMOVE can cancel removal
+ *
+ * Sets script_lastreturn = 2 to indicate explicit REMOVE vs general unequip.
+ *
+ * @param ch       Character removing item
+ * @param iWear    Wear slot constant (WEAR_*)
+ * @param fReplace If false and slot occupied, don't remove
+ *
+ * @return true if slot is empty after call, false if blocked
+ *
+ * Planned refactor: MOVED comment indicates intended move to player/inv.c
+ */
 bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 {
     OBJ_DATA *obj;
@@ -2808,7 +3195,23 @@ bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
     return true;
 }
 
-// When there is a pair, it will return either the first or left version
+/**
+ * get_wear_loc - Determine appropriate wear slot for an object
+ *
+ * Checks object's wear flags (CAN_WEAR) to determine which equipment
+ * slot it should occupy. For paired slots (fingers, ears, wrists, etc.),
+ * returns the left version.
+ *
+ * Checks wear flags in priority order:
+ * ITEM_LIGHT, FINGER, RING_FINGER, NECK, BODY, HEAD, FACE, EYES, EAR,
+ * LEGS, ANKLE, FEET, HANDS, ARMS, ABOUT, WAIST, WRIST, SHIELD, BACK,
+ * SHOULDER, WIELD, HOLD, TABARD
+ *
+ * @param ch   Character wearing (unused but kept for signature consistency)
+ * @param obj  Object to check wear location for
+ *
+ * @return WEAR_* constant for appropriate slot, or WEAR_NONE if unwearable
+ */
 int get_wear_loc(CHAR_DATA *ch, OBJ_DATA *obj)
 {
     if (obj->item_type == ITEM_LIGHT)
@@ -2885,7 +3288,29 @@ int get_wear_loc(CHAR_DATA *ch, OBJ_DATA *obj)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * wear_obj - Equip an object to the appropriate slot
+ *
+ * Attempts to equip an object, determining the correct wear slot
+ * and handling dual-slot items (fingers, wrists, etc.).
+ *
+ * Level/class restrictions:
+ * - Object level must be <= character level (or ITEM_ALL_REMORT + remort)
+ * - ITEM_REMORT_ONLY requires character to be remort
+ * - Immortals bypass level restrictions
+ *
+ * Special handling:
+ * - ITEM_LIGHT goes to WEAR_LIGHT slot
+ * - Dual slots (FINGER_L/R, NECK_1/2, etc.) auto-select empty side
+ * - Weapons check handedness and dual wield capability
+ * - Shields check for two-handed weapon conflicts
+ *
+ * @param ch        Character equipping
+ * @param obj       Object to equip
+ * @param fReplace  If true, replace existing equipment if necessary
+ *
+ * Planned refactor: MOVED comment indicates intended move to player/inv.c
+ */
 void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3307,7 +3732,31 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * do_wear - Equip an item from inventory
+ *
+ * Player command to wear/wield/hold objects.
+ *
+ * Syntaxes:
+ * - wear <item>   : Equip specific item
+ * - wear all      : Equip all possible items (prioritizes last_wear_loc)
+ *
+ * Restrictions:
+ * - Cannot wear while shifted (slayer/werewolf)
+ * - Cannot wear while blinded
+ * - Social status check for certain areas
+ *
+ * "wear all" performs two passes:
+ * 1. First equips items to their last_wear_loc if set
+ * 2. Then equips remaining wearable items to available slots
+ *
+ * @param ch        Character equipping
+ * @param argument  Item to wear or "all"
+ *
+ * Triggers: TRIG_PREWEAR (can cancel)
+ *
+ * Planned refactor: MOVED comment indicates intended move to player/inv.c
+ */
 void do_wear(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3399,7 +3848,17 @@ void do_wear(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * removeall - Remove all equipped items
+ *
+ * Internal function to strip all equipment from a character.
+ * Saves current wear locations (last_wear_loc) before removal
+ * so "wear all" can restore equipment to same slots.
+ *
+ * @param ch  Character to strip equipment from
+ *
+ * Planned refactor: MOVED comment indicates intended move to player/inv.c
+ */
 void removeall(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
@@ -3419,7 +3878,31 @@ void removeall(CHAR_DATA *ch)
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * do_remove - Unequip items from wear slots
+ *
+ * Player command to remove equipment.
+ *
+ * Syntaxes:
+ * - remove <item>  : Remove specific item
+ * - remove all     : Remove all removable equipment
+ *
+ * Restrictions:
+ * - Cannot remove while blinded
+ * - ITEM_NOREMOVE blocks individual removal
+ * - Tattoos cannot be removed with "remove all"
+ * - Social status check for certain areas
+ * - WEAR_ALWAYSREMOVE overrides NOREMOVE flag
+ *
+ * Saves last_wear_loc before "remove all" for later "wear all".
+ *
+ * @param ch        Character removing equipment
+ * @param argument  Item to remove or "all"
+ *
+ * Triggers: TRIG_PREREMOVE (can cancel)
+ *
+ * Planned refactor: MOVED comment indicates intended move to player/inv.c
+ */
 void do_remove(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3482,6 +3965,17 @@ void do_remove(CHAR_DATA *ch, char *argument)
     return;
 }
 
+/**
+ * sacrifice_obj - Sacrifice a single object to the gods
+ *
+ * Internal function to sacrifice one object. Calculates deity point
+ * reward via get_dp_value(), extracts the object, and displays
+ * appropriate message.
+ *
+ * @param ch    Character sacrificing
+ * @param obj   Object to sacrifice (extracted after)
+ * @param name  Object name for error messages
+ */
 void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name)
 {
     long deitypoints;
@@ -3518,6 +4012,25 @@ void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name)
 
 }
 
+/**
+ * do_sacrifice - Offer objects to the gods for deity points
+ *
+ * Destroys objects on the ground in exchange for deity points.
+ *
+ * Syntaxes:
+ * - sacrifice <item>    : Sacrifice single item
+ * - sacrifice all       : Sacrifice all sacrificable items
+ * - sacrifice all.<type>: Sacrifice all matching items
+ * - sacrifice <self>    : Humorous self-sacrifice message
+ *
+ * Special handling:
+ * - Sacrificing in donation room triggers lightning punishment
+ * - Groups similar items for consolidated messaging
+ * - Tracks total deity points gained
+ *
+ * @param ch        Character sacrificing
+ * @param argument  Item to sacrifice or "all"
+ */
 void do_sacrifice(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3647,7 +4160,26 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: object/actions.c */
+/**
+ * do_quaff - Drink a potion to cast its spells
+ *
+ * Consumes a potion from inventory, casting all spells stored in it.
+ * Potions cast on the drinker at the potion's stored level.
+ *
+ * Features:
+ * - Level check (tot_level >= obj->level)
+ * - Social area restriction
+ * - Multi-swig potions (value[5] = sips remaining)
+ * - TRIG_PREDRINK can cancel
+ * - 8 beat wait state after quaffing
+ *
+ * @param ch        Character quaffing
+ * @param argument  Potion to drink
+ *
+ * Triggers: TRIG_PREDRINK, TRIG_DRINK
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_quaff(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3724,7 +4256,25 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_recite - Read a scroll to cast its spells
+ *
+ * Recites a scroll from inventory, casting its spells on target.
+ * Scrolls have cast time based on number of spells.
+ *
+ * Features:
+ * - Level check (tot_level >= scroll->level)
+ * - Silence check (AFF2_SILENCE blocks)
+ * - Target can be character or object
+ * - Variable cast time: 10-18 beats based on spell count
+ * - Scroll skill affects success chance
+ * - Extracts scroll after successful cast
+ *
+ * @param ch        Character reciting
+ * @param argument  Scroll and optional target
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_recite(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -3819,7 +4369,24 @@ void do_recite(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * recite_end - Complete scroll recitation and cast spells
+ *
+ * Called when scroll recitation delay completes. Validates target
+ * still exists, performs skill check, then casts all spells on scroll.
+ *
+ * Special handling:
+ * - "kill" spell scrolls explode harmlessly
+ * - TRIG_RECITE can intercept and cancel casting
+ * - Scrolls skill affects success (20 + skill*4/5)
+ * - Extracts scroll after use
+ *
+ * @param ch  Character who finished reciting
+ *
+ * Triggers: TRIG_RECITE (on scroll, can cancel)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void recite_end(CHAR_DATA *ch)
 {
     CHAR_DATA *victim;
@@ -3896,7 +4463,27 @@ void recite_end(CHAR_DATA *ch)
 }
 
 
-/* MOVED: object/actions.c */
+/**
+ * do_brandish - Wave a staff to cast its spells
+ *
+ * Brandishes held staff item to cast area-effect spells.
+ * Staff spells target everyone in room based on spell targeting:
+ * - TAR_IGNORE: Caster only
+ * - TAR_CHAR_OFFENSIVE: Opposite alignment (NPC vs PC)
+ * - TAR_CHAR_DEFENSIVE: Same alignment
+ * - TAR_CHAR_SELF: Caster only
+ *
+ * Consumes one charge (value[2]). Staff destroyed when empty.
+ * Staves skill affects success (20 + skill*4/5).
+ * 2 PULSE_VIOLENCE wait state.
+ *
+ * @param ch        Character brandishing
+ * @param argument  Unused
+ *
+ * Triggers: TRIG_BRANDISH (on staff, can cancel)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_brandish(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *vch;
@@ -3993,7 +4580,23 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 }
 
 
-/* moVED: object/actions.c */
+/**
+ * do_zap - Use a wand to cast its spell at a target
+ *
+ * Zaps with held wand item to cast single-target spell.
+ * Without argument, targets self or current combat opponent.
+ *
+ * Consumes one charge (value[2]). Wand destroyed when empty.
+ * Wands skill affects success (20 + skill*4/5).
+ * 2 PULSE_VIOLENCE wait state.
+ *
+ * @param ch        Character zapping
+ * @param argument  Optional target (character or object)
+ *
+ * Triggers: TRIG_ZAP (on wand, can cancel)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_zap(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4086,7 +4689,28 @@ void do_zap(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: object/actions.c*/
+/**
+ * do_steal - Attempt to steal coins or items from a victim
+ *
+ * Uses gsn_steal skill to pilfer from another character.
+ * Success is affected by:
+ * - Victim awareness (sleeping -10%, can't see +25%, otherwise +50%)
+ * - Highwayman subclass with active holdup = guaranteed success
+ * - gsn_deception can detect PC thieves
+ * - CPK rooms required for PC vs PC stealing
+ *
+ * Coin theft: Steals random portion based on level ratio.
+ * Item theft: Cannot steal worn items or ITEM_INVENTORY items.
+ *
+ * Failure:
+ * - Strips sneak affect
+ * - Victim yells and NPCs attack
+ *
+ * @param ch        Character stealing
+ * @param argument  Item/coins and target
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/actions.c
+ */
 void do_steal(CHAR_DATA *ch, char *argument)
 {
     char buf  [MAX_STRING_LENGTH];
@@ -4292,7 +4916,20 @@ void do_steal(CHAR_DATA *ch, char *argument)
     send_to_char("{WGot it!{x\n\r", ch);
 }
 
-/* MOVED: object/shop.c*/
+/**
+ * find_keeper - Locate a shopkeeper by name in the room
+ *
+ * Searches the room for an NPC with a shop that matches the given name.
+ * Validates shop is open during current game hours and that the
+ * shopkeeper can see the customer.
+ *
+ * @param ch   Character looking for a shop
+ * @param arg  Name of shopkeeper to find
+ *
+ * @return Pointer to keeper if found and available, NULL otherwise
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/shop.c
+ */
 CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 {
     /*char buf[MAX_STRING_LENGTH];*/
@@ -4346,8 +4983,18 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 }
 
 
-/* MOVED: object/shop.c*/
-/* insert an object at the right spot for the keeper */
+/**
+ * obj_to_keeper - Add a sold object to a shopkeeper's inventory
+ *
+ * Inserts object into keeper's inventory, standardizing price with
+ * any existing duplicates. Sets ITEM_INVENTORY flag unless the item
+ * is marked ITEM_SELL_ONCE.
+ *
+ * @param obj  Object being sold to keeper
+ * @param ch   Shopkeeper receiving the object
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/shop.c
+ */
 void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 {
     OBJ_DATA *t_obj;
@@ -4382,6 +5029,18 @@ void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
     ch->carry_weight += get_obj_weight(obj);
 }
 
+/**
+ * adjust_keeper_price - Apply shop profit margins to a price
+ *
+ * Adjusts a base price using the shop's profit_buy or profit_sell
+ * percentage multipliers.
+ *
+ * @param keeper  Shopkeeper with shop data
+ * @param price   Base price to adjust
+ * @param fBuy    true for buying (profit_buy), false for selling (profit_sell)
+ *
+ * @return Adjusted price, or 0 if keeper has no shop
+ */
 long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy)
 {
     if (keeper->shop == NULL)
@@ -4397,6 +5056,19 @@ long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy)
     }
 }
 
+/**
+ * get_stockonly_keeper - Find stock item by name (stock-only search)
+ *
+ * Searches only the shop's defined stock items (not keeper inventory)
+ * for a matching object, mob, or ship by name. Handles numbered
+ * arguments (e.g., "2.sword").
+ *
+ * @param ch        Customer searching
+ * @param keeper    Shopkeeper with stock
+ * @param argument  Item name to find (may include number prefix)
+ *
+ * @return Matching SHOP_STOCK_DATA or NULL if not found
+ */
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4462,6 +5134,20 @@ SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *ar
     return NULL;
 }
 
+/**
+ * get_stock_keeper - Find stock or inventory item and populate request
+ *
+ * Searches shop stock items and keeper's inventory for a matching item.
+ * Populates the SHOP_REQUEST_DATA struct with details of the found item.
+ * Handles numbered arguments.
+ *
+ * @param ch        Customer searching
+ * @param keeper    Shopkeeper with stock/inventory
+ * @param request   Request struct to populate with item details
+ * @param argument  Item name to find
+ *
+ * @return true if item found and request populated, false otherwise
+ */
 bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4569,9 +5255,23 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 }
 
 
-/* MOVED: object/shop.c*/
-/* get an object from a shopkeeper's list */
-// UNUSED
+/**
+ * get_obj_keeper - Find object in keeper's inventory by name
+ *
+ * Searches keeper's carrying list for an object matching the argument.
+ * Handles numbered arguments (e.g., "2.sword"). Skips duplicate items
+ * with same pIndexData and short_descr.
+ *
+ * @param ch        Customer searching
+ * @param keeper    Shopkeeper with inventory
+ * @param argument  Object name to find (may include number prefix)
+ *
+ * @return Matching object or NULL if not found
+ *
+ * @note UNUSED - marked for potential removal
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/shop.c
+ */
 OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4615,7 +5315,31 @@ OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 }
 
 
-/* MOVED: object/shop.c*/
+/**
+ * get_cost - Calculate buy/sell price for an object at a shop
+ *
+ * Determines the gold cost of an object when buying from or selling
+ * to a shopkeeper.
+ *
+ * Buying: base_cost * profit_buy / 100
+ *
+ * Selling:
+ * - Must match shop's buy_type[] array
+ * - base_cost * profit_sell / 100
+ * - 25% reduction if keeper already has duplicate
+ *
+ * Special handling:
+ * - Staff/wand prices scale by charges remaining (value[2]/value[1])
+ * - Empty staves/wands worth 1/4 base price
+ *
+ * @param keeper  Shopkeeper with shop data
+ * @param obj     Object to price
+ * @param fBuy    true for buy price, false for sell price
+ *
+ * @return Calculated cost in gold, or 0 if invalid
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/shop.c
+ */
 int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 {
     SHOP_DATA *pShop;
@@ -4671,7 +5395,28 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 }
 
 
-/* MOVED: object/shop.c*/
+/**
+ * do_buy - Purchase items from shops or traders
+ *
+ * Main buying command supporting multiple vendor types:
+ * - Regular shops (ACT_IS_SHOP): buy from keeper inventory/stock
+ * - Commodity traders (ACT2_TRADER): buy trade goods into carts
+ * - Changers: Exchange gold/silver currency
+ * - Bankers: Withdraw from bank account
+ *
+ * Features:
+ * - Haggling with gsn_haggle skill for discounts
+ * - Quantity purchases: "buy 5 sword"
+ * - Stock items with limited quantities
+ * - TRIG_BUY/TRIG_PREBUY can intercept purchases
+ *
+ * @param ch        Character buying
+ * @param argument  Item name and optional quantity/keeper
+ *
+ * Triggers: TRIG_PREBUY (can cancel), TRIG_BUY (after purchase)
+ *
+ * Planned refactor: MOVED comment indicates intended move to object/shop.c
+ */
 void do_buy(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5743,6 +6488,18 @@ void do_buy(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_blow - Blow a whistle item
+ *
+ * Uses ITEM_WHISTLE objects. Special handling for airship whistle
+ * (reserved vnum) which summons the Plith airship to the player's
+ * wilderness location.
+ *
+ * @param ch        Character blowing the whistle
+ * @param argument  Whistle item to blow
+ *
+ * Triggers: TRIG_BLOW (on object)
+ */
 void do_blow( CHAR_DATA *ch, char *argument )
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5804,6 +6561,23 @@ void do_blow( CHAR_DATA *ch, char *argument )
     return;
 }
 
+/**
+ * do_list - Display items available for sale at a shop
+ *
+ * Shows inventory and stock items from a shopkeeper with prices.
+ * Supports filtering by item name.
+ *
+ * Display includes:
+ * - Item level range
+ * - Stock quantity (if limited)
+ * - Price in silver/gold or special currencies (DP, QP, etc.)
+ * - Object/mob/ship/custom items
+ *
+ * Special handling for ROOM_SHIP_SHOP displays ship purchase menu.
+ *
+ * @param ch        Character browsing shop
+ * @param argument  Optional keeper name and item filter
+ */
 void do_list(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -6047,6 +6821,24 @@ void do_list(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_inspect - Get detailed information about shop items
+ *
+ * Asks a shopkeeper for lore/identify information about an item
+ * before purchasing. Creates temporary object/mob to inspect.
+ *
+ * Supports:
+ * - Objects: Shows spell_identify output
+ * - Mobs (pets/mounts/guards): Shows basic_mob_lore
+ * - Custom stock items: TRIG_INSPECT_CUSTOM handler
+ *
+ * ITEM_NO_LORE and ACT_NO_LORE block inspection.
+ *
+ * @param ch        Character inspecting
+ * @param argument  Keeper name and item to inspect
+ *
+ * Triggers: TRIG_INSPECT_CUSTOM (on keeper for custom stock)
+ */
 void do_inspect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -6171,6 +6963,28 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_sell - Sell items to a shopkeeper
+ *
+ * Sells items from inventory to a shopkeeper for gold.
+ * Shop must accept the item type in its buy_type[] array.
+ *
+ * Features:
+ * - Haggling with gsn_haggle skill for better prices
+ * - Commodity trading via ACT2_TRADER NPCs (cart system)
+ * - Price reduction if shop already has duplicate
+ * - TRIG_PRESELL can cancel sale
+ *
+ * Restrictions:
+ * - Cannot sell ITEM_NOUNCURSE items
+ * - Cannot sell if shop is closed (hours)
+ * - Cannot sell if shop doesn't deal in item type
+ *
+ * @param ch        Character selling
+ * @param argument  Keeper name and item to sell
+ *
+ * Triggers: TRIG_PRESELL (can cancel), TRIG_SELL (after sale)
+ */
 void do_sell(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -6478,6 +7292,15 @@ void do_sell(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_value - Get price quote for selling an item
+ *
+ * Asks a shopkeeper how much they would pay for an item
+ * without actually selling it.
+ *
+ * @param ch        Character getting quote
+ * @param argument  Keeper name and item to value
+ */
 void do_value(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -6535,6 +7358,22 @@ void do_value(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_secondary - Wield a weapon in the off-hand
+ *
+ * Equips a weapon to the WEAR_SECONDARY slot for dual wielding.
+ *
+ * Requirements:
+ * - Must already have a primary weapon wielded
+ * - Weapon must be ITEM_WIELD flagged
+ * - Cannot dual wield two-handed weapons (except SIZE_GIANT+)
+ * - Cannot dual wield spear/polearm with another spear/polearm
+ * - Character level must meet weapon level
+ * - Weapon must not be broken (condition 0)
+ *
+ * @param ch        Character dual wielding
+ * @param argument  Weapon to wield in off-hand
+ */
 void do_secondary(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -6642,6 +7481,21 @@ void do_secondary(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_push - Push an object or interact with pushable items
+ *
+ * Interacts with objects via pushing. Primary uses:
+ * - TRIG_PUSH: Simple push action on object
+ * - TRIG_PUSH_ON: Push with target argument
+ * - CONT_PUSHOPEN containers: Opens when pushed
+ *
+ * Searches room contents first, then character inventory.
+ *
+ * @param ch        Character pushing
+ * @param argument  Object to push and optional target
+ *
+ * Triggers: TRIG_PUSH, TRIG_PUSH_ON, TRIG_OPEN (for containers)
+ */
 void do_push(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -6691,6 +7545,25 @@ void do_push(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_pull - Pull objects, carts, or lodged items
+ *
+ * Multi-purpose pull command:
+ * - Lodged weapons: Dislodges from body (barbed weapons cause damage)
+ * - ITEM_CART: Starts pulling cart behind character
+ * - Script triggers: TRIG_PULL, TRIG_PULL_ON
+ *
+ * Cart pulling:
+ * - Requires sufficient STR or being mounted
+ * - One cart per character
+ * - Strips sneak affect
+ * - Church relics trigger theft announcements
+ *
+ * @param ch        Character pulling
+ * @param argument  Object/mob to pull and optional target
+ *
+ * Triggers: TRIG_PULL, TRIG_PULL_ON
+ */
 void do_pull(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -6820,8 +7693,24 @@ void do_pull(CHAR_DATA *ch, char *argument)
 }
 
 
-/*
- * Used for not only the turning of objects but also the turning of undead.
+/**
+ * do_turn - Turn objects or turn undead creatures
+ *
+ * Dual-purpose command:
+ *
+ * 1. Turn Undead (gsn_turn_undead skill):
+ *    - Affects undead characters with holy damage
+ *    - Success causes damage, flee, and panic/daze
+ *    - Chance based on level difference and skill
+ *
+ * 2. Turn Objects:
+ *    - TRIG_TURN: Simple turn action
+ *    - TRIG_TURN_ON: Turn with target argument
+ *
+ * @param ch        Character turning
+ * @param argument  Target and optional direction
+ *
+ * Triggers: TRIG_ATTACK_TURN (pretest), TRIG_TURN, TRIG_TURN_ON
  */
 void do_turn(CHAR_DATA *ch, char *argument)
 {
@@ -6894,6 +7783,23 @@ void do_turn(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_skull - Extract a skull from a player corpse
+ *
+ * Evil-aligned skill (gsn_skull) to take skulls from PC corpses.
+ * Creates either a golden skull (CPK death) or normal skull.
+ *
+ * Requirements:
+ * - Must be NPC with alignment < 0, or PC with gsn_skull
+ * - Target must be ITEM_CORPSE_PC with PART_HEAD
+ * - Corpse cannot be immortal level
+ *
+ * Success chance based on skill/level and corpse type modifiers.
+ * Failure destroys the head, leaving a headless corpse.
+ *
+ * @param ch        Character extracting skull
+ * @param argument  Target corpse
+ */
 void do_skull(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -7050,6 +7956,25 @@ void do_skull(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_brew - Create potions from spells (gsn_brew skill)
+ *
+ * Alchemical skill to brew spells into potions. Requires:
+ * - ITEM_EMPTY_VIAL in inventory
+ * - Knowledge of gsn_brew skill
+ * - Knowledge of the target spell
+ * - Sufficient mana (2/3 of spell cost)
+ *
+ * Restrictions:
+ * - Only TAR_CHAR_* spells can be brewed
+ * - "mass healing" cannot be brewed
+ * - Dead characters cannot brew
+ *
+ * Sets BREW_STATE and brew_sn, calls brew_end() after delay.
+ *
+ * @param ch        Character brewing
+ * @param argument  Spell name to brew
+ */
 void do_brew(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -7151,6 +8076,25 @@ void do_brew(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * brew_end - Complete potion brewing process
+ *
+ * Called when brew delay completes. Performs skill check
+ * and creates potion object on success.
+ *
+ * Success chance:
+ * - (brew_skill*2/3) + (spell_skill/3) - 10 + (CON/4)
+ * - ROOM_ALCHEMY gives 50% bonus
+ * - Immortals always succeed
+ *
+ * Alchemist subclass creates multi-use potions (value[5]):
+ * - <75 skill: 1 use
+ * - 75-85 skill: 2 uses
+ * - 85+ skill: 3 uses
+ *
+ * @param ch  Character finishing brewing
+ * @param sn  Skill number of spell being brewed
+ */
 void brew_end(CHAR_DATA *ch, int16_t sn)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -7226,6 +8170,15 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
 }
 
 
+/**
+ * do_plant - Plant an object on another character
+ *
+ * Reverse of steal - places an item in target's inventory.
+ * Uses gsn_plant skill. Target must be in room and visible.
+ *
+ * @param ch        Character planting
+ * @param argument  Item and target
+ */
 void do_plant(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -7269,6 +8222,21 @@ void do_plant(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_hands - Use healing hands skill to cure afflictions
+ *
+ * Clerical skill (gsn_healing_hands) that cures multiple conditions:
+ * - Disease
+ * - Poison
+ * - Blindness
+ * - Toxic fumes
+ *
+ * Can target self or another character.
+ * Success chance based on skill level.
+ *
+ * @param ch        Character using healing hands
+ * @param argument  Target character
+ */
 void do_hands(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -7340,6 +8308,25 @@ void do_hands(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_scribe - Create scrolls from spells (gsn_scribe skill)
+ *
+ * Scribes up to 3 spells onto a blank scroll. Requires:
+ * - ITEM_BLANK_SCROLL in inventory
+ * - Knowledge of gsn_scribe skill
+ * - Knowledge of target spell(s)
+ * - Sufficient mana (2/3 of combined spell costs)
+ *
+ * Restrictions:
+ * - "kill" spell cannot be scribed
+ * - Dead characters cannot scribe
+ *
+ * Sets SCRIBE_STATE and scribe_sn1/2/3, calls scribe_end() after delay.
+ * Cast time scales with number of spells (10-18 beats).
+ *
+ * @param ch        Character scribing
+ * @param argument  Up to 3 spell names
+ */
 void do_scribe(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -7491,6 +8478,24 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * scribe_end - Complete scroll scribing process
+ *
+ * Called when scribe delay completes. Creates scroll with 1-3 spells.
+ *
+ * Spell levels scale inversely with spell count:
+ * - 1 spell: Full level
+ * - 2 spells: Half level (alchemist bonus: +1/3)
+ * - 3 spells: Third level (alchemist bonus: +1/4)
+ *
+ * ROOM_ALCHEMY gives 50% success bonus.
+ * Failure causes scroll to explode harmlessly.
+ *
+ * @param ch   Character finishing scribing
+ * @param sn   First spell skill number
+ * @param sn2  Second spell (0 if none)
+ * @param sn3  Third spell (0 if none)
+ */
 void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -7615,6 +8620,12 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
 }
 
 
+/**
+ * is_extra_damage_relic_in_room - Check for extra damage relic
+ *
+ * @param room  Room to check
+ * @return true if OBJ_VNUM_RELIC_EXTRA_DAMAGE is present
+ */
 bool is_extra_damage_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
@@ -7629,6 +8640,12 @@ bool is_extra_damage_relic_in_room(ROOM_INDEX_DATA *room)
 }
 
 
+/**
+ * is_extra_xp_relic_in_room - Check for extra XP relic
+ *
+ * @param room  Room to check
+ * @return true if OBJ_VNUM_RELIC_EXTRA_XP is present
+ */
 bool is_extra_xp_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
@@ -7642,6 +8659,12 @@ bool is_extra_xp_relic_in_room(ROOM_INDEX_DATA *room)
     return false;
 }
 
+/**
+ * is_hp_regen_relic_in_room - Check for HP regen relic
+ *
+ * @param room  Room to check
+ * @return true if OBJ_VNUM_RELIC_HP_REGEN is present
+ */
 bool is_hp_regen_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
@@ -7656,6 +8679,12 @@ bool is_hp_regen_relic_in_room(ROOM_INDEX_DATA *room)
 }
 
 
+/**
+ * is_mana_regen_relic_in_room - Check for mana regen relic
+ *
+ * @param room  Room to check
+ * @return true if OBJ_VNUM_RELIC_MANA_REGEN is present
+ */
 bool is_mana_regen_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
@@ -7670,6 +8699,19 @@ bool is_mana_regen_relic_in_room(ROOM_INDEX_DATA *room)
 }
 
 
+/**
+ * do_bomb - Create a smoke bomb (gsn_bomb skill)
+ *
+ * Begins crafting a smoke bomb. Requires:
+ * - gsn_bomb skill
+ * - Mana >= 50%
+ * - Movement >= 50%
+ *
+ * Sets BOMB_STATE (24 beats) and calls bomb_end() on completion.
+ *
+ * @param ch        Character making bomb
+ * @param argument  Unused
+ */
 void do_bomb(CHAR_DATA *ch, char *argument)
 {
     if (is_dead(ch))
@@ -7694,6 +8736,16 @@ void do_bomb(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * bomb_end - Complete bomb creation
+ *
+ * Performs skill check. On success, creates smoke bomb object.
+ * On failure, bomb explodes dealing 2/3 max HP damage.
+ *
+ * Consumes 25% mana and 25% movement regardless of outcome.
+ *
+ * @param ch  Character finishing bomb
+ */
 void bomb_end(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
@@ -7729,6 +8781,21 @@ void bomb_end(CHAR_DATA *ch)
 }
 
 
+/**
+ * do_infuse - Infuse a weapon with elemental power
+ *
+ * Uses gsn_infuse skill to add temporary elemental damage to a weapon.
+ * Available infusion types: fire, cold, shock, acid, poison.
+ *
+ * Requirements:
+ * - gsn_infuse skill
+ * - Weapon in inventory
+ * - Weapon type must be edged (sword, dagger, axe, etc.)
+ * - Weapon cannot already have that infusion
+ *
+ * @param ch        Character infusing
+ * @param argument  Weapon and element type
+ */
 void do_infuse(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -7845,6 +8912,15 @@ memset(&af,0,sizeof(af));
 }
 
 
+/**
+ * repair_end - Complete self-repair process
+ *
+ * Finishes skill-based item repair. Adds repair_amt to item condition.
+ * Displays condition message based on new percentage.
+ * 20% chance to increment times_fixed counter.
+ *
+ * @param ch  Character who finished repairing
+ */
 void repair_end(CHAR_DATA *ch)
 {
     if (ch->repair_obj == NULL)
@@ -7892,6 +8968,17 @@ void repair_end(CHAR_DATA *ch)
     ch->repair_obj = NULL;
 }
 
+/**
+ * do_dig - Dig in wilderness to find buried items
+ *
+ * Uncovers ITEM_BURIED objects in the current room.
+ * Requires:
+ * - Must be in wilderness
+ * - Must be holding ITEM_SHOVEL
+ *
+ * @param ch        Character digging
+ * @param argument  Unused
+ */
 void do_dig(CHAR_DATA *ch, char *argument) {
   OBJ_DATA *obj;
   bool found = false;
@@ -7924,6 +9011,19 @@ void do_dig(CHAR_DATA *ch, char *argument) {
 }
 
 
+/**
+ * do_use - Generic use command for scripted objects
+ *
+ * Invokes use triggers on objects. Can use on target or solo.
+ *
+ * - use <object>              : TRIG_USE
+ * - use <object> <target>     : TRIG_USEWITH on both objects
+ *
+ * @param ch        Character using
+ * @param argument  Object and optional target
+ *
+ * Triggers: TRIG_USE, TRIG_USEWITH
+ */
 void do_use(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -7965,7 +9065,24 @@ void do_use(CHAR_DATA *ch, char *argument)
     send_to_char("Nothing happens.\n\r", ch);
 }
 
-/* Conceal merely hides an item.  No special affects will be done when doing this.*/
+/**
+ * do_conceal - Hide an item in concealed wear slot
+ *
+ * Places an item in the WEAR_CONCEALED slot, hidden from normal view.
+ * Similar to wearing but for secret items. Watchers may notice based
+ * on skill vs character's level.
+ *
+ * Restrictions:
+ * - Cannot conceal while shifted (slayer/werewolf)
+ * - Cannot conceal while blind
+ * - Only one concealed item at a time
+ * - Cannot conceal immortal-level items as mortal
+ *
+ * @param ch        Character concealing
+ * @param argument  Item to conceal
+ *
+ * Triggers: TRIG_PREWEAR (can cancel)
+ */
 void do_conceal(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -8040,6 +9157,28 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * haggle_price - Calculate final purchase price with haggling
+ *
+ * Computes the final price for purchasing items, applying:
+ * - Shop profit margin via adjust_keeper_price
+ * - Haggle discount based on skill check
+ * - Quantity multiplier
+ *
+ * Checks if customer can afford the final price.
+ *
+ * @param ch         Customer
+ * @param keeper     Shopkeeper
+ * @param chance     Haggle skill percentage
+ * @param number     Quantity being purchased
+ * @param base_price Price per unit before shop markup
+ * @param funds      Customer's available funds
+ * @param discount   Maximum discount percentage (0-99)
+ * @param haggled    Output: set to true if haggling succeeded
+ * @param silent     If true, don't display "can't afford" message
+ *
+ * @return Final price, or -1 if cannot afford
+ */
 long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent)
 {
     long price = adjust_keeper_price(keeper,(long)number * base_price, true);
@@ -8080,6 +9219,19 @@ long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long
     return UMAX(price, 0);
 }
 
+/**
+ * get_stock_description - Get display description for a stock item
+ *
+ * Returns the appropriate short description for a shop stock item:
+ * 1. custom_descr if set
+ * 2. obj->short_descr if object stock
+ * 3. mob->short_descr if mob stock
+ * 4. "something" as fallback
+ *
+ * @param stock  Shop stock item
+ *
+ * @return Short description string
+ */
 char *get_stock_description(SHOP_STOCK_DATA *stock)
 {
     if( !IS_NULLSTR(stock->custom_descr) )

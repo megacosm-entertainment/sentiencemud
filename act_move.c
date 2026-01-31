@@ -81,12 +81,34 @@ int parse_door(char *name)
 }
 
 
+/**
+ * rev_dir - Reverse direction lookup table
+ *
+ * Maps each direction to its opposite. Used when updating exits
+ * on both sides of a door, or determining where a character came from.
+ *
+ * Mapping: north<->south, east<->west, up<->down,
+ *          northeast<->southwest, northwest<->southeast
+ */
 const	int16_t	rev_dir		[]		=
 {
     2, 3, 0, 1, 5, 4, 9, 8, 7, 6
 };
 
 
+/**
+ * movement_loss - Movement point cost per sector type
+ *
+ * Array indexed by SECT_* constants defining how many movement points
+ * are consumed when traveling through each terrain type. Higher values
+ * indicate more difficult terrain.
+ *
+ * Cost ranges:
+ *   1-2  = Easy (roads, inside, city, air)
+ *   3-7  = Moderate (forest, hills, desert, cave)
+ *   15-17 = Difficult (swimming, swamp, toxic bog)
+ *   50   = Very difficult (deep water, lava, underwater)
+ */
 const	int16_t	movement_loss	[SECT_MAX]	=
 {
     1,		/* SECT_INSIDE */
@@ -119,6 +141,13 @@ const	int16_t	movement_loss	[SECT_MAX]	=
     1,		/* SECT_DIRT_ROAD */
 };
 
+/**
+ * get_player_classnth - Count how many classes a player has
+ *
+ * @param ch  Player character to check
+ *
+ * @return Number of active classes (1-4), minimum 1
+ */
 int get_player_classnth(CHAR_DATA *ch)
 {
     int num = 4;
@@ -131,6 +160,17 @@ int get_player_classnth(CHAR_DATA *ch)
     return UMAX(1,num);
 }
 
+/**
+ * exit_destination - Calculate the destination room for an exit
+ *
+ * Resolves complex exit types including wilderness vlinks, dungeon floor
+ * transitions (EX_PREVFLOOR/EX_NEXTFLOOR), and environment exits.
+ * Creates wilderness virtual rooms on-demand if they don't exist.
+ *
+ * @param pexit  Exit data structure to resolve
+ *
+ * @return Destination room pointer, or NULL if exit is invalid/blocked
+ */
 ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 {
     ROOM_INDEX_DATA *in_room = NULL;
@@ -282,6 +322,18 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
     return to_room;
 }
 
+/**
+ * exit_destination_data - Populate destination data structure for an exit
+ *
+ * Similar to exit_destination() but populates a DESTINATION_DATA structure
+ * instead of returning a room directly. Useful when destination may be
+ * a wilderness location that doesn't have a vroom created yet.
+ *
+ * @param pexit  Exit data structure to resolve
+ * @param pDest  Destination data structure to populate with result
+ *
+ * @return true if destination is valid, false if exit is invalid/blocked
+ */
 bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
 {
     ROOM_INDEX_DATA *in_room = NULL;
@@ -380,6 +432,25 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
     return true;
 }
 
+/**
+ * move_char - Move a character in a given direction
+ *
+ * Core movement function handling all aspects of character movement:
+ * - Validates exit exists and is accessible
+ * - Checks movement restrictions (doors, terrain, flight, swimming)
+ * - Calculates and deducts movement points
+ * - Handles mount movement
+ * - Displays leave/arrive messages
+ * - Triggers TRIG_MOVE_CHAR, TRIG_EXIT, TRIG_ENTRY, TRIG_GREET scripts
+ * - Checks environmental hazards (rocks, ice, flames, traps)
+ * - Moves followers
+ *
+ * @param ch      Character attempting to move
+ * @param door    Direction constant (DIR_NORTH, etc.)
+ * @param follow  true if character is following someone (unused in function)
+ *
+ * Triggers: TRIG_MOVE_CHAR, TRIG_EXIT, TRIG_ENTRY, TRIG_GREET
+ */
 void move_char(CHAR_DATA *ch, int door, bool follow)
 {
     CHAR_DATA *fch;
@@ -758,7 +829,17 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 }
 
-/* combat/hidden.c */
+/**
+ * check_ambush - Check if any ambushers in the room should attack
+ *
+ * Called when a character enters a room. Scans all characters in the room
+ * for active ambushes and triggers them if the entering character matches
+ * the ambush criteria (PC/NPC type and level range).
+ *
+ * @param ch  Character who just entered the room
+ *
+ * Planned refactor: combat/hidden.c
+ */
 void check_ambush(CHAR_DATA *ch)
 {
     CHAR_DATA *ach;
@@ -815,6 +896,18 @@ void check_ambush(CHAR_DATA *ch)
 }
 
 
+/**
+ * check_rocks - Check for falling rocks hazard in ROOM_ROCKS rooms
+ *
+ * In rooms flagged ROOM_ROCKS, there's a 75% chance of falling rocks.
+ * Each character in the room has a 50% chance of being struck for
+ * bash damage scaled to their level. Flying characters are immune.
+ *
+ * @param ch    Character whose room to check
+ * @param show  If true, display damage messages
+ *
+ * @return true if character died from rocks, false otherwise
+ */
 bool check_rocks(CHAR_DATA *ch, bool show)
 {
     CHAR_DATA *vch, *vch_next;
@@ -857,6 +950,18 @@ bool check_rocks(CHAR_DATA *ch, bool show)
 }
 
 
+/**
+ * check_ice - Check for slipping on icy surfaces
+ *
+ * In rooms flagged ROOM_ICY or affected by ice storm, non-flying
+ * characters may slip and fall. Chance is based on DEX and level.
+ * Falling causes bash damage and puts character in resting position.
+ *
+ * @param ch    Character to check
+ * @param show  If true, display slip/fall messages
+ *
+ * @return true if character slipped, false otherwise
+ */
 bool check_ice(CHAR_DATA *ch, bool show)
 {
     if (ch->in_room == NULL)
@@ -885,6 +990,18 @@ bool check_ice(CHAR_DATA *ch, bool show)
 }
 
 
+/**
+ * check_room_flames - Check for ITEM_ROOM_FLAME damage in room
+ *
+ * Applies fire damage from ITEM_ROOM_FLAME objects. Only damages
+ * characters in PK/CPK/Arena rooms, PKers, or NPCs. Non-PK players
+ * pass through unharmed. Has 10% chance to blind with smoke.
+ *
+ * @param ch    Character to check
+ * @param show  If true, display damage messages
+ *
+ * @return true if character died from flames, false otherwise
+ */
 bool check_room_flames(CHAR_DATA *ch, bool show)
 {
     OBJ_DATA *obj;
@@ -946,6 +1063,16 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 }
 
 
+/**
+ * check_room_shield_source - Display message when passing through room shield
+ *
+ * Shows a message when character passes through an ITEM_ROOM_ROOMSHIELD
+ * object in the room. This is purely cosmetic - the shield blocking
+ * logic is handled in can_move_room().
+ *
+ * @param ch    Character passing through
+ * @param show  If true, display the shield passage message
+ */
 void check_room_shield_source(CHAR_DATA *ch, bool show)
 {
     OBJ_DATA *obj;
@@ -961,6 +1088,29 @@ void check_room_shield_source(CHAR_DATA *ch, bool show)
     }
 }
 
+/**
+ * can_move_room - Check if character can move to a destination room
+ *
+ * Validates all conditions that might prevent movement:
+ * - Closed/locked doors, barred exits
+ * - Web/ensnare effects
+ * - Charmed characters can't leave master
+ * - Private rooms, password-protected chatrooms
+ * - Room shields in PK areas
+ * - NO_MOB flag for NPCs
+ * - Mount position requirements
+ * - Cart pulling weight checks
+ * - Arena exit handling
+ * - Ice slipping, mail in progress
+ *
+ * @param ch    Character attempting to move
+ * @param door  Direction of movement
+ * @param room  Destination room
+ *
+ * @return true if movement allowed, false if blocked
+ *
+ * Triggers: TRIG_PREENTER
+ */
 bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
@@ -1120,6 +1270,18 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
     return true;
 }
 
+/**
+ * drunk_walk - Handle drunk character movement failures
+ *
+ * When a drunk character tries to move in an invalid direction,
+ * displays humorous failure messages based on drunkenness level.
+ * May cause character to fall down or walk into walls.
+ *
+ * @param ch    Drunk character attempting movement
+ * @param door  Direction they tried to move
+ *
+ * @note Currently not called - commented out in move_char()
+ */
 void drunk_walk(CHAR_DATA *ch, int door)
 {
     EXIT_DATA *pexit;
@@ -1156,6 +1318,20 @@ void drunk_walk(CHAR_DATA *ch, int door)
 }
 
 
+/**
+ * do_search - Search for hidden exits and items
+ *
+ * Player command to search for hidden content:
+ * - No argument: Search room for hidden exits (EX_HIDDEN) and hidden items
+ * - "self": Search inventory for hidden items
+ * - <object>: Search inside a container for hidden items
+ *
+ * Hidden exits found are marked with EX_FOUND flag. Hidden items have
+ * ITEM_HIDDEN flag removed when discovered. Discovery has 60-90% chance.
+ *
+ * @param ch        Character performing search
+ * @param argument  Optional: "self" or container name to search
+ */
 void do_search(CHAR_DATA *ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1259,54 +1435,63 @@ iterator_stop(&it);
         act("You find nothing unusual.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
+/** @brief Move character north */
 void do_north(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_NORTH, false);
     return;
 }
 
+/** @brief Move character east */
 void do_east(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_EAST, false);
     return;
 }
 
+/** @brief Move character south */
 void do_south(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_SOUTH, false);
     return;
 }
 
+/** @brief Move character west */
 void do_west(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_WEST, false);
     return;
 }
 
+/** @brief Move character northeast */
 void do_northeast(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_NORTHEAST, false);
     return;
 }
 
+/** @brief Move character northwest */
 void do_northwest(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_NORTHWEST, false);
     return;
 }
 
+/** @brief Move character southeast */
 void do_southeast(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_SOUTHEAST, false);
     return;
 }
 
+/** @brief Move character southwest */
 void do_southwest(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_SOUTHWEST, false);
     return;
 }
 
+/** @brief Move character up */
 void do_up(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_UP, false);
@@ -1314,6 +1499,7 @@ void do_up(CHAR_DATA *ch, char *argument)
 }
 
 
+/** @brief Move character down */
 void do_down(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_DOWN, false);
@@ -1321,6 +1507,18 @@ void do_down(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * find_door - Find a door by direction name or keyword
+ *
+ * Parses direction argument (n/north, e/east, etc.) or door keyword.
+ * Validates the exit exists and is a door (EX_ISDOOR flag).
+ *
+ * @param ch    Character looking for the door (can be NULL for direction-only)
+ * @param arg   Direction name, abbreviation, or door keyword
+ * @param show  If true, display error messages to character
+ *
+ * @return Direction constant (0-9) if found, -1 if not found
+ */
 int find_door(CHAR_DATA *ch, char *arg, bool show)
 {
     EXIT_DATA *pexit;
@@ -1386,6 +1584,18 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
     return door;
 }
 
+/**
+ * do_open - Open a door, container, portal, or book
+ *
+ * Opens the specified target if it's closed and unlocked.
+ * Automatically unlocks first if player has the key.
+ * Updates both sides of room exits.
+ *
+ * @param ch        Character performing the action
+ * @param argument  Target to open (direction, object name)
+ *
+ * Triggers: TRIG_OPEN (for objects)
+ */
 void do_open(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1535,6 +1745,18 @@ void do_open(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_close - Close a door, container, portal, or book
+ *
+ * Closes the specified target if it's open and closeable.
+ * Handles CONT_CLOSELOCK containers that auto-lock when closed.
+ * Updates both sides of room exits.
+ *
+ * @param ch        Character performing the action
+ * @param argument  Target to close (direction, object name)
+ *
+ * Triggers: TRIG_CLOSE (for objects)
+ */
 void do_close(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1654,6 +1876,17 @@ void do_close(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * get_key - Find a key by vnum in character's inventory or keyrings
+ *
+ * Searches character's inventory for a key matching the specified vnum.
+ * Also searches inside any ITEM_KEYRING objects the character carries.
+ *
+ * @param ch    Character to search
+ * @param vnum  Object vnum of the key to find
+ *
+ * @return Pointer to key object if found, NULL otherwise
+ */
 OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
 {
     OBJ_DATA *obj;
@@ -1696,6 +1929,18 @@ return NULL;
 }
 
 
+/**
+ * use_key - Apply wear from using a key
+ *
+ * Called after a key is used to lock/unlock something.
+ * Handles:
+ * - Church temple keys: Destroyed if used by non-church member
+ * - Key fragility: May degrade condition based on fragility level
+ * - Key breaking: Extracts key if condition reaches 0
+ *
+ * @param ch   Character who used the key
+ * @param key  Key object that was used
+ */
 void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 {
     CHURCH_DATA *church;
@@ -1755,6 +2000,16 @@ iterator_stop(&it);
     }
 }
 
+/**
+ * do_lock - Lock a door, container, or portal
+ *
+ * Locks the specified target using an appropriate key from inventory.
+ * Checks for functional lock, key possession, and lock state (not broken/jammed).
+ * Updates both sides of room exits.
+ *
+ * @param ch        Character performing the action
+ * @param argument  Target to lock (direction, object name)
+ */
 void do_lock(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1930,6 +2185,17 @@ void do_lock(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_unlock - Unlock a door, container, or portal
+ *
+ * Unlocks the specified target using an appropriate key from inventory.
+ * Checks for functional lock, key possession, and lock state.
+ * LOCK_SNAPKEY locks destroy the key after unlocking.
+ * Updates both sides of room exits.
+ *
+ * @param ch        Character performing the action
+ * @param argument  Target to unlock (direction, object name)
+ */
 void do_unlock(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2112,6 +2378,16 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_pick - Attempt to pick a lock without a key
+ *
+ * Uses gsn_pick_lock skill to unlock doors, containers, and portals.
+ * Highwaymen automatically succeed. Others have chance based on skill
+ * and lock's pick_chance value. Cannot pick broken or jammed locks.
+ *
+ * @param ch        Character attempting to pick (players only)
+ * @param argument  Target lock to pick (direction, object name)
+ */
 void do_pick(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2303,6 +2579,16 @@ void do_pick(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_stand - Stand up from sitting, resting, or sleeping
+ *
+ * Changes character position to standing. Can optionally specify
+ * furniture to stand at/on/in. Wakes sleeping characters.
+ * Clears bashed state.
+ *
+ * @param ch        Character to stand
+ * @param argument  Optional furniture name to stand at
+ */
 void do_stand(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2449,6 +2735,18 @@ void do_stand(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_rest - Rest to recover faster
+ *
+ * Changes character position to resting. Can optionally specify
+ * furniture to rest at/on/in. Wakes sleeping characters to resting.
+ * Cannot rest while mounted or being ridden.
+ *
+ * @param ch        Character to rest
+ * @param argument  Optional furniture name to rest on
+ *
+ * Triggers: TRIG_SIT (for furniture)
+ */
 void do_rest(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2591,6 +2889,18 @@ void do_rest(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_sit - Sit down
+ *
+ * Changes character position to sitting. Can optionally specify
+ * furniture to sit at/on/in. Wakes sleeping characters to sitting.
+ * Cannot sit while mounted or being ridden.
+ *
+ * @param ch        Character to sit
+ * @param argument  Optional furniture name to sit on
+ *
+ * Triggers: TRIG_SIT (for furniture)
+ */
 void do_sit (CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2725,6 +3035,18 @@ void do_sit (CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_sleep - Go to sleep for maximum recovery
+ *
+ * Changes character position to sleeping. Can optionally specify
+ * furniture to sleep at/on/in. Cannot sleep while mounted, being
+ * ridden, or fighting.
+ *
+ * @param ch        Character to sleep
+ * @param argument  Optional furniture name to sleep on
+ *
+ * Triggers: TRIG_SIT (for furniture)
+ */
 void do_sleep(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2811,6 +3133,16 @@ void do_sleep(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_wake - Wake up self or another character
+ *
+ * With no argument, wakes self (calls do_stand). With argument,
+ * attempts to wake the named character. Cannot wake characters
+ * affected by magical sleep or with PLR_NO_WAKE flag.
+ *
+ * @param ch        Character doing the waking
+ * @param argument  Optional name of character to wake
+ */
 void do_wake(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2837,6 +3169,16 @@ void do_wake(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_sneak - Attempt to move silently
+ *
+ * Activates sneak mode using gsn_sneak skill. Sneaking characters
+ * don't show leave/arrive messages when moving. For immortals,
+ * can also be used as a teleport command with location argument.
+ *
+ * @param ch        Character attempting to sneak
+ * @param argument  For immortals: optional location to teleport to
+ */
 void do_sneak(CHAR_DATA *ch, char *argument)
 {
     AFFECT_DATA af;
@@ -2903,6 +3245,22 @@ memset(&af,0,sizeof(af));
 }
 
 
+/**
+ * do_hide - Hide self or an object
+ *
+ * Multi-purpose hide command:
+ * - No argument: Hide self in shadows (uses gsn_hide skill)
+ * - "hide <obj>": Hide object in the room (sector-specific messages)
+ * - "hide <obj> in <container>": Hide object inside container
+ * - "hide <obj> on <victim>": Plant object on another character
+ *
+ * Hidden characters get AFF_HIDE. Hidden objects get ITEM_HIDDEN.
+ *
+ * @param ch        Character hiding
+ * @param argument  Optional: object to hide, or "self"
+ *
+ * Triggers: TRIG_PREHIDE, TRIG_PREHIDE_IN, TRIG_HIDE, TRIG_HIDDEN
+ */
 void do_hide(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -3165,6 +3523,17 @@ void do_hide(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * hide_end - Complete the hide attempt after delay
+ *
+ * Called after HIDE_STATE delay expires. Rolls against gsn_hide skill
+ * to determine success. Characters with gsn_deception may notice
+ * the hiding attempt.
+ *
+ * @param ch  Character completing hide attempt
+ *
+ * Triggers: TRIG_HIDDEN (on success)
+ */
 void hide_end(CHAR_DATA *ch)
 {
     CHAR_DATA *rch;
@@ -3197,6 +3566,15 @@ void hide_end(CHAR_DATA *ch)
     }
 }
 
+/**
+ * do_visible - Remove all invisibility and stealth effects
+ *
+ * Strips all forms of invisibility: invis, mass invis, sneak,
+ * improved invis, cloak of guile, and hide.
+ *
+ * @param ch        Character becoming visible
+ * @param argument  Unused
+ */
 void do_visible(CHAR_DATA *ch, char *argument)
 {
     affect_strip (ch, gsn_invis			);
@@ -3212,6 +3590,19 @@ void do_visible(CHAR_DATA *ch, char *argument)
     send_to_char("You reveal yourself.\n\r", ch);
 }
 
+/**
+ * do_recall - Teleport to recall point (low-level only)
+ *
+ * Prayers-based teleport to character's recall location. Only works
+ * for players level 30 or below. Blocked by cursed status, ROOM_NO_RECALL,
+ * AREA_NO_RECALL, or being in combat. Costs half movement points.
+ * Also brings pet and mount.
+ *
+ * @param ch        Player attempting recall
+ * @param argument  Unused
+ *
+ * Triggers: TRIG_PRERECALL (on self and room)
+ */
 void do_recall(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;
@@ -3289,6 +3680,17 @@ void do_recall(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_fade - Dimensional fade movement (remort skill)
+ *
+ * Uses gsn_fade skill to phase through dimensions, moving multiple
+ * rooms in the specified direction without triggering normal movement
+ * checks. Blocked in AREA_NO_FADING areas, water, and social areas.
+ * Cannot fade while fighting or pulling a cart.
+ *
+ * @param ch        Character using fade
+ * @param argument  Direction to fade (n, e, s, w, etc.)
+ */
 void do_fade(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3377,6 +3779,15 @@ void do_fade(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * fade_end - Complete the fade movement after initial delay
+ *
+ * Called after FADE_STATE delay expires. Moves character multiple
+ * rooms based on skill level (3-5 rooms). Higher skill reduces
+ * delay between fades.
+ *
+ * @param ch  Character completing fade movement
+ */
 void fade_end(CHAR_DATA *ch)
 {
     int counter = 0;
@@ -3420,6 +3831,17 @@ void fade_end(CHAR_DATA *ch)
 }
 
 
+/**
+ * move_success - Attempt a single fade movement step
+ *
+ * Helper function for fade_end(). Moves character one room in
+ * their fade_dir direction. Checks for valid exits, closed doors,
+ * pass door ability, and room visibility.
+ *
+ * @param ch  Character being moved
+ *
+ * @return true if movement succeeded, false if blocked
+ */
 bool move_success(CHAR_DATA *ch)
 {
     ROOM_INDEX_DATA *in_room;
@@ -3489,6 +3911,20 @@ bool move_success(CHAR_DATA *ch)
     return true;
 }
 
+/**
+ * do_project - Cosmic projection for angel/demon remorts (INCOMPLETE)
+ *
+ * Work-in-progress feature for angel and demon remort characters.
+ * Would allow projection to the mortal realm from afterlife states.
+ * - Angels: Project to room 11051 (pillar)
+ * - Demons: Project to room 11022 (crack in ground)
+ * Both reset all affects and set stats to 50%.
+ *
+ * @param ch        Angel or demon character
+ * @param argument  Unused
+ *
+ * @note COMMENTED OUT - incomplete implementation
+ */
 /*  Project for remorts - work in progress
 void do_project(CHAR_DATA *ch, char *argument)
 {
@@ -3554,6 +3990,16 @@ void do_project(CHAR_DATA *ch, char *argument)
     }
 } */
 
+/**
+ * do_bar - Bar a door or portal shut
+ *
+ * Uses gsn_bar skill to place a bar across a closed door or portal,
+ * preventing it from being opened. Door must be closed and not
+ * already barred or flagged EX_NOBAR. Updates both sides of room exits.
+ *
+ * @param ch        Character barring the door
+ * @param argument  Direction or portal name to bar
+ */
 void do_bar(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3663,11 +4109,32 @@ void do_bar(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_jam - Jam a lock (STUB - not implemented)
+ *
+ * Placeholder for lock jamming skill. Would set LOCK_JAMMED flag
+ * to prevent the lock from being opened or locked.
+ *
+ * @param ch        Character attempting to jam
+ * @param argument  Target lock
+ *
+ * @note NOT IMPLEMENTED - empty stub function
+ */
 void do_jam(CHAR_DATA *ch, char *argument)
 {
 
 }
 
+/**
+ * do_evasion - Activate evasion defensive stance
+ *
+ * Uses gsn_evasion skill to gain AFF2_EVASION effect with +3 DEX bonus.
+ * Duration based on total level. Cannot use while mounted or already
+ * affected.
+ *
+ * @param ch        Character using evasion
+ * @param argument  Unused
+ */
 void do_evasion(CHAR_DATA *ch, char *argument)
 {
     AFFECT_DATA af;
@@ -3715,6 +4182,12 @@ memset(&af,0,sizeof(af));
 }
 
 
+/**
+ * do_warp - Placeholder command (joke/easter egg)
+ *
+ * @param ch        Character
+ * @param argument  Unused
+ */
 void do_warp(CHAR_DATA *ch, char *argument)
 {
     send_to_char("Warp speed! NOW!!!\n\r", ch);
@@ -3722,6 +4195,15 @@ void do_warp(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * check_see_hidden - Alert if magic item detects hidden exit
+ *
+ * Called when entering a room. If character wears an ITEM_SEE_HIDDEN
+ * item and the room has undiscovered hidden exits, the item vibrates
+ * and hums to alert the player.
+ *
+ * @param ch  Character to check
+ */
 void check_see_hidden(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
@@ -3754,6 +4236,16 @@ iterator_stop(&it);
     }
 }
 
+/**
+ * check_traps - Detect traps in room using gsn_detect_traps
+ *
+ * Called when entering a room. Checks visible exits for ROOM_DEATH_TRAP
+ * destinations and visible objects for ITEM_TRAPPED flag. Success chance
+ * based on gsn_detect_traps skill level.
+ *
+ * @param ch    Character to check traps for
+ * @param show  If true, display warning messages
+ */
 void check_traps(CHAR_DATA *ch, bool show)
 {
     EXIT_DATA *exit;
@@ -3800,6 +4292,19 @@ void check_traps(CHAR_DATA *ch, bool show)
     }
 }
 
+/**
+ * do_ambush - Set up an ambush to attack entering characters
+ *
+ * Uses gsn_ambush skill to set up an ambush that triggers when matching
+ * characters enter the room. Can filter by PC/NPC/all and level range.
+ * Syntax: ambush <pc|npc|all> <min level> <max level> <command>
+ *         ambush stop
+ *
+ * The command is executed against the victim when ambush triggers.
+ *
+ * @param ch        Character setting up ambush
+ * @param argument  Ambush parameters or "stop"
+ */
 void do_ambush(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -3883,6 +4388,16 @@ void do_ambush(CHAR_DATA *ch, char *argument)
     act("$n finds a good place to hide and crouches down.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
+/**
+ * do_pk - Toggle player-killer status
+ *
+ * Allows players to toggle PLR_PK flag at guildmasters for 5000 pneuma.
+ * Requirements: level 31+ (or remort), at a guildmaster, not in PK church.
+ * Sets personal_pk_question flag for confirmation prompt.
+ *
+ * @param ch        Player toggling PK status
+ * @param argument  Unused
+ */
 void do_pk(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob = NULL;
@@ -3929,6 +4444,17 @@ void do_pk(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_knock - Knock on a closed door
+ *
+ * Knocks on a closed door, notifying characters on the other side.
+ * The door must be closed.
+ *
+ * @param ch        Character knocking
+ * @param argument  Direction of door to knock on
+ *
+ * Triggers: TRIG_KNOCK (this side), TRIG_KNOCKING (other side)
+ */
 void do_knock(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3972,6 +4498,31 @@ void do_knock(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_takeoff - Launch into flight using wings
+ *
+ * Allows winged characters or mounted winged creatures to take flight.
+ * Handles both character-initiated flight and mount-initiated flight.
+ *
+ * Requirements and checks:
+ * - Must have PART_WINGS (unless trigger handles it)
+ * - Must not already be flying (AFF_FLYING or gsn_flight)
+ * - Must have sufficient movement points (based on max_move/CON ratio)
+ * - Carry weight must not exceed capacity (mortals only)
+ * - Skill check against gsn_flight (characters only)
+ *
+ * If mounted, the mount takes flight:
+ * - Uses mount's wings and stats for all checks
+ * - Weight includes rider's weight
+ *
+ * On success, applies AFF_FLYING via gsn_flight affect with permanent
+ * duration (-1). Characters improve their flight skill on success/failure.
+ *
+ * @param ch        Character or mount taking flight
+ * @param argument  Unused
+ *
+ * Triggers: TRIG_TAKEOFF
+ */
 void do_takeoff(CHAR_DATA *ch, char *argument)
 {
     int chance;
@@ -4081,6 +4632,27 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
     }
 }
 
+/**
+ * do_land - Descend from flight to the ground
+ *
+ * Ends flight for character or their mount by removing flight affects.
+ * Provides different messages based on whether landing in water or on ground,
+ * and whether the character used physical flight (wings) or magical flight.
+ *
+ * Landing behaviors:
+ * - Physical flight (gsn_flight): "Diving down" messages
+ * - Magical flight (gsn_fly): "Slowly descend" messages
+ * - Water sectors: Descend to water
+ * - Other sectors: Descend to ground
+ *
+ * If mounted, the mount lands rather than the rider.
+ * Strips both gsn_flight and gsn_fly affects to ensure grounding.
+ *
+ * @param ch        Flying character or mount
+ * @param argument  Unused
+ *
+ * Triggers: TRIG_LAND
+ */
 void do_land(CHAR_DATA *ch, char *argument)
 {
     if(MOUNTED(ch)) {
