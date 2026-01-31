@@ -43,6 +43,15 @@
 BAN_DATA *ban_list;
 
 
+/**
+ * save_bans - Write permanent bans to disk
+ *
+ * Saves all bans with the BAN_PERMANENT flag to BAN_FILE.
+ * Temporary bans are not persisted. If no permanent bans exist,
+ * the ban file is deleted.
+ *
+ * File format: name level flags (one per line)
+ */
 void save_bans(void)
 {
     BAN_DATA *pban;
@@ -72,6 +81,12 @@ void save_bans(void)
 }
 
 
+/**
+ * load_bans - Load saved bans from disk at boot time
+ *
+ * Reads BAN_FILE and populates ban_list with all saved bans.
+ * Called during server initialization.
+ */
 void load_bans(void)
 {
     FILE *fp;
@@ -106,6 +121,19 @@ void load_bans(void)
 }
 
 
+/**
+ * check_ban - Check if a site/host matches any active bans
+ *
+ * Checks the ban_list for matches against the given site name.
+ * Supports wildcard matching:
+ * - BAN_PREFIX: ban name matches end of host (*example.com)
+ * - BAN_SUFFIX: ban name matches start of host (example.*)
+ * - Both: ban name found anywhere in host (*example*)
+ *
+ * @param site  Hostname or IP to check
+ * @param type  Ban type to check for (BAN_ALL, BAN_NEWBIES, BAN_PERMIT)
+ * @return      true if site is banned for this type, false otherwise
+ */
 bool check_ban(char *site,int type)
 {
     BAN_DATA *pban;
@@ -137,6 +165,25 @@ bool check_ban(char *site,int type)
 }
 
 
+/**
+ * ban_site - Internal function to add or list bans
+ *
+ * With no arguments, lists all current bans with their level, type, and status.
+ * With arguments, creates a new ban entry.
+ *
+ * Syntax: ban [site] [type]
+ * - site: Hostname/IP to ban. Use * prefix/suffix for wildcards.
+ *   Examples: *aol.com, 192.168.*, *bad*
+ * - type: all (default), newbies (new chars only), permit (requires permit)
+ *
+ * Ban precedence: Staff rank determines who can modify/remove a ban.
+ * If a ban already exists for the site, it's replaced if the caller
+ * has sufficient rank.
+ *
+ * @param ch     Staff member issuing the ban
+ * @param argument  Site and optional type
+ * @param fPerm  true for permanent ban (saved to file), false for temp
+ */
 void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 {
     char buf[2*MAX_STRING_LENGTH],buf2[MAX_STRING_LENGTH];
@@ -258,18 +305,46 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 }
 
 
+/**
+ * do_ban - Staff command to create a temporary site ban
+ *
+ * Creates a ban that lasts until server reboot (not saved to file).
+ * Wrapper for ban_site() with fPerm=false.
+ *
+ * @param ch        Staff member issuing the ban
+ * @param argument  Site pattern and optional ban type
+ */
 void do_ban(CHAR_DATA *ch, char *argument)
 {
     ban_site(ch,argument,false);
 }
 
 
+/**
+ * do_permban - Staff command to create a permanent site ban
+ *
+ * Creates a ban that persists across reboots (saved to BAN_FILE).
+ * Wrapper for ban_site() with fPerm=true.
+ *
+ * @param ch        Staff member issuing the ban
+ * @param argument  Site pattern and optional ban type
+ */
 void do_permban(CHAR_DATA *ch, char *argument)
 {
     ban_site(ch,argument,true);
 }
 
 
+/**
+ * do_allow - Staff command to remove a site ban
+ *
+ * Removes a ban from the ban_list if the caller has sufficient rank
+ * (must be >= the rank of the staff member who created the ban).
+ * Saves updated ban list to file.
+ *
+ * @param ch        Staff member removing the ban
+ * @param argument  Name of the banned site to unban
+ */
 void do_allow( CHAR_DATA *ch, char *argument )
 {
     char arg[MAX_INPUT_LENGTH];

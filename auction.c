@@ -37,6 +37,32 @@
 void show_obj_stats( CHAR_DATA *ch, OBJ_DATA *obj );
 void auction_channel( char *msg );
 
+/**
+ * do_auction - Player command to manage and participate in auctions
+ *
+ * Handles the entire auction system including putting items up for bid,
+ * bidding on items, and auction management. Uses a global auction_info
+ * structure to track the current auction state.
+ *
+ * Subcommands:
+ * - (no args)     : Toggle auction channel on/off (COMM_NOAUCTION)
+ * - info          : Show current auction details and item stats (spell_identify)
+ * - stop          : Owner cancels auction (not allowed in last 2 rounds)
+ * - confiscate    : Immortal removes item from auction
+ * - bid <amount>  : Place a bid (must be 10% higher than current, from bank)
+ * - <item> [min]  : Put carried item up for auction with optional minimum bid
+ *
+ * Restrictions:
+ * - No rotting/timed items, non-empty containers, NOAUCTION items
+ * - No restrung items, no enchanted skulls (third_eye)
+ * - Cannot bid on own item; cannot bid if dead
+ * - Bids deducted from bank balance (refunded if outbid)
+ *
+ * Sale tax: 5% taken from final sale price
+ *
+ * @param ch        Character running the command
+ * @param argument  Subcommand and arguments
+ */
 void do_auction( CHAR_DATA *ch, char * argument )
 {
     long gold = 0;
@@ -417,6 +443,24 @@ void do_auction( CHAR_DATA *ch, char * argument )
 }
 
 
+/**
+ * auction_update - Process auction timer tick
+ *
+ * Called periodically from the game update loop. Advances the auction
+ * status counter and handles the three auction phases:
+ *
+ * - AUCTION_LENGTH - 2: "Going once" announcement
+ * - AUCTION_LENGTH - 1: "Going twice" announcement
+ * - AUCTION_LENGTH: Auction ends (item sold or returned to owner)
+ *
+ * If sold:
+ * - 5% tax deducted from sale price
+ * - Remaining gold deposited to seller's bank
+ * - Item delivered to high bidder via "big hairy gnome"
+ *
+ * If no bids:
+ * - Item returned to owner via "big hairy gnome"
+ */
 void auction_update()
 {
     char buf[MAX_STRING_LENGTH];
@@ -617,6 +661,15 @@ void auction_update()
 }
 
 
+/**
+ * auction_channel - Broadcast a message to the auction channel
+ *
+ * Sends a message to all connected players who have the auction
+ * channel enabled (not COMM_NOAUCTION) and are not in QUIET mode.
+ * Prefixes message with "{M[AUCTION]" color tag.
+ *
+ * @param msg  Message to broadcast (will be color-coded magenta)
+ */
 void auction_channel( char *msg )
 {
     char buf[MAX_STRING_LENGTH];

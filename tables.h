@@ -109,6 +109,22 @@ struct string_type
     char * name;
 };
 
+/**
+ * struct flag_type - Universal flag/stat table entry
+ *
+ * Used throughout the codebase for mapping between flag names and bit values.
+ * Supports both "stats" (single-value enumerations like sex, position) and
+ * "flags" (bitmasks where multiple values can be combined like ACT_, AFF_).
+ *
+ * The distinction between stats and flags is determined by whether the table
+ * appears in flag_stat_table[] in bit.c. Stats use exact match on bit value,
+ * flags use IS_SET() for bitmask matching.
+ *
+ * @name        String name of the flag (e.g., "sanctuary", "glow")
+ * @bit         Bit value or enumeration value
+ * @settable    Whether this flag can be modified via OLC/commands
+ * @description Optional description for help/documentation (may be NULL)
+ */
 struct flag_type
 {
     char *name;

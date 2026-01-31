@@ -20,6 +20,30 @@ int 		auto_war_timer;
 int 		auto_war_battle_timer;
 
 
+/**
+ * do_war - Player command for war participation and information
+ *
+ * Handles all player interaction with the automated war system.
+ *
+ * Subcommands:
+ * - (no args)     : Toggle war channel (COMM_NOAUTOWAR)
+ * - join          : Join the currently active war (during staging period)
+ * - statistics    : Show current war details and participant list
+ *
+ * War types (via auto_war_table):
+ * - AUTO_WAR_FREE_FOR_ALL: Last player standing wins
+ * - AUTO_WAR_GENOCIDE: Race vs race, last race standing wins
+ * - AUTO_WAR_JIHAD: Good vs evil alignment battle
+ *
+ * Join restrictions:
+ * - Must be within war level range
+ * - Cannot join after staging period ends
+ * - Cannot join if dead
+ * - Jihad: Neutral alignment cannot participate
+ *
+ * @param ch        Character running the command
+ * @param argument  Subcommand (join/statistics)
+ */
 void do_war(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -188,6 +212,13 @@ void do_war(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * scatter_players - Teleport all war participants to random battlefield locations
+ *
+ * Called when the war officially starts (staging period ends). Moves each
+ * player from the staging room to a random room within the "Autowar Battlefield"
+ * area (excluding the staging room itself).
+ */
 void scatter_players()
 {
     ROOM_INDEX_DATA *pRoom = NULL;
@@ -214,6 +245,14 @@ void scatter_players()
 }
 
 
+/**
+ * auto_war_echo - Send a message to all players in the current war
+ *
+ * Sends a message only to participants currently in the war, not to
+ * the global war channel. Used for in-war announcements.
+ *
+ * @param message  Message to send to war participants
+ */
 void auto_war_echo( char *message)
 {
     CHAR_DATA *ch = NULL;
@@ -226,6 +265,20 @@ void auto_war_echo( char *message)
 }
 
 
+/**
+ * start_war - Begin the war after staging period ends
+ *
+ * Called when auto_war_timer reaches 0. Validates that enough
+ * players joined based on war type requirements:
+ *
+ * - FREE_FOR_ALL: Need at least min_players
+ * - GENOCIDE: Need at least 2 different races
+ * - JIHAD: Need at least 1 good and 1 evil player
+ *
+ * If requirements not met, cancels war and returns items/players.
+ * Otherwise, scatters players to battlefield and starts 10-minute
+ * battle timer.
+ */
 void start_war()
 {
     CHAR_DATA *wch;
@@ -310,6 +363,19 @@ void start_war()
 }
 
 
+/**
+ * auto_war_time_finish - Handle battle timer expiration
+ *
+ * Called when auto_war_battle_timer reaches 0 (10 minutes elapsed).
+ * Determines winner based on war type:
+ *
+ * - FREE_FOR_ALL: No clear winner, war ends
+ * - GENOCIDE: Most numerous race wins, rewards 50 quest points
+ * - JIHAD: Most numerous alignment wins, rewards 50 quest points
+ *
+ * Increments wars_won counter for winning players and cleans up
+ * the war structure.
+ */
 void auto_war_time_finish()
 {
     char buf[MAX_STRING_LENGTH];
@@ -465,6 +531,19 @@ void auto_war_time_finish()
 }
 
 
+/**
+ * test_for_end_of_war - Check if victory conditions have been met
+ *
+ * Called periodically and after combat deaths. Checks if the war
+ * should end based on victory conditions:
+ *
+ * - FREE_FOR_ALL: Only 1 player remains = that player wins
+ * - GENOCIDE: Only 1 race remains = that race wins
+ * - JIHAD: Only 1 alignment remains = that alignment wins
+ *
+ * Winners receive 50 quest points and wars_won increment.
+ * Announces winner via war_channel and calls free_auto_war().
+ */
 void test_for_end_of_war()
 {
     char buf[MAX_STRING_LENGTH];
@@ -637,6 +716,15 @@ void test_for_end_of_war()
 }
 
 
+/**
+ * war_channel - Broadcast a message to the global war channel
+ *
+ * Sends a message to all connected players who have the war channel
+ * enabled (not COMM_NOAUTOWAR) and are not in QUIET mode. Used for
+ * global war announcements (start, end, winners).
+ *
+ * @param msg  Message to broadcast
+ */
 void war_channel( char *msg )
 {
     DESCRIPTOR_DATA *d;

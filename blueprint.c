@@ -51,11 +51,28 @@ void room_update(ROOM_INDEX_DATA *room);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
+/** Flag indicating blueprint data needs to be saved to disk */
 bool blueprints_changed = false;
+
+/** Highest blueprint section vnum currently in use */
 long top_blueprint_section_vnum = 0;
+
+/** Highest blueprint vnum currently in use */
 long top_blueprint_vnum = 0;
+
+/** List of all currently active instances (procedural dungeons) */
 LLIST *loaded_instances;
 
+
+/**
+ * fix_blueprint_section - Resolve room/exit references in a blueprint section
+ *
+ * After loading a blueprint section, this function resolves the vnum-based
+ * references to actual room and exit pointers. Must be called after all
+ * areas are loaded.
+ *
+ * @param bs  Blueprint section to fix up
+ */
 void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 {
     for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
@@ -74,6 +91,15 @@ void fix_blueprint_section(BLUEPRINT_SECTION *bs)
     }
 }
 
+/**
+ * load_blueprint_link - Load a blueprint link from file
+ *
+ * Reads a #LINK block from the blueprint file. Links define connection
+ * points between sections (doors that can be connected to other sections).
+ *
+ * @param fp  File pointer positioned at start of link data
+ * @return    Newly allocated BLUEPRINT_LINK structure
+ */
 BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
 {
     BLUEPRINT_LINK *link;
@@ -110,6 +136,15 @@ BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
     return link;
 }
 
+/**
+ * load_blueprint_section - Load a blueprint section from file
+ *
+ * Reads a #SECTION block from the blueprint file. Sections define a range
+ * of rooms that can be cloned together as a unit in procedural dungeons.
+ *
+ * @param fp  File pointer positioned at start of section data
+ * @return    Newly allocated BLUEPRINT_SECTION structure
+ */
 BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 {
     BLUEPRINT_SECTION *bs;
@@ -211,6 +246,17 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
     return bs;
 }
 
+/**
+ * load_blueprint - Load a blueprint from file
+ *
+ * Reads a #BLUEPRINT block from the blueprint file. Blueprints define how
+ * sections are connected together to form complete procedural dungeons.
+ * Includes mode (static/dynamic), section references, entry/exit points,
+ * instance progs, and variables.
+ *
+ * @param fp  File pointer positioned at start of blueprint data
+ * @return    Newly allocated BLUEPRINT structure
+ */
 BLUEPRINT *load_blueprint(FILE *fp)
 {
     BLUEPRINT *bp;
@@ -457,8 +503,13 @@ BLUEPRINT *load_blueprint(FILE *fp)
 }
 
 
-// load blueprints
-// CALLED AFTER ALL AREAS ARE LOADED
+/**
+ * load_blueprints - Load all blueprints from disk at boot time
+ *
+ * Reads the blueprints.dat file containing all blueprint sections,
+ * blueprints, and instance progs. MUST be called after all areas are
+ * loaded so room references can be resolved.
+ */
 void load_blueprints()
 {
     FILE *fp = fopen(BLUEPRINTS_FILE, "r");
@@ -534,6 +585,12 @@ void load_blueprints()
     fclose(fp);
 }
 
+/**
+ * save_blueprint_section - Write a blueprint section to file
+ *
+ * @param fp  File pointer to write to
+ * @param bs  Blueprint section to save
+ */
 void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 {
     fprintf(fp, "#SECTION %ld\n", bs->vnum);
@@ -564,6 +621,15 @@ void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 }
 
 
+/**
+ * save_blueprint - Write a blueprint to file
+ *
+ * Saves all blueprint data including sections, static layout, entries/exits,
+ * special rooms, instance progs, and variables.
+ *
+ * @param fp  File pointer to write to
+ * @param bp  Blueprint to save
+ */
 void save_blueprint(FILE *fp, BLUEPRINT *bp)
 {
 
@@ -654,7 +720,14 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
     fprintf(fp, "#-BLUEPRINT\n\n");
 }
 
-// save blueprints
+/**
+ * save_blueprints - Save all blueprints to disk
+ *
+ * Writes all blueprint sections, blueprints, and instance progs to
+ * the blueprints.dat file. Called when blueprints_changed is true.
+ *
+ * @return  true on success, false if file cannot be opened
+ */
 bool save_blueprints()
 {
     FILE *fp = fopen(BLUEPRINTS_FILE, "w");
@@ -695,6 +768,15 @@ bool save_blueprints()
     return true;
 }
 
+/**
+ * valid_section_link - Check if a blueprint link is properly configured
+ *
+ * Validates that a link has valid vnum, door, room pointer, exit pointer,
+ * and that the exit is marked as an environment exit (EX_ENVIRONMENT).
+ *
+ * @param bl  Blueprint link to validate
+ * @return    true if valid and usable, false otherwise
+ */
 bool valid_section_link(BLUEPRINT_LINK *bl)
 {
     if( !IS_VALID(bl) ) return false;
@@ -713,6 +795,13 @@ bool valid_section_link(BLUEPRINT_LINK *bl)
     return true;
 }
 
+/**
+ * get_section_link - Get a specific link from a blueprint section by index
+ *
+ * @param bs    Blueprint section containing the links
+ * @param link  1-based index of the link to retrieve
+ * @return      BLUEPRINT_LINK pointer or NULL if not found
+ */
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
 {
     if( !IS_VALID(bs) ) return NULL;
@@ -728,6 +817,15 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
     return NULL;
 }
 
+/**
+ * valid_static_link - Validate a connection between two sections in static mode
+ *
+ * Checks that both sections and links exist, are valid, and that the door
+ * directions are reverse of each other (e.g., north-south, east-west).
+ *
+ * @param sbl  Static blueprint link to validate
+ * @return     true if the link is properly configured
+ */
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
 {
     if( !IS_VALID(sbl) ) return false;
@@ -751,6 +849,12 @@ bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
     return true;
 }
 
+/**
+ * get_blueprint_section - Look up a blueprint section by vnum
+ *
+ * @param vnum  Virtual number of the section to find
+ * @return      BLUEPRINT_SECTION pointer or NULL if not found
+ */
 BLUEPRINT_SECTION *get_blueprint_section(long vnum)
 {
     int iHash = vnum % MAX_KEY_HASH;
@@ -764,6 +868,15 @@ BLUEPRINT_SECTION *get_blueprint_section(long vnum)
     return NULL;
 }
 
+/**
+ * get_blueprint_section_byroom - Find the section containing a room vnum
+ *
+ * Searches all blueprint sections to find which one contains the given
+ * room vnum within its lower_vnum to upper_vnum range.
+ *
+ * @param vnum  Room vnum to search for
+ * @return      BLUEPRINT_SECTION containing this room, or NULL
+ */
 BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum)
 {
     for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
@@ -778,6 +891,12 @@ BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum)
     return NULL;
 }
 
+/**
+ * get_blueprint - Look up a blueprint by vnum
+ *
+ * @param vnum  Virtual number of the blueprint to find
+ * @return      BLUEPRINT pointer or NULL if not found
+ */
 BLUEPRINT *get_blueprint(long vnum)
 {
     int iHash = vnum % MAX_KEY_HASH;
@@ -791,6 +910,13 @@ BLUEPRINT *get_blueprint(long vnum)
     return NULL;
 }
 
+/**
+ * rooms_in_same_section - Check if two rooms are in the same blueprint section
+ *
+ * @param vnum1  First room vnum
+ * @param vnum2  Second room vnum
+ * @return       true if both in same section (or neither in any section)
+ */
 bool rooms_in_same_section(long vnum1, long vnum2)
 {
     BLUEPRINT_SECTION *s1 = get_blueprint_section_byroom(vnum1);
@@ -801,6 +927,13 @@ bool rooms_in_same_section(long vnum1, long vnum2)
     return s1 && s2 && (s1 == s2);
 }
 
+/**
+ * get_blueprint_entrance - Get an entrance point definition from a blueprint
+ *
+ * @param bp     Blueprint to query
+ * @param index  1-based index of the entrance
+ * @return       BLUEPRINT_EXIT_DATA for the entrance, or NULL
+ */
 BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index)
 {
     if (bp->mode == BLUEPRINT_MODE_STATIC)
@@ -812,6 +945,13 @@ BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index)
 }
 
 
+/**
+ * get_blueprint_exit - Get an exit point definition from a blueprint
+ *
+ * @param bp     Blueprint to query
+ * @param index  1-based index of the exit
+ * @return       BLUEPRINT_EXIT_DATA for the exit, or NULL
+ */
 BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index)
 {
     if (bp->mode == BLUEPRINT_MODE_STATIC)
@@ -822,6 +962,16 @@ BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index)
     return NULL;
 }
 
+/**
+ * instance_section_get_room_byvnum - Find a cloned room in an instance section
+ *
+ * Searches the instance section's room list for a room matching the given
+ * source vnum (the room's original template vnum, not its clone id).
+ *
+ * @param section  Instance section to search
+ * @param vnum     Source room vnum to find
+ * @return         Cloned ROOM_INDEX_DATA pointer, or NULL if not found
+ */
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum)
 {
     if( !IS_VALID(section) ) return NULL;
@@ -840,6 +990,15 @@ ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, lon
 
 }
 
+/**
+ * instance_section_get_room - Find a cloned room matching a source room
+ *
+ * Convenience wrapper for instance_section_get_room_byvnum.
+ *
+ * @param section  Instance section to search
+ * @param source   Source room to match
+ * @return         Cloned room in this section, or NULL
+ */
 ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, ROOM_INDEX_DATA *source)
 {
     if( !source ) return NULL;
@@ -847,6 +1006,16 @@ ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, ROOM_INDEX
     return instance_section_get_room_byvnum(section, source->vnum);
 }
 
+/**
+ * instance_section_count_mob - Count mobiles of a given type in a section
+ *
+ * Counts non-animated mobiles matching the given mob index in all rooms
+ * of the instance section.
+ *
+ * @param section    Instance section to search
+ * @param pMobIndex  Mobile index to count
+ * @return           Number of matching mobiles
+ */
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex)
 {
     if( !IS_VALID(section) ) return 0;
@@ -868,6 +1037,13 @@ int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIn
     return count;
 }
 
+/**
+ * instance_count_mob - Count mobiles of a given type in entire instance
+ *
+ * @param instance   Instance to search
+ * @param pMobIndex  Mobile index to count
+ * @return           Total count across all sections
+ */
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 {
     if( !IS_VALID(instance) ) return 0;
@@ -885,10 +1061,16 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
     return count;
 }
 
-// create instance
-
-
-
+/**
+ * clone_blueprint_section - Create a live instance section from a template
+ *
+ * Clones all rooms in the blueprint section's vnum range, creating virtual
+ * rooms with unique IDs. Also clones exits between rooms within the section
+ * and fixes up portal object destinations.
+ *
+ * @param parent  Blueprint section template to clone
+ * @return        New INSTANCE_SECTION with cloned rooms, or NULL on error
+ */
 INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 {
     ROOM_INDEX_DATA *room;
@@ -1004,6 +1186,13 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
     return section;
 }
 
+/**
+ * instance_get_section - Get a section from an instance by index
+ *
+ * @param instance    Instance to query
+ * @param section_no  1-based section index
+ * @return            INSTANCE_SECTION pointer, or NULL
+ */
 INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no)
 {
     if (!IS_VALID(instance)) return NULL;
@@ -1012,13 +1201,32 @@ INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no)
     return list_nthdata(instance->sections, section_no);
 }
 
+/**
+ * instance_get_section_link - Get a link from an instance section
+ *
+ * Retrieves a link from the underlying blueprint section template.
+ *
+ * @param section  Instance section
+ * @param link_no  1-based link index
+ * @return         BLUEPRINT_LINK pointer, or NULL
+ */
 BLUEPRINT_LINK *instance_get_section_link(INSTANCE_SECTION *section, int link_no)
 {
     if (!IS_VALID(section)) return NULL;
-    
+
     return get_section_link(section->section, link_no);
 }
 
+/**
+ * generate_static_instance - Generate rooms and connections for static mode
+ *
+ * Clones all sections defined in the blueprint, connects them according
+ * to the static layout configuration, and sets up entrance/exit/recall
+ * points. Used for blueprints with BLUEPRINT_MODE_STATIC.
+ *
+ * @param instance  Instance to populate with cloned rooms
+ * @return          true on success, false if any section failed to clone
+ */
 bool generate_static_instance(INSTANCE *instance)
 {
     ITERATOR bsit;
@@ -1191,6 +1399,13 @@ bool generate_static_instance(INSTANCE *instance)
     return valid;
 }
 
+/**
+ * instance_section_reset_rooms - Reset all rooms in an instance section
+ *
+ * Calls reset_room() on each room to respawn mobiles and objects.
+ *
+ * @param section  Instance section to reset
+ */
 void instance_section_reset_rooms(INSTANCE_SECTION *section)
 {
     ITERATOR rit;
@@ -1205,6 +1420,13 @@ void instance_section_reset_rooms(INSTANCE_SECTION *section)
     iterator_stop(&rit);
 }
 
+/**
+ * reset_instance - Reset all sections in an instance
+ *
+ * Resets all rooms in all sections, respawning mobiles and objects.
+ *
+ * @param instance  Instance to reset
+ */
 void reset_instance(INSTANCE *instance)
 {
     ITERATOR it;
@@ -1218,6 +1440,16 @@ void reset_instance(INSTANCE *instance)
 }
 
 
+/**
+ * create_instance - Create a new procedural dungeon instance from a blueprint
+ *
+ * Main entry point for spawning an instance. Creates the instance structure,
+ * generates rooms based on blueprint mode (static/dynamic/procedural), sets
+ * up special rooms, and performs initial reset.
+ *
+ * @param blueprint  Blueprint template to instantiate
+ * @return           New INSTANCE pointer, or NULL on failure
+ */
 INSTANCE *create_instance(BLUEPRINT *blueprint)
 {
     INSTANCE *instance = new_instance();
@@ -1283,6 +1515,11 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 }
 
 
+/**
+ * update_instance_section - Run room updates for an instance section
+ *
+ * @param section  Instance section to update
+ */
 void update_instance_section(INSTANCE_SECTION *section)
 {
     ITERATOR rit;
@@ -1294,6 +1531,13 @@ void update_instance_section(INSTANCE_SECTION *section)
     iterator_stop(&rit);
 }
 
+/**
+ * update_instance - Periodic update for an instance
+ *
+ * Runs TRIG_RANDOM trigger and updates all rooms in all sections.
+ *
+ * @param instance  Instance to update
+ */
 void update_instance(INSTANCE *instance)
 {
     p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
@@ -1308,6 +1552,12 @@ void update_instance(INSTANCE *instance)
     iterator_stop(&sit);
 }
 
+/**
+ * instance_can_idle - Check if an instance is allowed to idle/timeout
+ *
+ * @param instance  Instance to check
+ * @return          true if instance can enter idle timeout state
+ */
 bool instance_can_idle(INSTANCE *instance)
 {
     return IS_SET(instance->flags, INSTANCE_DESTROY) ||
@@ -1316,6 +1566,14 @@ bool instance_can_idle(INSTANCE *instance)
                 IS_SET(instance->flags, INSTANCE_COMPLETED)));
 }
 
+/**
+ * instance_check_empty - Update empty status and idle timer
+ *
+ * Tracks whether the instance has any players in it and manages
+ * the idle countdown timer accordingly.
+ *
+ * @param instance  Instance to check
+ */
 void instance_check_empty(INSTANCE *instance)
 {
     if( instance->empty )
@@ -1335,6 +1593,12 @@ void instance_check_empty(INSTANCE *instance)
 }
 
 
+/**
+ * instance_update - Global update tick for all loaded instances
+ *
+ * Called periodically to update all non-dungeon/non-ship instances.
+ * Handles orphan cleanup, idle timeouts, age tracking, and repop resets.
+ */
 void instance_update()
 {
     ITERATOR it;
@@ -1384,6 +1648,15 @@ void instance_update()
     iterator_stop(&it);
 }
 
+/**
+ * extract_instance - Destroy an instance and clean up resources
+ *
+ * Dumps all mobiles and objects out of the instance to the environment
+ * or fallback rooms, removes from loaded_instances list, and frees memory.
+ * If a script is running, marks for extraction when script completes.
+ *
+ * @param instance  Instance to destroy
+ */
 void extract_instance(INSTANCE *instance)
 {
     ITERATOR it;
@@ -1446,6 +1719,15 @@ room = get_reserved_room_index("room_donation");
     free_instance(instance);
 }
 
+/**
+ * instance_apply_specialkeys - Apply special key overrides to locked doors
+ *
+ * For doors with key_vnum set, looks up matching special keys and applies
+ * the key list to allow alternative unlock methods (e.g., quest items).
+ *
+ * @param instance      Instance to apply keys to
+ * @param special_keys  List of SPECIAL_KEY_DATA with key overrides
+ */
 void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
 {
     ITERATOR sit, rit;
@@ -1481,6 +1763,14 @@ void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
     iterator_stop(&sit);
 }
 
+/**
+ * instance_section_find_mobile - Find a mobile by UID in an instance section
+ *
+ * @param section  Instance section to search
+ * @param id1      First part of mobile's unique ID
+ * @param id2      Second part of mobile's unique ID
+ * @return         CHAR_DATA pointer if found, NULL otherwise
+ */
 CHAR_DATA *instance_section_find_mobile(INSTANCE_SECTION *section, unsigned long id1, unsigned long id2)
 {
     ITERATOR it;
@@ -1504,6 +1794,14 @@ CHAR_DATA *instance_section_find_mobile(INSTANCE_SECTION *section, unsigned long
     return mob;
 }
 
+/**
+ * instance_find_mobile - Find a mobile by UID across entire instance
+ *
+ * @param instance  Instance to search
+ * @param id1       First part of mobile's unique ID
+ * @param id2       Second part of mobile's unique ID
+ * @return          CHAR_DATA pointer if found, NULL otherwise
+ */
 CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned long id2)
 {
     ITERATOR it;
@@ -1520,18 +1818,15 @@ CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned 
     return mob;
 }
 
-//////////////////////////////////////////////////////////////
-//
-// OLC Editors
-//
-//////////////////////////////////////////////////////////////
+/**
+ * @section OLC Editors
+ *
+ * Blueprint Section Editor (bsedit) and Blueprint Editor (bpedit) commands
+ * for defining dungeon templates. Requires security level 9 and max level.
+ */
 
 
-//////////////////////////////////////////////////////////////
-//
-// Blueprint Section Edit
-//
-
+/** OLC command table for blueprint section editor */
 const struct olc_cmd_type bsedit_table[] =
 {
     { "?",				show_help			},
@@ -1551,11 +1846,27 @@ const struct olc_cmd_type bsedit_table[] =
 
 };
 
+/**
+ * can_edit_blueprints - Check if character has blueprint editing permission
+ *
+ * Requires security level 9 and max level to edit blueprints.
+ *
+ * @param ch  Character to check
+ * @return    true if allowed to edit blueprints
+ */
 bool can_edit_blueprints(CHAR_DATA *ch)
 {
     return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
 }
 
+/**
+ * list_blueprint_sections - Display all blueprint sections
+ *
+ * Shows vnum, name, type, recall vnum, and room vnum range for each section.
+ *
+ * @param ch        Character to display to
+ * @param argument  Unused filter argument
+ */
 void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 {
     if( !can_edit_blueprints(ch) )
@@ -1617,11 +1928,23 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
     free_buf(buffer);
 }
 
+/**
+ * do_bslist - Staff command to list blueprint sections
+ */
 void do_bslist(CHAR_DATA *ch, char *argument)
 {
     list_blueprint_sections(ch, argument);
 }
 
+/**
+ * do_bsedit - Staff command to edit or create blueprint sections
+ *
+ * Syntax: bsedit <vnum> - Edit existing section
+ *         bsedit create <vnum> - Create new section
+ *
+ * @param ch        Staff character
+ * @param argument  Section vnum or "create <vnum>"
+ */
 void do_bsedit(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT_SECTION *bs;
@@ -1675,6 +1998,14 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * bsedit - OLC interpreter for blueprint section editor
+ *
+ * Handles command dispatch for the blueprint section editor mode.
+ *
+ * @param ch        Character in editor mode
+ * @param argument  Command and arguments
+ */
 void bsedit(CHAR_DATA *ch, char *argument)
 {
     char command[MAX_INPUT_LENGTH];
@@ -1725,6 +2056,14 @@ void bsedit(CHAR_DATA *ch, char *argument)
 
 
 
+/**
+ * do_bsshow - Display a blueprint section without entering editor
+ *
+ * Shows the section details using bsedit_show without entering edit mode.
+ *
+ * @param ch        Staff character
+ * @param argument  Section vnum to display
+ */
 void do_bsshow(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT_SECTION *bs;
@@ -1761,6 +2100,21 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 
 
 
+/**
+ * validate_vnum_range - Validate a room vnum range for blueprint use
+ *
+ * Checks that a vnum range:
+ * - Spans only one area
+ * - Does not overlap other blueprint sections
+ * - Contains rooms marked for blueprint use (ROOM_BLUEPRINT or AREA_BLUEPRINT)
+ * - Has no exits leading outside the range or to wilderness
+ *
+ * @param ch       Staff character (for error messages)
+ * @param section  Blueprint section being validated
+ * @param lower    Lower bound of vnum range
+ * @param upper    Upper bound of vnum range
+ * @return         true if range is valid for use
+ */
 bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, long upper)
 {
     char buf[MSL];
@@ -1894,6 +2248,14 @@ const struct olc_cmd_type bpedit_table[] =
     { NULL,				NULL				}
 };
 
+/**
+ * list_blueprints - Display all blueprints
+ *
+ * Shows vnum, name, and mode (Static/Dynamic/Procedural) for each blueprint.
+ *
+ * @param ch        Character to display to
+ * @param argument  Unused filter argument
+ */
 void list_blueprints(CHAR_DATA *ch, char *argument)
 {
     static const char *blueprint_modes[] =
@@ -1960,11 +2322,23 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_bplist - Staff command to list blueprints
+ */
 void do_bplist(CHAR_DATA *ch, char *argument)
 {
     list_blueprints(ch, argument);
 }
 
+/**
+ * do_bpedit - Staff command to edit or create blueprints
+ *
+ * Syntax: bpedit <vnum> - Edit existing blueprint
+ *         bpedit create <vnum> - Create new blueprint
+ *
+ * @param ch        Staff character
+ * @param argument  Blueprint vnum or "create <vnum>"
+ */
 void do_bpedit(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT *bp;
@@ -2016,6 +2390,14 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * bpedit - OLC interpreter for blueprint editor
+ *
+ * Handles command dispatch for the blueprint editor mode.
+ *
+ * @param ch        Character in editor mode
+ * @param argument  Command and arguments
+ */
 void bpedit(CHAR_DATA *ch, char *argument)
 {
     char command[MAX_INPUT_LENGTH];
@@ -2065,6 +2447,14 @@ void bpedit(CHAR_DATA *ch, char *argument)
 
 
 
+/**
+ * do_bpshow - Display a blueprint without entering editor
+ *
+ * Shows the blueprint details using bpedit_show without entering edit mode.
+ *
+ * @param ch        Staff character
+ * @param argument  Blueprint vnum to display
+ */
 void do_bpshow(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT *bp;
@@ -2102,12 +2492,20 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 
 
 
-//////////////////////////////////////////////////////////////
-//
-// Immortal Commands
-//
+/**
+ * @section Immortal Commands
+ */
 
 
+/**
+ * do_instance - Staff command to manage loaded instances
+ *
+ * Syntax: instance list - Show all active instances
+ *         instance unload <#> - Force-unload an orphaned instance
+ *
+ * @param ch        Staff character
+ * @param argument  Subcommand and arguments
+ */
 void do_instance(CHAR_DATA *ch, char *argument)
 {
     char arg1[MIL];
@@ -2333,11 +2731,21 @@ void do_instance(CHAR_DATA *ch, char *argument)
     return;
 }
 
-////////////////////////////////////////////////////////
-//
-// Instance Save/Load
-//
+/**
+ * @section Instance Save/Load
+ *
+ * Functions for persisting and restoring instance state to/from disk.
+ */
 
+
+/**
+ * instance_section_save - Save an instance section to file
+ *
+ * Writes the section vnum and all cloned room data.
+ *
+ * @param fp       File pointer to write to
+ * @param section  Instance section to save
+ */
 void instance_section_save(FILE *fp, INSTANCE_SECTION *section)
 {
     fprintf(fp, "#SECTION %ld\n\r", section->section->vnum);
@@ -2355,6 +2763,13 @@ void instance_section_save(FILE *fp, INSTANCE_SECTION *section)
     fprintf(fp, "#-SECTION\n\r");
 }
 
+/**
+ * instance_save_roominfo - Write a room reference to file
+ *
+ * @param fp     File pointer to write to
+ * @param field  Field name (e.g., "Recall", "Entrance", "Exit")
+ * @param room   Room to reference (writes vnum and clone IDs)
+ */
 void instance_save_roominfo(FILE *fp, char *field, ROOM_INDEX_DATA *room)
 {
     if( room )
@@ -2363,6 +2778,15 @@ void instance_save_roominfo(FILE *fp, char *field, ROOM_INDEX_DATA *room)
     }
 }
 
+/**
+ * instance_save - Save an instance to file
+ *
+ * Writes all instance data including floor, flags, ownership, sections,
+ * and special room references.
+ *
+ * @param fp        File pointer to write to
+ * @param instance  Instance to save
+ */
 void instance_save(FILE *fp, INSTANCE *instance)
 {
     fprintf(fp, "#INSTANCE %ld\n\r", instance->blueprint->vnum);
@@ -2399,6 +2823,14 @@ void instance_save(FILE *fp, INSTANCE *instance)
     fprintf(fp, "#-INSTANCE\n\r");
 }
 
+/**
+ * instance_section_tallyentities - Track non-instance entities in a section
+ *
+ * After loading a section, this finds all non-instance mobiles, objects,
+ * and bosses and adds them to the instance's tracking lists.
+ *
+ * @param section  Instance section to scan
+ */
 void instance_section_tallyentities(INSTANCE_SECTION *section)
 {
     ITERATOR it;
@@ -2431,6 +2863,14 @@ void instance_section_tallyentities(INSTANCE_SECTION *section)
     iterator_stop(&it);
 }
 
+/**
+ * instance_section_load - Load an instance section from file
+ *
+ * Reads a #SECTION block and restores cloned rooms from saved state.
+ *
+ * @param fp  File pointer positioned at section data
+ * @return    Loaded INSTANCE_SECTION, or NULL on error
+ */
 INSTANCE_SECTION *instance_section_load(FILE *fp)
 {
     char *word;
@@ -2484,6 +2924,15 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
     return section;
 }
 
+/**
+ * instance_load - Load an instance from file
+ *
+ * Reads a #INSTANCE block and restores the full instance state including
+ * sections, ownership, and special room references.
+ *
+ * @param fp  File pointer positioned at instance data
+ * @return    Loaded INSTANCE, or NULL on error
+ */
 INSTANCE *instance_load(FILE *fp)
 {
     char *word;
@@ -2631,6 +3080,11 @@ INSTANCE *instance_load(FILE *fp)
 
 
 
+/**
+ * resolve_instances - Resolve object references for all loaded instances
+ *
+ * After loading, links instance object pointers to actual objects.
+ */
 void resolve_instances()
 {
     ITERATOR it;
@@ -2650,6 +3104,15 @@ void resolve_instances()
     iterator_stop(&it);
 }
 
+/**
+ * resolve_instance_player - Link a player to their instance ownership record
+ *
+ * Called when a player logs in to reconnect their pointer in instances
+ * they own.
+ *
+ * @param instance  Instance to check
+ * @param ch        Player character to link
+ */
 void resolve_instance_player(INSTANCE *instance, CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return;
@@ -2670,6 +3133,13 @@ void resolve_instance_player(INSTANCE *instance, CHAR_DATA *ch)
     iterator_stop(&it);
 }
 
+/**
+ * resolve_instances_player - Link player to all instances they own
+ *
+ * Called when a player logs in to restore ownership pointers.
+ *
+ * @param ch  Player character to link
+ */
 void resolve_instances_player(CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return;
@@ -2688,6 +3158,13 @@ void resolve_instances_player(CHAR_DATA *ch)
 }
 
 
+/**
+ * detach_instances_player - Remove player ownership from all instances
+ *
+ * Called when a player quits to clear ownership pointers.
+ *
+ * @param ch  Player character to detach
+ */
 void detach_instances_player(CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return;
@@ -2705,6 +3182,12 @@ void detach_instances_player(CHAR_DATA *ch)
     iterator_stop(&it);
 }
 
+/**
+ * instance_echo - Send a message to all players in an instance
+ *
+ * @param instance  Instance to broadcast to
+ * @param text      Message text to send
+ */
 void instance_echo(INSTANCE *instance, char *text)
 {
     if( !IS_VALID(instance) || IS_NULLSTR(text) ) return;
@@ -2721,6 +3204,15 @@ void instance_echo(INSTANCE *instance, char *text)
     iterator_stop(&it);
 }
 
+/**
+ * section_random_room - Get a random suitable room from an instance section
+ *
+ * Excludes private, solitary, death trap, and CPK rooms.
+ *
+ * @param ch       Character (for eligibility checks)
+ * @param section  Instance section to select from
+ * @return         Random room, or NULL if none suitable
+ */
 ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section)
 {
     if( !IS_VALID(section) ) return NULL;
@@ -2730,6 +3222,15 @@ ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section)
         ROOM_NO_GET_RANDOM );
 }
 
+/**
+ * instance_random_room - Get a random suitable room from an instance
+ *
+ * Excludes private, solitary, death trap, and CPK rooms.
+ *
+ * @param ch        Character (for eligibility checks)
+ * @param instance  Instance to select from
+ * @return          Random room, or NULL if none suitable
+ */
 ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance)
 {
     if( !IS_VALID(instance) ) return NULL;
@@ -2739,6 +3240,13 @@ ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance)
         ROOM_NO_GET_RANDOM );
 }
 
+/**
+ * get_instance_special_room - Get a special room by index
+ *
+ * @param instance  Instance to query
+ * @param index     1-based index of special room
+ * @return          Room pointer, or NULL if not found
+ */
 ROOM_INDEX_DATA *get_instance_special_room(INSTANCE *instance, int index)
 {
     if( !IS_VALID(instance) || index < 1) return NULL;
@@ -2751,6 +3259,15 @@ ROOM_INDEX_DATA *get_instance_special_room(INSTANCE *instance, int index)
     return NULL;
 }
 
+/**
+ * get_instance_special_room_byname - Get a special room by name
+ *
+ * Supports number.name syntax (e.g., "2.boss" for second boss room).
+ *
+ * @param instance  Instance to query
+ * @param name      Name to match (supports number.name prefix)
+ * @return          Room pointer, or NULL if not found
+ */
 ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name)
 {
     int number;
@@ -2783,6 +3300,12 @@ ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name
 }
 
 
+/**
+ * instance_addowner_player - Add a player as an instance owner
+ *
+ * @param instance  Instance to modify
+ * @param ch        Player to add as owner
+ */
 void instance_addowner_player(INSTANCE *instance, CHAR_DATA *ch)
 {
     // Don't add twice
@@ -2796,6 +3319,15 @@ void instance_addowner_player(INSTANCE *instance, CHAR_DATA *ch)
     list_appendlink(instance->player_owners, luid);
 }
 
+/**
+ * instance_addowner_playerid - Add a player as owner by UID
+ *
+ * Used when player is offline but we have their ID.
+ *
+ * @param instance  Instance to modify
+ * @param id1       First part of player UID
+ * @param id2       Second part of player UID
+ */
 void instance_addowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
 {
     // Don't add twice
@@ -2809,6 +3341,12 @@ void instance_addowner_playerid(INSTANCE *instance, unsigned long id1, unsigned 
     list_appendlink(instance->player_owners, luid);
 }
 
+/**
+ * instance_removeowner_player - Remove a player from instance ownership
+ *
+ * @param instance  Instance to modify
+ * @param ch        Player to remove
+ */
 void instance_removeowner_player(INSTANCE *instance, CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return;
@@ -2828,6 +3366,13 @@ void instance_removeowner_player(INSTANCE *instance, CHAR_DATA *ch)
     iterator_stop(&it);
 }
 
+/**
+ * instance_removeowner_playerid - Remove a player owner by UID
+ *
+ * @param instance  Instance to modify
+ * @param id1       First part of player UID
+ * @param id2       Second part of player UID
+ */
 void instance_removeowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
 {
     ITERATOR it;
@@ -2845,6 +3390,13 @@ void instance_removeowner_playerid(INSTANCE *instance, unsigned long id1, unsign
     iterator_stop(&it);
 }
 
+/**
+ * instance_isowner_player - Check if a player owns an instance
+ *
+ * @param instance  Instance to check
+ * @param ch        Player to check
+ * @return          true if player is an owner
+ */
 bool instance_isowner_player(INSTANCE *instance, CHAR_DATA *ch)
 {
     if( IS_NPC(ch) ) return false;
@@ -2867,6 +3419,14 @@ bool instance_isowner_player(INSTANCE *instance, CHAR_DATA *ch)
     return ret;
 }
 
+/**
+ * instance_isowner_playerid - Check if a player UID owns an instance
+ *
+ * @param instance  Instance to check
+ * @param id1       First part of player UID
+ * @param id2       Second part of player UID
+ * @return          true if UID is an owner
+ */
 bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
 {
     ITERATOR it;
@@ -2887,12 +3447,30 @@ bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned l
     return ret;
 }
 
+/**
+ * instance_canswitch_player - Check if a player can switch to an instance
+ *
+ * Placeholder for lockout system.
+ *
+ * @param instance  Instance to check
+ * @param ch        Player to check
+ * @return          true if player can switch (always true currently)
+ */
 bool instance_canswitch_player(INSTANCE *instance, CHAR_DATA *ch)
 {
     // TODO: Add lockout system
     return true;
 }
 
+/**
+ * instance_isorphaned - Check if an instance has no owner
+ *
+ * An orphaned instance has no dungeon, ship, player, or object owner
+ * and may be eligible for automatic cleanup.
+ *
+ * @param instance  Instance to check
+ * @return          true if instance has no owner
+ */
 bool instance_isorphaned(INSTANCE *instance)
 {
     if( !IS_VALID(instance) ) return true;
@@ -2918,6 +3496,15 @@ bool instance_isorphaned(INSTANCE *instance)
     return true;
 }
 
+/**
+ * instance_get_ownership - Get a display string for instance ownership type
+ *
+ * Returns a colored string indicating ownership type: DUNGEON, SHIP,
+ * OBJECT, PLAYER, or ORPHAN. Uses rotating static buffer.
+ *
+ * @param instance  Instance to describe
+ * @return          Static buffer with ownership display string
+ */
 char *instance_get_ownership(INSTANCE *instance)
 {
     static char buf[4][MSL+1];
@@ -2962,6 +3549,12 @@ char *instance_get_ownership(INSTANCE *instance)
 }
 
 
+/**
+ * get_room_instance - Get the instance a room belongs to
+ *
+ * @param room  Room to query
+ * @return      Instance containing this room, or NULL if not in an instance
+ */
 INSTANCE *get_room_instance(ROOM_INDEX_DATA *room)
 {
     if( !room ) return NULL;

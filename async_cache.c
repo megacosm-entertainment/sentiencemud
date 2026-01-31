@@ -36,6 +36,16 @@ static ASYNC_CACHE_STATS stats = {0};
  * Internal Helper Functions                                               *
  ***************************************************************************/
 
+/**
+ * create_job - Allocate and initialize a new async cache job
+ *
+ * Creates a job structure with a unique ID, sets initial status to
+ * ASYNC_STATUS_QUEUED, and records the queue time.
+ *
+ * @param operation       Type of cache operation (DUMP/LOAD/INVALIDATE)
+ * @param character_name  Name of the character this job affects
+ * @return                Newly allocated job, or NULL on allocation failure
+ */
 static ASYNC_CACHE_JOB *create_job(async_cache_op_t operation, const char *character_name)
 {
     ASYNC_CACHE_JOB *job;
@@ -59,6 +69,11 @@ static ASYNC_CACHE_JOB *create_job(async_cache_op_t operation, const char *chara
     return job;
 }
 
+/**
+ * free_job - Deallocate an async cache job and its strings
+ *
+ * @param job  Job to free (safe to pass NULL)
+ */
 static void free_job(ASYNC_CACHE_JOB *job)
 {
     if (!job) return;
@@ -68,6 +83,14 @@ static void free_job(ASYNC_CACHE_JOB *job)
     free(job);
 }
 
+/**
+ * enqueue_job - Add a job to the end of the job queue
+ *
+ * Thread-safe. Signals the worker thread condition variable to wake
+ * it if it's waiting for work. Updates queue statistics.
+ *
+ * @param job  Job to add to the queue
+ */
 static void enqueue_job(ASYNC_CACHE_JOB *job)
 {
     pthread_mutex_lock(&queue_mutex);
@@ -86,6 +109,14 @@ static void enqueue_job(ASYNC_CACHE_JOB *job)
     pthread_mutex_unlock(&queue_mutex);
 }
 
+/**
+ * dequeue_job - Remove and return the next job from the queue
+ *
+ * Blocks until a job is available or shutdown is requested.
+ * Thread-safe. Called by the worker thread.
+ *
+ * @return  Next job from queue, or NULL if shutdown was requested
+ */
 static ASYNC_CACHE_JOB *dequeue_job(void)
 {
     ASYNC_CACHE_JOB *job;
@@ -115,6 +146,15 @@ static ASYNC_CACHE_JOB *dequeue_job(void)
     return job;
 }
 
+/**
+ * move_to_completed - Transfer a finished job to the completed list
+ *
+ * Moves job from active processing to the completed_jobs list for
+ * status queries and history. Updates completion statistics.
+ * Thread-safe.
+ *
+ * @param job  Job that has finished (status should be COMPLETE or FAILED)
+ */
 static void move_to_completed(ASYNC_CACHE_JOB *job)
 {
     pthread_mutex_lock(&queue_mutex);
@@ -135,6 +175,17 @@ static void move_to_completed(ASYNC_CACHE_JOB *job)
  * Cache Dump Operation                                                    *
  ***************************************************************************/
 
+/**
+ * perform_cache_dump - Write character cache data from Redis to disk
+ *
+ * Retrieves character info from Redis cache and writes it to a JSON file.
+ * Uses atomic rename (write to .tmp, then rename) for data safety.
+ *
+ * JSON structure: { metadata: {...}, character: {...} }
+ *
+ * @param job  Job containing character_name to dump
+ * @return     true on success, false on failure (error_message set)
+ */
 static bool perform_cache_dump(ASYNC_CACHE_JOB *job)
 {
     // Phase 2: Write character metadata from Redis cache to JSON file
@@ -197,6 +248,18 @@ static bool perform_cache_dump(ASYNC_CACHE_JOB *job)
  * Cache Load Operation                                                    *
  ***************************************************************************/
 
+/**
+ * perform_cache_load - Load character data from disk into Redis cache
+ *
+ * Reads character info from JSON file and caches it in Redis. Used to
+ * warm the cache from disk without requiring a full character login.
+ *
+ * Falls back to check for legacy pfile format, but cannot cache from
+ * pfiles (requires full migration via login).
+ *
+ * @param job  Job containing character_name to load
+ * @return     true on success, false on failure (error_message set)
+ */
 static bool perform_cache_load(ASYNC_CACHE_JOB *job)
 {
     // Phase 2: Read character metadata from JSON file and cache to Redis
@@ -259,6 +322,15 @@ static bool perform_cache_load(ASYNC_CACHE_JOB *job)
  * Cache Invalidate Operation                                              *
  ***************************************************************************/
 
+/**
+ * perform_cache_invalidate - Remove character data from Redis cache
+ *
+ * Calls redis_invalidate_char() to remove all cached data for the
+ * specified character. Always succeeds.
+ *
+ * @param job  Job containing character_name to invalidate
+ * @return     Always returns true
+ */
 static bool perform_cache_invalidate(ASYNC_CACHE_JOB *job)
 {
     redis_invalidate_char(job->character_name);
@@ -270,6 +342,23 @@ static bool perform_cache_invalidate(ASYNC_CACHE_JOB *job)
  * Worker Thread                                                           *
  ***************************************************************************/
 
+/**
+ * async_cache_worker - Background worker thread main loop
+ *
+ * Runs in a separate thread. Continuously dequeues jobs and processes
+ * them. Updates job status and timing as work progresses. Exits when
+ * shutdown_requested is set and queue is empty.
+ *
+ * Job lifecycle in this function:
+ * 1. Dequeue job (blocks if queue empty)
+ * 2. Mark as RUNNING, record start_time
+ * 3. Execute appropriate operation
+ * 4. Mark as COMPLETE/FAILED, record complete_time
+ * 5. Move to completed list
+ *
+ * @param arg  Unused (pthread requires this signature)
+ * @return     NULL (pthread requires this)
+ */
 static void *async_cache_worker(void *arg)
 {
     ASYNC_CACHE_JOB *job;
@@ -325,6 +414,14 @@ static void *async_cache_worker(void *arg)
  * Public API - Initialization                                             *
  ***************************************************************************/
 
+/**
+ * async_cache_init - Initialize the async cache subsystem
+ *
+ * Resets all statistics and spawns the background worker thread.
+ * Must be called at startup before any async cache operations.
+ *
+ * @return  true on success, false if thread creation failed
+ */
 bool async_cache_init(void)
 {
     int result;
@@ -346,6 +443,13 @@ bool async_cache_init(void)
     return true;
 }
 
+/**
+ * async_cache_shutdown - Gracefully shut down the async cache subsystem
+ *
+ * Signals the worker thread to stop, waits for it to finish processing
+ * any active job, then frees all queued and completed jobs. Called at
+ * server shutdown.
+ */
 void async_cache_shutdown(void)
 {
     ASYNC_CACHE_JOB *job, *next;
@@ -385,6 +489,15 @@ void async_cache_shutdown(void)
  * Public API - Operations                                                 *
  ***************************************************************************/
 
+/**
+ * async_cache_dump - Queue a character cache dump operation
+ *
+ * Schedules a background operation to write character data from
+ * Redis cache to disk (JSON file). Non-blocking.
+ *
+ * @param character_name  Name of character to dump
+ * @return                Unique job ID for tracking, or 0 on failure
+ */
 unsigned long async_cache_dump(const char *character_name)
 {
     ASYNC_CACHE_JOB *job;
@@ -404,6 +517,16 @@ unsigned long async_cache_dump(const char *character_name)
     return job->job_id;
 }
 
+/**
+ * async_cache_load - Queue a character cache load operation
+ *
+ * Schedules a background operation to read character data from
+ * disk (JSON file) into Redis cache. Non-blocking. Used for
+ * cache warming.
+ *
+ * @param character_name  Name of character to load
+ * @return                Unique job ID for tracking, or 0 on failure
+ */
 unsigned long async_cache_load(const char *character_name)
 {
     ASYNC_CACHE_JOB *job;
@@ -423,6 +546,16 @@ unsigned long async_cache_load(const char *character_name)
     return job->job_id;
 }
 
+/**
+ * async_cache_invalidate - Queue a character cache invalidation
+ *
+ * Schedules a background operation to remove character data from
+ * Redis cache. Non-blocking. Used when character data changes
+ * significantly.
+ *
+ * @param character_name  Name of character to invalidate
+ * @return                Unique job ID for tracking, or 0 on failure
+ */
 unsigned long async_cache_invalidate(const char *character_name)
 {
     ASYNC_CACHE_JOB *job;
@@ -446,6 +579,15 @@ unsigned long async_cache_invalidate(const char *character_name)
  * Public API - Job Management                                             *
  ***************************************************************************/
 
+/**
+ * async_cache_job_status - Get the current status of a job
+ *
+ * Thread-safe lookup of job status by ID. Searches both the
+ * pending queue and completed list.
+ *
+ * @param job_id  Job ID returned from async_cache_* operations
+ * @return        Current status, or ASYNC_STATUS_FAILED if not found
+ */
 async_cache_status_t async_cache_job_status(unsigned long job_id)
 {
     ASYNC_CACHE_JOB *job;
@@ -474,6 +616,15 @@ async_cache_status_t async_cache_job_status(unsigned long job_id)
     return ASYNC_STATUS_FAILED;  // Job not found
 }
 
+/**
+ * async_cache_job_info - Get full details for a job
+ *
+ * Thread-safe lookup returning the job structure for inspection.
+ * The returned pointer is owned by the queue system.
+ *
+ * @param job_id  Job ID to look up
+ * @return        Pointer to job structure (DO NOT FREE), or NULL if not found
+ */
 ASYNC_CACHE_JOB *async_cache_job_info(unsigned long job_id)
 {
     ASYNC_CACHE_JOB *job, *result = NULL;
@@ -502,6 +653,15 @@ ASYNC_CACHE_JOB *async_cache_job_info(unsigned long job_id)
     return result;  // Note: Don't free this, it's still owned by the queue
 }
 
+/**
+ * async_cache_job_cancel - Cancel a pending job before it runs
+ *
+ * Removes a queued job from the pending queue and frees it.
+ * Cannot cancel jobs that are already running.
+ *
+ * @param job_id  Job ID to cancel
+ * @return        true if job was found and cancelled, false otherwise
+ */
 bool async_cache_job_cancel(unsigned long job_id)
 {
     ASYNC_CACHE_JOB *job, *prev = NULL;
@@ -539,6 +699,14 @@ bool async_cache_job_cancel(unsigned long job_id)
     return found;
 }
 
+/**
+ * async_cache_job_list - Get the list of completed/failed jobs
+ *
+ * Returns the head of the completed jobs linked list for iteration.
+ * Used by admin commands to display job history.
+ *
+ * @return  Head of completed_jobs list (DO NOT MODIFY OR FREE)
+ */
 ASYNC_CACHE_JOB *async_cache_job_list(void)
 {
     // Return head of completed jobs list
@@ -550,6 +718,15 @@ ASYNC_CACHE_JOB *async_cache_job_list(void)
  * Public API - Statistics                                                 *
  ***************************************************************************/
 
+/**
+ * async_cache_get_stats - Get a snapshot of async cache statistics
+ *
+ * Returns a static copy of the current statistics. Thread-safe.
+ * Statistics include: total_queued, total_completed, total_failed,
+ * currently_running, queue_depth.
+ *
+ * @return  Pointer to static ASYNC_CACHE_STATS structure
+ */
 ASYNC_CACHE_STATS *async_cache_get_stats(void)
 {
     static ASYNC_CACHE_STATS stats_copy;
@@ -561,6 +738,14 @@ ASYNC_CACHE_STATS *async_cache_get_stats(void)
     return &stats_copy;
 }
 
+/**
+ * async_cache_print_stats - Display async cache statistics to a character
+ *
+ * Formats and sends the current async cache statistics to the
+ * specified character. Used by admin commands.
+ *
+ * @param ch  Character to receive the statistics display
+ */
 void async_cache_print_stats(CHAR_DATA *ch)
 {
     ASYNC_CACHE_STATS *s;

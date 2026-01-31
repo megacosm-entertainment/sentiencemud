@@ -39,12 +39,28 @@
 #include "merc.h"
 
 
+/**
+ * substitute_alias - Replace alias keywords with their substitutions
+ *
+ * Called before command interpretation to expand aliases. Searches
+ * through the player's alias list for a match with the first word
+ * of input, then replaces it with the alias substitution while
+ * preserving any additional arguments.
+ *
+ * Bypass conditions (no substitution):
+ * - NPC characters
+ * - No aliases defined
+ * - Input starts with "alias" or "unalias" (prevents recursion)
+ *
+ * @param d         Descriptor of the player entering input
+ * @param argument  The raw input line to process
+ */
 void substitute_alias(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch;
     char buf[MAX_STRING_LENGTH], name[MAX_INPUT_LENGTH];
      char *point;
-    int alias; 
+    int alias;
 
     ch = d->original ? d->original : d->character;
 
@@ -89,6 +105,29 @@ void substitute_alias(DESCRIPTOR_DATA *d, char *argument)
 }
 
 
+/**
+ * do_alias - Create, view, or redefine command aliases
+ *
+ * Player command for managing aliases. Aliases substitute a short
+ * keyword with a longer command string.
+ *
+ * Usage:
+ * - alias              : List all current aliases with usage count
+ * - alias <name>       : Show what <name> is aliased to
+ * - alias <name> <cmd> : Create or redefine alias
+ *
+ * Restrictions:
+ * - Cannot alias "unalias", "alias", or "quit" (reserved words)
+ * - Cannot contain spaces, ticks, or double-quotes in alias name
+ * - Cannot set alias to "delete" or "prefix"
+ * - Maximum MAX_ALIAS aliases per character (currently 80)
+ *
+ * Color-coded count display:
+ * - Green: <20 aliases, Yellow: <40, Magenta: <66, Red: >=66
+ *
+ * @param ch        Character managing aliases
+ * @param argument  Alias name and optional substitution text
+ */
 void do_alias(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *rch;
@@ -211,13 +250,23 @@ void do_alias(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_unalias - Remove a defined alias
+ *
+ * Deletes an alias from the player's alias list. After removal,
+ * shifts remaining aliases down to fill the gap (maintains
+ * contiguous array).
+ *
+ * @param ch        Character removing the alias
+ * @param argument  Name of the alias to remove
+ */
 void do_unalias(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *rch;
     char arg[MAX_INPUT_LENGTH];
     int pos;
     bool found = false;
- 
+
     if (ch->desc == NULL)
     rch = ch;
     else

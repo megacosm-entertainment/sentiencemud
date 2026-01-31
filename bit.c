@@ -33,15 +33,19 @@
 #include "tables.h"
 
 
-/*****************************************************************************
- Name:		flag_stat_table
- Purpose:	This table catagorizes the tables following the lookup
-         functions below into stats and flags.  Flags can be toggled
-         but stats can only be assigned.  Update this table when a
-         new set of flags is installed.
- ****************************************************************************/
-
-
+/**
+ * flag_stat_table - Registry of stat-type flag tables
+ *
+ * This table categorizes flag tables into "stats" (single-value enumerations)
+ * versus "flags" (bitmasks). Tables listed here are treated as stats where
+ * only one value can be set at a time. Tables NOT listed are treated as
+ * flags where multiple values can be combined with SET_BIT().
+ *
+ * Examples of stats: sex_flags, position_flags, size_flags
+ * Examples of flags: act_flags, affect_flags, extra_flags
+ *
+ * Update this table when adding new stat-type flag tables.
+ */
 const struct flag_type *flag_stat_table[] =
 {
     sex_flags,
@@ -92,12 +96,16 @@ const struct flag_type *flag_stat_table[] =
     NULL
 };
 
-/*****************************************************************************
- Name:		is_stat( table )
- Purpose:	Returns true if the table is a stat table and false if flag.
- Called by:	flag_value and flag_string.
- Note:		This function is local and used only in bit.c.
- ****************************************************************************/
+/**
+ * is_stat - Check if a flag table is a stat table or a flag table
+ *
+ * Searches flag_stat_table[] to determine if the given table should
+ * be treated as a stat (single-value) or flag (bitmask). Used by
+ * flag_value() and flag_string() to determine parsing behavior.
+ *
+ * @param flag_table  Flag table to check
+ * @return            true if stat table (single-value), false if flag table (bitmask)
+ */
 bool is_stat( register const struct flag_type *flag_table )
 {
     register const struct flag_type **f = flag_stat_table;
@@ -113,11 +121,16 @@ bool is_stat( register const struct flag_type *flag_table )
 }
 
 
-/*****************************************************************************
- Name:		flag_value( table, flag )
- Purpose:	Returns the value of the flags entered.  Multi-flags accepted.
- Called by:	olc.c and olc_act.c.
- ****************************************************************************/
+/**
+ * flag_value - Parse flag name(s) from string and return bit value
+ *
+ * For stat tables: Parses first word and returns exact match value.
+ * For flag tables: Parses all words and returns OR'd bitmask of all matches.
+ *
+ * @param flag_table  Flag table to look up names in
+ * @param argument    Space-separated flag name(s) to parse
+ * @return            Bit value(s) or NO_FLAG if no matches found
+ */
 long flag_value( const struct flag_type *flag_table, char *argument)
 {
     char word[MAX_INPUT_LENGTH];
@@ -161,11 +174,18 @@ long flag_value( const struct flag_type *flag_table, char *argument)
 }
 
 
-/*****************************************************************************
- Name:		flag_string( table, flags/stat )
- Purpose:	Returns string with name(s) of the flags or stat entered.
- Called by:	act_olc.c, olc.c, and olc_save.c.
- ****************************************************************************/
+/**
+ * flag_string - Convert bit value(s) to space-separated name string
+ *
+ * For stat tables: Returns the name matching the exact bit value.
+ * For flag tables: Returns space-separated list of all matching flag names.
+ *
+ * Uses rotating static buffer (4 buffers) for return value.
+ *
+ * @param flag_table  Flag table to look up names in
+ * @param bits        Bit value(s) to convert
+ * @return            Space-separated name string, or "none" if no matches
+ */
 char *flag_string( const struct flag_type *flag_table, long bits )
 {
     static char buf[4][512];
@@ -198,8 +218,16 @@ char *flag_string( const struct flag_type *flag_table, long bits )
 }
 
 
-/* Exactly identical to flag_string in every way except that it's delimited
-   by commas instead of spaces. */
+/**
+ * flag_string_commas - Convert bit value(s) to comma-separated name string
+ *
+ * Identical to flag_string() but uses ", " as delimiter instead of " ".
+ * Uses rotating static buffer (2 buffers) for return value.
+ *
+ * @param flag_table  Flag table to look up names in
+ * @param bits        Bit value(s) to convert
+ * @return            Comma-separated name string, or "none" if no matches
+ */
 char *flag_string_commas( const struct flag_type *flag_table, long bits )
 {
     static char buf[2][512];
@@ -235,8 +263,14 @@ char *flag_string_commas( const struct flag_type *flag_table, long bits )
 
 /* the following functions return ASCII names for bit vectors */
 
-/*
- * Return ascii name of an affect location.
+/**
+ * affect_loc_name - Get display name for an affect location constant
+ *
+ * Converts APPLY_* constants to human-readable strings.
+ * Special handling for skill affects (APPLY_SKILL range).
+ *
+ * @param location  APPLY_* constant
+ * @return          Human-readable name string
  */
 char *affect_loc_name( int location )
 {
@@ -275,8 +309,11 @@ char *affect_loc_name( int location )
 }
 
 
-/*
- * Return ascii name of an affect bit vector.
+/**
+ * affect_bit_name - Convert AFF_ bitmask to space-separated name string
+ *
+ * @param vector  AFF_* flags bitmask (ch->affected_by)
+ * @return        Space-separated string of affect names, or "none"
  */
 char *affect_bit_name( long vector )
 {
@@ -316,6 +353,12 @@ char *affect_bit_name( long vector )
 }
 
 
+/**
+ * affect2_bit_name - Convert AFF2_ bitmask to space-separated name string
+ *
+ * @param vector  AFF2_* flags bitmask (ch->affected_by2)
+ * @return        Space-separated string of affect names, or "none"
+ */
 char *affect2_bit_name( long vector )
 {
     static char buf[1024];
@@ -349,6 +392,16 @@ char *affect2_bit_name( long vector )
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+/**
+ * affects_bit_name - Convert combined AFF_ and AFF2_ bitmasks to string
+ *
+ * Combines both affect bitmasks into a single alphabetically-sorted
+ * string of affect names.
+ *
+ * @param vector   AFF_* flags bitmask (ch->affected_by)
+ * @param vector2  AFF2_* flags bitmask (ch->affected_by2)
+ * @return         Space-separated string of affect names, or "none"
+ */
 char *affects_bit_name( long vector, long vector2 )
 {
     static char buf[2048];
@@ -413,8 +466,11 @@ char *affects_bit_name( long vector, long vector2 )
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
-/*
- * Return ascii name of extra flags vector.
+/**
+ * extra_bit_name - Convert ITEM_ extra[0] bitmask to string
+ *
+ * @param extra_flags  ITEM_* flags from obj->extra[0]
+ * @return             Space-separated string of flag names, or "none"
  */
 char *extra_bit_name( long extra_flags )
 {
@@ -449,6 +505,12 @@ char *extra_bit_name( long extra_flags )
 }
 
 
+/**
+ * extra2_bit_name - Convert ITEM_ extra[1] bitmask to string
+ *
+ * @param extra2_flags  ITEM_* flags from obj->extra[1]
+ * @return              Space-separated string of flag names, or "none"
+ */
 char *extra2_bit_name( long extra2_flags )
 {
     static char buf[512];
@@ -485,6 +547,12 @@ char *extra2_bit_name( long extra2_flags )
 }
 
 
+/**
+ * extra3_bit_name - Convert ITEM_ extra[2] bitmask to string
+ *
+ * @param extra3_flags  ITEM_* flags from obj->extra[2]
+ * @return              Space-separated string of flag names, or "none"
+ */
 char *extra3_bit_name( long extra3_flags )
 {
     static char buf[512];
@@ -503,6 +571,14 @@ char *extra3_bit_name( long extra3_flags )
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+/**
+ * extra4_bit_name - Convert ITEM_ extra[3] bitmask to string
+ *
+ * Currently unused/empty. Reserved for future flag expansion.
+ *
+ * @param extra4_flags  ITEM_* flags from obj->extra[3]
+ * @return              Space-separated string of flag names, or "none"
+ */
 char *extra4_bit_name( long extra4_flags )
 {
     static char buf[512];
@@ -513,7 +589,19 @@ char *extra4_bit_name( long extra4_flags )
 
 
 
-/* return ascii name of an act vector */
+/**
+ * act_bit_name - Convert ACT/PLR bitmask to string based on type
+ *
+ * Handles different flag sets based on act_type parameter:
+ * - 1: NPC act flags (ch->act for NPCs)
+ * - 2: NPC act2 flags (ch->act2 for NPCs)
+ * - 3: Player act flags (ch->act for PCs)
+ * - 4: Player act2 flags (ch->act2 for PCs)
+ *
+ * @param act_type   Type selector (1-4)
+ * @param act_flags  ACT_ or PLR_ bitmask
+ * @return           Space-separated string of flag names, or "none"
+ */
 char *act_bit_name( int act_type, long act_flags )
 {
     static char buf[512];
@@ -608,6 +696,12 @@ char *act_bit_name( int act_type, long act_flags )
 }
 
 
+/**
+ * comm_bit_name - Convert COMM_ bitmask to string
+ *
+ * @param comm_flags  COMM_ flags bitmask (ch->comm)
+ * @return            Space-separated string of flag names, or "none"
+ */
 char *comm_bit_name(int comm_flags)
 {
     static char buf[512];
@@ -630,6 +724,12 @@ char *comm_bit_name(int comm_flags)
 }
 
 
+/**
+ * imm_bit_name - Convert IMM_ (immunity) bitmask to string
+ *
+ * @param imm_flags  IMM_ flags bitmask (ch->imm_flags)
+ * @return           Space-separated string of immunity names, or "none"
+ */
 char *imm_bit_name(int imm_flags)
 {
     static char buf[512];
@@ -669,6 +769,12 @@ char *imm_bit_name(int imm_flags)
 }
 
 
+/**
+ * res_bit_name - Convert RES_ (resistance) bitmask to string
+ *
+ * @param res_flags  RES_ flags bitmask (ch->res_flags)
+ * @return           Space-separated string of resistance names, or "none"
+ */
 char *res_bit_name(int res_flags)
 {
     static char buf[512];
@@ -708,6 +814,12 @@ char *res_bit_name(int res_flags)
 }
 
 
+/**
+ * vuln_bit_name - Convert VULN_ (vulnerability) bitmask to string
+ *
+ * @param vuln_flags  VULN_ flags bitmask (ch->vuln_flags)
+ * @return            Space-separated string of vulnerability names, or "none"
+ */
 char *vuln_bit_name(int vuln_flags)
 {
     static char buf[512];
@@ -747,6 +859,12 @@ char *vuln_bit_name(int vuln_flags)
 }
 
 
+/**
+ * wear_bit_name - Convert ITEM_WEAR_ bitmask to string
+ *
+ * @param wear_flags  ITEM_WEAR_ flags bitmask (obj->wear_flags)
+ * @return            Space-separated string of wear location names, or "none"
+ */
 char *wear_bit_name(int wear_flags)
 {
     static char buf[512];
@@ -778,6 +896,12 @@ char *wear_bit_name(int wear_flags)
 }
 
 
+/**
+ * form_bit_name - Convert FORM_ bitmask to string
+ *
+ * @param form_flags  FORM_ flags bitmask (ch->form)
+ * @return            Space-separated string of form names, or "none"
+ */
 char *form_bit_name(long form_flags)
 {
     static char buf[512];
@@ -814,6 +938,15 @@ char *form_bit_name(long form_flags)
 }
 
 
+/**
+ * part_bit_name - Convert body part flags to readable string
+ *
+ * Translates a PART_* bitmask into a space-separated string of body part
+ * names. Used for displaying mobile anatomy (head, arms, legs, etc.).
+ *
+ * @param part_flags  PART_* bitmask to convert
+ * @return            Static buffer with part names, or "none" if empty
+ */
 char *part_bit_name(int part_flags)
 {
     static char buf[512];
@@ -846,6 +979,15 @@ char *part_bit_name(int part_flags)
 }
 
 
+/**
+ * weapon_bit_name - Convert weapon property flags to readable string
+ *
+ * Translates a WEAPON_* bitmask into a space-separated string of weapon
+ * properties and enchantments (flaming, frost, vampiric, two-handed, etc.).
+ *
+ * @param weapon_flags  WEAPON_* bitmask to convert
+ * @return              Static buffer with weapon properties, or "none" if empty
+ */
 char *weapon_bit_name(int weapon_flags)
 {
     static char buf[512];
@@ -875,6 +1017,15 @@ char *weapon_bit_name(int weapon_flags)
 }
 
 
+/**
+ * cont_bit_name - Convert container flags to readable string
+ *
+ * Translates a CONT_* bitmask into a space-separated string of container
+ * properties (closable, locked, pickproof, etc.).
+ *
+ * @param cont_flags  CONT_* bitmask to convert
+ * @return            Static buffer with container properties, or "none" if empty
+ */
 char *cont_bit_name( int cont_flags)
 {
     static char buf[512];
@@ -893,6 +1044,16 @@ char *cont_bit_name( int cont_flags)
 }
 
 
+/**
+ * off_bit_name - Convert offensive capability flags to readable string
+ *
+ * Translates an OFF_* / ASSIST_* bitmask into a space-separated string of
+ * combat abilities and assistance behaviors for mobiles (backstab, bash,
+ * kick, assist_all, etc.).
+ *
+ * @param off_flags  OFF_* and ASSIST_* bitmask to convert
+ * @return           Static buffer with offensive abilities, or "none" if empty
+ */
 char *off_bit_name(int off_flags)
 {
     static char buf[512];
@@ -926,6 +1087,15 @@ char *off_bit_name(int off_flags)
 }
 
 
+/**
+ * channel_flag_bit_name - Convert channel flags to readable string
+ *
+ * Translates a FLAG_* bitmask into a space-separated string of
+ * communication channel names (gossip, tells, ooc, music, etc.).
+ *
+ * @param channel_flags  FLAG_* bitmask for channels
+ * @return               Static buffer with channel names, or "none" if empty
+ */
 char *channel_flag_bit_name(int channel_flags)
 {
     static char buf[512];
@@ -946,6 +1116,22 @@ char *channel_flag_bit_name(int channel_flags)
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+/**
+ * bitvector_lookup - Parse flag names across multiple flag tables
+ *
+ * Parses space-separated flag names from argument and looks them up
+ * across multiple flag tables (banks). Sets the corresponding bits in
+ * the output banks array. Useful for parsing flags that span multiple
+ * flag tables (e.g., affect_flags + affect2_flags).
+ *
+ * Variadic arguments should be flag_type pointers, one per bank.
+ *
+ * @param argument  Space-separated list of flag names to parse
+ * @param nbanks    Number of flag table banks
+ * @param banks     Output array of bit values (one per bank)
+ * @param ...       Variable flag_type* tables, one per bank
+ * @return          true if all names were valid, false if any unrecognized
+ */
 bool bitvector_lookup(char *argument, int nbanks, long *banks, ...)
 {
     char word[MIL];
@@ -992,6 +1178,22 @@ bool bitvector_lookup(char *argument, int nbanks, long *banks, ...)
     return valid;
 }
 
+/**
+ * bitmatrix_lookup - Parse flag names using a NULL-terminated flagbank array
+ *
+ * Similar to bitvector_lookup but uses a pre-defined flagbank array
+ * (NULL-terminated array of flag_type pointers) instead of variadic args.
+ * Parses flag names and sets corresponding bits in the output flags array.
+ *
+ * Example usage with affect_flagbank (contains affect_flags, affect2_flags):
+ *   long flags[2];
+ *   bitmatrix_lookup("sanctuary haste", affect_flagbank, flags);
+ *
+ * @param argument  Space-separated list of flag names to parse
+ * @param bank      NULL-terminated array of flag_type* tables
+ * @param flags     Output array of bit values (one per table in bank)
+ * @return          true if all names were valid, false if any unrecognized
+ */
 bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags)
 {
     char word[MIL];
@@ -1034,6 +1236,18 @@ bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags
     return valid;
 }
 
+/**
+ * bitmatrix_isset - Check if all named flags are set in a flagbank
+ *
+ * Parses flag names from argument and verifies each one is set in the
+ * corresponding flags array. Uses a flagbank (NULL-terminated array of
+ * flag_type pointers) to look up which table each flag belongs to.
+ *
+ * @param argument  Space-separated list of flag names to check
+ * @param bank      NULL-terminated array of flag_type* tables
+ * @param flags     Array of current bit values to check against
+ * @return          true if all named flags are set, false otherwise
+ */
 bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags)
 {
     char word[MIL];
@@ -1074,17 +1288,26 @@ bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags)
     return valid;
 }
 
-// These will assume *ONLY* flags
-// Use flag_string for stats
-/*
-Example:
-
-long bit = AFF_SANCTUARY;
-long bit2 = AFF_ELECTRICAL_BARRIER;
-
-char *text = bitvector_string(2, bit, affect_flags, bit2, affect2_flags);
-
-*/
+/**
+ * bitvector_string - Convert multiple flag bitmasks to readable string
+ *
+ * Converts bitmasks from multiple flag tables into a single space-separated
+ * string. Assumes flags (bitmasks), not stats. Use flag_string() for stats.
+ *
+ * Variadic arguments alternate between bit values and their flag tables:
+ *   bitvector_string(2, bits1, table1, bits2, table2);
+ *
+ * Uses a rotating buffer of 4 static strings for safe concurrent usage.
+ *
+ * Example:
+ *   long bit = AFF_SANCTUARY;
+ *   long bit2 = AFF_ELECTRICAL_BARRIER;
+ *   char *text = bitvector_string(2, bit, affect_flags, bit2, affect2_flags);
+ *
+ * @param nbanks  Number of bit/table pairs to process
+ * @param ...     Alternating: long bits, const struct flag_type* table
+ * @return        Static buffer with all flag names, or "none" if empty
+ */
 char *bitvector_string(int nbanks, ...)
 {
     static char buf[4][512];
@@ -1116,6 +1339,19 @@ char *bitvector_string(int nbanks, ...)
     return buf[cnt][0] ? (buf[cnt] + 1) : "none";
 }
 
+/**
+ * bitmatrix_string - Convert flagbank bitmasks to readable string
+ *
+ * Converts bitmasks using a NULL-terminated flagbank array into a single
+ * space-separated string of flag names. Each element in flags array
+ * corresponds to the matching table in the bank array.
+ *
+ * Uses a rotating buffer of 4 static strings for safe concurrent usage.
+ *
+ * @param bank   NULL-terminated array of flag_type* tables
+ * @param flags  Array of bit values (one per table in bank)
+ * @return       Static buffer with all flag names, or "none" if empty/NULL
+ */
 char *bitmatrix_string(const struct flag_type **bank, const long *flags)
 {
     static char buf[4][512];
@@ -1149,6 +1385,19 @@ char *bitmatrix_string(const struct flag_type **bank, const long *flags)
     return buf[cnt][0] ? (buf[cnt] + 1) : "none";
 }
 
+/**
+ * flagbank_string - Convert flagbank bitmasks to string using variadic args
+ *
+ * Similar to bitmatrix_string but takes bit values as variadic arguments
+ * instead of an array. Each variadic long corresponds to the matching table
+ * in the bank array.
+ *
+ * Uses a rotating buffer of 4 static strings for safe concurrent usage.
+ *
+ * @param bank  NULL-terminated array of flag_type* tables
+ * @param ...   Variable long bit values, one per table in bank
+ * @return      Static buffer with all flag names, or "none" if empty
+ */
 char *flagbank_string(const struct flag_type **bank, ...)
 {
     static char buf[4][512];
