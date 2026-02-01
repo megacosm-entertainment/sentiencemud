@@ -5085,7 +5085,7 @@ SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *ar
             // Out of stock.
             if( stock->max_quantity > 0 && stock->quantity < 1) continue;
 
-            if( stock->vnum > 0 )
+            if( stock->entity.wnum.vnum > 0 )
             {
                 if( stock->obj != NULL )
                 {
@@ -5165,7 +5165,7 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
             // Out of stock.
             if(stock->max_quantity > 0 && stock->quantity < 1) continue;
 
-            if(stock->vnum > 0)
+            if(stock->entity.wnum.vnum > 0)
             {
                 if(stock->obj != NULL)
                 {
@@ -5954,7 +5954,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
             // Attempting to buy from stock
             keeper->tempstore[0] = number;
             keeper->tempstore[1] = stock->type;
-            keeper->tempstore[2] = stock->vnum;
+            keeper->tempstore[2] = stock->entity.wnum.vnum;
             int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, stock->custom_keyword);
             if( ret > 0 ) return;	// Messages should be done in the script
             if( ret < 0 )
@@ -6209,7 +6209,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
                 // - entire currency transaction needs to take place
                 keeper->tempstore[0] = number;
                 keeper->tempstore[1] = stock->type;
-                keeper->tempstore[2] = stock->vnum;
+                keeper->tempstore[2] = stock->entity.wnum.vnum;
                 keeper->tempstore[3] = UMAX(chance, 0);
                 free_string(keeper->tempstring);
                 keeper->tempstring = &str_empty[0];
@@ -6621,7 +6621,7 @@ void do_list(CHAR_DATA *ch, char *argument)
             switch(stock->type)
             {
             case STOCK_OBJECT:
-                if( stock->vnum > 0 && stock->obj != NULL )
+                if( stock->entity.wnum.vnum > 0 && stock->obj != NULL )
                 {
                     if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
                         continue;
@@ -6667,7 +6667,7 @@ void do_list(CHAR_DATA *ch, char *argument)
             case STOCK_MOUNT:
             case STOCK_GUARD:
             case STOCK_CREW:
-                if( stock->vnum > 0 && stock->mob != NULL )
+                if( stock->entity.wnum.vnum > 0 && stock->mob != NULL )
                 {
                     if( arg[0] != '\0' && !is_name(arg, stock->mob->player_name) )
                         continue;
@@ -6709,7 +6709,7 @@ void do_list(CHAR_DATA *ch, char *argument)
                 break;
 
             case STOCK_SHIP:
-                if( stock->vnum > 0 && stock->ship != NULL )
+                if( stock->entity.wnum.vnum > 0 && stock->ship != NULL )
                 {
                     if( arg[0] != '\0' && !is_name(arg, stock->ship->name) )
                         continue;

@@ -2953,7 +2953,7 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
     int min,max;
 
     if(corpse->item_type == ITEM_CORPSE_NPC) {
-        AREA_DATA *mob_area = find_area_by_vnum(corpse->orig_vnum);
+        AREA_DATA *mob_area = find_area_by_vnum(corpse->orig_vnum, NULL);
         if (!mob_area) mob_area = get_system_area_fallback();
         MOB_INDEX_DATA *mob = get_mob_index(mob_area, corpse->orig_vnum);
 
@@ -3079,7 +3079,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         name = ch->name;
         short_desc = ch->short_descr;
 
-        AREA_DATA *corpse_area = (ch->corpse_vnum > 0) ? find_area_by_vnum(ch->corpse_vnum) : NULL;
+        AREA_DATA *corpse_area = (ch->corpse_vnum > 0) ? find_area_by_vnum(ch->corpse_vnum, NULL) : NULL;
         if (!corpse_area) corpse_area = get_system_area_fallback();
         obj_index = (ch->corpse_vnum > 0) ? get_obj_index(corpse_area, ch->corpse_vnum) : NULL;
 
@@ -3414,7 +3414,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
         char *name;
 
         name		= IS_NPC(ch) ? ch->short_descr : ch->name;
-        AREA_DATA *part_area = find_area_by_vnum(vnum);
+        AREA_DATA *part_area = find_area_by_vnum(vnum, NULL);
         if (!part_area) part_area = get_system_area_fallback();
         obj		= create_object(get_obj_index(part_area, vnum), 0, true);
         obj->level = ch->tot_level;
@@ -8033,7 +8033,7 @@ CHAR_DATA* create_player_hunter(long vnum, CHAR_DATA *target)
 {
     CHAR_DATA *challenger;
 
-    AREA_DATA *area = find_area_by_vnum(vnum);
+    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
     if (!area) area = get_system_area_fallback();
     challenger = create_mobile( get_mob_index( area, vnum ), false );
         challenger->target_name = target->name;

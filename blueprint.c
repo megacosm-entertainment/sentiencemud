@@ -235,7 +235,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
     // Determine which area owns the rooms in this blueprint section
     // by checking the lower_vnum (do this before fix_blueprint_section)
     if (bs->lower_vnum > 0) {
-        bs->area = find_area_by_vnum(bs->lower_vnum);
+        bs->area = find_area_by_vnum(bs->lower_vnum, NULL);
         if (!bs->area) {
             bs->area = get_system_area_fallback();
             log_message_f(LOG_LEVEL_WARN, LOG_INIT, "Blueprint section %ld references vnums starting at %ld but no area found", bs->vnum, bs->lower_vnum);

@@ -1437,7 +1437,7 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
 
     // Get vnum
     vnum = json_integer_value(json_object_get(json_obj, "vnum"));
-    pObjIndex = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+    pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
     if (!pObjIndex) {
         log_stringf("json_to_obj: bad vnum %ld", vnum);
         return NULL;
@@ -2457,7 +2457,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     if (tokens_array && json_is_array(tokens_array)) {
         json_array_foreach(tokens_array, index, array_elem) {
             long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
-            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
             if (!pTokenIndex) {
                 log_stringf("json_read_char_internal: bad token vnum %ld", vnum);
                 continue;
@@ -2724,7 +2724,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     if (tokens_array && json_is_array(tokens_array)) {
         json_array_foreach(tokens_array, index, array_elem) {
             long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
-            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
             if (!pTokenIndex) {
                 log_stringf("json_read_char_remaining: bad token vnum %ld", vnum);
                 continue;

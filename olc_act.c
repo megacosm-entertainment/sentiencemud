@@ -932,7 +932,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 
 value = atoi(arg);
 
-AREA_DATA *area = find_area_by_vnum(value);
+AREA_DATA *area = find_area_by_vnum(value, NULL);
 if (!area) area = get_system_area_fallback();
 if (!get_room_index(area, value))
     {
@@ -1108,20 +1108,27 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
     if (!str_cmp(command, "link"))
     {
         EXIT_DATA *pExit;
+        WNUM room_wnum;
+        AREA_DATA *context;
 
-        if (arg[0] == '\0' || !is_number(arg))
+        if (arg[0] == '\0')
         {
-            send_to_char("Syntax:  [direction] link [vnum]\n\r", ch);
+            send_to_char("Syntax:  [direction] link [uid#vnum | #vnum | vnum]\n\r", ch);
             return false;
         }
 
-        value = atol(arg);
+        // Context: use current area for '#vnum' format, NULL for global lookup
+        context = strchr(arg, '#') ? ch->in_room->area : NULL;
+        
+        if (!parse_widevnum(arg, context, &room_wnum))
+        {
+            send_to_char("Invalid room vnum format.\n\r", ch);
+            return false;
+        }
 
-value = atol(arg);
-
-AREA_DATA *area = find_area_by_vnum(value);
-if (!area) area = get_system_area_fallback();
-ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
+        ROOM_INDEX_DATA *pToRoom = room_wnum.pArea ?
+            get_room_index(room_wnum.pArea, room_wnum.vnum) :
+            get_room_index_global(room_wnum.vnum);
         if (!pToRoom)
         {
             send_to_char("REdit:  Cannot link to non-existant room.\n\r", ch);
@@ -1134,7 +1141,7 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
             return false;
         }
 
-        if( !rooms_in_same_section(pRoom->vnum, value) )
+        if( !rooms_in_same_section(pRoom->vnum, room_wnum.vnum) )
         {
             send_to_char("REdit:  Attempting to link outside of a defined blueprint section.\n\r", ch);
             return false;
@@ -1163,11 +1170,16 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
 
         pRoom->exit[door]->u1.to_room	= pToRoom;
         pRoom->exit[door]->orig_door	= door;
+        // Store cross-area UID for serialization
+        pRoom->exit[door]->wilds.area_uid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+        
         door							= rev_dir[door];
         pExit							= new_exit();
 
         pExit->u1.to_room				= pRoom;
         pExit->orig_door				= door;
+        // Reverse exit gets the current room's area UID
+        pExit->wilds.area_uid = pRoom->area ? pRoom->area->uid : 0;
         pToRoom->exit[door]				= pExit;
         pExit->from_room				= pToRoom;
 
@@ -1177,18 +1189,27 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
 
     if (!str_cmp(command, "dig"))
     {
-        if (arg[0] == '\0' || !is_number(arg))
+        WNUM room_wnum;
+        AREA_DATA *context;
+
+        if (arg[0] == '\0')
         {
-            send_to_char("Syntax:  [direction] dig [vnum]\n\r", ch);
+            send_to_char("Syntax:  [direction] dig [uid#vnum | #vnum | vnum]\n\r", ch);
             return false;
         }
 
         if( IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT) ||
             IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
         {
-            value = atol(arg);
+            // Parse widevnum for blueprint validation
+            context = strchr(arg, '#') ? ch->in_room->area : NULL;
+            if (!parse_widevnum(arg, context, &room_wnum))
+            {
+                send_to_char("Invalid room vnum format.\n\r", ch);
+                return false;
+            }
 
-            if( !rooms_in_same_section(pRoom->vnum, value) )
+            if( !rooms_in_same_section(pRoom->vnum, room_wnum.vnum) )
             {
                 send_to_char("REdit:  Attempting to dig outside of a defined blueprint section.\n\r", ch);
                 return false;
@@ -1214,10 +1235,12 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
         ROOM_INDEX_DATA *pToRoom;
         EXIT_DATA *pExit;
         int16_t rev;
+        WNUM room_wnum;
+        AREA_DATA *context;
 
-        if (arg[0] == '\0' || !is_number(arg))
+        if (arg[0] == '\0')
         {
-            send_to_char("Syntax:  [direction] room [vnum]\n\r", ch);
+            send_to_char("Syntax:  [direction] room [uid#vnum | #vnum | vnum]\n\r", ch);
             return false;
         }
 
@@ -1235,11 +1258,18 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
 
         }
 
-        value = atol(arg);
+        // Context: use current area for '#vnum' format, NULL for global lookup
+        context = strchr(arg, '#') ? ch->in_room->area : NULL;
+        
+        if (!parse_widevnum(arg, context, &room_wnum))
+        {
+            send_to_char("Invalid room vnum format.\n\r", ch);
+            return false;
+        }
 
-        AREA_DATA *area = find_area_by_vnum(value);
-        if (!area) area = get_system_area_fallback();
-        pToRoom = get_room_index(area, value);
+        pToRoom = room_wnum.pArea ?
+            get_room_index(room_wnum.pArea, room_wnum.vnum) :
+            get_room_index_global(room_wnum.vnum);
 
         if (!pToRoom)
         {
@@ -1247,7 +1277,7 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
             return false;
         }
 
-        if( !rooms_in_same_section(pRoom->vnum, value) )
+        if( !rooms_in_same_section(pRoom->vnum, room_wnum.vnum) )
         {
             send_to_char("REdit:  Attempting to link outside of a defined blueprint section.\n\r", ch);
             return false;
@@ -1262,6 +1292,8 @@ ROOM_INDEX_DATA *pToRoom = get_room_index(area, value);
 
         pRoom->exit[door]->u1.to_room	= pToRoom;
         pRoom->exit[door]->orig_door	= door;
+        // Store cross-area UID for serialization
+        pRoom->exit[door]->wilds.area_uid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
         pExit->from_room				= pRoom;
 
         send_to_char("One-way link established.\n\r", ch);

@@ -215,7 +215,7 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
         if (!is_number(arg) && !str_infix(arg, area->name)) {
             if (!(room = location_to_room(&area->recall))) {
                 for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-                    AREA_DATA *search_area = find_area_by_vnum(vnum);
+                    AREA_DATA *search_area = find_area_by_vnum(vnum, NULL);
                     if (!search_area) search_area = get_system_area_fallback();
                     if ((rm = get_room_index(search_area, vnum)))
                         room = rm;
@@ -233,20 +233,27 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
     arg = one_argument(arg,arg1);
     arg = one_argument(arg,arg2);
 
-    // Done to allow for going to cloned rooms, but only if they exist!
-    if (is_number(arg1)) {
-    long room_vnum = atol(arg1);
-    AREA_DATA *room_area = find_area_by_vnum(room_vnum);
-    if (!room_area) room_area = get_system_area_fallback();
-    room = get_room_index(room_area, room_vnum);
-    if(is_number(arg2) && is_number(arg))
-    {
-        //log_stringf("get_clone_room: find_location(%ld,%lu,%lu)", room->vnum,atol(arg2),atol(arg));
-
-        return get_clone_room(room,atol(arg2),atol(arg));
-    }
-    else
-        return room;
+    // Support widevnum format for room lookup (uid#vnum, #vnum, or bare vnum)
+    // Also handles cloned rooms with additional coordinates
+    if (is_number(arg1) || strchr(arg1, '#')) {
+        WNUM room_wnum;
+        AREA_DATA *context = ch ? ch->in_room->area : NULL;
+        
+        if (parse_widevnum(arg1, context, &room_wnum)) {
+            room = room_wnum.pArea ?
+                get_room_index(room_wnum.pArea, room_wnum.vnum) :
+                get_room_index_global(room_wnum.vnum);
+                
+            if (room && is_number(arg2) && is_number(arg))
+            {
+                // Clone room with coordinates
+                return get_clone_room(room, atol(arg2), atol(arg));
+            }
+            else if (room)
+            {
+                return room;
+            }
+        }
     }
 
     arg = save;
@@ -3124,7 +3131,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
             int range;
             range = number_range(0, 7000);
             long demon_vnum = 200050 + range;
-            AREA_DATA *demon_area = find_area_by_vnum(demon_vnum);
+            AREA_DATA *demon_area = find_area_by_vnum(demon_vnum, NULL);
             if (!demon_area) demon_area = get_system_area_fallback();
             death_room = get_room_index(demon_area, demon_vnum);
             ch->hit = number_range(1, ch->max_hit);
@@ -3137,7 +3144,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
             int range;
             range = number_range(0, 7000);
             long angel_vnum = 300050 + range;
-            AREA_DATA *angel_area = find_area_by_vnum(angel_vnum);
+            AREA_DATA *angel_area = find_area_by_vnum(angel_vnum, NULL);
             if (!angel_area) angel_area = get_system_area_fallback();
             death_room = get_room_index(angel_area, angel_vnum);
             ch->hit = number_range(1, ch->max_hit);
@@ -8174,7 +8181,7 @@ void get_random_room_target(ROOM_INDEX_DATA *room, OBJ_DATA **obj, CHAR_DATA **c
 ROOM_INDEX_DATA *idfind_vroom(register unsigned long id1, register unsigned long id2)
 {
     ROOM_INDEX_DATA *room;
-    AREA_DATA *area = find_area_by_vnum((long)id1);
+    AREA_DATA *area = find_area_by_vnum((long)id1, NULL);
     if (!area) area = get_system_area_fallback();
     room = get_room_index(area, (long)id1);
 
@@ -9433,7 +9440,7 @@ ROOM_INDEX_DATA *location_to_room(LOCATION *loc)
         if(wilds && !(room = get_wilds_vroom(wilds,loc->id[0],loc->id[1])))
             room = create_wilds_vroom(wilds,loc->id[0],loc->id[1]);
     } else if(loc->id[0]) {
-        AREA_DATA *area = find_area_by_vnum(loc->id[0]);
+        AREA_DATA *area = find_area_by_vnum(loc->id[0], NULL);
         if (!area) area = get_system_area_fallback();
         room = get_room_index(area, loc->id[0]);
         if(room && (loc->id[1] || loc->id[2]))
@@ -9674,7 +9681,7 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
             pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
             if( pVLink != NULL ) {
                 if( !pVLink->pDestRoom ) {
-                    AREA_DATA *dest_area = find_area_by_vnum(pVLink->destvnum);
+                    AREA_DATA *dest_area = find_area_by_vnum(pVLink->destvnum, NULL);
                     if (!dest_area) dest_area = get_system_area_fallback();
                     nextdest.room = get_room_index(dest_area, pVLink->destvnum);
                 }
@@ -12156,16 +12163,69 @@ AREA_DATA *get_area_index(long uid)
     return NULL;
 }
 
-/*
- * Parse a widevnum string into a WNUM structure.
- * Formats supported:
- *   "#1234"           - Relative to current_area (local area being worked on)
- *   "5#1234"          - Absolute (area UID 5, vnum 1234)
- *   "Plith#1234"      - Area name (finds area by name)
- *   "'Multi Word'#42" - Quoted area name for names with spaces
- *   "1234"            - If current_area is NULL, treated as system area fallback
- * 
- * Returns true if parsed successfully, false otherwise.
+/**
+ * find_area_by_vnum - Locate which area contains a specific vnum
+ *
+ * Searches all loaded areas to find which one contains the given
+ * vnum in its vnum range (min_vnum to max_vnum). Used to support
+ * legacy bare vnum input by automatically determining area context.
+ *
+ * This function enables backward compatibility: when a user enters
+ * a bare vnum like "3001" without an area prefix, the system can
+ * still determine which area owns that vnum and create the proper
+ * WNUM structure.
+ *
+ * Each area has defined min_vnum and max_vnum boundaries. The function
+ * performs a linear search through all loaded areas checking if the
+ * vnum falls within each area's range.
+ *
+ * @param vnum         The vnum to search for
+ * @param current_area Reserved for future use (currently unused)
+ * @return             Area containing the vnum, or NULL if not found
+ */
+AREA_DATA *find_area_by_vnum(long vnum, AREA_DATA *current_area)
+{
+    AREA_DATA *pArea;
+    
+    // Scan all areas checking vnum ranges
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        if (vnum >= pArea->min_vnum && vnum <= pArea->max_vnum) {
+            return pArea;
+        }
+    }
+    
+    return NULL;
+}
+
+/**
+ * parse_widevnum - Parse a widevnum string into a WNUM structure
+ *
+ * Converts user input into a WNUM structure that identifies an entity
+ * by both area and vnum. Supports multiple input formats for flexibility:
+ *
+ * Supported formats:
+ * - "#1234"           : Relative to current_area (local area context)
+ * - "5#1234"          : Absolute (area UID 5, vnum 1234)
+ * - "Plith#1234"      : Area name (finds area by name)
+ * - "'Multi Word'#42" : Quoted area name for names with spaces
+ * - "1234"            : Bare vnum - looks up which area contains it
+ *
+ * Legacy support (bare vnums):
+ * When no area prefix is provided, the function searches all loaded
+ * areas to find which one contains the vnum. This maintains backward
+ * compatibility with commands like "redit north 3001" while still
+ * creating proper cross-area references.
+ *
+ * Error conditions:
+ * - Invalid format returns false
+ * - Vnum <= 0 returns false
+ * - Area not found returns false
+ * - Bare vnum not in any area returns false
+ *
+ * @param argument     String to parse (modified during parsing)
+ * @param current_area Default area context (can be NULL)
+ * @param wnum         Output WNUM structure to populate
+ * @return             true if parsed successfully, false otherwise
  */
 bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
 {
@@ -12226,34 +12286,59 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
             return (wnum->pArea != NULL && vnum > 0);
         }
     } else {
-        // No hash - simple number
+        // No hash - bare vnum
         vnum = atol(argument);
         if (vnum <= 0) {
             return false;
         }
         
         if (current_area) {
-            // Treat as relative vnum
+            // Treat as relative vnum in current area
             wnum->pArea = current_area;
             wnum->vnum = vnum;
             return true;
         } else {
-            // Fallback to configured system area
+            // Legacy support: find which area contains this vnum
+            AREA_DATA *found_area = find_area_by_vnum(vnum, NULL);
+            if (found_area) {
+                wnum->pArea = found_area;
+                wnum->vnum = vnum;
+                return true;
+            }
+            
+            // Fallback to system area if configured
             wnum->pArea = get_system_area_fallback();
-            if (!wnum->pArea)
+            if (!wnum->pArea) {
                 return false;
+            }
             wnum->vnum = vnum;
             return true;
         }
     }
 }
 
-/*
- * Convert a WNUM to string format for display/saving.
- * Uses a rotating buffer for multiple calls in same statement.
- * 
- * If pRefArea is provided and matches pArea, uses relative format "#vnum"
- * Otherwise uses absolute format "auid#vnum"
+/**
+ * widevnum_string - Convert WNUM to string format for display/saving
+ *
+ * Formats a WNUM as a string suitable for display or serialization.
+ * Uses a rotating buffer system to allow multiple calls within a
+ * single statement (e.g., in printf).
+ *
+ * Output format:
+ * - Relative format "#vnum" if pArea matches pRefArea
+ * - Absolute format "auid#vnum" otherwise
+ * - Special case "0#vnum" if pArea is NULL
+ *
+ * Buffer rotation:
+ * Uses 4 rotating buffers so you can call this function up to 4 times
+ * in a single statement. This is common in display code like:
+ * sprintf(buf, "North: %s  South: %s  East: %s  West: %s",
+ *         widevnum_string(...), widevnum_string(...), ...)
+ *
+ * @param pArea    Area containing the entity
+ * @param vnum     Vnum within the area
+ * @param pRefArea Reference area for relative format (can be NULL)
+ * @return         Static buffer containing formatted string
  */
 const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea)
 {

@@ -1342,7 +1342,7 @@ void extract_dungeon(DUNGEON *dungeon)
 
     room = dungeon->entry_room;
     if( !room ) {
-        AREA_DATA *fallback_area = find_area_by_vnum(11001);
+        AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
         if (!fallback_area) fallback_area = get_system_area_fallback();
         room = get_room_index(fallback_area, 11001);
     }
@@ -1875,7 +1875,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
         ROOM_INDEX_DATA *room = dungeon->entry_room;
 
         if( !room ) {
-            AREA_DATA *fallback_area = find_area_by_vnum(11001);
+            AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
             if (!fallback_area) fallback_area = get_system_area_fallback();
             room = get_room_index(fallback_area, 11001);
         }

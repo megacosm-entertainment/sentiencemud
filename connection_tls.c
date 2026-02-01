@@ -25,6 +25,22 @@
 *	ROM license, in the file Rom24/doc/rom.license			   *
 ***************************************************************************/
 
+/**
+ * @file connection_tls.c
+ * @brief TLS-encrypted connection implementation using OpenSSL
+ *
+ * Implements the connection abstraction interface for TLS-encrypted
+ * connections. Uses OpenSSL's SSL_* API for encryption/decryption.
+ *
+ * Key features:
+ *   - Non-blocking TLS handshake (SSL_accept may need multiple calls)
+ *   - Graceful SSL shutdown with bidirectional close
+ *   - Circuit breaker integration for SSL error tracking
+ *   - Proper handling of WANT_READ/WANT_WRITE for non-blocking I/O
+ *
+ * Uses the global SSL_CTX from comm.c for creating SSL connections.
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -37,24 +53,28 @@
 #include "connection.h"
 #include "merc.h"
 
-/*
- * External SSL context (from comm.c)
+/**
+ * @name External References
+ * Global SSL context and error tracking from comm.c
+ * @{
  */
-extern SSL_CTX *ctx;
-extern int ssl_errors_since_reset;
-extern time_t last_ssl_error;
+extern SSL_CTX *ctx;                  /**< Global SSL context for new connections */
+extern int ssl_errors_since_reset;    /**< Error counter for circuit breaker */
+extern time_t last_ssl_error;         /**< Timestamp of last SSL error */
+/** @} */
 
-/*
- * TLS connection structure
+/**
+ * @struct connection_tls
+ * @brief TLS connection implementation structure
+ *
+ * Extends base connection with OpenSSL SSL object for encryption.
  */
 typedef struct connection_tls {
-    connection_t base;      // Must be first for casting
-    SSL *ssl;               // OpenSSL connection object
+    connection_t base;  /**< Base connection (must be first for casting) */
+    SSL *ssl;           /**< OpenSSL connection object */
 } connection_tls_t;
 
-/*
- * Forward declarations
- */
+/* Forward declarations for vtable functions */
 static bool tls_read(connection_t *conn, char *buf, int size, int *bytes_read);
 static bool tls_write(connection_t *conn, const char *buf, int size, int *bytes_written);
 static bool tls_process_handshake(connection_t *conn);
@@ -63,8 +83,14 @@ static void tls_free(connection_t *conn);
 static bool tls_is_secure(connection_t *conn);
 static const char* tls_get_protocol_name(connection_t *conn);
 
-/*
- * Helper function to log SSL errors
+/**
+ * log_ssl_error - Log OpenSSL error messages with context
+ *
+ * Extracts error messages from OpenSSL's error queue using BIO and
+ * logs them with the provided context string. Also updates the SSL
+ * circuit breaker counters.
+ *
+ * @param context  Descriptive context string for the error
  */
 static void log_ssl_error(const char *context)
 {
@@ -93,8 +119,8 @@ static void log_ssl_error(const char *context)
     last_ssl_error = current_time;
 }
 
-/*
- * TLS virtual function table
+/**
+ * @brief Virtual function table for TLS connections
  */
 static connection_vtable_t tls_vtable = {
     .read = tls_read,
@@ -106,8 +132,20 @@ static connection_vtable_t tls_vtable = {
     .get_protocol_name = tls_get_protocol_name
 };
 
-/*
- * Create a new TLS connection
+/**
+ * connection_tls_create - Create a new TLS connection
+ *
+ * Factory function to create a TLS-encrypted connection from an accepted
+ * socket. Creates an SSL object from the global context and initiates
+ * the TLS handshake (non-blocking).
+ *
+ * The handshake typically requires multiple calls to tls_process_handshake()
+ * to complete. Connection state starts as CONN_STATE_CONNECTING until
+ * handshake completes.
+ *
+ * @param fd    Accepted socket file descriptor
+ * @param desc  Game descriptor to associate with this connection
+ * @return      New connection_t pointer, or NULL on failure
  */
 connection_t* connection_tls_create(int fd, struct descriptor_data *desc)
 {
@@ -176,8 +214,20 @@ connection_t* connection_tls_create(int fd, struct descriptor_data *desc)
     return (connection_t*)tls_conn;
 }
 
-/*
- * Read from TLS connection
+/**
+ * tls_read - Read decrypted data from TLS connection
+ *
+ * Reads data through the SSL layer, automatically decrypting it.
+ * Handles SSL-specific return codes:
+ *   - SSL_ERROR_WANT_READ/WRITE: Non-blocking, try again later
+ *   - SSL_ERROR_ZERO_RETURN: Clean SSL shutdown by peer
+ *   - SSL_ERROR_SYSCALL: System error, check errno
+ *
+ * @param conn        The TLS connection to read from
+ * @param buf         Buffer to store decrypted data
+ * @param size        Maximum bytes to read
+ * @param bytes_read  Output: actual bytes read (0 on would-block)
+ * @return            true on success or would-block, false on error/disconnect
  */
 static bool tls_read(connection_t *conn, char *buf, int size, int *bytes_read)
 {
@@ -227,8 +277,17 @@ static bool tls_read(connection_t *conn, char *buf, int size, int *bytes_read)
     }
 }
 
-/*
- * Write to TLS connection
+/**
+ * tls_write - Write data to TLS connection with encryption
+ *
+ * Writes data through the SSL layer, automatically encrypting it.
+ * Handles SSL-specific return codes similarly to tls_read().
+ *
+ * @param conn           The TLS connection to write to
+ * @param buf            Data to encrypt and send
+ * @param size           Bytes to write
+ * @param bytes_written  Output: actual bytes written (0 on would-block)
+ * @return               true on success or would-block, false on error/disconnect
  */
 static bool tls_write(connection_t *conn, const char *buf, int size, int *bytes_written)
 {
@@ -282,8 +341,18 @@ static bool tls_write(connection_t *conn, const char *buf, int size, int *bytes_
     }
 }
 
-/*
- * Process TLS handshake
+/**
+ * tls_process_handshake - Continue TLS handshake processing
+ *
+ * Called repeatedly when the socket is readable/writable until handshake
+ * completes. TLS handshakes require multiple round-trips, so this function
+ * typically needs to be called several times.
+ *
+ * Returns true when handshake is complete (connection ready for I/O).
+ * Returns false if still in progress or if a fatal error occurred.
+ *
+ * @param conn  The TLS connection with pending handshake
+ * @return      true if handshake complete, false if in progress or error
  */
 static bool tls_process_handshake(connection_t *conn)
 {
@@ -327,8 +396,19 @@ static bool tls_process_handshake(connection_t *conn)
     }
 }
 
-/*
- * Close TLS connection
+/**
+ * tls_close - Close TLS connection with proper SSL shutdown
+ *
+ * Performs graceful TLS connection closure:
+ *   1. Skip SSL shutdown if handshake never completed
+ *   2. Wait briefly for socket to be writable
+ *   3. Perform bidirectional SSL_shutdown() (send close_notify)
+ *   4. Free SSL object
+ *   5. Close underlying socket
+ *
+ * The socket writability check prevents blocking on dead connections.
+ *
+ * @param conn  The TLS connection to close
  */
 static void tls_close(connection_t *conn)
 {
@@ -374,8 +454,13 @@ static void tls_close(connection_t *conn)
     conn->state = CONN_STATE_CLOSED;
 }
 
-/*
- * Free TLS connection
+/**
+ * tls_free - Free TLS connection resources
+ *
+ * Ensures connection is closed (SSL freed, socket closed), then frees
+ * the connection structure itself.
+ *
+ * @param conn  The TLS connection to free
  */
 static void tls_free(connection_t *conn)
 {
@@ -389,16 +474,24 @@ static void tls_free(connection_t *conn)
     free(tls_conn);
 }
 
-/*
- * Check if TLS is secure (it is)
+/**
+ * tls_is_secure - Check if TLS connection is encrypted
+ *
+ * TLS connections are always encrypted.
+ *
+ * @param conn  The connection to check
+ * @return      Always returns true
  */
 static bool tls_is_secure(connection_t *conn)
 {
     return true;
 }
 
-/*
- * Get protocol name
+/**
+ * tls_get_protocol_name - Get protocol name for logging
+ *
+ * @param conn  The connection (unused)
+ * @return      "TLS"
  */
 static const char* tls_get_protocol_name(connection_t *conn)
 {

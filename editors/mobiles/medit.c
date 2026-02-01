@@ -393,16 +393,22 @@ MEDIT(medit_show)
                 {
                 case STOCK_OBJECT:
                     strcpy(typ,"{GOBJECT{x  ");
-                    if( pStock->vnum > 0 ) {
+                    if( pStock->entity.wnum.vnum > 0 ) {
 
-                        OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pStock->vnum);
+                        OBJ_INDEX_DATA *obj = pStock->entity.wnum.pArea ? 
+                            get_obj_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
+                            get_obj_index(pMob->area, pStock->entity.wnum.vnum);
 
                         if( !obj ) {
                             strcpy(item, "-invalid-");
                         }
                         else
                         {
-                            sprintf(item, "%s (%ld)", obj->short_descr, pStock->vnum);
+                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
+                                sprintf(item, "%s (%ld#%ld)", obj->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
+                            } else {
+                                sprintf(item, "%s (%ld)", obj->short_descr, pStock->entity.wnum.vnum);
+                            }
                         }
                     }
                     else
@@ -411,16 +417,22 @@ MEDIT(medit_show)
                     break;
                 case STOCK_PET:
                     strcpy(typ,"{GPET{x     ");
-                    if( pStock->vnum > 0 ) {
+                    if( pStock->entity.wnum.vnum > 0 ) {
 
-                        MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
+                        MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
+                            get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
+                            get_mob_index(pMob->area, pStock->entity.wnum.vnum);
 
                         if( !mob ) {
                             strcpy(item, "-invalid-");
                         }
                         else
                         {
-                            sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
+                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
+                            } else {
+                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
+                            }
                         }
                     }
                     else
@@ -428,16 +440,22 @@ MEDIT(medit_show)
                     break;
                 case STOCK_MOUNT:
                     strcpy(typ,"{GMOUNT{x   ");
-                    if( pStock->vnum > 0 ) {
+                    if( pStock->entity.wnum.vnum > 0 ) {
 
-                        MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
+                        MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
+                            get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
+                            get_mob_index(pMob->area, pStock->entity.wnum.vnum);
 
                         if( !mob ) {
                             strcpy(item, "-invalid-");
                         }
                         else
                         {
-                            sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
+                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
+                            } else {
+                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
+                            }
                         }
                     }
                     else
@@ -445,16 +463,22 @@ MEDIT(medit_show)
                     break;
                 case STOCK_GUARD:
                     strcpy(typ,"{GGUARD{x   ");
-                    if( pStock->vnum > 0 ) {
+                    if( pStock->entity.wnum.vnum > 0 ) {
 
-                        MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
+                        MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
+                            get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
+                            get_mob_index(pMob->area, pStock->entity.wnum.vnum);
 
                         if( !mob ) {
                             strcpy(item, "-invalid-");
                         }
                         else
                         {
-                            sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
+                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
+                            } else {
+                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
+                            }
                         }
                     }
                     else
@@ -463,16 +487,22 @@ MEDIT(medit_show)
 
                 case STOCK_CREW:
                     strcpy(typ,"{GCREW{x    ");
-                    if( pStock->vnum > 0 ) {
+                    if( pStock->entity.wnum.vnum > 0 ) {
 
-                        MOB_INDEX_DATA *mob = get_mob_index(pMob->area, pStock->vnum);
+                        MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
+                            get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
+                            get_mob_index(pMob->area, pStock->entity.wnum.vnum);
 
                         if( !mob || !mob->pCrew ) {
                             strcpy(item, "-invalid-");
                         }
                         else
                         {
-                            sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
+                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
+                            } else {
+                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
+                            }
                         }
                     }
                     else
@@ -481,16 +511,20 @@ MEDIT(medit_show)
 
                 case STOCK_SHIP:
                     strcpy(typ,"{GSHIP{x    ");
-                    if( pStock->vnum > 0 )
+                    if( pStock->entity.wnum.vnum > 0 )
                     {
-                        SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->vnum);
+                        SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->entity.wnum.vnum);
 
                         if( !ship_index ) {
                             strcpy(item, "-invalid-");
                         }
                         else
                         {
-                            sprintf(item, "%s (%ld)", ship_index->name, pStock->vnum);
+                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
+                                sprintf(item, "%s (%ld#%ld)", ship_index->name, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
+                            } else {
+                                sprintf(item, "%s (%ld)", ship_index->name, pStock->entity.wnum.vnum);
+                            }
                         }
 
                     }
@@ -1198,7 +1232,7 @@ MEDIT(medit_corpsevnum)
 
     if (value > 0) {
 
-        AREA_DATA *obj_area = find_area_by_vnum(value);
+        AREA_DATA *obj_area = find_area_by_vnum(value, NULL);
         if (!obj_area) obj_area = get_system_area_fallback();
         if(!get_obj_index(obj_area, value)) {
             send_to_char("Object does not exist.\n\r",ch);
@@ -1231,7 +1265,7 @@ MEDIT(medit_zombievnum)
     value = atoi(argument);
 
     if (value > 0) {
-        AREA_DATA *obj_area = find_area_by_vnum(value);
+        AREA_DATA *obj_area = find_area_by_vnum(value, NULL);
         if (!obj_area) obj_area = get_system_area_fallback();
         if(!get_obj_index(obj_area, value)) {
             send_to_char("Object does not exist.\n\r",ch);
@@ -1648,12 +1682,21 @@ MEDIT(medit_shop)
 
             if(!str_prefix(arg2, "object"))
             {
-                if(is_number(argument))
+                if(argument && argument[0] != '\0')
                 {
-                long vnum = atoi(argument);
-                AREA_DATA *item_area = find_area_by_vnum(vnum);
-                if (!item_area) item_area = get_system_area_fallback();
-                OBJ_INDEX_DATA *item = get_obj_index(item_area, vnum);
+                    WNUM obj_wnum;
+                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    
+                    if (!parse_widevnum(argument, context, &obj_wnum)) {
+                        send_to_char("Invalid object vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
+                        return false;
+                    }
+                    
+                    OBJ_INDEX_DATA *item = obj_wnum.pArea ? 
+                        get_obj_index(obj_wnum.pArea, obj_wnum.vnum) :
+                        get_obj_index_global(obj_wnum.vnum);
+                    
+                    if(!item)
                     {
                         send_to_char("Object does not exist.\n\r", ch);
                         return false;
@@ -1674,7 +1717,7 @@ MEDIT(medit_shop)
                     }
 
                     stock->type = STOCK_OBJECT;
-                    stock->vnum = item->vnum;
+                    stock->entity.wnum = obj_wnum;
                     stock->silver = item->cost;
                     stock->discount = pMob->pShop->discount;
 
@@ -1685,14 +1728,24 @@ MEDIT(medit_shop)
                     return true;
                 }
 
-                send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+                send_to_char("Syntax:  shop stock add object [vnum|uid#vnum|#vnum|'AreaName'#vnum]\n\r", ch);
                 return false;
             }
             else if(!str_prefix(arg2, "pet"))
             {
-                if(is_number(argument))
+                if(argument && argument[0] != '\0')
                 {
-                    MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
+                    WNUM mob_wnum;
+                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    
+                    if (!parse_widevnum(argument, context, &mob_wnum)) {
+                        send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
+                        return false;
+                    }
+                    
+                    MOB_INDEX_DATA *mob = mob_wnum.pArea ? 
+                        get_mob_index(mob_wnum.pArea, mob_wnum.vnum) :
+                        get_mob_index_global(mob_wnum.vnum);
 
                     if(!mob)
                     {
@@ -1709,7 +1762,7 @@ MEDIT(medit_shop)
                     }
 
                     stock->type = STOCK_PET;
-                    stock->vnum = mob->vnum;
+                    stock->entity.wnum = mob_wnum;
                     stock->silver = 10 * mob->level * mob->level;
                     stock->level = mob->level;
                     stock->discount = pMob->pShop->discount;
@@ -1721,14 +1774,24 @@ MEDIT(medit_shop)
                     return true;
                 }
 
-                send_to_char("Syntax:  shop stock add pet [vnum]\n\r", ch);
+                send_to_char("Syntax:  shop stock add pet [vnum|uid#vnum|#vnum|'AreaName'#vnum]\n\r", ch);
                 return false;
             }
             else if(!str_prefix(arg2, "mount"))
             {
-                if(is_number(argument))
+                if(argument && argument[0] != '\0')
                 {
-                    MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
+                    WNUM mob_wnum;
+                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    
+                    if (!parse_widevnum(argument, context, &mob_wnum)) {
+                        send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
+                        return false;
+                    }
+                    
+                    MOB_INDEX_DATA *mob = mob_wnum.pArea ? 
+                        get_mob_index(mob_wnum.pArea, mob_wnum.vnum) :
+                        get_mob_index_global(mob_wnum.vnum);
 
                     if(!mob)
                     {
@@ -1745,7 +1808,7 @@ MEDIT(medit_shop)
                     }
 
                     stock->type = STOCK_MOUNT;
-                    stock->vnum = mob->vnum;
+                    stock->entity.wnum = mob_wnum;
                     stock->silver = 25 * mob->level * mob->level;
                     stock->level = mob->level;
                     stock->discount = pMob->pShop->discount;
@@ -1757,14 +1820,24 @@ MEDIT(medit_shop)
                     return true;
                 }
 
-                send_to_char("Syntax:  shop stock add mount [vnum]\n\r", ch);
+                send_to_char("Syntax:  shop stock add mount [vnum|uid#vnum|#vnum|'AreaName'#vnum]\n\r", ch);
                 return false;
             }
             else if(!str_prefix(arg2, "guard"))
             {
-                if(is_number(argument))
+                if(argument && argument[0] != '\0')
                 {
-                    MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
+                    WNUM mob_wnum;
+                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    
+                    if (!parse_widevnum(argument, context, &mob_wnum)) {
+                        send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
+                        return false;
+                    }
+                    
+                    MOB_INDEX_DATA *mob = mob_wnum.pArea ? 
+                        get_mob_index(mob_wnum.pArea, mob_wnum.vnum) :
+                        get_mob_index_global(mob_wnum.vnum);
 
                     if(!mob)
                     {
@@ -1781,7 +1854,7 @@ MEDIT(medit_shop)
                     }
 
                     stock->type = STOCK_GUARD;
-                    stock->vnum = mob->vnum;
+                    stock->entity.wnum = mob_wnum;
                     stock->silver = 50 * mob->level * mob->level;
                     stock->level = mob->level;
                     stock->discount = pMob->pShop->discount;
@@ -1793,14 +1866,24 @@ MEDIT(medit_shop)
                     return true;
                 }
 
-                send_to_char("Syntax:  shop stock add guard [vnum]\n\r", ch);
+                send_to_char("Syntax:  shop stock add guard [vnum|uid#vnum|#vnum|'AreaName'#vnum]\n\r", ch);
                 return false;
             }
             else if(!str_prefix(arg2, "crew"))
             {
-                if(is_number(argument))
+                if(argument && argument[0] != '\0')
                 {
-                    MOB_INDEX_DATA *mob = get_mob_index(pMob->area, atoi(argument));
+                    WNUM mob_wnum;
+                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    
+                    if (!parse_widevnum(argument, context, &mob_wnum)) {
+                        send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
+                        return false;
+                    }
+                    
+                    MOB_INDEX_DATA *mob = mob_wnum.pArea ? 
+                        get_mob_index(mob_wnum.pArea, mob_wnum.vnum) :
+                        get_mob_index_global(mob_wnum.vnum);
 
                     if(!mob)
                     {
@@ -1823,7 +1906,7 @@ MEDIT(medit_shop)
                     }
 
                     stock->type = STOCK_CREW;
-                    stock->vnum = mob->vnum;
+                    stock->entity.wnum = mob_wnum;
                     stock->silver = 50 * mob->level * mob->level;
                     stock->level = mob->level;
                     stock->discount = pMob->pShop->discount;
@@ -1835,7 +1918,7 @@ MEDIT(medit_shop)
                     return true;
                 }
 
-                send_to_char("Syntax:  shop stock add crew [vnum]\n\r", ch);
+                send_to_char("Syntax:  shop stock add crew [vnum|uid#vnum|#vnum|'AreaName'#vnum]\n\r", ch);
                 return false;
             }
             else if(!str_prefix(arg2, "ship"))
@@ -1861,7 +1944,7 @@ MEDIT(medit_shop)
                         return false;
                     }
 
-                    AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object);
+                    AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object, NULL);
                     if (!ship_area) ship_area = get_system_area_fallback();
                     if( !IS_VALID(ship->blueprint) || !get_obj_index(ship_area, ship->ship_object) )
                     {
@@ -1878,7 +1961,8 @@ MEDIT(medit_shop)
                     }
 
                     stock->type = STOCK_SHIP;
-                    stock->vnum = vnum;
+                    stock->entity.wnum.pArea = NULL;
+                    stock->entity.wnum.vnum = vnum;
                     stock->silver = 100000;	// Default 1000gold
                     stock->level = 1;
                     stock->discount = pMob->pShop->discount;
@@ -3168,7 +3252,7 @@ MEDIT(medit_questor)
         }
 
         long vnum = atoi(argument);
-        AREA_DATA *scroll_area = find_area_by_vnum(vnum);
+        AREA_DATA *scroll_area = find_area_by_vnum(vnum, NULL);
         if (!scroll_area) scroll_area = get_system_area_fallback();
         if( !get_obj_index(scroll_area, vnum) )
         {

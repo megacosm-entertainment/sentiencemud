@@ -35,7 +35,7 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     if (p_leader_vnum > 0 && p_mob_vnum > 0) { 
       leader_vnum = p_leader_vnum;
       mob_vnum = p_mob_vnum;
-      AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
+      AREA_DATA *leader_area = find_area_by_vnum(leader_vnum, NULL);
       if (!leader_area) leader_area = get_system_area_fallback();
       sprintf(buf, "Global Quest: %s has been overrun by an invasion force led by %s! Bring back the head for reward! (Max level %d)", pArea->name, get_mob_index(leader_area, leader_vnum)->short_descr, max_level);
     }
@@ -71,8 +71,8 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
        }
      }
 
-     AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
-     AREA_DATA *mob_area = find_area_by_vnum(mob_vnum);
+     AREA_DATA *leader_area = find_area_by_vnum(leader_vnum, NULL);
+     AREA_DATA *mob_area = find_area_by_vnum(mob_vnum, NULL);
      if (!leader_area) leader_area = get_system_area_fallback();
      if (!mob_area) mob_area = get_system_area_fallback();
      if (get_mob_index(leader_area, leader_vnum) == NULL || get_mob_index(mob_area, mob_vnum) == NULL)

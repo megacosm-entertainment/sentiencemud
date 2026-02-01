@@ -102,6 +102,12 @@ void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church,
 static int cmp_church_uid(void *a, void *b);
 
 
+/**
+ * MAX_PROCESSED_FILES - Limit for tracking already-processed log files
+ *
+ * Used to prevent re-reading the same legacy church log files during
+ * data migration.
+ */
     #define MAX_PROCESSED_FILES 100
     char *processed_files[MAX_PROCESSED_FILES];
     int num_processed_files = 0;
@@ -149,6 +155,23 @@ const struct church_command_type church_command_table[] =
 };
 */
 
+/**
+ * church_command_table - Dispatch table for all church subcommands
+ *
+ * Maps command names to their handler functions and permission requirements.
+ * Each entry specifies:
+ * - command: Subcommand name (e.g., "create", "deposit")
+ * - permission: Required CHURCH_PERM_* flags (0 = no permission needed)
+ * - function: Handler function pointer
+ * - membership: true if must be in a church to use
+ * - admin: true if immortal-only command
+ *
+ * Commands are grouped by access level:
+ * - Public: create, info, list (no church needed)
+ * - Member: deposit, donate, gohall, talk, treasure, etc.
+ * - Officer: add, colour, convert, delmember, permission, rank, etc.
+ * - Admin: delete, advance, deduct (immortal only)
+ */
 const struct church_command_type church_command_table[] =
 {
     /* Anyone can run these */
@@ -194,6 +217,12 @@ const struct church_command_type church_command_table[] =
     { NULL, -1, NULL, false }
 };
 
+/**
+ * lookup_church_command - Find a command name in the church command table
+ *
+ * @param string  Command name to look up
+ * @return        Exact command name if found, NULL otherwise
+ */
 char *lookup_church_command (char *string)
 {
     int i;
@@ -210,6 +239,22 @@ char *lookup_church_command (char *string)
     return NULL;
 }
 
+
+/**
+ * church_get_min_positions - Calculate minimum member slots for a church size
+ *
+ * Returns the minimum number of member positions allowed for a given
+ * church size tier. Formula: POSITIONS = (11 * SIZE + 19) / 3
+ *
+ * Results by size:
+ * - BAND (1):   10 positions
+ * - CULT (2):   13 positions
+ * - ORDER (3):  17 positions
+ * - CHURCH (4): 21 positions
+ *
+ * @param size  Church size tier (CHURCH_SIZE_*)
+ * @return      Minimum position count
+ */
 int church_get_min_positions(int size)
 {
     // (SIZE-1)*(21-10)/(4-1) = (POSITIONS - 10)
@@ -223,6 +268,16 @@ int church_get_min_positions(int size)
     return (11 * size + 19) / 3;
 }
 
+
+/**
+ * show_church_commands - Display available church commands to a player
+ *
+ * Lists all church commands the player has permission to use.
+ * Considers immortal status, church membership, and permission flags.
+ * Formats output in 4 columns.
+ *
+ * @param ch  Character to show commands to
+ */
 void show_church_commands(CHAR_DATA *ch)
 {
     char buf[MSL];
@@ -264,6 +319,21 @@ void show_church_commands(CHAR_DATA *ch)
 }
 
 
+/**
+ * do_church - Main church command dispatcher
+ *
+ * Entry point for all church-related commands. Parses the subcommand
+ * and dispatches to the appropriate handler from church_command_table.
+ *
+ * Validates:
+ * - Command exists in table
+ * - Player has required church membership (if membership=true)
+ * - Player has required permissions
+ * - Player is not excommunicated (limited commands if so)
+ *
+ * @param ch        Character using the church command
+ * @param argument  Subcommand and arguments
+ */
 void do_church(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -326,6 +396,24 @@ void do_church(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chadd - Add a player to the church
+ *
+ * Adds a target player (present in room) to the caller's church.
+ * Must be at a church administration office (ACT2_CHURCHMASTER NPC).
+ *
+ * Restrictions:
+ * - Target must not already be in a church
+ * - Target must be a player, not an NPC
+ * - Church must not be at max capacity
+ * - Target alignment must match church alignment rules
+ *
+ * New member is assigned the church's default rank.
+ * Logs the addition and announces globally.
+ *
+ * @param ch        Church officer adding the member
+ * @param argument  Name of player to add
+ */
 void do_chadd(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *temp_char;
@@ -443,6 +531,15 @@ void do_chadd(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chrules - View or edit church rules
+ *
+ * With no argument: Displays the church's rules text.
+ * With "edit": Opens the string editor to modify rules.
+ *
+ * @param ch        Church member viewing/editing rules
+ * @param argument  "edit" to modify, or empty to view
+ */
 void do_chrules(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -492,7 +589,15 @@ void do_chrules(CHAR_DATA * ch, char *argument)
 }
 
 
-
+/**
+ * do_chmotd - View or edit church Message of the Day
+ *
+ * With no argument: Displays the church's MOTD.
+ * With "edit": Opens the string editor to modify MOTD.
+ *
+ * @param ch        Church member viewing/editing MOTD
+ * @param argument  "edit" to modify, or empty to view
+ */
 void do_chmotd(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -542,6 +647,21 @@ void do_chmotd(CHAR_DATA * ch, char *argument)
 }
 
 
+/**
+ * do_chrem - Remove a member from the church
+ *
+ * Removes a member (or self) from the church. Immortals can remove
+ * from any church. Regular members can only remove themselves or
+ * (with CHURCH_PERM_MEMBERS) other members they outrank.
+ *
+ * Special handling:
+ * - Founder/owner leaving causes church disbandment (prompts confirmation)
+ * - Self-removal prompts for confirmation
+ * - Cannot remove members that outrank you
+ *
+ * @param ch        Player removing member
+ * @param argument  Member name, "self", or "me"
+ */
 void do_chrem(CHAR_DATA *ch, char *argument)
 {
     CHURCH_PLAYER_DATA *member;
@@ -687,6 +807,15 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * remove_member - Internal function to remove a member from church data
+ *
+ * Unlinks the member from the church's people list, clears the
+ * character's church pointers, removes from online_players and roster
+ * lists, and frees the CHURCH_PLAYER_DATA structure.
+ *
+ * @param member  Member data to remove and free
+ */
 void remove_member(CHURCH_PLAYER_DATA * member)
 {
     CHURCH_PLAYER_DATA *prev_member;
@@ -736,6 +865,11 @@ void remove_member(CHURCH_PLAYER_DATA * member)
 }
 
 
+/**
+ * do_chprom - Deprecated promote command
+ *
+ * Displays message directing users to use 'church setmemberrank' instead.
+ */
 void do_chprom(CHAR_DATA *ch, char *argument)
 {
     send_to_char("The promote command has been replaced by 'church setmemberrank'.\n\r", ch);
@@ -743,6 +877,11 @@ void do_chprom(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chdem - Deprecated demote command
+ *
+ * Displays message directing users to use 'church setmemberrank' instead.
+ */
 void do_chdem(CHAR_DATA *ch, char *argument)
 {
     send_to_char("The demote command has been replaced by 'church setmemberrank'.\n\r", ch);
@@ -750,6 +889,24 @@ void do_chdem(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chgohall - Teleport to church hall/recall point
+ *
+ * Transports the member to the church's designated recall point.
+ * Only available for churches of CULT size or larger.
+ *
+ * Cross-zone travel (between continents) costs pneuma and deity points
+ * from the church treasury, and can be disabled by leadership.
+ *
+ * Restrictions:
+ * - Must not be fighting, dead, sleeping, cursed
+ * - Must not be in wilderness (water blocks the magic)
+ * - Must not have no_recall timer
+ * - Church must have a valid recall point set
+ *
+ * @param ch        Member teleporting
+ * @param argument  Unused
+ */
 void do_chgohall(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;
@@ -901,6 +1058,16 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chflag - Set the church's display flag/tag
+ *
+ * Changes the short flag/tag displayed with the church name.
+ * Must be at a church administration office. Maximum 16 characters
+ * (not counting color codes).
+ *
+ * @param ch        Church officer setting the flag
+ * @param argument  New flag text (supports color codes)
+ */
 void do_chflag(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *temp_char;
@@ -967,7 +1134,18 @@ void do_chflag(CHAR_DATA *ch, char *argument)
 }
 
 
-
+/**
+ * do_chdeposit - Deposit resources into church treasury
+ *
+ * Transfers deity points, pneuma, or gold from the player to the
+ * church treasury. Must be at a church administration office.
+ * Tracks individual member contributions.
+ *
+ * Syntax: church deposit dp|pneuma|gold <amount>
+ *
+ * @param ch        Member making the deposit
+ * @param argument  Resource type and amount
+ */
 void do_chdeposit(CHAR_DATA * ch, char *argument)
 {
     CHAR_DATA *temp_char;
@@ -1069,6 +1247,16 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
 }
 
 
+/**
+ * do_chbalance - Display church treasury balance
+ *
+ * Shows the church's current pneuma, karma (deity points), and gold.
+ * Must be at a church administration office.
+ * Immortals can view any church's balance by number.
+ *
+ * @param ch        Member checking balance
+ * @param argument  Church number (immortal only)
+ */
 void do_chbalance(CHAR_DATA * ch, char *argument)
 {
     CHAR_DATA *temp_char;
@@ -1132,6 +1320,23 @@ void do_chbalance(CHAR_DATA * ch, char *argument)
 }
 
 
+/**
+ * do_chcreate - Create a new church (Band)
+ *
+ * Creates a new player organization starting as a Band (smallest size).
+ * Requires 3,000,000 deity points and must be at an administration office.
+ * Creator becomes the founder and is assigned leader rank.
+ *
+ * Syntax: church create "name" 'flag' evil|good|neutral
+ *
+ * The alignment determines which players can join:
+ * - evil: only evil/neutral alignment players
+ * - good: only good/neutral alignment players
+ * - neutral: any alignment
+ *
+ * @param ch        Player creating the church
+ * @param argument  Name, flag, and alignment
+ */
 void do_chcreate(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -1278,6 +1483,18 @@ if (list_size(list_churches) >= MAX_CHURCHES) {
 }
 
 
+/**
+ * do_chdelete - Admin command to delete a church
+ *
+ * Marks a church as deleted (soft delete) rather than completely removing it.
+ * The deleted church is saved to preserve data and removed from active lists.
+ * Requires implementor status with security level 9.
+ *
+ * Syntax: church delete <church_number>
+ *
+ * @param ch        Staff member deleting the church
+ * @param argument  Church number from the list
+ */
 void do_chdelete(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -1355,6 +1572,21 @@ return;
 }
 
 
+/**
+ * do_chlist - List all churches or show details for a specific church
+ *
+ * With no argument: Shows a summary list of all churches.
+ * With a church number: Shows detailed member roster for that church.
+ *
+ * Member list shows:
+ * - Online status (asterisk marker)
+ * - Name and rank
+ * - Excommunicated status
+ * - Founder marker
+ *
+ * @param ch        Character viewing the list
+ * @param argument  Church number to show details, or empty for list
+ */
 void do_chlist(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -1444,6 +1676,18 @@ void do_chlist(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chtalk - Church communication channel
+ *
+ * Sends a message to all online members of the same church.
+ * With no argument, toggles the church talk channel on/off (COMM_NOCT).
+ *
+ * Messages are formatted with church colors and optionally show
+ * the sender's personal flag.
+ *
+ * @param ch        Church member speaking
+ * @param argument  Message to send, or empty to toggle channel
+ */
 void do_chtalk(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
@@ -1584,13 +1828,27 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * get_chrank - Get the display title for a church member's rank
+ *
+ * Returns the appropriate gender-specific rank title based on the
+ * member's sex field.
+ *
+ * TODO: This sex-based title system needs to be reworked to use the
+ * pronoun system instead. The male/female/neutral titles should be
+ * replaced with a single title or pronoun-aware formatting.
+ *
+ * @param member  Church member to get rank title for
+ * @return        Rank title string, or "Unknown" if member is invalid
+ */
 char *get_chrank(CHURCH_PLAYER_DATA *member)
 {
     // Check for null pointers to avoid crashes
     if (member == NULL || member->church == NULL || member->rank == NULL)
         return "Unknown";
-    
+
     // Return the appropriate gender-specific rank name
+    // TODO: Migrate to pronoun system
     if (member->sex == SEX_FEMALE && member->rank->title_female)
         return member->rank->title_female;
     else if (member->sex == SEX_NEUTRAL && member->rank->title_neutral)
@@ -1600,6 +1858,16 @@ char *get_chrank(CHURCH_PLAYER_DATA *member)
 }
 
 
+/**
+ * do_chexcommunicate - Toggle excommunication status on a church member
+ *
+ * Excommunicated members remain in the church but lose access to most
+ * church commands. They can only use LIST, RULES, and QUIT.
+ * Leaders cannot be excommunicated. Toggles the status if already set.
+ *
+ * @param ch        Church leader excommunicating/restoring a member
+ * @param argument  Name of member to excommunicate
+ */
 void do_chexcommunicate(CHAR_DATA * ch, char *argument)
 {
     CHURCH_PLAYER_DATA *member;
@@ -1668,7 +1936,15 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
 }
 
 
-/* show list of churches to a ch. Used in other functions. */
+/**
+ * show_chlist_to_char - Display formatted list of all registered churches
+ *
+ * Shows a table of all churches with: number, PK status, name, max positions,
+ * alignment (Good/Neutral/Evil), and size (Band/Cult/Order/Church).
+ * Used by do_chlist and other commands that need to show available churches.
+ *
+ * @param ch  Character to display the list to
+ */
 void show_chlist_to_char(CHAR_DATA *ch)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1716,7 +1992,15 @@ iterator_stop(&it);
 }
 
 
-/* message all members of a church */
+/**
+ * msg_church_members - Send a message to all online church members
+ *
+ * Iterates through all members of the church and sends the given message
+ * to those who are currently online (member->ch != NULL).
+ *
+ * @param church    Church whose members should receive the message
+ * @param argument  Message text to send
+ */
 void msg_church_members(CHURCH_DATA *church, char *argument)
 {
     CHURCH_PLAYER_DATA *member;
@@ -1731,9 +2015,24 @@ void msg_church_members(CHURCH_DATA *church, char *argument)
     }
 }
 
-/*
- * Allows qualified church members to upgrade their church to the next size
- * Requires the user to be in a church office
+/**
+ * do_chupgrade - Player command to upgrade church to the next size tier
+ *
+ * Allows church owners or members with MANAGE permission to upgrade
+ * the church size (Band -> Cult -> Order -> Church). Requires:
+ * - Being at an administration office (room with ACT2_CHURCHMASTER NPC)
+ * - Sufficient deity points and pneuma in church treasury
+ *
+ * Upgrade costs:
+ * - Band to Cult: 5,000,000 DP + 50,000 pneuma
+ * - Cult to Order: 10,000,000 DP + 100,000 pneuma
+ * - Order to Church: 25,000,000 DP + 250,000 pneuma
+ *
+ * On success, deducts resources, increases size, updates max_positions,
+ * announces globally, and logs the upgrade.
+ *
+ * @param ch        Character attempting the upgrade
+ * @param argument  Unused
  */
 void do_chupgrade(CHAR_DATA *ch, char *argument)
 {
@@ -1839,6 +2138,18 @@ void do_chupgrade(CHAR_DATA *ch, char *argument)
     save_church(church);
 }
 
+/**
+ * do_chadvance - Staff command to advance a church's size tier for free
+ *
+ * Allows staff with SUPREMACY rank and IMMORTAL_CHURCHES duty to promote
+ * a church to the next size tier without requiring resource costs.
+ * Shows church list if no argument given.
+ *
+ * Syntax: church advance <church#>
+ *
+ * @param ch        Staff member issuing the command
+ * @param argument  Church number from the list
+ */
 void do_chadvance(CHAR_DATA *ch, char* argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -1897,6 +2208,18 @@ if (ch->pcdata->staff_rank < STAFF_SUPREMACY ||
 }
 
 
+/**
+ * do_chdeduct - Staff command to deduct resources from a church treasury
+ *
+ * Allows staff with SUPREMACY rank and IMMORTAL_CHURCHES duty to remove
+ * pneuma, deity points, or gold from a church's treasury. Notifies all
+ * online church members when resources are deducted.
+ *
+ * Syntax: church deduct <church#> <pneuma|dp|gold> <amount>
+ *
+ * @param ch        Staff member issuing the command
+ * @param argument  Church number, resource type, and amount
+ */
 void do_chdeduct(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -1990,6 +2313,12 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * get_chsize_from_number - Convert church size enum to display string
+ *
+ * @param size  Church size constant (CHURCH_SIZE_BAND, _CULT, _ORDER, _CHURCH)
+ * @return      Human-readable size name ("Band", "Cult", "Order", "Church")
+ */
 char *get_chsize_from_number(int size)
 {
     if (size == CHURCH_SIZE_BAND)
@@ -2003,6 +2332,21 @@ char *get_chsize_from_number(int size)
 }
 
 
+/**
+ * do_chinfo - Display or edit church information
+ *
+ * Multi-purpose command with different behaviors:
+ * - No args: Shows own church's member contribution stats (pneuma, karma, gold,
+ *   and optionally PK stats). Also shows any relics in treasure rooms.
+ * - "edit": Opens string editor to modify church's public info text.
+ *   Requires leader rank or MANAGE permission.
+ * - <number>: Shows public info for another church (boxed display with
+ *   name, optional PK stats, and info text).
+ * - Staff with ASCENDANT rank can use show_church_info for detailed view.
+ *
+ * @param ch        Character viewing/editing info
+ * @param argument  "edit", church number, or empty
+ */
 void do_chinfo(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -2280,6 +2624,19 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chtransfer - Transfer resources from own church to another church
+ *
+ * Allows church leaders or members with MANAGE permission to transfer
+ * pneuma, deity points (dp), or gold from their church treasury to another.
+ * Must be at an administration office (room with ACT2_CHURCHMASTER NPC).
+ * Cannot transfer more than the church possesses.
+ *
+ * Syntax: church transfer <church#> <pneuma|dp|gold> <amount>
+ *
+ * @param ch        Character initiating the transfer
+ * @param argument  Target church number, resource type, and amount
+ */
 void do_chtransfer(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -2418,6 +2775,23 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chwithdraw - Withdraw resources from church treasury
+ *
+ * Two modes of operation:
+ * 1. Basic: Withdraw to self - any member can withdraw pneuma, dp, or gold
+ * 2. Leader: Withdraw to another player - requires leader rank or WITHDRAW perm
+ *
+ * Must be at an administration office (room with ACT2_CHURCHMASTER NPC).
+ * Notifies members with WITHDRAW or FINANCES permission of the transaction.
+ *
+ * Syntax:
+ * - church withdraw <pneuma|dp|gold> <amount>
+ * - church withdraw <person> <pneuma|dp|gold> <amount>
+ *
+ * @param ch        Character withdrawing resources
+ * @param argument  Resource type, amount, and optionally target player
+ */
 void do_chwithdraw(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -2701,7 +3075,28 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 }
 
 
-/* church log- shows important stuff which is logged, such as withdrawls. */
+/**
+ * do_chlog - View, add, edit, and search church activity logs
+ *
+ * Comprehensive logging system for church activities. Requires OFFICER rank
+ * or VIEWLOG permission to view, EDITLOG permission to add/edit entries.
+ *
+ * Subcommands:
+ * - (no args): Display all log entries (most recent first)
+ * - <number>: View full details of a specific log entry
+ * - categories: List all available log categories
+ * - add <category>: Create new log entry in specified category (opens editor)
+ * - edit <entry_id>: Edit an existing entry (own entries only, or leader)
+ * - search <text>: Search entry text content
+ * - search author <name>: Search by author name
+ * - search category <name>: Search by category (supports meta-categories)
+ *
+ * System-generated entries (from withdrawals, transfers, etc.) cannot be edited.
+ * Uses ED_CHLOG editor mode for multi-line entry creation/editing.
+ *
+ * @param ch        Character viewing/editing logs
+ * @param argument  Subcommand and arguments
+ */
 void do_chlog(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -3018,6 +3413,21 @@ void do_chlog(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_choverthrow - Forcibly take ownership of a church
+ *
+ * Allows any member to become the church owner by overthrowing current
+ * leadership. All other members are demoted to rank A. Cannot be used
+ * on churches that have reached CHURCH_SIZE_CHURCH (maximum size).
+ * Announces the overthrow globally.
+ *
+ * Note: This is a drastic action with no confirmation. The lack of
+ * permission checks may be intentional for small organizations or
+ * may need review.
+ *
+ * @param ch        Character attempting the overthrow
+ * @param argument  Unused
+ */
 void do_choverthrow(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -3067,6 +3477,19 @@ void do_choverthrow(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chwhere - Locate online church members
+ *
+ * Shows the current location (room name) of all online members of the
+ * character's church. Optionally can search for a specific member by name.
+ *
+ * Syntax:
+ * - church where: List all online members and their locations
+ * - church where <name>: Find a specific member
+ *
+ * @param ch        Character requesting location info
+ * @param argument  Optional member name to search for
+ */
 void do_chwhere(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3108,6 +3531,18 @@ void do_chwhere(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chtoggle - Toggle church PK (player killing) status
+ *
+ * Enables or disables PK mode for the church. Requires being at an
+ * administration office (room with ACT2_CHURCHMASTER NPC).
+ *
+ * Enabling PK: Shows warning and sets pk_question flag for confirmation.
+ * Disabling PK: Calls chtoggle_complete directly (costs pneuma per game_settings).
+ *
+ * @param ch        Character toggling PK status
+ * @param argument  Unused
+ */
 void do_chtoggle(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *temp_char;
@@ -3152,7 +3587,18 @@ void do_chtoggle(CHAR_DATA *ch, char *argument)
     }
 }
 
-// @@@REMOVEME: it is redundant... just reference ch->church directly
+/**
+ * find_char_church - Find a character's church by name lookup
+ *
+ * @deprecated Marked for removal. Just use ch->church directly instead.
+ * This function iterates through all churches searching by name, which
+ * is redundant when ch->church already holds the direct reference.
+ *
+ * Note: Contains debug output (sends church name to character).
+ *
+ * @param ch  Character to find church for
+ * @return    Church data pointer or NULL
+ */
 CHURCH_DATA *find_char_church(CHAR_DATA * ch)
 {
     CHURCH_DATA *chr;
@@ -3173,6 +3619,13 @@ CHURCH_DATA *find_char_church(CHAR_DATA * ch)
 }
 
 
+/**
+ * find_char_position_in_church - Get character's rank type in their church
+ *
+ * @param ch  Character to check
+ * @return    Rank type (RANK_TYPE_MEMBER, RANK_TYPE_OFFICER, RANK_TYPE_LEADER)
+ *            or -1 if not in a church or no rank assigned
+ */
 int find_char_position_in_church(CHAR_DATA *ch)
 {
     if (ch->church != NULL && ch->church_member != NULL && ch->church_member->rank != NULL)
@@ -3182,7 +3635,15 @@ int find_char_position_in_church(CHAR_DATA *ch)
 }
 
 
-/* return the structure given a # from chlist */
+/**
+ * find_church - Find a church by its position in the list
+ *
+ * Returns the church at the specified 1-based index in list_churches.
+ * Used to look up churches by the number shown in show_chlist_to_char.
+ *
+ * @param number  1-based index from church list display
+ * @return        Church data pointer or NULL if index out of range
+ */
 CHURCH_DATA *find_church(int number)
 {
     CHURCH_DATA *church;
@@ -3197,6 +3658,14 @@ CHURCH_DATA *find_church(int number)
     return church;
 }
 
+/**
+ * find_church_name - Find a church by exact name match
+ *
+ * Searches list_churches for a church with the given name (case-insensitive).
+ *
+ * @param name  Church name to search for
+ * @return      Church data pointer or NULL if not found
+ */
 CHURCH_DATA *find_church_name(char *name)
 {
     CHURCH_DATA *church;
@@ -3214,7 +3683,17 @@ CHURCH_DATA *find_church_name(char *name)
     return church;
 }
 
-/* is room players treasure church ? */
+/**
+ * is_treasure_room - Check if a room is a church treasure room
+ *
+ * If church is NULL, searches all churches to see if the room belongs
+ * to any church's treasure room list. If church is specified, only
+ * checks that specific church's treasure rooms.
+ *
+ * @param church  Church to check, or NULL to check all churches
+ * @param room    Room to test
+ * @return        true if room is a treasure room, false otherwise
+ */
 bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 {
     CHURCH_TREASURE_ROOM *treasure;
@@ -3244,7 +3723,20 @@ bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 }
 
 
-/* lets leaders set their own churchtalk colours */
+/**
+ * do_chcolour - Set custom colors for church talk channel
+ *
+ * Allows setting two color codes that will be used for the church
+ * communication channel. Validates color codes before accepting.
+ * Logs the change to church activity log.
+ *
+ * Syntax: church colour <colour1> <colour2>
+ * Examples: church colour {Y {B
+ *           church colour {[F345] {[B555]
+ *
+ * @param ch        Character setting colors
+ * @param argument  Two color codes
+ */
 void do_chcolour(CHAR_DATA *ch, char *argument)
 {
     char arg[32], arg2[32];
@@ -3290,6 +3782,15 @@ void do_chcolour(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chtrust - Deprecated trust command stub
+ *
+ * @deprecated Replaced by 'church userperm' command.
+ * Displays message directing users to the new command syntax.
+ *
+ * @param ch        Character (unused)
+ * @param argument  Arguments (unused)
+ */
 void do_chtrust(CHAR_DATA *ch, char *argument)
 {
     send_to_char("The trust command has been replaced with 'church userperm'.\n\r", ch);
@@ -3297,7 +3798,15 @@ void do_chtrust(CHAR_DATA *ch, char *argument)
     return;
 }
 
-/* add something to the church's log */
+/**
+ * append_church_log - Add an entry to a church's activity log
+ *
+ * Wrapper that creates a system-generated log entry with CHLOG_GENERAL
+ * category. Also logs to the server log for debugging.
+ *
+ * @param church  Church to add log entry to
+ * @param string  Log message text
+ */
 void append_church_log(CHURCH_DATA *church, char *string)
 {
     char buf[MSL];
@@ -3316,6 +3825,14 @@ void append_church_log(CHURCH_DATA *church, char *string)
 }
 
 
+/**
+ * time_for_log - Get current time as string without newline
+ *
+ * Returns a str_dup'd string of the current time, with the trailing
+ * newline removed (ctime normally includes one).
+ *
+ * @return  Allocated string with formatted time (caller must free)
+ */
 char *time_for_log(void)
 {
     char buf[MSL];
@@ -3336,6 +3853,19 @@ char *time_for_log(void)
 }
 
 
+/**
+ * show_church_info - Display detailed church information to staff
+ *
+ * Shows comprehensive church data for staff members including:
+ * name, flag, founder, owner, resources (pneuma/gold/karma),
+ * max positions, size, alignment, PK stats, hall location,
+ * complete member roster with ranks and permissions.
+ *
+ * Called by do_chinfo when staff uses number argument.
+ *
+ * @param church  Church to display
+ * @param ch      Staff member viewing the info
+ */
 void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 {
     BUFFER *buffer;
@@ -3404,14 +3934,14 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 
     sprintf(buf, "{YRecall Point:{x %ld - %s\n\r",
         church->recall_point.id[0],
-    get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0]) == NULL ?
-        "none" : get_room_index(find_area_by_vnum(church->recall_point.id[0]) ? find_area_by_vnum(church->recall_point.id[0]) : get_system_area_fallback(), church->recall_point.id[0])->name);
+    get_room_index(find_area_by_vnum(church->recall_point.id[0], NULL) ? find_area_by_vnum(church->recall_point.id[0], NULL) : get_system_area_fallback(), church->recall_point.id[0]) == NULL ?
+        "none" : get_room_index(find_area_by_vnum(church->recall_point.id[0], NULL) ? find_area_by_vnum(church->recall_point.id[0], NULL) : get_system_area_fallback(), church->recall_point.id[0])->name);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YKey:{x %ld - %s\n\r",
         church->key,
-    get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key) == NULL ?
-        "none" : get_obj_index(find_area_by_vnum(church->key) ? find_area_by_vnum(church->key) : get_system_area_fallback(), church->key)->short_descr);
+    get_obj_index(find_area_by_vnum(church->key, NULL) ? find_area_by_vnum(church->key, NULL) : get_system_area_fallback(), church->key) == NULL ?
+        "none" : get_obj_index(find_area_by_vnum(church->key, NULL) ? find_area_by_vnum(church->key, NULL) : get_system_area_fallback(), church->key)->short_descr);
     add_buf(buffer, buf);
 
     sprintf(buf, "{YTreasure Room(s):{x\n\r");
@@ -3487,6 +4017,18 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 }
 
 
+/**
+ * do_churchset - Toggle church configuration settings
+ *
+ * Toggles boolean settings defined in church_flags. Examples include
+ * CHURCH_SHOW_PKS (show PK stats publicly) and other display options.
+ * Logs changes to church activity log.
+ *
+ * Syntax: church set <field>
+ *
+ * @param ch        Character changing settings
+ * @param argument  Setting name from church_flags
+ */
 void do_churchset(CHAR_DATA *ch, char *argument)
 {
     char arg[MIL];
@@ -3520,7 +4062,7 @@ void do_churchset(CHAR_DATA *ch, char *argument)
     {
         REMOVE_BIT(church->settings, value);
         send_to_char("Setting toggled OFF.\n\r", ch);
-        
+
         sprintf(buf, "%s turned setting '%s' OFF.", ch->name, arg);
         add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, true);
     }
@@ -3528,16 +4070,35 @@ void do_churchset(CHAR_DATA *ch, char *argument)
     {
         SET_BIT(church->settings, value);
         send_to_char("Setting toggled ON.\n\r", ch);
-        
+
         sprintf(buf, "%s turned setting '%s' ON.", ch->name, arg);
         add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, true);
     }
-    
+
     save_church(ch->church);
-    
+
 }
 
 
+/**
+ * do_chconvert - Convert church alignment (founder only)
+ *
+ * Allows the church founder to convert from neutral to good or evil.
+ * Only neutral churches can change alignment. The founder's personal
+ * alignment must be compatible (can't convert to good if evil, etc).
+ *
+ * Cost: 10,000 pneuma + 2,500,000 karma
+ *
+ * WARNING: Members incompatible with the new alignment will be removed
+ * on their next login.
+ *
+ * Sets ch->pcdata->convert_church for confirmation prompt.
+ *
+ * Syntax: church convert <good|neutral|evil>
+ *
+ * @param ch        Church founder
+ * @param argument  Target alignment
+ */
 void do_chconvert(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
@@ -3623,6 +4184,21 @@ void do_chconvert(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chdonate - Donate an item to church treasure room
+ *
+ * Transfers an object from the player's inventory to one of the church's
+ * treasure rooms. Excommunicated members cannot donate. Items with timers
+ * or NO_DONATE flag cannot be donated.
+ *
+ * Each treasure room has a max capacity (MAX_CHURCH_TREASURE) and may have
+ * minimum rank requirements for access (except the first/default room).
+ *
+ * Syntax: church donate <object> [room_number]
+ *
+ * @param ch        Character donating
+ * @param argument  Object name and optional treasure room number
+ */
 void do_chdonate(CHAR_DATA *ch, char *argument)
 {
     // church donate <obj>[ <room no>]
@@ -3774,6 +4350,12 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * write_churches_new - Save all churches to individual files
+ *
+ * Iterates through list_churches and calls save_church() for each.
+ * Each church is saved to its own file based on UID.
+ */
 void write_churches_new()
 {
     CHURCH_DATA *church;
@@ -3789,6 +4371,17 @@ void write_churches_new()
 }
 
 
+/**
+ * write_church - Write a single church to a file stream
+ *
+ * Outputs church data in a tagged format for persistence.
+ * Includes all church properties, ranks, members, treasure rooms.
+ *
+ * File format uses "#CHURCH" section with "Key Value" pairs.
+ *
+ * @param church  Church data to write
+ * @param fp      Open file pointer to write to
+ */
 void write_church(CHURCH_DATA *church, FILE *fp)
 {
     char buf[MSL];
@@ -3927,6 +4520,15 @@ void write_church(CHURCH_DATA *church, FILE *fp)
 }
 
 
+/**
+ * write_church_member - Write a church member entry to file
+ *
+ * Recursively writes all members (next first, then current).
+ * Each member is output as a #MEMBER section with stats and rank.
+ *
+ * @param member  Member data to write
+ * @param fp      Open file pointer
+ */
 void write_church_member(CHURCH_PLAYER_DATA *member, FILE *fp)
 {
     if (member->next != NULL)
@@ -3956,7 +4558,12 @@ void write_church_member(CHURCH_PLAYER_DATA *member, FILE *fp)
 }
 
 
-/* Add a church to the END of a list.*/
+/**
+ * add_church_to_list - Append a church to the end of a linked list
+ *
+ * @param church  Church to add
+ * @param list    Head of existing list (must not be NULL)
+ */
 void add_church_to_list(CHURCH_DATA *church, CHURCH_DATA *list)
 {
     CHURCH_DATA *tmp;
@@ -3970,6 +4577,16 @@ void add_church_to_list(CHURCH_DATA *church, CHURCH_DATA *list)
 }
 
 
+/**
+ * read_churches_new - Load all churches from disk at boot time
+ *
+ * Reads churches from individual files in ORG_DIR directory.
+ * Handles legacy format migration from single churches.dat file.
+ * Validates and links churches to the global list_churches.
+ *
+ * After loading, resolves member character pointers and assigns
+ * ranks to members.
+ */
 void read_churches_new()
 {
     DIR *dir;
@@ -4134,6 +4751,19 @@ if (list_churches && list_size(list_churches) > 1)
 }
 
 
+/**
+ * read_church - Parse and load a single church from file
+ *
+ * Reads church data from an open file stream. Handles both legacy
+ * format (name first) and new format (#CHURCH header). Parses all
+ * church properties, ranks, members, coffer items, and log entries.
+ *
+ * Creates a new church structure and populates it from file data.
+ * Links members to their ranks by UID after loading.
+ *
+ * @param fp  Open file pointer positioned at church data
+ * @return    Allocated and populated CHURCH_DATA, or NULL on error
+ */
 CHURCH_DATA *read_church(FILE *fp)
 {
     char *word;
@@ -4427,7 +5057,7 @@ if (!str_cmp(word, "#MEMBER")) {
                 KEY("ToggledPK", church->pk, fread_number(fp));
                                 if (!str_cmp(word, "TreasureRoom")) {
                     long vnum = fread_number(fp);
-                    AREA_DATA *room_area = find_area_by_vnum(vnum);
+                    AREA_DATA *room_area = find_area_by_vnum(vnum, NULL);
                     if (!room_area) room_area = get_system_area_fallback();
                     ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
                     bool is_default = (fread_number(fp) == 1);
@@ -4658,13 +5288,22 @@ if (!str_cmp(word, "#MEMBER")) {
 }
 
 
+/**
+ * read_church_member - Parse a single member entry from church file
+ *
+ * Reads member data from a #MEMBER section. Handles both legacy rank
+ * numbers (0-3) and new rank UIDs. Member name is read from section header.
+ *
+ * @param fp  File pointer positioned after #MEMBER keyword
+ * @return    Allocated CHURCH_PLAYER_DATA with parsed values
+ */
 CHURCH_PLAYER_DATA *read_church_member(FILE *fp)
 {
     CHURCH_PLAYER_DATA *member;
     char *word;
     bool fMatch;
     char *name = fread_string(fp);
-    
+
     member = new_church_player();
     member->name = name;
     
@@ -4731,6 +5370,12 @@ CHURCH_PLAYER_DATA *read_church_member(FILE *fp)
 }
 
 
+/**
+ * is_in_treasure_room - Check if an object is in any church treasure room
+ *
+ * @param obj  Object to check
+ * @return     true if object's room is a treasure room, false otherwise
+ */
 bool is_in_treasure_room(OBJ_DATA *obj)
 {
     ROOM_INDEX_DATA *room = obj->in_room;
@@ -4741,6 +5386,16 @@ bool is_in_treasure_room(OBJ_DATA *obj)
     return is_treasure_room(NULL, room);
 }
 
+/**
+ * vnum_in_treasure_room - Check if object with given vnum exists in treasure rooms
+ *
+ * Searches all treasure rooms of the church for any object matching
+ * the specified vnum.
+ *
+ * @param church  Church to search
+ * @param vnum    Object vnum to look for
+ * @return        true if found, false otherwise
+ */
 bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 {
     CHURCH_TREASURE_ROOM *treasure;
@@ -4762,6 +5417,13 @@ bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 }
 
 
+/**
+ * update_church_pks - Swap PK and CPK (chaotic PK) statistics
+ *
+ * Swaps the pk_wins/losses with cpk_wins/losses for all churches.
+ * Called periodically to rotate statistics between regular and
+ * chaotic PK tracking periods.
+ */
 void update_church_pks(void)
 {
     CHURCH_DATA *church;
@@ -4784,6 +5446,12 @@ void update_church_pks(void)
 }
 
 
+/**
+ * is_excommunicated - Check if character is excommunicated from their church
+ *
+ * @param ch  Character to check
+ * @return    true if excommunicated, false if not in church or not excommunicated
+ */
 bool is_excommunicated(CHAR_DATA *ch)
 {
     if (ch->church == NULL || ch->church_member == NULL)
@@ -4792,10 +5460,17 @@ bool is_excommunicated(CHAR_DATA *ch)
     return IS_SET(ch->church_member->flags, CHURCH_PLAYER_EXCOMMUNICATED);
 }
 
-/*
- * Add a treasure room to a church
- * The is_default parameter determines if all members can access it
- * Non-default rooms require explicit rank permissions to access
+/**
+ * church_add_treasure_room - Add a treasure room to a church
+ *
+ * Creates a new treasure room entry for the church. Default rooms are
+ * accessible by all members. Non-default rooms automatically grant
+ * access to leader and officer ranks.
+ *
+ * @param church     Church to add room to
+ * @param room       Room to designate as treasure room
+ * @param is_default true for universal access, false for rank-restricted
+ * @return           true on success, false on failure
  */
 bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default)
 {
@@ -4821,8 +5496,14 @@ bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool i
     return true;
 }
 
-/*
- * Remove a treasure room from a church
+/**
+ * church_remove_treasure_room - Remove a treasure room from a church
+ *
+ * Finds and removes the treasure room entry for the given room.
+ * Cleans up the allowed_ranks list and frees associated memory.
+ *
+ * @param church  Church to remove room from
+ * @param room    Room to remove from treasure rooms
  */
 void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 {
@@ -4857,6 +5538,18 @@ void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
     }
 }
 
+/**
+ * get_church_treasure_room - Get the nth accessible treasure room
+ *
+ * Returns the nth treasure room that the character can access.
+ * If ch is NULL, returns the nth room overall. Skips rooms the
+ * character doesn't have permission to access.
+ *
+ * @param ch      Character checking access (or NULL for no access check)
+ * @param church  Church to search
+ * @param nth     1-based index of room to retrieve (among accessible rooms)
+ * @return        Treasure room pointer or NULL if not found/accessible
+ */
 CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *church, int nth)
 {
     if (ch != NULL) {
@@ -4894,6 +5587,14 @@ CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *churc
 
 
 
+/**
+ * church_set_treasure_room_rank - Set minimum rank for treasure room access
+ *
+ * @param church    Church owning the treasure room
+ * @param nth       1-based index of treasure room
+ * @param min_rank  Minimum rank type required for access
+ * @return          true if room found and updated, false otherwise
+ */
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 {
     if( nth < 1 ) return false;
@@ -4914,6 +5615,15 @@ bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
     return false;
 }
 
+/**
+ * church_available_treasure_rooms - Count treasure rooms accessible to character
+ *
+ * Returns the number of treasure rooms the character can access.
+ * Leaders and those with TREASURE_ALL permission can access all rooms.
+ *
+ * @param ch  Character to check
+ * @return    Number of accessible treasure rooms, 0 if invalid/excommunicated
+ */
 int church_available_treasure_rooms(CHAR_DATA *ch)
 {
     if (ch == NULL || IS_NPC(ch) || ch->church == NULL || is_excommunicated(ch))
@@ -4922,13 +5632,13 @@ int church_available_treasure_rooms(CHAR_DATA *ch)
     CHURCH_TREASURE_ROOM *treasure = NULL;
     ITERATOR it;
     int count = 0;
-    
+
     // Leaders can access all rooms
-    if (ch->church_member->rank->rank_type == RANK_TYPE_LEADER || 
+    if (ch->church_member->rank->rank_type == RANK_TYPE_LEADER ||
         has_church_permission(ch->church_member, CHURCH_PERM_TREASURE_ALL)) {
         return list_size(ch->church->treasure_rooms);
     }
-    
+
     // Count rooms player can access
     iterator_start(&it, ch->church->treasure_rooms);
     while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
@@ -4941,6 +5651,19 @@ int church_available_treasure_rooms(CHAR_DATA *ch)
     return count;
 }
 
+/**
+ * do_chtreasure - Manage and view church treasure rooms
+ *
+ * Subcommands:
+ * - list: Show all treasure rooms accessible to the character
+ * - access <room#> <rank#> [add|remove]: Manage rank access to rooms
+ *   (leaders only)
+ *
+ * Excommunicated members cannot access this command.
+ *
+ * @param ch        Character using the command
+ * @param argument  Subcommand and arguments
+ */
 void do_chtreasure(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *temp_char;
@@ -5182,6 +5905,16 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * church_announce_theft - Broadcast theft from church treasure room globally
+ *
+ * Called when someone takes an item from a treasure room they don't
+ * belong to (or are excommunicated from). Announces the theft to all
+ * online players.
+ *
+ * @param ch   Character who took the item
+ * @param obj  Object that was taken, or NULL for generic message
+ */
 void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5202,63 +5935,106 @@ void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj)
     iterator_stop(&it);
 }
 
+/**
+ * has_church_permission - Check if a church member has a specific permission
+ *
+ * Permission hierarchy:
+ * 1. Owners always have all permissions
+ * 2. Leaders (RANK_TYPE_LEADER) always have all permissions
+ * 3. CHURCH_PERM_NONE always returns true
+ * 4. Personal permissions granted to the member
+ * 5. Permissions granted to the member's rank
+ *
+ * @param member      Church member to check
+ * @param permission  CHURCH_PERM_* flag to check
+ * @return            true if permission granted, false otherwise
+ */
 bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission)
 {
     if (!member || !member->church || !member->rank)
         return false;
-        
+
     // Owner always has all permissions
     if (member->church->owner && !str_cmp(member->name, member->church->owner))
         return true;
-        
+
     // Leaders always have all permissions
     if (member->rank->rank_type == RANK_TYPE_LEADER)
         return true;
-    
+
     // No permission required
     if (permission == CHURCH_PERM_NONE)
         return true;
-    
+
     // Check if the member has been personally granted this permission
     if (IS_SET(member->personal_permissions, permission))
         return true;
-        
+
     // Check if the permission is granted to this rank
     if (IS_SET(member->rank->permissions, permission))
         return true;
-    
+
     return false;
 }
 
-// Check if character is a church leader
+/**
+ * is_church_leader - Check if character is a church leader
+ *
+ * @param ch      Character to check
+ * @param church  Church to check membership in
+ * @return        true if member has RANK_TYPE_LEADER, false otherwise
+ */
 bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church)
 {
     if (!ch || !ch->church_member || ch->church != church)
         return false;
-        
+
     return (ch->church_member->rank->rank_type == RANK_TYPE_LEADER);
 }
 
-// Check if character is a church officer
+
+/**
+ * is_church_officer - Check if character is a church officer or higher
+ *
+ * @param ch      Character to check
+ * @param church  Church to check membership in
+ * @return        true if officer or leader rank type
+ */
 bool is_church_officer(CHAR_DATA *ch, CHURCH_DATA *church)
 {
     if (!ch || !ch->church_member || ch->church != church)
         return false;
-        
+
     return (ch->church_member->rank->rank_type >= RANK_TYPE_OFFICER);
 }
 
+
+/**
+ * do_chsetrank - Set gendered titles for a church rank
+ *
+ * Allows church leaders to customize male/female/neutral titles
+ * for each rank position.
+ *
+ * TODO: This command's sex-based title system needs to be reworked
+ * to use the pronoun system. Consider replacing with a single title
+ * or pronoun-aware title formatting.
+ *
+ * Syntax: church setrank <rank#> <male|female|neutral> <name>
+ *
+ * @param ch        Church leader setting the rank title
+ * @param argument  Rank number, gender, and new title
+ */
 void do_chsetrank(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char arg3[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
-    
+
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
     argument = one_argument(argument, arg3);
-    
+
     if (ch->church == NULL) {
         send_to_char("You are not in a church.\n\r", ch);
         return;
@@ -5360,20 +6136,35 @@ void do_chsetrank(CHAR_DATA *ch, char *argument)
     save_church(ch->church);
 }
 
+/**
+ * do_chpermission - View and manage church rank permissions
+ *
+ * Subcommands:
+ * - (no args): Show own rank and personal permissions
+ * - <rank#>: Show permissions for specific rank
+ * - <name>: Show permissions for a specific member
+ * - <rank#> <permission> [on|off]: Toggle or set a permission for a rank
+ *
+ * Protected ranks cannot have permissions changed. Leaders always have
+ * all permissions.
+ *
+ * @param ch        Character using the command
+ * @param argument  Rank number or member name, optional permission and state
+ */
 void do_chpermission(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
-    
+
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
-    
+
     if (ch->church == NULL) {
         send_to_char("You are not in a church.\n\r", ch);
         return;
     }
-    
-    if (!is_church_leader(ch, ch->church) && 
+
+    if (!is_church_leader(ch, ch->church) &&
         !has_church_permission(ch->church_member, CHURCH_PERM_PERMS)) {
         send_to_char("Only church leaders can set rank permissions.\n\r", ch);
         return;
@@ -5563,8 +6354,21 @@ void do_chpermission(CHAR_DATA *ch, char *argument)
     }
 }
 
-/*
- * Check if a player can access church storage
+/**
+ * can_access_church_storage - Check if a character can access church storage
+ *
+ * Access is granted if:
+ * - Character is an immortal
+ * - Character is a member with CHURCH_PERM_STORAGE, CHURCH_PERM_GET_STORAGE,
+ *   or CHURCH_PERM_PUT_STORAGE
+ *
+ * Access is denied if:
+ * - Character is not a member of the church
+ * - Character is excommunicated
+ *
+ * @param ch      Character to check
+ * @param church  Church whose storage to access
+ * @return        true if access allowed, false otherwise
  */
 bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
 {
@@ -5589,6 +6393,24 @@ bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
     return false;
 }
 
+/**
+ * convert_church_ranks - Convert legacy church to new rank system
+ *
+ * Converts churches from the old 4-rank (A/B/C/D) system to the new
+ * flexible rank system with permission flags. Creates 4 default ranks:
+ * - Leader (D): All permissions, protected
+ * - Officer (C): Most administrative permissions
+ * - Trusted (B): Basic member permissions
+ * - Member (A): Minimal permissions, protected
+ *
+ * Also updates all existing members to point to the appropriate new
+ * ranks based on their old rank values.
+ *
+ * TODO: Sex-based title lookup (get_default_legacy_rank_name) needs
+ * to be reworked to use the pronoun system.
+ *
+ * @param church  Church to convert
+ */
 void convert_church_ranks(CHURCH_DATA *church)
 {
     log_stringf("convert_church_ranks: Converting church ranks for %s", church->name);
@@ -5649,7 +6471,13 @@ void convert_church_ranks(CHURCH_DATA *church)
     }
 }
 
-// Helper function to get a rank by index
+/**
+ * get_church_rank_by_index - Get a rank by its 0-based index in the list
+ *
+ * @param church  Church to search
+ * @param index   0-based index of the rank
+ * @return        Rank at that index, or first rank if index out of bounds
+ */
 CHURCH_RANK_DATA *get_church_rank_by_index(CHURCH_DATA *church, int index)
 {
     CHURCH_RANK_DATA *rank = church->ranks;
@@ -5663,23 +6491,40 @@ CHURCH_RANK_DATA *get_church_rank_by_index(CHURCH_DATA *church, int index)
     return rank ? rank : church->ranks; // Default to lowest if not found
 }
 
+/**
+ * do_chrank - Main command for managing church ranks
+ *
+ * Provides access to all rank management subcommands. Requires leader rank
+ * or CHURCH_PERM_RANKS permission.
+ *
+ * Subcommands:
+ * - [list]: Show all ranks with their titles and permissions
+ * - add <name> <member|officer|leader>: Create a new rank
+ * - remove <rank#>: Delete a rank (protected ranks cannot be removed)
+ * - type <rank#> <type>: Change rank type (member/officer/leader)
+ * - title <rank#> <gender> <name>: Set gender-specific title
+ * - rename <rank#> <newname>: Rename a rank's base name
+ *
+ * @param ch        Character managing ranks
+ * @param argument  Subcommand and arguments
+ */
 void do_chrank(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char arg3[MAX_INPUT_LENGTH];
     //char buf[MAX_STRING_LENGTH];
-    
+
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
     argument = one_argument(argument, arg3);
-    
+
     if (ch->church == NULL) {
         send_to_char("You are not in a church.\n\r", ch);
         return;
     }
-    
-    if (!is_church_leader(ch, ch->church) && 
+
+    if (!is_church_leader(ch, ch->church) &&
         !has_church_permission(ch->church_member, CHURCH_PERM_RANKS)) {
         send_to_char("Only church leaders or authorized members can manage ranks.\n\r", ch);
         return;
@@ -5734,10 +6579,20 @@ void do_chrank(CHAR_DATA *ch, char *argument)
     send_to_char("CHURCH RANK TITLE <rank#> <gender> <name>  - Set gender-specific name\n\r", ch);
 }
 
+/**
+ * handle_rank_rename - Handler for 'church rank rename' subcommand
+ *
+ * Changes the base name of a rank. Protected ranks cannot be renamed.
+ * Checks for duplicate names before allowing the change.
+ *
+ * @param ch        Character renaming the rank
+ * @param rank_str  Rank number as string
+ * @param new_name  New name for the rank
+ */
 void handle_rank_rename(CHAR_DATA *ch, char *rank_str, char *new_name)
 {
     char buf[MAX_STRING_LENGTH];
-    
+
     // Check arguments
     if (rank_str[0] == '\0' || !is_number(rank_str) || new_name[0] == '\0') {
         send_to_char("Syntax: church rank rename <rank#> <newname>\n\r", ch);
@@ -5796,19 +6651,31 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, true);
     save_church(ch->church);
 }
 
+/**
+ * handle_rank_add - Handler for 'church rank add' subcommand
+ *
+ * Creates a new rank in the church with the specified name and type.
+ * Enforces maximum rank limit from game_settings.org_max_ranks.
+ * Checks for duplicate names before creating.
+ *
+ * @param ch        Character adding the rank
+ * @param name      Name for the new rank
+ * @param type_str  Rank type: "member", "officer", or "leader"
+ * @param argument  Additional arguments (unused)
+ */
 void handle_rank_add(CHAR_DATA *ch, char *name, char *type_str, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
-    
+
     // Check arguments
     if (name[0] == '\0' || type_str[0] == '\0') {
         send_to_char("Syntax: church rank add <name> <member|officer|leader>\n\r", ch);
         return;
     }
-    
+
     // Check for maximum ranks
     if (ch->church->num_ranks >= game_settings.org_max_ranks) {
-        sprintf(buf, "Your church already has the maximum allowed ranks (%d).\n\r", 
+        sprintf(buf, "Your church already has the maximum allowed ranks (%d).\n\r",
                game_settings.org_max_ranks);
         send_to_char(buf, ch);
         return;
@@ -5865,10 +6732,23 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, true);
     save_church(ch->church);
 }
 
+/**
+ * handle_rank_remove - Handler for 'church rank remove' subcommand
+ *
+ * Removes a rank from the church. Cannot remove:
+ * - Protected ranks
+ * - The last remaining rank
+ * - The only leader rank
+ *
+ * Members with the removed rank will need to be reassigned.
+ *
+ * @param ch        Character removing the rank
+ * @param rank_str  Rank number as string
+ */
 void handle_rank_remove(CHAR_DATA *ch, char *rank_str)
 {
     char buf[MAX_STRING_LENGTH];
-    
+
     // Check argument
     if (rank_str[0] == '\0' || !is_number(rank_str)) {
         send_to_char("Syntax: church rank remove <rank#>\n\r", ch);
@@ -5936,16 +6816,26 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, true);
     }
 }
 
+/**
+ * handle_rank_type - Handler for 'church rank type' subcommand
+ *
+ * Changes the type (member/officer/leader) of an existing rank.
+ * Protected ranks cannot have their type changed.
+ *
+ * @param ch        Character changing the rank type
+ * @param rank_str  Rank number as string
+ * @param type_str  New type: "member", "officer", or "leader"
+ */
 void handle_rank_type(CHAR_DATA *ch, char *rank_str, char *type_str)
 {
     char buf[MAX_STRING_LENGTH];
-    
+
     // Check arguments
     if (rank_str[0] == '\0' || !is_number(rank_str) || type_str[0] == '\0') {
         send_to_char("Syntax: church rank type <rank#> <member|officer|leader>\n\r", ch);
         return;
     }
-    
+
     int rank_num = atoi(rank_str);
     if (rank_num < 1 || rank_num > ch->church->num_ranks) {
         sprintf(buf, "Rank number must be between 1 and %d.\n\r", ch->church->num_ranks);
@@ -6037,12 +6927,25 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, true);
     save_church(ch->church);
 }
 
+/**
+ * handle_rank_name - Handler for 'church rank title' subcommand
+ *
+ * Sets the gender-specific title for a rank (male, female, or neutral).
+ *
+ * TODO: This sex-based title system needs to be reworked to use the
+ * pronoun system instead.
+ *
+ * @param ch          Character setting the title
+ * @param rank_str    Rank number as string
+ * @param gender_str  Gender: "male", "female", or "neutral"
+ * @param name        New title for that gender
+ */
 void handle_rank_name(CHAR_DATA *ch, char *rank_str, char *gender_str, char *name)
 {
     char buf[MAX_STRING_LENGTH];
-    
+
     // Check arguments
-    if (rank_str[0] == '\0' || !is_number(rank_str) || 
+    if (rank_str[0] == '\0' || !is_number(rank_str) ||
         gender_str[0] == '\0' || name[0] == '\0') {
         send_to_char("Syntax: church rank title <rank#> <male|female|neutral> <name>\n\r", ch);
         return;
@@ -6109,7 +7012,19 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, true);
     save_church(ch->church);
 }
 
-// Helper function to display all ranks to a character
+/**
+ * show_church_ranks - Display all ranks with titles and types
+ *
+ * Shows a formatted list of all church ranks including:
+ * - Rank number and base name
+ * - Rank type (Leader/Officer/Member)
+ * - Gender-specific titles (male/female/neutral)
+ * - Protected status
+ *
+ * Also warns if church exceeds the maximum rank limit.
+ *
+ * @param ch  Character to display ranks to
+ */
 void show_church_ranks(CHAR_DATA *ch)
 {
     char buf[MAX_STRING_LENGTH];
@@ -6154,22 +7069,36 @@ void show_church_ranks(CHAR_DATA *ch)
     }
 }
 
+/**
+ * do_chranks - Alternative rank management command (leaders only)
+ *
+ * Similar to do_chrank but with simpler interface and stricter
+ * permission (leaders only, no CHURCH_PERM_RANKS).
+ *
+ * Subcommands:
+ * - (no args): List all ranks
+ * - add <name>: Add a new member rank
+ * - remove <rank#>: Remove a rank
+ *
+ * @param ch        Church leader managing ranks
+ * @param argument  Subcommand and arguments
+ */
 void do_chranks(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char arg3[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
-    
+
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
     argument = one_argument(argument, arg3);
-    
+
     if (ch->church == NULL) {
         send_to_char("You are not in a church.\n\r", ch);
         return;
     }
-    
+
     if (!is_church_leader(ch, ch->church)) {
         send_to_char("Only church leaders can manage ranks.\n\r", ch);
         return;
@@ -6428,8 +7357,23 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, true);
     send_to_char("CHURCH RANKS TYPE <rank#> <member|officer|leader> - Change a rank's type\n\r", ch);
 }
 
-// Add a new rank to a church
-CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, char *rank_name, const char *male_name, 
+/**
+ * add_church_rank - Create and add a new rank to a church
+ *
+ * Creates a rank with the specified name, gender-specific titles,
+ * permissions, and type. Assigns a unique UID and adds to end of
+ * the church's rank list.
+ *
+ * @param church        Church to add rank to
+ * @param rank_name     Base/internal name for the rank
+ * @param male_name     Display title for male members
+ * @param female_name   Display title for female members
+ * @param neutral_name  Display title for neutral members
+ * @param permissions   CHURCH_PERM_* flags for this rank
+ * @param rank_type     RANK_TYPE_MEMBER, RANK_TYPE_OFFICER, or RANK_TYPE_LEADER
+ * @return              Newly created rank structure
+ */
+CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, char *rank_name, const char *male_name,
                                 const char *female_name, const char *neutral_name,
                                 long permissions, int rank_type)
 {
@@ -6459,7 +7403,17 @@ CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, char *rank_name, const ch
     return rank;
 }
 
-// Remove a rank from a church
+/**
+ * remove_church_rank - Remove a rank from a church
+ *
+ * Removes the specified rank from the church's rank list. Members who
+ * had this rank are automatically reassigned to an adjacent rank.
+ * Cannot remove the last remaining rank.
+ *
+ * @param church  Church to remove rank from
+ * @param rank    Rank to remove
+ * @return        true if removed successfully, false if failed
+ */
 bool remove_church_rank(CHURCH_DATA *church, CHURCH_RANK_DATA *rank)
 {
     CHURCH_RANK_DATA *prev = NULL, *curr;
@@ -6497,7 +7451,15 @@ bool remove_church_rank(CHURCH_DATA *church, CHURCH_RANK_DATA *rank)
     return true;
 }
 
-// Get highest rank in church
+/**
+ * get_highest_rank - Get the last rank in the church's rank list
+ *
+ * Returns the rank at the end of the linked list. Note: This assumes
+ * ranks are ordered from lowest to highest in the list.
+ *
+ * @param church  Church to get rank from
+ * @return        Last rank in list, or NULL if no ranks
+ */
 CHURCH_RANK_DATA *get_highest_rank(CHURCH_DATA *church)
 {
     CHURCH_RANK_DATA *rank = church->ranks;
@@ -6512,14 +7474,29 @@ CHURCH_RANK_DATA *get_highest_rank(CHURCH_DATA *church)
 }
 
 
+/**
+ * assign_church_member_ranks - Link members to their rank structures
+ *
+ * Iterates through all church members and assigns their rank pointers.
+ * Uses multiple fallback strategies:
+ * 1. Match by rank UID (preferred)
+ * 2. Match by old_rank index (legacy compatibility)
+ * 3. Founder gets a leader rank
+ * 4. Owner gets a leader rank
+ * 5. Default to church's default_rank or first rank
+ *
+ * Logs warnings for members whose ranks couldn't be found.
+ *
+ * @param church  Church whose members need rank assignment
+ */
 void assign_church_member_ranks(CHURCH_DATA *church)
 {
     CHURCH_PLAYER_DATA *member;
     bool found_rank;
-    
+
     for (member = church->people; member; member = member->next) {
         found_rank = false;
-        
+
         // First try to find rank by UID if available
         if (member->rank_uid > 0) {
             CHURCH_RANK_DATA *rank;
@@ -6604,18 +7581,35 @@ void assign_church_member_ranks(CHURCH_DATA *church)
     }
 }
 
+
+/**
+ * get_default_legacy_rank_name - Get default rank title from legacy tables
+ *
+ * Returns the default rank title for a given church size, rank level,
+ * and sex. Used for backwards compatibility when migrating old churches.
+ *
+ * TODO: This sex-based title system needs to be reworked to use the
+ * pronoun system instead. Many of the gendered titles (Shieldmaiden/Knave,
+ * Priestess/Priest, Enchantress/Chieftan) should be replaced with
+ * gender-neutral alternatives or pronoun-aware formatting.
+ *
+ * @param church  Church (used for size to determine tier titles)
+ * @param rank    Legacy rank index (CHURCH_RANK_A through CHURCH_RANK_D)
+ * @param sex     SEX_MALE, SEX_FEMALE, or SEX_NEUTRAL
+ * @return        Default rank title string
+ */
 char *get_default_legacy_rank_name(CHURCH_DATA *church, int rank, int sex)
 {
     // Rank tables were indexed with these defines:
     // CHURCH_RANK_A = 0, CHURCH_RANK_B = 1, CHURCH_RANK_C = 2, CHURCH_RANK_D = 3
-    
+
     // Make sure rank is in bounds
     if (rank < 0 || rank > 3)
         return "Unknown";
-    
+
     // Female is index 1, Male is index 0 in the old tables
     int gender_index = (sex == SEX_FEMALE) ? 1 : 0;
-    
+
     switch(church->size) {
         case CHURCH_SIZE_BAND: // 1
             switch(rank) {
@@ -6692,18 +7686,31 @@ void initialize_church_ranks(CHURCH_DATA *church)
     leader_rank->flags = CHURCH_RANK_PROTECTED;
 }
 
+/**
+ * do_chdefaultrank - Set the default rank for new church members
+ *
+ * Allows church leaders to specify which rank new members should receive
+ * when they join. Cannot set a leader rank as the default.
+ *
+ * Syntax:
+ * - church defaultrank: Show current default rank
+ * - church defaultrank <rank#>: Set new default rank
+ *
+ * @param ch        Church leader
+ * @param argument  Rank number or empty to show current
+ */
 void do_chdefaultrank(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
-    
+
     argument = one_argument(argument, arg1);
-    
+
     if (ch->church == NULL) {
         send_to_char("You are not in a church.\n\r", ch);
         return;
     }
-    
+
     if (!is_church_leader(ch, ch->church)) {
         send_to_char("Only church leaders can set the default rank.\n\r", ch);
         return;
@@ -6758,12 +7765,21 @@ void do_chdefaultrank(CHAR_DATA *ch, char *argument)
     save_church(ch->church);
 }
 
+/**
+ * upgrade_church_ranks - Ensure church has minimum required ranks
+ *
+ * Checks if the church has at least one member rank and one leader rank.
+ * If missing, creates protected default ranks with standard permissions.
+ * Skips churches that already have 4 or more ranks.
+ *
+ * @param church  Church to upgrade
+ */
 void upgrade_church_ranks(CHURCH_DATA *church)
 {
     bool has_member_rank = false;
     bool has_leader_rank = false;
     CHURCH_RANK_DATA *rank;
-    
+
     if (church->num_ranks >= 4) {
         log_string(formatf("upgrade_church_ranks: Church %s has %d ranks, skipping upgrade",
             church->name, church->num_ranks));
@@ -6814,24 +7830,38 @@ void upgrade_church_ranks(CHURCH_DATA *church)
     }
 }
 
+/**
+ * can_access_treasure_room - Check if a member can access a treasure room
+ *
+ * Access is granted if any of these are true:
+ * - Treasure room is the default (all members can access)
+ * - Member is the church founder
+ * - Member has CHURCH_PERM_TREASURE_ALL permission
+ * - Member's rank is leader type
+ * - Member's rank is in the treasure room's allowed_ranks list
+ *
+ * @param member    Church member to check
+ * @param treasure  Treasure room to check access for
+ * @return          true if member can access, false otherwise
+ */
 bool can_access_treasure_room(CHURCH_PLAYER_DATA *member, CHURCH_TREASURE_ROOM *treasure)
 {
     ITERATOR it;
     CHURCH_RANK_DATA *rank;
-    
+
     if (!member || !treasure)
         return false;
-        
+
     // Special cases that always grant access
     if (treasure->is_default)
         return true;
-        
+
     if (!str_cmp(member->name, member->church->founder))
         return true;
-        
+
     if (has_church_permission(member, CHURCH_PERM_TREASURE_ALL))
         return true;
-        
+
     if (member->rank && member->rank->rank_type == RANK_TYPE_LEADER)
         return true;
         
@@ -6849,6 +7879,18 @@ bool can_access_treasure_room(CHURCH_PLAYER_DATA *member, CHURCH_TREASURE_ROOM *
     return has_access;
 }
 
+/**
+ * add_rank_to_treasure_room - Grant a rank access to a treasure room
+ *
+ * Adds a church rank to the treasure room's allowed_ranks list,
+ * allowing members of that rank to access the treasure room.
+ * Creates the allowed_ranks list if it doesn't exist.
+ * No-op if the rank is already in the list.
+ *
+ * @param treasure  Treasure room to modify
+ * @param rank      Church rank to grant access
+ * @return          true on success, false on allocation failure
+ */
 bool add_rank_to_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA *rank)
 {
     // Create the list if it doesn't exist
@@ -6880,6 +7922,17 @@ bool add_rank_to_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA 
     return true; // Already exists, no error
 }
 
+/**
+ * remove_rank_from_treasure_room - Revoke a rank's access to a treasure room
+ *
+ * Removes a church rank from the treasure room's allowed_ranks list,
+ * preventing members of that rank from accessing the treasure room
+ * (unless they have access through other means like permissions or leader status).
+ *
+ * @param treasure  Treasure room to modify
+ * @param rank      Church rank to revoke access
+ * @return          true if rank was found and removed, false if not found or invalid args
+ */
 bool remove_rank_from_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA *rank)
 {
     if (!treasure || !treasure->allowed_ranks)
@@ -6909,6 +7962,18 @@ bool remove_rank_from_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_
     return false;
 }
 
+/**
+ * create_church_treasure_room - Create a new treasure room for a church
+ *
+ * Allocates and initializes a CHURCH_TREASURE_ROOM structure, then adds
+ * it to the church's treasure_rooms list. The treasure room can optionally
+ * be marked as the default room (accessible to all members).
+ *
+ * @param church     Church to add the treasure room to
+ * @param room       Room index data for the physical room location
+ * @param is_default If true, all church members can access this room
+ * @return           Pointer to the new treasure room, or NULL on failure
+ */
 CHURCH_TREASURE_ROOM *create_church_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default)
 {
     CHURCH_TREASURE_ROOM *treasure = alloc_mem(sizeof(CHURCH_TREASURE_ROOM));
@@ -6936,6 +8001,22 @@ CHURCH_TREASURE_ROOM *create_church_treasure_room(CHURCH_DATA *church, ROOM_INDE
     return treasure;
 }
 
+/**
+ * do_chsetmemberrank - Player command to change a church member's rank
+ *
+ * Allows church leaders (or those with CHURCH_PERM_MEMBERS) to change
+ * the rank of other church members. Enforces hierarchy rules:
+ * - Cannot change ranks of members at or above your own rank (unless founder)
+ * - Cannot assign ranks higher than your own (unless founder)
+ * - Only leaders can assign the leader rank
+ *
+ * Syntax: church setmemberrank <character> <rank#>
+ *
+ * Logs the change and notifies the affected member if online.
+ *
+ * @param ch        Player executing the command
+ * @param argument  Command arguments: "<character> <rank#>"
+ */
 void do_chsetmemberrank(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -7039,15 +8120,37 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_MEMBERS, true);
     save_church(ch->church);
 }
 
+/**
+ * is_church_owner - Check if a character is the owner of a church
+ *
+ * The owner has ultimate control over the church and can perform
+ * any action, including transferring ownership and modifying other leaders.
+ *
+ * @param ch      Character to check
+ * @param church  Church to check ownership of
+ * @return        true if ch is the church owner, false otherwise
+ */
 bool is_church_owner(CHAR_DATA *ch, CHURCH_DATA *church)
 {
     if (!ch || !church || !church->owner)
         return false;
-        
+
     return (!str_cmp(ch->name, church->owner));
 }
 
-
+/**
+ * can_modify_church_member - Check if a character can modify another member's settings
+ *
+ * Determines whether ch has permission to change target's rank, permissions,
+ * or other attributes. Rules:
+ * - The church owner can modify anyone
+ * - Non-leaders cannot modify anyone
+ * - Leaders can modify other members but not the owner
+ *
+ * @param ch      Character attempting to make modifications
+ * @param target  Church member being modified
+ * @return        true if ch can modify target, false otherwise
+ */
 bool can_modify_church_member(CHAR_DATA *ch, CHURCH_PLAYER_DATA *target)
 {
     if (!ch || !ch->church || !ch->church_member || !target)
@@ -7069,6 +8172,21 @@ bool can_modify_church_member(CHAR_DATA *ch, CHURCH_PLAYER_DATA *target)
     return true;
 }
 
+/**
+ * do_chowner - Player command to transfer church ownership
+ *
+ * Only the current church owner can transfer ownership to another member.
+ * With no argument, displays the current owner. When transferring:
+ * - The new owner must be a church member
+ * - The new owner is automatically promoted to leader rank if not already
+ *
+ * Syntax: church owner [membername]
+ *
+ * Logs the transfer and notifies the new owner if online.
+ *
+ * @param ch        Player executing the command (must be church owner)
+ * @param argument  Optional member name to transfer ownership to
+ */
 void do_chowner(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -7145,10 +8263,29 @@ void do_chowner(CHAR_DATA *ch, char *argument)
     
     // Log the ownership transfer
     sprintf(buf, "%s transferred church ownership to %s.", ch->name, member->name);
-add_church_log_entry(ch->church, ch->name, buf, CHLOG_LEADERSHIP, true);    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_LEADERSHIP, true);
     save_church(ch->church);
 }
 
+/**
+ * do_chuserperm - Player command to manage individual member permissions
+ *
+ * Allows church leaders to grant or revoke personal permissions for
+ * individual members, separate from their rank-based permissions.
+ * Personal permissions supplement rank permissions.
+ *
+ * Syntax:
+ *   church userperm list              - Show available permissions
+ *   church userperm <char>            - Show member's current permissions
+ *   church userperm <char> <perm>     - Toggle permission
+ *   church userperm <char> <perm> on  - Grant permission
+ *   church userperm <char> <perm> off - Revoke permission
+ *
+ * Leaders cannot modify the owner's permissions. Logs all changes.
+ *
+ * @param ch        Player executing the command (must be church leader)
+ * @param argument  Command arguments
+ */
 void do_chuserperm(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -7307,13 +8444,23 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_PERMISSIONS, true);
     save_church(ch->church);
 }
 
+
+/**
+ * save_church - Persist a church to disk
+ *
+ * Saves church data to an individual .org file in ORG_DIR.
+ * Uses atomic write (write to .tmp, then rename) for safety.
+ * Filename format: UID_normalizedname.org
+ *
+ * @param church  Church to save (must not be NULL)
+ */
 void save_church(CHURCH_DATA *church)
 {
     FILE *fp;
     char filename[100];      // Increased buffer size
     char temp_filename[100]; // Increased buffer size
     char normalized[32];     // Just enough for the name part
-    
+
     if (!church) {
         bug("save_church: null church", 0);
         return;
@@ -7349,7 +8496,16 @@ void save_church(CHURCH_DATA *church)
     }
 }
 
-// Find rank by name (case-insensitive)
+/**
+ * find_rank_by_name - Look up a church rank by its name
+ *
+ * Searches the church's rank list for a rank matching the given name.
+ * Comparison is case-insensitive.
+ *
+ * @param church  Church to search within
+ * @param name    Rank name to find
+ * @return        Pointer to the rank if found, NULL otherwise
+ */
 CHURCH_RANK_DATA *find_rank_by_name(CHURCH_DATA *church, const char *name)
 {
     CHURCH_RANK_DATA *rank;
@@ -7362,27 +8518,72 @@ CHURCH_RANK_DATA *find_rank_by_name(CHURCH_DATA *church, const char *name)
     return NULL;
 }
 
+/**
+ * new_church_rank_uid - Generate a unique ID for a new church rank
+ *
+ * Increments and returns the church's max_rank_uid counter.
+ * Each rank within a church has a unique ID that persists across saves.
+ *
+ * @param church  Church to generate a rank UID for
+ * @return        New unique rank ID, or 0 if church is NULL
+ */
 long new_church_rank_uid(CHURCH_DATA *church)
 {
     if (!church)
         return 0;
-        
+
     return ++church->max_rank_uid;
 }
-bool has_processed_file(const char *filename) {
+
+/**
+ * has_processed_file - Check if a church file has already been processed
+ *
+ * Used during church loading to prevent processing the same file twice
+ * (e.g., when both old and new format files exist). Checks against
+ * the processed_files array.
+ *
+ * @param filename  Filename to check
+ * @return          true if already processed, false otherwise
+ */
+bool has_processed_file(const char *filename)
+{
     for (int i = 0; i < num_processed_files; i++) {
         if (!strcmp(processed_files[i], filename))
             return true;
     }
     return false;
 }
-void add_to_processed_files(const char *filename) {
+
+/**
+ * add_to_processed_files - Mark a church file as processed
+ *
+ * Adds a filename to the processed_files tracking array.
+ * Used during church loading to prevent duplicate loading.
+ * Silently drops entries if MAX_PROCESSED_FILES is reached.
+ *
+ * @param filename  Filename to mark as processed
+ */
+void add_to_processed_files(const char *filename)
+{
     if (num_processed_files < MAX_PROCESSED_FILES) {
         processed_files[num_processed_files++] = str_dup(filename);
     }
 }
 
-
+/**
+ * add_church_log_entry - Add a new entry to the church's activity log
+ *
+ * Creates and appends a log entry to the church's log. Entries are
+ * timestamped and assigned a unique ID. If the log exceeds
+ * MAX_CHURCH_LOG_ENTRIES, oldest entries are pruned.
+ * Automatically saves the church after adding the entry.
+ *
+ * @param church           Church to add the log entry to
+ * @param author           Name of the person who created the entry (can be NULL for system)
+ * @param text             Log entry text
+ * @param categories       Bitmask of CHLOG_* category flags
+ * @param system_generated true if auto-generated, false if player-written
+ */
 void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, flag_t categories, bool system_generated)
 {
     CHURCH_LOG_ENTRY *entry, *temp;
@@ -7424,7 +8625,17 @@ void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, flag_t 
     // Save the church after log changes
     save_church(church);
 }
-    
+
+/**
+ * chtoggle_complete - Complete the PK status toggle for a church
+ *
+ * Called after confirmation to enable or disable the church's
+ * player-killing status. Enabling PK is free; disabling costs
+ * 5000 pneuma. Broadcasts the change globally and logs it.
+ *
+ * @param ch         Character toggling PK status (must be in a church)
+ * @param enable_pk  true to enable PK, false to disable
+ */
 void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
 {
     char buf[MAX_STRING_LENGTH];
@@ -7458,6 +8669,20 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
     
     save_church(ch->church);
 }
+
+/**
+ * string_end_chlog - Callback when player finishes editing a church log entry
+ *
+ * Called when the string editor is closed for a church log entry.
+ * Validates the text, cleans up trailing whitespace, and either
+ * creates a new log entry or updates an existing one (based on
+ * ch->temp_log_entry_id). Resets editor state when complete.
+ *
+ * Uses ch->temp_log_entry for the text, ch->temp_log_category for
+ * the category, and ch->temp_log_entry_id for edits (0 = new entry).
+ *
+ * @param ch  Character who was editing the log entry
+ */
 void string_end_chlog(CHAR_DATA *ch)
 {
     if (!ch || !ch->desc) {
@@ -7529,7 +8754,22 @@ void string_end_chlog(CHAR_DATA *ch)
     ch->desc->editor = 0;
 }
 
-void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church, 
+/**
+ * display_church_logs - Render church log entries to a player
+ *
+ * Formats and displays log entries with optional filtering by text,
+ * author, or category. Shows entries newest-first with truncated
+ * preview text. Includes navigation help for viewing full entries.
+ *
+ * @param ch                Character to display logs to
+ * @param church            Church whose logs are being viewed
+ * @param entries           Array of log entry pointers to display
+ * @param count             Number of entries in the array
+ * @param search_text       Optional text filter (NULL or empty to skip)
+ * @param search_author     Optional author filter (NULL or empty to skip)
+ * @param search_categories Optional category bitmask filter (0 to skip)
+ */
+void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church,
                         CHURCH_LOG_ENTRY **entries, int count,
                         char *search_text, char *search_author, flag_t search_categories)
 {
@@ -7657,6 +8897,16 @@ void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church,
     free_buf(output);
 }
 
+/**
+ * is_meta_category - Check if a log category is a meta-category
+ *
+ * Meta-categories are special categories that aggregate multiple
+ * regular categories (e.g., "all" or "system"). These are used for
+ * filtering but cannot be directly assigned to log entries.
+ *
+ * @param category_flag  Category flag to check
+ * @return               true if it's a meta-category, false otherwise
+ */
 bool is_meta_category(flag_t category_flag)
 {
     for (int i = 0; church_log_meta_categories[i].flag != 0; i++) {
@@ -7667,6 +8917,16 @@ bool is_meta_category(flag_t category_flag)
     return false;
 }
 
+/**
+ * cmp_church_uid - Comparison function for sorting churches by UID
+ *
+ * Used with sorting functions to order churches by their unique ID.
+ * Returns standard comparison result (-1, 0, 1).
+ *
+ * @param a  First church (as void pointer)
+ * @param b  Second church (as void pointer)
+ * @return   -1 if a < b, 1 if a > b, 0 if equal
+ */
 static int cmp_church_uid(void *a, void *b)
 {
     CHURCH_DATA *p1 = (CHURCH_DATA *)a;

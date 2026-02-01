@@ -449,7 +449,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
                 }
             } else
 {
-    AREA_DATA *area = find_area_by_vnum(x);
+    AREA_DATA *area = find_area_by_vnum(x, NULL);
     if (!area) area = get_system_area_fallback();
     *room = get_room_index(area, x);
     rest = rest2;
@@ -6003,7 +6003,7 @@ SCRIPT_CMD(do_mpalterexit)
         switch(arg->type) {
         case ENT_NUMBER:
     {
-        AREA_DATA *area = find_area_by_vnum(arg->d.num);
+        AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
         if (!area) area = get_system_area_fallback();
         room = get_room_index(area, arg->d.num);
     }
@@ -8348,7 +8348,7 @@ SCRIPT_CMD(do_mpsaveplayer)
         break;
     case ENT_NUMBER:
         if( arg->d.num > 0 ) {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             mob->checkpoint = get_room_index(area, arg->d.num);
         }
@@ -8395,7 +8395,7 @@ SCRIPT_CMD(do_mpcheckpoint)
         break;
     case ENT_NUMBER:
         if( arg->d.num > 0 ) {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             mob->checkpoint = get_room_index(area, arg->d.num);
         }

@@ -1786,7 +1786,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             if( IS_NPC(arg->d.mob) )
                 arg->d.room = arg->d.mob->home_room;
             else if( arg->d.mob->home > 0 ) {
-                AREA_DATA *home_area = find_area_by_vnum(arg->d.mob->home);
+                AREA_DATA *home_area = find_area_by_vnum(arg->d.mob->home, NULL);
                 if (!home_area) home_area = get_system_area_fallback();
                 arg->d.room = get_room_index(home_area, arg->d.mob->home);
             }
@@ -3086,7 +3086,7 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_ROOM;
         arg->d.room = (arg->d.area && location_isset(&arg->d.area->recall)) ? location_to_room(&arg->d.area->recall) : NULL;
     if (arg->d.area && arg->d.area->post_office > 0) {
-        AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office);
+        AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office, NULL);
         if (!post_area) post_area = get_system_area_fallback();
         arg->d.room = get_room_index(post_area, arg->d.area->post_office);
     } else {

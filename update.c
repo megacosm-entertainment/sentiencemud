@@ -1871,7 +1871,7 @@ void char_update(void)
 
                     char_from_room(ch);
                     long limbo_vnum = get_reserved_vnum("room_limbo");
-                    AREA_DATA *limbo_area = find_area_by_vnum(limbo_vnum);
+                    AREA_DATA *limbo_area = find_area_by_vnum(limbo_vnum, NULL);
                     if (!limbo_area) limbo_area = get_system_area_fallback();
                     char_to_room(ch, get_room_index(limbo_area, limbo_vnum));
                 }
@@ -2469,7 +2469,7 @@ void obj_update(void)
                     else {
                         OBJ_DATA *new_obj;
 long seed_vnum = obj->value[1];
-AREA_DATA *seed_area = find_area_by_vnum(seed_vnum);
+AREA_DATA *seed_area = find_area_by_vnum(seed_vnum, NULL);
 if (!seed_area) seed_area = get_system_area_fallback();
                         if (get_obj_index(seed_area, seed_vnum) == NULL) {
                             bug("Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
@@ -3424,7 +3424,7 @@ void pneuma_relic_update(void)
         if (chance > 80)
     {
         long pneuma_vnum = get_reserved_vnum("obj_pneuma_item");
-        AREA_DATA *pneuma_area = find_area_by_vnum(pneuma_vnum);
+        AREA_DATA *pneuma_area = find_area_by_vnum(pneuma_vnum, NULL);
         if (!pneuma_area) pneuma_area = get_system_area_fallback();
         pneuma = create_object(get_obj_index(pneuma_area, pneuma_vnum), 0, true);
         obj_to_room(pneuma, pneuma_relic->in_room);

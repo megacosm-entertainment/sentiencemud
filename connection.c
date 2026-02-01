@@ -25,6 +25,17 @@
 *	ROM license, in the file Rom24/doc/rom.license			   *
 ***************************************************************************/
 
+/**
+ * @file connection.c
+ * @brief Connection abstraction layer - shared utility functions
+ *
+ * Provides common utility functions used by all connection implementations.
+ * Protocol-specific implementations are in:
+ *   - connection_tcp.c   - Plain TCP connections
+ *   - connection_tls.c   - TLS-encrypted connections
+ *   - connection_websocket.c - WebSocket over TLS connections
+ */
+
 #include <sys/types.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -32,8 +43,15 @@
 #include "connection.h"
 #include "merc.h"
 
-/*
- * Set a socket to non-blocking mode
+/**
+ * connection_set_nonblocking - Set socket to non-blocking mode
+ *
+ * Configures the file descriptor for non-blocking I/O using fcntl().
+ * Essential for the select()-based game loop to avoid blocking on
+ * individual connections.
+ *
+ * @param fd  Socket file descriptor to configure
+ * @return    true on success, false on failure (logs error)
  */
 bool connection_set_nonblocking(int fd)
 {
@@ -51,8 +69,13 @@ bool connection_set_nonblocking(int fd)
     return true;
 }
 
-/*
- * Get human-readable connection state name
+/**
+ * connection_state_name - Get human-readable state name
+ *
+ * Converts connection state enum to a string for logging and debugging.
+ *
+ * @param state  Connection state to convert
+ * @return       Static string: "CONNECTING", "CONNECTED", "CLOSING", "CLOSED", or "UNKNOWN"
  */
 const char* connection_state_name(connection_state_t state)
 {
@@ -65,8 +88,13 @@ const char* connection_state_name(connection_state_t state)
     }
 }
 
-/*
- * Get human-readable connection type name
+/**
+ * connection_type_name - Get human-readable connection type name
+ *
+ * Converts connection type enum to a string for logging and debugging.
+ *
+ * @param type  Connection type to convert
+ * @return      Static string: "TCP", "TLS", "WebSocket+TLS (WSS)", or "UNKNOWN"
  */
 const char* connection_type_name(connection_type_t type)
 {

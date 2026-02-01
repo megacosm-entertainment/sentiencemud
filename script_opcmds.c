@@ -315,7 +315,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
                 }
             } else
 {
-    AREA_DATA *area = find_area_by_vnum(x);
+    AREA_DATA *area = find_area_by_vnum(x, NULL);
     if (!area) area = get_system_area_fallback();
     *room = get_room_index(area, x);
     rest = rest2;
@@ -343,7 +343,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
                             rest = rest2;
 
                             id2 = arg->d.num;
-                            AREA_DATA *area = find_area_by_vnum(vnum);
+                            AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                             if (!area) area = get_system_area_fallback();
                             *room = get_clone_room(get_room_index(area, vnum),id1,id2);
                         }
@@ -377,7 +377,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
                     if (!str_infix(arg->d.str, area->name)) {
                         if(!(loc = location_to_room(&area->recall))) {
                             for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-                                AREA_DATA *area = find_area_by_vnum(vnum);
+                                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                                 if (!area) area = get_system_area_fallback();
                                 if ((loc = get_room_index(area, vnum)))
                                     break;
@@ -465,7 +465,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                 }
             } else
             {
-                AREA_DATA *area = find_area_by_vnum(x);
+                AREA_DATA *area = find_area_by_vnum(x, NULL);
                 if (!area) area = get_system_area_fallback();
                 *room = get_room_index(area, x);
                 rest = rest2;
@@ -490,7 +490,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                             rest = rest2;
 
                             id2 = arg->d.num;
-                            AREA_DATA *area = find_area_by_vnum(vnum);
+                            AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                             if (!area) area = get_system_area_fallback();
                             *room = get_clone_room(get_room_index(area, vnum),id1,id2);
                         }
@@ -526,7 +526,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                     if (!str_infix(arg->d.str, area->name)) {
                         if(!(loc = location_to_room(&area->recall))) {
                             for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-                                AREA_DATA *area = find_area_by_vnum(vnum);
+                                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                                 if (!area) area = get_system_area_fallback();
                                 if ((loc = get_room_index(area, vnum)))
                                     break;
@@ -1983,11 +1983,11 @@ SCRIPT_CMD(do_oplink)
     }
 
     if(id1 > 0 || id2 > 0) {
-        AREA_DATA *area = find_area_by_vnum(vnum);
+        AREA_DATA *area = find_area_by_vnum(vnum, NULL);
         if (!area) area = get_system_area_fallback();
         dest = get_clone_room(get_room_index(area, vnum),id1,id2);
     } else if(vnum > 0) {
-        AREA_DATA *area = find_area_by_vnum(vnum);
+        AREA_DATA *area = find_area_by_vnum(vnum, NULL);
         if (!area) area = get_system_area_fallback();
         dest = get_room_index(area, vnum);
     } else if(environ)
@@ -4980,7 +4980,7 @@ SCRIPT_CMD(do_opalterexit)
         switch(arg->type) {
         case ENT_NUMBER:
     {
-        AREA_DATA *area = find_area_by_vnum(arg->d.num);
+        AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
         if (!area) area = get_system_area_fallback();
         room = get_room_index(area, arg->d.num);
     }
@@ -5361,7 +5361,7 @@ SCRIPT_CMD(do_opcloneroom)
 
     vnum = arg->d.num;
 
-    AREA_DATA *area = find_area_by_vnum(vnum);
+    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
     if (!area) area = get_system_area_fallback();
     source = get_room_index(area, vnum);
     if(!source) return;
@@ -5818,7 +5818,7 @@ SCRIPT_CMD(do_opdestroyroom)
 
     vnum = arg->d.num;
 
-    AREA_DATA *area = find_area_by_vnum(vnum);
+    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
     if (!area) area = get_system_area_fallback();
     room = get_room_index(area, vnum);
     if(!room) return;
@@ -7352,7 +7352,7 @@ SCRIPT_CMD(do_opcheckpoint)
         break;
     case ENT_NUMBER:
         if( arg->d.num > 0 ) {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             mob->checkpoint = get_room_index(area, arg->d.num);
         }

@@ -25,6 +25,33 @@
 *	ROM license, in the file Rom24/doc/rom.license			   *
 ***************************************************************************/
 
+/**
+ * @file connection_websocket.c
+ * @brief WebSocket connection implementation (RFC 6455)
+ *
+ * Implements WebSocket protocol for browser-based clients. This file
+ * contains both plain WebSocket (not currently used) and WebSocket over
+ * TLS (WSS) implementations.
+ *
+ * WebSocket connections require a two-phase handshake:
+ *   1. TLS handshake (for WSS connections)
+ *   2. HTTP Upgrade handshake with Sec-WebSocket-Accept key derivation
+ *
+ * Once connected, data is framed according to RFC 6455:
+ *   - Client frames are always masked (XOR with 4-byte key)
+ *   - Server frames are never masked
+ *   - Text opcode (0x1) used for MUD data
+ *   - Close/Ping/Pong control frames handled
+ *
+ * Key features:
+ *   - Base64 encoding for accept key generation (OpenSSL BIO)
+ *   - SHA-1 hashing for WebSocket key validation
+ *   - Frame parsing with variable-length payload support
+ *   - Automatic unmasking of client frames
+ *
+ * @note Plain WebSocket (ws://) is not supported - only secure WSS (wss://)
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -40,54 +67,62 @@
 #include "connection.h"
 #include "merc.h"
 
-// External SSL context from tls.c
+/** @brief External SSL context from tls.c */
 extern SSL_CTX *ctx;
 
-/*
- * WebSocket opcodes (RFC 6455)
+/**
+ * @name WebSocket Opcodes (RFC 6455)
+ * @{
  */
-#define WS_OPCODE_CONTINUATION  0x0
-#define WS_OPCODE_TEXT          0x1
-#define WS_OPCODE_BINARY        0x2
-#define WS_OPCODE_CLOSE         0x8
-#define WS_OPCODE_PING          0x9
-#define WS_OPCODE_PONG          0xA
+#define WS_OPCODE_CONTINUATION  0x0  /**< Continuation frame */
+#define WS_OPCODE_TEXT          0x1  /**< Text data frame */
+#define WS_OPCODE_BINARY        0x2  /**< Binary data frame */
+#define WS_OPCODE_CLOSE         0x8  /**< Connection close frame */
+#define WS_OPCODE_PING          0x9  /**< Ping control frame */
+#define WS_OPCODE_PONG          0xA  /**< Pong control frame */
+/** @} */
 
-/*
- * WebSocket handshake state
+/**
+ * @enum ws_handshake_state_t
+ * @brief WebSocket handshake progress states
  */
 typedef enum {
-    WS_HANDSHAKE_READING_REQUEST,
-    WS_HANDSHAKE_TLS_COMPLETE,      // TLS done, waiting for WebSocket upgrade (TLS only)
-    WS_HANDSHAKE_COMPLETE,
-    WS_HANDSHAKE_FAILED
+    WS_HANDSHAKE_READING_REQUEST,  /**< Reading HTTP upgrade request */
+    WS_HANDSHAKE_TLS_COMPLETE,     /**< TLS done, awaiting WebSocket upgrade */
+    WS_HANDSHAKE_COMPLETE,         /**< Fully connected */
+    WS_HANDSHAKE_FAILED            /**< Handshake failed */
 } ws_handshake_state_t;
 
-/*
- * WebSocket connection state
+/**
+ * @struct ws_state
+ * @brief WebSocket protocol state machine
+ *
+ * Tracks handshake progress and frame parsing state. WebSocket frames
+ * may arrive fragmented across multiple reads, so partial frame data
+ * is buffered here.
  */
 typedef struct ws_state {
-    ws_handshake_state_t handshake_state;
-    char handshake_buffer[4096];
-    int handshake_buffer_len;
+    ws_handshake_state_t handshake_state;  /**< Current handshake phase */
+    char handshake_buffer[4096];           /**< HTTP upgrade request buffer */
+    int handshake_buffer_len;              /**< Bytes in handshake buffer */
 
-    // Frame parsing state
-    unsigned char frame_buffer[65536];  // Max frame size
-    int frame_buffer_len;
-    bool frame_fin;
-    unsigned char frame_opcode;
-    bool frame_masked;
-    unsigned char frame_mask[4];
-    uint64_t frame_payload_len;
-    int frame_bytes_read;
+    unsigned char frame_buffer[65536];     /**< Incoming frame data buffer */
+    int frame_buffer_len;                  /**< Bytes in frame buffer */
+    bool frame_fin;                        /**< FIN bit of current frame */
+    unsigned char frame_opcode;            /**< Opcode of current frame */
+    bool frame_masked;                     /**< True if frame is masked (client frames) */
+    unsigned char frame_mask[4];           /**< Masking key */
+    uint64_t frame_payload_len;            /**< Payload length from header */
+    int frame_bytes_read;                  /**< Payload bytes read so far */
 } ws_state_t;
 
-/*
- * WebSocket connection structure (plain TCP)
+/**
+ * @struct connection_websocket
+ * @brief WebSocket connection implementation structure
  */
 typedef struct connection_websocket {
-    connection_t base;      // Must be first for casting
-    ws_state_t *ws_state;   // WebSocket protocol state
+    connection_t base;       /**< Base connection (must be first) */
+    ws_state_t *ws_state;    /**< WebSocket protocol state */
 } connection_websocket_t;
 
 /*
@@ -135,8 +170,15 @@ static connection_vtable_t wss_vtable = {
     .get_protocol_name = wss_get_protocol_name
 };
 
-/*
- * Helper: Base64 encode for WebSocket accept key
+/**
+ * ws_base64_encode - Base64 encode data for WebSocket accept key
+ *
+ * Uses OpenSSL BIO to encode binary data (SHA-1 hash) to base64 for
+ * the Sec-WebSocket-Accept response header.
+ *
+ * @param input   Binary data to encode
+ * @param length  Length of input data
+ * @return        malloc'd base64 string (caller must free), or NULL on error
  */
 static char* ws_base64_encode(const unsigned char *input, int length)
 {
@@ -161,8 +203,15 @@ static char* ws_base64_encode(const unsigned char *input, int length)
     return output;
 }
 
-/*
- * Helper: Generate WebSocket accept key
+/**
+ * generate_accept_key - Generate Sec-WebSocket-Accept response key
+ *
+ * Concatenates client key with RFC 6455 magic GUID, computes SHA-1 hash,
+ * and base64 encodes the result. This proves to the client that the
+ * server understands WebSocket protocol.
+ *
+ * @param client_key  The Sec-WebSocket-Key from client request
+ * @return            malloc'd accept key string (caller must free)
  */
 static char* generate_accept_key(const char *client_key)
 {
@@ -176,8 +225,14 @@ static char* generate_accept_key(const char *client_key)
     return ws_base64_encode(hash, SHA_DIGEST_LENGTH);
 }
 
-/*
- * Helper: Process WebSocket handshake request
+/**
+ * process_ws_handshake - Complete WebSocket HTTP upgrade handshake
+ *
+ * Parses the HTTP upgrade request, extracts Sec-WebSocket-Key header,
+ * generates the accept key, and sends the 101 Switching Protocols response.
+ *
+ * @param ws_conn  The WebSocket connection with complete HTTP request in buffer
+ * @return         true if handshake successful, false on error
  */
 static bool process_ws_handshake(connection_websocket_t *ws_conn)
 {
@@ -259,8 +314,15 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
     return true;
 }
 
-/*
- * Create a new WebSocket connection
+/**
+ * connection_websocket_create - Create a plain WebSocket connection
+ *
+ * Factory function for plain (unencrypted) WebSocket connections.
+ * Note: This is currently unused as only WSS is supported.
+ *
+ * @param fd    Accepted socket file descriptor
+ * @param desc  Game descriptor to associate
+ * @return      New connection, or NULL on failure
  */
 connection_t* connection_websocket_create(int fd, struct descriptor_data *desc)
 {
@@ -309,8 +371,16 @@ connection_t* connection_websocket_create(int fd, struct descriptor_data *desc)
     return (connection_t*)ws_conn;
 }
 
-/*
- * Helper: Unmask WebSocket payload
+/**
+ * ws_unmask_payload - XOR unmask WebSocket client payload
+ *
+ * Per RFC 6455, all client-to-server frames must be masked with a 4-byte
+ * key. This function applies XOR with the rotating mask to recover the
+ * original payload data in-place.
+ *
+ * @param payload  Data buffer to unmask (modified in place)
+ * @param len      Length of payload data
+ * @param mask     4-byte masking key from frame header
  */
 static void ws_unmask_payload(unsigned char *payload, int len, const unsigned char *mask)
 {
@@ -319,8 +389,28 @@ static void ws_unmask_payload(unsigned char *payload, int len, const unsigned ch
     }
 }
 
-/*
- * Helper: Parse and process a WebSocket frame
+/**
+ * ws_parse_frame - Parse WebSocket frame from buffer and extract payload
+ *
+ * Parses the RFC 6455 frame format from the connection's frame buffer:
+ *   - 2-byte minimum header (FIN, opcode, mask bit, length)
+ *   - Extended length (2 or 8 bytes) if needed
+ *   - 4-byte masking key (always present for client frames)
+ *   - Payload data
+ *
+ * Handles control frames:
+ *   - CLOSE (0x8): Returns false to signal disconnect
+ *   - PING (0x9): Logged (PONG response not yet implemented)
+ *   - PONG (0xA): Ignored (keep-alive acknowledgment)
+ *
+ * Data frames (TEXT/BINARY) are unmasked and copied to output buffer.
+ * Processed frame is removed from the internal buffer.
+ *
+ * @param ws_conn      The WebSocket connection with frame data
+ * @param output_buf   Buffer to receive unmasked payload
+ * @param output_size  Maximum bytes to copy to output
+ * @param output_len   Output: actual bytes copied
+ * @return             true if more data needed or success, false on close/error
  */
 static bool ws_parse_frame(connection_websocket_t *ws_conn, char *output_buf, int output_size, int *output_len)
 {
@@ -416,8 +506,23 @@ static bool ws_parse_frame(connection_websocket_t *ws_conn, char *output_buf, in
     return true;
 }
 
-/*
- * Read from WebSocket connection
+/**
+ * ws_read - Read data from plain WebSocket connection
+ *
+ * Reads raw socket data into the frame buffer, then attempts to parse
+ * a complete WebSocket frame. Returns only complete, unmasked payload
+ * data to the caller. Partial frames remain buffered.
+ *
+ * Blocks until handshake is complete - returns immediately with no data
+ * if still in handshake phase.
+ *
+ * @param conn        The connection to read from
+ * @param buf         Buffer to store decoded payload data
+ * @param size        Maximum bytes to read
+ * @param bytes_read  Output: actual payload bytes extracted
+ * @return            true on success/would-block, false on error/disconnect
+ *
+ * @note Currently unused as only WSS is supported (see wss_read)
  */
 static bool ws_read(connection_t *conn, char *buf, int size, int *bytes_read)
 {
@@ -458,8 +563,24 @@ static bool ws_read(connection_t *conn, char *buf, int size, int *bytes_read)
     return ws_parse_frame(ws_conn, buf, size, bytes_read);
 }
 
-/*
- * Write to WebSocket connection
+/**
+ * ws_write - Write data to plain WebSocket connection
+ *
+ * Wraps payload data in a WebSocket frame and writes to socket:
+ *   - Builds frame header with FIN=1, opcode=TEXT (0x1), mask=0
+ *   - Encodes payload length (7-bit, 16-bit, or 64-bit)
+ *   - Writes header then payload
+ *
+ * Server frames are never masked per RFC 6455.
+ *
+ * @param conn           The connection to write to
+ * @param buf            Payload data to send
+ * @param size           Bytes to send
+ * @param bytes_written  Output: payload bytes written (excluding frame header)
+ * @return               true on success, false on error
+ *
+ * @note Partial header writes are fatal - frame framing would be corrupted.
+ * @note Currently unused as only WSS is supported (see wss_write)
  */
 static bool ws_write(connection_t *conn, const char *buf, int size, int *bytes_written)
 {
@@ -533,8 +654,16 @@ static bool ws_write(connection_t *conn, const char *buf, int size, int *bytes_w
     return true;
 }
 
-/*
- * Process WebSocket handshake
+/**
+ * ws_process_handshake - Process plain WebSocket HTTP upgrade handshake
+ *
+ * Reads HTTP upgrade request from socket and completes the WebSocket
+ * handshake when the full request is received (detected by \r\n\r\n).
+ *
+ * @param conn  The connection with pending handshake
+ * @return      true when handshake complete, false if still in progress/error
+ *
+ * @note Currently unused as only WSS is supported (see wss_process_handshake)
  */
 static bool ws_process_handshake(connection_t *conn)
 {
@@ -575,8 +704,19 @@ static bool ws_process_handshake(connection_t *conn)
     }
 }
 
-/*
- * Close WebSocket connection
+/**
+ * ws_close - Close plain WebSocket connection
+ *
+ * Performs connection shutdown:
+ *   1. Sets state to CLOSING
+ *   2. Calls shutdown() on socket
+ *   3. Closes file descriptor
+ *   4. Sets state to CLOSED
+ *
+ * @param conn  The connection to close
+ *
+ * @note Does not send WebSocket close frame (0x8) - could be improved
+ * @note Currently unused as only WSS is supported (see wss_close)
  */
 static void ws_close(connection_t *conn)
 {
@@ -593,8 +733,15 @@ static void ws_close(connection_t *conn)
     conn->state = CONN_STATE_CLOSED;
 }
 
-/*
- * Free WebSocket connection
+/**
+ * ws_free - Free WebSocket connection resources
+ *
+ * Ensures connection is closed, frees the WebSocket state structure,
+ * then frees the connection structure itself.
+ *
+ * @param conn  The connection to free
+ *
+ * @note Shared by both plain WS and WSS connections (wss_vtable.free)
  */
 static void ws_free(connection_t *conn)
 {
@@ -613,24 +760,45 @@ static void ws_free(connection_t *conn)
     free(ws_conn);
 }
 
-/*
- * Check if WebSocket is secure (plain WebSocket is not)
+/**
+ * ws_is_secure - Check if plain WebSocket connection is encrypted
+ *
+ * Plain WebSocket (ws://) has no encryption.
+ *
+ * @param conn  The connection to check (unused)
+ * @return      Always returns false
  */
 static bool ws_is_secure(connection_t *conn)
 {
     return false;
 }
 
-/*
- * Get protocol name
+/**
+ * ws_get_protocol_name - Get protocol name for logging
+ *
+ * @param conn  The connection (unused)
+ * @return      "WebSocket"
  */
 static const char* ws_get_protocol_name(connection_t *conn)
 {
     return "WebSocket";
 }
 
-/*
- * Create a new WebSocket TLS connection
+/**
+ * connection_websocket_tls_create - Create a WebSocket over TLS connection
+ *
+ * Factory function for WSS (WebSocket Secure) connections. Allocates
+ * connection structure, WebSocket state, and SSL context. Sets up for
+ * two-phase handshake:
+ *   1. TLS handshake (SSL_accept)
+ *   2. WebSocket HTTP upgrade
+ *
+ * Uses the global SSL context (ctx) from tls.c. Socket is set to
+ * non-blocking mode.
+ *
+ * @param fd    Accepted socket file descriptor
+ * @param desc  Game descriptor to associate with connection
+ * @return      New connection_t pointer, or NULL on failure
  */
 connection_t* connection_websocket_tls_create(int fd, struct descriptor_data *desc)
 {
@@ -702,8 +870,23 @@ connection_t* connection_websocket_tls_create(int fd, struct descriptor_data *de
     return (connection_t*)ws_conn;
 }
 
-/*
- * WebSocket TLS: Process two-phase handshake (TLS first, then WebSocket)
+/**
+ * wss_process_handshake - Process WSS two-phase handshake
+ *
+ * Handles the two-phase connection setup for WebSocket over TLS:
+ *
+ * Phase 1 (WS_HANDSHAKE_READING_REQUEST state):
+ *   - Calls SSL_accept() for TLS handshake
+ *   - Handles SSL_ERROR_WANT_READ/WANT_WRITE for async operation
+ *   - On success, transitions to WS_HANDSHAKE_TLS_COMPLETE
+ *
+ * Phase 2 (WS_HANDSHAKE_TLS_COMPLETE state):
+ *   - Reads HTTP upgrade request via SSL_read()
+ *   - When complete request received (ends with \r\n\r\n), calls process_ws_handshake()
+ *   - On success, connection is fully established
+ *
+ * @param conn  The connection with pending handshake
+ * @return      true when fully connected, false if in progress or error
  */
 static bool wss_process_handshake(connection_t *conn)
 {
@@ -778,8 +961,20 @@ static bool wss_process_handshake(connection_t *conn)
     }
 }
 
-/*
- * WebSocket TLS: Read (using SSL_read for frame data)
+/**
+ * wss_read - Read data from WebSocket TLS connection
+ *
+ * Reads encrypted frame data via SSL_read() into the frame buffer,
+ * then parses WebSocket frames to extract payload data.
+ *
+ * Returns only complete, unmasked payload data. Partial frames remain
+ * buffered. Returns immediately with no data if handshake incomplete.
+ *
+ * @param conn        The WSS connection to read from
+ * @param buf         Buffer to store decoded payload data
+ * @param size        Maximum bytes to read
+ * @param bytes_read  Output: actual payload bytes extracted
+ * @return            true on success/would-block, false on error/disconnect
  */
 static bool wss_read(connection_t *conn, char *buf, int size, int *bytes_read)
 {
@@ -821,8 +1016,23 @@ static bool wss_read(connection_t *conn, char *buf, int size, int *bytes_read)
     }
 }
 
-/*
- * WebSocket TLS: Write (using SSL_write for frames)
+/**
+ * wss_write - Write data to WebSocket TLS connection
+ *
+ * Wraps payload in a WebSocket frame and writes via SSL_write():
+ *   - Builds frame header with FIN=1, opcode=TEXT (0x1), mask=0
+ *   - Encodes payload length (7-bit, 16-bit, or 64-bit)
+ *   - Writes header then payload via SSL
+ *
+ * Server frames are never masked per RFC 6455.
+ *
+ * @param conn           The WSS connection to write to
+ * @param buf            Payload data to send
+ * @param size           Bytes to send
+ * @param bytes_written  Output: payload bytes written (excluding frame header)
+ * @return               true on success, false on error
+ *
+ * @note Partial header writes are fatal - frame framing would be corrupted.
  */
 static bool wss_write(connection_t *conn, const char *buf, int size, int *bytes_written)
 {
@@ -898,8 +1108,19 @@ static bool wss_write(connection_t *conn, const char *buf, int size, int *bytes_
     return true;
 }
 
-/*
- * WebSocket TLS: Close
+/**
+ * wss_close - Close WebSocket TLS connection
+ *
+ * Performs graceful shutdown:
+ *   1. Sets state to CLOSING
+ *   2. Calls SSL_shutdown() for TLS close notify
+ *   3. Frees SSL context
+ *   4. Closes socket file descriptor
+ *   5. Sets state to CLOSED
+ *
+ * @param conn  The WSS connection to close
+ *
+ * @note Does not send WebSocket close frame (0x8) before SSL shutdown
  */
 static void wss_close(connection_t *conn)
 {
@@ -926,16 +1147,24 @@ static void wss_close(connection_t *conn)
     conn->state = CONN_STATE_CLOSED;
 }
 
-/*
- * WebSocket TLS: Is secure
+/**
+ * wss_is_secure - Check if WSS connection is encrypted
+ *
+ * WebSocket over TLS is always encrypted.
+ *
+ * @param conn  The connection to check (unused)
+ * @return      Always returns true
  */
 static bool wss_is_secure(connection_t *conn)
 {
     return true;  // WebSocket TLS is always secure
 }
 
-/*
- * WebSocket TLS: Get protocol name
+/**
+ * wss_get_protocol_name - Get protocol name for logging
+ *
+ * @param conn  The connection (unused)
+ * @return      "WebSocket TLS"
  */
 static const char* wss_get_protocol_name(connection_t *conn)
 {

@@ -372,12 +372,12 @@ void global_reset( void )
         && gq_mob->count + 1 > 50 )
         continue;
 
-        AREA_DATA *mob_area = find_area_by_vnum(gq_mob->vnum);
+        AREA_DATA *mob_area = find_area_by_vnum(gq_mob->vnum, NULL);
         if (!mob_area) mob_area = get_system_area_fallback();
         ch = create_mobile(get_mob_index(mob_area, gq_mob->vnum), false);
         if ( gq_mob->obj != 0 )
         {
-        AREA_DATA *obj_area = find_area_by_vnum(gq_mob->obj);
+        AREA_DATA *obj_area = find_area_by_vnum(gq_mob->obj, NULL);
         if (!obj_area) obj_area = get_system_area_fallback();
         OBJ_INDEX_DATA *obj_index = get_obj_index(obj_area, gq_mob->obj);
         obj = create_object( obj_index, obj_index->level, false);
@@ -403,7 +403,7 @@ void global_reset( void )
 
         if ( number_percent() < gq_obj->repop )
         {
-        AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum);
+        AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum, NULL);
         if (!obj_area) obj_area = get_system_area_fallback();
         obj = create_object(get_obj_index(obj_area, gq_obj->vnum), 1, false);
         obj_to_room( obj, room );
@@ -414,165 +414,110 @@ void global_reset( void )
 
 
 /* Get a random area. 1 - first continent, 2 - second continent, 0 - either */
+/* FIXED VERSION - builds array of valid areas to avoid infinite loop */
 AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 {
-    int i;
+    int count, pick;
     AREA_DATA *area;
+    AREA_DATA **valid_areas;
+    int max_areas = 0;
 
     if( continent < MIN_CONTINENT || continent > MAX_CONTINENT ) return NULL;
 
-    /* get max #areas */
-    i = 0;
+    /* Count total areas for array allocation */
     for ( area = area_first; area != NULL; area = area->next )
-        i++;
+        max_areas++;
+    
+    if (max_areas == 0) return NULL;
 
+    /* Allocate temporary array to hold valid area pointers */
+    valid_areas = alloc_mem(sizeof(AREA_DATA*) * max_areas);
+    if (!valid_areas) return NULL;
+    
+    count = 0;
 
-    switch (continent)
+    /* Build list of valid areas based on continent filter */
+    for (area = area_first; area != NULL; area = area->next)
     {
-    case FIRST_CONTINENT:
-        do
+        bool matches = false;
+        
+        /* Check if area passes all common filters */
+        if (!area->open ||
+            !is_area_unlocked(ch, area) ||
+            (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+            !str_infix("Housing", area->name) ||
+            !str_infix("Arena", area->name) ||
+            !str_infix("Temples", area->name) ||
+            !str_infix("Maze", area->name))
         {
-            area = get_area_data(number_range(1, i));
-        } while (area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                (area->place_flags != PLACE_FIRST_CONTINENT) ||
-                !str_infix( "Housing", area->name ) ||
-                !str_infix( "Arena", area->name) ||
-                !str_infix( "Temples", area->name) ||
-                !str_infix( "Maze", area->name));
-        break;
-
-    case SECOND_CONTINENT:
-        do
+            continue;
+        }
+        
+        /* Check continent-specific filters */
+        switch (continent)
         {
-            area = get_area_data( number_range( 1, i));
-        } while (area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ( area->place_flags != PLACE_SECOND_CONTINENT ) ||
-                !str_infix( "Housing", area->name ) ||
-                !str_infix( "Arena", area->name) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Maze", area->name ));
-
-        break;
-
-    case THIRD_CONTINENT:
-        do
+            case FIRST_CONTINENT:
+                matches = (area->place_flags == PLACE_FIRST_CONTINENT);
+                break;
+                
+            case SECOND_CONTINENT:
+                matches = (area->place_flags == PLACE_SECOND_CONTINENT);
+                break;
+                
+            case THIRD_CONTINENT:
+                matches = (area->place_flags == PLACE_THIRD_CONTINENT);
+                break;
+                
+            case FOURTH_CONTINENT:
+                matches = (area->place_flags == PLACE_FOURTH_CONTINENT);
+                break;
+                
+            case NORTH_CONTINENTS:
+                matches = (area->place_flags == PLACE_FIRST_CONTINENT ||
+                          area->place_flags == PLACE_FOURTH_CONTINENT);
+                break;
+                
+            case SOUTH_CONTINENTS:
+                matches = (area->place_flags == PLACE_SECOND_CONTINENT ||
+                          area->place_flags == PLACE_THIRD_CONTINENT);
+                break;
+                
+            case WEST_CONTINENTS:
+                matches = (area->place_flags == PLACE_FIRST_CONTINENT ||
+                          area->place_flags == PLACE_THIRD_CONTINENT);
+                break;
+                
+            case EAST_CONTINENTS:
+                matches = (area->place_flags == PLACE_SECOND_CONTINENT ||
+                          area->place_flags == PLACE_FOURTH_CONTINENT);
+                break;
+                
+            default:  /* All continents */
+                matches = (area->place_flags == PLACE_FIRST_CONTINENT ||
+                          area->place_flags == PLACE_SECOND_CONTINENT ||
+                          area->place_flags == PLACE_THIRD_CONTINENT ||
+                          area->place_flags == PLACE_FOURTH_CONTINENT);
+                break;
+        }
+        
+        if (matches)
         {
-            area = get_area_data( number_range( 1, i));
-        } while (area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ( area->place_flags != PLACE_THIRD_CONTINENT ) ||
-                !str_infix( "Housing", area->name ) ||
-                !str_infix( "Arena", area->name) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Maze", area->name ));
-        break;
-
-    case FOURTH_CONTINENT:
-        do
-        {
-            area = get_area_data( number_range( 1, i));
-        } while (area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ( area->place_flags != PLACE_FOURTH_CONTINENT ) ||
-                !str_infix( "Housing", area->name ) ||
-                !str_infix( "Arena", area->name) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Maze", area->name ));
-        break;
-
-    case NORTH_CONTINENTS:
-        do
-        {
-            area = get_area_data( number_range( 1, i));
-        } while ( area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-                 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Housing", area->name ) ||
-                !str_infix("Arena", area->name) ||
-                !str_infix("Maze", area->name));
-        break;
-
-    case SOUTH_CONTINENTS:
-        do
-        {
-            area = get_area_data( number_range( 1, i));
-        } while ( area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ((area->place_flags != PLACE_SECOND_CONTINENT) &&
-                 (area->place_flags != PLACE_THIRD_CONTINENT)) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Housing", area->name ) ||
-                !str_infix("Arena", area->name) ||
-                !str_infix("Maze", area->name));
-        break;
-
-    case WEST_CONTINENTS:
-        do
-        {
-            area = get_area_data( number_range( 1, i));
-        } while ( area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-                 (area->place_flags != PLACE_THIRD_CONTINENT)) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Housing", area->name ) ||
-                !str_infix("Arena", area->name) ||
-                !str_infix("Maze", area->name));
-        break;
-
-    case EAST_CONTINENTS:
-        do
-        {
-            area = get_area_data( number_range( 1, i));
-        } while ( area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ((area->place_flags != PLACE_SECOND_CONTINENT) &&
-                 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Housing", area->name ) ||
-                !str_infix("Arena", area->name) ||
-                !str_infix("Maze", area->name));
-        break;
-
-    default:
-        do
-        {
-            area = get_area_data( number_range( 1, i));
-        } while ( area == NULL ||
-                !area->open ||
-                !is_area_unlocked(ch, area) ||
-                (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-                ((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-                 (area->place_flags != PLACE_SECOND_CONTINENT) &&
-                 (area->place_flags != PLACE_THIRD_CONTINENT) &&
-                 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
-                !str_infix("Temples", area->name) ||
-                !str_infix("Housing", area->name ) ||
-                !str_infix("Arena", area->name) ||
-                !str_infix("Maze", area->name));
-        break;
+            valid_areas[count++] = area;
+        }
     }
 
+    /* Pick a random area from the valid list */
+    if (count > 0)
+    {
+        pick = number_range(0, count - 1);
+        area = valid_areas[pick];
+    }
+    else
+    {
+        area = NULL;
+    }
+
+    free_mem(valid_areas, sizeof(AREA_DATA*) * max_areas);
     return area;
 }
 
@@ -1337,7 +1282,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
 
                 //Container attributes
                 if (obj->item_type == ITEM_CONTAINER) {
-                    AREA_DATA *key_area = obj->value[2] > 0 ? find_area_by_vnum(obj->value[2]) : NULL;
+                    AREA_DATA *key_area = obj->value[2] > 0 ? find_area_by_vnum(obj->value[2], NULL) : NULL;
                     if (key_area == NULL && obj->value[2] > 0) key_area = get_system_area_fallback();
                     OBJ_INDEX_DATA *key = key_area ? get_obj_index(key_area, obj->value[2]) : NULL;
                     fprintf(fp, "%s[%ld]	%ld	%ld	%s	", key == NULL ? "None" : key->short_descr,
@@ -1607,7 +1552,8 @@ void generate_poa_resets( int level )
 
         reset = new_reset_data();
         reset->command = 'M';
-        reset->arg1    = mob->vnum; // Mob vnum
+        reset->arg1.wnum.pArea = area;
+        reset->arg1.wnum.vnum = mob->vnum; // Mob vnum
         if ( IS_SET( mob->act[1], ACT2_RESET_ONCE )
             || mob->vnum == area->max_vnum )
         reset->arg2 = 1;
@@ -1620,7 +1566,7 @@ void generate_poa_resets( int level )
         case 4: reset->arg2 = 45; break;
         case 5: reset->arg2 = 55; break;
         }
-        reset->arg3    = room->vnum;
+        reset->arg3.value = room->vnum;
         reset->arg4    = 1;
         add_reset( room, reset, 0 );
     }

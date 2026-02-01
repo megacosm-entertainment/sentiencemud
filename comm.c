@@ -35,19 +35,27 @@
  *                                                                         *
  **************************************************************************/
 
-/*
- * This file contains all of the OS-dependent stuff:
- *   startup, signals, BSD sockets for tcp/ip, i/o, timing.
+/**
+ * @file comm.c
+ * @brief Core communication and I/O handling for the MUD server
  *
- * The data flow for input is:
- *    Game_loop ---> Read_from_descriptor ---> Read
- *    Game_loop ---> Read_from_buffer
+ * This file contains all of the OS-dependent functionality including:
+ *   - Server startup, signals, and BSD sockets for TCP/IP
+ *   - Main game loop and timing
+ *   - Descriptor (connection) management
+ *   - Input/output processing with telnet, TLS, and WebSocket support
+ *   - Protocol negotiation (MCCP compression, MSP sound, GMCP)
  *
- * The data flow for output is:
- *    Game_loop ---> Process_Output ---> Write_to_descriptor -> Write
+ * Data flow for input:
+ *    game_loop() ---> read_from_descriptor() ---> read()
+ *    game_loop() ---> read_from_buffer()
  *
- * The OS-dependent functions are Read_from_descriptor and Write_to_descriptor.
- * -- Furey  26 Jan 1993
+ * Data flow for output:
+ *    game_loop() ---> process_output() ---> write_to_descriptor() -> write()
+ *
+ * The OS-dependent functions are read_from_descriptor() and write_to_descriptor().
+ *
+ * @note Original comment: -- Furey  26 Jan 1993
  */
 
 #include <sys/types.h>
@@ -118,37 +126,39 @@ extern void init_string_space();
 
 
 
-/*
- * Global variables.
+/**
+ * @name Global Variables
+ * @{
  */
-bool			is_test_port;
-bool			test_mode = false;    /* Run in test mode */
-char			test_pattern[256];  /* Test pattern to run */
-int 		    telnet_port;
-int				tls_port;
-int				websocket_port;
-GLOBAL_DATA         gconfig;		/* Vizz - UID Tracking, and any other persistent global config info */
-GAME_SETTINGS_DATA  game_settings;
-LLIST *conn_players;
-LLIST *conn_immortals;
-LLIST *conn_online;
-DESCRIPTOR_DATA *   descriptor_list;	/* All open descriptors		*/
-DESCRIPTOR_DATA *   d_next;		/* Next descriptor in loop	*/
-FILE *		    fpReserve;		/* Reserved file handle		*/
-bool		    god;		/* All new chars are gods!	*/
-bool		    merc_down;		/* Shutdown			*/
-bool		    wizlock;		/* Game is wizlocked		*/
-bool		    newlock;		/* Game is newlocked		*/
-char		    str_boot_time[MAX_INPUT_LENGTH];
-time_t		    current_time;	/* time of this pulse */
-time_t			stats_load_time;
-bool		    MOBtrigger = true;  /* act() switch                 */
-LLIST *loaded_areas;
-SSL_CTX *ctx;
-int ssl_errors_since_reset = 0;
-time_t last_ssl_error = 0;
-LLIST *ssl_ctx_cleanup_queue = NULL;
-bool it_debug = false;
+bool			is_test_port;           /**< True if running on test/dev port */
+bool			test_mode = false;      /**< True to run integration tests and exit */
+char			test_pattern[256];      /**< Test pattern filter (e.g., "unit", "wnum", "all") */
+int 		    telnet_port;            /**< Port for unencrypted telnet connections */
+int				tls_port;               /**< Port for TLS-encrypted connections */
+int				websocket_port;         /**< Port for WebSocket TLS connections */
+GLOBAL_DATA         gconfig;		    /**< Persistent global config (UID tracking, etc.) */
+GAME_SETTINGS_DATA  game_settings;      /**< Runtime game configuration settings */
+LLIST *conn_players;                    /**< List of connected player descriptors */
+LLIST *conn_immortals;                  /**< List of connected immortal descriptors */
+LLIST *conn_online;                     /**< List of all online descriptors */
+DESCRIPTOR_DATA *   descriptor_list;	/**< Head of linked list of all open descriptors */
+DESCRIPTOR_DATA *   d_next;		        /**< Next descriptor to process in game loop */
+FILE *		    fpReserve;		        /**< Reserved file handle for emergencies */
+bool		    god;		            /**< If true, all new chars are gods (debug mode) */
+bool		    merc_down;		        /**< If true, server is shutting down */
+bool		    wizlock;		        /**< If true, only immortals can connect */
+bool		    newlock;		        /**< If true, no new characters can be created */
+char		    str_boot_time[MAX_INPUT_LENGTH]; /**< Boot time as formatted string */
+time_t		    current_time;	        /**< Current time of this pulse */
+time_t			stats_load_time;        /**< Time when stats were last loaded */
+bool		    MOBtrigger = true;      /**< Controls whether act() triggers mob scripts */
+LLIST *loaded_areas;                    /**< List of all loaded areas */
+SSL_CTX *ctx;                           /**< Global OpenSSL context for TLS connections */
+int ssl_errors_since_reset = 0;         /**< SSL error counter for circuit breaker */
+time_t last_ssl_error = 0;              /**< Timestamp of last SSL error */
+LLIST *ssl_ctx_cleanup_queue = NULL;    /**< Queue of old SSL contexts awaiting cleanup */
+bool it_debug = false;                  /**< Integration test debug mode */
+/** @} */
 /*
  * OS-dependent local functions.
  */
@@ -185,6 +195,15 @@ char logfile_std[MIL];
 char logfile_err[MIL];
 
 
+/**
+ * RedirectSTDOUT - Redirect stdout to a timestamped log file
+ *
+ * Creates a new log file with the current timestamp and redirects stdout
+ * to it. Uses unbuffered output to ensure log entries are written immediately.
+ * Called during server startup before the game loop begins.
+ *
+ * Log files are named: LOG_DIR/sent_YYYY-MM-DD-HH:MM:SS.log
+ */
 static void RedirectSTDOUT(void)
 {
     FILE *newfp;
@@ -207,6 +226,14 @@ static void RedirectSTDOUT(void)
     printf("\n");
 }
 
+/**
+ * RedirectSTDERR - Redirect stderr to a timestamped error log file
+ *
+ * Creates a new error log file with the current timestamp and redirects
+ * stderr to it. Uses unbuffered output for immediate error logging.
+ *
+ * Error files are named: LOG_DIR/sent_YYYY-MM-DD-HH:MM:SS.err
+ */
 static void RedirectSTDERR(void)
 {
     FILE *newfp;
@@ -228,6 +255,11 @@ static void RedirectSTDERR(void)
     setbuf(stderr,NULL); /* No buffering*/
 }
 
+/**
+ * RedirectOutput - Redirect both stdout and stderr to log files
+ *
+ * Convenience function that calls RedirectSTDOUT() and RedirectSTDERR().
+ */
 static void RedirectOutput(void)
 {
     RedirectSTDOUT();
@@ -235,6 +267,12 @@ static void RedirectOutput(void)
 }
 
 
+/**
+ * CleanupSTDOUT - Close stdout log file and delete if empty
+ *
+ * Closes the current stdout log file and removes it from disk if it
+ * contains no output. Called during log rotation and server shutdown.
+ */
 static void CleanupSTDOUT(void)
 {
     FILE *file;
@@ -251,6 +289,12 @@ static void CleanupSTDOUT(void)
     }
 }
 
+/**
+ * CleanupSTDERR - Close stderr log file and delete if empty
+ *
+ * Closes the current stderr error log file and removes it from disk if
+ * it contains no output. Called during log rotation and server shutdown.
+ */
 static void CleanupSTDERR(void)
 {
     FILE *file;
@@ -268,12 +312,25 @@ static void CleanupSTDERR(void)
 }
 
 
+/**
+ * CleanupLogs - Clean up both stdout and stderr log files
+ *
+ * Convenience function that calls CleanupSTDOUT() and CleanupSTDERR().
+ * Called during server shutdown.
+ */
 static void CleanupLogs(void)
 {
     CleanupSTDOUT();
     CleanupSTDERR();
 }
 
+/**
+ * check_logfile - Rotate log files if they exceed max size
+ *
+ * Checks if either stdout or stderr log files have exceeded the configured
+ * max_logfile_size. If so, closes the current file and opens a new one with
+ * a fresh timestamp. Called once per game loop iteration.
+ */
 static void check_logfile(void)
 {
     if(ftell(stdout) > game_settings.max_logfile_size) {
@@ -287,6 +344,25 @@ static void check_logfile(void)
     }
 }
 
+/**
+ * parse_options - Parse command-line arguments for the server
+ *
+ * Parses command-line arguments to configure server startup options.
+ * Sets global flags based on the arguments provided.
+ *
+ * Supported options:
+ *   [port]      - Numeric port number (must be > 1024)
+ *   -N          - Start with newlock enabled (no new character creation)
+ *   -T          - Start in test port mode
+ *   -W          - Start with wizlock enabled (immortals only)
+ *   -test       - Run integration tests and exit
+ *   -test:pat   - Run only tests matching pattern (unit, wnum, all)
+ *   -?          - Show usage (returns false to trigger help display)
+ *
+ * @param argc  Argument count from main()
+ * @param argv  Argument vector from main()
+ * @return      true on successful parse, false on error or help request
+ */
 bool parse_options(int argc, char **argv)
 {
     int i;
@@ -357,6 +433,16 @@ bool parse_options(int argc, char **argv)
     return true;
 }
 
+/**
+ * detect_test_mode_args - Early detection of test mode from arguments
+ *
+ * Scans command-line arguments for -test flag before full parsing.
+ * This allows test mode to be detected early so logging can be configured
+ * appropriately before boot_db() runs.
+ *
+ * @param argc  Argument count from main()
+ * @param argv  Argument vector from main()
+ */
 static void detect_test_mode_args(int argc, char **argv)
 {
     int i;
@@ -381,6 +467,28 @@ static void detect_test_mode_args(int argc, char **argv)
 }
 
 
+/**
+ * main - Server entry point
+ *
+ * Initializes all server subsystems and enters the main game loop.
+ * Performs the following sequence:
+ *   1. Initialize logging system
+ *   2. Detect test mode from arguments
+ *   3. Create global lists (gc_mobiles, gc_objects, conn_players, etc.)
+ *   4. Initialize string space and time
+ *   5. Load game settings
+ *   6. Parse command-line options
+ *   7. Initialize network sockets (telnet, TLS, WebSocket)
+ *   8. Initialize Redis cache (optional)
+ *   9. Load database (boot_db)
+ *   10. Run integration tests if in test mode
+ *   11. Enter game_loop
+ *   12. Clean up and shutdown on exit
+ *
+ * @param argc  Argument count
+ * @param argv  Argument vector
+ * @return      0 on normal termination, non-zero on error or test failure
+ */
 int main(int argc, char **argv)
 {
     int rc = log_init(ZLOG_CONF);
@@ -752,6 +860,18 @@ int main(int argc, char **argv)
     return 0;
 }
 
+/**
+ * init_socket - Initialize a TCP listening socket
+ *
+ * Creates and configures a TCP socket for accepting telnet connections.
+ * Sets SO_REUSEADDR to allow quick server restarts and SO_DONTLINGER
+ * to avoid lingering on close.
+ *
+ * @param port  Port number to bind to (must be > 1024)
+ * @return      File descriptor of the listening socket
+ *
+ * @note Exits the process on failure (socket/bind/listen errors are fatal)
+ */
 int init_socket(int port)
 {
     static struct sockaddr_in sa_zero;
@@ -812,6 +932,18 @@ int init_socket(int port)
     return fd;
 }
 
+/**
+ * init_tls_socket - Initialize a TLS listening socket
+ *
+ * Creates and configures a TCP socket for TLS connections. Also initializes
+ * the OpenSSL library and creates the global SSL context with configured
+ * certificates.
+ *
+ * @param port  Port number to bind to (must be > 1024)
+ * @return      File descriptor of the listening socket
+ *
+ * @note Exits the process on failure. SSL context is stored in global 'ctx'.
+ */
 int init_tls_socket(int port)
 {
     static struct sockaddr_in sa_zero;
@@ -882,6 +1014,28 @@ int init_tls_socket(int port)
     return fd;
 }
 
+/**
+ * game_loop - Main server loop
+ *
+ * The heart of the MUD server. Runs continuously until merc_down is set.
+ * Each iteration performs:
+ *   1. Select on all file descriptors (control sockets + client descriptors)
+ *   2. Accept new connections on control sockets
+ *   3. Process pending TLS/WebSocket handshakes with timeout
+ *   4. Kick out connections with exceptions
+ *   5. Read input from all ready descriptors
+ *   6. Process commands from input buffers
+ *   7. Run update_handler() for game world updates
+ *   8. Write output to all ready descriptors
+ *   9. Check for idle/timeout connections
+ *   10. Sleep to maintain PULSE_PER_SECOND timing
+ *   11. Run garbage collection
+ *   12. Check log file rotation
+ *
+ * @param control_telnet     File descriptor for telnet listening socket
+ * @param control_tls        File descriptor for TLS listening socket
+ * @param control_websocket  File descriptor for WebSocket listening socket
+ */
 void game_loop(int control_telnet, int control_tls, int control_websocket)
 {
     static struct timeval null_time;
@@ -1271,6 +1425,24 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
 }
 
 
+/**
+ * init_descriptor - Accept a new connection and create descriptor
+ *
+ * Accepts a new connection from one of the listening sockets and creates
+ * a DESCRIPTOR_DATA for it. Determines connection type (TCP, TLS, WebSocket)
+ * based on which control socket triggered. Sets up:
+ *   - Connection abstraction layer
+ *   - Protocol negotiation layer
+ *   - Legacy SSL fields for backwards compatibility
+ *   - Host name resolution
+ *   - Ban checking
+ *   - Greeting display (deferred for WebSocket until handshake completes)
+ *
+ * @param control            The control socket that received the connection
+ * @param control_telnet     Telnet control socket (for comparison)
+ * @param control_tls        TLS control socket (for comparison)
+ * @param control_websocket  WebSocket control socket (for comparison)
+ */
 void init_descriptor(int control, int control_telnet, int control_tls, int control_websocket)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1414,6 +1586,23 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
 }
 
 
+/**
+ * close_socket - Close a connection and clean up descriptor
+ *
+ * Performs a clean shutdown of a connection:
+ *   - Flushes any pending output
+ *   - Logs disconnection for playing characters
+ *   - Notifies room of link loss if playing
+ *   - Frees character data (or leaves link-dead for reconnect)
+ *   - Removes from descriptor_list
+ *   - Ends MCCP compression if active
+ *   - Destroys protocol handlers
+ *   - Closes connection (TLS shutdown, socket close)
+ *   - Decrements account refcount and frees if zero
+ *   - Frees the descriptor structure
+ *
+ * @param dclose  The descriptor to close
+ */
 void close_socket(DESCRIPTOR_DATA *dclose)
 {
     CHAR_DATA *ch;
@@ -1516,6 +1705,19 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 }
 
 
+/**
+ * read_from_descriptor - Read raw data from a connection
+ *
+ * Reads available data from the connection into the input buffer.
+ * Uses the connection abstraction layer (connection_read) for TLS/WebSocket
+ * transparency. Also handles:
+ *   - Input overflow detection
+ *   - Health check requests (responds with "OK" and marks for close)
+ *   - Protocol processing via ProtocolInput (telnet negotiation, etc.)
+ *
+ * @param d  The descriptor to read from
+ * @return   true if read succeeded (may have no data), false on error/disconnect
+ */
 bool read_from_descriptor(DESCRIPTOR_DATA *d)
 {
     int iStart;
@@ -1607,8 +1809,20 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 }
 
 
-/*
- * Transfer one line from input buffer to input line.
+/**
+ * read_from_buffer - Extract one command line from input buffer
+ *
+ * Transfers one line from d->inbuf to d->incomm for processing.
+ * Performs canonical input processing:
+ *   - Waits for newline before extracting
+ *   - Handles backspace character
+ *   - Filters non-printable characters
+ *   - Enforces MAX_INPUT_LENGTH limit
+ *   - Detects spam/repeat abuse (100+ repeats triggers auto-quit)
+ *   - Implements '!' for last command repeat
+ *   - Shifts remaining data in input buffer
+ *
+ * @param d  The descriptor to process
  */
 void read_from_buffer(DESCRIPTOR_DATA *d)
 {
@@ -1742,8 +1956,20 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 }
 
 
-/*
- * Low level output function.
+/**
+ * process_output - Process and send output buffer to connection
+ *
+ * Handles output processing for a descriptor:
+ *   - Sends pager continuation prompt if in paging mode
+ *   - Sends string editor prompt if editing
+ *   - Generates and sends player prompt if playing (bust_a_prompt)
+ *   - Displays battle prompt with enemy health
+ *   - Sends appropriate prompts for login states
+ *   - Writes the accumulated output buffer to the connection
+ *
+ * @param d        The descriptor to send output for
+ * @param fPrompt  If true, add appropriate prompt to output
+ * @return         true on success, false if write failed (connection error)
  */
 bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 {
@@ -1944,9 +2170,44 @@ else if (fPrompt && !d->showstr_point && !d->pString)
 }
 
 
-/*
- * Bust a prompt (player settable prompt)
- * coded by Morgenes for Aldara Mud
+/**
+ * bust_a_prompt - Generate and send player-customizable prompt
+ *
+ * Parses the player's prompt string and substitutes variables:
+ *   %h/%H  - Current/max hit points (color-coded)
+ *   %m/%M  - Current/max mana (color-coded)
+ *   %v/%V  - Current/max movement (color-coded)
+ *   %x/%X  - Experience/exp to next level
+ *   %q/%Q  - Quest points/quests completed
+ *   %g/%s  - Gold/silver
+ *   %p/%t  - Practice/train sessions
+ *   %P     - Pneuma
+ *   %b     - Bank balance
+ *   %a     - Alignment (numeric or good/neutral/evil)
+ *   %r/%R  - Room name/vnum (R shows wilds coords for immortals)
+ *   %z     - Zone name (immortals only)
+ *   %e     - Available exits
+ *   %o/%O  - OLC editor name/vnum
+ *   %w/%W  - Current/max carry weight
+ *   %i/%I  - Current/max carry items
+ *   %C     - Coin weight
+ *   %c     - Newline
+ *   %+     - Server description
+ *   %-     - Connection security indicator
+ *   %_     - Character name
+ *   %%     - Literal percent sign
+ *   %<x>   - Script variable lookup
+ *
+ * Also displays status indicators: [WRITING NOTE], [MAIL], [NOTE], etc.
+ *
+ * Originally coded by Morgenes for Aldara Mud.
+ *
+ * @param ch  The character to generate the prompt for
+ *
+ * @refactor Consider supporting named field syntax in addition to shortcuts.
+ *           For example: %cur_hp, %max_hp, %cur_mana, %max_mana, etc.
+ *           This would improve readability and allow for more fields without
+ *           running out of single-character codes.
  */
 void bust_a_prompt(CHAR_DATA *ch)
 {
@@ -2263,8 +2524,20 @@ void bust_a_prompt(CHAR_DATA *ch)
 }
 
 
-/*
- * Append onto an output buffer.
+/**
+ * write_to_buffer - Append text to descriptor's output buffer
+ *
+ * Queues text for later transmission. The buffer accumulates output until
+ * process_output() sends it. Handles:
+ *   - Protocol output processing (color codes, telnet escaping)
+ *   - Automatic length calculation if not provided
+ *   - Initial newline injection for fresh output
+ *   - Dynamic buffer expansion (doubles up to 128KB max)
+ *   - Buffer overflow protection (closes socket on overflow)
+ *
+ * @param d       The descriptor to write to
+ * @param txt     The text to append
+ * @param length  Length of text, or 0 to auto-calculate
  */
 void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
 {
@@ -2319,11 +2592,20 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
 }
 
 
-/*
- * Lowest level output function.
- * Write a block of text to the file descriptor.
- * If this gives errors on very long blocks (like 'ofind all'),
- *   try lowering the max block size.
+/**
+ * write_to_descriptor_2 - Low-level output function
+ *
+ * Writes a block of text directly to the connection. This is the lowest
+ * level output function that actually transmits data. Uses the connection
+ * abstraction layer for TLS/WebSocket transparency. Writes in 4KB blocks
+ * to avoid issues with very long outputs.
+ *
+ * If compression is active, delegates to writeCompressed() instead.
+ *
+ * @param d       The descriptor to write to
+ * @param txt     The text to write
+ * @param length  Length of text to write
+ * @return        true on success, false on connection error
  */
 bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
 {
@@ -2369,7 +2651,18 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
 }
 
 
-/* mccp: write_to_descriptor wrapper */
+/**
+ * write_to_descriptor - Write text to descriptor with compression support
+ *
+ * Wrapper around write_to_descriptor_2 that handles MCCP compression.
+ * If compression is enabled for the descriptor, uses writeCompressed().
+ * Otherwise falls through to write_to_descriptor_2().
+ *
+ * @param d       The descriptor to write to
+ * @param txt     The text to write
+ * @param length  Length of text to write
+ * @return        true on success, false on connection error
+ */
 bool write_to_descriptor(DESCRIPTOR_DATA *d, char *txt, int length)
 {
     if (d->out_compress)
@@ -2485,8 +2778,20 @@ void join_world(DESCRIPTOR_DATA * d)
 
 
 
-/*
- * Parse a name for acceptability.
+/**
+ * check_parse_name - Validate a character name for acceptability
+ *
+ * Performs comprehensive validation of a proposed character name:
+ *   - Rejects reserved words (sentience, all, auto, self, someone, etc.)
+ *   - Enforces length limits (3-12 characters)
+ *   - Requires alphabetic characters only
+ *   - Rejects names with only I and L (anti-lll twit check)
+ *   - Prevents excessive capitalization
+ *   - Prevents naming after existing mob names
+ *   - Detects and disconnects duplicate newbie attempts
+ *
+ * @param name  The name to validate
+ * @return      true if name is acceptable, false otherwise
  */
 bool check_parse_name(char *name)
 {
@@ -2618,8 +2923,24 @@ CHAR_DATA *find_existing_player(char *name)
 }
 */
 
-/*
- * Look for link-dead player to reconnect.
+/**
+ * check_reconnect - Check for and handle reconnection to link-dead character
+ *
+ * Searches for an existing character with the given name that is link-dead
+ * (in loaded_chars but without a descriptor). If found:
+ *   - Sets up reconnect_ch pointer
+ *   - Determines authentication requirements (MFA, password)
+ *   - Either completes reconnection immediately or prompts for auth
+ *
+ * Authentication is required for:
+ *   - Staff characters when require_2fa_staff is enabled
+ *   - Characters with MFA configured
+ *   - Characters with passwords set
+ *
+ * @param d      The descriptor attempting to reconnect
+ * @param name   The character name to check
+ * @param fConn  If true, actually perform the reconnection; if false, just check
+ * @return       true if character found (reconnecting), false otherwise
  */
 bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 {
@@ -2719,10 +3040,28 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
     return true;
 }
 
+/**
+ * complete_reconnect - Finish reconnection after authentication
+ *
+ * Called after successful authentication to complete the reconnection
+ * process. Performs:
+ *   - Frees temporary character from login if different from reconnect target
+ *   - Links descriptor to the reconnecting character
+ *   - Clears reconnection flags
+ *   - Resets inactivity timer
+ *   - Sets playing state
+ *   - Places character if not in a room
+ *   - Announces reconnection to room
+ *   - Logs reconnection
+ *   - Sends MXP version tag
+ *   - Shows room description
+ *
+ * @param d  The descriptor that completed authentication
+ */
 void complete_reconnect(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch;
-    
+
     if (!d->reconnect_ch || !d->reconnecting) {
         log_message(LOG_LEVEL_BUG, LOG_ERROR, "complete_reconnect: Missing reconnect_ch or reconnecting flag");
         return;
@@ -2775,6 +3114,21 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     do_function(ch, &do_look, "auto");
 }
 
+/**
+ * reconnect_char - Alternative reconnection handler for existing connections
+ *
+ * Handles reconnection when the character is already linked to a descriptor.
+ * Used when taking over an existing connection. Performs:
+ *   - Socket health check for long-idle connections
+ *   - Token relationship fixup (ltokens to tokens linked list)
+ *   - Sets playing state
+ *   - Announces reconnection
+ *   - Logs reconnection
+ *   - Updates protocol settings
+ *   - Adds connection to tracking lists
+ *
+ * @param d  The descriptor reconnecting
+ */
 void reconnect_char(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
@@ -2836,8 +3190,16 @@ if (ch && ch->desc) {
     connection_add(d);
 }
 
-/*
- * Check if already playing.
+/**
+ * check_playing - Check if character name is already connected
+ *
+ * Searches all descriptors for an existing connection with the given
+ * character name. If found, prompts the user to confirm taking over
+ * the existing connection.
+ *
+ * @param d     The new descriptor attempting to login
+ * @param name  The character name to check
+ * @return      true if character found (prompting for takeover), false otherwise
  */
 bool check_playing(DESCRIPTOR_DATA *d, char *name)
 {
@@ -2863,6 +3225,19 @@ bool check_playing(DESCRIPTOR_DATA *d, char *name)
 }
 
 
+/**
+ * stop_idling - Return an idle character from limbo to their previous room
+ *
+ * When a character idles too long, they are moved to limbo and their
+ * previous location is saved in was_in_room. This function returns them
+ * when they send any input. Handles:
+ *   - Regular rooms
+ *   - Instance/clone rooms (validates room ID matches)
+ *   - Wilderness virtual rooms
+ *   - Announces return to the room
+ *
+ * @param ch  The character who has stopped idling
+ */
 void stop_idling(CHAR_DATA *ch)
 {
     if (ch == NULL ||
@@ -2903,8 +3278,14 @@ void stop_idling(CHAR_DATA *ch)
 }
 
 
-/*
- * Write to one char.
+/**
+ * send_to_char_bw - Send text to a character without color processing
+ *
+ * Writes text directly to the character's descriptor without any color
+ * code interpretation. Used for raw output.
+ *
+ * @param txt  The text to send
+ * @param ch   The character to send to
  */
 void send_to_char_bw(const char *txt, CHAR_DATA *ch)
 {
@@ -2913,16 +3294,24 @@ void send_to_char_bw(const char *txt, CHAR_DATA *ch)
         write_to_buffer(ch->desc, txt, strlen(txt));
 }
 
-/*
- * Write to one char, new colour version, by Lope.
+/**
+ * send_to_char - Send text to a character with color support
+ *
+ * Sends text to the character's descriptor. If the character has color
+ * enabled (PLR_COLOUR), color codes are processed. Otherwise, color
+ * codes are stripped using nocolour().
+ *
+ * Color version by Lope.
+ *
+ * @param txt  The text to send (may contain {x color codes)
+ * @param ch   The character to send to
  */
-
 void send_to_char( const char *txt, CHAR_DATA *ch )
 {
     if ( txt != NULL && ch->desc != NULL )
     {
         if (IS_SET(ch->act[0], PLR_COLOUR))
-        {	
+        {
             write_to_buffer( ch->desc, txt, strlen(txt) );
         }
         else
@@ -3063,8 +3452,15 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 }
 */
 
-/*
- * Send a page to one char.
+/**
+ * page_to_char_bw - Send pageable text to a character without color
+ *
+ * Sends text that can be paged through if it exceeds the character's
+ * line limit. If lines == 0, sends all at once. Otherwise, uses the
+ * pager (show_string) for "[Hit Return to continue]" prompts.
+ *
+ * @param txt  The text to page
+ * @param ch   The character to send to
  */
 void page_to_char_bw(const char *txt, CHAR_DATA *ch)
 {
@@ -3083,6 +3479,18 @@ void page_to_char_bw(const char *txt, CHAR_DATA *ch)
     show_string(ch->desc,"");
 }
 
+/**
+ * page_to_char - Send pageable text to a character with color support
+ *
+ * Sends text that can be paged through if it exceeds the character's
+ * line limit. If lines == 0, sends all at once. Otherwise, uses the
+ * pager (show_string) for "[Hit Return to continue]" prompts.
+ *
+ * Color version by Lope.
+ *
+ * @param txt  The text to page (may contain color codes)
+ * @param ch   The character to send to
+ */
 void page_to_char(const char *txt, CHAR_DATA *ch)
 {
     if (txt == NULL || ch->desc == NULL)
@@ -3199,7 +3607,18 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 */
 
 
-/* string pager */
+/**
+ * show_string - Display paginated text one screen at a time
+ *
+ * Implements the string pager for long outputs. Shows lines up to the
+ * character's configured line limit, then waits for input to continue.
+ * Any non-empty input cancels the pager and frees the text.
+ *
+ * Respects the character's PLR_COLOUR setting for output.
+ *
+ * @param d      The descriptor showing the paged text
+ * @param input  User input (empty to continue, non-empty to cancel)
+ */
 void show_string(struct descriptor_data *d, char *input)
 {
     char *buffer;
@@ -3262,6 +3681,51 @@ void show_string(struct descriptor_data *d, char *input)
 }
 
 
+/**
+ * act_new - Send formatted action message to characters in a room
+ *
+ * The core messaging function for actions in the game world. Formats a
+ * message with variable substitution and sends it to appropriate recipients
+ * based on the type parameter.
+ *
+ * Variable substitutions:
+ *   $n/$N  - Actor/victim short name (visibility-aware)
+ *   $$n    - Actor name (always visible, for high-level chars)
+ *   $e/$E  - Actor/victim he/she/they
+ *   $m/$M  - Actor/victim him/her/them
+ *   $s/$S  - Actor/victim his/her/their
+ *   $v     - Third character (vch2) name
+ *   $z/$Z  - Actor/victim verb form
+ *   $p/$P  - First/second object short description
+ *   $t/$T  - String arguments (arg1/arg2)
+ *   $d     - Door keyword from arg2
+ *
+ * Type values:
+ *   TO_CHAR     - Send only to actor
+ *   TO_VICT     - Send only to victim
+ *   TO_ROOM     - Send to room except actor
+ *   TO_NOTVICT  - Send to room except actor and victim
+ *   TO_THIRD    - Send only to vch2
+ *   TO_NOTTHIRD - Send to room except actor, victim, and vch2
+ *   TO_FUNC     - Send to chars passing char_func test
+ *   TO_NOTFUNC  - Send to chars failing char_func test
+ *
+ * Also triggers TRIG_ACT scripts on mobs and objects in the room.
+ *
+ * @param format     Format string with $ substitutions
+ * @param ch         Actor character
+ * @param vch        Victim character (optional)
+ * @param vch2       Third character (optional)
+ * @param ch_verb    Verb form for actor (used with $z)
+ * @param vch_verb   Verb form for victim (used with $Z)
+ * @param obj1       First object (optional)
+ * @param obj2       Second object (optional)
+ * @param arg1       First string argument (optional)
+ * @param arg2       Second string argument (optional)
+ * @param type       Recipient type (TO_CHAR, TO_ROOM, etc.)
+ * @param min_pos    Minimum position to receive message
+ * @param char_func  Filter function for TO_FUNC/TO_NOTFUNC (optional)
+ */
 void act_new(char *format, CHAR_DATA *ch,
         CHAR_DATA *vch, CHAR_DATA *vch2,
         const char *ch_verb, const char *vch_verb, /* These are already const char* */
@@ -3607,6 +4071,17 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
     }
 }
 */
+
+/**
+ * printf_to_char - Send formatted text to a character
+ *
+ * Convenience function combining sprintf and send_to_char.
+ * Uses printf-style format string and variable arguments.
+ *
+ * @param ch   The character to send to
+ * @param fmt  Printf-style format string
+ * @param ...  Variable arguments for format
+ */
 void printf_to_char (CHAR_DATA * ch, char *fmt, ...)
 {
     char buf[MSL];
@@ -3619,6 +4094,18 @@ void printf_to_char (CHAR_DATA * ch, char *fmt, ...)
 }
 
 
+/**
+ * stptok - String tokenizer with multiple break characters
+ *
+ * Extracts a token from a string, stopping at any character in brk.
+ * Similar to strtok but doesn't modify the source string.
+ *
+ * @param s       Source string to tokenize
+ * @param tok     Buffer to store extracted token
+ * @param toklen  Size of token buffer
+ * @param brk     String of break characters
+ * @return        Pointer to next character after break, or NULL if done
+ */
 char *stptok(const char *s, char *tok, size_t toklen, char *brk)
 {
     char *lim, *b;
@@ -3655,7 +4142,14 @@ char *stptok(const char *s, char *tok, size_t toklen, char *brk)
 }
 
 
-/* echo at a room */
+/**
+ * room_echo - Send a message to all players in a room
+ *
+ * Sends the message to all non-NPC characters in the specified room.
+ *
+ * @param pRoom    The room to echo to
+ * @param message  The message to send
+ */
 void room_echo(ROOM_INDEX_DATA *pRoom, char *message)
 {
     CHAR_DATA *ch;
@@ -3670,7 +4164,15 @@ void room_echo(ROOM_INDEX_DATA *pRoom, char *message)
 }
 
 
-/* echo around a room */
+/**
+ * echo_around - Send a message to all rooms adjacent to a room
+ *
+ * Sends the message to all players in rooms connected by exits
+ * to the specified room. Useful for distant sounds or effects.
+ *
+ * @param pRoom    The center room (message goes to adjacent rooms)
+ * @param message  The message to send
+ */
 void echo_around(ROOM_INDEX_DATA *pRoom, char *message)
 {
     EXIT_DATA *pexit;
@@ -3688,7 +4190,19 @@ void echo_around(ROOM_INDEX_DATA *pRoom, char *message)
 }
 
 
-/* show state of formation, used in battle prompt */
+/**
+ * show_form_state - Display group member health in battle prompt
+ *
+ * Shows the health status of all group members in the same room.
+ * Displays name and health percentage with color coding:
+ *   - Red: Below 50% health
+ *   - Green: 50-67% health
+ *   - Normal: Above 67% health
+ *
+ * Displayed when COMM_SHOW_FORM_STATE is set.
+ *
+ * @param ch  The character viewing the formation state
+ */
 void show_form_state(CHAR_DATA *ch)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3728,6 +4242,22 @@ void show_form_state(CHAR_DATA *ch)
 }
 
 
+/**
+ * acceptablePassword - Validate password strength requirements
+ *
+ * Checks that a password meets minimum security requirements:
+ *   - At least 5 characters long
+ *   - Contains at least one lowercase letter
+ *   - Contains at least one uppercase letter
+ *   - Contains at least one digit
+ *   - Does not contain tilde (~) character
+ *
+ * Sends appropriate error message to descriptor if validation fails.
+ *
+ * @param d     The descriptor (for error messages)
+ * @param pass  The password to validate
+ * @return      true if password is acceptable, false otherwise
+ */
 bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass)
 {
     bool lower = false;
@@ -3787,7 +4317,35 @@ bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass)
 }
 
 
-/* Count down PC timers.*/
+/**
+ * update_pc_timers - Decrement and process player action timers
+ *
+ * Called each pulse for connected players. Decrements various action
+ * timers and triggers completion handlers when they reach zero:
+ *   - daze: Stun/daze cooldown
+ *   - cast: Spell casting (triggers cast_end)
+ *   - bind: Wound binding (triggers bind_end)
+ *   - bomb: Bomb making (triggers bomb_end)
+ *   - bashed: Knocked down recovery (auto-stand)
+ *   - resurrect: Resurrection spell (triggers resurrect_end)
+ *   - brew: Potion brewing (triggers brew_end)
+ *   - pk_timer: PvP cooldown
+ *   - recite: Scroll recitation (triggers recite_end)
+ *   - paroxysm: Paralysis effect
+ *   - panic: Fear effect (triggers flee attempt)
+ *   - repair: Item repair (triggers repair_end)
+ *   - no_recall: Recall prevention
+ *   - hide: Hiding attempt (triggers hide_end)
+ *   - fade: Fading effect (triggers fade_end)
+ *   - reverie: Meditation (triggers reverie_end)
+ *   - trance: Deep meditation (triggers trance_end)
+ *   - scribe: Scroll scribing (triggers scribe_end)
+ *   - inking: Tattoo inking (triggers ink_end)
+ *   - music: Playing music (triggers music_end)
+ *   - script_wait: Script delay (triggers script_end_success/pulse)
+ *   - ranged: Ranged aiming (triggers ranged_end)
+ *   - hunting: Auto-hunt movement
+ */
 void update_pc_timers(CHAR_DATA *ch)
 {
     if (ch != NULL && ch->daze > 0)
@@ -4001,6 +4559,15 @@ void update_pc_timers(CHAR_DATA *ch)
 }
 
 
+/**
+ * add_possible_races - Append available race names to a string
+ *
+ * Appends a formatted list of starting races that match the character's
+ * alignment. Used during character creation to show valid race choices.
+ *
+ * @param ch      The character being created (for alignment check)
+ * @param string  The string to append race list to
+ */
 void add_possible_races(CHAR_DATA *ch, char *string)
 {
     char buf[MSL];
@@ -4029,6 +4596,16 @@ void add_possible_races(CHAR_DATA *ch, char *string)
 }
 
 
+/**
+ * add_possible_subclasses - Append available subclass names to a string
+ *
+ * Appends a formatted list of non-remort subclasses that match the
+ * character's current class and alignment. Used during character creation
+ * to show valid subclass choices.
+ *
+ * @param ch      The character being created
+ * @param string  The string to append subclass list to
+ */
 void add_possible_subclasses(CHAR_DATA *ch, char *string)
 {
     char buf[MSL];
@@ -4070,6 +4647,19 @@ void add_possible_subclasses(CHAR_DATA *ch, char *string)
 }
 
 
+/**
+ * connection_add - Add a descriptor to connection tracking lists
+ *
+ * Adds the descriptor to the appropriate tracking lists based on the
+ * character type:
+ *   - conn_immortals: For immortal characters
+ *   - conn_players: For mortal characters
+ *   - conn_online: For all connected characters
+ *
+ * Uses the original character if switched (possessed mob).
+ *
+ * @param d  The descriptor to add
+ */
 void connection_add(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch;
@@ -4087,6 +4677,14 @@ void connection_add(DESCRIPTOR_DATA *d)
     }
 }
 
+/**
+ * connection_remove - Remove a descriptor from connection tracking lists
+ *
+ * Removes the descriptor from the tracking lists it was added to by
+ * connection_add(). Called during disconnect.
+ *
+ * @param d  The descriptor to remove
+ */
 void connection_remove(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch;
@@ -4104,9 +4702,13 @@ void connection_remove(DESCRIPTOR_DATA *d)
     }
 }
 
-/*
- * Initialize the SSL cleanup queue
- * Call this during boot sequence
+/**
+ * init_ssl_cleanup_queue - Initialize the SSL context cleanup queue
+ *
+ * Creates the list used to track old SSL contexts awaiting cleanup.
+ * Must be called during boot sequence before any SSL contexts are created.
+ *
+ * @note Exits the process on failure (memory allocation error).
  */
 void init_ssl_cleanup_queue(void)
 {
@@ -4117,41 +4719,55 @@ void init_ssl_cleanup_queue(void)
     }
 }
 
-/*
- * Add an SSL context to the cleanup queue
+/**
+ * SSL_CLEANUP_DATA - Structure for tracking SSL contexts pending cleanup
  */
 typedef struct ssl_cleanup_data {
-    SSL_CTX *ctx;
-    time_t time_added;
+    SSL_CTX *ctx;        /**< The SSL context to be freed */
+    time_t time_added;   /**< When the context was added to cleanup queue */
 } SSL_CLEANUP_DATA;
 
+/**
+ * add_ssl_ctx_to_cleanup - Queue an old SSL context for deferred cleanup
+ *
+ * Adds an SSL context to the cleanup queue instead of freeing it immediately.
+ * This allows existing connections using the old context to complete naturally
+ * before the context is freed.
+ *
+ * @param old_ctx  The SSL context to queue for cleanup
+ */
 void add_ssl_ctx_to_cleanup(SSL_CTX *old_ctx)
 {
     if (!old_ctx)
         return;
-        
+
     SSL_CLEANUP_DATA *data;
-    
+
     data = (SSL_CLEANUP_DATA *)malloc(sizeof(SSL_CLEANUP_DATA));
     data->ctx = old_ctx;
     data->time_added = current_time;
-    
+
     list_appendlink(ssl_ctx_cleanup_queue, data);
     log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "SSL context added to cleanup queue");
 }
 
-/*
- * Process the SSL context cleanup queue
- * Free contexts that have been in the queue for sufficient time
+/**
+ * process_ssl_cleanup_queue - Free old SSL contexts that have aged out
+ *
+ * Iterates through the cleanup queue and frees any SSL contexts that have
+ * been queued for more than 5 minutes. This ensures no active connections
+ * are still using the context before it's freed.
+ *
+ * Called periodically from the game loop.
  */
 void process_ssl_cleanup_queue(void)
 {
     SSL_CLEANUP_DATA *data;
     ITERATOR it;
-    
+
     if (list_size(ssl_ctx_cleanup_queue) == 0)
         return;
-        
+
     iterator_start(&it, ssl_ctx_cleanup_queue);
     while ((data = (SSL_CLEANUP_DATA *)iterator_nextdata(&it))) {
         // Wait 5 minutes before freeing contexts to ensure no active connections
@@ -4165,18 +4781,25 @@ void process_ssl_cleanup_queue(void)
     iterator_stop(&it);
 }
 
-/*
- * Updated SSL context refresh function
- * Uses the cleanup queue for safe context disposal
+/**
+ * refresh_ssl_context - Reload SSL certificates and create fresh context
+ *
+ * Creates a new SSL context with reloaded certificates, replacing the old
+ * one. The old context is queued for deferred cleanup. Triggered by:
+ *   - Hourly automatic refresh
+ *   - SSL error circuit breaker (5+ errors since last refresh)
+ *
+ * This allows certificate updates without server restart and helps recover
+ * from transient SSL errors.
  */
 void refresh_ssl_context(void)
 {
     static time_t last_refresh = 0;
-    
+
     // Refresh once per hour by default, or when circuit breaker triggers
     if (current_time - last_refresh < 3600 && ssl_errors_since_reset < 5)
         return;
-        
+
     log_message(LOG_LEVEL_INFO, LOG_INFO, "Refreshing SSL context...");
 
     // Create new context
@@ -4192,17 +4815,17 @@ void refresh_ssl_context(void)
         SSL_CTX_free(new_ctx);
         return;
     }
-    
+
     // Store the old context for cleanup
     SSL_CTX *old_ctx = ctx;
-    
+
     // Replace the old context
     ctx = new_ctx;
-    
+
     // Add the old context to the cleanup queue
     if (old_ctx)
         add_ssl_ctx_to_cleanup(old_ctx);
-    
+
     last_refresh = current_time;
     ssl_errors_since_reset = 0;
     log_message(LOG_LEVEL_INFO, LOG_INFO, "SSL context refreshed successfully");

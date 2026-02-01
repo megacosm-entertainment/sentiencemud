@@ -33,6 +33,31 @@ void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban);
 void do_chat_show(CHAR_DATA *ch, char *argument);
 
 
+/**
+ * do_chat - Main chat room system command dispatcher
+ *
+ * Entry point for all chat room commands. The chat system is a "social"
+ * dimension where players can create and join virtual chat rooms while
+ * their characters are stored in a safe location.
+ *
+ * Subcommands:
+ * - enter       : Enter the chat dimension from a safe room
+ * - exit        : Return to the game world
+ * - list        : List all available chat rooms
+ * - show [room] : Show details about a chat room
+ * - join <room> [password] : Join a specific chat room
+ * - create <name> <max> [password] : Create a temporary chat room
+ * - permcreate  : (Immortal) Create a permanent chat room
+ * - topic <text>: Set the chat room topic (ops only)
+ * - delete      : Delete a chat room (creator only)
+ * - op [name]   : Add/remove operators, or list current ops
+ * - kick <name> : Kick a player from the chat room (ops only)
+ * - password    : Change the room password (ops only)
+ * - setfounder  : (Staff) Change chat room ownership
+ *
+ * @param ch        Character using the chat command
+ * @param argument  Subcommand and arguments
+ */
 void do_chat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -146,6 +171,28 @@ send_to_char("Valid commands are:\n\r"
 }
 
 
+/**
+ * do_chat_enter - Transport player into the chat dimension
+ *
+ * Moves a player from the game world into the chat lobby. The player's
+ * original location is saved for return via do_chat_exit.
+ *
+ * Entry requirements:
+ * - Must not already be in chat (IS_SOCIAL)
+ * - Must be at the area's recall point in a ROOM_SAFE room
+ * - Must not be in combat
+ * - Must not have no_recall timer active (unless immortal)
+ * - Cannot enter from Maze areas
+ *
+ * Side effects:
+ * - Saves before_social location for return
+ * - Purges tokens with TOKEN_PURGE_RIFT flag
+ * - Resets manastore to 0
+ * - Moves player to room_chat_lobby reserved room
+ *
+ * @param ch        Character entering chat
+ * @param argument  Unused
+ */
 void do_chat_enter(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
@@ -224,6 +271,17 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chat_exit - Return player from chat dimension to game world
+ *
+ * Moves a player from the chat dimension back to their original
+ * location (stored in before_social when they entered).
+ *
+ * If before_social is invalid, falls back to room_default_recall.
+ *
+ * @param ch        Character exiting chat
+ * @param argument  Unused
+ */
 void do_chat_exit(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *room;
@@ -264,6 +322,21 @@ room = get_reserved_room_index("room_default_recall");
 }
 
 
+/**
+ * do_chat_list - Display all available chat rooms
+ *
+ * Shows a formatted table of all chat rooms with:
+ * - Room number and name
+ * - Current/max occupancy
+ * - Creator name
+ * - Operators list
+ * - Room topic
+ *
+ * Must be in the chat dimension (IS_SOCIAL) to use.
+ *
+ * @param ch        Character viewing the list
+ * @param argument  Unused
+ */
 void do_chat_list(CHAR_DATA *ch, char *argument)
 {
     CHAT_ROOM_DATA *chat;
@@ -317,6 +390,18 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chat_join - Join a specific chat room
+ *
+ * Moves a player from their current chat location to a named chat room.
+ * Password-protected rooms require the correct password unless the
+ * player is the creator or an operator.
+ *
+ * Syntax: chat join <roomname> [password]
+ *
+ * @param ch        Character joining the room
+ * @param argument  Room name and optional password
+ */
 void do_chat_join(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -401,6 +486,29 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * chat_create - Create a new chat room at the current location
+ *
+ * Creates a chat room linked to the current room in the chat dimension.
+ * The creator automatically becomes an operator.
+ *
+ * Syntax: chat create <name> <max_people> [password]
+ *
+ * Restrictions:
+ * - Must be in chat dimension
+ * - Room must not already have a chat room
+ * - Cannot exceed MAX_CHAT_ROOMS total
+ * - Max people must be 1 to MAX_IN_CHAT_ROOM
+ * - Password-protected rooms must have only one exit (prevents blocking)
+ * - Name must be unique
+ *
+ * Temporary rooms are deleted on reboot. Permanent rooms (perm=true)
+ * persist via write_chat_rooms/read_chat_rooms.
+ *
+ * @param ch        Character creating the room
+ * @param argument  Room name, max capacity, and optional password
+ * @param perm      true for permanent room (immortal only), false for temp
+ */
 void chat_create(CHAR_DATA *ch, char *argument, bool perm)
 {
     CHAT_ROOM_DATA *chat;
@@ -547,6 +655,15 @@ void chat_create(CHAR_DATA *ch, char *argument, bool perm)
 }
 
 
+/**
+ * do_chat_topic - Set the topic for the current chat room
+ *
+ * Changes the displayed topic for the chat room. Only operators
+ * can modify the topic. Topic is limited to 150 characters.
+ *
+ * @param ch        Character setting the topic (must be an op)
+ * @param argument  New topic text
+ */
 void do_chat_topic(CHAR_DATA *ch, char *argument)
 {
     CHAT_ROOM_DATA *chat;
@@ -599,6 +716,16 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chat_delete - Delete the current chat room
+ *
+ * Removes the chat room in the current room. Only the creator can
+ * delete their room. Permanent rooms can only be deleted by MAX_LEVEL
+ * staff.
+ *
+ * @param ch        Character deleting the room
+ * @param argument  Unused
+ */
 void do_chat_delete(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -648,6 +775,19 @@ void do_chat_delete(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chat_op - Manage chat room operators
+ *
+ * With no argument, lists all current operators.
+ * With a player name, toggles their operator status (adds if not op,
+ * removes if already op).
+ *
+ * Only existing operators (or immortals) can modify the op list.
+ * The player must exist in the game.
+ *
+ * @param ch        Character managing operators
+ * @param argument  Player name to toggle, or empty to list
+ */
 void do_chat_op(CHAR_DATA *ch, char *argument)
 {
     CHAT_OP_DATA *op;
@@ -732,6 +872,15 @@ void do_chat_op(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * is_op - Check if a player is an operator in a chat room
+ *
+ * Searches the chat room's operator list for a matching name.
+ *
+ * @param chat  Chat room to check
+ * @param arg   Player name to look for
+ * @return      true if player is an operator, false otherwise
+ */
 bool is_op(CHAT_ROOM_DATA *chat, char *arg)
 {
     CHAT_OP_DATA *op;
@@ -760,6 +909,15 @@ bool is_op(CHAT_ROOM_DATA *chat, char *arg)
 }
 
 
+/**
+ * chat_add_op - Add a player as an operator to the current chat room
+ *
+ * Creates a new operator entry and adds it to the chat room's ops list.
+ * Notifies the target player if they're in the room.
+ *
+ * @param ch   Character adding the operator
+ * @param arg  Name of player to add as operator
+ */
 void chat_add_op(CHAR_DATA *ch, char *arg)
 {
     CHAT_OP_DATA *op;
@@ -791,6 +949,15 @@ void chat_add_op(CHAR_DATA *ch, char *arg)
 }
 
 
+/**
+ * chat_rem_op - Remove a player's operator status from the current chat room
+ *
+ * Finds and removes the operator entry from the chat room's ops list.
+ * Players can remove themselves. Notifies the target if in the room.
+ *
+ * @param ch   Character removing the operator
+ * @param arg  Name of player to remove as operator
+ */
 void chat_rem_op(CHAR_DATA *ch, char *arg)
 {
     CHAT_OP_DATA *op;
@@ -854,6 +1021,15 @@ void chat_rem_op(CHAR_DATA *ch, char *arg)
 }
 
 
+/**
+ * do_chat_kick - Kick a player from the current chat room
+ *
+ * Forcibly moves a player from the current chat room to the chat lobby.
+ * Only operators can kick players. Ops can kick themselves.
+ *
+ * @param ch        Operator kicking the player
+ * @param argument  Name of player to kick
+ */
 void do_chat_kick(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -918,6 +1094,19 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chat_ban - Manage banned players in the current chat room
+ *
+ * With no argument, lists all banned players.
+ * With a player name, toggles their ban status.
+ *
+ * Note: This function appears incomplete - the ban check logic
+ * at line 993-999 has a bug where it overwrites 'add' each iteration.
+ * Maximum 50 bans per room.
+ *
+ * @param ch        Operator managing bans
+ * @param argument  Player name to toggle ban, or empty to list
+ */
 void do_chat_ban(CHAR_DATA *ch, char *argument)
 {
     CHAT_BAN_DATA *ban;
@@ -1017,6 +1206,14 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * chat_add_ban - Add a player to the chat room's ban list
+ *
+ * Creates a new ban entry recording who was banned and by whom.
+ *
+ * @param ch        Operator creating the ban
+ * @param argument  Name of player to ban
+ */
 void chat_add_ban(CHAR_DATA *ch, char *argument)
 {
     CHAT_BAN_DATA *ban;
@@ -1035,6 +1232,16 @@ void chat_add_ban(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * chat_remove_ban - Remove a player from the chat room's ban list
+ *
+ * Note: This function has a bug - it removes ALL bans from the room
+ * rather than just the specified ban. The 'ban' parameter is reassigned
+ * in the for loop, ignoring the input value.
+ *
+ * @param chat  Chat room to modify
+ * @param ban   Ban entry to remove (currently ignored due to bug)
+ */
 void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban)
 {
     CHAT_BAN_DATA *prev_ban;
@@ -1055,6 +1262,16 @@ void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban)
 }
 
 
+/**
+ * do_chat_password - Change the password for the current chat room
+ *
+ * Sets or changes the password required to join the chat room.
+ * Only operators can change the password. Password-protected rooms
+ * must have only one exit to prevent blocking navigation.
+ *
+ * @param ch        Operator changing the password
+ * @param argument  New password
+ */
 void do_chat_password(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -1104,6 +1321,17 @@ void do_chat_password(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_chat_setfounder - Admin command to change chat room ownership
+ *
+ * Changes the creator/founder of a chat room. The new founder must
+ * be an existing player. Staff level 151+ required (checked in do_chat).
+ *
+ * Syntax: chat setfounder <roomname> <playername>
+ *
+ * @param ch        Staff member changing ownership
+ * @param argument  Room name and new founder name
+ */
 void do_chat_setfounder(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -1148,6 +1376,23 @@ void do_chat_setfounder(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * write_chat_rooms - Save permanent chat rooms to disk
+ *
+ * Writes all permanent chat rooms (chat->permanent == true) to CHAT_FILE.
+ * Called after any modification to permanent rooms (create, topic, op changes).
+ *
+ * File format per room:
+ * - name~
+ * - topic~
+ * - password~
+ * - created_by~
+ * - area_uid (for widevnum support)
+ * - vnum
+ * - max_people
+ * - op_count
+ * - [op names, one per line with ~]
+ */
 void write_chat_rooms()
 {
     FILE *fp;
@@ -1209,6 +1454,16 @@ void write_chat_rooms()
 }
 
 
+/**
+ * read_chat_rooms - Load permanent chat rooms from disk at boot
+ *
+ * Reads all permanent chat rooms from CHAT_FILE and links them to
+ * their corresponding rooms in the chat dimension. Called during
+ * server initialization.
+ *
+ * Each room is linked to the physical room via room->chat_room pointer.
+ * Skips rooms whose area_uid is not found (area may have been deleted).
+ */
 void read_chat_rooms()
 {
     CHAT_ROOM_DATA *chat;
@@ -1324,6 +1579,25 @@ void read_chat_rooms()
     fclose(fp);
 }
 
+
+/**
+ * do_chat_show - Display detailed information about a chat room
+ *
+ * Shows comprehensive information about a chat room including:
+ * - Room name and vnum (immortals only)
+ * - Topic
+ * - Creator name
+ * - Password protection status (actual password shown to ops/staff)
+ * - Permanent status
+ * - Current capacity
+ * - Operators list
+ * - Current occupants (for current room or immortals)
+ *
+ * Operators shown in green in occupant list.
+ *
+ * @param ch        Character viewing the information
+ * @param argument  Room name, or empty for current room
+ */
 void do_chat_show(CHAR_DATA *ch, char *argument)
 {
     CHAT_ROOM_DATA *chat;
@@ -1333,9 +1607,9 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     bool found = false;
     int count = 0;
-    
+
     argument = one_argument(argument, arg);
-    
+
     if (!IS_SOCIAL(ch))
     {
         send_to_char("You must be in chat to use this command.\n\r", ch);

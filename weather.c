@@ -913,7 +913,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 
             act("{R$n is sucked up into the tornado!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-            AREA_DATA *tornado_area = find_area_by_vnum(index);
+            AREA_DATA *tornado_area = find_area_by_vnum(index, NULL);
             if (!tornado_area) tornado_area = get_system_area_fallback();
             if ((pRoom = get_room_index(tornado_area, index)) != NULL) {
                 char_from_room(ch);

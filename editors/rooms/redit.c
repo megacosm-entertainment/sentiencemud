@@ -1038,7 +1038,7 @@ REDIT(redit_mreset)
     }
 
     long mob_vnum = atoi(arg);
-    AREA_DATA *mob_area = find_area_by_vnum(mob_vnum);
+    AREA_DATA *mob_area = find_area_by_vnum(mob_vnum, NULL);
     if (!mob_area) mob_area = get_system_area_fallback();
     if (!(pMobIndex = get_mob_index(mob_area, mob_vnum)))
     {
@@ -1057,9 +1057,10 @@ REDIT(redit_mreset)
      */
     pReset              = new_reset_data();
     pReset->command	= 'M';
-    pReset->arg1	= pMobIndex->vnum;
+    pReset->arg1.wnum.pArea = mob_area;
+    pReset->arg1.wnum.vnum = pMobIndex->vnum;
     pReset->arg2	= is_number(arg2) ? atoi(arg2) : MAX_MOB;
-    pReset->arg3	= pRoom->vnum;
+    pReset->arg3.value	= pRoom->vnum;
     pReset->arg4	= is_number(argument) ? atoi (argument) : 1;
     add_reset(pRoom, pReset, 0/* Last slot*/);
 
@@ -1109,7 +1110,7 @@ REDIT(redit_oreset)
     }
 
     long obj_vnum = atoi(arg1);
-    AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
+    AREA_DATA *obj_area = find_area_by_vnum(obj_vnum, NULL);
     if (!obj_area) obj_area = get_system_area_fallback();
     if (!(pObjIndex = get_obj_index(obj_area, obj_vnum)))
     {
@@ -1130,9 +1131,10 @@ REDIT(redit_oreset)
     {
     pReset		= new_reset_data();
     pReset->command	= 'O';
-    pReset->arg1	= pObjIndex->vnum;
+    pReset->arg1.wnum.pArea = obj_area;
+    pReset->arg1.wnum.vnum	= pObjIndex->vnum;
     pReset->arg2	= 0;
-    pReset->arg3	= pRoom->vnum;
+    pReset->arg3.value	= pRoom->vnum;
     pReset->arg4	= 0;
     add_reset(pRoom, pReset, 0/* Last slot*/);
 
@@ -1153,9 +1155,13 @@ REDIT(redit_oreset)
     {
     pReset		= new_reset_data();
     pReset->command	= 'P';
-    pReset->arg1	= pObjIndex->vnum;
+    pReset->arg1.wnum.pArea = obj_area;
+    pReset->arg1.wnum.vnum	= pObjIndex->vnum;
     pReset->arg2	= 0;
-    pReset->arg3	= to_obj->pIndexData->vnum;
+    AREA_DATA *container_area = find_area_by_vnum(to_obj->pIndexData->vnum, NULL);
+    if (!container_area) container_area = get_system_area_fallback();
+    pReset->arg3.wnum.pArea = container_area;
+    pReset->arg3.wnum.vnum	= to_obj->pIndexData->vnum;
     pReset->arg4	= 1;
     add_reset(pRoom, pReset, 0/* Last slot*/);
 
@@ -1212,13 +1218,14 @@ REDIT(redit_oreset)
     }
 
     pReset		= new_reset_data();
-    pReset->arg1	= pObjIndex->vnum;
+    pReset->arg1.wnum.pArea = obj_area;
+    pReset->arg1.wnum.vnum	= pObjIndex->vnum;
     pReset->arg2	= wear_loc;
     if (pReset->arg2 == WEAR_NONE)
         pReset->command = 'G';
     else
         pReset->command = 'E';
-    pReset->arg3	= wear_loc;
+    pReset->arg3.value	= wear_loc;
 
     add_reset(pRoom, pReset, 0/* Last slot*/);
 
@@ -1258,13 +1265,13 @@ REDIT(redit_oreset)
 
     obj_to_char(newobj, to_mob);
     if (pReset->command == 'E')
-        equip_char(to_mob, newobj, pReset->arg3);
+        equip_char(to_mob, newobj, pReset->arg3.value);
 
     sprintf(output, "%s (%ld) has been loaded "
         "%s of %s (%ld) and added to resets.\n\r",
         capitalize(pObjIndex->short_descr),
         pObjIndex->vnum,
-        flag_string(wear_loc_strings, pReset->arg3),
+        flag_string(wear_loc_strings, pReset->arg3.value),
         to_mob->short_descr,
         to_mob->pIndexData->vnum);
     send_to_char(output, ch);

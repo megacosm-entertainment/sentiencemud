@@ -837,11 +837,41 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 AREA_DATA *get_area_data(long anum)
 {
     AREA_DATA *pArea;
+    int safety = 0;
+    const int MAX_AREAS = 10000; // Safety limit to detect circular references
+    AREA_DATA *last_area = NULL;
 
     for (pArea = area_first; pArea; pArea = pArea->next)
     {
         if (pArea->anum == anum)
             return pArea;
+        
+        // Check for circular reference (area points to itself or back to a previous area)
+        if (pArea == pArea->next || pArea == area_first)
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, 
+                "get_area_data: Direct circular reference detected! Area %ld (%s) points to itself or area_first",
+                pArea->anum, pArea->name ? pArea->name : "NULL");
+            return NULL;
+        }
+        
+        // Safety check for too many iterations
+        if (++safety > MAX_AREAS)
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, 
+                "get_area_data: Infinite loop detected in area list (looking for anum %ld)", anum);
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "Last area checked: anum=%ld name='%s' next=%p",
+                pArea->anum, pArea->name ? pArea->name : "NULL", pArea->next);
+            if (last_area) {
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                    "Previous area: anum=%ld name='%s' next=%p",
+                    last_area->anum, last_area->name ? last_area->name : "NULL", last_area->next);
+            }
+            return NULL;
+        }
+        
+        last_area = pArea;
     }
 
     return 0;
@@ -1991,23 +2021,19 @@ void display_resets(CHAR_DATA *ch)
 
         case 'M':
         {
-        AREA_DATA *mob_area = find_area_by_vnum(pReset->arg1);
-        if (!mob_area) mob_area = get_system_area_fallback();
-        AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
-        if (!room_area) room_area = get_system_area_fallback();
-
-        if (!(pMobIndex = get_mob_index(mob_area, pReset->arg1)))
+        // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+        if (!(pMobIndex = get_mob_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
             sprintf(buf, "Load Mobile - Bad Mob %s\n\r", 
-                widevnum_string(mob_area, pReset->arg1, pArea));
+                widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
             continue;
         }
 
-        if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
+        if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)))
         {
-            sprintf(buf, "Load Mobile - Bad Room %s\n\r", 
-                widevnum_string(room_area, pReset->arg3, pArea));
+            sprintf(buf, "Load Mobile - Bad Room %ld\n\r", 
+                pReset->arg3.value);
             strcat(final, buf);
             continue;
         }
@@ -2037,25 +2063,21 @@ void display_resets(CHAR_DATA *ch)
 
         case 'O':
         {
-        AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        AREA_DATA *room_area = find_area_by_vnum(pReset->arg3);
-        if (!room_area) room_area = get_system_area_fallback();
-
-        if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
+        // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+        if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
             sprintf(buf, "Load Object - Bad Object %s\n\r",
-                widevnum_string(obj_area, pReset->arg1, pArea));
+                widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
             continue;
         }
 
         pObj       = pObjIndex;
 
-        if (!(pRoomIndex = get_room_index(room_area, pReset->arg3)))
+        if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)))
         {
-            sprintf(buf, "Load Object - Bad Room %s\n\r", 
-                widevnum_string(room_area, pReset->arg3, pArea));
+            sprintf(buf, "Load Object - Bad Room %ld\n\r", 
+                pReset->arg3.value);
             strcat(final, buf);
             continue;
         }
@@ -2070,25 +2092,21 @@ void display_resets(CHAR_DATA *ch)
 
         case 'P':
         {
-        AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        AREA_DATA *obj_to_area = find_area_by_vnum(pReset->arg3);
-        if (!obj_to_area) obj_to_area = get_system_area_fallback();
-
-        if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
+        // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+        if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
             sprintf(buf, "Put Object - Bad Object %s\n\r",
-                widevnum_string(obj_area, pReset->arg1, pArea));
+                widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
             continue;
         }
 
         pObj       = pObjIndex;
 
-        if (!(pObjToIndex = get_obj_index(obj_to_area, pReset->arg3)))
+        if (!(pObjToIndex = get_obj_index(pReset->arg3.wnum.pArea ? pReset->arg3.wnum.pArea : pRoom->area, pReset->arg3.wnum.vnum)))
         {
             sprintf(buf, "Put Object - Bad To Object %s\n\r",
-                widevnum_string(obj_to_area, pReset->arg3, pArea));
+                widevnum_string_wnum(pReset->arg3.wnum, pArea));
             strcat(final, buf);
             continue;
         }
@@ -2109,13 +2127,11 @@ void display_resets(CHAR_DATA *ch)
         case 'G':
         case 'E':
         {
-        AREA_DATA *obj_area = find_area_by_vnum(pReset->arg1);
-        if (!obj_area) obj_area = get_system_area_fallback();
-
-        if (!(pObjIndex = get_obj_index(obj_area, pReset->arg1)))
+        // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+        if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
             sprintf(buf, "Give/Equip Object - Bad Object %s\n\r",
-                widevnum_string(obj_area, pReset->arg1, pArea));
+                widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
             continue;
         }
@@ -2144,7 +2160,7 @@ void display_resets(CHAR_DATA *ch)
             pObj->short_descr,
             (pReset->command == 'G') ?
             flag_string(wear_loc_strings, WEAR_NONE)
-              : flag_string(wear_loc_strings, pReset->arg3),
+              : flag_string(wear_loc_strings, pReset->arg3.value),
               pMob->vnum,
               pMob->short_descr);
         strcat(final, buf);
@@ -2174,16 +2190,16 @@ void display_resets(CHAR_DATA *ch)
          */
         case 'R':
         {
-        if (!(pRoomIndex = get_room_index((find_area_by_vnum(pReset->arg1) ?: get_system_area_fallback()), pReset->arg1)))
+        if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg1.value)))
         {
             sprintf(buf, "Randomize Exits - Bad Room %ld\n\r",
-            pReset->arg1);
+            pReset->arg1.value);
             strcat(final, buf);
             continue;
         }
 
         sprintf(buf, "R[%5ld] Exits are randomized in %s\n\r",
-            pReset->arg1, pRoomIndex->name);
+            pReset->arg1.value, pRoomIndex->name);
         strcat(final, buf);
 
         break;
@@ -2230,6 +2246,20 @@ void add_reset(ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index)
     reset->next		= pReset;
     if (!pReset->next)
     room->reset_last = pReset;
+}
+
+// Helper to check if argument is a valid vnum format (number or widevnum)
+static bool is_valid_vnum_format(const char *arg)
+{
+    if (!arg || !*arg)
+        return false;
+    
+    // Check for widevnum format (contains '#')
+    if (strchr(arg, '#'))
+        return true;
+    
+    // Check for bare number
+    return is_number(arg);
 }
 
 
@@ -2333,88 +2363,141 @@ void do_resets(CHAR_DATA *ch, char *argument)
     }
     else
     /* add a reset */
-    if ((!str_cmp(arg2, "mob") && is_number(arg3))
-      || (!str_cmp(arg2, "obj") && is_number(arg3)))
+    // Accept widevnum formats: #vnum, uid#vnum, AreaName#vnum, or bare vnum
+    if ((!str_cmp(arg2, "mob") && is_valid_vnum_format(arg3))
+      || (!str_cmp(arg2, "obj") && is_valid_vnum_format(arg3)))
     {
         if (!str_cmp(arg2, "mob"))
         {
-        if (get_mob_index((find_area_by_vnum(is_number(arg3) ? atol(arg3) : 1) ?: get_system_area_fallback()), is_number(arg3) ? atol(arg3) : 1) == NULL)
+        WNUM mob_wnum;
+        // Use NULL context for bare vnums (legacy global lookup), current area for widevnum formats
+        AREA_DATA *context = strchr(arg3, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg3, context, &mob_wnum))
+        {
+            send_to_char("Invalid mob vnum format. Use: vnum, #vnum, uid#vnum, or 'AreaName'#vnum\n\r", ch);
+            return;
+        }
+        
+        if (!mob_wnum.pArea)
+        {
+            send_to_char("Could not find area for that vnum.\n\r", ch);
+            return;
+        }
+        
+        if (get_mob_index(mob_wnum.pArea, mob_wnum.vnum) == NULL)
         {
             send_to_char("Mob no existe.\n\r",ch);
             return;
         }
+        
         pReset = new_reset_data();
         pReset->command = 'M';
-        pReset->arg1 = atol(arg3);
+        pReset->arg1.wnum.pArea = mob_wnum.pArea;
+        pReset->arg1.wnum.vnum = mob_wnum.vnum;
         pReset->arg2 = is_number(arg4) ? atol(arg4) : 1; /* Max # */
-        pReset->arg3 = ch->in_room->vnum;
+        pReset->arg3.value = ch->in_room->vnum;
         pReset->arg4 = is_number(arg5) ? atol(arg5) : 1; /* Min # */
         }
         else
         if (!str_cmp(arg2, "obj"))
         {
+        WNUM obj_wnum;
+        // Use NULL context for bare vnums (legacy global lookup), current area for widevnum formats
+        AREA_DATA *context = strchr(arg3, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg3, context, &obj_wnum))
+        {
+            send_to_char("Invalid object vnum format. Use: vnum, #vnum, uid#vnum, or 'AreaName'#vnum\n\r", ch);
+            return;
+        }
+        
+        if (!obj_wnum.pArea)
+        {
+            send_to_char("Could not find area for that vnum.\n\r", ch);
+            return;
+        }
+        
         pReset = new_reset_data();
-        pReset->arg1    = atol(arg3);
+        pReset->arg1.wnum.pArea = obj_wnum.pArea;
+        pReset->arg1.wnum.vnum = obj_wnum.vnum;
+        
         if (!str_prefix(arg4, "inside"))
         {
             OBJ_INDEX_DATA *temp;
-
-            temp = get_obj_index((find_area_by_vnum(is_number(arg5) ? atol(arg5) : 1) ?: get_system_area_fallback()), is_number(arg5) ? atol(arg5) : 1);
+            WNUM container_wnum;
+            // Use NULL context for bare vnums (legacy global lookup), current area for widevnum formats
+            AREA_DATA *context = strchr(arg5, '#') ? ch->in_room->area : NULL;
+            
+            if (!parse_widevnum(arg5, context, &container_wnum))
+            {
+                send_to_char("Invalid container vnum format.\n\r", ch);
+                return;
+            }
+            
+            if (!container_wnum.pArea)
+            {
+                send_to_char("Could not find area for container vnum.\n\r", ch);
+                return;
+            }
+            
+            temp = get_obj_index(container_wnum.pArea, container_wnum.vnum);
             if (temp == NULL) {
-            send_to_char("Object not found!\n\r", ch);
-            return;
+                send_to_char("Object not found!\n\r", ch);
+                return;
             }
 
             if ((temp->item_type != ITEM_CONTAINER) &&
                  (temp->item_type != ITEM_CORPSE_NPC))
             {
-            send_to_char("Object 2 isn't a container.\n\r", ch);
-            return;
+                send_to_char("Object 2 isn't a container.\n\r", ch);
+                return;
             }
             pReset->command = 'P';
             pReset->arg2    = is_number(arg6) ? atol(arg6) : 1;
-            pReset->arg3    = is_number(arg5) ? atol(arg5) : 1;
+            pReset->arg3.wnum.pArea = container_wnum.pArea;
+            pReset->arg3.wnum.vnum = container_wnum.vnum;
             pReset->arg4    = is_number(arg7) ? atol(arg7) : 1;
         }
         else
         if (!str_cmp(arg4, "room"))
         {
-            if (get_obj_index((find_area_by_vnum(atol(arg3)) ?: get_system_area_fallback()), atol(arg3)) == NULL)
-              {
-                 send_to_char("Vnum does not exist.\n\r",ch);
-                 return;
-              }
+            if (get_obj_index(obj_wnum.pArea, obj_wnum.vnum) == NULL)
+            {
+                send_to_char("Vnum does not exist.\n\r",ch);
+                return;
+            }
             pReset->command  = 'O';
             pReset->arg2     = 0;
-            pReset->arg3     = ch->in_room->vnum;
+            pReset->arg3.value = ch->in_room->vnum;  // Room vnum uses .value
             pReset->arg4     = 0;
         }
         else
         {
             if (flag_value(wear_loc_flags, arg4) == NO_FLAG)
             {
-            // Hack because WEAR_LIGHT is same value as NO_FLAG
-            if (str_cmp(arg4, "light"))
+                // Hack because WEAR_LIGHT is same value as NO_FLAG
+                if (str_cmp(arg4, "light"))
+                {
+                    send_to_char("Resets: '? wear-loc'\n\r", ch);
+                    return;
+                }
+            }
+
+            if (get_obj_index(obj_wnum.pArea, obj_wnum.vnum) == NULL)
             {
-                send_to_char("Resets: '? wear-loc'\n\r", ch);
+                send_to_char("Vnum does not exist.\n\r",ch);
                 return;
             }
-            }
-
-        long obj_vnum = atol(arg3);
-        AREA_DATA *obj_area = find_area_by_vnum(obj_vnum);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        if (get_obj_index(obj_area, obj_vnum) == NULL)
-            pReset->arg1 = atol(arg3);
-            pReset->arg3 =
+            
+            // arg3 for wear location uses .value
+            pReset->arg3.value =
                 (!str_cmp(arg4, "light")) ?
-            WEAR_LIGHT :
-            flag_value(wear_loc_flags, arg4);
+                WEAR_LIGHT :
+                flag_value(wear_loc_flags, arg4);
 
-            if (pReset->arg3 == WEAR_NONE)
-            pReset->command = 'G';
+            if (pReset->arg3.value == WEAR_NONE)
+                pReset->command = 'G';
             else
-            pReset->command = 'E';
+                pReset->command = 'E';
         }
         }
 
@@ -2626,13 +2709,13 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (get_room_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v) == NULL)
+    if (get_room_index((find_area_by_vnum(old_v, NULL) ?: get_system_area_fallback()), old_v) == NULL)
     {
      send_to_char("That room doesn't exist.\n\r", ch);
     return;
     }
 
-    if (get_room_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
+    if (get_room_index((find_area_by_vnum(new_v, NULL) ?: get_system_area_fallback()), new_v) != NULL)
     {
      send_to_char("That room vnum is already taken.\n\r", ch);
     return;
@@ -2662,7 +2745,7 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     edit_done(ch);
 
     ch->pcdata->immortal->last_olc_command = current_time;
-    AREA_DATA *old_area = find_area_by_vnum(old_v);
+    AREA_DATA *old_area = find_area_by_vnum(old_v, NULL);
     if (!old_area) old_area = get_system_area_fallback();
     old_room = get_room_index(old_area, old_v);
     new_room = new_room_index();
@@ -2735,13 +2818,13 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_mob = get_mob_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v)) == NULL)
+    if ((old_mob = get_mob_index((find_area_by_vnum(old_v, NULL) ?: get_system_area_fallback()), old_v)) == NULL)
     {
     send_to_char("That mob doesn't exist.\n\r", ch);
     return;
     }
 
-    if (get_mob_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
+    if (get_mob_index((find_area_by_vnum(new_v, NULL) ?: get_system_area_fallback()), new_v) != NULL)
     {
         send_to_char("That mob vnum is already taken.\n\r", ch);
     return;
@@ -2866,13 +2949,13 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     old_v = atol(arg);
     new_v = atol(arg2);
 
-    if ((old_obj = get_obj_index((find_area_by_vnum(old_v) ?: get_system_area_fallback()), old_v)) == NULL)
+    if ((old_obj = get_obj_index((find_area_by_vnum(old_v, NULL) ?: get_system_area_fallback()), old_v)) == NULL)
     {
         send_to_char("That obj doesn't exist.\n\r", ch);
     return;
     }
 
-    if (get_obj_index((find_area_by_vnum(new_v) ?: get_system_area_fallback()), new_v) != NULL)
+    if (get_obj_index((find_area_by_vnum(new_v, NULL) ?: get_system_area_fallback()), new_v) != NULL)
     {
         send_to_char("That obj vnum is already taken.\n\r", ch);
     return;
@@ -3468,7 +3551,7 @@ void do_mshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    AREA_DATA *mob_area = find_area_by_vnum(value);
+    AREA_DATA *mob_area = find_area_by_vnum(value, NULL);
     if (!mob_area) mob_area = get_system_area_fallback();
     if (!(pMob = get_mob_index(mob_area, value)))
     {
@@ -3504,7 +3587,7 @@ void do_oshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    AREA_DATA *obj_area = find_area_by_vnum(value);
+    AREA_DATA *obj_area = find_area_by_vnum(value, NULL);
     if (!obj_area) obj_area = get_system_area_fallback();
     if (!(pObj = get_obj_index(obj_area, value)))
     {
@@ -3538,7 +3621,7 @@ void do_rshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    AREA_DATA *room_area = find_area_by_vnum(value);
+    AREA_DATA *room_area = find_area_by_vnum(value, NULL);
     if (!room_area) room_area = get_system_area_fallback();
     if (!(pRoom = get_room_index(room_area, value)))
     {
@@ -3832,7 +3915,7 @@ void do_dislink(CHAR_DATA *ch, char *argument)
     }
 
     long vnum = atol(arg);
-    AREA_DATA *area = find_area_by_vnum(vnum);
+    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
     if (!area) area = get_system_area_fallback();
     if ((room = get_room_index(area, vnum)) == NULL)
     {
@@ -4046,7 +4129,7 @@ void do_tshow(CHAR_DATA *ch, char *argument)
     }
 
     value = atol(argument);
-    AREA_DATA *token_area = find_area_by_vnum(value);
+    AREA_DATA *token_area = find_area_by_vnum(value, NULL);
     if (!token_area) token_area = get_system_area_fallback();
     if (!(token_index = get_token_index(token_area, value)))
     {

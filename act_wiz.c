@@ -59,6 +59,7 @@ extern bool wizlock;
 extern bool is_test_port;
 void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 char *reboot_reason = NULL; // global
+void relic_update(void); // forward declaration
 
 
 
@@ -1919,9 +1920,9 @@ void do_startinvasion(CHAR_DATA *ch, char *argument)
   mob_vnum = atol(arg3);
   max_level = atoi(arg4);
 
-  AREA_DATA *leader_area = find_area_by_vnum(leader_vnum);
+  AREA_DATA *leader_area = find_area_by_vnum(leader_vnum, NULL);
   if (!leader_area) leader_area = get_system_area_fallback();
-  AREA_DATA *mob_area = find_area_by_vnum(mob_vnum);
+  AREA_DATA *mob_area = find_area_by_vnum(mob_vnum, NULL);
   if (!mob_area) mob_area = get_system_area_fallback();
   
   if (get_mob_index(leader_area, leader_vnum) == NULL || get_mob_index(mob_area, mob_vnum) == NULL) {
@@ -2769,7 +2770,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
             else
                 sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", location->recall.wuid);
         } else if(location->recall.id[0] > 0) {
-            AREA_DATA *recall_area = find_area_by_vnum(location->recall.id[0]);
+            AREA_DATA *recall_area = find_area_by_vnum(location->recall.id[0], NULL);
             if (!recall_area) recall_area = get_system_area_fallback();
             recall = get_room_index(recall_area, location->recall.id[0]);
             if (recall)
@@ -3857,7 +3858,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     if (arg3[0] != '\0' && !id_lookup) {
         vnum = atol(arg3);
 
-        AREA_DATA *tok_area = find_area_by_vnum(vnum);
+        AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
         if (!tok_area) tok_area = get_system_area_fallback();
         if (get_token_index(tok_area, vnum) == NULL) {
             send_to_char("That token vnum does not exist.\n\r", ch);
@@ -5176,7 +5177,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
     }
 
     vnum = atol(arg1);
-    AREA_DATA *mob_area = find_area_by_vnum(vnum);
+    AREA_DATA *mob_area = find_area_by_vnum(vnum, NULL);
     if (!mob_area) mob_area = get_system_area_fallback();
     if ((pMobIndex = get_mob_index(mob_area, vnum)) == NULL)
     {
@@ -5312,7 +5313,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
     }
 
     vnum = atol(arg1);
-    AREA_DATA *obj_area = find_area_by_vnum(vnum);
+    AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
     if (!obj_area) obj_area = get_system_area_fallback();
     if ((pObjIndex = get_obj_index(obj_area, vnum)) == NULL)
     {
@@ -7247,7 +7248,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg2, "recall"))
     {
     long recall_vnum = atol(arg3);
-    AREA_DATA *recall_area = find_area_by_vnum(recall_vnum);
+    AREA_DATA *recall_area = find_area_by_vnum(recall_vnum, NULL);
     if (!recall_area) recall_area = get_system_area_fallback();
     ROOM_INDEX_DATA *recall_room = get_room_index(recall_area, recall_vnum);
     if (recall_room == NULL)
@@ -7271,7 +7272,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg2, "key"))
     {
     long key_vnum = atol(arg3);
-    AREA_DATA *key_area = find_area_by_vnum(key_vnum);
+    AREA_DATA *key_area = find_area_by_vnum(key_vnum, NULL);
     if (!key_area) key_area = get_system_area_fallback();
     OBJ_INDEX_DATA *key_obj = get_obj_index(key_area, key_vnum);
     if (key_obj == NULL)
@@ -7334,7 +7335,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
             }
 
             long vnum = atol(argument);
-            AREA_DATA *room_area = find_area_by_vnum(vnum);
+            AREA_DATA *room_area = find_area_by_vnum(vnum, NULL);
             if (!room_area) room_area = get_system_area_fallback();
             ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
 
@@ -7375,7 +7376,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
             }
 
             long vnum = atol(argument);
-            AREA_DATA *room_area = find_area_by_vnum(vnum);
+            AREA_DATA *room_area = find_area_by_vnum(vnum, NULL);
             if (!room_area) room_area = get_system_area_fallback();
             ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
 
@@ -9782,7 +9783,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
 
     if (is_number(arg2)) {
         long vnum = atol(arg2);
-        AREA_DATA *obj_area = find_area_by_vnum(vnum);
+        AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
         if (!obj_area) obj_area = get_system_area_fallback();
         if (get_obj_index(obj_area, vnum) == NULL)
         {
@@ -10244,10 +10245,14 @@ void do_test(CHAR_DATA *ch, char *argument)
     } else if (!str_cmp(argument, "abort")) {
         send_to_char("Testing crash handler - triggering abort...\n\r", ch);
         abort();  // This will cause SIGABRT
+    } else if (!str_cmp(argument, "relic")) {
+        send_to_char("Testing relic system - calling relic_update...\n\r", ch);
+        relic_update();  // Call relic update function for testing
     } else {
         send_to_char("Test commands:\n\r", ch);
         send_to_char("  test crash  - Trigger a segfault (SIGSEGV)\n\r", ch);
         send_to_char("  test abort  - Trigger an abort (SIGABRT)\n\r", ch);
+        send_to_char("  test relic  - Call relic_update function\n\r", ch);
     }
 }
 
@@ -10745,7 +10750,7 @@ void do_token(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            AREA_DATA *tok_area = find_area_by_vnum(vnum);
+            AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
             if (!tok_area) tok_area = get_system_area_fallback();
             if ((token_index = get_token_index(tok_area, vnum)) == NULL) {
                 send_to_char("That token doesn't exist.\n\r", ch);
@@ -10827,7 +10832,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         vnum = atol(arg4b);
 
         if (!str_cmp(arg, "give")) {
-            AREA_DATA *tok_area = find_area_by_vnum(vnum);
+            AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
             if (!tok_area) tok_area = get_system_area_fallback();
             if ((token_index = get_token_index(tok_area, vnum)) == NULL) {
                 send_to_char("That token doesn't exist.\n\r", ch);
@@ -10868,7 +10873,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         vnum = atol(arg4b);
 
         if (!str_cmp(arg, "give")) {
-            AREA_DATA *tok_area = find_area_by_vnum(vnum);
+            AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
             if (!tok_area) tok_area = get_system_area_fallback();
             if ((token_index = get_token_index(tok_area, vnum)) == NULL) {
                 send_to_char("That token doesn't exist.\n\r", ch);
@@ -11095,7 +11100,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
                 (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
+                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
                 (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
         }
         else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
@@ -11110,7 +11115,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
+                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
                 (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[5]);
         }
         else if(obj->value[3] > 0)
@@ -11126,7 +11131,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
                 (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none");
+                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none");
         }
         else
         {
@@ -11142,7 +11147,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4]) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
+                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
                 (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5], 
                 (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
                 (obj->value[6] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
@@ -11343,8 +11348,8 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
         (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(container_flags, obj->value[1]),
         (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
-                (obj->value[2] > 0 && (get_obj_index(find_area_by_vnum(obj->value[2]) ? find_area_by_vnum(obj->value[2]) : get_system_area_fallback(), obj->value[2])))
-                    ? get_obj_index(find_area_by_vnum(obj->value[2]) ? find_area_by_vnum(obj->value[2]) : get_system_area_fallback(), obj->value[2])->short_descr
+                (obj->value[2] > 0 && (get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])))
+                    ? get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])->short_descr
                     : "none",
         obj->value[2],
         (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
@@ -11455,8 +11460,8 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", 
         flag_string(container_flags, obj->value[1]),
         (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
-                (obj->value[2] > 0 && (get_obj_index(find_area_by_vnum(obj->value[2]) ? find_area_by_vnum(obj->value[2]) : get_system_area_fallback(), obj->value[2])))
-                    ? get_obj_index(find_area_by_vnum(obj->value[2]) ? find_area_by_vnum(obj->value[2]) : get_system_area_fallback(), obj->value[2])->short_descr
+                (obj->value[2] > 0 && (get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])))
+                    ? get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])->short_descr
                     : "none",
                 obj->value[2]);
         add_buf(buffer, buf);

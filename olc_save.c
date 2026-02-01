@@ -1279,22 +1279,22 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
     // Product
     switch(stock->type) {
     case STOCK_OBJECT:
-        fprintf(fp, "Object %ld\n", stock->vnum);
+        fprintf(fp, "Object %ld\n", stock->entity.wnum.vnum);
         break;
     case STOCK_PET:
-        fprintf(fp, "Pet %ld\n", stock->vnum);
+        fprintf(fp, "Pet %ld\n", stock->entity.wnum.vnum);
         break;
     case STOCK_MOUNT:
-        fprintf(fp, "Mount %ld\n", stock->vnum);
+        fprintf(fp, "Mount %ld\n", stock->entity.wnum.vnum);
         break;
     case STOCK_GUARD:
-        fprintf(fp, "Guard %ld\n", stock->vnum);
+        fprintf(fp, "Guard %ld\n", stock->entity.wnum.vnum);
         break;
     case STOCK_CREW:
-        fprintf(fp, "Crew %ld\n", stock->vnum);
+        fprintf(fp, "Crew %ld\n", stock->entity.wnum.vnum);
         break;
     case STOCK_SHIP:
-        fprintf(fp, "Ship %ld\n", stock->vnum);
+        fprintf(fp, "Ship %ld\n", stock->entity.wnum.vnum);
         break;
     case STOCK_CUSTOM:
         fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
@@ -3379,10 +3379,44 @@ RESET_DATA *read_reset_new(FILE *fp)
     switch (word[0]) {
         case 'A':
         if (!str_cmp(word, "Arguments")) {
-                reset->arg1 = fread_number(fp);
+                // Legacy .are files: Load bare vnums with pArea=NULL for backward compatibility
+                long arg1_val = fread_number(fp);
                 reset->arg2 = fread_number(fp);
-                reset->arg3 = fread_number(fp);
+                long arg3_val = fread_number(fp);
                 reset->arg4 = fread_number(fp);
+                
+                // Set union fields based on command type
+                switch (reset->command) {
+                    case 'M': // Mobile: arg1=mob(wnum), arg3=room(value)
+                    case 'O': // Object: arg1=obj(wnum), arg3=room(value)
+                    case 'G': // Give: arg1=obj(wnum), arg3=unused
+                    case 'E': // Equip: arg1=obj(wnum), arg3=wear_loc(value)
+                        reset->arg1.wnum.pArea = NULL;
+                        reset->arg1.wnum.vnum = arg1_val;
+                        reset->arg3.value = arg3_val;
+                        break;
+                        
+                    case 'P': // Put: arg1=obj(wnum), arg3=container(wnum)
+                        reset->arg1.wnum.pArea = NULL;
+                        reset->arg1.wnum.vnum = arg1_val;
+                        reset->arg3.wnum.pArea = NULL;
+                        reset->arg3.wnum.vnum = arg3_val;
+                        break;
+                        
+                    case 'D': // Door: arg1=room(value), arg3=state(value)
+                    case 'R': // Randomize: arg1=room(value), arg3=unused
+                        reset->arg1.value = arg1_val;
+                        reset->arg3.value = arg3_val;
+                        break;
+                        
+                    default:
+                        // Unknown command - use WNUM for safety
+                        reset->arg1.wnum.pArea = NULL;
+                        reset->arg1.wnum.vnum = arg1_val;
+                        reset->arg3.wnum.pArea = NULL;
+                        reset->arg3.wnum.vnum = arg3_val;
+                        break;
+                }
         fMatch = true;
         }
 
@@ -3558,7 +3592,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             if(!str_cmp(word, "Crew"))
             {
                 fMatch = true;
-                stock->vnum = fread_number(fp);
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = fread_number(fp);
                 stock->type = STOCK_CREW;
                 break;
             }
@@ -3573,7 +3608,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             if(!str_cmp(word, "Guard"))
             {
                 fMatch = true;
-                stock->vnum = fread_number(fp);
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = fread_number(fp);
                 stock->type = STOCK_GUARD;
                 break;
             }
@@ -3583,7 +3619,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             {
                 fMatch = true;
                 stock->custom_keyword = fread_string(fp);
-                stock->vnum = 0;
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = 0;
                 stock->type = STOCK_CUSTOM;
                 break;
             }
@@ -3595,7 +3632,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             if(!str_cmp(word, "Mount"))
             {
                 fMatch = true;
-                stock->vnum = fread_number(fp);
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = fread_number(fp);
                 stock->type = STOCK_MOUNT;
                 break;
             }
@@ -3604,7 +3642,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             if(!str_cmp(word, "Object"))
             {
                 fMatch = true;
-                stock->vnum = fread_number(fp);
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = fread_number(fp);
                 stock->type = STOCK_OBJECT;
                 break;
             }
@@ -3613,7 +3652,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             if(!str_cmp(word, "Pet"))
             {
                 fMatch = true;
-                stock->vnum = fread_number(fp);
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = fread_number(fp);
                 stock->type = STOCK_PET;
                 break;
             }
@@ -3631,7 +3671,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             if(!str_cmp(word, "Ship"))
             {
                 fMatch = true;
-                stock->vnum = fread_number(fp);
+                stock->entity.wnum.pArea = NULL;
+                stock->entity.wnum.vnum = fread_number(fp);
                 stock->type = STOCK_SHIP;
                 break;
             }

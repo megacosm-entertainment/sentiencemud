@@ -676,7 +676,119 @@ void init_string_space()
     top_string	= string_space;
 }
 
-
+/*
+ * Fixup cross-area reset references after all areas are loaded.
+ * During deserialization, area UIDs are stored in WNUM_LOAD format.
+ * This function converts them to WNUM format with proper area pointers.
+ */
+void fixup_area_reset_references(void)
+{
+    AREA_DATA *area;
+    int fixed = 0, failed = 0;
+    
+    for (area = area_first; area; area = area->next) {
+        int hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+        int hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
+        
+        for (int j = 0; j < hash_count; j++) {
+            for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
+                if (room->vnum && room->area == area) {
+                    for (RESET_DATA *reset = room->reset_first; reset; reset = reset->next) {
+                        // Convert arg1 WNUM_LOAD to WNUM for entity-referencing commands
+                        switch (reset->command) {
+                            case 'M': case 'O': case 'G': case 'E':
+                            {
+                                long auid = reset->arg1.load.auid;
+                                long vnum = reset->arg1.load.vnum;
+                                
+                                if (auid) {
+                                    AREA_DATA *found_area = get_area_index(auid);
+                                    if (found_area) {
+                                        reset->arg1.wnum.pArea = found_area;
+                                        reset->arg1.wnum.vnum = vnum;
+                                        fixed++;
+                                    } else {
+                                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                                            "fixup_area_reset_references: Could not resolve area UID %ld for reset '%c' in room %ld",
+                                            auid, reset->command, room->vnum);
+                                        reset->arg1.wnum.pArea = NULL; // Fall back to legacy behavior
+                                        reset->arg1.wnum.vnum = vnum;
+                                        failed++;
+                                    }
+                                } else {
+                                    // auid=0 means legacy (use current area)
+                                    reset->arg1.wnum.pArea = NULL;
+                                    reset->arg1.wnum.vnum = vnum;
+                                }
+                                break;
+                            }
+                            
+                            case 'P':
+                            {
+                                // Convert arg1 (object)
+                                long auid1 = reset->arg1.load.auid;
+                                long vnum1 = reset->arg1.load.vnum;
+                                
+                                if (auid1) {
+                                    AREA_DATA *found_area = get_area_index(auid1);
+                                    if (found_area) {
+                                        reset->arg1.wnum.pArea = found_area;
+                                        reset->arg1.wnum.vnum = vnum1;
+                                        fixed++;
+                                    } else {
+                                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                            "fixup_area_reset_references: Could not resolve object area UID %ld for reset 'P' in room %ld",
+                                            auid1, room->vnum);
+                                        reset->arg1.wnum.pArea = NULL;
+                                        reset->arg1.wnum.vnum = vnum1;
+                                        failed++;
+                                    }
+                                } else {
+                                    reset->arg1.wnum.pArea = NULL;
+                                    reset->arg1.wnum.vnum = vnum1;
+                                }
+                                
+                                // Convert arg3 (container)
+                                long auid3 = reset->arg3.load.auid;
+                                long vnum3 = reset->arg3.load.vnum;
+                                
+                                if (auid3) {
+                                    AREA_DATA *found_area = get_area_index(auid3);
+                                    if (found_area) {
+                                        reset->arg3.wnum.pArea = found_area;
+                                        reset->arg3.wnum.vnum = vnum3;
+                                        fixed++;
+                                    } else {
+                                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                            "fixup_area_reset_references: Could not resolve container area UID %ld for reset 'P' in room %ld",
+                                            auid3, room->vnum);
+                                        reset->arg3.wnum.pArea = NULL;
+                                        reset->arg3.wnum.vnum = vnum3;
+                                        failed++;
+                                    }
+                                } else {
+                                    reset->arg3.wnum.pArea = NULL;
+                                    reset->arg3.wnum.vnum = vnum3;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (++hash_index == MAX_KEY_HASH)
+                hash_index = 0;
+        }
+    }
+    
+    if (fixed > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Fixed up %d cross-area reset references", fixed);
+    }
+    if (failed > 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to resolve %d cross-area reset references", failed);
+    }
+}
 
 
 /* Top-level booting function*/
@@ -986,6 +1098,10 @@ void boot_db(void)
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Opening churches, new format");
     read_churches_new();
 
+    /* Fixup cross-area reset references after all areas are loaded but BEFORE area_update */
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving cross-area reset references");
+    fixup_area_reset_references();
+
     fBootDb	= false;
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing generate_poa_resets");
     generate_poa_resets(-1);
@@ -1211,7 +1327,7 @@ void fix_rooms(void)
                         }
                         if (!dest_area) {
                             // Fall back to legacy vnum range search
-                            dest_area = find_area_by_vnum(pexit->u1.vnum);
+                            dest_area = find_area_by_vnum(pexit->u1.vnum, NULL);
                         }
                         if (pexit->u1.vnum <= 0 || !dest_area
                         ||   get_room_index(dest_area, pexit->u1.vnum) == NULL)
@@ -1703,7 +1819,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
                 switch(curr->command)
                 {
                 case 'M':
-                    last_mob = get_mob_index(room->area, curr->arg1);
+                    last_mob = get_mob_index(room->area, curr->arg1.wnum.vnum);
                     break;
 
                 case 'G':
@@ -1711,7 +1827,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 
                     if( (last_mob != NULL) &&
                         (last_mob->pShop != NULL) &&
-                        ((obj = get_obj_index(room->area, curr->arg1)) != NULL) &&
+                        ((obj = get_obj_index(room->area, curr->arg1.wnum.vnum)) != NULL) &&
                         (obj->item_type != ITEM_MONEY))
                     {
 
@@ -1723,7 +1839,8 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 
                         // Generate stock entry
                         stock->type = STOCK_OBJECT;
-                        stock->vnum = obj->vnum;
+                        stock->entity.wnum.pArea = NULL;
+                        stock->entity.wnum.vnum = obj->vnum;
                         stock->silver = obj->cost;
                         stock->discount = last_mob->pShop->discount;
 
@@ -1840,15 +1957,16 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             break;
 
         case 'M':
-            if (!(pMobIndex = get_mob_index(pRoom->area, pReset->arg1)))
+            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+            if (!(pMobIndex = get_mob_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'M': bad vnum %ld.", pReset->arg1);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'M': bad vnum %ld.", pReset->arg1.wnum.vnum);
                 continue;
             }
 
-            if ((pRoomIndex = get_room_index(pRoom->area, pReset->arg3)) == NULL)
+            if ((pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)) == NULL)
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_area: 'R': bad vnum %ld.", pReset->arg3);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_area: 'R': bad vnum %ld.", pReset->arg3.value);
                 continue;
             }
 
@@ -1960,15 +2078,16 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             break;
 
         case 'O':
-            if (!(pObjIndex = get_obj_index(pRoom->area, pReset->arg1)))
+            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+            if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1, pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1.wnum.vnum, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4);
                 continue;
             }
 
-            if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3)))
+            if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 2 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg3, pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 2 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg3.value, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4);
                 continue;
             }
 
@@ -2012,15 +2131,16 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             break;
 
         case 'P':
-            if (!(pObjIndex = get_obj_index(pRoom->area, pReset->arg1)))
+            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+            if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg1);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg1.wnum.vnum);
                 continue;
             }
 
-            if (!(pObjToIndex = get_obj_index(pRoom->area, pReset->arg3)))
+            if (!(pObjToIndex = get_obj_index(pReset->arg3.wnum.pArea ? pReset->arg3.wnum.pArea : pRoom->area, pReset->arg3.wnum.vnum)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg3);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg3.wnum.vnum);
                 continue;
             }
 
@@ -2058,9 +2178,10 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
         case 'G':
         case 'E':
-            if (!(pObjIndex = get_obj_index(pRoom->area, pReset->arg1)))
+            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
+            if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1.wnum.vnum);
                 continue;
             }
 
@@ -2069,7 +2190,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
             if (!LastMob)
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': null mob for vnum %ld.", pReset->arg1);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': null mob for vnum %ld.", pReset->arg1.wnum.vnum);
                 last = false;
                 break;
             }
@@ -2094,7 +2215,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             objRepop = true;
             obj_to_char(pObj, LastMob);
             if (pReset->command == 'E')
-                equip_char(LastMob, pObj, pReset->arg3);
+                equip_char(LastMob, pObj, pReset->arg3.value);
             last = true;
             break;
 
@@ -2102,9 +2223,9 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             break;
 
         case 'R':
-            if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg1)))
+            if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg1.value)))
             {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'R': bad vnum %ld.", pReset->arg1);
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'R': bad vnum %ld.", pReset->arg1.value);
                 continue;
             }
 
@@ -2175,23 +2296,27 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
     to_stock->singular = from_stock->singular;
     to_stock->discount = URANGE(0,from_stock->discount,100);
     to_stock->level = from_stock->level;
-    to_stock->vnum = from_stock->vnum;
+    to_stock->entity.wnum = from_stock->entity.wnum;
     switch(to_stock->type)
     {
     case STOCK_OBJECT:
-        if(to_stock->vnum > 0)
-            to_stock->obj = get_obj_index_global(to_stock->vnum);
+        if(to_stock->entity.wnum.vnum > 0)
+            to_stock->obj = to_stock->entity.wnum.pArea ? 
+                get_obj_index(to_stock->entity.wnum.pArea, to_stock->entity.wnum.vnum) : 
+                get_obj_index_global(to_stock->entity.wnum.vnum);
         break;
     case STOCK_PET:
     case STOCK_MOUNT:
     case STOCK_GUARD:
     case STOCK_CREW:
-        if(to_stock->vnum > 0)
-            to_stock->mob = get_mob_index_global(to_stock->vnum);
+        if(to_stock->entity.wnum.vnum > 0)
+            to_stock->mob = to_stock->entity.wnum.pArea ? 
+                get_mob_index(to_stock->entity.wnum.pArea, to_stock->entity.wnum.vnum) : 
+                get_mob_index_global(to_stock->entity.wnum.vnum);
         break;
     case STOCK_SHIP:
-        if(to_stock->vnum > 0)
-            to_stock->ship = get_ship_index(to_stock->vnum);
+        if(to_stock->entity.wnum.vnum > 0)
+            to_stock->ship = get_ship_index(to_stock->entity.wnum.vnum);
         break;
     case STOCK_CUSTOM:
         free_string(to_stock->custom_keyword);
@@ -3397,21 +3522,6 @@ ROOM_INDEX_DATA *get_room_index_global(long vnum)
             if (room->vnum == vnum)
                 return room;
         }
-    }
-
-    return NULL;
-}
-
-// Helper function for migration: Find which area owns a vnum by checking ranges
-// This allows bare vnums from legacy data to work during widevnum transition
-AREA_DATA *find_area_by_vnum(long vnum)
-{
-    AREA_DATA *pArea;
-
-    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
-    {
-        if (vnum >= pArea->min_vnum && vnum <= pArea->max_vnum)
-            return pArea;
     }
 
     return NULL;

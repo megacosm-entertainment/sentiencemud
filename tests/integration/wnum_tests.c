@@ -9,6 +9,9 @@
 #include "../../log.h"
 
 // Forward declarations
+test_result_t run_reset_test_case(test_case_t *test);
+test_result_t run_shop_stock_test_case(test_case_t *test);
+
 static test_result_t test_wnum_parsing(test_case_t *test);
 static test_result_t test_area_name_parsing(test_case_t *test);
 static test_result_t test_wnum_parsing_structured(test_case_t *test);
@@ -239,6 +242,14 @@ test_result_t run_test_case(test_case_t *test) {
             result = test_redis_area_cache_format(test);
         } else if (strcmp(test->test_type, "redis_warm_queue_test") == 0) {
             result = test_redis_warm_queue(test);
+        } else if (strcmp(test->test_type, "reset_cross_area_creation") == 0 ||
+                   strcmp(test->test_type, "reset_serialization") == 0 ||
+                   strcmp(test->test_type, "reset_legacy_vnum") == 0) {
+            result = run_reset_test_case(test);
+        } else if (strcmp(test->test_type, "shop_stock_cross_area_creation") == 0 ||
+                   strcmp(test->test_type, "shop_stock_serialization") == 0 ||
+                   strcmp(test->test_type, "shop_stock_legacy_vnum") == 0) {
+            result = run_shop_stock_test_case(test);
         } else {
             // Fallback to name-based dispatch for backwards compatibility
             if (strstr(test->name, "vnum_parsing")) {

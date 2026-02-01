@@ -1343,6 +1343,19 @@ PROG_LIST *new_trigger(void)
 }
 
 
+/**
+ * new_reset_data - Allocate and initialize a new RESET_DATA structure
+ *
+ * Retrieves a reset structure from the free list or allocates a new
+ * one if the free list is empty. Initializes all fields to safe defaults.
+ *
+ * Default initialization:
+ * - command = 'X' (invalid/placeholder)
+ * - All arg unions cleared to zero
+ * - next pointer set to NULL
+ *
+ * @return  Initialized RESET_DATA structure
+ */
 RESET_DATA *new_reset_data( void )
 {
     RESET_DATA *pReset;
@@ -1360,15 +1373,24 @@ RESET_DATA *new_reset_data( void )
 
     pReset->next        =   NULL;
     pReset->command     =   'X';
-    pReset->arg1        =   0;
+    pReset->arg1.wnum.pArea = NULL;
+    pReset->arg1.wnum.vnum  = 0;
     pReset->arg2        =   0;
-    pReset->arg3        =   0;
-    pReset->arg4	=   0;
+    pReset->arg3.wnum.pArea = NULL;
+    pReset->arg3.wnum.vnum  = 0;
+    pReset->arg4        =   0;
 
     return pReset;
 }
 
-
+/**
+ * free_reset_data - Return a RESET_DATA structure to the free list
+ *
+ * Adds the reset structure to the free list for reuse. Does not
+ * clear fields (they will be overwritten by new_reset_data).
+ *
+ * @param pReset  Reset structure to free
+ */
 void free_reset_data( RESET_DATA *pReset )
 {
     pReset->next            = reset_free;
@@ -1958,7 +1980,8 @@ SHOP_STOCK_DATA *new_shop_stock()
     pStock->pneuma = 0;
     pStock->custom_price = &str_empty[0];
 
-    pStock->vnum = 0;
+    pStock->entity.wnum.pArea = NULL;
+    pStock->entity.wnum.vnum = 0;
     pStock->obj = NULL;
 
     pStock->quantity = 0;

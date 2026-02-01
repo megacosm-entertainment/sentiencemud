@@ -70,7 +70,7 @@ SHEDIT( shedit_show )
         sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
     add_buf(buffer, buf);
 
-    AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object);
+    AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object, NULL);
     if (!ship_area) ship_area = get_system_area_fallback();
     OBJ_INDEX_DATA *obj = get_obj_index(ship_area, ship->ship_object);
     if( obj )
@@ -419,7 +419,7 @@ SHEDIT( shedit_object )
     }
 
     vnum = atol(argument);
-    AREA_DATA *obj_area = find_area_by_vnum(vnum);
+    AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
     if (!obj_area) obj_area = get_system_area_fallback();
     obj = get_obj_index(obj_area, vnum);
     if( !obj )
@@ -822,7 +822,7 @@ SHEDIT( shedit_keys )
         }
 
         vnum = atol(argument);
-        AREA_DATA *key_area = find_area_by_vnum(vnum);
+        AREA_DATA *key_area = find_area_by_vnum(vnum, NULL);
         if (!key_area) key_area = get_system_area_fallback();
         if( !(key = get_obj_index(key_area, vnum)) )
         {

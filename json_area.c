@@ -526,8 +526,8 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
 
     /* Destination - save the vnum from to_room if it exists */
     if (exit->u1.to_room && exit->u1.to_room->vnum > 0) {
-        json_object_set_new(obj, "to_area", json_integer(exit->u1.to_room->area ? exit->u1.to_room->area->uid : 0));
-        json_object_set_new(obj, "to_vnum", json_integer(exit->u1.to_room->vnum));
+        json_object_set_new(obj, "destination_area_uid", json_integer(exit->u1.to_room->area ? exit->u1.to_room->area->uid : 0));
+        json_object_set_new(obj, "destination_vnum", json_integer(exit->u1.to_room->vnum));
     }
 
     /* Keywords and descriptions */
@@ -540,7 +540,7 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
 
     /* Lock/key/pick fields */
     json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_vnum));
-    json_object_set_new(obj, "lock_flags", json_integer(exit->door.lock.flags));
+    json_object_set_new(obj, "lock_flags", flags_to_json_array(exit->door.lock.flags, lock_flags));
     json_object_set_new(obj, "pick_chance", json_integer(exit->door.lock.pick_chance));
 
     /* Flags */
@@ -567,8 +567,13 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     }
     
     /* Destination - will be linked in fix_exits() */
-    long to_vnum = json_get_int_default(json, "to_vnum", 0);
-    long to_area_uid = json_get_int_default(json, "to_area", 0);
+    long to_vnum = json_get_int_default(json, "destination_vnum", 0);
+    long to_area_uid = json_get_int_default(json, "destination_area_uid", 0);
+    
+    /* Legacy field names for backward compatibility */
+    if (to_vnum == 0) to_vnum = json_get_int_default(json, "to_vnum", 0);
+    if (to_area_uid == 0) to_area_uid = json_get_int_default(json, "to_area", 0);
+    
     if (to_vnum > 0) {
         exit->u1.vnum = to_vnum;
         /* Store destination area UID for cross-area exit linking */
@@ -594,7 +599,15 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
 
     /* Lock/key/pick fields */
     exit->door.lock.key_vnum = json_get_int_default(json, "key_vnum", 0);
-    exit->door.lock.flags = json_get_int_default(json, "lock_flags", 0);
+    
+    /* Load lock_flags - try as array first, fall back to integer for legacy */
+    json_t *lock_flags_json = json_object_get(json, "lock_flags");
+    if (lock_flags_json && json_is_array(lock_flags_json)) {
+        exit->door.lock.flags = json_array_to_flags(lock_flags_json, lock_flags);
+    } else {
+        exit->door.lock.flags = json_get_int_default(json, "lock_flags", 0);
+    }
+    
     exit->door.lock.pick_chance = json_get_int_default(json, "pick_chance", 100);
 
     /* Flags */
@@ -686,8 +699,12 @@ AREA_DATA *json_area_load(const char *filename)
         json_t *token_json;
         json_array_foreach(tokens, index, token_json) {
             TOKEN_INDEX_DATA *token = json_area_deserialize_token(token_json, area);
-            /* Token is already added to hash table by new_token_index() */
-            (void)token;
+            if (token && token->vnum) {
+                /* Add to area's token hash table */
+                int hash = token->vnum % MAX_KEY_HASH;
+                token->next = area->token_index_hash[hash];
+                area->token_index_hash[hash] = token;
+            }
         }
     }
     
@@ -817,37 +834,6 @@ AREA_DATA *json_area_load(const char *filename)
             }
         }
     }
-    
-    /* Fix up exit destinations now that all rooms are loaded */
-    /* This is needed because exits reference rooms by vnum that may not have been loaded yet */
-    int hash_index, hash_count;
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    /*
-    for (int j = 0; j < hash_count; j++) {
-        for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
-            if (room->vnum && room->area == area) {
-                for (int door = 0; door < MAX_DIR; door++) {
-                    EXIT_DATA *pexit = room->exit[door];
-                    if (pexit && pexit->u1.vnum > 0) {
-                        pexit->u1.to_room = get_room_index(area, pexit->u1.vnum);
-                        if (!pexit->u1.to_room) {
-                            log_stringf("json_area_load: Room %ld exit %d: destination vnum %ld not found",
-                                       room->vnum, door, pexit->u1.vnum);
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
-    }*/
     
     json_decref(root);
     
@@ -1222,7 +1208,7 @@ bool json_area_save(AREA_DATA *area)
     
     /* Cache in Redis immediately (if available) */
     if (redis_is_available() && area->file_name && area->file_name[0]) {
-        char *json_str = json_dumps(root, JSON_COMPACT);
+        char *json_str = json_dumps(root, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
         if (json_str) {
             if (redis_cache_area_state(area->file_name, json_str)) {
                 log_stringf("json_area_save: Cached area '%s' in Redis", area->name);
@@ -1329,8 +1315,8 @@ char *json_area_serialize_to_string(AREA_DATA *area)
         json_decref(tokens);
     }
 
-    /* Convert to compact JSON string */
-    result = json_dumps(root, JSON_COMPACT);
+    /* Convert to pretty-printed JSON string for readability in Redis */
+    result = json_dumps(root, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
     json_decref(root);
 
     return result;
@@ -2370,6 +2356,67 @@ static char reset_string_to_command(const char *str)
     return 'S'; /* default to stop if unknown */
 }
 
+/*
+ * Get descriptive field name for arg1 based on reset command
+ */
+static const char *reset_arg1_field_name(char command)
+{
+    switch (command) {
+        case 'M': return "mob_vnum";
+        case 'O': return "object_vnum";
+        case 'G': return "object_vnum";
+        case 'E': return "object_vnum";
+        case 'P': return "object_vnum";
+        case 'D': return "room_vnum";
+        case 'R': return "room_vnum";
+        default:  return "arg1";  // Fallback for unknown commands
+    }
+}
+
+/*
+ * Get descriptive field name for arg2 based on reset command
+ */
+static const char *reset_arg2_field_name(char command)
+{
+    switch (command) {
+        case 'M': return "limit";
+        case 'O': return "limit";
+        case 'G': return "limit";
+        case 'E': return "limit";
+        case 'P': return "limit";
+        case 'D': return "exit_direction";
+        case 'R': return "num_exits";
+        default:  return "arg2";  // Fallback
+    }
+}
+
+/*
+ * Get descriptive field name for arg3 based on reset command
+ */
+static const char *reset_arg3_field_name(char command)
+{
+    switch (command) {
+        case 'M': return "room_vnum";
+        case 'O': return "room_vnum";
+        case 'E': return "wear_location";
+        case 'P': return "container_vnum";
+        case 'D': return "door_state";
+        default:  return "arg3";  // Fallback (G, R use arg3=0)
+    }
+}
+
+/*
+ * Get descriptive field name for arg4 based on reset command
+ */
+static const char *reset_arg4_field_name(char command)
+{
+    switch (command) {
+        case 'M': return "chance";
+        case 'O': return "chance";
+        default:  return "arg4";  // Most commands don't use arg4
+    }
+}
+
 json_t *json_area_serialize_reset(RESET_DATA *reset)
 {
     if (!reset) return NULL;
@@ -2378,10 +2425,59 @@ json_t *json_area_serialize_reset(RESET_DATA *reset)
     if (!json) return NULL;
     
     json_object_set_new(json, "command", json_string(reset_command_to_string(reset->command)));
-    json_object_set_new(json, "arg1", json_integer(reset->arg1));
-    json_object_set_new(json, "arg2", json_integer(reset->arg2));
-    json_object_set_new(json, "arg3", json_integer(reset->arg3));
-    json_object_set_new(json, "arg4", json_integer(reset->arg4));
+    json_object_set_new(json, reset_arg2_field_name(reset->command), json_integer(reset->arg2));
+    json_object_set_new(json, reset_arg4_field_name(reset->command), json_integer(reset->arg4));
+    
+    // Save arg1 and arg3 with descriptive names based on command type
+    // Also save area UIDs for cross-area references (when pArea is not NULL)
+    long arg1_val, arg3_val;
+    const char *arg1_field = reset_arg1_field_name(reset->command);
+    const char *arg3_field = reset_arg3_field_name(reset->command);
+    char area_uid_field[64];
+    
+    switch (reset->command) {
+        case 'M': // Mobile: arg1=mob(wnum), arg3=room(value)
+        case 'O': // Object: arg1=obj(wnum), arg3=room(value)
+        case 'G': // Give: arg1=obj(wnum), arg3=unused
+        case 'E': // Equip: arg1=obj(wnum), arg3=wear_loc(value)
+            arg1_val = reset->arg1.wnum.vnum;
+            arg3_val = reset->arg3.value;
+            // Save area UID for cross-area entity references
+            if (reset->arg1.wnum.pArea) {
+                snprintf(area_uid_field, sizeof(area_uid_field), "%s_area_uid", arg1_field);
+                json_object_set_new(json, area_uid_field, json_integer(reset->arg1.wnum.pArea->uid));
+            }
+            break;
+            
+        case 'P': // Put: arg1=obj(wnum), arg3=container(wnum)
+            arg1_val = reset->arg1.wnum.vnum;
+            arg3_val = reset->arg3.wnum.vnum;
+            // Save area UIDs for both object and container
+            if (reset->arg1.wnum.pArea) {
+                snprintf(area_uid_field, sizeof(area_uid_field), "%s_area_uid", arg1_field);
+                json_object_set_new(json, area_uid_field, json_integer(reset->arg1.wnum.pArea->uid));
+            }
+            if (reset->arg3.wnum.pArea) {
+                snprintf(area_uid_field, sizeof(area_uid_field), "%s_area_uid", arg3_field);
+                json_object_set_new(json, area_uid_field, json_integer(reset->arg3.wnum.pArea->uid));
+            }
+            break;
+            
+        case 'D': // Door: arg1=room(value), arg3=state(value)
+        case 'R': // Randomize: arg1=room(value), arg3=unused
+            arg1_val = reset->arg1.value;
+            arg3_val = reset->arg3.value;
+            break;
+            
+        default:
+            // Unknown command - try wnum
+            arg1_val = reset->arg1.wnum.vnum;
+            arg3_val = reset->arg3.wnum.vnum;
+            break;
+    }
+    
+    json_object_set_new(json, arg1_field, json_integer(arg1_val));
+    json_object_set_new(json, arg3_field, json_integer(arg3_val));
     
     return json;
 }
@@ -2395,10 +2491,80 @@ RESET_DATA *json_area_deserialize_reset(json_t *json, AREA_DATA *area)
     
     const char *cmd_str = json_get_string_default(json, "command", "stop");
     reset->command = reset_string_to_command(cmd_str);
-    reset->arg1 = json_get_int_default(json, "arg1", 0);
-    reset->arg2 = json_get_int_default(json, "arg2", 0);
-    reset->arg3 = json_get_int_default(json, "arg3", 0);
-    reset->arg4 = json_get_int_default(json, "arg4", 0);
+    
+    // Read descriptive field names with fallback to generic names for backwards compatibility
+    const char *arg2_field = reset_arg2_field_name(reset->command);
+    const char *arg4_field = reset_arg4_field_name(reset->command);
+    
+    // Try descriptive name first, fall back to generic "arg2"/"arg4"
+    json_t *arg2_json = json_object_get(json, arg2_field);
+    if (!arg2_json) arg2_json = json_object_get(json, "arg2");
+    reset->arg2 = arg2_json ? json_integer_value(arg2_json) : 0;
+    
+    json_t *arg4_json = json_object_get(json, arg4_field);
+    if (!arg4_json) arg4_json = json_object_get(json, "arg4");
+    reset->arg4 = arg4_json ? json_integer_value(arg4_json) : 0;
+    
+    // Read descriptive field names with fallback to generic names for backwards compatibility
+    const char *arg1_field = reset_arg1_field_name(reset->command);
+    const char *arg3_field = reset_arg3_field_name(reset->command);
+    char area_uid_field[64];
+    
+    // Try descriptive name first, fall back to generic "arg1"/"arg3"
+    json_t *arg1_json = json_object_get(json, arg1_field);
+    if (!arg1_json) arg1_json = json_object_get(json, "arg1");
+    long arg1_val = arg1_json ? json_integer_value(arg1_json) : 0;
+    
+    json_t *arg3_json = json_object_get(json, arg3_field);
+    if (!arg3_json) arg3_json = json_object_get(json, "arg3");
+    long arg3_val = arg3_json ? json_integer_value(arg3_json) : 0;
+    
+    // Load area UIDs for cross-area references
+    snprintf(area_uid_field, sizeof(area_uid_field), "%s_area_uid", arg1_field);
+    json_t *arg1_auid_json = json_object_get(json, area_uid_field);
+    if (!arg1_auid_json) arg1_auid_json = json_object_get(json, "arg1_area_uid");  // Fallback
+    long arg1_area_uid = arg1_auid_json ? json_integer_value(arg1_auid_json) : 0;
+    
+    snprintf(area_uid_field, sizeof(area_uid_field), "%s_area_uid", arg3_field);
+    json_t *arg3_auid_json = json_object_get(json, area_uid_field);
+    if (!arg3_auid_json) arg3_auid_json = json_object_get(json, "arg3_area_uid");  // Fallback
+    long arg3_area_uid = arg3_auid_json ? json_integer_value(arg3_auid_json) : 0;
+    
+    // Set union fields based on command type
+    switch (reset->command) {
+        case 'M': // Mobile: arg1=mob(wnum), arg3=room(value)
+        case 'O': // Object: arg1=obj(wnum), arg3=room(value)
+        case 'G': // Give: arg1=obj(wnum), arg3=unused
+        case 'E': // Equip: arg1=obj(wnum), arg3=wear_loc(value)
+            // Store as WNUM_LOAD for later resolution
+            reset->arg1.load.auid = arg1_area_uid;
+            reset->arg1.load.vnum = arg1_val;
+            reset->arg3.value = arg3_val;
+            break;
+            
+        case 'P': // Put: arg1=obj(wnum), arg3=container(wnum)
+            // Store both as WNUM_LOAD for later resolution
+            reset->arg1.load.auid = arg1_area_uid;
+            reset->arg1.load.vnum = arg1_val;
+            reset->arg3.load.auid = arg3_area_uid;
+            reset->arg3.load.vnum = arg3_val;
+            break;
+            
+        case 'D': // Door: arg1=room(value), arg3=state(value)
+        case 'R': // Randomize: arg1=room(value), arg3=unused
+            reset->arg1.value = arg1_val;
+            reset->arg3.value = arg3_val;
+            break;
+            
+        default:
+            // Unknown command - use WNUM for safety
+            reset->arg1.wnum.pArea = NULL;
+            reset->arg1.wnum.vnum = arg1_val;
+            reset->arg3.wnum.pArea = NULL;
+            reset->arg3.wnum.vnum = arg3_val;
+            break;
+    }
+    
     reset->next = NULL;
     
     return reset;
@@ -2420,18 +2586,30 @@ json_t *json_area_serialize_shop_stock(SHOP_STOCK_DATA *stock, AREA_DATA *area)
     
     switch (stock->type) {
         case STOCK_OBJECT:
-            json_object_set_new(json, "vnum", json_integer(stock->vnum));
+            json_object_set_new(json, "vnum", json_integer(stock->entity.wnum.vnum));
+            if (stock->entity.wnum.pArea) {
+                json_object_set_new(json, "area_uid", json_integer(stock->entity.wnum.pArea->uid));
+            }
             break;
         case STOCK_PET:
         case STOCK_MOUNT:
         case STOCK_GUARD:
-            json_object_set_new(json, "mob_vnum", json_integer(stock->vnum));
+            json_object_set_new(json, "mob_vnum", json_integer(stock->entity.wnum.vnum));
+            if (stock->entity.wnum.pArea) {
+                json_object_set_new(json, "mob_area_uid", json_integer(stock->entity.wnum.pArea->uid));
+            }
             break;
         case STOCK_SHIP:
-            json_object_set_new(json, "ship_vnum", json_integer(stock->vnum));
+            json_object_set_new(json, "ship_vnum", json_integer(stock->entity.wnum.vnum));
+            if (stock->entity.wnum.pArea) {
+                json_object_set_new(json, "ship_area_uid", json_integer(stock->entity.wnum.pArea->uid));
+            }
             break;
         case STOCK_CREW:
-            json_object_set_new(json, "crew_vnum", json_integer(stock->vnum));
+            json_object_set_new(json, "crew_vnum", json_integer(stock->entity.wnum.vnum));
+            if (stock->entity.wnum.pArea) {
+                json_object_set_new(json, "crew_area_uid", json_integer(stock->entity.wnum.pArea->uid));
+            }
             break;
         case STOCK_CUSTOM:
             if (stock->custom_keyword && stock->custom_keyword[0] != '\0')
@@ -2495,21 +2673,25 @@ SHOP_STOCK_DATA *json_area_deserialize_shop_stock(json_t *json, AREA_DATA *area)
     /* NOTE: Pointer fixup (obj/mob) deferred until after all entities loaded */
     switch (stock->type) {
         case STOCK_OBJECT:
-            stock->vnum = json_get_int_default(json, "vnum", 0);
+            stock->entity.load.vnum = json_get_int_default(json, "vnum", 0);
+            stock->entity.load.auid = json_get_int_default(json, "area_uid", 0);
             stock->obj = NULL;  /* Will be fixed up later */
             break;
         case STOCK_PET:
         case STOCK_MOUNT:
         case STOCK_GUARD:
-            stock->vnum = json_get_int_default(json, "mob_vnum", 0);
+            stock->entity.load.vnum = json_get_int_default(json, "mob_vnum", 0);
+            stock->entity.load.auid = json_get_int_default(json, "mob_area_uid", 0);
             stock->mob = NULL;  /* Will be fixed up later */
             break;
         case STOCK_SHIP:
-            stock->vnum = json_get_int_default(json, "ship_vnum", 0);
+            stock->entity.load.vnum = json_get_int_default(json, "ship_vnum", 0);
+            stock->entity.load.auid = json_get_int_default(json, "ship_area_uid", 0);
             stock->ship = NULL;  /* Will be fixed up later */
             break;
         case STOCK_CREW:
-            stock->vnum = json_get_int_default(json, "crew_vnum", 0);
+            stock->entity.load.vnum = json_get_int_default(json, "crew_vnum", 0);
+            stock->entity.load.auid = json_get_int_default(json, "crew_area_uid", 0);
             break;
         case STOCK_CUSTOM:
             stock->custom_keyword = str_dup(json_get_string_default(json, "keyword", ""));
@@ -3279,36 +3461,90 @@ void fix_shops(void)
                     for (SHOP_STOCK_DATA *stock = mob->pShop->stock; stock; stock = stock->next) {
                         switch (stock->type) {
                             case STOCK_OBJECT:
-                                if (stock->vnum > 0) {
-                                    /* Use _global to search ALL areas for the object */
-                                    stock->obj = get_obj_index_global(stock->vnum);
+                                if (stock->entity.load.vnum > 0) {
+                                    long auid = stock->entity.load.auid;
+                                    long vnum = stock->entity.load.vnum;
+                                    AREA_DATA *target_area = NULL;
+                                    
+                                    if (auid) {
+                                        target_area = get_area_index(auid);
+                                        if (!target_area) {
+                                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                                "fix_shops: Area UID %ld not found for object vnum %ld (mob %ld in %s)",
+                                                auid, vnum, mob->vnum, area->file_name);
+                                        }
+                                    }
+                                    
+                                    /* Resolve pointer - use target area if specified, otherwise global */
+                                    stock->obj = target_area ? get_obj_index(target_area, vnum) : get_obj_index_global(vnum);
+                                    
+                                    /* Convert to WNUM format */
+                                    stock->entity.wnum.pArea = target_area;
+                                    stock->entity.wnum.vnum = vnum;
+                                    
                                     if (!stock->obj) {
                                         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                                             "fix_shops: Shop stock object vnum %ld not found (mob %ld in %s)",
-                                            stock->vnum, mob->vnum, area->file_name);
+                                            vnum, mob->vnum, area->file_name);
                                     }
                                 }
                                 break;
                             case STOCK_PET:
                             case STOCK_MOUNT:
                             case STOCK_GUARD:
-                                if (stock->vnum > 0) {
-                                    /* Use _global to search ALL areas for the mob */
-                                    stock->mob = get_mob_index_global(stock->vnum);
+                                if (stock->entity.load.vnum > 0) {
+                                    long auid = stock->entity.load.auid;
+                                    long vnum = stock->entity.load.vnum;
+                                    AREA_DATA *target_area = NULL;
+                                    
+                                    if (auid) {
+                                        target_area = get_area_index(auid);
+                                        if (!target_area) {
+                                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                                "fix_shops: Area UID %ld not found for mob vnum %ld (mob %ld in %s)",
+                                                auid, vnum, mob->vnum, area->file_name);
+                                        }
+                                    }
+                                    
+                                    /* Resolve pointer - use target area if specified, otherwise global */
+                                    stock->mob = target_area ? get_mob_index(target_area, vnum) : get_mob_index_global(vnum);
+                                    
+                                    /* Convert to WNUM format */
+                                    stock->entity.wnum.pArea = target_area;
+                                    stock->entity.wnum.vnum = vnum;
+                                    
                                     if (!stock->mob) {
                                         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                                             "fix_shops: Shop stock mob vnum %ld not found (mob %ld in %s)",
-                                            stock->vnum, mob->vnum, area->file_name);
+                                            vnum, mob->vnum, area->file_name);
                                     }
                                 }
                                 break;
                             case STOCK_SHIP:
-                                if (stock->vnum > 0) {
-                                    stock->ship = get_ship_index(stock->vnum);
+                                if (stock->entity.load.vnum > 0) {
+                                    long auid = stock->entity.load.auid;
+                                    long vnum = stock->entity.load.vnum;
+                                    AREA_DATA *target_area = NULL;
+                                    
+                                    if (auid) {
+                                        target_area = get_area_index(auid);
+                                        if (!target_area) {
+                                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                                "fix_shops: Area UID %ld not found for ship vnum %ld (mob %ld in %s)",
+                                                auid, vnum, mob->vnum, area->file_name);
+                                        }
+                                    }
+                                    
+                                    stock->ship = get_ship_index(vnum);
+                                    
+                                    /* Convert to WNUM format */
+                                    stock->entity.wnum.pArea = target_area;
+                                    stock->entity.wnum.vnum = vnum;
+                                    
                                     if (!stock->ship) {
                                         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                                             "fix_shops: Shop ship vnum %ld not found (mob %ld in %s)",
-                                            stock->vnum, mob->vnum, area->file_name);
+                                            vnum, mob->vnum, area->file_name);
                                     }
                                 }
                                 break;

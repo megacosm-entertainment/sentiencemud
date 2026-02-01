@@ -607,7 +607,7 @@ TOKEN_DATA *json_persist_json_to_token(json_t *json)
     if (!json) return NULL;
 
     vnum = json_integer_value(json_object_get(json, "vnum"));
-    pTokenIndex = get_token_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+    pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
     if (!pTokenIndex) {
         log_stringf("json_persist_json_to_token: bad vnum %ld", vnum);
         return NULL;
@@ -907,7 +907,7 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     if (!json) return NULL;
 
     vnum = json_integer_value(json_object_get(json, "vnum"));
-    pObjIndex = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+    pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
     if (!pObjIndex) {
         log_stringf("json_persist_json_to_object: bad vnum %ld", vnum);
         return NULL;
@@ -1511,7 +1511,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     if (!json) return NULL;
 
     vnum = json_integer_value(json_object_get(json, "vnum"));
-    AREA_DATA *area = find_area_by_vnum(vnum); if (!area) area = get_system_area_fallback(); pMobIndex = get_mob_index(area, vnum);
+    AREA_DATA *area = find_area_by_vnum(vnum, NULL); if (!area) area = get_system_area_fallback(); pMobIndex = get_mob_index(area, vnum);
     if (!pMobIndex) {
         log_stringf("json_persist_json_to_mobile: bad vnum %ld", vnum);
         return NULL;
@@ -2592,8 +2592,64 @@ static bool in_persistent_environment(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_D
 
 bool json_persist_save_all(void)
 {
-    log_string("json_persist_save_all: TEMPORARILY DISABLED - returning success");
-    return true;
+    ROOM_INDEX_DATA *room;
+    CHAR_DATA *mob;
+    OBJ_DATA *obj;
+    ITERATOR it;
+    int saved_rooms = 0, saved_mobs = 0, saved_objs = 0;
+    int failed_rooms = 0, failed_mobs = 0, failed_objs = 0;
+
+    log_string("json_persist_save_all: Saving all persistent entities to cache...");
+
+    /* Save all persistent rooms */
+    if (persist_rooms && list_size(persist_rooms) > 0) {
+        iterator_start(&it, persist_rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
+            if (json_persist_save_room_cached(room)) {
+                saved_rooms++;
+            } else {
+                failed_rooms++;
+                log_stringf("json_persist_save_all: Failed to save room %ld:%ld",
+                    room->area ? room->area->uid : 0, room->vnum);
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    /* Save all persistent mobs */
+    if (persist_mobs && list_size(persist_mobs) > 0) {
+        iterator_start(&it, persist_mobs);
+        while ((mob = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (json_persist_save_mobile_cached(mob)) {
+                saved_mobs++;
+            } else {
+                failed_mobs++;
+                log_stringf("json_persist_save_all: Failed to save mob %ld",
+                    mob->id);
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    /* Save all persistent objects */
+    if (persist_objs && list_size(persist_objs) > 0) {
+        iterator_start(&it, persist_objs);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (json_persist_save_object_cached(obj)) {
+                saved_objs++;
+            } else {
+                failed_objs++;
+                log_stringf("json_persist_save_all: Failed to save object %ld",
+                    obj->id);
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    log_stringf("json_persist_save_all: Complete - saved %d rooms, %d mobs, %d objects (failed: %d/%d/%d)",
+        saved_rooms, saved_mobs, saved_objs, failed_rooms, failed_mobs, failed_objs);
+
+    return (failed_rooms == 0 && failed_mobs == 0 && failed_objs == 0);
 }
 
 bool json_persist_load_all(void)

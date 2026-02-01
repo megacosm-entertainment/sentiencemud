@@ -6919,7 +6919,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     } else if(!str_cmp(buf,"room")) {
         switch(arg->type) {
         case ENT_NUMBER: {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             variables_set_room(vars,name,get_room_index(area, arg->d.num));
             break;
@@ -7118,7 +7118,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
         switch(arg->type) {
         case ENT_NUMBER: {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             here = get_room_index(area, arg->d.num);
             mobs = here ? here->people : NULL;
@@ -7127,9 +7127,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                AREA_DATA *area = find_area_by_vnum(atoi(arg->d.str));
+                long vnum = atoi(arg->d.str);
+                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                 if (!area) area = get_system_area_fallback();
-                here = get_room_index(area, atoi(arg->d.str));
+                here = get_room_index(area, vnum);
                 mobs = here ? here->people : NULL;
             }
             else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
@@ -7363,7 +7364,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
         switch(arg->type) {
         case ENT_NUMBER: {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             here = get_room_index(area, arg->d.num);
             objs = here ? here->contents : NULL;
@@ -7372,9 +7373,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                AREA_DATA *area = find_area_by_vnum(atoi(arg->d.str));
+                long vnum = atoi(arg->d.str);
+                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                 if (!area) area = get_system_area_fallback();
-                here = get_room_index(area, atoi(arg->d.str));
+                here = get_room_index(area, vnum);
                 objs = here ? here->contents : NULL;
             }
             else if(!str_cmp(arg->d.str, "here"))
@@ -7845,7 +7847,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     } else if(!str_cmp(buf,"croom")) {
         switch(arg->type) {
         case ENT_NUMBER: 
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             here = get_room_index(area, arg->d.num);
             if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
@@ -7890,7 +7892,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         int dir;
 
         switch(arg->type) {
-        case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num);
+        case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
                             if (!area) area = get_system_area_fallback();
                             start_room = get_room_index(area, arg->d.num);
                             break;
@@ -7903,7 +7905,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             return;
 
         switch(arg->type) {
-                case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num);
+                case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
                             if (!area) area = get_system_area_fallback();
                             end_room = get_room_index(area, arg->d.num);
                             break;
@@ -8541,7 +8543,7 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
         }
         else if( arg->type == ENT_NUMBER )
         {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num);
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
             if (!area) area = get_system_area_fallback();
             room = get_room_index(area, arg->d.num);
             var_name = rest;

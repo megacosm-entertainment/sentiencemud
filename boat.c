@@ -678,7 +678,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
             {
                 long key_vnum = fread_number(fp);
 
-                AREA_DATA *key_area = find_area_by_vnum(key_vnum);
+                AREA_DATA *key_area = find_area_by_vnum(key_vnum, NULL);
                 if (!key_area) key_area = get_system_area_fallback();
                 OBJ_INDEX_DATA *key = get_obj_index(key_area, key_vnum);
                 if( key )
@@ -908,7 +908,7 @@ SHIP_DATA *create_ship(long vnum)
         return NULL;
 
     // Verify the object index exists and is a ship
-    AREA_DATA *ship_area = find_area_by_vnum(ship_index->ship_object);
+    AREA_DATA *ship_area = find_area_by_vnum(ship_index->ship_object, NULL);
     if (!ship_area) ship_area = get_system_area_fallback();
     if( !(obj_index = get_obj_index(ship_area, ship_index->ship_object)) )
         return NULL;
@@ -5050,7 +5050,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot);
+        AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot, NULL);
         if (!land_area) land_area = get_system_area_fallback();
         to_room = get_room_index(land_area, to_area->airship_land_spot);
         if( !to_room )
@@ -5103,7 +5103,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot);
+            AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot, NULL);
             if (!land_area) land_area = get_system_area_fallback();
             to_room = get_room_index(land_area, to_area->airship_land_spot);
             if( !to_room )
@@ -6906,7 +6906,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
         iterator_start(&it, ship->special_keys);
         while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
         {
-AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum);
+AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum, NULL);
                         if (!key_area) key_area = get_system_area_fallback();
                         OBJ_INDEX_DATA *key = get_obj_index(key_area, sk->key_vnum);
 
@@ -6964,7 +6964,7 @@ AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum);
         }
 
         SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
-AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum);
+AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum, NULL);
                 if (!key_area) key_area = get_system_area_fallback();
                 OBJ_INDEX_DATA *key_index = get_obj_index(key_area, sk->key_vnum);
 

@@ -219,6 +219,8 @@ if(BUILD_TESTS)
         tests/framework/test_framework.c
         tests/framework/test_loader.c
         tests/integration/wnum_tests.c
+        tests/integration/reset_tests.c
+        tests/integration/shop_stock_tests.c
     )
 endif()
 

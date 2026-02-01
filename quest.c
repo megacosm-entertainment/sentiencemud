@@ -110,7 +110,7 @@ const long quest_item_token_table[] =
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
     char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
-    OBJ_INDEX_DATA *scroll_index = get_obj_index((find_area_by_vnum(vnum) ?: get_system_area_fallback()), vnum);
+    OBJ_INDEX_DATA *scroll_index = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
     if( scroll_index == NULL )
     {
         scroll_index = get_reserved_obj_index("obj_quest_scroll");
@@ -1187,7 +1187,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
         if (part->complete == true)
             continue;
 
-        target_room = get_room_index((find_area_by_vnum(part->room) ?: get_system_area_fallback()), part->room);
+        target_room = get_room_index((find_area_by_vnum(part->room, NULL) ?: get_system_area_fallback()), part->room);
 
         /* Not going by room vnum to prevent multiple rooms with the same name */
         if (target_room != NULL && !str_cmp(target_room->name, room->name))
@@ -1723,7 +1723,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
         // Call PRERENEW
         mob->tempstore[0] = 0;
         mob->tempstore[1] = stock->type;
-        mob->tempstore[2] = stock->vnum;
+        mob->tempstore[2] = stock->entity.wnum.vnum;
         if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
             return;
 

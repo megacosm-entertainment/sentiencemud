@@ -3482,7 +3482,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
     if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
         return;
 
-    AREA_DATA *area = find_area_by_vnum(arg->d.num);
+    AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
     if (!area) area = get_system_area_fallback();
     if( arg->d.num < 1 || !get_obj_index(area, arg->d.num))
         return;
@@ -3818,7 +3818,7 @@ SCRIPT_CMD(scriptcmd_specialkey)
     if( !sk )
         return;
 
-    AREA_DATA *area = find_area_by_vnum(sk->key_vnum);
+    AREA_DATA *area = find_area_by_vnum(sk->key_vnum, NULL);
     if (!area) area = get_system_area_fallback();
     index = get_obj_index(area, sk->key_vnum);
 
@@ -5223,7 +5223,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
         room = arg->d.room;
         break;
     case ENT_NUMBER:
-        area = find_area_by_vnum(arg->d.num);
+        area = find_area_by_vnum(arg->d.num, NULL);
         if (!area) area = get_system_area_fallback();
         room = get_room_index(area, arg->d.num);
         break;

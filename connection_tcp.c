@@ -25,6 +25,19 @@
 *	ROM license, in the file Rom24/doc/rom.license			   *
 ***************************************************************************/
 
+/**
+ * @file connection_tcp.c
+ * @brief Plain TCP connection implementation
+ *
+ * Implements the connection abstraction interface for unencrypted TCP
+ * sockets (traditional telnet connections). This is the simplest connection
+ * type with no handshake required - connections are ready immediately.
+ *
+ * Uses standard POSIX read()/write() system calls in non-blocking mode.
+ * Handles EAGAIN/EWOULDBLOCK for non-blocking I/O and properly detects
+ * connection closures and errors.
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -34,18 +47,18 @@
 #include "connection.h"
 #include "merc.h"
 
-/*
- * TCP connection structure
- * Plain, unencrypted TCP socket
+/**
+ * @struct connection_tcp
+ * @brief TCP connection implementation structure
+ *
+ * Plain unencrypted TCP socket. Has no additional state beyond the base
+ * connection since TCP requires no protocol-specific data.
  */
 typedef struct connection_tcp {
-    connection_t base;      // Must be first for casting
-    // TCP has no additional state beyond the base connection
+    connection_t base;      /**< Base connection (must be first for casting) */
 } connection_tcp_t;
 
-/*
- * Forward declarations
- */
+/* Forward declarations for vtable functions */
 static bool tcp_read(connection_t *conn, char *buf, int size, int *bytes_read);
 static bool tcp_write(connection_t *conn, const char *buf, int size, int *bytes_written);
 static bool tcp_process_handshake(connection_t *conn);
@@ -54,8 +67,8 @@ static void tcp_free(connection_t *conn);
 static bool tcp_is_secure(connection_t *conn);
 static const char* tcp_get_protocol_name(connection_t *conn);
 
-/*
- * TCP virtual function table
+/**
+ * @brief Virtual function table for TCP connections
  */
 static connection_vtable_t tcp_vtable = {
     .read = tcp_read,
@@ -67,8 +80,16 @@ static connection_vtable_t tcp_vtable = {
     .get_protocol_name = tcp_get_protocol_name
 };
 
-/*
- * Create a new TCP connection
+/**
+ * connection_tcp_create - Create a new TCP connection
+ *
+ * Factory function to create a plain TCP connection from an accepted socket.
+ * Sets socket to non-blocking mode. TCP connections require no handshake
+ * and are ready for I/O immediately.
+ *
+ * @param fd    Accepted socket file descriptor
+ * @param desc  Game descriptor to associate with this connection
+ * @return      New connection_t pointer, or NULL on failure
  */
 connection_t* connection_tcp_create(int fd, struct descriptor_data *desc)
 {
@@ -100,8 +121,17 @@ connection_t* connection_tcp_create(int fd, struct descriptor_data *desc)
     return (connection_t*)tcp_conn;
 }
 
-/*
- * Read from TCP socket
+/**
+ * tcp_read - Read data from TCP socket
+ *
+ * Non-blocking read from the TCP socket. Returns immediately with
+ * bytes_read=0 if no data is available (EAGAIN/EWOULDBLOCK).
+ *
+ * @param conn        The connection to read from
+ * @param buf         Buffer to store read data
+ * @param size        Maximum bytes to read
+ * @param bytes_read  Output: number of bytes actually read
+ * @return            true on success or would-block, false on error/disconnect
  */
 static bool tcp_read(connection_t *conn, char *buf, int size, int *bytes_read)
 {
@@ -134,8 +164,18 @@ static bool tcp_read(connection_t *conn, char *buf, int size, int *bytes_read)
     }
 }
 
-/*
- * Write to TCP socket
+/**
+ * tcp_write - Write data to TCP socket
+ *
+ * Non-blocking write to the TCP socket. Returns immediately with
+ * bytes_written=0 if socket buffer is full (EAGAIN/EWOULDBLOCK).
+ * Detects broken connections (EPIPE, ECONNRESET).
+ *
+ * @param conn           The connection to write to
+ * @param buf            Data to write
+ * @param size           Bytes to write
+ * @param bytes_written  Output: number of bytes actually written
+ * @return               true on success or would-block, false on error/disconnect
  */
 static bool tcp_write(connection_t *conn, const char *buf, int size, int *bytes_written)
 {
@@ -173,8 +213,13 @@ static bool tcp_write(connection_t *conn, const char *buf, int size, int *bytes_
     }
 }
 
-/*
- * Process handshake (TCP has no handshake)
+/**
+ * tcp_process_handshake - Process handshake (no-op for TCP)
+ *
+ * TCP has no handshake - connections are ready immediately after accept().
+ *
+ * @param conn  The connection (unused)
+ * @return      Always returns true (handshake complete)
  */
 static bool tcp_process_handshake(connection_t *conn)
 {
@@ -182,8 +227,16 @@ static bool tcp_process_handshake(connection_t *conn)
     return true;
 }
 
-/*
- * Close TCP connection
+/**
+ * tcp_close - Close TCP connection gracefully
+ *
+ * Performs orderly shutdown of the TCP connection:
+ *   1. Sets state to CLOSING
+ *   2. Calls shutdown() to stop both read and write
+ *   3. Closes the file descriptor
+ *   4. Sets state to CLOSED
+ *
+ * @param conn  The connection to close
  */
 static void tcp_close(connection_t *conn)
 {
@@ -199,8 +252,12 @@ static void tcp_close(connection_t *conn)
     conn->state = CONN_STATE_CLOSED;
 }
 
-/*
- * Free TCP connection
+/**
+ * tcp_free - Free TCP connection resources
+ *
+ * Ensures connection is closed, then frees the connection structure.
+ *
+ * @param conn  The connection to free
  */
 static void tcp_free(connection_t *conn)
 {
@@ -214,16 +271,24 @@ static void tcp_free(connection_t *conn)
     free(tcp_conn);
 }
 
-/*
- * Check if TCP is secure (it's not)
+/**
+ * tcp_is_secure - Check if TCP connection is encrypted
+ *
+ * Plain TCP is not encrypted.
+ *
+ * @param conn  The connection to check
+ * @return      Always returns false
  */
 static bool tcp_is_secure(connection_t *conn)
 {
     return false;
 }
 
-/*
- * Get protocol name
+/**
+ * tcp_get_protocol_name - Get protocol name for logging
+ *
+ * @param conn  The connection (unused)
+ * @return      "TCP"
  */
 static const char* tcp_get_protocol_name(connection_t *conn)
 {

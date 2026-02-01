@@ -518,6 +518,7 @@ typedef struct script_boolexp BOOLEXP;
 typedef struct rs_location_type {
     long auid;
     unsigned long wuid;
+    long vnum;
     unsigned long id[3];
 } RS_LOCATION;
 
@@ -2065,11 +2066,16 @@ struct shop_stock_data
     int max_quantity;			// Total number of units available
     int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
 
+    union {
+        WNUM      wnum;			// Runtime: area pointer + vnum
+        WNUM_LOAD load;			// Loading: area UID + vnum
+        long      vnum;			// Legacy/non-entity values
+    } entity;
+    
     MOB_INDEX_DATA *mob;
     OBJ_INDEX_DATA *obj;
     SHIP_INDEX_DATA *ship;
     int type;
-    long vnum;
 
     int duration;				// How long will the stock item last (in-game hours)
 
@@ -5559,31 +5565,58 @@ struct flag_stat_type
     bool stat;
 };
 
-/*
+/**
+ * RESET_DATA - Area reset command structure
+ *
+ * Defines how entities (mobs, objects) are spawned or placed within
+ * an area during reset. Commands are executed sequentially on boot
+ * and during area resets.
+ *
  * Reset commands:
- *   '*': comment
- *   'M': read a mobile
- *   'O': read an object
- *   'P': put object in object
- *   'G': give object to mobile
- *   'E': equip object to mobile
- *   'D': set state of door
- *   'R': randomize room exits
- *   'S': stop (end of list)
+ * - '*': Comment (ignored)
+ * - 'M': Spawn mobile (arg1=mob_wnum, arg2=limit, arg3=room_vnum)
+ * - 'O': Place object (arg1=obj_wnum, arg2=limit, arg3=room_vnum)
+ * - 'P': Put in container (arg1=obj_wnum, arg2=limit, arg3=container_wnum, arg4=count)
+ * - 'G': Give to mobile (arg1=obj_wnum, arg2=limit)
+ * - 'E': Equip to mobile (arg1=obj_wnum, arg2=limit, arg3=wear_slot)
+ * - 'D': Set door state (arg1=room_vnum, arg2=door, arg3=state)
+ * - 'R': Randomize exits (arg1=room_vnum, arg2=num_exits)
+ * - 'S': Stop (end of list)
+ *
+ * Cross-area support:
+ * arg1 and arg3 (when used for entity vnums) are WNUM structures that
+ * store both area_uid and vnum. This enables cross-area references,
+ * allowing areas to spawn mobs/objects from shared libraries or other
+ * areas. For commands that don't reference entities (D, R), these
+ * fields are treated as simple longs via union access.
+ *
+ * Backward compatibility:
+ * Legacy code that treats arg1/arg3 as longs will need updating to
+ * use arg1.vnum/arg3.vnum. The parse_widevnum() function provides
+ * automatic area lookup for bare vnums.
  */
-
-/*
- * Area-reset definition.
- */
-struct	reset_data
+struct reset_data
 {
-    RESET_DATA *	next;
-    char		command;
-    long		arg1;
-    long 		arg2;
-    long		arg3;
-    long		arg4;
+    RESET_DATA *next;
+    char        command;
+    
+    union {
+        WNUM      wnum;    // For entity references (M, O, P, G, E commands) - runtime
+        WNUM_LOAD load;    // For entity references during loading - before areas resolved
+        long      value;   // For non-entity values (D, R commands)
+    } arg1;
+    
+    long        arg2;      // Limit/count
+    
+    union {
+        WNUM      wnum;    // For container references (P command) - runtime
+        WNUM_LOAD load;    // For container references during loading
+        long      value;   // For room vnums, wear slots, door numbers
+    } arg3;
+    
+    long        arg4;      // Count (P command) or other values
 };
+
 /*
  * Area definition.
  */
@@ -8386,7 +8419,7 @@ MID *	get_mob_index_global	args( ( long vnum ) );
 OID *	get_obj_index_global	args( ( long vnum ) );
 RID *	get_room_index_global	args( ( long vnum ) );
 TOKEN_INDEX_DATA *get_token_index_global	args( ( long vnum ) );
-AREA_DATA *find_area_by_vnum	args( ( long vnum ) );
+AREA_DATA *find_area_by_vnum	args( ( long vnum, AREA_DATA *current_area ) );
 AREA_DATA *get_system_area_fallback	args( ( void ) );
 NID *	get_npc_ship_index args( ( long vnum ) );
 PC *	get_prog_index args( ( long vnum, int type ) );

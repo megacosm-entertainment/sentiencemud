@@ -1883,14 +1883,14 @@ long v = fread_number(fp);
 unsigned long id1 = fread_number(fp);
 unsigned long id2 = fread_number(fp);
 
-AREA_DATA *area = find_area_by_vnum(v);
+AREA_DATA *area = find_area_by_vnum(v, NULL);
 if (!area) area = get_system_area_fallback();
 room = get_room_index(area, v);
 
 ch->in_room = get_clone_room(room,id1,id2);
 
 if (ch->in_room == NULL) {
-    AREA_DATA *fallback_area = find_area_by_vnum(11001);
+    AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
     if (!fallback_area) fallback_area = get_system_area_fallback();
     ch->in_room = get_room_index(fallback_area, 11001);
 }
@@ -2497,12 +2497,12 @@ if (ch->in_room == NULL) {
 if (!str_cmp(word, "Room"))
 {
     long room_vnum = fread_number(fp);
-    AREA_DATA *area = find_area_by_vnum(room_vnum);
+    AREA_DATA *area = find_area_by_vnum(room_vnum, NULL);
     if (!area) area = get_system_area_fallback();
     ch->in_room = get_room_index(area, room_vnum);
     if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
     {
-        AREA_DATA *fallback_area = find_area_by_vnum(11001);
+        AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
         if (!fallback_area) fallback_area = get_system_area_fallback();
         ch->in_room = get_room_index(fallback_area, 11001);
     }
@@ -3884,8 +3884,8 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
             if (!str_cmp(word, "Room"))
             {
                 ROOM_INDEX_DATA *room;
-
-                AREA_DATA *area = find_area_by_vnum(fread_number(fp));
+                long vnum = fread_number(fp);
+                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                 if (!area) area = get_system_area_fallback();
                 room = get_room_index(area, fread_number(fp));
                 obj->in_room = room;
@@ -4116,7 +4116,7 @@ void read_permanent_objs()
                 }
                 else
                 {
-                AREA_DATA *area = find_area_by_vnum(obj->in_room->vnum);
+                AREA_DATA *area = find_area_by_vnum(obj->in_room->vnum, NULL);
                 if (!area) area = get_system_area_fallback();
                 ROOM_INDEX_DATA *to_room = get_room_index(area, obj->in_room->vnum);
                 obj->in_room = NULL;
@@ -5468,7 +5468,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
                 obj_i = get_obj_index_global(part->obj);
 
 room_vnum = fread_number(fp);
-AREA_DATA *area = find_area_by_vnum(room_vnum);
+AREA_DATA *area = find_area_by_vnum(room_vnum, NULL);
 if (!area) area = get_system_area_fallback();
 room = get_room_index(area, room_vnum);
                 obj = create_object(obj_i, 1, true);

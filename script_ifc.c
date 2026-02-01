@@ -4002,9 +4002,10 @@ DECL_IFC_FUN(ifc_istreasureroom)
     else {
         if(ISARG_ROOM(0)) here = ARG_ROOM(0);
         else if(ISARG_NUM(0)) {
-            AREA_DATA *area = find_area_by_vnum(ARG_NUM(0));
+            long vnum = ARG_NUM(0);
+            AREA_DATA *area = find_area_by_vnum(vnum, NULL);
             if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, ARG_NUM(0));
+            here = get_room_index(area, vnum);
         }
 
         if(here) {
@@ -4024,9 +4025,10 @@ DECL_IFC_FUN(ifc_istreasureroom)
     if(church) {
         if(ISARG_ROOM(1)) here = ARG_ROOM(1);
         else if(ISARG_NUM(1)) {
-            AREA_DATA *area = find_area_by_vnum(ARG_NUM(1));
+            long vnum = ARG_NUM(1);
+            AREA_DATA *area = find_area_by_vnum(vnum, NULL);
             if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, ARG_NUM(1));
+            here = get_room_index(area, vnum);
         }
 
         *ret = here ? is_treasure_room(church, here) : false;
