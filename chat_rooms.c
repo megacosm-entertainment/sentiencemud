@@ -10,6 +10,7 @@
 #include "merc.h"
 #include "db.h"
 #include "recycle.h"
+#include "json_chat.h"
 #include <string.h>
 
 /* local functions */
@@ -262,8 +263,15 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     // Reset manastore upon entering the rift
     ch->manastore = 0;
 
+    ROOM_INDEX_DATA *chat_lobby = get_reserved_room_index("room_chat_lobby");
+    if (!chat_lobby) {
+        bug("do_chat_enter: room_chat_lobby not found!", 0);
+        send_to_char("Chat is currently unavailable.\n\r", ch);
+        return;
+    }
+
     char_from_room(ch);
-    char_to_room(ch, get_reserved_room_index("room_chat_lobby"));
+    char_to_room(ch, chat_lobby);
 
     act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
@@ -1379,87 +1387,22 @@ void do_chat_setfounder(CHAR_DATA *ch, char *argument)
 /**
  * write_chat_rooms - Save permanent chat rooms to disk
  *
- * Writes all permanent chat rooms (chat->permanent == true) to CHAT_FILE.
+ * Writes all permanent chat rooms (chat->permanent == true) to JSON file.
  * Called after any modification to permanent rooms (create, topic, op changes).
- *
- * File format per room:
- * - name~
- * - topic~
- * - password~
- * - created_by~
- * - area_uid (for widevnum support)
- * - vnum
- * - max_people
- * - op_count
- * - [op names, one per line with ~]
  */
 void write_chat_rooms()
 {
-    FILE *fp;
-    CHAT_ROOM_DATA *chat;
-    CHAT_OP_DATA *op;
-    int count;
-    int op_count;
-
-    fp = fopen(CHAT_FILE, "w");
-    if (fp == NULL)
-    {
-        bug("Couldn't load chat_rooms.dat", 0);
-    exit(1);
+    // Use JSON save function
+    if (!save_chat_rooms_json()) {
+        bug("write_chat_rooms: Failed to save chat rooms to JSON", 0);
     }
-
-    count = 0;
-    for (chat = chat_room_list; chat != NULL; chat = chat->next)
-    {
-        if (chat->permanent == true)
-            count++;
-    }
-
-    if (count == 0)
-    {
-        fprintf(fp, "%d\n", count);
-        return;
-    }
-
-    fprintf(fp, "%d\n", count);
-
-    for (chat = chat_room_list; chat != NULL; chat = chat->next)
-    {
-     if (chat->permanent == true)
-    {
-           fprintf(fp, "%s~\n", fix_string(chat->name));
-        fprintf(fp, "%s~\n", fix_string(chat->topic)) ;
-        fprintf(fp, "%s~\n", fix_string(chat->password));
-        fprintf(fp, "%s~\n", chat->created_by);
-        fprintf(fp, "%ld\n", chat->area_uid);  // Save area UID for widevnum support
-        fprintf(fp, "%ld\n", chat->vnum);
-        fprintf(fp, "%d\n", chat->max_people);
-
-        /* write ops */
-        op_count = 0;
-        for (op = chat->ops; op != NULL; op = op->next)
-        {
-                op_count++;
-        }
-
-        fprintf(fp, "%d\n", op_count);
-
-            for (op = chat->ops; op != NULL; op = op->next)
-            {
-          fprintf(fp, "%s~\n", op->name);
-        }
-    }
-    }
-    fclose(fp);
 }
-
-
 /**
  * read_chat_rooms - Load permanent chat rooms from disk at boot
  *
- * Reads all permanent chat rooms from CHAT_FILE and links them to
- * their corresponding rooms in the chat dimension. Called during
- * server initialization.
+ * Tries to load from JSON first (data/chat_rooms.json).
+ * If JSON doesn't exist, falls back to legacy .dat format.
+ * If legacy format is loaded, automatically saves as JSON and archives the old file.
  *
  * Each room is linked to the physical room via room->chat_room pointer.
  * Skips rooms whose area_uid is not found (area may have been deleted).
@@ -1476,20 +1419,39 @@ void read_chat_rooms()
     int count;
     int counter;
     int op_count;
+    
+    // Try JSON format first
+    if (load_chat_rooms_json()) {
+        log_string("Loaded chat rooms from JSON");
+        return;
+    }
+    
+    // Fall back to legacy .dat format
+    log_string("JSON not found, trying legacy .dat format");
 
     fp = fopen(CHAT_FILE, "r");
 
     if (fp == NULL)
     {
-        bug("Couldn't load chat_rooms.dat", 0);
-        exit(1);
+        log_string("*** No chat rooms file found (.dat or .json)");
+        return;  // Not an error - just no rooms
     }
+
+    // Check for empty file
+    int c = fgetc(fp);
+    if (c == EOF) {
+        log_string("*** Chat room file is empty, skipping load.");
+        fclose(fp);
+        return;
+    }
+    ungetc(c, fp);
 
     counter = 0;
     count = fread_number(fp);
     if (count == 0)
     {
         log_string("*** No chat rooms to read.\n");
+        fclose(fp);
         return;
     }
     last_chat = NULL;
@@ -1498,87 +1460,97 @@ void read_chat_rooms()
     {
         chat = new_chat_room();
 
-    if (last_chat != NULL)
-        last_chat->next = chat;
+	if (last_chat != NULL)
+	    last_chat->next = chat;
 
-    chat->name = fread_string(fp);
-    chat->topic = fread_string(fp);
-    chat->password = fread_string(fp);
-    chat->permanent = true;
-    chat->created_by = fread_string(fp);
-    
-    // Always read new format (area_uid, vnum, max_people)
-    // The file has been migrated to the new format
-    chat->area_uid = fread_number(fp);
-    chat->vnum = fread_number(fp);
-    chat->max_people = fread_number(fp);
-    last_chat = chat;
+	chat->name = fread_string(fp);
+	chat->topic = fread_string(fp);
+	chat->password = fread_string(fp);
+	chat->permanent = true;
+	chat->created_by = fread_string(fp);
+	
+	// Always read new format (area_uid, vnum, max_people)
+	// The file has been migrated to the new format
+	chat->area_uid = fread_number(fp);
+	chat->vnum = fread_number(fp);
+	chat->max_people = fread_number(fp);
+	last_chat = chat;
 
-    sprintf(buf,
-    "*** Chat room %s, pass %s, created_by %s, vnum %ld, max %i",
-        chat->name,
-        chat->password,
-        chat->created_by,
-        chat->vnum,
-        chat->max_people);
-    log_string(buf);
+	sprintf(buf,
+	"*** Chat room %s, pass %s, created_by %s, area_uid %ld, vnum %ld, max %i",
+	    chat->name,
+	    chat->password,
+	    chat->created_by,
+	    chat->area_uid,
+	    chat->vnum,
+	    chat->max_people);
+	log_string(buf);
 
-    op_count = fread_number(fp);
-    if (op_count == 0)
-          log_string("No operators.");
-    else
-    {
-        int i;
+	op_count = fread_number(fp);
+	if (op_count == 0)
+  	    log_string("No operators.");
+	else
+	{
+	    int i;
 
-        last_op = NULL;
-        for (i = 0; i < op_count; i++)
-        {
-            op = new_chat_op();
-        if (last_op != NULL)
-            last_op->next = op;
+	    last_op = NULL;
+	    for (i = 0; i < op_count; i++)
+	    {
+	        op = new_chat_op();
+		if (last_op != NULL)
+		    last_op->next = op;
 
-        op->name = fread_string(fp);
-        op->next = NULL;
-        op->chat_room = chat;
+		op->name = fread_string(fp);
+		op->next = NULL;
+		op->chat_room = chat;
 
-        sprintf(buf, "Operator: %s for #%s",
-                op->name, chat->name);
-        log_string(buf);
-        last_op = op;
+		sprintf(buf, "Operator: %s for #%s",
+				op->name, chat->name);
+		log_string(buf);
+		last_op = op;
 
-        if (chat->ops == NULL)
-            chat->ops = op;
-        }
-    }
+		if (chat->ops == NULL)
+			chat->ops = op;
+	    }
+	}
 
-    // Look up the area by UID
-    AREA_DATA *chat_area = get_area_index(chat->area_uid);
-    if (!chat_area) {
-        sprintf(buf, "read_chat_rooms: %s area_uid %ld not found, skipping",
-            chat->name, chat->area_uid);
-        bug(buf, 0);
-        continue;
-    }
-    
-    room = get_room_index(chat_area, chat->vnum);
+	// Look up the area and room using area_uid + vnum
+	AREA_DATA *chat_area = NULL;
+	if (chat->area_uid > 0) {
+	    chat_area = get_area_from_uid(chat->area_uid);
+	    if (chat_area) {
+	        room = get_room_index(chat_area, chat->vnum);
+	    }
+	}
 
-    if (room == NULL)
-    {
-        sprintf(buf, "read_chat_rooms: %s had null room!",
-            chat->name);
-        bug(buf, 0);
-        exit(1);
-    }
+	if (room == NULL)
+	{
+	    sprintf(buf, "read_chat_rooms: %s had null room (area_uid %ld, vnum %ld)!",
+	        chat->name, chat->area_uid, chat->vnum);
+	    bug(buf, 0);
+	    continue;
+	}
 
-    room->chat_room = chat;
+	room->chat_room = chat;
 
-    if (counter == 0)
-        chat_room_list = chat;
+	if (counter == 0)
+	    chat_room_list = chat;
     }
 
     fclose(fp);
+    
+    // Migrate to JSON format
+    log_string("Migrating chat rooms from .dat to JSON...");
+    if (save_chat_rooms_json()) {
+        // Archive the old .dat file
+        char old_file[MSL];
+        char archive_file[MSL];
+        sprintf(old_file, "%s", CHAT_FILE);
+        sprintf(archive_file, "%s.old", CHAT_FILE);
+        rename(old_file, archive_file);
+        log_string("Successfully migrated chat rooms to JSON format");
+    }
 }
-
 
 /**
  * do_chat_show - Display detailed information about a chat room
@@ -1652,11 +1624,20 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     
     line(ch, 65, NULL, NULL);
 
-
-    sprintf(buf, "{YRoom:{x %s\n\r", get_room_index(
-        chat->area_uid > 0 ? get_area_index(chat->area_uid) : get_system_area_fallback(),
-        chat->vnum)->name);
-    send_to_char(buf, ch);
+    // Look up room name using area_uid + vnum
+    AREA_DATA *chat_area = NULL;
+    ROOM_INDEX_DATA *chat_room = NULL;
+    if (chat->area_uid > 0) {
+        chat_area = get_area_from_uid(chat->area_uid);
+        if (chat_area) {
+            chat_room = get_room_index(chat_area, chat->vnum);
+        }
+    }
+    
+    if (chat_room) {
+        sprintf(buf, "{YRoom:{x %s\n\r", chat_room->name);
+        send_to_char(buf, ch);
+    }
     
     if (IS_IMMORTAL(ch))
     {
@@ -1709,9 +1690,15 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     // or if they're an immortal
     if (ch->in_room->chat_room == chat || IS_IMMORTAL(ch))
     {
-        AREA_DATA *chat_area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
-        if (!chat_area) chat_area = get_system_area_fallback();
-        ROOM_INDEX_DATA *room = get_room_index(chat_area, chat->vnum);
+        // Look up the actual room using area_uid + vnum
+        ROOM_INDEX_DATA *room = NULL;
+        AREA_DATA *occ_area = NULL;
+        if (chat->area_uid > 0) {
+            occ_area = get_area_from_uid(chat->area_uid);
+            if (occ_area) {
+                room = get_room_index(occ_area, chat->vnum);
+            }
+        }
         
         send_to_char("{YCurrent occupants:{x ", ch);
         count = 0;

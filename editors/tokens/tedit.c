@@ -62,14 +62,35 @@ TEDIT(tedit_create)
 
     EDIT_TOKEN(ch, token_index);
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == '\0')
+    // Auto-vnum: empty or "0" finds next available
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-    send_to_char("Syntax: tedit create [vnum]\n\r", ch);
-    return false;
+        // Find next available token vnum in current area
+        pArea = ch->in_room->area;
+        value = pArea->min_vnum;
+        while (value <= pArea->max_vnum && get_token_index(pArea, value))
+            value++;
+        
+        if (value > pArea->max_vnum)
+        {
+            send_to_char("No available vnums in current area.\n\r", ch);
+            return false;
+        }
+    }
+    else
+    {
+        // Parse widevnum
+        WNUM token_wnum;
+        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(argument, context, &token_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        
+        pArea = token_wnum.pArea;
+        value = token_wnum.vnum;
     }
 
-    pArea = get_vnum_area(value);
     if (pArea == NULL)
     {
     send_to_char("That vnum is not assigned an area.\n\r", ch);
@@ -819,9 +840,9 @@ TEDIT (tedit_addtprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
     {
-    send_to_char("Syntax:   addtprog [vnum] [trigger] [phrase]\n\r",ch);
+    send_to_char("Syntax:   addtprog [widevnum] [trigger] [phrase]\n\r",ch);
     return false;
     }
 
@@ -882,7 +903,14 @@ TEDIT (tedit_addtprog)
     }
 
 
-    if ((code = get_script_index_global(atol(num), PRG_TPROG)) == NULL)
+    WNUM script_wnum;
+    AREA_DATA *context = strchr(num, '#') ? token_index->area : NULL;
+    if (!parse_widevnum(num, context, &script_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_TPROG)) == NULL)
     {
     send_to_char("No such TokenProgram.\n\r",ch);
     return false;
@@ -897,7 +925,7 @@ TEDIT (tedit_addtprog)
     }
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     list->trig_number		= atoi(list->trig_phrase);

@@ -682,10 +682,11 @@ WEDIT ( wedit_vlink )
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
         if(pVLink->current_linkage == VLINK_UNLINKED) {
-            if (is_number(arg3) && (value = atoi(arg3)) > 0) {
-                AREA_DATA *dest_area = find_area_by_vnum(value, NULL);
-                if (!dest_area) dest_area = get_system_area_fallback();
-                ROOM_INDEX_DATA *destRoom = get_room_index(dest_area, value);
+            WNUM room_wnum;
+            AREA_DATA *context = strchr(arg3, '#') ? ch->in_room->area : NULL;
+            if (parse_widevnum(arg3, context, &room_wnum) && room_wnum.vnum > 0) {
+                value = room_wnum.vnum;
+                ROOM_INDEX_DATA *destRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);
 
                 if( !destRoom )
                 {

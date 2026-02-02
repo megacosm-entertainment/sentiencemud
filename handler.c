@@ -239,10 +239,8 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
         WNUM room_wnum;
         AREA_DATA *context = ch ? ch->in_room->area : NULL;
         
-        if (parse_widevnum(arg1, context, &room_wnum)) {
-            room = room_wnum.pArea ?
-                get_room_index(room_wnum.pArea, room_wnum.vnum) :
-                get_room_index_global(room_wnum.vnum);
+        if (parse_widevnum(arg1, context, &room_wnum) && room_wnum.pArea) {
+            room = get_room_index(room_wnum.pArea, room_wnum.vnum);
                 
             if (room && is_number(arg2) && is_number(arg))
             {
@@ -12125,6 +12123,7 @@ ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
     ITERATOR it;
     RESERVED_DATA *reserved;
     WNUM wnum;
+    char vnum_str[MAX_INPUT_LENGTH];
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -12134,12 +12133,20 @@ ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
         if (reserved->type == RESERVED_ROOM && 
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
-            wnum.pArea = get_area_index(reserved->wnum.auid);
-            if (!wnum.pArea) {
-                wnum.pArea = get_system_area_fallback();
+            
+            // Search all areas for this room vnum
+            // Don't trust the stored area UID as it may be incorrect
+            AREA_DATA *area;
+            ROOM_INDEX_DATA *room;
+            
+            for (area = area_first; area; area = area->next) {
+                room = get_room_index(area, reserved->wnum.vnum);
+                if (room) {
+                    return room;
+                }
             }
-            wnum.vnum = reserved->wnum.vnum;
-            return get_room_index(wnum.pArea, wnum.vnum);
+            
+            return NULL;
         }
     }
     iterator_stop(&it);
@@ -12293,8 +12300,28 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
         }
         
         if (current_area) {
-            // Treat as relative vnum in current area
-            wnum->pArea = current_area;
+            // Try as relative vnum in current area first
+            // Check if the vnum is actually in this area's range
+            if (vnum >= current_area->min_vnum && vnum <= current_area->max_vnum) {
+                wnum->pArea = current_area;
+                wnum->vnum = vnum;
+                return true;
+            }
+            
+            // Vnum not in current area's range - fall back to global search
+            // This maintains backwards compatibility with legacy scripts/areas
+            AREA_DATA *found_area = find_area_by_vnum(vnum, NULL);
+            if (found_area) {
+                wnum->pArea = found_area;
+                wnum->vnum = vnum;
+                return true;
+            }
+            
+            // Last resort: system area fallback
+            wnum->pArea = get_system_area_fallback();
+            if (!wnum->pArea) {
+                return false;
+            }
             wnum->vnum = vnum;
             return true;
         } else {

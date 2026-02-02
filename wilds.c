@@ -270,12 +270,12 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
     pRoomIndex->name            = str_dup(pTerrain->template->name);
     pRoomIndex->description     = NULL;
     pRoomIndex->owner           = NULL;
-    pRoomIndex->room_flag[0]      = pTerrain->template->room_flag[0];
-    pRoomIndex->room_flag[1]	= pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
-    pRoomIndex->sector_type     = pTerrain->template->sector_type;
+    pRoomIndex->room_flag[0]      = pTerrain->template->rs_room_flag[0];
+    pRoomIndex->room_flag[1]	= pTerrain->template->rs_room_flag[1]|ROOM_VIRTUAL_ROOM;
+    pRoomIndex->sector_type     = pTerrain->template->rs_sector_type;
     pRoomIndex->parent_template = pTerrain;
-    pRoomIndex->heal_rate       = 100;
-    pRoomIndex->mana_rate       = 100;
+    pRoomIndex->heal_rate       = pTerrain->template->rs_heal_rate;
+    pRoomIndex->mana_rate       = pTerrain->template->rs_mana_rate;
 
     list_appendlink(pWilds->loaded_vrooms,pRoomIndex);
     pWilds->loaded_rooms++;

@@ -6908,7 +6908,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
         free_buf(buffer);
 
-    // Format: ROOM <VNUM> - room vnum
+    // Format: ROOM <VNUM> - room vnum (supports widevnum)
     // Format: ROOM <ROOM> - explicit room
     // Format: ROOM <EXIT> - gets the destination of the exit
     // Format: ROOM <ROOM-LIST> - first room from the list
@@ -6918,12 +6918,26 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: ROOM <ROOM-LIST> RANDOM - random valid room from the list
     } else if(!str_cmp(buf,"room")) {
         switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_room(vars,name,get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
         case ENT_NUMBER: {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            variables_set_room(vars,name,get_room_index(area, arg->d.num));
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            AREA_DATA *context_area = here ? here->area : NULL;
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea)
+                variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
             break;
         }
+        case ENT_STRING:
+            if (is_number(arg->d.str)) {
+                WNUM room_wnum = { NULL, 0 };
+                AREA_DATA *context_area = here ? here->area : NULL;
+                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea)
+                    variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
+            }
+            break;
         case ENT_ROOM:
             variables_set_room(vars,name,arg->d.room);
             break;
@@ -7117,21 +7131,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         }
 
         switch(arg->type) {
-        case ENT_NUMBER: {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, arg->d.num);
+        case ENT_WIDEVNUM:
+            here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
             mobs = here ? here->people : NULL;
+            break;
+        case ENT_NUMBER: {
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            AREA_DATA *context_area = here ? here->area : NULL;
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
+                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                mobs = here ? here->people : NULL;
+            }
             break;
         }
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                long vnum = atoi(arg->d.str);
-                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-                if (!area) area = get_system_area_fallback();
-                here = get_room_index(area, vnum);
-                mobs = here ? here->people : NULL;
+                WNUM room_wnum = { NULL, 0 };
+                AREA_DATA *context_area = here ? here->area : NULL;
+                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
+                    here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                    mobs = here ? here->people : NULL;
+                }
             }
             else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
             {
@@ -7363,21 +7386,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 
         switch(arg->type) {
-        case ENT_NUMBER: {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, arg->d.num);
+        case ENT_WIDEVNUM:
+            here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
             objs = here ? here->contents : NULL;
+            break;
+        case ENT_NUMBER: {
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            AREA_DATA *context_area = here ? here->area : NULL;
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
+                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                objs = here ? here->contents : NULL;
+            }
             break;
         }
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                long vnum = atoi(arg->d.str);
-                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-                if (!area) area = get_system_area_fallback();
-                here = get_room_index(area, vnum);
-                objs = here ? here->contents : NULL;
+                WNUM room_wnum = { NULL, 0 };
+                AREA_DATA *context_area = here ? here->area : NULL;
+                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
+                    here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                    objs = here ? here->contents : NULL;
+                }
             }
             else if(!str_cmp(arg->d.str, "here"))
             {
@@ -8501,9 +8533,9 @@ OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name)
 // MLOAD $VNUM|$MOBILE $ROOM[ $VARIABLENAME]
 CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
-    char buf[MIL], *rest;
-    long vnum;
-    MOB_INDEX_DATA *pMobIndex;
+    char *rest;
+    WNUM wnum = { NULL, 0 };
+    MOB_INDEX_DATA *pMobIndex = NULL;
     ROOM_INDEX_DATA *room;
     CHAR_DATA *victim;
 
@@ -8515,15 +8547,36 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
         return NULL;
 
     switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-    case ENT_MOBILE: vnum = arg->d.mob ? arg->d.mob->pIndexData->vnum : 0; break;
-    default: vnum = 0; break;
+    case ENT_WIDEVNUM:
+        wnum = arg->d.wnum;
+        break;
+    case ENT_NUMBER:
+    {
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    }
+    case ENT_STRING:
+        if (arg->d.str)
+            parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    case ENT_MOBILE:
+        if (arg->d.mob && arg->d.mob->pIndexData) {
+            wnum.pArea = arg->d.mob->pIndexData->area;
+            wnum.vnum = arg->d.mob->pIndexData->vnum;
+        }
+        break;
+    default:
+        break;
     }
 
-    if (vnum < 1 || !(pMobIndex = get_mob_index_global(vnum))) {
-        sprintf(buf, "Mpmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->mob));
-        bug(buf, 0);
+    if (!wnum.pArea || wnum.vnum < 1) {
+        return NULL;
+    }
+
+    pMobIndex = get_mob_index(wnum.pArea, wnum.vnum);
+    if (!pMobIndex) {
         return NULL;
     }
 
@@ -8541,11 +8594,19 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
             room = arg->d.room;
             var_name = rest;
         }
+        else if( arg->type == ENT_WIDEVNUM )
+        {
+            room = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            var_name = rest;
+        }
         else if( arg->type == ENT_NUMBER )
         {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            room = get_room_index(area, arg->d.num);
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &room_wnum);
+            if (room_wnum.pArea)
+                room = get_room_index(room_wnum.pArea, room_wnum.vnum);
             var_name = rest;
         }
 
@@ -8578,13 +8639,195 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
     return victim;
 }
 
+// Helper to get current room from script info
+static ROOM_INDEX_DATA *get_current_room_from_info(SCRIPT_VARINFO *info)
+{
+    if (info->mob) return info->mob->in_room;
+    if (info->obj) return obj_room(info->obj);
+    if (info->room) return info->room;
+    if (info->token) return token_room(info->token);
+    return NULL;
+}
+
+// Unified location parser for all script types
+// Supports: ENT_WIDEVNUM, ENT_NUMBER (with area context), wilderness coords, 
+// named locations, vroom/clone, ENT_MOBILE, ENT_OBJECT, ENT_ROOM, ENT_EXIT, ENT_TOKEN
+char *script_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room)
+{
+    char *rest, *rest2;
+    long vnum;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj;
+    AREA_DATA *area;
+    ROOM_INDEX_DATA *loc, *current_room;
+    WILDS_DATA *pWilds;
+    SCRIPT_PARAM *arg = new_script_param();
+    EXIT_DATA *ex;
+    int x, y;
+
+    *room = NULL;
+    current_room = get_current_room_from_info(info);
+
+    if((rest = expand_argument(info,argument,arg))) {
+        switch(arg->type) {
+        case ENT_NONE: 
+            *room = current_room; 
+            break;
+
+        case ENT_WIDEVNUM:
+            if (arg->d.wnum.pArea)
+                *room = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            break;
+
+        case ENT_NUMBER:
+            x = arg->d.num;
+            rest2 = rest;
+            if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                y = arg->d.num;
+                if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                    if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
+
+                    if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
+
+                    if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+                        !str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+                        break;
+
+                    rest = rest2;
+                    room_used_for_wilderness.wilds = pWilds;
+                    room_used_for_wilderness.x = x;
+                    room_used_for_wilderness.y = y;
+                    *room = &room_used_for_wilderness;
+                }
+            } else {
+                // Single number - resolve with area context
+                WNUM wnum = { NULL, 0 };
+                char vnum_str[32];
+                AREA_DATA *context_area = current_room ? current_room->area : NULL;
+                snprintf(vnum_str, sizeof(vnum_str), "%d", x);
+                parse_widevnum(vnum_str, context_area, &wnum);
+                if (wnum.pArea)
+                    *room = get_room_index(wnum.pArea, wnum.vnum);
+                rest = rest2;
+            }
+            break;
+
+        case ENT_STRING:
+            if(arg->d.str[0] == '@')
+                *room = get_exit_dest(current_room, arg->d.str+1);
+            else if(!str_cmp(arg->d.str,"here"))
+                *room = current_room;
+            else if(!str_cmp(arg->d.str,"vroom") || !str_cmp(arg->d.str,"clone")) {
+                int vnum,id1, id2;
+                if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                    rest = rest2;
+                    vnum = arg->d.num;
+                    if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                        rest = rest2;
+                        id1 = arg->d.num;
+                        if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                            rest = rest2;
+                            id2 = arg->d.num;
+                            *room = get_clone_room(get_room_index_global(vnum),id1,id2);
+                        }
+                    }
+                }
+            } else if(!str_cmp(arg->d.str,"wilds")) {
+                if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                    x = arg->d.num;
+                    if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                        y = arg->d.num;
+                        if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                            if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
+                            if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
+
+                            if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+                                !str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+                                break;
+
+                            room_used_for_wilderness.wilds = pWilds;
+                            room_used_for_wilderness.x = x;
+                            room_used_for_wilderness.y = y;
+                            *room = &room_used_for_wilderness;
+                        }
+                    }
+                }
+            } else {
+                // Named locations: search area names, then mobs, then objects
+                loc = NULL;
+                for (area = area_first; area; area = area->next) {
+                    if (!str_infix(arg->d.str, area->name)) {
+                        if(!(loc = location_to_room(&area->recall))) {
+                            for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
+                                if ((loc = get_room_index(area, vnum)))
+                                    break;
+                        }
+                        break;
+                    }
+                }
+
+                if(!loc) {
+                    // Search for character by name
+                    victim = NULL;
+                    if (info->mob) victim = get_char_world(info->mob, arg->d.str);
+                    else if (info->obj) victim = get_char_world(NULL, arg->d.str);
+                    else if (info->room || info->token) victim = get_char_world(NULL, arg->d.str);
+                    
+                    if(victim)
+                        loc = victim->in_room;
+                    else {
+                        // Search for object by name
+                        obj = NULL;
+                        if (info->mob) obj = get_obj_world(info->mob, arg->d.str);
+                        else obj = get_obj_world(NULL, arg->d.str);
+                        
+                        if (obj)
+                            loc = obj_room(obj);
+                    }
+                }
+                *room = loc;
+            }
+            break;
+
+        case ENT_MOBILE:
+            *room = arg->d.mob ? arg->d.mob->in_room : NULL; 
+            break;
+        case ENT_OBJECT:
+            *room = arg->d.obj ? obj_room(arg->d.obj) : NULL; 
+            break;
+        case ENT_ROOM:
+            *room = arg->d.room; 
+            break;
+        case ENT_EXIT:
+            ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
+            *room = ex ? exit_destination(ex) : NULL; 
+            break;
+        case ENT_TOKEN:
+            *room = token_room(arg->d.token); 
+            break;
+        }
+    }
+
+    free_script_param(arg);
+    return rest;
+}
+
+AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info)
+{
+    if (!info) return NULL;
+    if (!info->block) return NULL;
+    if (!info->block->script) return NULL;
+    return info->block->script->area;
+}
+
 // OLOAD $VNUM|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
     char buf[MIL], *rest;
-    long vnum, level;
+    WNUM wnum = { NULL, 0 };
+    long level;
     bool fToroom = false, fWear = false;
-    OBJ_INDEX_DATA *pObjIndex;
+    OBJ_INDEX_DATA *pObjIndex = NULL;
     OBJ_DATA *obj;
     CHAR_DATA *to_mob = info->mob;
     OBJ_DATA *to_obj = NULL;
@@ -8604,14 +8847,41 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
     else if( info->token ) here = token_room(info->token);
 
     switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-    case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
-    default: vnum = 0; break;
+    case ENT_WIDEVNUM:
+        wnum = arg->d.wnum;
+        break;
+    case ENT_NUMBER:
+    {
+        // Backward compatibility: convert to string and parse
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    }
+    case ENT_STRING:
+        if (arg->d.str)
+            parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    case ENT_OBJECT:
+        if (arg->d.obj && arg->d.obj->pIndexData) {
+            wnum.pArea = arg->d.obj->pIndexData->area;
+            wnum.vnum = arg->d.obj->pIndexData->vnum;
+        }
+        break;
+    default:
+        break;
     }
 
-    if (!vnum || !(pObjIndex = get_obj_index_global(vnum))) {
-        bug("Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
+    if (!wnum.pArea || wnum.vnum < 1) {
+        bug("script_oload - Bad wnum arg (%ld#%ld)", 
+            wnum.pArea ? wnum.pArea->uid : 0, wnum.vnum);
+        return NULL;
+    }
+
+    pObjIndex = get_obj_index(wnum.pArea, wnum.vnum);
+    if (!pObjIndex) {
+        bug("script_oload - Bad obj index (%ld#%ld)",
+            wnum.pArea->uid, wnum.vnum);
         return NULL;
     }
 
@@ -8628,8 +8898,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
         default: level = 0; break;
         }
 
-        if(level <= 0 || level > get_trust(info->mob))
-            level = get_trust(info->mob);
+        if(level <= 0 || level > pObjIndex->level)
+            level = pObjIndex->level;
 
         if(rest && *rest) {
             argument = rest;
@@ -8684,7 +8954,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
         }
 
     } else
-        level = get_trust(info->mob);
+        level = pObjIndex->level;
 
     obj = create_object(pObjIndex, level, true);
     if( !IS_VALID(obj) )

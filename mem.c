@@ -3927,7 +3927,8 @@ BLUEPRINT_LINK *new_blueprint_link()
 
     bl->name = &str_empty[0];
 
-    bl->vnum = 0;
+    bl->room_ref.load.vnum = 0;
+    bl->room_ref.load.auid = 0;
     bl->door = -1;
 
     bl->room = NULL;
@@ -3971,7 +3972,9 @@ BLUEPRINT_SECTION *new_blueprint_section()
     bs->type = BSTYPE_STATIC;
     bs->flags = 0;
 
-    bs->recall = 0;
+    bs->recall_ref.load.vnum = 0;
+    bs->recall_ref.load.auid = 0;
+    bs->recall_room = NULL;
     bs->lower_vnum = 0;
     bs->upper_vnum = 0;
 

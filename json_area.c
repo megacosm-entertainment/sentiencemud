@@ -19,6 +19,12 @@
 
 #include "wilds.h"
 
+// Forward declarations for serialize functions
+json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_DATA *area);
+json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area);
+json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area);
+json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area);
+
 // --- WILDS_TERRAIN JSON helpers ---
 static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
     if (!terrain) return NULL;
@@ -616,6 +622,509 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     return exit;
 }
 
+/*
+ * Deserialize a dungeon index from JSON
+ */
+DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
+{
+    if (!json || !area) return NULL;
+    
+    DUNGEON_INDEX_DATA *dungeon = alloc_perm(sizeof(DUNGEON_INDEX_DATA));
+    if (!dungeon) return NULL;
+    
+    dungeon->area = area;
+    dungeon->valid = true;
+    
+    // Basic info
+    dungeon->vnum = json_get_int_default(json, "vnum", 0);
+    dungeon->name = str_dup(json_get_string_default(json, "name", "Unnamed Dungeon"));
+    dungeon->description = str_dup(json_get_string_default(json, "description", ""));
+    
+    const char *comments = json_get_string_default(json, "comments", "");
+    if (comments && comments[0] != '\0')
+        dungeon->comments = str_dup(comments);
+    
+    // Properties
+    dungeon->area_who = json_get_int_default(json, "area_who", 0);
+    dungeon->repop = json_get_int_default(json, "repop", 0);
+    dungeon->flags = json_get_int_default(json, "flags", 0);
+    
+    // Zone out strings
+    const char *zone_out = json_get_string_default(json, "zone_out", "");
+    if (zone_out && zone_out[0] != '\0')
+        dungeon->zone_out = str_dup(zone_out);
+    
+    const char *portal_out = json_get_string_default(json, "portal_out", "");
+    if (portal_out && portal_out[0] != '\0')
+        dungeon->zone_out_portal = str_dup(portal_out);
+    
+    const char *mount_out = json_get_string_default(json, "mount_out", "");
+    if (mount_out && mount_out[0] != '\0')
+        dungeon->zone_out_mount = str_dup(mount_out);
+    
+    // Entry room - store as WNUM_LOAD for later resolution
+    json_t *entry_room = json_object_get(json, "entry_room");
+    if (entry_room) {
+        dungeon->entry_ref.load.auid = json_get_int_default(entry_room, "area_uid", 0);
+        dungeon->entry_ref.load.vnum = json_get_int_default(entry_room, "vnum", 0);
+    }
+    dungeon->entry_room = NULL;  // Will be resolved in fix pass
+    
+    // Exit room - store as WNUM_LOAD for later resolution
+    json_t *exit_room = json_object_get(json, "exit_room");
+    if (exit_room) {
+        dungeon->exit_ref.load.auid = json_get_int_default(exit_room, "area_uid", 0);
+        dungeon->exit_ref.load.vnum = json_get_int_default(exit_room, "vnum", 0);
+    }
+    dungeon->exit_room = NULL;  // Will be resolved in fix pass
+    
+    // Floors - list of blueprint vnums (store as integers, will be resolved to pointers later)
+    json_t *floors = json_object_get(json, "floors");
+    if (floors && json_is_array(floors)) {
+        dungeon->floors = list_create(false);
+        size_t index;
+        json_t *floor_val;
+        
+        json_array_foreach(floors, index, floor_val) {
+            if (json_is_integer(floor_val)) {
+                long *floor_num = alloc_perm(sizeof(long));
+                *floor_num = json_integer_value(floor_val);
+                list_appendlink(dungeon->floors, floor_num);
+            }
+        }
+    }
+    
+    // Levels
+    json_t *levels = json_object_get(json, "levels");
+    if (levels && json_is_array(levels)) {
+        dungeon->levels = list_create(false);
+        size_t index;
+        json_t *level_json;
+        
+        json_array_foreach(levels, index, level_json) {
+            DUNGEON_INDEX_LEVEL_DATA *level = alloc_perm(sizeof(DUNGEON_INDEX_LEVEL_DATA));
+            level->valid = true;
+            level->mode = json_get_int_default(level_json, "mode", 0);
+            level->floor = json_get_int_default(level_json, "floor", 0);
+            
+            // Weighted floors
+            json_t *weighted_floors = json_object_get(level_json, "weighted_floors");
+            if (weighted_floors && json_is_array(weighted_floors)) {
+                level->weighted_floors = list_create(false);
+                size_t wf_index;
+                json_t *wf_json;
+                
+                json_array_foreach(weighted_floors, wf_index, wf_json) {
+                    DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *wf = alloc_perm(sizeof(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA));
+                    wf->weight = json_get_int_default(wf_json, "weight", 0);
+                    wf->floor = json_get_int_default(wf_json, "floor", 0);
+                    list_appendlink(level->weighted_floors, wf);
+                    level->total_weight += wf->weight;
+                }
+            }
+            
+            list_appendlink(dungeon->levels, level);
+        }
+    } else {
+        dungeon->levels = list_create(false);
+    }
+    
+    // Special rooms
+    json_t *special_rooms = json_object_get(json, "special_rooms");
+    if (special_rooms && json_is_array(special_rooms)) {
+        dungeon->special_rooms = list_create(false);
+        size_t index;
+        json_t *special_json;
+        
+        json_array_foreach(special_rooms, index, special_json) {
+            DUNGEON_INDEX_SPECIAL_ROOM *special = alloc_perm(sizeof(DUNGEON_INDEX_SPECIAL_ROOM));
+            special->valid = true;
+            special->name = str_dup(json_get_string_default(special_json, "name", ""));
+            special->level = json_get_int_default(special_json, "level", 0);
+            special->room = json_get_int_default(special_json, "room", 0);
+            list_appendlink(dungeon->special_rooms, special);
+        }
+    } else {
+        dungeon->special_rooms = list_create(false);
+    }
+    
+    // Special exits - simplified, just create empty list for now since structure is complex
+    dungeon->special_exits = list_create(false);
+    
+    // Dungeon progs
+    dungeon->progs = json_area_deserialize_progs(json_object_get(json, "dungeon_progs"), area, PRG_DPROG);
+    
+    // Index vars
+    dungeon->index_vars = NULL;
+    json_t *index_vars = json_object_get(json, "index_vars");
+    if (index_vars) {
+        dungeon->index_vars = json_area_deserialize_index_vars(index_vars, area);
+    }
+    
+    return dungeon;
+}
+
+/*
+ * Deserialize a ship index from JSON
+ */
+SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
+{
+    if (!json || !area) return NULL;
+    
+    SHIP_INDEX_DATA *ship = alloc_perm(sizeof(SHIP_INDEX_DATA));
+    if (!ship) return NULL;
+    
+    ship->area = area;
+    
+    // Basic info
+    ship->vnum = json_get_int_default(json, "vnum", 0);
+    ship->name = str_dup(json_get_string_default(json, "name", ""));
+    ship->description = str_dup(json_get_string_default(json, "description", ""));
+    ship->ship_class = json_get_int_default(json, "ship_class", 0);
+    ship->flags = json_get_int_default(json, "flags", 0);
+    
+    // Blueprint reference - can be integer vnum or WNUM string
+    json_t *blueprint_ref = json_object_get(json, "blueprint");
+    if (blueprint_ref) {
+        if (json_is_integer(blueprint_ref)) {
+            /* Bare vnum - assume same area */
+            ship->blueprint_ref.load.auid = area->uid;
+            ship->blueprint_ref.load.vnum = json_integer_value(blueprint_ref);
+        } else if (json_is_string(blueprint_ref)) {
+            /* WNUM string format: "auid#vnum" */
+            const char *wnum_str = json_string_value(blueprint_ref);
+            unsigned long auid = 0;
+            long vnum = 0;
+            if (sscanf(wnum_str, "%lu#%ld", &auid, &vnum) == 2) {
+                ship->blueprint_ref.load.auid = auid;
+                ship->blueprint_ref.load.vnum = vnum;
+            } else {
+                /* Fall back to parsing as bare vnum */
+                ship->blueprint_ref.load.auid = area->uid;
+                ship->blueprint_ref.load.vnum = atol(wnum_str);
+            }
+        }
+    }
+    ship->blueprint = NULL;  // Will be resolved in fix pass
+    
+    // Ship object reference - can be integer vnum or WNUM string
+    json_t *ship_object_ref = json_object_get(json, "ship_object");
+    if (ship_object_ref) {
+        if (json_is_integer(ship_object_ref)) {
+            /* Bare vnum - assume same area */
+            ship->ship_object_ref.load.auid = area->uid;
+            ship->ship_object_ref.load.vnum = json_integer_value(ship_object_ref);
+            log_stringf("Ship %ld: loaded ship_object ref %lu#%ld", 
+                ship->vnum, ship->ship_object_ref.load.auid, ship->ship_object_ref.load.vnum);
+        } else if (json_is_string(ship_object_ref)) {
+            /* WNUM string format: "auid#vnum" */
+            const char *wnum_str = json_string_value(ship_object_ref);
+            unsigned long auid = 0;
+            long vnum = 0;
+            if (sscanf(wnum_str, "%lu#%ld", &auid, &vnum) == 2) {
+                ship->ship_object_ref.load.auid = auid;
+                ship->ship_object_ref.load.vnum = vnum;
+            } else {
+                /* Fall back to parsing as bare vnum */
+                ship->ship_object_ref.load.auid = area->uid;
+                ship->ship_object_ref.load.vnum = atol(wnum_str);
+            }
+            log_stringf("Ship %ld: loaded ship_object ref %lu#%ld from string", 
+                ship->vnum, ship->ship_object_ref.load.auid, ship->ship_object_ref.load.vnum);
+        }
+    } else {
+        log_stringf("Ship %ld: no ship_object field found in JSON", ship->vnum);
+    }
+    ship->ship_object = NULL;  // Will be resolved in fix pass
+    
+    // Stats
+    ship->hit = json_get_int_default(json, "hit", 100);
+    ship->guns = json_get_int_default(json, "guns", 0);
+    ship->min_crew = json_get_int_default(json, "min_crew", 0);
+    ship->max_crew = json_get_int_default(json, "max_crew", 0);
+    ship->move_delay = json_get_int_default(json, "move_delay", 12);
+    ship->move_steps = json_get_int_default(json, "move_steps", 5);
+    ship->turning = json_get_int_default(json, "turning", 5);
+    ship->weight = json_get_int_default(json, "weight", 100);
+    ship->capacity = json_get_int_default(json, "capacity", 100);
+    ship->armor = json_get_int_default(json, "armor", 0);
+    ship->oars = json_get_int_default(json, "oars", 0);
+    
+    // Special keys
+    json_t *special_keys = json_object_get(json, "special_keys");
+    if (special_keys && json_is_array(special_keys)) {
+        ship->special_keys = list_create(false);
+        size_t index;
+        json_t *key_val;
+        
+        json_array_foreach(special_keys, index, key_val) {
+            if (json_is_integer(key_val)) {
+                long *key_vnum = alloc_perm(sizeof(long));
+                *key_vnum = json_integer_value(key_val);
+                list_appendlink(ship->special_keys, key_vnum);
+            }
+        }
+    } else {
+        ship->special_keys = list_create(false);
+    }
+    
+    return ship;
+}
+
+/*
+ * Deserialize a blueprint section from JSON
+ */
+BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DATA *area)
+{
+    if (!json || !area) return NULL;
+    
+    BLUEPRINT_SECTION *section = alloc_perm(sizeof(BLUEPRINT_SECTION));
+    if (!section) return NULL;
+    
+    section->valid = true;
+    section->area = area;
+    
+    pbugf(LOG_DEBUG, "[BPSECT LOAD] vnum=%ld area=%p (%s)", 
+          json_get_int_default(json, "vnum", 0),
+          (void*)area, 
+          area ? area->name : "NULL");
+    
+    // Basic info
+    section->vnum = json_get_int_default(json, "vnum", 0);
+    section->name = str_dup(json_get_string_default(json, "name", ""));
+    section->description = str_dup(json_get_string_default(json, "description", ""));
+    
+    const char *comments = json_get_string_default(json, "comments", "");
+    if (comments && comments[0] != '\0')
+        section->comments = str_dup(comments);
+    
+    section->type = json_get_int_default(json, "type", 0);
+    section->flags = json_get_int_default(json, "flags", 0);
+    
+    // Room range - can be integer vnum or WNUM string
+    json_t *lower_vnum_json = json_object_get(json, "lower_vnum");
+    if (lower_vnum_json) {
+        if (json_is_integer(lower_vnum_json)) {
+            section->lower_vnum_ref.load.auid = area->uid;
+            section->lower_vnum_ref.load.vnum = json_integer_value(lower_vnum_json);
+            section->lower_vnum = json_integer_value(lower_vnum_json);
+        } else if (json_is_string(lower_vnum_json)) {
+            const char *wnum_str = json_string_value(lower_vnum_json);
+            unsigned long auid = 0;
+            long vnum = 0;
+            if (sscanf(wnum_str, "%lu#%ld", &auid, &vnum) == 2) {
+                section->lower_vnum_ref.load.auid = auid;
+                section->lower_vnum_ref.load.vnum = vnum;
+                section->lower_vnum = vnum;
+            } else {
+                section->lower_vnum_ref.load.auid = area->uid;
+                section->lower_vnum_ref.load.vnum = atol(wnum_str);
+                section->lower_vnum = atol(wnum_str);
+            }
+        }
+    }
+    
+    json_t *upper_vnum_json = json_object_get(json, "upper_vnum");
+    if (upper_vnum_json) {
+        if (json_is_integer(upper_vnum_json)) {
+            section->upper_vnum_ref.load.auid = area->uid;
+            section->upper_vnum_ref.load.vnum = json_integer_value(upper_vnum_json);
+            section->upper_vnum = json_integer_value(upper_vnum_json);
+        } else if (json_is_string(upper_vnum_json)) {
+            const char *wnum_str = json_string_value(upper_vnum_json);
+            unsigned long auid = 0;
+            long vnum = 0;
+            if (sscanf(wnum_str, "%lu#%ld", &auid, &vnum) == 2) {
+                section->upper_vnum_ref.load.auid = auid;
+                section->upper_vnum_ref.load.vnum = vnum;
+                section->upper_vnum = vnum;
+            } else {
+                section->upper_vnum_ref.load.auid = area->uid;
+                section->upper_vnum_ref.load.vnum = atol(wnum_str);
+                section->upper_vnum = atol(wnum_str);
+            }
+        }
+    }
+    section->rooms_area = NULL;  // Will be resolved in fix pass
+    
+    // Recall room - store as WNUM_LOAD for later resolution
+    json_t *recall = json_object_get(json, "recall");
+    if (recall && json_is_object(recall)) {
+        section->recall_ref.load.auid = json_get_int_default(recall, "area_uid", 0);
+        section->recall_ref.load.vnum = json_get_int_default(recall, "vnum", 0);
+    } else {
+        section->recall_ref.load.auid = 0;
+        section->recall_ref.load.vnum = 0;
+    }
+    section->recall_room = NULL;  // Will be resolved in fix pass
+    
+    // Links
+    json_t *links = json_object_get(json, "links");
+    if (links && json_is_array(links)) {
+        size_t index;
+        json_t *link_json;
+        
+        json_array_foreach(links, index, link_json) {
+            BLUEPRINT_LINK *link = alloc_perm(sizeof(BLUEPRINT_LINK));
+            link->valid = true;
+            link->name = str_dup(json_get_string_default(link_json, "name", ""));
+            link->door = json_get_int_default(link_json, "door", 0);
+            link->used = false;
+            
+            // Room reference - stored as integer vnum
+            link->room_ref.load.auid = area->uid;
+            link->room_ref.load.vnum = json_get_int_default(link_json, "room", 0);
+            link->room = NULL;  // Will be resolved in fix pass
+            link->ex = NULL;
+            
+            // Add to section's link list
+            link->next = section->links;
+            section->links = link;
+        }
+    }
+    
+    return section;
+}
+
+/*
+ * Deserialize a blueprint from JSON
+ */
+BLUEPRINT *json_area_deserialize_blueprint(json_t *json, AREA_DATA *area)
+{
+    if (!json || !area) return NULL;
+    
+    BLUEPRINT *blueprint = alloc_perm(sizeof(BLUEPRINT));
+    if (!blueprint) return NULL;
+    
+    blueprint->valid = true;
+    blueprint->area = area;
+    
+    // Basic info
+    blueprint->vnum = json_get_int_default(json, "vnum", 0);
+    blueprint->name = str_dup(json_get_string_default(json, "name", ""));
+    blueprint->description = str_dup(json_get_string_default(json, "description", ""));
+    
+    const char *comments = json_get_string_default(json, "comments", "");
+    if (comments && comments[0] != '\0')
+        blueprint->comments = str_dup(comments);
+    
+    blueprint->area_who = json_get_int_default(json, "area_who", 0);
+    blueprint->repop = json_get_int_default(json, "repop", 0);
+    blueprint->flags = json_get_int_default(json, "flags", 0);
+    blueprint->mode = json_get_int_default(json, "mode", 0);
+    
+    // Sections - list of section references with WNUM_LOAD
+    json_t *sections = json_object_get(json, "sections");
+    if (sections && json_is_array(sections)) {
+        blueprint->sections = list_create(false);
+        size_t index;
+        json_t *section_vnum_json;
+        
+        json_array_foreach(sections, index, section_vnum_json) {
+            if (json_is_integer(section_vnum_json)) {
+                BLUEPRINT_SECTION_REF *ref = alloc_perm(sizeof(BLUEPRINT_SECTION_REF));
+                ref->section_ref.load.auid = area->uid;
+                ref->section_ref.load.vnum = json_integer_value(section_vnum_json);
+                ref->section = NULL;  // Will be resolved in fix pass
+                list_appendlink(blueprint->sections, ref);
+            }
+        }
+    }
+    
+    // Special rooms
+    json_t *special_rooms = json_object_get(json, "special_rooms");
+    if (special_rooms && json_is_array(special_rooms)) {
+        blueprint->special_rooms = list_create(false);
+        size_t index;
+        json_t *special_json;
+        
+        json_array_foreach(special_rooms, index, special_json) {
+            BLUEPRINT_SPECIAL_ROOM *special = alloc_perm(sizeof(BLUEPRINT_SPECIAL_ROOM));
+            special->valid = true;
+            special->name = str_dup(json_get_string_default(special_json, "name", ""));
+            special->section = json_get_int_default(special_json, "section", 0);
+            
+            // Room vnum - stored as integer
+            special->room_ref.load.auid = area->uid;
+            special->room_ref.load.vnum = json_get_int_default(special_json, "room", 0);
+            special->room = NULL;  // Will be resolved in fix pass
+            
+            list_appendlink(blueprint->special_rooms, special);
+        }
+    }
+    
+    // Static mode fields - all in 'static' object
+    json_t *static_data = json_object_get(json, "static");
+    if (static_data && json_is_object(static_data)) {
+        blueprint->_static.recall = json_get_int_default(static_data, "recall", 0);
+        
+        // Static entries
+        json_t *static_entries = json_object_get(static_data, "entries");
+        if (static_entries && json_is_array(static_entries)) {
+            blueprint->_static.entries = list_create(false);
+            size_t index;
+            json_t *entry_json;
+            
+            json_array_foreach(static_entries, index, entry_json) {
+                BLUEPRINT_EXIT_DATA *entry = alloc_perm(sizeof(BLUEPRINT_EXIT_DATA));
+                entry->name = str_dup(json_get_string_default(entry_json, "name", ""));
+                entry->section = json_get_int_default(entry_json, "section", 0);
+                entry->link = json_get_int_default(entry_json, "link", 0);
+                list_appendlink(blueprint->_static.entries, entry);
+            }
+        }
+        
+        // Static exits
+        json_t *static_exits = json_object_get(static_data, "exits");
+        if (static_exits && json_is_array(static_exits)) {
+            blueprint->_static.exits = list_create(false);
+            size_t index;
+            json_t *exit_json;
+            
+            json_array_foreach(static_exits, index, exit_json) {
+                BLUEPRINT_EXIT_DATA *exit_data = alloc_perm(sizeof(BLUEPRINT_EXIT_DATA));
+                exit_data->name = str_dup(json_get_string_default(exit_json, "name", ""));
+                exit_data->section = json_get_int_default(exit_json, "section", 0);
+                exit_data->link = json_get_int_default(exit_json, "link", 0);
+                list_appendlink(blueprint->_static.exits, exit_data);
+            }
+        }
+        
+        // Static layout
+        json_t *static_layout = json_object_get(static_data, "layout");
+        if (static_layout && json_is_array(static_layout)) {
+            size_t index;
+            json_t *link_json;
+            
+            json_array_foreach(static_layout, index, link_json) {
+                STATIC_BLUEPRINT_LINK *link = alloc_perm(sizeof(STATIC_BLUEPRINT_LINK));
+                link->valid = true;
+                link->blueprint = blueprint;
+                link->section1 = json_get_int_default(link_json, "section1", 0);
+                link->link1 = json_get_int_default(link_json, "link1", 0);
+                link->section2 = json_get_int_default(link_json, "section2", 0);
+                link->link2 = json_get_int_default(link_json, "link2", 0);
+                
+                // Add to layout list
+                link->next = blueprint->_static.layout;
+                blueprint->_static.layout = link;
+            }
+        }
+    }
+    
+    // Blueprint progs
+    blueprint->progs = json_area_deserialize_progs(json_object_get(json, "progs"), area, PRG_IPROG);
+    
+    // Index vars
+    blueprint->index_vars = NULL;
+    json_t *index_vars = json_object_get(json, "index_vars");
+    if (index_vars) {
+        blueprint->index_vars = json_area_deserialize_index_vars(index_vars, area);
+    }
+    
+    return blueprint;
+}
+
 /***************************************************************************
  * Main Load/Save Functions                                                *
  ***************************************************************************/
@@ -704,6 +1213,70 @@ AREA_DATA *json_area_load(const char *filename)
                 int hash = token->vnum % MAX_KEY_HASH;
                 token->next = area->token_index_hash[hash];
                 area->token_index_hash[hash] = token;
+            }
+        }
+    }
+    
+    /* Deserialize dungeons */
+    json_t *dungeons = json_object_get(root, "dungeons");
+    if (dungeons && json_is_array(dungeons)) {
+        size_t index;
+        json_t *dungeon_json;
+        json_array_foreach(dungeons, index, dungeon_json) {
+            DUNGEON_INDEX_DATA *dungeon = json_area_deserialize_dungeon(dungeon_json, area);
+            if (dungeon && dungeon->vnum) {
+                /* Add to area's dungeon hash table */
+                int hash = dungeon->vnum % MAX_KEY_HASH;
+                dungeon->next = area->dungeon_index_hash[hash];
+                area->dungeon_index_hash[hash] = dungeon;
+            }
+        }
+    }
+    
+    /* Deserialize blueprint sections */
+    json_t *sections = json_object_get(root, "blueprint_sections");
+    if (sections && json_is_array(sections)) {
+        size_t index;
+        json_t *section_json;
+        json_array_foreach(sections, index, section_json) {
+            BLUEPRINT_SECTION *section = json_area_deserialize_blueprint_section(section_json, area);
+            if (section && section->vnum) {
+                /* Add to area's blueprint section hash table */
+                int hash = section->vnum % MAX_KEY_HASH;
+                section->next = area->blueprint_section_hash[hash];
+                area->blueprint_section_hash[hash] = section;
+            }
+        }
+    }
+    
+    /* Deserialize blueprints */
+    json_t *blueprints = json_object_get(root, "blueprints");
+    if (blueprints && json_is_array(blueprints)) {
+        size_t index;
+        json_t *blueprint_json;
+        json_array_foreach(blueprints, index, blueprint_json) {
+            BLUEPRINT *blueprint = json_area_deserialize_blueprint(blueprint_json, area);
+            if (blueprint && blueprint->vnum) {
+                /* Add to area's blueprint hash table */
+                int hash = blueprint->vnum % MAX_KEY_HASH;
+                blueprint->next = area->blueprint_hash[hash];
+                area->blueprint_hash[hash] = blueprint;
+            }
+        }
+    }
+    
+    /* Deserialize ships */
+    json_t *ships = json_object_get(root, "ships");
+    if (ships && json_is_array(ships)) {
+        size_t index;
+        json_t *ship_json;
+        json_array_foreach(ships, index, ship_json) {
+            SHIP_INDEX_DATA *ship = json_area_deserialize_ship(ship_json, area);
+            if (ship && ship->vnum) {
+                /* Add to area's ship hash table */
+                int hash = ship->vnum % MAX_KEY_HASH;
+                ship->next = area->ship_index_hash[hash];
+                area->ship_index_hash[hash] = ship;
             }
         }
     }
@@ -1118,6 +1691,98 @@ bool json_area_save(AREA_DATA *area)
             hash_index = 0;
     }
     json_object_set_new(root, "tokens", tokens);
+    
+    /* Serialize blueprints */
+    json_t *blueprints = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
+    
+    for (int j = 0; j < hash_count; j++) {
+        for (BLUEPRINT *blueprint = area->blueprint_hash[hash_index]; blueprint; blueprint = blueprint->next) {
+            if (blueprint->vnum && blueprint->area == area) {
+                json_t *blueprint_json = json_area_serialize_blueprint(blueprint, area);
+                if (blueprint_json) {
+                    json_array_append_new(blueprints, blueprint_json);
+                }
+            }
+        }
+        
+        if (++hash_index == MAX_KEY_HASH)
+            hash_index = 0;
+    }
+    if (json_array_size(blueprints) > 0)
+        json_object_set_new(root, "blueprints", blueprints);
+    else
+        json_decref(blueprints);
+    
+    /* Serialize blueprint sections */
+    json_t *blueprint_sections = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
+    
+    for (int j = 0; j < hash_count; j++) {
+        for (BLUEPRINT_SECTION *section = area->blueprint_section_hash[hash_index]; section; section = section->next) {
+            if (section->vnum && section->area == area) {
+                json_t *section_json = json_area_serialize_blueprint_section(section, area);
+                if (section_json) {
+                    json_array_append_new(blueprint_sections, section_json);
+                }
+            }
+        }
+        
+        if (++hash_index == MAX_KEY_HASH)
+            hash_index = 0;
+    }
+    if (json_array_size(blueprint_sections) > 0)
+        json_object_set_new(root, "blueprint_sections", blueprint_sections);
+    else
+        json_decref(blueprint_sections);
+    
+    /* Serialize dungeons */
+    json_t *dungeons = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
+    
+    for (int j = 0; j < hash_count; j++) {
+        for (DUNGEON_INDEX_DATA *dungeon = area->dungeon_index_hash[hash_index]; dungeon; dungeon = dungeon->next) {
+            if (dungeon->vnum && dungeon->area == area) {
+                json_t *dungeon_json = json_area_serialize_dungeon(dungeon, area);
+                if (dungeon_json) {
+                    json_array_append_new(dungeons, dungeon_json);
+                }
+            }
+        }
+        
+        if (++hash_index == MAX_KEY_HASH)
+            hash_index = 0;
+    }
+    if (json_array_size(dungeons) > 0)
+        json_object_set_new(root, "dungeons", dungeons);
+    else
+        json_decref(dungeons);
+    
+    /* Serialize ships */
+    json_t *ships = json_array();
+    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
+    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
+    
+    for (int j = 0; j < hash_count; j++) {
+        for (SHIP_INDEX_DATA *ship = area->ship_index_hash[hash_index]; ship; ship = ship->next) {
+            if (ship->vnum && ship->area == area) {
+                json_t *ship_json = json_area_serialize_ship(ship, area);
+                if (ship_json) {
+                    json_array_append_new(ships, ship_json);
+                }
+            }
+        }
+        
+        if (++hash_index == MAX_KEY_HASH)
+            hash_index = 0;
+    }
+    if (json_array_size(ships) > 0)
+        json_object_set_new(root, "ships", ships);
+    else
+        json_decref(ships);
     
     /* Serialize scripts */
     /* Save all 7 types of scripts: mobprogs, oprogs, rprogs, tprogs, aprogs, iprogs, dprogs */
@@ -3391,6 +4056,476 @@ json_t *json_area_serialize_trade_list(TRADE_ITEM *trade_list, AREA_DATA *area)
 }
 
 /*
+ * Serialize a blueprint section to JSON
+ */
+json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_DATA *area)
+{
+    if (!section) return NULL;
+    
+    json_t *json = json_object();
+    if (!json) return NULL;
+    
+    /* Basic info */
+    json_object_set_new(json, "vnum", json_integer(section->vnum));
+    json_object_set_new(json, "name", json_string(section->name ? section->name : ""));
+    json_object_set_new(json, "description", json_string(section->description ? section->description : ""));
+    
+    if (section->comments && section->comments[0] != '\0')
+        json_object_set_new(json, "comments", json_string(section->comments));
+    
+    /* Type and flags */
+    json_object_set_new(json, "type", json_integer(section->type));
+    json_object_set_new(json, "flags", json_integer(section->flags));
+    
+    /* Room range */
+    json_object_set_new(json, "lower_vnum", json_integer(section->lower_vnum));
+    json_object_set_new(json, "upper_vnum", json_integer(section->upper_vnum));
+    
+    /* Recall room */
+    if (section->recall_room) {
+        json_object_set_new(json, "recall_room", json_integer(section->recall_room->vnum));
+    }
+    
+    /* Links */
+    if (section->links) {
+        json_t *links_array = json_array();
+        for (BLUEPRINT_LINK *bl = section->links; bl; bl = bl->next) {
+            json_t *link_json = json_object();
+            json_object_set_new(link_json, "name", json_string(bl->name ? bl->name : ""));
+            if (bl->room) {
+                json_object_set_new(link_json, "room", json_integer(bl->room->vnum));
+            }
+            json_object_set_new(link_json, "door", json_integer(bl->door));
+            json_array_append_new(links_array, link_json);
+        }
+        if (json_array_size(links_array) > 0) {
+            json_object_set_new(json, "links", links_array);
+        } else {
+            json_decref(links_array);
+        }
+    }
+    
+    return json;
+}
+
+/*
+ * Serialize a blueprint to JSON
+ */
+json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area)
+{
+    if (!blueprint) return NULL;
+    
+    json_t *json = json_object();
+    if (!json) return NULL;
+    
+    /* Basic info */
+    json_object_set_new(json, "vnum", json_integer(blueprint->vnum));
+    json_object_set_new(json, "name", json_string(blueprint->name ? blueprint->name : ""));
+    json_object_set_new(json, "description", json_string(blueprint->description ? blueprint->description : ""));
+    
+    if (blueprint->comments && blueprint->comments[0] != '\0')
+        json_object_set_new(json, "comments", json_string(blueprint->comments));
+    
+    /* Flags and mode */
+    json_object_set_new(json, "flags", json_integer(blueprint->flags));
+    json_object_set_new(json, "mode", json_integer(blueprint->mode));
+    json_object_set_new(json, "repop", json_integer(blueprint->repop));
+    json_object_set_new(json, "area_who", json_integer(blueprint->area_who));
+    
+    /* Sections array - store section vnums */
+    if (blueprint->sections && list_size(blueprint->sections) > 0) {
+        json_t *sections_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, blueprint->sections);
+        while(iterator_nextdata(&it)) {
+            BLUEPRINT_SECTION_REF *ref = (BLUEPRINT_SECTION_REF*)iterator_currentdata(&it);
+            if (ref && ref->section) {
+                json_array_append_new(sections_array, json_integer(ref->section->vnum));
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(sections_array) > 0) {
+            json_object_set_new(json, "sections", sections_array);
+        } else {
+            json_decref(sections_array);
+        }
+    }
+    
+    /* Static mode data */
+    if (blueprint->mode == BLUEPRINT_MODE_STATIC) {
+        json_t *static_data = json_object();
+        
+        /* Recall section */
+        if (blueprint->_static.recall > 0) {
+            json_object_set_new(static_data, "recall", json_integer(blueprint->_static.recall));
+        }
+        
+        /* Static entries */
+        if (blueprint->_static.entries && list_size(blueprint->_static.entries) > 0) {
+            json_t *entries_array = json_array();
+            ITERATOR it;
+            iterator_start(&it, blueprint->_static.entries);
+            while(iterator_nextdata(&it)) {
+                BLUEPRINT_EXIT_DATA *ex = (BLUEPRINT_EXIT_DATA*)iterator_currentdata(&it);
+                if (ex) {
+                    json_t *entry_json = json_object();
+                    json_object_set_new(entry_json, "name", json_string(ex->name ? ex->name : ""));
+                    json_object_set_new(entry_json, "section", json_integer(ex->section));
+                    json_object_set_new(entry_json, "link", json_integer(ex->link));
+                    json_array_append_new(entries_array, entry_json);
+                }
+            }
+            iterator_stop(&it);
+            if (json_array_size(entries_array) > 0) {
+                json_object_set_new(static_data, "entries", entries_array);
+            } else {
+                json_decref(entries_array);
+            }
+        }
+        
+        /* Static exits */
+        if (blueprint->_static.exits && list_size(blueprint->_static.exits) > 0) {
+            json_t *exits_array = json_array();
+            ITERATOR it;
+            iterator_start(&it, blueprint->_static.exits);
+            while(iterator_nextdata(&it)) {
+                BLUEPRINT_EXIT_DATA *ex = (BLUEPRINT_EXIT_DATA*)iterator_currentdata(&it);
+                if (ex) {
+                    json_t *exit_json = json_object();
+                    json_object_set_new(exit_json, "name", json_string(ex->name ? ex->name : ""));
+                    json_object_set_new(exit_json, "section", json_integer(ex->section));
+                    json_object_set_new(exit_json, "link", json_integer(ex->link));
+                    json_array_append_new(exits_array, exit_json);
+                }
+            }
+            iterator_stop(&it);
+            if (json_array_size(exits_array) > 0) {
+                json_object_set_new(static_data, "exits", exits_array);
+            } else {
+                json_decref(exits_array);
+            }
+        }
+        
+        /* Static links */
+        if (blueprint->_static.layout) {
+            json_t *links_array = json_array();
+            for (STATIC_BLUEPRINT_LINK *sbl = blueprint->_static.layout; sbl; sbl = sbl->next) {
+                json_t *link_json = json_object();
+                json_object_set_new(link_json, "section1", json_integer(sbl->section1));
+                json_object_set_new(link_json, "link1", json_integer(sbl->link1));
+                json_object_set_new(link_json, "section2", json_integer(sbl->section2));
+                json_object_set_new(link_json, "link2", json_integer(sbl->link2));
+                json_array_append_new(links_array, link_json);
+            }
+            if (json_array_size(links_array) > 0) {
+                json_object_set_new(static_data, "layout", links_array);
+            } else {
+                json_decref(links_array);
+            }
+        }
+        
+        if (json_object_size(static_data) > 0) {
+            json_object_set_new(json, "static", static_data);
+        } else {
+            json_decref(static_data);
+        }
+    }
+    
+    /* Special rooms */
+    if (blueprint->special_rooms && list_size(blueprint->special_rooms) > 0) {
+        json_t *special_rooms_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, blueprint->special_rooms);
+        while(iterator_nextdata(&it)) {
+            BLUEPRINT_SPECIAL_ROOM *special = (BLUEPRINT_SPECIAL_ROOM*)iterator_currentdata(&it);
+            if (special) {
+                json_t *special_json = json_object();
+                json_object_set_new(special_json, "name", json_string(special->name ? special->name : ""));
+                json_object_set_new(special_json, "section", json_integer(special->section));
+                if (special->room) {
+                    json_object_set_new(special_json, "room", json_integer(special->room->vnum));
+                }
+                json_array_append_new(special_rooms_array, special_json);
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(special_rooms_array) > 0) {
+            json_object_set_new(json, "special_rooms", special_rooms_array);
+        } else {
+            json_decref(special_rooms_array);
+        }
+    }
+    
+    /* Progs */
+    if (blueprint->progs) {
+        json_t *progs_json = json_area_serialize_progs(blueprint->progs, area);
+        if (progs_json) {
+            json_object_set_new(json, "progs", progs_json);
+        }
+    }
+    
+    /* Index vars */
+    if (blueprint->index_vars) {
+        json_t *vars_json = json_area_serialize_index_vars(blueprint->index_vars, area);
+        if (vars_json) {
+            json_object_set_new(json, "index_vars", vars_json);
+        }
+    }
+    
+    return json;
+}
+
+/*
+ * Serialize a dungeon index to JSON
+ */
+json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area)
+{
+    if (!dungeon) return NULL;
+    
+    json_t *json = json_object();
+    if (!json) return NULL;
+    
+    /* Basic info */
+    json_object_set_new(json, "vnum", json_integer(dungeon->vnum));
+    json_object_set_new(json, "name", json_string(dungeon->name ? dungeon->name : ""));
+    json_object_set_new(json, "description", json_string(dungeon->description ? dungeon->description : ""));
+    
+    if (dungeon->comments && dungeon->comments[0] != '\0')
+        json_object_set_new(json, "comments", json_string(dungeon->comments));
+    
+    /* Properties */
+    json_object_set_new(json, "area_who", json_integer(dungeon->area_who));
+    json_object_set_new(json, "repop", json_integer(dungeon->repop));
+    json_object_set_new(json, "flags", json_integer(dungeon->flags));
+    
+    /* Zone out strings */
+    if (dungeon->zone_out && dungeon->zone_out[0] != '\0')
+        json_object_set_new(json, "zone_out", json_string(dungeon->zone_out));
+    if (dungeon->zone_out_portal && dungeon->zone_out_portal[0] != '\0')
+        json_object_set_new(json, "portal_out", json_string(dungeon->zone_out_portal));
+    if (dungeon->zone_out_mount && dungeon->zone_out_mount[0] != '\0')
+        json_object_set_new(json, "mount_out", json_string(dungeon->zone_out_mount));
+    
+    /* Entry/exit rooms */
+    if (dungeon->entry_room) {
+        json_object_set_new(json, "entry_room", json_integer(dungeon->entry_room->vnum));
+    }
+    if (dungeon->exit_room) {
+        json_object_set_new(json, "exit_room", json_integer(dungeon->exit_room->vnum));
+    }
+    
+    /* Floors - list of blueprint vnums */
+    if (dungeon->floors && list_size(dungeon->floors) > 0) {
+        json_t *floors_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, dungeon->floors);
+        while(iterator_nextdata(&it)) {
+            BLUEPRINT *bp = (BLUEPRINT*)iterator_currentdata(&it);
+            if (bp) {
+                json_array_append_new(floors_array, json_integer(bp->vnum));
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(floors_array) > 0) {
+            json_object_set_new(json, "floors", floors_array);
+        } else {
+            json_decref(floors_array);
+        }
+    }
+    
+    /* Levels (only if not scripted) */
+    if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS) && dungeon->levels && list_size(dungeon->levels) > 0) {
+        json_t *levels_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, dungeon->levels);
+        while(iterator_nextdata(&it)) {
+            DUNGEON_INDEX_LEVEL_DATA *level = (DUNGEON_INDEX_LEVEL_DATA*)iterator_currentdata(&it);
+            if (level) {
+                json_t *level_json = json_object();
+                json_object_set_new(level_json, "mode", json_integer(level->mode));
+                json_object_set_new(level_json, "floor", json_integer(level->floor));
+                
+                /* Weighted floors */
+                if (level->weighted_floors && list_size(level->weighted_floors) > 0) {
+                    json_t *weighted_array = json_array();
+                    ITERATOR wit;
+                    iterator_start(&wit, level->weighted_floors);
+                    while(iterator_nextdata(&wit)) {
+                        DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *wf = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA*)iterator_currentdata(&wit);
+                        if (wf) {
+                            json_t *wf_json = json_object();
+                            json_object_set_new(wf_json, "weight", json_integer(wf->weight));
+                            json_object_set_new(wf_json, "floor", json_integer(wf->floor));
+                            json_array_append_new(weighted_array, wf_json);
+                        }
+                    }
+                    iterator_stop(&wit);
+                    if (json_array_size(weighted_array) > 0) {
+                        json_object_set_new(level_json, "weighted_floors", weighted_array);
+                    } else {
+                        json_decref(weighted_array);
+                    }
+                }
+                
+                json_array_append_new(levels_array, level_json);
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(levels_array) > 0) {
+            json_object_set_new(json, "levels", levels_array);
+        } else {
+            json_decref(levels_array);
+        }
+    }
+    
+    /* Special rooms */
+    if (dungeon->special_rooms && list_size(dungeon->special_rooms) > 0) {
+        json_t *special_rooms_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, dungeon->special_rooms);
+        while(iterator_nextdata(&it)) {
+            DUNGEON_INDEX_SPECIAL_ROOM *special = (DUNGEON_INDEX_SPECIAL_ROOM*)iterator_currentdata(&it);
+            if (special) {
+                json_t *special_json = json_object();
+                json_object_set_new(special_json, "name", json_string(special->name ? special->name : ""));
+                json_object_set_new(special_json, "level", json_integer(special->level));
+                json_object_set_new(special_json, "room", json_integer(special->room));
+                json_array_append_new(special_rooms_array, special_json);
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(special_rooms_array) > 0) {
+            json_object_set_new(json, "special_rooms", special_rooms_array);
+        } else {
+            json_decref(special_rooms_array);
+        }
+    }
+    
+    /* Special exits - complex structure, serialize basic info only */
+    if (dungeon->special_exits && list_size(dungeon->special_exits) > 0) {
+        json_t *special_exits_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, dungeon->special_exits);
+        while(iterator_nextdata(&it)) {
+            DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT*)iterator_currentdata(&it);
+            if (ex) {
+                json_t *ex_json = json_object();
+                json_object_set_new(ex_json, "name", json_string(ex->name ? ex->name : ""));
+                json_object_set_new(ex_json, "mode", json_integer(ex->mode));
+                json_object_set_new(ex_json, "create_if_exists", ex->create_if_exists ? json_true() : json_false());
+                /* Note: from/to lists contain complex DUNGEON_INDEX_WEIGHTED_EXIT_DATA */
+                /* These are fully serialized in the .dat format but simplified here */
+                json_array_append_new(special_exits_array, ex_json);
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(special_exits_array) > 0) {
+            json_object_set_new(json, "special_exits", special_exits_array);
+        } else {
+            json_decref(special_exits_array);
+        }
+    }
+    
+    /* Progs */
+    if (dungeon->progs) {
+        json_t *progs_json = json_area_serialize_progs(dungeon->progs, area);
+        if (progs_json) {
+            json_object_set_new(json, "dungeon_progs", progs_json);
+        }
+    }
+    
+    /* Index vars */
+    if (dungeon->index_vars) {
+        json_t *vars_json = json_area_serialize_index_vars(dungeon->index_vars, area);
+        if (vars_json) {
+            json_object_set_new(json, "index_vars", vars_json);
+        }
+    }
+    
+    return json;
+}
+
+/*
+ * Serialize a ship index to JSON
+ */
+json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
+{
+    if (!ship) return NULL;
+    
+    json_t *json = json_object();
+    if (!json) return NULL;
+    
+    /* Basic info */
+    json_object_set_new(json, "vnum", json_integer(ship->vnum));
+    json_object_set_new(json, "name", json_string(ship->name ? ship->name : ""));
+    json_object_set_new(json, "description", json_string(ship->description ? ship->description : ""));
+    json_object_set_new(json, "ship_class", json_integer(ship->ship_class));
+    json_object_set_new(json, "flags", json_integer(ship->flags));
+    
+    /* Blueprint reference - write as WNUM if cross-area, bare vnum if same area */
+    if (IS_VALID(ship->blueprint)) {
+        if (ship->blueprint->area && ship->blueprint->area != area) {
+            /* Cross-area reference - use WNUM format */
+            char wnum_str[MSL];
+            snprintf(wnum_str, sizeof(wnum_str), "%lu#%ld", 
+                     ship->blueprint->area->uid, ship->blueprint->vnum);
+            json_object_set_new(json, "blueprint", json_string(wnum_str));
+        } else {
+            /* Same area - use bare vnum */
+            json_object_set_new(json, "blueprint", json_integer(ship->blueprint->vnum));
+        }
+    }
+    
+    /* Ship object reference - write as WNUM if cross-area, bare vnum if same area */
+    if (ship->ship_object) {
+        if (ship->ship_object->area && ship->ship_object->area != area) {
+            /* Cross-area reference - use WNUM format */
+            char wnum_str[MSL];
+            snprintf(wnum_str, sizeof(wnum_str), "%lu#%ld", 
+                     ship->ship_object->area->uid, ship->ship_object->vnum);
+            json_object_set_new(json, "ship_object", json_string(wnum_str));
+        } else {
+            /* Same area - use bare vnum */
+            json_object_set_new(json, "ship_object", json_integer(ship->ship_object->vnum));
+        }
+    }
+    
+    /* Stats */
+    json_object_set_new(json, "hit", json_integer(ship->hit));
+    json_object_set_new(json, "guns", json_integer(ship->guns));
+    json_object_set_new(json, "min_crew", json_integer(ship->min_crew));
+    json_object_set_new(json, "max_crew", json_integer(ship->max_crew));
+    json_object_set_new(json, "move_delay", json_integer(ship->move_delay));
+    json_object_set_new(json, "move_steps", json_integer(ship->move_steps));
+    json_object_set_new(json, "turning", json_integer(ship->turning));
+    json_object_set_new(json, "weight", json_integer(ship->weight));
+    json_object_set_new(json, "capacity", json_integer(ship->capacity));
+    json_object_set_new(json, "armor", json_integer(ship->armor));
+    json_object_set_new(json, "oars", json_integer(ship->oars));
+    
+    /* Special keys */
+    if (ship->special_keys && list_size(ship->special_keys) > 0) {
+        json_t *keys_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, ship->special_keys);
+        while(iterator_nextdata(&it)) {
+            long *key_vnum = iterator_currentdata(&it);
+            if (key_vnum) {
+                json_array_append_new(keys_array, json_integer(*key_vnum));
+            }
+        }
+        iterator_stop(&it);
+        if (json_array_size(keys_array) > 0) {
+            json_object_set_new(json, "special_keys", keys_array);
+        } else {
+            json_decref(keys_array);
+        }
+    }
+    
+    return json;
+}
+
+/*
  * Trade deserialization
  */
 void json_area_deserialize_trade_list(json_t *json, AREA_DATA *area)
@@ -3535,7 +4670,10 @@ void fix_shops(void)
                                         }
                                     }
                                     
-                                    stock->ship = get_ship_index(vnum);
+                                    /* Use area-scoped lookup if area is known, fall back to global */
+                                    stock->ship = target_area ? 
+                                        get_ship_index_for_area(target_area, vnum) :
+                                        get_ship_index(vnum);
                                     
                                     /* Convert to WNUM format */
                                     stock->entity.wnum.pArea = target_area;

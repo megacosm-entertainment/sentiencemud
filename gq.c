@@ -14,6 +14,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "json_gq.h"
 
 
 void do_gq(CHAR_DATA *ch, char *argument)
@@ -705,6 +706,12 @@ void do_gq(CHAR_DATA *ch, char *argument)
 
     void write_gq(void)
     {
+    /* Try JSON first */
+    if (save_gq_json()) {
+        return;
+    }
+    
+    /* Fallback to legacy format if JSON fails */
     FILE *fp;
     GQ_MOB_DATA *gq_mob;
     GQ_OBJ_DATA *gq_obj;
@@ -760,6 +767,12 @@ void do_gq(CHAR_DATA *ch, char *argument)
 
 void read_gq(void)
 {
+    /* Try JSON first */
+    if (load_gq_json()) {
+        return;
+    }
+    
+    /* Fallback to legacy .dat format */
     FILE *fp;
     GQ_MOB_DATA *gq_mob;
     GQ_MOB_DATA *last_gq_mob = NULL;

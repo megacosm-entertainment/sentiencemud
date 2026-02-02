@@ -19,6 +19,7 @@
 #include "math.h"
 #include "recycle.h"
 #include "tables.h"
+#include "json_mail.h"
 
 void do_mailadd(CHAR_DATA *ch, char *argument);
 void do_mailcancel(CHAR_DATA *ch, char *argument);
@@ -649,9 +650,15 @@ int count_items_mail(MAIL_DATA *mail)
 }
 
 
-/* write mail.dat */
+/* write mail.dat - now uses JSON format */
 void write_mail(void)
 {
+    /* Try JSON first */
+    if (save_mail_json()) {
+        return;
+    }
+    
+    /* Fallback to legacy format if JSON fails */
     MAIL_DATA *mail;
     FILE *fp;
 
@@ -689,9 +696,15 @@ void write_mail(void)
 }
 
 
-/* load mail.dat into memory */
+/* load mail.dat into memory - now tries JSON first */
 void read_mail(void)
 {
+    /* Try JSON first */
+    if (load_mail_json()) {
+        return;
+    }
+    
+    /* Fallback to legacy .dat format */
     FILE *fp;
     MAIL_DATA *mail;
     MAIL_DATA *mail_tmp;

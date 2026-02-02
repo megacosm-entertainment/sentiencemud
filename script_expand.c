@@ -6601,6 +6601,23 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         } else if(expand_string(info,buf,arg->buffer)) {
             arg->type = ENT_STRING;
             arg->d.str = buf_string(arg->buffer);
+
+            // If this can be parsed as a widevnum...
+            //  AUID#VNUM
+            //  NAME#VNUM 
+            //
+            WNUM wnum;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+            {
+                arg->type = ENT_WIDEVNUM;
+                arg->d.wnum = wnum;
+            }
+            else if (is_number(arg->d.str))
+            {
+                int value = atoi(arg->d.str);
+                arg->type = ENT_NUMBER;
+                arg->d.num = value;
+            }
         }
     }
 

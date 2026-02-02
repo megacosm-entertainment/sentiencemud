@@ -4019,6 +4019,7 @@ void do_mfind(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     MOB_INDEX_DATA *pMobIndex;
+    AREA_DATA *area;
     /* long vnum; */
     int nMatch, iHash;
     bool fAll;
@@ -4040,14 +4041,18 @@ void do_mfind(CHAR_DATA *ch, char *argument)
     found	= false;
     nMatch	= 0;
 
-    for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-        for (pMobIndex = mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
-            nMatch++;
-            if (fAll || is_name(argument, pMobIndex->player_name)) {
-                found = true;
-                sprintf(buf, "[%5ld] %s\n\r",
-                    pMobIndex->vnum, pMobIndex->short_descr);
-                send_to_char(buf, ch);
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's mob index hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (pMobIndex = area->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
+                nMatch++;
+                if (fAll || is_name(argument, pMobIndex->player_name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        pMobIndex->area->uid, pMobIndex->vnum, pMobIndex->short_descr);
+                    send_to_char(buf, ch);
+                }
             }
         }
     }
@@ -4072,6 +4077,7 @@ void do_ofind(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     OBJ_INDEX_DATA *pObjIndex;
+    AREA_DATA *area;
     /* long vnum; */
     int nMatch, iHash;
     bool fAll;
@@ -4088,14 +4094,18 @@ void do_ofind(CHAR_DATA *ch, char *argument)
     found	= false;
     nMatch	= 0;
 
-    for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-        for (pObjIndex = obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
-            nMatch++;
-            if (fAll || is_name(argument, pObjIndex->name)) {
-                found = true;
-                sprintf(buf, "[%5ld] %s\n\r",
-                    pObjIndex->vnum, pObjIndex->short_descr);
-                send_to_char(buf, ch);
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's obj index hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (pObjIndex = area->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
+                nMatch++;
+                if (fAll || is_name(argument, pObjIndex->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        pObjIndex->area->uid, pObjIndex->vnum, pObjIndex->short_descr);
+                    send_to_char(buf, ch);
+                }
             }
         }
     }
@@ -4119,6 +4129,7 @@ void do_tfind(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     TOKEN_INDEX_DATA *pTokIndex;
+    AREA_DATA *area;
     /* long vnum; */
     int nMatch, iHash;
     bool fAll;
@@ -4140,14 +4151,18 @@ void do_tfind(CHAR_DATA *ch, char *argument)
     found	= false;
     nMatch	= 0;
 
-    for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-        for (pTokIndex = token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
-            nMatch++;
-            if (fAll || is_name(argument, pTokIndex->name)) {
-                found = true;
-                sprintf(buf, "[%5ld] %s\n\r",
-                    pTokIndex->vnum, pTokIndex->name);
-                send_to_char(buf, ch);
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's token index hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (pTokIndex = area->token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
+                nMatch++;
+                if (fAll || is_name(argument, pTokIndex->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        pTokIndex->area->uid, pTokIndex->vnum, pTokIndex->name);
+                    send_to_char(buf, ch);
+                }
             }
         }
     }
@@ -4172,6 +4187,7 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
     char buf[MAX_INPUT_LENGTH];
     BUFFER *buffer;
     ROOM_INDEX_DATA *room;
+    AREA_DATA *area;
     bool found;
     int number, max_found;
     int hash;
@@ -4188,27 +4204,35 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    for (hash = 0; hash < MAX_KEY_HASH; hash++)
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next)
     {
-    for (room = room_index_hash[hash]; room != NULL; room = room->next)
-    {
-        if (can_see_room(ch, room)
-        &&  is_name(argument, room->name))
+        // Search this area's room index hash
+        for (hash = 0; hash < MAX_KEY_HASH; hash++)
         {
+            for (room = area->room_index_hash[hash]; room != NULL; room = room->next)
+            {
+                if (can_see_room(ch, room)
+                &&  is_name(argument, room->name))
+                {
+                    if (number >= max_found)
+                        break;
+
+                    number++;
+                    found = true;
+                    sprintf(buf, "{Y%3d){x %s [%3ld#%ld]\n\r", number,
+                        room->name, room->area->uid, room->vnum);
+                    buf[0] = UPPER(buf[0]);
+                    add_buf(buffer,buf);
+                }
+            }
+
+            if (number >= max_found)
+                break;
+        }
+
         if (number >= max_found)
             break;
-
-        number++;
-        found = true;
-        sprintf(buf, "{Y%3d){x %s (vnum {W%ld{x)\n\r", number,
-            room->name, room->vnum);
-        buf[0] = UPPER(buf[0]);
-        add_buf(buffer,buf);
-        }
-    }
-
-    if (number >= max_found)
-        break;
     }
 
     if (!found)
@@ -5139,7 +5163,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-        send_to_char("Syntax: load mob <vnum|$reserved_name> <amt>.\n\r", ch);
+        send_to_char("Syntax: load mob <widevnum|$reserved_name> <amt>.\n\r", ch);
         return;
     }
 
@@ -5152,12 +5176,21 @@ void do_mload(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        // Convert the vnum to a string for further processing
-        sprintf(arg1, "%ld", vnum);
+        AREA_DATA *mob_area = find_area_by_vnum(vnum, NULL);
+        if (!mob_area) mob_area = get_system_area_fallback();
+        pMobIndex = get_mob_index(mob_area, vnum);
     }
-    else if (!is_number(arg1)) {
-        send_to_char("Syntax: load mob <vnum|$reserved_name> <amt>.\n\r", ch);
-        return;
+    else {
+        // Parse widevnum
+        WNUM mob_wnum;
+        AREA_DATA *context = strchr(arg1, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg1, context, &mob_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum, area#vnum or $reserved_name\n\r", ch);
+            return;
+        }
+        
+        vnum = mob_wnum.vnum;
+        pMobIndex = get_mob_index(mob_wnum.pArea, mob_wnum.vnum);
     }
 
     if (arg2[0] != '\0')
@@ -5176,10 +5209,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
         }
     }
 
-    vnum = atol(arg1);
-    AREA_DATA *mob_area = find_area_by_vnum(vnum, NULL);
-    if (!mob_area) mob_area = get_system_area_fallback();
-    if ((pMobIndex = get_mob_index(mob_area, vnum)) == NULL)
+    if (!pMobIndex)
     {
         send_to_char("No mobile has that vnum.\n\r", ch);
         return;
@@ -5275,7 +5305,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-        send_to_char("Syntax: load obj <vnum|$reserved_name> <amt>.\n\r", ch);
+        send_to_char("Syntax: load obj <widevnum|$reserved_name> <amt>.\n\r", ch);
         return;
     }
 
@@ -5288,12 +5318,21 @@ void do_oload(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        // Convert the vnum to a string for further processing
-        sprintf(arg1, "%ld", vnum);
+        AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
+        if (!obj_area) obj_area = get_system_area_fallback();
+        pObjIndex = get_obj_index(obj_area, vnum);
     }
-    else if (!is_number(arg1)) {
-        send_to_char("Syntax: load obj <vnum|$reserved_name> <amt>.\n\r", ch);
-        return;
+    else {
+        // Parse widevnum
+        WNUM obj_wnum;
+        AREA_DATA *context = strchr(arg1, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg1, context, &obj_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum, area#vnum or $reserved_name\n\r", ch);
+            return;
+        }
+        
+        vnum = obj_wnum.vnum;
+        pObjIndex = get_obj_index(obj_wnum.pArea, obj_wnum.vnum);
     }
 
     if (arg2[0] != '\0')
@@ -5312,10 +5351,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
         }
     }
 
-    vnum = atol(arg1);
-    AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
-    if (!obj_area) obj_area = get_system_area_fallback();
-    if ((pObjIndex = get_obj_index(obj_area, vnum)) == NULL)
+    if (!pObjIndex)
     {
         send_to_char("No object has that vnum.\n\r", ch);
         return;
@@ -10742,7 +10778,14 @@ void do_token(CHAR_DATA *ch, char *argument)
         }
 
         count = number_argument(arg4, arg4b);
-        vnum = atol(arg4b);
+        
+        // Parse widevnum for token
+        WNUM token_wnum;
+        AREA_DATA *context = strchr(arg4b, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg4b, context, &token_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return;
+        }
 
         if (!str_cmp(arg, "give")) {
             if(ch->tot_level < (MAX_LEVEL - 1) && ch != victim && !IS_NPC(victim)) {
@@ -10750,15 +10793,13 @@ void do_token(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
-            if (!tok_area) tok_area = get_system_area_fallback();
-            if ((token_index = get_token_index(tok_area, vnum)) == NULL) {
+            if ((token_index = get_token_index(token_wnum.pArea, token_wnum.vnum)) == NULL) {
                 send_to_char("That token doesn't exist.\n\r", ch);
                 return;
             }
 
             if (is_singular_token(token_index)) {
-                if ((token = get_token_char(victim, vnum, 1)) != NULL) {
+                if ((token = get_token_char(victim, token_wnum.vnum, 1)) != NULL) {
                     send_to_char("Only one copy of this token can be given.\n\r", ch);
                     return;
                 }
@@ -10793,7 +10834,7 @@ void do_token(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if ((token = get_token_char(victim, vnum, count)) == NULL) {
+            if ((token = get_token_char(victim, token_wnum.vnum, count)) == NULL) {
                 send_to_char("Token not found on victim.\n\r", ch);
                 return;
             }
@@ -10829,18 +10870,23 @@ void do_token(CHAR_DATA *ch, char *argument)
         }
 
         count = number_argument(arg4, arg4b);
-        vnum = atol(arg4b);
+        
+        // Parse widevnum for token
+        WNUM token_wnum;
+        AREA_DATA *context = strchr(arg4b, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg4b, context, &token_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return;
+        }
 
         if (!str_cmp(arg, "give")) {
-            AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
-            if (!tok_area) tok_area = get_system_area_fallback();
-            if ((token_index = get_token_index(tok_area, vnum)) == NULL) {
+            if ((token_index = get_token_index(token_wnum.pArea, token_wnum.vnum)) == NULL) {
                 send_to_char("That token doesn't exist.\n\r", ch);
                 return;
             }
 
             if (is_singular_token(token_index)) {
-                if ((token = get_token_obj(obj, vnum, 1)) != NULL) {
+                if ((token = get_token_obj(obj, token_wnum.vnum, 1)) != NULL) {
                     send_to_char("Only one copy of this token can be given.\n\r", ch);
                     return;
                 }
@@ -10853,7 +10899,7 @@ void do_token(CHAR_DATA *ch, char *argument)
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
         } else if (!str_cmp(arg, "junk")) {
-            if ((token = get_token_obj(obj, vnum, count)) == NULL) {
+            if ((token = get_token_obj(obj, token_wnum.vnum, count)) == NULL) {
                 send_to_char("Token not found on object.\n\r", ch);
                 return;
             }
@@ -10870,18 +10916,23 @@ void do_token(CHAR_DATA *ch, char *argument)
             send_to_char("Syntax:  token <give|junk> obj <object> [#.]<vnum>\n\r", ch);
     } else if(!str_cmp(arg2, "room") ) {
         count = number_argument(arg3, arg4b);
-        vnum = atol(arg4b);
+        
+        // Parse widevnum for token
+        WNUM token_wnum;
+        AREA_DATA *context = strchr(arg4b, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg4b, context, &token_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return;
+        }
 
         if (!str_cmp(arg, "give")) {
-            AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
-            if (!tok_area) tok_area = get_system_area_fallback();
-            if ((token_index = get_token_index(tok_area, vnum)) == NULL) {
+            if ((token_index = get_token_index(token_wnum.pArea, token_wnum.vnum)) == NULL) {
                 send_to_char("That token doesn't exist.\n\r", ch);
                 return;
             }
 
             if (is_singular_token(token_index)) {
-                if ((token = get_token_room(ch->in_room, vnum, 1)) != NULL) {
+                if ((token = get_token_room(ch->in_room, token_wnum.vnum, 1)) != NULL) {
                     send_to_char("Only one copy of this token can be given.\n\r", ch);
                     return;
                 }
@@ -10899,7 +10950,7 @@ void do_token(CHAR_DATA *ch, char *argument)
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
         } else if (!str_cmp(arg, "junk")) {
-            if ((token = get_token_room(ch->in_room, vnum, count)) == NULL) {
+            if ((token = get_token_room(ch->in_room, token_wnum.vnum, count)) == NULL) {
                 send_to_char("Token not found on object.\n\r", ch);
                 return;
             }

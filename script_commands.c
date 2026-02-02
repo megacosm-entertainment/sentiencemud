@@ -3776,7 +3776,9 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 
     int floor = arg->d.num;
 
-    ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, vnum, floor);
+    /* Script context doesn't have area info, use global lookup */
+    WNUM wnum = { NULL, vnum };
+    ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, wnum, floor);
 
     if( !room )
         return;

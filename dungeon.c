@@ -394,8 +394,16 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
             break;
 
         case 'E':
-            KEY("Entry", dng->entry_room, fread_number(fp));
-            KEY("Exit", dng->exit_room, fread_number(fp));
+            if (!str_cmp(word, "Entry")) {
+                dng->entry_ref.load.vnum = fread_number(fp);
+                dng->entry_ref.load.auid = 0;  /* Legacy: area_uid unknown */
+                fMatch = true;
+            }
+            if (!str_cmp(word, "Exit")) {
+                dng->exit_ref.load.vnum = fread_number(fp);
+                dng->exit_ref.load.auid = 0;  /* Legacy: area_uid unknown */
+                fMatch = true;
+            }
             break;
 
         case 'F':
@@ -403,8 +411,15 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
             if( !str_cmp(word, "Floor") )
             {
                 long bp_vnum = fread_number(fp);
+                BLUEPRINT *bp = NULL;
 
-                BLUEPRINT *bp = get_blueprint(bp_vnum);
+                /* Use dungeon's area for area-scoped lookup, fall back to global */
+                if (dng->area) {
+                    bp = get_blueprint_for_area(dng->area, bp_vnum);
+                }
+                if (!bp) {
+                    bp = get_blueprint(bp_vnum);
+                }
 
                 if( bp )
                 {
@@ -532,8 +547,13 @@ void load_dungeons()
             DUNGEON_INDEX_DATA *dng = load_dungeon_index(fp);
             int iHash = dng->vnum % MAX_KEY_HASH;
 
-            dng->next = dungeon_index_hash[iHash];
-            dungeon_index_hash[iHash] = dng;
+            // Add to area's hash if area is set
+            if (dng->area) {
+                dng->next = dng->area->dungeon_index_hash[iHash];
+                dng->area->dungeon_index_hash[iHash] = dng;
+            } else {
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Dungeon %ld has no area assigned", dng->vnum);
+            }
 
             fMatch = true;
         }
@@ -690,11 +710,11 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 
     fprintf(fp, "Flags %d\n", dng->flags);
 
-    if( dng->entry_room > 0 )
-        fprintf(fp, "Entry %ld\n", dng->entry_room);
+    if( dng->entry_room && dng->entry_room->vnum > 0 )
+        fprintf(fp, "Entry %ld\n", dng->entry_room->vnum);
 
-    if( dng->exit_room > 0 )
-        fprintf(fp, "Exit %ld\n", dng->exit_room);
+    if( dng->exit_room && dng->exit_room->vnum > 0 )
+        fprintf(fp, "Exit %ld\n", dng->exit_room->vnum);
 
     fprintf(fp, "ZoneOut %s~\n", fix_string(dng->zone_out));
     fprintf(fp, "PortalOut %s~\n", fix_string(dng->zone_out_portal));
@@ -775,11 +795,15 @@ bool save_dungeons()
     }
 
     int iHash;
-    for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
-    {
-        for(DUNGEON_INDEX_DATA *dng = dungeon_index_hash[iHash]; dng; dng = dng->next)
+    
+    // Save dungeons from all areas
+    for (AREA_DATA *area = area_first; area != NULL; area = area->next) {
+        for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
         {
-            save_dungeon_index(fp, dng);
+            for(DUNGEON_INDEX_DATA *dng = area->dungeon_index_hash[iHash]; dng; dng = dng->next)
+            {
+                save_dungeon_index(fp, dng);
+            }
         }
     }
 
@@ -804,15 +828,34 @@ bool can_edit_dungeons(CHAR_DATA *ch)
 
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum)
 {
+    // Search all areas' dungeon_index_hash tables
+    for (AREA_DATA *area = area_first; area != NULL; area = area->next) {
+        for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for(DUNGEON_INDEX_DATA *dng = area->dungeon_index_hash[iHash]; dng; dng = dng->next)
+            {
+                if( dng->vnum == vnum )
+                    return dng;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+DUNGEON_INDEX_DATA *get_dungeon_index_for_area(AREA_DATA *area, long vnum)
+{
+    if (!area) return NULL;
+    
     for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-        for(DUNGEON_INDEX_DATA *dng = dungeon_index_hash[iHash]; dng; dng = dng->next)
+        for(DUNGEON_INDEX_DATA *dng = area->dungeon_index_hash[iHash]; dng; dng = dng->next)
         {
             if( dng->vnum == vnum )
                 return dng;
         }
     }
-
+    
     return NULL;
 }
 
@@ -1064,7 +1107,7 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
 
             if (from_link)
             {
-                from_room = instance_section_get_room_byvnum(from_section, from_link->vnum);
+                from_room = instance_section_get_room_byvnum(from_section, from_link->room ? from_link->room->vnum : 0);
                 from_door = from_link->door;
 
                 if (from_room && from_door >= 0 && from_door < MAX_DIR)
@@ -1091,7 +1134,7 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
 
             if (to_link)
             {
-                to_room = instance_section_get_room_byvnum(to_section, to_link->vnum);
+                to_room = instance_section_get_room_byvnum(to_section, to_link->room ? to_link->room->vnum : 0);
                 to_door = to_link->door;
 
                 if (to_room && to_door >= 0 && to_door < MAX_DIR)
@@ -1209,11 +1252,17 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
     return false;
 }
 
-DUNGEON *create_dungeon(long vnum)
+DUNGEON *create_dungeon(WNUM wnum)
 {
     ITERATOR it;
+    DUNGEON_INDEX_DATA *index;
 
-    DUNGEON_INDEX_DATA *index = get_dungeon_index(vnum);
+    /* Try area-scoped lookup first, fall back to global */
+    if (wnum.pArea) {
+        index = get_dungeon_index_for_area(wnum.pArea, wnum.vnum);
+    } else {
+        index = get_dungeon_index(wnum.vnum);
+    }
 
     if( !IS_VALID(index) )
     {
@@ -1228,16 +1277,16 @@ DUNGEON *create_dungeon(long vnum)
     dng->progs->progs	= index->progs;
     variable_copylist(&index->index_vars,&dng->progs->vars,false);
 
-    // TODO: update for widevnum
-    dng->entry_room = get_room_index(index->area, index->entry_room);
+    /* Use the resolved room pointers from the index */
+    dng->entry_room = index->entry_room;
     if( !dng->entry_room )
     {
         free_dungeon(dng);
         return NULL;
     }
 
-    // TODO: update for widevnum
-    dng->exit_room = get_room_index(index->area, index->exit_room);
+    /* Use the resolved room pointers from the index */
+    dng->exit_room = index->exit_room;
     if( !dng->exit_room )
     {
         free_dungeon(dng);
@@ -1389,8 +1438,7 @@ void extract_dungeon(DUNGEON *dungeon)
     free_dungeon(dungeon);
 }
 
-// TODO: WIDEVNUM
-DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
+DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, WNUM wnum)
 {
     ITERATOR dit;
     DUNGEON *dng;
@@ -1400,7 +1448,12 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
     iterator_start(&dit, loaded_dungeons);
     while( (dng = (DUNGEON *)iterator_nextdata(&dit)) )
     {
-        if( dng->index->vnum == vnum && dungeon_isowner_player(dng, ch) )
+        /* Match by vnum, optionally by area */
+        bool match = (dng->index->vnum == wnum.vnum);
+        if (match && wnum.pArea) {
+            match = (dng->index->area == wnum.pArea);
+        }
+        if (match && dungeon_isowner_player(dng, ch))
             break;
     }
     iterator_stop(&dit);
@@ -1420,13 +1473,12 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
     return leader;
 }
 
-// TODO: WIDEVNUM
-ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor)
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor)
 {
     CHAR_DATA *leader = get_player_leader(ch);
 
-    DUNGEON *leader_dng = find_dungeon_byplayer(leader, vnum);
-    DUNGEON *ch_dng = find_dungeon_byplayer(ch, vnum);
+    DUNGEON *leader_dng = find_dungeon_byplayer(leader, wnum);
+    DUNGEON *ch_dng = find_dungeon_byplayer(ch, wnum);
 
     // Check if the player already has a dungeon
     if( IS_VALID(ch_dng) )
@@ -1452,7 +1504,7 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor)
             return NULL;
         }
 
-        leader_dng = create_dungeon(vnum);
+        leader_dng = create_dungeon(wnum);
 
         if( !leader_dng )
             return NULL;
@@ -1611,19 +1663,19 @@ void list_dungeons(CHAR_DATA *ch, char *argument)
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
 
+    AREA_DATA *pArea = ch->in_room->area;
     int lines = 0;
     bool error = false;
     BUFFER *buffer = new_buf();
     char buf[MSL];
 
-    for(long vnum = 1; vnum <= top_dungeon_vnum; vnum++)
+    // Iterate through dungeons in the current area only
+    for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-        DUNGEON_INDEX_DATA *dng = get_dungeon_index(vnum);
-
-        if( dng )
+        for(DUNGEON_INDEX_DATA *dng = pArea->dungeon_index_hash[iHash]; dng; dng = dng->next)
         {
             sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s\n\r",
-                vnum,
+                dng->vnum,
                 dng->name);
 
             ++lines;
@@ -1633,6 +1685,7 @@ void list_dungeons(CHAR_DATA *ch, char *argument)
                 break;
             }
         }
+        if (error) break;
     }
 
     if( error )
@@ -1665,8 +1718,8 @@ void do_dnglist(CHAR_DATA *ch, char *argument)
 void do_dngedit(CHAR_DATA *ch, char *argument)
 {
     DUNGEON_INDEX_DATA *dng;
-    long value;
     char arg1[MAX_STRING_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, arg1);
 
@@ -1679,12 +1732,11 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (is_number(arg1))
+    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
     {
-        value = atol(arg1);
-        if (!(dng = get_dungeon_index(value)))
+        if (!(dng = get_dungeon_index_for_area(wnum.pArea, wnum.vnum)))
         {
-            send_to_char("DNGEdit:  That vnum does not exist.\n\r", ch);
+            send_to_char("DNGEdit:  That dungeon does not exist.\n\r", ch);
             return;
         }
 
@@ -1709,7 +1761,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 
     }
 
-    send_to_char("Syntax: dngedit <vnum>\n\r"
+    send_to_char("Syntax: dngedit <#vnum|area_uid#vnum>\n\r"
                  "        dngedit create <vnum>\n\r", ch);
 }
 
@@ -2061,7 +2113,8 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
     INSTANCE *instance;
     LLIST_UID_DATA *luid;
 
-    fprintf(fp, "#DUNGEON %ld\n\r", dungeon->index->vnum);
+    AREA_DATA *dng_area = dungeon->index->area ? dungeon->index->area : get_system_area_fallback();
+    fprintf(fp, "#DUNGEON %s\n\r", widevnum_string(dng_area, dungeon->index->vnum, NULL));
     fprintf(fp, "Uid %ld %ld\n\r", dungeon->uid[0], dungeon->uid[1]);
     // ->entry_room - not saved... resolved on load
     // ->exit_room - not saved...  resolved on load
@@ -2103,19 +2156,11 @@ DUNGEON *dungeon_load(FILE *fp)
 {
     char *word;
     bool fMatch;
+    AREA_DATA *area = NULL;
 
     DUNGEON *dungeon = new_dungeon();
     long vnum = fread_number(fp);
-
-    dungeon->index = get_dungeon_index(vnum);
-
-    dungeon->progs			= new_prog_data();
-    dungeon->progs->progs	= dungeon->index->progs;
-    variable_copylist(&dungeon->index->index_vars,&dungeon->progs->vars,false);
-
-
-    dungeon->entry_room = get_room_index(dungeon->index->area, dungeon->index->entry_room);
-    dungeon->exit_room = get_room_index(dungeon->index->area, dungeon->index->exit_room);
+    DUNGEON_INDEX_DATA *index = NULL;
 
     while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
     {
@@ -2140,6 +2185,16 @@ DUNGEON *dungeon_load(FILE *fp)
                 break;
             }
 
+            break;
+
+        case 'A':
+            if( !str_cmp(word, "AreaUid") )
+            {
+                long area_uid = fread_number(fp);
+                area = get_area_from_uid(area_uid);
+                fMatch = true;
+                break;
+            }
             break;
 
         case 'F':
@@ -2182,6 +2237,29 @@ DUNGEON *dungeon_load(FILE *fp)
             bug(buf, 0);
         }
     }
+
+    /* Resolve dungeon index - try area-scoped first, fall back to global */
+    if (area) {
+        index = get_dungeon_index_for_area(area, vnum);
+    }
+    if (!index) {
+        index = get_dungeon_index(vnum);
+    }
+
+    if (!index) {
+        log_stringf("dungeon_load: dungeon index %ld not found", vnum);
+        free_dungeon(dungeon);
+        return NULL;
+    }
+
+    dungeon->index = index;
+    dungeon->progs = new_prog_data();
+    dungeon->progs->progs = index->progs;
+    variable_copylist(&index->index_vars, &dungeon->progs->vars, false);
+
+    /* Use the resolved room pointers from the index */
+    dungeon->entry_room = index->entry_room;
+    dungeon->exit_room = index->exit_room;
 
     log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
 

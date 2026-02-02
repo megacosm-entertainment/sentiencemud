@@ -1657,7 +1657,7 @@ void char_update(void)
 
 
         // Characters in social aren't updated
-        if (IS_SOCIAL(ch))
+        if (ch->in_room && ch->in_room->area && IS_SOCIAL(ch))
             continue;
 
         // Update tokens on a character. Remove the one for which the timer has run out.
@@ -3482,6 +3482,12 @@ void check_relic_vanish(OBJ_DATA *relic)
 
     if (number_percent() < chance1 && number_percent() < chance2) {
         to_room = get_random_room(NULL, 0);
+        
+        if (!to_room) {
+            pbugf(LOG_ERROR, "check_relic_vanish: get_random_room returned NULL for %s", 
+                  relic->short_descr);
+            return;
+        }
 
         sprintf(buf, "{M%s vanishes in a swirl of purple mist.{x\n\r", relic->short_descr);
         buf[2] = UPPER(buf[2]);

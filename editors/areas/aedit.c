@@ -329,20 +329,28 @@ AEDIT(aedit_airshipland)
 
     EDIT_AREA(ch, pArea);
 
-    if (!is_number(argument))
+    if (argument[0] == '\0')
     {
-    send_to_char("Syntax:  airshipland [vnum]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  airshipland [widevnum]\n\r", ch);
+        return false;
     }
 
-    if (get_room_index(pArea, atol(argument)) == NULL) {
-    send_to_char("That room doesn't exist.\n\r", ch);
-    return false;
+    WNUM room_wnum;
+    AREA_DATA *context = strchr(argument, '#') ? pArea : NULL;
+    if (!parse_widevnum(argument, context, &room_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
     }
 
-    pArea->airship_land_spot = atol(argument);
+    ROOM_INDEX_DATA *pRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);
+    if (!pRoom) {
+        send_to_char("That room doesn't exist.\n\r", ch);
+        return false;
+    }
+
+    pArea->airship_land_spot = room_wnum.vnum;
     sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
-        pArea->name, atol(argument), get_room_index(pArea, atol(argument))->name);
+        pArea->name, room_wnum.vnum, pRoom->name);
     send_to_char(buf, ch);
     return true;
 }
@@ -820,7 +828,6 @@ AEDIT(aedit_recall)
     char arg2[MIL];
     char arg3[MIL];
     char arg4[MIL];
-    int vnum, x, y, z;
 
     EDIT_AREA(ch, pArea);
 
@@ -829,40 +836,57 @@ AEDIT(aedit_recall)
     argument = one_argument(argument, arg3);
     argument = one_argument(argument, arg4);
 
-    if (!is_number(arg1) || !arg1[0]) {
-        send_to_char("Syntax:  recall <vnum>\n\r", ch);
+    if (!arg1[0]) {
+        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
         send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+        send_to_char("         recall 0 (to clear)\n\r", ch);
         return false;
     }
 
-    vnum = atoi(arg1);
-
-    if(vnum < 1) {
+    // Check if it's clearing the recall
+    if(!str_cmp(arg1, "0") && !arg2[0]) {
         location_clear(&pArea->recall);
         send_to_char("Recall cleared.\n\r", ch);
-    } else if(!arg2[0]) {
-        if(!get_room_index(pArea, vnum)) {
+        return true;
+    }
+
+    // If only one argument, try to parse as widevnum (room format)
+    if(!arg2[0]) {
+        WNUM room_wnum;
+        AREA_DATA *context = strchr(arg1, '#') ? pArea : NULL;
+        if (!parse_widevnum(arg1, context, &room_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+
+        if(!get_room_index(room_wnum.pArea, room_wnum.vnum)) {
             send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
             return false;
         }
 
-        location_set(&pArea->recall,0,vnum,0,0);
+        location_set(&pArea->recall, 0, room_wnum.vnum, 0, 0);
         send_to_char("Recall set.\n\r", ch);
-    } else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
-        send_to_char("Syntax:  recall <vnum>\n\r", ch);
-        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
-        return false;
-    } else if(!get_wilds_from_uid(NULL,vnum)) {
-        send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
-        return false;
-    } else {
-        x = atoi(arg2);
-        y = atoi(arg3);
-        z = atoi(arg4);
-        location_set(&pArea->recall,vnum,x,y,z);
-        send_to_char("Recall set.\n\r", ch);
+        return true;
     }
 
+    // Multiple arguments - wilderness format
+    if(!arg3[0] || !arg4[0] || !is_number(arg1) || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
+        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
+        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+        return false;
+    }
+
+    long wuid = atol(arg1);
+    if(!get_wilds_from_uid(NULL, wuid)) {
+        send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
+        return false;
+    }
+
+    int x = atoi(arg2);
+    int y = atoi(arg3);
+    int z = atoi(arg4);
+    location_set(&pArea->recall, wuid, x, y, z);
+    send_to_char("Recall set.\n\r", ch);
     return true;
 }
 
@@ -1115,31 +1139,38 @@ AEDIT (aedit_addaprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
     {
-    send_to_char("Syntax:   addaprog [vnum] [trigger] [phrase]\n\r",ch);
-    return false;
+        send_to_char("Syntax:   addaprog [widevnum] [trigger] [phrase]\n\r",ch);
+        return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_APROG)) < 0) {
-    send_to_char("Valid flags are:\n\r",ch);
-    show_help(ch, "aprog");
-    return false;
+        send_to_char("Valid flags are:\n\r",ch);
+        show_help(ch, "aprog");
+        return false;
     }
 
     slot = trigger_table[tindex].slot;
 
-    if ((code = get_script_index_global(atol(num), PRG_APROG)) == NULL)
+    WNUM script_wnum;
+    AREA_DATA *context = strchr(num, '#') ? pArea : NULL;
+    if (!parse_widevnum(num, context, &script_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_APROG)) == NULL)
     {
-    send_to_char("No such AREAProgram.\n\r",ch);
-    return false;
+        send_to_char("No such AREAProgram.\n\r",ch);
+        return false;
     }
 
     // Make sure this has a list of progs!
     if(!pArea->progs->progs) pArea->progs->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     list->trig_number		= atoi(list->trig_phrase);

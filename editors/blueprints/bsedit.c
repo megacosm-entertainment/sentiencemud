@@ -51,11 +51,13 @@ BSEDIT( bsedit_show )
     sprintf(buf, "Flags:       %s\n\r", flag_string(blueprint_section_flags, bs->flags));
     add_buf(buffer, buf);
 
-    if( bs->recall > 0 )
+    if( bs->recall_room )
     {
-        AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
-        ROOM_INDEX_DATA *recall_room = get_room_index(area, bs->recall);
-        sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, recall_room ? recall_room->name : "-invalid-");
+        sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall_room->vnum, bs->recall_room->name);
+    }
+    else if( bs->recall_ref.load.vnum > 0 )
+    {
+        sprintf(buf, "Recall:      [%5ld] (unresolved)\n\r", bs->recall_ref.load.vnum);
     }
     else
     {
@@ -70,11 +72,11 @@ BSEDIT( bsedit_show )
     add_buf(buffer, buf);
 
     add_buf(buffer, "Description:\n\r");
-    add_buf(buffer, bs->description);
+    add_buf(buffer, bs->description ? bs->description : "(none)\n\r");
     add_buf(buffer, "\n\r");
 
     add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
-    add_buf(buffer, bs->comments);
+    add_buf(buffer, bs->comments ? bs->comments : "(none)\n\r");
     add_buf(buffer, "\n\r-----\n\r");
 
     if( bs->links )
@@ -90,7 +92,7 @@ BSEDIT( bsedit_show )
             char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
             char excolor = bl->ex ? 'W' : 'D';
 
-            sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
+            sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, room ? room->name : "nowhere");
             add_buf(buffer, buf);
         }
     }
@@ -107,8 +109,8 @@ BSEDIT( bsedit_create )
     long  value;
     int  iHash;
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == 0)
+    // Auto-vnum: empty or "0" finds next available
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
         long last_vnum = 0;
         value = top_blueprint_section_vnum + 1;
@@ -121,10 +123,22 @@ BSEDIT( bsedit_create )
             }
         }
     }
-    else if( get_blueprint_section(value) )
+    else
     {
-        send_to_char("That vnum already exists.\n\r", ch);
-        return false;
+        // Parse widevnum - sections are global so no context needed
+        WNUM bs_wnum;
+        if (!parse_widevnum(argument, NULL, &bs_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        
+        value = bs_wnum.vnum;
+        
+        if( get_blueprint_section(value) )
+        {
+            send_to_char("That vnum already exists.\n\r", ch);
+            return false;
+        }
     }
 
     bs = new_blueprint_section();
@@ -262,13 +276,15 @@ BSEDIT( bsedit_recall )
 
     if( !str_cmp(argument, "none") )
     {
-        if( bs->recall < 1 )
+        if( bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum < 1 )
         {
             send_to_char("Recall was not defined.\n\r", ch);
             return false;
         }
 
-        bs->recall = 0;
+        bs->recall_ref.load.vnum = 0;
+        bs->recall_ref.load.auid = 0;
+        bs->recall_room = NULL;
 
         send_to_char("Recall cleared.\n\r", ch);
         return true;
@@ -280,13 +296,14 @@ BSEDIT( bsedit_recall )
         return false;
     }
 
-    if (!is_number(argument))
-    {
-        send_to_char("That is not a number.\n\r", ch);
+    WNUM room_wnum;
+    AREA_DATA *context = strchr(argument, '#') ? bs->area : NULL;
+    if (!parse_widevnum(argument, context, &room_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    vnum = atol(argument);
+    vnum = room_wnum.vnum;
     if( vnum <= 0 )
     {
         send_to_char("That room does not exist.\n\r", ch);
@@ -300,15 +317,14 @@ BSEDIT( bsedit_recall )
         return false;
     }
 
-    AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
-    room = get_room_index(area, vnum);
+    room = get_room_index(room_wnum.pArea, vnum);
     if( room == NULL )
     {
         send_to_char("That room does not exist.\n\r", ch);
         return false;
     }
 
-    bs->recall = vnum;
+    bs->recall_ref.load.vnum = vnum; bs->recall_ref.load.auid = bs->area ? bs->area->uid : 0; bs->recall_room = get_room_index(bs->area ? bs->area : get_system_area_fallback(), vnum);
     sprintf(buf, "Recall set to %.30s (%ld)\n\r", room->name, vnum);
     send_to_char(buf, ch);
     return true;
@@ -357,12 +373,12 @@ BSEDIT( bsedit_rooms )
         send_to_char("Vnum range set.\n\r", ch);
 
         // Make sure recall point is still inside room range
-        if( bs->recall > 0 )
+        if( bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum > 0 )
         {
-            if( bs->recall < lvnum || bs->recall > uvnum )
+            if( bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum < lvnum || bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum > uvnum )
             {
                 send_to_char("{YRecall room outside of new range.  Clearing.{x\n\r", ch);
-                bs->recall = 0;
+                bs->recall_ref.load.vnum = 0; bs->recall_ref.load.auid = 0; bs->recall_room = NULL;
             }
         }
 
@@ -375,7 +391,7 @@ BSEDIT( bsedit_rooms )
             {
                 next = cur->next;
 
-                if( cur->vnum < lvnum || cur->vnum > uvnum )
+                if( cur->room ? cur->room->vnum : cur->room_ref.load.vnum < lvnum || cur->room ? cur->room->vnum : cur->room_ref.load.vnum > uvnum )
                 {
                     sprintf(buf, "Link %.30s outside of new vnum range.  Removing.\n\r", cur->name);
                     send_to_char(buf, ch);
@@ -441,7 +457,7 @@ BSEDIT( bsedit_link )
                 char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
                 char excolor = bl->ex ? 'W' : 'D';
 
-                sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
+                sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, room ? room->name : "nowhere");
                 send_to_char(buf, ch);
             }
         }
@@ -461,21 +477,21 @@ BSEDIT( bsedit_link )
             return false;
         }
 
-        if( !is_number(arg2) )
-        {
-            send_to_char("That is not a number.\n\r", ch);
+        WNUM room_wnum;
+        AREA_DATA *context = strchr(arg2, '#') ? bs->area : NULL;
+        if (!parse_widevnum(arg2, context, &room_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
 
-        long vnum = atol(arg2);
+        long vnum = room_wnum.vnum;
         if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
         {
             send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
             return false;
         }
 
-        AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
-        ROOM_INDEX_DATA *room = get_room_index(area, vnum);
+        ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, vnum);
         if( !room )
         {
             send_to_char("That room does not exist.\n\r", ch);
@@ -516,7 +532,7 @@ BSEDIT( bsedit_link )
         }
 
         link = new_blueprint_link();
-        link->vnum = vnum;
+        link->room_ref.load.vnum = vnum; link->room_ref.load.auid = bs->area ? bs->area->uid : 0; link->room = room;
         link->door = door;
         link->room = room;
         link->ex = ex;
@@ -611,25 +627,25 @@ BSEDIT( bsedit_link )
     {
         if( argument[0] == '\0' )
         {
-            send_to_char("Syntax:  link # room <vnum>\n\r", ch);
+            send_to_char("Syntax:  link # room <widevnum>\n\r", ch);
             return false;
         }
 
-        if( !is_number(argument) )
-        {
-            send_to_char("That is not a number.\n\r", ch);
+        WNUM room_wnum;
+        AREA_DATA *context = strchr(argument, '#') ? bs->area : NULL;
+        if (!parse_widevnum(argument, context, &room_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
 
-        long vnum = atol(argument);
+        long vnum = room_wnum.vnum;
         if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
         {
             send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
             return false;
         }
 
-        AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
-        ROOM_INDEX_DATA *room = get_room_index(area, vnum);
+        ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, vnum);
         if( !room )
         {
             send_to_char("That room does not exist.\n\r", ch);
@@ -649,7 +665,7 @@ BSEDIT( bsedit_link )
             return false;
         }
 
-        link->vnum = vnum;
+        link->room_ref.load.vnum = vnum; link->room_ref.load.auid = bs->area ? bs->area->uid : 0; link->room = room;
         link->door = -1;
         link->room = room;
         link->ex = NULL;

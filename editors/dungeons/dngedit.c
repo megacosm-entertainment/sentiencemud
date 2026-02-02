@@ -487,9 +487,9 @@ DNGEDIT( dngedit_show )
     else
         sprintf(buf, "Repop:       {Dnever{X\n\r");
     add_buf(buffer, buf);
-    // TODO: WIDEVNUM
 
-    room = get_room_index(dng->area, dng->entry_room);
+    /* Entry room - use the resolved pointer */
+    room = dng->entry_room;
     if( room )
     {
         sprintf(buf, "Entry:       [%ld] %-.30s\n\r", room->vnum, room->name);
@@ -497,9 +497,9 @@ DNGEDIT( dngedit_show )
     }
     else
         add_buf(buffer, "Entry:       {Dinvalid{x\n\r");
-    // TODO: WIDEVNUM
 
-    room = get_room_index(dng->area, dng->exit_room);
+    /* Exit room - use the resolved pointer */
+    room = dng->exit_room;
     if( room )
     {
         sprintf(buf, "Exit:        [%ld] %-.30s\n\r", room->vnum, room->name);
@@ -653,8 +653,8 @@ DNGEDIT( dngedit_create )
     long  value;
     int  iHash;
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == 0)
+    // Auto-vnum: empty or "0" finds next available
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
         long last_vnum = 0;
         value = top_dungeon_vnum + 1;
@@ -667,10 +667,22 @@ DNGEDIT( dngedit_create )
             }
         }
     }
-    else if( get_dungeon_index(value) )
+    else
     {
-        send_to_char("That vnum already exists.\n\r", ch);
-        return false;
+        // Parse widevnum - dungeons are global so no context needed
+        WNUM dng_wnum;
+        if (!parse_widevnum(argument, NULL, &dng_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        
+        value = dng_wnum.vnum;
+        
+        if( get_dungeon_index(value) )
+        {
+            send_to_char("That vnum already exists.\n\r", ch);
+            return false;
+        }
     }
 
     dng = new_dungeon_index();
@@ -832,9 +844,9 @@ DNGEDIT( dngedit_floors )
             return false;
         }
 
-        long vnum = atol(argument);
+        long bp_vnum = atol(argument);
 
-        BLUEPRINT *bp = get_blueprint(vnum);
+        BLUEPRINT *bp = get_blueprint(bp_vnum);
 
         if( !bp )
         {
@@ -2007,13 +2019,19 @@ DNGEDIT( dngedit_entry )
 
     value = atol(argument);
 
-    if( !get_room_index(dng->area, value) )
+    ROOM_INDEX_DATA *room = get_room_index(dng->area, value);
+    if( !room )
     {
         send_to_char("That room does not exist.\n\r", ch);
         return false;
     }
 
-    dng->entry_room = value;
+    /* Store in WNUM_LOAD format */
+    dng->entry_ref.load.vnum = value;
+    dng->entry_ref.load.auid = dng->area->uid;
+    /* Also set the resolved pointer */
+    dng->entry_room = room;
+    
     send_to_char("Entry room changed.\n\r", ch);
     return true;
 }
@@ -2039,13 +2057,19 @@ DNGEDIT( dngedit_exit )
 
     value = atol(argument);
 
-    if( !get_room_index(dng->area, value) )
+    ROOM_INDEX_DATA *room = get_room_index(dng->area, value);
+    if( !room )
     {
         send_to_char("That room does not exist.\n\r", ch);
         return false;
     }
 
-    dng->exit_room = value;
+    /* Store in WNUM_LOAD format */
+    dng->exit_ref.load.vnum = value;
+    dng->exit_ref.load.auid = dng->area->uid;
+    /* Also set the resolved pointer */
+    dng->exit_room = room;
+    
     send_to_char("Exit room changed.\n\r", ch);
     return true;
 }
@@ -5551,9 +5575,9 @@ DNGEDIT (dngedit_adddprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
     {
-    send_to_char("Syntax:   adddprog [vnum] [trigger] [phrase]\n\r",ch);
+    send_to_char("Syntax:   adddprog [widevnum] [trigger] [phrase]\n\r",ch);
     return false;
     }
 
@@ -5565,7 +5589,14 @@ DNGEDIT (dngedit_adddprog)
 
     slot = trigger_table[tindex].slot;
 
-    if ((code = get_script_index_global (atol(num), PRG_DPROG)) == NULL)
+    WNUM script_wnum;
+    AREA_DATA *context = strchr(num, '#') ? dungeon->area : NULL;
+    if (!parse_widevnum(num, context, &script_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_DPROG)) == NULL)
     {
     send_to_char("No such DUNGEONProgram.\n\r",ch);
     return false;
@@ -5575,7 +5606,7 @@ DNGEDIT (dngedit_adddprog)
     if(!dungeon->progs) dungeon->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     list->trig_number		= atoi(list->trig_phrase);

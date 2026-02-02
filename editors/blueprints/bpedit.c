@@ -58,11 +58,11 @@ BPEDIT( bpedit_show )
     add_buf(buffer, buf);
 
     add_buf(buffer, "Description:\n\r");
-    add_buf(buffer, bp->description);
+    add_buf(buffer, bp->description ? bp->description : "(none)\n\r");
     add_buf(buffer, "\n\r");
 
     add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
-    add_buf(buffer, bp->comments);
+    add_buf(buffer, bp->comments ? bp->comments : "(none)\n\r");
     add_buf(buffer, "\n\r-----\n\r");
 
     switch(bp->mode)
@@ -79,7 +79,7 @@ BPEDIT( bpedit_show )
     if( list_size(bp->sections) > 0 )
     {
         int line = 0;
-        BLUEPRINT_SECTION * bs;
+        BLUEPRINT_SECTION_REF *section_ref;
         ITERATOR sit;
 
         add_buf(buffer, "{YSections:{x\n\r");
@@ -87,10 +87,17 @@ BPEDIT( bpedit_show )
         add_buf(buffer, "------------------------------------------------\n\r");
 
         iterator_start(&sit, bp->sections);
-        while( (bs = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
+        while( (section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&sit)) )
         {
-            sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, bs->vnum, bs->name);
-            add_buf(buffer, buf);
+            if (section_ref->section) {
+                sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, section_ref->section->vnum, 
+                    section_ref->section->name ? section_ref->section->name : "(unnamed)");
+                add_buf(buffer, buf);
+            } else {
+                sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line, 
+                    section_ref->section_ref.load.auid, section_ref->section_ref.load.vnum);
+                add_buf(buffer, buf);
+            }
         }
 
         iterator_stop(&sit);
@@ -117,10 +124,11 @@ BPEDIT( bpedit_show )
         iterator_start(&sit, bp->special_rooms);
         while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
         {
-            BLUEPRINT_SECTION *section = list_nthdata(bp->sections, special->section);
+            BLUEPRINT_SECTION_REF *section_ref = list_nthdata(bp->sections, special->section);
+            BLUEPRINT_SECTION *section = section_ref ? section_ref->section : NULL;
             AREA_DATA *area = section ? section->area : NULL;
             if (!area) area = get_system_area_fallback();
-            ROOM_INDEX_DATA *room = get_room_index(area, special->vnum);
+            ROOM_INDEX_DATA *room = get_room_index(area, special->room ? special->room->vnum : special->room_ref.load.vnum);
 
             if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
             {
@@ -170,7 +178,8 @@ BPEDIT( bpedit_show )
 
         if( bp->_static.recall > 0 )
         {
-            BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->_static.recall);
+            BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bp->_static.recall);
+            BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
             if( bs )
             {
@@ -196,7 +205,8 @@ BPEDIT( bpedit_show )
             iterator_start(&bxit, bp->_static.entries);
             while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
             {
-                BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bex->section);
+                BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bex->section);
+                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
                 if( bs )
                 {
@@ -207,9 +217,9 @@ BPEDIT( bpedit_show )
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+                    if( bl && bl->room || bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
                     {
-                        sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+                        sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
@@ -237,7 +247,8 @@ BPEDIT( bpedit_show )
             iterator_start(&bxit, bp->_static.exits);
             while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
             {
-                BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bex->section);
+                BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bex->section);
+                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
                 if( bs )
                 {
@@ -248,9 +259,9 @@ BPEDIT( bpedit_show )
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+                    if( bl && bl->room || bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
                     {
-                        sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+                        sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
@@ -359,8 +370,8 @@ BPEDIT( bpedit_create )
     long  value;
     int  iHash;
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == 0)
+    // Auto-vnum: empty or "0" finds next available
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
         long last_vnum = 0;
         value = top_blueprint_vnum + 1;
@@ -373,10 +384,22 @@ BPEDIT( bpedit_create )
             }
         }
     }
-    else if( get_blueprint(value) )
+    else
     {
-        send_to_char("That vnum already exists.\n\r", ch);
-        return false;
+        // Parse widevnum - blueprints are global so no context needed
+        WNUM bp_wnum;
+        if (!parse_widevnum(argument, NULL, &bp_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        
+        value = bp_wnum.vnum;
+        
+        if( get_blueprint(value) )
+        {
+            send_to_char("That vnum already exists.\n\r", ch);
+            return false;
+        }
     }
 
     bp = new_blueprint();
@@ -849,14 +872,13 @@ BPEDIT( bpedit_static )
 
             if( !str_prefix(arg3, "room") )
             {
-                if( !is_number(arg4) || !is_number(argument) )
+                if( !is_number(arg4) )
                 {
-                    send_to_char("That is not a number.\n\r", ch);
+                    send_to_char("Section must be a number.\n\r", ch);
                     return false;
                 }
 
                 int section = atoi(arg4);
-                long vnum = atol(argument);
 
                 if( section < 1 || section > list_size(bp->sections) )
                 {
@@ -864,7 +886,17 @@ BPEDIT( bpedit_static )
                     return false;
                 }
 
-                BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
+                BLUEPRINT_SECTION_REF *bs_ref = list_nthdata(bp->sections, section);
+                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
+
+                WNUM room_wnum;
+                AREA_DATA *context = strchr(argument, '#') ? bp->area : NULL;
+                if (!parse_widevnum(argument, context, &room_wnum)) {
+                    send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+                    return false;
+                }
+
+                long vnum = room_wnum.vnum;
 
                 if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
                 {
@@ -872,14 +904,14 @@ BPEDIT( bpedit_static )
                     return false;
                 }
 
-                if( !get_room_index(bp->area, vnum) )
+                if( !get_room_index(room_wnum.pArea, vnum) )
                 {
                     send_to_char("Room does not exist.\n\r", ch);
                     return false;
                 }
 
                 special->section = section;
-                special->vnum = vnum;
+                special->room_ref.load.vnum = vnum; special->room_ref.load.auid = bp->area ? bp->area->uid : 0; special->room = get_room_index(bp->area, vnum);
 
                 send_to_char("Special room changed.\n\r", ch);
                 return true;
@@ -903,14 +935,13 @@ BPEDIT( bpedit_static )
             argument = one_argument(argument, arg4);
 
 
-            if( !is_number(arg3) || !is_number(arg4) )
+            if( !is_number(arg3) )
             {
-                send_to_char("That is not a number.\n\r", ch);
+                send_to_char("Section must be a number.\n\r", ch);
                 return false;
             }
 
             int section = atoi(arg3);
-            long vnum = atol(arg4);
 
             if( section < 1 || section > list_size(bp->sections) )
             {
@@ -920,14 +951,22 @@ BPEDIT( bpedit_static )
 
             BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
 
+            WNUM room_wnum;
+            AREA_DATA *context = strchr(arg4, '#') ? bp->area : NULL;
+            if (!parse_widevnum(arg4, context, &room_wnum)) {
+                send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+                return false;
+            }
+
+            long vnum = room_wnum.vnum;
+
             if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
             {
                 send_to_char("Room vnum not in the section.\n\r", ch);
                 return false;
             }
 
-            AREA_DATA *area = bs->area ? bs->area : get_system_area_fallback();
-            if( !get_room_index(area, vnum) )
+            if( !get_room_index(room_wnum.pArea, vnum) )
             {
                 send_to_char("Room does not exist.\n\r", ch);
                 return false;
@@ -943,7 +982,7 @@ BPEDIT( bpedit_static )
             free_string(special->name);
             special->name = str_dup(name);
             special->section = section;
-            special->vnum = vnum;
+            special->room_ref.load.vnum = vnum; special->room_ref.load.auid = bp->area ? bp->area->uid : 0; special->room = get_room_index(bp->area, vnum);
 
             list_appendlink(bp->special_rooms, special);
 
@@ -1283,9 +1322,9 @@ BPEDIT (bpedit_addiprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
     {
-    send_to_char("Syntax:   addiprog [vnum] [trigger] [phrase]\n\r",ch);
+    send_to_char("Syntax:   addiprog [widevnum] [trigger] [phrase]\n\r",ch);
     return false;
     }
 
@@ -1297,8 +1336,14 @@ BPEDIT (bpedit_addiprog)
 
     slot = trigger_table[tindex].slot;
 
-    // Scripts are global, not area-scoped
-    if ((code = get_script_index_global(atol(num), PRG_IPROG)) == NULL)
+    WNUM script_wnum;
+    AREA_DATA *context = strchr(num, '#') ? blueprint->area : NULL;
+    if (!parse_widevnum(num, context, &script_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_IPROG)) == NULL)
     {
     send_to_char("No such INSTANCEProgram.\n\r",ch);
     return false;
@@ -1308,7 +1353,7 @@ BPEDIT (bpedit_addiprog)
     if(!blueprint->progs) blueprint->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     list->trig_number		= atoi(list->trig_phrase);

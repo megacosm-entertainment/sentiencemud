@@ -158,9 +158,15 @@ C_FILES = \
     json_char.c \
     json_account.c \
     json_area.c \
+    json_chat.c \
+    json_church.c \
     json_game_settings.c \
+    json_gq.c \
+    json_instance.c \
+    json_mail.c \
     json_persist.c \
     json_race.c \
+    json_reserved.c \
     save.c \
     scan.c \
     script_commands.c \

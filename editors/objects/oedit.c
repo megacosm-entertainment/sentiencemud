@@ -1233,41 +1233,41 @@ OEDIT(oedit_lock)
 
         if( argument[0] == '\0' )
         {
-            send_to_char("Syntax:  lock key [vnum]\n\r", ch);
+            send_to_char("Syntax:  lock key [widevnum]\n\r", ch);
             send_to_char("         lock key clear\n\r", ch);
             return false;
         }
 
-        if( is_number(argument) )
-        {
-            long vnum = atol(argument);
-            OBJ_INDEX_DATA *key = get_obj_index(pObj->area, vnum);
-
-            if( !key )
-            {
-                send_to_char("That object does not exist.\n\r", ch);
-                return false;
-            }
-
-            if( key->item_type != ITEM_KEY )
-            {
-                send_to_char("That object is not a key.\n\r", ch);
-                return false;
-            }
-
-            pObj->lock->key_vnum = vnum;
-            send_to_char("Lock State key set.\n\r", ch);
-            return true;
-        }
-        else if( !str_prefix(argument, "clear") )
+        if( !str_prefix(argument, "clear") )
         {
             pObj->lock->key_vnum = 0;
-            send_to_char("Lock State key removed.\n\r", ch);
+            send_to_char("Lock State key cleared.\n\r", ch);
             return true;
         }
 
-        oedit_lock(ch, "lock key");
-        return false;
+        WNUM key_wnum;
+        AREA_DATA *context = strchr(argument, '#') ? pObj->area : NULL;
+        if (!parse_widevnum(argument, context, &key_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+
+        OBJ_INDEX_DATA *key = get_obj_index(key_wnum.pArea, key_wnum.vnum);
+        if( !key )
+        {
+            send_to_char("That object does not exist.\n\r", ch);
+            return false;
+        }
+
+        if( key->item_type != ITEM_KEY )
+        {
+            send_to_char("That object is not a key.\n\r", ch);
+            return false;
+        }
+
+        pObj->lock->key_vnum = key_wnum.vnum;
+        send_to_char("Lock State key set.\n\r", ch);
+        return true;
     }
 
     if( !str_prefix(arg, "flags") )
@@ -1777,14 +1777,13 @@ OEDIT(oedit_create)
 {
     OBJ_INDEX_DATA *pObj;
     AREA_DATA *pArea;
-    int  value;
+    long value;
     long auto_vnum = 0;
     int  iHash;
 
-    value = atoi(argument);
-    if (argument[0] == '\0' || value == 0)
+    // Auto-vnum: if no argument or argument is 0, find next available vnum in current area
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-    //send_to_char("Syntax:  oedit create [vnum]\n\r", ch);
     OBJ_INDEX_DATA *temp_obj;
 
     auto_vnum = ch->in_room->area->min_vnum;
@@ -1801,16 +1800,27 @@ OEDIT(oedit_create)
 
     if (auto_vnum > ch->in_room->area->max_vnum)
     {
-        send_to_char("Sorry, this area has no more space left.\n\r",
-            ch);
+        send_to_char("Sorry, this area has no more space left.\n\r", ch);
         return false;
     }
+    
+    value = auto_vnum;
+    pArea = ch->in_room->area;
+    }
+    else
+    {
+    // Parse widevnum format
+    WNUM wnum;
+    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+    if (!parse_widevnum(argument, context, &wnum)) {
+        send_to_char("OEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+    
+    value = wnum.vnum;
+    pArea = wnum.pArea;
     }
 
-    if (auto_vnum != 0)
-    value = auto_vnum;
-
-    pArea = get_vnum_area(value);
     if (!pArea)
     {
     send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
@@ -2527,9 +2537,9 @@ OEDIT (oedit_addoprog)
   argument=one_argument(argument, trigger);
   argument=one_argument(argument, phrase);
 
-  if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+  if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
   {
-        send_to_char("Syntax:   addoprog [vnum] [trigger] [phrase]\n\r",ch);
+        send_to_char("Syntax:   addoprog [widevnum] [trigger] [phrase]\n\r",ch);
         return false;
   }
 
@@ -2575,7 +2585,14 @@ OEDIT (oedit_addoprog)
     }
 
 
-  if ((code = get_script_index_global(atol(num), PRG_OPROG)) == NULL)
+  WNUM script_wnum;
+  AREA_DATA *context = strchr(num, '#') ? pObj->area : NULL;
+  if (!parse_widevnum(num, context, &script_wnum)) {
+      send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+      return false;
+  }
+
+  if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_OPROG)) == NULL)
   {
         send_to_char("No such OBJProgram.\n\r",ch);
         return false;
@@ -2585,7 +2602,7 @@ OEDIT (oedit_addoprog)
     if(!pObj->progs) pObj->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     list->trig_number		= atoi(list->trig_phrase);

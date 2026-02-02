@@ -459,6 +459,7 @@ enum entity_type_enum {
     ENT_DICE,
     ENT_BITVECTOR,
     ENT_BITMATRIX,
+    ENT_WIDEVNUM,
 
     ENT_MOBINDEX,
     ENT_OBJINDEX,
@@ -1513,10 +1514,7 @@ struct script_parameter {
             long *values;
             const struct flag_type **bank;
         } bm;
-        struct {
-            AREA_DATA *area;
-            long vnum;
-        } wnum;
+        WNUM wnum;
         DICE_DATA *dice;
         VARIABLE **variables;
         LLIST *blist;
@@ -2129,6 +2127,11 @@ bool script_instance_remref(INSTANCE *instance);
 void script_dungeon_addref(DUNGEON *dungeon);
 bool script_dungeon_remref(DUNGEON *dungeon);
 
+/* Helper functions */
+AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info);
+char *script_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room);
+CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced);
+OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced);
 
 ENT_FIELD *script_entity_fields(int type);
 bool script_entity_allow_vars(int type);

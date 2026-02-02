@@ -618,6 +618,11 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
     if( ship->vnum > top_ship_index_vnum)
         top_ship_index_vnum = ship->vnum;
 
+    /* Assign ship to area based on vnum range */
+    ship->area = find_area_by_vnum(ship->vnum, NULL);
+    if (!ship->area)
+        ship->area = get_system_area_fallback();
+
     while (str_cmp((word = fread_word(fp)), "#-SHIP"))
     {
         fMatch = false;
@@ -631,14 +636,8 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
         case 'B':
             if( !str_cmp(word, "Blueprint") )
             {
-                long vnum = fread_number(fp);
-                BLUEPRINT *bp = get_blueprint(vnum);
-
-                if( bp )
-                {
-                    ship->blueprint = bp;
-                }
-
+                ship->blueprint_ref.vnum = fread_number(fp);
+                ship->blueprint = NULL;  // Resolved in fix pass
                 fMatch = true;
                 break;
             }
@@ -676,16 +675,9 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
         case 'K':
             if( !str_cmp(word, "Key") )
             {
-                long key_vnum = fread_number(fp);
-
-                AREA_DATA *key_area = find_area_by_vnum(key_vnum, NULL);
-                if (!key_area) key_area = get_system_area_fallback();
-                OBJ_INDEX_DATA *key = get_obj_index(key_area, key_vnum);
-                if( key )
-                {
-                    list_appendlink(ship->special_keys, key);
-                }
-
+                long *key_vnum = alloc_perm(sizeof(long));
+                *key_vnum = fread_number(fp);
+                list_appendlink(ship->special_keys, key_vnum);
                 fMatch = true;
                 break;
             }
@@ -702,7 +694,13 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 
         case 'O':
             KEY("Oars", ship->oars, fread_number(fp));
-            KEY("Object", ship->ship_object, fread_number(fp));
+            if (!str_cmp(word, "Object"))
+            {
+                ship->ship_object_ref.vnum = fread_number(fp);
+                ship->ship_object = NULL;  // Resolved in fix pass
+                fMatch = true;
+                break;
+            }
             break;
 
         case 'T':
@@ -752,10 +750,18 @@ void load_ships()
         if( !str_cmp(word, "#SHIP") )
         {
             SHIP_INDEX_DATA *ship = load_ship_index(fp);
-            int iHash = ship->vnum % MAX_KEY_HASH;
-
-            ship->next = ship_index_hash[iHash];
-            ship_index_hash[iHash] = ship;
+            AREA_DATA *area = ship->area;
+            
+            if (area)
+            {
+                int iHash = ship->vnum % MAX_KEY_HASH;
+                ship->next = area->ship_index_hash[iHash];
+                area->ship_index_hash[iHash] = ship;
+            }
+            else
+            {
+                bug("load_ships: ship %ld has no area assigned", ship->vnum);
+            }
 
             fMatch = true;
             continue;
@@ -795,8 +801,8 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
     if( IS_VALID(ship->blueprint) )
         fprintf(fp, "Blueprint %ld\n", ship->blueprint->vnum);
 
-    if( ship->ship_object > 0 )
-        fprintf(fp, "Object %ld\n", ship->ship_object);
+    if( ship->ship_object )
+        fprintf(fp, "Object %ld\n", ship->ship_object->vnum);
 
     fprintf(fp, "Hit %d\n", ship->hit);
     fprintf(fp, "Guns %d\n", ship->guns);
@@ -838,12 +844,16 @@ bool save_ships()
     }
 
     int iHash;
+    AREA_DATA *area;
 
-    for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+    for (area = area_first; area != NULL; area = area->next)
     {
-        for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; ship; ship = ship->next)
+        for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
         {
-            save_ship_index(fp, ship);
+            for(SHIP_INDEX_DATA *ship = area->ship_index_hash[iHash]; ship; ship = ship->next)
+            {
+                save_ship_index(fp, ship);
+            }
         }
     }
 
@@ -855,22 +865,54 @@ bool save_ships()
 }
 
 /**
- * get_ship_index - Look up a ship template by VNUM
+ * get_ship_index - Look up a ship template by VNUM (searches all areas)
  *
- * Searches ship_index_hash for a template with the given VNUM.
+ * Searches all area ship_index_hash tables for a template with the given VNUM.
+ * Use this for global lookups (e.g., vnum command).
  *
  * @param vnum  VNUM to search for
  * @return      SHIP_INDEX_DATA if found, NULL otherwise
  */
 SHIP_INDEX_DATA *get_ship_index(long vnum)
 {
-    for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+    AREA_DATA *area;
+    int iHash;
+
+    for (area = area_first; area != NULL; area = area->next)
     {
-        for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; ship; ship = ship->next)
+        iHash = vnum % MAX_KEY_HASH;
+        for(SHIP_INDEX_DATA *ship = area->ship_index_hash[iHash]; ship; ship = ship->next)
         {
             if( ship->vnum == vnum )
                 return ship;
         }
+    }
+
+    return NULL;
+}
+
+/**
+ * get_ship_index_for_area - Look up a ship template within a specific area
+ *
+ * Searches only the specified area's ship_index_hash for the given VNUM.
+ * Use this for list/edit commands that should be area-scoped.
+ *
+ * @param area  Area to search in
+ * @param vnum  VNUM to search for
+ * @return      SHIP_INDEX_DATA if found in area, NULL otherwise
+ */
+SHIP_INDEX_DATA *get_ship_index_for_area(AREA_DATA *area, long vnum)
+{
+    int iHash;
+
+    if (!area)
+        return NULL;
+
+    iHash = vnum % MAX_KEY_HASH;
+    for(SHIP_INDEX_DATA *ship = area->ship_index_hash[iHash]; ship; ship = ship->next)
+    {
+        if( ship->vnum == vnum )
+            return ship;
     }
 
     return NULL;
@@ -894,7 +936,7 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
  * @param vnum  VNUM of ship template to instantiate
  * @return      New SHIP_DATA, or NULL on failure
  */
-SHIP_DATA *create_ship(long vnum)
+SHIP_DATA *create_ship(WNUM wnum)
 {
     OBJ_DATA *obj;						// Physical ship object
     OBJ_INDEX_DATA *obj_index;			// Ship object index to create
@@ -903,20 +945,65 @@ SHIP_DATA *create_ship(long vnum)
     INSTANCE *instance;
     ITERATOR it;
 
-    // Verify the ship index exists
-    if( !(ship_index = get_ship_index(vnum)) )
+    // Verify the ship index exists (try area-scoped first, then global)
+    if( wnum.pArea )
+    {
+        ship_index = get_ship_index_for_area(wnum.pArea, wnum.vnum);
+    }
+    
+    if( !ship_index )
+    {
+        ship_index = get_ship_index(wnum.vnum);
+    }
+    
+    if( !ship_index )
         return NULL;
 
+    // Resolve ship_object if not already resolved
+    obj_index = ship_index->ship_object;
+    if( !obj_index && ship_index->ship_object_ref.load.vnum > 0 )
+    {
+        // Try to resolve using the area UID first
+        AREA_DATA *target_area = get_area_from_uid(ship_index->ship_object_ref.load.auid);
+        
+        if( target_area )
+        {
+            obj_index = get_obj_index(target_area, ship_index->ship_object_ref.load.vnum);
+        }
+        
+        // If not found, search all areas (legacy support)
+        if( !obj_index )
+        {
+            AREA_DATA *search_area;
+            for (search_area = area_first; search_area != NULL; search_area = search_area->next)
+            {
+                obj_index = get_obj_index(search_area, ship_index->ship_object_ref.load.vnum);
+                if (obj_index)
+                    break;
+            }
+        }
+        
+        // Cache the resolved pointer
+        if( obj_index )
+        {
+            ship_index->ship_object = obj_index;
+        }
+    }
+
     // Verify the object index exists and is a ship
-    AREA_DATA *ship_area = find_area_by_vnum(ship_index->ship_object, NULL);
-    if (!ship_area) ship_area = get_system_area_fallback();
-    if( !(obj_index = get_obj_index(ship_area, ship_index->ship_object)) )
+    if( !obj_index )
+    {
+        bug("create_ship: ship %s has no valid ship_object (ref %lu#%ld)", 
+            widevnum_string_wnum(wnum, NULL), 
+            ship_index->ship_object_ref.load.auid,
+            ship_index->ship_object_ref.load.vnum);
         return NULL;
+    }
 
     if( obj_index->item_type != ITEM_SHIP )
     {
         char buf[MSL];
-        sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%ld)", obj_index->vnum, ship_index->vnum);
+        sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%s)", obj_index->vnum, widevnum_string_wnum(wnum, NULL));
         bug(buf, 0);
         return NULL;
     }
@@ -936,7 +1023,45 @@ SHIP_DATA *create_ship(long vnum)
     ship->ship = obj;
     obj->ship = ship;
 
-    instance = create_instance(ship_index->blueprint);
+    // Resolve blueprint if not already resolved
+    BLUEPRINT *blueprint = ship_index->blueprint;
+    if( !blueprint && ship_index->blueprint_ref.load.vnum > 0 )
+    {
+        // Try to resolve using the area UID first
+        AREA_DATA *target_area = get_area_from_uid(ship_index->blueprint_ref.load.auid);
+        
+        if( target_area )
+        {
+            blueprint = get_blueprint_for_area(target_area, ship_index->blueprint_ref.load.vnum);
+        }
+        
+        // If not found, search globally (legacy support)
+        if( !blueprint )
+        {
+            blueprint = get_blueprint(ship_index->blueprint_ref.load.vnum);
+        }
+        
+        // Cache the resolved pointer
+        if( blueprint )
+        {
+            ship_index->blueprint = blueprint;
+        }
+    }
+
+    if( !blueprint )
+    {
+        bug("create_ship: ship %s has no valid blueprint (ref %lu#%ld)", 
+            widevnum_string_wnum(wnum, NULL), 
+            ship_index->blueprint_ref.load.auid,
+            ship_index->blueprint_ref.load.vnum);
+        list_remlink(loaded_objects, obj, true);
+        --obj->pIndexData->count;
+        free_obj(obj);
+        free_ship(ship);
+        return NULL;
+    }
+
+    instance = create_instance(blueprint);
     if( !IS_VALID(instance) )
     {
         list_remlink(loaded_objects, obj, true);
@@ -1261,6 +1386,13 @@ bool move_ship_success(SHIP_DATA *ship)
 
     obj_from_room(obj);
     obj_to_room(obj, to_room);
+    
+    /* Sync ship instance entrance to new location */
+    if (IS_VALID(ship->instance) && ship->instance->entrance && to_room->wilds) {
+        ship->instance->entrance->wilds = to_room->wilds;
+        ship->instance->entrance->x = to_room->x;
+        ship->instance->entrance->y = to_room->y;
+    }
 
     switch(ship->ship_type)
     {
@@ -1661,15 +1793,13 @@ CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned 
 SHIP_DATA *ship_load(FILE *fp)
 {
     SHIP_DATA *ship;
-    SHIP_INDEX_DATA *index;
+    SHIP_INDEX_DATA *index = NULL;
     char *word;
     bool fMatch;
-
-    index = get_ship_index(fread_number(fp));
-    if( !index ) return NULL;
+    long vnum = fread_number(fp);
+    AREA_DATA *area = NULL;
 
     ship = new_ship();
-    ship->index = index;
 
     while (str_cmp((word = fread_word(fp)), "#-SHIP"))
     {
@@ -1741,6 +1871,13 @@ SHIP_DATA *ship_load(FILE *fp)
             break;
 
         case 'A':
+            if( !str_cmp(word, "AreaUid") )
+            {
+                long area_uid = fread_number(fp);
+                area = get_area_from_uid(area_uid);
+                fMatch = true;
+                break;
+            }
             KEY("Armor", ship->armor, fread_number(fp));
             KEY("AttackPos", ship->attack_position, fread_number(fp));
             break;
@@ -1932,6 +2069,22 @@ SHIP_DATA *ship_load(FILE *fp)
 
     }
 
+    /* Resolve ship index - try area-scoped first, fall back to global */
+    if (area) {
+        index = get_ship_index_for_area(area, vnum);
+    }
+    if (!index) {
+        index = get_ship_index(vnum);
+    }
+
+    if (!index) {
+        log_stringf("ship_load: ship index %ld not found", vnum);
+        extract_ship(ship);
+        return NULL;
+    }
+
+    ship->index = index;
+
     if( !IS_VALID(ship->ship) || !IS_VALID(ship->instance) )
     {
         extract_ship(ship);
@@ -2021,7 +2174,8 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
     SPECIAL_KEY_DATA *sk;
     CHAR_DATA *crew, *oarsman;
 
-    fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
+    AREA_DATA *ship_area = ship->index->area ? ship->index->area : get_system_area_fallback();
+    fprintf(fp, "#SHIP %s\n", widevnum_string(ship_area, ship->index->vnum, NULL));
 
     save_ship_uid(fp, "Uid", ship->id);
 
@@ -2789,20 +2943,28 @@ void do_ships(CHAR_DATA *ch, char *argument)
             char buf[2*MSL];
             char arg2[MIL];
             char arg3[MIL];
-            long vnum;
+            WNUM wnum;
 
             argument = one_argument(argument, arg2);
             argument = one_argument(argument, arg3);
 
-            if( !is_number(arg2) )
+            // Parse WNUM - use NULL for default area so bare vnums search globally
+            if( !parse_widevnum(arg2, NULL, &wnum) )
             {
-                send_to_char("That is not a number.\n\r", ch);
+                send_to_char("Invalid ship reference. Use vnum or area_uid#vnum format.\n\r", ch);
                 return;
             }
 
-            vnum = atol(arg2);
-
-            SHIP_INDEX_DATA *index = get_ship_index(vnum);
+            SHIP_INDEX_DATA *index = NULL;
+            if( wnum.pArea )
+            {
+                index = get_ship_index_for_area(wnum.pArea, wnum.vnum);
+            }
+            
+            if( !index )
+            {
+                index = get_ship_index(wnum.vnum);
+            }
 
             if( !index )
             {
@@ -2846,7 +3008,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
             }
             send_to_char(buf, ch);
 
-            ship = create_ship(vnum);
+            ship = create_ship(wnum);
 
             if( !IS_VALID(ship) )
             {
@@ -2881,6 +3043,14 @@ void do_ships(CHAR_DATA *ch, char *argument)
             ship->ship->description = str_dup(buf);
 
             obj_to_room(ship->ship, ch->in_room);
+            
+            /* Sync ship instance entrance to ship object location */
+            if (IS_VALID(ship->instance) && ship->instance->entrance && ch->in_room->wilds) {
+                ship->instance->entrance->wilds = ch->in_room->wilds;
+                ship->instance->entrance->x = ch->in_room->x;
+                ship->instance->entrance->y = ch->in_room->y;
+            }
+            
             act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL, NULL, NULL);
         }
         else if( !str_prefix(arg, "unload") )
@@ -5133,6 +5303,13 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
         obj_from_room(ship->ship);
         obj_to_room(ship->ship, to_room);
+        
+        /* Sync ship instance entrance to new location */
+        if (IS_VALID(ship->instance) && ship->instance->entrance && to_room->wilds) {
+            ship->instance->entrance->wilds = to_room->wilds;
+            ship->instance->entrance->x = to_room->x;
+            ship->instance->entrance->y = to_room->y;
+        }
     }
     else
     {
@@ -5271,6 +5448,13 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 
         obj_from_room(ship->ship);
         obj_to_room(ship->ship, room);
+        
+        /* Sync ship instance entrance to new location */
+        if (IS_VALID(ship->instance) && ship->instance->entrance && room->wilds) {
+            ship->instance->entrance->wilds = room->wilds;
+            ship->instance->entrance->x = room->x;
+            ship->instance->entrance->y = room->y;
+        }
 
         if( IS_NULLSTR(ship->ship_name) )
         {
@@ -7975,7 +8159,7 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
  * @param shop   Shop with shipyard configuration
  * @return       New ship, or NULL on failure
  */
-SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, WNUM wnum, SHOP_DATA *shop)
 {
     char buf[MSL];
     WILDS_DATA *wilds = get_wilds_from_uid(NULL, shop->shipyard);
@@ -7992,7 +8176,7 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
         return NULL;
     }
 
-    SHIP_DATA *ship = create_ship(vnum);
+    SHIP_DATA *ship = create_ship(wnum);
 
     if( !IS_VALID(ship) )
     {
@@ -8130,6 +8314,8 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    AREA_DATA *pArea = ch->in_room->area;
+
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off may limit how many ships you can see.{x\n\r", ch);
 
@@ -8137,15 +8323,14 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
     bool error = false;
     BUFFER *buffer = new_buf();
     char buf[MSL];
+    int iHash;
 
-    for(long vnum = 1; vnum <= top_ship_index_vnum; vnum++)
+    for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-        SHIP_INDEX_DATA *ship = get_ship_index(vnum);
-
-        if( ship )
+        for(SHIP_INDEX_DATA *ship = pArea->ship_index_hash[iHash]; ship; ship = ship->next)
         {
             sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x \n\r",
-                vnum,
+                ship->vnum,
                 ship->name,
                 flag_string(ship_class_types, ship->ship_class));
 
@@ -8156,6 +8341,7 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
                 break;
             }
         }
+        if (error) break;
     }
 
     if( error )
@@ -8262,8 +8448,8 @@ void shedit(CHAR_DATA *ch, char *argument)
 void do_shedit(CHAR_DATA *ch, char *argument)
 {
     SHIP_INDEX_DATA *ship = NULL;
-    int value;
     char arg[MAX_STRING_LENGTH];
+    WNUM wnum;
 
     if (IS_NPC(ch))
         return;
@@ -8276,12 +8462,11 @@ void do_shedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (is_number(arg))
+    if (parse_widevnum(arg, ch->in_room->area, &wnum))
     {
-        value = atoi(arg);
-        if ( !(ship = get_ship_index(value)) )
+        if (!(ship = get_ship_index_for_area(wnum.pArea, wnum.vnum)))
         {
-            send_to_char("That ship vnum does not exist.\n\r", ch);
+            send_to_char("SHEdit: That ship does not exist.\n\r", ch);
             return;
         }
 
@@ -8301,7 +8486,7 @@ void do_shedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    send_to_char("Syntax: shedit <vnum>\n\r"
+    send_to_char("Syntax: shedit <#vnum|area_uid#vnum>\n\r"
                  "        shedit create <vnum>\n\r", ch);
 }
 

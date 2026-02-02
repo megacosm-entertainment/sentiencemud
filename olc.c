@@ -1279,11 +1279,13 @@ void do_tedit(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument,arg);
 
-    if (is_number(arg))
+    if (arg[0] != '\0' && str_cmp(arg, "create"))
     {
     WNUM wnum;
-    if (!parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-        send_to_char("Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+    // Use NULL context for bare vnums (global search), or current area for #vnum format
+    AREA_DATA *context = strchr(arg, '#') ? (ch->in_room ? ch->in_room->area : NULL) : NULL;
+    if (!parse_widevnum(arg, context, &wnum)) {
+        send_to_char("Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
         return;
     }
 
@@ -1293,8 +1295,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
         return;
     }
     }
-    else
-    if (!str_cmp(arg, "create"))
+    else if (!str_cmp(arg, "create"))
     {
     if (tedit_create(ch, argument))
         olc_init_editor(ch, ED_TOKEN, ch->desc->pEdit);
@@ -1458,11 +1459,13 @@ void do_oedit(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg1);
 
-    if (is_number(arg1))
+    if (arg1[0] != '\0' && str_cmp(arg1, "create"))
     {
     WNUM wnum;
-    if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-        send_to_char("OEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+    // Use NULL context for bare vnums (global search), or current area for #vnum format
+    AREA_DATA *context = strchr(arg1, '#') ? (ch->in_room ? ch->in_room->area : NULL) : NULL;
+    if (!parse_widevnum(arg1, context, &wnum)) {
+        send_to_char("OEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
         return;
     }
 
@@ -1482,32 +1485,29 @@ void do_oedit(CHAR_DATA *ch, char *argument)
     ch->desc->pEdit = (void *)pObj;
     ch->desc->editor = ED_OBJECT;
     }
-    else
+    else if (!str_cmp(arg1, "create"))
     {
-    if (!str_cmp(arg1, "create"))
-    {
-        value = atol(argument);
+    value = atol(argument);
 
-        if (argument[0] != '\0')
-        {
+    if (argument[0] != '\0')
+    {
         pArea = get_vnum_area(value);
 
         if (!pArea)
         {
-            send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
-            return;
+        send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
+        return;
         }
 
         if (!has_access_area(ch, pArea))
         {
-            send_to_char("Insufficient security to edit object - action logged.\n\r" , ch);
-            return;
+        send_to_char("Insufficient security to edit object - action logged.\n\r" , ch);
+        return;
         }
-        }
-
-        if (oedit_create(ch, argument))
-        ch->desc->editor = ED_OBJECT;
     }
+
+    if (oedit_create(ch, argument))
+        ch->desc->editor = ED_OBJECT;
     }
 }
 
@@ -1524,11 +1524,13 @@ void do_medit(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
         return;
 
-    if (is_number(arg1))
+    if (arg1[0] != '\0' && str_cmp(arg1, "create"))
     {
     WNUM wnum;
-    if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-        send_to_char("MEdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+    // Use NULL context for bare vnums (global search), or current area for #vnum format
+    AREA_DATA *context = strchr(arg1, '#') ? (ch->in_room ? ch->in_room->area : NULL) : NULL;
+    if (!parse_widevnum(arg1, context, &wnum)) {
+        send_to_char("MEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
         return;
     }
 
@@ -1549,39 +1551,36 @@ void do_medit(CHAR_DATA *ch, char *argument)
     ch->desc->editor = ED_MOBILE;
     return;
     }
-    else
+    else if (!str_cmp(arg1, "create"))
     {
-    if (!str_cmp(arg1, "create"))
-    {
-        value = atol(argument);
+    value = atol(argument);
 
-        if (argument[0] != '\0') {
+    if (argument[0] != '\0') {
         pArea = get_vnum_area(value);
 
         if (!pArea)
         {
-            send_to_char("MEdit:  That vnum is not assigned an area.\n\r", ch);
-            return;
+        send_to_char("MEdit:  That vnum is not assigned an area.\n\r", ch);
+        return;
         }
 
         if (!IS_BUILDER(ch, pArea))
         {
-            send_to_char("Insufficient security to edit mob - action logged.\n\r" , ch);
-            return;
+        send_to_char("Insufficient security to edit mob - action logged.\n\r" , ch);
+        return;
         }
-        }
+    }
 
-        if (medit_create(ch, argument))
-        {
+    if (medit_create(ch, argument))
+    {
         //SET_BIT(pArea->area_flags, AREA_CHANGED);
         ch->desc->editor = ED_MOBILE;
-        }
     }
-
-    return;
     }
-
+    else
+    {
     send_to_char("MEdit:  There is no default mobile to edit.\n\r", ch);
+    }
 }
 
 

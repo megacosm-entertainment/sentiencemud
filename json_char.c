@@ -22,6 +22,7 @@
 #include "json_char.h"
 #include "json_persist.h"
 #include "redis_cache.h"
+#include "wilds.h"
 
 /***************************************************************************
  * External Flag Tables                                                    *
@@ -1047,10 +1048,34 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         }
     }
 
-    // Position (room location)
-    if (ch->in_room) {
-        json_t *position = json_object();
+    // Position (room location or wilderness)
+    json_t *position = json_object();
+    
+    if (ch->in_wilds) {
+        // Character is in wilderness - save coordinates
+        json_object_set_new(position, "type", json_string("wilderness"));
+        json_object_set_new(position, "x", json_integer(ch->in_room ? ch->in_room->x : ch->at_wilds_x));
+        json_object_set_new(position, "y", json_integer(ch->in_room ? ch->in_room->y : ch->at_wilds_y));
+        json_object_set_new(position, "area_uid", json_integer(ch->in_wilds->pArea->uid));
+        json_object_set_new(position, "wilds_uid", json_integer(ch->in_wilds->uid));
+    } else if (ch->was_in_wilds) {
+        // Fallback to was_in_wilds if in_wilds not set
+        json_object_set_new(position, "type", json_string("wilderness"));
+        json_object_set_new(position, "x", json_integer(ch->was_at_wilds_x));
+        json_object_set_new(position, "y", json_integer(ch->was_at_wilds_y));
+        json_object_set_new(position, "area_uid", json_integer(ch->was_in_wilds->pArea->uid));
+        json_object_set_new(position, "wilds_uid", json_integer(ch->was_in_wilds->uid));
+    } else if (ch->in_room) {
+        // Character is in regular room
+        json_object_set_new(position, "type", json_string("room"));
         json_object_set_new(position, "room_vnum", json_integer(ch->in_room->vnum));
+    } else {
+        // No position set - will use recall
+        json_decref(position);
+        position = NULL;
+    }
+    
+    if (position) {
         json_object_set_new(basic, "position", position);
     }
 
@@ -2310,13 +2335,46 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     // char_to_room() will be called later during the login sequence
     json_t *position = json_object_get(character, "position");
     if (position) {
-        long room_vnum = json_integer_value(json_object_get(position, "room_vnum"));
-        ROOM_INDEX_DATA *room = get_room_index_global(room_vnum);
-        if (room) {
-            ch->in_room = room;
+        json_t *type_obj = json_object_get(position, "type");
+        const char *type = type_obj ? json_string_value(type_obj) : "room";
+        
+        if (!strcmp(type, "wilderness")) {
+            // Wilderness position - set coordinates and in_wilds
+            ch->at_wilds_x = json_integer_value(json_object_get(position, "x"));
+            ch->at_wilds_y = json_integer_value(json_object_get(position, "y"));
+            long area_uid = json_integer_value(json_object_get(position, "area_uid"));
+            long wilds_uid = json_integer_value(json_object_get(position, "wilds_uid"));
+            
+            AREA_DATA *pArea = get_area_from_uid(area_uid);
+            if (pArea) {
+                ch->in_wilds = get_wilds_from_uid(pArea, wilds_uid);
+                if (ch->in_wilds) {
+                    // char_to_vroom() will be called later in nanny.c
+                    ch->in_room = NULL;
+                    plogf(LOG_INFO, "%s loaded at wilderness (%d, %d) in wilds uid %ld",
+                          ch->name, ch->at_wilds_x, ch->at_wilds_y, wilds_uid);
+                } else {
+                    plogf(LOG_WARN, "%s: wilderness uid %ld not found, using default recall",
+                          ch->name, wilds_uid);
+                    ch->in_room = get_room_index_global(11001);
+                }
+            } else {
+                plogf(LOG_WARN, "%s: area uid %ld not found, using default recall",
+                      ch->name, area_uid);
+                ch->in_room = get_room_index_global(11001);
+            }
         } else {
-            // Fallback to default recall room if saved room doesn't exist
-            ch->in_room = get_room_index_global(11001);
+            // Regular room position
+            long room_vnum = json_integer_value(json_object_get(position, "room_vnum"));
+            ROOM_INDEX_DATA *room = get_room_index_global(room_vnum);
+            if (room) {
+                ch->in_room = room;
+            } else {
+                // Fallback to default recall room if saved room doesn't exist
+                plogf(LOG_WARN, "%s: room vnum %ld not found, using default recall",
+                      ch->name, room_vnum);
+                ch->in_room = get_room_index_global(11001);
+            }
         }
     } else {
         // No position saved - use default recall

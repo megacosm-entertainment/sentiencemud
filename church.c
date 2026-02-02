@@ -19,6 +19,7 @@
 #include "olc.h"
 #include "tables.h"
 #include "wilds.h"
+#include "json_church.h"
 
 bool is_trusted(CHURCH_PLAYER_DATA *member, char *command);
 char *get_chrank(CHURCH_PLAYER_DATA *member);
@@ -4635,9 +4636,9 @@ if (!list_appendlink(list_churches, church)) {
     continue;
 }
                     
-                    save_church(church);
+                    save_church_json(church);  // Save as JSON
                     legacy_count++;
-                    log_string(formatf("Converted church %s (UID %ld) to new format",
+                    log_string(formatf("Converted church %s (UID %ld) to JSON format",
                         church->name, church->uid));
                 }
             }
@@ -4650,7 +4651,7 @@ if (!list_appendlink(list_churches, church)) {
         sprintf(backup_name, "%schurches.dat.bak", ORG_DIR);
         rename(filename, backup_name);
         
-        log_string(formatf("Converted %d churches from legacy format to new format", legacy_count));
+        log_string(formatf("Converted %d churches from legacy format to JSON", legacy_count));
     }
     
     // Now read the individual church files
@@ -4662,12 +4663,28 @@ if (!list_appendlink(list_churches, church)) {
     // Read each file in the directory
     int count = 0;
     while ((entry = readdir(dir)) != NULL) {
-        // Check for .org extension
-        if (strlen(entry->d_name) > 4 && 
-            !strcmp(entry->d_name + strlen(entry->d_name) - 4, ".org")) {
-            
-            // Build full filename
-            snprintf(filename, sizeof(filename), "%s%s", ORG_DIR, entry->d_name);            
+        // Check for .json extension first (preferred)
+        bool is_json = (strlen(entry->d_name) > 5 && 
+                       !strcmp(entry->d_name + strlen(entry->d_name) - 5, ".json"));
+        bool is_org = (strlen(entry->d_name) > 4 && 
+                      !strcmp(entry->d_name + strlen(entry->d_name) - 4, ".org"));
+        
+        if (!is_json && !is_org)
+            continue;
+        
+        // Build full filename
+        snprintf(filename, sizeof(filename), "%s%s", ORG_DIR, entry->d_name);
+        
+        church = NULL;
+        
+        if (is_json) {
+            // Load JSON format
+            if (!load_church_json(filename, &church)) {
+                log_string(formatf("Failed to load church JSON file: %s", filename));
+                continue;
+            }
+        } else {
+            // Load legacy .org format
             if ((fp = fopen(filename, "r")) == NULL) {
                 log_string(formatf("Failed to open church file: %s", filename));
                 continue;
@@ -4695,59 +4712,69 @@ if (!list_appendlink(list_churches, church)) {
             church = read_church(fp);
             fclose(fp);
             
-            if (church == NULL) {
-                log_string(formatf("Failed to read church from file: %s", filename));
-                continue;
-            }
-
-            if (church->deleted) {
-                log_string(formatf("Skipping deleted church: %s (UID %ld)",
-                    church->name, church->uid));
-                free_church(church);
-                continue;
-            }
-            
-            // Validate UID
-            if (church->uid == 0) {
-                log_string(formatf("Church %s has invalid UID 0, assigning new UID", church->name));
-                get_church_id(church);
-            }
-            
-            // Check for duplicate UID
-            CHURCH_DATA *existing = NULL;
-            ITERATOR it;
-            iterator_start(&it, list_churches);
-            while ((existing = (CHURCH_DATA *)iterator_nextdata(&it))) {
-                if (existing->uid == church->uid) {
-                    log_string(formatf("WARNING: Duplicate church UID %ld for %s and %s",
-                        church->uid, existing->name, church->name));
-                    get_church_id(church); // Assign a new UID
-                    break;
-                }
-            }
-            iterator_stop(&it);
-            
-            if (!existing) {
-                // Add to lists
-                if (!list_appendlink(list_churches, church)) {
-                    log_string(formatf("Failed to add church %s to list", church->name));
-                    free_church(church);
-                    continue;
-                }
+            if (church) {
+                // Migrate to JSON and archive old file
+                log_string(formatf("Migrating church %s to JSON format", church->name));
+                save_church_json(church);
                 
-                count++;
-            } else {
-                free_church(church);
+                char archive_name[512];
+                snprintf(archive_name, sizeof(archive_name), "%s.old", filename);
+                rename(filename, archive_name);
             }
+        }
+        
+        if (church == NULL) {
+            log_string(formatf("Failed to read church from file: %s", filename));
+            continue;
+        }
+
+        if (church->deleted) {
+            log_string(formatf("Skipping deleted church: %s (UID %ld)",
+                church->name, church->uid));
+            free_church(church);
+            continue;
+        }
+        
+        // Validate UID
+        if (church->uid == 0) {
+            log_string(formatf("Church %s has invalid UID 0, assigning new UID", church->name));
+            get_church_id(church);
+        }
+        
+        // Check for duplicate UID
+        CHURCH_DATA *existing = NULL;
+        ITERATOR it;
+        iterator_start(&it, list_churches);
+        while ((existing = (CHURCH_DATA *)iterator_nextdata(&it))) {
+            if (existing->uid == church->uid) {
+                log_string(formatf("WARNING: Duplicate church UID %ld for %s and %s",
+                    church->uid, existing->name, church->name));
+                get_church_id(church); // Assign a new UID
+                break;
+            }
+        }
+        iterator_stop(&it);
+        
+        if (!existing) {
+            // Add to lists
+            if (!list_appendlink(list_churches, church)) {
+                log_string(formatf("Failed to add church %s to list", church->name));
+                free_church(church);
+                continue;
+            }
+            
+            count++;
+        } else {
+            free_church(church);
         }
     }
     
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
-// Sort the list by UID after loading
-if (list_churches && list_size(list_churches) > 1)
-    list_quicksort(list_churches, cmp_church_uid);
     
+    // Sort the list by UID after loading
+    if (list_churches && list_size(list_churches) > 1)
+        list_quicksort(list_churches, cmp_church_uid);
 }
 
 
@@ -8456,11 +8483,6 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_PERMISSIONS, true);
  */
 void save_church(CHURCH_DATA *church)
 {
-    FILE *fp;
-    char filename[100];      // Increased buffer size
-    char temp_filename[100]; // Increased buffer size
-    char normalized[32];     // Just enough for the name part
-
     if (!church) {
         bug("save_church: null church", 0);
         return;
@@ -8469,30 +8491,9 @@ void save_church(CHURCH_DATA *church)
     // Create church directory if it doesn't exist
     mkdir(ORG_DIR, 0755);
     
-    // Normalize the church name for the filename AND truncate to max 20 chars
-    // This gives plenty of room for directory, uid, and extension
-    char *norm = normalize_filename(church->name);
-    strncpy(normalized, norm, 25);
-    normalized[25] = '\0';  // Ensure termination
-    
-    // Add UID as suffix to ensure uniqueness in case of name conflicts
-    snprintf(filename, sizeof(filename), "%s%ld_%s.org", ORG_DIR, church->uid, normalized);
-    snprintf(temp_filename, sizeof(temp_filename), "%s%ld_%s.tmp", ORG_DIR, church->uid, normalized);
-    
-    // First write to a temporary file
-    if ((fp = fopen(temp_filename, "w")) == NULL) {
-        bug("save_church: fopen", 0);
-        return;
-    }
-    
-    // Write the church data to the temporary file
-    write_church(church, fp);
-    fclose(fp);
-    
-    // Now rename the temp file to the actual file (atomic operation)
-    if (rename(temp_filename, filename) < 0) {
-        bug("save_church: rename failed", 0);
-        unlink(temp_filename); // Clean up the temp file if rename failed
+    // Save as JSON
+    if (!save_church_json(church)) {
+        bug("save_church: JSON save failed", 0);
     }
 }
 

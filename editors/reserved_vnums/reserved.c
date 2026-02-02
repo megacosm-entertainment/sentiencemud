@@ -44,6 +44,7 @@
 #include "../../olc.h"
 #include "../../recycle.h"
 #include "../../scripts.h"
+#include "../../json_reserved.h"
 #include "reserved.h"
 
 /* Editor functions */
@@ -141,8 +142,18 @@ static const char *reserved_wnum_string(const RESERVED_DATA *reserved)
     }
 
     area = get_area_index(reserved->wnum.auid);
-    if (!area)
-        area = reserved_default_area();
+    if (!area) {
+        /* If area_uid is 0 or invalid, search all areas for this vnum */
+        ROOM_INDEX_DATA *room;
+        for (area = area_first; area; area = area->next) {
+            room = get_room_index(area, reserved->wnum.vnum);
+            if (room)
+                break;
+        }
+        /* Fallback if not found */
+        if (!area)
+            area = reserved_default_area();
+    }
     return widevnum_string(area, reserved->wnum.vnum, NULL);
 }
 
@@ -166,6 +177,7 @@ const struct reserved_type_name {
 
 /*
  * Load reserved items from file
+ * Tries JSON first, falls back to .dat format with auto-migration
  */
 void load_reserved(void)
 {
@@ -173,13 +185,22 @@ void load_reserved(void)
     char *word;
     bool in_block = false;
     RESERVED_DATA *reserved = NULL;
+    char vnum_str[MAX_INPUT_LENGTH];
+    WNUM wnum;
     
+    /* Try loading JSON first */
+    if (load_reserved_json()) {
+        reserved_changed = false;
+        return;
+    }
+    
+    /* Fall back to old .dat format */
     if ((fp = fopen(RESERVED_FILE, "r")) == NULL) {
         pwarnf(LOG_INIT, "No reserved items file found. Creating new file at save.");
         return;
     }
 
-    plogf(LOG_INIT, "Loading reserved items...");
+    plogf(LOG_INIT, "Loading reserved items from legacy .dat format...");
 
     /* Clear existing items first */
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
@@ -213,6 +234,19 @@ void load_reserved(void)
                 reserved->wnum.vnum = 0;
             } else if (!str_cmp(word, "#-RESERVED")) {
                 if (in_block && reserved) {
+                    /* If only vnum was provided, use parse_widevnum to find the area */
+                    if (reserved->wnum.vnum > 0 && reserved->wnum.auid == 0) {
+                        sprintf(vnum_str, "%ld", reserved->wnum.vnum);
+                        if (parse_widevnum(vnum_str, NULL, &wnum)) {
+                            reserved->wnum.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                            plogf(LOG_INFO, "Reserved '%s': Found vnum %ld in area %ld", 
+                                  reserved->name, reserved->wnum.vnum, reserved->wnum.auid);
+                        } else {
+                            plogf(LOG_WARN, "Reserved '%s': Vnum %ld not found in any area", 
+                                  reserved->name, reserved->wnum.vnum);
+                        }
+                    }
+                    
                     /* Add to the list if it's valid */
                     if (reserved->name && reserved->name[0] && reserved->type != -1) {
                         list_appendlink(reserved_vnums, reserved);
@@ -251,7 +285,6 @@ void load_reserved(void)
                 reserved->wnum.vnum = fread_number(fp);
             } else if (!str_cmp(word, "WNUM") || !str_cmp(word, "Wnum")) {
                 char *wnum_str = fread_string(fp);
-                WNUM wnum;
 
                 if (reserved_parse_wnum(wnum_str, &wnum)) {
                     reserved->wnum.auid = wnum.pArea ? wnum.pArea->uid : 0;
@@ -272,7 +305,17 @@ void load_reserved(void)
     
     fclose(fp);
     
-    plogf(LOG_INIT, "%d reserved items loaded.", list_size(reserved_vnums));
+    plogf(LOG_INIT, "%d reserved items loaded from .dat format.", list_size(reserved_vnums));
+    
+    /* Migrate to JSON format */
+    plogf(LOG_INIT, "Migrating reserved items to JSON format...");
+    if (save_reserved_json()) {
+        char old_file[MAX_INPUT_LENGTH];
+        sprintf(old_file, "%s.old", RESERVED_FILE);
+        rename(RESERVED_FILE, old_file);
+        plogf(LOG_INFO, "Reserved items migrated to JSON, old file saved as %s", old_file);
+    }
+    
     reserved_changed = false;
 }
 
@@ -281,61 +324,19 @@ void load_reserved(void)
  */
 void save_reserved(void)
 {
-    FILE *fp;
-    ITERATOR it;
-    RESERVED_DATA *reserved;
-    
     if (!reserved_changed) {
         plogf(LOG_INIT, "Reserved items unchanged, not saving.");
         return;
     }
     
-    if ((fp = fopen(RESERVED_FILE, "w")) == NULL) {
-        pbugf(LOG_ERROR, "Couldn't open reserved file '%s' for writing", RESERVED_FILE);
-        return;
+    /* Save to JSON format */
+    if (save_reserved_json()) {
+        plogf(LOG_INFO, "Saved %d reserved items to JSON", 
+              list_size(reserved_vnums));
+        reserved_changed = false;
+    } else {
+        pbugf(LOG_ERROR, "Failed to save reserved items to JSON");
     }
-    
-    /* Write header */
-    fprintf(fp, "# Reserved Items File\n");
-    fprintf(fp, "# Generated %s\n\n", ctime(&current_time));
-    
-    /* Write each item */
-    if (reserved_vnums && list_size(reserved_vnums) > 0) {
-        iterator_start(&it, reserved_vnums);
-        while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
-            const char *type_name = "unknown";
-            
-            /* Get type name */
-            for (int i = 0; reserved_types[i].name; i++) {
-                if (reserved_types[i].type == reserved->type) {
-                    type_name = reserved_types[i].name;
-                    break;
-                }
-            }
-            
-            fprintf(fp, "#RESERVED\n");
-            fprintf(fp, "Name %s~\n", reserved->name);
-            fprintf(fp, "Type %s\n", type_name);
-            fprintf(fp, "Removable %d\n", reserved->removable ? 1 : 0);
-            if (reserved->type == RESERVED_AREA) {
-                fprintf(fp, "AreaUID %ld\n", reserved->wnum.auid);
-            } else {
-                fprintf(fp, "Wnum %s\n", reserved_wnum_string(reserved));
-            }
-            if (reserved->description && reserved->description[0])
-                fprintf(fp, "Description %s~\n", reserved->description);
-            fprintf(fp, "#-RESERVED\n\n");
-        }
-        iterator_stop(&it);
-    }
-    
-    /* Write footer */
-    fprintf(fp, "#END\n");
-    fclose(fp);
-    
-    plogf(LOG_INIT, "%d reserved items saved to '%s'.", 
-                     list_size(reserved_vnums), RESERVED_FILE);
-    reserved_changed = false;
 }
 
 /*

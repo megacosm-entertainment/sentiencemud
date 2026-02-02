@@ -241,6 +241,14 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
         if ( location )
         {
+            /* Sync entrance coordinates to ship object location */
+            if (portal->in_room && portal->in_room->wilds)
+            {
+                location->wilds = portal->in_room->wilds;
+                location->x = portal->in_room->x;
+                location->y = portal->in_room->y;
+            }
+
             /* CHAR_DATA *pMob; */
             act("{WYou board {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             act("{W$n boards {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -331,7 +339,9 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
         }
         else
         {
-            location = spawn_dungeon_player(ch, portal->value[3], portal->value[4]);
+            /* Use portal's area as context for dungeon lookup */
+            WNUM wnum = { portal->pIndexData ? portal->pIndexData->area : NULL, portal->value[3] };
+            location = spawn_dungeon_player(ch, wnum, portal->value[4]);
         }
     } else if (IS_SET(portal->value[2],GATE_DUNGEONRANDOM)) {
         if( IS_VALID(old_room->instance_section) )

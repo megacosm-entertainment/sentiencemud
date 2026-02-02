@@ -817,10 +817,9 @@ MEDIT(medit_create)
     int  iHash;
     long auto_vnum = 0;
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == 0)
+    // Auto-vnum: if no argument or argument is 0, find next available vnum in current area
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-    //send_to_char("Syntax:  medit create [vnum]\n\r", ch);
     MOB_INDEX_DATA *temp_mob;
 
     auto_vnum = ch->in_room->area->min_vnum;
@@ -837,15 +836,26 @@ MEDIT(medit_create)
 
     if (auto_vnum > ch->in_room->area->max_vnum)
     {
-        send_to_char("Sorry, this area has no more space left.\n\r",
-            ch);
+        send_to_char("Sorry, this area has no more space left.\n\r", ch);
         return false;
     }
+    
+    value = auto_vnum;
+    pArea = ch->in_room->area;
     }
-
-    if (auto_vnum != 0) value = auto_vnum;
-
-    pArea = get_vnum_area(value);
+    else
+    {
+    // Parse widevnum format
+    WNUM wnum;
+    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+    if (!parse_widevnum(argument, context, &wnum)) {
+        send_to_char("MEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+    
+    value = wnum.vnum;
+    pArea = wnum.pArea;
+    }
 
     if (!pArea)
     {
@@ -1222,68 +1232,73 @@ MEDIT(medit_corpsetype)
 MEDIT(medit_corpsevnum)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
 
-    if (argument[0] != '\0' && is_number(argument))
-    {
     EDIT_MOB(ch, pMob);
 
-    value = atoi(argument);
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: corpsevnum [widevnum] (0 to clear)\n\r", ch);
+        return false;
+    }
 
-    if (value > 0) {
-
-        AREA_DATA *obj_area = find_area_by_vnum(value, NULL);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        if(!get_obj_index(obj_area, value)) {
-            send_to_char("Object does not exist.\n\r",ch);
-            return false;
-        } else {
-            send_to_char("Corpse object vnum set.\n\r",ch);
-            pMob->corpse = value;
-            return true;
-        }
-    } else if(!value) {
+    if (!str_cmp(argument, "0"))
+    {
         send_to_char("Corpse object cleared.\n\r",ch);
-        pMob->corpse = value;
+        pMob->corpse = 0;
         return true;
     }
+
+    WNUM obj_wnum;
+    AREA_DATA *context = strchr(argument, '#') ? pMob->area : NULL;
+    if (!parse_widevnum(argument, context, &obj_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
     }
 
-    send_to_char("Syntax: corpsevnum [vnum >= 0] (0 to clear)\n\r", ch);
-    return false;
+    if(!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
+        send_to_char("Object does not exist.\n\r",ch);
+        return false;
+    }
+
+    send_to_char("Corpse object vnum set.\n\r",ch);
+    pMob->corpse = obj_wnum.vnum;
+    return true;
 }
 
 MEDIT(medit_zombievnum)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
 
-    if (argument[0] != '\0' && is_number(argument))
-    {
     EDIT_MOB(ch, pMob);
 
-    value = atoi(argument);
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: zombievnum [widevnum] (0 to clear)\n\r", ch);
+        return false;
+    }
 
-    if (value > 0) {
-        AREA_DATA *obj_area = find_area_by_vnum(value, NULL);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        if(!get_obj_index(obj_area, value)) {
-            send_to_char("Object does not exist.\n\r",ch);
-            return false;
-        } else {
-            send_to_char("Zombie corpse object set.\n\r",ch);
-            pMob->zombie = value;
-            return true;
-        }
-    } else if(!value) {
+    if (!str_cmp(argument, "0"))
+    {
         send_to_char("Zombie corpse object cleared.\n\r",ch);
-        pMob->zombie = value;
+        pMob->zombie = 0;
         return true;
     }
+
+    WNUM obj_wnum;
+    AREA_DATA *context = strchr(argument, '#') ? pMob->area : NULL;
+    if (!parse_widevnum(argument, context, &obj_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
     }
 
-    send_to_char("Syntax: zombievnum [vnum >= 0] (0 to clear)\n\r", ch);
-    return false;
+    if(!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
+        send_to_char("Object does not exist.\n\r",ch);
+        return false;
+    }
+
+    send_to_char("Zombie corpse object set.\n\r",ch);
+    pMob->zombie = obj_wnum.vnum;
+    return true;
 }
 
 MEDIT(medit_shop)
@@ -1944,9 +1959,7 @@ MEDIT(medit_shop)
                         return false;
                     }
 
-                    AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object, NULL);
-                    if (!ship_area) ship_area = get_system_area_fallback();
-                    if( !IS_VALID(ship->blueprint) || !get_obj_index(ship_area, ship->ship_object) )
+                    if( !IS_VALID(ship->blueprint) || !ship->ship_object )
                     {
                         send_to_char("Ship is incomplete.  Cannot be sold yet.\n\r", ch);
                         return false;
@@ -2987,16 +3000,16 @@ MEDIT (medit_addmprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
     {
-    send_to_char("Syntax:   addmprog [vnum] [trigger] [phrase]\n\r",ch);
-    return false;
+        send_to_char("Syntax:   addmprog [widevnum] [trigger] [phrase]\n\r",ch);
+        return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_MPROG)) < 0) {
-    send_to_char("Valid flags are:\n\r",ch);
-    show_help(ch, "mprog");
-    return false;
+        send_to_char("Valid flags are:\n\r",ch);
+        show_help(ch, "mprog");
+        return false;
     }
 
     value = tindex;//trigger_table[tindex].value;
@@ -3034,17 +3047,24 @@ MEDIT (medit_addmprog)
         }
     }
 
-    if ((code = get_script_index_global (atol(num), PRG_MPROG)) == NULL)
+    WNUM script_wnum;
+    AREA_DATA *context = strchr(num, '#') ? pMob->area : NULL;
+    if (!parse_widevnum(num, context, &script_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_MPROG)) == NULL)
     {
-    send_to_char("No such MOBProgram.\n\r",ch);
-    return false;
+        send_to_char("No such MOBProgram.\n\r",ch);
+        return false;
     }
 
     // Make sure this has a list of progs!
     if(!pMob->progs) pMob->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     list->trig_number		= atoi(list->trig_phrase);
@@ -3098,32 +3118,37 @@ MEDIT(medit_addquest)
     MOB_INDEX_DATA *pMob;
     QUEST_LIST *quest;
     QUEST_INDEX_DATA *pQuestIndex;
-    long value;
 
     EDIT_MOB(ch, pMob);
 
-    value = atol(argument);
-
-    if (argument[0] == '\0' || value <= 0)
+    if (argument[0] == '\0')
     {
-    send_to_char("Syntax:  addquest [quest vnum]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  addquest [quest vnum]\n\r", ch);
+        return false;
+    }
+
+    // Quest vnums are global, so use NULL context for global search
+    long value = atol(argument);
+    if (value <= 0)
+    {
+        send_to_char("Invalid quest vnum.\n\r", ch);
+        return false;
     }
 
     pQuestIndex = get_quest_index(value);
     if (pQuestIndex == NULL)
     {
-    send_to_char("That quest vnum doesn't exist.\n\r", ch);
-    return false;
+        send_to_char("That quest vnum doesn't exist.\n\r", ch);
+        return false;
     }
 
     for (quest = pMob->quests; quest != NULL; quest = quest->next)
     {
-    if (quest->vnum == value)
-    {
-        send_to_char("That would be redundant as you've already added that quest.\n\r", ch);
-        return false;
-    }
+        if (quest->vnum == value)
+        {
+            send_to_char("That would be redundant as you've already added that quest.\n\r", ch);
+            return false;
+        }
     }
 
     quest = new_quest_list();
@@ -3245,22 +3270,26 @@ MEDIT(medit_questor)
         return true;
 
     } else if (!str_prefix(arg,"scroll")) {
-        if(!is_number(argument))
+        if(argument[0] == '\0')
         {
-            send_to_char("That is not a number.\n\r", ch);
+            send_to_char("Syntax: questor scroll [widevnum]\n\r", ch);
             return false;
         }
 
-        long vnum = atoi(argument);
-        AREA_DATA *scroll_area = find_area_by_vnum(vnum, NULL);
-        if (!scroll_area) scroll_area = get_system_area_fallback();
-        if( !get_obj_index(scroll_area, vnum) )
+        WNUM obj_wnum;
+        AREA_DATA *context = strchr(argument, '#') ? pMob->area : NULL;
+        if (!parse_widevnum(argument, context, &obj_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+
+        if( !get_obj_index(obj_wnum.pArea, obj_wnum.vnum) )
         {
             send_to_char("Object does not exist.\n\r", ch);
             return false;
         }
 
-        pMob->pQuestor->scroll = vnum;
+        pMob->pQuestor->scroll = obj_wnum.vnum;
         send_to_char("Questor scroll object changed.\n\r", ch);
         return true;
 

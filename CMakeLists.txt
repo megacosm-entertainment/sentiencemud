@@ -129,6 +129,9 @@ set(SOURCE_FILES
     interp.c
     invasion.c
     io/common.c
+    json_chat.c
+    json_church.c
+    json_reserved.c
     json_race.c
     lookup.c
     magic.c
@@ -181,6 +184,9 @@ set(SOURCE_FILES
     json_account.c
     json_area.c
     json_game_settings.c
+    json_gq.c
+    json_instance.c
+    json_mail.c
     json_persist.c
     json_race.c
     save.c

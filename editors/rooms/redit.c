@@ -923,31 +923,45 @@ REDIT(redit_recall)
     argument = one_argument(argument, arg3);
     argument = one_argument(argument, arg4);
 
-    if (!is_number(arg1) || !arg1[0]) {
-        send_to_char("Syntax:  recall <vnum>\n\r", ch);
+    if (!arg1[0]) {
+        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
         send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
         return false;
     }
 
+    // Try parsing as widevnum first
+    WNUM wnum;
+    if (parse_widevnum(arg1, pRoom->area, &wnum)) {
+        // Room vnum format
+        if(!arg2[0]) {
+            if(!get_room_index(wnum.pArea, wnum.vnum)) {
+                send_to_char("REdit:  Room vnum does not exist.\n\r", ch);
+                return false;
+            }
+            rs_location_set(&pRoom->rs_recall,0,wnum.vnum,0,0);
+            send_to_char("Recall set.\n\r", ch);
+            return true;
+        }
+    }
+    
+    // Wilderness format: wuid x y z
+    if (!is_number(arg1)) {
+        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
+        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+        return false;
+    }
+    
     vnum = atoi(arg1);
 
     if(vnum < 1) {
         rs_location_clear(&pRoom->rs_recall);
         send_to_char("Recall cleared.\n\r", ch);
-    } else if(!arg2[0]) {
-        if(!get_room_index(pRoom->area, vnum)) {
-            send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
-            return false;
-        }
-
-        rs_location_set(&pRoom->rs_recall,0,vnum,0,0);
-        send_to_char("Recall set.\n\r", ch);
     } else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
-        send_to_char("Syntax:  recall <vnum>\n\r", ch);
+        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
         send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
         return false;
     } else if(!get_wilds_from_uid(NULL,vnum)) {
-        send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
+        send_to_char("REdit:  Wilderness UID does not exist.\n\r", ch);
         return false;
     } else {
         x = atoi(arg2);
@@ -1031,16 +1045,20 @@ REDIT(redit_mreset)
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    if (arg[0] == '\0' || !is_number(arg))
+    if (arg[0] == '\0')
     {
-    send_to_char ("Syntax:  mreset <vnum> <max #x> <mix #x>\n\r", ch);
+    send_to_char ("Syntax:  mreset <widevnum> <max #x> <mix #x>\n\r", ch);
     return false;
     }
 
-    long mob_vnum = atoi(arg);
-    AREA_DATA *mob_area = find_area_by_vnum(mob_vnum, NULL);
-    if (!mob_area) mob_area = get_system_area_fallback();
-    if (!(pMobIndex = get_mob_index(mob_area, mob_vnum)))
+    WNUM mob_wnum;
+    if (!parse_widevnum(arg, pRoom->area, &mob_wnum))
+    {
+    send_to_char("REdit: Invalid widevnum format. Use: vnum, area#vnum, or #vnum\n\r", ch);
+    return false;
+    }
+
+    if (!(pMobIndex = get_mob_index(mob_wnum.pArea, mob_wnum.vnum)))
     {
     send_to_char("REdit: No mobile has that vnum.\n\r", ch);
     return false;
@@ -1057,8 +1075,8 @@ REDIT(redit_mreset)
      */
     pReset              = new_reset_data();
     pReset->command	= 'M';
-    pReset->arg1.wnum.pArea = mob_area;
-    pReset->arg1.wnum.vnum = pMobIndex->vnum;
+    pReset->arg1.wnum.pArea = mob_wnum.pArea;
+    pReset->arg1.wnum.vnum = mob_wnum.vnum;
     pReset->arg2	= is_number(arg2) ? atoi(arg2) : MAX_MOB;
     pReset->arg3.value	= pRoom->vnum;
     pReset->arg4	= is_number(argument) ? atoi (argument) : 1;
@@ -1100,19 +1118,23 @@ REDIT(redit_oreset)
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !is_number(arg1))
+    if (arg1[0] == '\0')
     {
-    send_to_char ("Syntax:  oreset <vnum> <args>\n\r", ch);
+    send_to_char ("Syntax:  oreset <widevnum> <args>\n\r", ch);
     send_to_char ("        -no_args               = into room\n\r", ch);
     send_to_char ("        -<obj_name>            = into obj\n\r", ch);
     send_to_char ("        -<mob_name> <wear_loc> = into mob\n\r", ch);
     return false;
     }
 
-    long obj_vnum = atoi(arg1);
-    AREA_DATA *obj_area = find_area_by_vnum(obj_vnum, NULL);
-    if (!obj_area) obj_area = get_system_area_fallback();
-    if (!(pObjIndex = get_obj_index(obj_area, obj_vnum)))
+    WNUM obj_wnum;
+    if (!parse_widevnum(arg1, pRoom->area, &obj_wnum))
+    {
+    send_to_char("REdit: Invalid widevnum format. Use: vnum, area#vnum, or #vnum\n\r", ch);
+    return false;
+    }
+
+    if (!(pObjIndex = get_obj_index(obj_wnum.pArea, obj_wnum.vnum)))
     {
     send_to_char("REdit: No object has that vnum.\n\r", ch);
     return false;
@@ -1131,8 +1153,8 @@ REDIT(redit_oreset)
     {
     pReset		= new_reset_data();
     pReset->command	= 'O';
-    pReset->arg1.wnum.pArea = obj_area;
-    pReset->arg1.wnum.vnum	= pObjIndex->vnum;
+    pReset->arg1.wnum.pArea = obj_wnum.pArea;
+    pReset->arg1.wnum.vnum	= obj_wnum.vnum;
     pReset->arg2	= 0;
     pReset->arg3.value	= pRoom->vnum;
     pReset->arg4	= 0;
@@ -1155,8 +1177,8 @@ REDIT(redit_oreset)
     {
     pReset		= new_reset_data();
     pReset->command	= 'P';
-    pReset->arg1.wnum.pArea = obj_area;
-    pReset->arg1.wnum.vnum	= pObjIndex->vnum;
+    pReset->arg1.wnum.pArea = obj_wnum.pArea;
+    pReset->arg1.wnum.vnum	= obj_wnum.vnum;
     pReset->arg2	= 0;
     AREA_DATA *container_area = find_area_by_vnum(to_obj->pIndexData->vnum, NULL);
     if (!container_area) container_area = get_system_area_fallback();
@@ -1218,8 +1240,8 @@ REDIT(redit_oreset)
     }
 
     pReset		= new_reset_data();
-    pReset->arg1.wnum.pArea = obj_area;
-    pReset->arg1.wnum.vnum	= pObjIndex->vnum;
+    pReset->arg1.wnum.pArea = obj_wnum.pArea;
+    pReset->arg1.wnum.vnum	= obj_wnum.vnum;
     pReset->arg2	= wear_loc;
     if (pReset->arg2 == WEAR_NONE)
         pReset->command = 'G';
@@ -1611,10 +1633,16 @@ REDIT (redit_addrprog)
     argument=one_argument(argument, trigger);
     argument=one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (num[0] == '\0' || trigger[0] =='\0' || phrase[0] =='\0')
     {
-    send_to_char("Syntax:   addrprog [vnum] [trigger] [phrase]\n\r",ch);
+    send_to_char("Syntax:   addrprog [widevnum] [trigger] [phrase]\n\r",ch);
     return false;
+    }
+
+    WNUM script_wnum;
+    if (!parse_widevnum(num, pRoom->area, &script_wnum)) {
+        send_to_char("Invalid script widevnum format. Use: vnum, area#vnum, or #vnum\n\r", ch);
+        return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_RPROG)) < 0) {
@@ -1663,7 +1691,7 @@ REDIT (redit_addrprog)
         }
     }
 
-    if ((code = get_script_index_global (atol(num), PRG_RPROG)) == NULL)
+    if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_RPROG)) == NULL)
     {
     send_to_char("No such ROOMProgram.\n\r",ch);
     return false;
@@ -1696,13 +1724,19 @@ REDIT (redit_delrprog)
     EDIT_ROOM(ch, pRoom);
 
     one_argument(argument, rprog);
-    if (!is_number(rprog) || rprog[0] == '\0')
+    if (rprog[0] == '\0')
     {
     send_to_char("Syntax:  delrprog [#rprog]\n\r",ch);
     return false;
     }
 
-    value = atol (rprog);
+    WNUM script_wnum;
+    if (!parse_widevnum(rprog, pRoom->area, &script_wnum)) {
+        send_to_char("Invalid script widevnum format.\n\r", ch);
+        return false;
+    }
+
+    value = script_wnum.vnum;
 
     if (value < 0)
     {

@@ -6084,7 +6084,11 @@ struct ship_index_data
 
     int flags;
 
-    long ship_object;
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } ship_object_ref;
+    OBJ_INDEX_DATA *ship_object;  // Resolved pointer
 
     int hit;			// Maximum hit points for the ship
     int guns;			// How many guns can the ship have?
@@ -6100,7 +6104,11 @@ struct ship_index_data
 
     LLIST *special_keys;		// Various key object indexes used by the ship
 
-    BLUEPRINT *blueprint;
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } blueprint_ref;
+    BLUEPRINT *blueprint;       // Resolved pointer
 };
 
 typedef struct steering_data {
@@ -6333,7 +6341,10 @@ struct blueprint_link_data {
 
     char *name;					// Display name of section link
 
-    long vnum;					// Vnum of ROOM
+    union {
+        WNUM_LOAD load;			// During load (area_uid + vnum)
+        long vnum;				// Legacy: bare vnum
+    } room_ref;
     int door;					// Exit in ROOM
     
     // TODO: Add exit definitions, such as flags (for doors and whatnot)
@@ -6359,9 +6370,26 @@ struct blueprint_section_data {
     int flags;
     AREA_DATA *area;    // Area where all content (rooms, mobs, etc) reside.
 
-    long recall;		// The recall of the blueprint, must be within range
-    long lower_vnum;
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } recall_ref;
+    ROOM_INDEX_DATA *recall_room;	// Resolved recall room
+    
+    // Room range for cloning
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } lower_vnum_ref;
+    
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } upper_vnum_ref;
+    
+    long lower_vnum;  // Cached vnum values
     long upper_vnum;
+    AREA_DATA *rooms_area;  // Resolved area where rooms reside
 
     BLUEPRINT_LINK *links;
 };
@@ -6392,7 +6420,11 @@ struct blueprint_special_room_data {
     char *name;                 // Must be unique within blueprint
 
     int section;
-    long vnum;					// Vnum of ROOM (relative to the section's area)
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } room_ref;
+    ROOM_INDEX_DATA *room;	// Resolved room
 };
 
 typedef struct blueprint_exit_data BLUEPRINT_EXIT_DATA;
@@ -6402,6 +6434,14 @@ struct blueprint_exit_data {
     int link;
 };
 
+typedef struct blueprint_section_ref BLUEPRINT_SECTION_REF;
+struct blueprint_section_ref {
+    union {
+        WNUM_LOAD load;              // During load (area_uid + vnum)
+        long vnum;                   // Legacy: bare vnum
+    } section_ref;
+    BLUEPRINT_SECTION *section;      // Resolved pointer
+};
 
 struct blueprint_data {
     BLUEPRINT *next;
@@ -6422,7 +6462,7 @@ struct blueprint_data {
 
     int mode;
 
-    LLIST *sections;						// BLUEPRINT_SECTION
+    LLIST *sections;						// BLUEPRINT_SECTION_REF
     LLIST *special_rooms;
 
     // BLUEPRINT_MODE_STATIC
@@ -6641,8 +6681,18 @@ struct dungeon_index_data
     LLIST *levels;                  // Levels to be instanced in the generated dungeon, references the FLOORS variable.
     LLIST *special_rooms;           // 
     LLIST *special_exits;           // Exits that might span multiple floors (as opposed to the standard PREVFLOOR and NEXTFLOOR exits)
-    long entry_room;
-    long exit_room;
+    
+    union {
+        WNUM_LOAD     load;         // During load: area_uid + vnum
+        long          vnum;         // Legacy: bare vnum
+    } entry_ref;
+    ROOM_INDEX_DATA *entry_room;    // Resolved entry room pointer
+    
+    union {
+        WNUM_LOAD     load;         // During load: area_uid + vnum
+        long          vnum;         // Legacy: bare vnum
+    } exit_ref;
+    ROOM_INDEX_DATA *exit_room;     // Resolved exit room pointer
 
     int repop;
 
@@ -8415,6 +8465,7 @@ MID *	get_mob_index	args( ( AREA_DATA *pArea, long vnum ) );
 OID *	get_obj_index	args( ( AREA_DATA *pArea, long vnum ) );
 RID *	get_room_index	args( ( AREA_DATA *pArea, long vnum ) );
 TOKEN_INDEX_DATA *get_token_index	args( ( AREA_DATA *pArea, long vnum ) );
+TOKEN_INDEX_DATA *get_token_index_wnum	args( ( WNUM wnum ) );
 MID *	get_mob_index_global	args( ( long vnum ) );
 OID *	get_obj_index_global	args( ( long vnum ) );
 RID *	get_room_index_global	args( ( long vnum ) );
@@ -9880,7 +9931,9 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
 BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum);
+BLUEPRINT_SECTION *get_blueprint_section_for_area(AREA_DATA *area, long vnum);
 BLUEPRINT *get_blueprint(long vnum);
+BLUEPRINT *get_blueprint_for_area(AREA_DATA *area, long vnum);
 BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index);
 BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index);
 INSTANCE *create_instance(BLUEPRINT *blueprint);
@@ -9916,7 +9969,10 @@ void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
-ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor);
+DUNGEON_INDEX_DATA *get_dungeon_index_for_area(AREA_DATA *area, long vnum);
+DUNGEON *create_dungeon(WNUM wnum);
+DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, WNUM wnum);
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
 void dungeon_echo(DUNGEON *dungeon, char *text);
@@ -9966,11 +10022,12 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer);
 void load_ships();
 bool save_ships();
 SHIP_INDEX_DATA *get_ship_index(long vnum);
+SHIP_INDEX_DATA *get_ship_index_for_area(AREA_DATA *area, long vnum);
 bool can_edit_ships(CHAR_DATA *ch);
 SHIP_DATA *ship_load(FILE *fp);
 bool ship_save(FILE *fp, SHIP_DATA *ship);
 
-SHIP_DATA *create_ship(long vnum);
+SHIP_DATA *create_ship(WNUM wnum);
 void extract_ship(SHIP_DATA *ship);
 bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch);
 void ships_ticks_update();
@@ -10001,7 +10058,7 @@ void resolve_special_key(OBJ_DATA *obj);
 char *get_article(char *text, bool upper);
 bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2);
 bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y);
-SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop);
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, WNUM wnum, SHOP_DATA *shop);
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);

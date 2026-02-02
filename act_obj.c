@@ -6418,7 +6418,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
             }
             else if( stock->ship != NULL )
             {
-                SHIP_DATA *ship = purchase_ship(ch, stock->ship->vnum, keeper->shop);
+                WNUM wnum = { stock->ship->area, stock->ship->vnum };
+                SHIP_DATA *ship = purchase_ship(ch, wnum, keeper->shop);
 
                 if( !IS_VALID(ship) )
                 {

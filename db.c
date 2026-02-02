@@ -48,6 +48,7 @@
 #include "merc.h"
 #include "db.h"
 #include "math.h"
+#include "json_instance.h"
 #include "recycle.h"
 #include "tables.h"
 #include "olc_save.h"
@@ -661,6 +662,8 @@ void migrate_shopkeeper_resets(AREA_DATA *area);
 void fix_areaprogs(void);
 void fix_instanceprogs(void);
 void fix_dungeonprogs(void);
+void fix_dungeon_rooms(void);
+void fix_blueprint_references(void);
 
 
 
@@ -1067,8 +1070,9 @@ void boot_db(void)
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading dungeon definitions");
     load_dungeons();
 
-    log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading ships");
-    load_ships();
+    // Ships are now loaded from area JSON files
+    // log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading ships");
+    // load_ships();
 
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing variable_index_fix");
     variable_index_fix();
@@ -1088,6 +1092,10 @@ void boot_db(void)
     fix_instanceprogs();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_dungeonprogs");
     fix_dungeonprogs();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing dungeon room references");
+    fix_dungeon_rooms();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing blueprint room references");
+    fix_blueprint_references();
 
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading persistance");
     if(!persist_load()) {
@@ -1539,6 +1547,387 @@ void fix_dungeonprogs(void)
     }
 }
 
+void fix_dungeon_rooms(void)
+{
+    AREA_DATA *pArea;
+    DUNGEON_INDEX_DATA *dungeon;
+    int iHash;
+
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing dungeon room references");
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (dungeon = pArea->dungeon_index_hash[iHash]; dungeon != NULL; dungeon = dungeon->next) {
+                
+                /* Resolve entry room */
+                if (dungeon->entry_ref.load.vnum > 0) {
+                    AREA_DATA *target_area = NULL;
+                    
+                    if (dungeon->entry_ref.load.auid > 0) {
+                        target_area = get_area_index(dungeon->entry_ref.load.auid);
+                    }
+                    
+                    if (target_area) {
+                        dungeon->entry_room = get_room_index(target_area, dungeon->entry_ref.load.vnum);
+                    } else {
+                        /* Legacy: search all areas when area_uid is 0 */
+                        AREA_DATA *search_area;
+                        for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                            dungeon->entry_room = get_room_index(search_area, dungeon->entry_ref.load.vnum);
+                            if (dungeon->entry_room)
+                                break;
+                        }
+                    }
+                    
+                    if (!dungeon->entry_room) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Dungeon '%s' (vnum %ld in %s): entry room %ld#%ld not found",
+                            dungeon->name ? dungeon->name : "unnamed", 
+                            dungeon->vnum, 
+                            pArea->name,
+                            dungeon->entry_ref.load.auid, 
+                            dungeon->entry_ref.load.vnum);
+                    }
+                }
+                
+                /* Resolve exit room */
+                if (dungeon->exit_ref.load.vnum > 0) {
+                    AREA_DATA *target_area = NULL;
+                    
+                    if (dungeon->exit_ref.load.auid > 0) {
+                        target_area = get_area_index(dungeon->exit_ref.load.auid);
+                    }
+                    
+                    if (target_area) {
+                        dungeon->exit_room = get_room_index(target_area, dungeon->exit_ref.load.vnum);
+                    } else {
+                        /* Legacy: search all areas when area_uid is 0 */
+                        AREA_DATA *search_area;
+                        for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                            dungeon->exit_room = get_room_index(search_area, dungeon->exit_ref.load.vnum);
+                            if (dungeon->exit_room)
+                                break;
+                        }
+                    }
+                    
+                    if (!dungeon->exit_room) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Dungeon '%s' (vnum %ld in %s): exit room %ld#%ld not found",
+                            dungeon->name ? dungeon->name : "unnamed", 
+                            dungeon->vnum, 
+                            pArea->name,
+                            dungeon->exit_ref.load.auid, 
+                            dungeon->exit_ref.load.vnum);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+ * Fix blueprint room references after all areas are loaded.
+ * Resolves WNUM_LOAD unions to actual ROOM_INDEX_DATA pointers.
+ */
+void fix_blueprint_references(void)
+{
+    AREA_DATA *pArea;
+    BLUEPRINT_SECTION *bs;
+    BLUEPRINT *bp;
+    BLUEPRINT_LINK *bl;
+    BLUEPRINT_SPECIAL_ROOM *special;
+    int iHash;
+
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing blueprint room references");
+
+    /* Fix blueprint sections */
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (bs = pArea->blueprint_section_hash[iHash]; bs != NULL; bs = bs->next) {
+                
+                /* Resolve rooms_area for room range */
+                if (bs->lower_vnum_ref.load.vnum > 0) {
+                    AREA_DATA *target_area = get_area_from_uid(bs->lower_vnum_ref.load.auid);
+                    
+                    if (target_area) {
+                        bs->rooms_area = target_area;
+                    } else {
+                        /* Fallback to section's own area */
+                        bs->rooms_area = bs->area;
+                    }
+                } else {
+                    bs->rooms_area = bs->area;
+                }
+                
+                /* Resolve recall room */
+                if (bs->recall_ref.load.vnum > 0) {
+                    AREA_DATA *target_area = NULL;
+                    
+                    if (bs->recall_ref.load.auid > 0) {
+                        target_area = get_area_index(bs->recall_ref.load.auid);
+                    }
+                    
+                    if (target_area) {
+                        bs->recall_room = get_room_index(target_area, bs->recall_ref.load.vnum);
+                    } else {
+                        /* Legacy: search all areas when area_uid is 0 */
+                        AREA_DATA *search_area;
+                        for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                            bs->recall_room = get_room_index(search_area, bs->recall_ref.load.vnum);
+                            if (bs->recall_room)
+                                break;
+                        }
+                    }
+                    
+                    if (!bs->recall_room) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Blueprint section '%s' (vnum %ld in %s): recall room %ld#%ld not found",
+                            bs->name ? bs->name : "unnamed", 
+                            bs->vnum, 
+                            pArea->name,
+                            bs->recall_ref.load.auid, 
+                            bs->recall_ref.load.vnum);
+                    }
+                }
+                
+                /* Resolve link rooms */
+                for (bl = bs->links; bl != NULL; bl = bl->next) {
+                    if (bl->room_ref.load.vnum > 0) {
+                        AREA_DATA *target_area = NULL;
+                        
+                        if (bl->room_ref.load.auid > 0) {
+                            target_area = get_area_index(bl->room_ref.load.auid);
+                        }
+                        
+                        if (target_area) {
+                            bl->room = get_room_index(target_area, bl->room_ref.load.vnum);
+                        } else {
+                            /* Legacy: search all areas when area_uid is 0 */
+                            AREA_DATA *search_area;
+                            for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                                bl->room = get_room_index(search_area, bl->room_ref.load.vnum);
+                                if (bl->room)
+                                    break;
+                            }
+                        }
+                        
+                        if (!bl->room) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                "Blueprint section '%s' (vnum %ld in %s): link room %ld#%ld not found",
+                                bs->name ? bs->name : "unnamed", 
+                                bs->vnum, 
+                                pArea->name,
+                                bl->room_ref.load.auid, 
+                                bl->room_ref.load.vnum);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /* Fix blueprint special rooms */
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (bp = pArea->blueprint_hash[iHash]; bp != NULL; bp = bp->next) {
+                ITERATOR it;
+                
+                // Resolve section references
+                iterator_start(&it, bp->sections);
+                BLUEPRINT_SECTION_REF *section_ref;
+                while((section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&it))) {
+                    if (section_ref->section_ref.load.vnum > 0) {
+                        AREA_DATA *target_area = NULL;
+                        
+                        if (section_ref->section_ref.load.auid > 0) {
+                            target_area = get_area_index(section_ref->section_ref.load.auid);
+                        }
+                        
+                        if (target_area) {
+                            section_ref->section = get_blueprint_section_for_area(target_area, section_ref->section_ref.load.vnum);
+                        } else {
+                            /* Legacy: search all areas when area_uid is 0 */
+                            AREA_DATA *search_area;
+                            for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                                section_ref->section = get_blueprint_section_for_area(search_area, section_ref->section_ref.load.vnum);
+                                if (section_ref->section)
+                                    break;
+                            }
+                        }
+                        
+                        if (!section_ref->section) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                "Blueprint '%s' (vnum %ld in %s): section %ld#%ld not found",
+                                bp->name ? bp->name : "unnamed", 
+                                bp->vnum, 
+                                pArea->name,
+                                section_ref->section_ref.load.auid, 
+                                section_ref->section_ref.load.vnum);
+                        }
+                    }
+                }
+                iterator_stop(&it);
+                
+                // Resolve special room references
+                iterator_start(&it, bp->special_rooms);
+                while((special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&it))) {
+                    
+                    if (special->room_ref.load.vnum > 0) {
+                        AREA_DATA *target_area = NULL;
+                        
+                        if (special->room_ref.load.auid > 0) {
+                            target_area = get_area_index(special->room_ref.load.auid);
+                        }
+                        
+                        if (target_area) {
+                            special->room = get_room_index(target_area, special->room_ref.load.vnum);
+                        } else {
+                            /* Legacy: search all areas when area_uid is 0 */
+                            AREA_DATA *search_area;
+                            for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                                special->room = get_room_index(search_area, special->room_ref.load.vnum);
+                                if (special->room)
+                                    break;
+                            }
+                        }
+                        
+                        if (!special->room) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                "Blueprint '%s' (vnum %ld in %s): special room '%s' %ld#%ld not found",
+                                bp->name ? bp->name : "unnamed", 
+                                bp->vnum, 
+                                pArea->name,
+                                special->name ? special->name : "unnamed",
+                                special->room_ref.load.auid, 
+                                special->room_ref.load.vnum);
+                        }
+                    }
+                }
+                iterator_stop(&it);
+            }
+        }
+    }
+    
+    /* Fix ship index references */
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        int iHash;
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            SHIP_INDEX_DATA *ship;
+            for (ship = pArea->ship_index_hash[iHash]; ship != NULL; ship = ship->next)
+            {
+                /* Resolve blueprint reference using WNUM_LOAD */
+                if (ship->blueprint_ref.load.vnum > 0 && !ship->blueprint)
+                {
+                    AREA_DATA *target_area = get_area_from_uid(ship->blueprint_ref.load.auid);
+                    
+                    if (target_area) {
+                        ship->blueprint = get_blueprint_for_area(target_area, ship->blueprint_ref.load.vnum);
+                    }
+                    
+                    /* Fall back to global search if not found */
+                    if (!ship->blueprint) {
+                        ship->blueprint = get_blueprint(ship->blueprint_ref.load.vnum);
+                    }
+                    
+                    if (!ship->blueprint)
+                    {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Ship '%s' (vnum %ld in %s): blueprint %lu#%ld not found",
+                            ship->name ? ship->name : "unnamed",
+                            ship->vnum,
+                            pArea->name,
+                            ship->blueprint_ref.load.auid,
+                            ship->blueprint_ref.load.vnum);
+                    }
+                }
+                
+                /* Resolve ship_object reference using WNUM_LOAD */
+                if (ship->ship_object_ref.load.vnum > 0 && !ship->ship_object)
+                {
+                    AREA_DATA *target_area = get_area_from_uid(ship->ship_object_ref.load.auid);
+                    
+                    if (target_area) {
+                        ship->ship_object = get_obj_index(target_area, ship->ship_object_ref.load.vnum);
+                    }
+                    
+                    /* If not found in target area, search all areas (legacy support) */
+                    if (!ship->ship_object)
+                    {
+                        AREA_DATA *search_area;
+                        for (search_area = area_first; search_area != NULL; search_area = search_area->next)
+                        {
+                            ship->ship_object = get_obj_index(search_area, ship->ship_object_ref.load.vnum);
+                            if (ship->ship_object)
+                                break;
+                        }
+                    }
+                    
+                    if (!ship->ship_object)
+                    {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Ship '%s' (vnum %ld in %s): ship_object %lu#%ld not found",
+                            ship->name ? ship->name : "unnamed",
+                            ship->vnum,
+                            pArea->name,
+                            ship->ship_object_ref.load.auid,
+                            ship->ship_object_ref.load.vnum);
+                    }
+                }
+                
+                /* Resolve special_keys - replace vnums with OBJ_INDEX_DATA pointers */
+                if (ship->special_keys && list_size(ship->special_keys) > 0)
+                {
+                    LLIST *resolved_keys = list_create(false);
+                    ITERATOR kit;
+                    iterator_start(&kit, ship->special_keys);
+                    long *key_vnum_ptr;
+                    while ((key_vnum_ptr = (long *)iterator_nextdata(&kit)))
+                    {
+                        long key_vnum = *key_vnum_ptr;
+                        OBJ_INDEX_DATA *key = NULL;
+                        
+                        /* Try same area first */
+                        key = get_obj_index(pArea, key_vnum);
+                        
+                        /* Search all areas if not found */
+                        if (!key)
+                        {
+                            AREA_DATA *search_area;
+                            for (search_area = area_first; search_area != NULL; search_area = search_area->next)
+                            {
+                                key = get_obj_index(search_area, key_vnum);
+                                if (key)
+                                    break;
+                            }
+                        }
+                        
+                        if (key)
+                        {
+                            list_appendlink(resolved_keys, key);
+                        }
+                        else
+                        {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                "Ship '%s' (vnum %ld in %s): special key object %ld not found",
+                                ship->name ? ship->name : "unnamed",
+                                ship->vnum,
+                                pArea->name,
+                                key_vnum);
+                        }
+                    }
+                    iterator_stop(&kit);
+                    
+                    /* Replace the vnum list with the resolved list */
+                    list_destroy(ship->special_keys);
+                    ship->special_keys = resolved_keys;
+                }
+            }
+        }
+    }
+}
+
 
 void reset_wilds(WILDS_DATA *pWilds)
 {
@@ -1551,8 +1940,16 @@ void reset_wilds(WILDS_DATA *pWilds)
         {
             if (IS_SET(pVLink->current_linkage, VLINK_PORTAL))
             {
-          obj = create_object(get_obj_index_global(get_reserved_vnum("obj_portal_abyss")), 0, true);
-          obj_to_vroom(obj, pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y);
+          OBJ_INDEX_DATA *pObjIndex = get_obj_index_global(get_reserved_vnum("obj_portal_abyss"));
+          if (pObjIndex)
+          {
+              obj = create_object(pObjIndex, 0, true);
+              obj_to_vroom(obj, pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y);
+          }
+          else
+          {
+              log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "generate_wilds_objs: Cannot find abyss portal object.");
+          }
             }
         }
     }
@@ -1586,8 +1983,18 @@ void reset_area(AREA_DATA *pArea)
 
     if (!found)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_ABYSS_PORTAL), 0, true);
-        obj_to_room(obj, get_room_index(ROOM_VNUM_ABYSS_GATE));
+        OBJ_INDEX_DATA *pObjIndex = get_obj_index(NULL, OBJ_VNUM_ABYSS_PORTAL);
+        ROOM_INDEX_DATA *pRoomIndex = get_room_index(NULL, ROOM_VNUM_ABYSS_GATE);
+        if (pObjIndex && pRoomIndex)
+        {
+            obj = create_object(pObjIndex, 0, true);
+            obj_to_room(obj, pRoomIndex);
+        }
+        else
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_area_db: Cannot create abyss portal (obj %d or room %d not found).", 
+                OBJ_VNUM_ABYSS_PORTAL, ROOM_VNUM_ABYSS_GATE);
+        }
     }
 
   }
@@ -1603,14 +2010,14 @@ void reset_area(AREA_DATA *pArea)
     {
         if ((pRoom = get_room_index(vnum)))
         {
-        if (pRoom->parent == 5000001) // Silverfern forest*
+        if (pRoom->parent == 5000001) Silverfern forest
         {
             Butterfly
             chance_create_mob(pRoom, get_mob_index(100001), 5);
         }
         if (pRoom->parent == 5000002)  Wharf
         {
-        *seagull
+        seagull
             chance_create_mob(pRoom, get_mob_index(100002), 5);
         }
         if (pRoom->parent == 5000003)  Paved
@@ -2024,12 +2431,17 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             pMob->home_room = pRoom;
 
             /* Give some pneuma to POA mobs.*/
-            if (!str_cmp(pMob->in_room->area->name, "Maze-Level1"))
+            OBJ_INDEX_DATA *pneuma_index = get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item"));
+            if (!pneuma_index)
+            {
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "reset_area: Cannot find pneuma item object.");
+            }
+            else if (!str_cmp(pMob->in_room->area->name, "Maze-Level1"))
             {
                 i = number_range(1,2);
                 for (c = 0; c < i; c++)
                 {
-                    obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
+                    obj = create_object(pneuma_index, 1, false);
                     obj_to_char(obj, pMob);
                 }
             }
@@ -2038,7 +2450,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 i = number_range(2,3);
                 for (c = 0; c < i; c++)
                 {
-                    obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
+                    obj = create_object(pneuma_index, 1, false);
                     obj_to_char(obj, pMob);
                 }
             }
@@ -2047,7 +2459,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 i = number_range(3,4);
                 for (c = 0; c < i; c++)
                 {
-                    obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
+                    obj = create_object(pneuma_index, 1, false);
                     obj_to_char(obj, pMob);
                 }
             }
@@ -2056,7 +2468,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 i = number_range(4,6);
                 for (c = 0; c < i; c++)
                 {
-                    obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
+                    obj = create_object(pneuma_index, 1, false);
                     obj_to_char(obj, pMob);
                 }
             }
@@ -2065,7 +2477,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 i = number_range(10,15);
                 for (c = 0; c < i; c++)
                 {
-                    obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item")), 1, false);
+                    obj = create_object(pneuma_index, 1, false);
                     obj_to_char(obj, pMob);
                 }
             }
@@ -2255,6 +2667,12 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
     CHAR_DATA *pMobile;
     OBJ_DATA *obj = NULL;
 
+    if (!pMobIndex)
+    {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "chance_create_mob: NULL pMobIndex.");
+        return;
+    }
+
     /* don't do for now
     if (pMobIndex->vnum == get_reserved_vnum("mob_abyss_gatekeeper"))
     {
@@ -2262,7 +2680,9 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
        return;
        else
        {
-       obj = create_object(get_obj_index(OBJ_VNUM_KEY_ABYSS), 30, true);
+       OBJ_INDEX_DATA *pObjIndex = get_obj_index(NULL, OBJ_VNUM_KEY_ABYSS);
+       if (pObjIndex)
+           obj = create_object(pObjIndex, 30, true);
        }
        }
        else
@@ -2316,7 +2736,9 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
         break;
     case STOCK_SHIP:
         if(to_stock->entity.wnum.vnum > 0)
-            to_stock->ship = get_ship_index(to_stock->entity.wnum.vnum);
+            to_stock->ship = to_stock->entity.wnum.pArea ?
+                get_ship_index_for_area(to_stock->entity.wnum.pArea, to_stock->entity.wnum.vnum) :
+                get_ship_index(to_stock->entity.wnum.vnum);
         break;
     case STOCK_CUSTOM:
         free_string(to_stock->custom_keyword);
@@ -3408,7 +3830,9 @@ MOB_INDEX_DATA *get_mob_index(AREA_DATA *pArea, long vnum)
     if (fBootDb)
     {
     log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_mob_index: bad vnum %ld.", vnum);
-    exit(1);
+    log_get_stacktrace(1);
+
+    return NULL;
     }
 
     return NULL;
@@ -3416,22 +3840,17 @@ MOB_INDEX_DATA *get_mob_index(AREA_DATA *pArea, long vnum)
 
 MOB_INDEX_DATA *get_mob_index_global(long vnum)
 {
-    AREA_DATA *pArea;
-    MOB_INDEX_DATA *mob;
-
-    /* Search all areas by directly checking hash tables */
-    /* Don't call get_mob_index() as it will exit during boot if not found */
-    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
-    {
-        if (!pArea) continue;
-        
-        for (mob = pArea->mob_index_hash[vnum % MAX_KEY_HASH]; mob != NULL; mob = mob->next)
-        {
-            if (mob->vnum == vnum)
-                return mob;
-        }
+    WNUM wnum;
+    char vnum_str[32];
+    
+    snprintf(vnum_str, sizeof(vnum_str), "%ld", vnum);
+    
+    // Use parse_widevnum with NULL context for global search
+    // This provides backwards compatibility and centralized vnum resolution
+    if (parse_widevnum(vnum_str, NULL, &wnum) && wnum.pArea) {
+        return get_mob_index(wnum.pArea, wnum.vnum);
     }
-
+    
     return NULL;
 }
 
@@ -3454,7 +3873,8 @@ OBJ_INDEX_DATA *get_obj_index(AREA_DATA *pArea, long vnum)
     if (fBootDb)
     {
     log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_obj_index: bad vnum %ld.", vnum);
-    exit(1);
+    log_get_stacktrace(1);
+    return NULL;
     }
 
     return NULL;
@@ -3462,22 +3882,17 @@ OBJ_INDEX_DATA *get_obj_index(AREA_DATA *pArea, long vnum)
 
 OBJ_INDEX_DATA *get_obj_index_global(long vnum)
 {
-    AREA_DATA *pArea;
-    OBJ_INDEX_DATA *obj;
-
-    /* Search all areas by directly checking hash tables */
-    /* Don't call get_obj_index() as it will exit during boot if not found */
-    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
-    {
-        if (!pArea) continue;
-        
-        for (obj = pArea->obj_index_hash[vnum % MAX_KEY_HASH]; obj != NULL; obj = obj->next)
-        {
-            if (obj->vnum == vnum)
-                return obj;
-        }
+    WNUM wnum;
+    char vnum_str[32];
+    
+    snprintf(vnum_str, sizeof(vnum_str), "%ld", vnum);
+    
+    // Use parse_widevnum with NULL context for global search
+    // This provides backwards compatibility and centralized vnum resolution
+    if (parse_widevnum(vnum_str, NULL, &wnum) && wnum.pArea) {
+        return get_obj_index(wnum.pArea, wnum.vnum);
     }
-
+    
     return NULL;
 }
 
@@ -3508,22 +3923,17 @@ ROOM_INDEX_DATA *get_room_index(AREA_DATA *pArea, long vnum)
 
 ROOM_INDEX_DATA *get_room_index_global(long vnum)
 {
-    AREA_DATA *pArea;
-    ROOM_INDEX_DATA *room;
-
-    /* Search all areas by directly checking hash tables */
-    /* Don't call get_room_index() as it will exit during boot if not found */
-    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
-    {
-        if (!pArea) continue;
-        
-        for (room = pArea->room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next)
-        {
-            if (room->vnum == vnum)
-                return room;
-        }
+    WNUM wnum;
+    char vnum_str[32];
+    
+    snprintf(vnum_str, sizeof(vnum_str), "%ld", vnum);
+    
+    // Use parse_widevnum with NULL context for global search
+    // This provides backwards compatibility and centralized vnum resolution
+    if (parse_widevnum(vnum_str, NULL, &wnum) && wnum.pArea) {
+        return get_room_index(wnum.pArea, wnum.vnum);
     }
-
+    
     return NULL;
 }
 
@@ -3556,6 +3966,13 @@ TOKEN_INDEX_DATA *get_token_index_global(long vnum)
     }
 
     return NULL;
+}
+
+TOKEN_INDEX_DATA *get_token_index_wnum(WNUM wnum)
+{
+    if (!wnum.pArea)
+        return NULL;
+    return get_token_index(wnum.pArea, wnum.vnum);
 }
 
 bool is_singular_token(TOKEN_INDEX_DATA *index)
@@ -4800,7 +5217,13 @@ void load_reboot_objs()
     if (!pRoom)
         continue;
 
-    obj = create_object(get_obj_index(pRoom->area, get_reserved_vnum("obj_black_moonstone_shard")), 0, true);
+    OBJ_INDEX_DATA *pObjIndex = get_obj_index(pRoom->area, get_reserved_vnum("obj_black_moonstone_shard"));
+    if (!pObjIndex)
+    {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_reboot_objs: Cannot find black moonstone shard object.");
+        continue;
+    }
+    obj = create_object(pObjIndex, 0, true);
     obj_to_room(obj, pRoom);
     }
 }
@@ -8557,67 +8980,46 @@ bool persist_load(void)
 
 bool save_instances()
 {
-    ITERATOR it;
-    INSTANCE *instance;
-    DUNGEON *dungeon;
-    SHIP_DATA *ship;
-
-    FILE *fp = fopen(INSTANCES_FILE, "w");
-    if (fp == NULL)
-    {
-        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't save instances.dat");
+    // Use new JSON format
+    if (!json_save_instances()) {
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to save instances as JSON");
         return false;
     }
-
-    // Save dungeons
-    iterator_start(&it, loaded_dungeons);
-    while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
-    {
-        // Skip dungeons that cannot save
-        if( !IS_SET(dungeon->flags, (DUNGEON_NO_SAVE|DUNGEON_DESTROY)) )
-        {
-            dungeon_save(fp, dungeon);
-        }
-    }
-    iterator_stop(&it);
-
-    // Save ships
-    iterator_start(&it, loaded_ships);
-    while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
-    {
-        ship_save(fp, ship);
-    }
-    iterator_stop(&it);
-
-    // Save the rest of the instances
-    iterator_start(&it, loaded_instances);
-    while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
-    {
-        // Skip dungeon instances and instances that cannot save
-        if( !IS_VALID(instance->dungeon) && !IS_VALID(instance->ship) && !IS_SET(instance->flags, (INSTANCE_NO_SAVE|INSTANCE_DESTROY))  )
-            instance_save(fp, instance);
-    }
-    iterator_stop(&it);
-
-    fprintf(fp, "#END\n\r\n\r");
-
-    fclose(fp);
-
+    
     return true;
 }
 
 
 void load_instances()
 {
-    FILE *fp = fopen(INSTANCES_FILE, "r");
+    FILE *fp;
+    char *word;
+    bool fMatch;
+    
+    // Try JSON format first
+    fp = fopen(INSTANCES_FILE_JSON, "r");
+    if (fp != NULL)
+    {
+        fclose(fp);
+        
+        if (json_load_instances()) {
+            log_string("Loaded instances from JSON format");
+            resolve_ships();
+            return;
+        }
+        
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to load instances.json, trying .dat format");
+    }
+    
+    // Fall back to legacy .dat format
+    fp = fopen(INSTANCES_FILE, "r");
     if (fp == NULL)
     {
-        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Couldn't load instances.dat");
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "No instances file found (tried .json and .dat)");
         return;
     }
 
-    char *word;
-    bool fMatch;
+    log_string("Loading instances from legacy .dat format...");
 
     while (str_cmp((word = fread_word(fp)), "#END"))
     {
@@ -8669,6 +9071,20 @@ void load_instances()
     resolve_ships();
 
     fclose(fp);
+    
+    // Migrate to JSON format
+    log_string("Migrating instances from .dat to JSON format...");
+    if (json_save_instances()) {
+        log_string("Migration successful - instances saved as JSON");
+        
+        // Archive the old .dat file
+        char old_path[256];
+        snprintf(old_path, sizeof(old_path), "%s.old", INSTANCES_FILE);
+        rename(INSTANCES_FILE, old_path);
+        log_stringf("Archived old instances.dat to %s", old_path);
+    } else {
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to migrate instances to JSON");
+    }
 }
 
 

@@ -70,9 +70,7 @@ SHEDIT( shedit_show )
         sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
     add_buf(buffer, buf);
 
-    AREA_DATA *ship_area = find_area_by_vnum(ship->ship_object, NULL);
-    if (!ship_area) ship_area = get_system_area_fallback();
-    OBJ_INDEX_DATA *obj = get_obj_index(ship_area, ship->ship_object);
+    OBJ_INDEX_DATA *obj = ship->ship_object;
     if( obj )
         sprintf(buf, "Ship Object: [%5ld] %s{x\n\r", obj->vnum, obj->short_descr);
     else
@@ -169,8 +167,8 @@ SHEDIT( shedit_create )
     long  value;
     int  iHash;
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == 0)
+    // Auto-vnum: empty or "0" finds next available
+    if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
         long last_vnum = 0;
         value = top_ship_index_vnum + 1;
@@ -183,10 +181,22 @@ SHEDIT( shedit_create )
             }
         }
     }
-    else if( get_ship_index(value) )
+    else
     {
-        send_to_char("That vnum already exists.\n\r", ch);
-        return false;
+        // Parse widevnum - ships are global so no context needed
+        WNUM ship_wnum;
+        if (!parse_widevnum(argument, NULL, &ship_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        
+        value = ship_wnum.vnum;
+        
+        if( get_ship_index(value) )
+        {
+            send_to_char("That vnum already exists.\n\r", ch);
+            return false;
+        }
     }
 
     ship = new_ship_index();
@@ -300,7 +310,8 @@ SHEDIT( shedit_blueprint )
         return false;
     }
 
-    if( !(bp = get_blueprint(atol(argument))) )
+    long bp_vnum = atol(argument);
+    if( !(bp = get_blueprint(bp_vnum)) )
     {
         send_to_char("Blueprint does not exist.\n\r", ch);
         return false;
@@ -327,7 +338,7 @@ SHEDIT( shedit_blueprint )
         iterator_start(&sit, bp->special_rooms);
         while( (special_room = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
         {
-            ROOM_INDEX_DATA *room = get_room_index(bp->area, special_room->vnum);
+            ROOM_INDEX_DATA *room = special_room->room ? special_room->room : (bp->area ? get_room_index(bp->area, special_room->room_ref.load.vnum) : NULL);
 
             if( room )
             {
@@ -408,20 +419,19 @@ SHEDIT( shedit_object )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  object [vnum]\n\r", ch);
+        send_to_char("Syntax:  object [widevnum]\n\r", ch);
         return false;
     }
 
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
+    WNUM obj_wnum;
+    AREA_DATA *context = strchr(argument, '#') ? ship->area : NULL;
+    if (!parse_widevnum(argument, context, &obj_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    vnum = atol(argument);
-    AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
-    if (!obj_area) obj_area = get_system_area_fallback();
-    obj = get_obj_index(obj_area, vnum);
+    vnum = obj_wnum.vnum;
+    obj = get_obj_index(obj_wnum.pArea, obj_wnum.vnum);
     if( !obj )
     {
         send_to_char("That object does not exist.\n\r", ch);
@@ -434,7 +444,8 @@ SHEDIT( shedit_object )
         return false;
     }
 
-    ship->ship_object = vnum;
+    ship->ship_object_ref.vnum = vnum;
+    ship->ship_object = obj;  // Set resolved pointer immediately
     send_to_char("Ship object set.\n\r", ch);
     return true;
 }
@@ -813,18 +824,15 @@ SHEDIT( shedit_keys )
     if( !str_cmp(arg, "add") )
     {
         OBJ_INDEX_DATA *key;
-        long vnum;
 
-        if( !is_number(argument) )
-        {
-            send_to_char("That is not a number,\n\r", ch);
+        WNUM key_wnum;
+        AREA_DATA *context = strchr(argument, '#') ? ship->area : NULL;
+        if (!parse_widevnum(argument, context, &key_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
 
-        vnum = atol(argument);
-        AREA_DATA *key_area = find_area_by_vnum(vnum, NULL);
-        if (!key_area) key_area = get_system_area_fallback();
-        if( !(key = get_obj_index(key_area, vnum)) )
+        if( !(key = get_obj_index(key_wnum.pArea, key_wnum.vnum)) )
         {
             send_to_char("That object does not exist.\n\r", ch);
             return false;
