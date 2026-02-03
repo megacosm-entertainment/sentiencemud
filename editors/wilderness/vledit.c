@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "strings.h"
+#include "../strings.h"
 #include "../../merc.h"
 #include "../../tables.h"
 #include "../../olc.h"

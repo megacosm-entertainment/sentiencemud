@@ -10,7 +10,7 @@
 #define JSON_CHURCH_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /* Serialize/deserialize entire church */
 json_t *json_church_serialize(CHURCH_DATA *church);

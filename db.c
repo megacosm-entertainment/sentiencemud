@@ -48,15 +48,15 @@
 #include "merc.h"
 #include "db.h"
 #include "math.h"
-#include "json_instance.h"
+#include "io/json/json_instance.h"
 #include "recycle.h"
 #include "tables.h"
 #include "olc_save.h"
 #include "scripts.h"
 #include "wilds.h"
-#include "json_persist.h"
-#include "json_area.h"
-#include "redis_cache.h"
+#include "io/json/json_persist.h"
+#include "io/json/json_area.h"
+#include "io/cache/redis_cache.h"
 
 /*
 #if !defined(OLD_RAND)

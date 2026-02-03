@@ -42,7 +42,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
-#include "redis_cache.h"
+#include "io/cache/redis_cache.h"
 
 
 

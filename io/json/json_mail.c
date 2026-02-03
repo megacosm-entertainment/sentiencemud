@@ -15,9 +15,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 #include "json_mail.h"
-#include "recycle.h"
+#include "../../recycle.h"
 
 /***************************************************************************
  * External References                                                     *

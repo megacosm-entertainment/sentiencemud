@@ -19,7 +19,7 @@
 #include "db.h"
 #include "scripts.h"
 #include "wilds.h"
-#include "json_area.h"
+#include "io/json/json_area.h"
 
 // VERSION_ROOM_001 special defines
 #define VR_001_EX_LOCKED		(C)

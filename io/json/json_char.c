@@ -16,13 +16,13 @@
 #include <sys/types.h>
 #include <ctype.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
-#include "recycle.h"
+#include "../../merc.h"
+#include "../../tables.h"
+#include "../../recycle.h"
 #include "json_char.h"
 #include "json_persist.h"
-#include "redis_cache.h"
-#include "wilds.h"
+#include "../cache/redis_cache.h"
+#include "../../wilds.h"
 
 /***************************************************************************
  * External Flag Tables                                                    *

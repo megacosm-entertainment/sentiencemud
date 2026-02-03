@@ -8,7 +8,7 @@
 #ifndef ASYNC_CACHE_H
 #define ASYNC_CACHE_H
 
-#include "merc.h"
+#include "../../merc.h"
 #include "redis_cache.h"
 
 /***************************************************************************

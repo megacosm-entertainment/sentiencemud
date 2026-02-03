@@ -12,7 +12,7 @@
 #ifndef JSON_ACCOUNT_H
 #define JSON_ACCOUNT_H
 
-#include "merc.h"
+#include "../../merc.h"
 #include <jansson.h>
 
 /***************************************************************************

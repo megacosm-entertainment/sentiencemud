@@ -15,7 +15,7 @@
 
 #include <hiredis/hiredis.h>
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /***************************************************************************
  * Configuration                                                           *

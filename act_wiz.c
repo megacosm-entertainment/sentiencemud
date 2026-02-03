@@ -46,9 +46,9 @@
 #include "tables.h"
 #include "olc_save.h"
 #include "wilds.h"
-#include "redis_cache.h"
-#include "async_cache.h"
-#include "json_game_settings.h"
+#include "io/cache/redis_cache.h"
+#include "io/cache/async_cache.h"
+#include "io/json/json_game_settings.h"
 #include "log.h"
 
 extern void persist_save(void);

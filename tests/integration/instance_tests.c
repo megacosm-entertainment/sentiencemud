@@ -14,7 +14,7 @@
 
 #include "../../merc.h"
 #include "../framework/test_framework.h"
-#include "../../json_instance.h"
+#include "../../io/json/json_instance.h"
 #include <string.h>
 #include <sys/stat.h>
 

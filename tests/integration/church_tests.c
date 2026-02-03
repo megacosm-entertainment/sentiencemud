@@ -14,7 +14,7 @@
 
 #include "../../merc.h"
 #include "../framework/test_framework.h"
-#include "../../json_church.h"
+#include "../../io/json/json_church.h"
 #include <string.h>
 
 /* Forward declarations */

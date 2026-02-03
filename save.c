@@ -51,9 +51,9 @@
 #include "olc_save.h"
 #include "scripts.h"
 #include "wilds.h"
-#include "redis_cache.h"
-#include "json_char.h"
-#include "json_account.h"
+#include "io/cache/redis_cache.h"
+#include "io/json/json_char.h"
+#include "io/json/json_account.h"
 
 /***************************************************************************
  * JSON Migration Control                                                  *

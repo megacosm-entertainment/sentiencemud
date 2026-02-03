@@ -23,13 +23,13 @@
 #include <dirent.h>
 #include <errno.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
-#include "recycle.h"
-#include "scripts.h"
+#include "../../merc.h"
+#include "../../tables.h"
+#include "../../recycle.h"
+#include "../../scripts.h"
 #include "json_instance.h"
-#include "wilds.h"
-#include "redis_cache.h"
+#include "../../wilds.h"
+#include "../cache/redis_cache.h"
 
 /***************************************************************************
  * External References                                                     *

@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <jansson.h>
 #include "redis_cache.h"
-#include "merc.h"
+#include "../../merc.h"
 
 /***************************************************************************
  * Global State                                                            *

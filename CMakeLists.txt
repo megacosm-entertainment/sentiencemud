@@ -129,10 +129,10 @@ set(SOURCE_FILES
     interp.c
     invasion.c
     io/common.c
-    json_chat.c
-    json_church.c
-    json_reserved.c
-    json_race.c
+    io/json/json_chat.c
+    io/json/json_church.c
+    io/json/json_reserved.c
+    io/json/json_race.c
     lookup.c
     magic.c
     magic2.c
@@ -178,17 +178,16 @@ set(SOURCE_FILES
     project.c
     protocol.c
     quest.c
-    redis_cache.c
-    async_cache.c
-    json_char.c
-    json_account.c
-    json_area.c
-    json_game_settings.c
-    json_gq.c
-    json_instance.c
-    json_mail.c
-    json_persist.c
-    json_race.c
+    io/cache/redis_cache.c
+    io/cache/async_cache.c
+    io/json/json_char.c
+    io/json/json_account.c
+    io/json/json_area.c
+    io/json/json_game_settings.c
+    io/json/json_gq.c
+    io/json/json_instance.c
+    io/json/json_mail.c
+    io/json/json_persist.c
     save.c
     scan.c
     script_commands.c

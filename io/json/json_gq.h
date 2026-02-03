@@ -13,7 +13,7 @@
 #define JSON_GQ_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /* Save global quest data to JSON file */
 bool save_gq_json(void);

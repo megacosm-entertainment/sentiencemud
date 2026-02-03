@@ -13,7 +13,7 @@
 
 #include "../../merc.h"
 #include "../framework/test_framework.h"
-#include "../../json_chat.h"
+#include "../../io/json/json_chat.h"
 #include <string.h>
 
 /* Forward declarations */

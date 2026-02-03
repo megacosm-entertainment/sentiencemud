@@ -19,7 +19,7 @@
 #include "olc.h"
 #include "tables.h"
 #include "wilds.h"
-#include "json_church.h"
+#include "io/json/json_church.h"
 
 bool is_trusted(CHURCH_PLAYER_DATA *member, char *command);
 char *get_chrank(CHURCH_PLAYER_DATA *member);

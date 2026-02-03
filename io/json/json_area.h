@@ -12,7 +12,7 @@
 #define JSON_AREA_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /***************************************************************************
  * Constants                                                               *

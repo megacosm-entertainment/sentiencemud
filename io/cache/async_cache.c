@@ -11,8 +11,8 @@
 #include <jansson.h>
 #include "async_cache.h"
 #include "redis_cache.h"
-#include "json_char.h"
-#include "merc.h"
+#include "../json/json_char.h"
+#include "../../merc.h"
 
 /***************************************************************************
  * Global State                                                            *

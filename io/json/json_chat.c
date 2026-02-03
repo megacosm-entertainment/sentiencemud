@@ -25,10 +25,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <jansson.h>
-#include "merc.h"
-#include "db.h"
+#include "../../merc.h"
+#include "../../db.h"
 #include "json_chat.h"
-#include "log.h"
+#include "../../log.h"
 
 extern CHAT_ROOM_DATA *chat_room_list;
 

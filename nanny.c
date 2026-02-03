@@ -22,7 +22,7 @@
 #include "wilds.h"
 #include "protocol.h"
 #include "account/auth.h"
-#include "json_char.h"
+#include "io/json/json_char.h"
 #include "nanny/nanny_utils.h"
 
 /*

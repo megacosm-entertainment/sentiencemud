@@ -8,9 +8,9 @@
 #include <string.h>
 #include <dirent.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
-#include "recycle.h"
+#include "../../merc.h"
+#include "../../tables.h"
+#include "../../recycle.h"
 
 #define RACES_DIR	DATA_DIR "races/"
 

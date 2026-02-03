@@ -25,7 +25,7 @@
 #define JSON_CHAT_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /* JSON serialization functions */
 json_t *json_chat_room_serialize(CHAT_ROOM_DATA *chat);

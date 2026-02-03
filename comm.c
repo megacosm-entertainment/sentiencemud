@@ -83,9 +83,9 @@
 #include "tables.h"
 #include "wilds.h"
 #include "protocol.h"
-#include "redis_cache.h"
-#include "async_cache.h"
-#include "json_persist.h"
+#include "io/cache/redis_cache.h"
+#include "io/cache/async_cache.h"
+#include "io/json/json_persist.h"
 
 /*
  * Socket and TCP/IP stuff.

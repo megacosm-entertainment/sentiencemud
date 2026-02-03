@@ -10,14 +10,14 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
-#include "recycle.h"
-#include "scripts.h"
+#include "../../merc.h"
+#include "../../tables.h"
+#include "../../recycle.h"
+#include "../../scripts.h"
 #include "json_area.h"
-#include "redis_cache.h"
+#include "../cache/redis_cache.h"
 
-#include "wilds.h"
+#include "../../wilds.h"
 
 // Forward declarations for serialize functions
 json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_DATA *area);

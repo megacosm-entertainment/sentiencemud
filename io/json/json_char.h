@@ -8,8 +8,8 @@
 #ifndef JSON_CHAR_H
 #define JSON_CHAR_H
 
-#include "merc.h"
-#include "redis_cache.h"
+#include "../../merc.h"
+#include "../cache/redis_cache.h"
 #include <jansson.h>
 
 /***************************************************************************

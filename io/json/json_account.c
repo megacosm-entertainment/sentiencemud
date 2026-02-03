@@ -16,8 +16,8 @@
 #include <sys/types.h>
 #include <ctype.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
+#include "../../merc.h"
+#include "../../tables.h"
 #include "json_account.h"
 #include "json_char.h"  // For obj_to_json() reuse
 

@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 #include "json_reserved.h"
-#include "editors/reserved_vnums/reserved.h"
+#include "../../editors/reserved_vnums/reserved.h"
 
 extern LLIST *reserved_vnums;
 extern bool reserved_changed;

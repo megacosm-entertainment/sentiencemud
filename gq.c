@@ -14,7 +14,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
-#include "json_gq.h"
+#include "io/json/json_gq.h"
 
 
 void do_gq(CHAR_DATA *ch, char *argument)

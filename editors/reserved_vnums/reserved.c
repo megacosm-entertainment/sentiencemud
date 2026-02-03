@@ -44,7 +44,7 @@
 #include "../../olc.h"
 #include "../../recycle.h"
 #include "../../scripts.h"
-#include "../../json_reserved.h"
+#include "../../io/json/json_reserved.h"
 #include "reserved.h"
 
 /* Editor functions */

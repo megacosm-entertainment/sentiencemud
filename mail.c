@@ -19,7 +19,7 @@
 #include "math.h"
 #include "recycle.h"
 #include "tables.h"
-#include "json_mail.h"
+#include "io/json/json_mail.h"
 
 void do_mailadd(CHAR_DATA *ch, char *argument);
 void do_mailcancel(CHAR_DATA *ch, char *argument);

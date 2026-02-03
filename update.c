@@ -16,7 +16,7 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
-#include "redis_cache.h"
+#include "io/cache/redis_cache.h"
 
 extern void persist_save(void);
 

@@ -14,7 +14,7 @@
 #define JSON_MAIL_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /* Save all mail to JSON file */
 bool save_mail_json(void);

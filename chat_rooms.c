@@ -10,7 +10,7 @@
 #include "merc.h"
 #include "db.h"
 #include "recycle.h"
-#include "json_chat.h"
+#include "io/json/json_chat.h"
 #include <string.h>
 
 /* local functions */

@@ -23,12 +23,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <jansson.h>
-#include "merc.h"
-#include "wilds.h"
-#include "tables.h"
+#include "../../merc.h"
+#include "../../wilds.h"
+#include "../../tables.h"
 #include "json_area.h"
 #include "json_church.h"
-
 /* JSON format version for church files */
 #define JSON_CHURCH_VERSION 1
 

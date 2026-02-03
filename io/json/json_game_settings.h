@@ -11,7 +11,7 @@
 #ifndef JSON_GAME_SETTINGS_H
 #define JSON_GAME_SETTINGS_H
 
-#include "merc.h"
+#include "../../merc.h"
 #include <jansson.h>
 
 /***************************************************************************

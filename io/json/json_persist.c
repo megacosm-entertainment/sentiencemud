@@ -17,13 +17,13 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
-#include "scripts.h"
-#include "wilds.h"
-#include "recycle.h"
+#include "../../merc.h"
+#include "../../tables.h"
+#include "../../scripts.h"
+#include "../../wilds.h"
+#include "../../recycle.h"
 #include "json_persist.h"
-#include "redis_cache.h"
+#include "../cache/redis_cache.h"
 
 /***************************************************************************
  * External References                                                     *

@@ -2,7 +2,7 @@
 #define JSON_RESERVED_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /* Function declarations for reserved entities JSON handling */
 

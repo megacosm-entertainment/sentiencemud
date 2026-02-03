@@ -20,7 +20,7 @@
 #define JSON_INSTANCE_H
 
 #include <jansson.h>
-#include "merc.h"
+#include "../../merc.h"
 
 /***************************************************************************
  * File Paths                                                              *

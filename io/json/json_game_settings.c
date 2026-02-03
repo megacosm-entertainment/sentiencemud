@@ -7,10 +7,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <jansson.h>
-#include "merc.h"
-#include "tables.h"
+#include "../../merc.h"
+#include "../../tables.h"
 #include "json_game_settings.h"
-#include "secret.h"
+#include "../../secret.h"
 
 #define GAME_SETTINGS_JSON_FILE DATA_DIR "system/game_settings.json"
 #define GAME_SETTINGS_DAT_BACKUP DATA_DIR "system/game_settings.dat.backup"
