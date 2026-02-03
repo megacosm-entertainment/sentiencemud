@@ -522,10 +522,10 @@ WEDIT ( wedit_vlink )
             return true;
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but could not link it.\n\r", vlnum);
-    } else
+    } else {
         send_to_char("Wedit vlink unlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
     if (!str_cmp(arg, "unlink"))
@@ -545,10 +545,10 @@ WEDIT ( wedit_vlink )
             return true;
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but could not unlink it.\n\r", vlnum);
-    } else
+    } else {
         send_to_char("Wedit vlink unlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
 // VIZZWILDS - CURRENT WORK IN PROGRESS - CREATE ROUTINE ADDITION
@@ -620,10 +620,10 @@ WEDIT ( wedit_vlink )
             return true;
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-    } else
+    } else {
         send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
     if (!str_cmp(arg, "direction"))
@@ -656,10 +656,10 @@ WEDIT ( wedit_vlink )
 
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-    } else
+    } else {
         send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
     if (!str_cmp(arg, "destination"))
@@ -708,10 +708,10 @@ WEDIT ( wedit_vlink )
                 send_to_char("Wedit vlink: Invalid destination", ch);
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-    } else
+    } else {
         send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
 
@@ -745,10 +745,10 @@ WEDIT ( wedit_vlink )
                 send_to_char("Wedit vlink: Invalid location", ch);
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
-    } else
+    } else {
         send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
     if (!str_cmp(arg, "maptile"))
@@ -776,10 +776,10 @@ WEDIT ( wedit_vlink )
             return true;
         } else
             send_to_char("Wedit vlink: Invalid maptile", ch);
-    } else
+    } else {
         send_to_char("Wedit vlink: Could not find vlink. Try 'vlink show' for a list.", ch);
-
         return false;
+    }
     }
 
     if (!str_cmp(arg, "list"))

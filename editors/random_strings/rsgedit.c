@@ -39,4 +39,5 @@ RSGEDIT(rsgedit_create)
     //RANDOM_STRING *rsg;
 
     //EDIT_RSG(ch,rsg);
+    return false;
 }

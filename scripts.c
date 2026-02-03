@@ -8655,7 +8655,6 @@ static ROOM_INDEX_DATA *get_current_room_from_info(SCRIPT_VARINFO *info)
 char *script_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room)
 {
     char *rest, *rest2;
-    long vnum;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AREA_DATA *area;
@@ -8758,8 +8757,9 @@ char *script_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA *
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
                         if(!(loc = location_to_room(&area->recall))) {
-                            for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-                                if ((loc = get_room_index(area, vnum)))
+                            // Find any room in this area by iterating hash buckets
+                            for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
+                                if ((loc = area->room_index_hash[iHash]) != NULL)
                                     break;
                         }
                         break;

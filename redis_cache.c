@@ -202,7 +202,6 @@ char *redis_key(const char *prefix, const char *name, const char *suffix)
 CHAR_INFO_CACHE *char_to_info_cache(CHAR_DATA *ch)
 {
     CHAR_INFO_CACHE *info;
-    int i;
 
     if (!ch || IS_NPC(ch)) {
         return NULL;
@@ -372,7 +371,7 @@ bool redis_cache_char_info(CHAR_DATA *ch)
 
 CHAR_INFO_CACHE *redis_get_char_info(const char *name)
 {
-    redisReply *reply, *field;
+    redisReply *reply;
     char *key;
     CHAR_INFO_CACHE *info;
     char *classes_str;
@@ -1122,7 +1121,6 @@ static char *redis_persist_key(const char *type, const char *id)
 bool redis_cache_persist_data(const char *key, const char *json_str)
 {
     redisReply *reply;
-    bool result = false;
 
     if (!redis_is_available() || !key || !json_str) {
         return false;

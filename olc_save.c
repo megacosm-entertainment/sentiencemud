@@ -411,12 +411,12 @@ void save_area_new(AREA_DATA *area)
     char *basename = area->file_name;
     char *dot = strrchr(basename, '.');
     if (dot) {
-        char base[MSL];
+        char base[MSL*2];  // Double size to be safe
         strncpy(base, basename, dot - basename);
         base[dot - basename] = '\0';
-        sprintf(filename, "area/%s.json", base);
+        snprintf(filename, sizeof(filename), "area/%s.json", base);
     } else {
-        sprintf(filename, "area/%s.json", basename);
+        snprintf(filename, sizeof(filename), "area/%s.json", basename);
     }
     }
 
@@ -828,7 +828,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
     for (reset = room->reset_first; reset != NULL; reset = reset->next) {
     fprintf(fp, "#RESET %c\n", reset->command);
         fprintf(fp, "Arguments %ld %ld %ld %ld\n",
-        reset->arg1, reset->arg2, reset->arg3, reset->arg4);
+        reset->arg1.value, reset->arg2, reset->arg3.value, reset->arg4);
     fprintf(fp, "#-RESET\n");
     }
 

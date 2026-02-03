@@ -169,11 +169,22 @@ int opcmd_lookup(char *command)
  */
 void do_opdump(CHAR_DATA *ch, char *argument)
 {
-    char buf[ MAX_INPUT_LENGTH ];
     SCRIPT_DATA *oprg;
+    WNUM wnum;
 
-    one_argument(argument, buf);
-    if (!(oprg = get_script_index_global(atoi(buf), PRG_OPROG))) {
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: opdump <vnum>\n\r", ch);
+        return;
+    }
+
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    if (!(oprg = get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG))) {
         send_to_char("No such OBJprogram.\n\r", ch);
         return;
     }

@@ -1491,6 +1491,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
     int percent;
     int i = 0;
     int old_sex_val = -1;
+    (void)old_sex_val;
     
     ch->body_type = BODY_TYPE_NEUTRAL; // Default before loading
     if(ch->pcdata) ch->pcdata->verb_preference = VERB_FORM_DEFAULT;

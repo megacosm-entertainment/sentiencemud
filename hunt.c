@@ -234,9 +234,10 @@ void *hash_remove(struct hash_header *ht,int key)
       *scan	= aux->next;
       free(aux);
 
-      for(i=0;i<ht->klistlen;i++)
-    if(ht->keylist[i]==key)
-      break;
+      for(i=0;i<ht->klistlen;i++) {
+        if(ht->keylist[i]==key)
+          break;
+      }
 
       if(i<ht->klistlen)
     {

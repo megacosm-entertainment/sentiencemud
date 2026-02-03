@@ -1653,8 +1653,8 @@ bool oedit_values(CHAR_DATA *ch, char *argument, int value)
 
     if (set_value(ch, pObj, argument, value))
     {
-    if (pObj->item_type == ITEM_WEAPON)
-        set_weapon_dice(pObj);
+        if (pObj->item_type == ITEM_WEAPON)
+            set_weapon_dice(pObj);
 
         return true;
     }

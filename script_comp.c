@@ -28,7 +28,6 @@ static int compile_current_line = 0;
 
 void compile_error(char *msg)
 {
-    char buf[MSL];
     if(compile_err_buffer) {
         add_buf(compile_err_buffer,msg);
         add_buf(compile_err_buffer,"\n\r");
@@ -38,7 +37,6 @@ void compile_error(char *msg)
 
 void compile_error_show(char *msg)
 {
-    char buf[MSL];
     if(compile_err_buffer) {
         add_buf(compile_err_buffer,msg);
         add_buf(compile_err_buffer,"\n\r");
@@ -605,6 +603,7 @@ switch(ent) {
         valid_reserved = (get_reserved_mob_index(field) != NULL);
         if (valid_reserved) {
             MOB_INDEX_DATA *mob = get_reserved_mob_index(field);
+            (void)mob; // Reserved for future debugging
             //bug("Found reserved mob %s with vnum %ld", field, mob->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved mobile '%s'.", compile_current_line, field);
@@ -615,6 +614,7 @@ switch(ent) {
         valid_reserved = (get_reserved_obj_index(field) != NULL);
         if (valid_reserved) {
             OBJ_INDEX_DATA *obj = get_reserved_obj_index(field);
+            (void)obj; // Reserved for future debugging
             //bug("Found reserved object %s with vnum %d", field, obj->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved object '%s'.", compile_current_line, field);
@@ -625,6 +625,7 @@ switch(ent) {
         valid_reserved = (get_reserved_room_index(field) != NULL);
         if (valid_reserved) {
             ROOM_INDEX_DATA *room = get_reserved_room_index(field);
+            (void)room; // Reserved for future debugging
             //bug("Found reserved room %s with vnum %ld", field, room->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved room '%s'.", compile_current_line, field);
@@ -635,6 +636,7 @@ switch(ent) {
         valid_reserved = (get_reserved_area_index(field) != NULL);
         if (valid_reserved) {
             AREA_DATA *area = get_reserved_area_index(field);
+            (void)area; // Reserved for future debugging
             //bug("Found reserved area %s with uid %ld", field, area->uid);
         } else {
             sprintf(buf, "Line %d: Could not find reserved area '%s'.", compile_current_line, field);
@@ -645,6 +647,7 @@ switch(ent) {
         valid_reserved = (get_reserved_token_index(field) != NULL);
         if (valid_reserved) {
             TOKEN_INDEX_DATA *token = get_reserved_token_index(field);
+            (void)token; // Reserved for future debugging
             //bug("Found reserved token %s with vnum %ld", field, token->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved token '%s'.", compile_current_line, field);
@@ -655,6 +658,7 @@ switch(ent) {
         valid_reserved = (get_reserved_rprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_rprog_index(field);
+            (void)script; // Reserved for future debugging
             //bug("Found reserved rprog %s with vnum %ld", field, script->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved rprog '%s'.", compile_current_line, field);
@@ -665,6 +669,7 @@ switch(ent) {
         valid_reserved = (get_reserved_oprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_oprog_index(field);
+            (void)script; // Reserved for future debugging
             //bug("Found reserved oprog %s with vnum %ld", field, script->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved oprog '%s'.", compile_current_line, field);
@@ -675,6 +680,7 @@ switch(ent) {
         valid_reserved = (get_reserved_mprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_mprog_index(field);
+            (void)script; // Reserved for future debugging
             //bug("Found reserved mprog %s with vnum %ld", field, script->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved mprog '%s'.", compile_current_line, field);
@@ -685,6 +691,7 @@ switch(ent) {
         valid_reserved = (get_reserved_tprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_tprog_index(field);
+            (void)script; // Reserved for future debugging
             //bug("Found reserved tprog %s with vnum %ld", field, script->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved tprog '%s'.", compile_current_line, field);
@@ -695,6 +702,7 @@ switch(ent) {
         valid_reserved = (get_reserved_aprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_aprog_index(field);
+            (void)script; // Reserved for future debugging
             //bug("Found reserved aprog %s with vnum %ld", field, script->vnum);
         } else {
             sprintf(buf, "Line %d: Could not find reserved aprog '%s'.", compile_current_line, field);

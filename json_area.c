@@ -1439,17 +1439,9 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
     
     /* Serialize rooms */
     json_t *rooms = json_array();
-    int hash_index, hash_count;
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (ROOM_INDEX_DATA *room = area->room_index_hash[j]; room; room = room->next) {
             if (room->vnum && room->area == area) {
                 json_t *room_json = json_area_serialize_room(room);
                 if (room_json) {
@@ -1457,24 +1449,15 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "rooms", rooms);
     
     /* Serialize mobiles */
     json_t *mobiles = json_array();
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (MOB_INDEX_DATA *mob = area->mob_index_hash[hash_index]; mob; mob = mob->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (MOB_INDEX_DATA *mob = area->mob_index_hash[j]; mob; mob = mob->next) {
             if (mob->vnum && mob->area == area) {
                 json_t *mob_json = json_area_serialize_mobile(mob);
                 if (mob_json) {
@@ -1482,24 +1465,15 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "mobiles", mobiles);
     
     /* Serialize objects */
     json_t *objects = json_array();
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[hash_index]; obj; obj = obj->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[j]; obj; obj = obj->next) {
             if (obj->vnum && obj->area == area) {
                 json_t *obj_json = json_area_serialize_object(obj);
                 if (obj_json) {
@@ -1507,24 +1481,15 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "objects", objects);
     
     /* Serialize shops - shops are linked to mobiles via mob->pShop */
     json_t *shops = json_array();
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (MOB_INDEX_DATA *mob = area->mob_index_hash[hash_index]; mob; mob = mob->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (MOB_INDEX_DATA *mob = area->mob_index_hash[j]; mob; mob = mob->next) {
             if (mob->vnum && mob->area == area && mob->pShop) {
                 json_t *shop_json = json_area_serialize_shop(mob->pShop, area);
                 if (shop_json) {
@@ -1532,9 +1497,7 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     if (json_array_size(shops) > 0) {
         json_object_set_new(root, "shops", shops);
@@ -1544,16 +1507,9 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
     
     /* Serialize tokens */
     json_t *tokens = json_array();
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (TOKEN_INDEX_DATA *token = area->token_index_hash[hash_index]; token; token = token->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (TOKEN_INDEX_DATA *token = area->token_index_hash[j]; token; token = token->next) {
             if (token->vnum && token->area == area) {
                 json_t *token_json = json_area_serialize_token(token);
                 if (token_json) {
@@ -1561,9 +1517,7 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     if (json_array_size(tokens) > 0) {
         json_object_set_new(root, "tokens", tokens);
@@ -1608,17 +1562,9 @@ bool json_area_save(AREA_DATA *area)
     
     /* Serialize rooms */
     json_t *rooms = json_array();
-    int hash_index, hash_count;
-    if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-        hash_index = 0;
-        hash_count = MAX_KEY_HASH;
-    } else {
-        hash_index = area->min_vnum % MAX_KEY_HASH;
-        hash_count = area->max_vnum - area->min_vnum + 1;
-    }
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (ROOM_INDEX_DATA *room = area->room_index_hash[j]; room; room = room->next) {
             if (room->vnum && room->area == area) {
                 json_t *room_json = json_area_serialize_room(room);
                 if (room_json) {
@@ -1626,19 +1572,15 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "rooms", rooms);
     
     /* Serialize mobiles */
     json_t *mobiles = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (MOB_INDEX_DATA *mob = area->mob_index_hash[hash_index]; mob; mob = mob->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (MOB_INDEX_DATA *mob = area->mob_index_hash[j]; mob; mob = mob->next) {
             if (mob->vnum && mob->area == area) {
                 json_t *mob_json = json_area_serialize_mobile(mob);
                 if (mob_json) {
@@ -1646,19 +1588,15 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "mobiles", mobiles);
     
     /* Serialize objects */
     json_t *objects = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[hash_index]; obj; obj = obj->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[j]; obj; obj = obj->next) {
             if (obj->vnum && obj->area == area) {
                 json_t *obj_json = json_area_serialize_object(obj);
                 if (obj_json) {
@@ -1666,19 +1604,15 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "objects", objects);
     
     /* Serialize tokens */
     json_t *tokens = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (TOKEN_INDEX_DATA *token = area->token_index_hash[hash_index]; token; token = token->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (TOKEN_INDEX_DATA *token = area->token_index_hash[j]; token; token = token->next) {
             if (token->vnum && token->area == area) {
                 json_t *token_json = json_area_serialize_token(token);
                 if (token_json) {
@@ -1686,19 +1620,15 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     json_object_set_new(root, "tokens", tokens);
     
     /* Serialize blueprints */
     json_t *blueprints = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (BLUEPRINT *blueprint = area->blueprint_hash[hash_index]; blueprint; blueprint = blueprint->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (BLUEPRINT *blueprint = area->blueprint_hash[j]; blueprint; blueprint = blueprint->next) {
             if (blueprint->vnum && blueprint->area == area) {
                 json_t *blueprint_json = json_area_serialize_blueprint(blueprint, area);
                 if (blueprint_json) {
@@ -1706,9 +1636,7 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     if (json_array_size(blueprints) > 0)
         json_object_set_new(root, "blueprints", blueprints);
@@ -1717,11 +1645,9 @@ bool json_area_save(AREA_DATA *area)
     
     /* Serialize blueprint sections */
     json_t *blueprint_sections = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (BLUEPRINT_SECTION *section = area->blueprint_section_hash[hash_index]; section; section = section->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (BLUEPRINT_SECTION *section = area->blueprint_section_hash[j]; section; section = section->next) {
             if (section->vnum && section->area == area) {
                 json_t *section_json = json_area_serialize_blueprint_section(section, area);
                 if (section_json) {
@@ -1729,9 +1655,7 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     if (json_array_size(blueprint_sections) > 0)
         json_object_set_new(root, "blueprint_sections", blueprint_sections);
@@ -1740,11 +1664,9 @@ bool json_area_save(AREA_DATA *area)
     
     /* Serialize dungeons */
     json_t *dungeons = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (DUNGEON_INDEX_DATA *dungeon = area->dungeon_index_hash[hash_index]; dungeon; dungeon = dungeon->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (DUNGEON_INDEX_DATA *dungeon = area->dungeon_index_hash[j]; dungeon; dungeon = dungeon->next) {
             if (dungeon->vnum && dungeon->area == area) {
                 json_t *dungeon_json = json_area_serialize_dungeon(dungeon, area);
                 if (dungeon_json) {
@@ -1752,9 +1674,7 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     if (json_array_size(dungeons) > 0)
         json_object_set_new(root, "dungeons", dungeons);
@@ -1763,11 +1683,9 @@ bool json_area_save(AREA_DATA *area)
     
     /* Serialize ships */
     json_t *ships = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-    
-    for (int j = 0; j < hash_count; j++) {
-        for (SHIP_INDEX_DATA *ship = area->ship_index_hash[hash_index]; ship; ship = ship->next) {
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (SHIP_INDEX_DATA *ship = area->ship_index_hash[j]; ship; ship = ship->next) {
             if (ship->vnum && ship->area == area) {
                 json_t *ship_json = json_area_serialize_ship(ship, area);
                 if (ship_json) {
@@ -1775,9 +1693,7 @@ bool json_area_save(AREA_DATA *area)
                 }
             }
         }
-        
-        if (++hash_index == MAX_KEY_HASH)
-            hash_index = 0;
+
     }
     if (json_array_size(ships) > 0)
         json_object_set_new(root, "ships", ships);
@@ -1794,45 +1710,50 @@ bool json_area_save(AREA_DATA *area)
     json_t *iprogs = json_array();
     json_t *dprogs = json_array();
     
-    /* Iterate through all possible vnums in area range */
-    for (long vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-        SCRIPT_DATA *script;
-        json_t *script_json;
-        
-        if ((script = get_script_index(area, vnum, PRG_MPROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(mobprogs, script_json);
-        }
-        
-        if ((script = get_script_index(area, vnum, PRG_OPROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(oprogs, script_json);
-        }
-        
-        if ((script = get_script_index(area, vnum, PRG_RPROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(rprogs, script_json);
-        }
-        
-        if ((script = get_script_index(area, vnum, PRG_TPROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(tprogs, script_json);
-        }
-        
-        if ((script = get_script_index(area, vnum, PRG_APROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(aprogs, script_json);
-        }
-        
-        if ((script = get_script_index(area, vnum, PRG_IPROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(iprogs, script_json);
-        }
-        
-        if ((script = get_script_index(area, vnum, PRG_DPROG))) {
-            script_json = json_area_serialize_script(script);
-            if (script_json) json_array_append_new(dprogs, script_json);
-        }
+    /* Iterate through script linked lists directly */
+    SCRIPT_DATA *script;
+    json_t *script_json;
+    
+    // MOBprogs
+    for (script = area->mprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(mobprogs, script_json);
+    }
+    
+    // OBJprogs
+    for (script = area->oprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(oprogs, script_json);
+    }
+    
+    // ROOMprogs
+    for (script = area->rprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(rprogs, script_json);
+    }
+    
+    // TOKENprogs
+    for (script = area->tprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(tprogs, script_json);
+    }
+    
+    // AREAprogs
+    for (script = area->aprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(aprogs, script_json);
+    }
+    
+    // INSTANCEprogs
+    for (script = area->iprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(iprogs, script_json);
+    }
+    
+    // DUNGEONprogs
+    for (script = area->dprog_list; script; script = script->next) {
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(dprogs, script_json);
     }
     
     /* Only save script sections if they have content */
@@ -1920,59 +1841,54 @@ char *json_area_serialize_to_string(AREA_DATA *area)
 
     /* Serialize rooms */
     json_t *rooms = json_array();
-    int hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    int hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-
-    for (int j = 0; j < hash_count; j++) {
-        for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
+    
+    // Always iterate through all hash buckets to catch widevnum entities
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (ROOM_INDEX_DATA *room = area->room_index_hash[j]; room; room = room->next) {
             if (room->vnum && room->area == area) {
                 json_t *room_json = json_area_serialize_room(room);
                 if (room_json) json_array_append_new(rooms, room_json);
             }
         }
-        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
     }
     json_object_set_new(root, "rooms", rooms);
 
     /* Serialize mobiles */
     json_t *mobiles = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    for (int j = 0; j < hash_count; j++) {
-        for (MOB_INDEX_DATA *mob = area->mob_index_hash[hash_index]; mob; mob = mob->next) {
+    
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (MOB_INDEX_DATA *mob = area->mob_index_hash[j]; mob; mob = mob->next) {
             if (mob->vnum && mob->area == area) {
                 json_t *mob_json = json_area_serialize_mobile(mob);
                 if (mob_json) json_array_append_new(mobiles, mob_json);
             }
         }
-        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
     }
     json_object_set_new(root, "mobiles", mobiles);
 
     /* Serialize objects */
     json_t *objects = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    for (int j = 0; j < hash_count; j++) {
-        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[hash_index]; obj; obj = obj->next) {
+    
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (OBJ_INDEX_DATA *obj = area->obj_index_hash[j]; obj; obj = obj->next) {
             if (obj->vnum && obj->area == area) {
                 json_t *obj_json = json_area_serialize_object(obj);
                 if (obj_json) json_array_append_new(objects, obj_json);
             }
         }
-        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
     }
     json_object_set_new(root, "objects", objects);
 
     /* Serialize tokens */
     json_t *tokens = json_array();
-    hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-    for (int j = 0; j < hash_count; j++) {
-        for (TOKEN_INDEX_DATA *token = area->token_index_hash[hash_index]; token; token = token->next) {
+    
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (TOKEN_INDEX_DATA *token = area->token_index_hash[j]; token; token = token->next) {
             if (token->vnum && token->area == area) {
                 json_t *token_json = json_area_serialize_token(token);
                 if (token_json) json_array_append_new(tokens, token_json);
             }
         }
-        if (++hash_index == MAX_KEY_HASH) hash_index = 0;
     }
     if (json_array_size(tokens) > 0) {
         json_object_set_new(root, "tokens", tokens);
@@ -2961,7 +2877,7 @@ SCRIPT_DATA *json_area_deserialize_script(json_t *json, AREA_DATA *area, int typ
     /* Flags */
     const char *flags_str = json_get_string_default(json, "flags", "");
     if (flags_str && flags_str[0] != '\0') {
-        long value = flag_value(script_flags, flags_str);
+        long value = flag_value(script_flags, (char *)flags_str);
         script->flags = (value != NO_FLAG) ? value : 0;
     }
     
@@ -4591,7 +4507,7 @@ void fix_shops(void)
         }
         
         for (int j = 0; j < hash_count; j++) {
-            for (MOB_INDEX_DATA *mob = area->mob_index_hash[hash_index]; mob; mob = mob->next) {
+            for (MOB_INDEX_DATA *mob = area->mob_index_hash[j]; mob; mob = mob->next) {
                 if (mob->vnum && mob->pShop) {
                     for (SHOP_STOCK_DATA *stock = mob->pShop->stock; stock; stock = stock->next) {
                         switch (stock->type) {

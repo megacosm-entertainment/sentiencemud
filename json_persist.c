@@ -2138,7 +2138,6 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
     json_t *value, *array, *elem;
     const char *room_type;
     size_t index;
-    int i;
 
     if (!json) return NULL;
 

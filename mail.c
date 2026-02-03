@@ -685,8 +685,8 @@ void write_mail(void)
     if (mail->message != NULL)
         fprintf(fp, "Message %s~\n\n", fix_string(mail->message));
 
-        if (mail->objects != NULL)
-       fwrite_obj_new(NULL, mail->objects, fp, 0);
+    if (mail->objects != NULL)
+        fwrite_obj_new(NULL, mail->objects, fp, 0);
 
     fprintf(fp, "#END\n\n"); // end objects
     }
@@ -1045,8 +1045,8 @@ void obj_from_mail(OBJ_DATA *obj)
 
     for (temp = mail->objects; temp != NULL; temp = temp->next_content)
     {
-    if (temp == obj)
-        break;
+        if (temp == obj)
+            break;
 
         obj_prev = temp;
     }

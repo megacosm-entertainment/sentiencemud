@@ -194,7 +194,7 @@ static bool perform_cache_dump(ASYNC_CACHE_JOB *job)
     CHAR_INFO_CACHE *info;
     json_t *json_char, *json_meta;
     char json_path[512];
-    char tmp_path[512];
+    char tmp_path[520];  // +8 for ".tmp" suffix and null terminator
     int result;
 
     // Get character info from Redis cache

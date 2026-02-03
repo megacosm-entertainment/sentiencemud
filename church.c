@@ -2411,10 +2411,10 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 
         /* Top edge*/
     add_buf(buffer, "{b.");
-    for (x = 0; x < box_width; x++)
+    for (x = 0; x < box_width; x++) {
         add_buf(buffer, "-");
-
-        add_buf(buffer, ".{x\n\r");
+    }
+    add_buf(buffer, ".{x\n\r");
 
     /* Blank line*/
     add_buf(buffer, "{b|");
@@ -2522,10 +2522,10 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 
     /* Bottom edge*/
     add_buf(buffer, "{b``");
-    for (x = 0; x < box_width; x++)
+    for (x = 0; x < box_width; x++) {
         add_buf(buffer, "-");
-
-        add_buf(buffer, "'{x\n\r");
+    }
+    add_buf(buffer, "'{x\n\r");
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -4717,7 +4717,7 @@ if (!list_appendlink(list_churches, church)) {
                 log_string(formatf("Migrating church %s to JSON format", church->name));
                 save_church_json(church);
                 
-                char archive_name[512];
+                char archive_name[520];  // filename is 512, +8 for ".old" suffix
                 snprintf(archive_name, sizeof(archive_name), "%s.old", filename);
                 rename(filename, archive_name);
             }

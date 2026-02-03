@@ -124,6 +124,7 @@ static void telnet_process_input(protocol_layer_t *proto,
                                 char *out_buf, int out_size)
 {
     protocol_telnet_t *telnet_proto = (protocol_telnet_t*)proto;
+    (void)telnet_proto; // Reserved for future use
 
     // Use existing ProtocolInput from protocol.c
     // This handles telnet IAC sequences, MSDP, etc.
@@ -138,6 +139,7 @@ static const char* telnet_process_output(protocol_layer_t *proto,
                                         const char *output, int *out_len)
 {
     protocol_telnet_t *telnet_proto = (protocol_telnet_t*)proto;
+    (void)telnet_proto; // Reserved for future use
 
     // Use existing ProtocolOutput from protocol.c
     // This handles color codes, MXP, MSP, etc.
@@ -150,6 +152,7 @@ static const char* telnet_process_output(protocol_layer_t *proto,
 static void telnet_negotiate(protocol_layer_t *proto)
 {
     protocol_telnet_t *telnet_proto = (protocol_telnet_t*)proto;
+    (void)telnet_proto; // Reserved for future use
 
     // Use existing ProtocolNegotiate from protocol.c
     // This sends telnet IAC sequences to negotiate options
@@ -164,12 +167,14 @@ static void telnet_send_mxp_variable(protocol_layer_t *proto,
                                     bool is_number)
 {
     protocol_telnet_t *telnet_proto = (protocol_telnet_t*)proto;
+    (void)telnet_proto; // Reserved for future use
 
     // Use existing MSDP functions from protocol.c
     if (is_number) {
         // For MSDP, we need to convert string back to int
         // This is a bit awkward - in the future we should pass int directly
         int int_value = atoi(value);
+        (void)int_value; // Reserved for future use
         // Look up variable enum by name (simplified - real implementation
         // would need a lookup table)
         // For now, just use MSDPSendPair which works for both
@@ -185,6 +190,7 @@ static void telnet_send_mxp_variable(protocol_layer_t *proto,
 static void telnet_set_echo(protocol_layer_t *proto, bool echo_on)
 {
     protocol_telnet_t *telnet_proto = (protocol_telnet_t*)proto;
+    (void)telnet_proto; // Reserved for future use
 
     // Use existing ProtocolNoEcho from protocol.c
     ProtocolNoEcho(proto->descriptor, !echo_on);

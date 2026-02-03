@@ -1271,7 +1271,6 @@ void do_olc(CHAR_DATA *ch, char *argument)
 void do_tedit(CHAR_DATA *ch, char *argument)
 {
     TOKEN_INDEX_DATA *token_index = NULL;
-    int value;
     char arg[MAX_STRING_LENGTH];
 
     if (IS_NPC(ch))
@@ -2154,7 +2153,7 @@ void display_resets(CHAR_DATA *ch)
         }
         else
         sprintf(buf,
-            "O[%s] %-13.13s %-19.19s M[%s]       %-15.15s\n\r",
+            "O[%s] %-13.13s %-19.19s M[%ld]       %-15.15s\n\r",
             widevnum_string_object(pObjIndex, pArea),
             pObj->short_descr,
             (pReset->command == 'G') ?
@@ -3303,7 +3302,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     bool range = false;
-    long vnum;
+    (void)range;
     long vnum_min;
     long vnum_max;
     int col = 0;
@@ -3311,52 +3310,82 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    if (arg[0] != '\0' && arg2[0] != '\0')
-        range = true;
-
-    if (range && (!is_number(arg) || !is_number (arg2)))
+    // Parse target area and vnum range
+    if (arg[0] == '\0')
     {
-    send_to_char("Syntax: rlist\n\r"
-             "        rlist [min vnum] [max vnum]\n\r", ch);
-    return;
+        // No args - use current area's full range
+        pArea = ch->in_room->area;
+        vnum_min = pArea->min_vnum;
+        vnum_max = pArea->max_vnum;
     }
-
-    pArea = ch->in_room->area;
-
-    if (range)
+    else if (arg2[0] == '\0')
     {
-    vnum_min = atoi(arg);
-    vnum_max = atoi(arg2);
-
-    if (vnum_min < pArea->min_vnum)
-    {
-        send_to_char("Minimum vnum is not in the area.\n\r" , ch);
-        return;
-    }
-
-    if (vnum_max > pArea->max_vnum)
-    {
-        send_to_char("Maximum vnum is not in the area.\n\r", ch);
-        return;
-    }
+        // One arg - could be area name or error
+        if ((pArea = find_area(arg)))
+        {
+            // Area name specified
+            vnum_min = pArea->min_vnum;
+            vnum_max = pArea->max_vnum;
+        }
+        else
+        {
+            send_to_char("Syntax: rlist\n\r"
+                         "        rlist <area name>\n\r"
+                         "        rlist <min vnum> <max vnum>\n\r"
+                         "        rlist <area#min> <area#max>\n\r", ch);
+            return;
+        }
     }
     else
     {
-    vnum_min = pArea->min_vnum;
-    vnum_max = pArea->max_vnum;
+        // Two args - vnum range (possibly with area prefix)
+        WNUM wnum_min, wnum_max;
+        AREA_DATA *context = ch->in_room->area;
+        
+        if (!parse_widevnum(arg, context, &wnum_min) || !wnum_min.pArea)
+        {
+            send_to_char("Invalid minimum vnum format.\n\r", ch);
+            return;
+        }
+        
+        if (!parse_widevnum(arg2, context, &wnum_max) || !wnum_max.pArea)
+        {
+            send_to_char("Invalid maximum vnum format.\n\r", ch);
+            return;
+        }
+        
+        if (wnum_min.pArea != wnum_max.pArea)
+        {
+            send_to_char("Vnum range must be within the same area.\n\r", ch);
+            return;
+        }
+        
+        pArea = wnum_min.pArea;
+        vnum_min = wnum_min.vnum;
+        vnum_max = wnum_max.vnum;
+        
+        if (vnum_min > vnum_max)
+        {
+            long tmp = vnum_min;
+            vnum_min = vnum_max;
+            vnum_max = tmp;
+        }
+        
+        range = true;
     }
 
     buf1  = new_buf();
 
-    for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
+    // Iterate through all hash buckets to catch widevnum entities
+    for (int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-    if ((pRoomIndex = get_room_index(pArea, vnum)) != NULL
-    && vnum >= vnum_min
-    && vnum <= vnum_max)
+    for (pRoomIndex = pArea->room_index_hash[iHash]; pRoomIndex != NULL; pRoomIndex = pRoomIndex->next)
+    {
+    if (pRoomIndex->vnum >= vnum_min && pRoomIndex->vnum <= vnum_max)
     {
         char *noc;
         noc = nocolour(pRoomIndex->name);
-        sprintf(buf, "[%5ld] %-17.16s", vnum, noc);
+        sprintf(buf, "[%5ld] %-17.16s", pRoomIndex->vnum, noc);
         free_string(noc);
         if (!add_buf(buf1, buf))
         {
@@ -3373,6 +3402,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
             return;
         }
         }
+    }
     }
     }
 
@@ -3393,24 +3423,37 @@ void do_mlist(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     bool fAll;
     bool found;
-    long vnum;
     int col = 0;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg);
+    
     if (arg[0] == '\0')
     {
-    send_to_char("Syntax:  mlist <all|name>\n\r", ch);
-    return;
+        send_to_char("Syntax:  mlist <all|name>\n\r"
+                     "         mlist <area name> <all|name>\n\r", ch);
+        return;
+    }
+
+    // Check if first argument is an area name
+    if ((pArea = find_area(arg)) && argument[0] != '\0')
+    {
+        // Area specified, get the filter from next arg
+        argument = one_argument(argument, arg);
+    }
+    else
+    {
+        // No area specified, use current area
+        pArea = ch->in_room->area;
     }
 
     buf1  = new_buf();
-    pArea = ch->in_room->area;
     fAll  = !str_cmp(arg, "all");
     found = false;
 
-    for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
+    // Iterate through all hash buckets to catch widevnum entities
+    for (int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-    if ((pMobIndex = get_mob_index(pArea, vnum)) != NULL)
+    for (pMobIndex = pArea->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next)
     {
         if (fAll || is_name(arg, pMobIndex->player_name))
         {
@@ -3469,40 +3512,45 @@ void do_olist(CHAR_DATA *ch, char *argument)
     AREA_DATA *pArea;
     BUFFER *buf1;
     char buf[MAX_STRING_LENGTH];
-    //char buf2[MSL];
     char arg[MAX_INPUT_LENGTH];
     bool fAll, found;
-    long vnum;
     int col = 0;
     int max;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg);
+    
     if (arg[0] == '\0')
     {
-    send_to_char("Syntax:  olist <all|name|item_type>\n\r", ch);
-    return;
+        send_to_char("Syntax:  olist <all|name|item_type>\n\r"
+                     "         olist <area name> <all|name|item_type>\n\r", ch);
+        return;
     }
 
-    pArea = ch->in_room->area;
+    // Check if first argument is an area name
+    if ((pArea = find_area(arg)) && argument[0] != '\0')
+    {
+        // Area specified, get the filter from next arg
+        argument = one_argument(argument, arg);
+    }
+    else
+    {
+        // No area specified, use current area
+        pArea = ch->in_room->area;
+    }
+
     buf1  = new_buf();
     fAll  = !str_cmp(arg, "all");
     found = false;
 
-    for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
+    // Iterate through all hash buckets to catch widevnum entities
+    for (int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-    if ((pObjIndex = get_obj_index(pArea, vnum)))
+    for (pObjIndex = pArea->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next)
     {
         if (fAll || is_name(arg, pObjIndex->name)
         || flag_value(type_flags, arg) == pObjIndex->item_type)
         {
-        found = true;/*
-        sprintf(buf2, "%s", pObjIndex->short_descr);
-        if ((i = (17 - strlen_no_colours(buf2))) > 0) {
-           while (i > 0) {
-               strcat(buf2, " ");
-               i--;
-           }
-        }*/
+        found = true;
         max = strlen_colours_limit(pObjIndex->short_descr,16) + 17;
         sprintf(buf, "{x[%5ld] %-*.*s{x",
             pObjIndex->vnum, max, max - 1, pObjIndex->short_descr);
@@ -3522,9 +3570,6 @@ void do_olist(CHAR_DATA *ch, char *argument)
     if (col % 3 != 0)
     add_buf(buf1, "\n\r");
 
-//	sprintf(buf,"%d\n\r",strlen(buf1->string));
-//	send_to_char(buf,ch);
-
     page_to_char(buf_string(buf1), ch);
     free_buf(buf1);
     return;
@@ -3535,7 +3580,7 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 {
     MOB_INDEX_DATA *pMob;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -3543,16 +3588,13 @@ void do_mshow(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-       send_to_char("Vnum must be a number.\n\r", ch);
+       send_to_char("Invalid vnum format.\n\r", ch);
        return;
     }
 
-    value = atol(argument);
-    AREA_DATA *mob_area = find_area_by_vnum(value, NULL);
-    if (!mob_area) mob_area = get_system_area_fallback();
-    if (!(pMob = get_mob_index(mob_area, value)))
+    if (!(pMob = get_mob_index(wnum.pArea, wnum.vnum)))
     {
        send_to_char("That mobile does not exist.\n\r", ch);
        return;
@@ -3571,7 +3613,7 @@ void do_oshow(CHAR_DATA *ch, char *argument)
 {
     OBJ_INDEX_DATA *pObj;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -3579,16 +3621,13 @@ void do_oshow(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-       send_to_char("Vnum must be a number.\n\r", ch);
+       send_to_char("Invalid vnum format.\n\r", ch);
        return;
     }
 
-    value = atol(argument);
-    AREA_DATA *obj_area = find_area_by_vnum(value, NULL);
-    if (!obj_area) obj_area = get_system_area_fallback();
-    if (!(pObj = get_obj_index(obj_area, value)))
+    if (!(pObj = get_obj_index(wnum.pArea, wnum.vnum)))
     {
     send_to_char("That object does not exist.\n\r", ch);
     return;
@@ -3605,7 +3644,7 @@ void do_rshow(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *pRoom, *oldRoom;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -3613,16 +3652,13 @@ void do_rshow(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-       send_to_char("Vnum must be a number.\n\r", ch);
+       send_to_char("Invalid vnum format.\n\r", ch);
        return;
     }
 
-    value = atol(argument);
-    AREA_DATA *room_area = find_area_by_vnum(value, NULL);
-    if (!room_area) room_area = get_system_area_fallback();
-    if (!(pRoom = get_room_index(room_area, value)))
+    if (!(pRoom = get_room_index(wnum.pArea, wnum.vnum)))
     {
     send_to_char("That room does not exist.\n\r", ch);
     return;
@@ -3992,7 +4028,6 @@ bool has_access_help(CHAR_DATA *ch, HELP_DATA *help)
 void do_rjunk(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
-    long vnum;
     AREA_DATA *area;
     ROOM_INDEX_DATA *room;
     bool changed = false;
@@ -4018,16 +4053,19 @@ void do_rjunk(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
+    // Iterate through all hash buckets to catch widevnum entities
+    for (int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-    if ((room = get_room_index(area, vnum)) != NULL
-    &&     !str_cmp(room->name, argument))
-    {
-        dislink_room(room);
-        free_string(room->name);
-        room->name = str_dup("Null");
-        changed = true;
-    }
+        for (room = area->room_index_hash[iHash]; room != NULL; room = room->next)
+        {
+            if (is_name(argument, room->name))
+            {
+                dislink_room(room);
+                free_string(room->name);
+                room->name = str_dup("Null");
+                changed = true;
+            }
+        }
     }
 
     if (changed)
@@ -4113,7 +4151,7 @@ void do_tshow(CHAR_DATA *ch, char *argument)
 {
     TOKEN_INDEX_DATA *token_index;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -4121,16 +4159,13 @@ void do_tshow(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-       send_to_char("Vnum must be a number.\n\r", ch);
+       send_to_char("Invalid vnum format.\n\r", ch);
        return;
     }
 
-    value = atol(argument);
-    AREA_DATA *token_area = find_area_by_vnum(value, NULL);
-    if (!token_area) token_area = get_system_area_fallback();
-    if (!(token_index = get_token_index(token_area, value)))
+    if (!(token_index = get_token_index(wnum.pArea, wnum.vnum)))
     {
     send_to_char("That token does not exist.\n\r", ch);
     return;
@@ -4151,30 +4186,53 @@ void do_tlist(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     bool fAll, found;
-    long vnum;
     int col = 0;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-    pArea = ch->in_room->area;
+    // Check if first argument is an area name
+    if (arg[0] != '\0' && (pArea = find_area(arg)) && argument[0] != '\0')
+    {
+        // Area specified, get the filter from next arg
+        argument = one_argument(argument, arg);
+    }
+    else if (arg[0] != '\0' && !find_area(arg))
+    {
+        // Arg is not an area name, use as filter with current area
+        pArea = ch->in_room->area;
+    }
+    else if (arg[0] != '\0' && find_area(arg) && argument[0] == '\0')
+    {
+        // Only area name given, no filter - show all
+        pArea = find_area(arg);
+        arg[0] = '\0';
+    }
+    else
+    {
+        // No args at all
+        pArea = ch->in_room->area;
+    }
+
     buf1  = new_buf();
     fAll  = arg[0] == '\0';
     found = false;
 
-    for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
+    // Iterate through token_index_hash
+    int iHash;
+    for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-    if ((token_index = get_token_index(pArea, vnum)))
-    {
-        if (fAll || is_name(arg, token_index->name))
+        for (token_index = pArea->token_index_hash[iHash]; token_index != NULL; token_index = token_index->next)
         {
-        found = true;
-        sprintf(buf, "{Y[{x%5ld{Y]{x %-17.16s{x",
-            token_index->vnum, token_index->name);
-        add_buf(buf1, buf);
-        if (++col % 3 == 0)
-            add_buf(buf1, "\n\r");
+            if (fAll || is_name(arg, token_index->name))
+            {
+                found = true;
+                sprintf(buf, "{Y[{x%5ld{Y]{x %-17.16s{x",
+                    token_index->vnum, token_index->name);
+                add_buf(buf1, buf);
+                if (++col % 3 == 0)
+                    add_buf(buf1, "\n\r");
+            }
         }
-    }
     }
 
     if (!found)
@@ -4335,6 +4393,7 @@ void socialedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
     int cmd;
     struct social_type *social;
+    (void)social;
 
     smash_tilde(argument);
     strcpy(arg, argument);

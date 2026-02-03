@@ -1451,7 +1451,6 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     OBJ_DATA *obj;
     OBJ_INDEX_DATA *pObjIndex;
     json_t *value, *array_elem;
-    const char *str;
     long vnum;
     int i;
     size_t index;
@@ -1744,7 +1743,6 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     json_t *value, *array_elem;
     const char *str;
     size_t index;
-    int i;
     struct timeval start_time, end_time;
     long total_ms;
 

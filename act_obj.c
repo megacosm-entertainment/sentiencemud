@@ -1963,11 +1963,11 @@ void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver)
     act("{R$n tells you 'I'm sorry, you did not give me enough to change.{x'", changer, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     else
     {
-    if (gold && changer->silver < change)
-        changer->silver = change;
+        if (gold && changer->silver < change)
+            changer->silver = change;
 
         if (silver && changer->gold < change)
-        changer->gold = change;
+            changer->gold = change;
 
     sprintf(buf,"%ld %s %s", change, gold ? "silver" : "gold", ch->name);
     do_function(changer, &do_give, buf);
@@ -8576,7 +8576,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     spell->level = ch->tot_level/2;
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
         spell->level += ch->tot_level/3;
-        spell->next = scroll->spells;
+    spell->next = scroll->spells;
     scroll->spells = spell;
 
     spell = new_spell();
@@ -8584,7 +8584,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     spell->level = ch->tot_level/2;
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
         spell->level += ch->tot_level/3;
-        spell->next = scroll->spells;
+    spell->next = scroll->spells;
     scroll->spells = spell;
     }
     else
@@ -8594,7 +8594,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     spell->level = ch->tot_level/3;
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
         spell->level += ch->tot_level/4;
-        spell->next = scroll->spells;
+    spell->next = scroll->spells;
     scroll->spells = spell;
 
     spell = new_spell();
@@ -8602,7 +8602,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     spell->level = ch->tot_level/3;
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
         spell->level += ch->tot_level/4;
-        spell->next = scroll->spells;
+    spell->next = scroll->spells;
     scroll->spells = spell;
 
     spell = new_spell();
@@ -8610,7 +8610,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     spell->level = ch->tot_level/3;
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
         spell->level += ch->tot_level/4;
-        spell->next = scroll->spells;
+    spell->next = scroll->spells;
     scroll->spells = spell;
     }
 

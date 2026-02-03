@@ -753,6 +753,7 @@ int gconfig_write(void)
  *
  * @return 0 on success, 1 on failure
  */
+#if 0  // Unused - kept for reference
 static int game_settings_write_dat(void)
 {
     FILE *fp;
@@ -953,6 +954,7 @@ static int game_settings_write_dat(void)
     fclose(fp);
     return(0); /* Success*/
 }
+#endif  // Unused function
 
 /**
  * game_settings_write - Save game settings in JSON format
@@ -3964,8 +3966,12 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     send_to_char("Syntax:\n\r",ch);
     send_to_char("  vnum obj <name>\n\r",ch);
     send_to_char("  vnum mob <name>\n\r",ch);
-    send_to_char("	vnum token <name>\n\r", ch);
-    //send_to_char("  vnum skill <skill or spell>\n\r",ch);
+    send_to_char("  vnum token <name>\n\r", ch);
+    send_to_char("  vnum room <name>\n\r", ch);
+    send_to_char("  vnum blueprint <name>\n\r", ch);
+    send_to_char("  vnum section <name>\n\r", ch);
+    send_to_char("  vnum dungeon <name>\n\r", ch);
+    send_to_char("  vnum ship <name>\n\r", ch);
     return;
     }
 
@@ -3987,20 +3993,53 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    /*
-    if (!str_cmp(arg,"skill") || !str_cmp(arg,"spell"))
+    if (!str_cmp(arg, "room"))
     {
-    do_function (ch, &do_slookup, string);
+    do_function(ch, &do_rfind, string);
     return;
     }
-    */
-    /* do both */
+
+    if (!str_cmp(arg, "blueprint") || !str_cmp(arg, "bp"))
+    {
+    do_function(ch, &do_bpfind, string);
+    return;
+    }
+
+    if (!str_cmp(arg, "section") || !str_cmp(arg, "bs") || !str_cmp(arg, "sect"))
+    {
+    do_function(ch, &do_bsfind, string);
+    return;
+    }
+
+    if (!str_cmp(arg, "dungeon") || !str_cmp(arg, "dng"))
+    {
+    do_function(ch, &do_dngfind, string);
+    return;
+    }
+
+    if (!str_cmp(arg, "ship") || !str_cmp(arg, "sh"))
+    {
+    do_function(ch, &do_shfind, string);
+    return;
+    }
+
+    /* do all */
     send_to_char("Mobiles:\n\r",ch);
     do_function(ch, &do_mfind, argument);
     send_to_char("\n\rObjects:\n\r",ch);
     do_function(ch, &do_ofind, argument);
     send_to_char("\n\rTokens:\n\r", ch);
     do_function(ch, &do_tfind, argument);
+    send_to_char("\n\rRooms:\n\r", ch);
+    do_function(ch, &do_rfind, argument);
+    send_to_char("\n\rBlueprints:\n\r", ch);
+    do_function(ch, &do_bpfind, argument);
+    send_to_char("\n\rBlueprint Sections:\n\r", ch);
+    do_function(ch, &do_bsfind, argument);
+    send_to_char("\n\rDungeons:\n\r", ch);
+    do_function(ch, &do_dngfind, argument);
+    send_to_char("\n\rShips:\n\r", ch);
+    do_function(ch, &do_shfind, argument);
 }
 
 
@@ -4170,6 +4209,281 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 
     if (!found)
     send_to_char("No tokens by that name.\n\r", ch);
+}
+
+/**
+ * do_rfind - Find room indexes by name
+ *
+ * Searches all room index entries for matches to the given name.
+ * Lists all matching vnums and room names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
+void do_rfind(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    ROOM_INDEX_DATA *pRoomIndex;
+    AREA_DATA *area;
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+    send_to_char("Find what?\n\r", ch);
+    return;
+    }
+
+    if (strlen(arg) < 2) {
+    send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+    return;
+    }
+
+    fAll	= false;
+    found	= false;
+    nMatch	= 0;
+
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's room index hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (pRoomIndex = area->room_index_hash[iHash]; pRoomIndex != NULL; pRoomIndex = pRoomIndex->next) {
+                nMatch++;
+                if (fAll || is_name(argument, pRoomIndex->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        pRoomIndex->area->uid, pRoomIndex->vnum, pRoomIndex->name);
+                    send_to_char(buf, ch);
+                }
+            }
+        }
+    }
+
+    if (!found)
+    send_to_char("No rooms by that name.\n\r", ch);
+}
+
+/**
+ * do_bpfind - Find blueprint indexes by name
+ *
+ * Searches all blueprint entries for matches to the given name.
+ * Lists all matching vnums and names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
+void do_bpfind(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    BLUEPRINT *bp;
+    AREA_DATA *area;
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+    send_to_char("Find what?\n\r", ch);
+    return;
+    }
+
+    if (strlen(arg) < 2) {
+    send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+    return;
+    }
+
+    fAll	= false;
+    found	= false;
+    nMatch	= 0;
+
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's blueprint hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (bp = area->blueprint_hash[iHash]; bp != NULL; bp = bp->next) {
+                nMatch++;
+                if (fAll || is_name(argument, bp->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        bp->area->uid, bp->vnum, bp->name);
+                    send_to_char(buf, ch);
+                }
+            }
+        }
+    }
+
+    if (!found)
+    send_to_char("No blueprints by that name.\n\r", ch);
+}
+
+/**
+ * do_bsfind - Find blueprint section indexes by name
+ *
+ * Searches all blueprint section entries for matches to the given name.
+ * Lists all matching vnums and names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
+void do_bsfind(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    BLUEPRINT_SECTION *bs;
+    AREA_DATA *area;
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+    send_to_char("Find what?\n\r", ch);
+    return;
+    }
+
+    if (strlen(arg) < 2) {
+    send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+    return;
+    }
+
+    fAll	= false;
+    found	= false;
+    nMatch	= 0;
+
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's blueprint section hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (bs = area->blueprint_section_hash[iHash]; bs != NULL; bs = bs->next) {
+                nMatch++;
+                if (fAll || is_name(argument, bs->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        bs->area->uid, bs->vnum, bs->name);
+                    send_to_char(buf, ch);
+                }
+            }
+        }
+    }
+
+    if (!found)
+    send_to_char("No blueprint sections by that name.\n\r", ch);
+}
+
+/**
+ * do_dngfind - Find dungeon indexes by name
+ *
+ * Searches all dungeon index entries for matches to the given name.
+ * Lists all matching vnums and names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
+void do_dngfind(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    DUNGEON_INDEX_DATA *dng;
+    AREA_DATA *area;
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+    send_to_char("Find what?\n\r", ch);
+    return;
+    }
+
+    if (strlen(arg) < 2) {
+    send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+    return;
+    }
+
+    fAll	= false;
+    found	= false;
+    nMatch	= 0;
+
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's dungeon index hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (dng = area->dungeon_index_hash[iHash]; dng != NULL; dng = dng->next) {
+                nMatch++;
+                if (fAll || is_name(argument, dng->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        dng->area->uid, dng->vnum, dng->name);
+                    send_to_char(buf, ch);
+                }
+            }
+        }
+    }
+
+    if (!found)
+    send_to_char("No dungeons by that name.\n\r", ch);
+}
+
+/**
+ * do_shfind - Find ship indexes by name
+ *
+ * Searches all ship index entries for matches to the given name.
+ * Lists all matching vnums and names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
+void do_shfind(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    SHIP_INDEX_DATA *ship;
+    AREA_DATA *area;
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+    send_to_char("Find what?\n\r", ch);
+    return;
+    }
+
+    if (strlen(arg) < 2) {
+    send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+    return;
+    }
+
+    fAll	= false;
+    found	= false;
+    nMatch	= 0;
+
+    // Iterate through all areas
+    for (area = area_first; area != NULL; area = area->next) {
+        // Search this area's ship index hash
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (ship = area->ship_index_hash[iHash]; ship != NULL; ship = ship->next) {
+                nMatch++;
+                if (fAll || is_name(argument, ship->name)) {
+                    found = true;
+                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
+                        ship->area->uid, ship->vnum, ship->name);
+                    send_to_char(buf, ch);
+                }
+            }
+        }
+    }
+
+    if (!found)
+    send_to_char("No ships by that name.\n\r", ch);
 }
 
 
@@ -10752,7 +11066,7 @@ void do_token(CHAR_DATA *ch, char *argument)
     char arg3[MSL];
     char arg4[MSL], arg4b[MSL];
     char buf[MSL];
-    long vnum, count;
+    long count;
     TOKEN_DATA *token;
     TOKEN_INDEX_DATA *token_index;
 

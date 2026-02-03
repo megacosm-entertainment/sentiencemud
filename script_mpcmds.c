@@ -200,14 +200,22 @@ int mpcmd_lookup(char *command)
 //
 void do_mpdump(CHAR_DATA *ch, char *argument)
 {
-    char buf[ MAX_INPUT_LENGTH ];
     SCRIPT_DATA *mprg;
-    long vnum;
+    WNUM wnum;
 
-    one_argument(argument, buf);
-    vnum = atoi(buf);
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: mpdump <vnum>\n\r", ch);
+        return;
+    }
 
-    if (!(mprg = get_script_index_global(vnum, PRG_MPROG))) {
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    if (!(mprg = get_script_index(wnum.pArea, wnum.vnum, PRG_MPROG))) {
         send_to_char("No such MOBprogram.\n\r", ch);
         return;
     }
@@ -429,7 +437,6 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room, OBJ_DATA **container, CHAR_DATA **carrier, int *wear_loc)
 {
     char *rest, *rest2;
-    long vnum;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AREA_DATA *area;
@@ -539,8 +546,9 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                     if (!str_infix(arg->d.str, area->name)) {
                         // Get the area's recall location
                         if(!(loc = location_to_room(&area->recall))) {
-                            for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-                                if ((loc = get_room_index(area, vnum)))
+                            // Find any room in this area by iterating hash buckets
+                            for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
+                                if ((loc = area->room_index_hash[iHash]) != NULL)
                                     break;
                         }
 

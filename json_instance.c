@@ -56,10 +56,6 @@ extern CHAR_DATA *persist_load_mobile(FILE *fp);
  * Constants                                                               *
  ***************************************************************************/
 
-#define PERSIST_SHIPS_DIR     "data/persist/ships/"
-#define PERSIST_DUNGEONS_DIR  "data/persist/dungeons/"
-#define PERSIST_INSTANCES_DIR "data/persist/instances/"
-
 /***************************************************************************
  * Helper Functions                                                        *
  ***************************************************************************/

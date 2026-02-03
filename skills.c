@@ -452,7 +452,6 @@ void show_multiclass_choices(CHAR_DATA *ch, CHAR_DATA *looker)
 
 bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 {
-    char buf[MSL];
     int prof;
 
     // 1st mort

@@ -1663,13 +1663,34 @@ void list_dungeons(CHAR_DATA *ch, char *argument)
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
 
-    AREA_DATA *pArea = ch->in_room->area;
+    AREA_DATA *pArea = NULL;
+    char arg[MAX_INPUT_LENGTH];
+    
+    argument = one_argument(argument, arg);
+    
+    if (arg[0] != '\0')
+    {
+        if ((pArea = find_area(arg)))
+        {
+            // Use specified area
+        }
+        else
+        {
+            send_to_char("No such area.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        pArea = ch->in_room->area;
+    }
+
     int lines = 0;
     bool error = false;
     BUFFER *buffer = new_buf();
     char buf[MSL];
 
-    // Iterate through dungeons in the current area only
+    // Iterate through dungeons in the area
     for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
         for(DUNGEON_INDEX_DATA *dng = pArea->dungeon_index_hash[iHash]; dng; dng = dng->next)
@@ -1818,7 +1839,7 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
 {
     DUNGEON_INDEX_DATA *dng;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -1826,14 +1847,13 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-        send_to_char("Vnum must be a number.\n\r", ch);
+        send_to_char("Invalid vnum format.\n\r", ch);
         return;
     }
 
-    value = atol(argument);
-    if (!(dng= get_dungeon_index(value)))
+    if (!(dng = get_dungeon_index_for_area(wnum.pArea, wnum.vnum)))
     {
         send_to_char("That dungeon does not exist.\n\r", ch);
         return;

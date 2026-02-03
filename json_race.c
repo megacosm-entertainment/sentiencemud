@@ -312,7 +312,7 @@ void load_races(void)
 {
     DIR *dir;
     struct dirent *entry;
-    char path[256];
+    char path[512];  // Increased from 256 to handle longer paths safely
     RACE_DATA *race, *last;
     int i;
 

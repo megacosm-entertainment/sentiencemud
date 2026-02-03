@@ -555,6 +555,7 @@ static test_result_t test_pure_function(test_case_t *test) {
 // Reserved system tests
 static test_result_t test_reserved_lookup(test_case_t *test) {
     extern LLIST *reserved_vnums;
+    (void)reserved_vnums;
     
     if (!test || !test->config) {
         return TEST_ERROR;
@@ -692,6 +693,7 @@ static test_result_t test_reserved_compat(test_case_t *test) {
 // System area tests
 static test_result_t test_game_setting_exists(test_case_t *test) {
     extern const struct game_setting_type game_settings_table[];
+    (void)game_settings_table;
     
     if (!test || !test->config) {
         return TEST_ERROR;

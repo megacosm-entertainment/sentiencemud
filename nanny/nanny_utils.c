@@ -154,7 +154,7 @@ bool validate_account_name(const char *name)
         return false;
 
     /* Use existing check_parse_name if available */
-    return check_parse_name(name);
+    return check_parse_name((char *)name);
 }
 
 /*

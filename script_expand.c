@@ -5452,8 +5452,6 @@ char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 // Implementation for reserved mobile lookups
 EXPAND_TYPE(reserved_mobile)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5492,8 +5490,6 @@ EXPAND_TYPE(reserved_mobile)
 
 EXPAND_TYPE(reserved_object)
 {
-    char buf[MSL]; // Make sure this buffer is defined and large enough
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5531,8 +5527,6 @@ EXPAND_TYPE(reserved_object)
 // Implementation for reserved room lookups
 EXPAND_TYPE(reserved_room)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5570,8 +5564,6 @@ EXPAND_TYPE(reserved_room)
 // Implementation for reserved area lookups
 EXPAND_TYPE(reserved_area)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5609,8 +5601,6 @@ EXPAND_TYPE(reserved_area)
 // Implementation for reserved token lookups
 EXPAND_TYPE(reserved_token)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5648,8 +5638,6 @@ EXPAND_TYPE(reserved_token)
 // Add implementions for all program types
 EXPAND_TYPE(reserved_rprog)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5686,8 +5674,6 @@ EXPAND_TYPE(reserved_rprog)
 
 EXPAND_TYPE(reserved_oprog)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5724,8 +5710,6 @@ EXPAND_TYPE(reserved_oprog)
 
 EXPAND_TYPE(reserved_mprog)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5762,8 +5746,6 @@ EXPAND_TYPE(reserved_mprog)
 
 EXPAND_TYPE(reserved_tprog)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
@@ -5798,8 +5780,6 @@ EXPAND_TYPE(reserved_tprog)
 
 EXPAND_TYPE(reserved_aprog)
 {
-    char buf[MSL];
-    
     switch(*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;

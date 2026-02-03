@@ -5105,7 +5105,7 @@ iterator_stop(&it);
     else
         continue;
 
-        if (wch->tot_level >= LEVEL_IMMORTAL)
+    if (wch->tot_level >= LEVEL_IMMORTAL)
         strcpy(classstr,wch->pcdata->immortal->imm_flag);
     else
         strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
@@ -8123,6 +8123,7 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
     CONDITIONAL_DESCR_DATA *best_cd = NULL;
     CONDITIONAL_DESCR_DATA *cd;
     SCRIPT_DATA *script;
+    (void)script;
 
     if ((cd = room->conditional_descr) != NULL) {
         for (cd = room->conditional_descr; cd != NULL; cd = cd->next) {

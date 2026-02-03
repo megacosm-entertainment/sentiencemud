@@ -245,7 +245,6 @@ CHAT_ROOM_DATA *json_chat_room_deserialize(json_t *json)
 bool save_chat_rooms_json(void)
 {
     char filename[MSL];
-    FILE *fp;
     
     sprintf(filename, "%s/chat_rooms.json", SYSTEM_DIR);
     

@@ -272,10 +272,10 @@ PEDIT(pedit_builder)
 
     if (project->builders == NULL)
         project->builders = pb;
-    else
+    else {
         pb_tmp->next = pb;
-
         pb->project = project;
+    }
 
     act("Builder $t added.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
     }

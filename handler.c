@@ -4818,7 +4818,6 @@ void stop_hunt(CHAR_DATA *ch, bool dead)
 AREA_DATA *find_area(char *name)
 {
     AREA_DATA *temp;
-    char buf[MSL];
 
     for (temp = area_first; temp != NULL; temp = temp->next)
     {
@@ -6058,7 +6057,6 @@ bool dislink_room(ROOM_INDEX_DATA *pRoom)
 {
     int i;
     char cmd[MSL];
-    char buf[MSL];
     bool changed = false;
 
     for (i = 0; i < MAX_DIR; i++)
@@ -7066,7 +7064,6 @@ TOKEN_DATA *give_token(TOKEN_INDEX_DATA *token_index, CHAR_DATA *ch, OBJ_DATA *o
 void token_from_char(TOKEN_DATA *token)
 {
     TOKEN_DATA *token_tmp, *token_prev;
-    char buf[MSL];
 
     if (token->player == NULL) {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_char: called on token with no player");
@@ -7108,8 +7105,6 @@ void token_from_char(TOKEN_DATA *token)
 /* transfers a token to a char */
 void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
 {
-    char buf[MSL];
-
     if (token == NULL || ch == NULL) {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_char: NULL");
         return;
@@ -7164,7 +7159,6 @@ TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, int count)
 void token_from_obj(TOKEN_DATA *token)
 {
     TOKEN_DATA *token_tmp, *token_prev;
-    char buf[MSL];
 
     if (token->object == NULL) {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_obj: called on token with no object");
@@ -7196,8 +7190,6 @@ void token_from_obj(TOKEN_DATA *token)
 /* transfers a token to an object */
 void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj)
 {
-    char buf[MSL];
-
     if (token == NULL || obj == NULL) {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_obj: NULL");
         return;
@@ -7267,8 +7259,6 @@ void token_from_room(TOKEN_DATA *token)
 /* transfers a token to a room*/
 void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room)
 {
-    char buf[MSL];
-
     if (token == NULL || room == NULL) {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_room: NULL");
         return;
@@ -7310,7 +7300,6 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
     int val;
     SPELL_DATA *spell, *spell_tmp;
     bool already_has_spell;
-    char buf[MSL];
 
     /* scrolls, potions, and pills had level in v0, and spells in v1 onwards */
     if (obj->item_type == ITEM_SCROLL
@@ -11303,6 +11292,7 @@ int get_colour_code_length_at_start(const char *p) {
     // Extended code: {[F###] or {[B###]
     if (*p == '[') {
         const char *ext_start = p;
+        (void)ext_start;
         p++; // Move past '['
         if (*p == 'F' || *p == 'B') {
             p++; // Move past F or B
@@ -12122,8 +12112,6 @@ ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
 {
     ITERATOR it;
     RESERVED_DATA *reserved;
-    WNUM wnum;
-    char vnum_str[MAX_INPUT_LENGTH];
     
     if (!name || !*name || !reserved_vnums)
         return NULL;

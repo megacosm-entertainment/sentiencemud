@@ -46,9 +46,6 @@
  * Split incrementally as functions are touched.
  */
 
-#define DEV_SKIP_PASSWORD should_skip_password()
-#define DEV_SKIP_MFA      should_skip_mfa()
-
 /* Account related functions */
 // This leads to CON_GET_ACOCOUNT_PASSWORD (existing)
 // or CON_CONFIRM_ACCOUNT_NAME (new).
@@ -5612,7 +5609,6 @@ bool is_reconnecting(CHAR_DATA *ch)
         return false;
     
     // Debug output for tracing
-    char debug_buf[MAX_STRING_LENGTH];
     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "[DEBUG] is_reconnecting checking: %s", ch->name);
     
     // Direct scan of loaded_chars for more reliable results
@@ -5908,7 +5904,6 @@ void login_char_set_custom_pronoun_refl(DESCRIPTOR_DATA *d, char *argument) {
 
 void login_char_set_custom_verb_pref(DESCRIPTOR_DATA *d, char *argument) {
     CHAR_DATA *ch = d->character;
-    char buf[MSL];
 
     if (!ch) {
         write_to_buffer(d, "Error: No character found.\n\r", 0);
@@ -6104,7 +6099,6 @@ void process_direct_login(DESCRIPTOR_DATA *d)
     ACCOUNT_DATA *acct = d->account;
     ACCOUNT_CHARACTER *acct_char = NULL;
     bool has_auth_data = false;
-    char debug_buf[MAX_STRING_LENGTH];
     
     // Add debug logging
     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "process_direct_login: Character %s",

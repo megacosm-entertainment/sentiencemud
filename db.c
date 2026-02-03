@@ -955,7 +955,7 @@ void boot_db(void)
      */
     {
         FILE *fpList;
-        char log_buf[MAX_STRING_LENGTH];
+        //char log_buf[MAX_STRING_LENGTH];
 
         log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading areas from area.lst file...");
 
@@ -988,13 +988,13 @@ void boot_db(void)
                 char base[MAX_STRING_LENGTH];
                 strncpy(base, basename, dot - basename);
                 base[dot - basename] = '\0';
-                sprintf(json_filename, "%s.json", base);
+                snprintf(json_filename, sizeof(json_filename), "%s.json", base);
             } else {
-                sprintf(json_filename, "%s.json", basename);
+                snprintf(json_filename, sizeof(json_filename), "%s.json", basename);
             }
             
             /* Build full path for existence check */
-            sprintf(json_fullpath, "%s%s", AREA_DIR, json_filename);
+            snprintf(json_fullpath, sizeof(json_fullpath), "%s%s", AREA_DIR, json_filename);
 
             if (access(json_fullpath, F_OK) == 0) {
                 /* JSON file exists - try to load it */
@@ -2070,7 +2070,7 @@ void reset_area(AREA_DATA *pArea)
 
 void room_update(ROOM_INDEX_DATA *room)
 {
-    char buf[MAX_STRING_LENGTH];
+    //char   buf[MAX_STRING_LENGTH];
 
     TOKEN_DATA *token;
     ITERATOR it;
@@ -2352,7 +2352,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
         OBJ_INDEX_DATA  *pObjIndex;
         OBJ_INDEX_DATA  *pObjToIndex;
         ROOM_INDEX_DATA *pRoomIndex;
-        char buf[MAX_STRING_LENGTH];
+        //char buf[MAX_STRING_LENGTH];
         int count,limit=0;
 
         instanced = false;
@@ -4564,7 +4564,7 @@ char *fread_word(FILE *fp)
     static char word[MAX_INPUT_LENGTH];
     char *pword;
     char cEnd;
-        char buf[MAX_STRING_LENGTH];
+        //char buf[MAX_STRING_LENGTH];
 
     if (feof(fp)) {
     log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_word: EOF encountered");
@@ -7110,7 +7110,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
     TOKEN_INDEX_DATA *token_index;
     int vtype;
     long vnum;
-    char buf[MSL];
+    //char buf[MSL];
     char *word;
     bool fMatch;
 
@@ -7192,7 +7192,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 OBJ_DATA *persist_load_object(FILE *fp)
 {
-    char buf[MIL];
+    //char buf[MIL];
     ROOM_INDEX_DATA *here = NULL, *deep_here = NULL;
     OBJ_INDEX_DATA *obj_index;
     OBJ_DATA *obj;
@@ -7758,7 +7758,7 @@ SHIP_CREW_DATA *read_ship_crew(FILE *fp)
 
 CHAR_DATA *persist_load_mobile(FILE *fp)
 {
-    char buf[MSL];
+    //char buf[MSL];
     MOB_INDEX_DATA *index;
     CHAR_DATA *ch;
     ROOM_INDEX_DATA *here = NULL, *deep_here = NULL;
@@ -8388,7 +8388,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 
 ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 {
-    char buf[MSL];
+    //char buf[MSL];
     ROOM_INDEX_DATA *room;
     WILDS_DATA *wilds;
     long vnum;
@@ -9062,7 +9062,7 @@ void load_instances()
         }
 
         if (!fMatch) {
-            char buf[MSL];
+            //char buf[MSL];
             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_instances: no match for word %.50s", word);
         }
 
@@ -9323,8 +9323,8 @@ gc_total_processed += total_processed;
 gettimeofday(&current_time, NULL);
 elapsed_ms = (current_time.tv_sec - start_time.tv_sec) * 1000 + 
              (current_time.tv_usec - start_time.tv_usec) / 1000;
-if (elapsed_ms > gc_max_time)
+if (elapsed_ms > gc_max_time) 
     gc_max_time = elapsed_ms;
     
-    return total_processed;
+return total_processed;
 }

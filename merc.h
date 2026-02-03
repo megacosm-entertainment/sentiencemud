@@ -6714,7 +6714,7 @@ struct dungeon_data
 
     DUNGEON_INDEX_DATA *index;		// Dungeon definition
 
-    long uid[2];					// UID of the dungeon instance
+    unsigned long uid[2];			// UID of the dungeon instance
 
     LLIST *floors;
     LLIST *special_rooms;

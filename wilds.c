@@ -548,12 +548,13 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     pTerrain = fread_terrain( fp, pWilds );
                     add_terrain (pWilds, pTerrain);
                 }
-        else
+        else {
                 if ( !str_cmp( word, "#VLINK" ) )
                 {
                     temp_pVLink = fread_vlink(fp);
                     add_vlink(pWilds, temp_pVLink);
                 }
+        }
 
 
                 break;

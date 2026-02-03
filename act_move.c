@@ -845,7 +845,6 @@ void check_ambush(CHAR_DATA *ch)
     CHAR_DATA *ach;
     AMBUSH_DATA *ambush;
     char command[MSL];
-    char buf[MSL];
 
     if (ch->in_room == NULL)
     {

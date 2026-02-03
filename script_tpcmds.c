@@ -185,11 +185,22 @@ int tpcmd_lookup(char *command,bool istoken)
  */
 void do_tpdump(CHAR_DATA *ch, char *argument)
 {
-    char buf[ MAX_INPUT_LENGTH ];
     SCRIPT_DATA *tprg;
+    WNUM wnum;
 
-one_argument(argument, buf);
-    if (!(tprg = get_script_index_global(atoi(buf), PRG_TPROG))) {
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: tpdump <vnum>\n\r", ch);
+        return;
+    }
+
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    if (!(tprg = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG))) {
         send_to_char("No such TOKENprogram.\n\r", ch);
         return;
     }
@@ -351,7 +362,6 @@ char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room, OBJ_DATA **container, CHAR_DATA **carrier, int *wear_loc)
 {
     char *rest, *rest2;
-    long vnum;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AREA_DATA *area;
@@ -452,8 +462,9 @@ if (!area) area = get_system_area_fallback();
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
                         if(!(loc = location_to_room(&area->recall))) {
-                            for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-                                if ((loc = get_room_index(area, vnum)))
+                            // Find any room in this area by iterating hash buckets
+                            for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
+                                if ((loc = area->room_index_hash[iHash]) != NULL)
                                     break;
                         }
 

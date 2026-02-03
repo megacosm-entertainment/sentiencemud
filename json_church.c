@@ -96,7 +96,7 @@ CHURCH_RANK_DATA *json_church_rank_deserialize(json_t *json)
             /* Backward compatibility with old string format */
             const char *perm_str = json_string_value(value);
             if (perm_str && perm_str[0] != '\0') {
-                long perm_value = flag_value(church_permission_flags, perm_str);
+                long long perm_value = flag_value(church_permission_flags, (char *)perm_str);
                 rank->permissions = (perm_value != NO_FLAG) ? perm_value : 0;
             }
         } else if (json_is_integer(value)) {

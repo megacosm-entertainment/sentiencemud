@@ -8301,10 +8301,10 @@ bool can_edit_ships(CHAR_DATA *ch)
  * list_ship_indexes - Display all ship templates
  *
  * Shows a formatted list of all SHIP_INDEX_DATA entries with
- * VNUM, name, and ship class.
+ * VNUM, name, and ship class. Supports area filtering.
  *
  * @param ch        Staff member viewing list
- * @param argument  Filter (unused currently)
+ * @param argument  Optional area name
  */
 void list_ship_indexes(CHAR_DATA *ch, char *argument)
 {
@@ -8314,7 +8314,27 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    AREA_DATA *pArea = ch->in_room->area;
+    AREA_DATA *pArea = NULL;
+    char arg[MAX_INPUT_LENGTH];
+    
+    argument = one_argument(argument, arg);
+    
+    if (arg[0] != '\0')
+    {
+        if ((pArea = find_area(arg)))
+        {
+            // Use specified area
+        }
+        else
+        {
+            send_to_char("No such area.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        pArea = ch->in_room->area;
+    }
 
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off may limit how many ships you can see.{x\n\r", ch);
@@ -8505,7 +8525,7 @@ void do_shshow(CHAR_DATA *ch, char *argument)
 {
     SHIP_INDEX_DATA *ship;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -8513,14 +8533,13 @@ void do_shshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-        send_to_char("Vnum must be a number.\n\r", ch);
+        send_to_char("Invalid vnum format.\n\r", ch);
         return;
     }
 
-    value = atol(argument);
-    if (!(ship = get_ship_index(value)))
+    if (!(ship = get_ship_index_for_area(wnum.pArea, wnum.vnum)))
     {
         send_to_char("That ship does not exist.\n\r", ch);
         return;

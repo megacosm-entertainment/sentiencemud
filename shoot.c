@@ -578,7 +578,7 @@ void ranged_end( CHAR_DATA *ch )
     if (!IS_AWAKE(victim))
         do_function(victim, &do_stand, "");
 
-        if (IS_AWAKE(victim)) {
+    if (IS_AWAKE(victim)) {
         hunt_char(victim,ch);
         act("You hear an angry snarl.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }

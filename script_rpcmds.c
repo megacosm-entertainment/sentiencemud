@@ -165,11 +165,22 @@ int rpcmd_lookup(char *command)
  */
 void do_rpdump(CHAR_DATA *ch, char *argument)
 {
-    char buf[ MAX_INPUT_LENGTH ];
     SCRIPT_DATA *rprg;
+    WNUM wnum;
 
-    one_argument(argument, buf);
-    if (!(rprg = get_script_index_global(atoi(buf), PRG_RPROG))) {
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: rpdump <vnum>\n\r", ch);
+        return;
+    }
+
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    if (!(rprg = get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG))) {
         send_to_char("No such ROOMprogram.\n\r", ch);
         return;
     }
@@ -285,7 +296,6 @@ char *rp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room, OBJ_DATA **container, CHAR_DATA **carrier, int *wear_loc)
 {
     char *rest, *rest2;
-    long vnum;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AREA_DATA *area;
@@ -387,8 +397,9 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
                         if(!(loc = location_to_room(&area->recall))) {
-                            for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-                                if ((loc = get_room_index(area, vnum)))
+                            // Find any room in this area by iterating hash buckets
+                            for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
+                                if ((loc = area->room_index_hash[iHash]) != NULL)
                                     break;
                         }
 

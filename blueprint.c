@@ -1980,9 +1980,10 @@ bool can_edit_blueprints(CHAR_DATA *ch)
  * list_blueprint_sections - Display all blueprint sections
  *
  * Shows vnum, name, type, recall vnum, and room vnum range for each section.
+ * Supports area filtering.
  *
  * @param ch        Character to display to
- * @param argument  Unused filter argument
+ * @param argument  Optional area name
  */
 void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 {
@@ -1995,13 +1996,34 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off may limit how many sections you can see.{x\n\r", ch);
 
-    AREA_DATA *pArea = ch->in_room->area;
+    AREA_DATA *pArea = NULL;
+    char arg[MAX_INPUT_LENGTH];
+    
+    argument = one_argument(argument, arg);
+    
+    if (arg[0] != '\0')
+    {
+        if ((pArea = find_area(arg)))
+        {
+            // Use specified area
+        }
+        else
+        {
+            send_to_char("No such area.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        pArea = ch->in_room->area;
+    }
+
     int lines = 0;
     bool error = false;
     BUFFER *buffer = new_buf();
     char buf[MSL];
 
-    // Iterate through blueprint sections in the current area only
+    // Iterate through blueprint sections in the area
     for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
         for(BLUEPRINT_SECTION *section = pArea->blueprint_section_hash[iHash]; section; section = section->next)
@@ -2373,9 +2395,10 @@ const struct olc_cmd_type bpedit_table[] =
  * list_blueprints - Display all blueprints
  *
  * Shows vnum, name, and mode (Static/Dynamic/Procedural) for each blueprint.
+ * Supports area filtering.
  *
  * @param ch        Character to display to
- * @param argument  Unused filter argument
+ * @param argument  Optional area name
  */
 void list_blueprints(CHAR_DATA *ch, char *argument)
 {
@@ -2395,13 +2418,34 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off may limit how many blueprints you can see.{x\n\r", ch);
 
-    AREA_DATA *pArea = ch->in_room->area;
+    AREA_DATA *pArea = NULL;
+    char arg[MAX_INPUT_LENGTH];
+    
+    argument = one_argument(argument, arg);
+    
+    if (arg[0] != '\0')
+    {
+        if ((pArea = find_area(arg)))
+        {
+            // Use specified area
+        }
+        else
+        {
+            send_to_char("No such area.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        pArea = ch->in_room->area;
+    }
+
     int lines = 0;
     bool error = false;
     BUFFER *buffer = new_buf();
     char buf[MSL];
 
-    // Iterate through blueprints in the current area only
+    // Iterate through blueprints in the area
     for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
         for(BLUEPRINT *blueprint = pArea->blueprint_hash[iHash]; blueprint; blueprint = blueprint->next)
@@ -2580,7 +2624,7 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT *bp;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -2588,14 +2632,13 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-        send_to_char("Vnum must be a number.\n\r", ch);
+        send_to_char("Invalid vnum format.\n\r", ch);
         return;
     }
 
-    value = atol(argument);
-    if (!(bp = get_blueprint(value)))
+    if (!(bp = get_blueprint_for_area(wnum.pArea, wnum.vnum)))
     {
         send_to_char("That blueprint does not exist.\n\r", ch);
         return;

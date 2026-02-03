@@ -91,7 +91,6 @@ void process_olc_command(
     char arg_for_interpret[MAX_STRING_LENGTH];
     char working_argument_buffer[MAX_STRING_LENGTH];
     char *current_command_args_ptr;
-    void *pEdit = ch->desc->pEdit; // The actual data being edited
     int cmd_index;
 
     // Smash tildes in the input argument string. This modifies olc_argument directly.

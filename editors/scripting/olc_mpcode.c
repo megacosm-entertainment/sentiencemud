@@ -1667,7 +1667,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     SCRIPT_DATA *prg;
     char buf[MSL], *noc;
     BUFFER *buffer;
-    int min,max,tmp;
+    long min,max,tmp;
     bool error;
     AREA_DATA *area, *ad;
 
@@ -1675,16 +1675,38 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     area = ch->in_room->area;
 
     if(argument[0]) {
-        argument = one_argument(argument,buf);
-        if(!is_number(buf)) return;
-        min = atoi(buf);
+        char arg1[MAX_INPUT_LENGTH];
+        char arg2[MAX_INPUT_LENGTH];
+        WNUM wnum_min, wnum_max;
+        
+        argument = one_argument(argument, arg1);
+        argument = one_argument(argument, arg2);
+        
+        // Parse min vnum (supports widevnum format)
+        if (!parse_widevnum(arg1, area, &wnum_min) || !wnum_min.pArea) {
+            send_to_char("Invalid minimum vnum format.\n\r", ch);
+            return;
+        }
+        
+        // Parse max vnum (supports widevnum format)
+        if (!parse_widevnum(arg2, area, &wnum_max) || !wnum_max.pArea) {
+            send_to_char("Invalid maximum vnum format.\n\r", ch);
+            return;
+        }
+        
+        // For area-scoped progs, both vnums must be in the same area
+        if (type != PRG_IPROG && type != PRG_DPROG) {
+            if (wnum_min.pArea != wnum_max.pArea) {
+                send_to_char("Vnum range must be within the same area for area-scoped progs.\n\r", ch);
+                return;
+            }
+            area = wnum_min.pArea;
+        }
+        
+        min = wnum_min.vnum;
+        max = wnum_max.vnum;
 
         if( min < 1 ) return;
-
-        argument = one_argument(argument,buf);
-        if(!is_number(buf)) return;
-        max = atoi(buf);
-
         if( max < 1 ) return;
 
         if(max < min) {

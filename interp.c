@@ -812,6 +812,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     char logline[MAX_INPUT_LENGTH];
 //    int cmd;
     int trust;
+    (void)trust;
     bool found, allowed;
     char cmd_copy[MAX_INPUT_LENGTH] ;
     char buf[MSL];

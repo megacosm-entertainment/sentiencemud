@@ -950,7 +950,6 @@ int init_tls_socket(int port)
     struct sockaddr_in sa;
     int x = 1;
     int fd;
-    int set = 1;
 
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -3132,7 +3131,6 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
 void reconnect_char(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
-    char buf[MAX_STRING_LENGTH];
     LLIST_LINK *link;
     TOKEN_DATA *token;
 

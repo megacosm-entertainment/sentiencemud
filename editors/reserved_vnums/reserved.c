@@ -1388,7 +1388,7 @@ void init_reserved_defaults(void)
 RESERVED(reserved_listid)
 {
     BUFFER *buffer;
-    char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH*2];
     int count = 0;
     WNUM wnum;
     long target_auid = 0;

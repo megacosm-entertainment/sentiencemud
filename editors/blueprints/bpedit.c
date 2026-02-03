@@ -217,7 +217,7 @@ BPEDIT( bpedit_show )
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( bl && bl->room || bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+                    if( (bl && bl->room) || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR) )
                     {
                         sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
@@ -259,7 +259,7 @@ BPEDIT( bpedit_show )
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( bl && bl->room || bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+                    if( (bl && bl->room) || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR) )
                     {
                         sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
