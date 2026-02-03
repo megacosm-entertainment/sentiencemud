@@ -148,14 +148,14 @@ json_t *mail_to_json(MAIL_DATA *mail)
     
     /* Location references with WNUM support */
     if (mail->from_location != 0) {
-        AREA_DATA *from_area = find_area_by_vnum(mail->from_location, NULL);
-        long from_auid = from_area ? from_area->uid : 0;
+        ROOM_INDEX_DATA *from_room = get_room_index_global(mail->from_location);
+        long from_auid = (from_room && from_room->area) ? from_room->area->uid : 0;
         json_object_set_new(json, "from_location", wnum_to_json_str(from_auid, mail->from_location));
     }
     
     if (mail->to_location != 0) {
-        AREA_DATA *to_area = find_area_by_vnum(mail->to_location, NULL);
-        long to_auid = to_area ? to_area->uid : 0;
+        ROOM_INDEX_DATA *to_room = get_room_index_global(mail->to_location);
+        long to_auid = (to_room && to_room->area) ? to_room->area->uid : 0;
         json_object_set_new(json, "to_location", wnum_to_json_str(to_auid, mail->to_location));
     }
     

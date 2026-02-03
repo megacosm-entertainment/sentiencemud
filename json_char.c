@@ -215,8 +215,8 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
 
     json_obj = json_object();
 
-    // Basic identification
-    json_object_set_new(json_obj, "vnum", json_integer(obj->pIndexData->vnum));
+    // Basic identification - use widevnum format for area-scoped persistence
+    json_object_set_new(json_obj, "vnum", json_string(widevnum_string_object(obj->pIndexData, NULL)));
     json_object_set_new(json_obj, "nest_level", json_integer(nest_level));
 
     // Save unique object ID if set
@@ -608,7 +608,7 @@ static json_t *tokens_to_json(CHAR_DATA *ch)
         }
 
         json_t *token_obj = json_object();
-        json_object_set_new(token_obj, "vnum", json_integer(token->pIndexData->vnum));
+        json_object_set_new(token_obj, "vnum", json_string(widevnum_string(token->pIndexData->area, token->pIndexData->vnum, NULL)));
         json_object_set_new(token_obj, "id", json_pack("[i, i]",
             (int)token->id[0], (int)token->id[1]));
         json_object_set_new(token_obj, "timer", json_integer(token->timer));
@@ -1066,9 +1066,9 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(position, "area_uid", json_integer(ch->was_in_wilds->pArea->uid));
         json_object_set_new(position, "wilds_uid", json_integer(ch->was_in_wilds->uid));
     } else if (ch->in_room) {
-        // Character is in regular room
+        // Character is in regular room - use widevnum format
         json_object_set_new(position, "type", json_string("room"));
-        json_object_set_new(position, "room_vnum", json_integer(ch->in_room->vnum));
+        json_object_set_new(position, "room_vnum", json_string(widevnum_string_room(ch->in_room, NULL)));
     } else {
         // No position set - will use recall
         json_decref(position);
@@ -1122,10 +1122,10 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
                 if (part->description) {
                     json_object_set_new(part_obj, "description", json_string(part->description));
                 }
-                // For pickup quests, save the object vnum and room vnum
+                // For pickup quests, save the object vnum and room vnum - use widevnum format
                 if (part->pObj && part->pObj->in_room && !part->complete) {
-                    json_object_set_new(part_obj, "pobj_vnum", json_integer(part->pObj->pIndexData->vnum));
-                    json_object_set_new(part_obj, "pobj_room", json_integer(part->pObj->in_room->vnum));
+                    json_object_set_new(part_obj, "pobj_vnum", json_string(widevnum_string_object(part->pObj->pIndexData, NULL)));
+                    json_object_set_new(part_obj, "pobj_room", json_string(widevnum_string_room(part->pObj->in_room, NULL)));
                 }
                 json_array_append_new(parts_array, part_obj);
             }
@@ -1459,11 +1459,22 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         return NULL;
     }
 
-    // Get vnum
-    vnum = json_integer_value(json_object_get(json_obj, "vnum"));
-    pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    // Get vnum - supports both widevnum string and legacy integer
+    value = json_object_get(json_obj, "vnum");
+    if (json_is_string(value)) {
+        WNUM wnum;
+        if (!parse_widevnum((char *)json_string_value(value), NULL, &wnum) || !wnum.pArea) {
+            log_stringf("json_to_obj: bad widevnum '%s'", json_string_value(value));
+            return NULL;
+        }
+        pObjIndex = get_obj_index(wnum.pArea, wnum.vnum);
+        vnum = wnum.vnum;
+    } else {
+        vnum = json_integer_value(value);
+        pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    }
     if (!pObjIndex) {
-        log_stringf("json_to_obj: bad vnum %ld", vnum);
+        log_stringf("json_to_obj: object index not found for vnum %ld", vnum);
         return NULL;
     }
 
@@ -2362,15 +2373,23 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 ch->in_room = get_room_index_global(11001);
             }
         } else {
-            // Regular room position
-            long room_vnum = json_integer_value(json_object_get(position, "room_vnum"));
-            ROOM_INDEX_DATA *room = get_room_index_global(room_vnum);
+            // Regular room position - supports both widevnum string and legacy integer
+            json_t *room_vnum_val = json_object_get(position, "room_vnum");
+            ROOM_INDEX_DATA *room = NULL;
+            if (json_is_string(room_vnum_val)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(room_vnum_val), NULL, &wnum) && wnum.pArea) {
+                    room = get_room_index(wnum.pArea, wnum.vnum);
+                }
+            } else {
+                long room_vnum = json_integer_value(room_vnum_val);
+                room = get_room_index_global(room_vnum);
+            }
             if (room) {
                 ch->in_room = room;
             } else {
                 // Fallback to default recall room if saved room doesn't exist
-                plogf(LOG_WARN, "%s: room vnum %ld not found, using default recall",
-                      ch->name, room_vnum);
+                plogf(LOG_WARN, "%s: room not found, using default recall", ch->name);
                 ch->in_room = get_room_index_global(11001);
             }
         }
@@ -2512,10 +2531,19 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     json_t *tokens_array = json_object_get(root, "tokens");
     if (tokens_array && json_is_array(tokens_array)) {
         json_array_foreach(tokens_array, index, array_elem) {
-            long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
-            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+            json_t *vnum_val = json_object_get(array_elem, "vnum");
+            TOKEN_INDEX_DATA *pTokenIndex = NULL;
+            if (json_is_string(vnum_val)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &wnum) && wnum.pArea) {
+                    pTokenIndex = get_token_index(wnum.pArea, wnum.vnum);
+                }
+            } else {
+                long vnum = json_integer_value(vnum_val);
+                pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+            }
             if (!pTokenIndex) {
-                log_stringf("json_read_char_internal: bad token vnum %ld", vnum);
+                log_string("json_read_char_internal: bad token vnum");
                 continue;
             }
 
@@ -2779,10 +2807,19 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     json_t *tokens_array = json_object_get(root, "tokens");
     if (tokens_array && json_is_array(tokens_array)) {
         json_array_foreach(tokens_array, index, array_elem) {
-            long vnum = json_integer_value(json_object_get(array_elem, "vnum"));
-            TOKEN_INDEX_DATA *pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+            json_t *vnum_val = json_object_get(array_elem, "vnum");
+            TOKEN_INDEX_DATA *pTokenIndex = NULL;
+            if (json_is_string(vnum_val)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &wnum) && wnum.pArea) {
+                    pTokenIndex = get_token_index(wnum.pArea, wnum.vnum);
+                }
+            } else {
+                long vnum = json_integer_value(vnum_val);
+                pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+            }
             if (!pTokenIndex) {
-                log_stringf("json_read_char_remaining: bad token vnum %ld", vnum);
+                log_string("json_read_char_remaining: bad token vnum");
                 continue;
             }
 

@@ -11,6 +11,9 @@
 // Forward declarations
 test_result_t run_reset_test_case(test_case_t *test);
 test_result_t run_shop_stock_test_case(test_case_t *test);
+test_result_t run_church_test_case(test_case_t *test);
+test_result_t run_instance_test_case(test_case_t *test);
+test_result_t run_chat_room_test_case(test_case_t *test);
 
 static test_result_t test_wnum_parsing(test_case_t *test);
 static test_result_t test_area_name_parsing(test_case_t *test);
@@ -250,6 +253,20 @@ test_result_t run_test_case(test_case_t *test) {
                    strcmp(test->test_type, "shop_stock_serialization") == 0 ||
                    strcmp(test->test_type, "shop_stock_legacy_vnum") == 0) {
             result = run_shop_stock_test_case(test);
+        } else if (strstr(test->test_type, "church_") != NULL) {
+            // Church tests: church_serialize_test, church_members_test, etc.
+            result = run_church_test_case(test);
+        } else if (strstr(test->test_type, "instance_") != NULL ||
+                   strstr(test->test_type, "blueprint_") != NULL ||
+                   strstr(test->test_type, "dungeon_") != NULL ||
+                   strstr(test->test_type, "ship_") != NULL ||
+                   strstr(test->test_type, "wnum_json_") != NULL ||
+                   strstr(test->test_type, "persist_directory") != NULL) {
+            // Instance/blueprint/ship/dungeon tests
+            result = run_instance_test_case(test);
+        } else if (strstr(test->test_type, "chat_room_") != NULL) {
+            // Chat room tests
+            result = run_chat_room_test_case(test);
         } else {
             // Fallback to name-based dispatch for backwards compatibility
             if (strstr(test->name, "vnum_parsing")) {

@@ -337,12 +337,12 @@ static json_t *variable_to_json(pVARIABLE var)
                 json_object_set_new(room_ref, "y", json_integer(var->_.r->y));
             } else if (var->_.r->source) {
                 json_object_set_new(room_ref, "type", json_string("clone"));
-                json_object_set_new(room_ref, "vnum", json_integer(var->_.r->source->vnum));
+                json_object_set_new(room_ref, "vnum", json_string(widevnum_string_room(var->_.r->source, NULL)));
                 json_object_set_new(room_ref, "id0", json_integer(var->_.r->id[0]));
                 json_object_set_new(room_ref, "id1", json_integer(var->_.r->id[1]));
             } else {
                 json_object_set_new(room_ref, "type", json_string("static"));
-                json_object_set_new(room_ref, "vnum", json_integer(var->_.r->vnum));
+                json_object_set_new(room_ref, "vnum", json_string(widevnum_string_room(var->_.r, NULL)));
             }
             json_object_set_new(json, "value", room_ref);
         }
@@ -394,15 +394,37 @@ static bool json_load_variable(json_t *json, pVARIABLE *vars)
             const char *rtype = json_string_value(room_type);
 
             if (!str_cmp(rtype, "static")) {
-                long vnum = json_integer_value(json_object_get(value, "vnum"));
-                ROOM_INDEX_DATA *room = get_room_index_global(vnum);
+                json_t *vnum_val = json_object_get(value, "vnum");
+                ROOM_INDEX_DATA *room = NULL;
+                if (json_is_string(vnum_val)) {
+                    /* New widevnum format */
+                    WNUM room_wnum;
+                    if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &room_wnum) && room_wnum.pArea) {
+                        room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                    }
+                } else {
+                    /* Legacy integer format */
+                    long vnum = json_integer_value(vnum_val);
+                    room = get_room_index_global(vnum);
+                }
                 if (room) {
                     return variables_setsave_room(vars, (char *)name, room, true);
                 }
             } else if (!str_cmp(rtype, "clone")) {
                 /* Clone room references need deferred resolution */
-                long src_vnum = json_integer_value(json_object_get(value, "vnum"));
-                ROOM_INDEX_DATA *source = get_room_index_global(src_vnum);
+                json_t *src_vnum_val = json_object_get(value, "vnum");
+                ROOM_INDEX_DATA *source = NULL;
+                if (json_is_string(src_vnum_val)) {
+                    /* New widevnum format */
+                    WNUM room_wnum;
+                    if (parse_widevnum((char *)json_string_value(src_vnum_val), NULL, &room_wnum) && room_wnum.pArea) {
+                        source = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                    }
+                } else {
+                    /* Legacy integer format */
+                    long src_vnum = json_integer_value(src_vnum_val);
+                    source = get_room_index_global(src_vnum);
+                }
                 int id0 = json_integer_value(json_object_get(value, "id0"));
                 int id1 = json_integer_value(json_object_get(value, "id1"));
                 if (source) {
@@ -573,7 +595,8 @@ json_t *json_persist_token_to_json(TOKEN_DATA *token)
 
     json = json_object();
 
-    json_object_set_new(json, "vnum", json_integer(token->pIndexData->vnum));
+    /* Use widevnum format for area-scoped persistence */
+    json_object_set_new(json, "vnum", json_string(widevnum_string(token->pIndexData->area, token->pIndexData->vnum, NULL)));
     json_object_set_new(json, "id0", json_integer(token->id[0]));
     json_object_set_new(json, "id1", json_integer(token->id[1]));
     json_object_set_new(json, "timer", json_integer(token->timer));
@@ -601,15 +624,27 @@ TOKEN_DATA *json_persist_json_to_token(json_t *json)
     TOKEN_DATA *token;
     TOKEN_INDEX_DATA *pTokenIndex;
     json_t *value, *values_array, *scriptdata;
-    long vnum;
+    WNUM wnum;
     int i;
 
     if (!json) return NULL;
 
-    vnum = json_integer_value(json_object_get(json, "vnum"));
-    pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    /* Parse vnum - supports both widevnum string and legacy integer */
+    value = json_object_get(json, "vnum");
+    if (json_is_string(value)) {
+        /* New widevnum format: "auid#vnum" */
+        if (!parse_widevnum((char *)json_string_value(value), NULL, &wnum) || !wnum.pArea) {
+            log_stringf("json_persist_json_to_token: bad widevnum '%s'", json_string_value(value));
+            return NULL;
+        }
+        pTokenIndex = get_token_index(wnum.pArea, wnum.vnum);
+    } else {
+        /* Legacy integer format */
+        long vnum = json_integer_value(value);
+        pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    }
     if (!pTokenIndex) {
-        log_stringf("json_persist_json_to_token: bad vnum %ld", vnum);
+        log_stringf("json_persist_json_to_token: token index not found");
         return NULL;
     }
 
@@ -666,8 +701,8 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
     /* Metadata */
     json_object_set_new(json, "json_version", json_integer(JSON_PERSIST_VERSION_OBJECT));
 
-    /* Identification */
-    json_object_set_new(json, "vnum", json_integer(obj->pIndexData->vnum));
+    /* Identification - use widevnum format for area-scoped persistence */
+    json_object_set_new(json, "vnum", json_string(widevnum_string_object(obj->pIndexData, NULL)));
     json_object_set_new(json, "id0", json_integer(obj->id[0]));
     json_object_set_new(json, "id1", json_integer(obj->id[1]));
     json_object_set_new(json, "persist", json_boolean(obj->persist));
@@ -735,7 +770,7 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
     }
     json_object_set_new(json, "values", array);
 
-    /* Location */
+    /* Location - use widevnum format for room references */
     if (obj->in_room) {
         json_t *loc = json_object();
         if (obj->in_room->wilds) {
@@ -745,12 +780,12 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
             json_object_set_new(loc, "y", json_integer(obj->in_room->y));
         } else if (obj->in_room->source) {
             json_object_set_new(loc, "type", json_string("clone"));
-            json_object_set_new(loc, "vnum", json_integer(obj->in_room->source->vnum));
+            json_object_set_new(loc, "vnum", json_string(widevnum_string_room(obj->in_room->source, NULL)));
             json_object_set_new(loc, "id0", json_integer(obj->in_room->id[0]));
             json_object_set_new(loc, "id1", json_integer(obj->in_room->id[1]));
         } else {
             json_object_set_new(loc, "type", json_string("static"));
-            json_object_set_new(loc, "vnum", json_integer(obj->in_room->vnum));
+            json_object_set_new(loc, "vnum", json_string(widevnum_string_room(obj->in_room, NULL)));
         }
         json_object_set_new(json, "location", loc);
     }
@@ -900,16 +935,28 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     OBJ_DATA *obj;
     OBJ_INDEX_DATA *pObjIndex;
     json_t *value, *array, *elem;
-    long vnum;
+    WNUM wnum;
     size_t index;
     int i;
 
     if (!json) return NULL;
 
-    vnum = json_integer_value(json_object_get(json, "vnum"));
-    pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    /* Parse vnum - supports both widevnum string and legacy integer */
+    value = json_object_get(json, "vnum");
+    if (json_is_string(value)) {
+        /* New widevnum format: "auid#vnum" */
+        if (!parse_widevnum((char *)json_string_value(value), NULL, &wnum) || !wnum.pArea) {
+            log_stringf("json_persist_json_to_object: bad widevnum '%s'", json_string_value(value));
+            return NULL;
+        }
+        pObjIndex = get_obj_index(wnum.pArea, wnum.vnum);
+    } else {
+        /* Legacy integer format */
+        long vnum = json_integer_value(value);
+        pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    }
     if (!pObjIndex) {
-        log_stringf("json_persist_json_to_object: bad vnum %ld", vnum);
+        log_stringf("json_persist_json_to_object: object index not found");
         return NULL;
     }
 
@@ -1038,8 +1085,18 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
         const char *type = json_string_value(loc_type);
 
         if (!str_cmp(type, "static")) {
-            long room_vnum = json_integer_value(json_object_get(value, "vnum"));
-            obj->in_room = get_room_index_global(room_vnum);
+            json_t *vnum_val = json_object_get(value, "vnum");
+            if (json_is_string(vnum_val)) {
+                /* New widevnum format */
+                WNUM room_wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &room_wnum) && room_wnum.pArea) {
+                    obj->in_room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                }
+            } else {
+                /* Legacy integer format */
+                long room_vnum = json_integer_value(vnum_val);
+                obj->in_room = get_room_index_global(room_vnum);
+            }
         } else if (!str_cmp(type, "clone")) {
             /* Clone room - needs deferred resolution */
             obj->in_room = NULL;
@@ -1245,8 +1302,8 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
     /* Metadata */
     json_object_set_new(json, "json_version", json_integer(JSON_PERSIST_VERSION_MOBILE));
 
-    /* Identification */
-    json_object_set_new(json, "vnum", json_integer(ch->pIndexData->vnum));
+    /* Identification - use widevnum format for area-scoped persistence */
+    json_object_set_new(json, "vnum", json_string(widevnum_string_mobile(ch->pIndexData, NULL)));
     json_object_set_new(json, "id0", json_integer(ch->id[0]));
     json_object_set_new(json, "id1", json_integer(ch->id[1]));
     json_object_set_new(json, "persist", json_boolean(ch->persist));
@@ -1281,7 +1338,7 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
     json_object_set_new(json, "level", json_integer(ch->level));
     json_object_set_new(json, "tot_level", json_integer(ch->tot_level));
 
-    /* Current location */
+    /* Current location - use widevnum format for room references */
     if (ch->in_room) {
         json_t *loc = json_object();
         if (ch->in_room->wilds) {
@@ -1291,12 +1348,12 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
             json_object_set_new(loc, "y", json_integer(ch->in_room->y));
         } else if (ch->in_room->source) {
             json_object_set_new(loc, "type", json_string("clone"));
-            json_object_set_new(loc, "vnum", json_integer(ch->in_room->source->vnum));
+            json_object_set_new(loc, "vnum", json_string(widevnum_string_room(ch->in_room->source, NULL)));
             json_object_set_new(loc, "id0", json_integer(ch->in_room->id[0]));
             json_object_set_new(loc, "id1", json_integer(ch->in_room->id[1]));
         } else {
             json_object_set_new(loc, "type", json_string("static"));
-            json_object_set_new(loc, "vnum", json_integer(ch->in_room->vnum));
+            json_object_set_new(loc, "vnum", json_string(widevnum_string_room(ch->in_room, NULL)));
         }
         json_object_set_new(json, "location", loc);
     }
@@ -1504,16 +1561,30 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     CHAR_DATA *ch;
     MOB_INDEX_DATA *pMobIndex;
     json_t *value, *array, *elem;
-    long vnum;
+    WNUM wnum;
     size_t index;
     int i;
 
     if (!json) return NULL;
 
-    vnum = json_integer_value(json_object_get(json, "vnum"));
-    AREA_DATA *area = find_area_by_vnum(vnum, NULL); if (!area) area = get_system_area_fallback(); pMobIndex = get_mob_index(area, vnum);
+    /* Parse vnum - supports both widevnum string and legacy integer */
+    value = json_object_get(json, "vnum");
+    if (json_is_string(value)) {
+        /* New widevnum format: "auid#vnum" */
+        if (!parse_widevnum((char *)json_string_value(value), NULL, &wnum) || !wnum.pArea) {
+            log_stringf("json_persist_json_to_mobile: bad widevnum '%s'", json_string_value(value));
+            return NULL;
+        }
+        pMobIndex = get_mob_index(wnum.pArea, wnum.vnum);
+    } else {
+        /* Legacy integer format */
+        long vnum = json_integer_value(value);
+        AREA_DATA *area = find_area_by_vnum(vnum, NULL);
+        if (!area) area = get_system_area_fallback();
+        pMobIndex = get_mob_index(area, vnum);
+    }
     if (!pMobIndex) {
-        log_stringf("json_persist_json_to_mobile: bad vnum %ld", vnum);
+        log_stringf("json_persist_json_to_mobile: mobile index not found");
         return NULL;
     }
 
@@ -1597,8 +1668,18 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
         const char *type = json_string_value(loc_type);
 
         if (!str_cmp(type, "static")) {
-            long room_vnum = json_integer_value(json_object_get(value, "vnum"));
-            ch->in_room = get_room_index_global(room_vnum);
+            json_t *vnum_val = json_object_get(value, "vnum");
+            if (json_is_string(vnum_val)) {
+                /* New widevnum format */
+                WNUM room_wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &room_wnum) && room_wnum.pArea) {
+                    ch->in_room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                }
+            } else {
+                /* Legacy integer format */
+                long room_vnum = json_integer_value(vnum_val);
+                ch->in_room = get_room_index_global(room_vnum);
+            }
         } else if (!str_cmp(type, "clone") || !str_cmp(type, "wilds")) {
             /* Clone/wilderness room - needs deferred resolution */
             ch->in_room = NULL;
@@ -1930,11 +2011,11 @@ static json_t *room_environ_to_json(ROOM_INDEX_DATA *room)
             json_object_set_new(env, "y", json_integer(env_room->y));
             json_object_set_new(env, "z", json_integer(env_room->z));
         } else if (env_room->source) {
-            json_object_set_new(env, "source_vnum", json_integer(env_room->source->vnum));
+            json_object_set_new(env, "source_vnum", json_string(widevnum_string_room(env_room->source, NULL)));
             json_object_set_new(env, "id0", json_integer(env_room->id[0]));
             json_object_set_new(env, "id1", json_integer(env_room->id[1]));
         } else {
-            json_object_set_new(env, "vnum", json_integer(env_room->vnum));
+            json_object_set_new(env, "vnum", json_string(widevnum_string_room(env_room, NULL)));
         }
     } else if (room->environ_type == ENVIRON_MOBILE && room->environ.mob) {
         json_object_set_new(env, "type", json_string("mobile"));
@@ -1950,7 +2031,7 @@ static json_t *room_environ_to_json(ROOM_INDEX_DATA *room)
         json_object_set_new(env, "id1", json_integer(room->environ.token->id[1]));
     } else if (room->environ_type == -ENVIRON_ROOM && room->environ.clone.source) {
         json_object_set_new(env, "type", json_string("clone_room_ref"));
-        json_object_set_new(env, "source_vnum", json_integer(room->environ.clone.source->vnum));
+        json_object_set_new(env, "source_vnum", json_string(widevnum_string_room(room->environ.clone.source, NULL)));
         json_object_set_new(env, "id0", json_integer(room->environ.clone.id[0]));
         json_object_set_new(env, "id1", json_integer(room->environ.clone.id[1]));
     } else if (room->environ_type == -ENVIRON_MOBILE) {
@@ -1988,11 +2069,11 @@ json_t *json_persist_room_to_json(ROOM_INDEX_DATA *room)
     /* Metadata */
     json_object_set_new(json, "json_version", json_integer(JSON_PERSIST_VERSION_ROOM));
 
-    /* Room type and identification */
+    /* Room type and identification - use widevnum format */
     if (room->source) {
         /* Clone room */
         json_object_set_new(json, "room_type", json_string("clone"));
-        json_object_set_new(json, "source_vnum", json_integer(room->source->vnum));
+        json_object_set_new(json, "source_vnum", json_string(widevnum_string_room(room->source, NULL)));
         json_object_set_new(json, "id0", json_integer(room->id[0]));
         json_object_set_new(json, "id1", json_integer(room->id[1]));
 
@@ -2008,7 +2089,7 @@ json_t *json_persist_room_to_json(ROOM_INDEX_DATA *room)
     } else {
         /* Static room */
         json_object_set_new(json, "room_type", json_string("static"));
-        json_object_set_new(json, "vnum", json_integer(room->vnum));
+        json_object_set_new(json, "vnum", json_string(widevnum_string_room(room, NULL)));
     }
 
     /* Coordinates */
@@ -2147,18 +2228,39 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
 
     /* Create or find room based on type */
     if (!str_cmp(room_type, "static")) {
-        long vnum = json_integer_value(json_object_get(json, "vnum"));
-        room = get_room_index_global(vnum);
+        json_t *vnum_val = json_object_get(json, "vnum");
+        if (json_is_string(vnum_val)) {
+            /* New widevnum format */
+            WNUM room_wnum;
+            if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &room_wnum) && room_wnum.pArea) {
+                room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            }
+        } else {
+            /* Legacy integer format */
+            long vnum = json_integer_value(vnum_val);
+            room = get_room_index_global(vnum);
+        }
         if (!room) {
-            log_stringf("json_persist_json_to_room: bad vnum %ld", vnum);
+            log_string("json_persist_json_to_room: bad vnum");
             return NULL;
         }
         /* Static rooms exist - we just apply persistent changes */
     } else if (!str_cmp(room_type, "clone")) {
-        long source_vnum = json_integer_value(json_object_get(json, "source_vnum"));
-        ROOM_INDEX_DATA *source = get_room_index_global(source_vnum);
+        json_t *src_vnum_val = json_object_get(json, "source_vnum");
+        ROOM_INDEX_DATA *source = NULL;
+        if (json_is_string(src_vnum_val)) {
+            /* New widevnum format */
+            WNUM room_wnum;
+            if (parse_widevnum((char *)json_string_value(src_vnum_val), NULL, &room_wnum) && room_wnum.pArea) {
+                source = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            }
+        } else {
+            /* Legacy integer format */
+            long source_vnum = json_integer_value(src_vnum_val);
+            source = get_room_index_global(source_vnum);
+        }
         if (!source) {
-            log_stringf("json_persist_json_to_room: bad source vnum %ld", source_vnum);
+            log_string("json_persist_json_to_room: bad source vnum");
             return NULL;
         }
         /* Create clone room */

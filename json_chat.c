@@ -126,9 +126,11 @@ json_t *json_chat_room_serialize(CHAT_ROOM_DATA *chat)
     json_object_set_new(json, "max_people", json_integer(chat->max_people));
     json_object_set_new(json, "permanent", json_boolean(chat->permanent));
     
-    // Widevnum support - save area_uid and vnum
-    json_object_set_new(json, "area_uid", json_integer(chat->area_uid));
-    json_object_set_new(json, "vnum", json_integer(chat->vnum));
+    // Widevnum support - use combined widevnum string format
+    if (chat->area_uid > 0 || chat->vnum > 0) {
+        AREA_DATA *area = chat->area_uid > 0 ? get_area_index(chat->area_uid) : NULL;
+        json_object_set_new(json, "vnum", json_string(widevnum_string(area, chat->vnum, NULL)));
+    }
     
     // Operators list
     json_t *ops_array = json_array();
@@ -181,9 +183,19 @@ CHAT_ROOM_DATA *json_chat_room_deserialize(json_t *json)
     chat->max_people = json_integer_value(json_object_get(json, "max_people"));
     chat->permanent = json_is_true(json_object_get(json, "permanent"));
     
-    // Widevnum support - load area_uid and vnum
-    chat->area_uid = json_integer_value(json_object_get(json, "area_uid"));
-    chat->vnum = json_integer_value(json_object_get(json, "vnum"));
+    // Widevnum support - supports both combined string and legacy separate fields
+    json_t *vnum_val = json_object_get(json, "vnum");
+    if (json_is_string(vnum_val)) {
+        WNUM wnum;
+        if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &wnum)) {
+            chat->area_uid = wnum.pArea ? wnum.pArea->uid : 0;
+            chat->vnum = wnum.vnum;
+        }
+    } else {
+        /* Legacy format with separate area_uid and vnum fields */
+        chat->area_uid = json_integer_value(json_object_get(json, "area_uid"));
+        chat->vnum = json_integer_value(vnum_val);
+    }
     
     // Operators list
     json_t *ops_array = json_object_get(json, "operators");

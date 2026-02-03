@@ -227,6 +227,9 @@ if(BUILD_TESTS)
         tests/integration/wnum_tests.c
         tests/integration/reset_tests.c
         tests/integration/shop_stock_tests.c
+        tests/integration/church_tests.c
+        tests/integration/instance_tests.c
+        tests/integration/chat_rooms_tests.c
     )
 endif()
 

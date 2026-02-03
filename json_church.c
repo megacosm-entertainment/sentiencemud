@@ -212,8 +212,7 @@ json_t *json_church_treasure_room_serialize(CHURCH_TREASURE_ROOM *treasure)
         json_object_set_new(obj, "z", json_integer(room->z));
     } else {
         json_object_set_new(obj, "type", json_string("normal"));
-        json_object_set_new(obj, "area_uid", json_integer(room->area ? room->area->uid : 0));
-        json_object_set_new(obj, "vnum", json_integer(room->vnum));
+        json_object_set_new(obj, "vnum", json_string(widevnum_string_room(room, NULL)));
     }
     
     json_object_set_new(obj, "is_default", json_boolean(treasure->is_default));
@@ -261,14 +260,48 @@ CHURCH_TREASURE_ROOM *json_church_treasure_room_deserialize(json_t *json)
     
     type_json = json_object_get(json, "type");
     type = type_json && json_is_string(type_json) ? json_string_value(type_json) : "normal";
-    
-    /* Store vnum/coords temporarily - will resolve to room pointer in fixup */
+
+    /* Resolve room pointer from saved data */
     if (!str_cmp(type, "wilderness")) {
-        /* Wilderness rooms - store coords for later lookup */
-        treasure->room = NULL; /* Will be resolved in fixup */
+        /* Wilderness rooms - lookup by wilds_uid and coords */
+        long wilds_uid = json_integer_value(json_object_get(json, "wilds_uid"));
+        int x = json_integer_value(json_object_get(json, "x"));
+        int y = json_integer_value(json_object_get(json, "y"));
+        WILDS_DATA *wilds = get_wilds_from_uid(NULL, wilds_uid);
+        if (wilds) {
+            treasure->room = get_wilds_vroom(wilds, x, y);
+        } else {
+            treasure->room = NULL;
+        }
     } else {
-        /* Normal rooms - store vnum for later lookup */
-        treasure->room = NULL; /* Will be resolved in fixup */
+        /* Normal rooms - supports both widevnum string and legacy formats */
+        json_t *vnum_val = json_object_get(json, "vnum");
+        if (json_is_string(vnum_val)) {
+            /* New widevnum format */
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(vnum_val), NULL, &wnum) && wnum.pArea) {
+                treasure->room = get_room_index(wnum.pArea, wnum.vnum);
+            } else {
+                treasure->room = NULL;
+            }
+        } else if (json_is_integer(vnum_val)) {
+            /* Legacy integer format - also check for area_uid */
+            long vnum = json_integer_value(vnum_val);
+            json_t *auid_val = json_object_get(json, "area_uid");
+            if (auid_val && json_is_integer(auid_val)) {
+                long auid = json_integer_value(auid_val);
+                AREA_DATA *area = get_area_index(auid);
+                if (area) {
+                    treasure->room = get_room_index(area, vnum);
+                } else {
+                    treasure->room = get_room_index_global(vnum);
+                }
+            } else {
+                treasure->room = get_room_index_global(vnum);
+            }
+        } else {
+            treasure->room = NULL;
+        }
     }
     
     value = json_object_get(json, "is_default");
@@ -353,11 +386,28 @@ json_t *json_church_serialize(CHURCH_DATA *church)
     json_object_set_new(root, "size", json_integer(church->size));
     json_object_set_new(root, "alignment", json_integer(church->alignment));
     
-    /* Location */
-    json_object_set_new(root, "recall_point", json_integer(church->recall_point.id[0]));
-    
-    /* Key object vnum */
-    json_object_set_new(root, "key_vnum", json_integer(church->key));
+    /* Location - use widevnum format */
+    if (church->recall_point.id[0] > 0) {
+        ROOM_INDEX_DATA *recall_room = church->recall_point.area
+            ? get_room_index(church->recall_point.area, church->recall_point.id[0])
+            : get_room_index_global(church->recall_point.id[0]);
+        if (recall_room) {
+            json_object_set_new(root, "recall_point", json_string(widevnum_string_room(recall_room, NULL)));
+        } else {
+            json_object_set_new(root, "recall_point", json_integer(church->recall_point.id[0]));
+        }
+    }
+
+    /* Key object vnum - use widevnum format */
+    if (church->key > 0) {
+        AREA_DATA *key_area = find_area_by_vnum(church->key, NULL);
+        OBJ_INDEX_DATA *key_obj = key_area ? get_obj_index(key_area, church->key) : NULL;
+        if (key_obj) {
+            json_object_set_new(root, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));
+        } else {
+            json_object_set_new(root, "key_vnum", json_integer(church->key));
+        }
+    }
     
     /* Combat stats */
     json_object_set_new(root, "pk_wins", json_integer(church->pk_wins));
@@ -582,15 +632,32 @@ CHURCH_DATA *json_church_deserialize(json_t *root)
     if (value && json_is_integer(value))
         church->alignment = json_integer_value(value);
     
-    /* Location */
+    /* Location - supports both widevnum string and legacy integer */
     value = json_object_get(root, "recall_point");
-    if (value && json_is_integer(value))
-        church->recall_point.id[0] = json_integer_value(value);
-    
-    /* Key object vnum */
+    if (value) {
+        if (json_is_string(value)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(value), NULL, &wnum) && wnum.pArea) {
+                church->recall_point.area = wnum.pArea;
+                church->recall_point.id[0] = wnum.vnum;
+            }
+        } else if (json_is_integer(value)) {
+            church->recall_point.id[0] = json_integer_value(value);
+        }
+    }
+
+    /* Key object vnum - supports both widevnum string and legacy integer */
     value = json_object_get(root, "key_vnum");
-    if (value && json_is_integer(value))
-        church->key = json_integer_value(value);
+    if (value) {
+        if (json_is_string(value)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(value), NULL, &wnum)) {
+                church->key = wnum.vnum;
+            }
+        } else if (json_is_integer(value)) {
+            church->key = json_integer_value(value);
+        }
+    }
     
     /* Combat stats */
     value = json_object_get(root, "pk_wins");

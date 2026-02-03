@@ -127,10 +127,10 @@ static json_t *room_ref_to_json(ROOM_INDEX_DATA *room)
     }
     
     json = json_object();
-    json_object_set_new(json, "vnum", json_integer(room->vnum));
+    json_object_set_new(json, "vnum", json_string(widevnum_string_room(room, NULL)));
     json_object_set_new(json, "id0", json_integer(room->id[0]));
     json_object_set_new(json, "id1", json_integer(room->id[1]));
-    
+
     return json;
 }
 
@@ -139,29 +139,37 @@ static json_t *room_ref_to_json(ROOM_INDEX_DATA *room)
  */
 static ROOM_INDEX_DATA *json_to_room_ref(json_t *json)
 {
-    long vnum;
     unsigned long id0, id1;
     json_t *value;
-    
+    ROOM_INDEX_DATA *source_room = NULL;
+
     if (!json || json_is_null(json)) {
         return NULL;
     }
-    
+
+    /* Parse vnum - supports both widevnum string and legacy integer */
     value = json_object_get(json, "vnum");
-    vnum = value ? json_integer_value(value) : 0;
-    
+    if (json_is_string(value)) {
+        WNUM wnum;
+        if (parse_widevnum((char *)json_string_value(value), NULL, &wnum) && wnum.pArea) {
+            source_room = get_room_index(wnum.pArea, wnum.vnum);
+        }
+    } else {
+        long vnum = value ? json_integer_value(value) : 0;
+        source_room = get_room_index_global(vnum);
+    }
+
     value = json_object_get(json, "id0");
     id0 = value ? json_integer_value(value) : 0;
-    
+
     value = json_object_get(json, "id1");
     id1 = value ? json_integer_value(value) : 0;
-    
-    if (id0 || id1) {
+
+    if ((id0 || id1) && source_room) {
         /* Clone room - need to find it */
-        AREA_DATA *area = get_system_area_fallback();
-        return get_clone_room(get_room_index(area, vnum), id0, id1);
+        return get_clone_room(source_room, id0, id1);
     }
-    
+
     return NULL;
 }
 
@@ -528,7 +536,7 @@ json_t *ship_to_json(SHIP_DATA *ship)
             json_object_set_new(location, "wilds_uid", json_integer(room->wilds->uid));
         } else if (room) {
             json_object_set_new(location, "type", json_string("room"));
-            json_object_set_new(location, "room_vnum", json_integer(room->vnum));
+            json_object_set_new(location, "room_vnum", json_string(widevnum_string_room(room, NULL)));
         }
         
         if (json_object_size(location) > 0) {
@@ -662,11 +670,20 @@ SHIP_DATA *json_to_ship(json_t *json)
                 }
             }
         } else {
-            long room_vnum = json_integer_value(json_object_get(value, "room_vnum"));
-            ROOM_INDEX_DATA *room = get_room_index_global(room_vnum);
+            json_t *room_vnum_val = json_object_get(value, "room_vnum");
+            ROOM_INDEX_DATA *room = NULL;
+            if (json_is_string(room_vnum_val)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(room_vnum_val), NULL, &wnum) && wnum.pArea) {
+                    room = get_room_index(wnum.pArea, wnum.vnum);
+                }
+            } else {
+                long room_vnum = json_integer_value(room_vnum_val);
+                room = get_room_index_global(room_vnum);
+            }
             if (room && IS_VALID(ship->ship)) {
                 obj_to_room(ship->ship, room);
-                
+
                 /* Sync ship instance entrance to ship object location for wilderness rooms */
                 if (IS_VALID(ship->instance) && ship->instance->entrance && room->wilds) {
                     ship->instance->entrance->wilds = room->wilds;

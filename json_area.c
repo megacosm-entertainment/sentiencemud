@@ -64,7 +64,18 @@ static json_t *wilds_vlink_to_json(WILDS_VLINK *vlink) {
     json_object_set_new(json, "wildsorigin_y", json_integer(vlink->wildsorigin_y));
     json_object_set_new(json, "door", json_integer(vlink->door));
     json_object_set_new(json, "map_tile", json_string(vlink->map_tile ? vlink->map_tile : ""));
-    json_object_set_new(json, "destvnum", json_integer(vlink->destvnum));
+    /* Use widevnum format for destination room */
+    if (vlink->pDestRoom) {
+        json_object_set_new(json, "destvnum", json_string(widevnum_string_room(vlink->pDestRoom, NULL)));
+    } else if (vlink->destvnum > 0) {
+        /* Fallback: try to find the room to get its area */
+        ROOM_INDEX_DATA *dest = get_room_index_global(vlink->destvnum);
+        if (dest) {
+            json_object_set_new(json, "destvnum", json_string(widevnum_string_room(dest, NULL)));
+        } else {
+            json_object_set_new(json, "destvnum", json_integer(vlink->destvnum));
+        }
+    }
     json_object_set_new(json, "default_linkage", json_integer(vlink->default_linkage));
     json_object_set_new(json, "current_linkage", json_integer(vlink->current_linkage));
     json_object_set_new(json, "orig_description", json_string(vlink->orig_description ? vlink->orig_description : ""));
@@ -92,7 +103,19 @@ static WILDS_VLINK *json_to_wilds_vlink(json_t *json, WILDS_DATA *pWilds) {
     vlink->wildsorigin_y = json_get_int_default(json, "wildsorigin_y", 0);
     vlink->door = json_get_int_default(json, "door", 0);
     vlink->map_tile = str_dup(json_get_string_default(json, "map_tile", ""));
-    vlink->destvnum = json_get_int_default(json, "destvnum", 0);
+    /* Parse destvnum - supports both widevnum string and legacy integer */
+    {
+        json_t *destvnum_val = json_object_get(json, "destvnum");
+        if (json_is_string(destvnum_val)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(destvnum_val), NULL, &wnum)) {
+                vlink->destvnum = wnum.vnum;
+                vlink->pDestRoom = wnum.pArea ? get_room_index(wnum.pArea, wnum.vnum) : NULL;
+            }
+        } else {
+            vlink->destvnum = json_get_int_default(json, "destvnum", 0);
+        }
+    }
     vlink->default_linkage = json_get_int_default(json, "default_linkage", 0);
     vlink->current_linkage = json_get_int_default(json, "current_linkage", 0);
     vlink->orig_description = str_dup(json_get_string_default(json, "orig_description", ""));
@@ -361,7 +384,13 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
         json_object_set_new(recall, "y", json_integer(area->recall.id[1]));
         json_object_set_new(recall, "z", json_integer(area->recall.id[2]));
     } else if (area->recall.id[0] > 0) {
-        json_object_set_new(recall, "vnum", json_integer(area->recall.id[0]));
+        /* Use widevnum format for room recall */
+        ROOM_INDEX_DATA *recall_room = get_room_index_global(area->recall.id[0]);
+        if (recall_room) {
+            json_object_set_new(recall, "vnum", json_string(widevnum_string_room(recall_room, NULL)));
+        } else {
+            json_object_set_new(recall, "vnum", json_integer(area->recall.id[0]));
+        }
     }
     json_object_set_new(root, "recall", recall);
     
@@ -468,7 +497,16 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
             area->recall.id[1] = json_get_int_default(recall, "y", 0);
             area->recall.id[2] = json_get_int_default(recall, "z", 0);
         } else {
-            area->recall.id[0] = json_get_int_default(recall, "vnum", 0);
+            /* Handle widevnum string or legacy integer */
+            json_t *vnum_json = json_object_get(recall, "vnum");
+            if (vnum_json && json_is_string(vnum_json)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_json), NULL, &wnum)) {
+                    area->recall.id[0] = wnum.vnum;
+                }
+            } else {
+                area->recall.id[0] = json_get_int_default(recall, "vnum", 0);
+            }
         }
     }
     
@@ -530,10 +568,9 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
 
     json_object_set_new(obj, "direction", json_string(dir_name[exit->orig_door]));
 
-    /* Destination - save the vnum from to_room if it exists */
+    /* Destination - save as widevnum string */
     if (exit->u1.to_room && exit->u1.to_room->vnum > 0) {
-        json_object_set_new(obj, "destination_area_uid", json_integer(exit->u1.to_room->area ? exit->u1.to_room->area->uid : 0));
-        json_object_set_new(obj, "destination_vnum", json_integer(exit->u1.to_room->vnum));
+        json_object_set_new(obj, "destination", json_string(widevnum_string_room(exit->u1.to_room, NULL)));
     }
 
     /* Keywords and descriptions */
@@ -544,8 +581,16 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
     if (exit->long_desc && exit->long_desc[0] != '\0')
         json_object_set_new(obj, "long_description", json_string(exit->long_desc));
 
-    /* Lock/key/pick fields */
-    json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_vnum));
+    /* Lock/key/pick fields - use widevnum for key */
+    if (exit->door.lock.key_vnum > 0) {
+        OBJ_INDEX_DATA *key_obj = get_obj_index_global(exit->door.lock.key_vnum);
+        if (key_obj) {
+            json_object_set_new(obj, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));
+        } else {
+            /* Fallback to bare vnum if object not found */
+            json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_vnum));
+        }
+    }
     json_object_set_new(obj, "lock_flags", flags_to_json_array(exit->door.lock.flags, lock_flags));
     json_object_set_new(obj, "pick_chance", json_integer(exit->door.lock.pick_chance));
 
@@ -573,13 +618,27 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     }
     
     /* Destination - will be linked in fix_exits() */
-    long to_vnum = json_get_int_default(json, "destination_vnum", 0);
-    long to_area_uid = json_get_int_default(json, "destination_area_uid", 0);
-    
-    /* Legacy field names for backward compatibility */
-    if (to_vnum == 0) to_vnum = json_get_int_default(json, "to_vnum", 0);
-    if (to_area_uid == 0) to_area_uid = json_get_int_default(json, "to_area", 0);
-    
+    json_t *dest_json = json_object_get(json, "destination");
+    long to_vnum = 0;
+    long to_area_uid = 0;
+
+    if (dest_json && json_is_string(dest_json)) {
+        /* New widevnum string format */
+        WNUM wnum;
+        if (parse_widevnum((char *)json_string_value(dest_json), NULL, &wnum)) {
+            to_vnum = wnum.vnum;
+            to_area_uid = wnum.pArea ? wnum.pArea->uid : 0;
+        }
+    } else {
+        /* Legacy separate fields */
+        to_vnum = json_get_int_default(json, "destination_vnum", 0);
+        to_area_uid = json_get_int_default(json, "destination_area_uid", 0);
+
+        /* Even older legacy field names */
+        if (to_vnum == 0) to_vnum = json_get_int_default(json, "to_vnum", 0);
+        if (to_area_uid == 0) to_area_uid = json_get_int_default(json, "to_area", 0);
+    }
+
     if (to_vnum > 0) {
         exit->u1.vnum = to_vnum;
         /* Store destination area UID for cross-area exit linking */
@@ -603,8 +662,16 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     exit->short_desc = str_dup(json_get_string_default(json, "description", ""));
     exit->long_desc = str_dup(json_get_string_default(json, "long_description", ""));
 
-    /* Lock/key/pick fields */
-    exit->door.lock.key_vnum = json_get_int_default(json, "key_vnum", 0);
+    /* Lock/key/pick fields - handle widevnum string or legacy integer */
+    json_t *key_json = json_object_get(json, "key_vnum");
+    if (key_json && json_is_string(key_json)) {
+        WNUM wnum;
+        if (parse_widevnum((char *)json_string_value(key_json), NULL, &wnum)) {
+            exit->door.lock.key_vnum = wnum.vnum;
+        }
+    } else {
+        exit->door.lock.key_vnum = json_get_int_default(json, "key_vnum", 0);
+    }
     
     /* Load lock_flags - try as array first, fall back to integer for legacy */
     json_t *lock_flags_json = json_object_get(json, "lock_flags");
@@ -663,18 +730,41 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
         dungeon->zone_out_mount = str_dup(mount_out);
     
     // Entry room - store as WNUM_LOAD for later resolution
+    // Handle widevnum string or legacy object with area_uid/vnum
     json_t *entry_room = json_object_get(json, "entry_room");
     if (entry_room) {
-        dungeon->entry_ref.load.auid = json_get_int_default(entry_room, "area_uid", 0);
-        dungeon->entry_ref.load.vnum = json_get_int_default(entry_room, "vnum", 0);
+        if (json_is_string(entry_room)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(entry_room), NULL, &wnum)) {
+                dungeon->entry_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                dungeon->entry_ref.load.vnum = wnum.vnum;
+            }
+        } else if (json_is_object(entry_room)) {
+            dungeon->entry_ref.load.auid = json_get_int_default(entry_room, "area_uid", 0);
+            dungeon->entry_ref.load.vnum = json_get_int_default(entry_room, "vnum", 0);
+        } else if (json_is_integer(entry_room)) {
+            dungeon->entry_ref.load.auid = 0;
+            dungeon->entry_ref.load.vnum = json_integer_value(entry_room);
+        }
     }
     dungeon->entry_room = NULL;  // Will be resolved in fix pass
-    
+
     // Exit room - store as WNUM_LOAD for later resolution
     json_t *exit_room = json_object_get(json, "exit_room");
     if (exit_room) {
-        dungeon->exit_ref.load.auid = json_get_int_default(exit_room, "area_uid", 0);
-        dungeon->exit_ref.load.vnum = json_get_int_default(exit_room, "vnum", 0);
+        if (json_is_string(exit_room)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(exit_room), NULL, &wnum)) {
+                dungeon->exit_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                dungeon->exit_ref.load.vnum = wnum.vnum;
+            }
+        } else if (json_is_object(exit_room)) {
+            dungeon->exit_ref.load.auid = json_get_int_default(exit_room, "area_uid", 0);
+            dungeon->exit_ref.load.vnum = json_get_int_default(exit_room, "vnum", 0);
+        } else if (json_is_integer(exit_room)) {
+            dungeon->exit_ref.load.auid = 0;
+            dungeon->exit_ref.load.vnum = json_integer_value(exit_room);
+        }
     }
     dungeon->exit_room = NULL;  // Will be resolved in fix pass
     
@@ -729,19 +819,28 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
         dungeon->levels = list_create(false);
     }
     
-    // Special rooms
+    // Special rooms - handle widevnum strings or legacy integers
     json_t *special_rooms = json_object_get(json, "special_rooms");
     if (special_rooms && json_is_array(special_rooms)) {
         dungeon->special_rooms = list_create(false);
         size_t index;
         json_t *special_json;
-        
+
         json_array_foreach(special_rooms, index, special_json) {
             DUNGEON_INDEX_SPECIAL_ROOM *special = alloc_perm(sizeof(DUNGEON_INDEX_SPECIAL_ROOM));
             special->valid = true;
             special->name = str_dup(json_get_string_default(special_json, "name", ""));
             special->level = json_get_int_default(special_json, "level", 0);
-            special->room = json_get_int_default(special_json, "room", 0);
+            /* Handle widevnum string or legacy integer */
+            json_t *room_json = json_object_get(special_json, "room");
+            if (room_json && json_is_string(room_json)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(room_json), NULL, &wnum)) {
+                    special->room = wnum.vnum;
+                }
+            } else {
+                special->room = json_get_int_default(special_json, "room", 0);
+            }
             list_appendlink(dungeon->special_rooms, special);
         }
     } else {
@@ -783,57 +882,37 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
     ship->ship_class = json_get_int_default(json, "ship_class", 0);
     ship->flags = json_get_int_default(json, "flags", 0);
     
-    // Blueprint reference - can be integer vnum or WNUM string
+    // Blueprint reference - use parse_widevnum for consistency
     json_t *blueprint_ref = json_object_get(json, "blueprint");
     if (blueprint_ref) {
-        if (json_is_integer(blueprint_ref)) {
+        if (json_is_string(blueprint_ref)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(blueprint_ref), NULL, &wnum)) {
+                ship->blueprint_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                ship->blueprint_ref.load.vnum = wnum.vnum;
+            }
+        } else if (json_is_integer(blueprint_ref)) {
             /* Bare vnum - assume same area */
             ship->blueprint_ref.load.auid = area->uid;
             ship->blueprint_ref.load.vnum = json_integer_value(blueprint_ref);
-        } else if (json_is_string(blueprint_ref)) {
-            /* WNUM string format: "auid#vnum" */
-            const char *wnum_str = json_string_value(blueprint_ref);
-            unsigned long auid = 0;
-            long vnum = 0;
-            if (sscanf(wnum_str, "%lu#%ld", &auid, &vnum) == 2) {
-                ship->blueprint_ref.load.auid = auid;
-                ship->blueprint_ref.load.vnum = vnum;
-            } else {
-                /* Fall back to parsing as bare vnum */
-                ship->blueprint_ref.load.auid = area->uid;
-                ship->blueprint_ref.load.vnum = atol(wnum_str);
-            }
         }
     }
     ship->blueprint = NULL;  // Will be resolved in fix pass
-    
-    // Ship object reference - can be integer vnum or WNUM string
+
+    // Ship object reference - use parse_widevnum for consistency
     json_t *ship_object_ref = json_object_get(json, "ship_object");
     if (ship_object_ref) {
-        if (json_is_integer(ship_object_ref)) {
+        if (json_is_string(ship_object_ref)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(ship_object_ref), NULL, &wnum)) {
+                ship->ship_object_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                ship->ship_object_ref.load.vnum = wnum.vnum;
+            }
+        } else if (json_is_integer(ship_object_ref)) {
             /* Bare vnum - assume same area */
             ship->ship_object_ref.load.auid = area->uid;
             ship->ship_object_ref.load.vnum = json_integer_value(ship_object_ref);
-            log_stringf("Ship %ld: loaded ship_object ref %lu#%ld", 
-                ship->vnum, ship->ship_object_ref.load.auid, ship->ship_object_ref.load.vnum);
-        } else if (json_is_string(ship_object_ref)) {
-            /* WNUM string format: "auid#vnum" */
-            const char *wnum_str = json_string_value(ship_object_ref);
-            unsigned long auid = 0;
-            long vnum = 0;
-            if (sscanf(wnum_str, "%lu#%ld", &auid, &vnum) == 2) {
-                ship->ship_object_ref.load.auid = auid;
-                ship->ship_object_ref.load.vnum = vnum;
-            } else {
-                /* Fall back to parsing as bare vnum */
-                ship->ship_object_ref.load.auid = area->uid;
-                ship->ship_object_ref.load.vnum = atol(wnum_str);
-            }
-            log_stringf("Ship %ld: loaded ship_object ref %lu#%ld from string", 
-                ship->vnum, ship->ship_object_ref.load.auid, ship->ship_object_ref.load.vnum);
         }
-    } else {
-        log_stringf("Ship %ld: no ship_object field found in JSON", ship->vnum);
     }
     ship->ship_object = NULL;  // Will be resolved in fix pass
     
@@ -850,18 +929,28 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
     ship->armor = json_get_int_default(json, "armor", 0);
     ship->oars = json_get_int_default(json, "oars", 0);
     
-    // Special keys
+    // Special keys - handle widevnum strings or legacy integers
     json_t *special_keys = json_object_get(json, "special_keys");
     if (special_keys && json_is_array(special_keys)) {
         ship->special_keys = list_create(false);
         size_t index;
         json_t *key_val;
-        
+
         json_array_foreach(special_keys, index, key_val) {
-            if (json_is_integer(key_val)) {
-                long *key_vnum = alloc_perm(sizeof(long));
+            long *key_vnum = alloc_perm(sizeof(long));
+            if (json_is_string(key_val)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(key_val), NULL, &wnum)) {
+                    *key_vnum = wnum.vnum;
+                    list_appendlink(ship->special_keys, key_vnum);
+                } else {
+                    free_mem(key_vnum, sizeof(long));
+                }
+            } else if (json_is_integer(key_val)) {
                 *key_vnum = json_integer_value(key_val);
                 list_appendlink(ship->special_keys, key_vnum);
+            } else {
+                free_mem(key_vnum, sizeof(long));
             }
         }
     } else {
@@ -948,13 +1037,24 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
     section->rooms_area = NULL;  // Will be resolved in fix pass
     
     // Recall room - store as WNUM_LOAD for later resolution
-    json_t *recall = json_object_get(json, "recall");
-    if (recall && json_is_object(recall)) {
-        section->recall_ref.load.auid = json_get_int_default(recall, "area_uid", 0);
-        section->recall_ref.load.vnum = json_get_int_default(recall, "vnum", 0);
+    // Handle new "recall_room" widevnum string or legacy "recall" object
+    json_t *recall_json = json_object_get(json, "recall_room");
+    if (recall_json && json_is_string(recall_json)) {
+        WNUM wnum;
+        if (parse_widevnum((char *)json_string_value(recall_json), NULL, &wnum)) {
+            section->recall_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+            section->recall_ref.load.vnum = wnum.vnum;
+        }
     } else {
-        section->recall_ref.load.auid = 0;
-        section->recall_ref.load.vnum = 0;
+        /* Legacy format: "recall" object with area_uid and vnum */
+        json_t *recall = json_object_get(json, "recall");
+        if (recall && json_is_object(recall)) {
+            section->recall_ref.load.auid = json_get_int_default(recall, "area_uid", 0);
+            section->recall_ref.load.vnum = json_get_int_default(recall, "vnum", 0);
+        } else {
+            section->recall_ref.load.auid = 0;
+            section->recall_ref.load.vnum = 0;
+        }
     }
     section->recall_room = NULL;  // Will be resolved in fix pass
     
@@ -971,9 +1071,18 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
             link->door = json_get_int_default(link_json, "door", 0);
             link->used = false;
             
-            // Room reference - stored as integer vnum
-            link->room_ref.load.auid = area->uid;
-            link->room_ref.load.vnum = json_get_int_default(link_json, "room", 0);
+            // Room reference - handle widevnum string or legacy integer
+            json_t *room_json = json_object_get(link_json, "room");
+            if (room_json && json_is_string(room_json)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(room_json), NULL, &wnum)) {
+                    link->room_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                    link->room_ref.load.vnum = wnum.vnum;
+                }
+            } else {
+                link->room_ref.load.auid = area->uid;
+                link->room_ref.load.vnum = json_get_int_default(link_json, "room", 0);
+            }
             link->room = NULL;  // Will be resolved in fix pass
             link->ex = NULL;
             
@@ -1043,12 +1152,21 @@ BLUEPRINT *json_area_deserialize_blueprint(json_t *json, AREA_DATA *area)
             special->valid = true;
             special->name = str_dup(json_get_string_default(special_json, "name", ""));
             special->section = json_get_int_default(special_json, "section", 0);
-            
-            // Room vnum - stored as integer
-            special->room_ref.load.auid = area->uid;
-            special->room_ref.load.vnum = json_get_int_default(special_json, "room", 0);
+
+            // Room vnum - handle widevnum string or legacy integer
+            json_t *room_json = json_object_get(special_json, "room");
+            if (room_json && json_is_string(room_json)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(room_json), NULL, &wnum)) {
+                    special->room_ref.load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                    special->room_ref.load.vnum = wnum.vnum;
+                }
+            } else {
+                special->room_ref.load.auid = area->uid;
+                special->room_ref.load.vnum = json_get_int_default(special_json, "room", 0);
+            }
             special->room = NULL;  // Will be resolved in fix pass
-            
+
             list_appendlink(blueprint->special_rooms, special);
         }
     }
@@ -1954,7 +2072,13 @@ json_t *json_area_serialize_room(ROOM_INDEX_DATA *room)
             json_object_set_new(recall, "y", json_integer(room->rs_recall.id[1]));
             json_object_set_new(recall, "z", json_integer(room->rs_recall.id[2]));
         } else {
-            json_object_set_new(recall, "vnum", json_integer(room->rs_recall.id[0]));
+            /* Use widevnum format for room recall */
+            ROOM_INDEX_DATA *recall_room = get_room_index_global(room->rs_recall.id[0]);
+            if (recall_room) {
+                json_object_set_new(recall, "vnum", json_string(widevnum_string_room(recall_room, NULL)));
+            } else {
+                json_object_set_new(recall, "vnum", json_integer(room->rs_recall.id[0]));
+            }
         }
         json_object_set_new(json, "recall", recall);
     }
@@ -2100,7 +2224,16 @@ ROOM_INDEX_DATA *json_area_deserialize_room(json_t *json, AREA_DATA *area)
             room->rs_recall.id[2] = json_get_int_default(recall, "z", 0);
         } else {
             room->rs_recall.wuid = 0;
-            room->rs_recall.id[0] = json_get_int_default(recall, "vnum", 0);
+            /* Handle widevnum string or legacy integer */
+            json_t *vnum_json = json_object_get(recall, "vnum");
+            if (vnum_json && json_is_string(vnum_json)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_json), NULL, &wnum)) {
+                    room->rs_recall.id[0] = wnum.vnum;
+                }
+            } else {
+                room->rs_recall.id[0] = json_get_int_default(recall, "vnum", 0);
+            }
             room->rs_recall.id[1] = 0;
             room->rs_recall.id[2] = 0;
         }
@@ -2630,7 +2763,15 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
     // Lock
     if (obj->lock) {
         json_t *lock = json_object();
-        json_object_set_new(lock, "key_vnum", json_integer(obj->lock->key_vnum));
+        /* Use widevnum format for key */
+        if (obj->lock->key_vnum > 0) {
+            OBJ_INDEX_DATA *key_obj = get_obj_index_global(obj->lock->key_vnum);
+            if (key_obj) {
+                json_object_set_new(lock, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));
+            } else {
+                json_object_set_new(lock, "key_vnum", json_integer(obj->lock->key_vnum));
+            }
+        }
         json_object_set_new(lock, "flags", json_integer(obj->lock->flags));
         json_object_set_new(lock, "pick_chance", json_integer(obj->lock->pick_chance));
         json_object_set_new(json, "lock", lock);
@@ -2787,7 +2928,16 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         if (!obj->lock) {
             obj->lock = alloc_perm(sizeof(LOCK_STATE));
         }
-        obj->lock->key_vnum = json_get_int_default(lock, "key_vnum", 0);
+        /* Handle widevnum string or legacy integer for key_vnum */
+        json_t *key_json = json_object_get(lock, "key_vnum");
+        if (key_json && json_is_string(key_json)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(key_json), NULL, &wnum)) {
+                obj->lock->key_vnum = wnum.vnum;
+            }
+        } else {
+            obj->lock->key_vnum = json_get_int_default(lock, "key_vnum", 0);
+        }
         
         json_t *lock_flags_json = json_object_get(lock, "flags");
         if (lock_flags_json) {
@@ -3162,35 +3312,23 @@ json_t *json_area_serialize_shop_stock(SHOP_STOCK_DATA *stock, AREA_DATA *area)
     json_t *json = json_object();
     if (!json) return NULL;
     
-    /* Stock type and vnum */
+    /* Stock type and vnum - use widevnum format */
     json_object_set_new(json, "type", json_integer(stock->type));
-    
+
     switch (stock->type) {
         case STOCK_OBJECT:
-            json_object_set_new(json, "vnum", json_integer(stock->entity.wnum.vnum));
-            if (stock->entity.wnum.pArea) {
-                json_object_set_new(json, "area_uid", json_integer(stock->entity.wnum.pArea->uid));
-            }
+            json_object_set_new(json, "vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
             break;
         case STOCK_PET:
         case STOCK_MOUNT:
         case STOCK_GUARD:
-            json_object_set_new(json, "mob_vnum", json_integer(stock->entity.wnum.vnum));
-            if (stock->entity.wnum.pArea) {
-                json_object_set_new(json, "mob_area_uid", json_integer(stock->entity.wnum.pArea->uid));
-            }
+            json_object_set_new(json, "mob_vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
             break;
         case STOCK_SHIP:
-            json_object_set_new(json, "ship_vnum", json_integer(stock->entity.wnum.vnum));
-            if (stock->entity.wnum.pArea) {
-                json_object_set_new(json, "ship_area_uid", json_integer(stock->entity.wnum.pArea->uid));
-            }
+            json_object_set_new(json, "ship_vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
             break;
         case STOCK_CREW:
-            json_object_set_new(json, "crew_vnum", json_integer(stock->entity.wnum.vnum));
-            if (stock->entity.wnum.pArea) {
-                json_object_set_new(json, "crew_area_uid", json_integer(stock->entity.wnum.pArea->uid));
-            }
+            json_object_set_new(json, "crew_vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
             break;
         case STOCK_CUSTOM:
             if (stock->custom_keyword && stock->custom_keyword[0] != '\0')
@@ -3249,35 +3387,48 @@ SHOP_STOCK_DATA *json_area_deserialize_shop_stock(json_t *json, AREA_DATA *area)
     
     /* Stock type */
     stock->type = json_get_int_default(json, "type", STOCK_OBJECT);
-    
+
+    /* Helper macro to parse widevnum string or fall back to legacy separate fields */
+    #define PARSE_STOCK_VNUM(vnum_field, auid_field) do { \
+        json_t *vnum_json = json_object_get(json, vnum_field); \
+        if (vnum_json && json_is_string(vnum_json)) { \
+            WNUM wnum; \
+            if (parse_widevnum((char *)json_string_value(vnum_json), NULL, &wnum)) { \
+                stock->entity.load.vnum = wnum.vnum; \
+                stock->entity.load.auid = wnum.pArea ? wnum.pArea->uid : 0; \
+            } \
+        } else { \
+            stock->entity.load.vnum = json_get_int_default(json, vnum_field, 0); \
+            stock->entity.load.auid = json_get_int_default(json, auid_field, 0); \
+        } \
+    } while(0)
+
     /* Vnum based on type */
     /* NOTE: Pointer fixup (obj/mob) deferred until after all entities loaded */
     switch (stock->type) {
         case STOCK_OBJECT:
-            stock->entity.load.vnum = json_get_int_default(json, "vnum", 0);
-            stock->entity.load.auid = json_get_int_default(json, "area_uid", 0);
+            PARSE_STOCK_VNUM("vnum", "area_uid");
             stock->obj = NULL;  /* Will be fixed up later */
             break;
         case STOCK_PET:
         case STOCK_MOUNT:
         case STOCK_GUARD:
-            stock->entity.load.vnum = json_get_int_default(json, "mob_vnum", 0);
-            stock->entity.load.auid = json_get_int_default(json, "mob_area_uid", 0);
+            PARSE_STOCK_VNUM("mob_vnum", "mob_area_uid");
             stock->mob = NULL;  /* Will be fixed up later */
             break;
         case STOCK_SHIP:
-            stock->entity.load.vnum = json_get_int_default(json, "ship_vnum", 0);
-            stock->entity.load.auid = json_get_int_default(json, "ship_area_uid", 0);
+            PARSE_STOCK_VNUM("ship_vnum", "ship_area_uid");
             stock->ship = NULL;  /* Will be fixed up later */
             break;
         case STOCK_CREW:
-            stock->entity.load.vnum = json_get_int_default(json, "crew_vnum", 0);
-            stock->entity.load.auid = json_get_int_default(json, "crew_area_uid", 0);
+            PARSE_STOCK_VNUM("crew_vnum", "crew_area_uid");
             break;
         case STOCK_CUSTOM:
             stock->custom_keyword = str_dup(json_get_string_default(json, "keyword", ""));
             break;
     }
+
+    #undef PARSE_STOCK_VNUM
     
     /* Pricing */
     const char *custom_price = json_get_string_default(json, "custom_price", "");
@@ -3688,7 +3839,7 @@ json_t *json_area_serialize_index_vars(pVARIABLE index_vars, AREA_DATA *area)
             case VAR_ROOM:
                 if (var->_.r && var->_.r->vnum) {
                     json_object_set_new(var_json, "type", json_string("room"));
-                    json_object_set_new(var_json, "vnum", json_integer(var->_.r->vnum));
+                    json_object_set_new(var_json, "vnum", json_string(widevnum_string_room(var->_.r, NULL)));
                 } else {
                     /* Skip invalid room references */
                     json_decref(var_json);
@@ -3744,7 +3895,17 @@ pVARIABLE json_area_deserialize_index_vars(json_t *json, AREA_DATA *area)
             variables_setindex_string(&index_vars, (char *)name, (char *)value, false, saved);
         } 
         else if (!str_cmp(type_str, "room")) {
-            long vnum = json_get_int_default(var_json, "vnum", 0);
+            /* Handle widevnum string or legacy integer */
+            long vnum = 0;
+            json_t *vnum_json = json_object_get(var_json, "vnum");
+            if (vnum_json && json_is_string(vnum_json)) {
+                WNUM wnum;
+                if (parse_widevnum((char *)json_string_value(vnum_json), NULL, &wnum)) {
+                    vnum = wnum.vnum;
+                }
+            } else {
+                vnum = json_get_int_default(var_json, "vnum", 0);
+            }
             if (vnum > 0) {
                 variables_setindex_room(&index_vars, (char *)name, vnum, saved);
             }
@@ -3953,8 +4114,15 @@ json_t *json_area_serialize_trade_list(TRADE_ITEM *trade_list, AREA_DATA *area)
         json_object_set_new(trade_obj, "replenish_amount", json_integer(trade->replenish_amount));
         json_object_set_new(trade_obj, "replenish_time", json_integer(trade->replenish_time));
         
-        /* Object vnum */
-        json_object_set_new(trade_obj, "obj_vnum", json_integer(trade->obj_vnum));
+        /* Object vnum - use widevnum format */
+        if (trade->obj_vnum > 0) {
+            OBJ_INDEX_DATA *trade_obj_idx = get_obj_index_global(trade->obj_vnum);
+            if (trade_obj_idx) {
+                json_object_set_new(trade_obj, "obj_vnum", json_string(widevnum_string_object(trade_obj_idx, NULL)));
+            } else {
+                json_object_set_new(trade_obj, "obj_vnum", json_integer(trade->obj_vnum));
+            }
+        }
         
         /* Add role annotation (supplier/consumer) */
         const char *role = (trade->replenish_amount > 0) ? "supplier" : "consumer";
@@ -3997,11 +4165,11 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
     json_object_set_new(json, "lower_vnum", json_integer(section->lower_vnum));
     json_object_set_new(json, "upper_vnum", json_integer(section->upper_vnum));
     
-    /* Recall room */
+    /* Recall room - use widevnum format */
     if (section->recall_room) {
-        json_object_set_new(json, "recall_room", json_integer(section->recall_room->vnum));
+        json_object_set_new(json, "recall_room", json_string(widevnum_string_room(section->recall_room, NULL)));
     }
-    
+
     /* Links */
     if (section->links) {
         json_t *links_array = json_array();
@@ -4009,7 +4177,7 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
             json_t *link_json = json_object();
             json_object_set_new(link_json, "name", json_string(bl->name ? bl->name : ""));
             if (bl->room) {
-                json_object_set_new(link_json, "room", json_integer(bl->room->vnum));
+                json_object_set_new(link_json, "room", json_string(widevnum_string_room(bl->room, NULL)));
             }
             json_object_set_new(link_json, "door", json_integer(bl->door));
             json_array_append_new(links_array, link_json);
@@ -4147,7 +4315,7 @@ json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area)
         }
     }
     
-    /* Special rooms */
+    /* Special rooms - use widevnum format */
     if (blueprint->special_rooms && list_size(blueprint->special_rooms) > 0) {
         json_t *special_rooms_array = json_array();
         ITERATOR it;
@@ -4159,7 +4327,7 @@ json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area)
                 json_object_set_new(special_json, "name", json_string(special->name ? special->name : ""));
                 json_object_set_new(special_json, "section", json_integer(special->section));
                 if (special->room) {
-                    json_object_set_new(special_json, "room", json_integer(special->room->vnum));
+                    json_object_set_new(special_json, "room", json_string(widevnum_string_room(special->room, NULL)));
                 }
                 json_array_append_new(special_rooms_array, special_json);
             }
@@ -4222,12 +4390,12 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
     if (dungeon->zone_out_mount && dungeon->zone_out_mount[0] != '\0')
         json_object_set_new(json, "mount_out", json_string(dungeon->zone_out_mount));
     
-    /* Entry/exit rooms */
+    /* Entry/exit rooms - use widevnum format */
     if (dungeon->entry_room) {
-        json_object_set_new(json, "entry_room", json_integer(dungeon->entry_room->vnum));
+        json_object_set_new(json, "entry_room", json_string(widevnum_string_room(dungeon->entry_room, NULL)));
     }
     if (dungeon->exit_room) {
-        json_object_set_new(json, "exit_room", json_integer(dungeon->exit_room->vnum));
+        json_object_set_new(json, "exit_room", json_string(widevnum_string_room(dungeon->exit_room, NULL)));
     }
     
     /* Floors - list of blueprint vnums */
@@ -4378,32 +4546,14 @@ json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
     json_object_set_new(json, "ship_class", json_integer(ship->ship_class));
     json_object_set_new(json, "flags", json_integer(ship->flags));
     
-    /* Blueprint reference - write as WNUM if cross-area, bare vnum if same area */
+    /* Blueprint reference - always use widevnum format */
     if (IS_VALID(ship->blueprint)) {
-        if (ship->blueprint->area && ship->blueprint->area != area) {
-            /* Cross-area reference - use WNUM format */
-            char wnum_str[MSL];
-            snprintf(wnum_str, sizeof(wnum_str), "%lu#%ld", 
-                     ship->blueprint->area->uid, ship->blueprint->vnum);
-            json_object_set_new(json, "blueprint", json_string(wnum_str));
-        } else {
-            /* Same area - use bare vnum */
-            json_object_set_new(json, "blueprint", json_integer(ship->blueprint->vnum));
-        }
+        json_object_set_new(json, "blueprint", json_string(widevnum_string(ship->blueprint->area, ship->blueprint->vnum, NULL)));
     }
-    
-    /* Ship object reference - write as WNUM if cross-area, bare vnum if same area */
+
+    /* Ship object reference - always use widevnum format */
     if (ship->ship_object) {
-        if (ship->ship_object->area && ship->ship_object->area != area) {
-            /* Cross-area reference - use WNUM format */
-            char wnum_str[MSL];
-            snprintf(wnum_str, sizeof(wnum_str), "%lu#%ld", 
-                     ship->ship_object->area->uid, ship->ship_object->vnum);
-            json_object_set_new(json, "ship_object", json_string(wnum_str));
-        } else {
-            /* Same area - use bare vnum */
-            json_object_set_new(json, "ship_object", json_integer(ship->ship_object->vnum));
-        }
+        json_object_set_new(json, "ship_object", json_string(widevnum_string_object(ship->ship_object, NULL)));
     }
     
     /* Stats */
@@ -4419,15 +4569,21 @@ json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
     json_object_set_new(json, "armor", json_integer(ship->armor));
     json_object_set_new(json, "oars", json_integer(ship->oars));
     
-    /* Special keys */
+    /* Special keys - use widevnum format */
     if (ship->special_keys && list_size(ship->special_keys) > 0) {
         json_t *keys_array = json_array();
         ITERATOR it;
         iterator_start(&it, ship->special_keys);
         while(iterator_nextdata(&it)) {
             long *key_vnum = iterator_currentdata(&it);
-            if (key_vnum) {
-                json_array_append_new(keys_array, json_integer(*key_vnum));
+            if (key_vnum && *key_vnum > 0) {
+                OBJ_INDEX_DATA *key_obj = get_obj_index_global(*key_vnum);
+                if (key_obj) {
+                    json_array_append_new(keys_array, json_string(widevnum_string_object(key_obj, NULL)));
+                } else {
+                    /* Fallback to bare vnum if object not found */
+                    json_array_append_new(keys_array, json_integer(*key_vnum));
+                }
             }
         }
         iterator_stop(&it);
@@ -4477,7 +4633,18 @@ void json_area_deserialize_trade_list(json_t *json, AREA_DATA *area)
         long max_qty = json_get_int_default(trade_json, "max_qty", 0);
         long replenish_amount = json_get_int_default(trade_json, "replenish_amount", 0);
         long replenish_time = json_get_int_default(trade_json, "replenish_time", 0);
-        long obj_vnum = json_get_int_default(trade_json, "obj_vnum", 0);
+
+        /* Handle widevnum string or legacy integer for obj_vnum */
+        long obj_vnum = 0;
+        json_t *obj_vnum_json = json_object_get(trade_json, "obj_vnum");
+        if (obj_vnum_json && json_is_string(obj_vnum_json)) {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(obj_vnum_json), NULL, &wnum)) {
+                obj_vnum = wnum.vnum;
+            }
+        } else {
+            obj_vnum = json_get_int_default(trade_json, "obj_vnum", 0);
+        }
         
         /* Create the trade item */
         new_trade_item(area, trade_type, replenish_time, replenish_amount, 

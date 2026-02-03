@@ -202,7 +202,10 @@ ifdef BUILD_TESTS
                tests/framework/test_loader.c \
                tests/integration/wnum_tests.c \
                tests/integration/reset_tests.c \
-               tests/integration/shop_stock_tests.c
+               tests/integration/shop_stock_tests.c \
+               tests/integration/church_tests.c \
+               tests/integration/instance_tests.c \
+               tests/integration/chat_rooms_tests.c
 endif
 
 O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
