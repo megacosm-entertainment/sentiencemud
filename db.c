@@ -978,8 +978,8 @@ void boot_db(void)
                 continue;
 
             /* Try JSON format first */
-            char json_filename[MAX_STRING_LENGTH];
-            char json_fullpath[MAX_STRING_LENGTH];
+            char json_filename[MAX_STRING_LENGTH + 10];  // +10 for ".json" suffix
+            char json_fullpath[MAX_STRING_LENGTH + 30];  // +30 for AREA_DIR prefix and suffix
             char *basename = strArea;
             char *dot = strrchr(basename, '.');
             

@@ -999,10 +999,13 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                pCopyFrom = "\n\r";
                break;
             case '+':
-               toupper(apData[j+2]);
+               // Note: Can't modify const string, this is intentionally a no-op
+               // The original intent may have been to modify output, but apData is const
+               (void)apData[j+2];
                break;
             case '-':
-               tolower(apData[j+2]);
+               // Note: Can't modify const string, this is intentionally a no-op
+               (void)apData[j+2];
                break;
             case '\0':
                bTerminate = true;

@@ -411,9 +411,12 @@ void save_area_new(AREA_DATA *area)
     char *basename = area->file_name;
     char *dot = strrchr(basename, '.');
     if (dot) {
-        char base[MSL*2];  // Double size to be safe
-        strncpy(base, basename, dot - basename);
-        base[dot - basename] = '\0';
+        // filename buffer is MSL (4096), need room for "area/" (5) + ".json" (5) = 10 bytes
+        // So base can be at most MSL - 10 - 1 (null terminator) = 4085 bytes
+        char base[MSL - 10];
+        size_t name_len = (dot - basename < sizeof(base)-1) ? (dot - basename) : (sizeof(base)-1);
+        strncpy(base, basename, name_len);
+        base[name_len] = '\0';
         snprintf(filename, sizeof(filename), "area/%s.json", base);
     } else {
         snprintf(filename, sizeof(filename), "area/%s.json", basename);

@@ -725,7 +725,7 @@ RESERVED(reserved_show)
     sprintf(buf, "{Y| {WUsage Examples:{x %-64s {Y|{x\n\r", " ");
     send_to_char(buf, ch);
     
-    sprintf(buf, "{Y| {xIn code: {W%d = get_reserved_vnum(\"%s\"){x %-32s {Y|{x\n\r", reserved->wnum.vnum, reserved->name, "");
+    sprintf(buf, "{Y| {xIn code: {W%ld = get_reserved_vnum(\"%s\"){x %-32s {Y|{x\n\r", reserved->wnum.vnum, reserved->name, "");
     send_to_char(buf, ch);
     
     switch (reserved->type) {

@@ -663,7 +663,7 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
 {
     char buf[MAX_STRING_LENGTH];
     char value_str[2048] = "";
-    char type_str[32] = "";
+    char type_str[64] = "";
 
     // Format value
     if (setting->sensitive && ch->pcdata->security < 10) {
