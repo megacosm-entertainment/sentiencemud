@@ -4463,7 +4463,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
         iterator_start(&tit, mob->ltokens);
         // Loop Level 1
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4515,7 +4515,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
                 iterator_start(&tit, mob->ltokens);
                 // Loop Level 1
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4573,7 +4573,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
         // Check for tokens FIRST
         iterator_start(&tit, obj->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4625,7 +4625,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
                 // Check for tokens FIRST
                 iterator_start(&tit, obj->ltokens);
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4693,7 +4693,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
         // Check for tokens FIRST
         iterator_start(&tit, room->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4745,7 +4745,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
                 // Check for tokens FIRST
                 iterator_start(&tit, room->ltokens);
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4878,7 +4878,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         // Loop Level 1
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
 
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4917,7 +4917,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
                 // Loop Level 1
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
 
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -4964,7 +4964,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         // Check for tokens FIRST
         iterator_start(&tit, obj->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5001,7 +5001,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
                 // Check for tokens FIRST
                 iterator_start(&tit, obj->ltokens);
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5055,7 +5055,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         // Check for tokens FIRST
         iterator_start(&tit, room->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5091,7 +5091,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
                 // Check for tokens FIRST
                 iterator_start(&tit, room->ltokens);
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5128,7 +5128,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         }
         script_room_remref(room);
     } else if(token) {
-        if( token->pIndexData->progs ) {
+        if( token->pIndexData && token->pIndexData->progs ) {
             script_token_addref(token);
             script_destructed = false;
             iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5333,7 +5333,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
         iterator_start(&tit, mob->ltokens);
         // Loop Level 1
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5407,7 +5407,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
                 iterator_start(&tit, mob->ltokens);
                 // Loop Level 1
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5490,7 +5490,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
         // Check for tokens FIRST
         iterator_start(&tit, obj->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5540,7 +5540,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
                 // Check for tokens FIRST
                 iterator_start(&tit, obj->ltokens);
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5608,7 +5608,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
         // Check for tokens FIRST
         iterator_start(&tit, room->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5660,7 +5660,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
                 // Check for tokens FIRST
                 iterator_start(&tit, room->ltokens);
                 while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                    if( token->pIndexData->progs ) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
                         script_token_addref(token);
                         script_destructed = false;
                         iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5847,7 +5847,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
         iterator_start(&tit, mob->ltokens);
         // Loop Level 1
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5901,7 +5901,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
             iterator_start(&tit, mob->ltokens);
             // Loop Level 1
             while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                if( token->pIndexData->progs ) {
+                if( token->pIndexData && token->pIndexData->progs ) {
                     script_token_addref(token);
                     script_destructed = false;
                     iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -5962,7 +5962,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
         // Check for tokens FIRST
         iterator_start(&tit, obj->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -6017,7 +6017,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
             // Check for tokens FIRST
             iterator_start(&tit, obj->ltokens);
             while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                if( token->pIndexData->progs ) {
+                if( token->pIndexData && token->pIndexData->progs ) {
                     script_token_addref(token);
                     script_destructed = false;
                     iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -6089,7 +6089,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
         // Check for tokens FIRST
         iterator_start(&tit, room->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -6140,7 +6140,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
             // Check for tokens FIRST
             iterator_start(&tit, room->ltokens);
             while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-                if( token->pIndexData->progs ) {
+                if( token->pIndexData && token->pIndexData->progs ) {
                     script_token_addref(token);
                     script_destructed = false;
                     iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -6339,7 +6339,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
     // Check for tokens FIRST
     iterator_start(&tit, ch->ltokens);
     while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-        if(token->pIndexData->progs) {
+        if(token->pIndexData && token->pIndexData->progs) {
             script_token_addref(token);
             script_destructed = false;
             iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -6360,7 +6360,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
     while(( obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
         iterator_start(&tit, obj->ltokens);
         while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if(token->pIndexData->progs) {
+            if(token->pIndexData && token->pIndexData->progs) {
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
@@ -8221,7 +8221,7 @@ bool valid_spell_token( TOKEN_DATA *token )
     ITERATOR pit;
     PROG_LIST *prg = NULL;
 
-    if( IS_VALID(token) && token->pIndexData->progs ) {
+    if( IS_VALID(token) && token->pIndexData && token->pIndexData->progs ) {
         iterator_start(&pit, token->pIndexData->progs[TRIGSLOT_SPELL]);
         while((prg = (PROG_LIST *)iterator_nextdata(&pit)))
             if(prg->trig_type == TRIG_SPELL)

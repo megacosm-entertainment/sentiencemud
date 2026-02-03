@@ -384,7 +384,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
     return;
     }
 
-    if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) {
+    if (obj->pIndexData == get_reserved_obj_index("obj_skull_normal") || obj->pIndexData == get_reserved_obj_index("obj_skull_golden")) {
     AFFECT_DATA *af;
 
     for (af = obj->affected; af != NULL; af = af->next) {

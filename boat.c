@@ -6418,7 +6418,7 @@ if( IS_NULLSTR(argument) )
     iterator_start(&it, ch->lcarrying);
     while ((map = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == get_reserved_vnum("obj_blank_scroll"))
+        if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData == get_reserved_obj_index("obj_blank_scroll"))
             break;
     }
     iterator_stop(&it);
@@ -6442,7 +6442,7 @@ if( IS_NULLSTR(argument) )
                 return;
             }
 
-            if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == get_reserved_vnum("obj_blank_scroll") )
+            if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData == get_reserved_obj_index("obj_blank_scroll") )
             {
                 // Replace blank scroll with map object
                 extract_obj(map);

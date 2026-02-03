@@ -232,7 +232,7 @@ void scatter_players()
     {
     do
         pRoom = get_random_room_area(ch, pArea);
-    while (pRoom == NULL || pRoom->vnum == get_reserved_vnum("room_war_staging"));
+    while (pRoom == NULL || pRoom == get_reserved_room_index("room_war_staging"));
 
     act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
     act( "{YYou have been transferred to the battlefield!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );

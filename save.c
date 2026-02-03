@@ -688,8 +688,10 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
         if( dungeon->entry_room )
             fprintf(fp,"Room %ld\n", dungeon->entry_room->vnum);
-        else
-            fprintf (fp, "Room %ld\n", (long int)get_reserved_vnum("room_default_recall"));
+        else {
+            ROOM_INDEX_DATA *default_recall = get_reserved_room_index("room_default_recall");
+            fprintf (fp, "Room %ld\n", default_recall ? default_recall->vnum : 0);
+        }
     }
     else if( ch->checkpoint ) {
         if( ch->checkpoint->wilds )
@@ -700,8 +702,10 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
                 ch->checkpoint->source->vnum, ch->checkpoint->id[0], ch->checkpoint->id[1]);
         else
             fprintf(fp,"Room %ld\n", ch->checkpoint->vnum);
-    } else if(!ch->in_room)
-        fprintf (fp, "Room %ld\n", (long int)get_reserved_vnum("room_default_recall"));
+    } else if(!ch->in_room) {
+        ROOM_INDEX_DATA *default_recall = get_reserved_room_index("room_default_recall");
+        fprintf (fp, "Room %ld\n", default_recall ? default_recall->vnum : 0);
+    }
     else if(ch->in_wilds) {
         fprintf (fp, "Vroom %ld %ld %ld %ld\n",
             ch->in_room->x, ch->in_room->y, ch->in_wilds->pArea->uid, ch->in_wilds->uid);
@@ -1204,13 +1208,13 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
                     continue;
 
                 if (ch->version < VERSION_PLAYER_006) {
-                    if (obj->pIndexData->vnum == get_reserved_vnum("obj_scroll"))
+                    if (obj->pIndexData == get_reserved_obj_index("obj_scroll"))
                         if (!strcmp(obj->name, "scroll")) {
                             free_string(obj->name);
                             obj->name = short_to_name(obj->short_descr);
                         }
 
-                    if (obj->pIndexData->vnum == get_reserved_vnum("obj_potion"))
+                    if (obj->pIndexData == get_reserved_obj_index("obj_potion"))
                         if(!strcmp(obj->name, "potion")) {
                             free_string(obj->name);
                             obj->name = short_to_name(obj->short_descr);
@@ -3713,7 +3717,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                     if (!fVnum)
                     {
                         free_obj(obj);
-                        obj = create_object(get_obj_index_global(get_reserved_vnum("obj_system_dummy")), 0 , false);
+                        obj = create_object(get_reserved_obj_index("obj_system_dummy"), 0 , false);
                     }
                     if (!list_haslink(loaded_objects, obj))
                     {
@@ -4203,7 +4207,7 @@ void fix_object(OBJ_DATA *obj)
         // cleanup_affects(obj);
 
         // Fix skulls
-        if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) {
+        if (obj->pIndexData == get_reserved_obj_index("obj_skull_normal") || obj->pIndexData == get_reserved_obj_index("obj_skull_golden")) {
             int i;
             char buf[MSL];
 

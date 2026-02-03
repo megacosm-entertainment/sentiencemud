@@ -1693,14 +1693,14 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
 
     // Fix for scrolls/potions that have generic names - derive name from short_descr
     // This matches the VERSION_PLAYER_006 fix in the pfile loading code
-    if (obj->pIndexData->vnum == get_reserved_vnum("obj_scroll")) {
+    if (obj->pIndexData == get_reserved_obj_index("obj_scroll")) {
         if (!strcmp(obj->name, "scroll")) {
             free_string(obj->name);
             obj->name = short_to_name(obj->short_descr);
             log_stringf("json_to_obj: Fixed scroll name from short_descr, now '%s'", obj->name);
         }
     }
-    if (obj->pIndexData->vnum == get_reserved_vnum("obj_potion")) {
+    if (obj->pIndexData == get_reserved_obj_index("obj_potion")) {
         if (!strcmp(obj->name, "potion")) {
             free_string(obj->name);
             obj->name = short_to_name(obj->short_descr);

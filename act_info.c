@@ -2726,8 +2726,8 @@ void do_look(CHAR_DATA * ch, char *argument)
         {
             look_compass(ch, obj);
         }
-        else if ((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || 
-                  obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) &&
+        else if ((obj->pIndexData == get_reserved_obj_index("obj_skull_normal") ||
+                  obj->pIndexData == get_reserved_obj_index("obj_skull_golden")) &&
                  affect_find(obj->affected, skill_lookup("third eye")) != NULL)
         {
             if ((victim = get_char_world(NULL, obj->owner)) != NULL)

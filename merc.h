@@ -7830,7 +7830,7 @@ extern int16_t	gsn_soul_essence;
         ((ch)->damroll+str_app[get_curr_stat(ch,STAT_STR)].todam)
 
 #define IS_OBJCASTER(ch)        (IS_SET((ch)->act[0], ACT_IS_NPC) \
-                         && (ch)->pIndexData->vnum == get_reserved_vnum("mob_objcaster"))
+                         && (ch)->pIndexData == get_reserved_mob_index("mob_objcaster"))
 
 /* Wilderness macros. */
 #define ROOM(room)		((room)->parent == -1 ? (room) : (get_room_index((room)->area, (room)->parent)))
@@ -7921,9 +7921,9 @@ extern int16_t	gsn_soul_essence;
 #define ON_SHIP(ch)             (get_room_ship((ch)->in_room) != NULL)
 #define IN_SHIP_NEST(ch)        (ch->in_room->vnum == get_reserved_room("room_sailing_boat_nest"))
 
-#define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room->vnum == get_reserved_vnum("room_plith_harbour") || \
-        ship->ship->in_room->vnum == get_reserved_vnum("room_southern_harbour") || \
-        ship->ship->in_room->vnum == get_reserved_vnum("room_northern_harbour") )
+#define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room == get_reserved_room_index("room_plith_harbour") || \
+        ship->ship->in_room == get_reserved_room_index("room_southern_harbour") || \
+        ship->ship->in_room == get_reserved_room_index("room_northern_harbour") )
 /* VIZZWILDS */
 #define IN_WILDERNESS(ch)  (ch->in_wilds)
 #define IS_WILDERNESS(in_room)	(in_room->wilds)

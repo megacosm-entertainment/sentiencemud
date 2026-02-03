@@ -1940,7 +1940,7 @@ void reset_wilds(WILDS_DATA *pWilds)
         {
             if (IS_SET(pVLink->current_linkage, VLINK_PORTAL))
             {
-          OBJ_INDEX_DATA *pObjIndex = get_obj_index_global(get_reserved_vnum("obj_portal_abyss"));
+          OBJ_INDEX_DATA *pObjIndex = get_reserved_obj_index("obj_portal_abyss");
           if (pObjIndex)
           {
               obj = create_object(pObjIndex, 0, true);
@@ -2431,7 +2431,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             pMob->home_room = pRoom;
 
             /* Give some pneuma to POA mobs.*/
-            OBJ_INDEX_DATA *pneuma_index = get_obj_index(pRoom->area, get_reserved_vnum("obj_pneuma_item"));
+            OBJ_INDEX_DATA *pneuma_index = get_reserved_obj_index("obj_pneuma_item");
             if (!pneuma_index)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "reset_area: Cannot find pneuma item object.");
@@ -2674,7 +2674,7 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
     }
 
     /* don't do for now
-    if (pMobIndex->vnum == get_reserved_vnum("mob_abyss_gatekeeper"))
+    if (pMobIndex == get_reserved_mob_index("mob_abyss_gatekeeper"))
     {
        if (pMobIndex->count > 0)
        return;
@@ -5217,7 +5217,7 @@ void load_reboot_objs()
     if (!pRoom)
         continue;
 
-    OBJ_INDEX_DATA *pObjIndex = get_obj_index(pRoom->area, get_reserved_vnum("obj_black_moonstone_shard"));
+    OBJ_INDEX_DATA *pObjIndex = get_reserved_obj_index("obj_black_moonstone_shard");
     if (!pObjIndex)
     {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_reboot_objs: Cannot find black moonstone shard object.");
@@ -6638,8 +6638,10 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
         if(ch->in_room->wilds)		fprintf(fp, "Vroom %ld %ld %ld\n", ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
         else if(ch->in_room->source)	fprintf(fp, "CloneRoom %ld %ld %ld\n", ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
         else				fprintf(fp, "Room %ld\n", ch->in_room->vnum);
-    } else
-        fprintf(fp, "Room %d\n", get_reserved_vnum("room_default"));
+    } else {
+        ROOM_INDEX_DATA *default_room = get_reserved_room_index("room_default");
+        fprintf(fp, "Room %ld\n", default_room ? default_room->vnum : 0);
+    }
 
     if (IS_SITH(ch)) {
         for (i = 0; i < MAX_TOXIN; i++)

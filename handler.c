@@ -2227,9 +2227,6 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
     // This ensures lcarrying only contains objects in the active inventory
     if (obj->wear_loc == WEAR_NONE && !list_haslink(ch->lcarrying, obj)) {
         list_addlink(ch->lcarrying, obj);
-        log_stringf("obj_to_char: added vnum=%ld name='%s' to %s's lcarrying (now %d items)",
-                   obj->pIndexData->vnum, obj->name ? obj->name : "(null)",
-                   ch->name, list_size(ch->lcarrying));
     }
 
     if (!IS_NPC(ch))
@@ -3665,12 +3662,6 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
         return NULL;
     }
 
-    // DEBUG: Log what we're searching for
-    log_stringf("get_obj_carry_number: searching for '%s' in %s's inventory (%d items in lcarrying)",
-               argument ? argument : "(null)",
-               ch->name ? ch->name : "(unknown)",
-               ch->lcarrying ? list_size(ch->lcarrying) : 0);
-
     // Use the lcarrying LLIST
     if (ch->lcarrying) {
         int item_num = 0;
@@ -3693,7 +3684,6 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
             if (wear_ok && see_ok && name_ok) {
                 if (--number < 1) {
                     iterator_stop(&it);
-                    log_stringf("get_obj_carry_number: FOUND item at position %d", item_num);
                     return obj;
                 }
             }
@@ -3701,7 +3691,6 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
         iterator_stop(&it);
     }
 
-    log_stringf("get_obj_carry_number: NOT FOUND '%s'", argument ? argument : "(null)");
     *nth = number;
     return NULL;
 }
@@ -5856,7 +5845,7 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-    if (obj->pIndexData->vnum == get_reserved_vnum("obj_spell_icestorm"))
+    if (obj->pIndexData == get_reserved_obj_index("obj_spell_icestorm"))
         return true;
     }
 
@@ -5923,19 +5912,19 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
                 // Look inside containers
                 for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
                     if (can_see_obj(ch, objNest)
-                    && (objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
-                        || objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
+                    && (objNest->pIndexData == get_reserved_obj_index("obj_skull_normal")
+                        || objNest->pIndexData == get_reserved_obj_index("obj_skull_golden"))
                     && !str_cmp(objNest->owner, owner)) {
                         iterator_stop(&it);
                         return objNest;
                     }
                 }
             }
-            
+
             // Check if this is a skull with matching owner
             if (can_see_obj(ch, obj)
-            && (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
-                || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
+            && (obj->pIndexData == get_reserved_obj_index("obj_skull_normal")
+                || obj->pIndexData == get_reserved_obj_index("obj_skull_golden"))
             && !str_cmp(obj->owner, owner)) {
                 iterator_stop(&it);
                 return obj;
@@ -5951,8 +5940,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
             if (obj->contains) {
                 for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
                     if (can_see_obj(ch, objNest)
-                    && (objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
-                        || objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
+                    && (objNest->pIndexData == get_reserved_obj_index("obj_skull_normal")
+                        || objNest->pIndexData == get_reserved_obj_index("obj_skull_golden"))
                     && !str_cmp(objNest->owner, owner)) {
                         iterator_stop(&it);
                         return objNest;
@@ -6838,7 +6827,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
         return false;
     }
 
-    if ((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
+    if ((obj->pIndexData == get_reserved_obj_index("obj_skull_normal") || obj->pIndexData == get_reserved_obj_index("obj_skull_golden"))
     &&   obj->affected != NULL)
     {
         if (!silent)
@@ -7110,6 +7099,12 @@ void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
         return;
     }
 
+    if (token->pIndexData == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_char: token with NULL pIndexData being added to char '%s', token name='%s'",
+            HANDLE(ch), token->name ? token->name : "(null)");
+        return;
+    }
+
     token->player = ch;
     token->object = NULL;
     token->room = NULL;
@@ -7195,6 +7190,12 @@ void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj)
         return;
     }
 
+    if (token->pIndexData == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_obj: token with NULL pIndexData being added to object '%s' (vnum %ld), token name='%s'",
+            obj->short_descr, VNUM(obj), token->name ? token->name : "(null)");
+        return;
+    }
+
     token->player = NULL;
     token->object = obj;
     token->room = NULL;
@@ -7261,6 +7262,12 @@ void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room)
 {
     if (token == NULL || room == NULL) {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_room: NULL");
+        return;
+    }
+
+    if (token->pIndexData == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_to_room: token with NULL pIndexData being added to room '%s' (vnum %ld), token name='%s'",
+            room->name, room->vnum, token->name ? token->name : "(null)");
         return;
     }
 

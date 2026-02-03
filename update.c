@@ -876,7 +876,7 @@ void mobile_update(void)
             continue;
 
         // A dirty hack to remove any Death mobs that have been stranded
-        if (ch->pIndexData->vnum == get_reserved_vnum("mob_death"))	// Replaced the name check to the vnum
+        if (ch->pIndexData == get_reserved_mob_index("mob_death"))	// Replaced the name check to the vnum
         {
             CHAR_DATA *vch;
             CHAR_DATA *vch_next;
@@ -1870,10 +1870,9 @@ void char_update(void)
                         save_char_obj(ch);
 
                     char_from_room(ch);
-                    long limbo_vnum = get_reserved_vnum("room_limbo");
-                    AREA_DATA *limbo_area = find_area_by_vnum(limbo_vnum, NULL);
-                    if (!limbo_area) limbo_area = get_system_area_fallback();
-                    char_to_room(ch, get_room_index(limbo_area, limbo_vnum));
+                    ROOM_INDEX_DATA *limbo_room = get_reserved_room_index("room_limbo");
+                    if (limbo_room)
+                        char_to_room(ch, limbo_room);
                 }
             }
 
@@ -2020,9 +2019,9 @@ void char_update(void)
 
             // No magical flying over the ocean.  Physical flight is ok
             if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
-                ch->in_room->vnum != get_reserved_vnum("room_plith_harbour") &&
-                ch->in_room->vnum != get_reserved_vnum("room_northern_harbour") &&
-                ch->in_room->vnum != get_reserved_vnum("room_southern_harbour") &&
+                ch->in_room != get_reserved_room_index("room_plith_harbour") &&
+                ch->in_room != get_reserved_room_index("room_northern_harbour") &&
+                ch->in_room != get_reserved_room_index("room_southern_harbour") &&
                 !IS_NPC(ch) && is_affected(ch, gsn_fly))
             {
                 act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -2361,7 +2360,7 @@ void obj_update(void)
 
                     if (paf->type == skill_lookup("third eye"))
                     {
-                        if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal"))
+                        if (obj->pIndexData == get_reserved_obj_index("obj_skull_normal"))
                         {
                             if ((rch = obj->carried_by) != NULL)
                             act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -3423,11 +3422,11 @@ void pneuma_relic_update(void)
 
         if (chance > 80)
     {
-        long pneuma_vnum = get_reserved_vnum("obj_pneuma_item");
-        AREA_DATA *pneuma_area = find_area_by_vnum(pneuma_vnum, NULL);
-        if (!pneuma_area) pneuma_area = get_system_area_fallback();
-        pneuma = create_object(get_obj_index(pneuma_area, pneuma_vnum), 0, true);
-        obj_to_room(pneuma, pneuma_relic->in_room);
+        OBJ_INDEX_DATA *pneuma_index = get_reserved_obj_index("obj_pneuma_item");
+        if (pneuma_index) {
+            pneuma = create_object(pneuma_index, 0, true);
+            obj_to_room(pneuma, pneuma_relic->in_room);
+        }
 
             for (people = pneuma_relic->in_room->people; people != NULL; people = people->next_in_room)
         {

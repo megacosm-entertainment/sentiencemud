@@ -135,14 +135,14 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 
     if ( container != NULL )
     {
-        if (container->pIndexData->vnum == get_reserved_vnum("obj_pit")
+        if (container->pIndexData == get_reserved_obj_index("obj_pit")
     &&  get_staff_rank(ch) < obj->level)
     {
         send_to_char("You are not powerful enough to use it.\n\r",ch);
         return;
     }
 
-        if (container->pIndexData->vnum == get_reserved_vnum("obj_pit")
+        if (container->pIndexData == get_reserved_obj_index("obj_pit")
     &&  !CAN_WEAR(container, ITEM_TAKE)
     )
         obj->timer = 0;
@@ -2057,7 +2057,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (ch->in_room->vnum == get_reserved_vnum("room_donation"))
+    if (ch->in_room == get_reserved_room_index("room_donation"))
     {
     send_to_char("You're already here, just drop it.\n\r",ch);
     return;
@@ -3082,7 +3082,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
     act("$n eats $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("You eat $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-    if (obj->pIndexData->vnum == get_reserved_vnum("obj_golden_apple") && !IS_IMMORTAL(ch))
+    if (obj->pIndexData == get_reserved_obj_index("obj_golden_apple") && !IS_IMMORTAL(ch))
     {
         long xp;
 
@@ -4063,7 +4063,7 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
         bool any = false;
         long total = 0;
 
-        if (ch->in_room->vnum == get_reserved_vnum("room_donation"))
+        if (ch->in_room == get_reserved_room_index("room_donation"))
         {
             send_to_char("Where are your manners!?\n\r", ch);
             send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", ch);
@@ -4221,7 +4221,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (obj->pIndexData->vnum == get_reserved_vnum("obj_empty_vial"))
+    if (obj->pIndexData == get_reserved_obj_index("obj_empty_vial"))
     {
     act("$p has nothing in it you can quaff.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     return;
@@ -6528,7 +6528,7 @@ void do_blow( CHAR_DATA *ch, char *argument )
     act( "$n puts $p to $s lips and blows.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
     act( "You put $p to your lips and blow.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 
-    if ( obj->pIndexData->vnum == get_reserved_vnum("obj_airship_whistle") )
+    if ( obj->pIndexData == get_reserved_obj_index("obj_airship_whistle") )
   {
     act( "The whistle glows vibrantly, then fades.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
     if ( !IN_WILDERNESS(ch) )
@@ -8004,7 +8004,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
     ITERATOR it;
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-        if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData->vnum == get_reserved_vnum("obj_empty_vial"))
+        if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData == get_reserved_obj_index("obj_empty_vial"))
             break;
     }
     iterator_stop(&it);
@@ -8360,7 +8360,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     ITERATOR it;
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-        if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == get_reserved_vnum("obj_blank_scroll"))
+        if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData == get_reserved_obj_index("obj_blank_scroll"))
             break;
     }
     iterator_stop(&it);

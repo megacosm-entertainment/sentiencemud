@@ -5484,15 +5484,12 @@ void do_mload(CHAR_DATA *ch, char *argument)
     // Handle reserved names format using $name
     if (arg1[0] == '$') {
         char *reserved_name = arg1 + 1;  // Skip the $ character
-        vnum = get_reserved_vnum(reserved_name);
-        if (vnum == -1) {
+        pMobIndex = get_reserved_mob_index(reserved_name);
+        if (!pMobIndex) {
             send_to_char("No reserved mobile with that name found.\n\r", ch);
             return;
         }
-        
-        AREA_DATA *mob_area = find_area_by_vnum(vnum, NULL);
-        if (!mob_area) mob_area = get_system_area_fallback();
-        pMobIndex = get_mob_index(mob_area, vnum);
+        vnum = pMobIndex->vnum;
     }
     else {
         // Parse widevnum
@@ -5626,15 +5623,12 @@ void do_oload(CHAR_DATA *ch, char *argument)
     // Handle reserved names format using $name
     if (arg1[0] == '$') {
         char *reserved_name = arg1 + 1;  // Skip the $ character
-        vnum = get_reserved_vnum(reserved_name);
-        if (vnum == -1) {
+        pObjIndex = get_reserved_obj_index(reserved_name);
+        if (!pObjIndex) {
             send_to_char("No reserved object with that name found.\n\r", ch);
             return;
         }
-        
-        AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        pObjIndex = get_obj_index(obj_area, vnum);
+        vnum = pObjIndex->vnum;
     }
     else {
         // Parse widevnum

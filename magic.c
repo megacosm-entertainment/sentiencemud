@@ -616,7 +616,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
     if ( IS_VALID(spell->token) ) {
         // Check thst the token is a valid token spell
         script = NULL;
-        if( spell->token->pIndexData->progs ) {
+        if( spell->token->pIndexData && spell->token->pIndexData->progs ) {
             iterator_start(&it, spell->token->pIndexData->progs[TRIGSLOT_SPELL]);
             while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
                 if(is_trigger_type(prg->trig_type,TRIG_SPELL)) {

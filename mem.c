@@ -446,6 +446,7 @@ void free_obj(OBJ_DATA *obj)
     AFFECT_DATA *paf, *paf_next;
     EXTRA_DESCR_DATA *ed, *ed_next;
     EVENT_DATA *ev, *ev_next;
+    TOKEN_DATA *token, *token_next;
 
     if (!IS_VALID(obj))
     return;
@@ -512,9 +513,19 @@ void free_obj(OBJ_DATA *obj)
 
     if( obj->persist ) persist_removeobject(obj);
 
+    /* Free all tokens attached to this object */
+    for (token = obj->tokens; token != NULL; token = token_next) {
+        token_next = token->next;
+        free_token(token);
+    }
+    obj->tokens = NULL;
+
     list_destroy(obj->ltokens);
+    obj->ltokens = NULL;
     list_destroy(obj->lcontains);
+    obj->lcontains = NULL;
     list_destroy(obj->lclonerooms);
+    obj->lclonerooms = NULL;
 
     if(obj->owner_name != NULL)		free_string(obj->owner_name);
     if(obj->owner_short != NULL)	free_string(obj->owner_short);
@@ -782,6 +793,7 @@ void free_char( CHAR_DATA *ch )
     tnext = token->next;
     free_token(token);
     }
+    ch->tokens = NULL;
 
     if (ch->church != NULL)
     {
@@ -807,12 +819,19 @@ void free_char( CHAR_DATA *ch )
 
     // Destroy linked lists
     list_destroy(ch->llocker);
+    ch->llocker = NULL;
     list_destroy(ch->lcarrying);
+    ch->lcarrying = NULL;
     list_destroy(ch->lcarrying_temp);
+    ch->lcarrying_temp = NULL;
     list_destroy(ch->lworn);
+    ch->lworn = NULL;
     list_destroy(ch->ltokens);
+    ch->ltokens = NULL;
     list_destroy(ch->lclonerooms);
+    ch->lclonerooms = NULL;
     list_destroy(ch->lgroup);
+    ch->lgroup = NULL;
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
@@ -1889,6 +1908,7 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
     RESET_DATA *pReset;
     EVENT_DATA *ev, *ev_next;
     ROOM_INDEX_DATA *clone, *clone_next;
+    TOKEN_DATA *token, *token_next;
 
     free_string( pRoom->name );
     free_string( pRoom->description );
@@ -1947,12 +1967,25 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
         free_room_index(clone);
     }
 
+    /* Free all tokens attached to this room */
+    for (token = pRoom->tokens; token != NULL; token = token_next) {
+        token_next = token->next;
+        free_token(token);
+    }
+    pRoom->tokens = NULL;
+
     list_destroy(pRoom->lentity);
+    pRoom->lentity = NULL;
     list_destroy(pRoom->lpeople);
+    pRoom->lpeople = NULL;
     list_destroy(pRoom->lcontents);
+    pRoom->lcontents = NULL;
     list_destroy(pRoom->levents);
+    pRoom->levents = NULL;
     list_destroy(pRoom->ltokens);
+    pRoom->ltokens = NULL;
     list_destroy(pRoom->lclonerooms);
+    pRoom->lclonerooms = NULL;
 
     if( pRoom->persist ) persist_removeroom(pRoom);
 

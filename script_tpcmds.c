@@ -325,7 +325,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 
     add_buf(output, arg);
 
-    if (!token->pIndexData->progs)
+    if (!token->pIndexData || !token->pIndexData->progs)
         add_buf(output, "[No programs set]\n\r");
     else
     for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {

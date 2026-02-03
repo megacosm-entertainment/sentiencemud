@@ -596,7 +596,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
     // Check for tokens FIRST
     iterator_start(&tit, ch->ltokens);
     while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-        if(token->pIndexData->progs) {
+        if(token->pIndexData && token->pIndexData->progs) {
 //			log_stringf("check_verbs: ch(%s) token(%ld, %s)", ch->name, token->pIndexData->vnum, token->name);
             script_token_addref(token);
             script_destructed = false;
@@ -643,7 +643,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
         // Check for tokens FIRST
         iterator_start(&tit, room->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -701,7 +701,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
         // Check for tokens FIRST
         iterator_start(&tit, mob->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);
@@ -754,7 +754,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
         // Check for tokens FIRST
         iterator_start(&tit, obj->ltokens);
         while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-            if( token->pIndexData->progs ) {
+            if( token->pIndexData && token->pIndexData->progs ) {
                 script_token_addref(token);
                 script_destructed = false;
                 iterator_start(&pit, token->pIndexData->progs[slot]);

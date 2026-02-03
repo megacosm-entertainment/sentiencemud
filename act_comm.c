@@ -1535,7 +1535,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
     {
     char_from_team(ch);
 
-    if (ch->in_room != NULL && ch->in_room->vnum == get_reserved_vnum("room_war_staging"))
+    if (ch->in_room != NULL && ch->in_room == get_reserved_room_index("room_war_staging"))
     {
     char_from_room(ch);
     char_to_room(ch, get_reserved_room_index("room_default_recall"));

@@ -217,8 +217,8 @@ bool spec_patrolman(CHAR_DATA *ch)
     if (victim == NULL || (IS_NPC(victim) && victim->spec_fun == ch->spec_fun))
         return false;
 
-    if (((obj = get_eq_char(ch,WEAR_NECK_1)) != NULL && obj->pIndexData->vnum == get_reserved_vnum("obj_patrol_whistle")) ||
-        ((obj = get_eq_char(ch,WEAR_NECK_2)) != NULL && obj->pIndexData->vnum == get_reserved_vnum("obj_patrol_whistle"))) {
+    if (((obj = get_eq_char(ch,WEAR_NECK_1)) != NULL && obj->pIndexData == get_reserved_obj_index("obj_patrol_whistle")) ||
+        ((obj = get_eq_char(ch,WEAR_NECK_2)) != NULL && obj->pIndexData == get_reserved_obj_index("obj_patrol_whistle"))) {
         act("You blow down hard on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n blows on $p, ***WHEEEEEEEEEEEET***",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 

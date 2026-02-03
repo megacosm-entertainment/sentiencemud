@@ -335,7 +335,7 @@ SPELL_FUNC(spell_glacial_wave)
         return false;
     }
 */
-    if(IS_NPC(ch) && ch->pIndexData->vnum == get_reserved_vnum("mob_objcaster")) {	// non-mob caster
+    if(IS_NPC(ch) && ch->pIndexData == get_reserved_mob_index("mob_objcaster")) {	// non-mob caster
         max_depth = 5;
         depth_scale = 50;
         do_ice = false;

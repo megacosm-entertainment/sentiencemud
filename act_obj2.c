@@ -114,13 +114,13 @@ void do_deposit(CHAR_DATA *ch, char *argument)
         if (!IS_NPC(mob))
             continue;
 
-        if (ch->alignment == 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_neutral_soultaker"))
+        if (ch->alignment == 0 && mob->pIndexData == get_reserved_mob_index("mob_neutral_soultaker"))
             break;
 
-        if (ch->alignment < 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_evil_soultaker"))
+        if (ch->alignment < 0 && mob->pIndexData == get_reserved_mob_index("mob_evil_soultaker"))
             break;
 
-        if (ch->alignment > 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_good_soultaker"))
+        if (ch->alignment > 0 && mob->pIndexData == get_reserved_mob_index("mob_good_soultaker"))
             break;
     }
 
@@ -132,7 +132,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if (obj->pIndexData->vnum == get_reserved_vnum("obj_pneuma_item"))
+        if (obj->pIndexData == get_reserved_obj_index("obj_pneuma_item"))
         {
             found = true;
             extract_obj(obj);

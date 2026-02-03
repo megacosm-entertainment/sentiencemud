@@ -2652,10 +2652,8 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         pbugf(LOG_ERROR, "pWilds is NULL.");
 
     // No wilds pointer, so send the char to the default room.
-        long default_vnum = get_reserved_vnum("room_default");
-        AREA_DATA *default_area = find_area_by_vnum(default_vnum, NULL);
-        if (!default_area) default_area = get_system_area_fallback();
-        if ((room = get_room_index(default_area, default_vnum)) != NULL)
+        room = get_reserved_room_index("room_default");
+        if (room != NULL)
         {
             char_to_room (ch, room);
             return;

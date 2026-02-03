@@ -2620,15 +2620,15 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
                 plogf(LOG_INFO, "Transferring %s to VRoom", ch->name);
                 char_to_vroom(ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
             } else {
-                perrf(LOG_INFO, "Previous VRoom invalid. Relocating %s to default room (%d - %s)", ch->name, 
-                    get_reserved_vnum("room_default_recall"),
-                    get_reserved_room_index("room_default_recall") ?
-                        get_reserved_room_index("room_default_recall")->name : "Unknown");
+                ROOM_INDEX_DATA *default_recall = get_reserved_room_index("room_default_recall");
+                perrf(LOG_INFO, "Previous VRoom invalid. Relocating %s to default room (%ld - %s)", ch->name,
+                    default_recall ? default_recall->vnum : 0,
+                    default_recall ? default_recall->name : "Unknown");
                 ch->in_wilds = NULL;
                 ch->at_wilds_x = -1;
                 ch->at_wilds_y = -1;
-                if (get_reserved_room_index("room_default_recall"))
-                    char_to_room(ch, get_reserved_room_index("room_default_recall"));
+                if (default_recall)
+                    char_to_room(ch, default_recall);
             }
         } else {
             if (IS_IMMORTAL(ch)) {
@@ -4532,9 +4532,9 @@ bool account_has_immortal(ACCOUNT_DATA *acct)
         if (!has_immortal && ch_entry->name && *ch_entry->name) {
             // Initialize a temporary descriptor
             memset(&temp_d, 0, sizeof(temp_d));
-            
-            // Try to load the character
-            if (load_char_obj(&temp_d, ch_entry->name)) {
+
+            // Try to load the character (basic load only - don't need inventory for this check)
+            if (load_char_obj_basic(&temp_d, ch_entry->name)) {
                 // Check if they're immortal
                 if (IS_IMMORTAL(temp_d.character)) {
                     has_immortal = true;

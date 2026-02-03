@@ -116,7 +116,7 @@ void do_play(CHAR_DATA *ch, char *argument)
         // Check that the token has the right scripts
         // Check thst the token is a valid token spell
         script = NULL;
-        if( entry->token->pIndexData->progs ) {
+        if( entry->token->pIndexData && entry->token->pIndexData->progs ) {
             iterator_start(&it, entry->token->pIndexData->progs[TRIGSLOT_SPELL]);
             while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
                 if(is_trigger_type(prg->trig_type,TRIG_SPELL)) {
