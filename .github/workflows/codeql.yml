@@ -14,7 +14,7 @@ name: "CodeQL Advanced"
 on:
   workflow_dispatch:
   push:
-    branches: [ "master", "legacy_server", "olc_blueprints", "v2_testport" ]
+    branches: [ "master", "legacy_server", "olc_blueprints", "v2_testport", "feature/widevnum-migration" ]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ "legacy_server", "olc_blueprints" ]
