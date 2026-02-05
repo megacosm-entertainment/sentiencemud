@@ -204,9 +204,7 @@ SPELL_FUNC(spell_poison)
 
     victim = (CHAR_DATA *) vo;
     if (!victim) {
-        char buf[MAX_STRING_LENGTH];
-        sprintf(buf, "spell_poison: null victim!, ch %s", ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "spell_poison: null victim!, ch %s", ch->name);
         return false;
     }
 
@@ -257,9 +255,7 @@ SPELL_FUNC(spell_toxic_fumes)
 
     victim = (CHAR_DATA *) vo;
     if (!victim) {
-        char buf[MAX_STRING_LENGTH];
-        sprintf(buf, "spell_toxic_fumes: null victim!, ch %s", ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "spell_toxic_fumes: null victim!, ch %s", ch->name);
         return false;
     }
 
@@ -474,7 +470,7 @@ SPELL_FUNC(spell_withering_cloud)
     bool exists = false;
 
     if (!(index = get_reserved_obj_index("obj_cloud_withering"))) {
-        bug("spell_withering_cloud: null obj_index!\n", 0);
+        pbugf(LOG_ERROR, "spell_withering_cloud: null obj_index!\n");
         return false;
     }
 

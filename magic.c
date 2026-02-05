@@ -1093,14 +1093,14 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 
     if (sn >= MAX_SKILL || skill_table[sn].spell_fun == 0)
     {
-    bug("Obj_cast_spell: bad sn %d.", sn);
+    pbugf(LOG_ERROR, "Obj_cast_spell: bad sn %d.", sn);
     return;
     }
 
     switch (skill_table[sn].target)
     {
         default:
-        bug("Obj_cast_spell: bad target for sn %d.", sn);
+        pbugf(LOG_ERROR, "Obj_cast_spell: bad target for sn %d.", sn);
         return;
 
     case TAR_IGNORE:
@@ -1253,7 +1253,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     switch (skill_table[sn].target)
     {
         default:
-        bug("obj_cast: bad target for sn %d.", sn);
+        pbugf(LOG_ERROR, "obj_cast: bad target for sn %d.", sn);
         return;
 
     case TAR_IGNORE:
@@ -1431,7 +1431,6 @@ bool can_escape(CHAR_DATA *ch)
 
 bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 {
-    char buf[MAX_STRING_LENGTH];
 
     if (IS_NPC(victim))
         return false;
@@ -1444,9 +1443,8 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
     if (!victim || !victim->in_room) {
         send_to_char("They aren't anywhere in the world.\n\r", ch);
 
-        sprintf(buf, "can_gate: %s tried to gate to %s who had null in_room!",
+        pbugf(LOG_ERROR, "can_gate: %s tried to gate to %s who had null in_room!",
             ch->name, (!victim) ? "nobody???" : victim->name);
-        bug(buf, 0);
         return false;
     }
 

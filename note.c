@@ -1087,7 +1087,7 @@ void note_remove(CHAR_DATA *ch, NOTE_DATA *pnote, bool delete)
 
     if (prev == NULL)
     {
-        bug("Note_remove: pnote not found.", 0);
+        pbugf(LOG_ERROR, "Note_remove: pnote not found.");
         return;
     }
 

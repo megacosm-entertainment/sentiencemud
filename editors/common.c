@@ -180,7 +180,7 @@ void generic_olc_mark_changed(CHAR_DATA *ch, bool changed_status) {
             break;
         // Add other editor types as needed, dispatching to their specific helper
         default:
-            bug("generic_olc_mark_changed: Unknown editor type %d for marking change.", ch->desc->editor);
+            pbugf("generic_olc_mark_changed: Unknown editor type %d for marking change.", ch->desc->editor);
             break;
     }
 }

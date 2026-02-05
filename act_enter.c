@@ -423,7 +423,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
         location = get_room_index(dest_area, portal->value[3]);
         // Check if this portal points to a clone room, if so, find it
         if( location != NULL && (portal->value[6] > 0 || portal->value[7] > 0)) {
-            //log_string("get_clone_room: portal");
+            //plogf(LOG_DEBUG, "get_clone_room: portal");
             location = get_clone_room(location, (unsigned long)portal->value[6], (unsigned long)portal->value[7]);
         }
     }

@@ -626,7 +626,7 @@ int count_weight_mail(MAIL_DATA *mail)
 
     if (mail == NULL)
     {
-    bug("count_weight_mail: null mail!", 0);
+    pbugf(LOG_ERROR, "count_weight_mail: null mail!", 0);
     return -1;
     }
 
@@ -642,7 +642,7 @@ int count_items_mail(MAIL_DATA *mail)
 {
     if (mail == NULL)
     {
-    bug("count_items_mail: null mail!", 0);
+    pbugf(LOG_ERROR, "count_items_mail: null mail!", 0);
     return -1;
     }
 
@@ -665,7 +665,7 @@ void write_mail(void)
     fp = fopen(MAIL_FILE, "w");
     if (fp == NULL)
     {
-    bug("Couldn't load mail.dat", 0);
+    pbugf(LOG_ERROR, "Couldn't load mail.dat");
     exit(1);
     }
 
@@ -715,7 +715,7 @@ void read_mail(void)
     fp = fopen(MAIL_FILE, "r");
     if (fp == NULL)
     {
-    bug("Couldn't read mail.dat", 0);
+    pbugf(LOG_ERROR, "Couldn't read mail.dat");
     exit(1);
     }
 
@@ -803,7 +803,7 @@ bool has_mail(CHAR_DATA *ch)
 
     if (ch == NULL)
     {
-    bug("has_mail: ch null!", 0);
+    pbugf(LOG_ERROR, "has_mail: ch null!");
     return false;
     }
 
@@ -1039,7 +1039,7 @@ void obj_from_mail(OBJ_DATA *obj)
 
     if ((mail = obj->in_mail) == NULL)
     {
-    bug("obj_from_mail: obj not in a mail", 0);
+    pbugf(LOG_ERROR, "obj_from_mail: obj not in a mail");
     return;
     }
 
@@ -1069,7 +1069,7 @@ void mail_from_list(MAIL_DATA *mail)
 
     if (mail == NULL)
     {
-    bug("mail_from_list: null", 0);
+    pbugf(LOG_ERROR, "mail_from_list: null");
     return;
     }
 

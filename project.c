@@ -436,7 +436,7 @@ void do_build(CHAR_DATA *ch, char *argument)
     PROJECT_BUILDER_DATA *pb;
 
     if (IS_NPC(ch)) {
-    bug("do_build: NPC", 0);
+    pbugf(LOG_ERROR, "do_build: NPC", 0);
     return;
     }
 
@@ -820,7 +820,7 @@ void save_projects()
     FILE *fp;
 
     if ((fp = fopen(PROJECTS_FILE, "w")) == NULL) {
-    bug("write_projects: couldn't open file!", 0);
+    pbugf(LOG_ERROR, "write_projects: couldn't open file!");
     return;
     }
 
@@ -918,7 +918,7 @@ void read_projects()
     fp = fopen(PROJECTS_FILE, "r");
     if (fp == NULL)
     {
-    bug("Couldn't read projects.dat", 0);
+    pbugf(LOG_ERROR, "Couldn't read projects.dat");
     exit(1);
     }
 
@@ -1036,8 +1036,7 @@ PROJECT_DATA *read_project(FILE *fp)
         break;
 
         default:
-        sprintf(buf, "read_projects: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_projects: no match for word %s", word);
         break;
     }
     }
@@ -1055,7 +1054,6 @@ PROJECT_DATA *read_project(FILE *fp)
 PROJECT_BUILDER_DATA *read_project_builder(FILE *fp)
 {
     PROJECT_BUILDER_DATA *pb = new_project_builder();
-    char buf[MSL];
 
     while (str_cmp((word = fread_word(fp)), "#-BUILDER"))
     {
@@ -1075,8 +1073,7 @@ PROJECT_BUILDER_DATA *read_project_builder(FILE *fp)
         break;
 
         default:
-        sprintf(buf, "read_project_builder: no match for word %s", word);
-        bug(buf, 0);
+            pbugf(LOG_ERROR, "read_project_builder: no match for word %s", word);
         break;
     }
     }
@@ -1091,7 +1088,6 @@ PROJECT_INQUIRY_DATA *read_project_inquiry(FILE *fp)
 {
     PROJECT_INQUIRY_DATA *pinq = new_project_inquiry();
     PROJECT_INQUIRY_DATA *reply;
-    char buf[MSL];
 
     while (str_cmp((word = fread_word(fp)), "#-INQUIRY"))
     {
@@ -1130,8 +1126,7 @@ PROJECT_INQUIRY_DATA *read_project_inquiry(FILE *fp)
 
 
         default:
-        sprintf(buf, "read_project_builder: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_project_builder: no match for word %s", word);
         break;
     }
     }

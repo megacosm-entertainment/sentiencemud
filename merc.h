@@ -7764,7 +7764,7 @@ extern int16_t	gsn_soul_essence;
 #define CHECK_POS(a, b, c)	{							\
                     (a) = (b);					\
                     if ( (a) < 0 )					\
-                    bug( "CHECK_POS : " c " == %d < 0", a );	\
+                    pbugf( "CHECK_POS : " c " == %d < 0", a );	\
                 }
 
 #define MSG(function)		{ if (!silent) 		\

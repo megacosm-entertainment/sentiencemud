@@ -50,7 +50,7 @@ static void Write( descriptor_t *apDescriptor, const char *apData )
 
 static void ReportBug( const char *apText )
 {
-   bug( apText, 0 );
+   pbugf(LOG_ERROR, apText );
 }
 
 /*

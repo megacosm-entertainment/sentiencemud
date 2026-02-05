@@ -20,7 +20,6 @@ int 	wizlist;
 
 // For loading and saving area files
 static bool fMatch;
-static char buf[MSL];
 
 void do_help(CHAR_DATA *ch, char *argument)
 {
@@ -461,7 +460,7 @@ void save_helpfiles_new()
     FILE *fp;
 
     if ((fp = fopen(HELP_FILE, "w")) == NULL) {
-    bug("save_helpfiles_new: couldn't open file for writing", 0);
+    pbugf(LOG_ERROR, "save_helpfiles_new: couldn't open file for writing");
     return;
     }
 
@@ -478,7 +477,7 @@ void read_helpfiles_new()
     char *word;
 
     if ((fp = fopen(HELP_FILE, "r")) == NULL) {
-    bug("read_helpfiles_new: couldn't open file for reading", 0);
+    pbugf(LOG_ERROR, "read_helpfiles_new: couldn't open file for reading");
         fp = fopen(HELP_FILE, "w");
     fprintf(fp, "#HELPCATEGORY ~\n");
     fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
@@ -500,7 +499,7 @@ void read_helpfiles_new()
     topHelpCat = read_help_category_new(fp);
     fclose(fp);
     } else {
-    bug("read_helpfiles_new: bad format", 0);
+    pbugf(LOG_ERROR, "read_helpfiles_new: bad format");
     exit(1);
     }
 }
@@ -644,10 +643,10 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_help_category_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_help_category_new: no match for word %s", word);
     }
     }
+
 
     if (!str_cmp(hcat->modified_by, "(null)")) {
     free_string(hcat->modified_by);
@@ -747,8 +746,8 @@ HELP_DATA *read_help_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_help_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_help_new: no match for word %s", word);
+    
     }
     }
 

@@ -379,7 +379,7 @@ void do_mob(CHAR_DATA *ch, char *argument)
 //
 void mob_interpret(SCRIPT_VARINFO *info, char *argument)
 {
-    char buf[MSL], command[MIL];
+    char command[MIL];
     int cmd;
 
     if(!info->mob) return;
@@ -391,8 +391,7 @@ void mob_interpret(SCRIPT_VARINFO *info, char *argument)
 
     cmd = mpcmd_lookup(command);
     if(cmd < 0) {
-        sprintf(buf, "Mob_interpret: invalid cmd from mob %ld: '%s'", VNUM(info->mob), command);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Mob_interpret: invalid cmd from mob %ld: '%s'", VNUM(info->mob), command);
         return;
     }
 
@@ -628,7 +627,7 @@ SCRIPT_CMD(do_mpairshipaddwaypoint)
     info->mob->progs->lastreturn = 0;	// Wasn't done yet...
 
     if(!expand_argument(info,argument,arg)) {
-        bug("Mpairshipaddwaypoint - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mpairshipaddwaypoint - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -639,8 +638,7 @@ SCRIPT_CMD(do_mpairshipaddwaypoint)
     }
 
     if (!pArea) {
-        sprintf(buf, "MpAirshipAddWayPoint: no such area '%s'", arg->d.str);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "MpAirshipAddWayPoint: no such area '%s'", arg->d.str);
         return;
     }
 
@@ -688,7 +686,7 @@ SCRIPT_CMD(do_mpairshipsetcrash)
     info->mob->progs->lastreturn = 0;	// Wasn't done yet...
 
     if(!expand_argument(info,argument,arg)) {
-        bug("Mpairshipsetcrash - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mpairshipsetcrash - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -803,7 +801,7 @@ SCRIPT_CMD(do_mpassist)
     info->mob->progs->lastreturn = 0;	// Wasn't done yet...
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAssist - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpAssist - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -814,7 +812,7 @@ SCRIPT_CMD(do_mpassist)
     }
 
     if (!victim) {
-        bug("MpAssist - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpAssist - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -871,14 +869,14 @@ SCRIPT_CMD(do_mpat)
     if(!info || !info->mob || PROG_FLAG(info->mob,PROG_AT)) return;
 
     if (!argument[0]) {
-        bug("Mpat - Bad argument from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mpat - Bad argument from vnum %d.", VNUM(info->mob));
         return;
     }
 
     command = mp_getlocation(info, argument, &location);
 
     if (!location) {
-        bug("Mpat - No such location from vnum %d.", IS_NPC(info->mob) ? info->mob->pIndexData->vnum : 0);
+        pbugf(LOG_SCRIPTS, "Mpat - No such location from vnum %d.", IS_NPC(info->mob) ? info->mob->pIndexData->vnum : 0);
         return;
     }
 
@@ -926,21 +924,21 @@ SCRIPT_CMD(do_mpcall)
     if(!info || !info->mob) return;
 
     if (!argument[0]) {
-        bug("MpCall: missing arguments from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: missing arguments from vnum %d.", VNUM(info->mob));
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("MpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->mob));
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -953,7 +951,7 @@ SCRIPT_CMD(do_mpcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_MPROG))) {
-        bug("MpCall: invalid prog from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: invalid prog from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -963,7 +961,7 @@ SCRIPT_CMD(do_mpcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -979,7 +977,7 @@ SCRIPT_CMD(do_mpcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -987,7 +985,7 @@ SCRIPT_CMD(do_mpcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -1003,7 +1001,7 @@ SCRIPT_CMD(do_mpcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -1021,7 +1019,7 @@ SCRIPT_CMD(do_mpcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -1069,7 +1067,7 @@ SCRIPT_CMD(do_mpcast)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpCast - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCast - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1084,14 +1082,14 @@ SCRIPT_CMD(do_mpcast)
     }
 
     if (sn < 1 || skill_table[sn].spell_fun == spell_null || sn > MAX_SKILL) {
-        bug("MpCast - No such spell from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCast - No such spell from vnum %d.", VNUM(info->mob));
         return;
     }
 
     if(*rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCast - Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCast - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -1140,7 +1138,7 @@ SCRIPT_CMD(do_mpchangevesselname)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAwardXP - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpAwardXP - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1175,7 +1173,7 @@ SCRIPT_CMD(do_mpchargemoney)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1186,7 +1184,7 @@ SCRIPT_CMD(do_mpchargemoney)
     }
 
     if (!victim) {
-        bug("MpChargeMoney - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeMoney - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1194,7 +1192,7 @@ SCRIPT_CMD(do_mpchargemoney)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1208,7 +1206,7 @@ SCRIPT_CMD(do_mpchargemoney)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1232,8 +1230,7 @@ SCRIPT_CMD(do_mpchargemoney)
     }
 
     if ((victim->silver + 100 * victim->gold) < amt) {
-        sprintf(buf, "do_mpchargemoney: victim doesnt have enough cash, mob %s(%ld)", HANDLE(info->mob), VNUM(info->mob));
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "do_mpchargemoney: victim doesnt have enough cash, mob %s(%ld)", HANDLE(info->mob), VNUM(info->mob));
     }
 
     deduct_cost(victim, amt);
@@ -1252,7 +1249,7 @@ SCRIPT_CMD(do_mpdamage)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1266,18 +1263,18 @@ SCRIPT_CMD(do_mpdamage)
     }
 
     if (!victim && !fAll) {
-        bug("MpDamage - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1290,23 +1287,23 @@ SCRIPT_CMD(do_mpdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(fLevel && !victim) {
-        bug("MpDamage - Level aspect used with null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Level aspect used with null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1322,7 +1319,7 @@ SCRIPT_CMD(do_mpdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
             return;
         }
         break;
@@ -1330,17 +1327,17 @@ SCRIPT_CMD(do_mpdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("MpDamage - Null reference mob from vnum %ld.", VNUM(info->mob));
+                pbugf(LOG_SCRIPTS, "MpDamage - Null reference mob from vnum %ld.", VNUM(info->mob));
                 return;
             }
             break;
         } else {
-            bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
             return;
         }
         break;
     default:
-        bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1378,7 +1375,7 @@ SCRIPT_CMD(do_mpdecdeity)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDecDeity - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecDeity - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1389,12 +1386,12 @@ SCRIPT_CMD(do_mpdecdeity)
     }
 
     if (!victim) {
-        bug("MpDecDeity - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecDeity - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpDecDeity - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecDeity - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1423,7 +1420,7 @@ SCRIPT_CMD(do_mpdecpneuma)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDecPneuma - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecPneuma - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1434,12 +1431,12 @@ SCRIPT_CMD(do_mpdecpneuma)
     }
 
     if (!victim) {
-        bug("MpDecPneuma - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecPneuma - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpDecPneuma - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecPneuma - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1468,7 +1465,7 @@ SCRIPT_CMD(do_mpdecprac)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDecPrac - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecPrac - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1479,12 +1476,12 @@ SCRIPT_CMD(do_mpdecprac)
     }
 
     if (!victim) {
-        bug("MpDecPrac - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecPrac - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpDecPrac - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecPrac - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1513,7 +1510,7 @@ SCRIPT_CMD(do_mpdecquest)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDecQuest - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecQuest - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1524,12 +1521,12 @@ SCRIPT_CMD(do_mpdecquest)
     }
 
     if (!victim) {
-        bug("MpDecQuest - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecQuest - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpDecQuest - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecQuest - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1558,7 +1555,7 @@ SCRIPT_CMD(do_mpdectrain)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDecTrain - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecTrain - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1569,12 +1566,12 @@ SCRIPT_CMD(do_mpdectrain)
     }
 
     if (!victim) {
-        bug("MpDecTrain - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecTrain - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpDecTrain - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDecTrain - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1602,7 +1599,7 @@ SCRIPT_CMD(do_mpdelay)
     if(!info || !info->mob) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("MpDelay - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDelay - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1613,7 +1610,7 @@ SCRIPT_CMD(do_mpdelay)
     }
 
     if (delay < 1) {
-        bug("MpDelay: invalid delay from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDelay: invalid delay from vnum %d.", VNUM(info->mob));
         return;
     }
     info->mob->progs->delay = delay;
@@ -2094,7 +2091,7 @@ SCRIPT_CMD(do_mpforce)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2108,7 +2105,7 @@ SCRIPT_CMD(do_mpforce)
     }
 
     if (!fAll && !victim) {
-        bug("MpForce - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpForce - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2116,7 +2113,7 @@ SCRIPT_CMD(do_mpforce)
     expand_string(info,rest,buffer);
 
     if( buf_string(buffer)[0] == '\0' ) {
-        bug("MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS,"MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -2172,7 +2169,7 @@ SCRIPT_CMD(do_mpgdamage)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2183,18 +2180,18 @@ SCRIPT_CMD(do_mpgdamage)
     }
 
     if (!victim) {
-        bug("MpDamage - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2207,18 +2204,18 @@ SCRIPT_CMD(do_mpgdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - missing argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2234,7 +2231,7 @@ SCRIPT_CMD(do_mpgdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
             return;
         }
         break;
@@ -2242,17 +2239,17 @@ SCRIPT_CMD(do_mpgdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("MpDamage - Null reference mob from vnum %ld.", VNUM(info->mob));
+                pbugf(LOG_SCRIPTS, "MpDamage - Null reference mob from vnum %ld.", VNUM(info->mob));
                 return;
             }
             break;
         } else {
-            bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
             return;
         }
         break;
     default:
-        bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2283,7 +2280,7 @@ SCRIPT_CMD(do_mpgecho)
     if(!info || !info->mob) return;
 
     if (!argument[0]) {
-        bug("MpGEcho: missing argument from vnum %d", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGEcho: missing argument from vnum %d", VNUM(info->mob));
         return;
     }
 
@@ -2312,7 +2309,7 @@ SCRIPT_CMD(do_mpgforce)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2323,14 +2320,14 @@ SCRIPT_CMD(do_mpgforce)
     }
 
     if (!victim) {
-        bug("MpGforce - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGforce - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     BUFFER *buffer = new_buf();
     expand_string(info,argument,buffer);
     if(buf_string(buffer)[0] == '\0') {
-        bug("MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2355,14 +2352,14 @@ SCRIPT_CMD(do_mpgoto)
     if(!info || !info->mob || !info->mob->in_room || PROG_FLAG(info->mob,PROG_AT)) return;
 
     if(!argument[0]) {
-        bug("Mpgoto - No argument from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mpgoto - No argument from vnum %d.", VNUM(info->mob));
         return;
     }
 
     mp_getlocation(info, argument, &dest);
 
     if(!dest) {
-        bug("Mpgoto - Bad location from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mpgoto - Bad location from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -2389,7 +2386,7 @@ SCRIPT_CMD(do_mpgtransfer)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2401,19 +2398,19 @@ SCRIPT_CMD(do_mpgtransfer)
 
 
     if (!victim) {
-        bug("MpGtransfer - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGtransfer - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if (!victim->in_room) return;
 
     if(!(argument = mp_getlocation(info, rest, &dest))) {
-        bug("MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!dest) {
-        bug("MpGtransfer - Bad location from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGtransfer - Bad location from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -2540,7 +2537,7 @@ SCRIPT_CMD(do_mpkill)
     }
 
     if (!victim) {
-        bug("MpKill - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpKill - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2549,7 +2546,7 @@ SCRIPT_CMD(do_mpkill)
         return;
 
     if (IS_AFFECTED(info->mob, AFF_CHARM) && info->mob->master == victim) {
-        bug("MpKill - Charmed mob attacking master from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpKill - Charmed mob attacking master from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -2591,7 +2588,7 @@ SCRIPT_CMD(do_mplink)
     if (!room) return;
 
     if (door < 0) {
-        bug("MPlink used without an argument from room vnum %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "MPlink used without an argument from room vnum %d.", room->vnum);
         return;
     }
 
@@ -2652,7 +2649,7 @@ SCRIPT_CMD(do_mplink)
     }
 
     if(vnum < 0) {
-        bug("MPlink - invalid argument in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "MPlink - invalid argument in room %d.", room->vnum);
         return;
     }
 
@@ -2666,7 +2663,7 @@ SCRIPT_CMD(do_mplink)
         dest = NULL;
 
     if(!dest && !del) {
-        bug("MPlink - invalid destination in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "MPlink - invalid destination in room %d.", room->vnum);
         return;
     }
     script_change_exit(room, dest, door);
@@ -2707,7 +2704,7 @@ SCRIPT_CMD(do_mpoload)
     }
 
     if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-        bug("Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -2817,7 +2814,7 @@ SCRIPT_CMD(do_mpotransfer)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpOtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpOtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2829,7 +2826,7 @@ SCRIPT_CMD(do_mpotransfer)
 
 
     if (!obj) {
-        bug("MpOtransfer - Null object from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpOtransfer - Null object from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2840,7 +2837,7 @@ SCRIPT_CMD(do_mpotransfer)
     argument = mp_getolocation(info, rest, &dest, &container, &carrier, &wear_loc);
 
     if(!dest && !container && !carrier) {
-        bug("MpOtransfer - Bad location from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpOtransfer - Bad location from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -2916,7 +2913,7 @@ SCRIPT_CMD(do_mppurge)
 
     if(victim) {
         if (!IS_NPC(victim)) {
-            bug("Mppurge - Attempting to purge a PC from vnum %d.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "Mppurge - Attempting to purge a PC from vnum %d.", VNUM(info->mob));
             return;
         }
 
@@ -2951,7 +2948,7 @@ SCRIPT_CMD(do_mppurge)
                 extract_obj(obj);
         }
     } else
-        bug("Mppurge - Bad argument from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "Mppurge - Bad argument from vnum %d.", VNUM(info->mob));
 
 }
 
@@ -2971,12 +2968,12 @@ SCRIPT_CMD(do_mpqueue)
     case ENT_NUMBER: delay = arg->d.num; break;
     case ENT_STRING: delay = atoi(arg->d.str); break;
     default:
-        bug("MpQueue:  missing arguments from mob vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpQueue:  missing arguments from mob vnum %d.", VNUM(info->mob));
         return;
     }
 
     if (delay < 0 || delay > 1000) {
-        bug("MpQueue:  unreasonable delay recieved from mob vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpQueue:  unreasonable delay recieved from mob vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -2986,7 +2983,7 @@ SCRIPT_CMD(do_mpqueue)
 // do_mpraisedead
 SCRIPT_CMD(do_mpraisedead)
 {
-    char buf[MIL], *rest;
+    char *rest;
     CHAR_DATA *victim;
 
 
@@ -3006,10 +3003,9 @@ SCRIPT_CMD(do_mpraisedead)
     if(!victim) return;
 
     if (!IS_DEAD(victim)) {
-        sprintf(buf, "do_mpraisedead: for mob %s(%ld), victim %s wasn't dead!",
+        pbugf(LOG_SCRIPTS, "do_mpraisedead: for mob %s(%ld), victim %s wasn't dead!",
             info->mob->pIndexData->short_descr, info->mob->pIndexData->vnum,
             victim->name);
-        bug(buf, 0);
 
         info->mob->progs->lastreturn = 0;
 //		send_to_char("{WAn intense warmth washes over you momentarily.{x\n\r", victim);
@@ -3029,7 +3025,7 @@ SCRIPT_CMD(do_mpremember)
     if(!info || !info->mob) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("MpRemember: Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpRemember: Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3040,7 +3036,7 @@ SCRIPT_CMD(do_mpremember)
     }
 
     if (!victim) {
-        bug("MpRemember: Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpRemember: Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3061,7 +3057,7 @@ SCRIPT_CMD(do_mpremove)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3072,7 +3068,7 @@ SCRIPT_CMD(do_mpremove)
     }
 
     if (!victim) {
-        bug("MpRemove - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpRemove - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3080,7 +3076,7 @@ SCRIPT_CMD(do_mpremove)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3100,14 +3096,14 @@ SCRIPT_CMD(do_mpremove)
     }
 
     if(!fAll && vnum < 1 && !name[0] && !obj) {
-        bug ("MpRemove - Invalid object from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpRemove - Invalid object from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!fAll && !obj && *rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -3118,7 +3114,7 @@ SCRIPT_CMD(do_mpremove)
         }
 
         if(count < 0) {
-            bug ("MpRemove - Invalid count from vnum %d.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpRemove - Invalid count from vnum %d.", VNUM(info->mob));
             count = 0;
         }
     }
@@ -3218,7 +3214,7 @@ SCRIPT_CMD(do_mptake)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3229,7 +3225,7 @@ SCRIPT_CMD(do_mptake)
     }
 
     if (!victim) {
-        bug("MpTake - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpTake - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3237,7 +3233,7 @@ SCRIPT_CMD(do_mptake)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3264,7 +3260,7 @@ SCRIPT_CMD(do_mptake)
     if(*rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -3277,7 +3273,7 @@ SCRIPT_CMD(do_mptake)
     if(!fAll && !obj && *rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -3387,7 +3383,7 @@ SCRIPT_CMD(do_mptransfer)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpTransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpTransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3405,7 +3401,7 @@ SCRIPT_CMD(do_mptransfer)
 
 
     if (!victim && !all) {
-        bug("MpTransfer - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpTransfer - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3415,7 +3411,7 @@ SCRIPT_CMD(do_mptransfer)
     argument = mp_getlocation(info, rest, &dest);
 
     if(!dest) {
-        bug("MpTransfer - Bad location from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpTransfer - Bad location from vnum %d.", VNUM(info->mob));
         return;
     }
 
@@ -3460,7 +3456,7 @@ SCRIPT_CMD(do_mpvforce)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpVforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpVforce - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3471,14 +3467,14 @@ SCRIPT_CMD(do_mpvforce)
     }
 
     if (vnum < 1) {
-        bug("MpVforce - Invalid vnum from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpVforce - Invalid vnum from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     BUFFER *buffer = new_buf();
     expand_string(info,rest,buffer);
     if(buf_string(buffer)[0] == '\0') {
-        bug("MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -3515,7 +3511,7 @@ SCRIPT_CMD(do_mpzecho)
     expand_string(info,argument,buffer);
 
     if (!buf_string(buffer)[0]) {
-        bug("MpZEcho: missing argument from vnum %d", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpZEcho: missing argument from vnum %d", VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -3556,7 +3552,7 @@ SCRIPT_CMD(do_mpzot)
 
 
     if (!victim) {
-        bug("MpZot - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpZot - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3630,7 +3626,7 @@ SCRIPT_CMD(do_mpsettimer)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpSetTimer - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3648,19 +3644,19 @@ SCRIPT_CMD(do_mpsettimer)
     }
 
     if(!victim) {
-        bug("MpSetTimer - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS, "MpSetTimer - NULL victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpSetTimer - Missing timer type.",0);
+        pbugf(LOG_SCRIPTS, "MpSetTimer - Missing timer type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     buf[0] = 0;
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpSetTimer - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3672,13 +3668,13 @@ SCRIPT_CMD(do_mpsettimer)
     }
 
     if(!*rest) {
-        bug("MpSetTimer - Missing timer amount.",0);
+        pbugf(LOG_SCRIPTS, "MpSetTimer - Missing timer amount from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpSetTimer - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3740,7 +3736,7 @@ SCRIPT_CMD(do_mpinterrupt)
     info->mob->progs->lastreturn = 0;	// Nothing was interrupted
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpInterrupt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpInterrupt - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3755,7 +3751,7 @@ SCRIPT_CMD(do_mpinterrupt)
     }
 
     if(!victim) {
-        bug("MpInterrupt - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS, "MpInterrupt - NULL victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3765,7 +3761,7 @@ SCRIPT_CMD(do_mpinterrupt)
     if(!buf_string(buffer)[0]) {
         stop = flag_value(interrupt_action_types,buf);
         if(stop == NO_FLAG) {
-            bug("MpInterrupt - invalid interrupt type.", 0);
+            pbugf(LOG_SCRIPTS, "MpInterrupt - invalid interrupt type from vnum %ld.", VNUM(info->mob));
             free_buf(buffer);
             return;
         }
@@ -3925,7 +3921,7 @@ SCRIPT_CMD(do_mpalterobj)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3940,17 +3936,17 @@ SCRIPT_CMD(do_mpalterobj)
     }
 
     if(!obj) {
-        bug("MpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - NULL object from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpAlterObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - Missing field type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3977,7 +3973,7 @@ SCRIPT_CMD(do_mpalterobj)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -3993,8 +3989,7 @@ SCRIPT_CMD(do_mpalterobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"MpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "MpAlterObj - Attempting to alter value%d with security %d from vnum %ld.\n\r", num, script_security, VNUM(info->mob));
             return;
         }
 
@@ -4004,14 +3999,14 @@ SCRIPT_CMD(do_mpalterobj)
         case '*': obj->value[num] *= value; break;
         case '/':
             if (!value) {
-                bug("MpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             obj->value[num] /= value;
             break;
         case '%':
             if (!value) {
-                bug("MpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             obj->value[num] %= value;
@@ -4053,8 +4048,7 @@ SCRIPT_CMD(do_mpalterobj)
         if(!ptr) return;
 
         if(script_security < min_sec) {
-            sprintf(buf,"MpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "MpAlterObj - Attempting to alter '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->mob));
             return;
         }
 
@@ -4112,7 +4106,7 @@ SCRIPT_CMD(do_mpalterobj)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("MpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -4121,7 +4115,7 @@ SCRIPT_CMD(do_mpalterobj)
 
         case '-':
             if( !allowarith ) {
-                bug("MpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -4130,7 +4124,7 @@ SCRIPT_CMD(do_mpalterobj)
 
         case '*':
             if( !allowarith ) {
-                bug("MpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -4139,24 +4133,24 @@ SCRIPT_CMD(do_mpalterobj)
 
         case '/':
             if( !allowarith ) {
-                bug("MpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             if (!value) {
-                bug("MpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("MpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             if (!value) {
-                bug("MpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterObj - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr %= value;
@@ -4194,7 +4188,7 @@ SCRIPT_CMD(do_mpresetdice)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4209,7 +4203,7 @@ SCRIPT_CMD(do_mpresetdice)
     }
 
     if(!obj) {
-        bug("MpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "MpAlterObj - NULL object from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4222,7 +4216,7 @@ SCRIPT_CMD(do_mpresetdice)
 
 SCRIPT_CMD(do_mpstringobj)
 {
-    char buf[2*MSL],field[MIL],*rest, **str;
+    char field[MIL],*rest, **str;
     int min_sec = MIN_SCRIPT_SECURITY;
     OBJ_DATA *obj = NULL;
 
@@ -4231,7 +4225,7 @@ SCRIPT_CMD(do_mpstringobj)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStringObj - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4246,17 +4240,17 @@ SCRIPT_CMD(do_mpstringobj)
     }
 
     if(!obj) {
-        bug("MpStringObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "MpStringObj - NULL object from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpStringObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "MpStringObj - Missing field type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStringObj - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4275,7 +4269,7 @@ SCRIPT_CMD(do_mpstringobj)
     expand_string(info,rest,buffer);
 
     if(!buf_string(buffer)[0]) {
-        bug("MpStringObj - Empty string used.",0);
+        pbugf(LOG_SCRIPTS, "MpStringObj - Empty string used from vnum %ld.", VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -4318,7 +4312,7 @@ SCRIPT_CMD(do_mpstringobj)
         int mat = material_lookup(buf_string(buffer));
 
         if(mat < 0) {
-            bug("MpStringObj - Invalid material.\n\r", 0);
+            pbugf(LOG_SCRIPTS, "MpStringObj - Invalid material from vnum %ld.\n\r", VNUM(info->mob));
             free_buf(buffer);
             return;
         }
@@ -4336,8 +4330,7 @@ SCRIPT_CMD(do_mpstringobj)
     }
 
     if(script_security < min_sec) {
-        sprintf(buf,"MpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS,"MpStringObj - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -4373,7 +4366,7 @@ SCRIPT_CMD(do_mpaltermob)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4388,17 +4381,17 @@ SCRIPT_CMD(do_mpaltermob)
     }
 
     if(!mob) {
-        bug("MpAlterMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - NULL mobile from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpAlterMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - Missing field type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4415,7 +4408,7 @@ SCRIPT_CMD(do_mpaltermob)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 */
@@ -4520,7 +4513,7 @@ SCRIPT_CMD(do_mpaltermob)
         return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterMob - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4529,8 +4522,7 @@ SCRIPT_CMD(do_mpaltermob)
     if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
     if(script_security < min_sec) {
-        sprintf(buf,"MpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - Attempting to alter '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->mob));
         return;
     }
 
@@ -4616,7 +4608,7 @@ SCRIPT_CMD(do_mpaltermob)
         switch (op) {
         case OPR_ADD:
             if (!allowarith) {
-        bug("MpAltermob - altermob called with arithmetic operator on a bitonly field.", 0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
         return;
     }
             *lptr += value;
@@ -4632,7 +4624,7 @@ SCRIPT_CMD(do_mpaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *lptr /= value;
@@ -4640,7 +4632,7 @@ SCRIPT_CMD(do_mpaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *lptr %= value;
@@ -4679,7 +4671,7 @@ SCRIPT_CMD(do_mpaltermob)
                     lptr[i] &= temp_flags[i];
             }
                 if (!allowbitwise) {
-        bug("MpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+        pbugf(LOG_SCRIPTS, "MpAlterMob - altermob called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->mob));
         return;
     }
             else
@@ -4742,7 +4734,7 @@ SCRIPT_CMD(do_mpaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr /= value;
@@ -4750,7 +4742,7 @@ SCRIPT_CMD(do_mpaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr %= value;
@@ -4849,7 +4841,7 @@ SCRIPT_CMD(do_mpstringmob)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4864,22 +4856,22 @@ SCRIPT_CMD(do_mpstringmob)
     }
 
     if(!mob) {
-        bug("MpStringMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - NULL mobile from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!IS_NPC(mob)) {
-        bug("MpStringMob - can't change strings on PCs.", 0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - can't change strings on PCs from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpStringMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - Missing field type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4896,7 +4888,7 @@ SCRIPT_CMD(do_mpstringmob)
     expand_string(info,rest,buffer);
 
     if(!buf_string(buffer)[0]) {
-        bug("MpStringMob - Empty string used.",0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - Empty string used from vnum %ld.", VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -4915,8 +4907,7 @@ SCRIPT_CMD(do_mpstringmob)
 
 
     if(script_security < min_sec) {
-        sprintf(buf,"MpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "MpStringMob - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->mob));
         free_buf(buffer);
         return;
     }
@@ -4941,14 +4932,14 @@ SCRIPT_CMD(do_mpskimprove)
     bool success = false;
 
     if(script_security < MIN_SCRIPT_SECURITY) {
-        bug("MpSkImprove - Insufficient security.",0);
+        pbugf(LOG_SCRIPTS, "MpSkImprove - Insufficient security from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpSkImprove - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -4965,19 +4956,19 @@ SCRIPT_CMD(do_mpskimprove)
     }
 
     if(!mob && !token) {
-        bug("MpSkImprove - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpSkImprove - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(mob) {
         if(IS_NPC(mob)) {
-            bug("MpSkImprove - NPCs don't have skills to improve yet...", 0);
+            pbugf(LOG_SCRIPTS, "MpSkImprove - NPCs don't have skills to improve yet from vnum %ld.", VNUM(info->mob));
             return;
         }
 
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpSkImprove - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpSkImprove - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -4995,13 +4986,13 @@ SCRIPT_CMD(do_mpskimprove)
         if(sn < 1) return;
     } else {
         if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-            bug("MpSkImprove - Token is not a spell token...", 0);
+            pbugf(LOG_SCRIPTS, "MpSkImprove - Token is not a spell token from vnum %ld.", VNUM(info->mob));
             return;
         }
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpSkImprove - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5014,7 +5005,7 @@ SCRIPT_CMD(do_mpskimprove)
     min_diff = 10 - script_security;	// min=10, max=1
 
     if(diff < min_diff) {
-        bug("MpSkImprove - Attempting to use a difficulty multiplier lower than allowed.",0);
+        pbugf(LOG_SCRIPTS, "MpSkImprove - Attempting to use a difficulty multiplier lower than allowed from vnum %ld.", VNUM(info->mob));
         diff = min_diff;
     }
 
@@ -5051,7 +5042,7 @@ SCRIPT_CMD(do_mpinput)
     info->mob->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpInput - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5066,7 +5057,7 @@ SCRIPT_CMD(do_mpinput)
     }
 
     if(!mob) {
-        bug("MpInput - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "MpInput - NULL mobile from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5075,7 +5066,7 @@ SCRIPT_CMD(do_mpinput)
     if( mob->desc->showstr_head != NULL ) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpInput - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5087,7 +5078,7 @@ SCRIPT_CMD(do_mpinput)
     if(vnum < 1 || !get_script_index_global(vnum, PRG_MPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpInput - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5125,7 +5116,7 @@ SCRIPT_CMD(do_mprawkill)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpRawkill - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5140,14 +5131,14 @@ SCRIPT_CMD(do_mprawkill)
     }
 
     if(!mob) {
-        bug("MpRawkill - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "MpRawkill - NULL mobile from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(IS_IMMORTAL(mob)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpRawkill - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5159,7 +5150,7 @@ SCRIPT_CMD(do_mprawkill)
     if(type < 0 || type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpRawkill - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5174,7 +5165,7 @@ SCRIPT_CMD(do_mprawkill)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpRawkill - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5211,7 +5202,7 @@ SCRIPT_CMD(do_mpaddaffect)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5228,12 +5219,12 @@ SCRIPT_CMD(do_mpaddaffect)
     }
 
     if(!mob && !obj) {
-        bug("MpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5245,7 +5236,7 @@ SCRIPT_CMD(do_mpaddaffect)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5262,7 +5253,7 @@ SCRIPT_CMD(do_mpaddaffect)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5272,7 +5263,7 @@ SCRIPT_CMD(do_mpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5285,7 +5276,7 @@ SCRIPT_CMD(do_mpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5297,7 +5288,7 @@ SCRIPT_CMD(do_mpaddaffect)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5307,7 +5298,7 @@ SCRIPT_CMD(do_mpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5317,7 +5308,7 @@ SCRIPT_CMD(do_mpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5329,7 +5320,7 @@ SCRIPT_CMD(do_mpaddaffect)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5342,7 +5333,7 @@ SCRIPT_CMD(do_mpaddaffect)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -5381,7 +5372,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5398,12 +5389,12 @@ SCRIPT_CMD(do_mpaddaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5415,7 +5406,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5432,7 +5423,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5444,12 +5435,12 @@ SCRIPT_CMD(do_mpaddaffectname)
     }
 
     if(!name) {
-        bug("MpAddaffect - Error allocating affect name.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error allocating affect name from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5462,7 +5453,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5474,7 +5465,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5484,7 +5475,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5494,7 +5485,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5506,7 +5497,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5519,7 +5510,7 @@ SCRIPT_CMD(do_mpaddaffectname)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -5556,7 +5547,7 @@ SCRIPT_CMD(do_mpstripaffect)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5573,13 +5564,13 @@ SCRIPT_CMD(do_mpstripaffect)
     }
 
     if(!mob && !obj) {
-        bug("MpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5604,7 +5595,7 @@ SCRIPT_CMD(do_mpstripaffectname)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5621,13 +5612,13 @@ SCRIPT_CMD(do_mpstripaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5655,7 +5646,7 @@ SCRIPT_CMD(do_mpusecatalyst)
     info->mob->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5669,12 +5660,12 @@ SCRIPT_CMD(do_mpusecatalyst)
     }
 
     if(!mob && !room) {
-        bug("MpUseCatalyst - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5686,7 +5677,7 @@ SCRIPT_CMD(do_mpusecatalyst)
     if(type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5698,7 +5689,7 @@ SCRIPT_CMD(do_mpusecatalyst)
     if(method == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5709,7 +5700,7 @@ SCRIPT_CMD(do_mpusecatalyst)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5722,7 +5713,7 @@ SCRIPT_CMD(do_mpusecatalyst)
     if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5735,7 +5726,7 @@ SCRIPT_CMD(do_mpusecatalyst)
     if(max < min || max > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5796,7 +5787,7 @@ SCRIPT_CMD(do_mpalterexit)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterExit - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5806,7 +5797,7 @@ SCRIPT_CMD(do_mpalterexit)
     case ENT_ROOM:
         room = arg->d.room;
         if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
-            bug("MpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterExit - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
     case ENT_STRING:
@@ -5822,12 +5813,12 @@ SCRIPT_CMD(do_mpalterexit)
     if(!ex) return;
 
     if(!*rest) {
-        bug("MpAlterExit - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterExit - Missing field type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterExit - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5842,7 +5833,7 @@ SCRIPT_CMD(do_mpalterexit)
 
     if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterExit - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -5878,7 +5869,7 @@ SCRIPT_CMD(do_mpalterexit)
         expand_string(info,rest,buffer);
 
         if(!buf_string(buffer)[0]) {
-            bug("MpAlterExit - Empty string used.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterExit - Empty string used from vnum %ld.", VNUM(info->mob));
             free_buf(buffer);
             return;
         }
@@ -5892,7 +5883,7 @@ SCRIPT_CMD(do_mpalterexit)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterExit - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -5917,7 +5908,7 @@ SCRIPT_CMD(do_mpalterexit)
     if(script_security < min_sec) {
         sprintf(buf,"MpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, buf);
         return;
     }
 
@@ -5977,43 +5968,43 @@ SCRIPT_CMD(do_mpalterexit)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("MpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr += value;
             break;
         case '-':
             if( !allowarith ) {
-                bug("MpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr -= value;
             break;
         case '*':
             if( !allowarith ) {
-                bug("MpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr *= value;
             break;
         case '/':
             if( !allowarith ) {
-                bug("MpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
             if (!value) {
-                bug("MpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("MpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
             if (!value) {
-                bug("MpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr %= value;
@@ -6034,14 +6025,14 @@ SCRIPT_CMD(do_mpalterexit)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("MpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("MpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterExit - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *sptr %= value;
@@ -6078,7 +6069,7 @@ SCRIPT_CMD(do_mpprompt)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpPrompt - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6093,22 +6084,22 @@ SCRIPT_CMD(do_mpprompt)
     }
 
     if(!mob) {
-        bug("MpPrompt - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "MpPrompt - NULL mobile from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(IS_NPC(mob)) {
-        bug("MpPrompt - cannot set prompt strings on NPCs.", 0);
+        pbugf(LOG_SCRIPTS, "MpPrompt - cannot set prompt strings on NPCs from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!*rest) {
-        bug("MpPrompt - Missing name type.",0);
+        pbugf(LOG_SCRIPTS, "MpPrompt - Missing name type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpPrompt - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6295,7 +6286,7 @@ SCRIPT_CMD(do_mpalterroom)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6312,12 +6303,12 @@ SCRIPT_CMD(do_mpalterroom)
     if(!room || !room_is_clone(room)) return;
 
     if(!*rest) {
-        bug("MpAlterRoom - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterRoom - Missing field type from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6332,7 +6323,7 @@ SCRIPT_CMD(do_mpalterroom)
 
         if(!str_cmp(field,"mapid")) {
                 if(!(rest = expand_argument(info,rest,arg))) {
-                        bug("MPAlterRoom - Error in parsing.",0);
+                        pbugf(LOG_SCRIPTS, "MPAlterRoom - Error in parsing from vnum %ld.", VNUM(info->mob));
                         return;
                 }
                 switch(arg->type) {
@@ -6343,7 +6334,7 @@ SCRIPT_CMD(do_mpalterroom)
                 case ENT_NUMBER:
                         wilds = get_wilds_from_uid(NULL,arg->d.num);
                         if(!wilds){
-                                bug("Not a valid wilds uid",0);
+                                pbugf(LOG_SCRIPTS, "MPAlterRoom - Not a valid wilds uid from vnum %ld.", VNUM(info->mob));
                                 return;
                         }
                         room->viewwilds=wilds;
@@ -6358,7 +6349,7 @@ SCRIPT_CMD(do_mpalterroom)
         !str_cmp(field,"extern") || !str_cmp(field,"outside")) {
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -6395,7 +6386,7 @@ SCRIPT_CMD(do_mpalterroom)
         if(script_security < min_sec) {
             sprintf(buf,"MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, buf);
             return;
         }
 
@@ -6403,7 +6394,7 @@ SCRIPT_CMD(do_mpalterroom)
         expand_string(info,rest,buffer);
 
         if(!allow_empty && !buf_string(buffer)[0]) {
-            bug("MpAlterRoom - Empty string used.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterRoom - Empty string used from vnum %ld.", VNUM(info->mob));
             free_buf(buffer);
             return;
         }
@@ -6417,7 +6408,7 @@ SCRIPT_CMD(do_mpalterroom)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6439,7 +6430,7 @@ SCRIPT_CMD(do_mpalterroom)
     if(script_security < min_sec) {
         sprintf(buf,"MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, buf);
         return;
     }
 
@@ -6499,45 +6490,45 @@ SCRIPT_CMD(do_mpalterroom)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("MpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             *ptr += value; break;
         case '-':
             if( !allowarith ) {
-                bug("MpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             *ptr -= value; break;
         case '*':
             if( !allowarith ) {
-                bug("MpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             *ptr *= value; break;
         case '/':
             if( !allowarith ) {
-                bug("MpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             if (!value) {
-                bug("MpAlterRoom - alterroom called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("MpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
             if (!value) {
-                bug("MpAlterRoom - alterroom called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *ptr %= value;
@@ -6555,7 +6546,7 @@ SCRIPT_CMD(do_mpalterroom)
             
         case '&':
             if( !allowbitwise ) {
-                bug("MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -6569,7 +6560,7 @@ SCRIPT_CMD(do_mpalterroom)
             break;
         case '|':
             if( !allowbitwise ) {
-                bug("MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -6583,7 +6574,7 @@ SCRIPT_CMD(do_mpalterroom)
             break;
         case '!':
             if( !allowbitwise ) {
-                bug("MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -6597,7 +6588,7 @@ SCRIPT_CMD(do_mpalterroom)
             break;
         case '^':
             if( !allowbitwise ) {
-                bug("MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->mob));
                 return;
             }
 
@@ -6620,14 +6611,14 @@ SCRIPT_CMD(do_mpalterroom)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("MpAlterRoom - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("MpAlterRoom - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "MpAlterRoom - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->mob));
                 return;
             }
             *sptr %= value;
@@ -6717,7 +6708,7 @@ SCRIPT_CMD(do_mpshowroom)
     }
 
     if(!viewer && !room) {
-        bug("MpShowMap - bad target for showing the map", 0);
+        pbugf(LOG_SCRIPTS, "MpShowMap - bad target for showing the map from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6869,12 +6860,12 @@ SCRIPT_CMD(do_mpxcall)
     if(!info || !info->mob) return;
 
     if (!argument[0]) {
-        bug("MpCall: missing arguments from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: missing arguments from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(script_security < 5) {
-        bug("MpCall: Minimum security needed is 5.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: Minimum security needed is 5 from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6882,14 +6873,14 @@ SCRIPT_CMD(do_mpxcall)
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("MpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: maximum call depth exceeded for mob vnum %ld.", VNUM(info->mob));
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -6903,14 +6894,14 @@ SCRIPT_CMD(do_mpxcall)
     }
 
     if(!mob && !obj && !room && !token) {
-        bug("MpCall: No entity target from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: No entity target from vnum %ld.", VNUM(info->mob));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(mob && !IS_NPC(mob)) {
-        bug("MpCall: Invalid target for xcall.  Players cannot do scripts.", 0);
+        pbugf(LOG_SCRIPTS, "MpCall: Invalid target for xcall.  Players cannot do scripts from vnum %ld.", VNUM(info->mob));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -6918,7 +6909,7 @@ SCRIPT_CMD(do_mpxcall)
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -6931,7 +6922,7 @@ SCRIPT_CMD(do_mpxcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
-        bug("MpCall: invalid prog from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpCall: invalid prog from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -6941,7 +6932,7 @@ SCRIPT_CMD(do_mpxcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6957,7 +6948,7 @@ SCRIPT_CMD(do_mpxcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6965,7 +6956,7 @@ SCRIPT_CMD(do_mpxcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6981,7 +6972,7 @@ SCRIPT_CMD(do_mpxcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6999,7 +6990,7 @@ SCRIPT_CMD(do_mpxcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -7039,7 +7030,7 @@ SCRIPT_CMD(do_mpchargebank)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpChargeBank - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeBank - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7050,12 +7041,12 @@ SCRIPT_CMD(do_mpchargebank)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("MpChargeBank - Non-player victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeBank - Non-player victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpChargeBank - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpChargeBank - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7083,7 +7074,7 @@ SCRIPT_CMD(do_mpwiretransfer)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7094,12 +7085,12 @@ SCRIPT_CMD(do_mpwiretransfer)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("MpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7139,7 +7130,7 @@ SCRIPT_CMD(do_mpsetrecall)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpSetRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpSetRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7157,14 +7148,14 @@ SCRIPT_CMD(do_mpsetrecall)
 
 
     if (!victim && !room) {
-        bug("MpSetRecall - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpSetRecall - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     argument = mp_getlocation(info, rest, &location);
 
     if(!location) {
-        bug("MpSetRecall - Bad location from vnum %d.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpSetRecall - Bad location from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7204,7 +7195,7 @@ SCRIPT_CMD(do_mpclearrecall)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpClearRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpClearRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7218,7 +7209,7 @@ SCRIPT_CMD(do_mpclearrecall)
 
 
     if (!victim) {
-        bug("MpClearRecall - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpClearRecall - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7237,7 +7228,7 @@ SCRIPT_CMD(do_mphunt)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7248,13 +7239,13 @@ SCRIPT_CMD(do_mphunt)
     }
 
     if (!prey) {
-        bug("MpStartCombat - Null victim from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpStartCombat - Null victim from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     if(*rest) {
         if(!expand_argument(info,rest,arg)) {
-            bug("MpHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -7267,7 +7258,7 @@ SCRIPT_CMD(do_mphunt)
         }
 
         if (!prey) {
-            bug("MpHunt - Null victim from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpHunt - Null victim from vnum %ld.", VNUM(info->mob));
             return;
         }
     } else
@@ -7288,14 +7279,14 @@ SCRIPT_CMD(do_mpstophunt)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
-        bug("MpStopHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpStopHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
     stay = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"stay");
 
     if(!expand_argument(info,rest,arg)) {
-        bug("MpStopHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpStopHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7307,7 +7298,7 @@ SCRIPT_CMD(do_mpstophunt)
     }
 
     if (!hunter) {
-        bug("MpStopHunt - Null hunter from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpStopHunt - Null hunter from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7328,7 +7319,7 @@ SCRIPT_CMD(do_mppersist)
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpPersist - Error in parsing from vnum %ld.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpPersist - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7339,7 +7330,7 @@ SCRIPT_CMD(do_mppersist)
     }
 
     if(!mob && !obj && !room) {
-        bug("MpPersist - NULL target.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpPersist - NULL target from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7361,7 +7352,7 @@ SCRIPT_CMD(do_mppersist)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpPersist - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpPersist - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7373,7 +7364,7 @@ SCRIPT_CMD(do_mppersist)
 
     // Require security to ENABLE persistance
     if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        bug("MpPersist - Insufficient security to enable persistance.", VNUM(info->mob));
+        pbugf(LOG_SCRIPTS, "MpPersist - Insufficient security to enable persistance from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7865,7 +7856,7 @@ SCRIPT_CMD(do_mpalteraffect)
     paf = arg->d.aff;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAlterAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -7880,7 +7871,7 @@ SCRIPT_CMD(do_mpalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
@@ -7923,17 +7914,17 @@ SCRIPT_CMD(do_mpalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->mob));
             return;
         }
 
         if( paf->slot != WEAR_NONE ) {
-            bug("MpAlterAffect - Attempting to modify duration of an object given affect.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterAffect - Attempting to modify duration of an object given affect from vnum %ld.", VNUM(info->mob));
             return;
         }
 
         if( paf->group == AFFGROUP_RACIAL ) {
-            bug("MpAlterAffect - Attempting to modify duration of a racial affect.",0);
+            pbugf(LOG_SCRIPTS, "MpAlterAffect - Attempting to modify duration of a racial affect from vnum %ld.", VNUM(info->mob));
             return;
         }
 

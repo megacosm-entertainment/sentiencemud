@@ -2096,7 +2096,7 @@ void do_chupgrade(CHAR_DATA *ch, char *argument)
             break;
             
         default:
-            bug("do_chupgrade: invalid church size", 0);
+            pbugf(LOG_ERROR, "do_chupgrade: invalid church size");
             return;
     }
     
@@ -3813,7 +3813,7 @@ void append_church_log(CHURCH_DATA *church, char *string)
     char buf[MSL];
     
     if (church == NULL) {
-        bug("append_church_log: null church.", 1);
+        pbugf(LOG_ERROR, "append_church_log: null church.");
         return;
     }
     
@@ -4656,7 +4656,7 @@ if (!list_appendlink(list_churches, church)) {
     
     // Now read the individual church files
     if ((dir = opendir(ORG_DIR)) == NULL) {
-        bug("read_churches_new: can't open church directory", 0);
+        pbugf(LOG_ERROR, "read_churches_new: can't open church directory");
         return;
     }
     
@@ -8484,7 +8484,7 @@ add_church_log_entry(ch->church, ch->name, buf, CHLOG_PERMISSIONS, true);
 void save_church(CHURCH_DATA *church)
 {
     if (!church) {
-        bug("save_church: null church", 0);
+        pbugf(LOG_ERROR, "save_church: null church");
         return;
     }
 
@@ -8493,7 +8493,7 @@ void save_church(CHURCH_DATA *church)
     
     // Save as JSON
     if (!save_church_json(church)) {
-        bug("save_church: JSON save failed", 0);
+        pbugf(LOG_ERROR, "save_church: JSON save failed");
     }
 }
 
@@ -8687,13 +8687,13 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
 void string_end_chlog(CHAR_DATA *ch)
 {
     if (!ch || !ch->desc) {
-        bug("string_end_chlog: NULL character or descriptor", 0);
+        pbugf(LOG_ERROR, "string_end_chlog: NULL character or descriptor");
         return;
     }
     
     // Check if we have valid church info
     if (!ch->church || !ch->church_member) {
-        bug("string_end_chlog: Character not in church", 0);
+        pbugf(LOG_ERROR, "string_end_chlog: Character not in church");
         ch->desc->pString = NULL;
         ch->desc->editor = 0;
         return;

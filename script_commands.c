@@ -613,7 +613,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     }
 
     if(!mob && !obj) {
-        bug("AddAffectName - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - NULL target.", 0);
         return;
     }
 
@@ -621,7 +621,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get APPLY TYPE
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -636,7 +636,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get AFFECT GROUP
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -657,7 +657,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get NAME
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -667,7 +667,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     }
 
     if(!name) {
-        bug("AddAffectName - Error allocating affect name.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error allocating affect name.");
         return;
     }
 
@@ -675,7 +675,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get LEVEL
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -691,7 +691,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get LOCATION
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -706,7 +706,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get MODIFIER
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -719,7 +719,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     //
     // Get DURATION
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AddAffectName - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
         return;
     }
 
@@ -736,7 +736,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
             //
             // Get BITVECTOR
             if(!(rest = expand_argument(info,rest,arg))) {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
+                pbugf(LOG_SCRIPTS, "Addaffect - Error in parsing.");
                 return;
             }
             switch(arg->type) {
@@ -748,7 +748,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
             //
             // Get BITVECTOR2
             if(!(rest = expand_argument(info,rest,arg))) {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
+                pbugf(LOG_SCRIPTS, "Addaffect - Error in parsing.");
                 return;
             }
             switch(arg->type) {
@@ -762,7 +762,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
             //
             // Get BITVECTOR
             if(!(rest = expand_argument(info,rest,arg))) {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Addaffect - Error in parsing.");
+                pbugf(LOG_SCRIPTS, "Addaffect - Error in parsing.");
                 return;
             }
                         switch(arg->type) {
@@ -861,7 +861,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     // Get WEAR-LOCATION of object
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("AddAffectName - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "AddAffectName - Error in parsing.");
             return;
         }
 
@@ -1360,7 +1360,7 @@ SCRIPT_CMD(scriptcmd_call)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+            pbugf(LOG_SCRIPTS, "MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -1459,7 +1459,7 @@ SCRIPT_CMD(scriptcmd_damage)
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        //bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
+        //pbugf(LOG_SCRIPTS, "MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -1528,7 +1528,7 @@ SCRIPT_CMD(scriptcmd_damage)
             return;
         break;
     default:
-//		bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
+//		pbugf(LOG_SCRIPTS, "MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
         return;
     }
 
@@ -2448,7 +2448,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
         return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpInput - Error in parsing.");
         return;
     }
 
@@ -4592,7 +4592,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
         sec_flags[i] = MIN_SCRIPT_SECURITY;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("AlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterObj - Error in parsing.");
         return;
     }
 
@@ -4603,17 +4603,17 @@ SCRIPT_CMD(scriptcmd_alterobj)
     }
 
     if(!obj) {
-        bug("AlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "AlterObj - NULL object.");
         return;
     }
 
     if(!*rest) {
-        bug("AlterObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "AlterObj - Missing field type.");
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterObj - Error in parsing.");
         return;
     }
 
@@ -4640,7 +4640,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("AlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterObj - Error in parsing.");
         return;
     }
 
@@ -4652,8 +4652,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"AlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "AlterObj - Attempting to alter value%d with security %d.", num, script_security);
             return;
         }
 
@@ -4663,14 +4662,14 @@ SCRIPT_CMD(scriptcmd_alterobj)
         case '*': obj->value[num] *= value; break;
         case '/':
             if (!value) {
-                bug("AlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterObj - adjust called with operator / and value 0");
                 return;
             }
             obj->value[num] /= value;
             break;
         case '%':
             if (!value) {
-                bug("AlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterObj - adjust called with operator % and value 0");
                 return;
             }
             obj->value[num] %= value;
@@ -4712,8 +4711,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"AlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "AlterObj - Attempting to alter '%s' with security %d.", field, script_security);
             return;
         }
 
@@ -5216,7 +5214,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
     if(!info) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("AlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterRoom - Error in parsing.");
         return;
     }
 
@@ -5235,12 +5233,12 @@ SCRIPT_CMD(scriptcmd_alterroom)
     if(!room) return;
 
     if(!*rest) {
-        bug("AlterRoom - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "AlterRoom - Missing field type.");
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterRoom - Error in parsing.");
         return;
     }
 
@@ -5255,7 +5253,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
     if(!str_cmp(field,"mapid")) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("AlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "AlterRoom - Error in parsing.");
             return;
         }
         switch(arg->type) {
@@ -5265,7 +5263,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
         case ENT_NUMBER:
             wilds = get_wilds_from_uid(NULL,arg->d.num);
             if(!wilds) {
-                bug("Not a valid wilds uid",0);
+                pbugf(LOG_SCRIPTS, "Not a valid wilds uid");
                 return;
             }
             room->viewwilds=wilds;
@@ -5282,7 +5280,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
         if (!room_is_clone(room)) return;
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("AlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "AlterRoom - Error in parsing.");
             return;
         }
 
@@ -5324,7 +5322,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
         if(script_security < min_sec) {
             sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, buf);
             return;
         }
 
@@ -5332,7 +5330,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
         expand_string(info,rest,buffer);
 
         if(!allow_empty && !buf_string(buffer)[0]) {
-            bug("AlterRoom - Empty string used.",0);
+            pbugf(LOG_SCRIPTS, "AlterRoom - Empty string used.");
             free_buf(buffer);
             return;
         }
@@ -5351,7 +5349,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
     if (cmd_operator_info[op][OPR_NEEDS_VALUE])
     {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("AlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "AlterRoom - Error in parsing.");
             return;
         }
     }
@@ -5379,7 +5377,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
     if(script_security < min_sec) {
         sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, buf);
         return;
     }
 
@@ -5441,43 +5439,43 @@ SCRIPT_CMD(scriptcmd_alterroom)
         switch (op) {
         case OPR_ADD:
             if( !allowarith ) {
-                bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with arithmetic operator on a bitonly field.");
                 return;
             }
             *lptr += value; break;
 
         case OPR_SUB:
             if( !allowarith ) {
-                bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with arithmetic operator on a bitonly field.");
                 return;
             }
             *lptr -= value; break;
 
         case OPR_MULT:
             if( !allowarith ) {
-                bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with arithmetic operator on a bitonly field.");
                 return;
             }
             *lptr *= value; break;
 
         case OPR_DIV:
             if( !allowarith ) {
-                bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with arithmetic operator on a bitonly field.");
                 return;
             }
             if (!value) {
-                bug("AlterRoom - alterroom called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with operator / and value 0");
                 return;
             }
             *lptr /= value; break;
 
         case OPR_MOD:
             if( !allowarith ) {
-                bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with arithmetic operator on a bitonly field.");
                 return;
             }
             if (!value) {
-                bug("AlterRoom - alterroom called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with operator % and value 0");
                 return;
             }
             *lptr %= value; break;
@@ -5489,7 +5487,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         case OPR_ASSIGN:
             if( !allowbitwise ) {
-                bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with bitwise operator on a non-bitvector field.");
                 return;
             }
             if (bank != NULL)
@@ -5503,7 +5501,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         case OPR_AND:
             if( !allowbitwise ) {
-                bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with bitwise operator on a non-bitvector field.");
                 return;
             }
             if (bank != NULL)
@@ -5517,7 +5515,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         case OPR_OR:
             if( !allowbitwise ) {
-                bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with bitwise operator on a non-bitvector field.");
                 return;
             }
             if (bank != NULL)
@@ -5531,7 +5529,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         case OPR_NOT:
             if( !allowbitwise ) {
-                bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with bitwise operator on a non-bitvector field.");
                 return;
             }
             if (bank != NULL)
@@ -5545,7 +5543,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         case OPR_XOR:
             if( !allowbitwise ) {
-                bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with bitwise operator on a non-bitvector field.");
                 return;
             }
             if (bank != NULL)
@@ -5579,14 +5577,14 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterRoom - alterroom called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with operator / and value 0");
                 return;
             }
             *ptr /= value; break;
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterRoom - alterroom called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - alterroom called with operator % and value 0");
                 return;
             }
 
@@ -5664,14 +5662,14 @@ SCRIPT_CMD(scriptcmd_alterroom)
         case OPR_MULT: *sptr *= value; break;
         case OPR_DIV:
             if (!value) {
-                bug("AlterRoom - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - adjust called with operator / and value 0");
                 return;
             }
             *sptr /= value;
             break;
         case OPR_MOD:
             if (!value) {
-                bug("AlterRoom - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterRoom - adjust called with operator % and value 0");
                 return;
             }
             *sptr %= value;

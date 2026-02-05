@@ -1778,82 +1778,70 @@ OEDIT(oedit_create)
     OBJ_INDEX_DATA *pObj;
     AREA_DATA *pArea;
     long value;
+    int iHash;
     long auto_vnum = 0;
-    int  iHash;
 
     // Auto-vnum: if no argument or argument is 0, find next available vnum in current area
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-    OBJ_INDEX_DATA *temp_obj;
-
-    auto_vnum = ch->in_room->area->min_vnum;
-    temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
-    if (temp_obj != NULL)
-    {
-        while (temp_obj != NULL)
-        {
+        OBJ_INDEX_DATA *temp_obj;
+        auto_vnum = ch->in_room->area->min_vnum;
         temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
-        if (temp_obj == NULL) break;
-        auto_vnum++;
+        while (temp_obj != NULL && auto_vnum <= ch->in_room->area->max_vnum)
+        {
+            auto_vnum++;
+            temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
         }
-    }
-
-    if (auto_vnum > ch->in_room->area->max_vnum)
-    {
-        send_to_char("Sorry, this area has no more space left.\n\r", ch);
-        return false;
-    }
-    
-    value = auto_vnum;
-    pArea = ch->in_room->area;
+        if (auto_vnum > ch->in_room->area->max_vnum)
+        {
+            send_to_char("No free vnums in this area.\n\r", ch);
+            return false;
+        }
+        value = auto_vnum;
+        pArea = ch->in_room->area;
     }
     else
     {
-    // Parse widevnum format
-    WNUM wnum;
-    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
-    if (!parse_widevnum(argument, context, &wnum)) {
-        send_to_char("OEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
-        return false;
-    }
-    
-    value = wnum.vnum;
-    pArea = wnum.pArea;
+        WNUM wnum;
+        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        if (!parse_widevnum(argument, context, &wnum)) {
+            send_to_char("Invalid vnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        value = wnum.vnum;
+        pArea = wnum.pArea;
     }
 
     if (!pArea)
     {
-    send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
-    return false;
+        send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
+        return false;
     }
 
     if (!IS_BUILDER(ch, pArea))
     {
-    send_to_char("OEdit:  Vnum in an area you cannot build in.\n\r", ch);
-    return false;
+        send_to_char("OEdit:  Vnum in an area you cannot build in.\n\r", ch);
+        return false;
     }
 
     if (get_obj_index(pArea, value))
     {
-    send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
-    return false;
+        send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
+        return false;
     }
 
-    pObj              = new_obj_index();
-    pObj->vnum	      = value;
-    pObj->area	      = pArea;
-    pObj->creator_sig = str_dup(ch->name);
-
-    if (value > top_vnum_obj)
-    top_vnum_obj = value;
-
-    iHash                 = value % MAX_KEY_HASH;
-    pObj->next		  = pArea->obj_index_hash[iHash];
+    pObj = new_obj_index();
+    pObj->vnum = value;
+    pObj->area = pArea;
+    iHash = value % MAX_KEY_HASH;
+    pObj->next = pArea->obj_index_hash[iHash];
     pArea->obj_index_hash[iHash] = pObj;
-    ch->desc->pEdit	  = (void *)pObj;
+    ch->desc->pEdit = (void *)pObj;
 
-    SET_BIT(pObj->area->area_flags, AREA_CHANGED);
     send_to_char("Object Created.\n\r", ch);
+    SET_BIT(pObj->area->area_flags, AREA_CHANGED);
+    free_string(pObj->creator_sig);
+    pObj->creator_sig = str_dup(ch->name);
     return true;
 }
 

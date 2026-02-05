@@ -250,10 +250,11 @@ DECL_IFC_FUN(ifc_carries)
 {
     if(ISARG_MOB(0)) {
         if (ISARG_NUM(1))
-            *ret = (int)has_item(ARG_MOB(0), ARG_NUM(1), -1, false);
+            *ret = (int)has_item(ARG_MOB(0), ARG_NUM(1), -1, false, NULL);
         else if(ISARG_STR(1)) {
-            if (is_number(ARG_STR(1)))
-                *ret = (int)has_item(ARG_MOB(0), atol(ARG_STR(1)), -1, false);
+            WNUM wnum_temp;
+            if (parse_widevnum(ARG_STR(1), NULL, &wnum_temp))
+                *ret = (int)has_item(ARG_MOB(0), wnum_temp.vnum, -1, false, wnum_temp.pArea);
             else
                 *ret = (int)(get_obj_carry(ARG_MOB(0), ARG_STR(1), ARG_MOB(0)) && 1);
         } else if(ISARG_OBJ(1))
@@ -596,7 +597,7 @@ DECL_IFC_FUN(ifc_grpsize)
 
 DECL_IFC_FUN(ifc_has)
 {
-    *ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), -1, item_lookup(ARG_STR(1)), false));
+    *ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), -1, item_lookup(ARG_STR(1)), false, NULL));
     return true;
 }
 
@@ -845,8 +846,11 @@ DECL_IFC_FUN(ifc_isfighting)
         if(ISARG_MOB(1))
             *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting == ARG_MOB(1));
         else if(ISARG_STR(1)) {
-            if(is_number(ARG_STR(1)))
-                *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting && IS_NPC(ARG_MOB(0)->fighting) && ARG_MOB(0)->fighting->pIndexData->vnum == atoi(ARG_STR(1)));
+            WNUM wnum_temp;
+            if (parse_widevnum(ARG_STR(1), NULL, &wnum_temp))
+                *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting && IS_NPC(ARG_MOB(0)->fighting) &&
+                    ARG_MOB(0)->fighting->pIndexData->area == wnum_temp.pArea &&
+                    ARG_MOB(0)->fighting->pIndexData->vnum == wnum_temp.vnum);
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting && is_name(ARG_STR(1),ARG_MOB(0)->fighting->name));
         } else if(ISARG_NUM(1))
@@ -953,8 +957,11 @@ DECL_IFC_FUN(ifc_ison)
 
     *ret = false;
     if(ISARG_STR(1)) {
-        if(is_number(ARG_STR(1)))
-            *ret = (ARG_MOB(0)->on && ARG_MOB(0)->on->pIndexData->vnum == atoi(ARG_STR(1)));
+            WNUM wnum_temp;
+        if (parse_widevnum(ARG_STR(1), NULL, &wnum_temp))
+            *ret = (ARG_MOB(0)->on &&
+                ARG_MOB(0)->on->pIndexData->area == wnum_temp.pArea &&
+                ARG_MOB(0)->on->pIndexData->vnum == wnum_temp.vnum);
         else
             *ret = (ARG_MOB(0)->on && is_name(ARG_STR(1),ARG_MOB(0)->on->pIndexData->name));
     } else if(ISARG_NUM(1))
@@ -993,8 +1000,11 @@ DECL_IFC_FUN(ifc_ispulling)
         if(ISARG_OBJ(1))
             *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart == ARG_OBJ(1));
         else if(ISARG_STR(1)) {
-            if(is_number(ARG_STR(1)))
-                *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart && ARG_MOB(0)->pulled_cart->pIndexData->vnum == atoi(ARG_STR(1)));
+            WNUM wnum_temp;
+            if (parse_widevnum(ARG_STR(1), NULL, &wnum_temp))
+                *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart &&
+                    ARG_MOB(0)->pulled_cart->pIndexData->area == wnum_temp.pArea &&
+                    ARG_MOB(0)->pulled_cart->pIndexData->vnum == wnum_temp.vnum);
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart && is_name(ARG_STR(1),ARG_MOB(0)->pulled_cart->pIndexData->name));
         } else if(ISARG_NUM(1))
@@ -1038,8 +1048,11 @@ DECL_IFC_FUN(ifc_isrider)
         if(ISARG_MOB(1))
             *ret = (ARG_MOB(0) && ARG_MOB(0)->rider == ARG_MOB(1));
         else if(ISARG_STR(1)) {
-            if(is_number(ARG_STR(1)))
-                *ret = (ARG_MOB(0) && ARG_MOB(0)->rider && IS_NPC(ARG_MOB(0)->rider) && ARG_MOB(0)->rider->pIndexData->vnum == atoi(ARG_STR(1)));
+            WNUM wnum_temp;
+            if (parse_widevnum(ARG_STR(1), NULL, &wnum_temp))
+                *ret = (ARG_MOB(0) && ARG_MOB(0)->rider && IS_NPC(ARG_MOB(0)->rider) &&
+                    ARG_MOB(0)->rider->pIndexData->area == wnum_temp.pArea &&
+                    ARG_MOB(0)->rider->pIndexData->vnum == wnum_temp.vnum);
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->rider && is_name(ARG_STR(1),ARG_MOB(0)->rider->name));
         } else if(ISARG_NUM(1))
@@ -1055,8 +1068,11 @@ DECL_IFC_FUN(ifc_isriding)
         if(ISARG_MOB(1))
             *ret = (ARG_MOB(0) && ARG_MOB(0)->mount == ARG_MOB(1));
         else if(ISARG_STR(1)) {
-            if(is_number(ARG_STR(1)))
-                *ret = (ARG_MOB(0) && ARG_MOB(0)->mount && IS_NPC(ARG_MOB(0)->mount) && ARG_MOB(0)->mount->pIndexData->vnum == atoi(ARG_STR(1)));
+            WNUM wnum_temp;
+            if (parse_widevnum(ARG_STR(1), NULL, &wnum_temp))
+                *ret = (ARG_MOB(0) && ARG_MOB(0)->mount && IS_NPC(ARG_MOB(0)->mount) &&
+                    ARG_MOB(0)->mount->pIndexData->area == wnum_temp.pArea &&
+                    ARG_MOB(0)->mount->pIndexData->vnum == wnum_temp.vnum);
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->mount && is_name(ARG_STR(1),ARG_MOB(0)->mount->name));
         } else if(ISARG_NUM(1))
@@ -1308,10 +1324,11 @@ DECL_IFC_FUN(ifc_mobexists)
 DECL_IFC_FUN(ifc_mobhere)
 {
     if(ISARG_NUM(0))
-        *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, ARG_NUM(0)) && 1));
+        *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, ARG_NUM(0), NULL) && 1));
     else if(ISARG_STR(0)) {
-        if(is_number(ARG_STR(0)))
-            *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, atol(ARG_STR(0))) && 1));
+        WNUM wnum_temp;
+        if (parse_widevnum(ARG_STR(0), NULL, &wnum_temp))
+            *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, wnum_temp.vnum, wnum_temp.pArea) && 1));
         else
             *ret = ((bool)(int)(get_char_room(mob, obj ? obj_room(obj) : (token ? token_room(token) : room), ARG_STR(0)) && 1));
     } else if(ISARG_MOB(0)) {
@@ -1418,10 +1435,11 @@ DECL_IFC_FUN(ifc_objextra4)
 DECL_IFC_FUN(ifc_objhere)
 {
     if(ISARG_NUM(0))
-        *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, ARG_NUM(0)) && 1));
+        *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, ARG_NUM(0), NULL) && 1));
     else if(ISARG_STR(0)) {
-        if(is_number(ARG_STR(0)))
-            *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, atol(ARG_STR(0))) && 1));
+        WNUM wnum_temp;
+        if (parse_widevnum(ARG_STR(0), NULL, &wnum_temp))
+            *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, wnum_temp.vnum, wnum_temp.pArea) && 1));
         else
             *ret = ((bool)(int)(get_obj_here(mob, obj ? obj_room(obj) : (token ? token_room(token) : room), ARG_STR(0)) && 1));
     } else if(ISARG_OBJ(0)) {
@@ -2242,7 +2260,7 @@ DECL_IFC_FUN(ifc_trains)
 
 DECL_IFC_FUN(ifc_uses)
 {
-    *ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), -1, item_lookup(ARG_STR(1)), true));
+    *ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), -1, item_lookup(ARG_STR(1)), true, NULL));
     return true;
 }
 
@@ -2430,10 +2448,10 @@ DECL_IFC_FUN(ifc_wears)
 {
     if(ISARG_MOB(0)) {
         if(ISARG_NUM(1)) {
-            *ret = (int)has_item(ARG_MOB(0), ARG_NUM(1), -1, true);
+            *ret = (int)has_item(ARG_MOB(0), ARG_NUM(1), -1, true, NULL);
         } else if(ISARG_STR(1)) {
             if (is_number(ARG_STR(1)))
-                *ret = (int)has_item(ARG_MOB(0), atol(ARG_STR(1)), -1, true);
+                *ret = (int)has_item(ARG_MOB(0), atol(ARG_STR(1)), -1, true, NULL);
             else
                 *ret = (int)(get_obj_wear(ARG_MOB(0), ARG_STR(1), true) && 1);
         } else if(ISARG_OBJ(1)) {

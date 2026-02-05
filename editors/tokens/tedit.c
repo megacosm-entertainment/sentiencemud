@@ -60,66 +60,58 @@ TEDIT(tedit_create)
     long value;
     int iHash;
 
-    EDIT_TOKEN(ch, token_index);
-
     // Auto-vnum: empty or "0" finds next available
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-        // Find next available token vnum in current area
         pArea = ch->in_room->area;
         value = pArea->min_vnum;
         while (value <= pArea->max_vnum && get_token_index(pArea, value))
             value++;
-        
         if (value > pArea->max_vnum)
         {
-            send_to_char("No available vnums in current area.\n\r", ch);
+            send_to_char("No free vnums in this area.\n\r", ch);
             return false;
         }
     }
     else
     {
-        // Parse widevnum
-        WNUM token_wnum;
+        WNUM wnum;
         AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
-        if (!parse_widevnum(argument, context, &token_wnum)) {
-            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        if (!parse_widevnum(argument, context, &wnum)) {
+            send_to_char("Invalid vnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
-        
-        pArea = token_wnum.pArea;
-        value = token_wnum.vnum;
+        value = wnum.vnum;
+        pArea = wnum.pArea;
     }
 
-    if (pArea == NULL)
+    if (!pArea)
     {
-    send_to_char("That vnum is not assigned an area.\n\r", ch);
-    return false;
+        send_to_char("That vnum is not assigned an area.\n\r", ch);
+        return false;
     }
 
     if (!IS_BUILDER(ch, pArea))
     {
-    send_to_char("You aren't a builder in that area.\n\r", ch);
-    return false;
+        send_to_char("You aren't a builder in that area.\n\r", ch);
+        return false;
     }
 
     if (get_token_index(pArea, value))
     {
-    send_to_char("Token vnum already exists.\n\r", ch);
-    return false;
+        send_to_char("Token vnum already exists.\n\r", ch);
+        return false;
     }
 
     token_index = new_token_index();
     token_index->vnum = value;
     token_index->area = pArea;
-
     iHash = value % MAX_KEY_HASH;
     token_index->next = pArea->token_index_hash[iHash];
     pArea->token_index_hash[iHash] = token_index;
-
     ch->desc->pEdit = (void *)token_index;
 
-    send_to_char("Token created.\n\r", ch);
+    send_to_char("Token Created.\n\r", ch);
     SET_BIT(token_index->area->area_flags, AREA_CHANGED);
     return true;
 }

@@ -529,7 +529,7 @@ if (ch->lworn) {
 
     if (pMob == NULL)
     {
-        bug("No MOB_VNUM object to shift to.", 0);
+        pbugf(LOG_ERROR, "No MOB_VNUM object to shift to.");
         return;
     }
 
@@ -620,7 +620,7 @@ void do_shape(CHAR_DATA *ch, char *argument)
 void set_pk_timer(CHAR_DATA *ch, CHAR_DATA *victim, int time)
 {
     if (!ch) {
-        bug("set_pk_timer: ch null", 0);
+        pbugf(LOG_ERROR, "set_pk_timer: ch null");
         return;
     }
 

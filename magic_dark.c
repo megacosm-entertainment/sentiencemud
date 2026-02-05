@@ -90,7 +90,7 @@ SPELL_FUNC(spell_momentary_darkness)
     }
 
     if (!(index = get_reserved_obj_index("obj_spell_darkness"))) {
-        bug("spell_momentary_darkness: get_obj_index was null!\n\r", 0);
+        pbugf(LOG_ERROR, "spell_momentary_darkness: get_obj_index was null!\n\r", 0);
         return false;
     }
 

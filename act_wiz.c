@@ -83,15 +83,14 @@ int gconfig_read (void)
     FILE *fp;
     bool fMatch;
     char *word;
-    char buf[MIL];
     extern GLOBAL_DATA gconfig;
 
-    log_string("Loading configuration settings from gconfig.rc...");
+    plogf(LOG_INIT,"Loading configuration settings from gconfig.rc...");
 
     fp = fopen(CONFIG_FILE,"r");
     if (!fp)
     {
-        bug("act_wiz.c, gconfig_read(): Unable to open gconfig.rc file for reading.",0);
+        pbugf(LOG_INIT, "Unable to open gconfig.rc file for reading.");
         return(1); /* Failure*/
     }
 
@@ -224,8 +223,7 @@ int gconfig_read (void)
 
         if (!fMatch)
         {
-        sprintf(buf, "act_wiz.c, gconfig_read(): no match for '%s'!", word);
-        bug(buf, 0);
+        pbugf(LOG_INIT, "no match for '%s'!", word);
             fread_to_eol(fp);
         }
     } /* end for */
@@ -252,15 +250,14 @@ int game_settings_read_dat (void)
     FILE *fp;
     bool fMatch;
     char *word;
-    char buf[MIL];
 
 
-    log_string("Loading configuration settings from game_settings.dat...");
+    plogf(LOG_INIT,"Loading configuration settings from game_settings.dat...");
 
     fp = fopen(GAME_SETTINGS_FILE,"r");
     if (!fp)
     {
-        bug("act_wiz.c, gamesettings_read(): Unable to open game_settings.dat file for reading.",0);
+        pbugf(LOG_INIT, "Unable to open game_settings.dat file for reading.");
         return(1); /* Failure*/
     }
 
@@ -675,8 +672,7 @@ int game_settings_read_dat (void)
 
         if (!fMatch)
         {
-        sprintf(buf, "act_wiz.c, game_settings_read(): no match for '%s'!", word);
-        bug(buf, 0);
+        pbugf(LOG_INIT, "no match for '%s'!", word);
             fread_to_eol(fp);
         }
     } /* end for */
@@ -703,7 +699,7 @@ int game_settings_read(void)
 
     // JSON load failed - the json loader will attempt migration
     // If we're still here, something went wrong
-    log_string("Warning: Using default game settings due to load failure");
+    plogf(LOG_INIT, "Warning: Using default game settings due to load failure");
     return 1;
 }
 
@@ -724,7 +720,7 @@ int gconfig_write(void)
     fp = fopen(CONFIG_FILE,"w");
     if (!fp)
     {
-        bug("act_wiz.c, gconfig_write(): Unable to open gconfig.rc file for writing.",0);
+        pbugf(LOG_INIT, "Unable to open gconfig.rc file for writing.");
         return(1); /* Failure*/
     }
 
@@ -741,7 +737,7 @@ int gconfig_write(void)
 
     fprintf(fp, "END\n");
     fclose(fp);
-/*    log_string("act_wiz.c, gconfig_write(): Config written to 'gconfig.rc'.");*/
+/*    plogf(LOG_INIT, "act_wiz.c, gconfig_write(): Config written to 'gconfig.rc'.");*/
     return(0); /* Success*/
 }
 
@@ -761,7 +757,7 @@ static int game_settings_write_dat(void)
     fp = fopen(GAME_SETTINGS_FILE,"w");
     if (!fp)
     {
-        bug("act_wiz.c, game_settings_write(): Unable to open game_settings.rc file for writing.",0);
+        pbugf(LOG_INIT, "Unable to open game_settings.rc file for writing.");
         return(1); /* Failure*/
     }
 
@@ -1241,7 +1237,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
             IS_NPC(victim) ? victim->short_descr : victim->name);
         wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 
-        log_string(buf);
+        plogf(LOG_ADMIN, buf);
         }
     }
 
@@ -1286,7 +1282,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
     IS_NPC(victim) ? victim->short_descr : victim->name);
     wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 
-    log_string(buf);
+    plogf(LOG_ADMIN, buf);
 }
 
 
@@ -1536,7 +1532,7 @@ void do_disconnect(CHAR_DATA *ch, char *argument)
     }
     }
 
-    bug("Do_disconnect: desc not found.", 0);
+    pbugf(LOG_ERROR, "Do_disconnect: desc not found.");
     send_to_char("Descriptor not found!\n\r", ch);
     return;
 }
@@ -4991,9 +4987,8 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
             if (IS_SET(token->flags, TOKEN_PURGE_REBOOT)) {
                 p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
-                sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged because of reboot",
+                plogf(LOG_ADMIN, "char update: token %s(%ld) char %s(%ld) was purged because of reboot",
                     token->name, token->pIndexData->vnum, HANDLE(tch), IS_NPC(tch) ? tch->pIndexData->vnum : 0);
-                log_string(buf);
                 token_from_char(token);
                 free_token(token);
             }
@@ -5225,7 +5220,7 @@ void do_return(CHAR_DATA *ch, char *argument)
 
     if (ch->desc == NULL)
     {
-        log_string("act_wiz.c, do_return: ch->desc is NULL.");
+        plogf(LOG_ADMIN, "act_wiz.c, do_return: ch->desc is NULL.");
         return;
     }
 
@@ -5469,8 +5464,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
     MOB_INDEX_DATA *pMobIndex;
     CHAR_DATA *victim;
     int amt = 1;
-    int i;
     long vnum;
+    int i;
 
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
@@ -5529,12 +5524,11 @@ void do_mload(CHAR_DATA *ch, char *argument)
     if (!IS_BUILDER(ch, pMobIndex->area))
     {
         send_to_char("You aren't a builder in that area - action logged.\n\r", ch);
-        sprintf(buf, "do_mload: %s tried to load %s (vnum %ld) in area %s without permissions!",
+        plogf(LOG_ADMIN, "do_mload: %s tried to load %s (vnum %ld) in area %s without permissions!",
             ch->name,
             pMobIndex->short_descr,
             pMobIndex->vnum,
             pMobIndex->area->name);
-        log_string(buf);
         return;
     }
 
@@ -5608,8 +5602,8 @@ void do_oload(CHAR_DATA *ch, char *argument)
     OBJ_INDEX_DATA *pObjIndex;
     OBJ_DATA *obj;
     int amt = 1;
-    int i;
     long vnum;
+    int i;
 
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
@@ -5668,12 +5662,11 @@ void do_oload(CHAR_DATA *ch, char *argument)
     if (!has_access_area(ch, pObjIndex->area))
     {
         send_to_char("Insufficient security to load object - action logged.\n\r", ch);
-        sprintf(buf, "do_oload: %s tried to load %s (vnum %ld) in area %s without permissions!",
+        plogf(LOG_ADMIN, "do_oload: %s tried to load %s (vnum %ld) in area %s without permissions!",
             ch->name,
             pObjIndex->short_descr,
             pObjIndex->vnum,
             pObjIndex->area->name);
-        log_string(buf);
         return;
     }
 
@@ -5986,7 +5979,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch)) {
         sprintf("do_advance: NPC %s(%ld) tried to advance", ch->pIndexData->short_descr, ch->pIndexData->vnum);
-    log_string(buf);
+    plogf(LOG_ADMIN, buf);
     send_to_char("No.\n\r", ch);
     return;
     }
@@ -6946,7 +6939,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 
         case '/':
         if (value == 0) {
-            bug("do_tkset: adjust called with operator / and value 0", 0);
+            pbugf(LOG_ERROR, "do_tkset: adjust called with operator / and value 0");
             return;
         }
         token->timer /= value;
@@ -6954,7 +6947,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 
         case '%':
         if (value == 0) {
-            bug("do_tkset: adjust called with operator %% and value 0", 0);
+            pbugf(LOG_ERROR, "do_tkset: adjust called with operator %% and value 0");
             return;
         }
         token->timer %= value;
@@ -6965,8 +6958,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
         break;
 
         default:
-        sprintf(buf, "do_tkset: bad operator %c", arg5[0]);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "do_tkset: bad operator %c", arg5[0]);
     }
 
     sprintf(buf, "Adjusted token %s(%ld.%ld) on char %s, timer %c %ld\n\r",
@@ -6992,7 +6984,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 
         case '/':
         if (value == 0) {
-            bug("do_tkset: adjust called with operator / and value 0", 0);
+            pbugf(LOG_ERROR, "do_tkset: adjust called with operator / and value 0");
             return;
         }
         token->value[value_num] /= value;
@@ -7000,7 +6992,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 
         case '%':
         if (value == 0) {
-            bug("do_tkset: adjust called with operator % and value 0", 0);
+            pbugf(LOG_ERROR, "do_tkset: adjust called with operator %% and value 0");
             return;
         }
         token->value[value_num] %= value;
@@ -7011,8 +7003,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
         break;
 
         default:
-        sprintf(buf, "do_tkset: bad operator %c", arg5[0]);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "do_tkset: bad operator %c", arg5[0]);
     }
 
     sprintf(buf, "Adjusted token %s(%ld.%ld) on char %s, value %s %c %ld\n\r",
@@ -11363,7 +11354,7 @@ void do_aload(CHAR_DATA *ch, char *argument)
 void do_immflag(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch)) {
-       bug("NPC tried to change imm flag", 0);
+       pbugf(LOG_ERROR, "NPC tried to change imm flag");
        return;
     }
 

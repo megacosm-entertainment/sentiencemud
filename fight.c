@@ -74,7 +74,6 @@ void violence_update(void)
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     ITERATOR ait, it;
-    char buf[MSL];
     long aid[2], vid[2];
 
     // MK 100316 - Handle all combatants that are fighting to fire PREROUND before any combat is done each round.
@@ -101,10 +100,9 @@ void violence_update(void)
 
         if (ch->in_room == NULL)
         {
-            sprintf(buf, "violence_update: ch->in_room was null! %s (%ld)",
+            pbugf(LOG_ERROR, "violence_update: ch->in_room was null! %s (%ld)",
                 IS_NPC(ch) ? ch->short_descr : ch->name,
                 IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-            bug(buf, 0);
             continue;
         }
 
@@ -1275,8 +1273,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
     // Stop up people with cheating weapons
     if (dam > 30000 && dt >= TYPE_HIT) {
-        sprintf(buf, "damage: more than 30000 points(%d) from %s", dam, IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "damage: more than 30000 points(%d) from %s", dam, IS_NPC(ch) ? ch->short_descr : ch->name);
 
         dam = 30000;
         if (!IS_IMMORTAL(ch)) {
@@ -2478,7 +2475,6 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 {
     int chance;
     OBJ_DATA *shield;
-    char buf[MAX_STRING_LENGTH];
     CHAR_DATA *gch;
 
     if (!IS_AWAKE(victim))
@@ -2557,8 +2553,7 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 
     // shield decays with use
     if (!(shield = get_eq_char(victim, WEAR_SHIELD))) {
-        sprintf(buf, "check_shield_block: shield was null before doing decay, victim %s, char %s", HANDLE(victim), HANDLE(ch));
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "check_shield_block: shield was null before doing decay, victim %s, char %s", HANDLE(victim), HANDLE(ch));
         return true;
     }
 
@@ -3471,7 +3466,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
         was_in_room = ch->in_room;
 
         if (!was_in_room) {
-            bug("death_cry, was_in_room was NULL!!",0);
+            pbugf(LOG_ERROR, "death_cry, was_in_room was NULL!!");
             return;
         }
 
@@ -3688,9 +3683,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
     /* if something catastrophic has happened bail out */
     if (victim->in_room == NULL)
     {
-        sprintf(buf, "raw_kill: NO IN_ROOM ON CHAR %s(%ld)",
+        pbugf(LOG_ERROR, "raw_kill: NO IN_ROOM ON CHAR %s(%ld)",
             victim->name, IS_NPC(victim) ? victim->pIndexData->vnum : 0);
-        bug(buf, 0);
         extract_char(victim, false);
         return NULL;
     }
@@ -3707,10 +3701,9 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
     // Just in case...
     if (!(recall_room = location_to_room(&recall)))
     {
-        sprintf(buf, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
+        pbugf(LOG_ERROR, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
             HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum : 0,
             victim->in_room->name, victim->in_room->vnum);
-        bug(buf, 0);
 
         recall_room = get_reserved_room_index("room_default_recall");
     }
@@ -4033,7 +4026,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 
     // Check here just to make sure
     if (ch->in_room == NULL) {
-        bug("group_gain: ch with null in_room", 0);
+        pbugf(LOG_ERROR, "group_gain: ch with null in_room");
         return;
     }
 
@@ -4054,7 +4047,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 
     if (members == 0)
     {
-        bug("Group_gain: 0 members.", members);
+        pbugf(LOG_ERROR, "Group_gain: 0 members.");
         members = 1;
         group_levels = ch->tot_level ;
     }
@@ -4361,7 +4354,7 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam,int dt,bool immune)
         attack	= attack_table[dt - TYPE_HIT].noun;
     else
     {
-        bug("Dam_message: bad dt %d.", dt);
+        pbugf(LOG_ERROR, "Dam_message: bad dt %d.", dt);
         dt  = TYPE_HIT;
         attack  = attack_table[0].name;
     }
@@ -5442,7 +5435,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 void bitten_end(CHAR_DATA *ch)
 {
     if (!ch) {
-        bug("bitten_end: ch was null!", 0);
+        pbugf(LOG_ERROR, "bitten_end: ch was null!");
         return;
     }
 
@@ -6429,9 +6422,8 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 
     if (was_in->exit[door]->u1.to_room != now_in)
     {
-    sprintf(buf, "do_flee: big mistake! %s tried to flee %s but it sent him somewhere else",
+    pbugf(LOG_ERROR, "do_flee: big mistake! %s tried to flee %s but it sent him somewhere else",
         HANDLE(ch), dir_name[door]);
-    bug(buf, 0);
     }
 */
 
@@ -7224,7 +7216,6 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 void resurrect_end(CHAR_DATA *ch)
 {
     CHAR_DATA *victim;
-    char buf[MAX_STRING_LENGTH];
     OBJ_DATA *obj;
     OBJ_DATA *in;
     OBJ_DATA *in_next;
@@ -7234,8 +7225,7 @@ void resurrect_end(CHAR_DATA *ch)
 
     if (obj == NULL)
     {
-        sprintf(buf, "resurrect_end: ch->resurrect_target was null! ch %s", ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "resurrect_end: ch->resurrect_target was null! ch %s", ch->name);
         return;
     }
 

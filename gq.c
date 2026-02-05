@@ -720,7 +720,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
     fp = fopen(GQ_FILE, "w");
     if (fp == NULL)
     {
-    bug("Couldn't load gq.dat", 0);
+    pbugf(LOG_ERROR, "Couldn't load gq.dat");
     exit(1);
     }
 
@@ -784,7 +784,7 @@ void read_gq(void)
     fp = fopen(GQ_FILE, "r");
     if (fp == NULL)
     {
-    bug("Couldn't load gq.dat", 0);
+    pbugf(LOG_ERROR, "Couldn't load gq.dat");
     exit(1);
     }
 

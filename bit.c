@@ -304,7 +304,7 @@ char *affect_loc_name( int location )
         break;
     }
 
-    bug( "Affect_location_name: unknown location %d.", location );
+    pbugf(LOG_ERROR, "Affect_location_name: unknown location %d.", location );
     return "(unknown)";
 }
 

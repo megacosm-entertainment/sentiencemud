@@ -894,7 +894,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 
     if (arg[0] == '\0')
     {
-    bug("Rprog: No vnum to create entrance or delete, on room %d.",
+    pbugf(LOG_ERROR, "Rprog: No vnum to create entrance or delete, on room %d.",
         pRoom->vnum);
     return false;
     }
@@ -905,7 +905,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 
     if (!pRoom->exit[door])
     {
-        bug("RProg: Couldn't delete room. %d", pRoom->vnum);
+        pbugf(LOG_ERROR, "RProg: Couldn't delete room. %d", pRoom->vnum);
         return false;
     }
 
@@ -936,13 +936,13 @@ AREA_DATA *area = find_area_by_vnum(value, NULL);
 if (!area) area = get_system_area_fallback();
 if (!get_room_index(area, value))
     {
-       bug("Rprog: A link cannot link non-existant room.\n\r",0);
+       pbugf(LOG_ERROR, "Rprog: A link cannot link non-existant room.\n\r");
        return false;
     }
 
     if (get_room_index(area, value)->exit[rev_dir[door]])
     {
-       bug("Rprog: Reverse-side exit to room already exists.", 0);
+       pbugf(LOG_ERROR, "Rprog: Reverse-side exit to room already exists.\n\r");
        return false;
     }
 
@@ -1019,9 +1019,8 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
         pToRoom = pRoom->exit[door]->u1.to_room;
         if (pToRoom == NULL)
         {
-            sprintf(buf, "change_exit: pToRoom was null! room is %s (%ld), door is %i",
+            pbugf(LOG_ERROR, "change_exit: pToRoom was null! room is %s (%ld), door is %i",
                 pRoom->name, pRoom->vnum, door);
-            bug(buf, 0);
             send_to_char("REdit: couldn't delete that exit, probably a bad link. Please report to coder@megacosm.net\n\r", ch);
             return false;
         }

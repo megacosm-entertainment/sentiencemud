@@ -398,7 +398,7 @@ bool load_commands()
 
             if (!fMatch)
             {
-                bug(formatf("load_commands: no match for word '%s'", word),0);
+                pbugf("No match for word '%s'", word);
                 fread_to_eol(fp);
             }
         }

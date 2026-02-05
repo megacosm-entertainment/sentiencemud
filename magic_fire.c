@@ -276,7 +276,7 @@ SPELL_FUNC(spell_fire_cloud)
     bool exists = false;
 
     if (!(inferno = get_reserved_obj_index("obj_spell_inferno"))) {
-        bug("spell_fire_cloud: null obj_index!\n", 0);
+        pbugf(LOG_ERROR, "spell_fire_cloud: null obj_index!\n");
         return false;
     }
 

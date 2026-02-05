@@ -1424,7 +1424,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
             if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                 sprintf(buf, "%s drops %s.", ch->name, cart->short_descr);
-                log_string(buf);
+                plogf(LOG_ADMIN, buf);
                 wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
             }
 
@@ -1473,7 +1473,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
         if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
             sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
-            log_string(buf);
+            plogf(LOG_ADMIN, buf);
             wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
         }
 
@@ -1555,7 +1555,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
                     if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                         sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
-                        log_string(buf);
+                        plogf(LOG_ADMIN, buf);
                         wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
                     }
 
@@ -1753,7 +1753,7 @@ void do_give(CHAR_DATA *ch, char *argument)
             sprintf(buf,"%s gives %s %ld %s.",
                 ch->name, IS_NPC(victim) ? victim->short_descr : victim->name,
                 amount, gold ? "gold" : "silver");
-            log_string(buf);
+            plogf(LOG_ADMIN, buf);
             wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
         }
 
@@ -1921,7 +1921,7 @@ void do_give(CHAR_DATA *ch, char *argument)
             ch->name,
             obj->short_descr,
             IS_NPC(victim) ? victim->short_descr : victim->name);
-        log_string(buf);
+        plogf(LOG_ADMIN, buf);
         wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
     }
 
@@ -2935,7 +2935,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
     case ITEM_FOUNTAIN:
         if ((liquid = obj->value[2])  < 0)
         {
-        bug("Do_drink: bad liquid number %d.", liquid);
+        pbugf(LOG_ERROR, "Bad liquid number %d.", liquid);
         liquid = obj->value[2] = 0;
         }
         if (IS_VAMPIRE(ch))
@@ -2953,7 +2953,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
 
         if ((liquid = obj->value[2])  < 0)
         {
-        bug("Do_drink: bad liquid number %d.", liquid);
+        pbugf(LOG_ERROR, "Bad liquid number %d.", liquid);
         liquid = obj->value[2] = 0;
         }
 
@@ -4394,7 +4394,6 @@ void recite_end(CHAR_DATA *ch)
     OBJ_DATA *obj;
     int kill;
     SPELL_DATA *spell;
-    char buf[MSL];
 
     scroll = ch->recite_scroll;
 
@@ -4408,9 +4407,8 @@ void recite_end(CHAR_DATA *ch)
 
     if (ch->cast_target_name == NULL)
     {
-        sprintf(buf, "recite_end: for %s, cast_target_name was null!",
+        pbugf(LOG_ERROR "for %s, cast_target_name was null!",
             IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
         return;
     }
 
@@ -4509,7 +4507,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 
     if (!staff->spells)
     {
-    bug("Do_brandish: no spells %d.", staff->pIndexData->vnum);
+    pbugf(LOG_ERROR, "No spells %d.", staff->pIndexData->vnum);
     return;
     }
 
@@ -4538,7 +4536,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
             switch (skill_table[sn].target)
             {
             default:
-            bug("Do_brandish: bad target for sn %d.", sn);
+            pbugf(LOG_ERROR, "Do_brandish: bad target for sn %d.", sn);
             return;
 
             case TAR_IGNORE:
@@ -4574,7 +4572,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     {
     act("$n's $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("Your $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    log_string("It disappeared in a blaze");
+    //plogf(LOG_INFO,"It disappeared in a blaze");
     extract_obj(staff);
     }
 }
@@ -4684,7 +4682,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
     {
     act("$n's $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("Your $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    log_string("exploded into fragments");
+    //plogf(LOG_INFO,"It exploded into fragments");
     extract_obj(wand);
     }
 }
@@ -5541,7 +5539,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
             pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_vnum ), 1, true );
             if ( pObj == NULL )
             {
-                bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
+                pbugf(LOG_ERROR, "A commodity object did not exist, vnum was: %d", temp->obj_vnum );
                 return;
             }
 
@@ -5581,7 +5579,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
                 pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_vnum ), 1, true );
                 if ( pObj == NULL )
                 {
-                    bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
+                    pbugf(LOG_ERROR, "A commodity object did not exist, vnum was: %d", temp->obj_vnum );
                     return;
                 }
                 obj_to_obj( pObj, cart );
@@ -5685,7 +5683,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
         pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
         if (pRoomIndexNext == NULL)
         {
-            bug("Do_buy: bad pet shop at vnum %d.", ch->in_room->vnum);
+            pbugf(LOG_ERROR, "Do_buy: bad pet shop at vnum %d.", ch->in_room->vnum);
             send_to_char("Sorry, you can't buy that here.\n\r", ch);
             return;
         }
@@ -7219,7 +7217,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
                 if (obj->item_type == ITEM_TRASH)
                 {
-                    log_string("Item sell extract");
+                    plogf(LOG_INFO,"Item sell extract");
                     extract_obj(obj);
                 }
                 else
@@ -7281,7 +7279,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
     if (obj->item_type == ITEM_TRASH)
     {
-        log_string("Item sell extract");
+        plogf(LOG_INFO,"Item sell extract");
         extract_obj(obj);
     }
     else
@@ -8926,12 +8924,8 @@ void repair_end(CHAR_DATA *ch)
 {
     if (ch->repair_obj == NULL)
     {
-    char buf[MAX_STRING_LENGTH];
 
-    sprintf(buf, "repair_end: ch->repair_obj was null! ");
-    sprintf(buf, "char was %s.", ch->name);
-
-    bug(buf, 0);
+    pbugf(LOG_ERROR, "ch->repair_obj was null for %s", ch->name);
     return;
     }
 

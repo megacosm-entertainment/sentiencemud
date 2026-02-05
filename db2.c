@@ -182,7 +182,7 @@ void load_socials_file(void)
             // Migrate to new format
             save_new_socials();
         } else {
-            bug("Could not find any socials file!", 0);
+            pbugf(LOG_ERROR, "Could not find any socials file!");
         }
     }
 
@@ -304,7 +304,7 @@ void save_new_socials(void)
     int i;
     
     if ((fp = fopen(SOCIALS_FILE, "w")) == NULL) {
-        bug("Save_new_socials: couldn't open file for writing", 0);
+        pbugf(LOG_ERROR, "Save_new_socials: couldn't open file for writing");
         return;
     }
     
@@ -992,7 +992,7 @@ void load_npc_ships()
 
     if ( letter != '#' )
     {
-        bug( "Load_Npc_Ships: # not found.", 0 );
+        pbugf(LOG_ERROR, "Load_Npc_Ships: # not found.");
         exit( 1 );
     }
 
@@ -1009,7 +1009,7 @@ void load_npc_ships()
 
         if ( get_npc_ship_index( vnum ) != NULL )
         {
-            bug( "Load_Npc_Ships: vnum %ld duplicated.", vnum );
+            pbugf(LOG_ERROR, "Load_Npc_Ships: vnum %ld duplicated.", vnum );
             exit( 1 );
         }
 
@@ -1096,7 +1096,7 @@ void load_npc_ships()
             log_string(buf);
             if ( (pObjIndex = get_obj_index( obj_vnum) ) == NULL)
             {
-                bug("Couldn't load cargo object for npc_ship because cargo object does not exist.", obj_vnum);
+                pbugf(LOG_ERROR, "Couldn't load cargo object for npc_ship because cargo object does not exist. Vnum: %ld", obj_vnum);
                 continue;
             }
 
@@ -1123,7 +1123,7 @@ void load_npc_ships()
             log_string(buf);
             if ( (pMob = get_mob_index( mob_vnum )) == NULL)
             {
-                bug("Couldn't load crew member for npc_ship because mob does not exist.", 0);
+                pbugf(LOG_ERROR, "Couldn't load crew member for npc_ship because mob does not exist. Vnum: %ld", mob_vnum);
                 continue;
             }
 
@@ -1166,7 +1166,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
     {
     if ( ( fp = fopen( SKILLS_DB_FILE, "w")) == NULL )
     {
-        bug("do_dump: fopen", 0 );
+        pbugf(LOG_ERROR, "do_dump: fopen");
         return;
     }
 
@@ -1199,7 +1199,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
     OBJ_INDEX_DATA *obj;
 
         if ( ( fp = fopen( OBJ_DB_FILE, "w")) == NULL ) {
-        bug("do_dump: fopen", 0 );
+        pbugf(LOG_ERROR, "do_dump: fopen");
         return;
     }
     setbuf(fp,NULL);
@@ -1325,7 +1325,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
 
     if ((fp = fopen(HELP_DB_FILE, "w")) == NULL)
     {
-        bug("do_dump: fopen", 0);
+        pbugf(LOG_ERROR, "do_dump: fopen");
         return;
     }
 
@@ -1350,7 +1350,7 @@ void write_help_to_disk(HELP_CATEGORY *hcat, HELP_DATA *help)
 
     if (!hcat && !help)
     {
-    bug("write_help_to_disk: hcat and help null, nothing to write", 0);
+    pbugf(LOG_ERROR, "write_help_to_disk: hcat and help null, nothing to write");
     return;
     }
 
@@ -1383,7 +1383,7 @@ void write_help_to_disk(HELP_CATEGORY *hcat, HELP_DATA *help)
     }
     else
     {
-        bug("write_help_to_disk: fp", 0);
+        pbugf(LOG_ERROR, "write_help_to_disk: fp");
         return;
     }
     }
@@ -1406,7 +1406,7 @@ void load_area_trade( AREA_DATA *pArea, FILE *fp )
         letter                          = fread_letter( fp );
         if ( letter != '#' )
         {
-            bug( "Load_Area_Trade: # not found.", 0 );
+            pbugf(LOG_ERROR, "Load_Area_Trade: # not found.");
             exit( 1 );
         }
 
@@ -1470,8 +1470,7 @@ void load_stat( char *filename, int type )
 
     if ( ( fp = fopen( buf, "r")) == NULL )
     {
-    sprintf( buf, "Couldn't load file %s.", filename );
-    bug( buf, 0 );
+    pbugf(LOG_ERROR, "Couldn't load file %s.", filename );
     return;
     }
 
@@ -1517,7 +1516,7 @@ void generate_poa_resets( int level )
 
     if ( ( area = find_area( buf)) == NULL )
     {
-    bug("generate_poa_resets: couldn't find area for level %d.", level );
+    pbugf(LOG_ERROR, "generate_poa_resets: couldn't find area for level %d.", level );
     return;
     }
 

@@ -602,50 +602,34 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pMcode;
     char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, ch->in_room->area, &wnum))
     {
-    long vnum = atol(command);
-    AREA_DATA *ad;
+		if ( (pMcode = get_script_index(wnum.pArea, wnum.vnum, PRG_MPROG)) == NULL )
+		{
+			send_to_char("MPEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
 
-    if ( (pMcode = get_script_index_global(vnum,PRG_MPROG)) == NULL )
-    {
-        send_to_char("MPEdit : That vnum does not exist.\n\r",ch);
-        return;
-    }
+		if ( !IS_BUILDER(ch, wnum.pArea) )
+		{
+			send_to_char("MPEdit : Insufficient security to modify area.\n\r", ch );
+			return;
+		}
 
-    ad = get_vnum_area(vnum);
+		ch->desc->pEdit		= (void *)pMcode;
+		ch->desc->editor	= ED_MPCODE;
 
-    if ( ad == NULL )
-    {
-        send_to_char( "MPEdit : Vnum is not assigned an area.\n\r", ch );
-        return;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
-    {
-        send_to_char("MPEdit : Insufficient security to modify area.\n\r", ch );
-        return;
-    }
-
-    ch->desc->pEdit		= (void *)pMcode;
-    ch->desc->editor	= ED_MPCODE;
-
-    return;
+		return;
     }
 
     if ( !str_cmp(command, "create") )
-    {   /*
-    if (argument[0] == '\0')
     {
-        send_to_char( "Syntax : mpedit create [vnum]\n\r", ch );
-        return;
-    }
-*/
-    mpedit_create(ch, argument);
-    return;
+		mpedit_create(ch, argument);
+		return;
     }
 
     send_to_char( "Syntax : mpedit [vnum]\n\r", ch );
@@ -658,50 +642,34 @@ void do_opedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pOcode;
     char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, ch->in_room->area, &wnum))
     {
-    long vnum = atol(command);
-    AREA_DATA *ad;
+		if ( (pOcode = get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG)) == NULL )
+		{
+			send_to_char("OPEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
 
-    if ( (pOcode = get_script_index_global(vnum,PRG_OPROG)) == NULL )
-    {
-        send_to_char("OPEdit : That vnum does not exist.\n\r",ch);
-        return;
-    }
+		if ( !IS_BUILDER(ch, wnum.pArea) )
+		{
+			send_to_char("OPEdit : Insufficient security to modify area.\n\r", ch );
+			return;
+		}
 
-    ad = get_vnum_area(vnum);
+		ch->desc->pEdit		= (void *)pOcode;
+		ch->desc->editor	= ED_OPCODE;
 
-    if ( ad == NULL )
-    {
-        send_to_char( "OPEdit : Vnum is not assigned an area.\n\r", ch );
-        return;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
-    {
-        send_to_char("OPEdit : Insufficient security to modify area.\n\r", ch );
-        return;
-    }
-
-    ch->desc->pEdit		= (void *)pOcode;
-    ch->desc->editor	= ED_OPCODE;
-
-    return;
+		return;
     }
 
     if ( !str_cmp(command, "create") )
-    {   /*
-    if (argument[0] == '\0')
     {
-        send_to_char( "Syntax : opedit create [vnum]\n\r", ch );
-        return;
-    }
-    */
-    opedit_create(ch, argument);
-    return;
+		opedit_create(ch, argument);
+		return;
     }
 
     send_to_char( "Syntax : opedit [vnum]\n\r", ch );
@@ -714,51 +682,34 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pRcode;
     char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, ch->in_room->area, &wnum))
     {
-    long vnum = atol(command);
-    AREA_DATA *ad;
+		if ( (pRcode = get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG)) == NULL )
+		{
+			send_to_char("RPEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
 
-    if ( (pRcode = get_script_index_global(vnum,PRG_RPROG)) == NULL )
-    {
-        send_to_char("RPEdit : That vnum does not exist.\n\r",ch);
-        return;
-    }
+		if ( !IS_BUILDER(ch, wnum.pArea) )
+		{
+			send_to_char("RPEdit : Insufficient security to modify area.\n\r", ch );
+			return;
+		}
 
-    ad = get_vnum_area(vnum);
+		ch->desc->pEdit		= (void *)pRcode;
+		ch->desc->editor	= ED_RPCODE;
 
-    if ( ad == NULL )
-    {
-        send_to_char( "RPEdit : Vnum is not assigned an area.\n\r", ch );
-        return;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
-    {
-        send_to_char("RPEdit : Insufficient security to modify area.\n\r", ch );
-        return;
-    }
-
-    ch->desc->pEdit		= (void *)pRcode;
-    ch->desc->editor	= ED_RPCODE;
-
-    return;
+		return;
     }
 
     if ( !str_cmp(command, "create") )
     {
-        /*
-    if (argument[0] == '\0')
-    {
-        send_to_char( "Syntax : rpedit create [vnum]\n\r", ch );
-        return;
-    }*/
-
-    rpedit_create(ch, argument);
-    return;
+		rpedit_create(ch, argument);
+		return;
     }
 
     send_to_char( "Syntax : rpedit [vnum]\n\r", ch );
@@ -771,51 +722,34 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pTcode;
     char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, ch->in_room->area, &wnum))
     {
-    long vnum = atol(command);
-    AREA_DATA *ad;
+		if ( (pTcode = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG)) == NULL )
+		{
+			send_to_char("TPEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
 
-    if ( (pTcode = get_script_index_global(vnum,PRG_TPROG)) == NULL )
-    {
-        send_to_char("TPEdit : That vnum does not exist.\n\r",ch);
-        return;
-    }
+		if ( !IS_BUILDER(ch, wnum.pArea) )
+		{
+			send_to_char("TPEdit : Insufficient security to modify area.\n\r", ch );
+			return;
+		}
 
-    ad = get_vnum_area(vnum);
+		ch->desc->pEdit		= (void *)pTcode;
+		ch->desc->editor	= ED_TPCODE;
 
-    if ( ad == NULL )
-    {
-        send_to_char( "TPEdit : Vnum is not assigned an area.\n\r", ch );
-        return;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
-    {
-        send_to_char("TPEdit : Insufficient security to modify area.\n\r", ch );
-        return;
-    }
-
-    ch->desc->pEdit		= (void *)pTcode;
-    ch->desc->editor	= ED_TPCODE;
-
-    return;
+		return;
     }
 
     if ( !str_cmp(command, "create") )
     {
-        /*
-    if (argument[0] == '\0')
-    {
-        send_to_char( "Syntax : rpedit create [vnum]\n\r", ch );
-        return;
-    }*/
-
-    tpedit_create(ch, argument);
-    return;
+		tpedit_create(ch, argument);
+		return;
     }
 
     send_to_char( "Syntax : tpedit [vnum]\n\r", ch );
@@ -826,38 +760,28 @@ void do_apedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pAcode;
     char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, ch->in_room->area, &wnum))
     {
-        long vnum = atol(command);
-        AREA_DATA *ad;
+		if ( (pAcode = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG)) == NULL )
+		{
+			send_to_char("APEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
 
-        if ( (pAcode = get_script_index_global(vnum,PRG_APROG)) == NULL )
-        {
-            send_to_char("APEdit : That vnum does not exist.\n\r",ch);
-            return;
-        }
+		if ( !IS_BUILDER(ch, wnum.pArea) )
+		{
+			send_to_char("APEdit : Insufficient security to modify area.\n\r", ch );
+			return;
+		}
 
-        ad = get_vnum_area(vnum);
+		ch->desc->pEdit		= (void *)pAcode;
+		ch->desc->editor	= ED_APCODE;
 
-        if ( ad == NULL )
-        {
-            send_to_char( "APEdit : Vnum is not assigned an area.\n\r", ch );
-            return;
-        }
-
-        if ( !IS_BUILDER(ch, ad) )
-        {
-            send_to_char("APEdit : Insufficient security to modify area.\n\r", ch );
-            return;
-        }
-
-        ch->desc->pEdit		= (void *)pAcode;
-        ch->desc->editor	= ED_APCODE;
-
-        return;
+		return;
     }
 
     if ( !str_cmp(command, "create") )
@@ -875,14 +799,13 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pIcode;
     char command[MAX_INPUT_LENGTH];
+	WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, NULL, &wnum))
     {
-        long vnum = atol(command);
-
-        if ( (pIcode = get_script_index_global(vnum,PRG_IPROG)) == NULL )
+        if ( (pIcode = get_script_index(wnum.pArea, wnum.vnum, PRG_IPROG)) == NULL )
         {
             send_to_char("IPEdit : That vnum does not exist.\n\r",ch);
             return;
@@ -914,14 +837,13 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pDcode;
     char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
 
     argument = one_argument(argument, command);
 
-    if( is_number(command) )
+    if (parse_widevnum(command, NULL, &wnum))
     {
-        long vnum = atol(command);
-
-        if ( (pDcode = get_script_index_global(vnum,PRG_DPROG)) == NULL )
+        if ( (pDcode = get_script_index(wnum.pArea, wnum.vnum,PRG_DPROG)) == NULL )
         {
             send_to_char("DPEdit : That vnum does not exist.\n\r",ch);
             return;

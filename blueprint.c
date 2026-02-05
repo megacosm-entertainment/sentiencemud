@@ -131,9 +131,7 @@ BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_blueprint_link: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_blueprint_link: no match for word %.50s", word);
         }
     }
 
@@ -234,9 +232,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_blueprint_section: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_blueprint_section: no match for word %.50s", word);
         }
     }
 
@@ -270,7 +266,6 @@ BLUEPRINT *load_blueprint(FILE *fp)
     BLUEPRINT *bp;
     char *word;
     bool fMatch;
-    char buf[MSL];
 
     bp = new_blueprint();
     bp->vnum = fread_number(fp);
@@ -309,8 +304,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
                 tindex = trigger_index(p, PRG_IPROG);
                 if(tindex < 0) {
-                    sprintf(buf, "load_blueprint: invalid trigger type %s", p);
-                    bug(buf, 0);
+                    pbugf(LOG_ERROR, "load_blueprint: invalid trigger type %s", p);
                 } else {
                     PROG_LIST *ipr = new_trigger();
 
@@ -322,8 +316,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
                         int tsn = skill_lookup(ipr->trig_phrase);
 
                         if( tsn < 0 ) {
-                            sprintf(buf, "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", p);
-                            bug(buf, 0);
+                            pbugf(LOG_ERROR, "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", p);
                             free_trigger(ipr);
                             fMatch = true;
                             break;
@@ -503,9 +496,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_blueprint: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_blueprint: no match for word %.50s", word);
         }
     }
 
@@ -525,7 +516,7 @@ void load_blueprints()
     FILE *fp = fopen(BLUEPRINTS_FILE, "r");
     if (fp == NULL)
     {
-        bug("Couldn't load blueprints.dat", 0);
+        pbugf(LOG_ERROR, "Couldn't load blueprints.dat");
         return;
     }
 
@@ -593,9 +584,7 @@ void load_blueprints()
 
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_blueprints: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_blueprints: no match for word %.50s", word);
         }
 
     }
@@ -753,7 +742,7 @@ bool save_blueprints()
     FILE *fp = fopen(BLUEPRINTS_FILE, "w");
     if (fp == NULL)
     {
-        bug("Couldn't save blueprints.dat", 0);
+        pbugf(LOG_ERROR, "Couldn't save blueprints.dat");
         return false;
     }
 
@@ -1176,7 +1165,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
                       (parent->area ? parent->area : get_system_area_fallback());
     
     if (!area) {
-        bug("clone_blueprint_section: No valid area for section vnum %ld", parent->vnum);
+        pbugf(LOG_ERROR, "clone_blueprint_section: No valid area for section vnum %ld", parent->vnum);
         return section;
     }
     
@@ -1590,9 +1579,7 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
         else
         {
             // Unsupported blueprint mode
-            char buf[MSL];
-            sprintf(buf, "create_instance - unsupported mode %d for blueprint %ld", blueprint->mode, blueprint->vnum);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "create_instance - unsupported mode %d for blueprint %ld", blueprint->mode, blueprint->vnum);
 
             free_instance(instance);
             return NULL;
@@ -3075,9 +3062,7 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "instance_section_load: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "instance_section_load: no match for word %.50s", word);
         }
     }
 
@@ -3227,9 +3212,7 @@ INSTANCE *instance_load(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "instance_load: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "instance_load: no match for word %.50s", word);
         }
     }
 

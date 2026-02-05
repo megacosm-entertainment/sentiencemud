@@ -106,7 +106,7 @@ SPELL_FUNC(spell_counter_spell)
         target = TARGET_NONE;
         switch (skill_table[sn].target) {
         default:
-            bug("Do_cast: bad target for sn %d.", sn);
+            pbugf(LOG_ERROR, "Do_cast: bad target for sn %d.", sn);
             return true;
 
         case TAR_IGNORE:

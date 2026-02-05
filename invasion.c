@@ -77,7 +77,7 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
 
      if (leader_index == NULL || mob_index == NULL)
      {
-       bug("create_invasion_quest: leader or mob index is null.", 0);
+       pbugf(LOG_ERROR, "create_invasion_quest: leader or mob index is null.");
        return NULL;
      }
 

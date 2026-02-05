@@ -339,8 +339,7 @@ void save_area_list()
     log_string("save_area_list: saving area.lst");
     if ((fp = fopen(AREA_LIST, "w")) == NULL)
     {
-    bug("Save_area_list: fopen", 0);
-    perror(AREA_LIST);
+    pbugf(LOG_ERROR, "Save_area_list: fopen failed for %s", AREA_LIST);
     }
     else
     {
@@ -446,8 +445,7 @@ void save_area_new(AREA_DATA *area)
     area->file_name = str_dup(area_file);
     
     if (!json_area_save(area)) {
-        sprintf(buf, "save_area_new: failed to save JSON file %s", filename);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "save_area_new: failed to save JSON file %s", filename);
     }
     
     // Restore original filename
@@ -458,8 +456,7 @@ void save_area_new(AREA_DATA *area)
 
     // Old .are format for legacy areas (mazes)
     if ((fp = fopen(filename, "w")) == NULL) {
-        sprintf(buf, "save_area_new: couldn't open file %s", filename);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "save_area_new: couldn't open file %s", filename);
         return;
     }
 
@@ -720,7 +717,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 //    pVARIABLE var;
 
     if (fp == NULL || room == NULL) {
-    bug("save_room_new: NULL.", 0);
+    pbugf(LOG_ERROR, "save_room_new: NULL.");
     return;
     }
 
@@ -1373,20 +1370,19 @@ AREA_DATA *read_area_new(FILE *fp)
     OBJ_INDEX_DATA *obj;
     SCRIPT_DATA *rpr, *mpr, *opr, *tpr, *apr;
     TOKEN_INDEX_DATA *token;
-    char buf[MSL];
     long vnum;
     int iHash;
     int dummy;
 
     if (fp == NULL)
     {
-    bug("read_area_new: fp null", 0);
+    pbugf(LOG_ERROR, "read_area_new: fp null");
     return NULL;
     }
 
     if (str_cmp(word = fread_word(fp) , "#AREA"))
     {
-    bug("read_area_new: bad format", 0);
+    pbugf(LOG_ERROR, "read_area_new: bad format");
     return NULL;
     }
 
@@ -1502,8 +1498,7 @@ AREA_DATA *read_area_new(FILE *fp)
         }
         else
         {
-            bug("read_area_new: bad module name", 0);
-            bug(word, 0);
+            pbugf(LOG_ERROR, "read_area_new: bad module name %s", word);
         }
 
         break;
@@ -1520,8 +1515,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
             tindex = trigger_index(p, PRG_APROG);
             if(tindex < 0) {
-                sprintf(buf, "read_area_new: invalid trigger type %s", p);
-                bug(buf, 0);
+                pbugf(LOG_ERROR, "read_area_new: invalid trigger type %s", p);
             } else {
                 PROG_LIST *apr = new_trigger();
 
@@ -1533,8 +1527,7 @@ AREA_DATA *read_area_new(FILE *fp)
                     int tsn = skill_lookup(apr->trig_phrase);
 
                     if( tsn < 0 ) {
-                        sprintf(buf, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", p);
-                        bug(buf, 0);
+                        pbugf(LOG_ERROR, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", p);
                         free_trigger(apr);
                         fMatch = true;
                         break;
@@ -1660,8 +1653,8 @@ AREA_DATA *read_area_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_area_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_area_new: no match for word %s", word);
+    
     }
     }
 
@@ -1767,8 +1760,7 @@ void read_virtual_rooms(FILE *fp, AREA_DATA *area)
         }
 
     if (!fMatch) {
-        sprintf(buf, "read_virtual_rooms: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_virtual_rooms: no match for word %s", word);
     }
     }
 }
@@ -2052,8 +2044,7 @@ void make_virtual_area(AREA_DATA *area)
 
 
         if (vnum == 0) {
-        sprintf(buf, "Vnum is about to be 0 for map char %c", j[0]);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "Vnum is about to be 0 for map char %c", j[0]);
         }
 
         create_virtual_room_new(area, current_vnum,
@@ -2081,7 +2072,7 @@ void create_virtual_room_new(AREA_DATA *area, long vnum, int x, int y,
     fBootDb = false;
     if (get_room_index(vnum) != NULL)
     {
-        bug("Load_rooms: vnum %ld duplicated.", vnum);
+        pbugf(LOG_ERROR, "Load_rooms: vnum %ld duplicated.", vnum);
         exit(1);
     }
 
@@ -2266,8 +2257,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
             tindex = trigger_index(p, PRG_RPROG);
             if(tindex < 0) {
-                sprintf(buf, "read_room_new: invalid trigger type %s", p);
-                bug(buf, 0);
+                pbugf(LOG_ERROR, "read_room_new: invalid trigger type %s", p);
             } else {
                 rpr = new_trigger();
 
@@ -2279,8 +2269,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
                     int tsn = skill_lookup(rpr->trig_phrase);
 
                     if( tsn < 0 ) {
-                        sprintf(buf, "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", p);
-                        bug(buf, 0);
+                        pbugf(LOG_ERROR, "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", p);
                         free_trigger(rpr);
                         fMatch = true;
                         break;
@@ -2332,8 +2321,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_room_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_room_new: no match for word %s", word);
     }
     }
 
@@ -2544,8 +2532,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
             tindex = trigger_index(p, PRG_MPROG);
             if(tindex < 0) {
-                sprintf(buf, "read_mob_new: invalid trigger type %s", p);
-                bug(buf, 0);
+                pbugf(LOG_ERROR, "read_mob_new: invalid trigger type %s", p);
             } else {
                 mpr = new_trigger();
 
@@ -2557,8 +2544,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
                     int tsn = skill_lookup(mpr->trig_phrase);
 
                     if( tsn < 0 ) {
-                        sprintf(buf, "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", p);
-                        bug(buf, 0);
+                        pbugf(LOG_ERROR, "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", p);
                         free_trigger(mpr);
                         fMatch = true;
                         break;
@@ -2656,8 +2642,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
     }
 
     if (!fMatch) {
-        //sprintf(buf, "read_mobile_new: no match for word %s", word);
-        //bug(buf, 0);
+        //pbugf(LOG_ERROR, "read_mobile_new: no match for word %s", word);
     }
     }
 
@@ -2841,8 +2826,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
             tindex = trigger_index(p, PRG_OPROG);
             if(tindex < 0) {
-                sprintf(buf, "read_obj_new: invalid trigger type %s", p);
-                bug(buf, 0);
+                pbugf(LOG_ERROR, "read_obj_new: invalid trigger type %s", p);
             } else {
                 opr = new_trigger();
 
@@ -2854,8 +2838,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     int tsn = skill_lookup(opr->trig_phrase);
 
                     if( tsn < 0 ) {
-                        sprintf(buf, "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", p);
-                        bug(buf, 0);
+                        pbugf(LOG_ERROR, "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", p);
                         free_trigger(opr);
                         fMatch = true;
                         break;
@@ -2927,8 +2910,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
             }
             else
             {
-            sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
-            bug(buf,0);
+            pbugf(LOG_ERROR, "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
             }
         }
 
@@ -3001,8 +2983,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_object_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_object_new: no match for word %s", word);
+    
     }
     }
 
@@ -3200,8 +3182,7 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_script_new: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_script_new: no match for word %s", word);
         }
     }
 
@@ -3250,8 +3231,7 @@ EXTRA_DESCR_DATA *read_extra_descr_new(FILE *fp)
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_extra_descr_new: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_extra_descr_new: no match for word %s", word);
         }
     }
 
@@ -3284,8 +3264,8 @@ CONDITIONAL_DESCR_DATA *read_conditional_descr_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_conditional_descr_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_conditional_descr_new: no match for word %s", word);
+    
     }
     }
 
@@ -3359,8 +3339,8 @@ EXIT_DATA *read_exit_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_exit_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_exit_new: no match for word %s", word);
+    
     }
     }
 
@@ -3427,8 +3407,8 @@ RESET_DATA *read_reset_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_reset_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_reset_new: no match for word %s", word);
+    
     }
     }
 
@@ -3476,8 +3456,8 @@ AFFECT_DATA *read_obj_affect_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_obj_affect_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_obj_affect_new: no match for word %s", word);
+    
     }
     }
 
@@ -3522,8 +3502,7 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_obj_catalyst_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_obj_catalyst_new: no match for word %s", word);
     }
     }
 
@@ -3572,8 +3551,7 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_questor_new: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_questor_new: no match for word %s", word);
         }
     }
 
@@ -3686,8 +3664,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_shop_stock_new: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_shop_stock_new: no match for word %s", word);
         }
     }
 
@@ -3733,8 +3710,7 @@ SHIP_CREW_INDEX_DATA *read_ship_crew_index_new(FILE *fp)
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_ship_crew_index_new: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_ship_crew_index_new: no match for word %s", word);
         }
     }
 
@@ -3818,8 +3794,8 @@ SHOP_DATA *read_shop_new(FILE *fp)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_shop_new: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_shop_new: no match for word %s", word);
+    
     }
     }
 
@@ -3878,8 +3854,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 
             tindex = trigger_index(p, PRG_TPROG);
             if(tindex < 0) {
-                sprintf(buf, "read_token: invalid trigger type %s", p);
-                bug(buf, 0);
+                pbugf(LOG_ERROR, "read_token: invalid trigger type %s", p);
             } else {
                 tpr = new_trigger();
 
@@ -3891,8 +3866,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
                     int tsn = skill_lookup(tpr->trig_phrase);
 
                     if( tsn < 0 ) {
-                        sprintf(buf, "read_token: invalid spell '%s' for TRIG_SPELLCAST", p);
-                        bug(buf, 0);
+                        pbugf(LOG_ERROR, "read_token: invalid spell '%s' for TRIG_SPELLCAST", p);
                         free_trigger(tpr);
                         fMatch = true;
                         break;
@@ -3950,8 +3924,8 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
     }
 
     if (!fMatch) {
-        sprintf(buf, "read_token: no match for word %s", word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "read_token: no match for word %s", word);
+    
     }
     }
 

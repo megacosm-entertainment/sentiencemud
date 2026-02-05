@@ -765,7 +765,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
 
     if (!fp)
     {
-        pbug(LOG_ERROR, "Invalid fp pointer.");
+        pbugf(LOG_ERROR, "Invalid fp pointer.");
         abort();
     }
 

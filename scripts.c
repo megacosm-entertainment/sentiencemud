@@ -2747,9 +2747,7 @@ DECL_OPC_FUN(opc_mob)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,mob_cmd_table[block->cur_line->param].name);
 
     if(mob_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted mob command '%s' with nulled security.",mob_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted mob command '%s' with nulled security.",mob_cmd_table[block->cur_line->param].name);
     } else if(IS_VALID(block->info.mob)) {
         if( !mob_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2778,9 +2776,7 @@ DECL_OPC_FUN(opc_obj)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,obj_cmd_table[block->cur_line->param].name);
 
     if(obj_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted obj command '%s' with nulled security.",obj_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted obj command '%s' with nulled security.",obj_cmd_table[block->cur_line->param].name);
     } else if(IS_VALID(block->info.obj)) {
         if( !obj_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2807,9 +2803,7 @@ DECL_OPC_FUN(opc_room)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,room_cmd_table[block->cur_line->param].name);
 
     if(room_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted room command '%s' with nulled security.",room_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted room command '%s' with nulled security.",room_cmd_table[block->cur_line->param].name);
     } else if(block->info.room) {
         if( !room_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2836,9 +2830,7 @@ DECL_OPC_FUN(opc_token)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,token_cmd_table[block->cur_line->param].name);
 
     if(token_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted token command '%s' with nulled security.",token_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted token command '%s' with nulled security.",token_cmd_table[block->cur_line->param].name);
     } else if(IS_VALID(block->info.token)) {
         if( !token_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2866,9 +2858,7 @@ DECL_OPC_FUN(opc_tokenother)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,tokenother_cmd_table[block->cur_line->param].name);
 
     if(tokenother_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted tokenother command '%s' with nulled security.",tokenother_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted tokenother command '%s' with nulled security.",tokenother_cmd_table[block->cur_line->param].name);
     } else {
         if( !tokenother_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2895,9 +2885,7 @@ DECL_OPC_FUN(opc_area)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,area_cmd_table[block->cur_line->param].name);
 
     if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
     } else if(block->info.area) {
         if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2925,9 +2913,7 @@ DECL_OPC_FUN(opc_instance)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,instance_cmd_table[block->cur_line->param].name);
 
     if(instance_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
     } else if(IS_VALID(block->info.instance)) {
         if( !instance_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -2955,9 +2941,7 @@ DECL_OPC_FUN(opc_dungeon)
     DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,dungeon_cmd_table[block->cur_line->param].name);
 
     if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-        char buf[MIL];
-        sprintf(buf, "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
     } else if(IS_VALID(block->info.dungeon)) {
         if( !dungeon_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
             SCRIPT_PARAM *arg = new_script_param();
@@ -3031,13 +3015,13 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
     script_destructed = false;
 
     if (!script || !script->code) {
-        bug("PROGs: No script to execute for vnum %d.", pvnum);
+        pbugf(LOG_SCRIPTS, "PROGs: No script to execute for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
 
     if (IS_VALID(mob) && !IS_NPC(mob) )
     {
-        bug("PROGs: Attempting to run a script with a player actor.", pvnum);
+        pbugf(LOG_SCRIPTS, "PROGs: Attempting to run a script with a player actor for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
 
@@ -3047,7 +3031,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
         (token && area) || (token && instance) || (token && dungeon) ||
         (area && instance) || (area && dungeon) ||
         (instance && dungeon)) {
-        bug("PROGs: program_flow received multiple prog types for vnum.", pvnum);
+        pbugf(LOG_SCRIPTS, "PROGs: program_flow received multiple prog types for vnum %d.", pvnum);
         return PRET_BADTYPE;
     }
 
@@ -3247,7 +3231,7 @@ CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
     int now = 0, highest = 0;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-    bug("get_random_char received multiple prog types",0);
+    pbugf(LOG_SCRIPTS, "get_random_char received multiple prog types");
     return NULL;
     }
 
@@ -3258,7 +3242,7 @@ CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
     else if (token)
     vch = token_room(token)->people;
     else if (!room) {
-        bug("get_random_char: no room, object, or mob!", 0);
+        pbugf(LOG_SCRIPTS, "get_random_char: no room, object, or mob!");
         return NULL;
     } else
     vch = room->people;
@@ -3287,7 +3271,7 @@ int count_people_room(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKE
     int count;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-    bug("count_people_room received multiple prog types",0);
+    pbugf(LOG_SCRIPTS, "count_people_room received multiple prog types");
     return 0;
     }
 
@@ -3300,7 +3284,7 @@ int count_people_room(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKE
     else if (room)
         vch = room->people;
     else {
-    bug("count_people_room had null room obj and mob.",0);
+    pbugf(LOG_SCRIPTS, "count_people_room had null room obj and mob.");
     return 0;
     }
 
@@ -3342,7 +3326,7 @@ int get_order(CHAR_DATA *ch, OBJ_DATA *obj)
     int i;
 
     if (ch && obj) {
-    bug("get_order received multiple prog types",0);
+    pbugf(LOG_SCRIPTS, "get_order received multiple prog types");
     return 0;
     }
 
@@ -3692,7 +3676,7 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
  * item_type: item type or -1
  * fWear: true: item must be worn, false: don't care
  */
-bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
+bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear, AREA_DATA *area)
 {
     OBJ_DATA *obj;
     ITERATOR it;
@@ -3701,7 +3685,7 @@ bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
     if (fWear && ch->lworn) {
         iterator_start(&it, ch->lworn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if ((vnum < 0 || obj->pIndexData->vnum == vnum) &&
+            if ((vnum < 0 || (obj->pIndexData->vnum == vnum && (!area || obj->pIndexData->area == area))) &&
                 (item_type < 0 || obj->pIndexData->item_type == item_type)) {
                 iterator_stop(&it);
                 return true;
@@ -3715,7 +3699,7 @@ bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
     if (ch->lcarrying) {
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if ((vnum < 0 || obj->pIndexData->vnum == vnum) &&
+            if ((vnum < 0 || (obj->pIndexData->vnum == vnum && (!area || obj->pIndexData->area == area))) &&
                 (item_type < 0 || obj->pIndexData->item_type == item_type) &&
                 (!fWear || obj->wear_loc != WEAR_NONE)) {
                 iterator_stop(&it);
@@ -3732,13 +3716,13 @@ bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
 /*
  * Check if there's a mob with given vnum in the room
  */
-CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum)
+CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area)
 {
     CHAR_DATA *mob;
 
     if ((ch && obj) || (ch && room) || (obj && room) ||
         (ch && token) || (obj && token) || (room && token)) {
-    bug("get_mob_vnum_room received multiple prog types",0);
+    pbugf(LOG_SCRIPTS, "get_mob_vnum_room received multiple prog types");
     return NULL;
     }
 
@@ -3751,7 +3735,7 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
     else mob = room->people;
 
     for (; mob; mob = mob->next_in_room)
-    if (IS_NPC(mob) && mob->pIndexData->vnum == vnum)
+    if (IS_NPC(mob) && mob->pIndexData->vnum == vnum && (!area || mob->pIndexData->area == area))
         return mob;
     return NULL;
 }
@@ -3760,13 +3744,13 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 /*
  * Check if there's an object with given vnum in the room
  */
-OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum)
+OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area)
 {
     OBJ_DATA *vobj;
 
     if ((ch && obj) || (ch && room) || (obj && room) ||
         (ch && token) || (obj && token) || (room && token)) {
-    bug("get_obj_vnum_room received multiple prog types",0);
+    pbugf(LOG_SCRIPTS, "get_obj_vnum_room received multiple prog types");
     return NULL;
     }
 
@@ -3780,7 +3764,7 @@ OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
     vobj = room->contents;
 
     for (; vobj; vobj = vobj->next_content)
-    if (vobj->pIndexData->vnum == vnum)
+    if (vobj->pIndexData->vnum == vnum && (!area || vobj->pIndexData->area == area))
         return vobj;
     return NULL;
 }
@@ -4151,13 +4135,13 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
         int16_t rev;
 
         if (!pRoom->exit[door]) {
-            bug("script_change_exit: Couldn't delete exit. %d", pRoom->vnum);
+            pbugf(LOG_SCRIPTS, "script_change_exit: Couldn't delete exit. %d", pRoom->vnum);
             return false;
         }
 
         if( IS_SET(pRoom->exit[door]->exit_info, (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR)) )
         {
-            bug("script_change_exit: Exit is protected from deletion. %d", pRoom->vnum);
+            pbugf(LOG_SCRIPTS, "script_change_exit: Exit is protected from deletion. %d", pRoom->vnum);
             return false;
         }
 
@@ -4188,7 +4172,7 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
             if(!room_is_clone(pToRoom) && !(pToRoom = create_virtual_room(pToRoom,false,false)))
                 return false;
         } else if(room_is_clone(pToRoom)) {
-            bug("script_change_exit: A link cannot be made from a static room to a clone room.\n\r",0);
+            pbugf(LOG_SCRIPTS, "script_change_exit: A link cannot be made from a static room to a clone room.\n\r",0);
             return false;
         }
     }
@@ -4196,19 +4180,19 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
     if(room_is_clone(pRoom)) {
         if(pToRoom != &room_pointer_environment && !room_is_clone(pToRoom)) {
             // Should this be illegal or should it be made into a cloned room?
-            bug("script_change_exit: A link cannot be made between static and clone room.\n\r",0);
+            pbugf(LOG_SCRIPTS, "script_change_exit: A link cannot be made between static and clone room.\n\r",0);
             return false;
         }
     } else {
         if(pToRoom != &room_pointer_environment && room_is_clone(pToRoom)) {
-            bug("script_change_exit: A link cannot be made between static and clone room.\n\r",0);
+            pbugf(LOG_SCRIPTS, "script_change_exit: A link cannot be made between static and clone room.\n\r",0);
             return false;
         }
     }
 
     if(pToRoom != &room_pointer_environment) {
         if (pToRoom->exit[rev_dir[door]]) {
-            bug("script_change_exit: Reverse-side exit to room already exists.", 0);
+            pbugf(LOG_SCRIPTS, "script_change_exit: Reverse-side exit to room already exists.", 0);
             return false;
         }
     }
@@ -4445,7 +4429,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
     int ret_val = PRET_NOSCRIPT, ret;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-        bug("test_string_trigger: Multiple program types in trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_string_trigger: Multiple program types in trigger %d.", type);
         PRETURN;
     }
 
@@ -4798,7 +4782,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
         script_room_remref(room);
 
     } else
-        bug("test_string_trigger: no program type for trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_string_trigger: no program type for trigger %d.", type);
 
     PRETURN;
 }
@@ -4859,7 +4843,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         (token && area) || (token && instance) || (token && dungeon) ||
         (area && instance) || (area && dungeon) ||
         (instance && dungeon)) {
-        bug("test_number_trigger: Multiple program types in trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_number_trigger: Multiple program types in trigger %d.", type);
         PRETURN;
     }
 
@@ -5256,7 +5240,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         }
 
     } else
-        bug("test_number_trigger: no program type for trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_number_trigger: no program type for trigger %d.", type);
 
     PRETURN;
 }
@@ -5309,14 +5293,14 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
     int ret_val = PRET_NOSCRIPT, ret;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-        bug("test_number_sight_trigger: Multiple program types in trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_number_sight_trigger: Multiple program types in trigger %d.", type);
         PRETURN;
     }
 
     // They must be in the same slot
     if( trigger_table[type].slot != trigger_table[typeall].slot )
     {
-        bug("test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
         PRETURN;
     }
 
@@ -5716,7 +5700,7 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
         script_room_remref(room);
 
     } else
-        bug("test_number_sight_trigger: no program type for trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_number_sight_trigger: no program type for trigger %d.", type);
 
     PRETURN;
 }
@@ -5829,7 +5813,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
     int ret_val = PRET_NOSCRIPT, ret;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-        bug("test_vnumname_trigger: Multiple program types in trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_vnumname_trigger: Multiple program types in trigger %d.", type);
         PRETURN;
     }
 
@@ -6194,7 +6178,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
         script_room_remref(room);
 
     } else
-        bug("test_vnumname_trigger: no program type for trigger %d.", type);
+        pbugf(LOG_SCRIPTS, "test_vnumname_trigger: no program type for trigger %d.", type);
 
     PRETURN;
 }
@@ -6212,7 +6196,7 @@ int p_give_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
 int p_use_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type)
 {
     if (obj == NULL) {
-        bug("p_use_trigger: received null obj!", 0);
+        pbugf(LOG_SCRIPTS, "p_use_trigger: received null obj!", 0);
         return PRET_NOSCRIPT;
     }
 
@@ -6228,7 +6212,7 @@ int p_use_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type)
 int p_use_on_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, char *argument)
 {
     if (obj == NULL) {
-        bug("p_use_on_trigger: received null obj!", 0);
+        pbugf(LOG_SCRIPTS, "p_use_on_trigger: received null obj!", 0);
         return PRET_NOSCRIPT;
     }
 
@@ -6243,7 +6227,7 @@ int p_use_on_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, char *argument)
 int p_use_with_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, OBJ_DATA *obj1, OBJ_DATA *obj2, CHAR_DATA *victim, CHAR_DATA *victim2)
 {
     if (obj == NULL) {
-        bug("p_use_with_trigger: received null obj!", 0);
+        pbugf(LOG_SCRIPTS, "p_use_with_trigger: received null obj!", 0);
         return PRET_NOSCRIPT;
     }
 
@@ -8873,14 +8857,14 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
     }
 
     if (!wnum.pArea || wnum.vnum < 1) {
-        bug("script_oload - Bad wnum arg (%ld#%ld)", 
+        pbugf(LOG_SCRIPTS, "script_oload - Bad wnum arg (%ld#%ld)", 
             wnum.pArea ? wnum.pArea->uid : 0, wnum.vnum);
         return NULL;
     }
 
     pObjIndex = get_obj_index(wnum.pArea, wnum.vnum);
     if (!pObjIndex) {
-        bug("script_oload - Bad obj index (%ld#%ld)",
+        pbugf(LOG_SCRIPTS, "script_oload - Bad obj index (%ld#%ld)",
             wnum.pArea->uid, wnum.vnum);
         return NULL;
     }
@@ -9005,13 +8989,10 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
 {
-    char buf[2 * MSL];
-
-    sprintf(buf, "Script:%ld#%d:Line:%d:%s\n\r",
+    pbugf(LOG_SCRIPTS, "Script:%ld#%d:Line:%d:%s\n\r",
         info->block->script->area->uid, info->block->script->vnum,
         info->block->line,
         message);
-    bug(buf, 0);
 }
 
 int cmd_operator_lookup(const char *str)

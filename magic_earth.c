@@ -19,7 +19,6 @@
 
 SPELL_FUNC(spell_earth_walk)
 {
-    char buf[MIL];
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int distance, catalyst;
     int t1, t2, s1, s2;
@@ -42,9 +41,8 @@ SPELL_FUNC(spell_earth_walk)
     if (!victim || !victim->in_room) {
         send_to_char("They aren't anywhere in the world.\n\r", ch);
 
-        sprintf(buf, "spell_earth_walk: %s tried to earth walk to %s who had null in_room!",
+        pbugf(LOG_ERROR, "spell_earth_walk: %s tried to earth walk to %s who had null in_room!",
             ch->name, (victim == NULL) ? "nobody???" : victim->name);
-        bug(buf, 0);
         return false;
     }
 

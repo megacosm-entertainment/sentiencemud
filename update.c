@@ -458,12 +458,10 @@ int hit_gain(CHAR_DATA *ch)
     int gain;
     int number;
     long amount;
-    char buf[MAX_STRING_LENGTH];
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
         return 0;
     }
 
@@ -548,12 +546,10 @@ int mana_gain(CHAR_DATA *ch)
 {
     int gain;
     int number;
-    char buf[MSL];
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
         return 0;
     }
 
@@ -645,12 +641,10 @@ int move_gain(CHAR_DATA *ch)
 {
     int gain;
     long amount;
-    char buf[MSL];
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
         return 0;
     }
 
@@ -723,12 +717,10 @@ int move_gain(CHAR_DATA *ch)
 int toxin_gain(CHAR_DATA *ch, int toxin)
 {
     int gain;
-    char buf[MAX_STRING_LENGTH];
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
         return 0;
     }
 
@@ -1066,10 +1058,9 @@ void mobile_update(void)
 
         if (ch->in_room == NULL)
         {
-            sprintf(buf, "mobile_update: ch %s (%ld) had null in_room!",
+            pbugf(LOG_ERROR, "mobile_update: ch %s (%ld) had null in_room!",
                 IS_NPC(ch) ? ch->short_descr : ch->name,
             IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-            bug(buf, 0);
             continue;
         }
 
@@ -1155,7 +1146,7 @@ void update_public_boat(int time)
     ship_area = find_area("Ship");
     if (ship_area == NULL)
     {
-    bug("update_public_boat: ship area was null!", 0);
+    pbugf(LOG_ERROR, "update_public_boat: ship area was null!");
     return;
     }
 
@@ -2464,14 +2455,14 @@ void obj_update(void)
                 if( !p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_GROW, NULL) )
                 {
                     if (obj->value[1] == 0)
-                        bug("Seed has 0 vnum.", obj->pIndexData->vnum);
+                        pbugf(LOG_ERROR, "Seed has 0 vnum.", obj->pIndexData->vnum);
                     else {
                         OBJ_DATA *new_obj;
 long seed_vnum = obj->value[1];
 AREA_DATA *seed_area = find_area_by_vnum(seed_vnum, NULL);
 if (!seed_area) seed_area = get_system_area_fallback();
                         if (get_obj_index(seed_area, seed_vnum) == NULL) {
-                            bug("Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
+                            pbugf(LOG_ERROR, "Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
                             continue;
                         }
 
@@ -2588,7 +2579,7 @@ if (!seed_area) seed_area = get_system_area_fallback();
                     else if (obj->in_room != NULL) // to the room
                         obj_to_room(t_obj,obj->in_room);
                     else { // junk it
-                        bug("obj_update: decaying corpse room was null!@!# extracted", 0);
+                        pbugf(LOG_ERROR, "obj_update: decaying corpse room was null!@!# extracted");
                         extract_obj(t_obj);
                     }
                 }
@@ -3293,19 +3284,19 @@ void update_hunting_pc(CHAR_DATA *ch)
 
     if (ch == NULL)
     {
-    bug("update_hunting_pc: null ch!", 0);
+    pbugf(LOG_ERROR, "update_hunting_pc: null ch!");
     return;
     }
 
     if (victim == NULL)
     {
-    bug("update_hunting_pc: null victim = ch->hunting", 0);
+    pbugf(LOG_ERROR, "update_hunting_pc: null victim = ch->hunting");
     return;
     }
 
     if (victim->in_room == NULL)
     {
-    bug("update_hunting_pc: victim in_room null!", 0);
+    pbugf(LOG_ERROR, "update_hunting_pc: victim in_room null!");
     ch->hunting = NULL;
     return;
     }
@@ -3852,12 +3843,12 @@ void scare_update(CHAR_DATA *ch)
     CHAR_DATA *victim, *vnext;
 
     if (ch == NULL) {
-    bug("scare_update: NULL ch", 0);
+    pbugf(LOG_ERROR, "scare_update: NULL ch");
     return;
     }
 
     if (ch->in_room == NULL) {
-    bug("scare_update: NULL ch->in_room", 0);
+    pbugf(LOG_ERROR, "scare_update: NULL ch->in_room");
     return;
     }
 

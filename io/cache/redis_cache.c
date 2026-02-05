@@ -209,7 +209,7 @@ CHAR_INFO_CACHE *char_to_info_cache(CHAR_DATA *ch)
 
     info = (CHAR_INFO_CACHE *)calloc(1, sizeof(CHAR_INFO_CACHE));
     if (!info) {
-        bug("char_to_info_cache: failed to allocate memory", 0);
+        pbugf(LOG_INIT, "Failed to allocate memory", NULL);
         return NULL;
     }
 

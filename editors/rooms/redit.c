@@ -771,62 +771,47 @@ REDIT(redit_create)
 {
     AREA_DATA *pArea;
     ROOM_INDEX_DATA *pRoom;
-    int value;
+    WNUM wnum;
     int iHash;
-    long auto_vnum = 0;
 
-    value = atoi(argument);
-
-    if (argument[0] == '\0' || value <= 0)
+    if (IS_NULLSTR(argument))
     {
-    //send_to_char("Syntax:  create [vnum > 0]\n\r", ch);
-    ROOM_INDEX_DATA *temp_room;
-
-    auto_vnum = ch->in_room->area->min_vnum;
-    temp_room = get_room_index(ch->in_room->area, auto_vnum);
-    if (temp_room != NULL) {
-        while (temp_room != NULL)
-        {
-                temp_room = get_room_index(ch->in_room->area, auto_vnum);
-            if (temp_room == NULL) break;
-            auto_vnum++;
-        }
-    }
-
-    if (auto_vnum > ch->in_room->area->max_vnum) {
-        send_to_char("Sorry, this area has no more space left.\n\r",
-                ch);
+        send_to_char("Syntax: create <widevnum>\n\r", ch);
         return false;
     }
+
+    // Try parsing as widevnum first
+    if (!parse_widevnum(argument, ch->in_room->area, &wnum))
+    {
+        send_to_char("REdit:  Invalid widevnum format.\n\r", ch);
+        return false;  
     }
 
-    if (auto_vnum != 0) value = auto_vnum;
-
-    pArea = get_vnum_area(value);
+    pArea = wnum.pArea;
     if (!pArea)
     {
-    send_to_char("REdit:  That vnum is not assigned an area.\n\r", ch);
-    return false;
+        send_to_char("REdit:  That area does not exist, or that legacy vnum is not assigned to an area.\n\r", ch);
+        return false;
     }
 
     if (!IS_BUILDER(ch, pArea))
     {
-    send_to_char("REdit:  Vnum in an area you cannot build in.\n\r", ch);
-    return false;
+        send_to_char("REdit:  Vnum in an area you cannot build in.\n\r", ch);
+        return false;
     }
 
-    if (get_room_index(pArea, value))
+    if (get_room_index(pArea, wnum.vnum))
     {
-    send_to_char("REdit:  Room vnum already exists.\n\r", ch);
-    return false;
+        send_to_char("REdit:  Room vnum already exists.\n\r", ch);
+        return false;
     }
 
     pRoom			= new_room_index();
     pRoom->area			= pArea;
-    list_appendlink(pArea->room_list, pRoom);	// Add to the area room list
-    pRoom->vnum			= value;
-    if (value > top_vnum_room)
-        top_vnum_room = value;
+    list_appendlink(pArea->room_list, pRoom);	// Add to the area
+    pRoom->vnum			= wnum.vnum;
+    if (wnum.vnum > top_vnum_room)
+        top_vnum_room = wnum.vnum;
 
     // Check whether to automatically set the room as blueprint
     if( redit_blueprint_oncreate )
@@ -842,7 +827,7 @@ REDIT(redit_create)
         redit_blueprint_oncreate = false;
     }
 
-    iHash			= value % MAX_KEY_HASH;
+    iHash			= wnum.vnum % MAX_KEY_HASH;
     pRoom->next			= pArea->room_index_hash[iHash];
     pArea->room_index_hash[iHash]	= pRoom;
     ch->desc->pEdit		= (void *)pRoom;

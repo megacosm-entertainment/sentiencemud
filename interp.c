@@ -2206,7 +2206,7 @@ void stop_ranged( CHAR_DATA *ch, bool messages )
 {
     if ( ch == NULL )
     {
-    bug( "stop_ranged: null ch", 0 );
+    pbugf(LOG_ERROR, "stop_ranged: null ch");
     return;
     }
 
@@ -2234,7 +2234,7 @@ bool is_granted_command(CHAR_DATA *ch, char *name)
     COMMAND_DATA *cmd;
 
     if (IS_NPC(ch)) {
-    bug("is_granted_command: checking an NPC", 0);
+    pbugf(LOG_ERROR, "is_granted_command: checking an NPC");
     return false;
     }
 

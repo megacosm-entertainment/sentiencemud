@@ -33,6 +33,7 @@ typedef enum {
 #define LOG_OLC       "olc"       // OLC-related messages
 #define LOG_QUEST     "quest"     // Quest-related messages
 #define LOG_UNIT_TESTS "unit_tests" // Unit test framework messages
+#define LOG_ADMIN      "admin"     // Admin actions and alerts
 
 // Initialization and shutdown
 int log_init(const char *config_path);

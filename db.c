@@ -5159,7 +5159,7 @@ void bug(const char *str, ...)
     vsnprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), str, args);
     va_end(args);
 
-    pbug(LOG_ERROR, buf);
+    pbugf(LOG_ERROR, buf);
         if (fBootDb && game_settings.note_boot_errors)
         boot_error_log("%s", buf);
 }

@@ -267,7 +267,7 @@ SPELL_FUNC(spell_reflection)
     char buf[MAX_STRING_LENGTH];
 
     if (!get_reserved_mob_index("mob_reflection")) {
-        bug("spell_reflection: get_mob_index was null!\n\r",0);
+        pbugf(LOG_ERROR, "spell_reflection: get_mob_index was null!\n\r",0);
         return false;
     }
 

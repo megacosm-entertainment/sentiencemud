@@ -228,7 +228,7 @@ void save_char_obj(CHAR_DATA *ch)
 
     if (!IS_VALID(ch))
     {
-        bug("save_char_obj: Trying to save an invalidated character.\n", 0);
+        pbugf(LOG_ERROR, "save_char_obj: Trying to save an invalidated character.\n");
         return;
     }
 
@@ -328,8 +328,7 @@ void save_char_obj(CHAR_DATA *ch)
     gettimeofday(&write_time, NULL);  // Initialize timing even if not used
     if ((fp = fopen(TEMP_FILE, "w")) == NULL)
     {
-    bug("Save_char_obj: fopen", 0);
-    perror(strsave);
+    pbugf(LOG_ERROR, "Save_char_obj: fopen failed for %s", strsave);
     save_depth--;
     return;
     }
@@ -454,7 +453,7 @@ void save_char_obj(CHAR_DATA *ch)
                 // Don't fail the save - old format is already written as backup
 #else
                 // JSON-only mode: This is critical, log error but don't crash
-                bug("save_char_obj: JSON write failed and old pfile format disabled!", 0);
+                pbugf(LOG_ERROR, "save_char_obj: JSON write failed and old pfile format disabled!");
 #endif
             }
 
@@ -1184,7 +1183,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
             }
 
             if (letter != '#') {
-                bug("Load_char_obj: # not found.", 0);
+                pbugf(LOG_ERROR, "Load_char_obj: # not found.");
                 break;
             }
 
@@ -1292,7 +1291,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
             } else if (!str_cmp(word, "END"))
                 break;
             else {
-                bug("Load_char_obj: bad section.", 0);
+                pbugf(LOG_ERROR, "Load_char_obj: bad section.");
                 break;
             }
         }
@@ -1338,8 +1337,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
     if (get_staff_rank(ch) > STAFF_PLAYER) {
         IMMORTAL_DATA *immortal;
         if ((immortal = find_immortal(ch->name)) == NULL) {
-            snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
 
             immortal = new_immortal();
             immortal->name = str_dup(ch->name);
@@ -1348,8 +1346,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
             add_immortal(immortal);
 
         } else {
-            snprintf(buf, sizeof(buf), "load_char_obj: reading immortal char %s.\n\r", ch->name);
-            log_string(buf);
+            plogf(LOG_INFO, "load_char_obj: reading immortal char %s.\n\r", ch->name);
 
             ch->pcdata->immortal = immortal;
         }
@@ -1521,7 +1518,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
         QUEST_PART_DATA *part;
 
         if (ch->quest == NULL) {
-            bug("had ch with a quest part but no quest", 0);
+            pbugf(LOG_ERROR, "had ch with a quest part but no quest");
             fread_to_eol(fp);
             break;
         }
@@ -1868,10 +1865,9 @@ iterator_stop(&it);
         }
         else
         {
-                    sprintf(buf,
+                    pbugf(LOG_ERROR,
             "Couldn't load ch church for %s, church %s",
                 ch->name, ch->church_name);
-            bug(buf, 0);
             ch->church = NULL;
             ch->church_member = NULL;
             free_string(ch->church_name);
@@ -2722,7 +2718,7 @@ if (!str_cmp(word, "Room"))
             ch->toxin[i] = fread_number(fp);
         else
         {
-            bug("fread_char: bad toxin type", 0);
+            pbugf(LOG_ERROR, "fread_char: bad toxin type");
             fread_number(fp);
         }
         }
@@ -2828,9 +2824,7 @@ if (!str_cmp(word, "Room"))
 
     if (!fMatch)
     {
-        sprintf(buf,
-        "Fread_char: no match for ch %s on word %s.", ch->name, word);
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "Fread_char: no match for ch %s on word %s.", ch->name, word);
         fread_to_eol(fp);
     }
     }
@@ -3231,7 +3225,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
     bool fVnum;
     bool first;
     bool make_new;
-    char buf[MSL];
     //ROOM_INDEX_DATA *room = NULL;
 
     fVnum = false;
@@ -3247,7 +3240,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
         vnum = fread_number(fp);
         if ( get_obj_index_global(vnum)  == NULL)
-            bug("Fread_obj: bad vnum %ld.", vnum);
+            pbugf(LOG_ERROR, "Fread_obj: bad vnum %ld.", vnum);
         else
             obj = create_object_noid(get_obj_index_global(vnum),-1, false, false);
     }
@@ -3272,14 +3265,13 @@ OBJ_DATA *fread_obj_new(FILE *fp)
             first = false;
         else if(feof(fp))
         {
-            bug("EOF encountered reading object from pfile", 0);
+            pbugf(LOG_ERROR, "EOF encountered reading object from pfile");
             word = "End";
         } else
             word   = fread_word(fp);
         fMatch = false;
 
-//		sprintf(buf, "Fread_obj_new: word = '%s'", word);
-//		bug(buf, 0);
+//		pbugf(LOG_ERROR, "Fread_obj_new: word = '%s'", word);
 
         switch (UPPER(word[0]))
         {
@@ -3308,7 +3300,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
                 sn = skill_lookup(fread_word(fp));
                 if (sn < 0)
-                    bug("Fread_obj: unknown skill.",0);
+                    pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
 
@@ -3383,7 +3375,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
                 sn = skill_lookup(fread_word(fp));
                 if (sn < 0)
-                    bug("Fread_obj: unknown skill.",0);
+                    pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
 
@@ -3409,7 +3401,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
                 sn = skill_lookup(fread_word(fp));
                 if (sn < 0)
-                    bug("Fread_obj: unknown skill.",0);
+                    pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
 
@@ -3683,7 +3675,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
             {
                 if ((fVnum && obj->pIndexData == NULL))
                 {
-                    bug("Fread_obj: incomplete object.", 0);
+                    pbugf(LOG_ERROR, "Fread_obj: incomplete object.");
                     free_obj(obj);
                     return NULL;
                 }
@@ -3855,7 +3847,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                 iNest = fread_number(fp);
                 if (iNest < 0 || iNest >= MAX_NEST)
                 {
-                    bug("Fread_obj: bad nest %d.", iNest);
+                    pbugf(LOG_ERROR, "Fread_obj: bad nest %d.", iNest);
                 }
                 else
                 {
@@ -3920,8 +3912,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                 }
                 else
                 {
-                    sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
-                    bug(buf,0);
+                    pbugf(LOG_ERROR, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
                 }
             }
 
@@ -3933,9 +3924,9 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                 iValue = fread_number(fp);
                 sn = skill_lookup(fread_word(fp));
                 if (iValue < 0 || iValue > 7)
-                    bug("Fread_obj: bad iValue %d.", iValue);
+                    pbugf(LOG_ERROR, "Fread_obj: bad iValue %d.", iValue);
                 else if (sn < 0)
-                    bug("Fread_obj: unknown skill.", 0);
+                    pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                 {
                     if (obj->item_type == ITEM_WEAPON || obj->item_type == ITEM_ARMOUR)
@@ -4012,7 +4003,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 
                 vnum = fread_number(fp);
                 if ((obj->pIndexData = get_obj_index_global(vnum)) == NULL)
-                    bug("Fread_obj: bad vnum %ld.", vnum);
+                    pbugf(LOG_ERROR, "Fread_obj: bad vnum %ld.", vnum);
                 else
                     fVnum = true;
 
@@ -4034,8 +4025,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
         if (!fMatch)
         {
             //char buf[MAX_STRING_LENGTH];
-            //sprintf(buf, "fread_obj: unknown obj flag %s", word);
-            //bug(buf, 0);
+            //pbugf(LOG_ERROR, "fread_obj: unknown obj flag %s", word);
             fread_to_eol(fp);
         }
     }
@@ -4049,7 +4039,7 @@ void write_permanent_objs()
     CHURCH_DATA *church;
 
     if ((fp = fopen(PERM_OBJS_FILE, "w")) == NULL)
-    bug("perm_objs_new.dat: Couldn't open file.",0);
+    pbugf(LOG_ERROR, "perm_objs_new.dat: Couldn't open file.");
     else
     {
         wiznet("writing permanent objects...", NULL, NULL, WIZ_TESTING, 0, 0);
@@ -4101,7 +4091,7 @@ void read_permanent_objs()
 
     log_string("Loading permanent objs");
     if ((fp = fopen(PERM_OBJS_FILE, "r")) == NULL)
-    bug("perm_objs_new.dat: Couldn't open file.",0);
+    pbugf(LOG_ERROR, "perm_objs_new.dat: Couldn't open file.");
     else
     {
         for (;;)
@@ -4132,7 +4122,7 @@ void read_permanent_objs()
             else if (!str_cmp(word, "#END"))
                 break;
             else {
-            bug("perm_objs_new.dat: bad format", 0);
+            pbugf(LOG_ERROR, "perm_objs_new.dat: bad format");
             break;
             }
         }
@@ -4172,12 +4162,12 @@ void fix_object(OBJ_DATA *obj)
     SPELL_DATA *spell, *spell_new;
 
     if (obj == NULL) {
-        bug("fix_object: obj was null.", 0);
+        pbugf(LOG_ERROR, "fix_object: obj was null.");
         return;
     }
 
     if (obj->pIndexData == NULL) {
-        bug("fix_object: pIndexData was null.", 0);
+        pbugf(LOG_ERROR, "fix_object: pIndexData was null.");
         return;
     }
 
@@ -4561,13 +4551,12 @@ void cleanup_affects(OBJ_DATA *obj)
 {
     AFFECT_DATA *af;
     AFFECT_DATA *af_next;
-    char buf[MSL];
     int count;
     int apply_type;
 
     if (obj == NULL)
     {
-    bug("cleanup_affects: obj was null!", 0);
+    pbugf(LOG_ERROR, "cleanup_affects: obj was null!");
     return;
     }
 
@@ -4584,9 +4573,8 @@ void cleanup_affects(OBJ_DATA *obj)
         if (count > 1 && af->location == apply_type)
         {
         affect_remove_obj(obj, af);
-        sprintf(buf, "cleanup_affects: obj %s (%ld)",
+        pbugf(LOG_ERROR, "cleanup_affects: obj %s (%ld)",
             obj->short_descr, obj->pIndexData->vnum);
-        bug(buf, 1);
         }
     }
 
@@ -4933,20 +4921,18 @@ bool missing_class(CHAR_DATA *ch)
    but here is the fix based on skill group.*/
 void descrew_subclasses(CHAR_DATA *ch)
 {
-    char buf[MSL];
 
     if (ch == NULL)
     {
-    bug("descrew_subclasses: null ch.", 0);
+    pbugf(LOG_ERROR, "descrew_subclasses: null ch.");
     return;
     }
 
     if (missing_class(ch) || (ch->pcdata->sub_class_mage != -1
     && (ch->pcdata->sub_class_mage < 3 || ch->pcdata->sub_class_mage > 5 )))
     {
-    sprintf(buf, "descrew_subclasses: %s had a non-mage class!",
+    pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-mage class!",
         ch->name);
-    bug(buf, 0);
     if (ch->pcdata->group_known[group_lookup("necromancer skills")] == true)
         ch->pcdata->sub_class_mage = CLASS_MAGE_NECROMANCER;
     else if (ch->pcdata->group_known[group_lookup("sorcerer skills")] == true)
@@ -4962,9 +4948,8 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_cleric != -1
     && (ch->pcdata->sub_class_cleric < 6 || ch->pcdata->sub_class_cleric > 8)))
     {
-    sprintf(buf, "descrew_subclasses: %s had a non-cleric class!",
+    pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-cleric class!",
         ch->name);
-    bug(buf, 0);
     if (ch->pcdata->group_known[group_lookup("witch skills")] == true)
         ch->pcdata->sub_class_cleric = CLASS_CLERIC_WITCH;
     else if (ch->pcdata->group_known[group_lookup("druid skills")] == true)
@@ -4980,9 +4965,8 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
     && (ch->pcdata->sub_class_thief < 9 || ch->pcdata->sub_class_thief > 11)))
     {
-    sprintf(buf, "descrew_subclasses: %s had a non-thief class!",
+    pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-thief class!",
         ch->name);
-    bug(buf, 0);
 
     if (ch->pcdata->group_known[group_lookup("assassin skills")] == true)
         ch->pcdata->sub_class_thief = CLASS_THIEF_ASSASSIN;
@@ -4999,9 +4983,8 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
     && (ch->pcdata->sub_class_warrior > 2)))
     {
-    sprintf(buf, "descrew_subclasses: %s had a non-warrior class!",
+    pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-warrior class!",
         ch->name);
-    bug(buf, 0);
     if (ch->pcdata->group_known[group_lookup("marauder skills")] == true)
         ch->pcdata->sub_class_warrior = CLASS_WARRIOR_MARAUDER;
     if (ch->pcdata->group_known[group_lookup("gladiator skills")] == true)
@@ -5110,7 +5093,7 @@ bool find_class_skill(CHAR_DATA *ch, int class)
     case CLASS_THIEF:	gn = group_lookup("thief skills");	break;
     case CLASS_WARRIOR:	gn = group_lookup("warrior skills");	break;
     default:
-        bug("find_class_skill: bad class.", 0);
+        pbugf(LOG_ERROR, "find_class_skill: bad class.");
         return false;
     }
 
@@ -5154,15 +5137,13 @@ TOKEN_DATA *fread_token(FILE *fp)
     TOKEN_DATA *token;
     TOKEN_INDEX_DATA *token_index;
     long vnum;
-    char buf[MSL];
     char *word;
     bool fMatch;
     int vtype;
 
     vnum = fread_number(fp);
     if ((token_index = get_token_index_global(vnum)) == NULL) {
-    sprintf(buf, "fread_token: no token index found for vnum %ld", vnum);
-    bug(buf, 0);
+    pbugf(LOG_ERROR, "fread_token: no token index found for vnum %ld", vnum);
     return NULL;
     }
 
@@ -5221,8 +5202,7 @@ TOKEN_DATA *fread_token(FILE *fp)
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_token: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_token: no match for word %s", word);
             fread_to_eol(fp);
         }
     }
@@ -5298,7 +5278,6 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
     long flags = SKILL_AUTOMATIC;
     int rating = -1, mod = 0;	// For built-in skills
     char source = SKILLSRC_NORMAL;
-    char buf[MSL];
     char *word;
     bool fMatch;
 
@@ -5380,8 +5359,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
         }
 
         if (!fMatch) {
-            sprintf(buf, "fread_skill: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "fread_skill: no match for word %s", word);
             fread_to_eol(fp);
         }
     }
@@ -5399,7 +5377,7 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 
     if (part->pObj != NULL && !part->complete) { // Special case. Objects will be extracted on quit, re-loaded on login.
     if (part->pObj->in_room == NULL)
-        bug("fwrite_quest_part: trying to save a quest pickup obj with null in_room", 0);
+        pbugf(LOG_ERROR, "fwrite_quest_part: trying to save a quest pickup obj with null in_room");
     else
         fprintf(fp, "OPart %ld %ld\n", part->pObj->pIndexData->vnum, part->pObj->in_room->vnum);
     }
@@ -5424,7 +5402,6 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 QUEST_PART_DATA *fread_quest_part(FILE *fp)
 {
     QUEST_PART_DATA *part;
-    char buf[MSL];
     char *word;
     bool fMatch;
     int i;
@@ -5522,8 +5499,7 @@ room = get_room_index(area, room_vnum);
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_quest_part: no match for word %s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "read_quest_part: no match for word %s", word);
             fread_to_eol(fp);
         }
     }
@@ -5608,9 +5584,9 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
             // Load using JSON format
             if (json_read_account(account, strsave)) {
                 found = true;
-                log_stringf("load_account: Loaded JSON account %s", name);
+                plogf("load_account: Loaded JSON account %s", name);
             } else {
-                bug("load_account: Failed to read JSON account file", 0);
+                pbugf(LOG_ERROR, "load_account: Failed to read JSON account file %s", name);
                 found = false;
             }
         } else {
@@ -5630,7 +5606,7 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
 
                 if (letter != '#')
                 {
-                    bug("Load_account: # not found.", 0);
+                    pbugf(LOG_ERROR, "Load_account: # not found.");
                     break;
                 }
 
@@ -5684,7 +5660,7 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
                 else if (!str_cmp(word, "END"))
                     break;
                 else {
-                    bug("Load_account: bad section.", 0);
+                    pbugf(LOG_ERROR, "Load_account: bad section.");
                     break;
                 }
             }
@@ -5920,9 +5896,8 @@ break;
         }
 
         if (!fMatch) {
-            sprintf(buf, "Fread_account: no match for account %s on word %s.", 
+            pbugf(LOG_ERROR, "Fread_account: no match for account %s on word %s.", 
                 account->username, word);
-            bug(buf, 0);
             fread_to_eol(fp);
         }
     }
@@ -5931,7 +5906,6 @@ break;
 void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
 {
     ACCOUNT_CHARACTER *acct_char;
-    char buf[MAX_STRING_LENGTH];
     char *word;
     bool fMatch;
     
@@ -6050,9 +6024,8 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
         }
         
         if (!fMatch) {
-            sprintf(buf, "Fread_account_character: no match for character %s on word %s.", 
+            pbugf(LOG_ERROR, "Fread_account_character: no match for character %s on word %s.", 
                 acct_char->name ? acct_char->name : "unknown", word);
-            bug(buf, 0);
             fread_to_eol(fp);
         }
     }
@@ -6264,12 +6237,12 @@ void save_account(ACCOUNT_DATA *account)
     char strsave[MAX_INPUT_LENGTH];
 
     if (account == NULL) {
-        bug("save_account: null account pointer", 0);
+        pbugf(LOG_ERROR, "save_account: null account pointer");
         return;
     }
 
     if (IS_NULLSTR(account->username)) {
-        bug("save_account: account has no username", 0);
+        pbugf(LOG_ERROR, "save_account: account has no username");
         return;
     }
 
@@ -6288,8 +6261,7 @@ void save_account(ACCOUNT_DATA *account)
 
     // Write using JSON format (handles backup, atomic write, all sections)
     if (!json_write_account(account, strsave)) {
-        log_stringf("save_account: json_write_account failed for %s", account->username);
-        bug("save_account: json_write_account failed", 0);
+        pbugf(LOG_ERROR, "save_account: json_write_account failed for %s", account->username);
     }
 
     /* Reopen reserve file */
@@ -6320,7 +6292,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
                ch->name ? ch->name : "(unknown)", initial_obj_count);
 
     if (!account || !ch || IS_NPC(ch)) {
-        bug("account_add_character: invalid parameters", 0);
+        pbugf(LOG_ERROR, "account_add_character: invalid parameters");
         return;
     }
 
@@ -6760,7 +6732,7 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
     bool found = false;
 
     if (!account || IS_NULLSTR(name)) {
-        bug("account_remove_character: invalid parameters", 0);
+        pbugf(LOG_ERROR, "account_remove_character: invalid parameters");
         return;
     }
 
@@ -6994,7 +6966,7 @@ ACCOUNT_DATA *find_account_by_name(char *username)
     DESCRIPTOR_DATA d;
 
     if (IS_NULLSTR(username)) {
-        bug("find_account_by_name: null or empty username", 0);
+        pbugf(LOG_ERROR, "find_account_by_name: null or empty username");
         return NULL;
     }
 

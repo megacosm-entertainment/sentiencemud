@@ -52,7 +52,7 @@ static ASYNC_CACHE_JOB *create_job(async_cache_op_t operation, const char *chara
 
     job = (ASYNC_CACHE_JOB *)calloc(1, sizeof(ASYNC_CACHE_JOB));
     if (!job) {
-        bug("create_job: failed to allocate memory", 0);
+        pbugf(LOG_INIT, "create_job: failed to allocate memory", 0);
         return NULL;
     }
 
@@ -435,7 +435,7 @@ bool async_cache_init(void)
     // Create worker thread
     result = pthread_create(&worker_thread, NULL, async_cache_worker, NULL);
     if (result != 0) {
-        bug("async_cache_init: failed to create worker thread", 0);
+        pbugf("async_cache_init: failed to create worker thread", 0);
         return false;
     }
 
@@ -503,7 +503,7 @@ unsigned long async_cache_dump(const char *character_name)
     ASYNC_CACHE_JOB *job;
 
     if (!character_name || character_name[0] == '\0') {
-        bug("async_cache_dump: NULL or empty character name", 0);
+        pbugf("async_cache_dump: NULL or empty character name", 0);
         return 0;
     }
 
@@ -532,7 +532,7 @@ unsigned long async_cache_load(const char *character_name)
     ASYNC_CACHE_JOB *job;
 
     if (!character_name || character_name[0] == '\0') {
-        bug("async_cache_load: NULL or empty character name", 0);
+        pbugf("async_cache_load: NULL or empty character name", 0);
         return 0;
     }
 
@@ -561,7 +561,7 @@ unsigned long async_cache_invalidate(const char *character_name)
     ASYNC_CACHE_JOB *job;
 
     if (!character_name || character_name[0] == '\0') {
-        bug("async_cache_invalidate: NULL or empty character name", 0);
+        pbugf("async_cache_invalidate: NULL or empty character name", 0);
         return 0;
     }
 

@@ -453,7 +453,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 
 void obj_interpret(SCRIPT_VARINFO *info, char *argument)
 {
-    char command[MSL], buf[2*MSL];
+    char command[MSL];
     int cmd;
 
     if(!info->obj) return;
@@ -466,8 +466,7 @@ void obj_interpret(SCRIPT_VARINFO *info, char *argument)
     cmd = opcmd_lookup(command);
 
     if(cmd < 0) {
-        sprintf(buf, "Obj_interpret: invalid cmd from obj %ld: '%s'", info->obj->pIndexData->vnum, command);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Obj_interpret: invalid cmd from obj %ld: '%s'", info->obj->pIndexData->vnum, command);
         return;
     }
 
@@ -538,7 +537,7 @@ SCRIPT_CMD(do_opat)
         return;
 
     if(!(command = op_getlocation(info, argument, &location))) {
-        bug("OpAt: Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpAt: Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -591,21 +590,21 @@ SCRIPT_CMD(do_opcall)
     if(!info || !info->obj) return;
 
     if (!argument[0]) {
-        bug("OpCall: missing arguments from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: missing arguments from vnum %d.", VNUM(info->obj));
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("OpCall: maximum call depth exceeded for obj vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: maximum call depth exceeded for obj vnum %d.", VNUM(info->obj));
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -618,7 +617,7 @@ SCRIPT_CMD(do_opcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_OPROG))) {
-        bug("OpCall: invalid prog from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: invalid prog from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -628,7 +627,7 @@ SCRIPT_CMD(do_opcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -644,7 +643,7 @@ SCRIPT_CMD(do_opcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -652,7 +651,7 @@ SCRIPT_CMD(do_opcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -668,7 +667,7 @@ SCRIPT_CMD(do_opcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -686,7 +685,7 @@ SCRIPT_CMD(do_opcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -737,7 +736,7 @@ SCRIPT_CMD(do_opcast)
     if(!info || !info->obj || !obj_room(info->obj)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpCast - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "MpCast - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -751,7 +750,7 @@ SCRIPT_CMD(do_opcast)
     }
 
     if (sn < 1 || skill_table[sn].spell_fun == spell_null || sn > MAX_SKILL) {
-        bug("OpCast - No such spell from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCast - No such spell from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -760,7 +759,7 @@ SCRIPT_CMD(do_opcast)
     if(*rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCast - Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCast - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -789,7 +788,7 @@ SCRIPT_CMD(do_opcast)
     obj_to_char(reagent,proxy);
 
     switch (skill_table[sn].target) {
-    default: bug("obj_cast: bad target for sn %d.", sn); return;
+    default: pbugf(LOG_SCRIPTS, "obj_cast: bad target for sn %d.", sn); return;
     case TAR_IGNORE: to = NULL; break;
     case TAR_CHAR_OFFENSIVE:
     case TAR_CHAR_DEFENSIVE:
@@ -863,7 +862,7 @@ SCRIPT_CMD(do_opdamage)
     if(!info || !info->obj || !obj_room(info->obj)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -877,18 +876,18 @@ SCRIPT_CMD(do_opdamage)
     }
 
     if (!victim) {
-        bug("OpDamage - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpDamage - missing argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - missing argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -901,23 +900,23 @@ SCRIPT_CMD(do_opdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpDamage - missing argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - missing argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(fLevel && !victim) {
-        bug("OpDamage - Level aspect used with null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - Level aspect used with null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -933,7 +932,7 @@ SCRIPT_CMD(do_opdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
             return;
         }
         break;
@@ -941,17 +940,17 @@ SCRIPT_CMD(do_opdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("OpDamage - Null reference mob from vnum %ld.", VNUM(info->obj));
+                pbugf(LOG_SCRIPTS, "OpDamage - Null reference mob from vnum %ld.", VNUM(info->obj));
                 return;
             }
             break;
         } else {
-            bug("OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
             return;
         }
         break;
     default:
-        bug("OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -985,7 +984,7 @@ SCRIPT_CMD(do_opdelay)
     if(!info || !info->obj) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("OpDelay - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDelay - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -996,7 +995,7 @@ SCRIPT_CMD(do_opdelay)
     }
 
     if (delay < 1) {
-        bug("OpDelay: invalid delay from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpDelay: invalid delay from vnum %d.", VNUM(info->obj));
         return;
     }
     info->obj->progs->delay = delay;
@@ -1395,7 +1394,7 @@ SCRIPT_CMD(do_opforce)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpForce - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpForce - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1409,7 +1408,7 @@ SCRIPT_CMD(do_opforce)
     }
 
     if (!fAll && !victim) {
-        bug("OpForce - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpForce - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1456,7 +1455,7 @@ SCRIPT_CMD(do_opgdamage)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1467,18 +1466,18 @@ SCRIPT_CMD(do_opgdamage)
     }
 
     if (!victim) {
-        bug("OpGdamage - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpGdamage - missing argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - missing argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1491,18 +1490,18 @@ SCRIPT_CMD(do_opgdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpGdamage - missing argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - missing argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1518,7 +1517,7 @@ SCRIPT_CMD(do_opgdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
             return;
         }
         break;
@@ -1526,17 +1525,17 @@ SCRIPT_CMD(do_opgdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("OpGdamage - Null reference mob from vnum %ld.", VNUM(info->obj));
+                pbugf(LOG_SCRIPTS, "OpGdamage - Null reference mob from vnum %ld.", VNUM(info->obj));
                 return;
             }
             break;
         } else {
-            bug("OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
             return;
         }
         break;
     default:
-        bug("OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1566,7 +1565,7 @@ SCRIPT_CMD(do_opgecho)
     if(!info || !info->obj) return;
 
     if (!argument[0]) {
-        bug("OpGEcho: missing argument from vnum %d", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGEcho: missing argument from vnum %d", VNUM(info->obj));
         return;
     }
 
@@ -1597,7 +1596,7 @@ SCRIPT_CMD(do_opgforce)
     if(!info || !info->obj || !obj_room(info->obj)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpGforce - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGforce - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1608,7 +1607,7 @@ SCRIPT_CMD(do_opgforce)
     }
 
     if (!victim) {
-        bug("OpGforce - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGforce - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1633,14 +1632,14 @@ SCRIPT_CMD(do_opgoto)
     if(!info || !info->obj || !obj_room(info->obj) || PROG_FLAG(info->obj,PROG_AT)) return;
 
     if(!argument[0]) {
-        bug("Opgoto - No argument from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "Opgoto - No argument from vnum %d.", VNUM(info->obj));
         return;
     }
 
     op_getlocation(info, argument, &dest);
 
     if(!dest) {
-        bug("Opgoto - Bad location from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "Opgoto - Bad location from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -1667,7 +1666,7 @@ SCRIPT_CMD(do_opgtransfer)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -1679,19 +1678,19 @@ SCRIPT_CMD(do_opgtransfer)
 
 
     if (!victim) {
-        bug("OpGtransfer - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGtransfer - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if (!victim->in_room) return;
 
     if(!(argument = op_getlocation(info, rest, &dest))) {
-        bug("OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!dest) {
-        bug("OpGtransfer - Bad location from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpGtransfer - Bad location from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -1792,7 +1791,7 @@ SCRIPT_CMD(do_oplink)
     if (!room) return;
 
     if (door < 0) {
-        bug("OPlink used without an argument from room vnum %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "OPlink used without an argument from room vnum %d.", room->vnum);
         return;
     }
 
@@ -1853,7 +1852,7 @@ SCRIPT_CMD(do_oplink)
     }
 
     if(vnum < 0) {
-        bug("OPlink - invalid argument in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "OPlink - invalid argument in room %d.", room->vnum);
         return;
     }
 
@@ -1871,7 +1870,7 @@ SCRIPT_CMD(do_oplink)
         dest = NULL;
 
     if(!dest && !del) {
-        bug("OPlink - invalid destination in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "OPlink - invalid destination in room %d.", room->vnum);
         return;
     }
 
@@ -1913,7 +1912,7 @@ SCRIPT_CMD(do_opoload)
     }
 
     if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-        bug("Opoload - Bad vnum arg from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "Opoload - Bad vnum arg from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -2027,7 +2026,7 @@ SCRIPT_CMD(do_opotransfer)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpOtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpOtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2039,7 +2038,7 @@ SCRIPT_CMD(do_opotransfer)
 
 
     if (!obj) {
-        bug("OpOtransfer - Null object from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpOtransfer - Null object from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2050,7 +2049,7 @@ SCRIPT_CMD(do_opotransfer)
     argument = op_getolocation(info, rest, &dest, &container, &carrier, &wear_loc);
 
     if(!dest && !container && !carrier) {
-        bug("OpOTransfer - Bad location from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpOTransfer - Bad location from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -2122,7 +2121,7 @@ SCRIPT_CMD(do_oppurge)
 
     if(victim) {
         if (!IS_NPC(victim)) {
-            bug("Oppurge - Attempting to purge a PC from vnum %d.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "Oppurge - Attempting to purge a PC from vnum %d.", VNUM(info->obj));
             return;
         }
         extract_char(victim, true);
@@ -2154,7 +2153,7 @@ SCRIPT_CMD(do_oppurge)
                 extract_obj(obj);
         }
     } else
-        bug("Oppurge - Bad argument from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "Oppurge - Bad argument from vnum %d.", VNUM(info->obj));
 
 }
 
@@ -2174,12 +2173,12 @@ SCRIPT_CMD(do_opqueue)
     case ENT_NUMBER: delay = arg->d.num; break;
     case ENT_STRING: delay = atoi(arg->d.str); break;
     default:
-        bug("OpQueue:  missing arguments from obj vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpQueue:  missing arguments from obj vnum %d.", VNUM(info->obj));
         return;
     }
 
     if (delay < 0 || delay > 1000) {
-        bug("OpQueue:  unreasonable delay recieved from obj vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpQueue:  unreasonable delay recieved from obj vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -2195,7 +2194,7 @@ SCRIPT_CMD(do_opremember)
     if(!info || !info->obj) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("OpRemember: Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpRemember: Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2206,7 +2205,7 @@ SCRIPT_CMD(do_opremember)
     }
 
     if (!victim) {
-        bug("OpRemember: Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpRemember: Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2227,7 +2226,7 @@ SCRIPT_CMD(do_opremove)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpRemove - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpRemove - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2238,7 +2237,7 @@ SCRIPT_CMD(do_opremove)
     }
 
     if (!victim) {
-        bug("OpRemove - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpRemove - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2246,7 +2245,7 @@ SCRIPT_CMD(do_opremove)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpRemove - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpRemove - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2266,14 +2265,14 @@ SCRIPT_CMD(do_opremove)
     }
 
     if(!fAll && vnum < 1 && !name[0] && !obj) {
-        bug ("OpRemove - Invalid object from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpRemove - Invalid object from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!fAll && !obj && *rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpRemove - Bad syntax from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpRemove - Bad syntax from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -2284,7 +2283,7 @@ SCRIPT_CMD(do_opremove)
         }
 
         if(count < 0) {
-            bug ("OpRemove - Invalid count from vnum %d.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpRemove - Invalid count from vnum %d.", VNUM(info->obj));
             count = 0;
         }
     }
@@ -2365,7 +2364,7 @@ SCRIPT_CMD(do_opselfdestruct)
     log_string(buf);
 
     if (!obj_room(info->obj)) {
-        bug("OpSelfDestruct: BAILED OUT, OBJ IS NOWHERE", 0);
+        pbugf(LOG_SCRIPTS, "OpSelfDestruct: BAILED OUT, OBJ IS NOWHERE");
         return;
     }
 
@@ -2389,7 +2388,7 @@ SCRIPT_CMD(do_optransfer)
     if(!info || !info->obj || !obj_room(info->obj)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpTransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpTransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2404,7 +2403,7 @@ SCRIPT_CMD(do_optransfer)
 
 
     if (!victim && !all) {
-        bug("OpTransfer - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpTransfer - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2414,7 +2413,7 @@ SCRIPT_CMD(do_optransfer)
     argument = op_getlocation(info, rest, &dest);
 
     if(!dest) {
-        bug("OpTransfer - Bad location from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpTransfer - Bad location from vnum %d.", VNUM(info->obj));
         return;
     }
 
@@ -2459,7 +2458,7 @@ SCRIPT_CMD(do_opvforce)
     if(!info || !info->obj || !obj_room(info->obj)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpVforce - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpVforce - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2470,7 +2469,7 @@ SCRIPT_CMD(do_opvforce)
     }
 
     if (vnum < 1) {
-        bug("OpVforce - Invalid vnum from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpVforce - Invalid vnum from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2536,7 +2535,7 @@ SCRIPT_CMD(do_opzot)
 
 
     if (!victim) {
-        bug("OpZot - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpZot - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2645,7 +2644,7 @@ SCRIPT_CMD(do_opsettimer)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpSetTimer - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2660,19 +2659,19 @@ SCRIPT_CMD(do_opsettimer)
     }
 
     if(!victim) {
-        bug("OpSetTimer - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS, "OpSetTimer - NULL victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpSetTimer - Missing timer type.",0);
+        pbugf(LOG_SCRIPTS, "OpSetTimer - Missing timer type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     buf[0] = 0;
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpSetTimer - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2684,13 +2683,13 @@ SCRIPT_CMD(do_opsettimer)
     }
 
     if(!*rest) {
-        bug("OpSetTimer - Missing timer amount.",0);
+        pbugf(LOG_SCRIPTS, "OpSetTimer - Missing timer amount from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpSetTimer - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2752,7 +2751,7 @@ SCRIPT_CMD(do_opinterrupt)
     info->obj->progs->lastreturn = 0;	// Nothing was interrupted
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpInterrupt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpInterrupt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2767,7 +2766,7 @@ SCRIPT_CMD(do_opinterrupt)
     }
 
     if(!victim) {
-        bug("OpInterrupt - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS, "OpInterrupt - NULL victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2776,7 +2775,7 @@ SCRIPT_CMD(do_opinterrupt)
     if(buffer->string[0] != '\0') {
         stop = flag_value(interrupt_action_types,buf);
         if(stop == NO_FLAG) {
-            bug("OpInterrupt - invalid interrupt type.", 0);
+            pbugf(LOG_SCRIPTS, "OpInterrupt - invalid interrupt type from vnum %ld.", VNUM(info->obj));
             free_buf(buffer);
             return;
         }
@@ -2933,7 +2932,7 @@ SCRIPT_CMD(do_opalterobj)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2951,19 +2950,19 @@ SCRIPT_CMD(do_opalterobj)
     }
 
     if(!obj) {
-        bug("OpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - NULL object from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(PROG_FLAG(obj,PROG_AT)) return;
 
     if(!*rest) {
-        bug("OpAlterObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - Missing field type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -2990,7 +2989,7 @@ SCRIPT_CMD(do_opalterobj)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3007,7 +3006,7 @@ SCRIPT_CMD(do_opalterobj)
 
         if(script_security < min_sec) {
             sprintf(buf,"OpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "%s from vnum %ld.", buf, VNUM(info->obj));
             return;
         }
 
@@ -3017,14 +3016,14 @@ SCRIPT_CMD(do_opalterobj)
         case '*': obj->value[num] *= value; break;
         case '/':
             if (!value) {
-                bug("OpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             obj->value[num] /= value;
             break;
         case '%':
             if (!value) {
-                bug("OpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             obj->value[num] %= value;
@@ -3067,7 +3066,7 @@ SCRIPT_CMD(do_opalterobj)
 
         if(script_security < min_sec) {
             sprintf(buf,"OpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "%s from vnum %ld.", buf, VNUM(info->obj));
             return;
         }
 
@@ -3125,7 +3124,7 @@ SCRIPT_CMD(do_opalterobj)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("OpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -3134,7 +3133,7 @@ SCRIPT_CMD(do_opalterobj)
 
         case '-':
             if( !allowarith ) {
-                bug("OpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -3143,7 +3142,7 @@ SCRIPT_CMD(do_opalterobj)
 
         case '*':
             if( !allowarith ) {
-                bug("OpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -3152,24 +3151,24 @@ SCRIPT_CMD(do_opalterobj)
 
         case '/':
             if( !allowarith ) {
-                bug("OpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             if (!value) {
-                bug("OpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("OpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             if (!value) {
-                bug("OpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterObj - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr %= value;
@@ -3206,7 +3205,7 @@ SCRIPT_CMD(do_opresetdice)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3224,7 +3223,7 @@ SCRIPT_CMD(do_opresetdice)
     }
 
     if(!obj) {
-        bug("OpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "OpAlterObj - NULL object from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3238,7 +3237,7 @@ SCRIPT_CMD(do_opresetdice)
 
 SCRIPT_CMD(do_opstringobj)
 {
-    char buf[MSL],field[MIL],*rest, **str;
+    char field[MIL],*rest, **str;
     int min_sec = MIN_SCRIPT_SECURITY;
     OBJ_DATA *obj = NULL;
 
@@ -3247,7 +3246,7 @@ SCRIPT_CMD(do_opstringobj)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpStringObj - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3262,19 +3261,19 @@ SCRIPT_CMD(do_opstringobj)
     }
 
     if(!obj) {
-        bug("OpStringObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "OpStringObj - NULL object from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(PROG_FLAG(obj,PROG_AT)) return;
 
     if(!*rest) {
-        bug("OpStringObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "OpStringObj - Missing field type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpStringObj - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3330,7 +3329,7 @@ SCRIPT_CMD(do_opstringobj)
             int mat = material_lookup(buf_string(buffer));
 
             if(mat < 0) {
-                bug("OpStringObj - Invalid material.\n\r", 0);
+                pbugf(LOG_SCRIPTS, "OpStringObj - Invalid material from vnum %ld.\n\r", VNUM(info->obj));
                 free_buf(buffer);
                 return;
             }
@@ -3348,8 +3347,7 @@ SCRIPT_CMD(do_opstringobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"OpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"OpStringObj - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->obj));
             free_buf(buffer);
             return;
         }
@@ -3386,7 +3384,7 @@ SCRIPT_CMD(do_opaltermob)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterMob - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3401,17 +3399,17 @@ SCRIPT_CMD(do_opaltermob)
     }
 
     if(!mob) {
-        bug("OpAlterMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "OpAlterMob - NULL mobile from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpAlterMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterMob - Missing field type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterMob - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3428,7 +3426,7 @@ SCRIPT_CMD(do_opaltermob)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterMob - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 */
@@ -3532,7 +3530,7 @@ SCRIPT_CMD(do_opaltermob)
         return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "AlterMob - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3541,8 +3539,7 @@ SCRIPT_CMD(do_opaltermob)
     if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
     if(script_security < min_sec) {
-        sprintf(buf,"OpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS,"OpAlterMob - Attempting to alter '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->obj));
         return;
     }
 
@@ -3628,7 +3625,7 @@ SCRIPT_CMD(do_opaltermob)
         switch (op) {
         case OPR_ADD:
             if (!allowarith) {
-        bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+        pbugf(LOG_SCRIPTS, "TpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
         return;
     }
             *lptr += value;
@@ -3644,7 +3641,7 @@ SCRIPT_CMD(do_opaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *lptr /= value;
@@ -3652,7 +3649,7 @@ SCRIPT_CMD(do_opaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *lptr %= value;
@@ -3691,7 +3688,7 @@ SCRIPT_CMD(do_opaltermob)
                     lptr[i] &= temp_flags[i];
             }
                 if (!allowbitwise) {
-        bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+        pbugf(LOG_SCRIPTS, "TpAlterMob - altermob called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->obj));
         return;
     }
             else
@@ -3754,7 +3751,7 @@ SCRIPT_CMD(do_opaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr /= value;
@@ -3762,7 +3759,7 @@ SCRIPT_CMD(do_opaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "AlterMob - altermob called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr %= value;
@@ -3861,7 +3858,7 @@ SCRIPT_CMD(do_opstringmob)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpStringMob - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3876,22 +3873,22 @@ SCRIPT_CMD(do_opstringmob)
     }
 
     if(!mob) {
-        bug("OpStringMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "OpStringMob - NULL mobile from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!IS_NPC(mob)) {
-        bug("OpStringMob - can't change strings on PCs.", 0);
+        pbugf(LOG_SCRIPTS, "OpStringMob - can't change strings on PCs from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpStringMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "OpStringMob - Missing field type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpStringMob - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3922,8 +3919,7 @@ SCRIPT_CMD(do_opstringmob)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"OpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"OpStringMob - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->obj));
             free_buf(buffer);
             return;
         }
@@ -3947,14 +3943,14 @@ SCRIPT_CMD(do_opskimprove)
     bool success = false;
 
     if(script_security < MIN_SCRIPT_SECURITY) {
-        bug("OpSkImprove - Insufficient security.",0);
+        pbugf(LOG_SCRIPTS, "OpSkImprove - Insufficient security from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpSkImprove - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -3971,19 +3967,19 @@ SCRIPT_CMD(do_opskimprove)
     }
 
     if(!mob && !token) {
-        bug("OpSkImprove - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "OpSkImprove - NULL target from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(mob) {
         if(IS_NPC(mob)) {
-            bug("OpSkImprove - NPCs don't have skills to improve yet...", 0);
+            pbugf(LOG_SCRIPTS, "OpSkImprove - NPCs don't have skills to improve yet from vnum %ld.", VNUM(info->obj));
             return;
         }
 
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("OpSkImprove - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpSkImprove - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -4001,13 +3997,13 @@ SCRIPT_CMD(do_opskimprove)
         if(sn < 1) return;
     } else {
         if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-            bug("OpSkImprove - Token is not a spell token...", 0);
+            pbugf(LOG_SCRIPTS, "OpSkImprove - Token is not a spell token from vnum %ld.", VNUM(info->obj));
             return;
         }
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpSkImprove - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4020,7 +4016,7 @@ SCRIPT_CMD(do_opskimprove)
     min_diff = 10 - script_security;	// min=10, max=1
 
     if(diff < min_diff) {
-        bug("OpSkImprove - Attempting to use a difficulty multiplier lower than allowed.",0);
+        pbugf(LOG_SCRIPTS, "OpSkImprove - Attempting to use a difficulty multiplier lower than allowed from vnum %ld.", VNUM(info->obj));
         diff = min_diff;
     }
 
@@ -4057,7 +4053,7 @@ SCRIPT_CMD(do_oprawkill)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpRawkill - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4072,14 +4068,14 @@ SCRIPT_CMD(do_oprawkill)
     }
 
     if(!mob) {
-        bug("OpRawkill - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "OpRawkill - NULL mobile from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(IS_IMMORTAL(mob)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpRawkill - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4091,7 +4087,7 @@ SCRIPT_CMD(do_oprawkill)
     if(type < 0 || type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpRawkill - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4106,7 +4102,7 @@ SCRIPT_CMD(do_oprawkill)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpRawkill - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4145,7 +4141,7 @@ SCRIPT_CMD(do_opaddaffect)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4162,12 +4158,12 @@ SCRIPT_CMD(do_opaddaffect)
     }
 
     if(!mob && !obj) {
-        bug("OpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - NULL target from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4179,7 +4175,7 @@ SCRIPT_CMD(do_opaddaffect)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4196,7 +4192,7 @@ SCRIPT_CMD(do_opaddaffect)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4206,7 +4202,7 @@ SCRIPT_CMD(do_opaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4219,7 +4215,7 @@ SCRIPT_CMD(do_opaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4231,7 +4227,7 @@ SCRIPT_CMD(do_opaddaffect)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4241,7 +4237,7 @@ SCRIPT_CMD(do_opaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4251,7 +4247,7 @@ SCRIPT_CMD(do_opaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4263,7 +4259,7 @@ SCRIPT_CMD(do_opaddaffect)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4276,7 +4272,7 @@ SCRIPT_CMD(do_opaddaffect)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -4315,7 +4311,7 @@ SCRIPT_CMD(do_opaddaffectname)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4332,12 +4328,12 @@ SCRIPT_CMD(do_opaddaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - NULL target from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4349,7 +4345,7 @@ SCRIPT_CMD(do_opaddaffectname)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4366,7 +4362,7 @@ SCRIPT_CMD(do_opaddaffectname)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4378,12 +4374,12 @@ SCRIPT_CMD(do_opaddaffectname)
     }
 
     if(!name) {
-        bug("MpAddaffect - Error allocating affect name.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error allocating affect name from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4396,7 +4392,7 @@ SCRIPT_CMD(do_opaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4408,7 +4404,7 @@ SCRIPT_CMD(do_opaddaffectname)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4418,7 +4414,7 @@ SCRIPT_CMD(do_opaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4428,7 +4424,7 @@ SCRIPT_CMD(do_opaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4440,7 +4436,7 @@ SCRIPT_CMD(do_opaddaffectname)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4453,7 +4449,7 @@ SCRIPT_CMD(do_opaddaffectname)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "MpAddaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -4490,7 +4486,7 @@ SCRIPT_CMD(do_opstripaffect)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4507,13 +4503,13 @@ SCRIPT_CMD(do_opstripaffect)
     }
 
     if(!mob && !obj) {
-        bug("OpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "OpStripaffect - NULL target from vnum %ld.", VNUM(info->obj));
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4538,7 +4534,7 @@ SCRIPT_CMD(do_opstripaffectname)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4555,13 +4551,13 @@ SCRIPT_CMD(do_opstripaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - NULL target from vnum %ld.", VNUM(info->obj));
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4588,7 +4584,7 @@ SCRIPT_CMD(do_opinput)
     info->obj->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpInput - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4603,7 +4599,7 @@ SCRIPT_CMD(do_opinput)
     }
 
     if(!mob) {
-        bug("OpInput - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "OpInput - NULL mobile from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4612,7 +4608,7 @@ SCRIPT_CMD(do_opinput)
     if( mob->desc->showstr_head != NULL ) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpInput - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4624,7 +4620,7 @@ SCRIPT_CMD(do_opinput)
     if(vnum < 1 || !get_script_index_global(vnum, PRG_OPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpInput - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4664,7 +4660,7 @@ SCRIPT_CMD(do_opusecatalyst)
     info->obj->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4678,12 +4674,12 @@ SCRIPT_CMD(do_opusecatalyst)
     }
 
     if(!mob && !room) {
-        bug("OpUseCatalyst - NULL target.", 0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - NULL target from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4695,7 +4691,7 @@ SCRIPT_CMD(do_opusecatalyst)
     if(type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4707,7 +4703,7 @@ SCRIPT_CMD(do_opusecatalyst)
     if(method == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4718,7 +4714,7 @@ SCRIPT_CMD(do_opusecatalyst)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4731,7 +4727,7 @@ SCRIPT_CMD(do_opusecatalyst)
     if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4744,7 +4740,7 @@ SCRIPT_CMD(do_opusecatalyst)
     if(max < min || max > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4775,7 +4771,7 @@ SCRIPT_CMD(do_opalterexit)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterExit - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4785,7 +4781,7 @@ SCRIPT_CMD(do_opalterexit)
     case ENT_ROOM:
         room = arg->d.room;
         if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
-            bug("OpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterExit - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
     case ENT_STRING:
@@ -4801,12 +4797,12 @@ SCRIPT_CMD(do_opalterexit)
     if(!ex) return;
 
     if(!*rest) {
-        bug("OpAlterExit - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterExit - Missing field type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterExit - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4821,7 +4817,7 @@ SCRIPT_CMD(do_opalterexit)
 
     if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("OpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterExit - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -4857,7 +4853,7 @@ SCRIPT_CMD(do_opalterexit)
         expand_string(info,rest,buffer);
 
         if(!buffer->string[0]) {
-            bug("OpAlterExit - Empty string used.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterExit - Empty string used from vnum %ld.", VNUM(info->obj));
             free_buf(buffer);
             return;
         }
@@ -4871,7 +4867,7 @@ SCRIPT_CMD(do_opalterexit)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterExit - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -4896,7 +4892,7 @@ SCRIPT_CMD(do_opalterexit)
     if(script_security < min_sec) {
         sprintf(buf,"OpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "OpAlterExit - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, VNUM(info->obj));
         return;
     }
 
@@ -4957,43 +4953,43 @@ SCRIPT_CMD(do_opalterexit)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("OpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr += value;
             break;
         case '-':
             if( !allowarith ) {
-                bug("OpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr -= value;
             break;
         case '*':
             if( !allowarith ) {
-                bug("OpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr *= value;
             break;
         case '/':
             if( !allowarith ) {
-                bug("OpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
             if (!value) {
-                bug("OpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("OpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
             if (!value) {
-                bug("OpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr %= value;
@@ -5014,14 +5010,14 @@ SCRIPT_CMD(do_opalterexit)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("OpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("OpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterExit - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *sptr %= value;
@@ -5057,7 +5053,7 @@ SCRIPT_CMD(do_opprompt)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpPrompt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5072,22 +5068,22 @@ SCRIPT_CMD(do_opprompt)
     }
 
     if(!mob) {
-        bug("OpPrompt - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS, "OpPrompt - NULL mobile from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(IS_NPC(mob)) {
-        bug("OpPrompt - cannot set prompt strings on NPCs.", 0);
+        pbugf(LOG_SCRIPTS, "OpPrompt - cannot set prompt strings on NPCs from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!*rest) {
-        bug("OpPrompt - Missing name type.",0);
+        pbugf(LOG_SCRIPTS, "OpPrompt - Missing name type from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpPrompt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5280,7 +5276,7 @@ SCRIPT_CMD(do_opalterroom)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5297,12 +5293,12 @@ SCRIPT_CMD(do_opalterroom)
     if(!room || !room_is_clone(room)) return;
 
     if(!*rest) {
-        bug("OpAlterRoom - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterRoom - Missing field type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5317,7 +5313,7 @@ SCRIPT_CMD(do_opalterroom)
 
         if(!str_cmp(field,"mapid")) {
                 if(!(rest = expand_argument(info,rest,arg))) {
-                        bug("OpAlterRoom - Error in parsing.",0);
+                        pbugf(LOG_SCRIPTS, "OpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->obj));
                         return;
                 }
                 switch(arg->type) {
@@ -5328,7 +5324,7 @@ SCRIPT_CMD(do_opalterroom)
                 case ENT_NUMBER:
                         wilds = get_wilds_from_uid(NULL,arg->d.num);
                         if(!wilds){
-                                bug("Not a valid wilds uid",0);
+                                pbugf(LOG_SCRIPTS, "OpAlterRoom - Not a valid wilds uid from vnum %ld.", VNUM(info->obj));
                                 return;
                         }
                         room->viewwilds=wilds;
@@ -5342,7 +5338,7 @@ SCRIPT_CMD(do_opalterroom)
         !str_cmp(field,"extern") || !str_cmp(field,"outside")) {
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("OpAlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -5379,7 +5375,7 @@ SCRIPT_CMD(do_opalterroom)
         if(script_security < min_sec) {
             sprintf(buf,"OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "OpAlterRoom - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, VNUM(info->obj));
             return;
         }
 
@@ -5387,7 +5383,7 @@ SCRIPT_CMD(do_opalterroom)
         expand_string(info,rest,buffer);
 
         if(!allow_empty && !buffer->string[0]) {
-            bug("OpAlterRoom - Empty string used.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterRoom - Empty string used from vnum %ld.", VNUM(info->obj));
             free_buf(buffer);
             return;
         }
@@ -5401,7 +5397,7 @@ SCRIPT_CMD(do_opalterroom)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5423,7 +5419,7 @@ SCRIPT_CMD(do_opalterroom)
     if(script_security < min_sec) {
         sprintf(buf,"OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, buf);
         return;
     }
 
@@ -5492,45 +5488,45 @@ SCRIPT_CMD(do_opalterroom)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("OpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             *ptr += value; break;
         case '-':
             if( !allowarith ) {
-                bug("OpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             *ptr -= value; break;
         case '*':
             if( !allowarith ) {
-                bug("OpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             *ptr *= value; break;
         case '/':
             if( !allowarith ) {
-                bug("OpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             if (!value) {
-                bug("OpAlterRoom - alterroom called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("OpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
             if (!value) {
-                bug("OpAlterRoom - alterroom called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *ptr %= value;
@@ -5548,7 +5544,7 @@ SCRIPT_CMD(do_opalterroom)
 
         case '&':
             if( !allowbitwise ) {
-                bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -5562,7 +5558,7 @@ SCRIPT_CMD(do_opalterroom)
             break;
         case '|':
             if( !allowbitwise ) {
-                bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -5576,7 +5572,7 @@ SCRIPT_CMD(do_opalterroom)
             break;
         case '!':
             if( !allowbitwise ) {
-                bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -5590,7 +5586,7 @@ SCRIPT_CMD(do_opalterroom)
             break;
         case '^':
             if( !allowbitwise ) {
-                bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->obj));
                 return;
             }
 
@@ -5613,14 +5609,14 @@ SCRIPT_CMD(do_opalterroom)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("OpAlterRoom - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("OpAlterRoom - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS, "OpAlterRoom - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->obj));
                 return;
             }
             *sptr %= value;
@@ -5711,7 +5707,7 @@ SCRIPT_CMD(do_opshowroom)
     }
 
     if(!viewer && !room) {
-        bug("OpShowMap - bad target for showing the map", 0);
+        pbugf(LOG_SCRIPTS, "OpShowMap - bad target for showing the map from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5858,25 +5854,25 @@ SCRIPT_CMD(do_opxcall)
     if(!info || !info->obj) return;
 
     if (!argument[0]) {
-        bug("OpCall: missing arguments from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: missing arguments from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(script_security < 5) {
-        bug("OpCall: Minimum security needed is 5.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: Minimum security needed is 5 from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("OpCall: maximum call depth exceeded for obj vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: maximum call depth exceeded for obj vnum %ld.", VNUM(info->obj));
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -5890,21 +5886,21 @@ SCRIPT_CMD(do_opxcall)
     }
 
     if(!mob && !obj && !room && !token) {
-        bug("OpCall: No entity target from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: No entity target from vnum %ld.", VNUM(info->obj));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(mob && !IS_NPC(mob)) {
-        bug("OpCall: Invalid target for xcall.  Players cannot do scripts.", 0);
+        pbugf(LOG_SCRIPTS, "OpCall: Invalid target for xcall.  Players cannot do scripts from vnum %ld.", VNUM(info->obj));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -5917,7 +5913,7 @@ SCRIPT_CMD(do_opxcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
-        bug("OpCall: invalid prog from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpCall: invalid prog from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -5927,7 +5923,7 @@ SCRIPT_CMD(do_opxcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5943,7 +5939,7 @@ SCRIPT_CMD(do_opxcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5951,7 +5947,7 @@ SCRIPT_CMD(do_opxcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5967,7 +5963,7 @@ SCRIPT_CMD(do_opxcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5985,7 +5981,7 @@ SCRIPT_CMD(do_opxcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
+            pbugf(LOG_SCRIPTS, "OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6023,7 +6019,7 @@ SCRIPT_CMD(do_opchargebank)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6034,12 +6030,12 @@ SCRIPT_CMD(do_opchargebank)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("OpChargeBank - Non-player victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpChargeBank - Non-player victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6067,7 +6063,7 @@ SCRIPT_CMD(do_opwiretransfer)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6078,12 +6074,12 @@ SCRIPT_CMD(do_opwiretransfer)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("OpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6123,7 +6119,7 @@ SCRIPT_CMD(do_opsetrecall)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpSetRecall - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpSetRecall - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6141,14 +6137,14 @@ SCRIPT_CMD(do_opsetrecall)
 
 
     if (!victim && !room) {
-        bug("OpSetRecall - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpSetRecall - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     argument = op_getlocation(info, rest, &location);
 
     if(!location) {
-        bug("OpSetRecall - Bad location from vnum %d.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpSetRecall - Bad location from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6187,7 +6183,7 @@ SCRIPT_CMD(do_opclearrecall)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpClearRecall - Bad syntax from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpClearRecall - Bad syntax from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6201,7 +6197,7 @@ SCRIPT_CMD(do_opclearrecall)
 
 
     if (!victim) {
-        bug("OpClearRecall - Null victim from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpClearRecall - Null victim from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6222,7 +6218,7 @@ SCRIPT_CMD(do_ophunt)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6233,12 +6229,12 @@ SCRIPT_CMD(do_ophunt)
     }
 
     if (!hunter) {
-        bug("OpHunt - Null hunter from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpHunt - Null hunter from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("OpHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6249,7 +6245,7 @@ SCRIPT_CMD(do_ophunt)
     }
 
     if (!prey) {
-        bug("OpHunt - Null prey from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpHunt - Null prey from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6268,14 +6264,14 @@ SCRIPT_CMD(do_opstophunt)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
-        bug("OpStopHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpStopHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
     stay = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"stay");
 
     if(!expand_argument(info,rest,arg)) {
-        bug("OpStopHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpStopHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6286,7 +6282,7 @@ SCRIPT_CMD(do_opstophunt)
     }
 
     if (!hunter) {
-        bug("OpStopHunt - Null hunter from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpStopHunt - Null hunter from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6307,7 +6303,7 @@ SCRIPT_CMD(do_oppersist)
     if(!info || !info->obj) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpPersist - Error in parsing from vnum %ld.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpPersist - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6318,7 +6314,7 @@ SCRIPT_CMD(do_oppersist)
     }
 
     if(!mob && !obj && !room) {
-        bug("OpPersist - NULL target.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpPersist - NULL target.", VNUM(info->obj));
         return;
     }
 
@@ -6340,7 +6336,7 @@ SCRIPT_CMD(do_oppersist)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpPersist - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpPersist - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6352,7 +6348,7 @@ SCRIPT_CMD(do_oppersist)
 
     // Require security to ENABLE persistance
     if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        bug("OpPersist - Insufficient security to enable persistance.", VNUM(info->obj));
+        pbugf(LOG_SCRIPTS, "OpPersist - Insufficient security to enable persistance from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6704,7 +6700,7 @@ SCRIPT_CMD(do_opremspell)
     if(!info || !info->token || IS_NULLSTR(argument)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("OpRemSpell - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpRemSpell - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6713,7 +6709,7 @@ SCRIPT_CMD(do_opremspell)
     target = arg->d.obj;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpRemSpell - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpRemSpell - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6727,7 +6723,7 @@ SCRIPT_CMD(do_opremspell)
 
     if( rest && *rest ) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("OpRemSpell - Error in parsing.",0);
+            pbugf("OpRemSpell - Error in parsing.",0);
             return;
         }
 
@@ -6850,7 +6846,7 @@ SCRIPT_CMD(do_opalteraffect)
     paf = arg->d.aff;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("OpAlterAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "OpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
         return;
     }
 
@@ -6865,7 +6861,7 @@ SCRIPT_CMD(do_opalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
@@ -6908,17 +6904,17 @@ SCRIPT_CMD(do_opalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("OpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
             return;
         }
 
         if( paf->slot != WEAR_NONE ) {
-            bug("OpAlterAffect - Attempting to modify duration of an object given affect.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterAffect - Attempting to modify duration of an object given affect from vnum %ld.", VNUM(info->obj));
             return;
         }
 
         if( paf->group == AFFGROUP_RACIAL ) {
-            bug("OpAlterAffect - Attempting to modify duration of a racial affect.",0);
+            pbugf(LOG_SCRIPTS, "OpAlterAffect - Attempting to modify duration of a racial affect from vnum %ld.", VNUM(info->obj));
             return;
         }
 

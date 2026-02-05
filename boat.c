@@ -713,9 +713,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_ship: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_ship: no match for word %.50s", word);
         }
 
     }
@@ -734,7 +732,7 @@ void load_ships()
     FILE *fp = fopen(SHIPS_FILE, "r");
     if (fp == NULL)
     {
-        bug("Couldn't read ships.dat", 0);
+        pbugf(LOG_ERROR, "Couldn't read ships.dat");
         return;
     }
 
@@ -760,7 +758,7 @@ void load_ships()
             }
             else
             {
-                bug("load_ships: ship %ld has no area assigned", ship->vnum);
+                pbugf(LOG_ERROR, "load_ships: ship %ld has no area assigned", ship->vnum);
             }
 
             fMatch = true;
@@ -768,9 +766,7 @@ void load_ships()
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_ships: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_ships: no match for word %.50s", word);
         }
     }
 
@@ -839,7 +835,7 @@ bool save_ships()
     FILE *fp = fopen(SHIPS_FILE, "w");
     if (fp == NULL)
     {
-        bug("Couldn't save ships.dat", 0);
+        pbugf(LOG_ERROR, "Couldn't save ships.dat");
         return false;
     }
 
@@ -993,7 +989,7 @@ SHIP_DATA *create_ship(WNUM wnum)
     // Verify the object index exists and is a ship
     if( !obj_index )
     {
-        bug("create_ship: ship %s has no valid ship_object (ref %lu#%ld)", 
+        pbugf(LOG_ERROR, "create_ship: ship %s has no valid ship_object (ref %lu#%ld)", 
             widevnum_string_wnum(wnum, NULL), 
             ship_index->ship_object_ref.load.auid,
             ship_index->ship_object_ref.load.vnum);
@@ -1002,9 +998,7 @@ SHIP_DATA *create_ship(WNUM wnum)
 
     if( obj_index->item_type != ITEM_SHIP )
     {
-        char buf[MSL];
-        sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%s)", obj_index->vnum, widevnum_string_wnum(wnum, NULL));
-        bug(buf, 0);
+        pbugf(LOG_ERROR, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%s)", obj_index->vnum, widevnum_string_wnum(wnum, NULL));
         return NULL;
     }
 
@@ -1050,7 +1044,7 @@ SHIP_DATA *create_ship(WNUM wnum)
 
     if( !blueprint )
     {
-        bug("create_ship: ship %s has no valid blueprint (ref %lu#%ld)", 
+        pbugf(LOG_ERROR, "create_ship: ship %s has no valid blueprint (ref %lu#%ld)", 
             widevnum_string_wnum(wnum, NULL), 
             ship_index->blueprint_ref.load.auid,
             ship_index->blueprint_ref.load.vnum);
@@ -1683,9 +1677,7 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "ship_special_key_load: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "ship_special_key_load: no match for word %.50s", word);
         }
     }
 
@@ -1734,9 +1726,7 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "ship_route_load: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "ship_route_load: no match for word %.50s", word);
         }
     }
 
@@ -2062,9 +2052,7 @@ SHIP_DATA *ship_load(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "ship_load: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "ship_load: no match for word %.50s", word);
         }
 
     }

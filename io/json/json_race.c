@@ -143,17 +143,15 @@ static RACE_DATA *race_load_json(const char *filename)
 
     root = json_load_file(filename, 0, &error);
     if (!root) {
-        bug("race_load_json: Error loading race file", 0);
-        log_string(filename);
-        log_string(error.text);
+        pbugf(LOG_INIT, "Error loading race file: %s", filename);
+        pbugf(LOG_INIT, "Error details: %s", error.text);
         return NULL;
     }
 
     /* Validate format */
     str = json_string_value(json_object_get(root, "_format"));
     if (!str || str_cmp(str, "race_data")) {
-        bug("race_load_json: Invalid format in race file", 0);
-        log_string(filename);
+        pbugf(LOG_INIT, "Invalid format in race file: %s", filename);
         json_decref(root);
         return NULL;
     }
@@ -331,8 +329,7 @@ void load_races(void)
     /* Open races directory */
     dir = opendir(RACES_DIR);
     if (!dir) {
-        bug("load_races: Cannot open races directory: %s", 0);
-        log_string(RACES_DIR);
+        pbugf(LOG_INIT, "Could not access RACES_DIR at %s", RACES_DIR);
         return;
     }
 
@@ -367,7 +364,7 @@ void load_races(void)
     closedir(dir);
 
     if (race_count == 0) {
-        bug("load_races: No races loaded!", 0);
+        pbugf(LOG_INIT, "No races loaded! Check if there are valid JSON files in %s", RACES_DIR);
         return;
     }
 

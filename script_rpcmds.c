@@ -264,7 +264,7 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 
 void room_interpret(SCRIPT_VARINFO *info, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], command[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
     int cmd;
 
     if(!info->room) return;
@@ -277,8 +277,7 @@ void room_interpret(SCRIPT_VARINFO *info, char *argument)
     cmd = rpcmd_lookup(command);
 
     if(cmd < 0) {
-        sprintf(buf, "Room_interpret: invalid cmd from room %ld: '%s'", info->room->vnum, command);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Room_interpret: invalid cmd from room %ld: '%s'", info->room->vnum, command);
         return;
     }
 
@@ -498,12 +497,12 @@ SCRIPT_CMD(do_rpat)
     bool remote;
 
     if(!(argument = rp_getlocation(info, argument, &dest))) {
-        bug("Rpat - Bad argument from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "Rpat - Bad argument from vnum %d.", info->room->vnum);
         return;
     }
 
     if (!dest) {
-        bug("Rpat - Null location from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "Rpat - Null location from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -554,21 +553,21 @@ SCRIPT_CMD(do_rpcall)
     if(!info || !info->room) return;
 
     if (!argument[0]) {
-        bug("RpCall: missing arguments from vnum %d.", (int)info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpCall: missing arguments from vnum %d.", (int)info->room->vnum);
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("RpCall: maximum call depth exceeded for vnum %d.", (int)info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpCall: maximum call depth exceeded for vnum %d.", (int)info->room->vnum);
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpCall: Error in parsing from vnum %ld.", info->room->vnum);
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -581,7 +580,7 @@ SCRIPT_CMD(do_rpcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_RPROG))) {
-        bug("RpCall: invalid prog from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpCall: invalid prog from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -591,7 +590,7 @@ SCRIPT_CMD(do_rpcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -607,7 +606,7 @@ SCRIPT_CMD(do_rpcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -615,7 +614,7 @@ SCRIPT_CMD(do_rpcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -631,7 +630,7 @@ SCRIPT_CMD(do_rpcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -649,7 +648,7 @@ SCRIPT_CMD(do_rpcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -693,7 +692,7 @@ SCRIPT_CMD(do_rpdamage)
     if(!info || !info->room || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpDamage - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -707,18 +706,18 @@ SCRIPT_CMD(do_rpdamage)
     }
 
     if (!victim && !fAll) {
-        bug("RpDamage - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!*rest) {
-        bug("RpDamage - missing argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - missing argument from vnum %ld.", info->room->vnum);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpDamage - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -731,23 +730,23 @@ SCRIPT_CMD(do_rpdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("RpDamage - invalid argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - invalid argument from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!*rest) {
-        bug("RpDamage - missing argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - missing argument from vnum %ld.", info->room->vnum);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpDamage - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(fLevel && !victim) {
-        bug("RpDamage - Level aspect used with null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - Level aspect used with null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -763,7 +762,7 @@ SCRIPT_CMD(do_rpdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("RpDamage - invalid argument from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpDamage - invalid argument from vnum %ld.", info->room->vnum);
             return;
         }
         break;
@@ -771,17 +770,17 @@ SCRIPT_CMD(do_rpdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("RpDamage - Null reference mob from vnum %ld.", info->room->vnum);
+                pbugf(LOG_SCRIPTS, "RpDamage - Null reference mob from vnum %ld.", info->room->vnum);
                 return;
             }
             break;
         } else {
-            bug("RpDamage - invalid argument from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpDamage - invalid argument from vnum %ld.", info->room->vnum);
             return;
         }
         break;
     default:
-        bug("RpDamage - invalid argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDamage - invalid argument from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -814,7 +813,7 @@ SCRIPT_CMD(do_rpdelay)
     if(!info || !info->room) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("RpDelay - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDelay - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -825,7 +824,7 @@ SCRIPT_CMD(do_rpdelay)
     }
 
     if (delay < 1) {
-        bug("RpDelay: invalid delay from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpDelay: invalid delay from vnum %d.", info->room->vnum);
         return;
     }
     info->room->progs->delay = delay;
@@ -1227,7 +1226,7 @@ SCRIPT_CMD(do_rpforce)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpForce - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpForce - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1241,7 +1240,7 @@ SCRIPT_CMD(do_rpforce)
     }
 
     if (!fAll && !victim) {
-        bug("RpForce - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpForce - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1287,7 +1286,7 @@ SCRIPT_CMD(do_rpgdamage)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpGdamage - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1298,18 +1297,18 @@ SCRIPT_CMD(do_rpgdamage)
     }
 
     if (!victim) {
-        bug("RpGdamage - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!*rest) {
-        bug("RpGdamage - missing argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - missing argument from vnum %ld.", info->room->vnum);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpGdamage - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1322,18 +1321,18 @@ SCRIPT_CMD(do_rpgdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!*rest) {
-        bug("RpGdamage - missing argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - missing argument from vnum %ld.", info->room->vnum);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpGdamage - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1348,7 +1347,7 @@ SCRIPT_CMD(do_rpgdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
             return;
         }
         break;
@@ -1356,17 +1355,17 @@ SCRIPT_CMD(do_rpgdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("RpGdamage - Null reference mob from vnum %ld.", info->room->vnum);
+                pbugf(LOG_SCRIPTS, "RpGdamage - Null reference mob from vnum %ld.", info->room->vnum);
                 return;
             }
             break;
         } else {
-            bug("RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
             return;
         }
         break;
     default:
-        bug("RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1395,7 +1394,7 @@ SCRIPT_CMD(do_rpgecho)
     if(!info || !info->room) return;
 
     if (!argument[0]) {
-        bug("RpGEcho: missing argument from vnum %d", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGEcho: missing argument from vnum %d", info->room->vnum);
         return;
     }
 
@@ -1426,7 +1425,7 @@ SCRIPT_CMD(do_rpgforce)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpGforce - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGforce - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1437,7 +1436,7 @@ SCRIPT_CMD(do_rpgforce)
     }
 
     if (!victim) {
-        bug("RpGforce - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGforce - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1468,7 +1467,7 @@ SCRIPT_CMD(do_rpgtransfer)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1480,19 +1479,19 @@ SCRIPT_CMD(do_rpgtransfer)
 
 
     if (!victim) {
-        bug("RpGtransfer - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGtransfer - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     if (!victim->in_room) return;
 
     if(!(argument = rp_getlocation(info, rest, &dest))) {
-        bug("RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!dest) {
-        bug("RpGtransfer - Bad location from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpGtransfer - Bad location from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -1550,7 +1549,7 @@ SCRIPT_CMD(do_rplink)
     if (!room) return;
 
     if (door < 0) {
-        bug("OPlink used without an argument from room vnum %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "OPlink used without an argument from room vnum %d.", room->vnum);
         return;
     }
 
@@ -1610,7 +1609,7 @@ SCRIPT_CMD(do_rplink)
     }
 
     if(vnum < 0) {
-        bug("RPlink - invalid argument in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "RPlink - invalid argument in room %d.", room->vnum);
         return;
     }
 
@@ -1628,7 +1627,7 @@ SCRIPT_CMD(do_rplink)
         dest = NULL;
 
     if(!dest && !del) {
-        bug("RPlink - invalid destination in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS, "RPlink - invalid destination in room %d.", room->vnum);
         return;
     }
 
@@ -1666,7 +1665,7 @@ SCRIPT_CMD(do_rpoload)
     }
 
     if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-        bug("Rpoload - Bad vnum arg from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "Rpoload - Bad vnum arg from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -1764,7 +1763,7 @@ SCRIPT_CMD(do_rpotransfer)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpOtransfer - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpOtransfer - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1776,7 +1775,7 @@ SCRIPT_CMD(do_rpotransfer)
 
 
     if (!obj) {
-        bug("RpOtransfer - Null object from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpOtransfer - Null object from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1787,7 +1786,7 @@ SCRIPT_CMD(do_rpotransfer)
     argument = rp_getolocation(info, rest, &dest, &container, &carrier, &wear_loc);
 
     if(!dest && !container && !carrier) {
-        bug("RpOTransfer - Bad location from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpOTransfer - Bad location from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -1857,7 +1856,7 @@ SCRIPT_CMD(do_rppurge)
 
     if(victim) {
         if (!IS_NPC(victim)) {
-            bug("Rppurge - Attempting to purge a PC from vnum %d.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "Rppurge - Attempting to purge a PC from vnum %d.", info->room->vnum);
             return;
         }
         extract_char(victim, true);
@@ -1888,7 +1887,7 @@ SCRIPT_CMD(do_rppurge)
                 extract_obj(obj);
         }
     } else
-        bug("Rppurge - Bad argument from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "Rppurge - Bad argument from vnum %d.", info->room->vnum);
 }
 
 SCRIPT_CMD(do_rpqueue)
@@ -1906,12 +1905,12 @@ SCRIPT_CMD(do_rpqueue)
     case ENT_NUMBER: delay = arg->d.num; break;
     case ENT_STRING: delay = atoi(arg->d.str); break;
     default:
-        bug("RpQueue:  missing arguments from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpQueue:  missing arguments from vnum %d.", info->room->vnum);
         return;
     }
 
     if (delay < 0 || delay > 1000) {
-        bug("RpQueue:  unreasonable delay recieved from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpQueue:  unreasonable delay recieved from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -1926,7 +1925,7 @@ SCRIPT_CMD(do_rpremember)
     if(!info || !info->room) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("RpRemember: Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpRemember: Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1937,7 +1936,7 @@ SCRIPT_CMD(do_rpremember)
     }
 
     if (!victim) {
-        bug("RpRemember: Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpRemember: Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1957,7 +1956,7 @@ SCRIPT_CMD(do_rpremove)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpRemove - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpRemove - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1968,7 +1967,7 @@ SCRIPT_CMD(do_rpremove)
     }
 
     if (!victim) {
-        bug("RpRemove - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpRemove - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -1976,7 +1975,7 @@ SCRIPT_CMD(do_rpremove)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpRemove - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpRemove - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2003,7 +2002,7 @@ SCRIPT_CMD(do_rpremove)
     if(!fAll && !obj && *rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpRemove - Bad syntax from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpRemove - Bad syntax from vnum %ld.", info->room->vnum);
             return;
         }
 
@@ -2014,7 +2013,7 @@ SCRIPT_CMD(do_rpremove)
         }
 
         if(count < 0) {
-            bug ("RpRemove - Invalid count from vnum %d.", info->room->vnum);
+            pbugf(LOG_SCRIPTS, "RpRemove - Invalid count from vnum %d.", info->room->vnum);
             count = 0;
         }
     }
@@ -2088,7 +2087,7 @@ SCRIPT_CMD(do_rptransfer)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpTransfer - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpTransfer - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2103,7 +2102,7 @@ SCRIPT_CMD(do_rptransfer)
 
 
     if (!victim && !all) {
-        bug("RpTransfer - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpTransfer - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2113,7 +2112,7 @@ SCRIPT_CMD(do_rptransfer)
     argument = rp_getlocation(info, rest, &dest);
 
     if(!dest) {
-        bug("RpTransfer - Bad location from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpTransfer - Bad location from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -2157,7 +2156,7 @@ SCRIPT_CMD(do_rpvforce)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpVforce - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpVforce - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2168,7 +2167,7 @@ SCRIPT_CMD(do_rpvforce)
     }
 
     if (vnum < 1) {
-        bug("RpVforce - Invalid vnum from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpVforce - Invalid vnum from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2234,7 +2233,7 @@ SCRIPT_CMD(do_rpzot)
 
 
     if (!victim) {
-        bug("RpZot - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS, "RpZot - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2307,7 +2306,7 @@ SCRIPT_CMD(do_rpsettimer)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpSetTimer - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2322,19 +2321,19 @@ SCRIPT_CMD(do_rpsettimer)
     }
 
     if(!victim) {
-        bug("RpSetTimer - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS, "RpSetTimer - NULL victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!*rest) {
-        bug("RpSetTimer - Missing timer type.",0);
+        pbugf(LOG_SCRIPTS, "RpSetTimer - Missing timer type from vnum %ld.", info->room->vnum);
         return;
     }
 
     buf[0] = 0;
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpSetTimer - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2346,13 +2345,13 @@ SCRIPT_CMD(do_rpsettimer)
     }
 
     if(!*rest) {
-        bug("RpSetTimer - Missing timer amount.",0);
+        pbugf(LOG_SCRIPTS, "RpSetTimer - Missing timer amount from vnum %ld.", info->room->vnum);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpSetTimer - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2414,7 +2413,7 @@ SCRIPT_CMD(do_rpinterrupt)
     info->room->progs->lastreturn = 0;	// Nothing was interrupted
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpInterrupt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpInterrupt - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2429,7 +2428,7 @@ SCRIPT_CMD(do_rpinterrupt)
     }
 
     if(!victim) {
-        bug("RpInterrupt - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS, "RpInterrupt - NULL victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2438,7 +2437,7 @@ SCRIPT_CMD(do_rpinterrupt)
     if(buffer->string[0] != '\0') {
         stop = flag_value(interrupt_action_types,buffer->string);
         if(stop == NO_FLAG) {
-            bug("RpInterrupt - invalid interrupt type.", 0);
+            pbugf(LOG_SCRIPTS, "RpInterrupt - invalid interrupt type from vnum %ld.", info->room->vnum);
             free_buf(buffer);
             return;
         }
@@ -2596,7 +2595,7 @@ SCRIPT_CMD(do_rpalterobj)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpAlterObj - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2611,17 +2610,17 @@ SCRIPT_CMD(do_rpalterobj)
     }
 
     if(!obj) {
-        bug("RpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS, "RpAlterObj - NULL object from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!*rest) {
-        bug("RpAlterObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS, "RpAlterObj - Missing field type from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpAlterObj - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2648,7 +2647,7 @@ SCRIPT_CMD(do_rpalterobj)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS, "RpAlterObj - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -2664,8 +2663,7 @@ SCRIPT_CMD(do_rpalterobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"RpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"RpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
             return;
         }
 
@@ -2675,14 +2673,14 @@ SCRIPT_CMD(do_rpalterobj)
         case '*': obj->value[num] *= value; break;
         case '/':
             if (!value) {
-                bug("RpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - adjust called with operator / and value 0", 0);
                 return;
             }
             obj->value[num] /= value;
             break;
         case '%':
             if (!value) {
-                bug("RpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - adjust called with operator % and value 0", 0);
                 return;
             }
             obj->value[num] %= value;
@@ -2724,8 +2722,7 @@ SCRIPT_CMD(do_rpalterobj)
         if(!ptr) return;
 
         if(script_security < min_sec) {
-            sprintf(buf,"RpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"RpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             return;
         }
 
@@ -2783,7 +2780,7 @@ SCRIPT_CMD(do_rpalterobj)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
@@ -2792,7 +2789,7 @@ SCRIPT_CMD(do_rpalterobj)
 
         case '-':
             if( !allowarith ) {
-                bug("RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
@@ -2801,7 +2798,7 @@ SCRIPT_CMD(do_rpalterobj)
 
         case '*':
             if( !allowarith ) {
-                bug("RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
@@ -2810,24 +2807,24 @@ SCRIPT_CMD(do_rpalterobj)
 
         case '/':
             if( !allowarith ) {
-                bug("RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             if (!value) {
-                bug("RpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - adjust called with operator / and value 0", 0);
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             if (!value) {
-                bug("RpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterObj - adjust called with operator % and value 0", 0);
                 return;
             }
             *ptr %= value;
@@ -2864,7 +2861,7 @@ SCRIPT_CMD(do_rpresetdice)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterObj - Error in parsing.",0);
         return;
     }
 
@@ -2879,7 +2876,7 @@ SCRIPT_CMD(do_rpresetdice)
     }
 
     if(!obj) {
-        bug("RpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS,"RpAlterObj - NULL object.", 0);
         return;
     }
 
@@ -2900,7 +2897,7 @@ SCRIPT_CMD(do_rpstringobj)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpStringObj - Error in parsing.",0);
         return;
     }
 
@@ -2915,17 +2912,17 @@ SCRIPT_CMD(do_rpstringobj)
     }
 
     if(!obj) {
-        bug("RpStringObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS,"RpStringObj - NULL object.", 0);
         return;
     }
 
     if(!*rest) {
-        bug("RpStringObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"RpStringObj - Missing field type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpStringObj - Error in parsing.",0);
         return;
     }
 
@@ -2984,7 +2981,7 @@ SCRIPT_CMD(do_rpstringobj)
             int mat = material_lookup(buf);
 
             if(mat < 0) {
-                bug("RpStringObj - Invalid material.\n\r", 0);
+                pbugf(LOG_SCRIPTS,"RpStringObj - Invalid material.\n\r", 0);
                 free_buf(buffer);
                 return;
             }
@@ -3002,8 +2999,7 @@ SCRIPT_CMD(do_rpstringobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"RpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"RpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
             free_buf(buffer);
             return;
         }
@@ -3040,7 +3036,7 @@ SCRIPT_CMD(do_rpaltermob)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterMob - Error in parsing.",0);
         return;
     }
 
@@ -3055,17 +3051,17 @@ SCRIPT_CMD(do_rpaltermob)
     }
 
     if(!mob) {
-        bug("RpAlterMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"RpAlterMob - NULL mobile.", 0);
         return;
     }
 
     if(!*rest) {
-        bug("RpAlterMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterMob - Missing field type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterMob - Error in parsing.",0);
         return;
     }
 
@@ -3082,7 +3078,7 @@ SCRIPT_CMD(do_rpaltermob)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterMob - Error in parsing.",0);
         return;
     }
 
@@ -3188,7 +3184,7 @@ SCRIPT_CMD(do_rpaltermob)
         return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"AlterMob - Error in parsing.",0);
         return;
     }
 
@@ -3197,8 +3193,7 @@ SCRIPT_CMD(do_rpaltermob)
     if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
     if(script_security < min_sec) {
-        sprintf(buf,"RpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS,"RpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         return;
     }
 
@@ -3284,7 +3279,7 @@ SCRIPT_CMD(do_rpaltermob)
         switch (op) {
         case OPR_ADD:
             if (!allowarith) {
-        bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
         return;
     }
             *lptr += value;
@@ -3300,7 +3295,7 @@ SCRIPT_CMD(do_rpaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator / and value 0", 0);
                 return;
             }
             *lptr /= value;
@@ -3308,7 +3303,7 @@ SCRIPT_CMD(do_rpaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator % and value 0", 0);
                 return;
             }
             *lptr %= value;
@@ -3347,7 +3342,7 @@ SCRIPT_CMD(do_rpaltermob)
                     lptr[i] &= temp_flags[i];
             }
                 if (!allowbitwise) {
-        bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
         return;
                 }
             else
@@ -3410,7 +3405,7 @@ SCRIPT_CMD(do_rpaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator / and value 0", 0);
                 return;
             }
             *ptr /= value;
@@ -3418,7 +3413,7 @@ SCRIPT_CMD(do_rpaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator % and value 0", 0);
                 return;
             }
             *ptr %= value;
@@ -3517,7 +3512,7 @@ SCRIPT_CMD(do_rpstringmob)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpStringMob - Error in parsing.",0);
         return;
     }
 
@@ -3532,22 +3527,22 @@ SCRIPT_CMD(do_rpstringmob)
     }
 
     if(!mob) {
-        bug("RpStringMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"RpStringMob - NULL mobile.", 0);
         return;
     }
 
     if(!IS_NPC(mob)) {
-        bug("RpStringMob - can't change strings on PCs.", 0);
+        pbugf(LOG_SCRIPTS,"RpStringMob - can't change strings on PCs.", 0);
         return;
     }
 
     if(!*rest) {
-        bug("RpStringMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"RpStringMob - Missing field type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpStringMob - Error in parsing.",0);
         return;
     }
 
@@ -3578,8 +3573,7 @@ SCRIPT_CMD(do_rpstringmob)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"RpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"RpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
             free_buf(buffer);
             return;
         }
@@ -3603,14 +3597,14 @@ SCRIPT_CMD(do_rpskimprove)
     bool success = false;
 
     if(script_security < MIN_SCRIPT_SECURITY) {
-        bug("RpSkImprove - Insufficient security.",0);
+        pbugf(LOG_SCRIPTS,"RpSkImprove - Insufficient security.",0);
         return;
     }
 
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpSkImprove - Error in parsing.",0);
         return;
     }
 
@@ -3627,19 +3621,19 @@ SCRIPT_CMD(do_rpskimprove)
     }
 
     if(!mob && !token) {
-        bug("RpSkImprove - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"RpSkImprove - NULL target.", 0);
         return;
     }
 
     if(mob) {
         if(IS_NPC(mob)) {
-            bug("RpSkImprove - NPCs don't have skills to improve yet...", 0);
+            pbugf(LOG_SCRIPTS,"RpSkImprove - NPCs don't have skills to improve yet...", 0);
             return;
         }
 
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("RpSkImprove - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"RpSkImprove - Error in parsing.",0);
             return;
         }
 
@@ -3657,13 +3651,13 @@ SCRIPT_CMD(do_rpskimprove)
         if(sn < 1) return;
     } else {
         if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-            bug("RpSkImprove - Token is not a spell token...", 0);
+            pbugf(LOG_SCRIPTS,"RpSkImprove - Token is not a spell token...", 0);
             return;
         }
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpSkImprove - Error in parsing.",0);
         return;
     }
 
@@ -3676,7 +3670,7 @@ SCRIPT_CMD(do_rpskimprove)
     min_diff = 10 - script_security;	// min=10, max=1
 
     if(diff < min_diff) {
-        bug("RpSkImprove - Attempting to use a difficulty multiplier lower than allowed.",0);
+        pbugf(LOG_SCRIPTS,"RpSkImprove - Attempting to use a difficulty multiplier lower than allowed.",0);
         diff = min_diff;
     }
 
@@ -3713,7 +3707,7 @@ SCRIPT_CMD(do_rprawkill)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpRawkill - Error in parsing.",0);
         return;
     }
 
@@ -3728,14 +3722,14 @@ SCRIPT_CMD(do_rprawkill)
     }
 
     if(!mob) {
-        bug("RpRawkill - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"RpRawkill - NULL mobile.", 0);
         return;
     }
 
     if(IS_IMMORTAL(mob)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpRawkill - Error in parsing.",0);
         return;
     }
 
@@ -3747,7 +3741,7 @@ SCRIPT_CMD(do_rprawkill)
     if(type < 0 || type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpRawkill - Error in parsing.",0);
         return;
     }
 
@@ -3762,7 +3756,7 @@ SCRIPT_CMD(do_rprawkill)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpRawkill - Error in parsing.",0);
         return;
     }
 
@@ -3800,7 +3794,7 @@ SCRIPT_CMD(do_rpaddaffect)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddAffect - Error in parsing.",0);
         return;
     }
 
@@ -3817,12 +3811,12 @@ SCRIPT_CMD(do_rpaddaffect)
     }
 
     if(!mob && !obj) {
-        bug("RpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - NULL target.", 0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3834,7 +3828,7 @@ SCRIPT_CMD(do_rpaddaffect)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3851,7 +3845,7 @@ SCRIPT_CMD(do_rpaddaffect)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3861,7 +3855,7 @@ SCRIPT_CMD(do_rpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3874,7 +3868,7 @@ SCRIPT_CMD(do_rpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3886,7 +3880,7 @@ SCRIPT_CMD(do_rpaddaffect)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3896,7 +3890,7 @@ SCRIPT_CMD(do_rpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3906,7 +3900,7 @@ SCRIPT_CMD(do_rpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3918,7 +3912,7 @@ SCRIPT_CMD(do_rpaddaffect)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -3931,7 +3925,7 @@ SCRIPT_CMD(do_rpaddaffect)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
             return;
         }
 
@@ -3970,7 +3964,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddAffect - Error in parsing.",0);
         return;
     }
 
@@ -3987,12 +3981,12 @@ SCRIPT_CMD(do_rpaddaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - NULL target.", 0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4004,7 +3998,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4021,7 +4015,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4033,12 +4027,12 @@ SCRIPT_CMD(do_rpaddaffectname)
     }
 
     if(!name) {
-        bug("MpAddaffect - Error allocating affect name.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error allocating affect name.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4051,7 +4045,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4063,7 +4057,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4073,7 +4067,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4083,7 +4077,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4095,7 +4089,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
         return;
     }
 
@@ -4108,7 +4102,7 @@ SCRIPT_CMD(do_rpaddaffectname)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"MpAddaffect - Error in parsing.",0);
             return;
         }
 
@@ -4146,7 +4140,7 @@ SCRIPT_CMD(do_rpstripaffect)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpStripaffect - Error in parsing.",0);
         return;
     }
 
@@ -4163,13 +4157,13 @@ SCRIPT_CMD(do_rpstripaffect)
     }
 
     if(!mob && !obj) {
-        bug("RpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"RpStripaffect - NULL target.", 0);
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpStripaffect - Error in parsing.",0);
         return;
     }
 
@@ -4194,7 +4188,7 @@ SCRIPT_CMD(do_rpstripaffectname)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpStripaffect - Error in parsing.",0);
         return;
     }
 
@@ -4211,13 +4205,13 @@ SCRIPT_CMD(do_rpstripaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"MpStripaffect - NULL target.", 0);
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"MpStripaffect - Error in parsing.",0);
         return;
     }
 
@@ -4245,7 +4239,7 @@ SCRIPT_CMD(do_rpinput)
     info->room->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpInput - Error in parsing.",0);
         return;
     }
 
@@ -4260,7 +4254,7 @@ SCRIPT_CMD(do_rpinput)
     }
 
     if(!mob) {
-        bug("RpInput - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"RpInput - NULL mobile.", 0);
         return;
     }
 
@@ -4269,7 +4263,7 @@ SCRIPT_CMD(do_rpinput)
     if( mob->desc->showstr_head != NULL ) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpRawkill - Error in parsing.",0);
         return;
     }
 
@@ -4281,7 +4275,7 @@ SCRIPT_CMD(do_rpinput)
     if(vnum < 1 || !get_script_index_global(vnum, PRG_RPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpInput - Error in parsing.",0);
         return;
     }
 
@@ -4322,7 +4316,7 @@ SCRIPT_CMD(do_rpusecatalyst)
     info->room->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4336,12 +4330,12 @@ SCRIPT_CMD(do_rpusecatalyst)
     }
 
     if(!mob && !room) {
-        bug("RpUseCatalyst - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - NULL target.", 0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4353,7 +4347,7 @@ SCRIPT_CMD(do_rpusecatalyst)
     if(type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4365,7 +4359,7 @@ SCRIPT_CMD(do_rpusecatalyst)
     if(method == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4376,7 +4370,7 @@ SCRIPT_CMD(do_rpusecatalyst)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4389,7 +4383,7 @@ SCRIPT_CMD(do_rpusecatalyst)
     if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4402,7 +4396,7 @@ SCRIPT_CMD(do_rpusecatalyst)
     if(max < min || max > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpUseCatalyst - Error in parsing.",0);
         return;
     }
 
@@ -4433,7 +4427,7 @@ SCRIPT_CMD(do_rpalterexit)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterExit - Error in parsing.",0);
         return;
     }
 
@@ -4443,7 +4437,7 @@ SCRIPT_CMD(do_rpalterexit)
     case ENT_ROOM:
         room = arg->d.room;
         if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
-            bug("RpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterExit - Error in parsing.",0);
             return;
         }
     case ENT_STRING:
@@ -4459,12 +4453,12 @@ SCRIPT_CMD(do_rpalterexit)
     if(!ex) return;
 
     if(!*rest) {
-        bug("RpAlterExit - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterExit - Missing field type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterExit - Error in parsing.",0);
         return;
     }
 
@@ -4479,7 +4473,7 @@ SCRIPT_CMD(do_rpalterexit)
 
     if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("RpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterExit - Error in parsing.",0);
             return;
         }
 
@@ -4526,7 +4520,7 @@ SCRIPT_CMD(do_rpalterexit)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterExit - Error in parsing.",0);
         return;
     }
 
@@ -4551,7 +4545,7 @@ SCRIPT_CMD(do_rpalterexit)
     if(script_security < min_sec) {
         sprintf(buf,"RpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, buf);
         return;
     }
 
@@ -4612,43 +4606,43 @@ SCRIPT_CMD(do_rpalterexit)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
             *ptr += value;
             break;
         case '-':
             if( !allowarith ) {
-                bug("RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
             *ptr -= value;
             break;
         case '*':
             if( !allowarith ) {
-                bug("RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
             *ptr *= value;
             break;
         case '/':
             if( !allowarith ) {
-                bug("RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
             if (!value) {
-                bug("RpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - adjust called with operator / and value 0", 0);
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
             if (!value) {
-                bug("RpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - adjust called with operator % and value 0", 0);
                 return;
             }
             *ptr %= value;
@@ -4669,14 +4663,14 @@ SCRIPT_CMD(do_rpalterexit)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("RpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - adjust called with operator / and value 0", 0);
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("RpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterExit - adjust called with operator % and value 0", 0);
                 return;
             }
             *sptr %= value;
@@ -4713,7 +4707,7 @@ SCRIPT_CMD(do_rpprompt)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpPrompt - Error in parsing.",0);
         return;
     }
 
@@ -4728,22 +4722,22 @@ SCRIPT_CMD(do_rpprompt)
     }
 
     if(!mob) {
-        bug("RpPrompt - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"RpPrompt - NULL mobile.", 0);
         return;
     }
 
     if(IS_NPC(mob)) {
-        bug("RpPrompt - cannot set prompt strings on NPCs.", 0);
+        pbugf(LOG_SCRIPTS,"RpPrompt - cannot set prompt strings on NPCs.", 0);
         return;
     }
 
     if(!*rest) {
-        bug("RpPrompt - Missing name type.",0);
+        pbugf(LOG_SCRIPTS,"RpPrompt - Missing name type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpPrompt - Error in parsing.",0);
         return;
     }
 
@@ -4935,7 +4929,7 @@ SCRIPT_CMD(do_rpalterroom)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterRoom - Error in parsing.",0);
         return;
     }
 
@@ -4952,12 +4946,12 @@ SCRIPT_CMD(do_rpalterroom)
     if(!room || !room_is_clone(room)) return;
 
     if(!*rest) {
-        bug("RpAlterRoom - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterRoom - Missing field type.",0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterRoom - Error in parsing.",0);
         return;
     }
 
@@ -4965,7 +4959,7 @@ SCRIPT_CMD(do_rpalterroom)
 
         if(!str_cmp(field,"mapid")) {
                 if(!(rest = expand_argument(info,rest,arg))) {
-                        bug("RpAlterRoom - Error in parsing.",0);
+                        pbugf(LOG_SCRIPTS,"RpAlterRoom - Error in parsing.",0);
                         return;
                 }
                 switch(arg->type) {
@@ -4976,7 +4970,7 @@ SCRIPT_CMD(do_rpalterroom)
                 case ENT_NUMBER:
                         wilds = get_wilds_from_uid(NULL,arg->d.num);
                         if(!wilds){
-                                bug("Not a valid wilds uid",0);
+                                pbugf(LOG_SCRIPTS,"RpAlterRoom - Not a valid wilds uid",0);
                                 return;
                         }
                         room->viewwilds=wilds;
@@ -4997,7 +4991,7 @@ SCRIPT_CMD(do_rpalterroom)
         !str_cmp(field,"extern") || !str_cmp(field,"outside")) {
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("RpAlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterRoom - Error in parsing.",0);
             return;
         }
 
@@ -5034,7 +5028,7 @@ SCRIPT_CMD(do_rpalterroom)
         if(script_security < min_sec) {
             sprintf(buf,"RpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, buf, 0);
             return;
         }
 
@@ -5054,7 +5048,7 @@ SCRIPT_CMD(do_rpalterroom)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterRoom - Error in parsing.",0);
         return;
     }
 
@@ -5076,7 +5070,7 @@ SCRIPT_CMD(do_rpalterroom)
     if(script_security < min_sec) {
         sprintf(buf,"RpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, buf, 0);
         return;
     }
 
@@ -5145,45 +5139,45 @@ SCRIPT_CMD(do_rpalterroom)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             *ptr += value; break;
         case '-':
             if( !allowarith ) {
-                bug("RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             *ptr -= value; break;
         case '*':
             if( !allowarith ) {
-                bug("RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             *ptr *= value; break;
         case '/':
             if( !allowarith ) {
-                bug("RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             if (!value) {
-                bug("RpAlterRoom - alterroom called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with operator / and value 0", 0);
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
                 return;
             }
 
             if (!value) {
-                bug("RpAlterRoom - alterroom called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with operator % and value 0", 0);
                 return;
             }
             *ptr %= value;
@@ -5201,7 +5195,7 @@ SCRIPT_CMD(do_rpalterroom)
 
         case '&':
             if( !allowbitwise ) {
-                bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
                 return;
             }
 
@@ -5215,7 +5209,7 @@ SCRIPT_CMD(do_rpalterroom)
             break;
         case '|':
             if( !allowbitwise ) {
-                bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
                 return;
             }
 
@@ -5229,7 +5223,7 @@ SCRIPT_CMD(do_rpalterroom)
             break;
         case '!':
             if( !allowbitwise ) {
-                bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
                 return;
             }
 
@@ -5243,7 +5237,7 @@ SCRIPT_CMD(do_rpalterroom)
             break;
         case '^':
             if( !allowbitwise ) {
-                bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
                 return;
             }
 
@@ -5266,14 +5260,14 @@ SCRIPT_CMD(do_rpalterroom)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("RpAlterRoom - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - adjust called with operator / and value 0", 0);
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("RpAlterRoom - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"RpAlterRoom - adjust called with operator % and value 0", 0);
                 return;
             }
             *sptr %= value;
@@ -5364,7 +5358,7 @@ SCRIPT_CMD(do_rpshowroom)
     }
 
     if(!viewer && !room) {
-        bug("RpShowMap - bad target for showing the map", 0);
+        pbugf(LOG_SCRIPTS,"RpShowMap - bad target for showing the map", 0);
         return;
     }
 
@@ -5508,25 +5502,25 @@ SCRIPT_CMD(do_rpxcall)
     if(!info || !info->room) return;
 
     if (!argument[0]) {
-        bug("RpCall: missing arguments from vnum %d.", (int)info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: missing arguments from vnum %d.", (int)info->room->vnum);
         return;
     }
 
     if(script_security < 5) {
-        bug("RpCall: Minimum security needed is 5.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: Minimum security needed is 5.", info->room->vnum);
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("RpCall: maximum call depth exceeded for vnum %d.", (int)info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: maximum call depth exceeded for vnum %d.", (int)info->room->vnum);
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -5540,21 +5534,21 @@ SCRIPT_CMD(do_rpxcall)
     }
 
     if(!mob && !obj && !room && !token) {
-        bug("RpCall: No entity target from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: No entity target from vnum %ld.", info->room->vnum);
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(mob && !IS_NPC(mob)) {
-        bug("RpCall: Invalid target for xcall.  Players cannot do scripts.", 0);
+        pbugf(LOG_SCRIPTS,"RpCall: Invalid target for xcall.  Players cannot do scripts.", 0);
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -5567,7 +5561,7 @@ SCRIPT_CMD(do_rpxcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
-        bug("RpCall: invalid prog from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpCall: invalid prog from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -5577,7 +5571,7 @@ SCRIPT_CMD(do_rpxcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5593,7 +5587,7 @@ SCRIPT_CMD(do_rpxcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5601,7 +5595,7 @@ SCRIPT_CMD(do_rpxcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5617,7 +5611,7 @@ SCRIPT_CMD(do_rpxcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5635,7 +5629,7 @@ SCRIPT_CMD(do_rpxcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpCall: Error in parsing from vnum %ld.", info->room->vnum);
+            pbugf(LOG_SCRIPTS,"RpCall: Error in parsing from vnum %ld.", info->room->vnum);
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -5674,7 +5668,7 @@ SCRIPT_CMD(do_rpchargebank)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpChargeBank - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpChargeBank - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5685,12 +5679,12 @@ SCRIPT_CMD(do_rpchargebank)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("RpChargeBank - Non-player victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpChargeBank - Non-player victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("RpChargeBank - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpChargeBank - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5718,7 +5712,7 @@ SCRIPT_CMD(do_rpwiretransfer)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpWireTransfer - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpWireTransfer - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5729,12 +5723,12 @@ SCRIPT_CMD(do_rpwiretransfer)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("RpWireTransfer - Non-player victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpWireTransfer - Non-player victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("RpWireTransfer - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpWireTransfer - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5773,7 +5767,7 @@ SCRIPT_CMD(do_rpsetrecall)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpSetRecall - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpSetRecall - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5791,14 +5785,14 @@ SCRIPT_CMD(do_rpsetrecall)
 
 
     if (!victim && !room) {
-        bug("RpSetRecall - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpSetRecall - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
     argument = rp_getlocation(info, rest, &location);
 
     if(!location) {
-        bug("RpSetRecall - Bad location from vnum %d.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpSetRecall - Bad location from vnum %d.", info->room->vnum);
         return;
     }
 
@@ -5837,7 +5831,7 @@ SCRIPT_CMD(do_rpclearrecall)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpClearRecall - Bad syntax from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpClearRecall - Bad syntax from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5851,7 +5845,7 @@ SCRIPT_CMD(do_rpclearrecall)
 
 
     if (!victim) {
-        bug("RpClearRecall - Null victim from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpClearRecall - Null victim from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5872,7 +5866,7 @@ SCRIPT_CMD(do_rphunt)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpHunt - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpHunt - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5883,12 +5877,12 @@ SCRIPT_CMD(do_rphunt)
     }
 
     if (!hunter) {
-        bug("RpHunt - Null hunter from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpHunt - Null hunter from vnum %ld.", info->room->vnum);
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("RpHunt - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpHunt - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5899,7 +5893,7 @@ SCRIPT_CMD(do_rphunt)
     }
 
     if (!prey) {
-        bug("RpHunt - Null prey from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpHunt - Null prey from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5918,14 +5912,14 @@ SCRIPT_CMD(do_rpstophunt)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
-        bug("RpStopHunt - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpStopHunt - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
     stay = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"stay");
 
     if(!expand_argument(info,rest,arg)) {
-        bug("RpStopHunt - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpStopHunt - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5936,7 +5930,7 @@ SCRIPT_CMD(do_rpstophunt)
     }
 
     if (!hunter) {
-        bug("RpStopHunt - Null hunter from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpStopHunt - Null hunter from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5957,7 +5951,7 @@ SCRIPT_CMD(do_rppersist)
     if(!info || !info->room) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("RpPersist - Error in parsing from vnum %ld.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpPersist - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -5968,7 +5962,7 @@ SCRIPT_CMD(do_rppersist)
     }
 
     if(!mob && !obj && !room) {
-        bug("RpPersist - NULL target.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpPersist - NULL target.", info->room->vnum);
         return;
     }
 
@@ -5990,7 +5984,7 @@ SCRIPT_CMD(do_rppersist)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpPersist - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpPersist - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -6002,7 +5996,7 @@ SCRIPT_CMD(do_rppersist)
 
     // Require security to ENABLE persistance
     if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        bug("RpPersist - Insufficient security to enable persistance.", info->room->vnum);
+        pbugf(LOG_SCRIPTS,"RpPersist - Insufficient security to enable persistance from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -6495,7 +6489,7 @@ SCRIPT_CMD(do_rpalteraffect)
     paf = arg->d.aff;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("RpAlterAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"RpAlterAffect - Error in parsing from vnum %ld.", info->room->vnum);
         return;
     }
 
@@ -6510,7 +6504,7 @@ SCRIPT_CMD(do_rpalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterAffect - Error in parsing from vnum %ld.", info->room->vnum);
             return;
         }
 
@@ -6553,17 +6547,17 @@ SCRIPT_CMD(do_rpalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("RpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterAffect - Error in parsing from vnum %ld.", info->room->vnum);
             return;
         }
 
         if( paf->slot != WEAR_NONE ) {
-            bug("RpAlterAffect - Attempting to modify duration of an object given affect.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterAffect - Attempting to modify duration of an object given affect from vnum %ld.", info->room->vnum);
             return;
         }
 
         if( paf->group == AFFGROUP_RACIAL ) {
-            bug("RpAlterAffect - Attempting to modify duration of a racial affect.",0);
+            pbugf(LOG_SCRIPTS,"RpAlterAffect - Attempting to modify duration of a racial affect from vnum %ld.", info->room->vnum);
             return;
         }
 

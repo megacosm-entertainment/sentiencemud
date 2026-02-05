@@ -463,7 +463,7 @@ void fire_effect(void *vo, int level, int dam, int target)
                 room = obj->carried_by->in_room;
             else
             {
-                bug("fire_effect: smoke bomb had no room", 0 );
+                pbugf(LOG_ERROR, "fire_effect: smoke bomb had no room");
                 return;
             }
 

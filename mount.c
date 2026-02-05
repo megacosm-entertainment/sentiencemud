@@ -165,7 +165,7 @@ CHAR_DATA *find_personal_mount(char *name)
 
     if ((area = find_area("Housing")) == NULL)
     {
-        bug("find_personal_mount: no housing area", 0);
+        pbugf(LOG_ERROR, "find_personal_mount: no housing area");
     return NULL;
     }
 

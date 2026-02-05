@@ -119,9 +119,7 @@ DUNGEON_INDEX_LEVEL_DATA *load_dungeon_index_level(FILE *fp, int mode)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_dungeon_index_level: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_dungeon_index_level: no match for word %.50s", word);
         }
     }
 
@@ -133,7 +131,6 @@ DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
     DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
     char *word;
     bool fMatch;
-    char buf[MSL];
 
     int max_from = 0;
     int max_to = 0;
@@ -193,7 +190,7 @@ DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
             {
                 if (max_from > 0 && list_size(ex->from) >= max_from)
                 {
-                    bug("load_dungeon_index_special_exit: too many From entries found for exit mode.", 0);
+                    pbugf(LOG_ERROR, "load_dungeon_index_special_exit: too many From entries found for exit mode.");
                     continue;
                 }
 
@@ -214,7 +211,7 @@ DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
             {
                 if (max_to > 0 && list_size(ex->to) >= max_to)
                 {
-                    bug("load_dungeon_index_special_exit: too many To entries found for exit mode.", 0);
+                    pbugf(LOG_ERROR, "load_dungeon_index_special_exit: too many To entries found for exit mode.");
                     continue;
                 }
 
@@ -232,8 +229,7 @@ DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
         }
 
         if (!fMatch) {
-            sprintf(buf, "load_dungeon_index_special_exit: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_dungeon_index_special_exit: no match for word %.50s", word);
         }
     }
     
@@ -245,7 +241,6 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
     DUNGEON_INDEX_DATA *dng;
     char *word;
     bool fMatch;
-    char buf[MSL];
 
     dng = new_dungeon_index();
     dng->vnum = fread_number(fp);
@@ -354,8 +349,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 
                 tindex = trigger_index(p, PRG_DPROG);
                 if(tindex < 0) {
-                    sprintf(buf, "load_dungeon_index: invalid trigger type %s", p);
-                    bug(buf, 0);
+                    pbugf(LOG_ERROR, "load_dungeon_index: invalid trigger type %s", p);
                 } else {
                     PROG_LIST *dpr = new_trigger();
 
@@ -367,8 +361,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
                         int tsn = skill_lookup(dpr->trig_phrase);
 
                         if( tsn < 0 ) {
-                            sprintf(buf, "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", p);
-                            bug(buf, 0);
+                            pbugf(LOG_ERROR, "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", p);
                             free_trigger(dpr);
                             fMatch = true;
                             break;
@@ -516,8 +509,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
         }
 
         if (!fMatch) {
-            sprintf(buf, "load_dungeon_index: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_dungeon_index: no match for word %.50s", word);
         }
     }
 
@@ -530,7 +522,7 @@ void load_dungeons()
     FILE *fp = fopen(DUNGEONS_FILE, "r");
     if (fp == NULL)
     {
-        bug("Couldn't load dungeons.dat", 0);
+        pbugf(LOG_ERROR, "Couldn't load dungeons.dat");
         return;
     }
     char *word;
@@ -574,9 +566,7 @@ void load_dungeons()
 
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "load_dungeons: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "load_dungeons: no match for word %.50s", word);
         }
 
     }
@@ -790,7 +780,7 @@ bool save_dungeons()
     FILE *fp = fopen(DUNGEONS_FILE, "w");
     if (fp == NULL)
     {
-        bug("Couldn't save dungeons.dat", 0);
+        pbugf(LOG_ERROR, "Couldn't save dungeons.dat");
         return false;
     }
 
@@ -2252,9 +2242,7 @@ DUNGEON *dungeon_load(FILE *fp)
         }
 
         if (!fMatch) {
-            char buf[MSL];
-            sprintf(buf, "dungeon_load: no match for word %.50s", word);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "dungeon_load: no match for word %.50s", word);
         }
     }
 

@@ -208,11 +208,8 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
     if (ch->in_room == NULL)
     {
-    char buf[MAX_STRING_LENGTH];
-
-    sprintf(buf, "do_chat_enter: %s with null in_room!",
+    pbugf(LOG_ERROR, "do_chat_enter: %s with null in_room!",
         ch->name);
-    bug(buf, 0);
     return;
     }
 
@@ -265,7 +262,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
     ROOM_INDEX_DATA *chat_lobby = get_reserved_room_index("room_chat_lobby");
     if (!chat_lobby) {
-        bug("do_chat_enter: room_chat_lobby not found!", 0);
+        pbugf(LOG_ERROR, "do_chat_enter: room_chat_lobby not found!");
         send_to_char("Chat is currently unavailable.\n\r", ch);
         return;
     }
@@ -293,7 +290,6 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 void do_chat_exit(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *room;
-    char buf[MAX_STRING_LENGTH];
 
     if (!IS_SOCIAL(ch))
     {
@@ -305,8 +301,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
     location_clear(&ch->before_social);
 
     if (!room) {
-    sprintf(buf, "do_chat_exit: before_social room was null!");
-    bug(buf, 0);
+    pbugf(LOG_ERROR, "do_chat_exit: before_social room was null!");
 
 room = get_reserved_room_index("room_default_recall");
 
@@ -454,10 +449,9 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     room = get_room_index(chat_area, chat->vnum);
     if (room == NULL)
     {
-    sprintf(buf, "do_chat_join: %s, %s had null chat->vnum\n\r",
+    pbugf(LOG_ERROR, "do_chat_join: %s, %s had null chat->vnum\n\r",
         ch->name,
         chat->name);
-    bug(buf, 0);
     return;
     }
 
@@ -892,12 +886,10 @@ void do_chat_op(CHAR_DATA *ch, char *argument)
 bool is_op(CHAT_ROOM_DATA *chat, char *arg)
 {
     CHAT_OP_DATA *op;
-    char buf[MAX_STRING_LENGTH];
 
     if (chat == NULL)
     {
-    sprintf(buf, "is_op: null chat_room");
-    bug(buf, 0);
+    pbugf(LOG_ERROR, "is_op: null chat_room");
     return false;
     }
 
@@ -1394,7 +1386,7 @@ void write_chat_rooms()
 {
     // Use JSON save function
     if (!save_chat_rooms_json()) {
-        bug("write_chat_rooms: Failed to save chat rooms to JSON", 0);
+        pbugf(LOG_ERROR, "write_chat_rooms: Failed to save chat rooms to JSON");
     }
 }
 /**
@@ -1525,9 +1517,8 @@ void read_chat_rooms()
 
 	if (room == NULL)
 	{
-	    sprintf(buf, "read_chat_rooms: %s had null room (area_uid %ld, vnum %ld)!",
+	    pbugf(LOG_ERROR, "read_chat_rooms: %s had null room (area_uid %ld, vnum %ld)!",
 	        chat->name, chat->area_uid, chat->vnum);
-	    bug(buf, 0);
 	    continue;
 	}
 

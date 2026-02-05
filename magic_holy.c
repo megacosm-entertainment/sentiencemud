@@ -202,7 +202,7 @@ SPELL_FUNC(spell_exorcism)
     else area = find_area("Maze-Level5");
 
     if (!area) {
-        bug("No area for exorcism!", 0);
+        pbugf(LOG_ERROR, "No area for exorcism!");
         return false;
     }
 

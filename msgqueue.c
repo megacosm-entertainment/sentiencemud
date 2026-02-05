@@ -40,7 +40,7 @@ void process_message_queue( )
 
     /* Create and try and get queue */
     if ( (msqid = msgget(key, msgflg )) < 0) {
-        bug( "Couldn't open message queue.", 0 );
+        pbugf(LOG_ERROR, "Couldn't open message queue.");
         perror("msgget");
         //exit( 1 );
     }

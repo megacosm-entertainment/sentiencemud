@@ -201,7 +201,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 
     sprintf(buf, "{M[AUCTION] %s has stopped the auction of %s{M - item removed.{x\n\r",
         ch->name, auction_info.item->short_descr);
-    log_string(buf);
+    plogf(LOG_INFO, buf);
     for ( d = descriptor_list; d != NULL; d = d->next )
     {
         CHAR_DATA *victim;
@@ -257,7 +257,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
             ch->name, auction_info.item->short_descr);
     auction_channel( buf );
 
-    log_string(buf);
+    plogf(LOG_ADMIN, buf);
 
     if (auction_info.high_bidder != NULL)
         auction_info.high_bidder->pcdata->bankbalance
@@ -475,17 +475,17 @@ void auction_update()
     if ( auction_info.status == AUCTION_LENGTH )
     {
     /*if ( auction_info.high_bidder == NULL)*/
-    /*   bug("HIGH_BIDDER WAS NULL",0);*/
+    /*   pbugf(LOG_ERROR, "HIGH_BIDDER WAS NULL");*/
 
     if ( auction_info.item == NULL)
-       bug("AUCTION_ITEM WAS NULL",0);
+       pbugf(LOG_ERROR, "AUCTION_ITEM WAS NULL");
 
     if ( auction_info.item != NULL
     && auction_info.item->short_descr == NULL)
-       bug("item short descr WAS NULL",0);
+       pbugf(LOG_ERROR, "item short descr WAS NULL");
 
     /*if ( auction_info.high_bidder == NULL )*/
-    /*   bug("HIGH_BIDDER name WAS NULL",0);*/
+    /*   pbugf(LOG_ERROR, "HIGH_BIDDER name WAS NULL");*/
 
         if ( auction_info.high_bidder == NULL || auction_info.item == NULL )
     {

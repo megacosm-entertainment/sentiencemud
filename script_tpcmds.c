@@ -515,7 +515,7 @@ if (!area) area = get_system_area_fallback();
 
 void token_interpret(SCRIPT_VARINFO *info, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], command[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
     int cmd;
 
     if(!info->token) return;
@@ -528,8 +528,7 @@ void token_interpret(SCRIPT_VARINFO *info, char *argument)
     cmd = tpcmd_lookup(command,true);
 
     if(cmd < 0) {
-        sprintf(buf, "Token_interpret: invalid cmd from token %ld: '%s'", info->token->pIndexData->vnum, command);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Token_interpret: invalid cmd from token %ld: '%s'", info->token->pIndexData->vnum, command);
         return;
     }
 
@@ -541,7 +540,7 @@ void token_interpret(SCRIPT_VARINFO *info, char *argument)
 
 void tokenother_interpret(SCRIPT_VARINFO *info, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], command[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
     int cmd;
 
     if(info->token) return;
@@ -555,8 +554,7 @@ void tokenother_interpret(SCRIPT_VARINFO *info, char *argument)
     cmd = tpcmd_lookup(command,false);
 
     if(cmd < 0) {
-        sprintf(buf, "Tokenother_interpret: invalid cmd: '%s'", command);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "Tokenother_interpret: invalid cmd: '%s'", command);
         return;
     }
 
@@ -580,7 +578,7 @@ SCRIPT_CMD(do_tpadjust)
     if(!info) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAdjust - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAdjust - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -610,13 +608,13 @@ SCRIPT_CMD(do_tpadjust)
 
     if(!token) {
         if(!victim && !object && !room) {
-            bug("TpAdjust - NULL victim.", 0);
+            pbugf(LOG_SCRIPTS,"TpAdjust - NULL victim from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpAdjust - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAdjust - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
@@ -630,7 +628,7 @@ SCRIPT_CMD(do_tpadjust)
         }
 
         if (vnum < 1 || !get_token_index_global(vnum)) {
-            bug("TpAdjust - invalid token vnum.", 0);
+            pbugf(LOG_SCRIPTS,"TpAdjust - invalid token vnum from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
@@ -646,7 +644,7 @@ SCRIPT_CMD(do_tpadjust)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAdjust - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAdjust - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -665,8 +663,7 @@ SCRIPT_CMD(do_tpadjust)
     }
 
     if ((num < 0 || num >= MAX_TOKEN_VALUES) && !ptr) {
-        sprintf(buf, "TpAdjust: bad v#");
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS, "TpAdjust: bad v# from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -674,7 +671,7 @@ SCRIPT_CMD(do_tpadjust)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAdjust - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAdjust - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -683,13 +680,13 @@ SCRIPT_CMD(do_tpadjust)
         if(is_number(arg->d.str))
             value = atoi(arg->d.str);
         else {
-            bug("TpAdjust - Invalid value.",0);
+            pbugf(LOG_SCRIPTS,"TpAdjust - Invalid value from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
         break;
     case ENT_NUMBER: value = arg->d.num; break;
     default:
-        bug("TpAdjust - Invalid value.",0);
+        pbugf(LOG_SCRIPTS,"TpAdjust - Invalid value from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -700,14 +697,14 @@ SCRIPT_CMD(do_tpadjust)
         case '*': *ptr *= value; break;
         case '/':
             if (!value) {
-                bug("TpAdjust - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAdjust - adjust called with operator / and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("TpAdjust - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAdjust - adjust called with operator %% and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             *ptr %= value;
@@ -728,14 +725,14 @@ SCRIPT_CMD(do_tpadjust)
         case '*': token->value[num] *= value; break;
         case '/':
             if (!value) {
-                bug("TpAdjust - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAdjust - adjust called with operator / and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             token->value[num] /= value;
             break;
         case '%':
             if (!value) {
-                bug("TpAdjust - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAdjust - adjust called with operator %% and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             token->value[num] %= value;
@@ -771,21 +768,21 @@ SCRIPT_CMD(do_tpcall)
     if(!info || !info->token) return;
 
     if (!argument[0]) {
-        bug("TpCall: missing arguments from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: missing arguments from vnum %d.", VNUM(info->token));
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("TpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->token));
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -798,7 +795,7 @@ SCRIPT_CMD(do_tpcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_TPROG))) {
-        bug("TpCall: invalid prog from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -808,7 +805,7 @@ SCRIPT_CMD(do_tpcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -824,7 +821,7 @@ SCRIPT_CMD(do_tpcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -832,7 +829,7 @@ SCRIPT_CMD(do_tpcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -848,7 +845,7 @@ SCRIPT_CMD(do_tpcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -866,7 +863,7 @@ SCRIPT_CMD(do_tpcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -1268,7 +1265,7 @@ SCRIPT_CMD(do_tpecholeadat)
 
 SCRIPT_CMD(do_tpgive)
 {
-    char buf[MSL],*rest;
+    char *rest;
     int vnum = 0;
     CHAR_DATA *victim = NULL;
     OBJ_DATA *object = NULL;
@@ -1280,7 +1277,7 @@ SCRIPT_CMD(do_tpgive)
     if(!info) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGive - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpGive - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1306,13 +1303,13 @@ SCRIPT_CMD(do_tpgive)
     }
 
     if(!victim && !object && !room) {
-        bug("TpGive - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpGive - NULL target from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGive - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpGive - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1323,25 +1320,22 @@ SCRIPT_CMD(do_tpgive)
     }
 
     if (vnum < 1 || !(token_index = get_token_index_global(vnum))) {
-        bug("TpGive - invalid token vnum.", 0);
+        pbugf(LOG_SCRIPTS,"TpGive - invalid token vnum from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     if (is_singular_token(token_index)) {
         if (victim && get_token_char(victim, vnum, 1)) {
-            sprintf(buf, "TpGive - trying to give a second copy of token %s (%ld) to char %s",
+            pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to char %s",
                 token_index->name, token_index->vnum, HANDLE(victim));
-            bug(buf, 0);
             return;
         } else if (object && get_token_obj(object, vnum, 1)) {
-            sprintf(buf, "TpGive - trying to give a second copy of token %s (%ld) to object %s",
+            pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to object %s",
                 token_index->name, token_index->vnum, object->short_descr);
-            bug(buf, 0);
             return;
         } else if (room && get_token_room(room, vnum, 1)) {
-            sprintf(buf, "TpGive - trying to give a second copy of token %s (%ld) to room %s",
+            pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to room %s",
                 token_index->name, token_index->vnum, room->name);
-            bug(buf, 0);
             return;
         }
     }
@@ -1372,7 +1366,7 @@ SCRIPT_CMD(do_tpjunk)
     if(!info) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpJunk - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpJunk - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1402,13 +1396,13 @@ SCRIPT_CMD(do_tpjunk)
 
     if(!token) {
         if(!victim && !object && !room) {
-            bug("TpJunk - NULL target.", 0);
+            pbugf(LOG_SCRIPTS,"TpJunk - NULL target from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpJunk - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpJunk - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
@@ -1433,7 +1427,7 @@ SCRIPT_CMD(do_tpjunk)
     }
 
     if( token && IS_SET(token->flags, TOKEN_PERMANENT) && script_security < SYSTEM_SCRIPT_SECURITY) {
-        bug("TpJunk - Attempting to junk a permanent token with insufficient security.",0);
+        pbugf(LOG_SCRIPTS,"TpJunk - Attempting to junk a permanent token with insufficient security from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1517,7 +1511,7 @@ SCRIPT_CMD(do_tpsettimer)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpSetTimer - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1532,19 +1526,19 @@ SCRIPT_CMD(do_tpsettimer)
     }
 
     if(!victim) {
-        bug("TpSetTimer - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS,"TpSetTimer - NULL victim from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     if(!*rest) {
-        bug("TpSetTimer - Missing timer type.",0);
+        pbugf(LOG_SCRIPTS,"TpSetTimer - Missing timer type from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     buf[0] = 0;
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpSetTimer - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1556,13 +1550,13 @@ SCRIPT_CMD(do_tpsettimer)
     }
 
     if(!*rest) {
-        bug("TpSetTimer - Missing timer amount.",0);
+        pbugf(LOG_SCRIPTS,"TpSetTimer - Missing timer amount from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSetTimer - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpSetTimer - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1624,7 +1618,7 @@ SCRIPT_CMD(do_tpinterrupt)
     info->token->progs->lastreturn = 0;	// Nothing was interrupted
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpInterrupt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpInterrupt - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1639,7 +1633,7 @@ SCRIPT_CMD(do_tpinterrupt)
     }
 
     if(!victim) {
-        bug("TpInterrupt - NULL victim.", 0);
+        pbugf(LOG_SCRIPTS,"TpInterrupt - NULL victim from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1648,7 +1642,7 @@ SCRIPT_CMD(do_tpinterrupt)
     if( buffer->string[0] != '\0' ) {
         stop = flag_value(interrupt_action_types,buffer->string);
         if(stop == NO_FLAG) {
-            bug("TpInterrupt - invalid interrupt type.", 0);
+            pbugf(LOG_SCRIPTS,"TpInterrupt - invalid interrupt type from vnum %ld.", info->room ? info->room->vnum : 0);
             free_buf(buffer);
             return;
         }
@@ -1806,7 +1800,7 @@ SCRIPT_CMD(do_tpalterobj)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1821,17 +1815,17 @@ SCRIPT_CMD(do_tpalterobj)
     }
 
     if(!obj) {
-        bug("TpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - NULL object from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     if(!*rest) {
-        bug("TpAlterObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - Missing field type from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1858,7 +1852,7 @@ SCRIPT_CMD(do_tpalterobj)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -1874,8 +1868,7 @@ SCRIPT_CMD(do_tpalterobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"TpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"TpAlterObj - Attempting to alter value%d with security %d from vnum %ld.", num, script_security, info->room ? info->room->vnum : 0);
             return;
         }
 
@@ -1885,14 +1878,14 @@ SCRIPT_CMD(do_tpalterobj)
         case '*': obj->value[num] *= value; break;
         case '/':
             if (!value) {
-                bug("TpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - adjust called with operator / and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             obj->value[num] /= value;
             break;
         case '%':
             if (!value) {
-                bug("TpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - adjust called with operator % and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             obj->value[num] %= value;
@@ -1934,8 +1927,7 @@ SCRIPT_CMD(do_tpalterobj)
         if(!ptr) return;
 
         if(script_security < min_sec) {
-            sprintf(buf,"TpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"TpAlterObj - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, info->room ? info->room->vnum : 0);
             return;
         }
 
@@ -1993,7 +1985,7 @@ SCRIPT_CMD(do_tpalterobj)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("TpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
 
@@ -2002,7 +1994,7 @@ SCRIPT_CMD(do_tpalterobj)
 
         case '-':
             if( !allowarith ) {
-                bug("TpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
 
@@ -2011,7 +2003,7 @@ SCRIPT_CMD(do_tpalterobj)
 
         case '*':
             if( !allowarith ) {
-                bug("TpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
 
@@ -2020,24 +2012,24 @@ SCRIPT_CMD(do_tpalterobj)
 
         case '/':
             if( !allowarith ) {
-                bug("TpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
 
             if (!value) {
-                bug("TpAlterObj - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - adjust called with operator / and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("TpAlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - alterobj called with arithmetic operator on a bitonly field from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
 
             if (!value) {
-                bug("TpAlterObj - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterObj - adjust called with operator % and value 0 from vnum %ld.", info->room ? info->room->vnum : 0);
                 return;
             }
             *ptr %= value;
@@ -2075,7 +2067,7 @@ SCRIPT_CMD(do_tpresetdice)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -2090,7 +2082,7 @@ SCRIPT_CMD(do_tpresetdice)
     }
 
     if(!obj) {
-        bug("TpAlterObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS,"TpAlterObj - NULL object from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
@@ -2112,7 +2104,7 @@ SCRIPT_CMD(do_tpdamage)
     if(!info || !info->token || !token_room(info->token)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpDamage - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2126,18 +2118,18 @@ SCRIPT_CMD(do_tpdamage)
     }
 
     if (!victim && !fAll) {
-        bug("TpDamage - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpDamage - missing argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - missing argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpDamage - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2150,23 +2142,23 @@ SCRIPT_CMD(do_tpdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpDamage - missing argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - missing argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpDamage - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(fLevel && !victim) {
-        bug("TpDamage - Level aspect used with null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - Level aspect used with null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2182,7 +2174,7 @@ SCRIPT_CMD(do_tpdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
             return;
         }
         break;
@@ -2190,17 +2182,17 @@ SCRIPT_CMD(do_tpdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("TpDamage - Null reference mob from vnum %ld.", VNUM(info->token));
+                pbugf(LOG_SCRIPTS,"TpDamage - Null reference mob from vnum %ld.", VNUM(info->token));
                 return;
             }
             break;
         } else {
-            bug("TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
             return;
         }
         break;
     default:
-        bug("TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2229,7 +2221,7 @@ SCRIPT_CMD(do_tpdamage)
 // do_tpraisedead
 SCRIPT_CMD(do_tpraisedead)
 {
-    char buf[MIL], *rest;
+    char *rest;
     CHAR_DATA *victim;
 
 
@@ -2247,10 +2239,9 @@ SCRIPT_CMD(do_tpraisedead)
     if(!victim) return;
 
     if (!IS_DEAD(victim)) {
-        sprintf(buf, "TpRaisedead: for token %s(%ld), victim %s wasn't dead!",
+        pbugf(LOG_SCRIPTS, "TpRaisedead: for token %s(%ld), victim %s wasn't dead!",
             info->token->name,VNUM(info->token),
             victim->name);
-        bug(buf, 0);
 
         info->token->progs->lastreturn = 0;
 
@@ -2285,12 +2276,12 @@ SCRIPT_CMD(do_tpqueue)
     case ENT_NUMBER: delay = arg->d.num; break;
     case ENT_STRING: delay = atoi(arg->d.str); break;
     default:
-        bug("TpQueue:  missing arguments from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpQueue:  missing arguments from vnum %d.", VNUM(info->token));
         return;
     }
 
     if (delay < 0 || delay > 1000) {
-        bug("TpQueue:  unreasonable delay recieved from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpQueue:  unreasonable delay recieved from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -2308,7 +2299,7 @@ SCRIPT_CMD(do_tpgdamage)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2319,18 +2310,18 @@ SCRIPT_CMD(do_tpgdamage)
     }
 
     if (!victim) {
-        bug("TpGdamage - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpGdamage - missing argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - missing argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2343,18 +2334,18 @@ SCRIPT_CMD(do_tpgdamage)
         if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
         if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
     default:
-        bug("TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpGdamage - missing argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - missing argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2370,7 +2361,7 @@ SCRIPT_CMD(do_tpgdamage)
             if(fLevel) level = atoi(arg->d.str);
             else high = atoi(arg->d.str);
         } else {
-            bug("TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
             return;
         }
         break;
@@ -2378,17 +2369,17 @@ SCRIPT_CMD(do_tpgdamage)
         if(fLevel) {
             if(arg->d.mob) level = arg->d.mob->tot_level;
             else {
-                bug("TpGdamage - Null reference mob from vnum %ld.", VNUM(info->token));
+                pbugf(LOG_SCRIPTS,"TpGdamage - Null reference mob from vnum %ld.", VNUM(info->token));
                 return;
             }
             break;
         } else {
-            bug("TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
             return;
         }
         break;
     default:
-        bug("TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2467,7 +2458,7 @@ SCRIPT_CMD(do_tpremember)
     if(!info || !info->token) return;
 
     if(!expand_argument(info,argument,arg)) {
-        bug("TpRemember: Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpRemember: Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2478,7 +2469,7 @@ SCRIPT_CMD(do_tpremember)
     }
 
     if (!victim) {
-        bug("TpRemember: Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpRemember: Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2515,7 +2506,7 @@ SCRIPT_CMD(do_tppurge)
 
     if(victim) {
         if (!IS_NPC(victim)) {
-            bug("Oppurge - Attempting to purge a PC from vnum %d.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"Oppurge - Attempting to purge a PC from vnum %d.", VNUM(info->token));
             return;
         }
         extract_char(victim, true);
@@ -2546,7 +2537,7 @@ SCRIPT_CMD(do_tppurge)
                 extract_obj(obj);
         }
     } else
-        bug("Oppurge - Bad argument from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"Oppurge - Bad argument from vnum %d.", VNUM(info->token));
 
 }
 
@@ -2569,7 +2560,7 @@ SCRIPT_CMD(do_tpzot)
 
 
     if (!victim) {
-        bug("TpZot - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpZot - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2590,7 +2581,7 @@ SCRIPT_CMD(do_tpgecho)
     if(!info || !info->token) return;
 
     if (!argument[0]) {
-        bug("TpZEcho: missing argument from vnum %d", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpZEcho: missing argument from vnum %d", VNUM(info->token));
         return;
     }
 
@@ -2651,7 +2642,7 @@ SCRIPT_CMD(do_tpvforce)
     if(!info || !info->token || !token_room(info->token)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpVforce - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpVforce - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2662,7 +2653,7 @@ SCRIPT_CMD(do_tpvforce)
     }
 
     if (vnum < 1) {
-        bug("TpVforce - Invalid vnum from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpVforce - Invalid vnum from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2694,7 +2685,7 @@ SCRIPT_CMD(do_tpotransfer)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpOtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpOtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2706,7 +2697,7 @@ SCRIPT_CMD(do_tpotransfer)
 
 
     if (!obj) {
-        bug("TpOtransfer - Null object from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpOtransfer - Null object from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2717,7 +2708,7 @@ SCRIPT_CMD(do_tpotransfer)
     argument = tp_getolocation(info, rest, &dest, &container, &carrier, &wear_loc);
 
     if(!dest && !container && !carrier) {
-        bug("TpOTransfer - Bad location from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpOTransfer - Bad location from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -2770,7 +2761,7 @@ SCRIPT_CMD(do_tptransfer)
     if(!info || !info->token || !token_room(info->token)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpTransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpTransfer - Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2785,7 +2776,7 @@ SCRIPT_CMD(do_tptransfer)
 
 
     if (!victim && !all) {
-        bug("TpTransfer - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpTransfer - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2795,7 +2786,7 @@ SCRIPT_CMD(do_tptransfer)
     argument = tp_getlocation(info, rest, &dest);
 
     if(!dest) {
-        bug("TpTransfer - Bad location from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpTransfer - Bad location from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -2842,7 +2833,7 @@ SCRIPT_CMD(do_tpremove)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2853,7 +2844,7 @@ SCRIPT_CMD(do_tpremove)
     }
 
     if (!victim) {
-        bug("TpRemove: Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpRemove: Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2861,7 +2852,7 @@ SCRIPT_CMD(do_tpremove)
 
     argument = rest;
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2881,14 +2872,14 @@ SCRIPT_CMD(do_tpremove)
     }
 
     if(!fAll && vnum < 1 && !name[0] && !obj) {
-        bug ("TpRemove: Invalid object from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpRemove: Invalid object from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!fAll && !obj && *rest) {
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -2899,7 +2890,7 @@ SCRIPT_CMD(do_tpremove)
         }
 
         if(count < 0) {
-            bug ("TpRemove: Invalid count from vnum %d.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpRemove: Invalid count from vnum %d.", VNUM(info->token));
             count = 0;
         }
     }
@@ -2973,7 +2964,7 @@ SCRIPT_CMD(do_tpgtransfer)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -2985,19 +2976,19 @@ SCRIPT_CMD(do_tpgtransfer)
 
 
     if (!victim) {
-        bug("TpGtransfer - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGtransfer - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if (!victim->in_room) return;
 
     if(!(argument = tp_getlocation(info, rest, &dest))) {
-        bug("TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!dest) {
-        bug("TpGtransfer - Bad location from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGtransfer - Bad location from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -3057,7 +3048,7 @@ SCRIPT_CMD(do_tplink)
     if (!room) return;
 
     if (door < 0) {
-        bug("TPlink used without an argument from room vnum %d.", room->vnum);
+        pbugf(LOG_SCRIPTS,"TPlink used without an argument from room vnum %d.", room->vnum);
         return;
     }
 
@@ -3118,7 +3109,7 @@ SCRIPT_CMD(do_tplink)
     }
 
     if(vnum < 0) {
-        bug("TPlink - invalid argument in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS,"TPlink - invalid argument in room %d.", room->vnum);
         return;
     }
 
@@ -3136,7 +3127,7 @@ SCRIPT_CMD(do_tplink)
         dest = NULL;
 
     if(!dest && !del) {
-        bug("TPlink - invalid destination in room %d.", room->vnum);
+        pbugf(LOG_SCRIPTS,"TPlink - invalid destination in room %d.", room->vnum);
         return;
     }
 
@@ -3176,7 +3167,7 @@ SCRIPT_CMD(do_tpoload)
     }
 
     if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-        bug("Tpoload - Bad vnum arg from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"Tpoload - Bad vnum arg from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -3270,7 +3261,7 @@ SCRIPT_CMD(do_tpforce)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpForce - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpForce - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3284,7 +3275,7 @@ SCRIPT_CMD(do_tpforce)
     }
 
     if (!fAll && !victim) {
-        bug("TpForce - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpForce - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3321,7 +3312,7 @@ SCRIPT_CMD(do_tpgforce)
     if(!info || !info->token || !token_room(info->token)) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpGforce - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGforce - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3332,7 +3323,7 @@ SCRIPT_CMD(do_tpgforce)
     }
 
     if (!victim) {
-        bug("TpGforce - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpGforce - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3358,14 +3349,14 @@ SCRIPT_CMD(do_tpgoto)
     if(!info || !info->token || !info->token->player || !info->token->player->in_room) return;
 
     if(!argument[0]) {
-        bug("Tpgoto - No argument from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"Tpgoto - No argument from vnum %d.", VNUM(info->token));
         return;
     }
 
     tp_getlocation(info, argument, &dest);
 
     if(!dest) {
-        bug("Tpgoto - Bad location from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"Tpgoto - Bad location from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -3387,7 +3378,7 @@ SCRIPT_CMD(do_tpstringobj)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStringObj - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3402,17 +3393,17 @@ SCRIPT_CMD(do_tpstringobj)
     }
 
     if(!obj) {
-        bug("TpStringObj - NULL object.", 0);
+        pbugf(LOG_SCRIPTS,"TpStringObj - NULL object from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpStringObj - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"TpStringObj - Missing field type from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpStringObj - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStringObj - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3468,9 +3459,7 @@ SCRIPT_CMD(do_tpstringobj)
             int mat = material_lookup(buf);
 
             if(mat < 0) {
-                char buf2[sizeof(buf)+50];
-                sprintf(buf2,"TpStringObj - Invalid material '%s'.\n\r", buf);
-                bug(buf2, 0);
+                pbugf(LOG_SCRIPTS,"TpStringObj - Invalid material '%s'.\n\r", buf);
                 return;
             }
 
@@ -3484,8 +3473,7 @@ SCRIPT_CMD(do_tpstringobj)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"TpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"TpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
             free_buf(buffer);
             return;
         }
@@ -3522,7 +3510,7 @@ SCRIPT_CMD(do_tpaltermob)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3537,17 +3525,17 @@ SCRIPT_CMD(do_tpaltermob)
     }
 
     if(!mob) {
-        bug("TpAlterMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - NULL mobile from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpAlterMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - Missing field type from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3564,7 +3552,7 @@ SCRIPT_CMD(do_tpaltermob)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 */
@@ -3668,7 +3656,7 @@ SCRIPT_CMD(do_tpaltermob)
         return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("AlterMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"AlterMob - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -3676,8 +3664,7 @@ SCRIPT_CMD(do_tpaltermob)
     if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
     if(script_security < min_sec) {
-        sprintf(buf,"TpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS,"TpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         return;
     }
 
@@ -3762,7 +3749,7 @@ SCRIPT_CMD(do_tpaltermob)
         case OPR_ADD:
             *lptr += value;
             if (!allowarith) {
-                bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             break;
@@ -3770,7 +3757,7 @@ SCRIPT_CMD(do_tpaltermob)
         case OPR_SUB:
             *lptr -= value;
             if (!allowarith) {
-                bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             break;
@@ -3778,18 +3765,18 @@ SCRIPT_CMD(do_tpaltermob)
         case OPR_MULT:
             *lptr *= value;
             if (!allowarith) {
-                bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             break;
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator / and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             if (!allowarith) {
-                bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             *lptr /= value;
@@ -3797,11 +3784,11 @@ SCRIPT_CMD(do_tpaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator % and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             if (!allowarith) {
-                bug("TpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             *lptr %= value;
@@ -3840,7 +3827,7 @@ SCRIPT_CMD(do_tpaltermob)
                     lptr[i] &= temp_flags[i];
             }
             if (!allowbitwise) {
-                bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
             else
@@ -3854,7 +3841,7 @@ SCRIPT_CMD(do_tpaltermob)
                     lptr[i] |= temp_flags[i];
             }
             if (!allowbitwise) {
-                bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
             else
@@ -3868,7 +3855,7 @@ SCRIPT_CMD(do_tpaltermob)
                     lptr[i] &= ~temp_flags[i];
             }
             if (!allowbitwise) {
-                bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
             else
@@ -3882,7 +3869,7 @@ SCRIPT_CMD(do_tpaltermob)
                     lptr[i] ^= temp_flags[i];
             }
             if (!allowbitwise) {
-                bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterMob - altermob called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
             else
@@ -3915,7 +3902,7 @@ SCRIPT_CMD(do_tpaltermob)
 
         case OPR_DIV:
             if (!value) {
-                bug("AlterMob - altermob called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator / and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr /= value;
@@ -3923,7 +3910,7 @@ SCRIPT_CMD(do_tpaltermob)
 
         case OPR_MOD:
             if (!value) {
-                bug("AlterMob - altermob called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"AlterMob - altermob called with operator % and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr %= value;
@@ -4022,7 +4009,7 @@ SCRIPT_CMD(do_tpstringmob)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStringMob - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4037,22 +4024,22 @@ SCRIPT_CMD(do_tpstringmob)
     }
 
     if(!mob) {
-        bug("TpStringMob - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"TpStringMob - NULL mobile from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!IS_NPC(mob)) {
-        bug("TpStringMob - can't change strings on PCs.", 0);
+        pbugf(LOG_SCRIPTS,"TpStringMob - can't change strings on PCs from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpStringMob - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"TpStringMob - Missing field type from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpStringMob - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStringMob - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4083,8 +4070,7 @@ SCRIPT_CMD(do_tpstringmob)
         }
 
         if(script_security < min_sec) {
-            sprintf(buf,"TpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"TpStringMob - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->token));
             free_buf(buffer);
             return;
         }
@@ -4108,14 +4094,14 @@ SCRIPT_CMD(do_tpskimprove)
     bool success = false;
 
     if(script_security < MIN_SCRIPT_SECURITY) {
-        bug("TpSkImprove - Insufficient security.",0);
+        pbugf(LOG_SCRIPTS,"TpSkImprove - Insufficient security from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpSkImprove - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4132,19 +4118,19 @@ SCRIPT_CMD(do_tpskimprove)
     }
 
     if(!mob && !token) {
-        bug("TpSkImprove - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpSkImprove - NULL target from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(mob) {
         if(IS_NPC(mob)) {
-            bug("TpSkImprove - NPCs don't have skills to improve yet...", 0);
+            pbugf(LOG_SCRIPTS,"TpSkImprove - NPCs don't have skills to improve yet from vnum %ld.", VNUM(info->token));
             return;
         }
 
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("TpSkImprove - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpSkImprove - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -4162,13 +4148,13 @@ SCRIPT_CMD(do_tpskimprove)
         if(sn < 1) return;
     } else {
         if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-            bug("TpSkImprove - Token is not a spell token...", 0);
+            pbugf(LOG_SCRIPTS,"TpSkImprove - Token is not a spell token from vnum %ld.", VNUM(info->token));
             return;
         }
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpSkImprove - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpSkImprove - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4181,7 +4167,7 @@ SCRIPT_CMD(do_tpskimprove)
     min_diff = 10 - script_security;	// min=10, max=1
 
     if(diff < min_diff) {
-        bug("TpSkImprove - Attempting to use a difficulty multiplier lower than allowed.",0);
+        pbugf(LOG_SCRIPTS,"TpSkImprove - Attempting to use a difficulty multiplier lower than allowed from vnum %ld.", VNUM(info->token));
         diff = min_diff;
     }
 
@@ -4218,7 +4204,7 @@ SCRIPT_CMD(do_tprawkill)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpRawkill - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4233,14 +4219,14 @@ SCRIPT_CMD(do_tprawkill)
     }
 
     if(!mob) {
-        bug("TpRawkill - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"TpRawkill - NULL mobile from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(IS_IMMORTAL(mob)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpRawkill - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4252,7 +4238,7 @@ SCRIPT_CMD(do_tprawkill)
     if(type < 0 || type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpRawkill - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4267,7 +4253,7 @@ SCRIPT_CMD(do_tprawkill)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpRawkill - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpRawkill - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4305,7 +4291,7 @@ SCRIPT_CMD(do_tpaddaffect)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddAffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4322,12 +4308,12 @@ SCRIPT_CMD(do_tpaddaffect)
     }
 
     if(!mob && !obj) {
-        bug("TpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - NULL target from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4339,7 +4325,7 @@ SCRIPT_CMD(do_tpaddaffect)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4356,7 +4342,7 @@ SCRIPT_CMD(do_tpaddaffect)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4366,7 +4352,7 @@ SCRIPT_CMD(do_tpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4379,7 +4365,7 @@ SCRIPT_CMD(do_tpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4391,7 +4377,7 @@ SCRIPT_CMD(do_tpaddaffect)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4401,7 +4387,7 @@ SCRIPT_CMD(do_tpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4411,7 +4397,7 @@ SCRIPT_CMD(do_tpaddaffect)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4423,7 +4409,7 @@ SCRIPT_CMD(do_tpaddaffect)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4436,7 +4422,7 @@ SCRIPT_CMD(do_tpaddaffect)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -4476,7 +4462,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpAddAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddAffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4494,12 +4480,12 @@ SCRIPT_CMD(do_tpaddaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpAddaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - NULL target from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4512,7 +4498,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     if(where == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4530,7 +4516,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     if(group == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4542,12 +4528,12 @@ SCRIPT_CMD(do_tpaddaffectname)
     }
 
     if(!name) {
-        bug("MpAddaffect - Error allocating affect name.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error allocating affect name from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4561,7 +4547,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4574,7 +4560,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     if(loc == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4584,7 +4570,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4594,7 +4580,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4606,7 +4592,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     if(bv == NO_FLAG) bv = 0;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpAddaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4619,7 +4605,7 @@ SCRIPT_CMD(do_tpaddaffectname)
 
     if(rest && *rest) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("MpAddaffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAddaffect - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -4656,7 +4642,7 @@ SCRIPT_CMD(do_tpstripaffect)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStripaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4673,13 +4659,13 @@ SCRIPT_CMD(do_tpstripaffect)
     }
 
     if(!mob && !obj) {
-        bug("TpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpStripaffect - NULL target from vnum %ld.", VNUM(info->token));
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStripaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4704,7 +4690,7 @@ SCRIPT_CMD(do_tpstripaffectname)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStripaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4721,13 +4707,13 @@ SCRIPT_CMD(do_tpstripaffectname)
     }
 
     if(!mob && !obj) {
-        bug("MpStripaffect - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpStripaffect - NULL target from vnum %ld.", VNUM(info->token));
         return;
     }
 
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("MpStripaffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpStripaffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4755,7 +4741,7 @@ SCRIPT_CMD(do_tpinput)
     info->token->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpInput - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4770,7 +4756,7 @@ SCRIPT_CMD(do_tpinput)
     }
 
     if(!mob) {
-        bug("TpInput - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"TpInput - NULL mobile from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4779,7 +4765,7 @@ SCRIPT_CMD(do_tpinput)
     if( mob->desc->showstr_head != NULL ) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpInput - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4791,7 +4777,7 @@ SCRIPT_CMD(do_tpinput)
     if(vnum < 1 || !get_script_index_global(vnum, PRG_TPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpInput - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpInput - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4831,7 +4817,7 @@ SCRIPT_CMD(do_tpusecatalyst)
     info->token->progs->lastreturn = 0;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4845,12 +4831,12 @@ SCRIPT_CMD(do_tpusecatalyst)
     }
 
     if(!mob && !room) {
-        bug("TpUseCatalyst - NULL target.", 0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - NULL target from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4862,7 +4848,7 @@ SCRIPT_CMD(do_tpusecatalyst)
     if(type == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4874,7 +4860,7 @@ SCRIPT_CMD(do_tpusecatalyst)
     if(method == NO_FLAG) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4885,7 +4871,7 @@ SCRIPT_CMD(do_tpusecatalyst)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4898,7 +4884,7 @@ SCRIPT_CMD(do_tpusecatalyst)
     if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4911,7 +4897,7 @@ SCRIPT_CMD(do_tpusecatalyst)
     if(max < min || max > CATALYST_MAXSTRENGTH) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpUseCatalyst - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpUseCatalyst - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4942,7 +4928,7 @@ SCRIPT_CMD(do_tpalterexit)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterExit - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4952,7 +4938,7 @@ SCRIPT_CMD(do_tpalterexit)
     case ENT_ROOM:
         room = arg->d.room;
         if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
-            bug("TpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterExit - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
     case ENT_STRING:
@@ -4968,12 +4954,12 @@ SCRIPT_CMD(do_tpalterexit)
     if(!ex) return;
 
     if(!*rest) {
-        bug("TpAlterExit - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterExit - Missing field type from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterExit - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -4988,7 +4974,7 @@ SCRIPT_CMD(do_tpalterexit)
 
     if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("TpAlterExit - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterExit - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -5035,7 +5021,7 @@ case ENT_NUMBER:
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterExit - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterExit - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -5060,7 +5046,7 @@ case ENT_NUMBER:
     if(script_security < min_sec) {
         sprintf(buf,"TpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS,"TpAlterExit - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, VNUM(info->token));
         return;
     }
 
@@ -5121,43 +5107,43 @@ case ENT_NUMBER:
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("TpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr += value;
             break;
         case '-':
             if( !allowarith ) {
-                bug("TpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr -= value;
             break;
         case '*':
             if( !allowarith ) {
-                bug("TpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr *= value;
             break;
         case '/':
             if( !allowarith ) {
-                bug("TpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             if (!value) {
-                bug("TpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("TpAlterExit - alterexit called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - alterexit called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
             if (!value) {
-                bug("TpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr %= value;
@@ -5178,14 +5164,14 @@ case ENT_NUMBER:
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("TpAlterExit - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("TpAlterExit - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterExit - adjust called with operator % and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *sptr %= value;
@@ -5221,7 +5207,7 @@ SCRIPT_CMD(do_tpprompt)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpPrompt - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -5236,22 +5222,22 @@ SCRIPT_CMD(do_tpprompt)
     }
 
     if(!mob) {
-        bug("TpPrompt - NULL mobile.", 0);
+        pbugf(LOG_SCRIPTS,"TpPrompt - NULL mobile from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(IS_NPC(mob)) {
-        bug("TpPrompt - cannot set prompt strings on NPCs.", 0);
+        pbugf(LOG_SCRIPTS,"TpPrompt - cannot set prompt strings on NPCs from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!*rest) {
-        bug("TpPrompt - Missing name type.",0);
+        pbugf(LOG_SCRIPTS,"TpPrompt - Missing name type from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpPrompt - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpPrompt - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -5443,7 +5429,7 @@ SCRIPT_CMD(do_tpalterroom)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -5460,12 +5446,12 @@ SCRIPT_CMD(do_tpalterroom)
     if(!room || !room_is_clone(room)) return;
 
     if(!*rest) {
-        bug("TpAlterRoom - Missing field type.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterRoom - Missing field type from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -5480,7 +5466,7 @@ SCRIPT_CMD(do_tpalterroom)
 
         if(!str_cmp(field,"mapid")) {
                 if(!(rest = expand_argument(info,rest,arg))) {
-                        bug("TpAlterRoom - Error in parsing.",0);
+                        pbugf(LOG_SCRIPTS,"TpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->token));
                         return;
                 }
                 switch(arg->type) {
@@ -5491,7 +5477,7 @@ SCRIPT_CMD(do_tpalterroom)
                 case ENT_NUMBER:
                         wilds = get_wilds_from_uid(NULL,arg->d.num);
             if(!wilds){
-                bug("Not a valid wilds uid",0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - Not a valid wilds uid from vnum %ld.", VNUM(info->token));
                 return;
             }
             room->viewwilds=wilds;
@@ -5505,7 +5491,7 @@ SCRIPT_CMD(do_tpalterroom)
         !str_cmp(field,"extern") || !str_cmp(field,"outside")) {
 
         if(!(rest = expand_argument(info,rest,arg))) {
-            bug("TpAlterRoom - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -5542,7 +5528,7 @@ SCRIPT_CMD(do_tpalterroom)
         if(script_security < min_sec) {
             sprintf(buf,"TpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS,"TpAlterRoom - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, VNUM(info->token));
             return;
         }
 
@@ -5562,7 +5548,7 @@ SCRIPT_CMD(do_tpalterroom)
     argument = one_argument(rest,buf);
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpAlterRoom - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterRoom - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -5584,7 +5570,7 @@ SCRIPT_CMD(do_tpalterroom)
     if(script_security < min_sec) {
         sprintf(buf,"TpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        bug(buf, 0);
+        pbugf(LOG_SCRIPTS,"TpAlterRoom - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, VNUM(info->token));
         return;
     }
 
@@ -5653,45 +5639,45 @@ SCRIPT_CMD(do_tpalterroom)
         switch (buf[0]) {
         case '+':
             if( !allowarith ) {
-                bug("TpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
             *ptr += value; break;
         case '-':
             if( !allowarith ) {
-                bug("TpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
             *ptr -= value; break;
         case '*':
             if( !allowarith ) {
-                bug("TpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
             *ptr *= value; break;
         case '/':
             if( !allowarith ) {
-                bug("TpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
             if (!value) {
-                bug("TpAlterRoom - alterroom called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with operator / and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr /= value;
             break;
         case '%':
             if( !allowarith ) {
-                bug("TpAlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with arithmetic operator on a bitonly field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
             if (!value) {
-                bug("TpAlterRoom - alterroom called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with operator %% and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *ptr %= value;
@@ -5712,14 +5698,14 @@ SCRIPT_CMD(do_tpalterroom)
         case '*': *sptr *= value; break;
         case '/':
             if (!value) {
-                bug("TpAlterRoom - adjust called with operator / and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - adjust called with operator / and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *sptr /= value;
             break;
         case '%':
             if (!value) {
-                bug("TpAlterRoom - adjust called with operator % and value 0", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - adjust called with operator %% and value 0 from vnum %ld.", VNUM(info->token));
                 return;
             }
             *sptr %= value;
@@ -5737,7 +5723,7 @@ SCRIPT_CMD(do_tpalterroom)
 
         case '&':
             if( !allowbitwise ) {
-                bug("TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
@@ -5751,7 +5737,7 @@ SCRIPT_CMD(do_tpalterroom)
             break;
         case '|':
             if( !allowbitwise ) {
-                bug("TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
@@ -5765,7 +5751,7 @@ SCRIPT_CMD(do_tpalterroom)
             break;
         case '!':
             if( !allowbitwise ) {
-                bug("TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
@@ -5779,7 +5765,7 @@ SCRIPT_CMD(do_tpalterroom)
             break;
         case '^':
             if( !allowbitwise ) {
-                bug("TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+                pbugf(LOG_SCRIPTS,"TpAlterRoom - alterroom called with bitwise operator on a non-bitvector field from vnum %ld.", VNUM(info->token));
                 return;
             }
 
@@ -5873,7 +5859,7 @@ SCRIPT_CMD(do_tpshowroom)
     }
 
     if(!viewer && !room) {
-        bug("TpShowMap - bad target for showing the map", 0);
+        pbugf(LOG_SCRIPTS,"TpShowMap - bad target for showing the map", 0);
         return;
     }
 
@@ -6025,26 +6011,26 @@ SCRIPT_CMD(do_tpxcall)
     if(!info || !info->token) return;
 
     if (!argument[0]) {
-        bug("TpCall: missing arguments from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: missing arguments from vnum %d.", VNUM(info->token));
         return;
     }
 
     if(script_security < 5) {
-        bug("TpCall: Minimum security needed is 5.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: Minimum security needed is 5 from vnum %d.", VNUM(info->token));
         return;
     }
 
     // Call depth checking
     depth = script_call_depth;
     if(script_call_depth == 1) {
-        bug("TpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,  "TpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->token));
         return;
     } else if(script_call_depth > 1)
         --script_call_depth;
 
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -6058,21 +6044,21 @@ SCRIPT_CMD(do_tpxcall)
     }
 
     if(!mob && !obj && !room && !token) {
-        bug("TpCall: No entity target from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: No entity target from vnum %ld.", VNUM(info->token));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(mob && !IS_NPC(mob)) {
-        bug("TpCall: Invalid target for xcall.  Players cannot do scripts.", 0);
+        pbugf(LOG_SCRIPTS,"TpCall: Invalid target for xcall.  Players cannot do scripts from vnum %ld.", VNUM(info->token));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
         // Restore the call depth to the previous value
         script_call_depth = depth;
         return;
@@ -6085,7 +6071,7 @@ SCRIPT_CMD(do_tpxcall)
     }
 
     if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
-        bug("TpCall: invalid prog from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -6095,7 +6081,7 @@ SCRIPT_CMD(do_tpxcall)
     if(*rest) {	// Enactor
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6111,7 +6097,7 @@ SCRIPT_CMD(do_tpxcall)
     if(ch && *rest) {	// Victim
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6119,7 +6105,7 @@ SCRIPT_CMD(do_tpxcall)
 
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6135,7 +6121,7 @@ SCRIPT_CMD(do_tpxcall)
     if(*rest) {	// Obj 1
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6153,7 +6139,7 @@ SCRIPT_CMD(do_tpxcall)
     if(obj1 && *rest) {	// Obj 2
         argument = rest;
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
             // Restore the call depth to the previous value
             script_call_depth = depth;
             return;
@@ -6191,7 +6177,7 @@ SCRIPT_CMD(do_tpchargebank)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpChargeBank - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpChargeBank - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6202,12 +6188,12 @@ SCRIPT_CMD(do_tpchargebank)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("TpChargeBank - Non-player victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpChargeBank - Non-player victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("TpChargeBank - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpChargeBank - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6235,7 +6221,7 @@ SCRIPT_CMD(do_tpwiretransfer)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6246,12 +6232,12 @@ SCRIPT_CMD(do_tpwiretransfer)
     }
 
     if (!victim || IS_NPC(victim)) {
-        bug("TpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(!expand_argument(info,rest,arg)) {
-        bug("TpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6290,7 +6276,7 @@ SCRIPT_CMD(do_tpsetrecall)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSetRecall - Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpSetRecall - Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6308,14 +6294,14 @@ SCRIPT_CMD(do_tpsetrecall)
 
 
     if (!victim && !room) {
-        bug("TpSetRecall - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpSetRecall - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
     argument = tp_getlocation(info, rest, &location);
 
     if(!location) {
-        bug("TpSetRecall - Bad location from vnum %d.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpSetRecall - Bad location from vnum %d.", VNUM(info->token));
         return;
     }
 
@@ -6354,7 +6340,7 @@ SCRIPT_CMD(do_tpclearrecall)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpClearRecall - Bad syntax from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpClearRecall - Bad syntax from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6368,7 +6354,7 @@ SCRIPT_CMD(do_tpclearrecall)
 
 
     if (!victim) {
-        bug("TpClearRecall - Null victim from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpClearRecall - Null victim from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6389,7 +6375,7 @@ SCRIPT_CMD(do_tphunt)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpHunt - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpHunt - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6400,13 +6386,13 @@ SCRIPT_CMD(do_tphunt)
     }
 
     if (!prey) {
-        bug("TpHunt - Null hunter/prey from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpHunt - Null hunter/prey from vnum %ld.", VNUM(info->token));
         return;
     }
 
     if(*rest) {
         if(!expand_argument(info,rest,arg)) {
-            bug("TpHunt - Error in parsing from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpHunt - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -6419,11 +6405,11 @@ SCRIPT_CMD(do_tphunt)
         }
 
         if (!prey) {
-            bug("TpHunt - Null prey from vnum %ld.", VNUM(info->token));
+            pbugf(LOG_SCRIPTS,"TpHunt - Null prey from vnum %ld.", VNUM(info->token));
             return;
         }
     } else if(!info->token->player) {
-        bug("TpHunt - Null hunter from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpHunt - Null hunter from vnum %ld.", VNUM(info->token));
         return;
     } else
         hunter = info->token->player;
@@ -6443,14 +6429,14 @@ SCRIPT_CMD(do_tpstophunt)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
-        bug("TpStopHunt - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpStopHunt - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
     stay = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"stay");
 
     if(!expand_argument(info,rest,arg)) {
-        bug("TpStopHunt - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpStopHunt - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6462,7 +6448,7 @@ SCRIPT_CMD(do_tpstophunt)
     }
 
     if (!hunter) {
-        bug("TpStopHunt - Null hunter from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpStopHunt - Null hunter from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6483,7 +6469,7 @@ SCRIPT_CMD(do_tppersist)
     if(!info || !info->token) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpPersist - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpPersist - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6494,7 +6480,7 @@ SCRIPT_CMD(do_tppersist)
     }
 
     if(!mob && !obj && !room) {
-        bug("TpPersist - NULL target.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpPersist - NULL target.", VNUM(info->token));
         return;
     }
 
@@ -6516,7 +6502,7 @@ SCRIPT_CMD(do_tppersist)
     }
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpPersist - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpPersist - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6528,7 +6514,7 @@ SCRIPT_CMD(do_tppersist)
 
     // Require security to ENABLE persistance
     if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        bug("TpPersist - Insufficient security to enable persistance.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpPersist - Insufficient security to enable persistance from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6567,7 +6553,7 @@ SCRIPT_CMD(do_tpskill)
     if ( script_security < 9 ) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSkill - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpSkill - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -6660,7 +6646,7 @@ SCRIPT_CMD(do_tpskillgroup)
     if ( script_security < 9 ) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
-        bug("TpSkill - Error in parsing from vnum %ld.", VNUM(info->token));
+        pbugf(LOG_SCRIPTS,"TpSkill - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -7290,7 +7276,7 @@ SCRIPT_CMD(do_tpalteraffect)
     paf = arg->d.aff;
 
     if(!(rest = expand_argument(info,rest,arg))) {
-        bug("TpAlterAffect - Error in parsing.",0);
+        pbugf(LOG_SCRIPTS,"TpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->token));
         return;
     }
 
@@ -7305,7 +7291,7 @@ SCRIPT_CMD(do_tpalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
@@ -7348,17 +7334,17 @@ SCRIPT_CMD(do_tpalteraffect)
         argument = one_argument(rest,buf);
 
         if(!(rest = expand_argument(info,argument,arg))) {
-            bug("TpAlterAffect - Error in parsing.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->token));
             return;
         }
 
         if( paf->slot != WEAR_NONE ) {
-            bug("TpAlterAffect - Attempting to modify duration of an object given affect.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterAffect - Attempting to modify duration of an object given affect from vnum %ld.", VNUM(info->token));
             return;
         }
 
         if( paf->group == AFFGROUP_RACIAL ) {
-            bug("TpAlterAffect - Attempting to modify duration of a racial affect.",0);
+            pbugf(LOG_SCRIPTS,"TpAlterAffect - Attempting to modify duration of a racial affect from vnum %ld.", VNUM(info->token));
             return;
         }
 
