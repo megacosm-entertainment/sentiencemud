@@ -2,7 +2,7 @@
 #
 # build - Configure and build Sentience MUD in one step
 #
-# Usage: ./build [debug|release|reldeb] [clean] [gcc|clang] [--help]
+# Usage: ./build [debug|release|reldeb] [clean] [gcc|clang] [coverage] [--help]
 #
 # Combines ./config and ./compile into a single command.
 #
@@ -18,6 +18,7 @@ Build Options:
     release, rel            Build Release configuration
     relwithdebinfo, reldeb  Build Release with debug info
     tests                   Enable integration test framework
+    coverage                Build with coverage, run tests, generate report
     clean                   Clean before building
     reconfig                Force reconfiguration even if already configured
 
@@ -32,6 +33,7 @@ Examples:
     ./build                 # Build Debug with default compiler
     ./build release         # Build Release
     ./build tests           # Build Debug with test framework
+    ./build coverage        # Build, test, and generate coverage report
     ./build gcc debug       # Build Debug with GCC
     ./build clean release   # Clean rebuild Release
     ./build reconfig gcc    # Force reconfigure with GCC, then build
@@ -58,6 +60,8 @@ build_cfg="--config Debug"
 config_name="Debug"
 force_reconfig=false
 build_tests=""
+enable_coverage=""
+do_coverage=false
 
 for arg in "$@"
 do
@@ -80,6 +84,12 @@ do
         config_name="RelWithDebInfo"
     elif [[ ${arg,,} == "tests" ]]; then
         build_tests="-DBUILD_TESTS=ON"
+    elif [[ ${arg,,} == "coverage" ]]; then
+        do_coverage=true
+        enable_coverage="-DENABLE_COVERAGE=ON"
+        build_tests="-DBUILD_TESTS=ON"
+        build_cfg="--config Debug"
+        config_name="Debug"
     elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
         show_help
     else
@@ -101,13 +111,17 @@ if [[ -n "$compiler" ]] && [[ -f ".build/build.ninja" ]]; then
     # Compiler specified but already configured - need to reconfigure
     needs_config=true
 fi
+if [[ -n "$enable_coverage" ]] && [[ -f ".build/build.ninja" ]]; then
+    # Coverage specified but already configured - need to reconfigure
+    needs_config=true
+fi
 
 # Configure if needed
 if [[ "$needs_config" == true ]]; then
     echo "Configuring CMake build..."
     mkdir -p .build
     rm -rf .build/*
-    cmake -G "Ninja Multi-Config" -B .build . $compiler $build_tests
+    cmake -G "Ninja Multi-Config" -B .build . $compiler $build_tests $enable_coverage
 
     if [[ $? -ne 0 ]]; then
         echo ""
@@ -121,14 +135,86 @@ fi
 echo "Building ${config_name}..."
 cmake --build .build $clean_opt $build_cfg
 
-if [[ $? -eq 0 ]]; then
-    echo ""
-    echo "Build complete: .build/${config_name}/sent"
-    echo ""
-    echo "To install to /sentience:"
-    echo "  ./install ${config_name,,}"
-else
+if [[ $? -ne 0 ]]; then
     echo ""
     echo "Build failed."
     exit 1
+fi
+
+echo ""
+echo "Build complete: .build/${config_name}/sent"
+
+# Coverage pipeline: run tests and generate report
+if [[ "$do_coverage" == true ]]; then
+    echo ""
+    echo "=== Coverage Analysis ==="
+    echo ""
+
+    # Check for required tools
+    if ! command -v lcov &> /dev/null; then
+        echo "Error: lcov not found. Install it with: sudo dnf install lcov"
+        exit 1
+    fi
+    if ! command -v genhtml &> /dev/null; then
+        echo "Error: genhtml not found. Install it with: sudo dnf install lcov"
+        exit 1
+    fi
+
+    # Clear stale coverage data
+    echo "Clearing old coverage data..."
+    find .build -name '*.gcda' -delete 2>/dev/null
+
+    # Run tests using the binary we just built (must run from /sentience for data paths)
+    echo "Running tests..."
+    pushd /sentience > /dev/null
+    ./src/.build/${config_name}/sent -test
+    test_exit=$?
+    popd > /dev/null
+
+    if [[ $test_exit -ne 0 ]]; then
+        echo ""
+        echo "Warning: Tests exited with code ${test_exit}."
+        echo "Generating coverage report from available data..."
+    fi
+
+    # Capture coverage data
+    echo "Capturing coverage data..."
+    lcov --capture \
+        --directory .build \
+        --output-file .build/coverage.info \
+        --ignore-errors mismatch \
+        --quiet
+
+    if [[ $? -ne 0 ]]; then
+        echo "Error: lcov capture failed."
+        exit 1
+    fi
+
+    # Filter out external code and test framework
+    echo "Filtering coverage data..."
+    lcov --remove .build/coverage.info \
+        '*/.deps/*' \
+        '*/tests/*' \
+        '/usr/*' \
+        --output-file .build/coverage_filtered.info \
+        --quiet
+
+    # Generate HTML report
+    echo "Generating HTML report..."
+    genhtml .build/coverage_filtered.info \
+        --output-directory .build/coverage_html \
+        --title "Sentience MUD Coverage" \
+        --quiet
+
+    # Print summary
+    echo ""
+    echo "=== Coverage Summary ==="
+    lcov --summary .build/coverage_filtered.info 2>&1
+    echo ""
+    echo "HTML report: .build/coverage_html/index.html"
+    echo "Raw data:    .build/coverage_filtered.info"
+else
+    echo ""
+    echo "To install to /sentience:"
+    echo "  ./install ${config_name,,}"
 fi

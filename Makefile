@@ -38,6 +38,14 @@ ifdef BUILD_TESTS
     C_FLAGS += -DBUILD_TESTS
 endif
 
+# Build with coverage: make BUILD_COVERAGE=1
+ifdef BUILD_COVERAGE
+    C_FLAGS += --coverage -O0
+    L_FLAGS += --coverage
+    BUILD_TESTS = 1
+    C_FLAGS += -DBUILD_TESTS
+endif
+
 EXE	= sent
 
 C_FILES = \

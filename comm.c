@@ -720,52 +720,59 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (game_settings.enable_telnet)
+    // Skip network and cache infrastructure in test mode - tests only need game data
+    if (!test_mode)
     {
-        control_telnet = init_socket(telnet_port);
-        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Telnet socket bound to port %d.", telnet_port);
-    }
-    if (game_settings.enable_tls && game_settings.tls_port)
-    {
-        control_tls = init_tls_socket(tls_port);
-        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "TLS socket bound to port %d.", tls_port);
-    }
-    if (game_settings.enable_websocket_tls && game_settings.websocket_tls_port)
-    {
-        control_websocket = init_tls_socket(websocket_port);
-        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "WebSocket TLS socket bound to port %d.", websocket_port);
-    }
-    log_message(LOG_LEVEL_INFO, LOG_INIT, "Socket initialization complete");
+        if (game_settings.enable_telnet)
+        {
+            control_telnet = init_socket(telnet_port);
+            log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Telnet socket bound to port %d.", telnet_port);
+        }
+        if (game_settings.enable_tls && game_settings.tls_port)
+        {
+            control_tls = init_tls_socket(tls_port);
+            log_message_f(LOG_LEVEL_INFO, LOG_INIT, "TLS socket bound to port %d.", tls_port);
+        }
+        if (game_settings.enable_websocket_tls && game_settings.websocket_tls_port)
+        {
+            control_websocket = init_tls_socket(websocket_port);
+            log_message_f(LOG_LEVEL_INFO, LOG_INIT, "WebSocket TLS socket bound to port %d.", websocket_port);
+        }
+        log_message(LOG_LEVEL_INFO, LOG_INIT, "Socket initialization complete");
 
-    // Initialize Redis cache early (optional - game works without it)
-    // This must happen before boot_db() so areas can warm the cache during boot
-    if (!redis_init()) {
-        log_message(LOG_LEVEL_WARN, LOG_WARN, "Redis cache unavailable - character list display will be slower");
+        // Initialize Redis cache early (optional - game works without it)
+        // This must happen before boot_db() so areas can warm the cache during boot
+        if (!redis_init()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Redis cache unavailable - character list display will be slower");
+        }
     }
 
     boot_db();
 
-    // Post-boot Redis cache warming (only if Redis is available)
-    if (redis_is_available()) {
-        // Warm cache with recently active characters (Phase 1 - currently no-op)
-        // Future: This will pre-cache character.json files in Phase 3
-        redis_warm_cache(100);
+    if (!test_mode)
+    {
+        // Post-boot Redis cache warming (only if Redis is available)
+        if (redis_is_available()) {
+            // Warm cache with recently active characters (Phase 1 - currently no-op)
+            // Future: This will pre-cache character.json files in Phase 3
+            redis_warm_cache(100);
 
-        // Warm cache with loaded persist entities (Phase 2)
-        json_persist_warm_cache();
+            // Warm cache with loaded persist entities (Phase 2)
+            json_persist_warm_cache();
 
-        // Start background persist worker (Phase 2 - async writes through Redis)
-        if (!json_persist_worker_start()) {
-            log_message(LOG_LEVEL_WARN, LOG_WARN, "Persist worker failed to start - using synchronous writes");
+            // Start background persist worker (Phase 2 - async writes through Redis)
+            if (!json_persist_worker_start()) {
+                log_message(LOG_LEVEL_WARN, LOG_WARN, "Persist worker failed to start - using synchronous writes");
+            }
         }
-    }
 
-    // Initialize async cache system for background dump/load operations
-    if (!async_cache_init()) {
-        log_message(LOG_LEVEL_WARN, LOG_WARN, "Async cache system failed to initialize");
-    }
+        // Initialize async cache system for background dump/load operations
+        if (!async_cache_init()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Async cache system failed to initialize");
+        }
 
-    log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Sentience is up on port %d.", telnet_port);
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Sentience is up on port %d.", telnet_port);
+    }
     
     // Check if we're running in test mode
     if (test_mode) {

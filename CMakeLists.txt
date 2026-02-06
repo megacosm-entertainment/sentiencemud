@@ -7,6 +7,15 @@ project(sent)
 
 # Build options
 option(BUILD_TESTS "Build unit tests" OFF)
+option(ENABLE_COVERAGE "Enable code coverage instrumentation (gcov/lcov)" OFF)
+
+if(ENABLE_COVERAGE)
+    if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        message(WARNING "Coverage is best supported with GCC. Results may vary with other compilers.")
+    endif()
+    add_compile_options(--coverage -O0)
+    add_link_options(--coverage)
+endif()
 
 # Set default parallel build jobs to nproc/2
 include(ProcessorCount)
@@ -252,11 +261,6 @@ target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail
 
 # Export symbols for stack trace support (backtrace_symbols needs this)
 target_link_options(sent PRIVATE -rdynamic)
-
-# Include tests if enabled
-if(BUILD_TESTS)
-    include(tests/CMakeLists.txt)
-endif()
 
 # Install step (optional, example)
 # install(TARGETS sent DESTINATION bin)

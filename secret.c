@@ -11,6 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <jansson.h>
 
@@ -54,10 +55,33 @@ static bool load_secrets_from_mount(void)
         return false;
     }
 
-    fp = fopen(game_settings.secrets_mount, "r");
-    if (!fp) {
-        log_stringf("Secret: Failed to open mount file: %s (errno=%d)", game_settings.secrets_mount, errno);
+    // Check file type before opening. Doppler uses FIFOs (named pipes) for
+    // --mount, and fopen() on a FIFO blocks forever if Doppler isn't running.
+    struct stat st;
+    if (stat(game_settings.secrets_mount, &st) != 0) {
+        log_stringf("Secret: Cannot stat mount file: %s (errno=%d)", game_settings.secrets_mount, errno);
         return false;
+    }
+
+    if (S_ISFIFO(st.st_mode)) {
+        // Open FIFO non-blocking to avoid hanging if no writer (stale Doppler mount)
+        int fd = open(game_settings.secrets_mount, O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            log_stringf("Secret: Failed to open FIFO: %s (errno=%d)", game_settings.secrets_mount, errno);
+            return false;
+        }
+        fp = fdopen(fd, "r");
+        if (!fp) {
+            log_stringf("Secret: Failed to fdopen FIFO: %s (errno=%d)", game_settings.secrets_mount, errno);
+            close(fd);
+            return false;
+        }
+    } else {
+        fp = fopen(game_settings.secrets_mount, "r");
+        if (!fp) {
+            log_stringf("Secret: Failed to open mount file: %s (errno=%d)", game_settings.secrets_mount, errno);
+            return false;
+        }
     }
 
     // Read entire file into buffer - necessary for FIFOs which aren't seekable
