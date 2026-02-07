@@ -172,6 +172,7 @@ C_FILES = \
     io/json/json_gq.c \
     io/json/json_instance.c \
     io/json/json_mail.c \
+    io/json/json_note.c \
     io/json/json_persist.c \
     io/json/json_race.c \
     io/json/json_reserved.c \

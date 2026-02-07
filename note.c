@@ -43,6 +43,7 @@
 #include "merc.h"
 #include "recycle.h"
 #include "tables.h"
+#include "io/json/json_note.h"
 
 
 extern FILE *                  fpArea;
@@ -717,60 +718,20 @@ void do_changes(CHAR_DATA *ch,char *argument)
 
 void save_notes(int type)
 {
-    FILE *fp;
-    char *name;
-    NOTE_DATA *pnote;
-
-    switch (type)
-    {
-    default:
-        return;
-    case NOTE_NOTE:
-        name = NOTE_FILE;
-        pnote = note_list;
-        break;
-    case NOTE_NEWS:
-        name = NEWS_FILE;
-        pnote = news_list;
-        break;
-    case NOTE_CHANGES:
-        name = CHANGES_FILE;
-        pnote = changes_list;
-        break;
-    }
-
-    fclose(fpReserve);
-    if ((fp = fopen(name, "w")) == NULL)
-    perror(name);
-    else
-    {
-    for (; pnote != NULL; pnote = pnote->next)
-    {
-        fprintf(fp, "Sender  %s~\n", pnote->sender);
-        fprintf(fp, "Date    %s~\n", pnote->date);
-        fprintf(fp, "Stamp   %ld\n", (long int)pnote->date_stamp);
-        fprintf(fp, "To      %s~\n", pnote->to_list);
-        fprintf(fp, "Subject %s~\n", pnote->subject);
-        fprintf(fp, "RecipientType %d\n", (int)pnote->recipient_type);
-        fprintf(fp, "ToCharacters %s~\n", pnote->to_characters ? pnote->to_characters : "");
-        fprintf(fp, "ToAccounts %s~\n", pnote->to_accounts ? pnote->to_accounts : "");
-        fprintf(fp, "ToChurches %s~\n", pnote->to_churches ? pnote->to_churches : "");
-        fprintf(fp, "ToStaffRanks %s~\n", pnote->to_staff_ranks ? pnote->to_staff_ranks : "");
-        fprintf(fp, "ToStaffDuties %s~\n", pnote->to_staff_duties ? pnote->to_staff_duties : "");
-        fprintf(fp, "Text\n%s~\n",   fix_string(pnote->text));
-    }
-    fclose(fp);
-    fpReserve = fopen(NULL_FILE, "r");
-       return;
-    }
+    json_save_notes(type);
 }
 
 
 void load_notes(void)
 {
-    load_thread(NOTE_FILE,&note_list, NOTE_NOTE, 14*24*60*60);
-    load_thread(NEWS_FILE,&news_list, NOTE_NEWS, 0);
-    load_thread(CHANGES_FILE,&changes_list,NOTE_CHANGES, 0);
+    if (!json_load_notes(NOTE_NOTE))
+        load_thread(NOTE_FILE, &note_list, NOTE_NOTE, 14*24*60*60);
+
+    if (!json_load_notes(NOTE_NEWS))
+        load_thread(NEWS_FILE, &news_list, NOTE_NEWS, 0);
+
+    if (!json_load_notes(NOTE_CHANGES))
+        load_thread(CHANGES_FILE, &changes_list, NOTE_CHANGES, 0);
 }
 
 
@@ -888,8 +849,6 @@ return;
 
 void append_note(NOTE_DATA *pnote)
 {
-    FILE *fp;
-    char *name;
     NOTE_DATA **list;
     NOTE_DATA *last;
 
@@ -898,15 +857,12 @@ void append_note(NOTE_DATA *pnote)
     default:
         return;
     case NOTE_NOTE:
-        name = NOTE_FILE;
         list = &note_list;
         break;
     case NOTE_NEWS:
-         name = NEWS_FILE;
          list = &news_list;
          break;
     case NOTE_CHANGES:
-         name = CHANGES_FILE;
          list = &changes_list;
          break;
     }
@@ -919,28 +875,7 @@ void append_note(NOTE_DATA *pnote)
     last->next = pnote;
     }
 
-    fclose(fpReserve);
-    if ((fp = fopen(name, "a")) == NULL)
-    {
-        perror(name);
-    }
-    else
-    {
-        fprintf(fp, "Sender  %s~\n", pnote->sender);
-        fprintf(fp, "Date    %s~\n", pnote->date);
-        fprintf(fp, "Stamp   %ld\n", (long int)pnote->date_stamp);
-        fprintf(fp, "To      %s~\n", pnote->to_list);
-        fprintf(fp, "Subject %s~\n", pnote->subject);
-        fprintf(fp, "RecipientType %d\n", (int)pnote->recipient_type);
-        fprintf(fp, "ToCharacters %s~\n", pnote->to_characters ? pnote->to_characters : "");
-        fprintf(fp, "ToAccounts %s~\n", pnote->to_accounts ? pnote->to_accounts : "");
-        fprintf(fp, "ToChurches %s~\n", pnote->to_churches ? pnote->to_churches : "");
-        fprintf(fp, "ToStaffRanks %s~\n", pnote->to_staff_ranks ? pnote->to_staff_ranks : "");
-        fprintf(fp, "ToStaffDuties %s~\n", pnote->to_staff_duties ? pnote->to_staff_duties : "");
-        fprintf(fp, "Text\n%s~\n", pnote->text);
-        fclose(fp);
-    }
-    fpReserve = fopen(NULL_FILE, "r");
+    json_save_notes(pnote->type);
 }
 
 
