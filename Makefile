@@ -8,21 +8,18 @@ NPROC := $(shell nproc 2>/dev/null || echo 4)
 JOBS ?= $(shell echo $$(($(NPROC) / 2)))
 MAKEFLAGS += -j$(JOBS)
 
-# Dependency directories
+# Dependency directories (submodules in .deps/, others are system packages)
 DEPS_DIR = .deps
-ZLOG_DIR = $(DEPS_DIR)/zlog
-JANSSON_DIR = $(DEPS_DIR)/jansson-2.14
 LIBCOTP_DIR = $(DEPS_DIR)/libcotp
-LIBQUICKMAIL_DIR = $(DEPS_DIR)/libquickmail-0.1.30
 LIBBACKTRACE_DIR = $(DEPS_DIR)/libbacktrace
 
-# Include paths for dependencies
-INCLUDES = -I$(ZLOG_DIR)/src -I$(JANSSON_DIR)/src -I$(LIBCOTP_DIR)/src -I$(LIBQUICKMAIL_DIR) -I$(LIBBACKTRACE_DIR)
+# Include paths for local dependencies
+INCLUDES = -I$(LIBCOTP_DIR)/src -I$(LIBBACKTRACE_DIR)
 
-# Library paths for dependencies
-LIB_PATHS = -L$(ZLOG_DIR)/lib -L$(JANSSON_DIR)/src/.libs -L$(LIBCOTP_DIR) -L$(LIBQUICKMAIL_DIR)/.libs -L$(LIBBACKTRACE_DIR)/.libs
+# Library paths for local dependencies
+LIB_PATHS = -L$(LIBCOTP_DIR) -L$(LIBBACKTRACE_DIR)/.libs
 
-# Libraries - zlog added, others linked from system or local builds
+# Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
 LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"

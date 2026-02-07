@@ -1,0 +1,6 @@
+[submodule ".deps/libcotp"]
+	path = .deps/libcotp
+	url = https://github.com/paolostivanin/libcotp.git
+[submodule ".deps/libbacktrace"]
+	path = .deps/libbacktrace
+	url = https://github.com/ianlancetaylor/libbacktrace.git

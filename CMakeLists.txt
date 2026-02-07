@@ -29,10 +29,7 @@ if(DEFAULT_JOBS LESS 1)
 endif()
 set(CMAKE_BUILD_PARALLEL_LEVEL ${DEFAULT_JOBS} CACHE STRING "Default parallel build jobs")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.deps/zlog/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.deps/libbacktrace)
-
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.deps/zlog ${CMAKE_CURRENT_BINARY_DIR}/.deps/zlog)
 
 # libbacktrace for stack trace file:line resolution (prebuilt)
 add_library(backtrace STATIC IMPORTED)
@@ -260,10 +257,7 @@ target_compile_definitions(sent PRIVATE
     $<$<BOOL:${BUILD_TESTS}>:BUILD_TESTS>
 )
 
-target_include_directories(sent PRIVATE ${CMAKE_SOURCE_DIR}/deps/zlog/src)
-
-# Libraries: Using the more comprehensive list from GCC Makefile
-# pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson
+# Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
 target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson zlog backtrace)
 
 # Export symbols for stack trace support (backtrace_symbols needs this)

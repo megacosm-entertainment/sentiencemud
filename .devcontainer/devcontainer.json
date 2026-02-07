@@ -1,8 +1,46 @@
 {
+    "name": "Sentience MUD Dev Environment",
     "image": "ghcr.io/megacosm-entertainment/sentience_trixie:latest",
-    "forwardPorts": [9999],
-    "mounts": ["source=${localWorkspaceFolder}/../,target=/sentience/,type=bind", "source=${localEnv:HOME}/.gnupg,target=/home/sentiencemud/.gnupg,type=bind,consistency=cached", "source=${localEnv:HOME}/.ssh/github,target=/home/sentiencemud/.ssh/github,type=bind"],
-    "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
+    "remoteUser": "sentiencemud",
     "workspaceMount": "source=${localWorkspaceFolder},target=/sentience/src,type=bind",
-    "workspaceFolder": "/sentience/src"
+    "workspaceFolder": "/sentience/src",
+    "mounts": [
+        "source=${localWorkspaceFolder}/../,target=/sentience/,type=bind",
+        "source=${localEnv:HOME}/.gnupg,target=/home/sentiencemud/.gnupg,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.ssh/github,target=/home/sentiencemud/.ssh/github,type=bind"
+    ],
+    "forwardPorts": [9000, 9010, 9020],
+    "portsAttributes": {
+        "9000": { "label": "Telnet" },
+        "9010": { "label": "TLS" },
+        "9020": { "label": "WebSocket" }
+    },
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "cweijan.vscode-redis-client",
+                "eamodio.gitlens",
+                "Doppler.doppler-vscode"
+            ],
+            "settings": {
+                "editor.tabSize": 4,
+                "editor.insertSpaces": true,
+                "editor.detectIndentation": false,
+                "[c]": {
+                    "editor.tabSize": 4,
+                    "editor.insertSpaces": true
+                }
+            }
+        }
+    },
+    "remoteEnv": {
+        "DOPPLER_TOKEN": "${localEnv:DOPPLER_TOKEN}"
+    },
+    "postCreateCommand": "cd /sentience/src/.deps && ./build_deps.sh"
 }

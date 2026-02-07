@@ -1,15 +1,48 @@
 CC      = clang
 PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng -lhiredis -ljansson
+
+# Parallel build: use half of available cores by default
+# Override with: make JOBS=N or make -jN
+NPROC := $(shell nproc 2>/dev/null || echo 4)
+JOBS ?= $(shell echo $$(($(NPROC) / 2)))
+MAKEFLAGS += -j$(JOBS)
+
+# Dependency directories (submodules in .deps/, others are system packages)
+DEPS_DIR = .deps
+LIBCOTP_DIR = $(DEPS_DIR)/libcotp
+LIBBACKTRACE_DIR = $(DEPS_DIR)/libbacktrace
+
+# Include paths for local dependencies
+INCLUDES = -I$(LIBCOTP_DIR)/src -I$(LIBBACKTRACE_DIR)
+
+# Library paths for local dependencies
+LIB_PATHS = -L$(LIBCOTP_DIR) -L$(LIBBACKTRACE_DIR)/.libs
+
+# Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
 GIT_URL := "$(shell sh giturl.sh)"
 
-C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -MMD -MP
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DMUD_DEBUG -MMD -MP $(INCLUDES)
+# -rdynamic exports symbols for stack trace support (backtrace_symbols)
+L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
 
-L_FLAGS =  $(PROF) $(LIBS)
+# Build with tests: make BUILD_TESTS=1
+ifdef BUILD_TESTS
+    C_FLAGS += -DBUILD_TESTS
+endif
+
+# Build with coverage: make BUILD_COVERAGE=1
+ifdef BUILD_COVERAGE
+    C_FLAGS += --coverage -O0
+    L_FLAGS += --coverage
+    BUILD_TESTS = 1
+    C_FLAGS += -DBUILD_TESTS
+endif
+
 EXE	= sent
 
 C_FILES = \
@@ -75,11 +108,11 @@ C_FILES = \
     handler.c \
     help.c \
     house.c \
-    html.c \
     hunt.c \
     interp.c \
     invasion.c \
     io/common.c \
+    log.c \
     lookup.c \
     magic.c \
     magic2.c \
@@ -125,11 +158,27 @@ C_FILES = \
     project.c \
     protocol.c \
     quest.c \
-    redis_cache.c \
-    async_cache.c \
-    json_char.c \
-    json_account.c \
-    json_game_settings.c \
+    io/cache/redis_cache.c \
+    io/cache/async_cache.c \
+    io/json/json_char.c \
+    io/json/json_account.c \
+    io/json/json_area.c \
+    io/json/json_chat.c \
+    io/json/json_church.c \
+    io/json/json_game_settings.c \
+    io/json/json_gq.c \
+    io/json/json_instance.c \
+    io/json/json_mail.c \
+    io/json/json_note.c \
+    io/json/json_persist.c \
+    io/json/json_race.c \
+    io/json/json_reserved.c \
+    io/json/json_ban.c \
+    io/json/json_changesets.c \
+    io/json/json_commands.c \
+    io/json/json_projects.c \
+    io/json/json_socials.c \
+    io/json/json_staff.c \
     save.c \
     scan.c \
     script_commands.c \
@@ -143,6 +192,7 @@ C_FILES = \
     script_tpcmds.c \
     script_vars.c \
     scripts.c \
+    secret.c \
     shoot.c \
     skills.c \
     special.c \
@@ -157,9 +207,22 @@ C_FILES = \
     weather.c \
     wilds.c
 
-O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
-DEP_FILES = $(O_FILES:.o=.d)
+# Add test integration source file only when BUILD_TESTS is enabled
+ifdef BUILD_TESTS
+    C_FILES += test_integration.c \
+               tests/framework/test_framework.c \
+               tests/framework/test_loader.c \
+               tests/integration/wnum_tests.c \
+               tests/integration/reset_tests.c \
+               tests/integration/shop_stock_tests.c \
+               tests/integration/church_tests.c \
+               tests/integration/instance_tests.c \
+               tests/integration/chat_rooms_tests.c
+endif
 
+O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
+
+DEP_FILES = $(O_FILES:.o=.d)
 all: $(EXE)
 
 OBJ_DIRS_NEEDED := $(sort $(OBJDIR) $(patsubst %/,%,$(dir $(O_FILES))))
@@ -170,9 +233,10 @@ objdir:
 
 $(EXE): objdir $(O_FILES)
 	@echo "Linking $(EXE)..."
-	rm -f $(EXE)
-	$(CC) -o $(EXE) $(O_FILES) $(L_FLAGS)
-	-chmod 775 $(EXE)
+	@rm -f $(EXE)
+	@$(CC) -o $(EXE) $(O_FILES) $(L_FLAGS)
+	@-chmod 775 $(EXE)
+	@echo "Build complete!"
 
 $(OBJDIR)/%.o: %.c
 	@echo "Building $<..."
