@@ -197,6 +197,12 @@ set(SOURCE_FILES
     io/json/json_instance.c
     io/json/json_mail.c
     io/json/json_persist.c
+    io/json/json_projects.c
+    io/json/json_ban.c
+    io/json/json_changesets.c
+    io/json/json_commands.c
+    io/json/json_socials.c
+    io/json/json_staff.c
     save.c
     scan.c
     script_commands.c

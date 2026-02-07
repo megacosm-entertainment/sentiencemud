@@ -20,6 +20,7 @@
 #include "tables.h"
 #include "olc.h"
 #include "recycle.h"
+#include "io/json/json_projects.h"
 
 
 /* Global variables */
@@ -817,22 +818,7 @@ PROJECT_INQUIRY_DATA *get_last_post(PROJECT_INQUIRY_DATA *pinq)
 /* Save all projects to a file. Called from do_asave and on system shutdown. */
 void save_projects()
 {
-    FILE *fp;
-
-    if ((fp = fopen(PROJECTS_FILE, "w")) == NULL) {
-    pbugf(LOG_ERROR, "write_projects: couldn't open file!");
-    return;
-    }
-
-    log_string("project.c, save_projects - saving projects");
-
-    if (project_list != NULL)
-    save_project(fp, project_list);
-
-    fprintf(fp, "#END\n");
-
-    fclose(fp);
-
+    json_save_projects(PROJECTS_JSON_FILE);
     projects_changed = false;
 }
 
@@ -909,35 +895,43 @@ static bool fMatch;
 static char *word;
 
 
-/* Read projects.dat and load it into memory. */
+/* Read projects and load into memory. */
 void read_projects()
 {
     FILE *fp;
     PROJECT_DATA *project;
 
+    // Try JSON first
+    if (json_load_projects(PROJECTS_JSON_FILE))
+        return;
+
+    // Fall back to legacy format
     fp = fopen(PROJECTS_FILE, "r");
     if (fp == NULL)
     {
-    pbugf(LOG_ERROR, "Couldn't read projects.dat");
-    exit(1);
+        pbugf(LOG_ERROR, "Couldn't read projects file");
+        return;
     }
 
     for (;;)
     {
-    word = fread_word(fp);
-    if (!str_cmp(word, "#PROJECT"))
-    {
-        project = read_project(fp);
+        word = fread_word(fp);
+        if (!str_cmp(word, "#PROJECT"))
+        {
+            project = read_project(fp);
 
-        project->next = project_list;
-        project_list = project;
-    }
+            project->next = project_list;
+            project_list = project;
+        }
 
-    if (!str_cmp(word, "#END"))
-        break;
+        if (!str_cmp(word, "#END"))
+            break;
     }
 
     fclose(fp);
+
+    // Migrate to JSON
+    json_save_projects(PROJECTS_JSON_FILE);
 }
 
 

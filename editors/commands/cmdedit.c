@@ -52,6 +52,7 @@
 #include "../../olc_save.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../io/json/json_commands.h"
 
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
@@ -172,38 +173,8 @@ void save_command(FILE *fp, CMD_DATA *command)
 }
 
 void save_commands()
-{   
-    FILE *fp;
-
-    plogf(LOG_OLC, "save_commands: saving " COMMANDS_FILE);
-    if ((fp = fopen(COMMANDS_FILE, "w")) == NULL)
-    {
-        pbugf(LOG_ERROR, "fopen failed for " COMMANDS_FILE);
-    }
-    else
-    {
-        plogf(LOG_OLC, "save_commands: Saving %ld commands", commands_list->size);
-        
-        ITERATOR it;
-        CMD_DATA *command;
-
-        int count = 0;
-        iterator_start(&it, commands_list);
-        while((command = (CMD_DATA *)iterator_nextdata(&it)))
-        {
-            count++;
-        }
-        iterator_stop(&it);
-
-        iterator_start(&it, commands_list);
-        while((command = (CMD_DATA *)iterator_nextdata(&it)))
-        {
-            save_command(fp, command);
-        }
-        iterator_stop(&it);
-        fprintf(fp, "#END\n");
-        fclose(fp);
-    }
+{
+    json_save_commands(COMMANDS_JSON_FILE);
 }
 
 void insert_command(CMD_DATA *command)
@@ -342,6 +313,11 @@ bool load_commands()
         return false;
     }
 
+    // Try JSON first
+    if (json_load_commands(COMMANDS_JSON_FILE))
+        return true;
+
+    // Try legacy dat format
     plogf(LOG_INIT, "loading " COMMANDS_FILE);
     if ((fp = fopen(COMMANDS_FILE, "r")) == NULL)
     {
@@ -371,7 +347,6 @@ bool load_commands()
 
             insert_command(command);
         }
-        save_commands();
     }
     else
     {
@@ -388,7 +363,7 @@ bool load_commands()
                     if (!str_cmp(word, "#COMMAND"))
                     {
                         command = load_command(fp);
-                        
+
                         insert_command(command);
                         fMatch = true;
                         break;
@@ -402,8 +377,13 @@ bool load_commands()
                 fread_to_eol(fp);
             }
         }
+        fclose(fp);
     }
+
     plogf(LOG_INIT, "Loaded %ld commands", commands_list->size);
+
+    // Migrate to JSON
+    json_save_commands(COMMANDS_JSON_FILE);
 
     return true;
 }

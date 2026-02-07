@@ -44,6 +44,7 @@
 #include "../../olc.h"
 #include "../../recycle.h"
 #include "../../scripts.h"
+#include "../../io/json/json_changesets.h"
 
 
 /* Editor functions */
@@ -1614,50 +1615,7 @@ void free_all_changesets(void)
  */
 void save_changesets(void)
 {
-    FILE *fp;
-    int i;
-    ITERATOR it;
-    GAME_SETTING_CHANGE_HISTORY *history;
-    
-    if ((fp = fopen(CHANGESET_FILE, "w")) == NULL) {
-        pbugf(LOG_ERROR, "Cannot open changeset file '%s' for writing", CHANGESET_FILE);
-        return;
-    }
-    
-    fprintf(fp, "#CHANGESETS %d %d\n", changeset_count, next_changeset_id);
-    
-    // Make sure we save ALL changesets in the array, in order by index
-    for (i = 0; i < changeset_count; i++) {
-        GAME_SETTINGS_CHANGESET *changeset = changesets[i];
-        
-        if (!changeset) {
-            pbugf(LOG_ERROR, "Warning: Null changeset at index %d", i);
-            continue;
-        }
-        
-        fprintf(fp, "#CHANGESET\n");
-        fprintf(fp, "Id %d\n", changeset->id);
-        fprintf(fp, "Author %s~\n", changeset->author);
-        fprintf(fp, "Timestamp %ld\n", (long)changeset->timestamp);
-        fprintf(fp, "Comment %s~\n", changeset->comment);
-        
-        iterator_start(&it, changeset->changes);
-        while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
-            // Make sure to write the setting name separately from the old and new values
-            fprintf(fp, "Change %s %s~ %s~\n", 
-                history->setting->name,
-                history->old_value ? history->old_value : "",
-                history->new_value ? history->new_value : "");
-        }
-        iterator_stop(&it);
-        
-        fprintf(fp, "#END\n");
-    }
-    
-    fprintf(fp, "#END\n");
-    fclose(fp);
-
-    plogf(LOG_INIT, "Game setting changeset history saved (for rollback/audit).");
+    json_save_changesets(CHANGESETS_JSON_FILE);
 }
 
 
@@ -1670,50 +1628,55 @@ void load_changesets(void)
     char *word;
     bool fMatch;
     GAME_SETTINGS_CHANGESET *changeset = NULL;
-    
+
     /* First, free any existing changesets */
     free_all_changesets();
-    
+
+    // Try JSON first
+    if (json_load_changesets(CHANGESETS_JSON_FILE))
+        return;
+
+    // Fall back to legacy format
     if ((fp = fopen(CHANGESET_FILE, "r")) == NULL) {
         pwarnf(LOG_INIT, "No changeset history file found. Starting with empty history.");
         return;
     }
 
     plogf(LOG_INIT, "Loading changeset history (for rollback/audit purposes)...");
-    
+
     word = fread_word(fp);
     if (!word || str_cmp(word, "#CHANGESETS")) {
         pbugf(LOG_ERROR, "Expected #CHANGESETS but got %s", word ? word : "NULL");
         fclose(fp);
         return;
     }
-    
+
     changeset_count = fread_number(fp);
     next_changeset_id = fread_number(fp);
 
     plogf(LOG_INIT, "Found %d changesets in history, next ID: %d", changeset_count, next_changeset_id);
-    
+
     changeset_count = 0; // Reset and count as we load
-    
+
     for (;;) {
         if (feof(fp)) {
             plogf(LOG_INIT, "Reached end of changeset file");
             break;
         }
-        
+
         word = fread_word(fp);
         if (!word) {
             perrf(LOG_INIT, "Error: fread_word returned NULL");
             break;
         }
-        
+
         fMatch = false;
-        
+
         if (word[0] == '\0') {
             perrf(LOG_INIT, "Error: Empty word read");
             break;
         }
-        
+
         // If we're inside a changeset and see #END, it's the end of the current changeset
         if (!str_cmp(word, "#END") && changeset) {
             plogf(LOG_INIT, "Finished changeset ID #%d", changeset->id);
@@ -1721,13 +1684,13 @@ void load_changesets(void)
             fMatch = true;
             continue;
         }
-        
+
         // If we're not inside a changeset and see #END, it's the end of the file
         if (!str_cmp(word, "#END") && !changeset) {
             plogf(LOG_INIT, "Found file-level #END marker");
             break;
         }
-        
+
         // Start of a new changeset
         if (!str_cmp(word, "#CHANGESET")) {
             if (changeset_count >= MAX_CHANGESETS) {
@@ -1740,30 +1703,30 @@ void load_changesets(void)
                 }
                 continue;
             }
-            
+
             changeset = alloc_mem(sizeof(GAME_SETTINGS_CHANGESET));
             if (!changeset) {
                 pbugf(LOG_INIT, "Error: Failed to allocate memory for changeset");
                 fclose(fp);
                 return;
             }
-            
+
             changeset->changes = list_create(false);
             changeset->author = str_dup("");  // Initialize with empty strings
             changeset->comment = str_dup("");
-            
+
             changesets[changeset_count++] = changeset;
             fMatch = true;
             continue;
         }
-        
+
         // If not working on a changeset, skip this line
         if (!changeset) {
             pwarnf(LOG_INIT, "Warning: Found data outside of changeset block: '%s'", word);
             fread_to_eol(fp);
             continue;
         }
-        
+
         switch (UPPER(word[0])) {
             case 'A':
                 if (!str_cmp(word, "Author")) {
@@ -1772,7 +1735,7 @@ void load_changesets(void)
                     fMatch = true;
                 }
                 break;
-                
+
             case 'C':
                 if (!str_cmp(word, "Comment")) {
                     free_string(changeset->comment);
@@ -1786,49 +1749,49 @@ void load_changesets(void)
                         fread_to_eol(fp);
                         continue;
                     }
-                    
+
                     // Now read the old_value and new_value using fread_string
                     char *old_value = fread_string(fp);
                     char *new_value = fread_string(fp);
-                                        
+
                     const struct game_setting_type *setting = NULL;
                     if (setting_name && *setting_name) {
                         bool found = gameedit_find_setting(NULL, setting_name, &setting);
-                        
+
                         if (found && setting) {
                             GAME_SETTING_CHANGE_HISTORY *history;
-                            
+
                             history = alloc_mem(sizeof(GAME_SETTING_CHANGE_HISTORY));
                             if (history) {
                                 history->setting = setting;
                                 history->old_value = str_dup(old_value ? old_value : "");
                                 history->new_value = str_dup(new_value ? new_value : "");
                                 list_appendlink(changeset->changes, history);
-                                plogf(LOG_INIT, "Added change for setting: %s (old: %s, new: %s)", 
-                                    setting_name, old_value ? old_value : "empty", 
+                                plogf(LOG_INIT, "Added change for setting: %s (old: %s, new: %s)",
+                                    setting_name, old_value ? old_value : "empty",
                                     new_value ? new_value : "empty");
                             }
                         } else {
-                            pwarnf(LOG_INIT, "WARNING: Setting '%s' not found in game_settings_table", 
+                            pwarnf(LOG_INIT, "WARNING: Setting '%s' not found in game_settings_table",
                                 setting_name);
                         }
                     }
-                    
+
                     // Free strings as needed
                     if (old_value) free_string(old_value);
                     if (new_value) free_string(new_value);
-                    
+
                     fMatch = true;
                 }
                 break;
-                
+
             case 'I':
                 if (!str_cmp(word, "Id")) {
                     changeset->id = fread_number(fp);
                     fMatch = true;
                 }
                 break;
-                
+
             case 'T':
                 if (!str_cmp(word, "Timestamp")) {
                     changeset->timestamp = fread_number(fp);
@@ -1836,9 +1799,9 @@ void load_changesets(void)
                 }
                 break;
         }
-        
+
         if (!fMatch) {
-            pwarnf(LOG_INIT, "Warning: Unrecognized keyword '%s' in changeset file", 
+            pwarnf(LOG_INIT, "Warning: Unrecognized keyword '%s' in changeset file",
                 word ? word : "NULL");
             fread_to_eol(fp);
         }
@@ -1863,8 +1826,11 @@ void load_changesets(void)
             changesets[i]->id, changesets[i]->author,
             list_size(changesets[i]->changes));
     }
-    
+
     fclose(fp);
+
+    // Migrate to JSON
+    json_save_changesets(CHANGESETS_JSON_FILE);
 }
 
 GAMEEDIT(gameedit_comment)

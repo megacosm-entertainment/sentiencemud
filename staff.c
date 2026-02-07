@@ -13,6 +13,7 @@
 #include "olc.h"
 #include "recycle.h"
 #include "interp.h"
+#include "io/json/json_staff.h"
 
 /* A global list of all imms. */
 IMMORTAL_DATA		*immortal_list;
@@ -426,18 +427,7 @@ void do_ssupervisor(CHAR_DATA *ch, char *argument)
 /* Save the imm staff. */
 void save_immstaff()
 {
-    FILE *fp;
-
-    if ((fp = fopen(STAFF_FILE, "w")) == NULL) {
-    pbugf(LOG_ERROR, "Couldn't open staff file '%s' for writing", STAFF_FILE);
-    return;
-    }
-
-    if (immortal_list)
-    save_immortal(fp, immortal_list);
-
-    fprintf(fp, "#END\n");
-    fclose(fp);
+    json_save_staff(STAFF_JSON_FILE);
 }
 
 
@@ -475,28 +465,36 @@ void read_immstaff()
     FILE *fp;
     IMMORTAL_DATA *immortal;
 
+    // Try JSON first
+    if (json_load_staff(STAFF_JSON_FILE))
+        return;
+
+    // Fall back to legacy format
     if ((fp = fopen(STAFF_FILE, "r")) == NULL) {
-    pbugf(LOG_ERROR, "Couldn't open staff file '%s'.", STAFF_FILE);
-    exit(1);
+        pbugf(LOG_ERROR, "Couldn't open staff file '%s'.", STAFF_FILE);
+        return;
     }
 
     loading_immortal_data = true;
     for (;;)
     {
-    word = fread_word(fp);
-    if (!str_cmp(word, "#IMMORTAL"))
-    {
-        immortal = read_immortal(fp);
-        immortal->next = immortal_list;
-        immortal_list = immortal;
-    }
+        word = fread_word(fp);
+        if (!str_cmp(word, "#IMMORTAL"))
+        {
+            immortal = read_immortal(fp);
+            immortal->next = immortal_list;
+            immortal_list = immortal;
+        }
 
-    if (!str_cmp(word, "#END"))
-        break;
+        if (!str_cmp(word, "#END"))
+            break;
     }
     loading_immortal_data = false;
 
     fclose(fp);
+
+    // Migrate to JSON
+    json_save_staff(STAFF_JSON_FILE);
 }
 
 

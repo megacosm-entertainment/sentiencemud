@@ -2362,7 +2362,7 @@ void do_astat (CHAR_DATA * ch, char *argument)
     add_buf (output, buf);
     sprintf (buf, "Filename: [{W%s{x]\n\r", pArea->file_name);
     add_buf (output, buf);
-    sprintf (buf, "Vnums   : [{W%ld{x-{W%ld{x]\n\r", pArea->min_vnum, pArea->max_vnum);
+    sprintf (buf, "Vnums   : [{W%ld{x-{W%ld{x] [{RLEGACY ZONES ONLY{X]\n\r", pArea->min_vnum, pArea->max_vnum);
     add_buf (output, buf);
     sprintf (buf, "Recall  : [{W%6ld{x] {W%s{x\n\r", pArea->recall.id[0],
              get_room_index(pArea, pArea->recall.id[0])
@@ -2735,8 +2735,8 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     {
 
     sprintf(buf,
-    "{BVnum:{x %ld  {BSector:{x %d  {BLight:{x %d  {BHealing:{x %d  {BMana:{x %d\n\r",
-    location->vnum,
+    "{BVnum:{x %s  {BSector:{x %d  {BLight:{x %d  {BHealing:{x %d  {BMana:{x %d\n\r",
+    widevnum_string_room(location, NULL),
     location->sector_type,
                 location->light,
                 location->heal_rate,
@@ -3153,8 +3153,8 @@ void do_ostat(CHAR_DATA *ch, char *argument)
     add_buf(output, buf);
 
     // Keywords, ID, VNUM, Area
-    sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: \t<send href='oshow %ld' hint='Show index data for object'>%ld\t</send> ({W%s (%ld){X)\n\r",
-    (!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->pIndexData->area->name, obj->pIndexData->area->uid);
+    sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: \t<send href='oshow %s' hint='Show index data for object'>%s\t</send> ({W%s (%ld){X)\n\r",
+    (!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->pIndexData->area->name, obj->pIndexData->area->uid);
 
     add_buf(output, buf);
 
@@ -3465,10 +3465,10 @@ void do_mstat(CHAR_DATA *ch, char *argument)
     if (victim->in_wilds == NULL)
     {
         sprintf(buf, "Area uid:{x %ld '%s'\n\r"
-                     "{YIn_room:{x %ld '%s'\n\r",
+                     "{YIn_room:{x %s '%s'\n\r",
                      victim->in_room->area->uid,
                      victim->in_room->area->name,
-                     victim->in_room->vnum,
+                     widevnum_string_room(victim->in_room, NULL),
                      victim->in_room->name);
     }
     else
@@ -3483,11 +3483,11 @@ void do_mstat(CHAR_DATA *ch, char *argument)
                      victim->at_wilds_y);
     }
 
-    sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BBody Type:{x %s  {BRoom:{x %ld\n\r",
-                 VNUM(victim),
+    sprintf(buf, "{BVnum:{x %s  {BRace:{x %s  {BBody Type:{x %s  {BRoom:{x %s\n\r",
+                 widevnum_string_room(victim->in_room, NULL),
                  victim->race ? victim->race->name : "unknown",
                  body_type_info[victim->body_type].name,
-                 victim->in_room == NULL ? 0 : victim->in_room->vnum);
+                 victim->in_room == NULL ? "0#0" : widevnum_string_room(victim->in_room, NULL));
     send_to_char(buf, ch);
 
     sprintf(buf, "{BStr:{x %d{W({x%d{W){x  {BInt:{x %d{W({x%d{W){x  {BWis:{x %d{W({x%d{W){x  {BDex:{x %d{W({x%d{W){x  {BCon:{x %d{W({x%d{W){x\n\r",
@@ -3938,6 +3938,87 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 
 
 /**
+ * parse_find_filter - Parse optional area filter from find command arguments
+ *
+ * Splits "area#pattern" into an area filter and search pattern.
+ * If no '#' is present, searches all areas (filter_area = NULL).
+ *
+ * Formats:
+ *   "pattern"           - Search all areas
+ *   "#pattern"          - Search current area only
+ *   "uid#pattern"       - Search area by UID
+ *   "areaname#pattern"  - Search area by name (partial match)
+ *
+ * @param ch           Character issuing the command
+ * @param argument     Raw argument string
+ * @param filter_area  Output: area to filter by (NULL = search all)
+ * @param pattern      Output buffer for the search pattern
+ * @param pattern_len  Size of pattern buffer
+ * @return             true on success, false if area specified but not found
+ */
+static bool parse_find_filter(CHAR_DATA *ch, const char *argument,
+                              AREA_DATA **filter_area, char *pattern, size_t pattern_len)
+{
+    const char *hash_pos;
+
+    *filter_area = NULL;
+
+    hash_pos = strchr(argument, '#');
+
+    if (hash_pos == NULL) {
+        // No '#' - search all areas
+        strncpy(pattern, argument, pattern_len - 1);
+        pattern[pattern_len - 1] = '\0';
+        return true;
+    }
+
+    // Copy search pattern (everything after '#')
+    strncpy(pattern, hash_pos + 1, pattern_len - 1);
+    pattern[pattern_len - 1] = '\0';
+
+    if (hash_pos == argument) {
+        // "#pattern" - current area
+        if (ch->in_room && ch->in_room->area) {
+            *filter_area = ch->in_room->area;
+            return true;
+        }
+        send_to_char("You are not in an area.\n\r", ch);
+        return false;
+    }
+
+    // Extract area specifier (before '#')
+    size_t area_len = hash_pos - argument;
+    char area_spec[MAX_INPUT_LENGTH];
+    if (area_len >= sizeof(area_spec))
+        area_len = sizeof(area_spec) - 1;
+    strncpy(area_spec, argument, area_len);
+    area_spec[area_len] = '\0';
+
+    if (is_number(area_spec)) {
+        // Numeric - look up by area UID
+        long uid = atol(area_spec);
+        *filter_area = get_area_index(uid);
+        if (!*filter_area) {
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "No area found with UID %ld.\n\r", uid);
+            send_to_char(buf, ch);
+            return false;
+        }
+    } else {
+        // Text - partial name match
+        *filter_area = find_area_kwd(area_spec);
+        if (!*filter_area) {
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "No area found matching '%s'.\n\r", area_spec);
+            send_to_char(buf, ch);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * do_vnum - Search for entities by name
  *
  * Unified vnum lookup command that dispatches to find commands:
@@ -3946,9 +4027,10 @@ void do_tstat(CHAR_DATA *ch, char *argument)
  * - vnum token <name> - Find token vnums (do_tfind)
  *
  * Without type prefix, searches all entity types.
+ * All find commands support area filtering: area#pattern
  *
  * @param ch        Staff member using the command
- * @param argument  "[type] name"
+ * @param argument  "[type] [area#]name"
  */
 void do_vnum(CHAR_DATA *ch, char *argument)
 {
@@ -3960,14 +4042,18 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0')
     {
     send_to_char("Syntax:\n\r",ch);
-    send_to_char("  vnum obj <name>\n\r",ch);
-    send_to_char("  vnum mob <name>\n\r",ch);
+    send_to_char("  vnum obj <name>           - search all areas\n\r",ch);
+    send_to_char("  vnum mob <name>           - search all areas\n\r",ch);
     send_to_char("  vnum token <name>\n\r", ch);
     send_to_char("  vnum room <name>\n\r", ch);
     send_to_char("  vnum blueprint <name>\n\r", ch);
     send_to_char("  vnum section <name>\n\r", ch);
     send_to_char("  vnum dungeon <name>\n\r", ch);
     send_to_char("  vnum ship <name>\n\r", ch);
+    send_to_char("\n\rArea filtering:\n\r", ch);
+    send_to_char("  vnum mob #<name>          - current area only\n\r", ch);
+    send_to_char("  vnum mob <uid>#<name>     - area by UID\n\r", ch);
+    send_to_char("  vnum mob <area>#<name>    - area by name\n\r", ch);
     return;
     }
 
@@ -4050,17 +4136,18 @@ void do_vnum(CHAR_DATA *ch, char *argument)
  */
 void do_mfind(CHAR_DATA *ch, char *argument)
 {
-    /* extern long top_mob_index; */
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     MOB_INDEX_DATA *pMobIndex;
-    AREA_DATA *area;
-    /* long vnum; */
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find whom?\n\r", ch);
@@ -4072,20 +4159,18 @@ void do_mfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false; /* !str_cmp(arg, "all"); */
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's mob index hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (pMobIndex = area->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
                 nMatch++;
-                if (fAll || is_name(argument, pMobIndex->player_name)) {
+                if (is_name(pattern, pMobIndex->player_name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        pMobIndex->area->uid, pMobIndex->vnum, pMobIndex->short_descr);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_mobile(pMobIndex, NULL), pMobIndex->short_descr);
                     send_to_char(buf, ch);
                 }
             }
@@ -4108,37 +4193,36 @@ void do_mfind(CHAR_DATA *ch, char *argument)
  */
 void do_ofind(CHAR_DATA *ch, char *argument)
 {
-    /* extern long top_obj_index; */
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     OBJ_INDEX_DATA *pObjIndex;
-    AREA_DATA *area;
-    /* long vnum; */
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
     return;
     }
 
-    fAll	= false; /* !str_cmp(arg, "all"); */
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's obj index hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (pObjIndex = area->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
                 nMatch++;
-                if (fAll || is_name(argument, pObjIndex->name)) {
+                if (is_name(pattern, pObjIndex->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        pObjIndex->area->uid, pObjIndex->vnum, pObjIndex->short_descr);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_object(pObjIndex, NULL), pObjIndex->short_descr);
                     send_to_char(buf, ch);
                 }
             }
@@ -4160,17 +4244,18 @@ void do_ofind(CHAR_DATA *ch, char *argument)
  */
 void do_tfind(CHAR_DATA *ch, char *argument)
 {
-    /* extern long top_mob_index; */
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     TOKEN_INDEX_DATA *pTokIndex;
-    AREA_DATA *area;
-    /* long vnum; */
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
@@ -4182,20 +4267,18 @@ void do_tfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false; /* !str_cmp(arg, "all"); */
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's token index hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (pTokIndex = area->token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
                 nMatch++;
-                if (fAll || is_name(argument, pTokIndex->name)) {
+                if (is_name(pattern, pTokIndex->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        pTokIndex->area->uid, pTokIndex->vnum, pTokIndex->name);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_token(pTokIndex, NULL), pTokIndex->name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4220,13 +4303,16 @@ void do_rfind(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     ROOM_INDEX_DATA *pRoomIndex;
-    AREA_DATA *area;
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
@@ -4238,20 +4324,18 @@ void do_rfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false;
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's room index hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (pRoomIndex = area->room_index_hash[iHash]; pRoomIndex != NULL; pRoomIndex = pRoomIndex->next) {
                 nMatch++;
-                if (fAll || is_name(argument, pRoomIndex->name)) {
+                if (is_name(pattern, pRoomIndex->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        pRoomIndex->area->uid, pRoomIndex->vnum, pRoomIndex->name);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_room(pRoomIndex, NULL), pRoomIndex->name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4275,13 +4359,16 @@ void do_bpfind(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     BLUEPRINT *bp;
-    AREA_DATA *area;
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
@@ -4293,20 +4380,18 @@ void do_bpfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false;
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's blueprint hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (bp = area->blueprint_hash[iHash]; bp != NULL; bp = bp->next) {
                 nMatch++;
-                if (fAll || is_name(argument, bp->name)) {
+                if (is_name(pattern, bp->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        bp->area->uid, bp->vnum, bp->name);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_blueprint(bp, NULL), bp->name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4330,13 +4415,16 @@ void do_bsfind(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     BLUEPRINT_SECTION *bs;
-    AREA_DATA *area;
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
@@ -4348,20 +4436,18 @@ void do_bsfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false;
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's blueprint section hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (bs = area->blueprint_section_hash[iHash]; bs != NULL; bs = bs->next) {
                 nMatch++;
-                if (fAll || is_name(argument, bs->name)) {
+                if (is_name(pattern, bs->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        bs->area->uid, bs->vnum, bs->name);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_blueprint_section(bs, NULL), bs->name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4385,13 +4471,16 @@ void do_dngfind(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     DUNGEON_INDEX_DATA *dng;
-    AREA_DATA *area;
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
@@ -4403,20 +4492,18 @@ void do_dngfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false;
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's dungeon index hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (dng = area->dungeon_index_hash[iHash]; dng != NULL; dng = dng->next) {
                 nMatch++;
-                if (fAll || is_name(argument, dng->name)) {
+                if (is_name(pattern, dng->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        dng->area->uid, dng->vnum, dng->name);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_dungeon(dng, NULL), dng->name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4440,13 +4527,16 @@ void do_shfind(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
     SHIP_INDEX_DATA *ship;
-    AREA_DATA *area;
+    AREA_DATA *area, *filter_area = NULL;
     int nMatch, iHash;
-    bool fAll;
     bool found;
 
-    one_argument(argument, arg);
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
     if (arg[0] == '\0')
     {
     send_to_char("Find what?\n\r", ch);
@@ -4458,20 +4548,18 @@ void do_shfind(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    fAll	= false;
     found	= false;
     nMatch	= 0;
 
-    // Iterate through all areas
-    for (area = area_first; area != NULL; area = area->next) {
-        // Search this area's ship index hash
+    AREA_DATA *start = filter_area ? filter_area : area_first;
+    for (area = start; area != NULL; area = filter_area ? NULL : area->next) {
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (ship = area->ship_index_hash[iHash]; ship != NULL; ship = ship->next) {
                 nMatch++;
-                if (fAll || is_name(argument, ship->name)) {
+                if (is_name(pattern, ship->name)) {
                     found = true;
-                    sprintf(buf, "[%3ld#%5ld] %s\n\r",
-                        ship->area->uid, ship->vnum, ship->name);
+                    sprintf(buf, "[%s] %s\n\r",
+                        widevnum_string_ship(ship, NULL), ship->name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4530,8 +4618,8 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 
                     number++;
                     found = true;
-                    sprintf(buf, "{Y%3d){x %s [%3ld#%ld]\n\r", number,
-                        room->name, room->area->uid, room->vnum);
+                    sprintf(buf, "{Y%3d){x %s [%s]\n\r", number,
+                        room->name, widevnum_string_room(room, NULL));
                     buf[0] = UPPER(buf[0]);
                     add_buf(buffer,buf);
                 }
@@ -4603,49 +4691,52 @@ void do_owhere(CHAR_DATA *ch, char *argument)
         {
             if (IS_NPC(in_obj->carried_by))
             {
-                sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-                number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr,
+                sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %s|medit %s\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
+                number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr, obj->short_descr,
                 obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum,
+                (obj->in_obj != NULL) ? widevnum_string_mobile(obj->in_obj->carried_by->pIndexData, NULL) : widevnum_string_mobile(obj->carried_by->pIndexData, NULL),
+                (obj->in_obj != NULL) ? widevnum_string_mobile(obj->in_obj->carried_by->pIndexData, NULL) : widevnum_string_mobile(obj->carried_by->pIndexData, NULL),
                 (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
                 (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), 
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL));
                 add_buf(buffer, buf);
             }
             else
             {
-                sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-                number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+                sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
+                number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), 
                 obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), 
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL));
                 add_buf(buffer, buf);
             }
         } 
         else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) 
         {
-            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
-            obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, in_obj->in_room->vnum, in_obj->in_room->vnum, 
-            in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum);
+            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
+            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), 
+            obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), 
+            widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL),
+            widevnum_string_room(in_obj->in_room, NULL));
             add_buf(buffer, buf);
             
         } 
         else if (in_obj->in_mail != NULL) 
         {
-            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
-            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr, obj->short_descr);
+            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
+            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr, obj->short_descr, obj->short_descr);
             add_buf(buffer, buf);
         } 
         else 
         {
-            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld\" hint=\"Show index of obj %ld\">%s\t</send> is somewhere\n\r",
-            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr);
+            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s\" hint=\"Show index of obj %s\">%s\t</send> is somewhere\n\r",
+            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr);
             add_buf(buffer, buf);
 
         }
@@ -4709,13 +4800,13 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     count++;
 
                     if (d->original != NULL)
-                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in %s [%ld]\n\r",
+                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in %s [%s]\n\r",
                             count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
-                            victim->in_room->name,victim->in_room->vnum);
+                            victim->in_room->name,widevnum_string_room(victim->in_room, NULL));
                     else
-                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in %s [%ld]\n\r",
+                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in %s [%s]\n\r",
                             count, (long)victim->id[0], (long)victim->id[1], victim->name,victim->in_room->name,
-                            victim->in_room->vnum);
+                            widevnum_string_room(victim->in_room, NULL));
                     add_buf(buffer,buf);
                 } else {
                     /* Victim is in a virtual room, so report the location and position.*/

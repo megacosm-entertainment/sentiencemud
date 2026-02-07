@@ -1625,6 +1625,26 @@ void fix_dungeon_rooms(void)
     }
 }
 
+/**
+ * resolve_wnum_load - Resolve a WNUM_LOAD to a full WNUM with area pointer
+ *
+ * Converts a WNUM_LOAD (auid + vnum pair from JSON/file storage) into a
+ * resolved WNUM by looking up the area from the stored UID. Falls back to
+ * the provided reference area when no area UID is stored.
+ *
+ * @param load      Source WNUM_LOAD containing auid and vnum
+ * @param wnum      Destination WNUM to populate with area pointer and vnum
+ * @param pRefArea  Fallback area when load->auid is not set
+ */
+void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea)
+{
+	if (load->auid > 0)
+		wnum->pArea = get_area_from_uid(load->auid);
+	else
+		wnum->pArea = pRefArea;
+	wnum->vnum = load->vnum;
+}
+
 /*
  * Fix blueprint room references after all areas are loaded.
  * Resolves WNUM_LOAD unions to actual ROOM_INDEX_DATA pointers.

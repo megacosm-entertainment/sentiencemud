@@ -12340,6 +12340,44 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
 }
 
 /**
+ * parse_widevnum_load - Parse a widevnum string into a WNUM_LOAD structure
+ *
+ * Lightweight parser that extracts raw area UID and vnum without requiring
+ * the area to exist in the global area list. Use this during deserialization
+ * when areas may not yet be fully loaded (e.g., an area's own exits reference
+ * itself by UID, but the area isn't in the global list yet).
+ *
+ * Supported formats:
+ * - "UID#vnum"  : Extracts area UID and vnum
+ * - "vnum"      : Bare vnum (area UID set to 0)
+ *
+ * @param str   String to parse (not modified)
+ * @param wload Output WNUM_LOAD structure to populate
+ * @return      true if a valid vnum was extracted, false otherwise
+ */
+bool parse_widevnum_load(const char *str, WNUM_LOAD *wload)
+{
+    const char *hash;
+
+    if (!str || !wload) {
+        return false;
+    }
+
+    wload->auid = 0;
+    wload->vnum = 0;
+
+    hash = strchr(str, '#');
+    if (hash) {
+        wload->auid = atol(str);
+        wload->vnum = atol(hash + 1);
+    } else {
+        wload->vnum = atol(str);
+    }
+
+    return (wload->vnum > 0);
+}
+
+/**
  * widevnum_string - Convert WNUM to string format for display/saving
  *
  * Formats a WNUM as a string suitable for display or serialization.
@@ -12403,6 +12441,39 @@ const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea)
 {
     if (room && room->area)
         return widevnum_string(room->area, room->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_token(TOKEN_INDEX_DATA *token, AREA_DATA *pRefArea)
+{
+    if (token && token->area)
+        return widevnum_string(token->area, token->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea)
+{
+    if (bp && bp->area)
+        return widevnum_string(bp->area, bp->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea)
+{
+    if (bs && bs->area)
+        return widevnum_string(bs->area, bs->vnum, pRefArea);
+    return "0#0";
+}
+const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea)
+{
+    if (dng && dng->area)
+        return widevnum_string(dng->area, dng->vnum, pRefArea);
+    return "0#0";
+}
+const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea)
+{
+    if (ship && ship->area)
+        return widevnum_string(ship->area, ship->vnum, pRefArea);
     return "0#0";
 }
 

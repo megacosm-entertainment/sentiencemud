@@ -16,6 +16,7 @@
 #include "merc.h"
 #include "db.h"
 #include "tables.h"
+#include "io/json/json_socials.h"
 
 
 int social_count;
@@ -155,19 +156,25 @@ void load_socials_file(void)
 
     social_count = 0;
 
-    // First try loading from the new format
+    // First try loading from JSON format
+    if (json_load_socials(SOCIALS_JSON_FILE)) {
+        log_string(formatf("Loaded %d socials.", social_count));
+        return;
+    }
+
+    // Try loading from the legacy dat format
     if ((fp = fopen(SOCIALS_FILE, "r")) != NULL) {
-        log_string("Loading socials from new format...");
+        log_string("Loading socials from legacy format...");
         loaded_new = load_new_socials(fp);
         fclose(fp);
     }
 
-    // If new format loading failed or file doesn't exist, try old format
+    // If dat format loading failed or file doesn't exist, try old .are format
     if (!loaded_new) {
-        log_string("New format socials not found or invalid, trying old format...");
+        log_string("Legacy socials not found or invalid, trying old format...");
         if ((fp = fopen(OLD_SOCIALS_FILE, "r")) != NULL) {
             log_string("Loading socials from old format...");
-            
+
             // Skip ahead to the #SOCIALS section
             while (!feof(fp)) {
                 char *word = fread_word(fp);
@@ -175,16 +182,17 @@ void load_socials_file(void)
                     break;
                 }
             }
-            
+
             load_socials(fp);
             fclose(fp);
-            
-            // Migrate to new format
-            save_new_socials();
         } else {
             pbugf(LOG_ERROR, "Could not find any socials file!");
         }
     }
+
+    // Migrate to JSON format
+    if (social_count > 0)
+        json_save_socials(SOCIALS_JSON_FILE);
 
     log_string(formatf("Loaded %d socials.", social_count));
 }
@@ -300,50 +308,7 @@ bool load_new_socials(FILE *fp)
  */
 void save_new_socials(void)
 {
-    FILE *fp;
-    int i;
-    
-    if ((fp = fopen(SOCIALS_FILE, "w")) == NULL) {
-        pbugf(LOG_ERROR, "Save_new_socials: couldn't open file for writing");
-        return;
-    }
-    
-    for (i = 0; i < social_count; i++) {
-        fprintf(fp, "#SOCIAL %s~\n", social_table[i].name);
-        fprintf(fp, "Enabled 1\n");
-        
-        if (social_table[i].char_no_arg)
-            fprintf(fp, "CharNoArg %s~\n", social_table[i].char_no_arg);
-            
-        if (social_table[i].others_no_arg)
-            fprintf(fp, "OthersNoArg %s~\n", social_table[i].others_no_arg);
-            
-        if (social_table[i].char_found)
-            fprintf(fp, "CharFound %s~\n", social_table[i].char_found);
-            
-        if (social_table[i].others_found)
-            fprintf(fp, "OthersFound %s~\n", social_table[i].others_found);
-            
-        if (social_table[i].vict_found)
-            fprintf(fp, "VictFound %s~\n", social_table[i].vict_found);
-            
-        if (social_table[i].char_not_found)
-            fprintf(fp, "CharNotFound %s~\n", social_table[i].char_not_found);
-            
-        if (social_table[i].char_auto)
-            fprintf(fp, "CharAuto %s~\n", social_table[i].char_auto);
-            
-        if (social_table[i].others_auto)
-            fprintf(fp, "OthersAuto %s~\n", social_table[i].others_auto);
-            
-        fprintf(fp, "#-SOCIAL\n\n");
-    }
-    
-    // Add an end marker to make sure we can properly end reading
-    fprintf(fp, "#END\n");
-    
-    fclose(fp);
-    log_string("Socials saved in new format.");
+    json_save_socials(SOCIALS_JSON_FILE);
 }
 
 

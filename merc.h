@@ -8167,7 +8167,9 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 
 /*World files - Regarding things specifically for the game world. */
 #define PROJECTS_FILE	WORLD_DIR "projects.dat"
+#define PROJECTS_JSON_FILE	WORLD_DIR "projects.json"
 #define STAFF_FILE		WORLD_DIR "staff.dat"
+#define STAFF_JSON_FILE		WORLD_DIR "staff.json"
 #define PERM_OBJS_FILE	WORLD_DIR "perm_objs.dat"
 #define PERSIST_FILE	WORLD_DIR "persist.dat"
 #define GQ_FILE			WORLD_DIR "gq.dat"
@@ -8182,6 +8184,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define SHUTDOWN_FILE   SYSTEM_DIR "shutdown.txt"		/* For 'shutdown'*/
 #define MAINTENANCE_FILE   SYSTEM_DIR "shutdown_history.txt"		/* For 'shutdown'*/
 #define BAN_FILE		SYSTEM_DIR "ban.txt"
+#define BAN_JSON_FILE		SYSTEM_DIR "ban.json"
 /*#define MUSIC_FILE	SYSTEM_DIR	"music.txt"		Unused */
 #define CHAT_FILE		SYSTEM_DIR "chat_rooms.dat"
 #define MAIL_FILE		SYSTEM_DIR "mail.dat"
@@ -8203,9 +8206,12 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define INSTANCES_FILE		WORLD_DIR "instances.dat"
 #define SHIPS_FILE			WORLD_DIR "ships.dat"
 #define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
+#define COMMANDS_JSON_FILE  SYSTEM_DIR "commands.json"
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
 #define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
+#define CHANGESETS_JSON_FILE SYSTEM_DIR "changesets.json"
 #define SOCIALS_FILE  SYSTEM_DIR "socials.dat"
+#define SOCIALS_JSON_FILE SYSTEM_DIR "socials.json"
 #define OLD_SOCIALS_FILE AREA_DIR "social.are"
 #define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
 #define RESERVED_FILE     SYSTEM_DIR "reserved.dat"
@@ -9058,11 +9064,18 @@ AREA_DATA *get_area_index(long uid);
 
 /* WNUM functions */
 bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum);
+bool parse_widevnum_load(const char *str, WNUM_LOAD *wload);
+void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea);
 const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea);
 const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea);
 const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea);
 const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea);
 const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea);
+const char *widevnum_string_token(TOKEN_INDEX_DATA *token, AREA_DATA *pRefArea);
+const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea);
+const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea);
+const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea);
+const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea);
 
 void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);
 void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type);

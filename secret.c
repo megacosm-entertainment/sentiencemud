@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <errno.h>
 #include <jansson.h>
 
@@ -55,24 +56,39 @@ static bool load_secrets_from_mount(void)
         return false;
     }
 
-    // Check file type before opening. Doppler uses FIFOs (named pipes) for
-    // --mount, and fopen() on a FIFO blocks forever if Doppler isn't running.
+    // Check if mount is a FIFO (named pipe). Doppler uses FIFOs for --mount,
+    // and fopen() on a FIFO blocks forever if Doppler isn't running. If Doppler
+    // exited uncleanly the stale FIFO gets left behind.
     struct stat st;
-    if (stat(game_settings.secrets_mount, &st) != 0) {
-        log_stringf("Secret: Cannot stat mount file: %s (errno=%d)", game_settings.secrets_mount, errno);
-        return false;
-    }
-
-    if (S_ISFIFO(st.st_mode)) {
-        // Open FIFO non-blocking to avoid hanging if no writer (stale Doppler mount)
+    if (stat(game_settings.secrets_mount, &st) == 0 && S_ISFIFO(st.st_mode)) {
+        // Open non-blocking to avoid hanging on a stale FIFO
         int fd = open(game_settings.secrets_mount, O_RDONLY | O_NONBLOCK);
         if (fd < 0) {
-            log_stringf("Secret: Failed to open FIFO: %s (errno=%d)", game_settings.secrets_mount, errno);
+            log_stringf("Secret: Stale FIFO detected, removing: %s", game_settings.secrets_mount);
+            unlink(game_settings.secrets_mount);
             return false;
         }
+
+        // Poll to check if a writer (Doppler) is attached and has data
+        struct pollfd pfd = { .fd = fd, .events = POLLIN };
+        int poll_result = poll(&pfd, 1, 2000);
+
+        if (poll_result <= 0 || !(pfd.revents & POLLIN)) {
+            // Timeout or hangup with no data - stale Doppler mount
+            log_stringf("Secret: Stale Doppler FIFO (no writer), removing: %s",
+                       game_settings.secrets_mount);
+            close(fd);
+            unlink(game_settings.secrets_mount);
+            return false;
+        }
+
+        // Writer is present with data - switch to blocking mode for reliable read
+        int flags = fcntl(fd, F_GETFL);
+        fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+
         fp = fdopen(fd, "r");
         if (!fp) {
-            log_stringf("Secret: Failed to fdopen FIFO: %s (errno=%d)", game_settings.secrets_mount, errno);
+            log_stringf("Secret: Failed to read FIFO: %s (errno=%d)", game_settings.secrets_mount, errno);
             close(fd);
             return false;
         }
