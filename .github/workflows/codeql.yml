@@ -47,7 +47,7 @@ jobs:
 
     - name: Build dependencies
       run: |
-        cd ./src/.deps
+        cd .deps
         ./build_deps.sh
 
     # Initializes the CodeQL tools for scanning.
