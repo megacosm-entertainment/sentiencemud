@@ -329,10 +329,12 @@ void do_auction( CHAR_DATA *ch, char * argument )
     if ( auction_info.high_bidder != NULL )
     {
         auction_info.high_bidder->pcdata->bankbalance += auction_info.gold_held;
+        leaderboard_update_wealth(auction_info.high_bidder);
     }
 
         gold = bid;
     ch->pcdata->bankbalance -= gold;
+    leaderboard_update_wealth(ch);
 
     auction_info.gold_held		= gold;
     auction_info.silver_held	= 0;
@@ -531,6 +533,7 @@ void auction_update()
         auction_info.gold_held -= tax;
 
     auction_info.owner->pcdata->bankbalance += auction_info.gold_held;
+    leaderboard_update_wealth(auction_info.owner);
 
         sprintf( buf, "%ld gold tax has been taken!\n\r", tax );
     send_to_char( buf, auction_info.owner );

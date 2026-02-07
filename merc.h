@@ -403,7 +403,6 @@ typedef struct  prog_list              	PROG_LIST;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_index_part_data   QUEST_INDEX_PART_DATA;
 typedef struct  quest_list		QUEST_LIST;
-typedef struct  stat_data		STAT_DATA;
 typedef struct  string_data		STRING_DATA; /* for lists of strings */
 typedef struct	weather_data		WEATHER_DATA;
 typedef struct  token_index_data	TOKEN_INDEX_DATA;
@@ -6037,17 +6036,7 @@ struct npc_ship_index_data
     int      initial_ships_destroyed;
 };
 
-struct stat_data
-{
-    char 	*report_name;
-    char 	*description;
-    int 	columns;
-    char	 *column[2];
-    char 	*name[10];
-    char 	*value[10];
-};
-
-/* Leaderboard system - replaces stat_data */
+/* Leaderboard system */
 typedef struct leaderboard_entry {
     char    name[MAX_INPUT_LENGTH];
     double  score;
@@ -8099,7 +8088,6 @@ extern  const   struct  toxin_type      toxin_table     [MAX_TOXIN];
 extern  const   struct  herb_type       herb_table      [MAX_HERB];
 extern const    struct  script_type     script_type_table [];
 extern  	struct  boost_type	boost_table	[];
-extern  STAT_DATA		stat_table	[10];
 extern  LEADERBOARD_DATA	leaderboards	[MAX_LEADERBOARDS];
 extern  time_t			leaderboard_refresh_time;
 extern  time_t			leaderboard_backup_time;
@@ -8135,7 +8123,6 @@ int run_integration_tests(const char *pattern);
 extern		char			bug_buf		[];
 extern		char			log_buf		[];
 extern		time_t			current_time;
-extern      time_t          stats_load_time;
 extern          SCRIPT_DATA       *     mprog_list;
 extern          SCRIPT_DATA       *     oprog_list;
 extern          SCRIPT_DATA       *     rprog_list;
@@ -8592,13 +8579,11 @@ void generate_poa_resets( int level );
 void global_reset( void );
 void load_area_trade( AREA_DATA *pArea, FILE *fp );
 void load_npc_ships();
-void load_statistics();
 void read_chat_rooms();
 void read_mail( void );
 void write_chat_rooms();
 void write_mail( void );
 ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area );
-void load_stat( char *filename, int type );
 void write_help_to_disk(HELP_CATEGORY *hcat, HELP_DATA *help);
 void save_new_socials(void);
 bool load_new_socials(FILE *fp);

@@ -11445,9 +11445,7 @@ void do_immflag(CHAR_DATA *ch, char *argument)
 }
 
 /**
- * do_reloadstats - Reload game statistics from disk
- *
- * Forces a reload of game statistics data and updates the load time.
+ * do_reloadstats - Refresh leaderboards from Redis and save backup
  *
  * @param ch        Staff member using the command
  * @param argument  Not used
@@ -11456,8 +11454,9 @@ void do_immflag(CHAR_DATA *ch, char *argument)
  */
 void do_reloadstats(CHAR_DATA *ch, char *argument)
 {
-    load_statistics();
-    stats_load_time = current_time;
+    leaderboard_refresh_from_redis();
+    leaderboard_save_backup();
+    send_to_char("Leaderboards refreshed and backup saved.\n\r", ch);
 }
 
 /**

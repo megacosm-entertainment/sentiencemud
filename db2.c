@@ -1398,62 +1398,6 @@ void load_area_trade( AREA_DATA *pArea, FILE *fp )
 }
 
 
-/* Load report information */
-void load_statistics()
-{
-    stats_load_time = current_time;
-    log_string("stats.c, Loading Statistics...");
-
-    // Load Top10PKers.info
-    load_stat( "Top10PKers.info", REPORT_TOP_PLAYER_KILLERS );
-
-    // Load Top10CPKers.info
-    load_stat( "Top10CPKers.info", REPORT_TOP_CPLAYER_KILLERS );
-
-    // Load Top10monsters.info
-    load_stat( "Top10Monsters.info", REPORT_TOP_MONSTER_KILLERS );
-
-    // Load Top10wealthiest.info
-    load_stat( "Top10Wealthiest.info", REPORT_TOP_WEALTHIEST );
-
-    // Load Top10ratio.info
-    load_stat( "Top10Ratio.info", REPORT_TOP_WORST_RATIO );
-
-    // Load Top10quests.info
-    load_stat( "Top10Quests.info", REPORT_TOP_QUESTS );
-}
-
-
-void load_stat( char *filename, int type )
-{
-    FILE *fp;
-    char buf[MAX_STRING_LENGTH];
-    int i;
-
-    // Attach directory
-    sprintf( buf, STATS_DIR"%s", filename );
-
-    if ( ( fp = fopen( buf, "r")) == NULL )
-    {
-    pbugf(LOG_ERROR, "Couldn't load file %s.", filename );
-    return;
-    }
-
-    stat_table[type].report_name = fread_string( fp );
-    stat_table[type].description = format_string( fread_string( fp));
-    stat_table[type].columns = fread_number(fp);
-    stat_table[type].column[0] = fread_string( fp );
-    stat_table[type].column[1] = fread_string( fp );
-
-    for ( i = 0; i < 10; i++ )
-    {
-    stat_table[type].name[i] = fread_string( fp );
-    stat_table[type].value[i] = fread_string( fp );
-    }
-
-    fclose( fp );
-}
-
 
 // Generate the resets in the Pyramid of the Abyss. This is here
 // so we can edit the areas dynamically just like real areas and the

@@ -6020,6 +6020,7 @@ iterator_stop(&it);
 
     ch->gold -= amount;
     ch->pcdata->bankbalance += amount;
+    leaderboard_update_wealth(ch);
     sprintf(temp,
         "You transfer {Y%ld{X gold coins to your bank account.\n\r",
         amount);
@@ -6062,6 +6063,7 @@ iterator_stop(&it);
     }
     ch->pcdata->bankbalance -= amount;
     ch->gold += amount;
+    leaderboard_update_wealth(ch);
     sprintf(temp, "You just withdrew {Y%ld{X gold coins from your account.\n\r", amount);
     send_to_char(temp, ch);
     sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r", ch->pcdata->bankbalance);
@@ -6117,6 +6119,8 @@ iterator_stop(&it);
 
     ch->pcdata->bankbalance -= amount;
     target->pcdata->bankbalance += amount;
+    leaderboard_update_wealth(ch);
+    leaderboard_update_wealth(target);
     sprintf(temp, "You have transferred {Y%ld{X gold coins to %s's bank account.\n\r", amount, target->name);
     send_to_char(temp, ch);
     sprintf(temp, "%s has transferred {Y%ld{X gold coins to your bank account.\n\r", ch->name, amount);

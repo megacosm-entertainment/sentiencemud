@@ -563,6 +563,7 @@ const	struct	cmd_type	cmd_table	[] =
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, true },
     { "statsreload", do_reloadstats,	POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "leaderboard", do_leaderboard,	POS_DEAD, MAX_LEVEL, LOG_ALWAYS, 1, true },
     { "cmdlist", do_cmdlist, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
     { "cmdedit", do_cmdedit, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
 

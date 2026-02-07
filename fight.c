@@ -1686,8 +1686,10 @@ if (victim->lworn) {
         // Count up PKs/monster kills/arena wins
         if (!IS_NPC(ch) && !IS_NPC(victim) && ch != victim)
             player_kill(ch, victim);
-        else if (!IS_NPC(ch) && IS_NPC(victim))
+        else if (!IS_NPC(ch) && IS_NPC(victim)) {
             ch->monster_kills++;
+            leaderboard_update_score(REPORT_TOP_MONSTER_KILLERS, ch->name, (double)ch->monster_kills);
+        }
 
         kill_in_room = (victim->in_room == ch->in_room);
 
@@ -3906,6 +3908,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
         victim->time_left_death = MINS_PER_DEATH + 1;
 
     victim->deaths++;
+    if (!IS_NPC(victim))
+        leaderboard_update_score(REPORT_TOP_DEATHS, victim->name, (double)victim->deaths);
 
     victim->hit = victim->max_hit;
     victim->mana = victim->max_mana;
@@ -6064,8 +6068,10 @@ void do_slit(CHAR_DATA *ch, char *argument)
 
         if (!IS_NPC(ch) && !IS_NPC(victim))
             player_kill(ch, victim);
-        else if (!IS_NPC(ch) && IS_NPC(victim))
+        else if (!IS_NPC(ch) && IS_NPC(victim)) {
             ch->monster_kills++;
+            leaderboard_update_score(REPORT_TOP_MONSTER_KILLERS, ch->name, (double)ch->monster_kills);
+        }
     }
 }
 
@@ -6850,8 +6856,10 @@ void do_slay(CHAR_DATA *ch, char *argument)
     }
     if (!IS_NPC(ch) && !IS_NPC(victim))
         player_kill(ch, victim);
-    else if (!IS_NPC(ch) && IS_NPC(victim))
+    else if (!IS_NPC(ch) && IS_NPC(victim)) {
         ch->monster_kills++;
+        leaderboard_update_score(REPORT_TOP_MONSTER_KILLERS, ch->name, (double)ch->monster_kills);
+    }
 
     victim->death_type = DEATHTYPE_RAWKILL;
     victim->set_death_type = DEATHTYPE_ALIVE;
@@ -8010,6 +8018,8 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
             msg_church_members(ch->church, buf);
         }
     }
+
+    leaderboard_on_player_kill(ch, victim);
 }
 
 

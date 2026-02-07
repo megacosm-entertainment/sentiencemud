@@ -751,6 +751,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 do_say(mob, buf);
             }
             ch->pcdata->quests_completed++;
+            leaderboard_update_score(REPORT_TOP_QUESTS, ch->name, (double)ch->pcdata->quests_completed);
         }
         else
         {

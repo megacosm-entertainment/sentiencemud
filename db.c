@@ -1166,8 +1166,9 @@ void boot_db(void)
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing read_mail");
     read_mail();
 /*  reset_npc_sailing_boats();*/
-    stats_load_time = current_time;
-    load_statistics();
+    leaderboard_init_all();
+    leaderboard_load_backup();
+    leaderboard_seed_redis();
 
     /* set global attributes*/
 

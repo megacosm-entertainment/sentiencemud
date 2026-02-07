@@ -150,7 +150,6 @@ bool		    wizlock;		        /**< If true, only immortals can connect */
 bool		    newlock;		        /**< If true, no new characters can be created */
 char		    str_boot_time[MAX_INPUT_LENGTH]; /**< Boot time as formatted string */
 time_t		    current_time;	        /**< Current time of this pulse */
-time_t			stats_load_time;        /**< Time when stats were last loaded */
 bool		    MOBtrigger = true;      /**< Controls whether act() triggers mob scripts */
 LLIST *loaded_areas;                    /**< List of all loaded areas */
 SSL_CTX *ctx;                           /**< Global OpenSSL context for TLS connections */

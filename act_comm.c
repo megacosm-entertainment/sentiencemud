@@ -115,6 +115,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
         } else {
             sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
             capitalize( ch->name ) );
+            redis_leaderboard_remove_all(ch->name);
             wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
             stop_fighting(ch,true);
             do_function(ch, &do_quit, NULL);

@@ -109,11 +109,15 @@ void update_handler(void)
     
     // Process SSL context cleanup queue
     process_ssl_cleanup_queue();
-    // Load stats every 12 hours.
-    if (current_time >= stats_load_time + 43200)
-    {
-        load_statistics();
-        stats_load_time = current_time;
+    // Refresh leaderboard cache from Redis every 5 minutes
+    if (current_time >= leaderboard_refresh_time + 300) {
+        leaderboard_refresh_from_redis();
+        leaderboard_refresh_time = current_time;
+    }
+    // Backup leaderboards to disk every hour
+    if (current_time >= leaderboard_backup_time + 3600) {
+        leaderboard_save_backup();
+        leaderboard_backup_time = current_time;
     }
     }
 

@@ -474,6 +474,8 @@ void save_char_obj(CHAR_DATA *ch)
         if (ch->desc) {
             redis_set_char_active(ch->name, true);
         }
+        if (ch->pcdata)
+            leaderboard_update_wealth(ch);
     }
 
     gettimeofday(&end_time, NULL);
