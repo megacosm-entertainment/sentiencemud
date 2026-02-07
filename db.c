@@ -544,6 +544,8 @@ int16_t	gsn_soul_essence;
 /*
  * Locals.
  */
+WNUM wnum_zero;  // Zero-initialized WNUM constant for comparisons/initialization
+
 AREA_DATA *area_first;
 AREA_DATA *area_last;
 AREA_DATA *current_area;

@@ -9063,15 +9063,32 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name);
 AREA_DATA *get_area_index(long uid);
 
 /* WNUM functions */
+extern WNUM wnum_zero;
 bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum);
 bool parse_widevnum_load(const char *str, WNUM_LOAD *wload);
 void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea);
+
+/* WNUM matching - area-aware entity comparison */
+bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum);
+bool wnum_match_room(WNUM wnum, ROOM_INDEX_DATA *room);
+bool wnum_match_obj(WNUM wnum, OBJ_DATA *obj);
+bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch);
+bool wnum_match_token(WNUM wnum, TOKEN_DATA *token);
+
+/* WNUM extraction - populate WNUM from entity */
+void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum);
+void get_mob_wnum(MOB_INDEX_DATA *mob, WNUM *wnum);
+void get_obj_wnum(OBJ_INDEX_DATA *obj, WNUM *wnum);
+void get_token_wnum(TOKEN_INDEX_DATA *token, WNUM *wnum);
+
+/* WNUM display */
 const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea);
 const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea);
 const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea);
 const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea);
 const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea);
 const char *widevnum_string_token(TOKEN_INDEX_DATA *token, AREA_DATA *pRefArea);
+const char *widevnum_string_script(SCRIPT_DATA *script, AREA_DATA *pRefArea);
 const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea);
 const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea);
 const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea);

@@ -12378,6 +12378,189 @@ bool parse_widevnum_load(const char *str, WNUM_LOAD *wload)
 }
 
 /**
+ * wnum_match - Compare a WNUM against an area/vnum pair
+ *
+ * Checks whether the given WNUM matches the specified area and vnum.
+ * Both area pointer and vnum must match for a positive result.
+ *
+ * @param wnum  The WNUM to compare against
+ * @param area  The area to match
+ * @param vnum  The vnum to match
+ * @return      true if both area and vnum match
+ */
+bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum)
+{
+    if (!area || vnum < 1) return false;
+
+    return wnum.pArea == area && wnum.vnum == vnum;
+}
+
+/**
+ * wnum_match_room - Compare a WNUM against a room
+ *
+ * Checks whether the given WNUM matches the specified room's area and vnum.
+ * Clone rooms (rooms with a non-NULL source) will never match - compare
+ * against the source template room instead.
+ *
+ * @param wnum  The WNUM to compare against
+ * @param room  The room to match
+ * @return      true if the WNUM matches the room
+ */
+bool wnum_match_room(WNUM wnum, ROOM_INDEX_DATA *room)
+{
+    if (!room) return false;
+    if (!room->area || room->vnum < 1) return false;
+    if (room->source) return false; // Clone rooms will not match, use room->source
+
+    return wnum.pArea == room->area && wnum.vnum == room->vnum;
+}
+
+/**
+ * wnum_match_obj - Compare a WNUM against an object instance
+ *
+ * Checks whether the given WNUM matches the object's index data
+ * (area and vnum). Validates the object and its index data before comparing.
+ *
+ * @param wnum  The WNUM to compare against
+ * @param obj   The object instance to match
+ * @return      true if the WNUM matches the object's index
+ */
+bool wnum_match_obj(WNUM wnum, OBJ_DATA *obj)
+{
+    if (!IS_VALID(obj)) return false;
+    if (!obj->pIndexData) return false;
+    if (!obj->pIndexData->area || obj->pIndexData->vnum < 1) return false;
+
+    return obj->pIndexData->area == wnum.pArea && obj->pIndexData->vnum == wnum.vnum;
+}
+
+/**
+ * wnum_match_mob - Compare a WNUM against a mobile instance
+ *
+ * Checks whether the given WNUM matches the mobile's index data
+ * (area and vnum). Only matches NPCs - returns false for players.
+ *
+ * @param wnum  The WNUM to compare against
+ * @param ch    The character to match (must be NPC)
+ * @return      true if the WNUM matches the mobile's index
+ */
+bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch)
+{
+    if (!IS_VALID(ch) || !IS_NPC(ch)) return false;
+    if (!ch->pIndexData) return false;
+    if (!ch->pIndexData->area || ch->pIndexData->vnum < 1) return false;
+
+    return ch->pIndexData->area == wnum.pArea && ch->pIndexData->vnum == wnum.vnum;
+}
+
+/**
+ * wnum_match_token - Compare a WNUM against a token instance
+ *
+ * Checks whether the given WNUM matches the token's index data
+ * (area and vnum).
+ *
+ * @param wnum   The WNUM to compare against
+ * @param token  The token instance to match
+ * @return       true if the WNUM matches the token's index
+ */
+bool wnum_match_token(WNUM wnum, TOKEN_DATA *token)
+{
+    if (!IS_VALID(token)) return false;
+    if (!token->pIndexData) return false;
+    if (!token->pIndexData->area || token->pIndexData->vnum < 1) return false;
+
+    return token->pIndexData->area == wnum.pArea && token->pIndexData->vnum == wnum.vnum;
+}
+
+/**
+ * get_room_wnum - Extract a WNUM from a room
+ *
+ * Populates the given WNUM with the room's area and vnum.
+ * If room is NULL, zeros out the WNUM.
+ *
+ * @param room  The room to extract from (can be NULL)
+ * @param wnum  Output WNUM to populate
+ */
+void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum)
+{
+    if (wnum) {
+        if (room) {
+            wnum->pArea = room->area;
+            wnum->vnum = room->vnum;
+        } else {
+            wnum->pArea = NULL;
+            wnum->vnum = 0;
+        }
+    }
+}
+
+/**
+ * get_mob_wnum - Extract a WNUM from a mobile index
+ *
+ * Populates the given WNUM with the mobile's area and vnum.
+ * If mob is NULL, zeros out the WNUM.
+ *
+ * @param mob   The mobile index to extract from (can be NULL)
+ * @param wnum  Output WNUM to populate
+ */
+void get_mob_wnum(MOB_INDEX_DATA *mob, WNUM *wnum)
+{
+    if (wnum) {
+        if (mob) {
+            wnum->pArea = mob->area;
+            wnum->vnum = mob->vnum;
+        } else {
+            wnum->pArea = NULL;
+            wnum->vnum = 0;
+        }
+    }
+}
+
+/**
+ * get_obj_wnum - Extract a WNUM from an object index
+ *
+ * Populates the given WNUM with the object's area and vnum.
+ * If obj is NULL, zeros out the WNUM.
+ *
+ * @param obj   The object index to extract from (can be NULL)
+ * @param wnum  Output WNUM to populate
+ */
+void get_obj_wnum(OBJ_INDEX_DATA *obj, WNUM *wnum)
+{
+    if (wnum) {
+        if (obj) {
+            wnum->pArea = obj->area;
+            wnum->vnum = obj->vnum;
+        } else {
+            wnum->pArea = NULL;
+            wnum->vnum = 0;
+        }
+    }
+}
+
+/**
+ * get_token_wnum - Extract a WNUM from a token index
+ *
+ * Populates the given WNUM with the token's area and vnum.
+ * If token is NULL, zeros out the WNUM.
+ *
+ * @param token The token index to extract from (can be NULL)
+ * @param wnum  Output WNUM to populate
+ */
+void get_token_wnum(TOKEN_INDEX_DATA *token, WNUM *wnum)
+{
+    if (wnum) {
+        if (token) {
+            wnum->pArea = token->area;
+            wnum->vnum = token->vnum;
+        } else {
+            wnum->pArea = NULL;
+            wnum->vnum = 0;
+        }
+    }
+}
+
+/**
  * widevnum_string - Convert WNUM to string format for display/saving
  *
  * Formats a WNUM as a string suitable for display or serialization.
@@ -12474,6 +12657,13 @@ const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea)
 {
     if (ship && ship->area)
         return widevnum_string(ship->area, ship->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_script(SCRIPT_DATA *script, AREA_DATA *pRefArea)
+{
+    if (script && script->area)
+        return widevnum_string(script->area, script->vnum, pRefArea);
     return "0#0";
 }
 
