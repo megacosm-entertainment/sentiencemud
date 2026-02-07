@@ -1646,3 +1646,427 @@ long redis_area_cache_warm_queue_size(void)
     pthread_mutex_unlock(&redis_mutex);
     return size;
 }
+
+/***************************************************************************
+ * Leaderboard Operations (Sorted Sets)                                   *
+ ***************************************************************************/
+
+/* Board names used for redis_leaderboard_remove_all */
+static const char *leaderboard_boards[] = {
+    "pkers", "cpkers", "wealthiest", "monsters", "quests", "deaths",
+    NULL
+};
+
+/**
+ * redis_leaderboard_update - Set a player's score in a leaderboard sorted set
+ *
+ * Uses ZADD which creates or overwrites the member's score.
+ */
+bool redis_leaderboard_update(const char *board_name, const char *player_name, double score)
+{
+    redisReply *reply;
+    char key[256];
+
+    if (!redis_is_available() || !board_name || !player_name) {
+        return false;
+    }
+
+    snprintf(key, sizeof(key), "leaderboard:%s", board_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "ZADD %s %f %s", key, score, player_name);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        log_stringf("Redis: ZADD error on %s: %s", key, reply->str);
+        freeReplyObject(reply);
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    freeReplyObject(reply);
+    stats.sets++;
+    pthread_mutex_unlock(&redis_mutex);
+    return true;
+}
+
+/**
+ * redis_leaderboard_get_top - Retrieve top N entries (highest score first)
+ *
+ * Uses ZREVRANGE with WITHSCORES. Reply is an array of alternating
+ * name/score strings.
+ */
+int redis_leaderboard_get_top(const char *board_name, int max_entries,
+                              char **names, double *scores)
+{
+    redisReply *reply;
+    char key[256];
+    int count = 0;
+
+    if (!redis_is_available() || !board_name || !names || !scores || max_entries <= 0) {
+        return 0;
+    }
+
+    snprintf(key, sizeof(key), "leaderboard:%s", board_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "ZREVRANGE %s 0 %d WITHSCORES", key, max_entries - 1);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    if (reply->type == REDIS_REPLY_ARRAY && reply->elements >= 2) {
+        count = (int)(reply->elements / 2);
+        for (int i = 0; i < count; i++) {
+            names[i] = strdup(reply->element[i * 2]->str);
+            scores[i] = strtod(reply->element[i * 2 + 1]->str, NULL);
+        }
+        stats.hits++;
+    } else {
+        stats.misses++;
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return count;
+}
+
+/**
+ * redis_leaderboard_get_bottom - Retrieve bottom N entries (lowest score first)
+ *
+ * Uses ZRANGE with WITHSCORES. Used for the worst-ratio leaderboard.
+ */
+int redis_leaderboard_get_bottom(const char *board_name, int max_entries,
+                                 char **names, double *scores)
+{
+    redisReply *reply;
+    char key[256];
+    int count = 0;
+
+    if (!redis_is_available() || !board_name || !names || !scores || max_entries <= 0) {
+        return 0;
+    }
+
+    snprintf(key, sizeof(key), "leaderboard:%s", board_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "ZRANGE %s 0 %d WITHSCORES", key, max_entries - 1);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    if (reply->type == REDIS_REPLY_ARRAY && reply->elements >= 2) {
+        count = (int)(reply->elements / 2);
+        for (int i = 0; i < count; i++) {
+            names[i] = strdup(reply->element[i * 2]->str);
+            scores[i] = strtod(reply->element[i * 2 + 1]->str, NULL);
+        }
+        stats.hits++;
+    } else {
+        stats.misses++;
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return count;
+}
+
+/**
+ * redis_leaderboard_remove - Remove a player from a specific leaderboard
+ */
+bool redis_leaderboard_remove(const char *board_name, const char *player_name)
+{
+    redisReply *reply;
+    char key[256];
+
+    if (!redis_is_available() || !board_name || !player_name) {
+        return false;
+    }
+
+    snprintf(key, sizeof(key), "leaderboard:%s", board_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "ZREM %s %s", key, player_name);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    freeReplyObject(reply);
+    stats.deletes++;
+    pthread_mutex_unlock(&redis_mutex);
+    return true;
+}
+
+/**
+ * redis_leaderboard_remove_all - Remove a player from ALL leaderboards
+ *
+ * Called on character deletion/retirement. Also cleans up ratio hash data.
+ */
+void redis_leaderboard_remove_all(const char *player_name)
+{
+    redisReply *reply;
+    char kills_field[256], deaths_field[256];
+
+    if (!redis_is_available() || !player_name) {
+        return;
+    }
+
+    /* Remove from each sorted set */
+    for (int i = 0; leaderboard_boards[i] != NULL; i++) {
+        redis_leaderboard_remove(leaderboard_boards[i], player_name);
+    }
+
+    /* Remove ratio hash data */
+    snprintf(kills_field, sizeof(kills_field), "%s:kills", player_name);
+    snprintf(deaths_field, sizeof(deaths_field), "%s:deaths", player_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "HDEL leaderboard:ratio:data %s %s",
+                         kills_field, deaths_field);
+    if (reply) {
+        freeReplyObject(reply);
+    }
+    stats.deletes++;
+    pthread_mutex_unlock(&redis_mutex);
+}
+
+/**
+ * redis_leaderboard_set_ratio_data - Store kills/deaths for ratio computation
+ *
+ * Uses HSET on a single hash key with per-player fields.
+ */
+bool redis_leaderboard_set_ratio_data(const char *player_name,
+                                       int total_kills, int total_deaths)
+{
+    redisReply *reply;
+    char kills_field[256], deaths_field[256];
+
+    if (!redis_is_available() || !player_name) {
+        return false;
+    }
+
+    snprintf(kills_field, sizeof(kills_field), "%s:kills", player_name);
+    snprintf(deaths_field, sizeof(deaths_field), "%s:deaths", player_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "HSET leaderboard:ratio:data %s %d %s %d",
+                         kills_field, total_kills, deaths_field, total_deaths);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        log_stringf("Redis: HSET ratio data error: %s", reply->str);
+        freeReplyObject(reply);
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    freeReplyObject(reply);
+    stats.sets++;
+    pthread_mutex_unlock(&redis_mutex);
+    return true;
+}
+
+/**
+ * redis_leaderboard_get_ratio_data - Compute ratios from stored hash data
+ *
+ * Fetches HGETALL leaderboard:ratio:data, parses player:kills / player:deaths
+ * pairs, computes win percentages, filters by threshold, sorts ascending,
+ * returns top N worst ratios.
+ */
+int redis_leaderboard_get_ratio_data(int max_entries, char **names,
+                                      double *scores, int min_total_fights)
+{
+    redisReply *reply;
+    int count = 0;
+
+    if (!redis_is_available() || !names || !scores || max_entries <= 0) {
+        return 0;
+    }
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "HGETALL leaderboard:ratio:data");
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    if (reply->type != REDIS_REPLY_ARRAY || reply->elements < 2) {
+        stats.misses++;
+        freeReplyObject(reply);
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    stats.hits++;
+
+    /*
+     * Parse field-value pairs from HGETALL.
+     * Fields are "PlayerName:kills" and "PlayerName:deaths".
+     * We build a temporary array of {name, kills, deaths} tuples.
+     */
+    typedef struct {
+        char name[256];
+        int kills;
+        int deaths;
+        bool has_kills;
+        bool has_deaths;
+    } ratio_entry_t;
+
+    /* Worst case: elements/2 fields, half of which are kills, half deaths */
+    int max_players = (int)(reply->elements / 2);
+    ratio_entry_t *entries = calloc(max_players, sizeof(ratio_entry_t));
+    int num_players = 0;
+
+    if (!entries) {
+        freeReplyObject(reply);
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    for (size_t i = 0; i + 1 < reply->elements; i += 2) {
+        const char *field = reply->element[i]->str;
+        int value = atoi(reply->element[i + 1]->str);
+
+        /* Find the last ':' to split "Name:kills" or "Name:deaths" */
+        const char *sep = strrchr(field, ':');
+        if (!sep) continue;
+
+        char player[256];
+        size_t name_len = sep - field;
+        if (name_len >= sizeof(player)) continue;
+        memcpy(player, field, name_len);
+        player[name_len] = '\0';
+
+        const char *suffix = sep + 1;
+
+        /* Find or create entry for this player */
+        int idx = -1;
+        for (int j = 0; j < num_players; j++) {
+            if (strcmp(entries[j].name, player) == 0) {
+                idx = j;
+                break;
+            }
+        }
+        if (idx < 0) {
+            idx = num_players++;
+            strncpy(entries[idx].name, player, sizeof(entries[idx].name) - 1);
+        }
+
+        if (strcmp(suffix, "kills") == 0) {
+            entries[idx].kills = value;
+            entries[idx].has_kills = true;
+        } else if (strcmp(suffix, "deaths") == 0) {
+            entries[idx].deaths = value;
+            entries[idx].has_deaths = true;
+        }
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+
+    /* Compute ratios and filter */
+    typedef struct {
+        char name[256];
+        double ratio;
+    } ratio_result_t;
+
+    ratio_result_t *results = calloc(num_players, sizeof(ratio_result_t));
+    int num_results = 0;
+
+    if (!results) {
+        free(entries);
+        return 0;
+    }
+
+    for (int i = 0; i < num_players; i++) {
+        if (!entries[i].has_kills || !entries[i].has_deaths) continue;
+
+        int total = entries[i].kills + entries[i].deaths;
+        if (total < min_total_fights) continue;
+        if (entries[i].deaths == 0) continue;
+
+        double ratio = (double)entries[i].kills * 100.0 / (double)total;
+        strncpy(results[num_results].name, entries[i].name, sizeof(results[num_results].name) - 1);
+        results[num_results].ratio = ratio;
+        num_results++;
+    }
+
+    free(entries);
+
+    /* Sort ascending (worst ratio first) */
+    for (int i = 0; i < num_results - 1; i++) {
+        for (int j = i + 1; j < num_results; j++) {
+            if (results[j].ratio < results[i].ratio) {
+                ratio_result_t tmp = results[i];
+                results[i] = results[j];
+                results[j] = tmp;
+            }
+        }
+    }
+
+    /* Return top N */
+    count = num_results < max_entries ? num_results : max_entries;
+    for (int i = 0; i < count; i++) {
+        names[i] = strdup(results[i].name);
+        scores[i] = results[i].ratio;
+    }
+
+    free(results);
+    return count;
+}
+
+/**
+ * redis_leaderboard_count - Get number of entries in a leaderboard
+ */
+long redis_leaderboard_count(const char *board_name)
+{
+    redisReply *reply;
+    char key[256];
+    long count = 0;
+
+    if (!redis_is_available() || !board_name) {
+        return 0;
+    }
+
+    snprintf(key, sizeof(key), "leaderboard:%s", board_name);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "ZCARD %s", key);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return 0;
+    }
+
+    if (reply->type == REDIS_REPLY_INTEGER) {
+        count = reply->integer;
+    }
+
+    freeReplyObject(reply);
+    pthread_mutex_unlock(&redis_mutex);
+    return count;
+}

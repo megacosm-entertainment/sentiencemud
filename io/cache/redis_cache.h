@@ -219,6 +219,42 @@ char *redis_get_mobile_state(unsigned long id0, unsigned long id1);
 char *redis_get_object_state(unsigned long id0, unsigned long id1);
 
 /***************************************************************************
+ * Leaderboard Operations (Sorted Sets)                                   *
+ * Keys: "leaderboard:{board}" (e.g. "leaderboard:pkers")                *
+ * No TTL - leaderboard data persists until explicitly removed             *
+ ***************************************************************************/
+
+// Update a player's score in a leaderboard (ZADD)
+bool redis_leaderboard_update(const char *board_name, const char *player_name, double score);
+
+// Retrieve top N entries, highest score first (ZREVRANGE WITHSCORES)
+// names[] entries are strdup'd - caller must free each non-NULL entry
+int redis_leaderboard_get_top(const char *board_name, int max_entries,
+                              char **names, double *scores);
+
+// Retrieve bottom N entries, lowest score first (ZRANGE WITHSCORES)
+int redis_leaderboard_get_bottom(const char *board_name, int max_entries,
+                                 char **names, double *scores);
+
+// Remove a player from a specific leaderboard (ZREM)
+bool redis_leaderboard_remove(const char *board_name, const char *player_name);
+
+// Remove a player from ALL leaderboards and ratio data
+void redis_leaderboard_remove_all(const char *player_name);
+
+// Store kills/deaths for ratio computation (HSET leaderboard:ratio:data)
+bool redis_leaderboard_set_ratio_data(const char *player_name,
+                                       int total_kills, int total_deaths);
+
+// Compute ratios from stored data, return sorted ascending (worst first)
+// names[] entries are strdup'd - caller must free each non-NULL entry
+int redis_leaderboard_get_ratio_data(int max_entries, char **names,
+                                      double *scores, int min_total_fights);
+
+// Get number of entries in a leaderboard (ZCARD)
+long redis_leaderboard_count(const char *board_name);
+
+/***************************************************************************
  * Diagnostics & Monitoring                                               *
  ***************************************************************************/
 

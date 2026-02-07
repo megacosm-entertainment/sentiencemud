@@ -5920,7 +5920,7 @@ struct rep_type
 
 #define SHIP_PROTECTED				(A)		// Ship cannot be attacked
 
-/* Reports */
+/* Reports / Leaderboards */
 #define REPORT_TOP_PLAYER_KILLERS      0
 #define REPORT_TOP_CPLAYER_KILLERS     1
 #define REPORT_TOP_WEALTHIEST          2
@@ -5928,6 +5928,11 @@ struct rep_type
 #define REPORT_TOP_MONSTER_KILLERS     4
 #define REPORT_TOP_QUESTS              5
 #define REPORT_TOP_BEST_RATIO          6
+#define REPORT_TOP_DEATHS              7
+
+#define MAX_LEADERBOARD_ENTRIES        10
+#define MAX_LEADERBOARDS               8
+#define LEADERBOARD_MIN_RATIO_FIGHTS   50
 
 /* navigation waypoints */
 struct waypoint_data
@@ -6041,6 +6046,27 @@ struct stat_data
     char 	*name[10];
     char 	*value[10];
 };
+
+/* Leaderboard system - replaces stat_data */
+typedef struct leaderboard_entry {
+    char    name[MAX_INPUT_LENGTH];
+    double  score;
+    char    display_value[64];
+} LEADERBOARD_ENTRY;
+
+typedef struct leaderboard_data {
+    int                 type;
+    const char         *redis_key;
+    const char         *report_name;
+    const char         *description;
+    const char         *col_name;
+    const char         *col_value;
+    bool                descending;
+    bool                is_derived;
+    LEADERBOARD_ENTRY   entries[MAX_LEADERBOARD_ENTRIES];
+    int                 count;
+    time_t              last_refresh;
+} LEADERBOARD_DATA;
 
 #define SHIP_MAX_HIT		100000
 #define SHIP_MAX_GUNS		20
@@ -8074,6 +8100,9 @@ extern  const   struct  herb_type       herb_table      [MAX_HERB];
 extern const    struct  script_type     script_type_table [];
 extern  	struct  boost_type	boost_table	[];
 extern  STAT_DATA		stat_table	[10];
+extern  LEADERBOARD_DATA	leaderboards	[MAX_LEADERBOARDS];
+extern  time_t			leaderboard_refresh_time;
+extern  time_t			leaderboard_backup_time;
 extern  IMMORTAL_DATA *immortal_groups[MAX_IMMORTAL_GROUPS];
 
 /*
@@ -8331,6 +8360,15 @@ void show_help_to_ch( CHAR_DATA *ch, HELP_DATA *help );
 
 /* stats.c */
 BUFFER *get_stats( int type );
+void    leaderboard_init_all(void);
+void    leaderboard_update_score(int type, const char *name, double score);
+void    leaderboard_on_player_kill(CHAR_DATA *ch, CHAR_DATA *victim);
+void    leaderboard_update_ratio(CHAR_DATA *ch);
+void    leaderboard_update_wealth(CHAR_DATA *ch);
+void    leaderboard_refresh_from_redis(void);
+bool    leaderboard_load_backup(void);
+void    leaderboard_save_backup(void);
+void    leaderboard_seed_redis(void);
 
 /* act_move.c */
 bool can_move( CHAR_DATA *ch, ROOM_INDEX_DATA *room );

@@ -42,6 +42,7 @@
 #include "merc.h"
 #include "olc.h"
 #include "interp.h"
+#include "mxp_links.h"
 #include "recycle.h"
 #include "tables.h"
 #include "olc_save.h"
@@ -4687,58 +4688,45 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 
         for (in_obj = obj; in_obj->in_obj != NULL; in_obj = in_obj->in_obj) ;
 
-        if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL) 
-        {
-            if (IS_NPC(in_obj->carried_by))
-            {
-                sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %s|medit %s\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
-                number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr, obj->short_descr,
-                obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
-                (obj->in_obj != NULL) ? widevnum_string_mobile(obj->in_obj->carried_by->pIndexData, NULL) : widevnum_string_mobile(obj->carried_by->pIndexData, NULL),
-                (obj->in_obj != NULL) ? widevnum_string_mobile(obj->in_obj->carried_by->pIndexData, NULL) : widevnum_string_mobile(obj->carried_by->pIndexData, NULL),
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
-                (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), 
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL));
-                add_buf(buffer, buf);
-            }
-            else
-            {
-                sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
-                number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), 
-                obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), 
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
-                (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL));
-                add_buf(buffer, buf);
-            }
-        } 
-        else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) 
-        {
-            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
-            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), 
-            obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), 
-            widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL),
-            widevnum_string_room(in_obj->in_room, NULL));
-            add_buf(buffer, buf);
-            
-        } 
-        else if (in_obj->in_mail != NULL) 
-        {
-            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
-            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr, obj->short_descr, obj->short_descr);
-            add_buf(buffer, buf);
-        } 
-        else 
-        {
-            sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s\" hint=\"Show index of obj %s\">%s\t</send> is somewhere\n\r",
-            number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr);
-            add_buf(buffer, buf);
+        CHAR_DATA *carrier = (obj->in_obj != NULL) ? obj->in_obj->carried_by : obj->carried_by;
 
+        if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL)
+        {
+            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is carried by %s [%s]\n\r",
+                number,
+                mxp_obj_id_link(ch->desc, obj),
+                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr),
+                mxp_mob_link(ch->desc, carrier, carrier->short_descr),
+                mxp_room_link(ch->desc, carrier->in_room,
+                    formatf("Room %s", widevnum_string_room(carrier->in_room, NULL))));
+            add_buf(buffer, buf);
+        }
+        else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room))
+        {
+            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is in %s [%s]\n\r",
+                number,
+                mxp_obj_id_link(ch->desc, obj),
+                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr),
+                in_obj->in_room->name,
+                mxp_room_link(ch->desc, in_obj->in_room,
+                    formatf("Room %s", widevnum_string_room(in_obj->in_room, NULL))));
+            add_buf(buffer, buf);
+        }
+        else if (in_obj->in_mail != NULL)
+        {
+            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is in a mail package\n\r",
+                number,
+                mxp_obj_id_link(ch->desc, obj),
+                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr));
+            add_buf(buffer, buf);
+        }
+        else
+        {
+            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is somewhere\n\r",
+                number,
+                mxp_obj_id_link(ch->desc, obj),
+                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr));
+            add_buf(buffer, buf);
         }
 /*
         buf[0] = UPPER(buf[0]);

@@ -157,6 +157,7 @@ C_FILES = \
     olc_save.c \
     project.c \
     protocol.c \
+    mxp_links.c \
     quest.c \
     io/cache/redis_cache.c \
     io/cache/async_cache.c \
