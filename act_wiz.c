@@ -4657,7 +4657,6 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
  */
 void do_owhere(CHAR_DATA *ch, char *argument)
 {
-    char buf[MIL*2];
     BUFFER *buffer;
     OBJ_DATA *obj;
     OBJ_DATA *in_obj;
@@ -4690,44 +4689,36 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 
         CHAR_DATA *carrier = (obj->in_obj != NULL) ? obj->in_obj->carried_by : obj->carried_by;
 
+        bprintf(buffer, "{Y%3d) {WID{X: [", number);
+        mxp_obj_id_link(ch->desc, buffer, obj);
+        bprintf(buffer, "]{x ");
+        mxp_obj_vnum_link(ch->desc, buffer, obj->pIndexData, obj->short_descr);
+
         if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL)
         {
-            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is carried by %s [%s]\n\r",
-                number,
-                mxp_obj_id_link(ch->desc, obj),
-                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr),
-                mxp_mob_link(ch->desc, carrier, carrier->short_descr),
-                mxp_room_link(ch->desc, carrier->in_room,
-                    formatf("Room %s", widevnum_string_room(carrier->in_room, NULL))));
-            add_buf(buffer, buf);
+            bprintf(buffer, " is carried by ");
+            mxp_mob_link(ch->desc, buffer, carrier, carrier->short_descr);
+            bprintf(buffer, " [");
+            mxp_room_link(ch->desc, buffer, carrier->in_room,
+                formatf("Room %s", widevnum_string_room(carrier->in_room, NULL)));
+            bprintf(buffer, "]");
         }
         else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room))
         {
-            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is in %s [%s]\n\r",
-                number,
-                mxp_obj_id_link(ch->desc, obj),
-                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr),
-                in_obj->in_room->name,
-                mxp_room_link(ch->desc, in_obj->in_room,
-                    formatf("Room %s", widevnum_string_room(in_obj->in_room, NULL))));
-            add_buf(buffer, buf);
+            bprintf(buffer, " is in %s [", in_obj->in_room->name);
+            mxp_room_link(ch->desc, buffer, in_obj->in_room,
+                formatf("Room %s", widevnum_string_room(in_obj->in_room, NULL)));
+            bprintf(buffer, "]");
         }
         else if (in_obj->in_mail != NULL)
         {
-            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is in a mail package\n\r",
-                number,
-                mxp_obj_id_link(ch->desc, obj),
-                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr));
-            add_buf(buffer, buf);
+            bprintf(buffer, " is in a mail package");
         }
         else
         {
-            sprintf(buf, "{Y%3d) {WID{X: [%s]{x %s is somewhere\n\r",
-                number,
-                mxp_obj_id_link(ch->desc, obj),
-                mxp_obj_vnum_link(ch->desc, obj->pIndexData, obj->short_descr));
-            add_buf(buffer, buf);
+            bprintf(buffer, " is somewhere");
         }
+        bprintf(buffer, "\n\r");
 /*
         buf[0] = UPPER(buf[0]);
         add_buf(buffer,buf);

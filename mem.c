@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1268,6 +1269,66 @@ void clear_buf(BUFFER *buffer)
 char *buf_string(BUFFER *buffer)
 {
     return buffer->string;
+}
+
+/**
+ * bprintf - Format and append directly to a BUFFER
+ *
+ * Safer replacement for the sprintf(buf, ...); add_buf(buffer, buf) pattern.
+ * Measures the needed size first, grows the buffer if necessary, then formats
+ * directly into the buffer's string with no intermediate fixed-size copy.
+ *
+ * @param buffer  Target BUFFER to append to
+ * @param fmt     printf-style format string
+ * @param ...     Format arguments
+ * @return        true on success, false on overflow or format error
+ */
+bool bprintf(BUFFER *buffer, const char *fmt, ...)
+{
+    va_list args;
+    char *oldstr;
+    int oldsize;
+    int curlen, needed, total;
+
+    if (buffer->state == BUFFER_OVERFLOW)
+        return false;
+
+    va_start(args, fmt);
+    needed = vsnprintf(NULL, 0, fmt, args);
+    va_end(args);
+
+    if (needed < 0)
+        return false;
+
+    oldstr = buffer->string;
+    oldsize = buffer->size;
+    curlen = strlen(buffer->string);
+    total = curlen + needed + 1;
+
+    while (total >= buffer->size)
+    {
+        buffer->size = get_size(buffer->size + 1, total);
+        if (buffer->size == -1)
+        {
+            buffer->size = oldsize;
+            buffer->state = BUFFER_OVERFLOW;
+            pbugf(LOG_ERROR, "bprintf: buffer overflow past size %d", oldsize);
+            return false;
+        }
+    }
+
+    if (buffer->size != oldsize)
+    {
+        buffer->string = malloc(buffer->size);
+        strcpy(buffer->string, oldstr);
+        free(oldstr);
+    }
+
+    va_start(args, fmt);
+    vsnprintf(buffer->string + curlen, needed + 1, fmt, args);
+    va_end(args);
+
+    return true;
 }
 
 PROG_DATA *new_prog_data(void)

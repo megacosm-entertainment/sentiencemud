@@ -1,70 +1,50 @@
 /**
  * mxp_links.c - Standardized MXP link/tooltip generation
  *
- * Provides helpers for building MXP <send> tags. Uses a dedicated ring
- * buffer pool (separate from formatf/MXPBuildTag) so multiple mxp_*
- * calls can safely appear in a single sprintf.
+ * All helpers append directly to a BUFFER, avoiding static/ring buffer
+ * issues entirely. Safe to call any number of times per output line.
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include "merc.h"
+#include "recycle.h"
 #include "protocol.h"
 #include "mxp_links.h"
 
-#define MXP_LINK_BUFS    32
-#define MXP_LINK_BUFSZ   4096
-
-static char s_mxp_buf[MXP_LINK_BUFS][MXP_LINK_BUFSZ];
-static int  s_mxp_buf_i;
-
-static char *mxp_alloc_buf(void)
-{
-    char *b = s_mxp_buf[s_mxp_buf_i++ % MXP_LINK_BUFS];
-    b[0] = '\0';
-    return b;
-}
-
-const char *mxp_link(descriptor_t *d, const char *text,
-                     const char *command, const char *hint)
+void mxp_link(descriptor_t *d, BUFFER *buf, const char *text,
+              const char *command, const char *hint)
 {
     if (!text) text = "";
-    if (!command || !command[0] || !isMXP(d))
-        return text;
-
-    char *out = mxp_alloc_buf();
-    if (hint && hint[0])
-        snprintf(out, MXP_LINK_BUFSZ,
-                 "\t<send href=\"%s\" hint=\"%s\">%s\t</send>",
-                 command, hint, text);
-    else
-        snprintf(out, MXP_LINK_BUFSZ,
-                 "\t<send href=\"%s\">%s\t</send>",
-                 command, text);
-    return out;
-}
-
-const char *mxp_link_multi(descriptor_t *d, const char *text,
-                           const mxp_cmd_hint_t *items, int nitems)
-{
-    if (!text) text = "";
-    if (!items || nitems <= 0 || !isMXP(d))
-        return text;
-
-    char *out = mxp_alloc_buf();
-    size_t p = 0;
-
-    p += (size_t)snprintf(out + p, MXP_LINK_BUFSZ - p, "\t<send href=\"");
-
-    for (int i = 0; i < nitems; i++) {
-        if (i) out[p++] = '|';
-        if (items[i].cmd)
-            p += (size_t)snprintf(out + p, MXP_LINK_BUFSZ - p, "%s",
-                                  items[i].cmd);
+    if (!command || !command[0] || !isMXP(d)) {
+        add_buf(buf, (char *)text);
+        return;
     }
 
-    p += (size_t)snprintf(out + p, MXP_LINK_BUFSZ - p, "\"");
+    if (hint && hint[0])
+        bprintf(buf, "\t<send href=\"%s\" hint=\"%s\">%s\t</send>",
+                command, hint, text);
+    else
+        bprintf(buf, "\t<send href=\"%s\">%s\t</send>", command, text);
+}
+
+void mxp_link_multi(descriptor_t *d, BUFFER *buf, const char *text,
+                    const mxp_cmd_hint_t *items, int nitems)
+{
+    if (!text) text = "";
+    if (!items || nitems <= 0 || !isMXP(d)) {
+        add_buf(buf, (char *)text);
+        return;
+    }
+
+    add_buf(buf, (char *)"\t<send href=\"");
+    for (int i = 0; i < nitems; i++) {
+        if (i) add_buf(buf, (char *)"|");
+        if (items[i].cmd)
+            add_buf(buf, (char *)items[i].cmd);
+    }
+    add_buf(buf, (char *)"\"");
 
     bool any_hint = false;
     for (int i = 0; i < nitems; i++) {
@@ -75,24 +55,23 @@ const char *mxp_link_multi(descriptor_t *d, const char *text,
     }
 
     if (any_hint) {
-        p += (size_t)snprintf(out + p, MXP_LINK_BUFSZ - p, " hint=\"");
+        add_buf(buf, (char *)" hint=\"");
         for (int i = 0; i < nitems; i++) {
-            if (i) out[p++] = '|';
+            if (i) add_buf(buf, (char *)"|");
             if (items[i].hint)
-                p += (size_t)snprintf(out + p, MXP_LINK_BUFSZ - p, "%s",
-                                      items[i].hint);
+                add_buf(buf, (char *)items[i].hint);
         }
-        p += (size_t)snprintf(out + p, MXP_LINK_BUFSZ - p, "\"");
+        add_buf(buf, (char *)"\"");
     }
 
-    snprintf(out + p, MXP_LINK_BUFSZ - p, ">%s\t</send>", text);
-    return out;
+    bprintf(buf, ">%s\t</send>", text);
 }
 
-const char *mxp_obj_link(descriptor_t *d, OBJ_DATA *obj, const char *text)
+void mxp_obj_link(descriptor_t *d, BUFFER *buf, OBJ_DATA *obj,
+                  const char *text)
 {
-    if (!obj || !text) return text ? text : "";
-    if (!isMXP(d)) return text;
+    if (!obj || !text) { add_buf(buf, (char *)(text ? text : "")); return; }
+    if (!isMXP(d)) { add_buf(buf, (char *)text); return; }
 
     char c1[128], c2[128], c3[128], c4[128];
     const char *wvnum = widevnum_string_object(obj->pIndexData, NULL);
@@ -108,17 +87,17 @@ const char *mxp_obj_link(descriptor_t *d, OBJ_DATA *obj, const char *text)
         { c3, "Edit index" },
         { c4, "***DANGER*** Purge object" },
     };
-    return mxp_link_multi(d, text, items, 4);
+    mxp_link_multi(d, buf, text, items, 4);
 }
 
-const char *mxp_obj_id_link(descriptor_t *d, OBJ_DATA *obj)
+void mxp_obj_id_link(descriptor_t *d, BUFFER *buf, OBJ_DATA *obj)
 {
-    if (!obj) return "";
+    if (!obj) return;
 
     char id_text[64];
     snprintf(id_text, sizeof(id_text), "{W%ld %ld{X", obj->id[0], obj->id[1]);
 
-    if (!isMXP(d)) return formatf("%s", id_text);
+    if (!isMXP(d)) { add_buf(buf, id_text); return; }
 
     char c1[128], c2[128];
     snprintf(c1, sizeof(c1), "stat obj %ld %ld", obj->id[0], obj->id[1]);
@@ -128,14 +107,14 @@ const char *mxp_obj_id_link(descriptor_t *d, OBJ_DATA *obj)
         { c1, "Stat object" },
         { c2, "***DANGER*** Purge object" },
     };
-    return mxp_link_multi(d, id_text, items, 2);
+    mxp_link_multi(d, buf, id_text, items, 2);
 }
 
-const char *mxp_obj_vnum_link(descriptor_t *d, OBJ_INDEX_DATA *obj,
-                              const char *text)
+void mxp_obj_vnum_link(descriptor_t *d, BUFFER *buf, OBJ_INDEX_DATA *obj,
+                       const char *text)
 {
-    if (!obj || !text) return text ? text : "";
-    if (!isMXP(d)) return text;
+    if (!obj || !text) { add_buf(buf, (char *)(text ? text : "")); return; }
+    if (!isMXP(d)) { add_buf(buf, (char *)text); return; }
 
     char c1[128], c2[128];
     const char *wvnum = widevnum_string_object(obj, NULL);
@@ -147,16 +126,19 @@ const char *mxp_obj_vnum_link(descriptor_t *d, OBJ_INDEX_DATA *obj,
         { c1, "Show index" },
         { c2, "Edit index" },
     };
-    return mxp_link_multi(d, text, items, 2);
+    mxp_link_multi(d, buf, text, items, 2);
 }
 
-const char *mxp_mob_link(descriptor_t *d, CHAR_DATA *mob, const char *text)
+void mxp_mob_link(descriptor_t *d, BUFFER *buf, CHAR_DATA *mob,
+                  const char *text)
 {
-    if (!mob || !text) return text ? text : "";
-    if (!isMXP(d)) return text;
+    if (!mob || !text) { add_buf(buf, (char *)(text ? text : "")); return; }
+    if (!isMXP(d)) { add_buf(buf, (char *)text); return; }
 
-    if (!IS_NPC(mob))
-        return mxp_player_link(d, mob->name, text);
+    if (!IS_NPC(mob)) {
+        mxp_player_link(d, buf, mob->name, text);
+        return;
+    }
 
     char c1[128], c2[128], c3[128];
     const char *wvnum = widevnum_string_mobile(mob->pIndexData, NULL);
@@ -170,14 +152,14 @@ const char *mxp_mob_link(descriptor_t *d, CHAR_DATA *mob, const char *text)
         { c2, "Show index" },
         { c3, "Edit index" },
     };
-    return mxp_link_multi(d, text, items, 3);
+    mxp_link_multi(d, buf, text, items, 3);
 }
 
-const char *mxp_room_link(descriptor_t *d, ROOM_INDEX_DATA *room,
-                          const char *text)
+void mxp_room_link(descriptor_t *d, BUFFER *buf, ROOM_INDEX_DATA *room,
+                   const char *text)
 {
-    if (!room || !text) return text ? text : "";
-    if (!isMXP(d)) return text;
+    if (!room || !text) { add_buf(buf, (char *)(text ? text : "")); return; }
+    if (!isMXP(d)) { add_buf(buf, (char *)text); return; }
 
     char c1[128], c2[128], c3[128];
     const char *wvnum = widevnum_string_room(room, NULL);
@@ -191,37 +173,35 @@ const char *mxp_room_link(descriptor_t *d, ROOM_INDEX_DATA *room,
         { c2, "Edit room" },
         { c3, "Goto room" },
     };
-    return mxp_link_multi(d, text, items, 3);
+    mxp_link_multi(d, buf, text, items, 3);
 }
 
-const char *mxp_player_link(descriptor_t *d, const char *name,
-                            const char *text)
+void mxp_player_link(descriptor_t *d, BUFFER *buf, const char *name,
+                     const char *text)
 {
-    if (!name) return text ? text : "";
+    if (!name) { add_buf(buf, (char *)(text ? text : "")); return; }
     if (!text) text = name;
-    if (!isMXP(d)) return text;
 
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "stat char %s", name);
-    return mxp_link(d, text, cmd, "Stat player");
+    mxp_link(d, buf, text, cmd, "Stat player");
 }
 
-const char *mxp_help_link(descriptor_t *d, const char *keyword,
-                          const char *text)
+void mxp_help_link(descriptor_t *d, BUFFER *buf, const char *keyword,
+                   const char *text)
 {
-    if (!keyword) return text ? text : "";
+    if (!keyword) { add_buf(buf, (char *)(text ? text : "")); return; }
     if (!text) text = keyword;
-    if (!isMXP(d)) return text;
 
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "help %s", keyword);
-    return mxp_link(d, text, cmd, NULL);
+    mxp_link(d, buf, text, cmd, NULL);
 }
 
-const char *mxp_command_link(descriptor_t *d, const char *command,
-                             const char *hint, const char *text)
+void mxp_command_link(descriptor_t *d, BUFFER *buf, const char *command,
+                      const char *hint, const char *text)
 {
-    if (!command) return text ? text : "";
+    if (!command) { add_buf(buf, (char *)(text ? text : "")); return; }
     if (!text) text = command;
-    return mxp_link(d, text, command, hint);
+    mxp_link(d, buf, text, command, hint);
 }
