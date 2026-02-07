@@ -724,14 +724,20 @@ void save_notes(int type)
 
 void load_notes(void)
 {
-    if (!json_load_notes(NOTE_NOTE))
+    if (!json_load_notes(NOTE_NOTE)) {
         load_thread(NOTE_FILE, &note_list, NOTE_NOTE, 14*24*60*60);
+        json_save_notes(NOTE_NOTE);
+    }
 
-    if (!json_load_notes(NOTE_NEWS))
+    if (!json_load_notes(NOTE_NEWS)) {
         load_thread(NEWS_FILE, &news_list, NOTE_NEWS, 0);
+        json_save_notes(NOTE_NEWS);
+    }
 
-    if (!json_load_notes(NOTE_CHANGES))
+    if (!json_load_notes(NOTE_CHANGES)) {
         load_thread(CHANGES_FILE, &changes_list, NOTE_CHANGES, 0);
+        json_save_notes(NOTE_CHANGES);
+    }
 }
 
 
@@ -786,43 +792,54 @@ void load_thread(char *name, NOTE_DATA **list, int type, time_t free_time)
         pnote->subject  = fread_string(fp);
 
         // New fields (optional for backward compatibility)
+        // Each field only reads the next word if the current one matched,
+        // so unrecognized words cascade forward to the next check.
         char *word = fread_word(fp);
-        if (!str_cmp(word, "RecipientType"))
+
+        if (!str_cmp(word, "RecipientType")) {
             pnote->recipient_type = fread_number(fp);
-        else
-            pnote->recipient_type = NOTE_RECIPIENT_CHARACTER; // Default/fallback
+            word = fread_word(fp);
+        } else {
+            pnote->recipient_type = NOTE_RECIPIENT_CHARACTER;
+        }
 
-        word = fread_word(fp);
-        if (!str_cmp(word, "ToCharacters"))
+        if (!str_cmp(word, "ToCharacters")) {
             pnote->to_characters = fread_string(fp);
-        else
+            word = fread_word(fp);
+        } else {
             pnote->to_characters = str_dup("");
+        }
 
-        word = fread_word(fp);
-        if (!str_cmp(word, "ToAccounts"))
+        if (!str_cmp(word, "ToAccounts")) {
             pnote->to_accounts = fread_string(fp);
-        else
+            word = fread_word(fp);
+        } else {
             pnote->to_accounts = str_dup("");
+        }
 
-        word = fread_word(fp);
-        if (!str_cmp(word, "ToChurches"))
+        if (!str_cmp(word, "ToChurches")) {
             pnote->to_churches = fread_string(fp);
-        else
+            word = fread_word(fp);
+        } else {
             pnote->to_churches = str_dup("");
+        }
 
-        word = fread_word(fp);
-        if (!str_cmp(word, "ToStaffRanks"))
+        if (!str_cmp(word, "ToStaffRanks")) {
             pnote->to_staff_ranks = fread_string(fp);
-        else
+            word = fread_word(fp);
+        } else {
             pnote->to_staff_ranks = str_dup("");
+        }
 
-        word = fread_word(fp);
-        if (!str_cmp(word, "ToStaffDuties"))
+        if (!str_cmp(word, "ToStaffDuties")) {
             pnote->to_staff_duties = fread_string(fp);
-        else
+            word = fread_word(fp);
+        } else {
             pnote->to_staff_duties = str_dup("");
+        }
 
-        if (str_cmp(fread_word(fp), "text"))
+        // word should now be "text"
+        if (str_cmp(word, "text"))
             break;
         pnote->text     = fread_string(fp);
 
