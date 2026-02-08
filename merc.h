@@ -8221,7 +8221,6 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
 #define INSTANCES_FILE		WORLD_DIR "instances.dat"
 #define SHIPS_FILE			WORLD_DIR "ships.dat"
-#define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 #define COMMANDS_JSON_FILE  SYSTEM_DIR "commands.json"
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
 #define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
@@ -8356,6 +8355,7 @@ void    leaderboard_refresh_from_redis(void);
 bool    leaderboard_load_backup(void);
 void    leaderboard_save_backup(void);
 void    leaderboard_seed_redis(void);
+void    leaderboard_on_login(CHAR_DATA *ch);
 
 /* act_move.c */
 bool can_move( CHAR_DATA *ch, ROOM_INDEX_DATA *room );

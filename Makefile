@@ -20,7 +20,7 @@ INCLUDES = -I$(LIBCOTP_DIR)/src -I$(LIBBACKTRACE_DIR)
 LIB_PATHS = -L$(LIBCOTP_DIR) -L$(LIBBACKTRACE_DIR)/.libs
 
 # Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace -lsodium
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
@@ -65,6 +65,12 @@ C_FILES = \
     bit.c \
     blueprint.c \
     boat.c \
+    bootstrap/bootstrap.c \
+    bootstrap/bootstrap_account.c \
+    bootstrap/bootstrap_commands.c \
+    bootstrap/bootstrap_files.c \
+    bootstrap/bootstrap_prompts.c \
+    bootstrap/bootstrap_reserved.c \
     chat_rooms.c \
     church.c \
     comm.c \

@@ -86,6 +86,12 @@ set(SOURCE_FILES
     bit.c
     blueprint.c
     boat.c
+    bootstrap/bootstrap.c
+    bootstrap/bootstrap_account.c
+    bootstrap/bootstrap_commands.c
+    bootstrap/bootstrap_files.c
+    bootstrap/bootstrap_prompts.c
+    bootstrap/bootstrap_reserved.c
     chat_rooms.c
     church.c
     comm.c
@@ -259,7 +265,7 @@ target_compile_definitions(sent PRIVATE
 )
 
 # Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
-target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson zlog backtrace)
+target_link_libraries (sent PRIVATE pthread z m rt ssl crypto dl crypt quickmail cotp qrencode png hiredis jansson zlog backtrace sodium)
 
 # Export symbols for stack trace support (backtrace_symbols needs this)
 target_link_options(sent PRIVATE -rdynamic)

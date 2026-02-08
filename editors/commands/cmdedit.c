@@ -182,119 +182,6 @@ void insert_command(CMD_DATA *command)
         list_appendlink(commands_list, command);
 }
 
-CMD_DATA *load_command(FILE *fp)
-{
-    CMD_DATA *command;
-    char *word;
-    bool fMatch;
-
-
-    command = new_cmd();
-    command->name = fread_string(fp);
-
-    while(str_cmp((word = fread_word(fp)), "#-COMMAND"))
-    {
-        fMatch = true;
-
-        switch(word[0])
-        {
-            case 'A':
-                KEY("Addl_Types", command->addl_types, fread_number(fp));
-                break;
-            case 'C':
-                KEY("Comments", command->comments, fread_string(fp));
-                break;
-            case 'D':
-                KEY("Description", command->description, fread_string(fp));
-                break;
-            case 'E':
-                KEY("Enabled", command->enabled, fread_number(fp));
-                break;
-            case 'H':
-                if (!str_cmp(word, "HelpKeywords"))
-                {
-                    STRING_DATA *help;
-
-                    help = new_string_data();
-                    help->string = fread_string(fp);
-                    command->help_keywords = help;
-                        fMatch = true;
-                        break;
-                }
-                break;
-            case 'F':
-                KEY("Flags", command->command_flags, fread_number(fp));
-                if (!str_cmp(word, "Function"))
-                {
-                    char *name = fread_string(fp);
-                    command->function = do_func_lookup(name);
-                    if (!command->function) {
-                        perrf(LOG_ERROR, "Unknown function '%s' for command '%s' - disabling command",
-                            name, command->name);
-                        command->enabled = false;
-                    }
-                    free_string(name);
-                    fMatch = true;
-                    break;
-                }
-                break;
-            case 'L':
-                KEY("Level", command->level, fread_number(fp));
-                KEY("Log", command->log, fread_number(fp));
-                break;
-            case 'P':
-                KEY("Position", command->position, fread_number(fp));
-                break;
-            case 'R':
-                KEY("Rank", command->rank, fread_number(fp));
-                KEY("Reason", command->reason, fread_string(fp));
-            case 'S':
-                KEY("Summary", command->summary, fread_string(fp));
-                break;
-            case 'T':
-                KEY("Type", command->type, fread_number(fp));
-                break;
-        }
-
-        if (!fMatch)
-        {
-            pbugf("No match for '%s'", word);
-            fread_to_eol(fp);
-        }
-    }
-
-    if (command->addl_types == 0 && command->type != 0)
-    {
-        TOGGLE_BIT(command->addl_types, flag_value(command_addl_types, flag_name(command_types, command->type)));
-    }
-    /*
-    if (!str_cmp(command->help_keywords->string, "(null)"))
-    {
-        free_string_data(command->help_keywords);
-        command->help_keywords = NULL;
-    }
-    if (!str_cmp(command->reason, "(null)"))
-    {
-        free_string(command->reason);
-        command->reason = NULL;
-    }
-    */
-
-
-    if (command->level == 150)
-        command->rank = STAFF_IMMORTAL;
-    else if (command->level == 151 || command->level == 152)
-        command->rank = STAFF_ASCENDANT;
-    else if (command->level == 153)
-        command->rank = STAFF_SUPREMACY;
-    else if (command->level == 154)
-        command->rank = STAFF_CREATOR;
-    else if (command->level == 155)
-        command->rank = STAFF_IMPLEMENTOR;
-    
-    return command;
-}
-
 static void delete_command(void *ptr)
 {
     free_cmd((CMD_DATA *)ptr);
@@ -302,9 +189,6 @@ static void delete_command(void *ptr)
 
 bool load_commands()
 {
-    FILE *fp;
-    CMD_DATA *command;
-
     commands_list = list_createx(false, NULL, delete_command);
 
     if (!IS_VALID(commands_list))
@@ -313,77 +197,11 @@ bool load_commands()
         return false;
     }
 
-    // Try JSON first
-    if (json_load_commands(COMMANDS_JSON_FILE))
-        return true;
-
-    // Try legacy dat format
-    plogf(LOG_INIT, "loading " COMMANDS_FILE);
-    if ((fp = fopen(COMMANDS_FILE, "r")) == NULL)
+    if (!json_load_commands(COMMANDS_JSON_FILE))
     {
-        pwarnf(LOG_INIT, COMMANDS_FILE " not found. Bootstrapping from cmd_table.");
-
-        for (int i = 0; !IS_NULLSTR(cmd_table[i].name); i++)
-        {
-            if (*cmd_table[i].name == '\0')
-                continue;
-
-            plogf(LOG_INIT, "Bootstrapping command '%s'", cmd_table[i].name);
-            command = new_cmd();
-            command->name = str_dup(cmd_table[i].name);
-//            command->type = cmd_table[i].cmd_type;
-            command->level = cmd_table[i].level;
-            command->log = cmd_table[i].log;
-            command->position = cmd_table[i].position;
-            command->function = cmd_table[i].do_fun;
-
-            if (!cmd_table[i].show)
-                TOGGLE_BIT(command->command_flags, CMD_HIDE_LISTS);
-
-            if (cmd_table[i].is_ooc)
-                TOGGLE_BIT(command->command_flags, CMD_IS_OOC);
-
-            command->enabled = true;
-
-            insert_command(command);
-        }
+        perrf(LOG_INIT, COMMANDS_JSON_FILE " not found. Run with -bootstrap to generate it.");
+        return false;
     }
-    else
-    {
-        char *word;
-        bool fMatch;
-
-        while(str_cmp((word = fread_word(fp)), "#END"))
-        {
-            fMatch = true;
-
-            switch(word[0])
-            {
-                case '#':
-                    if (!str_cmp(word, "#COMMAND"))
-                    {
-                        command = load_command(fp);
-
-                        insert_command(command);
-                        fMatch = true;
-                        break;
-                    }
-                    break;
-            }
-
-            if (!fMatch)
-            {
-                pbugf("No match for word '%s'", word);
-                fread_to_eol(fp);
-            }
-        }
-        fclose(fp);
-    }
-
-    plogf(LOG_INIT, "Loaded %ld commands", commands_list->size);
-
-    // Migrate to JSON
-    json_save_commands(COMMANDS_JSON_FILE);
 
     return true;
 }

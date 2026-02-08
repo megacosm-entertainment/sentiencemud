@@ -83,6 +83,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "protocol.h"
+#include "bootstrap/bootstrap.h"
 #include "io/cache/redis_cache.h"
 #include "io/cache/async_cache.h"
 #include "io/json/json_persist.h"
@@ -380,6 +381,12 @@ bool parse_options(int argc, char **argv)
 
             telnet_port = p;
         }
+        else if ( !strncmp(argv[i], "--bootstrap", 11) )
+        {
+            // Bootstrap options (--bootstrap-auto, --bootstrap-username=, etc.)
+            // Already handled in detect_bootstrap_mode(), skip here
+            continue;
+        }
         else if ( argv[i][0] == '-' && (strlen(argv[i]) >= 2) )
         {
             switch( argv[i][1] )
@@ -394,6 +401,12 @@ bool parse_options(int argc, char **argv)
 
                 case 'W':
                     wizlock = true;
+                    break;
+
+                case 'b':
+                    // Bootstrap mode: -bootstrap or --bootstrap-*
+                    // These are handled early in main(), before parse_options()
+                    // Just skip them here to avoid "Invalid option" error
                     break;
 
                 case 't':
@@ -499,6 +512,18 @@ int main(int argc, char **argv)
     detect_test_mode_args(argc, argv);
     if (test_mode) {
         log_set_unit_test_only(true);
+    }
+
+    /* Check for bootstrap mode */
+    detect_bootstrap_mode(argc, argv);
+    if (bootstrap_mode) {
+        /* Run bootstrap - creates minimal data files and first account */
+        if (run_bootstrap() != 0) {
+            fprintf(stderr, "Bootstrap failed. Exiting.\n");
+            return 1;
+        }
+        /* Bootstrap successful - exit now (user should run again normally) */
+        return 0;
     }
 
     struct timeval now_time;

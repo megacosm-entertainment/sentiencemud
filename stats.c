@@ -352,6 +352,44 @@ void leaderboard_update_wealth(CHAR_DATA *ch)
 }
 
 /**
+ * leaderboard_on_login - Push all of a character's stats to leaderboards on login
+ *
+ * Makes the leaderboard system self-healing: as players log in, their
+ * historical stats are pushed to Redis and the in-memory cache without
+ * requiring a manual migration.
+ *
+ * @param ch  The character who just logged in
+ */
+void leaderboard_on_login(CHAR_DATA *ch)
+{
+    if (!ch || IS_NPC(ch))
+        return;
+
+    if (ch->player_kills > 0)
+        leaderboard_update_score(REPORT_TOP_PLAYER_KILLERS, ch->name,
+            (double)ch->player_kills);
+
+    if (ch->cpk_kills > 0)
+        leaderboard_update_score(REPORT_TOP_CPLAYER_KILLERS, ch->name,
+            (double)ch->cpk_kills);
+
+    if (ch->monster_kills > 0)
+        leaderboard_update_score(REPORT_TOP_MONSTER_KILLERS, ch->name,
+            (double)ch->monster_kills);
+
+    if (ch->deaths > 0)
+        leaderboard_update_score(REPORT_TOP_DEATHS, ch->name,
+            (double)ch->deaths);
+
+    if (ch->pcdata && ch->pcdata->quests_completed > 0)
+        leaderboard_update_score(REPORT_TOP_QUESTS, ch->name,
+            (double)ch->pcdata->quests_completed);
+
+    leaderboard_update_wealth(ch);
+    leaderboard_update_ratio(ch);
+}
+
+/**
  * leaderboard_refresh_one - Refresh a single leaderboard from Redis
  *
  * @param lb  The leaderboard to refresh

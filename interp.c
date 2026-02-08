@@ -1287,22 +1287,6 @@ if (ch->pk_question)
         trust = get_staff_rank( ch->desc->original );
     }
 
-/*
-    selected_command = NULL;
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-        if ( command[0] == cmd_table[cmd].name[0] &&
-            !str_prefix( command, cmd_table[cmd].name ) &&
-            (!forced_command || (cmd_table[cmd].level < LEVEL_IMMORTAL)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
-            (cmd_table[cmd].level <= trust || is_granted_command(ch, cmd_table[cmd].name)
-            || (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) // AO 010417 For easy debugging on my port; dont judge me, im lazy :P
-        {
-            selected_command = &cmd_table[cmd];
-            found = true;
-            break;
-        }
-    }
-*/
     ITERATOR it;
     iterator_start(&it, commands_list);
     while(( cmd = (CMD_DATA *)iterator_nextdata(&it)))
@@ -1993,20 +1977,6 @@ void do_commands( CHAR_DATA *ch, char *argument )
     }
 
 
-/*	
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-        if ( cmd_table[cmd].level <  LEVEL_HERO
-        &&   cmd_table[cmd].rank <= get_staff_rank( ch )
-    &&   cmd_table[cmd].show )
-    {
-        sprintf( buf, "%-12s", cmd_table[cmd].name );
-        send_to_char( buf, ch );
-        if ( ++col % 6 == 0 )
-        send_to_char( "\n\r", ch );
-    }
-    }
-*/
         if ( col % 6 != 0 )
         send_to_char( "\n\r", ch );
 }

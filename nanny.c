@@ -2690,6 +2690,9 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     do_function(ch, &do_look, "auto");
     do_function(ch, &do_unread, "");
     
+    // Push stats to leaderboards on login
+    leaderboard_on_login(ch);
+
     // LOGIN TRIGGER
     script_login(ch);
 }
