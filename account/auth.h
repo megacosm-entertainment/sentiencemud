@@ -26,7 +26,8 @@ typedef enum {
 /* Password verification result */
 typedef enum {
     PWD_INVALID,            /* Password is incorrect */
-    PWD_VALID_CRYPT,        /* Valid using crypt() - preferred method */
+    PWD_VALID_ARGON2ID,     /* Valid using Argon2id - current preferred method */
+    PWD_VALID_CRYPT,        /* Valid using crypt() - needs upgrade to Argon2id */
     PWD_VALID_SHA256,       /* Valid using sha256_crypt() - needs upgrade */
     PWD_VALID_PLAINTEXT     /* Valid using plaintext - needs forced upgrade */
 } pwd_result_t;
@@ -90,11 +91,18 @@ void free_auth_data(AUTH_DATA *auth);
 /* Verify password against auth data - returns verification result */
 pwd_result_t verify_password(const char *input, AUTH_DATA *auth);
 
-/* Hash a password using the current preferred method (crypt) */
+/* Hash a password using the current preferred method (Argon2id) */
 char *hash_password(const char *plaintext);
+
+/* Hash a password using legacy crypt() method (for compatibility) */
+char *hash_password_legacy(const char *plaintext);
 
 /* Check if password meets strength requirements */
 bool validate_password_strength(const char *password, char *error_msg, int error_len);
+
+/* Password migration functions */
+bool needs_password_upgrade(const char *hash);
+bool migrate_password_on_login(CHAR_DATA *ch, ACCOUNT_DATA *acct, const char *plaintext, pwd_result_t verification_result);
 
 /*
  * MFA Functions

@@ -7,6 +7,7 @@
 #include "../merc.h"
 #include "../recycle.h"
 #include "auth.h"
+#include "auth_sodium.h"
 
 /* External functions we depend on */
 extern char *sha256_crypt(const char *pwd);
@@ -291,17 +292,25 @@ pwd_result_t verify_password(const char *input, AUTH_DATA *auth)
     if (!input || !auth || IS_NULLSTR(auth->password))
         return PWD_INVALID;
 
-    /* 1. Try new preferred method (system crypt()) */
+    /* 1. Try Argon2id (current preferred method) */
+    if (is_argon2id_hash(auth->password)) {
+        if (verify_password_v3(auth->password, input)) {
+            return PWD_VALID_ARGON2ID;
+        }
+        return PWD_INVALID;
+    }
+
+    /* 2. Try system crypt() (legacy, needs upgrade) */
     if (strcmp(crypt(input, auth->password), auth->password) == 0) {
         return PWD_VALID_CRYPT;
     }
 
-    /* 2. Fallback to custom sha256_crypt() (legacy, needs upgrade) */
+    /* 3. Fallback to custom sha256_crypt() (legacy, needs upgrade) */
     if (strcmp(sha256_crypt(input), auth->password) == 0) {
         return PWD_VALID_SHA256;
     }
 
-    /* 3. Fallback to plaintext comparison (ancient legacy, needs forced upgrade) */
+    /* 4. Fallback to plaintext comparison (ancient legacy, needs forced upgrade) */
     if (strcmp(input, auth->password) == 0) {
         return PWD_VALID_PLAINTEXT;
     }
@@ -310,15 +319,26 @@ pwd_result_t verify_password(const char *input, AUTH_DATA *auth)
 }
 
 /*
- * Hash a password using the current preferred method (crypt)
+ * Hash a password using the current preferred method (Argon2id)
  */
 char *hash_password(const char *plaintext)
 {
     if (!plaintext)
         return str_dup("");
 
-    /* Use system crypt() with a salt */
-    /* Generate a simple salt - in production you'd want better salt generation */
+    /* Use Argon2id (interactive level for normal logins) */
+    return hash_password_v3(plaintext, PWD_SECURITY_INTERACTIVE);
+}
+
+/*
+ * Hash a password using legacy crypt() method (for compatibility testing)
+ */
+char *hash_password_legacy(const char *plaintext)
+{
+    if (!plaintext)
+        return str_dup("");
+
+    /* Use system crypt() with plaintext as salt (insecure, kept for compatibility) */
     char *hashed = crypt(plaintext, plaintext);
     return str_dup(hashed);
 }
@@ -505,4 +525,110 @@ void update_email(CHAR_DATA *ch, ACCOUNT_DATA *acct, const char *email, bool cha
 {
     /* Placeholder for Phase 2 implementation */
     /* This will update either account->email or acct_char->email based on char_level flag */
+}
+
+/*
+ * Password Migration Functions
+ */
+
+/**
+ * needs_password_upgrade - Check if password hash needs upgrading
+ *
+ * @param hash  Password hash to check
+ * @return      true if hash should be upgraded to Argon2id
+ */
+bool needs_password_upgrade(const char *hash)
+{
+    if (IS_NULLSTR(hash))
+        return false;
+
+    /* Already using Argon2id - no upgrade needed */
+    if (is_argon2id_hash(hash))
+        return false;
+
+    /* Any other format needs upgrade */
+    return true;
+}
+
+/**
+ * migrate_password_on_login - Migrate password to Argon2id on successful login
+ *
+ * This function is called after successful password verification with a legacy
+ * hash format. It rehashes the password using Argon2id and updates the account
+ * or character storage immediately.
+ *
+ * @param ch                  Character logging in (NULL for account-only login)
+ * @param acct                Account being authenticated
+ * @param plaintext           Plain text password (for rehashing)
+ * @param verification_result Result from verify_password()
+ * @return                    true if migration succeeded, false otherwise
+ */
+bool migrate_password_on_login(CHAR_DATA *ch, ACCOUNT_DATA *acct, const char *plaintext, pwd_result_t verification_result)
+{
+    char *new_hash;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_char_password = false;
+
+    if (!acct || IS_NULLSTR(plaintext))
+        return false;
+
+    /* Don't migrate if already using Argon2id */
+    if (verification_result == PWD_VALID_ARGON2ID)
+        return true;
+
+    /* Don't migrate invalid passwords */
+    if (verification_result == PWD_INVALID)
+        return false;
+
+    /* Generate new Argon2id hash */
+    new_hash = hash_password_v3(plaintext, PWD_SECURITY_INTERACTIVE);
+    if (!new_hash) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "migrate_password_on_login: Failed to hash password");
+        return false;
+    }
+
+    /* Determine where to store the upgraded hash */
+    if (ch && !IS_NPC(ch)) {
+        /* Check if character has its own password */
+        if (get_character_auth_data(ch, acct, &acct_char) && acct_char) {
+            has_char_password = !IS_NULLSTR(acct_char->pwd);
+        }
+
+        if (has_char_password && acct_char) {
+            /* Upgrade character-level password */
+            free_string(acct_char->pwd);
+            acct_char->pwd = str_dup(new_hash);
+            acct_char->pwd_vers = PWD_VER_ARGON2ID;
+
+            log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+                "Migrated character password to Argon2id: %s (account: %s)",
+                ch->name, acct->username);
+        } else {
+            /* Upgrade account-level password */
+            free_string(acct->passwd);
+            acct->passwd = str_dup(new_hash);
+            acct->passwd_version = PWD_VER_ARGON2ID;
+
+            log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+                "Migrated account password to Argon2id: %s",
+                acct->username);
+        }
+    } else {
+        /* Account-only login (no character context) */
+        free_string(acct->passwd);
+        acct->passwd = str_dup(new_hash);
+        acct->passwd_version = PWD_VER_ARGON2ID;
+
+        log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+            "Migrated account password to Argon2id: %s",
+            acct->username);
+    }
+
+    /* Save the account with upgraded password */
+    save_account(acct);
+
+    /* Clean up */
+    free_string(new_hash);
+
+    return true;
 }

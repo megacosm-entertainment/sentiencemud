@@ -238,9 +238,9 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 
         if (pwd_result != PWD_INVALID) {
             password_ok = true;
-            // Mark for password upgrade if using legacy methods
-            if (pwd_result == PWD_VALID_PLAINTEXT) {
-                acct->passwd_version = 0; // Mark for forced update
+            // Automatically migrate legacy passwords to Argon2id
+            if (pwd_result != PWD_VALID_ARGON2ID) {
+                migrate_password_on_login(NULL, acct, argument, pwd_result);
             }
         }
 
@@ -262,9 +262,9 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 
         if (pwd_result != PWD_INVALID) {
             password_ok = true;
-            // Mark for password upgrade if using legacy methods
-            if (pwd_result == PWD_VALID_PLAINTEXT) {
-                acct->passwd_version = 0; // Mark for forced update
+            // Automatically migrate legacy passwords to Argon2id
+            if (pwd_result != PWD_VALID_ARGON2ID) {
+                migrate_password_on_login(NULL, acct, argument, pwd_result);
             }
         }
     }
@@ -636,6 +636,11 @@ void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
+    }
+
+    // Migrate legacy passwords to Argon2id before changing password
+    if (pwd_result != PWD_VALID_ARGON2ID) {
+        migrate_password_on_login(NULL, acct, argument, pwd_result);
     }
 
     d->connected = CON_CHANGE_ACCOUNT_PASSWORD;

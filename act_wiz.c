@@ -33,12 +33,14 @@
  **************************************************************************/
 
 #include <sys/types.h>
+#include <dirent.h>
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <math.h>
+#include <sodium.h>
 #include "merc.h"
 #include "olc.h"
 #include "interp.h"
@@ -48,6 +50,7 @@
 #include "olc_save.h"
 #include "wilds.h"
 #include "io/cache/redis_cache.h"
+#include "account/auth_sodium.h"
 #include "io/cache/async_cache.h"
 #include "io/json/json_game_settings.h"
 #include "log.h"
@@ -13218,5 +13221,529 @@ void do_cachestop(CHAR_DATA *ch, char *argument)
     } else {
         sprintf(buf, "Could not cancel job #%lu (not found or already running)\n\r", job_id);
         send_to_char(buf, ch);
+    }
+}
+
+/**
+ * do_pwmigrate - Show password hash migration status
+ *
+ * Staff command to check which accounts are using legacy password hashes
+ * and need migration to Argon2id. Migration happens automatically on login,
+ * but this command helps staff track migration progress.
+ *
+ * Syntax:
+ *   pwmigrate check    - Show accounts with legacy hashes
+ *   pwmigrate status   - Show migration statistics
+ */
+void do_pwmigrate(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    int total_accounts = 0;
+    int argon2id_count = 0;
+    int crypt_count = 0;
+    int sha256_count = 0;
+    int plaintext_count = 0;
+    int no_password_count = 0;
+    int otp_v2_count = 0;
+    int otp_v1_count = 0;
+    int otp_none_count = 0;
+    int recovery_hashed_count = 0;
+    int recovery_plaintext_count = 0;
+    int recovery_none_count = 0;
+    bool check_otp = !str_cmp(arg, "otpcheck") || !str_cmp(arg, "all");
+    bool check_recovery = !str_cmp(arg, "recoverycheck") || !str_cmp(arg, "all");
+
+    if (IS_NPC(ch))
+        return;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax:\n\r", ch);
+        send_to_char("  pwmigrate check         - Show accounts with legacy password hashes\n\r", ch);
+        send_to_char("  pwmigrate status        - Show password migration statistics\n\r", ch);
+        send_to_char("  pwmigrate otpcheck      - Show accounts with legacy OTP encryption\n\r", ch);
+        send_to_char("  pwmigrate recoverycheck - Show accounts with plaintext recovery codes\n\r", ch);
+        send_to_char("  pwmigrate all           - Show comprehensive security status\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("All migrations happen automatically when applicable features are used.\n\r", ch);
+        send_to_char("This command helps you track migration progress.\n\r", ch);
+        return;
+    }
+
+    /* Scan all account directories */
+    for (char letter = 'a'; letter <= 'z'; letter++) {
+        char dir_path[256];
+        DIR *dir;
+        struct dirent *ent;
+
+        sprintf(dir_path, "%s%c", ACCOUNT_DIR, letter);
+        dir = opendir(dir_path);
+        if (!dir)
+            continue;
+
+        while ((ent = readdir(dir)) != NULL) {
+            char filepath[512];
+            ACCOUNT_DATA *acct;
+            bool was_loaded = false;
+            int pwd_version;
+
+            /* Skip . and .. */
+            if (ent->d_name[0] == '.')
+                continue;
+
+            /* Skip non-json files */
+            size_t len = strlen(ent->d_name);
+            if (len < 5 || strcmp(ent->d_name + len - 5, ".json") != 0)
+                continue;
+
+            /* Get account name (remove .json) */
+            char acct_name[256];
+            strncpy(acct_name, ent->d_name, len - 5);
+            acct_name[len - 5] = '\0';
+
+            /* Load account */
+            acct = get_account_online_or_offline(acct_name, &was_loaded);
+            if (!acct)
+                continue;
+
+            total_accounts++;
+
+            /* Detect password version */
+            if (IS_NULLSTR(acct->passwd)) {
+                no_password_count++;
+                pwd_version = -1;
+            } else {
+                pwd_version = detect_password_version(acct->passwd);
+            }
+
+            /* Count by version */
+            switch (pwd_version) {
+                case PWD_VER_ARGON2ID:
+                    argon2id_count++;
+                    break;
+                case PWD_VER_CRYPT_SYSTEM:
+                    crypt_count++;
+                    if (!str_cmp(arg, "check")) {
+                        sprintf(buf, "  %s - crypt() legacy hash\n\r", acct->username);
+                        send_to_char(buf, ch);
+                    }
+                    break;
+                case PWD_VER_SHA256_CUSTOM:
+                    sha256_count++;
+                    if (!str_cmp(arg, "check")) {
+                        sprintf(buf, "  %s - SHA256 custom hash\n\r", acct->username);
+                        send_to_char(buf, ch);
+                    }
+                    break;
+                case PWD_VER_PLAINTEXT:
+                    plaintext_count++;
+                    if (!str_cmp(arg, "check")) {
+                        sprintf(buf, "  {R%s - PLAINTEXT (critical!){x\n\r", acct->username);
+                        send_to_char(buf, ch);
+                    }
+                    break;
+                default:
+                    no_password_count++;
+                    break;
+            }
+
+            /* Check OTP encryption version if requested */
+            if (check_otp) {
+                bool has_otp_v1 = false;
+                bool has_otp_v2 = false;
+
+                /* Check account-level OTP */
+                if (!IS_NULLSTR(acct->mfa_key)) {
+                    int otp_version = detect_encryption_version(acct->mfa_key);
+                    if (otp_version == 2)
+                        has_otp_v2 = true;
+                    else
+                        has_otp_v1 = true;
+                }
+                if (!IS_NULLSTR(acct->mfa_pending_key)) {
+                    int otp_version = detect_encryption_version(acct->mfa_pending_key);
+                    if (otp_version == 2)
+                        has_otp_v2 = true;
+                    else
+                        has_otp_v1 = true;
+                }
+
+                /* Count OTP status */
+                if (has_otp_v2 && !has_otp_v1) {
+                    otp_v2_count++;
+                } else if (has_otp_v1) {
+                    otp_v1_count++;
+                    if (!str_cmp(arg, "otpcheck")) {
+                        sprintf(buf, "  %s - v1 OTP encryption\n\r", acct->username);
+                        send_to_char(buf, ch);
+                    }
+                } else {
+                    otp_none_count++;
+                }
+            }
+
+            /* Check recovery code hashing if requested */
+            if (check_recovery) {
+                bool has_hashed = false;
+                bool has_plaintext = false;
+
+                for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+                    if (!IS_NULLSTR(acct->recovery_codes[i])) {
+                        if (is_hashed_recovery_code(acct->recovery_codes[i]))
+                            has_hashed = true;
+                        else
+                            has_plaintext = true;
+                    }
+                }
+
+                if (has_hashed && !has_plaintext) {
+                    recovery_hashed_count++;
+                } else if (has_plaintext) {
+                    recovery_plaintext_count++;
+                    if (!str_cmp(arg, "recoverycheck")) {
+                        sprintf(buf, "  %s - plaintext recovery codes\n\r", acct->username);
+                        send_to_char(buf, ch);
+                    }
+                } else {
+                    recovery_none_count++;
+                }
+            }
+
+            /* Clean up */
+            if (was_loaded)
+                free_account(acct);
+        }
+
+        closedir(dir);
+    }
+
+    /* Display results */
+    if (!str_cmp(arg, "status") || !str_cmp(arg, "check") || !str_cmp(arg, "all")) {
+        send_to_char("\n\r{C=== Password Migration Status ==={x\n\r\n\r", ch);
+
+        sprintf(buf, "Total accounts:         %d\n\r", total_accounts);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {GArgon2id (current): %d (%.1f%%){x\n\r",
+                argon2id_count,
+                total_accounts > 0 ? (argon2id_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {Ycrypt() legacy:     %d (%.1f%%){x\n\r",
+                crypt_count,
+                total_accounts > 0 ? (crypt_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {YSHA256 custom:      %d (%.1f%%){x\n\r",
+                sha256_count,
+                total_accounts > 0 ? (sha256_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {RPlaintext:          %d (%.1f%%){x\n\r",
+                plaintext_count,
+                total_accounts > 0 ? (plaintext_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+
+        if (no_password_count > 0) {
+            sprintf(buf, "  No password:        %d\n\r", no_password_count);
+            send_to_char(buf, ch);
+        }
+
+        send_to_char("\n\r", ch);
+        int legacy_count = crypt_count + sha256_count + plaintext_count;
+        if (legacy_count > 0) {
+            sprintf(buf, "{YTotal needing migration: %d (%.1f%%){x\n\r",
+                    legacy_count,
+                    total_accounts > 0 ? (legacy_count * 100.0 / total_accounts) : 0.0);
+            send_to_char(buf, ch);
+            send_to_char("\n\r", ch);
+            send_to_char("Migration happens automatically when users log in.\n\r", ch);
+        } else {
+            send_to_char("{GAll accounts are using Argon2id!{x\n\r", ch);
+        }
+    }
+
+    if (!str_cmp(arg, "otpcheck") || !str_cmp(arg, "all")) {
+        send_to_char("\n\r{C=== OTP Encryption Status ==={x\n\r\n\r", ch);
+
+        sprintf(buf, "Total accounts:         %d\n\r", total_accounts);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {GV2 authenticated:   %d (%.1f%%){x\n\r",
+                otp_v2_count,
+                total_accounts > 0 ? (otp_v2_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {YV1 legacy AES-CBC:  %d (%.1f%%){x\n\r",
+                otp_v1_count,
+                total_accounts > 0 ? (otp_v1_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  No OTP configured:  %d (%.1f%%)\n\r",
+                otp_none_count,
+                total_accounts > 0 ? (otp_none_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+
+        if (otp_v1_count > 0) {
+            send_to_char("\n\r", ch);
+            sprintf(buf, "{YTotal needing upgrade: %d (%.1f%%){x\n\r",
+                    otp_v1_count,
+                    total_accounts > 0 ? (otp_v1_count * 100.0 / total_accounts) : 0.0);
+            send_to_char(buf, ch);
+            send_to_char("OTP keys are upgraded automatically when OTP is used.\n\r", ch);
+        } else if (otp_v2_count > 0) {
+            send_to_char("{GAll OTP keys are using authenticated encryption!{x\n\r", ch);
+        }
+    }
+
+    if (!str_cmp(arg, "recoverycheck") || !str_cmp(arg, "all")) {
+        send_to_char("\n\r{C=== Recovery Code Security Status ==={x\n\r\n\r", ch);
+
+        sprintf(buf, "Total accounts:         %d\n\r", total_accounts);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {GHashed (secure):    %d (%.1f%%){x\n\r",
+                recovery_hashed_count,
+                total_accounts > 0 ? (recovery_hashed_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  {YPlaintext:          %d (%.1f%%){x\n\r",
+                recovery_plaintext_count,
+                total_accounts > 0 ? (recovery_plaintext_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+        sprintf(buf, "  No recovery codes:  %d (%.1f%%)\n\r",
+                recovery_none_count,
+                total_accounts > 0 ? (recovery_none_count * 100.0 / total_accounts) : 0.0);
+        send_to_char(buf, ch);
+
+        if (recovery_plaintext_count > 0) {
+            send_to_char("\n\r", ch);
+            sprintf(buf, "{YCodes needing hashing: %d (%.1f%%){x\n\r",
+                    recovery_plaintext_count,
+                    total_accounts > 0 ? (recovery_plaintext_count * 100.0 / total_accounts) : 0.0);
+            send_to_char(buf, ch);
+            send_to_char("New recovery codes are hashed automatically when generated.\n\r", ch);
+            send_to_char("{YExisting plaintext codes are hashed when first displayed.{x\n\r", ch);
+        } else if (recovery_hashed_count > 0) {
+            send_to_char("{GAll recovery codes are hashed!{x\n\r", ch);
+        }
+    }
+
+    if (str_cmp(arg, "check") && str_cmp(arg, "status") && str_cmp(arg, "otpcheck") &&
+        str_cmp(arg, "recoverycheck") && str_cmp(arg, "all")) {
+        send_to_char("Invalid option. Use 'pwmigrate' for syntax.\n\r", ch);
+    }
+}
+
+/**
+ * do_cryptorotate - Rotate encryption keys with new passphrase
+ *
+ * Staff command to re-encrypt all encrypted data (OTP keys) when rotating
+ * to a new passphrase. Requires CRYPTO_PASSPHRASE_PREVIOUS to be set.
+ */
+void do_cryptorotate(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    unsigned char old_key[AES_KEY_SIZE];
+    unsigned char new_key[AES_KEY_SIZE];
+    const char *passphrase_current;
+    const char *passphrase_previous;
+    const char *salt_file_base;
+    int old_version;
+    int new_version;
+    int total_accounts = 0;
+    int otp_migrated = 0;
+    int otp_failed = 0;
+
+    if (IS_NPC(ch))
+        return;
+
+    one_argument(argument, arg);
+
+    /* Check if passphrase mode is enabled */
+    if (!game_settings.crypto_use_passphrase) {
+        send_to_char("Crypto key rotation is only available in passphrase mode.\n\r", ch);
+        send_to_char("Set SENTIENCE_CRYPTO_USE_PASSPHRASE=true to enable.\n\r", ch);
+        return;
+    }
+
+    /* Check for rotation mode */
+    passphrase_current = game_settings.crypto_key_passphrase;
+    passphrase_previous = game_settings.crypto_key_passphrase_previous;
+
+    if (IS_NULLSTR(passphrase_previous)) {
+        send_to_char("No key rotation in progress.\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("To rotate keys:\n\r", ch);
+        send_to_char("  1. Set SENTIENCE_CRYPTO_PASSPHRASE_PREVIOUS=<old-passphrase>\n\r", ch);
+        send_to_char("  2. Set SENTIENCE_CRYPTO_PASSPHRASE=<new-passphrase>\n\r", ch);
+        send_to_char("  3. Increment SENTIENCE_CRYPTO_KEY_VERSION\n\r", ch);
+        send_to_char("  4. Restart game server\n\r", ch);
+        send_to_char("  5. Run 'cryptorotate' to re-encrypt all data\n\r", ch);
+        send_to_char("  6. Remove SENTIENCE_CRYPTO_PASSPHRASE_PREVIOUS when complete\n\r", ch);
+        return;
+    }
+
+    if (arg[0] == '\0' || str_cmp(arg, "confirm")) {
+        send_to_char("{R=== CRYPTO KEY ROTATION ==={x\n\r\n\r", ch);
+        send_to_char("{YWARNING: This will re-encrypt all OTP keys with the new passphrase.{x\n\r", ch);
+        send_to_char("\n\r", ch);
+        sprintf(buf, "Current key version:  %d\n\r", game_settings.crypto_key_version);
+        send_to_char(buf, ch);
+        send_to_char("Previous passphrase:  [SET]\n\r", ch);
+        send_to_char("Current passphrase:   [SET]\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("This process will:\n\r", ch);
+        send_to_char("  1. Derive old key from PREVIOUS passphrase\n\r", ch);
+        send_to_char("  2. Derive new key from current passphrase\n\r", ch);
+        send_to_char("  3. Scan all accounts for encrypted OTP keys\n\r", ch);
+        send_to_char("  4. Decrypt with old key, re-encrypt with new key\n\r", ch);
+        send_to_char("  5. Save updated accounts\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("{RType 'cryptorotate confirm' to proceed.{x\n\r", ch);
+        return;
+    }
+
+    /* Get salt file base */
+    salt_file_base = game_settings.crypto_salt_file;
+    if (IS_NULLSTR(salt_file_base)) {
+        salt_file_base = SYSTEM_DIR "crypto_salt";
+    }
+
+    /* Determine versions */
+    new_version = game_settings.crypto_key_version;
+    old_version = new_version - 1;
+    if (old_version < 1) {
+        old_version = 1;
+    }
+
+    send_to_char("\n\r{C=== Starting Key Rotation ==={x\n\r\n\r", ch);
+
+    /* Derive both keys */
+    send_to_char("Deriving old key from previous passphrase... ", ch);
+    if (!derive_key_from_passphrase(passphrase_previous, old_version, salt_file_base, old_key)) {
+        send_to_char("{RFAILED{x\n\r", ch);
+        send_to_char("Could not derive old key. Check logs for details.\n\r", ch);
+        return;
+    }
+    send_to_char("{GOK{x\n\r", ch);
+
+    send_to_char("Deriving new key from current passphrase... ", ch);
+    if (!derive_key_from_passphrase(passphrase_current, new_version, salt_file_base, new_key)) {
+        send_to_char("{RFAILED{x\n\r", ch);
+        send_to_char("Could not derive new key. Check logs for details.\n\r", ch);
+        sodium_memzero(old_key, sizeof(old_key));
+        return;
+    }
+    send_to_char("{GOK{x\n\r", ch);
+
+    send_to_char("\n\rScanning accounts for encrypted data...\n\r", ch);
+
+    /* Scan all account directories */
+    for (char letter = 'a'; letter <= 'z'; letter++) {
+        char dir_path[256];
+        DIR *dir;
+        struct dirent *ent;
+
+        sprintf(dir_path, "%s%c", ACCOUNT_DIR, letter);
+        dir = opendir(dir_path);
+        if (!dir)
+            continue;
+
+        while ((ent = readdir(dir)) != NULL) {
+            ACCOUNT_DATA *acct;
+            bool was_loaded = false;
+            bool account_modified = false;
+
+            /* Skip . and .. */
+            if (ent->d_name[0] == '.')
+                continue;
+
+            /* Skip non-json files */
+            size_t len = strlen(ent->d_name);
+            if (len < 5 || strcmp(ent->d_name + len - 5, ".json") != 0)
+                continue;
+
+            /* Get account name */
+            char acct_name[256];
+            strncpy(acct_name, ent->d_name, len - 5);
+            acct_name[len - 5] = '\0';
+
+            /* Load account */
+            acct = get_account_online_or_offline(acct_name, &was_loaded);
+            if (!acct)
+                continue;
+
+            total_accounts++;
+
+            /* Re-encrypt account-level OTP keys */
+            if (!IS_NULLSTR(acct->mfa_key) && detect_encryption_version(acct->mfa_key) < 2) {
+                char *decrypted = decrypt_string(acct->mfa_key);
+                if (!IS_NULLSTR(decrypted)) {
+                    char *reencrypted = encrypt_string_v2(decrypted, new_key);
+                    if (reencrypted) {
+                        free_string(acct->mfa_key);
+                        acct->mfa_key = str_dup("v2:");
+                        strcat(acct->mfa_key, reencrypted);
+                        free_string(reencrypted);
+                        account_modified = true;
+                        otp_migrated++;
+                    } else {
+                        otp_failed++;
+                    }
+                    free_string(decrypted);
+                }
+            }
+
+            if (!IS_NULLSTR(acct->mfa_pending_key) && detect_encryption_version(acct->mfa_pending_key) < 2) {
+                char *decrypted = decrypt_string(acct->mfa_pending_key);
+                if (!IS_NULLSTR(decrypted)) {
+                    char *reencrypted = encrypt_string_v2(decrypted, new_key);
+                    if (reencrypted) {
+                        free_string(acct->mfa_pending_key);
+                        acct->mfa_pending_key = str_dup("v2:");
+                        strcat(acct->mfa_pending_key, reencrypted);
+                        free_string(reencrypted);
+                        account_modified = true;
+                        otp_migrated++;
+                    } else {
+                        otp_failed++;
+                    }
+                    free_string(decrypted);
+                }
+            }
+
+            /* Save if modified */
+            if (account_modified) {
+                save_account(acct);
+            }
+
+            /* Clean up */
+            if (was_loaded)
+                free_account(acct);
+        }
+
+        closedir(dir);
+    }
+
+    /* Zero out keys from memory */
+    sodium_memzero(old_key, sizeof(old_key));
+    sodium_memzero(new_key, sizeof(new_key));
+
+    /* Report results */
+    send_to_char("\n\r{C=== Rotation Complete ==={x\n\r\n\r", ch);
+    sprintf(buf, "Accounts scanned:     %d\n\r", total_accounts);
+    send_to_char(buf, ch);
+    sprintf(buf, "OTP keys re-encrypted: {G%d{x\n\r", otp_migrated);
+    send_to_char(buf, ch);
+    if (otp_failed > 0) {
+        sprintf(buf, "Failed re-encryptions: {R%d{x\n\r", otp_failed);
+        send_to_char(buf, ch);
+    }
+
+    send_to_char("\n\r", ch);
+    if (otp_failed == 0) {
+        send_to_char("{GKey rotation successful!{x\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("Next steps:\n\r", ch);
+        send_to_char("  1. Test OTP login with a few accounts\n\r", ch);
+        send_to_char("  2. Remove SENTIENCE_CRYPTO_PASSPHRASE_PREVIOUS from environment\n\r", ch);
+        send_to_char("  3. Restart server to clear rotation mode\n\r", ch);
+    } else {
+        send_to_char("{YRotation completed with errors. Check logs for details.{x\n\r", ch);
     }
 }

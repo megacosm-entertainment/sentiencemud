@@ -287,6 +287,7 @@ bool create_game_settings(void)
     json_t *root = json_object();
     json_t *core = json_object();
     json_t *email = json_object();
+    json_t *crypto = json_object();
 
     json_object_set_new(root, "_version", json_string("1.0"));
     json_object_set_new(root, "_format", json_string("game_settings"));
@@ -297,6 +298,14 @@ bool create_game_settings(void)
 
     json_object_set_new(email, "email_enable", json_boolean(false));
     json_object_set_new(root, "email", email);
+
+    /* Crypto settings - defaults to file-based key storage */
+    json_object_set_new(crypto, "use_passphrase", json_boolean(false));
+    json_object_set_new(crypto, "passphrase", json_string(""));
+    json_object_set_new(crypto, "passphrase_previous", json_string(""));
+    json_object_set_new(crypto, "salt_file", json_string(""));
+    json_object_set_new(crypto, "key_version", json_integer(1));
+    json_object_set_new(root, "crypto", crypto);
 
     json_object_set_new(root, "dev_server", json_boolean(false));
     json_object_set_new(root, "testport", json_boolean(false));

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <dirent.h>
 #include "../merc.h"
+#include "../account/auth_sodium.h"
 #include "bootstrap.h"
 #include "bootstrap_internal.h"
 
@@ -298,6 +299,12 @@ int run_bootstrap(void)
     printf("======================================\n");
     printf("  Bootstrap Mode - Sentience MUD\n");
     printf("======================================\n\n");
+
+    /* Initialize libsodium for password hashing */
+    if (!init_sodium()) {
+        fprintf(stderr, "Failed to initialize libsodium\n");
+        return 1;
+    }
 
     if (!check_bootstrap_needed()) {
         printf("All required files exist. Bootstrap not needed.\n");

@@ -44,7 +44,9 @@
 #include <sys/stat.h>  /* For chmod() */
 #include <openssl/rand.h>  /* For RAND_bytes() */
 #include <openssl/evp.h>
+#include <sodium.h>
 #include "merc.h"
+#include "account/auth_sodium.h"
 #include "interp.h"
 #include "magic.h"
 #include "recycle.h"
@@ -10590,6 +10592,111 @@ void generate_recovery_codes(char **codes, bool *used, int count) {
     }
 }
 
+/**
+ * hash_recovery_codes_in_place - Hash plaintext recovery codes in place
+ *
+ * After recovery codes are displayed to the user, this function hashes them
+ * in place so they're never stored in plaintext again.
+ *
+ * @param codes  Array of recovery code strings to hash
+ * @param count  Number of codes in array
+ */
+void hash_recovery_codes_in_place(char **codes, int count)
+{
+    for (int i = 0; i < count; ++i) {
+        if (IS_NULLSTR(codes[i]))
+            continue;
+
+        // Skip if already hashed
+        if (is_hashed_recovery_code(codes[i]))
+            continue;
+
+        // Hash the plaintext code
+        char *hashed = hash_recovery_code(codes[i]);
+        if (hashed) {
+            free_string(codes[i]);
+            codes[i] = str_dup(hashed);
+            free_string(hashed);
+        }
+    }
+}
+
+/**
+ * hash_recovery_code - Hash a recovery code using Argon2id
+ *
+ * Uses fast parameters since recovery codes are random and high-entropy.
+ * Interactive level is sufficient (64 MiB, ~100ms).
+ *
+ * @param code  Plain text recovery code to hash
+ * @return      Argon2id hash string, or NULL on error
+ */
+char *hash_recovery_code(const char *code)
+{
+    if (IS_NULLSTR(code))
+        return str_dup("");
+
+    // Use interactive level - recovery codes are random, don't need higher security
+    return hash_password_v3(code, PWD_SECURITY_INTERACTIVE);
+}
+
+/**
+ * is_hashed_recovery_code - Check if recovery code is already hashed
+ *
+ * @param code  Recovery code string to check
+ * @return      true if hashed (Argon2id format), false if plaintext
+ */
+bool is_hashed_recovery_code(const char *code)
+{
+    if (IS_NULLSTR(code))
+        return false;
+
+    return is_argon2id_hash(code);
+}
+
+/**
+ * verify_recovery_code_hash - Verify recovery code against hash
+ *
+ * Handles both hashed (Argon2id) and plaintext codes for migration.
+ *
+ * @param stored_code  Stored recovery code (hashed or plaintext)
+ * @param input_code   User-provided code to verify
+ * @return             true if codes match, false otherwise
+ */
+bool verify_recovery_code_hash(const char *stored_code, const char *input_code)
+{
+    if (IS_NULLSTR(stored_code) || IS_NULLSTR(input_code))
+        return false;
+
+    // If stored code is hashed, verify with Argon2id
+    if (is_hashed_recovery_code(stored_code)) {
+        return verify_password_v3(stored_code, input_code);
+    }
+
+    // Legacy plaintext comparison (for migration)
+    return !str_cmp(stored_code, input_code);
+}
+
+/**
+ * migrate_recovery_codes - Migrate plaintext recovery codes to hashed
+ *
+ * Note: Recovery codes are one-time use and random. Once displayed to user
+ * they cannot be rehashed (we don't have the plaintext). Migration only
+ * happens when new codes are generated.
+ *
+ * This function is a no-op but kept for API consistency.
+ *
+ * @param codes  Array of recovery code strings
+ * @param count  Number of codes in array
+ * @return       Number of codes migrated (always 0 - see note)
+ */
+int migrate_recovery_codes(char **codes, int count)
+{
+    // Cannot migrate existing codes - they're one-time use random codes
+    // that we don't have the plaintext for after they're shown to user.
+    // New codes generated will be hashed automatically.
+    return 0;
+}
+
 bool check_recovery_code(CHAR_DATA *ch, const char *code)
 {
     ACCOUNT_DATA *acct = NULL;
@@ -10608,7 +10715,7 @@ bool check_recovery_code(CHAR_DATA *ch, const char *code)
     if (!has_auth_data || !acct_char) {
         // Fall back to character pcdata as legacy support
         for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-            if (!ch->pcdata->recovery_used[i] && !str_cmp(ch->pcdata->recovery_codes[i], code)) {
+            if (!ch->pcdata->recovery_used[i] && verify_recovery_code_hash(ch->pcdata->recovery_codes[i], code)) {
                 ch->pcdata->recovery_used[i] = true;
                 save_char_obj(ch);
                 return true;
@@ -10619,7 +10726,7 @@ bool check_recovery_code(CHAR_DATA *ch, const char *code)
 
     // Check against account character recovery codes
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-        if (!acct_char->recovery_used[i] && !str_cmp(acct_char->recovery_codes[i], code)) {
+        if (!acct_char->recovery_used[i] && verify_recovery_code_hash(acct_char->recovery_codes[i], code)) {
             acct_char->recovery_used[i] = true;
             save_account(acct);
             return true;
@@ -10631,7 +10738,7 @@ bool check_recovery_code(CHAR_DATA *ch, const char *code)
 
 bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code) {
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-        if (!acct->recovery_used[i] && !str_cmp(acct->recovery_codes[i], code)) {
+        if (!acct->recovery_used[i] && verify_recovery_code_hash(acct->recovery_codes[i], code)) {
             acct->recovery_used[i] = true;
             save_account(acct);
             return true;
@@ -10643,29 +10750,84 @@ bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code) {
 // Display recovery codes to the user using account character data
 void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char)
 {
+    bool has_plaintext = false;
+
     if (!d || !acct_char)
         return;
-        
+
     write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+    write_to_buffer(d, "{RWARNING: Write these down now! They will not be shown again.{x\n\r\n\r", 0);
+
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-        char buf[128];
-        if (acct_char->recovery_used[i])
-            sprintf(buf, "{R%s {X(used){x\n\r", acct_char->recovery_codes[i]);
-        else
-            sprintf(buf, "%s\n\r", acct_char->recovery_codes[i]);
+        char buf[256];
+
+        // Skip empty codes
+        if (IS_NULLSTR(acct_char->recovery_codes[i]))
+            continue;
+
+        // Check if code is hashed (can't be displayed)
+        if (is_hashed_recovery_code(acct_char->recovery_codes[i])) {
+            if (acct_char->recovery_used[i])
+                sprintf(buf, "{D[code %d] {X(used){x\n\r", i + 1);
+            else
+                sprintf(buf, "{D[code %d] {Y(secured - cannot display){x\n\r", i + 1);
+        } else {
+            // Plaintext code - display it
+            has_plaintext = true;
+            if (acct_char->recovery_used[i])
+                sprintf(buf, "{R%s {X(used){x\n\r", acct_char->recovery_codes[i]);
+            else
+                sprintf(buf, "{G%s{x\n\r", acct_char->recovery_codes[i]);
+        }
+
         write_to_buffer(d, buf, 0);
+    }
+
+    // Hash any plaintext codes after displaying them
+    if (has_plaintext) {
+        hash_recovery_codes_in_place(acct_char->recovery_codes, MFA_RECOVERY_CODES);
+        // Note: Caller should save account after this
+        if (d->account) {
+            save_account(d->account);
+        }
     }
 }
 
 void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct) {
+    bool has_plaintext = false;
+
     write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+    write_to_buffer(d, "{RWARNING: Write these down now! They will not be shown again.{x\n\r\n\r", 0);
+
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-        char buf[128];
-        if (acct->recovery_used[i])
-            sprintf(buf, "{R%s {X(used){x\n\r", acct->recovery_codes[i]);
-        else
-            sprintf(buf, "%s\n\r", acct->recovery_codes[i]);
+        char buf[256];
+
+        // Skip empty codes
+        if (IS_NULLSTR(acct->recovery_codes[i]))
+            continue;
+
+        // Check if code is hashed (can't be displayed)
+        if (is_hashed_recovery_code(acct->recovery_codes[i])) {
+            if (acct->recovery_used[i])
+                sprintf(buf, "{D[code %d] {X(used){x\n\r", i + 1);
+            else
+                sprintf(buf, "{D[code %d] {Y(secured - cannot display){x\n\r", i + 1);
+        } else {
+            // Plaintext code - display it
+            has_plaintext = true;
+            if (acct->recovery_used[i])
+                sprintf(buf, "{R%s {X(used){x\n\r", acct->recovery_codes[i]);
+            else
+                sprintf(buf, "{G%s{x\n\r", acct->recovery_codes[i]);
+        }
+
         write_to_buffer(d, buf, 0);
+    }
+
+    // Hash any plaintext codes after displaying them
+    if (has_plaintext) {
+        hash_recovery_codes_in_place(acct->recovery_codes, MFA_RECOVERY_CODES);
+        save_account(acct);
     }
 }
 
@@ -11350,20 +11512,190 @@ bool is_llist(const void *ptr)
 }
 
 
-// Initialize the server-side crypto key
-void crypto_init(void)
+/**
+ * load_or_generate_salt - Load or generate salt for key derivation
+ *
+ * Loads salt from file for a specific key version, or generates new salt if
+ * file doesn't exist. Salt files are named: <base_path>.v<version>
+ *
+ * @param base_path  Base path for salt file (without version)
+ * @param version    Key version number
+ * @param salt_out   Buffer to store 32-byte salt (must be allocated)
+ * @return           true on success, false on error
+ */
+static bool load_or_generate_salt(const char *base_path, int version, unsigned char *salt_out)
+{
+    char salt_file_path[256];
+    FILE *salt_file;
+
+    if (!base_path || !*base_path) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "load_or_generate_salt: Empty base path");
+        return false;
+    }
+
+    // Construct versioned salt file path: base_path.v1, base_path.v2, etc.
+    snprintf(salt_file_path, sizeof(salt_file_path), "%s.v%d", base_path, version);
+
+    // Try to load existing salt
+    salt_file = fopen(salt_file_path, "rb");
+    if (salt_file) {
+        if (fread(salt_out, 1, AES_KEY_SIZE, salt_file) != AES_KEY_SIZE) {
+            log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Failed to read salt file %s, generating new salt", salt_file_path);
+            randombytes_buf(salt_out, AES_KEY_SIZE);
+            fclose(salt_file);
+
+            // Save the newly generated salt
+            salt_file = fopen(salt_file_path, "wb");
+            if (salt_file) {
+                fwrite(salt_out, 1, AES_KEY_SIZE, salt_file);
+                fclose(salt_file);
+                chmod(salt_file_path, 0600);
+            }
+        } else {
+            fclose(salt_file);
+            log_message_f(LOG_LEVEL_INFO, LOG_INFO, "Loaded salt from %s", salt_file_path);
+        }
+        return true;
+    }
+
+    // Generate new salt
+    randombytes_buf(salt_out, AES_KEY_SIZE);
+
+    // Save salt to file
+    salt_file = fopen(salt_file_path, "wb");
+    if (salt_file) {
+        fwrite(salt_out, 1, AES_KEY_SIZE, salt_file);
+        fclose(salt_file);
+        chmod(salt_file_path, 0600);
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO, "Generated new salt file: %s", salt_file_path);
+        return true;
+    } else {
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to create salt file: %s", salt_file_path);
+        return false;
+    }
+}
+
+/**
+ * derive_key_from_passphrase - Derive key from specific passphrase and version
+ *
+ * Helper function to derive a key from a given passphrase and version.
+ * Used for both current and previous keys during rotation.
+ *
+ * @param passphrase   Passphrase to derive from
+ * @param version      Key version (determines salt file)
+ * @param salt_base    Base path for salt file
+ * @param key_out      Output buffer for derived key (must be AES_KEY_SIZE)
+ * @return             true on success, false on error
+ */
+bool derive_key_from_passphrase(const char *passphrase, int version,
+                                const char *salt_base, unsigned char *key_out)
+{
+    unsigned char salt[AES_KEY_SIZE];
+
+    if (IS_NULLSTR(passphrase)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "derive_key_from_passphrase: NULL passphrase");
+        return false;
+    }
+
+    // Load or generate salt for this version
+    if (!load_or_generate_salt(salt_base, version, salt)) {
+        return false;
+    }
+
+    // Derive key using Argon2id
+    if (crypto_pwhash(key_out, AES_KEY_SIZE,
+                     passphrase, strlen(passphrase),
+                     salt,
+                     crypto_pwhash_OPSLIMIT_MODERATE,
+                     crypto_pwhash_MEMLIMIT_MODERATE,
+                     crypto_pwhash_ALG_ARGON2ID13) != 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "derive_key_from_passphrase: Key derivation failed");
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * crypto_init_from_passphrase - Derive crypto key from passphrase
+ *
+ * Uses Argon2id to derive a 32-byte encryption key from a passphrase and salt.
+ * The salt is version-specific to enable key rotation.
+ *
+ * Supports rotation mode: When crypto_key_passphrase_previous is set, the system
+ * is in rotation mode and can decrypt with old key, encrypt with new key.
+ *
+ * @return  true on success, false on error
+ */
+static bool crypto_init_from_passphrase(void)
+{
+    const char *passphrase;
+    const char *passphrase_previous;
+    const char *salt_file_base;
+    int key_version;
+    bool in_rotation_mode;
+
+    // Get passphrase from game settings (supports env vars via existing logic)
+    passphrase = game_settings.crypto_key_passphrase;
+    if (IS_NULLSTR(passphrase)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "crypto_init: Passphrase mode enabled but no passphrase provided");
+        return false;
+    }
+
+    // Check if we're in rotation mode
+    passphrase_previous = game_settings.crypto_key_passphrase_previous;
+    in_rotation_mode = !IS_NULLSTR(passphrase_previous);
+
+    // Get salt file path (default if not specified)
+    salt_file_base = game_settings.crypto_salt_file;
+    if (IS_NULLSTR(salt_file_base)) {
+        salt_file_base = SYSTEM_DIR "crypto_salt";
+    }
+
+    // Get key version
+    key_version = game_settings.crypto_key_version;
+    if (key_version < 1) {
+        key_version = 1;
+    }
+
+    // Derive current key (always use current passphrase for encryption)
+    if (!derive_key_from_passphrase(passphrase, key_version, salt_file_base, crypto_key)) {
+        return false;
+    }
+
+    if (in_rotation_mode) {
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT,
+            "Crypto key derived from passphrase (version %d) - ROTATION MODE ACTIVE", key_version);
+        log_message(LOG_LEVEL_WARN, LOG_WARN,
+            "Key rotation mode detected. Use 'cryptorotate' command to re-encrypt data.");
+    } else {
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT,
+            "Crypto key derived from passphrase (version %d)", key_version);
+    }
+
+    return true;
+}
+
+/**
+ * crypto_init_from_file - Initialize crypto key from file (legacy method)
+ *
+ * Loads or generates a random 32-byte key stored in plaintext file.
+ * This is the original method and is retained for backward compatibility.
+ *
+ * @return  true on success, false on error
+ */
+static bool crypto_init_from_file(void)
 {
     FILE *key_file;
-    bool key_initialized = false;
-    if (key_initialized)
-        return;
-    
+
     key_file = fopen(MFA_ENC_KEY, "rb");
     if (key_file) {
         // Read existing key
         if (fread(crypto_key, 1, AES_KEY_SIZE, key_file) != AES_KEY_SIZE) {
             log_message(LOG_LEVEL_WARN, LOG_WARN, "Failed to read crypto key file, generating new one");
             RAND_bytes(crypto_key, AES_KEY_SIZE);
+        } else {
+            log_message(LOG_LEVEL_INFO, LOG_INIT, "Loaded crypto key from file");
         }
         fclose(key_file);
     } else {
@@ -11373,15 +11705,51 @@ void crypto_init(void)
         if (key_file) {
             fwrite(crypto_key, 1, AES_KEY_SIZE, key_file);
             fclose(key_file);
-
-            // Make the key file readable only by the server user
             chmod(MFA_ENC_KEY, 0600);
+            log_message(LOG_LEVEL_INFO, LOG_INIT, "Generated new crypto key file");
         } else {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to create crypto key file");
+            return false;
         }
     }
-    
-    key_initialized = true;
+
+    return true;
+}
+
+/**
+ * crypto_init - Initialize the server-side crypto key
+ *
+ * Initializes the global crypto_key used for encrypting sensitive data (OTP keys,
+ * recovery codes, etc.). Checks game_settings.crypto_use_passphrase to determine
+ * whether to use passphrase-based key derivation or file-based key storage.
+ *
+ * Safe to call multiple times (subsequent calls are no-ops).
+ */
+void crypto_init(void)
+{
+    bool success;
+
+    if (key_initialized)
+        return;
+
+    // Initialize libsodium (safe to call multiple times)
+    if (!init_sodium()) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "crypto_init: Failed to initialize libsodium");
+        return;
+    }
+
+    // Choose initialization method based on game settings
+    if (game_settings.crypto_use_passphrase) {
+        success = crypto_init_from_passphrase();
+    } else {
+        success = crypto_init_from_file();
+    }
+
+    if (success) {
+        key_initialized = true;
+    } else {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "crypto_init: Failed to initialize crypto key");
+    }
 }
 
 /*
@@ -11561,6 +11929,115 @@ char* decrypt_string(const char *ciphertext)
     free(plaintext);
     
     return result;
+}
+
+/**
+ * detect_encryption_version - Detect encryption format version
+ *
+ * Checks if encrypted string uses v2 authenticated encryption (XSalsa20-Poly1305)
+ * or v1 legacy AES-CBC encryption.
+ *
+ * @param ciphertext  Encrypted string to analyze
+ * @return            2 for v2 (has "v2:" prefix), 1 for v1 (legacy)
+ */
+int detect_encryption_version(const char *ciphertext)
+{
+    if (IS_NULLSTR(ciphertext))
+        return 1;
+
+    // v2 format starts with "v2:" prefix
+    if (strncmp(ciphertext, "v2:", 3) == 0)
+        return 2;
+
+    // Default to v1 (legacy AES-CBC)
+    return 1;
+}
+
+/**
+ * encrypt_string_versioned - Encrypt string using current encryption version
+ *
+ * Uses v2 (XSalsa20-Poly1305 authenticated encryption) for new encryptions.
+ * Output format: "v2:<base64_encrypted_data>"
+ *
+ * @param plaintext  Plain text string to encrypt
+ * @return           Encrypted string with version prefix, or NULL on error
+ */
+char *encrypt_string_versioned(const char *plaintext)
+{
+    char *encrypted;
+    char *result;
+    size_t result_len;
+
+    if (!key_initialized)
+        crypto_init();
+
+    if (IS_NULLSTR(plaintext))
+        return str_dup("");
+
+    // Use v2 authenticated encryption (libsodium)
+    encrypted = encrypt_string_v2(plaintext, crypto_key);
+    if (!encrypted)
+        return str_dup("");
+
+    // Add "v2:" prefix
+    result_len = strlen(encrypted) + 4; // "v2:" + encrypted + null
+    result = malloc(result_len);
+    if (!result) {
+        free_string(encrypted);
+        return str_dup("");
+    }
+
+    snprintf(result, result_len, "v2:%s", encrypted);
+    free_string(encrypted);
+
+    return result;
+}
+
+/**
+ * decrypt_string_versioned - Decrypt string with automatic version detection
+ *
+ * Detects encryption version and calls appropriate decryption function:
+ * - v2: XSalsa20-Poly1305 authenticated encryption (with tamper detection)
+ * - v1: Legacy AES-256-CBC (no authentication)
+ *
+ * @param ciphertext  Encrypted string (with or without version prefix)
+ * @return            Decrypted plain text, or empty string on error
+ */
+char *decrypt_string_versioned(const char *ciphertext)
+{
+    int version;
+    const char *encrypted_data;
+
+    if (!key_initialized)
+        crypto_init();
+
+    if (IS_NULLSTR(ciphertext))
+        return str_dup("");
+
+    version = detect_encryption_version(ciphertext);
+
+    if (version == 2) {
+        // v2: Skip "v2:" prefix and decrypt with libsodium
+        encrypted_data = ciphertext + 3;
+        return decrypt_string_v2(encrypted_data, crypto_key);
+    } else {
+        // v1: Legacy AES-CBC decryption
+        return decrypt_string(ciphertext);
+    }
+}
+
+/**
+ * needs_encryption_upgrade - Check if encrypted data needs upgrade to v2
+ *
+ * @param ciphertext  Encrypted string to check
+ * @return            true if upgrade needed (v1 format), false if current (v2)
+ */
+bool needs_encryption_upgrade(const char *ciphertext)
+{
+    if (IS_NULLSTR(ciphertext))
+        return false;
+
+    return detect_encryption_version(ciphertext) < 2;
 }
 
 /**

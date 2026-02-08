@@ -566,6 +566,8 @@ const	struct	cmd_type	cmd_table	[] =
     { "leaderboard", do_leaderboard,	POS_DEAD, MAX_LEVEL, LOG_ALWAYS, 1, true },
     { "cmdlist", do_cmdlist, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
     { "cmdedit", do_cmdedit, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "pwmigrate", do_pwmigrate, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "cryptorotate", do_cryptorotate, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, false }
 };

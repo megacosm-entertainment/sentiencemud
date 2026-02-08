@@ -637,6 +637,13 @@ static void init_game_settings_defaults(void)
 
     /* Debug/Logging Settings */
     game_settings.crash_dump_dir = str_empty;
+
+    /* Cryptography Settings */
+    game_settings.crypto_key_passphrase = str_empty;
+    game_settings.crypto_key_passphrase_previous = str_empty;
+    game_settings.crypto_salt_file = str_empty;
+    game_settings.crypto_use_passphrase = false;  // Default to file-based key (backward compatible)
+    game_settings.crypto_key_version = 1;         // Default version
 }
 
 int json_game_settings_read(void)

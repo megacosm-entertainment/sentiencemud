@@ -1394,6 +1394,13 @@ struct game_settings_data
 
     /* Debug/Logging Settings */
     char *crash_dump_dir;        // Directory for crash dumps and core files (NULL = current directory)
+
+    /* Cryptography Settings */
+    char *crypto_key_passphrase;          // Passphrase for deriving encryption key (sensitive, supports SENTIENCE_CRYPTO_KEY_PASSPHRASE env var)
+    char *crypto_key_passphrase_previous; // Previous passphrase for rotation (sensitive, supports SENTIENCE_CRYPTO_KEY_PASSPHRASE_PREVIOUS env var)
+    char *crypto_salt_file;               // Path to salt file for key derivation (default: data/system/.crypto_salt_v{version})
+    bool crypto_use_passphrase;           // Use passphrase-based key derivation instead of file-based key
+    int crypto_key_version;               // Current encryption key version (for rotation support)
 };
 
 /* Changeset structures */
@@ -4474,6 +4481,7 @@ struct cmd_data
 #define PWD_VER_PLAINTEXT 0
 #define PWD_VER_SHA256_CUSTOM 1
 #define PWD_VER_CRYPT_SYSTEM 2
+#define PWD_VER_ARGON2ID 3
 
 struct event_data
 {
@@ -9067,6 +9075,10 @@ void crypto_init(void);
 char* encrypt_string(const char *plaintext);
 char* decrypt_string(const char *encrypted);
 bool is_encrypted_key(const char *key);
+int detect_encryption_version(const char *ciphertext);
+char *encrypt_string_versioned(const char *plaintext);
+char *decrypt_string_versioned(const char *ciphertext);
+bool needs_encryption_upgrade(const char *ciphertext);
 static const unsigned char base64_table[65] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 unsigned char *base64_decode(const char *src, size_t len, size_t *out_len);
@@ -9225,6 +9237,7 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email);
 bool check_char_mfa(CHAR_DATA *ch, const char *code);
 bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email);
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
+bool migrate_otp_key(ACCOUNT_DATA *acct, ACCOUNT_CHARACTER *acct_char);
 void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void setup_account_mfa(DESCRIPTOR_DATA *d);
 bool process_output args((DESCRIPTOR_DATA * d, bool fPrompt));
@@ -9241,6 +9254,10 @@ char *generate_totp_key(char *buffer, size_t length);
 void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
 void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char);
 void generate_recovery_codes(char **codes, bool *used, int count);
+char *hash_recovery_code(const char *code);
+bool is_hashed_recovery_code(const char *code);
+bool verify_recovery_code_hash(const char *stored_code, const char *input_code);
+void hash_recovery_codes_in_place(char **codes, int count);
 bool check_recovery_code(CHAR_DATA *ch, const char *code);
 bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code);
 void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
@@ -9623,6 +9640,9 @@ void do_cachestop(CHAR_DATA *ch, char *argument);
 IMMORTAL_DATA *find_immortal(char *argument);
 void do_staffdelete(CHAR_DATA *ch, char *argument);
 void do_staffsupervisor(CHAR_DATA *ch, char *argument);
+void do_pwmigrate(CHAR_DATA *ch, char *argument);
+void do_cryptorotate(CHAR_DATA *ch, char *argument);
+bool derive_key_from_passphrase(const char *passphrase, int version, const char *salt_base, unsigned char *key_out);
 void remove_immortal(IMMORTAL_DATA *immortal);
 void show_immortal(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 void print_immortal_info(IMMORTAL_DATA *immortal, CHAR_DATA *ch);

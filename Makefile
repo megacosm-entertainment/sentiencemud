@@ -48,6 +48,7 @@ EXE	= sent
 C_FILES = \
     account/auth.c \
     account/auth_migrate.c \
+    account/auth_sodium.c \
     account/otp.c \
     account/account_notes.c \
     act_comm.c \

@@ -10,6 +10,7 @@
 #include "../merc.h"
 #include "../recycle.h"
 #include "../account/auth.h"
+#include "../account/auth_sodium.h"
 #include "bootstrap_internal.h"
 
 /**
@@ -42,7 +43,7 @@ bool bootstrap_create_account_and_character(const char *username, const char *em
     account->username = str_dup(username);
     account->email = str_dup(email);
 
-    /* Hash password */
+    /* Hash password using Argon2id */
     hashed_pwd = hash_password(password);
     if (!hashed_pwd) {
         fprintf(stderr, "Failed to hash password\n");
@@ -52,7 +53,7 @@ bool bootstrap_create_account_and_character(const char *username, const char *em
     account->passwd = str_dup(hashed_pwd);
     free(hashed_pwd);
 
-    account->passwd_version = 1;
+    account->passwd_version = PWD_VER_ARGON2ID;
     account->creation_date = current_time;
     account->last_login = 0;
     account->staff_account = true;

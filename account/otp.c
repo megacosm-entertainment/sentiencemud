@@ -76,6 +76,7 @@
 #include "../tables.h"
 #include "../wilds.h"
 #include "../protocol.h"
+#include "auth_sodium.h"
  
 /*
  * Generate a new TOTP key for a user
@@ -121,7 +122,7 @@ bool validate_totp_code(const char *key, const char *code)
     
     if (is_encrypted) {
         // Decrypt the key before validation
-        plaintext_key = decrypt_string(key);
+        plaintext_key = decrypt_string_versioned(key);
         key = plaintext_key;
     }
     
@@ -158,6 +159,81 @@ bool validate_totp_code(const char *key, const char *code)
         free_string(plaintext_key);
         
     return valid;
+}
+
+/**
+ * migrate_otp_key - Migrate OTP key from v1 to v2 encryption
+ *
+ * Transparently upgrades OTP key from AES-CBC (v1) to authenticated
+ * encryption (v2). Handles both account-level and character-level keys.
+ *
+ * @param acct       Account to migrate (required)
+ * @param acct_char  Character to migrate (NULL for account-level)
+ * @return           true if migration performed, false if not needed/error
+ */
+bool migrate_otp_key(ACCOUNT_DATA *acct, ACCOUNT_CHARACTER *acct_char)
+{
+    char **mfa_key_ptr;
+    char **mfa_pending_ptr;
+    const char *context;
+    bool migrated = false;
+
+    if (!acct) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "migrate_otp_key: NULL account");
+        return false;
+    }
+
+    // Determine which keys to migrate (account or character)
+    if (acct_char) {
+        mfa_key_ptr = &acct_char->mfa_key;
+        mfa_pending_ptr = &acct_char->mfa_pending_key;
+        context = acct_char->name;
+    } else {
+        mfa_key_ptr = &acct->mfa_key;
+        mfa_pending_ptr = &acct->mfa_pending_key;
+        context = acct->username;
+    }
+
+    // Migrate active MFA key if needed
+    if (!IS_NULLSTR(*mfa_key_ptr) && needs_encryption_upgrade(*mfa_key_ptr)) {
+        char *plaintext = decrypt_string_versioned(*mfa_key_ptr);
+        if (!IS_NULLSTR(plaintext)) {
+            char *upgraded = encrypt_string_versioned(plaintext);
+            if (upgraded) {
+                free_string(*mfa_key_ptr);
+                *mfa_key_ptr = str_dup(upgraded);
+                free_string(upgraded);
+                migrated = true;
+                log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+                    "Migrated OTP key to v2 for %s", context);
+            }
+            free_string(plaintext);
+        }
+    }
+
+    // Migrate pending MFA key if needed
+    if (!IS_NULLSTR(*mfa_pending_ptr) && needs_encryption_upgrade(*mfa_pending_ptr)) {
+        char *plaintext = decrypt_string_versioned(*mfa_pending_ptr);
+        if (!IS_NULLSTR(plaintext)) {
+            char *upgraded = encrypt_string_versioned(plaintext);
+            if (upgraded) {
+                free_string(*mfa_pending_ptr);
+                *mfa_pending_ptr = str_dup(upgraded);
+                free_string(upgraded);
+                migrated = true;
+                log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+                    "Migrated pending OTP key to v2 for %s", context);
+            }
+            free_string(plaintext);
+        }
+    }
+
+    // Save account if any migration occurred
+    if (migrated) {
+        save_account(acct);
+    }
+
+    return migrated;
 }
 
 /*
@@ -300,7 +376,7 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         if (has_auth_data && acct_char) {
             // Store as pending key - requires confirmation before enabling
             // Encrypt the key before storing
-            char *encrypted_key = encrypt_string(key);
+            char *encrypted_key = encrypt_string_versioned(key);
             free_string(acct_char->mfa_pending_key);
             acct_char->mfa_pending_key = str_dup(encrypted_key);
             free_string(encrypted_key);
@@ -412,8 +488,12 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
     if (ch->desc && ch->desc->account) {
         acct = ch->desc->account;
         has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-        
+
         if (has_auth_data && acct_char) {
+            // Migrate OTP key encryption if needed
+            migrate_otp_key(acct, acct_char);
+
+
             // Use pending key if in setup mode, otherwise use active key
             encrypted_key = !IS_NULLSTR(acct_char->mfa_pending_key) ? 
                       acct_char->mfa_pending_key : acct_char->mfa_key;
@@ -438,9 +518,9 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
             
             // Check recovery codes as fallback
             for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-                if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
+                if (!IS_NULLSTR(acct_char->recovery_codes[i]) &&
                     !acct_char->recovery_used[i] &&
-                    !strcmp(code, acct_char->recovery_codes[i])) {
+                    verify_recovery_code_hash(acct_char->recovery_codes[i], code)) {
                     acct_char->recovery_used[i] = true;
                     save_account(acct);
                     return true;
@@ -456,9 +536,17 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
  * Check if a TOTP code is valid for an account
  */
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
-    const char *encrypted_key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
+    const char *encrypted_key;
+
+    if (!acct)
+        return false;
+
+    // Migrate OTP key encryption if needed
+    migrate_otp_key(acct, NULL);
+
+    encrypted_key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
     if (IS_NULLSTR(encrypted_key)) return false;
-    
+
     // validate_totp_code now handles decryption
     return validate_totp_code(encrypted_key, code);
 }
@@ -593,7 +681,7 @@ void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *encryp
     bool is_encrypted = is_encrypted_key(encrypted_secret);
     
     if (is_encrypted)
-        plaintext_secret = decrypt_string(encrypted_secret);
+        plaintext_secret = decrypt_string_versioned(encrypted_secret);
     else
         plaintext_secret = str_dup(encrypted_secret);
     
@@ -673,7 +761,7 @@ void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char
     bool is_encrypted = is_encrypted_key(encrypted_secret);
     
     if (is_encrypted)
-        plaintext_secret = decrypt_string(encrypted_secret);
+        plaintext_secret = decrypt_string_versioned(encrypted_secret);
     else
         plaintext_secret = str_dup(encrypted_secret);
     
