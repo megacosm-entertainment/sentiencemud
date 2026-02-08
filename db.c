@@ -57,6 +57,7 @@
 #include "io/json/json_persist.h"
 #include "io/json/json_area.h"
 #include "io/cache/redis_cache.h"
+#include "traits.h"
 
 /*
 #if !defined(OLD_RAND)
@@ -940,6 +941,9 @@ void boot_db(void)
 
     }
 
+    // Load trait definitions (must precede load_races)
+    load_trait_definitions();
+
     // Load races from JSON files (new race system)
     load_races();
 
@@ -1259,7 +1263,7 @@ int get_this_class(CHAR_DATA *ch, int sn)
             this_class = ch->pcdata->class_warrior;
         }
 
-    if (IS_ANGEL(ch) || IS_MYSTIC(ch) || IS_DEMON(ch)) {
+    if (race_get_trait_bool(ch->race, "classless_skills")) {
     if (skill_table[sn].skill_level[0] < 31)
         return 0;
     if (skill_table[sn].skill_level[1] < 31)
@@ -6666,7 +6670,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
         fprintf(fp, "Room %ld\n", default_room ? default_room->vnum : 0);
     }
 
-    if (IS_SITH(ch)) {
+    if (race_has_trait(ch->race, "toxin_system")) {
         for (i = 0; i < MAX_TOXIN; i++)
             fprintf(fp, "Toxn%s %d\n", toxin_table[i].name, ch->toxin[i]);
     }

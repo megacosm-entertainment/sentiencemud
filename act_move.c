@@ -42,6 +42,7 @@
 #include "interp.h"
 #include "olc.h"
 #include "wilds.h"
+#include "traits.h"
 
 
 /**
@@ -754,7 +755,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
     move_cart(ch,to_room,true);
 
     /* fry vampires*/
-    if (IS_OUTSIDE(ch) && IS_VAMPIRE(ch) && number_percent() < 75)
+    if (IS_OUTSIDE(ch) && race_get_trait_bool(ch->race, "sunlight_vulnerability") && number_percent() < 75)
         hurt_vampires(ch);
 
     do_function(ch, &do_look, "auto");

@@ -1,0 +1,69 @@
+{
+  "test_suite": "reset_cross_area_tests",
+  "description": "Tests for RESET_DATA WNUM migration - cross-area resets",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "tests": [
+    {
+      "name": "reset_cross_area_mob",
+      "description": "Test cross-area mobile reset creation",
+      "test_type": "reset_cross_area_creation",
+      "input": {
+        "source_room_vnum": 3001,
+        "target_area_uid": 954,
+        "target_entity_vnum": 10500,
+        "reset_type": "M"
+      }
+    },
+    {
+      "name": "reset_cross_area_object",
+      "description": "Test cross-area object reset creation",
+      "test_type": "reset_cross_area_creation",
+      "input": {
+        "source_room_vnum": 3001,
+        "target_area_uid": 954,
+        "target_entity_vnum": 10500,
+        "reset_type": "O"
+      }
+    },
+    {
+      "name": "reset_serialization_plith",
+      "description": "Test reset serialization in Plith area (room 11001)",
+      "test_type": "reset_serialization",
+      "input": {
+        "area_uid": 954,
+        "room_vnum": 11001
+      }
+    },
+    {
+      "name": "reset_serialization_limbo",
+      "description": "Test reset serialization in Limbo area",
+      "test_type": "reset_serialization",
+      "input": {
+        "area_uid": 1,
+        "room_vnum": 2
+      }
+    },
+    {
+      "name": "reset_legacy_mob",
+      "description": "Test legacy bare vnum reset (NULL pArea)",
+      "test_type": "reset_legacy_vnum",
+      "input": {
+        "room_vnum": 3001,
+        "entity_vnum": 3005,
+        "reset_type": "M"
+      }
+    },
+    {
+      "name": "reset_legacy_object",
+      "description": "Test legacy bare vnum object reset",
+      "test_type": "reset_legacy_vnum",
+      "input": {
+        "room_vnum": 3001,
+        "entity_vnum": 3000,
+        "reset_type": "O"
+      }
+    }
+  ]
+}

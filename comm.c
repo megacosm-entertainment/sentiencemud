@@ -87,6 +87,7 @@
 #include "io/cache/redis_cache.h"
 #include "io/cache/async_cache.h"
 #include "io/json/json_persist.h"
+#include "traits.h"
 
 /*
  * Socket and TCP/IP stuff.
@@ -2306,7 +2307,7 @@ void bust_a_prompt(CHAR_DATA *ch)
     || IS_SET(ch->affected_by[1], AFF2_IMPROVED_INVIS))
     send_to_char("{B[*]{x", ch);
 
-    if (IS_MORPHED(ch) && IS_VAMPIRE(ch))
+    if (IS_MORPHED(ch) && race_get_trait_bool(ch->race, "can_shapeshift"))
     send_to_char("{G[{YSHAPED{G]{x ", ch);
 
     if (IS_SHIFTED(ch))

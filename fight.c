@@ -44,6 +44,7 @@
 #include "magic.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "traits.h"
 
 #define MAX_BACKSTAB_DAMAGE 15000
 #define MAX_FLEE_ATTEMPTS 10
@@ -849,7 +850,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
     //
 
     // Slayers get 25% extra damage against evil
-    if (IS_SLAYER(ch) && (victim->alignment < 0 || IS_CHURCH_EVIL(victim)))
+    if (race_has_trait(ch->race, "holy_damage_bonus") && (victim->alignment < 0 || IS_CHURCH_EVIL(victim)))
         dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
     // Crusaders get 25% extra damage with exotic weapons
@@ -3566,7 +3567,7 @@ bool visit_func_deathsight (ROOM_INDEX_DATA *room, void *argv[], int argc, int d
                 send_to_char("You are blinded!\n\r", vch);
                 act("$n appears to be blinded.",vch,NULL,NULL,TO_ROOM);
             }
-            if(IS_VAMPIRE(vch) && !IS_IMMORTAL(vch))
+            if(race_get_trait_bool(vch->race, "sunlight_vulnerability") && !IS_IMMORTAL(vch))
                 damage_vampires(vch,dice(level,5));
         }
     }
@@ -5159,7 +5160,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
             check_improve(ch,gsn_martial_arts,true,6);
         }
 
-        if (IS_MINOTAUR(ch)) dam *= 2;
+        { int mult = race_get_trait_int(ch->race, "bash_damage_multiplier"); if (mult > 1) dam *= mult; }
 
         dam = UMAX(dam, 1);
 
@@ -5232,7 +5233,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
     if (!arg[0]) {
         victim = ch->fighting;
         if (!victim || !can_see(ch,victim)) {
-            if (IS_VAMPIRE(ch)) {
+            if (race_get_trait_bool(ch->race, "blood_feeding")) {
                 send_to_char("You show your teeth!\n\r",ch);
                 act("$n growls and bares $s fangs!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
             } else {
@@ -5280,7 +5281,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
         WAIT_STATE(ch,skill_table[gsn_bite].beats);
 
         // Vamp bite
-        if (IS_VAMPIRE(ch)) {
+        if (race_get_trait_bool(ch->race, "blood_feeding")) {
             act("{R$n leaps for your neck sinking $s fangs in deep!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
             act("{RYou leap for $N's neck sinking your fangs in deep!{x",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
             act("{R$n takes a bite out of $N's neck.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
@@ -5321,7 +5322,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
                 if (!IS_NPC(ch) && ch->pcdata->condition[COND_FULL] > 40) send_to_char("{GYou are full.{x\n\r", ch);
                 if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] > 40) send_to_char("{GYour thirst is quenched.{x\n\r", ch);
             }
-        } else if (IS_SITH(ch)) {	// sith bite
+        } else if (race_has_trait(ch->race, "toxin_system")) {
             act("{R$n bites you with $s fangs!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
             act("{RYou bite $N with your fangs!{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             act("{R$n bites $N with $s fangs!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);

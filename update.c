@@ -17,6 +17,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "io/cache/redis_cache.h"
+#include "traits.h"
 
 extern void persist_save(void);
 
@@ -623,8 +624,7 @@ int mana_gain(CHAR_DATA *ch)
     if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
         gain += gain / 4;
 
-    if (IS_ELF(ch))
-        gain *= 2;
+    { int _mrm = race_get_trait_int(ch->race, "mana_regen_multiplier"); if (_mrm > 1) gain *= _mrm; }
 
     if (ch->race && !str_cmp(ch->race->id, "lich"))
         gain = (gain * 5)/2;
@@ -1731,7 +1731,7 @@ void char_update(void)
         }
 
         // Toxin regeneration for siths
-        if (IS_SITH(ch))
+        if (race_has_trait(ch->race, "toxin_system"))
         {
             int i;
             for (i = 0; i < MAX_TOXIN; i++)
@@ -2133,7 +2133,7 @@ void char_update(void)
             }
 
             // non-demons without a light in the demon area get fucked
-            if (IS_SET(ch->in_room->room_flag[0], ROOM_ATTACK_IF_DARK) && !IS_DEMON(ch))
+            if (IS_SET(ch->in_room->room_flag[0], ROOM_ATTACK_IF_DARK) && !race_get_trait_int(ch->race, "death_plane_vnum_min"))
             {
                 if (!IS_SET(ch->act[0], PLR_HOLYLIGHT))
                 {

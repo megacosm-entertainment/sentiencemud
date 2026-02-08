@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "merc.h"
+#include "traits.h"
 
 #if defined( NO_BCOPY )
 void bcopy(register char *s1,register char *s2,int len);
@@ -534,10 +535,10 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     }
     }
 
-    if (!IS_SITH(ch))
-    act( "$n carefully sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-    else
+    if (race_get_trait_string(ch->race, "scent_track_flavor"))
     act("$n's forked tongue whips out and tastes the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    else
+    act( "$n carefully sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 
 
     // Max rooms so people can track across areas without megalag
@@ -568,7 +569,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     return;
     }
 
-    if (!IS_NPC(ch) && number_percent() > (IS_SITH(ch) ? 100 : ch->pcdata->learned[gsn_hunt]))
+    if (!IS_NPC(ch) && number_percent() > (race_get_trait_bool(ch->race, "scent_tracking") ? 100 : ch->pcdata->learned[gsn_hunt]))
     {
     send_to_char("You can't find the trail.\n\r", ch);
     return;

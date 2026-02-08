@@ -14,6 +14,7 @@
 #include "recycle.h"
 // VIZZWILDS
 #include "wilds.h"
+#include "traits.h"
 
 
 void acid_effect(void *vo, int level, int dam, int target)
@@ -729,7 +730,7 @@ void hurt_vampires( CHAR_DATA *ch)
 {
     int dam;
 
-    if ( !IS_VAMPIRE(ch)
+    if ( !race_get_trait_bool(ch->race, "sunlight_vulnerability")
     || IS_IMMORTAL(ch)
     || !IS_OUTSIDE(ch)
     || IN_NETHERWORLD(ch)

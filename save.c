@@ -54,6 +54,7 @@
 #include "io/cache/redis_cache.h"
 #include "io/json/json_char.h"
 #include "io/json/json_account.h"
+#include "traits.h"
 
 /***************************************************************************
  * JSON Migration Control                                                  *
@@ -761,7 +762,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     }
     }
 
-    if (IS_SITH(ch))
+    if (race_has_trait(ch->race, "toxin_system"))
     {
     for (i = 0; i < MAX_TOXIN; i++)
         fprintf(fp, "Toxn%s %d\n", toxin_table[i].name, ch->toxin[i]);

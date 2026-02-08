@@ -1,0 +1,174 @@
+{
+  "test_suite": "blueprint_area_scope",
+  "description": "Tests for area-scoped blueprint hash tables and WNUM references",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "blueprint_area_hash_lookup",
+      "description": "Test get_blueprint_index with area_uid",
+      "dependencies": [],
+      "test_type": "blueprint_hash_lookup_test",
+      "input": {
+        "use_valid_area": true,
+        "use_valid_blueprint_vnum": true
+      },
+      "expected_output": {
+        "success": true,
+        "blueprint_found": true,
+        "area_matches": true
+      }
+    },
+    {
+      "name": "blueprint_wnum_link_serialize",
+      "description": "Test BLUEPRINT_LINK WNUM serialization",
+      "dependencies": [],
+      "test_type": "blueprint_link_wnum_test",
+      "input": {
+        "check_mob_ref": true,
+        "check_obj_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "mob_wnum_serialized": true,
+        "obj_wnum_serialized": true
+      }
+    },
+    {
+      "name": "blueprint_section_wnum_serialize",
+      "description": "Test BLUEPRINT_SECTION room template WNUM",
+      "dependencies": [],
+      "test_type": "blueprint_section_wnum_test",
+      "input": {
+        "check_room_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "room_wnum_serialized": true
+      }
+    },
+    {
+      "name": "blueprint_special_room_wnum",
+      "description": "Test BLUEPRINT_SPECIAL_ROOM WNUM refs",
+      "dependencies": [],
+      "test_type": "blueprint_special_wnum_test",
+      "input": {
+        "check_recall_ref": true,
+        "check_lower_vnum_ref": true,
+        "check_upper_vnum_ref": true,
+        "check_room_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "all_wnum_refs_valid": true
+      }
+    },
+    {
+      "name": "blueprint_json_serialize",
+      "description": "Test json_area_serialize_blueprint output",
+      "dependencies": ["blueprint_area_hash_lookup"],
+      "test_type": "blueprint_json_test",
+      "input": {
+        "serialize_full_blueprint": true
+      },
+      "expected_output": {
+        "success": true,
+        "json_valid": true,
+        "has_sections": true,
+        "has_links": true
+      }
+    },
+    {
+      "name": "blueprint_json_deserialize",
+      "description": "Test json_area_deserialize_blueprint parsing",
+      "dependencies": ["blueprint_json_serialize"],
+      "test_type": "blueprint_deserialize_test",
+      "input": {
+        "use_serialized_json": true
+      },
+      "expected_output": {
+        "success": true,
+        "blueprint_created": true,
+        "sections_loaded": true,
+        "links_loaded": true
+      }
+    },
+    {
+      "name": "blueprint_cross_area_ref",
+      "description": "Test blueprint referencing entities from other areas",
+      "dependencies": ["blueprint_wnum_link_serialize"],
+      "test_type": "blueprint_cross_area_test",
+      "input": {
+        "source_area": "area1",
+        "target_area": "area2",
+        "ref_type": "mob"
+      },
+      "expected_output": {
+        "success": true,
+        "cross_area_ref_resolved": true
+      }
+    },
+    {
+      "name": "ship_index_area_hash",
+      "description": "Test get_ship_index with area_uid lookup",
+      "dependencies": [],
+      "test_type": "ship_index_hash_test",
+      "input": {
+        "use_valid_area": true,
+        "use_valid_ship_vnum": true
+      },
+      "expected_output": {
+        "success": true,
+        "ship_found": true,
+        "area_matches": true
+      }
+    },
+    {
+      "name": "ship_blueprint_wnum_ref",
+      "description": "Test SHIP_INDEX_DATA blueprint_ref WNUM",
+      "dependencies": ["ship_index_area_hash"],
+      "test_type": "ship_blueprint_ref_test",
+      "input": {
+        "check_blueprint_ref": true,
+        "check_object_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "blueprint_ref_valid": true,
+        "object_ref_valid": true
+      }
+    },
+    {
+      "name": "dungeon_index_area_hash",
+      "description": "Test get_dungeon_index with area_uid lookup",
+      "dependencies": [],
+      "test_type": "dungeon_index_hash_test",
+      "input": {
+        "use_valid_area": true,
+        "use_valid_dungeon_vnum": true
+      },
+      "expected_output": {
+        "success": true,
+        "dungeon_found": true,
+        "area_matches": true
+      }
+    },
+    {
+      "name": "dungeon_wnum_refs",
+      "description": "Test DUNGEON_INDEX_DATA entry/exit WNUM refs",
+      "dependencies": ["dungeon_index_area_hash"],
+      "test_type": "dungeon_wnum_refs_test",
+      "input": {
+        "check_entry_ref": true,
+        "check_exit_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "entry_ref_valid": true,
+        "exit_ref_valid": true
+      }
+    }
+  ]
+}

@@ -37,7 +37,7 @@ bool ensure_directory_structure(void)
     const char *dirs[] = {
         "data", "data/system", "data/world", "data/races",
         "data/help", "data/notes", "data/orgs", "data/persist",
-        "data/stats", "data/traits", "data/dump", "data/tests",
+        "data/stats", "data/traits", "data/dump",
         "area", "accounts", "characters", "logs",
         "accounts/a", "accounts/b", "accounts/c", "accounts/d",
         "accounts/e", "accounts/f", "accounts/g", "accounts/h",

@@ -1,0 +1,46 @@
+{
+  "type": "test_suite",
+  "test_suite": "database_integrity",
+  "description": "Database and system integrity validation",
+  "version": "1.0",
+  "requires_mud_environment": true, 
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 45,
+  "tests": [
+    {
+      "name": "global_config_validation",
+      "description": "Verify global configuration is valid",
+      "dependencies": [],
+      "test_type": "config_validator",
+      "input": {
+        "checks": [
+          "next_area_uid_valid",
+          "memory_allocator_working",
+          "logging_system_active"
+        ]
+      },
+      "expected_output": {
+        "next_area_uid_positive": true,
+        "allocator_functional": true,
+        "logging_active": true,
+        "success": true
+      }
+    },
+    {
+      "name": "area_uid_uniqueness",
+      "description": "Verify all areas have unique UIDs",
+      "dependencies": ["global_config_validation"],
+      "test_type": "uid_uniqueness_check", 
+      "input": {
+        "scan_range": [1, 1000],
+        "check_duplicates": true
+      },
+      "expected_output": {
+        "unique_uids": true,
+        "duplicate_count": 0,
+        "area_count_positive": true,
+        "success": true
+      }
+    }
+  ]
+}

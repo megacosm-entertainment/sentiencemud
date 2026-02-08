@@ -746,7 +746,7 @@ DECL_IFC_FUN(ifc_isambushing)
 
 DECL_IFC_FUN(ifc_isangel)
 {
-    *ret = (ISARG_MOB(0) && IS_ANGEL(ARG_MOB(0)));
+    *ret = (ISARG_MOB(0) && ARG_MOB(0)->race && !str_cmp(ARG_MOB(0)->race->id, "angel"));
     return true;
 }
 
@@ -815,7 +815,7 @@ DECL_IFC_FUN(ifc_isdelay)
 
 DECL_IFC_FUN(ifc_isdemon)
 {
-    *ret = (ISARG_MOB(0) && IS_DEMON(ARG_MOB(0)));
+    *ret = (ISARG_MOB(0) && ARG_MOB(0)->race && !str_cmp(ARG_MOB(0)->race->id, "demon"));
     return true;
 }
 
@@ -935,7 +935,7 @@ DECL_IFC_FUN(ifc_ismorphed)
 
 DECL_IFC_FUN(ifc_ismystic)
 {
-    *ret = (ISARG_MOB(0) && IS_MYSTIC(ARG_MOB(0)));
+    *ret = (ISARG_MOB(0) && ARG_MOB(0)->race && !str_cmp(ARG_MOB(0)->race->id, "mystic"));
     return true;
 }
 

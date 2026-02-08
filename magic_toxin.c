@@ -16,6 +16,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "traits.h"
 
 
 SPELL_FUNC(spell_fatigue)
@@ -53,8 +54,8 @@ SPELL_FUNC(spell_gas_breath)
     act("You breath out a cloud of poisonous gas.",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR, NULL, NULL);
 
     dam = level * 15;
-    if (IS_DRAGON(ch))
-        dam += dam/4;
+    if (race_get_trait_int(ch->race, "breath_damage_bonus") > 0)
+        dam += dam * race_get_trait_int(ch->race, "breath_damage_bonus") / 100;
 
     poison_effect(ch->in_room,level,dam/10,TARGET_ROOM);
 

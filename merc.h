@@ -2237,6 +2237,9 @@ struct race_data
 
     /* Starting Equipment (VNUMs) */
     long	starting_eq[MAX_RACE_STARTING_EQ];
+
+    /* Trait values (indexed array, allocated by race_init_traits) */
+    struct trait_value *	trait_values;
 };
 
 /* Race hash table entry for O(1) lookup */
@@ -8662,16 +8665,6 @@ char    *makedrunk      args( (char *string, CHAR_DATA *ch) );
 /* gq.c */
 void write_gq( void );
 void read_gq( void );
-
-/* msgqueue.c */
-void	process_message_queue( void );
-
-/* html.c */
-BUFFER  *get_churches_html( void );
-BUFFER  *get_players_html( void );
-char	*format_and_colour_html( char *buf );
-BUFFER  *get_stats_html( int type );
-BUFFER  *get_stats_for_html( int type );
 
 /* boat.c */
 void award_ship_quest_points args((int area_type, CHAR_DATA *ch, int points));

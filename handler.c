@@ -53,6 +53,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "traits.h"
 
 
 unsigned char crypto_key[AES_KEY_SIZE]; // Server-side key
@@ -3123,30 +3124,21 @@ void extract_char(CHAR_DATA *ch, bool fPull)
         ROOM_INDEX_DATA *death_room;
 
         death_room = get_reserved_room_index("room_death");
-        if (IS_DEMON(ch))
         {
-            int range;
-            range = number_range(0, 7000);
-            long demon_vnum = 200050 + range;
-            AREA_DATA *demon_area = find_area_by_vnum(demon_vnum, NULL);
-            if (!demon_area) demon_area = get_system_area_fallback();
-            death_room = get_room_index(demon_area, demon_vnum);
-            ch->hit = number_range(1, ch->max_hit);
-            ch->mana = number_range(1, ch->max_mana);
-            ch->move = number_range(1, ch->max_move);
-        }
-        else
-    if (IS_ANGEL(ch))
-        {
-            int range;
-            range = number_range(0, 7000);
-            long angel_vnum = 300050 + range;
-            AREA_DATA *angel_area = find_area_by_vnum(angel_vnum, NULL);
-            if (!angel_area) angel_area = get_system_area_fallback();
-            death_room = get_room_index(angel_area, angel_vnum);
-            ch->hit = number_range(1, ch->max_hit);
-            ch->mana = number_range(1, ch->max_mana);
-            ch->move = number_range(1, ch->max_move);
+            int dp_min = race_get_trait_int(ch->race, "death_plane_vnum_min");
+            int dp_max = race_get_trait_int(ch->race, "death_plane_vnum_max");
+            if (dp_min > 0 && dp_max > dp_min)
+            {
+                int range;
+                range = number_range(0, dp_max - dp_min);
+                long plane_vnum = dp_min + range;
+                AREA_DATA *plane_area = find_area_by_vnum(plane_vnum, NULL);
+                if (!plane_area) plane_area = get_system_area_fallback();
+                death_room = get_room_index(plane_area, plane_vnum);
+                ch->hit = number_range(1, ch->max_hit);
+                ch->mana = number_range(1, ch->max_mana);
+                ch->move = number_range(1, ch->max_move);
+            }
         }
     char_to_room(ch, death_room);
     return;

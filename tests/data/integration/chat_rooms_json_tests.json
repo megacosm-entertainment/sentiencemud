@@ -1,0 +1,127 @@
+{
+  "test_suite": "chat_rooms_json",
+  "description": "Tests for chat rooms JSON persistence with WNUM support",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "chat_room_serialize_basic",
+      "description": "Test basic chat room serialization to JSON",
+      "dependencies": [],
+      "test_type": "chat_room_serialize_test",
+      "input": {
+        "test_room_name": "Test Chat",
+        "test_topic": "Test Topic",
+        "test_max_people": 10,
+        "test_permanent": true
+      },
+      "expected_output": {
+        "success": true,
+        "has_name": true,
+        "has_topic": true,
+        "has_max_people": true
+      }
+    },
+    {
+      "name": "chat_room_wnum_fields",
+      "description": "Test chat room WNUM field serialization",
+      "dependencies": [],
+      "test_type": "chat_room_wnum_test",
+      "input": {
+        "check_area_uid_field": true,
+        "check_vnum_field": true
+      },
+      "expected_output": {
+        "success": true,
+        "has_area_uid": true,
+        "has_vnum": true
+      }
+    },
+    {
+      "name": "chat_room_operators",
+      "description": "Test chat room operator list serialization",
+      "dependencies": ["chat_room_serialize_basic"],
+      "test_type": "chat_room_ops_test",
+      "input": {
+        "test_ops": ["TestPlayer1", "TestPlayer2"]
+      },
+      "expected_output": {
+        "success": true,
+        "ops_serialized": true
+      }
+    },
+    {
+      "name": "chat_room_bans",
+      "description": "Test chat room ban list serialization",
+      "dependencies": ["chat_room_serialize_basic"],
+      "test_type": "chat_room_bans_test",
+      "input": {
+        "test_bans": ["BannedPlayer"]
+      },
+      "expected_output": {
+        "success": true,
+        "bans_serialized": true
+      }
+    },
+    {
+      "name": "chat_room_deserialize",
+      "description": "Test chat room deserialization from JSON",
+      "dependencies": ["chat_room_serialize_basic"],
+      "test_type": "chat_room_deserialize_test",
+      "input": {
+        "json_data": {
+          "name": "Deserialize Test",
+          "topic": "Test Topic",
+          "password": "none",
+          "created_by": "TestAdmin",
+          "max_people": 15,
+          "permanent": true,
+          "area_uid": 1,
+          "vnum": 1001,
+          "operators": [],
+          "bans": []
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "name_matches": true,
+        "area_uid_matches": true,
+        "vnum_matches": true
+      }
+    },
+    {
+      "name": "chat_room_area_lookup",
+      "description": "Test chat room area lookup during load",
+      "dependencies": ["chat_room_wnum_fields"],
+      "test_type": "chat_room_area_lookup_test",
+      "input": {
+        "use_valid_area_uid": true,
+        "use_valid_vnum": true
+      },
+      "expected_output": {
+        "success": true,
+        "room_found": true,
+        "room_linked": true
+      }
+    },
+    {
+      "name": "chat_room_file_io",
+      "description": "Test save_chat_rooms_json and load_chat_rooms_json",
+      "dependencies": ["chat_room_serialize_basic", "chat_room_deserialize"],
+      "test_type": "chat_room_file_io_test",
+      "input": {
+        "test_save": true,
+        "test_load": true,
+        "verify_roundtrip": true
+      },
+      "expected_output": {
+        "success": true,
+        "save_succeeded": true,
+        "load_succeeded": true,
+        "data_matches": true
+      }
+    }
+  ]
+}

@@ -52,6 +52,7 @@
 /* VIZZWILDS - Include wilds.h header */
 #include "wilds.h"
 #include "scripts.h"
+#include "traits.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -7929,7 +7930,7 @@ void convert_map_char(char *buf, char ch)
  * @param ch        The character viewing toxins
  * @param argument  Unused
  *
- * Requires: IS_SITH (Sith class/race)
+ * Requires: toxin_system trait
  *
  * Planned refactor: body/sith.c (never executed)
  */
@@ -7939,7 +7940,7 @@ void do_toxins(CHAR_DATA *ch, char *argument)
     char buf2[MAX_STRING_LENGTH];
     int i, n;
 
-    if (!IS_SITH(ch)) {
+    if (!race_has_trait(ch->race, "toxin_system")) {
     send_to_char("Huh?\n\r", ch);
     return;
     }

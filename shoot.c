@@ -11,6 +11,7 @@
 #include <math.h>
 #include "merc.h"
 #include "interp.h"
+#include "traits.h"
 
 
 void do_shoot( CHAR_DATA *ch, char *argument )
@@ -338,9 +339,7 @@ void ranged_end( CHAR_DATA *ch )
     sprintf( buf, "%s gets %d%% from skill, ", ch->name, skill );
 
 
-    if ( IS_ELF( ch ) ) {
-    skill += 5;
-    }
+    skill += race_get_trait_int(ch->race, "ranged_accuracy_bonus");
 
     if (!IS_NPC(ch)) {
         if ( sn == gsn_blowgun ) {
@@ -841,8 +840,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 
     /* we have a victim and a dir.  start the missile off. */
     skill = get_skill(ch, gsn_throw);
-    if ( IS_ELF( ch ) )
-    skill += 5;
+    skill += race_get_trait_int(ch->race, "ranged_accuracy_bonus");
 
     if ( !IS_NPC(ch) && ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER )
     skill += 5;
@@ -1038,9 +1036,7 @@ int get_ranged_skill(CHAR_DATA *ch)
 
     sprintf( buf2, " +%d%% from skill, ", skill ); strcat(buf,buf2);
 
-    if ( IS_ELF( ch ) ) {
-    skill += 5;
-    }
+    skill += race_get_trait_int(ch->race, "ranged_accuracy_bonus");
 
     if (!IS_NPC(ch)) {
         if ( sn == gsn_blowgun ) {

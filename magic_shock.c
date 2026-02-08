@@ -16,6 +16,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "traits.h"
 
 
 SPELL_FUNC(spell_call_lightning)
@@ -191,8 +192,8 @@ SPELL_FUNC(spell_lightning_breath)
         return false;
 
     dam = level * 16;
-    if (IS_DRAGON(ch))
-        dam += dam/4;
+    if (race_get_trait_int(ch->race, "breath_damage_bonus") > 0)
+        dam += dam * race_get_trait_int(ch->race, "breath_damage_bonus") / 100;
 
     victim->set_death_type = DEATHTYPE_BREATH;
 

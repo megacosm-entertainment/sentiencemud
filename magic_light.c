@@ -16,6 +16,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "traits.h"
 
 bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth, int door)
 {
@@ -55,7 +56,7 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
                 send_to_char("You are blinded!\n\r", vch);
                 act("$n appears to be blinded.",vch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
             }
-            if(IS_VAMPIRE(vch) && !IS_IMMORTAL(vch))
+            if(race_get_trait_bool(vch->race, "sunlight_vulnerability") && !IS_IMMORTAL(vch))
                 damage_vampires(vch,dice(level,5));
         }
     }

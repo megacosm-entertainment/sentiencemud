@@ -137,7 +137,6 @@ set(SOURCE_FILES
     log.c
     help.c
     house.c
-    html.c
     hunt.c
     interp.c
     invasion.c
@@ -146,6 +145,7 @@ set(SOURCE_FILES
     io/json/json_church.c
     io/json/json_reserved.c
     io/json/json_race.c
+    traits.c
     lookup.c
     magic.c
     magic2.c

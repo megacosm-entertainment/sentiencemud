@@ -16,6 +16,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "traits.h"
 
 SPELL_FUNC(spell_acid_blast)
 {
@@ -46,8 +47,8 @@ SPELL_FUNC(spell_acid_breath)
 
     dam = level * 15;
 
-    if (IS_DRAGON(ch))
-        dam += dam/4;
+    if (race_get_trait_int(ch->race, "breath_damage_bonus") > 0)
+        dam += dam * race_get_trait_int(ch->race, "breath_damage_bonus") / 100;
 
     acid_effect(victim,level,dam/13,TARGET_CHAR);
     victim->set_death_type = DEATHTYPE_BREATH;

@@ -1,0 +1,58 @@
+{
+  "type": "test_configuration",
+  "test_configuration": {
+    "version": "1.0",
+    "description": "Default test execution configuration for Sentience MUD",
+    "default_test_suites": [
+      "area_loading",
+      "database_integrity"
+    ],
+    "quick_test_suites": [
+      "area_loading"
+    ],
+    "full_test_suites": [
+      "area_loading",
+      "database_integrity", 
+      "wnum_parsing",
+      "wnum_parsing_unit_tests"
+    ],
+    "unit_only_suites": [
+      "wnum_parsing_unit_tests"
+    ],
+    "integration_only_suites": [
+      "area_loading",
+      "database_integrity",
+      "wnum_parsing"
+    ],
+    "exclude_patterns": [],
+    "settings": {
+      "default_timeout_seconds": 300,
+      "stop_on_first_failure": false,
+      "run_unit_tests_first": true,
+      "require_mud_environment_for_integration": true,
+      "verbose_output": false,
+      "verbose_test_names": true,
+      "verbose_test_details": false,
+      "show_test_config": true,
+      "show_execution_time": true
+    },
+    "test_profiles": {
+      "development": {
+        "description": "Fast tests for development workflow",
+        "suites": ["area_loading", "wnum_parsing_unit_tests"],
+        "stop_on_first_failure": true
+      },
+      "ci": {
+        "description": "Complete test suite for CI/CD",
+        "suites": ["area_loading", "database_integrity", "wnum_parsing", "wnum_parsing_unit_tests"],
+        "stop_on_first_failure": false,
+        "require_coverage": true
+      },
+      "regression": {
+        "description": "Core regression tests",
+        "suites": ["area_loading", "database_integrity"],
+        "stop_on_first_failure": false
+      }
+    }
+  }
+}

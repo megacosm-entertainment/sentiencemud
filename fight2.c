@@ -13,6 +13,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "tables.h"
+#include "traits.h"
 
 
 void do_smite(CHAR_DATA *ch, char *argument)
@@ -150,7 +151,7 @@ void do_stake(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!IS_VAMPIRE(victim))
+    if (!race_get_trait_bool(victim->race, "stakeable"))
     {
         act("$N isn't a vampire.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return;
@@ -315,7 +316,7 @@ void do_trample(CHAR_DATA *ch, char *argument)
 // Shift to werewolf or slayer
 void do_shift(CHAR_DATA *ch, char *argument)
 {
-    if ((!IS_SLAYER(ch) && !IS_VAMPIRE(ch)) || get_skill(ch, gsn_shift) == 0)
+    if (!race_get_trait_bool(ch->race, "can_shapeshift") || get_skill(ch, gsn_shift) == 0)
     {
     send_to_char("You can't do that.\n\r", ch);
     return;
@@ -355,6 +356,7 @@ void shift_char(CHAR_DATA *ch, bool silent)
     OBJ_DATA *obj;
     int num_classes;
     ITERATOR it;
+    const char *shift_form;
 memset(&af,0,sizeof(af));
 
     // Unshift
@@ -387,7 +389,8 @@ memset(&af,0,sizeof(af));
         return;
     }
 
-    if (IS_SLAYER(ch))
+    shift_form = race_get_trait_string(ch->race, "shift_form");
+    if (shift_form && !str_cmp(shift_form, "slayer"))
     {
         if (!silent) {
         send_to_char("{YYou feel the demon inside you taking control.{x\n\r", ch);
@@ -438,7 +441,7 @@ if (ch->lworn) {
         affect_remove(ch, ch->affected);
 
     /* Give them slayer/werewolf affects, while keeping their racial ones */
-    if (IS_SLAYER(ch))
+    if (shift_form && !str_cmp(shift_form, "slayer"))
     {
         ch->shifted = SHIFTED_SLAYER;
         pMob = IS_REMORT(ch) ? get_reserved_mob_index("mob_shifted_changeling") : get_reserved_mob_index("mob_shifted_slayer");

@@ -43,6 +43,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "io/cache/redis_cache.h"
+#include "traits.h"
 
 
 
@@ -1525,7 +1526,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
        back on login.*/
     if (IS_SHIFTED(ch)) {
     shift_char(ch, true);
-    ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
+    { const char *_sf = race_get_trait_string(ch->race, "shift_form"); ch->shifted = (_sf && !str_cmp(_sf, "werewolf")) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER; }
     }
 
     if (ch->pulled_cart != NULL)
@@ -1781,7 +1782,7 @@ void do_logout(CHAR_DATA *ch, char *argument)
     if (IS_SHIFTED(ch))
     {
         shift_char(ch, true);
-        ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
+        { const char *_sf = race_get_trait_string(ch->race, "shift_form"); ch->shifted = (_sf && !str_cmp(_sf, "werewolf")) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER; }
     }
 
     if (ch->pulled_cart != NULL)

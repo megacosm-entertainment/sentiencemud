@@ -43,6 +43,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "traits.h"
 
 /**
  * obj_has_money - Check if a container has money visible to character
@@ -2938,7 +2939,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
         pbugf(LOG_ERROR, "Bad liquid number %d.", liquid);
         liquid = obj->value[2] = 0;
         }
-        if (IS_VAMPIRE(ch))
+        if (race_get_trait_bool(ch->race, "blood_feeding"))
            amount = 20;
         else
            amount = liq_table[liquid].liq_affect[COND_FULL] * 10;
@@ -2965,7 +2966,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
     act("$n drinks $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_ROOM, NULL, NULL);
     act("You drink $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_CHAR, NULL, NULL);
 
-    if (IS_VAMPIRE(ch) && obj->value[2] == 14)
+    if (race_get_trait_bool(ch->race, "blood_feeding") && obj->value[2] == 14)
     {
         send_to_char("You feel refreshed.\n\r", ch);
       gain_condition(ch, COND_FULL,

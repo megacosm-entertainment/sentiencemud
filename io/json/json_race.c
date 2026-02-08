@@ -11,6 +11,7 @@
 #include "../../merc.h"
 #include "../../tables.h"
 #include "../../recycle.h"
+#include "../../traits.h"
 
 #define RACES_DIR	DATA_DIR "races/"
 
@@ -84,6 +85,9 @@ RACE_DATA *new_race_data(void)
     race->max_vitals[2] = 3000;  /* Move */
     race->min_size = SIZE_MEDIUM;
     race->max_size = SIZE_MEDIUM;
+    race->trait_values = NULL;
+
+    race_init_traits(race);
 
     return race;
 }
@@ -296,6 +300,12 @@ static RACE_DATA *race_load_json(const char *filename)
         if (str && str[0]) {
             race->remort_into_id = str_dup(str);
         }
+    }
+
+    /* Traits section */
+    obj = json_object_get(root, "traits");
+    if (obj && json_is_object(obj)) {
+        race_load_traits_json(race, obj);
     }
 
     json_decref(root);

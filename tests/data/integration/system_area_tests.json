@@ -1,0 +1,105 @@
+{
+  "test_suite": "system_area",
+  "description": "Tests for system_area game setting and fallback behavior",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "system_area_setting_exists",
+      "description": "Verify system_area setting exists in game_settings_table",
+      "dependencies": [],
+      "test_type": "game_setting_exists_test",
+      "input": {
+        "setting_name": "system_area",
+        "expected_type": "string",
+        "expected_category": "global"
+      },
+      "expected_output": {
+        "success": true,
+        "setting_found": true,
+        "type_matches": true,
+        "category_matches": true
+      }
+    },
+    {
+      "name": "system_area_numeric_resolution",
+      "description": "Test system_area resolves numeric UID to area",
+      "dependencies": [],
+      "test_type": "system_area_resolve_test",
+      "input": {
+        "test_mode": "numeric",
+        "find_any_area": true,
+        "use_area_uid": true
+      },
+      "expected_output": {
+        "success": true,
+        "area_resolved": true
+      }
+    },
+    {
+      "name": "system_area_name_resolution",
+      "description": "Test system_area resolves area name to area",
+      "dependencies": [],
+      "test_type": "system_area_resolve_test",
+      "input": {
+        "test_mode": "name",
+        "area_name": "Limbo",
+        "fallback_to_first": true
+      },
+      "expected_output": {
+        "success": true,
+        "area_resolved": true
+      }
+    },
+    {
+      "name": "system_area_fallback_behavior",
+      "description": "Test fallback to area_first when system_area invalid",
+      "dependencies": [],
+      "test_type": "system_area_fallback_test",
+      "input": {
+        "invalid_setting": "NonExistentArea99999",
+        "expect_fallback": true
+      },
+      "expected_output": {
+        "success": true,
+        "used_fallback": true,
+        "fallback_area_valid": true
+      }
+    },
+    {
+      "name": "parse_widevnum_system_area_fallback",
+      "description": "Test parse_widevnum uses system_area when no current area provided",
+      "dependencies": ["system_area_name_resolution"],
+      "test_type": "widevnum_parse_fallback_test",
+      "input": {
+        "widevnum_string": "1234",
+        "current_area": null,
+        "expect_system_area_usage": true
+      },
+      "expected_output": {
+        "success": true,
+        "parsed": true,
+        "used_system_area": true
+      }
+    },
+    {
+      "name": "parse_widevnum_explicit_overrides_system",
+      "description": "Test explicit area UID in widevnum overrides system_area",
+      "dependencies": ["parse_widevnum_system_area_fallback"],
+      "test_type": "widevnum_parse_explicit_test",
+      "input": {
+        "widevnum_string": "1#5000",
+        "current_area": null,
+        "expect_explicit_area": true
+      },
+      "expected_output": {
+        "success": true,
+        "parsed": true,
+        "used_explicit_area": true,
+        "did_not_use_system_area": true
+      }
+    }
+  ]
+}

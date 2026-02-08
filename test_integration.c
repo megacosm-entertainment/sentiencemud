@@ -19,14 +19,14 @@ int run_integration_tests(const char *pattern) {
     init_test_framework();
     
     // Load test configuration
-    if (!load_test_config("data/tests/test_config.json")) {
+    if (!load_test_config("src/tests/data/test_config.json")) {
         log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS, "Failed to load test config, using built-in defaults");
     }
     
-    // Load test suites from JSON files in data/tests (now supports subdirectories)
+    // Load test suites from JSON files in src/tests/data (version controlled)
     set_test_loader_logging(false);
-    if (!load_all_test_suites("data/tests")) {
-        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Failed to load test suites from data/tests");
+    if (!load_all_test_suites("src/tests/data")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Failed to load test suites from src/tests/data");
         cleanup_test_framework();
         return 1; // Error
     }

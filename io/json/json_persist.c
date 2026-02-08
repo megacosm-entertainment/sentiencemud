@@ -23,6 +23,7 @@
 #include "../../wilds.h"
 #include "../../recycle.h"
 #include "json_persist.h"
+#include "../../traits.h"
 #include "../cache/redis_cache.h"
 
 /***************************************************************************
@@ -1359,7 +1360,7 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
     }
 
     /* Toxins (for Sith/Naga races) */
-    if (IS_SITH(ch)) {
+    if (race_has_trait(ch->race, "toxin_system")) {
         array = json_array();
         for (i = 0; i < MAX_TOXIN; i++) {
             json_t *tox = json_object();

@@ -54,6 +54,7 @@
 #include "io/cache/async_cache.h"
 #include "io/json/json_game_settings.h"
 #include "log.h"
+#include "traits.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -5081,7 +5082,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
                 /* save their shift */
                 if (ch->shifted != SHIFTED_NONE) {
                     shift_char(ch, true);
-                    ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
+                    { const char *_sf = race_get_trait_string(ch->race, "shift_form"); ch->shifted = (_sf && !str_cmp(_sf, "werewolf")) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER; }
                 }
 
                 save_char_obj(vch);

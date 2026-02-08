@@ -1,0 +1,153 @@
+{
+  "test_suite": "instance_persist",
+  "description": "Tests for instance, ship, and dungeon JSON persistence with WNUM support",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 120,
+  "tests": [
+    {
+      "name": "blueprint_area_lookup",
+      "description": "Test that blueprints can be found via area-scoped lookup",
+      "dependencies": [],
+      "test_type": "blueprint_lookup_test",
+      "input": {
+        "use_global_fallback": true,
+        "check_area_scoped": true
+      },
+      "expected_output": {
+        "success": true,
+        "has_blueprints": true
+      }
+    },
+    {
+      "name": "dungeon_index_area_lookup",
+      "description": "Test that dungeon indices can be found via area-scoped lookup",
+      "dependencies": [],
+      "test_type": "dungeon_index_lookup_test",
+      "input": {
+        "use_global_fallback": true,
+        "check_area_scoped": true
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "ship_index_area_lookup",
+      "description": "Test that ship indices can be found via area-scoped lookup",
+      "dependencies": [],
+      "test_type": "ship_index_lookup_test",
+      "input": {
+        "use_global_fallback": true,
+        "check_area_scoped": true
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "wnum_to_json_format",
+      "description": "Test WNUM to JSON string conversion format",
+      "dependencies": [],
+      "test_type": "wnum_json_format_test",
+      "input": {
+        "test_area_uid": 1,
+        "test_vnum": 1001,
+        "expected_format": "1#1001"
+      },
+      "expected_output": {
+        "success": true,
+        "matches_format": true
+      }
+    },
+    {
+      "name": "wnum_from_json_parse",
+      "description": "Test WNUM parsing from JSON string",
+      "dependencies": [],
+      "test_type": "wnum_json_parse_test",
+      "input": {
+        "wnum_string": "1#1001",
+        "expected_area_uid": 1,
+        "expected_vnum": 1001
+      },
+      "expected_output": {
+        "success": true,
+        "parsed_correctly": true
+      }
+    },
+    {
+      "name": "instance_json_serialize",
+      "description": "Test instance serialization to JSON",
+      "dependencies": ["blueprint_area_lookup"],
+      "test_type": "instance_serialize_test",
+      "input": {
+        "create_test_instance": true,
+        "verify_wnum_fields": true
+      },
+      "expected_output": {
+        "success": true,
+        "has_blueprint_wnum": true,
+        "has_sections": true
+      }
+    },
+    {
+      "name": "blueprint_section_wnum_refs",
+      "description": "Test blueprint section WNUM reference handling",
+      "dependencies": ["blueprint_area_lookup"],
+      "test_type": "blueprint_section_ref_test",
+      "input": {
+        "check_room_refs": true,
+        "check_recall_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "refs_valid": true
+      }
+    },
+    {
+      "name": "ship_blueprint_ref",
+      "description": "Test ship to blueprint WNUM reference",
+      "dependencies": ["ship_index_area_lookup", "blueprint_area_lookup"],
+      "test_type": "ship_blueprint_ref_test",
+      "input": {
+        "check_blueprint_wnum": true,
+        "check_ship_object_wnum": true
+      },
+      "expected_output": {
+        "success": true,
+        "blueprint_resolvable": true
+      }
+    },
+    {
+      "name": "dungeon_room_refs",
+      "description": "Test dungeon entry/exit room WNUM references",
+      "dependencies": ["dungeon_index_area_lookup"],
+      "test_type": "dungeon_room_ref_test",
+      "input": {
+        "check_entry_ref": true,
+        "check_exit_ref": true
+      },
+      "expected_output": {
+        "success": true,
+        "entry_resolvable": true,
+        "exit_resolvable": true
+      }
+    },
+    {
+      "name": "persist_directory_structure",
+      "description": "Test persist directory structure for ships/dungeons/instances",
+      "dependencies": [],
+      "test_type": "persist_directory_test",
+      "input": {
+        "check_ships_dir": "data/persist/ships/",
+        "check_dungeons_dir": "data/persist/dungeons/",
+        "check_instances_dir": "data/persist/instances/"
+      },
+      "expected_output": {
+        "success": true,
+        "directories_accessible": true
+      }
+    }
+  ]
+}
