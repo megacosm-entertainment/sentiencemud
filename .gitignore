@@ -53,3 +53,4 @@ build/
 .github/copilot-instructions.md
 CLAUDE.md
 AGENTS.md
+src.code-workspace

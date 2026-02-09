@@ -1850,14 +1850,14 @@ void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
             {
                 EXIT_DATA *ex = room->exit[i];
 
-                if( ex && ex->door.lock.key_vnum > 0 )
+                if( ex && ex->door.lock.key_wnum.pArea && ex->door.lock.key_wnum.vnum > 0 )
                 {
-                    SPECIAL_KEY_DATA *sk = get_special_key(special_keys, ex->door.lock.key_vnum);
+                    SPECIAL_KEY_DATA *sk = get_special_key(special_keys, ex->door.lock.key_wnum);
 
                     if( sk )
                     {
-                        ex->door.lock.keys = sk->list;
-                        ex->door.rs_lock.keys = sk->list;
+                        ex->door.lock.special_keys = sk->list;
+                        ex->door.rs_lock.special_keys = sk->list;
                     }
                 }
             }

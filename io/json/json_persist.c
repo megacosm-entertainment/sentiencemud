@@ -145,7 +145,10 @@ json_t *json_persist_lock_to_json(LOCK_STATE *lock)
     if (!lock) return NULL;
 
     json = json_object();
-    json_object_set_new(json, "key_vnum", json_integer(lock->key_vnum));
+    if (lock->key_load.auid > 0)
+        json_object_set_new(json, "key_auid", json_integer(lock->key_load.auid));
+    if (lock->key_load.vnum > 0)
+        json_object_set_new(json, "key_vnum", json_integer(lock->key_load.vnum));
     json_object_set_new(json, "flags", json_string(flag_string(lock_flags, lock->flags)));
     json_object_set_new(json, "pick_chance", json_integer(lock->pick_chance));
 
@@ -159,11 +162,13 @@ LOCK_STATE *json_persist_json_to_lock(json_t *json)
 
     if (!json) return NULL;
 
-    lock = alloc_mem(sizeof(LOCK_STATE));
-    memset(lock, 0, sizeof(LOCK_STATE));
+    lock = new_lock_state();
+
+    value = json_object_get(json, "key_auid");
+    if (value) lock->key_load.auid = json_integer_value(value);
 
     value = json_object_get(json, "key_vnum");
-    if (value) lock->key_vnum = json_integer_value(value);
+    if (value) lock->key_load.vnum = json_integer_value(value);
 
     value = json_object_get(json, "flags");
     if (value) lock->flags = flag_value(lock_flags, (char *)json_string_value(value));
@@ -2519,14 +2524,20 @@ json_t *json_persist_exit_to_json(EXIT_DATA *pexit, int dir)
 
     /* Current lock */
     json_t *lock_json = json_object();
-    json_object_set_new(lock_json, "key_vnum", json_integer(pexit->door.lock.key_vnum));
+    if (pexit->door.lock.key_load.auid > 0)
+        json_object_set_new(lock_json, "key_auid", json_integer(pexit->door.lock.key_load.auid));
+    if (pexit->door.lock.key_load.vnum > 0)
+        json_object_set_new(lock_json, "key_vnum", json_integer(pexit->door.lock.key_load.vnum));
     json_object_set_new(lock_json, "flags", json_string(flag_string(lock_flags, pexit->door.lock.flags)));
     json_object_set_new(lock_json, "pick_chance", json_integer(pexit->door.lock.pick_chance));
     json_object_set_new(door, "lock", lock_json);
 
     /* Reset lock */
     json_t *rs_lock = json_object();
-    json_object_set_new(rs_lock, "key_vnum", json_integer(pexit->door.rs_lock.key_vnum));
+    if (pexit->door.rs_lock.key_load.auid > 0)
+        json_object_set_new(rs_lock, "key_auid", json_integer(pexit->door.rs_lock.key_load.auid));
+    if (pexit->door.rs_lock.key_load.vnum > 0)
+        json_object_set_new(rs_lock, "key_vnum", json_integer(pexit->door.rs_lock.key_load.vnum));
     json_object_set_new(rs_lock, "flags", json_string(flag_string(lock_flags, pexit->door.rs_lock.flags)));
     json_object_set_new(rs_lock, "pick_chance", json_integer(pexit->door.rs_lock.pick_chance));
     json_object_set_new(door, "reset_lock", rs_lock);
@@ -2619,8 +2630,10 @@ EXIT_DATA *json_persist_json_to_exit(json_t *json, ROOM_INDEX_DATA *room)
         /* Current lock */
         lock_json = json_object_get(door_json, "lock");
         if (lock_json) {
+            value = json_object_get(lock_json, "key_auid");
+            if (value) pexit->door.lock.key_load.auid = json_integer_value(value);
             value = json_object_get(lock_json, "key_vnum");
-            if (value) pexit->door.lock.key_vnum = json_integer_value(value);
+            if (value) pexit->door.lock.key_load.vnum = json_integer_value(value);
             value = json_object_get(lock_json, "flags");
             if (value) pexit->door.lock.flags = flag_value(lock_flags, (char *)json_string_value(value));
             value = json_object_get(lock_json, "pick_chance");
@@ -2630,8 +2643,10 @@ EXIT_DATA *json_persist_json_to_exit(json_t *json, ROOM_INDEX_DATA *room)
         /* Reset lock */
         lock_json = json_object_get(door_json, "reset_lock");
         if (lock_json) {
+            value = json_object_get(lock_json, "key_auid");
+            if (value) pexit->door.rs_lock.key_load.auid = json_integer_value(value);
             value = json_object_get(lock_json, "key_vnum");
-            if (value) pexit->door.rs_lock.key_vnum = json_integer_value(value);
+            if (value) pexit->door.rs_lock.key_load.vnum = json_integer_value(value);
             value = json_object_get(lock_json, "flags");
             if (value) pexit->door.rs_lock.flags = flag_value(lock_flags, (char *)json_string_value(value));
             value = json_object_get(lock_json, "pick_chance");

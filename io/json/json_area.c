@@ -590,13 +590,13 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
         json_object_set_new(obj, "long_description", json_string(exit->long_desc));
 
     /* Lock/key/pick fields - use widevnum for key */
-    if (exit->door.lock.key_vnum > 0) {
-        OBJ_INDEX_DATA *key_obj = get_obj_index_global(exit->door.lock.key_vnum);
+    if (exit->door.lock.key_wnum.pArea && exit->door.lock.key_wnum.vnum > 0) {
+        OBJ_INDEX_DATA *key_obj = get_obj_index(exit->door.lock.key_wnum.pArea, exit->door.lock.key_wnum.vnum);
         if (key_obj) {
             json_object_set_new(obj, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));
         } else {
             /* Fallback to bare vnum if object not found */
-            json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_vnum));
+            json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_wnum.vnum));
         }
     }
     json_object_set_new(obj, "lock_flags", flags_to_json_array(exit->door.lock.flags, lock_flags));
@@ -677,10 +677,10 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     if (key_json && json_is_string(key_json)) {
         WNUM_LOAD wload;
         if (parse_widevnum_load(json_string_value(key_json), &wload)) {
-            exit->door.lock.key_vnum = wload.vnum;
+            exit->door.lock.key_load = wload;
         }
     } else {
-        exit->door.lock.key_vnum = json_get_int_default(json, "key_vnum", 0);
+        exit->door.lock.key_load.vnum = json_get_int_default(json, "key_vnum", 0);
     }
     
     /* Load lock_flags - try as array first, fall back to integer for legacy */
@@ -947,20 +947,47 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
         json_t *key_val;
 
         json_array_foreach(special_keys, index, key_val) {
-            long *key_vnum = alloc_perm(sizeof(long));
+            WNUM_LOAD wload;
+            OBJ_INDEX_DATA *key = NULL;
+            AREA_DATA *key_area = NULL;
+
+            wload.auid = 0;
+            wload.vnum = -1;
+
             if (json_is_string(key_val)) {
-                WNUM_LOAD wload;
-                if (parse_widevnum_load(json_string_value(key_val), &wload)) {
-                    *key_vnum = wload.vnum;
-                    list_appendlink(ship->special_keys, key_vnum);
-                } else {
-                    free_mem(key_vnum, sizeof(long));
+                if (!parse_widevnum_load(json_string_value(key_val), &wload)) {
+                    continue;
                 }
             } else if (json_is_integer(key_val)) {
-                *key_vnum = json_integer_value(key_val);
-                list_appendlink(ship->special_keys, key_vnum);
+                wload.auid = area->uid;
+                wload.vnum = json_integer_value(key_val);
             } else {
-                free_mem(key_vnum, sizeof(long));
+                continue;
+            }
+
+            if (wload.vnum < 1) {
+                continue;
+            }
+
+            key_area = wload.auid > 0 ? get_area_from_uid(wload.auid) : area;
+            if (!key_area) {
+                key_area = area;
+            }
+
+            key = get_obj_index(key_area, wload.vnum);
+            if (!key) {
+                key = get_obj_index_global(wload.vnum);
+            }
+
+            if (key) {
+                list_appendlink(ship->special_keys, key);
+            } else {
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                    "Ship '%s' (vnum %ld in %s): special key object %ld not found",
+                    ship->name ? ship->name : "unnamed",
+                    ship->vnum,
+                    area->name,
+                    wload.vnum);
             }
         }
     } else {
@@ -2774,12 +2801,14 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
     if (obj->lock) {
         json_t *lock = json_object();
         /* Use widevnum format for key */
-        if (obj->lock->key_vnum > 0) {
-            OBJ_INDEX_DATA *key_obj = get_obj_index_global(obj->lock->key_vnum);
+        if (obj->lock->key_load.vnum > 0) {
+            OBJ_INDEX_DATA *key_obj = obj->lock->key_wnum.pArea ?
+                get_obj_index(obj->lock->key_wnum.pArea, obj->lock->key_wnum.vnum) :
+                get_obj_index_global(obj->lock->key_load.vnum);
             if (key_obj) {
                 json_object_set_new(lock, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));
             } else {
-                json_object_set_new(lock, "key_vnum", json_integer(obj->lock->key_vnum));
+                json_object_set_new(lock, "key_vnum", json_integer(obj->lock->key_load.vnum));
             }
         }
         json_object_set_new(lock, "flags", json_integer(obj->lock->flags));
@@ -2943,10 +2972,10 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         if (key_json && json_is_string(key_json)) {
             WNUM_LOAD wload;
             if (parse_widevnum_load(json_string_value(key_json), &wload)) {
-                obj->lock->key_vnum = wload.vnum;
+                obj->lock->key_load = wload;
             }
         } else {
-            obj->lock->key_vnum = json_get_int_default(lock, "key_vnum", 0);
+            obj->lock->key_load.vnum = json_get_int_default(lock, "key_vnum", 0);
         }
         
         json_t *lock_flags_json = json_object_get(lock, "flags");
@@ -4584,16 +4613,10 @@ json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
         json_t *keys_array = json_array();
         ITERATOR it;
         iterator_start(&it, ship->special_keys);
-        while(iterator_nextdata(&it)) {
-            long *key_vnum = iterator_currentdata(&it);
-            if (key_vnum && *key_vnum > 0) {
-                OBJ_INDEX_DATA *key_obj = get_obj_index_global(*key_vnum);
-                if (key_obj) {
-                    json_array_append_new(keys_array, json_string(widevnum_string_object(key_obj, NULL)));
-                } else {
-                    /* Fallback to bare vnum if object not found */
-                    json_array_append_new(keys_array, json_integer(*key_vnum));
-                }
+        while (iterator_nextdata(&it)) {
+            OBJ_INDEX_DATA *key_obj = (OBJ_INDEX_DATA *)iterator_currentdata(&it);
+            if (key_obj) {
+                json_array_append_new(keys_array, json_string(widevnum_string_object(key_obj, NULL)));
             }
         }
         iterator_stop(&it);

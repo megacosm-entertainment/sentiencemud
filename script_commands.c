@@ -17,6 +17,16 @@
 
 void reset_reckoning();
 
+static void quest_part_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, long vnum)
+{
+    if (!load || !wnum) return;
+
+    load->auid = area ? area->uid : 0;
+    load->vnum = vnum;
+    wnum->pArea = area;
+    wnum->vnum = vnum;
+}
+
 #define PARSE_ARG				(rest = expand_argument(info,rest,arg))
 #define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
 #define PARSE_STR(b)			(expand_string(info,rest,(b)))
@@ -2920,6 +2930,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
     CHAR_DATA *mob;
     int qg_type;
     long qg_vnum;
+    AREA_DATA *qg_area = NULL;
     CHAR_DATA *qr_mob = NULL;
     OBJ_DATA *qr_obj = NULL;
     ROOM_INDEX_DATA *qr_room = NULL;
@@ -2940,6 +2951,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
         qg_type = QUESTOR_MOB;
         qg_vnum = info->mob->pIndexData->vnum;
+        qg_area = info->mob->pIndexData->area;
     }
     else if(info->obj)
     {
@@ -2948,6 +2960,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
         qg_type = QUESTOR_OBJ;
         qg_vnum = info->obj->pIndexData->vnum;
+        qg_area = info->obj->pIndexData->area;
     }
     else if(info->room)
     {
@@ -2958,6 +2971,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
         qg_type = QUESTOR_ROOM;
         qg_vnum = info->room->vnum;
+        qg_area = info->room->area;
     }
     else if(info->token)
     {
@@ -2972,11 +2986,13 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
             qg_type = QUESTOR_MOB;
             qg_vnum = info->token->player->pIndexData->vnum;
+            qg_area = info->token->player->pIndexData->area;
         }
         else if( info->token->object )
         {
             qg_type = QUESTOR_OBJ;
             qg_vnum = info->token->object->pIndexData->vnum;
+            qg_area = info->token->object->pIndexData->area;
         }
         else if( info->token->room )
         {
@@ -2985,6 +3001,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
             qg_type = QUESTOR_ROOM;
             qg_vnum = info->token->room->vnum;
+            qg_area = info->token->room->area;
         }
         else
             return;
@@ -3059,21 +3076,33 @@ SCRIPT_CMD(scriptcmd_questgenerate)
     mob->quest->generating = true;
     mob->quest->scripted = true;
     mob->quest->questgiver_type = qg_type;
-    mob->quest->questgiver = qg_vnum;
+    mob->quest->questgiver_load.auid = qg_area ? qg_area->uid : 0;
+    mob->quest->questgiver_load.vnum = qg_vnum;
+    mob->quest->questgiver_wnum.pArea = qg_area;
+    mob->quest->questgiver_wnum.vnum = qg_vnum;
     if( qr_mob )
     {
         mob->quest->questreceiver_type = QUESTOR_MOB;
-        mob->quest->questreceiver = qr_mob->pIndexData->vnum;
+        mob->quest->questreceiver_load.auid = qr_mob->pIndexData->area->uid;
+        mob->quest->questreceiver_load.vnum = qr_mob->pIndexData->vnum;
+        mob->quest->questreceiver_wnum.pArea = qr_mob->pIndexData->area;
+        mob->quest->questreceiver_wnum.vnum = qr_mob->pIndexData->vnum;
     }
     else if( qr_obj )
     {
         mob->quest->questreceiver_type = QUESTOR_OBJ;
-        mob->quest->questreceiver = qr_obj->pIndexData->vnum;
+        mob->quest->questreceiver_load.auid = qr_obj->pIndexData->area->uid;
+        mob->quest->questreceiver_load.vnum = qr_obj->pIndexData->vnum;
+        mob->quest->questreceiver_wnum.pArea = qr_obj->pIndexData->area;
+        mob->quest->questreceiver_wnum.vnum = qr_obj->pIndexData->vnum;
     }
     else if( qr_room )
     {
         mob->quest->questreceiver_type = QUESTOR_ROOM;
-        mob->quest->questreceiver = qr_room->vnum;
+        mob->quest->questreceiver_load.auid = qr_room->area->uid;
+        mob->quest->questreceiver_load.vnum = qr_room->vnum;
+        mob->quest->questreceiver_wnum.pArea = qr_room->area;
+        mob->quest->questreceiver_wnum.vnum = qr_room->vnum;
     }
 
     bool success = true;
@@ -3201,7 +3230,8 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
     free_string(obj->owner);
     obj->owner = str_dup(ch->name);
     part->pObj = obj;
-    part->obj = obj->pIndexData->vnum;
+    quest_part_set_wnum(&part->obj_load, &part->obj_wnum,
+        obj->pIndexData->area, obj->pIndexData->vnum);
     part->minutes = minutes;
 
     info->progs->lastreturn = 1;
@@ -3262,7 +3292,8 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
         destination->area->name);
 
     part->description = str_dup(buf);
-    part->room = destination->vnum;
+    quest_part_set_wnum(&part->room_load, &part->room_wnum,
+        destination->area, destination->vnum);
     part->minutes = minutes;
 
     info->progs->lastreturn = 1;
@@ -3313,7 +3344,8 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
         target->in_room->area->name);
 
     part->description = str_dup(buf);
-    part->mob_rescue = target->pIndexData->vnum;
+    quest_part_set_wnum(&part->mob_rescue_load, &part->mob_rescue_wnum,
+        target->pIndexData->area, target->pIndexData->vnum);
     part->minutes = minutes;
 
     info->progs->lastreturn = 1;
@@ -3366,7 +3398,8 @@ SCRIPT_CMD(scriptcmd_questpartslay)
         target->in_room->area->name);
 
     part->description = str_dup(buf);
-    part->mob = target->pIndexData->vnum;
+    quest_part_set_wnum(&part->mob_load, &part->mob_wnum,
+        target->pIndexData->area, target->pIndexData->vnum);
     part->minutes = minutes;
 
     info->progs->lastreturn = 1;
@@ -3815,14 +3848,15 @@ SCRIPT_CMD(scriptcmd_specialkey)
     if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
         return;
 
-    SPECIAL_KEY_DATA *sk = get_special_key(keys, (long)arg->d.num);
+    WNUM sk_wnum = { .pArea = NULL, .vnum = (long)arg->d.num };
+    SPECIAL_KEY_DATA *sk = get_special_key(keys, sk_wnum);
 
     if( !sk )
         return;
 
-    AREA_DATA *area = find_area_by_vnum(sk->key_vnum, NULL);
-    if (!area) area = get_system_area_fallback();
-    index = get_obj_index(area, sk->key_vnum);
+    if (sk->key_wnum.pArea) {
+        index = get_obj_index(sk->key_wnum.pArea, sk->key_wnum.vnum);
+    }
 
     if( !index || index->item_type != ITEM_KEY )
         return;

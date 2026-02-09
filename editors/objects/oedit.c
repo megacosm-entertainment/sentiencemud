@@ -137,13 +137,14 @@ OEDIT(oedit_show)
 
     if( pObj->lock )
     {
-            OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->area, pObj->lock->key_vnum) : NULL;
+            OBJ_INDEX_DATA *lock_key = (pObj->lock->key_wnum.pArea && pObj->lock->key_wnum.vnum > 0)
+            ? get_obj_index(pObj->lock->key_wnum.pArea, pObj->lock->key_wnum.vnum) : NULL;
 
         sprintf(buf,"Lock State:\n\r"
                     "  Key:         {B[{x%7ld{B]{x %s\n\r"
                     "  Flags:       {B[{x%s{B]{x\n\r"
                     "  Pick Chance: {B[{x%d%%{B]{x\n\r",
-                    pObj->lock->key_vnum,
+                    pObj->lock->key_wnum.vnum,
                     lock_key ? lock_key->short_descr : "none",
                     flag_string(lock_flags, pObj->lock->flags),
                     pObj->lock->pick_chance);
@@ -1240,7 +1241,8 @@ OEDIT(oedit_lock)
 
         if( !str_prefix(argument, "clear") )
         {
-            pObj->lock->key_vnum = 0;
+            memset(&pObj->lock->key_load, 0, sizeof(WNUM_LOAD));
+            memset(&pObj->lock->key_wnum, 0, sizeof(WNUM));
             send_to_char("Lock State key cleared.\n\r", ch);
             return true;
         }
@@ -1265,7 +1267,9 @@ OEDIT(oedit_lock)
             return false;
         }
 
-        pObj->lock->key_vnum = key_wnum.vnum;
+        pObj->lock->key_load.auid = key_wnum.pArea ? key_wnum.pArea->uid : 0;
+        pObj->lock->key_load.vnum = key_wnum.vnum;
+        pObj->lock->key_wnum = key_wnum;
         send_to_char("Lock State key set.\n\r", ch);
         return true;
     }

@@ -1909,7 +1909,7 @@ SCRIPT_CMD(do_tpalterobj)
         else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra[2]; flags = extra3_flags; min_sec = 5; }
         else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra[3]; flags = extra4_flags; min_sec = 5; }
         else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
-        else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_vnum; } }
+        else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_wnum.vnum; } }
         else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
         else if(!str_cmp(field,"lockflags"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->flags; flags = lock_flags; } }
         else if(!str_cmp(field,"pickchance"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->pick_chance; min = 0; max = 100; hasmin = hasmax = true; } }
@@ -5036,8 +5036,8 @@ case ENT_NUMBER:
     else if(!str_cmp(field,"strength"))			sptr = (int16_t*)&ex->door.strength;
     else if(!str_cmp(field,"lock"))				{ ptr = (int*)&ex->door.lock.flags; flags = lock_flags; }
     else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
-    else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
-    else if(!str_cmp(field,"keyreset"))			{ ptr = (int*)&ex->door.rs_lock.key_vnum; min_sec = 7; }
+    else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_wnum.vnum;
+    else if(!str_cmp(field,"keyreset"))			{ ptr = (int*)&ex->door.rs_lock.key_wnum.vnum; min_sec = 7; }
     else if(!str_cmp(field,"pick"))				{ ptr = (int*)&ex->door.lock.pick_chance; min = 0; max = 100; hasmin = hasmax = true; }
     else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; min = 0; max = 100; hasmin = hasmax = true; }
 

@@ -29,7 +29,6 @@ extern GQ_DATA global_quest;
  ***************************************************************************/
 
 #define GQ_JSON_FILE "data/gq.json"
-#define GQ_DAT_FILE  "data/world/gq.dat"
 
 /***************************************************************************
  * Helper Functions                                                        *
@@ -50,6 +49,31 @@ static json_t *wnum_to_json_str(long area_uid, long vnum)
     }
     
     return json_string(buf);
+}
+
+static void gq_set_load_from_wnum(const WNUM *wnum, WNUM_LOAD *load)
+{
+    if (!load) return;
+
+    load->vnum = (wnum ? wnum->vnum : 0);
+    load->auid = (wnum && wnum->pArea) ? wnum->pArea->uid : 0;
+}
+
+static void gq_resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum)
+{
+    AREA_DATA *fallback;
+
+    if (!load || !wnum || load->vnum < 1) {
+        if (wnum) *wnum = wnum_zero;
+        return;
+    }
+
+    fallback = find_area_by_vnum(load->vnum, NULL);
+    if (!fallback) {
+        fallback = get_system_area_fallback();
+    }
+
+    resolve_wnum_load(load, wnum, fallback);
 }
 
 /**
@@ -92,8 +116,8 @@ static void parse_wnum_from_json(json_t *json, long *area_uid, long *vnum)
 json_t *gq_mob_to_json(GQ_MOB_DATA *gq_mob)
 {
     json_t *json;
-    AREA_DATA *mob_area, *obj_area;
-    long mob_auid, obj_auid;
+    WNUM_LOAD mob_load;
+    WNUM_LOAD obj_load;
     
     if (!gq_mob) {
         return NULL;
@@ -102,15 +126,19 @@ json_t *gq_mob_to_json(GQ_MOB_DATA *gq_mob)
     json = json_object();
     
     /* Mob vnum as WNUM */
-    mob_area = find_area_by_vnum(gq_mob->vnum, NULL);
-    mob_auid = mob_area ? mob_area->uid : 0;
-    json_object_set_new(json, "mob_vnum", wnum_to_json_str(mob_auid, gq_mob->vnum));
+    mob_load = gq_mob->vnum_load;
+    if (mob_load.vnum == 0) {
+        gq_set_load_from_wnum(&gq_mob->vnum_wnum, &mob_load);
+    }
+    json_object_set_new(json, "mob_vnum", wnum_to_json_str(mob_load.auid, mob_load.vnum));
     
     /* Object vnum as WNUM (object carried by mob) */
-    if (gq_mob->obj != 0) {
-        obj_area = find_area_by_vnum(gq_mob->obj, NULL);
-        obj_auid = obj_area ? obj_area->uid : 0;
-        json_object_set_new(json, "obj_vnum", wnum_to_json_str(obj_auid, gq_mob->obj));
+    obj_load = gq_mob->obj_load;
+    if (obj_load.vnum == 0) {
+        gq_set_load_from_wnum(&gq_mob->obj_wnum, &obj_load);
+    }
+    if (obj_load.vnum != 0) {
+        json_object_set_new(json, "obj_vnum", wnum_to_json_str(obj_load.auid, obj_load.vnum));
     }
     
     /* Properties */
@@ -141,14 +169,18 @@ GQ_MOB_DATA *json_to_gq_mob(json_t *json)
     value = json_object_get(json, "mob_vnum");
     if (value) {
         parse_wnum_from_json(value, &area_uid, &vnum);
-        gq_mob->vnum = vnum;
+        gq_mob->vnum_load.auid = area_uid;
+        gq_mob->vnum_load.vnum = vnum;
+        gq_resolve_wnum_load(&gq_mob->vnum_load, &gq_mob->vnum_wnum);
     }
     
     /* Object vnum */
     value = json_object_get(json, "obj_vnum");
     if (value) {
         parse_wnum_from_json(value, &area_uid, &vnum);
-        gq_mob->obj = vnum;
+        gq_mob->obj_load.auid = area_uid;
+        gq_mob->obj_load.vnum = vnum;
+        gq_resolve_wnum_load(&gq_mob->obj_load, &gq_mob->obj_wnum);
     }
     
     /* Properties */
@@ -177,8 +209,7 @@ GQ_MOB_DATA *json_to_gq_mob(json_t *json)
 json_t *gq_obj_to_json(GQ_OBJ_DATA *gq_obj)
 {
     json_t *json;
-    AREA_DATA *obj_area;
-    long obj_auid;
+    WNUM_LOAD obj_load;
     
     if (!gq_obj) {
         return NULL;
@@ -187,9 +218,11 @@ json_t *gq_obj_to_json(GQ_OBJ_DATA *gq_obj)
     json = json_object();
     
     /* Object vnum as WNUM */
-    obj_area = find_area_by_vnum(gq_obj->vnum, NULL);
-    obj_auid = obj_area ? obj_area->uid : 0;
-    json_object_set_new(json, "obj_vnum", wnum_to_json_str(obj_auid, gq_obj->vnum));
+    obj_load = gq_obj->vnum_load;
+    if (obj_load.vnum == 0) {
+        gq_set_load_from_wnum(&gq_obj->vnum_wnum, &obj_load);
+    }
+    json_object_set_new(json, "obj_vnum", wnum_to_json_str(obj_load.auid, obj_load.vnum));
     
     /* Rewards */
     json_object_set_new(json, "qp_reward", json_integer(gq_obj->qp_reward));
@@ -225,7 +258,9 @@ GQ_OBJ_DATA *json_to_gq_obj(json_t *json)
     value = json_object_get(json, "obj_vnum");
     if (value) {
         parse_wnum_from_json(value, &area_uid, &vnum);
-        gq_obj->vnum = vnum;
+        gq_obj->vnum_load.auid = area_uid;
+        gq_obj->vnum_load.vnum = vnum;
+        gq_resolve_wnum_load(&gq_obj->vnum_load, &gq_obj->vnum_wnum);
     }
     
     /* Rewards */
@@ -322,12 +357,7 @@ bool load_gq_json(void)
     
     /* Check if JSON file exists */
     if (access(GQ_JSON_FILE, F_OK) != 0) {
-        /* Try legacy .dat file */
-        if (access(GQ_DAT_FILE, F_OK) == 0) {
-            log_string("gq.json not found, legacy gq.dat will be loaded by read_gq()");
-            return false;
-        }
-        log_string("No GQ file found (tried .json and .dat)");
+        log_string("gq.json not found");
         return true; /* Not an error, just no GQ data */
     }
     
@@ -373,14 +403,6 @@ bool load_gq_json(void)
     }
     
     json_decref(root);
-    
-    /* If we loaded an empty JSON file, try .dat fallback */
-    if (global_quest.mobs == NULL && global_quest.objects == NULL) {
-        if (access(GQ_DAT_FILE, F_OK) == 0) {
-            log_string("gq.json is empty, falling back to gq.dat");
-            return false;
-        }
-    }
     
     log_string("GQ data loaded from gq.json");
     return true;

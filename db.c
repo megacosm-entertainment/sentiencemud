@@ -612,6 +612,51 @@ LLIST *persist_rooms;
 LLIST *loaded_accounts;
 LLIST *reserved_vnums;
 
+static void resolve_newbie_tables(void)
+{
+    struct {
+        int class_index;
+        const char *reserved_name;
+    } class_weapons[] = {
+        { CLASS_MAGE,    "OBJ_VNUM_NEWB_QUARTERSTAFF" },
+        { CLASS_CLERIC,  "OBJ_VNUM_NEWB_QUARTERSTAFF" },
+        { CLASS_THIEF,   "OBJ_VNUM_NEWB_DAGGER" },
+        { CLASS_WARRIOR, "OBJ_VNUM_NEWB_SWORD" },
+        { -1, NULL }
+    };
+    const char *newbie_eq_names[] = {
+        "OBJ_VNUM_NEWB_ARMOUR",
+        "OBJ_VNUM_NEWB_CLOAK",
+        "OBJ_VNUM_NEWB_LEGGINGS",
+        "OBJ_VNUM_NEWB_BOOTS",
+        "OBJ_VNUM_NEWB_HELM",
+        NULL
+    };
+    int i;
+
+    for (i = 0; class_weapons[i].reserved_name != NULL; i++) {
+        OBJ_INDEX_DATA *obj = get_reserved_obj_index(class_weapons[i].reserved_name);
+        if (obj) {
+            class_table[class_weapons[i].class_index].weapon = obj->vnum;
+        } else {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                "resolve_newbie_tables: reserved %s not found.",
+                class_weapons[i].reserved_name);
+        }
+    }
+
+    for (i = 0; newbie_eq_names[i] != NULL; i++) {
+        OBJ_INDEX_DATA *obj = get_reserved_obj_index(newbie_eq_names[i]);
+        if (obj) {
+            newbie_eq_table[i].vnum = obj->vnum;
+        } else {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                "resolve_newbie_tables: reserved %s not found.",
+                newbie_eq_names[i]);
+        }
+    }
+}
+
 
 TOKEN_DATA *global_tokens = NULL;
 
@@ -655,6 +700,7 @@ void load_socials(FILE *fp);
 void load_notes(void);
 void load_bans(void);
 void fix_rooms(void);
+void fix_object_locks(void);
 void fix_mobprogs(void);
 void reset_area(AREA_DATA * pArea);
 void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int chance);
@@ -914,6 +960,7 @@ void boot_db(void)
     }
 
     load_reserved();
+    resolve_newbie_tables();
 
     /* Load settings and changesets */
     load_changesets();
@@ -1065,6 +1112,8 @@ void boot_db(void)
      */
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_rooms");
     fix_rooms();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving object lock keys");
+    fix_object_locks();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
     fix_vlinks();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_shops");
@@ -1306,6 +1355,35 @@ void new_reset(ROOM_INDEX_DATA *pR, RESET_DATA *pReset)
 
 
 /*
+ * fix_object_locks - Resolve key_load references to key_wnum for object index locks
+ *
+ * After all areas are loaded, translates the persistent key_load (auid + vnum)
+ * into runtime key_wnum (pArea pointer + vnum) for every object index that has a lock.
+ */
+void fix_object_locks(void)
+{
+    AREA_DATA *pArea;
+    OBJ_INDEX_DATA *obj;
+    int iHash;
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
+            {
+                if (obj->lock && obj->lock->key_load.vnum > 0)
+                {
+                    obj->lock->key_wnum.pArea = obj->lock->key_load.auid > 0
+                        ? get_area_from_uid(obj->lock->key_load.auid) : pArea;
+                    obj->lock->key_wnum.vnum = obj->lock->key_load.vnum;
+                }
+            }
+        }
+    }
+}
+
+/*
  * Translate all room exits from virtual to real.
  * Has to be done after all rooms are read in.
  * Check for bad reverse exits.
@@ -1351,6 +1429,23 @@ void fix_rooms(void)
                         {
                            fexit = true;
                             pexit->u1.to_room = get_room_index(dest_area, pexit->u1.vnum);
+                        }
+
+                        // Resolve lock key references
+                        if (pexit->door.lock.key_load.vnum > 0)
+                        {
+                            AREA_DATA *key_area = pexit->door.lock.key_load.auid > 0
+                                ? get_area_from_uid(pexit->door.lock.key_load.auid) : pArea;
+                            pexit->door.lock.key_wnum.pArea = key_area;
+                            pexit->door.lock.key_wnum.vnum = pexit->door.lock.key_load.vnum;
+                        }
+
+                        if (pexit->door.rs_lock.key_load.vnum > 0)
+                        {
+                            AREA_DATA *key_area = pexit->door.rs_lock.key_load.auid > 0
+                                ? get_area_from_uid(pexit->door.rs_lock.key_load.auid) : pArea;
+                            pexit->door.rs_lock.key_wnum.pArea = key_area;
+                            pexit->door.rs_lock.key_wnum.vnum = pexit->door.rs_lock.key_load.vnum;
                         }
                     }
                 }
@@ -1903,53 +1998,6 @@ void fix_blueprint_references(void)
                     }
                 }
                 
-                /* Resolve special_keys - replace vnums with OBJ_INDEX_DATA pointers */
-                if (ship->special_keys && list_size(ship->special_keys) > 0)
-                {
-                    LLIST *resolved_keys = list_create(false);
-                    ITERATOR kit;
-                    iterator_start(&kit, ship->special_keys);
-                    long *key_vnum_ptr;
-                    while ((key_vnum_ptr = (long *)iterator_nextdata(&kit)))
-                    {
-                        long key_vnum = *key_vnum_ptr;
-                        OBJ_INDEX_DATA *key = NULL;
-                        
-                        /* Try same area first */
-                        key = get_obj_index(pArea, key_vnum);
-                        
-                        /* Search all areas if not found */
-                        if (!key)
-                        {
-                            AREA_DATA *search_area;
-                            for (search_area = area_first; search_area != NULL; search_area = search_area->next)
-                            {
-                                key = get_obj_index(search_area, key_vnum);
-                                if (key)
-                                    break;
-                            }
-                        }
-                        
-                        if (key)
-                        {
-                            list_appendlink(resolved_keys, key);
-                        }
-                        else
-                        {
-                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                                "Ship '%s' (vnum %ld in %s): special key object %ld not found",
-                                ship->name ? ship->name : "unnamed",
-                                ship->vnum,
-                                pArea->name,
-                                key_vnum);
-                        }
-                    }
-                    iterator_stop(&kit);
-                    
-                    /* Replace the vnum list with the resolved list */
-                    list_destroy(ship->special_keys);
-                    ship->special_keys = resolved_keys;
-                }
             }
         }
     }
@@ -1998,10 +2046,10 @@ void reset_area(AREA_DATA *pArea)
     ROOM_INDEX_DATA *temp_room;
     bool found = false;
 
-    temp_room = get_room_index(ROOM_VNUM_ABYSS_GATE);
+    temp_room = get_reserved_room_index("ROOM_VNUM_ABYSS_GATE");
     for (obj = temp_room->contents; obj != NULL; obj = obj->next_content)
     {
-        if (obj->pIndexData->vnum == OBJ_VNUM_ABYSS_PORTAL)
+        if (obj->pIndexData == get_reserved_obj_index("obj_portal_abyss"))
         {
         found = true;
         break;
@@ -2010,8 +2058,8 @@ void reset_area(AREA_DATA *pArea)
 
     if (!found)
     {
-        OBJ_INDEX_DATA *pObjIndex = get_obj_index(NULL, OBJ_VNUM_ABYSS_PORTAL);
-        ROOM_INDEX_DATA *pRoomIndex = get_room_index(NULL, ROOM_VNUM_ABYSS_GATE);
+        OBJ_INDEX_DATA *pObjIndex = get_reserved_obj_index("obj_portal_abyss");
+        ROOM_INDEX_DATA *pRoomIndex = get_reserved_room_index("ROOM_VNUM_ABYSS_GATE");
         if (pObjIndex && pRoomIndex)
         {
             obj = create_object(pObjIndex, 0, true);
@@ -2019,8 +2067,7 @@ void reset_area(AREA_DATA *pArea)
         }
         else
         {
-            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_area_db: Cannot create abyss portal (obj %d or room %d not found).", 
-                OBJ_VNUM_ABYSS_PORTAL, ROOM_VNUM_ABYSS_GATE);
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_area_db: Cannot create abyss portal (reserved obj_portal_abyss or ROOM_VNUM_ABYSS_GATE not found).");
         }
     }
 
@@ -2707,7 +2754,7 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
        return;
        else
        {
-       OBJ_INDEX_DATA *pObjIndex = get_obj_index(NULL, OBJ_VNUM_KEY_ABYSS);
+       OBJ_INDEX_DATA *pObjIndex = get_reserved_obj_index("OBJ_VNUM_KEY_ABYSS");
        if (pObjIndex)
            obj = create_object(pObjIndex, 30, true);
        }
@@ -3361,7 +3408,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
     /* Keep GQ count*/
     for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
     {
-        if (pMobIndex->vnum == gq_mob->vnum)
+        if (wnum_match(gq_mob->vnum_wnum, pMobIndex->area, pMobIndex->vnum))
             gq_mob->count++;
     }
 
@@ -3539,7 +3586,8 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     if( pObjIndex->lock )
     {
         obj->lock = new_lock_state();
-        obj->lock->key_vnum = pObjIndex->lock->key_vnum;
+        obj->lock->key_load = pObjIndex->lock->key_load;
+        obj->lock->key_wnum = pObjIndex->lock->key_wnum;
         obj->lock->flags = pObjIndex->lock->flags;
         obj->lock->pick_chance = pObjIndex->lock->pick_chance;
     }
@@ -3667,25 +3715,25 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 
 
     /* If loading a relic for whatever reason, update the pointers here.*/
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE)
+    if (pObjIndex == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE"))
     damage_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_XP)
+    if (pObjIndex == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_XP"))
     xp_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_PNEUMA)
+    if (pObjIndex == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_PNEUMA"))
     pneuma_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_HP_REGEN)
+    if (pObjIndex == get_reserved_obj_index("OBJ_VNUM_RELIC_HP_REGEN"))
     hp_regen_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_MANA_REGEN)
+    if (pObjIndex == get_reserved_obj_index("OBJ_VNUM_RELIC_MANA_REGEN"))
     mana_regen_relic = obj;
 
     /* Keep GQ count*/
     for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
     {
-    if (pObjIndex->vnum == gq_obj->vnum)
+    if (wnum_match(gq_obj->vnum_wnum, pObjIndex->area, pObjIndex->vnum))
         gq_obj->count++;
     }
 
@@ -5302,7 +5350,14 @@ void reset_npc_sailing_boats()
     plith_airship = npc_ship;
 
     /* Put in Town Square of Plith*/
-    obj_to_room(npc_ship->ship->ship, get_room_index(ROOM_VNUM_PLITH_AIRSHIP));
+    {
+        ROOM_INDEX_DATA *airship_room = get_reserved_room_index("ROOM_VNUM_PLITH_AIRSHIP");
+        if (!airship_room) {
+            log_message(LOG_LEVEL_BUG, LOG_ERROR, "Resetting npc boats: reserved ROOM_VNUM_PLITH_AIRSHIP not found.");
+        } else {
+            obj_to_room(npc_ship->ship->ship, airship_room);
+        }
+    }
     }
 */
 
@@ -5323,7 +5378,14 @@ void reset_npc_sailing_boats()
     if (npc_ship->pShipData->npc_type == NPC_SHIP_AIR_SHIP)
     {
         plith_airship = npc_ship;
-        index = ROOM_VNUM_TEMPLE;
+        {
+            ROOM_INDEX_DATA *temple_room = get_reserved_room_index("room_default_recall");
+            if (!temple_room) {
+                log_message(LOG_LEVEL_BUG, LOG_ERROR, "Resetting npc boats: reserved room_default_recall not found.");
+                continue;
+            }
+            index = temple_room->vnum;
+        }
     }
 
     if (get_room_index(index) == NULL)
@@ -6438,7 +6500,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
     if( obj->lock )
     {
         fprintf(fp, "Lock %ld '%s' %d\n",
-            obj->lock->key_vnum,
+            obj->lock->key_load.vnum,
             flag_string(lock_flags, obj->lock->flags),
             obj->lock->pick_chance);
     }
@@ -6817,10 +6879,10 @@ void persist_save_exit(FILE *fp, EXIT_DATA *ex)
     fprintf(fp, "ResetFlags %s~\n", flag_string(exit_flags, ex->rs_flags));
 
     fprintf(fp, "DoorLockReset %ld %s~ %d %ld %s~ %d %d\n",
-        ex->door.lock.key_vnum,
+        ex->door.lock.key_load.vnum,
         flag_string(lock_flags, ex->door.lock.flags),
         ex->door.lock.pick_chance,
-        ex->door.rs_lock.key_vnum,
+        ex->door.rs_lock.key_load.vnum,
         flag_string(lock_flags, ex->door.rs_lock.flags),
         ex->door.rs_lock.pick_chance,
         ex->door.strength);
@@ -7582,7 +7644,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
                         obj->lock = new_lock_state();
                     }
 
-                    obj->lock->key_vnum = fread_number(fp);
+                    obj->lock->key_load.vnum = fread_number(fp);
                     obj->lock->flags = script_flag_value(lock_flags, fread_word(fp));
                     obj->lock->pick_chance = fread_number(fp);
 
@@ -8312,7 +8374,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
                 }
 
                 if( !str_cmp(word, "Door") ) {
-                    ex->door.rs_lock.key_vnum = fread_number(fp);
+                    ex->door.rs_lock.key_load.vnum = fread_number(fp);
                     ex->door.rs_lock.flags = 0;
                     ex->door.rs_lock.pick_chance = 100;
                     ex->door.lock = ex->door.rs_lock;
@@ -8322,12 +8384,12 @@ EXIT_DATA *persist_load_exit(FILE *fp)
                 }
 
                 if( !str_cmp(word, "DoorLock") ) {
-                    ex->door.lock.key_vnum = fread_number(fp);
+                    ex->door.lock.key_load.vnum = fread_number(fp);
                     ex->door.lock.flags = script_flag_value(lock_flags, fread_string(fp));
                     if( ex->door.lock.flags == NO_FLAG ) ex->door.lock.flags = 0;
                     ex->door.lock.pick_chance = fread_number(fp);
 
-                    ex->door.rs_lock.key_vnum = ex->door.lock.key_vnum;
+                    ex->door.rs_lock.key_load.vnum = ex->door.lock.key_load.vnum;
                     ex->door.rs_lock.flags = script_flag_value(lock_flags, fread_string(fp));
                     if( ex->door.rs_lock.flags == NO_FLAG ) ex->door.rs_lock.flags = 0;
                     ex->door.rs_lock.pick_chance = fread_number(fp);
@@ -8338,12 +8400,12 @@ EXIT_DATA *persist_load_exit(FILE *fp)
                 }
 
                 if( !str_cmp(word, "DoorLockReset") ) {
-                    ex->door.lock.key_vnum = fread_number(fp);
+                    ex->door.lock.key_load.vnum = fread_number(fp);
                     ex->door.lock.flags = script_flag_value(lock_flags, fread_string(fp));
                     if( ex->door.lock.flags == NO_FLAG ) ex->door.lock.flags = 0;
                     ex->door.lock.pick_chance = fread_number(fp);
 
-                    ex->door.rs_lock.key_vnum = fread_number(fp);
+                    ex->door.rs_lock.key_load.vnum = fread_number(fp);
                     ex->door.rs_lock.flags = script_flag_value(lock_flags, fread_string(fp));
                     if( ex->door.rs_lock.flags == NO_FLAG ) ex->door.rs_lock.flags = 0;
                     ex->door.rs_lock.pick_chance = fread_number(fp);

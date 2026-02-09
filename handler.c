@@ -3167,7 +3167,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     /* for NPCs and global quests. */
     for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
     {
-        if (ch->pIndexData->vnum == gq_mob->vnum)
+        if (wnum_match_mob(gq_mob->vnum_wnum, ch))
         {
         --gq_mob->count;
         }
@@ -4952,7 +4952,7 @@ bool is_global_mob(CHAR_DATA *mob)
 
     for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
     {
-    if (mob->pIndexData->vnum == gq_mob->vnum)
+    if (wnum_match_mob(gq_mob->vnum_wnum, mob))
         return true;
     }
 
@@ -5189,14 +5189,13 @@ bool one_hand_full(CHAR_DATA *ch)
 /* is an item a relic, any relic */
 bool is_relic(OBJ_INDEX_DATA *obj)
 {
-    if (obj->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE
-    ||   obj->vnum == OBJ_VNUM_RELIC_EXTRA_XP
-    ||   obj->vnum == OBJ_VNUM_RELIC_EXTRA_PNEUMA
-    ||   obj->vnum == OBJ_VNUM_RELIC_HP_REGEN
-    ||   obj->vnum == OBJ_VNUM_RELIC_MANA_REGEN)
-    return true;
+    if (!obj) return false;
 
-    return false;
+    return (obj == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE")
+        ||  obj == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_XP")
+        ||  obj == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_PNEUMA")
+        ||  obj == get_reserved_obj_index("OBJ_VNUM_RELIC_HP_REGEN")
+        ||  obj == get_reserved_obj_index("OBJ_VNUM_RELIC_MANA_REGEN"));
 }
 
 
@@ -6742,7 +6741,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     &&  container->item_type != ITEM_WEAPON_CONTAINER
     &&  container->item_type != ITEM_CART
     &&  container->item_type != ITEM_KEYRING
-    &&  container->pIndexData->vnum != OBJ_VNUM_CURSED_ORB)
+    &&  container->pIndexData != get_reserved_obj_index("OBJ_VNUM_CURSED_ORB"))
     {
         if (!silent)
         send_to_char("That's not a container or cart.\n\r", ch);
@@ -10047,12 +10046,12 @@ bool lockstate_functional(LOCK_STATE *lock)
 {
     if( !lock ) return false;
 
-    if( list_size(lock->keys) > 0 )
+    if( list_size(lock->special_keys) > 0 )
     {
         return true;
     }
 
-    if( lock->key_vnum > 0 )
+    if( lock->key_wnum.pArea && lock->key_wnum.vnum > 0 )
     {
         return true;
     }
@@ -10064,13 +10063,13 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 {
     if (!lock) return NULL;
 
-    if (IS_VALID(lock->keys))
+    if (IS_VALID(lock->special_keys))
     {
         LLIST_UID_DATA *luid;
         OBJ_DATA *obj = NULL;
         ITERATOR it;
 
-        iterator_start(&it, lock->keys);
+        iterator_start(&it, lock->special_keys);
         while ((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
         {
             if (luid->ptr)
@@ -10092,10 +10091,11 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
         }
         iterator_stop(&it);
 
-        return obj;
+        if (obj || !IS_SET(lock->flags, LOCK_CHECK_BOTH))
+            return obj;
     }
 
-    if (lock->key_vnum > 0)
+    if (lock->key_wnum.pArea && lock->key_wnum.vnum > 0)
     {
         OBJ_DATA *obj;
         OBJ_DATA *key;
@@ -10105,7 +10105,7 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
         if (ch->lcarrying) {
             iterator_start(&it, ch->lcarrying);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                if (obj->pIndexData->vnum == lock->key_vnum) {
+                if (wnum_match_obj(lock->key_wnum, obj)) {
                     iterator_stop(&it);
                     return obj;
                 }
@@ -10113,7 +10113,7 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
                 // Check keyrings in inventory
                 if (obj->item_type == ITEM_KEYRING && obj->contains) {
                     for (key = obj->contains; key != NULL; key = key->next_content) {
-                        if (key->pIndexData->vnum == lock->key_vnum) {
+                        if (wnum_match_obj(lock->key_wnum, key)) {
                             iterator_stop(&it);
                             return key;
                         }
@@ -10127,7 +10127,7 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
         if (ch->lworn) {
             iterator_start(&it, ch->lworn);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                if (obj->pIndexData->vnum == lock->key_vnum) {
+                if (wnum_match_obj(lock->key_wnum, obj)) {
                     iterator_stop(&it);
                     return obj;
                 }
@@ -10135,7 +10135,7 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
                 // Check keyrings being worn
                 if (obj->item_type == ITEM_KEYRING && obj->contains) {
                     for (key = obj->contains; key != NULL; key = key->next_content) {
-                        if (key->pIndexData->vnum == lock->key_vnum) {
+                        if (wnum_match_obj(lock->key_wnum, key)) {
                             iterator_stop(&it);
                             return key;
                         }
@@ -10151,7 +10151,34 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
     return NULL;
 }
 
-SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
+bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key)
+{
+    if (!lock || !IS_VALID(key)) return false;
+
+    if (IS_VALID(lock->special_keys))
+    {
+        LLIST_UID_DATA *luid;
+        ITERATOR it;
+
+        iterator_start(&it, lock->special_keys);
+        while ((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+        {
+            if (luid->ptr == key)
+            {
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
+
+        if (!IS_SET(lock->flags, LOCK_CHECK_BOTH))
+            return false;
+    }
+
+    return wnum_match_obj(lock->key_wnum, key);
+}
+
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, WNUM wnum)
 {
     ITERATOR it;
     SPECIAL_KEY_DATA *sk;
@@ -10161,7 +10188,7 @@ SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
     iterator_start(&it, list);
     while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
     {
-        if( sk->key_vnum == vnum)
+        if( sk->key_wnum.pArea == wnum.pArea && sk->key_wnum.vnum == wnum.vnum )
             break;
     }
     iterator_stop(&it);
@@ -10178,7 +10205,7 @@ void extract_special_key(OBJ_DATA *obj)
     iterator_start(&skit, loaded_special_keys);
     while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
     {
-        if( sk->key_vnum == obj->pIndexData->vnum)
+        if( sk->key_wnum.pArea == obj->pIndexData->area && sk->key_wnum.vnum == obj->pIndexData->vnum )
         {
             iterator_start(&kit, sk->list);
             while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )
@@ -10205,7 +10232,7 @@ void resolve_special_key(OBJ_DATA *obj)
     iterator_start(&skit, loaded_special_keys);
     while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
     {
-        if( sk->key_vnum == obj->pIndexData->vnum)
+        if( sk->key_wnum.pArea == obj->pIndexData->area && sk->key_wnum.vnum == obj->pIndexData->vnum )
         {
             iterator_start(&kit, sk->list);
             while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )

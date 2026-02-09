@@ -54,6 +54,29 @@
 #include "magic.h"
 #include "tables.h"
 
+static void quest_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, long vnum)
+{
+    if (!load || !wnum) return;
+
+    load->auid = area ? area->uid : 0;
+    load->vnum = vnum;
+    wnum->pArea = area;
+    wnum->vnum = vnum;
+}
+
+static void quest_part_resolve(WNUM_LOAD *load, WNUM *wnum)
+{
+    AREA_DATA *fallback;
+
+    if (!load || !wnum || wnum->pArea || load->vnum < 1) {
+        return;
+    }
+
+    fallback = find_area_by_vnum(load->vnum, NULL);
+    if (!fallback) fallback = get_system_area_fallback();
+    resolve_wnum_load(load, wnum, fallback);
+}
+
 #define QUESTPART_GETITEM	1
 #define QUESTPART_RESCUE	2
 #define QUESTPART_SLAY		3
@@ -61,51 +84,62 @@
 #define QUESTPART_SCRIPT	5
 #define QUESTPARTS_BUILTIN	4
 
-/* Roscharch's items */
-const long quest_item_table[] =
+static bool is_quest_shop_object(OBJ_INDEX_DATA *obj_index)
 {
-    100006,
-    100007,
-    100106,
-    100010,
-    100110,
-    100056,
-    100057,
-    100047,
-    100060,
-    0
+    SHOP_DATA *shop;
+
+    if (!obj_index) {
+        return false;
+    }
+
+    for (shop = shop_first; shop != NULL; shop = shop->next) {
+        SHOP_STOCK_DATA *stock;
+        for (stock = shop->stock; stock != NULL; stock = stock->next) {
+            if (stock->type != STOCK_OBJECT || stock->obj == NULL) {
+                continue;
+            }
+
+            if (stock->obj == obj_index && stock->qp > 0) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+#define QUEST_TOKEN_COUNT 6
+static bool quest_tokens_resolved = false;
+static WNUM quest_token_wnums[QUEST_TOKEN_COUNT];
+static const WNUM_LOAD quest_token_loads[QUEST_TOKEN_COUNT] = {
+    { 966, 100100 },
+    { 966, 100101 },
+    { 966, 100102 },
+    { 966, 100103 },
+    { 966, 100104 },
+    { 966, 100105 }
 };
 
-
-/* King Alemnos's items */
-const long quest2_item_table[] =
+static void resolve_quest_tokens(void)
 {
-    100033,
-    100034,
-    100035,
-    100037,
-    100038,
-    100039,
-    100059,
-    100090,
-    100098,
-    100109,
-    0
-};
+    int i;
 
+    if (quest_tokens_resolved) {
+        return;
+    }
 
-/* crap token items */
-const long quest_item_token_table[] =
-{
-    100100,
-    100101,
-    100102,
-    100103,
-    100104,
-    100105,
-    0
-};
+    for (i = 0; i < QUEST_TOKEN_COUNT; i++) {
+        WNUM_LOAD load = quest_token_loads[i];
+        AREA_DATA *fallback = get_area_from_uid(load.auid);
+        if (!fallback) {
+            fallback = get_system_area_fallback();
+        }
+        quest_token_wnums[i] = wnum_zero;
+        resolve_wnum_load(&load, &quest_token_wnums[i], fallback);
+    }
 
+    quest_tokens_resolved = true;
+}
 
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
     char *header, char *footer, char *prefix, char *suffix, int line_width)
@@ -407,9 +441,11 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         ch->quest = new_quest();
         ch->quest->questgiver_type = QUESTOR_MOB;
-        ch->quest->questgiver = mob->pIndexData->vnum;
+        quest_set_wnum(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum,
+            mob->pIndexData->area, mob->pIndexData->vnum);
         ch->quest->questreceiver_type = QUESTOR_MOB;
-        ch->quest->questreceiver = mob->pIndexData->vnum;
+        quest_set_wnum(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum,
+            mob->pIndexData->area, mob->pIndexData->vnum);
 
         if (generate_quest(ch, mob))
         {
@@ -477,7 +513,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             case QUESTOR_MOB:
                 for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
                 {
-                    if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questgiver)
+                if (IS_NPC(mob) && wnum_match_mob(ch->quest->questgiver_wnum, mob))
                         break;
                 }
                 break;
@@ -487,7 +523,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 if (ch->lcarrying) {
                     iterator_start(&it, ch->lcarrying);
                     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                        if (obj->pIndexData->vnum == ch->quest->questgiver) {
+                        if (wnum_match_obj(ch->quest->questgiver_wnum, obj)) {
                             iterator_stop(&it);
                             break;
                         }
@@ -498,7 +534,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 // If not found in inventory, check room contents
                 if (obj == NULL) {
                     for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
-                        if (obj->pIndexData->vnum == ch->quest->questgiver)
+                        if (wnum_match_obj(ch->quest->questgiver_wnum, obj))
                             break;
                     }
                 }
@@ -506,7 +542,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
             case QUESTOR_ROOM:
                 if (!ch->in_room->wilds && !ch->in_room->source &&
-                    ch->in_room->vnum == ch->quest->questgiver) {
+                    wnum_match_room(ch->quest->questgiver_wnum, ch->in_room)) {
                     room = ch->in_room;
                     break;
                 }
@@ -603,7 +639,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
         case QUESTOR_MOB:
             for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
             {
-                if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questreceiver)
+                if (IS_NPC(mob) && wnum_match_mob(ch->quest->questreceiver_wnum, mob))
                 {
                     tempstores = mob->tempstore;
                     break;
@@ -616,7 +652,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             if (ch->lcarrying) {
                 iterator_start(&it, ch->lcarrying);
                 while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                    if (obj->pIndexData->vnum == ch->quest->questreceiver) {
+                    if (wnum_match_obj(ch->quest->questreceiver_wnum, obj)) {
                         tempstores = obj->tempstore;
                         iterator_stop(&it);
                         break;
@@ -628,7 +664,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             // If not found in inventory, check room contents
             if (obj == NULL) {
                 for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
-                    if (obj->pIndexData->vnum == ch->quest->questreceiver) {
+                    if (wnum_match_obj(ch->quest->questreceiver_wnum, obj)) {
                         tempstores = obj->tempstore;
                         break;
                     }
@@ -638,7 +674,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         case QUESTOR_ROOM:
             if (!ch->in_room->wilds && !ch->in_room->source &&
-                ch->in_room->vnum == ch->quest->questreceiver) {
+                wnum_match_room(ch->quest->questreceiver_wnum, ch->in_room)) {
                 room = ch->in_room;
                 tempstores = room->tempstore;
             }
@@ -998,12 +1034,19 @@ void quest_update(void)
 
 bool is_quest_token(OBJ_DATA *obj)
 {
-    int i = 0;
+    int i;
 
-    for (; quest_item_token_table[i] != 0; i++)
-    {
-        if (obj->pIndexData->vnum == quest_item_token_table[i])
-        return true;
+    if (!obj || !obj->pIndexData) {
+        return false;
+    }
+
+    resolve_quest_tokens();
+
+    for (i = 0; i < QUEST_TOKEN_COUNT; i++) {
+        if (quest_token_wnums[i].pArea &&
+            wnum_match_obj(quest_token_wnums[i], obj)) {
+            return true;
+        }
     }
 
     return false;
@@ -1038,9 +1081,10 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 
         found = false;
         mob = ch->in_room->people;
+        quest_part_resolve(&part->mob_rescue_load, &part->mob_rescue_wnum);
         while (mob != NULL)
         {
-            if (IS_NPC(mob) && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
+            if (IS_NPC(mob) && wnum_match_mob(part->mob_rescue_wnum, mob) && !part->complete)
             {
                 if( show ) {
                     sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
@@ -1145,7 +1189,8 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
         if (part->complete == true)
             continue;
 
-        if (part->mob == mob->pIndexData->vnum && !part->complete)
+        quest_part_resolve(&part->mob_load, &part->mob_wnum);
+        if (wnum_match_mob(part->mob_wnum, mob) && !part->complete)
         {
             if( show ) {
                 char buf[MAX_STRING_LENGTH];
@@ -1188,7 +1233,8 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
         if (part->complete == true)
             continue;
 
-        target_room = get_room_index((find_area_by_vnum(part->room, NULL) ?: get_system_area_fallback()), part->room);
+        quest_part_resolve(&part->room_load, &part->room_wnum);
+        target_room = get_room_index(part->room_wnum.pArea, part->room_wnum.vnum);
 
         /* Not going by room vnum to prevent multiple rooms with the same name */
         if (target_room != NULL && !str_cmp(target_room->name, room->name))
@@ -1268,21 +1314,11 @@ int count_quest_parts(CHAR_DATA *ch)
 
 bool is_quest_item(OBJ_DATA *obj)
 {
-    int i;
-
-    for (i = 0; quest_item_table[i] != 0; i++)
-    {
-    if (obj->pIndexData->vnum == quest_item_table[i])
-        return true;
+    if (!obj || !obj->pIndexData) {
+        return false;
     }
 
-    for (i = 0; quest2_item_table[i] != 0; i++)
-    {
-    if (obj->pIndexData->vnum == quest2_item_table[i])
-        return true;
-    }
-
-    return false;
+    return is_quest_shop_object(obj->pIndexData);
 }
 
 

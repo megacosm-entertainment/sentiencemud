@@ -805,7 +805,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
             sprintf(kwd, ex->keyword);
 
             fprintf(fp, "Key %ld To_room %ld Rs_flags %d Keyword %s~\n",
-                ex->door.rs_lock.key_vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
+                ex->door.rs_lock.key_load.vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
             fprintf(fp, "LockFlags %d\n", ex->door.rs_lock.flags);
             fprintf(fp, "PickChance %d\n", ex->door.rs_lock.pick_chance);
             fprintf(fp, "Description %s~\n", fix_string(ex->short_desc));
@@ -1060,7 +1060,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 
     if(obj->lock)
     {
-        fprintf(fp, "Lock %ld %d %d\n", obj->lock->key_vnum, obj->lock->flags, obj->lock->pick_chance);
+        fprintf(fp, "Lock %ld %ld %d %d\n", obj->lock->key_load.auid, obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);
     }
 
     // Save item spells here.
@@ -2778,7 +2778,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     obj->lock = new_lock_state();
                 }
 
-                obj->lock->key_vnum = fread_number(fp);
+                obj->lock->key_load.auid = fread_number(fp);
+                obj->lock->key_load.vnum = fread_number(fp);
                 obj->lock->flags = fread_number(fp);
                 obj->lock->pick_chance = fread_number(fp);
                 fMatch = true;
@@ -3046,7 +3047,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
                     {
                         obj->lock = new_lock_state();
-                        obj->lock->key_vnum = obj->value[2];
+                        obj->lock->key_load.vnum = obj->value[2];
                         obj->lock->flags = 0;
                         obj->lock->pick_chance = 100;
 
@@ -3078,7 +3079,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
                     {
                         obj->lock = new_lock_state();
-                        obj->lock->key_vnum = obj->value[4];
+                        obj->lock->key_load.vnum = obj->value[4];
                         obj->lock->flags = 0;
                         obj->lock->pick_chance = 100;
 
@@ -3295,7 +3296,7 @@ EXIT_DATA *read_exit_new(FILE *fp)
         break;
 
         case 'K':
-            KEY("Key",		ex->door.rs_lock.key_vnum,	fread_number(fp));
+            KEY("Key",		ex->door.rs_lock.key_load.vnum,	fread_number(fp));
 
         if (!str_cmp(word, "Keyword")) {
             int i;

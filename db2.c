@@ -337,14 +337,20 @@ void global_reset( void )
         && gq_mob->count + 1 > 50 )
         continue;
 
-        AREA_DATA *mob_area = find_area_by_vnum(gq_mob->vnum, NULL);
-        if (!mob_area) mob_area = get_system_area_fallback();
-        ch = create_mobile(get_mob_index(mob_area, gq_mob->vnum), false);
-        if ( gq_mob->obj != 0 )
+        if (!gq_mob->vnum_wnum.pArea && gq_mob->vnum_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(gq_mob->vnum_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&gq_mob->vnum_load, &gq_mob->vnum_wnum, fallback);
+        }
+        ch = create_mobile(get_mob_index(gq_mob->vnum_wnum.pArea, gq_mob->vnum_wnum.vnum), false);
+        if ( gq_mob->obj_wnum.vnum != 0 )
         {
-        AREA_DATA *obj_area = find_area_by_vnum(gq_mob->obj, NULL);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        OBJ_INDEX_DATA *obj_index = get_obj_index(obj_area, gq_mob->obj);
+        if (!gq_mob->obj_wnum.pArea && gq_mob->obj_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(gq_mob->obj_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&gq_mob->obj_load, &gq_mob->obj_wnum, fallback);
+        }
+        OBJ_INDEX_DATA *obj_index = get_obj_index(gq_mob->obj_wnum.pArea, gq_mob->obj_wnum.vnum);
         obj = create_object( obj_index, obj_index->level, false);
         obj_to_char(obj, ch);
         }
@@ -368,9 +374,12 @@ void global_reset( void )
 
         if ( number_percent() < gq_obj->repop )
         {
-        AREA_DATA *obj_area = find_area_by_vnum(gq_obj->vnum, NULL);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        obj = create_object(get_obj_index(obj_area, gq_obj->vnum), 1, false);
+        if (!gq_obj->vnum_wnum.pArea && gq_obj->vnum_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(gq_obj->vnum_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&gq_obj->vnum_load, &gq_obj->vnum_wnum, fallback);
+        }
+        obj = create_object(get_obj_index(gq_obj->vnum_wnum.pArea, gq_obj->vnum_wnum.vnum), 1, false);
         obj_to_room( obj, room );
         }
     }

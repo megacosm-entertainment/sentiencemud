@@ -1861,12 +1861,10 @@ EXIT_DATA *new_exit( void )
     pExit->u1.to_room   =   NULL;
     pExit->next         =   NULL;
     pExit->exit_info    =   0;
-    pExit->door.lock.key_vnum=   0;
-    pExit->door.lock.flags	= 0;
-    pExit->door.lock.pick_chance	= 100;
-    pExit->door.rs_lock.key_vnum=   0;
-    pExit->door.rs_lock.flags	= 0;
-    pExit->door.rs_lock.pick_chance	= 100;
+    memset(&pExit->door.lock, 0, sizeof(LOCK_STATE));
+    pExit->door.lock.pick_chance = 100;
+    memset(&pExit->door.rs_lock, 0, sizeof(LOCK_STATE));
+    pExit->door.rs_lock.pick_chance = 100;
     pExit->keyword      =   &str_empty[0];
     pExit->short_desc   =   &str_empty[0];
     pExit->long_desc	=	&str_empty[0];
@@ -2459,9 +2457,13 @@ QUEST_DATA *new_quest( void )
     pQuest->scripted = false;
 
     pQuest->questgiver_type = -1;
-    pQuest->questgiver = -1;
+    pQuest->questgiver_load.auid = 0;
+    pQuest->questgiver_load.vnum = -1;
+    pQuest->questgiver_wnum = wnum_zero;
     pQuest->questreceiver_type = -1;
-    pQuest->questreceiver = -1;
+    pQuest->questreceiver_load.auid = 0;
+    pQuest->questreceiver_load.vnum = -1;
+    pQuest->questreceiver_wnum = wnum_zero;
 
     top_quest++;
 
@@ -2504,11 +2506,21 @@ QUEST_PART_DATA *new_quest_part( void )
 
     pPart->pObj = NULL;
     pPart->next = NULL;
-    pPart->obj = -1;
-    pPart->mob = -1;
-    pPart->obj_sac = -1;
-    pPart->mob_rescue = -1;
-    pPart->room = -1;
+    pPart->obj_load.auid = 0;
+    pPart->obj_load.vnum = -1;
+    pPart->obj_wnum = wnum_zero;
+    pPart->mob_load.auid = 0;
+    pPart->mob_load.vnum = -1;
+    pPart->mob_wnum = wnum_zero;
+    pPart->obj_sac_load.auid = 0;
+    pPart->obj_sac_load.vnum = -1;
+    pPart->obj_sac_wnum = wnum_zero;
+    pPart->mob_rescue_load.auid = 0;
+    pPart->mob_rescue_load.vnum = -1;
+    pPart->mob_rescue_wnum = wnum_zero;
+    pPart->room_load.auid = 0;
+    pPart->room_load.vnum = -1;
+    pPart->room_wnum = wnum_zero;
     pPart->description = &str_empty[0];
     pPart->custom_task = false;
     pPart->complete = false;
@@ -3046,11 +3058,16 @@ GQ_MOB_DATA *new_gq_mob( void )
     gq_mob_free = gq_mob_free->next;
     }
 
-    gq_mob->vnum = 0;
+    gq_mob->vnum_load.auid = 0;
+    gq_mob->vnum_load.vnum = 0;
+    gq_mob->vnum_wnum = wnum_zero;
     gq_mob->class = 0;
     gq_mob->group = false;
-    gq_mob->obj = 0;
+    gq_mob->obj_load.auid = 0;
+    gq_mob->obj_load.vnum = 0;
+    gq_mob->obj_wnum = wnum_zero;
     gq_mob->count = 0;
+    gq_mob->max = 0;
 
     return gq_mob;
 }
@@ -3077,11 +3094,17 @@ GQ_OBJ_DATA *new_gq_obj( void )
     gq_obj_free = gq_obj_free->next;
     }
 
+    gq_obj->vnum_load.auid = 0;
+    gq_obj->vnum_load.vnum = 0;
+    gq_obj->vnum_wnum = wnum_zero;
     gq_obj->qp_reward = 0;
     gq_obj->prac_reward = 0;
     gq_obj->exp_reward = 0;
     gq_obj->silver_reward = 0;
     gq_obj->gold_reward = 0;
+    gq_obj->repop = 0;
+    gq_obj->max = 0;
+    gq_obj->count = 0;
 
     return gq_obj;
 }
@@ -4790,10 +4813,11 @@ LOCK_STATE *new_lock_state()
 {
     LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
 
-    state->key_vnum		= 0;
+    memset(state, 0, sizeof(LOCK_STATE));
+
     state->pick_chance	= 100;
     state->flags		= 0;
-    state->keys			= NULL;
+    state->special_keys	= NULL;
 
     return state;
 }

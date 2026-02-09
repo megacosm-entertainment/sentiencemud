@@ -2824,7 +2824,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                         "    {YExit flags: {x%s\n\r"
                         "    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                        pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
                         flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
@@ -2840,7 +2840,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                         "    {YExit flags: {x%s\n\r"
                         "    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                        pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
                         flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
@@ -2856,7 +2856,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     "    {YExit flags: {x%s\n\r"
                     "    {YKeyword:{x '%s'  {YDescription: {x%s",
                     dir_name[door],
-                    pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                    pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
                     flag_string(lock_flags, pexit->door.lock.flags),
                     flag_string(exit_flags, pexit->exit_info),
                     pexit->keyword,
@@ -2879,7 +2879,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     (dest ? dest->name : "(null)"),
                     (dest ? dest->area->uid : -1),
                     (dest ? dest->area->name : "(null)"),
-                    pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                    pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
                     flag_string(lock_flags, pexit->door.lock.flags),
                     flag_string(exit_flags, pexit->exit_info),
                     pexit->keyword,
@@ -2901,7 +2901,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                             pexit->wilds.y,
                             pexit->wilds.wilds_uid,
                             pexit->wilds.area_uid,
-                            pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                            pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
                             flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
@@ -2918,7 +2918,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                             dir_name[door],
                             pexit->wilds.x,
                             pexit->wilds.y,
-                            pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                            pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
                             flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
@@ -9678,7 +9678,16 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
     affect_fix_char(victim);
 
     char_from_room(victim);
-    char_to_room(victim, get_room_index(ROOM_VNUM_SCHOOL));
+    {
+        ROOM_INDEX_DATA *school_room = get_reserved_room_index("room_begin_new_character");
+        if (!school_room)
+            school_room = get_reserved_room_index("room_limbo");
+        if (!school_room) {
+            send_to_char("School/limbo room is not reserved.\n\r", ch);
+            return;
+        }
+        char_to_room(victim, school_room);
+    }
 
     /* mages*/
     if (!str_cmp("archmage", argument)

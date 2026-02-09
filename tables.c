@@ -1102,6 +1102,11 @@ const struct flag_type lock_flags[] =
     {	"broken",		LOCK_BROKEN,		true	},
     {	"jammed",		LOCK_JAMMED,		true	},
     {	"nojam",		LOCK_NOJAM,			true	},
+    {	"free_keys",	LOCK_FREE_KEYS,		false	},
+    {	"check_both",	LOCK_CHECK_BOTH,	true	},
+    {	"final",		LOCK_FINAL,			false	},
+    {	"nomagic",		LOCK_NOMAGIC,		true	},
+    {	"noscript",		LOCK_NOSCRIPT,		true	},
     {	"created",		LOCK_CREATED,		false	},
     {	NULL,			0,					0		}
 };
@@ -2201,27 +2206,6 @@ const struct flag_type damage_classes[] = {
     {NULL, 0, 0}
 };
 
-
-// @@@NIB : 20070120 : Added for relic ifchecks
-// Labels the reserved vnum of each relic to their function
-// This includes both the boost name and relic name for interchangability
-//	within scripts, since scripters dealing with relics ought to be able
-//	to use whichever name they wish for identifying the relic.
-const struct flag_type relic_types[] = {
-    // Boost name
-    {"damage",OBJ_VNUM_RELIC_EXTRA_DAMAGE,true},
-    {"xp",OBJ_VNUM_RELIC_EXTRA_XP,true},
-    {"pneuma",OBJ_VNUM_RELIC_EXTRA_PNEUMA,true},
-    {"hp",OBJ_VNUM_RELIC_HP_REGEN,true},
-    {"mana",OBJ_VNUM_RELIC_MANA_REGEN,true},
-    // Relic name
-    {"power",OBJ_VNUM_RELIC_EXTRA_DAMAGE,true},
-    {"knowledge",OBJ_VNUM_RELIC_EXTRA_XP,true},
-    {"soul",OBJ_VNUM_RELIC_EXTRA_PNEUMA,true},
-    {"health",OBJ_VNUM_RELIC_HP_REGEN,true},
-    {"magic",OBJ_VNUM_RELIC_MANA_REGEN,true},
-    {NULL, 0, 0},
-};
 
 const struct flag_type corpse_types[] = {
     {"charred",RAWKILL_CHARRED,true},

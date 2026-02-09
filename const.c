@@ -735,7 +735,7 @@ const   struct  sub_class_type  sub_class_table [] =
 };
 
 
-const	struct	class_type	class_table	[MAX_CLASS]	=
+struct	class_type	class_table	[MAX_CLASS]	=
 {
     /*
     {
@@ -746,25 +746,25 @@ const	struct	class_type	class_table	[MAX_CLASS]	=
     */
 
     {
-    "mage", 	STAT_INT,  	OBJ_VNUM_NEWB_QUARTERSTAFF,
+    "mage", 	STAT_INT,  	0,
     6,  		8, 		true,
     "mage skills"
     },
 
     {
-    "cleric", 	STAT_WIS,  	OBJ_VNUM_NEWB_QUARTERSTAFF,
+    "cleric", 	STAT_WIS,  	0,
     7, 		10, 		true,
     "cleric skills"
     },
 
     {
-    "thief",   	STAT_DEX,  	OBJ_VNUM_NEWB_DAGGER,
+    "thief",   	STAT_DEX,  	0,
     8, 		13, 		false,
     "thief skills"
     },
 
     {
-    "warrior", 	STAT_STR,  	OBJ_VNUM_NEWB_SWORD,
+    "warrior", 	STAT_STR,  	0,
     11, 		15, 		false,
     "warrior skills"
     }
@@ -1088,13 +1088,13 @@ const struct  material_type material_table [] =
 };
 
 
-const  struct  newbie_eq_type  newbie_eq_table[] =
+struct  newbie_eq_type  newbie_eq_table[] =
 {
-    {	OBJ_VNUM_NEWB_ARMOUR,	WEAR_BODY	},
-    {	OBJ_VNUM_NEWB_CLOAK,	WEAR_ABOUT	},
-    {	OBJ_VNUM_NEWB_LEGGINGS, WEAR_LEGS	},
-    {	OBJ_VNUM_NEWB_BOOTS,	WEAR_FEET	},
-    {	OBJ_VNUM_NEWB_HELM,	WEAR_HEAD	},
+    {	0,	WEAR_BODY	},
+    {	0,	WEAR_ABOUT	},
+    {	0,	WEAR_LEGS	},
+    {	0,	WEAR_FEET	},
+    {	0,	WEAR_HEAD	},
     {	-1,			WEAR_NONE	},
 };
 

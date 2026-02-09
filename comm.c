@@ -2748,10 +2748,22 @@ void join_world(DESCRIPTOR_DATA * d)
                  [ch->normal_sex == SEX_FEMALE ? 1 : 0]);
         set_title (ch, buf);
 
-        obj_to_char (create_object (get_obj_index (OBJ_VNUM_MAP), 0),
-                     ch);
+        {
+            OBJ_INDEX_DATA *map_index = get_reserved_obj_index("obj_map");
+            if (map_index)
+                obj_to_char(create_object(map_index, 0), ch);
+        }
 
-        char_to_room (ch, get_room_index (ROOM_VNUM_SCHOOL));
+        {
+            ROOM_INDEX_DATA *school_room = get_reserved_room_index("room_begin_new_character");
+            if (!school_room)
+                school_room = get_reserved_room_index("room_limbo");
+            if (!school_room) {
+                log_message(LOG_LEVEL_BUG, LOG_ERROR, "join_world: no room_begin_new_character or room_limbo reserved.");
+                return;
+            }
+            char_to_room(ch, school_room);
+        }
         send_to_char ("\n\r", ch);
         do_function (ch, &do_help, "newbie info");
     }
@@ -2773,11 +2785,27 @@ void join_world(DESCRIPTOR_DATA * d)
             {
                 if (IS_IMMORTAL (ch))
                 {
-                    char_to_room (ch, get_room_index (ROOM_VNUM_CHAT));
+                    {
+                        ROOM_INDEX_DATA *chat_room = get_reserved_room_index("room_chat_lobby");
+                        if (!chat_room)
+                            chat_room = get_reserved_room_index("room_limbo");
+                        if (!chat_room) {
+                            log_message(LOG_LEVEL_BUG, LOG_ERROR, "join_world: no room_chat_lobby or room_limbo reserved.");
+                            return;
+                        }
+                        char_to_room(ch, chat_room);
+                    }
                 }
                 else
                 {
-                    char_to_room (ch, get_room_index (ROOM_VNUM_LIMBO));
+                    {
+                        ROOM_INDEX_DATA *limbo_room = get_reserved_room_index("room_limbo");
+                        if (!limbo_room) {
+                            log_message(LOG_LEVEL_BUG, LOG_ERROR, "join_world: no room_limbo reserved.");
+                            return;
+                        }
+                        char_to_room(ch, limbo_room);
+                    }
                 }
             }
         }

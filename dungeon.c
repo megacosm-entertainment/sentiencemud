@@ -1187,7 +1187,8 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
                             {
                                 toClone->rs_flags = from_exit->rs_flags;
                                 toClone->door.rs_lock.flags = from_exit->door.rs_lock.flags;
-                                toClone->door.rs_lock.key_vnum = from_exit->door.rs_lock.key_vnum;
+                                toClone->door.rs_lock.key_load = from_exit->door.rs_lock.key_load;
+                                toClone->door.rs_lock.key_wnum = from_exit->door.rs_lock.key_wnum;
                                 // TODO: toClone->door.rs_lock.keys = from_exit->door.rs_lock.keys;
                                 toClone->door.rs_lock.pick_chance = from_exit->door.rs_lock.pick_chance;
                             }
@@ -1195,7 +1196,8 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
                             {
                                 toClone->rs_flags = 0;
                                 toClone->door.rs_lock.flags = 0;
-                                toClone->door.rs_lock.key_vnum = 0;
+                                memset(&toClone->door.rs_lock.key_load, 0, sizeof(WNUM_LOAD));
+                                memset(&toClone->door.rs_lock.key_wnum, 0, sizeof(WNUM));
                                 // TODO: toClone->door.rs_lock.keys....
                                 toClone->door.rs_lock.pick_chance = 0;
                             }
@@ -1219,7 +1221,8 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
                 {
                     fromClone->rs_flags = to_exit->rs_flags;
                     fromClone->door.rs_lock.flags = to_exit->door.rs_lock.flags;
-                    fromClone->door.rs_lock.key_vnum = to_exit->door.rs_lock.key_vnum;
+                    fromClone->door.rs_lock.key_load = to_exit->door.rs_lock.key_load;
+                    fromClone->door.rs_lock.key_wnum = to_exit->door.rs_lock.key_wnum;
                     // TODO: fromClone->door.rs_lock.keys = to_exit->door.rs_lock.keys;
                     fromClone->door.rs_lock.pick_chance = to_exit->door.rs_lock.pick_chance;
                 }

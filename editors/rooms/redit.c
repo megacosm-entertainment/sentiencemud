@@ -261,7 +261,7 @@ REDIT(redit_show)
                          pexit->door.material,
                          pexit->door.strength,
                          flag_string(lock_flags, pexit->door.lock.flags),
-                         pexit->door.lock.key_vnum,
+                         pexit->door.lock.key_wnum.vnum,
                          pexit->door.lock.pick_chance);
                 add_buf(buf1, buf);
             }

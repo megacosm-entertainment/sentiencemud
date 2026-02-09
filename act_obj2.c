@@ -67,7 +67,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
             for (gq_obj = global_quest.objects; gq_obj != NULL;
                     gq_obj = gq_obj->next)
             {
-                if (obj->pIndexData->vnum == gq_obj->vnum)
+                if (wnum_match_obj(gq_obj->vnum_wnum, obj))
                 {
                     found = true;
                     qp += gq_obj->qp_reward;
@@ -357,7 +357,7 @@ void do_strike(CHAR_DATA *ch, char *argument)
     }
     else
     {
-    if (obj->pIndexData->vnum != OBJ_VNUM_GLASS_HAMMER)
+    if (obj->pIndexData != get_reserved_obj_index("OBJ_VNUM_GLASS_HAMMER"))
     {
         act("You can't accomplish anything with $p.",
             ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);

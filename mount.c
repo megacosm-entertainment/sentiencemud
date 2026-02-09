@@ -194,7 +194,7 @@ void do_whistle(CHAR_DATA *ch, char *argument)
     if (ch->lcarrying) {
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (obj->pIndexData->vnum == OBJ_VNUM_GOLD_WHISTLE)
+            if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_GOLD_WHISTLE"))
                 break;
         }
         iterator_stop(&it);

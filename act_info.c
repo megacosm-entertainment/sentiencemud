@@ -907,9 +907,14 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 
         for (part = ch->quest->parts; part != NULL; part = part->next)
         {
-        if (part->mob != -1 && !part->complete)
+        if (part->mob_load.vnum != -1 && !part->complete)
         {
-                if (part->mob == victim->pIndexData->vnum)
+                if (!part->mob_wnum.pArea && part->mob_load.vnum > 0) {
+                    AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
+                    if (!fallback) fallback = get_system_area_fallback();
+                    resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
+                }
+                if (wnum_match_mob(part->mob_wnum, victim))
                 {
                 strcat(buf, "{R[X] {G");
             break;
@@ -2625,10 +2630,12 @@ void do_look(CHAR_DATA * ch, char *argument)
     // hack for the crystal ball in Mordrakes tower
     if (!str_cmp(arg1, "at"))
     {
-        for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-        {
-            if (obj->pIndexData->vnum == 152533)
+        OBJ_INDEX_DATA *crystal_index = get_reserved_obj_index("obj_mordrake_crystal_ball");
+        if (crystal_index) {
+            for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
             {
+                if (obj->pIndexData == crystal_index)
+                {
                 CHAR_DATA *victim;
 
                 send_to_char("{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
@@ -2645,7 +2652,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 
                 //Updated from show_room_to_char to show_room. -- Tieryo 08/18/2010
                 show_room(ch,victim->in_room,true,false,false);
-                return;
+                    return;
+                }
             }
         }
     }

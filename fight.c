@@ -858,8 +858,10 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
         dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
     // Extra damage relic
-    if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_EXTRA_DAMAGE)) {
-        dam += (IS_NPC(victim)) ? (dam / 5) : (dam / 10); // 20% extra damage
+    if (ch->church) {
+        OBJ_INDEX_DATA *relic = get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE");
+        if (relic && vnum_in_treasure_room(ch->church, relic->vnum))
+            dam += (IS_NPC(victim)) ? (dam / 5) : (dam / 10); // 20% extra damage
     }
 
     // Silver, wood, and iron vulns
@@ -1725,10 +1727,27 @@ if (victim->lworn) {
                 for (item = corpse->contains; item; item = item_next) {
                     item_next = item->next_content;
 
-                    if (item->pIndexData->vnum >= OBJ_VNUM_SILVER_ONE && item->pIndexData->vnum <= OBJ_VNUM_COINS) {
-                    //if(item->item_type == ITEM_MONEY) {
+                    {
+                        bool is_coin = false;
+                        OBJ_INDEX_DATA *coin_silver = get_reserved_obj_index("obj_coin_silver_single");
+                        OBJ_INDEX_DATA *coin_gold = get_reserved_obj_index("obj_coin_gold_single");
+                        OBJ_INDEX_DATA *coin_gold_multi = get_reserved_obj_index("obj_coin_gold_multiple");
+                        OBJ_INDEX_DATA *coin_silver_multi = get_reserved_obj_index("obj_coin_silver_multiple");
+                        OBJ_INDEX_DATA *coin_mixed = get_reserved_obj_index("obj_coin_mixed");
+
+                        if (coin_silver && coin_gold && coin_gold_multi && coin_silver_multi && coin_mixed) {
+                            is_coin = (item->pIndexData == coin_silver
+                                || item->pIndexData == coin_gold
+                                || item->pIndexData == coin_gold_multi
+                                || item->pIndexData == coin_silver_multi
+                                || item->pIndexData == coin_mixed);
+                        }
+
+                        if (is_coin) {
+                        //if(item->item_type == ITEM_MONEY) {
                         obj_from_obj(item);
                         break;
+                        }
                     }
                 }
 
@@ -4231,8 +4250,11 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 
     bonus_xp = 0;
     // Extra xp relic
-    if (gch->church != NULL && vnum_in_treasure_room(gch->church, OBJ_VNUM_RELIC_EXTRA_XP))
-        bonus_xp += 10;
+    if (gch->church != NULL) {
+        OBJ_INDEX_DATA *relic = get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_XP");
+        if (relic && vnum_in_treasure_room(gch->church, relic->vnum))
+            bonus_xp += 10;
+    }
 
     // Leveling rewards for churches
     if ((is_good_church(gch) && victim->alignment < -300) ||

@@ -108,6 +108,62 @@ extern bool wiznet_script;
 
 #define ARG_BOOL(x) ( (ISARG_NUM(x) && ARG_NUM(x) != 0) || (ISARG_STR(x) && !str_cmp(ARG_STR(x), "true")) )
 
+static bool resolve_legacy_vnum(long vnum, WNUM *wnum)
+{
+    AREA_DATA *area;
+
+    if (!wnum || vnum < 1) {
+        return false;
+    }
+
+    area = find_area_by_vnum(vnum, NULL);
+    if (!area) {
+        area = get_system_area_fallback();
+    }
+
+    wnum->pArea = area;
+    wnum->vnum = vnum;
+    return (wnum->pArea != NULL);
+}
+
+static bool script_match_npc_vnum(CHAR_DATA *mob, long vnum)
+{
+    WNUM wnum;
+
+    if (!mob || !IS_NPC(mob)) return false;
+    if (!resolve_legacy_vnum(vnum, &wnum)) return false;
+
+    return wnum_match_mob(wnum, mob);
+}
+
+static bool script_match_obj_vnum(OBJ_DATA *obj, long vnum)
+{
+    WNUM wnum;
+
+    if (!obj || !obj->pIndexData) return false;
+    if (!resolve_legacy_vnum(vnum, &wnum)) return false;
+
+    return wnum_match_obj(wnum, obj);
+}
+
+static OBJ_INDEX_DATA *relic_lookup(const char *name)
+{
+    if (!name || !*name) return NULL;
+
+    if (!str_cmp(name, "damage") || !str_cmp(name, "power"))
+        return get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE");
+    if (!str_cmp(name, "xp") || !str_cmp(name, "knowledge"))
+        return get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_XP");
+    if (!str_cmp(name, "pneuma") || !str_cmp(name, "soul"))
+        return get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_PNEUMA");
+    if (!str_cmp(name, "hp") || !str_cmp(name, "health"))
+        return get_reserved_obj_index("OBJ_VNUM_RELIC_HP_REGEN");
+    if (!str_cmp(name, "mana") || !str_cmp(name, "magic"))
+        return get_reserved_obj_index("OBJ_VNUM_RELIC_MANA_REGEN");
+
+    return NULL;
+}
+
 long flag_value_ifcheck(const struct flag_type *flag_table, char *argument)
 {
     long flag = flag_value(flag_table, argument);
@@ -854,7 +910,7 @@ DECL_IFC_FUN(ifc_isfighting)
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting && is_name(ARG_STR(1),ARG_MOB(0)->fighting->name));
         } else if(ISARG_NUM(1))
-            *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting && IS_NPC(ARG_MOB(0)->fighting) && ARG_MOB(0)->fighting->pIndexData->vnum == ARG_NUM(1));
+            *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting && script_match_npc_vnum(ARG_MOB(0)->fighting, ARG_NUM(1)));
         else if(argc == 1)
             *ret = (ARG_MOB(0) && ARG_MOB(0)->fighting);
     }
@@ -902,11 +958,11 @@ DECL_IFC_FUN(ifc_iskey)
         if(ISARG_EXIT(1)) {
             ex = ARG_EXIT(1).r ? ARG_EXIT(1).r->exit[ARG_EXIT(1).door] : NULL;
             *ret = ex && ARG_OBJ(0)->item_type == ITEM_KEY &&
-                ex->door.lock.key_vnum == ARG_OBJ(0)->pIndexData->vnum;
+                wnum_match_obj(ex->door.lock.key_wnum, ARG_OBJ(0));
         } else if(ISARG_STR(1))
             *ret = ARG_OBJ(0)->item_type == ITEM_KEY && (room = obj_room(ARG_OBJ(0))) &&
                 (door = get_num_dir(ARG_STR(1))) != -1 && room->exit[door] &&
-                room->exit[door]->door.lock.key_vnum == ARG_OBJ(0)->pIndexData->vnum;
+                wnum_match_obj(room->exit[door]->door.lock.key_wnum, ARG_OBJ(0));
         else *ret = false;
 
         return true;
@@ -914,11 +970,11 @@ DECL_IFC_FUN(ifc_iskey)
         if(ISARG_EXIT(0)) {
             ex = ARG_EXIT(0).r ? ARG_EXIT(0).r->exit[ARG_EXIT(0).door] : NULL;
             *ret = ex && obj->item_type == ITEM_KEY &&
-                ex->door.lock.key_vnum == obj->pIndexData->vnum;
+                wnum_match_obj(ex->door.lock.key_wnum, obj);
         } else if(ISARG_STR(0))
             *ret = obj->item_type == ITEM_KEY && (room = obj_room(obj)) &&
                 (door = get_num_dir(ARG_STR(0))) != -1 && room->exit[door] &&
-                room->exit[door]->door.lock.key_vnum == obj->pIndexData->vnum;
+                wnum_match_obj(room->exit[door]->door.lock.key_wnum, obj);
         else *ret = false;
 
         return true;
@@ -965,7 +1021,7 @@ DECL_IFC_FUN(ifc_ison)
         else
             *ret = (ARG_MOB(0)->on && is_name(ARG_STR(1),ARG_MOB(0)->on->pIndexData->name));
     } else if(ISARG_NUM(1))
-        *ret = (ARG_MOB(0)->on && ARG_MOB(0)->on->pIndexData->vnum == ARG_NUM(1));
+        *ret = (ARG_MOB(0)->on && script_match_obj_vnum(ARG_MOB(0)->on, ARG_NUM(1)));
     else if(ISARG_OBJ(1))
         *ret = (ARG_MOB(0)->on == ARG_OBJ(1));
     else if(argc == 1)
@@ -1008,7 +1064,7 @@ DECL_IFC_FUN(ifc_ispulling)
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart && is_name(ARG_STR(1),ARG_MOB(0)->pulled_cart->pIndexData->name));
         } else if(ISARG_NUM(1))
-            *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart && ARG_MOB(0)->pulled_cart->pIndexData->vnum == ARG_NUM(1));
+            *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart && script_match_obj_vnum(ARG_MOB(0)->pulled_cart, ARG_NUM(1)));
         else if(argc == 1)
             *ret = (ARG_MOB(0) && ARG_MOB(0)->pulled_cart);
     }
@@ -1017,9 +1073,12 @@ DECL_IFC_FUN(ifc_ispulling)
 
 DECL_IFC_FUN(ifc_ispullingrelic)
 {
+    OBJ_INDEX_DATA *relic_index = ISARG_STR(1) ? relic_lookup(ARG_STR(1)) : NULL;
+
     *ret = (ISARG_MOB(0) && is_pulling_relic(ARG_MOB(0)) &&
             (!ARG_STR(1) || !*ARG_STR(1) ||
-            ARG_MOB(0)->pulled_cart->pIndexData->vnum == flag_value( relic_types,ARG_STR(1))));
+            (relic_index && ARG_MOB(0)->pulled_cart &&
+             ARG_MOB(0)->pulled_cart->pIndexData == relic_index)));
     return true;
 }
 
@@ -1056,7 +1115,7 @@ DECL_IFC_FUN(ifc_isrider)
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->rider && is_name(ARG_STR(1),ARG_MOB(0)->rider->name));
         } else if(ISARG_NUM(1))
-            *ret = (ARG_MOB(0) && ARG_MOB(0)->rider && IS_NPC(ARG_MOB(0)->rider) && ARG_MOB(0)->rider->pIndexData->vnum == ARG_NUM(1));
+            *ret = (ARG_MOB(0) && ARG_MOB(0)->rider && script_match_npc_vnum(ARG_MOB(0)->rider, ARG_NUM(1)));
     }
     return true;
 }
@@ -1076,7 +1135,7 @@ DECL_IFC_FUN(ifc_isriding)
             else
                 *ret = (ARG_MOB(0) && ARG_MOB(0)->mount && is_name(ARG_STR(1),ARG_MOB(0)->mount->name));
         } else if(ISARG_NUM(1))
-            *ret = (ARG_MOB(0) && ARG_MOB(0)->mount && IS_NPC(ARG_MOB(0)->mount) && ARG_MOB(0)->mount->pIndexData->vnum == ARG_NUM(1));
+            *ret = (ARG_MOB(0) && ARG_MOB(0)->mount && script_match_npc_vnum(ARG_MOB(0)->mount, ARG_NUM(1)));
         else if(argc == 1)
             *ret = true;
     }
@@ -2728,7 +2787,12 @@ DECL_IFC_FUN(ifc_value_ranged)
 
 DECL_IFC_FUN(ifc_value_relic)
 {
-    *ret = ISARG_STR(0) ? flag_value_ifcheck(relic_types,ARG_STR(0)) : 0;
+    if (ISARG_STR(0)) {
+        OBJ_INDEX_DATA *relic_index = relic_lookup(ARG_STR(0));
+        *ret = relic_index ? relic_index->vnum : 0;
+    } else {
+        *ret = 0;
+    }
     return true;
 }
 

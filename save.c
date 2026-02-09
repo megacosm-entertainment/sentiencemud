@@ -814,11 +814,26 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
         fprintf(fp, "QuestNext %d\n",  10             );
 
     if (IS_QUESTING(ch)) {
+        WNUM questgiver_wnum = ch->quest->questgiver_wnum;
+        WNUM questreceiver_wnum = ch->quest->questreceiver_wnum;
+
+        if (!questgiver_wnum.pArea && ch->quest->questgiver_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&ch->quest->questgiver_load, &questgiver_wnum, fallback);
+        }
+
+        if (!questreceiver_wnum.pArea && ch->quest->questreceiver_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&ch->quest->questreceiver_load, &questreceiver_wnum, fallback);
+        }
+
         fprintf(fp, "Questing\n");
         fprintf(fp, "QuestGiverType %d\n", ch->quest->questgiver_type);
-        fprintf(fp, "QuestGiver %ld\n", ch->quest->questgiver);
+        fprintf(fp, "QuestGiverW %s\n", widevnum_string_wnum(questgiver_wnum, NULL));
         fprintf(fp, "QuestReceiverType %d\n", ch->quest->questreceiver_type);
-        fprintf(fp, "QuestReceiver %ld\n", ch->quest->questreceiver);
+        fprintf(fp, "QuestReceiverW %s\n", widevnum_string_wnum(questreceiver_wnum, NULL));
 
         fwrite_quest_part(fp, ch->quest->parts);
     }
@@ -2313,13 +2328,36 @@ if (ch->in_room == NULL) {
             break;
         }
 
+        if (!str_cmp(word, "QuestGiverW"))
+        {
+            char *wnum_str;
+            if( ch->quest == NULL )
+            {
+                ch->quest = (QUEST_DATA *)new_quest();
+            }
+            wnum_str = fread_word(fp);
+            if (parse_widevnum_load(wnum_str, &ch->quest->questgiver_load)) {
+                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+                if (!fallback) fallback = get_system_area_fallback();
+                resolve_wnum_load(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum, fallback);
+            }
+            fMatch = true;
+            break;
+        }
+
         if (!str_cmp(word, "QuestGiver"))
         {
             if( ch->quest == NULL )
             {
                 ch->quest = (QUEST_DATA *)new_quest();
             }
-            ch->quest->questgiver = fread_number(fp);
+            ch->quest->questgiver_load.vnum = fread_number(fp);
+            ch->quest->questgiver_load.auid = 0;
+            {
+                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+                if (!fallback) fallback = get_system_area_fallback();
+                resolve_wnum_load(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum, fallback);
+            }
             fMatch = true;
             break;
         }
@@ -2335,13 +2373,36 @@ if (ch->in_room == NULL) {
             break;
         }
 
+        if (!str_cmp(word, "QuestReceiverW"))
+        {
+            char *wnum_str;
+            if( ch->quest == NULL )
+            {
+                ch->quest = (QUEST_DATA *)new_quest();
+            }
+            wnum_str = fread_word(fp);
+            if (parse_widevnum_load(wnum_str, &ch->quest->questreceiver_load)) {
+                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+                if (!fallback) fallback = get_system_area_fallback();
+                resolve_wnum_load(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum, fallback);
+            }
+            fMatch = true;
+            break;
+        }
+
         if (!str_cmp(word, "QuestReceiver"))
         {
             if( ch->quest == NULL )
             {
                 ch->quest = (QUEST_DATA *)new_quest();
             }
-            ch->quest->questreceiver = fread_number(fp);
+            ch->quest->questreceiver_load.vnum = fread_number(fp);
+            ch->quest->questreceiver_load.auid = 0;
+            {
+                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+                if (!fallback) fallback = get_system_area_fallback();
+                resolve_wnum_load(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum, fallback);
+            }
             fMatch = true;
             break;
         }
@@ -2353,8 +2414,14 @@ if (ch->in_room == NULL) {
             ch->quest = (QUEST_DATA *)new_quest();
 
         part = (QUEST_PART_DATA *)new_quest_part();
-        part->mob = -1;
-        part->obj = fread_number(fp);
+        part->mob_load.vnum = -1;
+        part->obj_load.auid = 0;
+        part->obj_load.vnum = fread_number(fp);
+        if (part->obj_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(part->obj_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&part->obj_load, &part->obj_wnum, fallback);
+        }
 
         part->next = ch->quest->parts;
         ch->quest->parts = part;
@@ -2369,7 +2436,13 @@ if (ch->in_room == NULL) {
             ch->quest = (QUEST_DATA *)new_quest();
 
         part = (QUEST_PART_DATA *)new_quest_part();
-        part->obj_sac = fread_number(fp);
+        part->obj_sac_load.auid = 0;
+        part->obj_sac_load.vnum = fread_number(fp);
+        if (part->obj_sac_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(part->obj_sac_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&part->obj_sac_load, &part->obj_sac_wnum, fallback);
+        }
 
         part->next = ch->quest->parts;
         ch->quest->parts = part;
@@ -2384,7 +2457,13 @@ if (ch->in_room == NULL) {
             ch->quest = (QUEST_DATA *)new_quest();
 
         part = (QUEST_PART_DATA *)new_quest_part();
-        part->mob_rescue = fread_number(fp);
+        part->mob_rescue_load.auid = 0;
+        part->mob_rescue_load.vnum = fread_number(fp);
+        if (part->mob_rescue_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(part->mob_rescue_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&part->mob_rescue_load, &part->mob_rescue_wnum, fallback);
+        }
 
         part->next = ch->quest->parts;
         ch->quest->parts = part;
@@ -2399,7 +2478,13 @@ if (ch->in_room == NULL) {
             ch->quest = (QUEST_DATA *)new_quest();
 
         part = (QUEST_PART_DATA *)new_quest_part();
-        part->mob = fread_number(fp);
+        part->mob_load.auid = 0;
+        part->mob_load.vnum = fread_number(fp);
+        if (part->mob_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
+        }
 
         part->next = ch->quest->parts;
         ch->quest->parts = part;
@@ -2414,7 +2499,13 @@ if (ch->in_room == NULL) {
             ch->quest = (QUEST_DATA *)new_quest();
 
         part = (QUEST_PART_DATA *)new_quest_part();
-        part->room = fread_number(fp);
+        part->room_load.auid = 0;
+        part->room_load.vnum = fread_number(fp);
+        if (part->room_load.vnum > 0) {
+            AREA_DATA *fallback = find_area_by_vnum(part->room_load.vnum, NULL);
+            if (!fallback) fallback = get_system_area_fallback();
+            resolve_wnum_load(&part->room_load, &part->room_wnum, fallback);
+        }
 
         part->next = ch->quest->parts;
         ch->quest->parts = part;
@@ -2850,19 +2941,20 @@ if (!str_cmp(word, "Room"))
     // Make sure questing data from old info is configured properly
     if( ch->quest != NULL )
     {
-        if( ch->quest->questgiver < 0 )
+        if( ch->quest->questgiver_load.vnum < 0 )
         {
             // No questgiver info
             free_quest(ch->quest);
             ch->countdown = 0;
             ch->quest = NULL;
         }
-        else if( ch->quest->questgiver > 0 )
+        else if( ch->quest->questgiver_load.vnum > 0 )
         {
             if( ch->quest->questgiver_type < 0 ) ch->quest->questgiver_type = QUESTOR_MOB;
-            if( ch->quest->questreceiver < 0 || ch->quest->questreceiver_type < 0 )
+            if( ch->quest->questreceiver_load.vnum < 0 || ch->quest->questreceiver_type < 0 )
             {
-                ch->quest->questreceiver = ch->quest->questgiver;
+                ch->quest->questreceiver_load = ch->quest->questgiver_load;
+                ch->quest->questreceiver_wnum = ch->quest->questgiver_wnum;
                 ch->quest->questreceiver_type = QUESTOR_MOB;
             }
         }
@@ -3003,7 +3095,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         fprintf(fp, "Locker %d\n", obj->locker);
 
     if (obj->lock)
-        fprintf(fp, "Lock %ld %d %d\n", obj->lock->key_vnum, obj->lock->flags, obj->lock->pick_chance);
+        fprintf(fp, "Lock %ld %ld %d %d\n", obj->lock->key_load.auid, obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);
 
     // Permanent flags based
     fprintf(fp, "PermExtra %ld\n",	obj->extra_perm[0] );
@@ -3787,7 +3879,8 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                     obj->lock = new_lock_state();
                 }
 
-                obj->lock->key_vnum = fread_number(fp);
+                obj->lock->key_load.auid = fread_number(fp);
+                obj->lock->key_load.vnum = fread_number(fp);
                 obj->lock->flags = fread_number(fp);
                 obj->lock->pick_chance = fread_number(fp);
 
@@ -3800,18 +3893,21 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
             {
                 obj->level = fread_number(fp);
 
-                if (obj->pIndexData != NULL && obj->pIndexData->vnum == 100035)
+                if (obj->pIndexData != NULL)
                 {
-                    int armour;
-                    int armour_exotic;
+                    OBJ_INDEX_DATA *alumnos_armor = get_reserved_obj_index("obj_alemnos_armor");
+                    if (alumnos_armor != NULL && obj->pIndexData == alumnos_armor) {
+                        int armour;
+                        int armour_exotic;
 
-                    armour=(int) calc_obj_armour(obj->level, obj->value[4]);
-                    armour_exotic=(int) armour * .90;
+                        armour=(int) calc_obj_armour(obj->level, obj->value[4]);
+                        armour_exotic=(int) armour * .90;
 
-                    obj->value[0] = armour;
-                    obj->value[1] = armour;
-                    obj->value[2] = armour;
-                    obj->value[3] = armour_exotic;
+                        obj->value[0] = armour;
+                        obj->value[1] = armour;
+                        obj->value[2] = armour;
+                        obj->value[3] = armour_exotic;
+                    }
                 }
 
                 fMatch = true;
@@ -4467,7 +4563,7 @@ void fix_object(OBJ_DATA *obj)
                 if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
                 {
                     obj->lock = new_lock_state();
-                    obj->lock->key_vnum = obj->value[2];
+                    obj->lock->key_load.vnum = obj->value[2];
                     obj->lock->flags = 0;
                     obj->lock->pick_chance = 100;
 
@@ -4499,7 +4595,7 @@ void fix_object(OBJ_DATA *obj)
                 if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
                 {
                     obj->lock = new_lock_state();
-                    obj->lock->key_vnum = obj->value[4];
+                    obj->lock->key_load.vnum = obj->value[4];
                     obj->lock->flags = 0;
                     obj->lock->pick_chance = 100;
 
@@ -5369,6 +5465,19 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 
 }
 
+static void quest_part_resolve_wnum(WNUM_LOAD *load, WNUM *wnum)
+{
+    AREA_DATA *fallback;
+
+    if (!load || !wnum || wnum->pArea || load->vnum < 1) {
+        return;
+    }
+
+    fallback = find_area_by_vnum(load->vnum, NULL);
+    if (!fallback) fallback = get_system_area_fallback();
+    resolve_wnum_load(load, wnum, fallback);
+}
+
 /* write a quest to disk */
 void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 {
@@ -5382,16 +5491,23 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
     if (part->pObj->in_room == NULL)
         pbugf(LOG_ERROR, "fwrite_quest_part: trying to save a quest pickup obj with null in_room");
     else
-        fprintf(fp, "OPart %ld %ld\n", part->pObj->pIndexData->vnum, part->pObj->in_room->vnum);
+        fprintf(fp, "OPartW %s %s\n",
+            widevnum_string_object(part->pObj->pIndexData, NULL),
+            widevnum_string_room(part->pObj->in_room, NULL));
     }
-    else if (part->mob != -1)
-    fprintf(fp, "MPart %ld\n", part->mob);
-    else if (part->obj_sac != -1)
-    fprintf(fp, "OSPart %ld\n", part->obj_sac);
-    else if (part->mob_rescue != -1)
-    fprintf(fp, "MRPart %ld\n", part->mob_rescue);
-    else if (part->room != -1)
-    fprintf(fp, "QRoom %ld\n", part->room);
+    else if (part->mob_load.vnum != -1) {
+        quest_part_resolve_wnum(&part->mob_load, &part->mob_wnum);
+        fprintf(fp, "MPartW %s\n", widevnum_string_wnum(part->mob_wnum, NULL));
+    } else if (part->obj_sac_load.vnum != -1) {
+        quest_part_resolve_wnum(&part->obj_sac_load, &part->obj_sac_wnum);
+        fprintf(fp, "OSPartW %s\n", widevnum_string_wnum(part->obj_sac_wnum, NULL));
+    } else if (part->mob_rescue_load.vnum != -1) {
+        quest_part_resolve_wnum(&part->mob_rescue_load, &part->mob_rescue_wnum);
+        fprintf(fp, "MRPartW %s\n", widevnum_string_wnum(part->mob_rescue_wnum, NULL));
+    } else if (part->room_load.vnum != -1) {
+        quest_part_resolve_wnum(&part->room_load, &part->room_wnum);
+        fprintf(fp, "QRoomW %s\n", widevnum_string_wnum(part->room_wnum, NULL));
+    }
     else if (part->custom_task)
         fprintf(fp, "QCustom\n");
 
@@ -5424,16 +5540,38 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
         switch (UPPER(word[0]))
         {
             case 'M':
+            if (!str_cmp(word, "MPartW")) {
+                char *wnum_str = fread_word(fp);
+                if (parse_widevnum_load(wnum_str, &part->mob_load)) {
+                    quest_part_resolve_wnum(&part->mob_load, &part->mob_wnum);
+                }
+                fMatch = true;
+                break;
+            }
+
             if (!str_cmp(word, "MPart")) {
                 i = fread_number(fp);
-                part->mob = i;
+                part->mob_load.auid = 0;
+                part->mob_load.vnum = i;
+                quest_part_resolve_wnum(&part->mob_load, &part->mob_wnum);
+                fMatch = true;
+                break;
+            }
+
+            if (!str_cmp(word, "MRPartW")) {
+                char *wnum_str = fread_word(fp);
+                if (parse_widevnum_load(wnum_str, &part->mob_rescue_load)) {
+                    quest_part_resolve_wnum(&part->mob_rescue_load, &part->mob_rescue_wnum);
+                }
                 fMatch = true;
                 break;
             }
 
             if (!str_cmp(word, "MRPart")) {
                 i = fread_number(fp);
-                part->mob_rescue = i;
+                part->mob_rescue_load.auid = 0;
+                part->mob_rescue_load.vnum = i;
+                quest_part_resolve_wnum(&part->mob_rescue_load, &part->mob_rescue_wnum);
                 fMatch = true;
                 break;
             }
@@ -5441,6 +5579,32 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 
             case 'O':
             /* Special Case - Make an Obj */
+            if (!str_cmp(word, "OPartW")) {
+                ROOM_INDEX_DATA *room;
+                OBJ_DATA *obj;
+                OBJ_INDEX_DATA *obj_i;
+                char *obj_str = fread_word(fp);
+                char *room_str = fread_word(fp);
+
+                if (parse_widevnum_load(obj_str, &part->obj_load)) {
+                    quest_part_resolve_wnum(&part->obj_load, &part->obj_wnum);
+                }
+                if (parse_widevnum_load(room_str, &part->room_load)) {
+                    quest_part_resolve_wnum(&part->room_load, &part->room_wnum);
+                }
+
+                obj_i = get_obj_index(part->obj_wnum.pArea, part->obj_wnum.vnum);
+                room = get_room_index(part->room_wnum.pArea, part->room_wnum.vnum);
+                if (obj_i && room) {
+                    obj = create_object(obj_i, 1, true);
+                    obj_to_room(obj, room);
+                    part->pObj = obj;
+                }
+
+                fMatch = true;
+                break;
+            }
+
             if (!str_cmp(word, "OPart")) {
                 ROOM_INDEX_DATA *room;
                 OBJ_DATA *obj;
@@ -5448,26 +5612,42 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
                 int room_vnum;
 
                 i = fread_number(fp);
-                part->obj = i;
+                part->obj_load.auid = 0;
+                part->obj_load.vnum = i;
+                quest_part_resolve_wnum(&part->obj_load, &part->obj_wnum);
 
-                obj_i = get_obj_index_global(part->obj);
+                obj_i = get_obj_index(part->obj_wnum.pArea, part->obj_wnum.vnum);
 
-room_vnum = fread_number(fp);
-AREA_DATA *area = find_area_by_vnum(room_vnum, NULL);
-if (!area) area = get_system_area_fallback();
-room = get_room_index(area, room_vnum);
-                obj = create_object(obj_i, 1, true);
-                obj_to_room(obj, room);
+                room_vnum = fread_number(fp);
+                part->room_load.auid = 0;
+                part->room_load.vnum = room_vnum;
+                quest_part_resolve_wnum(&part->room_load, &part->room_wnum);
+                room = get_room_index(part->room_wnum.pArea, part->room_wnum.vnum);
 
-                part->pObj = obj;
+                if (obj_i && room) {
+                    obj = create_object(obj_i, 1, true);
+                    obj_to_room(obj, room);
+                    part->pObj = obj;
+                }
 
+                fMatch = true;
+                break;
+            }
+
+            if (!str_cmp(word, "OSPartW")) {
+                char *wnum_str = fread_word(fp);
+                if (parse_widevnum_load(wnum_str, &part->obj_sac_load)) {
+                    quest_part_resolve_wnum(&part->obj_sac_load, &part->obj_sac_wnum);
+                }
                 fMatch = true;
                 break;
             }
 
             if (!str_cmp(word, "OSPart")) {
                 i = fread_number(fp);
-                part->obj_sac = i;
+                part->obj_sac_load.auid = 0;
+                part->obj_sac_load.vnum = i;
+                quest_part_resolve_wnum(&part->obj_sac_load, &part->obj_sac_wnum);
                 fMatch = true;
                 break;
             }
@@ -5484,9 +5664,20 @@ room = get_room_index(area, room_vnum);
                 fMatch = true;
                 break;
             }
+            if (!str_cmp(word, "QRoomW")) {
+                char *wnum_str = fread_word(fp);
+                if (parse_widevnum_load(wnum_str, &part->room_load)) {
+                    quest_part_resolve_wnum(&part->room_load, &part->room_wnum);
+                }
+                fMatch = true;
+                break;
+            }
+
             if (!str_cmp(word, "QRoom")) {
                 i = fread_number(fp);
-                part->room = i;
+                part->room_load.auid = 0;
+                part->room_load.vnum = i;
+                quest_part_resolve_wnum(&part->room_load, &part->room_wnum);
                 fMatch = true;
                 break;
             }

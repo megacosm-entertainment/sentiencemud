@@ -534,8 +534,11 @@ int hit_gain(CHAR_DATA *ch)
         gain += gain/3;
 
     /* If you have the relic you get 25% more */
-    if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_HP_REGEN))
-        gain += gain / 4;
+    if (ch->church) {
+        OBJ_INDEX_DATA *relic = get_reserved_obj_index("OBJ_VNUM_RELIC_HP_REGEN");
+        if (relic && vnum_in_treasure_room(ch->church, relic->vnum))
+            gain += gain / 4;
+    }
 
     ch->tempstore[0] = gain;
     if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_HITGAIN, NULL) )
@@ -621,8 +624,11 @@ int mana_gain(CHAR_DATA *ch)
     if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
         gain += gain/3;
 
-    if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
-        gain += gain / 4;
+    if (ch->church) {
+        OBJ_INDEX_DATA *relic = get_reserved_obj_index("OBJ_VNUM_RELIC_MANA_REGEN");
+        if (relic && vnum_in_treasure_room(ch->church, relic->vnum))
+            gain += gain / 4;
+    }
 
     { int _mrm = race_get_trait_int(ch->race, "mana_regen_multiplier"); if (_mrm > 1) gain *= _mrm; }
 

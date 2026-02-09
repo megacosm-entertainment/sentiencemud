@@ -20,7 +20,7 @@ The proposed solution is to replace the iterative delivery mechanism with a unif
 
 1.  **Topics & Streams:** Each channel will have a real-time topic (e.g., `rt:<topic>`) and a Redis Stream for history (e.g., `history:<topic>`). The `<topic>` will be dynamic based on the channel's `scope`.
     -   `GLOBAL` scope (`gossip`): `rt:gossip`
-    -   `AREA` scope (`yell`): `rt:area_wv:<area_widevnum>` (where `<area_widevnum>` is the area's widevnum)
+    -   `AREA` scope (`yell`): `rt:area:<area_uid>` (where `<area_uid>` is the area's UID, or a custom topic override — see below)
     -   `ROOM` scope (`say`): `rt:room_wv:<room_widevnum>` (where `<room_widevnum>` is the room's widevnum)
     -   `DIRECT_ENTITY` scope (`tell`): `rt:entity:<unique_id>` (where `<unique_id>` is the canonical identifier for the recipient entity)
     -   `GROUP_ENTITY` scope (`gtell`): `rt:group:<unique_id>` (where `<unique_id>` is the canonical identifier for the group entity)
@@ -70,6 +70,7 @@ This architecture provides a consistent mechanism for all communication, enablin
 -   **Subscription Management:** This is now more complex, as players must constantly update their `ROOM` and `AREA` subscriptions as they move. This must be a highly efficient part of the movement code.
 -   **Payload Size & Serialization:** Sending a rich JSON payload for every single message, including every line of `say`, increases overhead compared to the current simple string passing. The performance impact of Jansson serialization/deserialization at this scale must be tested.
 -   **Initial Implementation Effort:** This is a more significant refactor than originally scoped, touching almost all communication code.
+-   **Legacy Split Zones:** Some legacy areas are split across two or more zone files due to historical vnum overlap issues (which the widevnum system resolves going forward). These logically represent a single area — a `yell` in one half should be heard in the other. Areas must be able to specify a custom `area_topic` override so that multiple zone files can share the same `AREA` pub/sub topic. When set, this overrides the default `rt:area:<area_uid>` topic with `rt:area:<area_topic>`. When unset, the area's own UID is used as the topic key. This is an `aedit` field on the area definition.
 
 ### Technical Considerations for Unique Identifiers
 
@@ -96,7 +97,7 @@ The "Channel Definition" becomes the brain of the system.
   "id": "say",
   "name": "Say",
   "command": "say",
-  "scope": "ROOM_WV", // Indicating widevnum usage
+  "scope": "ROOM_WV",
   "allow_player_flags": false,
   "permissions": { "speak": "ALL" },
   "formatting": {
@@ -106,7 +107,7 @@ The "Channel Definition" becomes the brain of the system.
   "modifiers": ["PUNCTUATION_PARSE"]
 }
 ```
--   **`scope`**: The most important new field. `GLOBAL`, `AREA_WV` (for widevnum areas), `ROOM_WV` (for widevnum rooms), `DIRECT_ENTITY` (for entities identified by their `unique_id`), `GROUP_LEADER` (for group-specific channels, identified by the group leader's `unique_id`), `CHURCH_ID` (for church-specific channels identified by a church ID). This dictates how topics are generated and who receives messages.
+-   **`scope`**: The most important new field. `GLOBAL`, `AREA` (using area UIDs), `ROOM_WV` (using room widevnums), `DIRECT_ENTITY` (for entities identified by their `unique_id`), `GROUP_LEADER` (for group-specific channels, identified by the group leader's `unique_id`), `CHURCH_ID` (for church-specific channels identified by a church ID). This dictates how topics are generated and who receives messages.
 -   **`allow_player_flags`**: A boolean to control whether player-set channel flags can be used. This would be `true` for `gossip` but `false` for `say`.
 -   **`permissions`**: For `GROUP_ENTITY` and `CHURCH_ID` scoped channels, the `permissions` field is crucial. It would specify that only `GROUP_MEMBER` or `CHURCH_MEMBER` (or higher ranks within them) can speak and/or listen, ensuring private communication within these entities.
 -   **`modifiers`**: Can now include `PUNCTUATION_PARSE`, which would analyze the message text and dynamically swap the `formatting` string (e.g., from "says" to "asks").
@@ -142,7 +143,7 @@ The plan is adjusted to reflect the unified approach.
     -   Refactor their `do_*` functions to call the generic channel handler. This serves as the first real-world test of the system.
 
 4.  **Phase 4: Migration of Contextual & Direct Channels**
-    -   Implement subscription management for movement, using `AREA_WV` (widevnum areas) and `ROOM_WV` (widevnum rooms) for topics.
+    -   Implement subscription management for movement, using `AREA` (area UIDs) and `ROOM_WV` (room widevnums) for topics.
     -   Implement subscription management for `GROUP_LEADER` channels. This involves:
         *   Subscribing/unsubscribing members when they join/leave a group, using the leader's `unique_id` to identify the topic.
         *   Handling leadership changes by having all members unsubscribe from the old leader's topic and re-subscribe to the new leader's topic.
@@ -463,6 +464,37 @@ Word filters are saved in the player's character file as part of `pc_data`, simi
 | Chat room ops (`CHAT_OP_DATA`) | Channel moderator role | Generalized from chat rooms to all channels |
 | Chat room bans (`CHAT_BAN_DATA`) | `CHANNEL_PENALTY_DATA` with `CHANPEN_BAN` | Unified penalty model |
 | Player `ignore` list | Unchanged — self-moderation remains separate | `IGNORE_DATA` is a personal preference, not a penalty |
+
+### 6.11 Scripting Integration & Room-Scoped TTL
+
+The scripting engine fires `TRIG_SPEECH`, `TRIG_SAYTO`, and `TRIG_WHISPER` triggers on entities present in the room — mobs, objects (in inventory, worn, and on the ground), and the room itself. These triggers are the backbone of NPC interaction (e.g., quest NPCs responding to keywords).
+
+In the current model, `do_say` iterates the room's people and contents lists and fires `p_act_trigger()` synchronously. In the pub/sub model, room-scoped messages are published to `rt:room_wv:<room_widevnum>`. For script triggers to continue working, all scriptable entities in a room must effectively be subscribers to that room's topic.
+
+#### Approach
+
+-   **Room entities as implicit subscribers.** When processing an incoming message on a `ROOM_WV` topic, the receiver logic must iterate the room's entity lists and fire `p_act_trigger()` for each — exactly as `do_say` does today. The pub/sub layer handles delivery; the trigger-firing remains local to the game loop.
+-   **This is not a Redis subscription per mob.** NPCs and objects don't get their own Redis subscriptions. The game server's single subscriber for `rt:room_wv:*` handles all rooms. On receipt, it looks up the room and fires triggers on its occupants. This keeps the Redis subscription count bounded.
+-   **Trigger ordering.** Script triggers must fire *after* the message is displayed to players (preserving current behavior where NPC responses appear after the player's speech). The receiver logic should: (1) deliver to player descriptors, (2) fire `p_act_trigger()` on room entities.
+
+#### Room-Scoped TTL
+
+Room-scoped chat (`say`, `whisper`, `sayto`, `intone`) generates far more volume than global channels and has limited historical value. The Redis Streams for `ROOM_WV` topics should use a low TTL:
+
+-   **`MAXLEN` or `MINID`:** Use `XADD ... MAXLEN ~ 50` or time-based trimming to keep only the last ~50 messages or ~15 minutes of history per room. This provides enough for "what was just said?" while preventing unbounded growth.
+-   **Configurable per channel definition:** The channel definition gains a `history` field:
+    ```json
+    {
+      "id": "say",
+      "scope": "ROOM_WV",
+      "history": {
+        "max_len": 50,
+        "max_age_seconds": 900
+      }
+    }
+    ```
+-   **Global channels** (`gossip`, `ooc`) can retain longer history (e.g., 24 hours or 1000 messages). Direct channels (`tell`) might retain a moderate window. This is all configurable via `cedit`.
+-   **Trimming strategy:** `XTRIM` can be called periodically (e.g., on a pulse timer) or piggy-backed on `XADD` with approximate `MAXLEN ~`. The approximate form is cheap and prevents streams from growing unbounded between cleanup cycles.
 
 ---
 

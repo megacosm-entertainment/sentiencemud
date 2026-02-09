@@ -1,8 +1,8 @@
 # Widevnum Migration: Remaining Work Analysis
 
 **Date:** February 6, 2026
-**Last Updated:** February 7, 2026
-**Status:** Phases 1-6 complete. Phase 7 in progress (Cat 1 mostly done, utility functions backported). Phase 8 pending.
+**Last Updated:** February 9, 2026
+**Status:** Phases 1-6 complete. Phase 7 in progress (Cat 1 mostly done, utility functions backported). Phase 8 pending. Next focus: Global quest (GQ) + standard quest systems.
 
 ## Executive Summary
 
@@ -115,7 +115,7 @@ if (obj->pIndexData->vnum == lock->key_vnum
 
 **Risk:** HIGH - Keys unlocking wrong doors is a game-breaking bug.
 
-### 2B: Global Quest System (5+ instances, handler.c / db.c / gq.c)
+### 2B: Global Quest System (5+ instances, handler.c / db.c / gq.c) - NEXT
 
 ```c
 // handler.c:3176, 4961 - mob checking
@@ -134,7 +134,7 @@ if (gq_mob->vnum == vnum)
 
 **Risk:** HIGH - Wrong mobs counting for quests breaks gameplay.
 
-### 2C: Quest System (6 instances, quest.c)
+### 2C: Quest System (6 instances, quest.c) - NEXT
 
 ```c
 // quest.c:480, 490, 501
@@ -212,8 +212,8 @@ These are `long` fields in structs that store a vnum without area context. They 
 | Struct | Field | File | Notes |
 |--------|-------|------|-------|
 | `TRADE_ITEM` | `obj_vnum` | merc.h:~5822 | Trade item - usually area-local |
-| `newbie_eq_type` | `vnum` | merc.h:~2143 | Starting equipment - static |
-| `weapon_type` | `vnum` | merc.h:~2163 | Starting weapons - static |
+| `newbie_eq_type` | `vnum` | merc.h:~2143 | Starting equipment - static (defer until class/progression rework) |
+| `weapon_type` | `vnum` | merc.h:~2163 | Starting weapons - static (defer until class/progression rework) |
 | `map_exit_type` | `room_vnum` | merc.h:~2157 | Wilderness map exits |
 | `tunneler_place_type` | `vnum` | merc.h:~6760 | Tunneler destinations |
 
@@ -231,12 +231,12 @@ These use `#define` constants like `OBJ_VNUM_*`, `MOB_VNUM_*`, `ROOM_VNUM_*` tha
 
 ```c
 // Scattered across multiple files
-if (obj->pIndexData->vnum == OBJ_VNUM_ABYSS_PORTAL)    // db.c:1977
-if (container->pIndexData->vnum == OBJ_VNUM_CURSED_ORB) // act_obj.c:1070
-if (obj->pIndexData->vnum == OBJ_VNUM_GOLD_WHISTLE)     // mount.c:197
-if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE) // act_obj.c:8633
-if (obj->pIndexData->vnum == 100035)                     // save.c:3800 (magic number!)
-if (obj->pIndexData->vnum == 152533)                     // act_info.c:2629 (magic number!)
+if (obj->pIndexData == get_reserved_obj_index("obj_portal_abyss"))
+if (container->pIndexData == get_reserved_obj_index("OBJ_VNUM_CURSED_ORB"))
+if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_GOLD_WHISTLE"))
+if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE"))
+if (obj->pIndexData == get_reserved_obj_index("obj_alemnos_armor"))
+if (obj->pIndexData == get_reserved_obj_index("obj_mordrake_crystal_ball"))
 ```
 
 **Strategy:** These should migrate to the **reserved entity system** which already exists and uses WNUM internally. Reserved entities are looked up by *name* (e.g., `get_reserved_obj_index("abyss_portal")`), making them area-independent.
@@ -245,7 +245,7 @@ if (obj->pIndexData->vnum == 152533)                     // act_info.c:2629 (mag
 
 1. Register each hardcoded vnum as a reserved entity
 2. Replace `OBJ_VNUM_CONSTANT` checks with `get_reserved_obj_index("name")` lookups
-3. Replace magic number checks (`100035`, `152533`) with named reserved entities
+3. Replace magic number checks with named reserved entities (add to bootstrap + reserved.json)
 4. Remove `#define OBJ_VNUM_*` constants from merc.h
 5. Document all reserved entities in a configuration file
 
@@ -375,6 +375,22 @@ These should use reserved room entities or WNUM comparisons.
 ---
 
 ## Recommended Implementation Order
+
+### Immediate Next Work: GQ + Quest Systems (Feb 9)
+
+Focus on the two critical gameplay systems with cross-area comparison bugs:
+
+**Global Quest (GQ) system:**
+- Update `GQ_MOB_DATA` / `GQ_OBJ_DATA` to store `WNUM_LOAD` + runtime `WNUM`
+- Resolve loads at boot (area uid -> area pointer)
+- Replace all `== gq_*->vnum` comparisons with `wnum_match_*()`
+- Update JSON persistence for GQ state to store `area_uid` + `vnum`
+
+**Standard quest system:**
+- Add area-aware fields to quest giver/receiver (`WNUM_LOAD` + `WNUM`)
+- Resolve loads at boot or quest creation
+- Replace `mob->pIndexData->vnum == questgiver/receiver` comparisons with `wnum_match_mob()`
+- Update persistence (player quest save/load) to include `area_uid` + `vnum`
 
 ### Phase 7A: Command Display Updates (Low Risk, High Visibility)
 

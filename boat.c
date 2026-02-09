@@ -1073,7 +1073,8 @@ SHIP_DATA *create_ship(WNUM wnum)
         {
             SPECIAL_KEY_DATA *sk = new_special_key();
 
-            sk->key_vnum = key->vnum;
+            sk->key_wnum.pArea = key->area;
+            sk->key_wnum.vnum = key->vnum;
             list_appendlink(ship->special_keys, sk);
         }
         iterator_stop(&it);
@@ -1656,7 +1657,12 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
     bool fMatch;
 
     sk = new_special_key();
-    sk->key_vnum = fread_number(fp);
+    {
+        long auid = fread_number(fp);
+        long vnum = fread_number(fp);
+        sk->key_wnum.pArea = auid > 0 ? get_area_from_uid(auid) : NULL;
+        sk->key_wnum.vnum = vnum;
+    }
 
     while (str_cmp((word = fread_word(fp)), "#-SPECIALKEY"))
     {
@@ -2121,7 +2127,7 @@ void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
     ITERATOR it;
     LLIST_UID_DATA *luid;
 
-    fprintf(fp, "#SPECIALKEY %ld\n", sk->key_vnum);
+    fprintf(fp, "#SPECIALKEY %ld %ld\n", sk->key_wnum.pArea ? sk->key_wnum.pArea->uid : 0, sk->key_wnum.vnum);
 
     iterator_start(&it, sk->list);
     while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
@@ -3239,13 +3245,19 @@ void do_ship_scuttle( CHAR_DATA *ch, char *argument)
     sprintf(buf, "%s douses the vessel with fuel and ignites it!", ch->name);
     boat_echo(ship, buf);
 
-    if ( ( ship->ship->in_room->vnum == ROOM_VNUM_SEA_PLITH_HARBOUR ||
-    ship->ship->in_room->vnum == ROOM_VNUM_SEA_SOUTHERN_HARBOUR ||
-    ship->ship->in_room->vnum == ROOM_VNUM_SEA_NORTHERN_HARBOUR ) &&
-    ship->owner != ch )
+    {
+        ROOM_INDEX_DATA *plith_harbour = get_reserved_room_index("room_plith_harbour");
+        ROOM_INDEX_DATA *southern_harbour = get_reserved_room_index("room_southern_harbour");
+        ROOM_INDEX_DATA *northern_harbour = get_reserved_room_index("room_northern_harbour");
+
+        if ((ship->ship->in_room == plith_harbour ||
+            ship->ship->in_room == southern_harbour ||
+            ship->ship->in_room == northern_harbour) &&
+            ship->owner != ch)
     {
     boat_echo(ship, "{MThe flames are extinguished by a mysterious protective magic.{x");
     return;
+    }
     }
 
     ship->scuttle_time = 5;
@@ -7078,9 +7090,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
         iterator_start(&it, ship->special_keys);
         while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
         {
-AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum, NULL);
-                        if (!key_area) key_area = get_system_area_fallback();
-                        OBJ_INDEX_DATA *key = get_obj_index(key_area, sk->key_vnum);
+            OBJ_INDEX_DATA *key = sk->key_wnum.pArea ? get_obj_index(sk->key_wnum.pArea, sk->key_wnum.vnum) : NULL;
 
             if( key && key->item_type == ITEM_KEY )
                 strncpy(arg, key->short_descr, MIL-1);
@@ -7136,9 +7146,7 @@ AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum, NULL);
         }
 
         SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
-AREA_DATA *key_area = find_area_by_vnum(sk->key_vnum, NULL);
-                if (!key_area) key_area = get_system_area_fallback();
-                OBJ_INDEX_DATA *key_index = get_obj_index(key_area, sk->key_vnum);
+        OBJ_INDEX_DATA *key_index = sk->key_wnum.pArea ? get_obj_index(sk->key_wnum.pArea, sk->key_wnum.vnum) : NULL;
 
         if( !key_index || key_index->item_type != ITEM_KEY )
         {

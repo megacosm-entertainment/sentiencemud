@@ -140,7 +140,7 @@ SPELL_FUNC(spell_continual_light)
     SET_BIT(obj->extra[0], ITEM_GLOW);
     return true;
 /* will re-enable later (AO)
-    light = create_object(get_obj_index(OBJ_VNUM_LIGHT_BALL), 0, true);
+    light = create_object(get_reserved_obj_index("OBJ_VNUM_LIGHT_BALL"), 0, true);
     obj_to_room(light, ch->in_room);
     act("$n twiddles $s thumbs and $p appears.",   ch, NULL, NULL, light, NULL, NULL, NULL, TO_ROOM);
     act("You twiddle your thumbs and $p appears.", ch, NULL, NULL, light, NULL, NULL, NULL, TO_CHAR);

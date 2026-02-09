@@ -472,7 +472,7 @@ struct special_key_data
     SPECIAL_KEY_DATA *next;
     bool valid;
 
-    long key_vnum;		// Base key vnum
+    WNUM key_wnum;		// Base key widevnum
     LLIST *list;		// Actual list of keys
 };
 
@@ -4188,9 +4188,11 @@ struct quest_data
     QUEST_DATA *        next;
     QUEST_PART_DATA *   parts;
     int					questgiver_type;
-    long                questgiver;
+    WNUM_LOAD           questgiver_load;
+    WNUM                questgiver_wnum;
     int					questreceiver_type;
-    long				questreceiver;
+    WNUM_LOAD           questreceiver_load;
+    WNUM                questreceiver_wnum;
 
     bool		msg_complete;
     bool		generating;
@@ -4209,11 +4211,16 @@ struct quest_part_data
 
     long		minutes;	// How many minutes is expected to complete this task?
 
-    long 		obj;
-    long		mob;
-    long		room;
-    long		obj_sac;
-    long		mob_rescue;
+    WNUM_LOAD		obj_load;
+    WNUM			obj_wnum;
+    WNUM_LOAD		mob_load;
+    WNUM			mob_wnum;
+    WNUM_LOAD		room_load;
+    WNUM			room_wnum;
+    WNUM_LOAD		obj_sac_load;
+    WNUM			obj_sac_wnum;
+    WNUM_LOAD		mob_rescue_load;
+    WNUM			mob_rescue_wnum;
     bool		custom_task;
     bool		complete;
 };
@@ -5305,13 +5312,19 @@ struct  conditional_descr_data
 #define LOCK_JAMMED			(G)		// Locking mechanism has been jammed
 #define LOCK_NOJAM			(H)		// Lock does not allow being jammed
 
+#define LOCK_FREE_KEYS		(U)		// Used by exits only to indicate that they need to be freed (internal only)
+#define LOCK_CHECK_BOTH		(V)		// Checks both the widevnum list and the special keys
+#define LOCK_FINAL			(W)		// Created Lock has been finalized for a purposes of scripting manipulation
+#define LOCK_NOMAGIC		(X)		// Magical based trigger script calls cannot edit the lock
+#define LOCK_NOSCRIPT		(Y)		// Non-magical based trigger script calls cannot edit the lock
 #define LOCK_CREATED		(Z)		// Lock was created by a script, so allows full alter exit manipulation
 
 typedef struct lock_state_data {
-    long key_vnum;
+    WNUM_LOAD key_load;
+    WNUM key_wnum;
     int pick_chance;		// 0 = impossible (normally), 100 trivial
     int flags;
-    LLIST *keys;			// Handled by other entities, not owned by lock state
+    LLIST *special_keys;	// Handled by other entities, not owned by lock state
 } LOCK_STATE;
 
 
@@ -7335,10 +7348,12 @@ struct gq_mob_data
 {
     GQ_MOB_DATA *next;
 
-    long vnum;
+    WNUM_LOAD vnum_load;
+    WNUM vnum_wnum;
     int class; /* 1, 2, 3, 4 */
     bool group; /* group mob? */
-    long obj; /* what obj vnum to repop with? */
+    WNUM_LOAD obj_load; /* what obj to repop with? */
+    WNUM obj_wnum;
     int count; /* how many in the game? */
     int max; /* max to repop */
 };
@@ -7347,7 +7362,8 @@ struct gq_obj_data
 {
     GQ_OBJ_DATA *next;
 
-    long vnum;
+    WNUM_LOAD vnum_load;
+    WNUM vnum_wnum;
 
     int qp_reward;
     int prac_reward;
@@ -8066,7 +8082,7 @@ extern  const           long            food_table[];
 extern  const   struct  rep_type	rating_table    [];
 extern  const   struct  map_exit_type map_exit_table    [];
 extern  const   struct  rank_type	rank_table      [];
-extern	const	struct	class_type	class_table	[MAX_CLASS];
+extern	struct	class_type	class_table	[MAX_CLASS];
 extern	const	struct	sub_class_type	sub_class_table [];
 extern	const	struct	weapon_type	weapon_table	[];
 extern	const	struct	weapon_type	ranged_weapon_table	[];
@@ -8094,7 +8110,7 @@ extern  const   struct  group_type      group_table	[MAX_GROUP];
 extern          struct social_type      social_table	[MAX_SOCIALS];
 extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
-extern  const   struct  newbie_eq_type  newbie_eq_table [];
+extern  struct  newbie_eq_type  newbie_eq_table [];
 extern  const   struct  toxin_type      toxin_table     [MAX_TOXIN];
 extern  const   struct  herb_type       herb_table      [MAX_HERB];
 extern const    struct  script_type     script_type_table [];
@@ -10117,7 +10133,8 @@ void ship_set_move_steps(SHIP_DATA *ship);
 bool lockstate_functional(LOCK_STATE *lock);
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);
 
-SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum);
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, WNUM wnum);
+bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key);
 void extract_special_key(OBJ_DATA *obj);
 void resolve_special_key(OBJ_DATA *obj);
 

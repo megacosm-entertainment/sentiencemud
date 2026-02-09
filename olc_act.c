@@ -1363,9 +1363,9 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
     if (!str_cmp(command, "key"))
     {
-        if (arg[0] == '\0' || !is_number(arg))
+        if (arg[0] == '\0')
         {
-            send_to_char("Syntax:  [direction] key [vnum]\n\r", ch);
+            send_to_char("Syntax:  [direction] key [uid#vnum | #vnum | vnum]\n\r", ch);
             return false;
         }
 
@@ -1375,28 +1375,37 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
             return false;
         }
 
-value = atoi(arg);
+        WNUM wnum;
+        AREA_DATA *context = strchr(arg, '#') ? ch->in_room->area : NULL;
 
-if (!get_obj_index_global(value))
-{
-    send_to_char("REdit:  Item doesn't exist.\n\r", ch);
-    return false;
-}
+        if (!parse_widevnum(arg, context, &wnum))
+        {
+            send_to_char("Invalid vnum format.\n\r", ch);
+            return false;
+        }
 
-if (get_obj_index_global(atol(argument))->item_type != ITEM_KEY)
+        OBJ_INDEX_DATA *pObj = wnum.pArea ?
+            get_obj_index(wnum.pArea, wnum.vnum) :
+            get_obj_index_global(wnum.vnum);
+
+        if (!pObj)
         {
             send_to_char("REdit:  Item doesn't exist.\n\r", ch);
             return false;
         }
 
-        if (get_obj_index_global(atol(argument))->item_type != ITEM_KEY)
+        if (pObj->item_type != ITEM_KEY)
         {
             send_to_char("REdit:  Key doesn't exist.\n\r", ch);
             return false;
         }
 
-        pRoom->exit[door]->door.lock.key_vnum =
-        pRoom->exit[door]->door.rs_lock.key_vnum = atol(arg);
+        pRoom->exit[door]->door.lock.key_load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+        pRoom->exit[door]->door.lock.key_load.vnum = wnum.vnum;
+        pRoom->exit[door]->door.lock.key_wnum = wnum;
+        pRoom->exit[door]->door.rs_lock.key_load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+        pRoom->exit[door]->door.rs_lock.key_load.vnum = wnum.vnum;
+        pRoom->exit[door]->door.rs_lock.key_wnum = wnum;
 
         send_to_char("Exit key set.\n\r", ch);
         return true;

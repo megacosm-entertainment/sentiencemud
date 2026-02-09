@@ -1043,7 +1043,8 @@ void do_put(CHAR_DATA *ch, char *argument)
                 i = 0;
                 for (key = container->contains; key != NULL; key = key->next_content)
                 {
-                    if (obj->pIndexData->vnum == key->pIndexData->vnum)
+                    if (obj->pIndexData->vnum == key->pIndexData->vnum &&
+                        obj->pIndexData->area == key->pIndexData->area)
                     {
                         act("$p is already on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR, NULL, NULL);
                         return;
@@ -1068,7 +1069,7 @@ void do_put(CHAR_DATA *ch, char *argument)
         }
 
         /* Orb of Shadows makes 1 item perm cursed */
-        if (container->pIndexData->vnum == OBJ_VNUM_CURSED_ORB)
+        if (container->pIndexData == get_reserved_obj_index("OBJ_VNUM_CURSED_ORB"))
         {
             if (obj->item_type == ITEM_CONTAINER)
             {
@@ -1134,7 +1135,7 @@ void do_put(CHAR_DATA *ch, char *argument)
     {
         /* Put all/all.<obj> <container> */
         if (container->item_type == ITEM_KEYRING ||
-            container->pIndexData->vnum == OBJ_VNUM_CURSED_ORB)
+            container->pIndexData == get_reserved_obj_index("OBJ_VNUM_CURSED_ORB"))
         {
             act("You can only put items in $p one at a time.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
@@ -8624,14 +8625,14 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
  * is_extra_damage_relic_in_room - Check for extra damage relic
  *
  * @param room  Room to check
- * @return true if OBJ_VNUM_RELIC_EXTRA_DAMAGE is present
+ * @return true if relic of power is present
  */
 bool is_extra_damage_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-    if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE)
+    if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE"))
     {
         return true;
      }
@@ -8644,14 +8645,14 @@ bool is_extra_damage_relic_in_room(ROOM_INDEX_DATA *room)
  * is_extra_xp_relic_in_room - Check for extra XP relic
  *
  * @param room  Room to check
- * @return true if OBJ_VNUM_RELIC_EXTRA_XP is present
+ * @return true if relic of knowledge is present
  */
 bool is_extra_xp_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-    if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_EXTRA_XP)
+    if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_XP"))
     {
         return true;
      }
@@ -8663,14 +8664,14 @@ bool is_extra_xp_relic_in_room(ROOM_INDEX_DATA *room)
  * is_hp_regen_relic_in_room - Check for HP regen relic
  *
  * @param room  Room to check
- * @return true if OBJ_VNUM_RELIC_HP_REGEN is present
+ * @return true if relic of health is present
  */
 bool is_hp_regen_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-    if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_HP_REGEN)
+    if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_RELIC_HP_REGEN"))
     {
         return true;
      }
@@ -8683,14 +8684,14 @@ bool is_hp_regen_relic_in_room(ROOM_INDEX_DATA *room)
  * is_mana_regen_relic_in_room - Check for mana regen relic
  *
  * @param room  Room to check
- * @return true if OBJ_VNUM_RELIC_MANA_REGEN is present
+ * @return true if relic of magic is present
  */
 bool is_mana_regen_relic_in_room(ROOM_INDEX_DATA *room)
 {
     OBJ_DATA *obj;
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-    if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_MANA_REGEN)
+    if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_RELIC_MANA_REGEN"))
     {
         return true;
      }
