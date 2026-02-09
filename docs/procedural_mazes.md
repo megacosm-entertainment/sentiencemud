@@ -173,96 +173,146 @@ The enhanced dungeon system will support two primary instancing models, controll
 
 ## 4. Data File Creation (Conceptual JSON)
 
-New JSON files will define the blueprint sections and dungeon configurations.
+**IMPORTANT NOTE:** Blueprints, blueprint sections, and dungeons are now *area-scoped* and are serialized directly within their respective area's main JSON file (e.g., `PoA.json` or `geldmaze.json`). They do not exist as separate top-level files or in dedicated `area/blueprints/` or `area/dungeons/` folders.
+
+These definitions will be embedded as JSON arrays within the overall area definition.
 
 ### 4.1. Blueprint Sections for Mazes
 
-These files define the characteristics of the maze sections themselves. They would typically reside in the `area/blueprints/` directory.
+These define the characteristics of the maze sections themselves. They would be part of the `blueprint_sections` array within an area's JSON.
 
-#### 4.1.1. `area/blueprints/geldmaze_section.json` (Geldoff's Maze)
+#### 4.1.1. Geldoff's Maze Blueprint Section (within `geldmaze_area.json`)
 
-This section defines the dynamic characteristics of Geldoff's Maze.
+This section defines the dynamic characteristics of Geldoff's Maze. The specific `vnum` values for `MazeTemplate` should refer to existing room `vnum`s that define the "Within a Misty Maze" description and general room properties.
 
 ```json
-#SECTION <new_vnum_for_geldmaze_section>
-Name Geldoff's Misty Maze Section~
-Description A procedurally generated misty maze.~
-Type BSTYPE_MAZE
-MazeW 10
-MazeH 10
-Recall <existing_recall_vnum>
-MazeTemplate 100 300001 // Weight 100, use room vnum 300001 template
-MazeFixedRoom 1 1 300001 1 // Example: Fixed starting room (1,1)
-#-SECTION
+// Example of how this would appear within geldmaze_area.json
+{
+  "blueprint_sections": [
+    {
+      "vnum": <new_vnum_for_geldmaze_section>,
+      "name": "Geldoff's Misty Maze Section",
+      "description": "A procedurally generated misty maze.",
+      "type": "maze",
+      "flags": [],
+      "maze_w": 10,
+      "maze_h": 10,
+      "recall_room": "<area_uid_of_this_area>#<existing_recall_vnum>",
+      "maze_templates": [
+        { "weight": 100, "vnum": 300001 } // Use room vnum 300001 as the template for all rooms
+      ],
+      "maze_fixed_rooms": [
+        { "x": 1, "y": 1, "vnum": 300001, "connected": true } // Fix starting room (1,1)
+      ],
+      "links": [
+        // Define exit links if needed for section connections
+      ]
+    }
+  ],
+  // ... other area data (rooms, mobiles, objects, etc.)
+}
 ```
 
-#### 4.1.2. `area/blueprints/pyramid_level_X_section.json` (Pyramid of the Abyss Levels)
+#### 4.1.2. Pyramid of the Abyss Level Blueprint Sections (within `pyramid_area.json`)
 
-Five similar sections would be created, one for each level, using dimensions from `maze/maze.h` and room templates from the original `.are` files.
+Five similar sections would be created, one for each level (1-5), embedded within the `pyramid_area.json`. Each would specify its unique `maze_w`, `maze_h`, and `maze_templates` rooms.
 
-**Example for Level 1:**
+**Example for Level 1 (within `pyramid_area.json`):**
 ```json
-#SECTION <new_vnum_for_pyramid_level_1_section>
-Name Pyramid of the Abyss Level 1 Section~
-Type BSTYPE_MAZE
-MazeW 14
-MazeH 5
-Recall 150000
-MazeTemplate 33 150000 // Dark Tunnel
-MazeTemplate 33 150001 // Damp Room
-MazeTemplate 34 150002 // Sudden End
-MazeFixedRoom 1 1 150000 1 // Fixed starting room
-#-SECTION
+// Example of a blueprint section for Pyramid Level 1
+{
+  "blueprint_sections": [
+    {
+      "vnum": <new_vnum_for_pyramid_level_1_section>,
+      "name": "Pyramid of the Abyss Level 1 Section",
+      "description": "The first level of the dark pyramid maze.",
+      "comments": "Dynamically generated level 1 of the Pyramid of the Abyss.",
+      "type": "maze",
+      "flags": [],
+      "maze_w": 14, // From maze.h level_table
+      "maze_h": 5,  // From maze.h level_table
+      "recall_room": "<area_uid_of_this_area>#150000", // A general recall point for this level
+      "maze_templates": [
+        { "weight": 33, "vnum": 150000 }, // Dark Tunnel
+        { "weight": 33, "vnum": 150001 }, // Damp Room
+        { "weight": 34, "vnum": 150002 }  // Sudden End
+      ],
+      "maze_fixed_rooms": [
+        { "x": 1, "y": 1, "vnum": 150000, "connected": true } // Fixed starting room (1,1)
+      ]
+    },
+    // ... blueprint sections for Level 2, 3, 4, 5 ...
+  ],
+  // ... other area data
+}
 ```
+*(Repeat for levels 2-5, adjusting `maze_w`, `maze_h`, `recall_room`, and `maze_templates` vnums accordingly based on the values in `maze/maze.h` and the original `.are` files.)*
 
 ### 4.2. Dungeon Definitions for Mazes
 
-These files define how the blueprint sections are used to construct full dungeons.
+These define how the blueprint sections are used to construct full dungeons. They would be part of the `dungeons` array within an area's main JSON file.
 
-#### 4.2.1. `area/dungeons/geldmaze.json` (Geldoff's Maze Dungeon)
+#### 4.2.1. Geldoff's Maze Dungeon (within `geldmaze_area.json`)
 
 This defines Geldoff's Maze as a solo instance. The `DUNGEON_SOLO_INSTANCE` flag is key.
 
 ```json
-#DUNGEON <new_vnum_for_geldmaze_dungeon>
-Name Geldoff's Misty Maze~
-Description A magical misty maze, inhabited by Geldoff the Warlock.~
-Flags DUNGEON_SOLO_INSTANCE // This makes it an on-demand, private instance
-Entry <existing_entry_room_vnum>
-Exit <existing_exit_room_vnum>
-ZoneOut <destination_vnum>~
-#STATICLEVEL 1
-Floor <area_uid_of_blueprint_section>#<vnum_of_geldmaze_section>
-#-DUNGEON
+// Example of a dungeon definition for Geldoff's Maze
+{
+  "dungeons": [
+    {
+      "vnum": <new_vnum_for_geldmaze_dungeon>,
+      "name": "Geldoff's Misty Maze",
+      "description": "A magical misty maze, inhabited by Geldoff the Warlock.",
+      "flags": ["solo_instance"], // Flag as an on-demand, private instance
+      "entry_room": "<area_uid_of_this_area>#<existing_entry_room_vnum>",
+      "exit_room": "<area_uid_of_this_area>#<existing_exit_room_vnum>",
+      "zone_out": "<destination_vnum>~",
+      "floors": [
+        "<area_uid_of_this_area>#<vnum_of_geldmaze_section>" // Link to the blueprint section
+      ]
+    }
+  ],
+  // ... other area data
+}
 ```
 
-#### 4.2.2. `area/dungeons/pyramid_of_the_abyss.json` (Pyramid of the Abyss Dungeon)
+#### 4.2.2. Pyramid of the Abyss Dungeon (within `pyramid_area.json`)
 
-This defines the Pyramid as a shared dungeon. The `DUNGEON_SHARED` flag is key.
+This defines the Pyramid as a shared, multi-level dungeon. The `DUNGEON_SHARED` flag is key.
 
 ```json
-#DUNGEON <new_vnum_for_pyramid_dungeon>
-Name The Pyramid of the Abyss~
-Description A multi-level, procedurally generated pyramid dungeon.~
-Flags DUNGEON_SHARED // This makes it a persistent, shared instance
-Entry <existing_entry_room_vnum>
-Exit <existing_exit_room_vnum>
-ZoneOut <destination_vnum>~
-#STATICLEVEL 1
-Floor <area_uid_of_blueprint_section>#<vnum_of_pyramid_level_1_section>
-#STATICLEVEL 2
-Floor <area_uid_of_blueprint_section>#<vnum_of_pyramid_level_2_section>
-#STATICLEVEL 3
-Floor <area_uid_of_blueprint_section>#<vnum_of_pyramid_level_3_section>
-#STATICLEVEL 4
-Floor <area_uid_of_blueprint_section>#<vnum_of_pyramid_level_4_section>
-#STATICLEVEL 5
-Floor <area_uid_of_blueprint_section>#<vnum_of_pyramid_level_5_section>
-#STATICEXIT "level_1_down"
-From 1 1 5 // From floor 1, exit 5
-To 1 2 4   // To floor 2, entrance 4
-// ... additional STATICEXIT entries to link all levels ...
-#-DUNGEON
+// Example of a dungeon definition for Pyramid of the Abyss
+{
+  "dungeons": [
+    {
+      "vnum": <new_vnum_for_pyramid_dungeon>,
+      "name": "The Pyramid of the Abyss",
+      "description": "A multi-level, procedurally generated pyramid dungeon.",
+      "flags": ["shared"], // Flag as a persistent, shared instance
+      "entry_room": "<area_uid_of_this_area>#<existing_entry_room_vnum>",
+      "exit_room": "<area_uid_of_this_area>#<existing_exit_room_vnum>",
+      "zone_out": "<destination_vnum>~",
+      "floors": [
+        "<area_uid_of_this_area>#<vnum_of_pyramid_level_1_section>",
+        "<area_uid_of_this_area>#<vnum_of_pyramid_level_2_section>",
+        "<area_uid_of_this_area>#<vnum_of_pyramid_level_3_section>",
+        "<area_uid_of_this_area>#<vnum_of_pyramid_level_4_section>",
+        "<area_uid_of_this_area>#<vnum_of_pyramid_level_5_section>"
+      ],
+      "special_exits": [
+        {
+          "name": "level_1_down",
+          "mode": "static",
+          "from": [ { "weight": 1, "level": 1, "door": 5 } ], // From floor 1, exit 5
+          "to": [ { "weight": 1, "level": 2, "door": 4 } ]    // To floor 2, entrance 4
+        }
+        // ... additional special_exits entries to link all levels ...
+      ]
+    }
+  ],
+  // ... other area data
+}
 ```
 
 ## 5. Cleanup (Post-Implementation)

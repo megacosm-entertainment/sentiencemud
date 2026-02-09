@@ -1,7 +1,7 @@
 # Plan: Maze Layout Type & Shared Dungeon Backport
 
 **Date:** February 7, 2026
-**Status:** Draft for Review
+**Status:** Draft for Review (Updated for Area-Scoped JSON)
 **Source:** Backport from `src_20_dev` with adaptations for current production codebase
 
 ---
@@ -40,6 +40,7 @@
 | `BSTYPE_MAZE` | `merc.h:8137+`, `blueprint.c:1569+` | Full maze generation with DFS algorithm |
 | Maze data structures | `merc.h` | `MAZE_WEIGHTED_ROOM`, `MAZE_FIXED_ROOM` |
 | `DUNGEON_SHARED` flag | `merc.h:8437` | Single shared instance per dungeon index |
+| `DUNGEON_SOLO_INSTANCE` flag | `merc.h` | New flag for on-demand, player-owned instances |
 | Group management | `merc.h:8569-8575` | `min_group`, `max_group`, `max_players`, `death_release` |
 | Dungeon lifecycle flags | `merc.h:8429-8434` | `FAILED`, `COMMENCED`, `GROUP_COMMENCE`, `FAILURE_ON_WIPE`, `FAILURE_ON_EMPTY` |
 | Script: `dungeoncommence` | `script_commands.c` | Initiates a dungeon encounter |
@@ -143,9 +144,10 @@ Add to the existing `DUNGEON_*` flag block:
 #define DUNGEON_FAILURE_ON_WIPE     (I)     /* Failure when all players die in boss encounter */
 #define DUNGEON_FAILURE_ON_EMPTY    (J)     /* Failure if commenced and everyone leaves */
 #define DUNGEON_SHARED              (Y)     /* One instance for all players */
+#define DUNGEON_SOLO_INSTANCE       (X)     /* On-demand, player-owned instance with idle timeout */
 ```
 
-Note: Production currently uses `(E)` for `DUNGEON_SCRIPTED_LEVELS` and dev uses `(F)`. Need to reconcile — dev shifted flags up one position. Production has `(A)-(E)` and `(Z)` used. The above assignments use the next available bits `(F)-(J)` and `(Y)`.
+Note: Production currently uses `(E)` for `DUNGEON_SCRIPTED_LEVELS` and dev uses `(F)`. Need to reconcile — dev shifted flags up one position. Production has `(A)-(E)` and `(Z)` used. The above assignments use the next available bits `(F)-(J)` and `(Y)`, `(X)`.
 
 ### 3F. Death Release Constants
 
@@ -203,25 +205,25 @@ Backport `blueprint_section_generate_maze()` from `src_20_dev/blueprint.c:1569-1
 
 ## 5. Shared vs Solo Instance Behavior
 
-### Solo/Party Instances (Default — no `DUNGEON_SHARED`)
+### Solo/Party Instances (`DUNGEON_SOLO_INSTANCE` flag set)
 
-This is the existing production behavior. Each player or group gets their own dungeon:
+This model supports on-demand, player-owned dungeon instances with idle timeouts.
 
 ```
-Player A enters → create_dungeon() → new dungeon, A is owner
-Player B (in A's group) enters → find_dungeon_byplayer(leader=A) → joins A's dungeon
-Player C (solo) enters → create_dungeon() → separate new dungeon, C is owner
+Player A enters → spawn_dungeon_player() → new dungeon, A is owner
+Player B (in A's group) enters → spawn_dungeon_player() → joins A's dungeon
+Player C (solo) enters → spawn_dungeon_player() → separate new dungeon, C is owner
 ```
 
-**Use case:** Geldoff's Maze — each player/group gets a unique maze instance
+**Use case:** Geldoff's Maze — each player/group gets a unique maze instance. The dungeon idles out and is destroyed once all owners leave.
 
 ### Shared Instances (`DUNGEON_SHARED` flag set)
 
-One instance exists per dungeon index. All players share it:
+One instance exists per dungeon index. All players share it.
 
 ```
-Player A enters → create_dungeon() → new dungeon (checks DUNGEON_SHARED, none exists yet)
-Player B enters → find_dungeon_byplayer() → finds existing shared dungeon → joins it
+Player A enters → spawn_dungeon_player() → new dungeon (checks DUNGEON_SHARED, none exists yet)
+Player B enters → spawn_dungeon_player() → finds existing shared dungeon → joins it
 Player C enters → same → joins same dungeon
 ```
 
@@ -233,25 +235,25 @@ if (IS_SET(dng->flags, DUNGEON_SHARED) || dungeon_isowner_player(dng, ch))
 
 For shared dungeons, *any* player matches because the `DUNGEON_SHARED` check bypasses ownership.
 
-**Use case:** Planes of Agony — one shared 5-floor maze that everyone enters
+**Use case:** Planes of Agony — one shared 5-floor maze that everyone enters. This dungeon typically persists until a server reboot or explicit immortal intervention.
 
-### Group Management (New Fields)
+### Group Management (New Fields in `DUNGEON_INDEX_DATA`)
 
 | Field | Purpose | Example |
 |-------|---------|---------|
-| `min_group` | Minimum party size to enter | PoA might require 2+ |
-| `max_group` | Maximum party size | PoA might cap at 6 |
-| `max_players` | Total players allowed simultaneously | Shared PoA might allow 20 |
-| `death_release` | What happens when you die | PoA: `DEATH_RELEASE_TO_FLOOR` |
+| `min_group` | Minimum group size (excl. pets/mounts) to enter, 0 = no minimum | PoA might require 2+ |
+| `max_group` | Maximum group size (excl. pets/mounts) allowed in the dungeon, 0 = unlimited | PoA might cap at 6 |
+| `max_players` | Maximum total players allowed simultaneously in dungeon, 0 = unlimited | Shared PoA might allow 20 |
+| `death_release` | How player deaths are handled (e.g., return to start, release to checkpoint) | PoA: `DEATH_RELEASE_TO_FLOOR` |
 
-### Commence System (`DUNGEON_GROUP_COMMENCE`)
+### Commence System (`DUNGEON_GROUP_COMMENCE` flag set)
 
 For dungeons that require a minimum group size before "starting":
 
-1. Players enter, dungeon exists but hasn't commenced
-2. When `min_group` players are present, dungeon auto-commences (or script calls `dungeoncommence`)
+1. Players enter, dungeon exists but hasn't commenced.
+2. When `min_group` players are present, dungeon auto-commences (or a script explicitly calls `dungeoncommence`).
 3. `TRIG_DUNGEON_COMMENCED` fires — scripts can spawn bosses, start timers, etc.
-4. Late arrivals can still join (up to `max_players`)
+4. Late arrivals can still join (up to `max_players`).
 
 ---
 
@@ -277,7 +279,7 @@ For dungeons that require a minimum group size before "starting":
 
 ### 6C. Enhanced `spawndungeon`
 
-The dev version has a richer signature:
+The dev version has a richer signature, which should be backported:
 
 ```
 spawndungeon $PLAYER <widevnum> floor <#> $ROOM_VAR
@@ -291,7 +293,7 @@ Production currently only supports `<vnum> <floor>`. Enhancement adds:
 
 ### 6D. Blueprint/Dungeon Configuration Script Commands (For Scripted Layouts)
 
-These are used inside `TRIG_BLUEPRINT_SCHEMATIC` and `TRIG_DUNGEON_SCHEMATIC` triggers to dynamically configure layouts at instance creation time:
+These commands, found in `src_20_dev`, are used inside `TRIG_BLUEPRINT_SCHEMATIC` and `TRIG_DUNGEON_SCHEMATIC` triggers to dynamically configure layouts at instance creation time:
 
 | Command | Trigger Context | Purpose |
 |---------|----------------|---------|
@@ -417,134 +419,205 @@ Both editors should use `widevnum_string_*()` for any room/vnum references displ
 
 ## 8. JSON Serialization
 
+**IMPORTANT NOTE:** Blueprints, blueprint sections, and dungeons are now *area-scoped* and are serialized directly within their respective area's main JSON file (e.g., `PoA.json` or `geldmaze.json`). They do not exist as separate top-level files or in dedicated `area/blueprints/` or `area/dungeons/` folders.
+
+These definitions will be embedded as JSON arrays within the overall area definition.
+
 ### 8A. Blueprint Section — Maze Data
 
-Extend `json_area_serialize_blueprint_section()` and its deserializer in `json_area.c`:
+Extend `json_area_serialize_blueprint_section()` and its deserializer in `src/io/json/json_area.c`. The `blueprint_sections` array will contain objects like:
 
 ```json
 {
   "vnum": 100,
-  "name": "PoA Floor 1 Maze",
-  "type": 2,
-  "flags": 0,
-  "maze": {
-    "width": 10,
-    "height": 8,
-    "templates": [
-      { "weight": 50, "room": "923#1234" },
-      { "weight": 30, "room": "923#1235" },
-      { "weight": 20, "room": "923#1236" }
-    ],
-    "fixed_rooms": [
-      { "x": 1, "y": 1, "room": "923#5000", "connected": true },
-      { "x": 10, "y": 8, "room": "923#5001", "connected": true },
-      { "x": 5, "y": 4, "room": "923#5002", "connected": false }
-    ],
-    "recall": { "x": 1, "y": 1 }
-  }
+  "name": "PoA Floor 1 Maze Section",
+  "description": "The first level of the dark pyramid maze.",
+  "type": "maze",
+  "flags": [],
+  "maze_w": 14,
+  "maze_h": 5,
+  "recall_room": "923#150000",
+  "maze_templates": [
+    { "weight": 33, "vnum": 150000 },
+    { "weight": 33, "vnum": 150001 },
+    { "weight": 34, "vnum": 150002 }
+  ],
+  "maze_fixed_rooms": [
+    { "x": 1, "y": 1, "vnum": 150000, "connected": true }
+  ],
+  "links": [
+    { "name": "down", "room": "923#150000", "door": 5 }
+  ]
 }
 ```
+Room references (`vnum` in `maze_templates`, `maze_fixed_rooms`, `recall_room`, and `links`) should use widevnum format (`auid#vnum`) for cross-area safety, or bare vnums if they refer to rooms within the current area.
 
-Room references use widevnum format (`auid#vnum`) for cross-area safety.
+### 8B. Blueprint Definition — Dynamic Layout
 
-### 8B. Dungeon Index — New Fields
-
-Extend dungeon index serialization:
+Blueprints would be embedded in the `blueprints` array within an area's JSON.
 
 ```json
 {
   "vnum": 1,
-  "name": "Planes of Agony",
-  "flags": "shared",
+  "name": "Pyramid of the Abyss Floor 1 Blueprint",
+  "description": "Blueprint for first level of PoA.",
+  "area_who": 27,
+  "repop": 10,
+  "flags": [],
+  "mode": "static", // Assuming static mode for direct section references
+  "sections": [
+    { "vnum": "923#<vnum_of_poa_level_1_section>" }
+  ],
+  "special_rooms": [
+    { "name": "PoA Entrance", "section": 1, "room": "923#150000" }
+  ],
+  "static": {
+    "recall": 1, // Ordinal of blueprint section for recall
+    "entries": [
+      { "name": "pyramid_entry", "section": 1, "link": 1 } // Link 1 of section 1
+    ],
+    "exits": [
+      { "name": "pyramid_exit", "section": 1, "link": 1 } // Link 1 of section 1
+    ],
+    "layout": [
+      // Static links between sections (if multiple sections in a blueprint)
+    ]
+  },
+  "progs": []
+}
+```
+
+### 8C. Dungeon Index — New Fields and Embedded Structure
+
+Dungeon indexes would be embedded in the `dungeons` array within an area's JSON.
+
+```json
+{
+  "vnum": 1,
+  "name": "Planes of Agony Dungeon Index",
+  "description": "The overarching dungeon definition for PoA.",
+  "area_who": 27,
+  "repop": 10,
+  "flags": ["shared", "group_commence"],
   "min_group": 2,
   "max_group": 6,
   "max_players": 20,
-  "death_release": "floor",
+  "death_release": "to_floor",
   "entry_room": "923#15000",
   "exit_room": "923#15001",
-  "floors": [ ... ],
-  "levels": [ ... ]
+  "floors": [
+    "923#<vnum_of_poa_floor_1_blueprint>",
+    "923#<vnum_of_poa_floor_2_blueprint>",
+    "923#<vnum_of_poa_floor_3_blueprint>",
+    "923#<vnum_of_poa_floor_4_blueprint>",
+    "923#<vnum_of_poa_floor_5_blueprint>"
+  ],
+  "levels": [
+    { "mode": "static", "floor": 1 },
+    { "mode": "static", "floor": 2 }
+    // ... define all 5 levels as static references to floors array
+  ],
+  "special_rooms": [
+    { "name": "PoA Boss Room", "level": 5, "room": "923#<vnum_of_boss_template_room>" }
+  ],
+  "special_exits": [
+    {
+      "name": "level_1_down",
+      "mode": "static",
+      "from": [ { "weight": 1, "level": 1, "door": 5 } ], // From floor 1 (ordinal 1), exit 5 (down)
+      "to": [ { "weight": 1, "level": 2, "door": 4 } ]    // To floor 2 (ordinal 2), exit 4 (up)
+    }
+    // ... define other inter-level exits
+  ]
 }
 ```
+`flags` uses string array, `death_release` uses string lookup. Room references use widevnum format.
 
 ---
 
 ## 9. Maze Area Migration Plan
 
-### 9A. Geldoff's Maze (`geldmaze.are`, UID 1299, vnums 300001-300500)
+### 9A. Geldoff's Maze (Legacy UID 1299, vnums 300001-300500)
 
-**Target:** Solo/party dungeon with one `BSTYPE_MAZE` floor
+**Target:** Solo/party dungeon instance.
 
-1. **Create blueprint area** with template rooms extracted from geldmaze
-   - Identify distinct room "types" (corridors, dead ends, intersections, special rooms)
-   - Create template rooms with appropriate descriptions, sector types, room flags
-   - Mark templates as `ROOM_BLUEPRINT`
+1. **Identify Area:** Determine the primary area JSON file where Geldoff's Maze entities will reside (e.g., `geldmaze_area.json`).
 
-2. **Create blueprint section** (`BSTYPE_MAZE`)
-   - Grid size based on current maze dimensions (analyze room count — ~500 rooms suggests roughly 20x25 or similar)
-   - Weighted templates reflecting the distribution of room types
-   - Fixed rooms for any special locations (entrance, boss room, treasure rooms)
+2. **Extract Template Rooms:**
+   - Analyze `geldmaze.are` to identify distinct room descriptions/layouts.
+   - Create generic room `vnum`s (e.g., 300001) in `geldmaze_area.json` for "Within a Misty Maze", marking them with `ROOM_BLUEPRINT` flag. These rooms should have no pre-existing lateral exits in their template.
 
-3. **Create blueprint** referencing the section
-   - Single section, single entry, single exit
-   - Recall point at entrance
+3. **Define Blueprint Section (within `geldmaze_area.json`)**
+   - Create a blueprint section (`type: "maze"`) with appropriate `vnum`.
+   - Grid size: Analyze original `geldmaze.are` room count to determine `maze_w` and `maze_h`.
+   - `maze_templates`: Reference the newly created template room `vnum`s, weighted.
+   - `maze_fixed_rooms`: If any specific rooms need to be at fixed coordinates (e.g., entrance), define them here.
 
-4. **Create dungeon index**
-   - One floor (the maze blueprint)
-   - No `DUNGEON_SHARED` flag (solo/party)
-   - `death_release`: `DEATH_RELEASE_NORMAL` (standard death behavior)
+4. **Define Blueprint (within `geldmaze_area.json`)**
+   - Create a blueprint object, linking to the maze blueprint section defined above.
+   - Configure single section, single entry, single exit.
+   - Recall point for the instance.
 
-5. **Update `spell_maze`** combat path:
+5. **Define Dungeon Index (within `geldmaze_area.json`)**
+   - Create a dungeon index object, linking to the blueprint created above.
+   - Set `flags: ["solo_instance"]`.
+   - `death_release`: `normal`.
+   - `entry_room` and `exit_room`: point to the template rooms used for the instance's entry/exit.
+
+6. **Update `spell_maze`** combat path:
    ```c
    // Old:
    area = find_area("Geldoff's Maze");
    while(!(room = get_room_index(area, number_range(area->min_vnum, area->max_vnum))));
 
-   // New:
-   ROOM_INDEX_DATA *room = spawn_dungeon_player(victim, geldmaze_wnum, 1);
+   // New: (assuming geldmaze_dungeon_wnum is the WNUM for the new dungeon)
+   ROOM_INDEX_DATA *room = spawn_dungeon_player(victim, geldmaze_dungeon_wnum, 1);
    ```
 
-6. **Deprecate `geldmaze.are`** once migration is validated
+7. **Deprecate `geldmaze.are`** once migration is validated.
 
-### 9B. Planes of Agony (`maze1-5.are`, UIDs 1294-1298, vnums 150000-150349)
+### 9B. Planes of Agony (Legacy UIDs 1294-1298, vnums 150000-150349)
 
-**Target:** Shared 5-floor dungeon with `BSTYPE_MAZE` floors
+**Target:** Shared 5-floor dungeon with `BSTYPE_MAZE` floors.
 
-1. **Create blueprint areas** for each maze level's template rooms
-   - Each maze-level area has ~70 rooms — extract distinct templates
-   - Progressively harder rooms at higher levels (different descriptions, mobs, objects)
+1. **Identify Area:** Determine the primary area JSON file (e.g., `pyramid_area.json`).
 
-2. **Create 5 blueprint sections** (`BSTYPE_MAZE`)
-   - Each section uses templates from its corresponding maze-level area
-   - Grid sizes: analyze current room counts (70 rooms each → ~8x9 or similar)
-   - Fixed rooms for stairways up/down, special encounters
+2. **Extract Template Rooms:**
+   - For each of the 5 `maze[1-5].are` files, extract distinct template room `vnum`s (e.g., 150000 for level 1).
+   - Create these generic rooms in `pyramid_area.json`, marking them `ROOM_BLUEPRINT`.
 
-3. **Create 5 blueprints** (one per floor)
-   - Each references its maze section
-   - Entry/exit links for `PREVFLOOR`/`NEXTFLOOR` connections
+3. **Define 5 Blueprint Sections (within `pyramid_area.json`)**
+   - One for each level, `type: "maze"`.
+   - Grid sizes (`maze_w`, `maze_h`) based on `maze.h` `level_table`.
+   - `maze_templates`: Reference template rooms specific to each level.
+   - `maze_fixed_rooms`: For stairways up/down, and special encounters.
 
-4. **Create dungeon index**
-   - 5 levels, one blueprint per level
-   - `DUNGEON_SHARED` flag set
-   - Entry room: static world location where players enter PoA
-   - Exit room: static world location where players emerge
-   - `min_group`: 0 (anyone can enter)
-   - `max_players`: reasonable cap (e.g., 50)
-   - `death_release`: `DEATH_RELEASE_TO_FLOOR`
+4. **Define 5 Blueprints (within `pyramid_area.json`)**
+   - One blueprint for each floor, referencing its corresponding blueprint section.
+   - Define `entries` and `exits` for inter-level linking.
 
-5. **Update `spell_maze`** non-combat path:
+5. **Define Dungeon Index (within `pyramid_area.json`)**
+   - Create a dungeon index object linking to the 5 blueprints.
+   - Set `flags: ["shared"]`.
+   - `min_group`: 0 (or a specific value like 2-3).
+   - `max_players`: reasonable cap (e.g., 50).
+   - `death_release`: `to_floor` (return to current floor's start).
+   - `entry_room` and `exit_room`: existing static world locations for PoA entrance/exit.
+   - `special_exits`: Define explicit links between blueprint exits using the `special_exits` array (e.g., level 1 down links to level 2 up).
+
+6. **Update `spell_maze`** non-combat path:
    ```c
    // Old:
    area = find_area("Maze-Level1");
    while(!(room = get_room_index(area, number_range(area->min_vnum, area->max_vnum))));
 
-   // New:
-   ROOM_INDEX_DATA *room = spawn_dungeon_player(victim, poa_wnum, 1);
+   // New: (assuming poa_dungeon_wnum is the WNUM for the new dungeon)
+   ROOM_INDEX_DATA *room = spawn_dungeon_player(victim, poa_dungeon_wnum, 1);
    ```
 
-6. **Add scripts** for floor progression, mob spawning, etc.
+7. **Add scripts** (within `pyramid_area.json` or linked scripts) for floor progression, mob spawning, etc.
 
-7. **Deprecate `maze[1-5].are`** once migration is validated
+8. **Deprecate `maze[1-5].are`** once migration is validated.
 
 ---
 
@@ -554,7 +627,7 @@ Extend dungeon index serialization:
 - Add maze structs to `merc.h` (`MAZE_WEIGHTED_ROOM`, `MAZE_FIXED_ROOM`, `MAZE_CELL`)
 - Add maze fields to `BLUEPRINT_SECTION`
 - Add `BSTYPE_MAZE` constant and table entry
-- Add dungeon flags (`DUNGEON_SHARED`, `DUNGEON_FAILED`, `DUNGEON_COMMENCED`, etc.)
+- Add dungeon flags (`DUNGEON_SHARED`, `DUNGEON_SOLO_INSTANCE`, `DUNGEON_FAILED`, `DUNGEON_COMMENCED`, etc.)
 - Add dungeon index fields (`min_group`, `max_group`, `max_players`, `death_release`)
 - Add `DEATH_RELEASE_*` constants
 - Add `TRIG_DUNGEON_COMMENCED` trigger type
@@ -572,11 +645,12 @@ Extend dungeon index serialization:
 **Risk:** MEDIUM — new code path in instance generation, needs testing
 
 ### Phase 3: Shared Dungeon Logic
-- Update `find_dungeon_byplayer()` to check `DUNGEON_SHARED` flag
-- Update `create_dungeon()` to return existing shared dungeon if one exists
+- Update `find_dungeon_byplayer()` to check `DUNGEON_SHARED` and `DUNGEON_SOLO_INSTANCE` flags
+- Update `create_dungeon()` to return existing shared dungeon if one exists, or create a new solo one.
 - Add group size validation in `spawn_dungeon_player()` (`min_group`, `max_group`, `max_players` checks)
 - Add `dungeon_commence()` and `dungeon_failed()` functions
 - Add death release handling (integrate with existing death/resurrection code)
+- Implement idle timeout and cleanup for `DUNGEON_SOLO_INSTANCE` dungeons.
 
 **Risk:** MEDIUM — modifies dungeon entry flow, needs careful testing with existing dungeons
 
@@ -590,11 +664,10 @@ Extend dungeon index serialization:
 **Risk:** LOW — editor-only changes, no gameplay impact
 
 ### Phase 5: JSON Serialization
-- Extend `json_area_serialize_blueprint_section()` for maze data
-- Extend `json_area_deserialize_blueprint_section()` to parse maze data
-- Extend dungeon index serialization for new fields
-- Use WNUM_LOAD format for room references in maze templates/fixed rooms
-- Add `resolve_wnum_load()` calls in `fix_rooms()` for maze room references
+- Extend `json_area_serialize_blueprint_section()` and `json_area_deserialize_blueprint_section()` in `src/io/json/json_area.c` for maze data.
+- Extend `json_area_serialize_blueprint()` and `json_area_deserialize_blueprint()` for blueprint dynamic layouts.
+- Extend `json_area_serialize_dungeon()` and `json_area_deserialize_dungeon()` for new dungeon index fields.
+- Ensure all room/object references use widevnum (`auid#vnum`) format in JSON.
 
 **Risk:** LOW — extends existing serialization patterns
 
@@ -611,21 +684,20 @@ Extend dungeon index serialization:
 
 ### Phase 7: Maze Area Migration
 - Analyze existing maze areas to extract template rooms
-- Create blueprint areas with template rooms
-- Configure blueprint sections, blueprints, and dungeon indexes via OLC
-- Update `spell_maze` to use `spawn_dungeon_player()`
-- Test maze generation produces playable, connected mazes
-- Test shared dungeon behavior for PoA
-- Test solo/party behavior for Geldoff's Maze
+- Create blueprint areas (JSON) with template rooms embedded.
+- Configure blueprint sections, blueprints, and dungeon indexes via OLC, embedded within the appropriate area JSONs.
+- Update `spell_maze` to use `spawn_dungeon_player()` with widevnums for the new dungeon indexes.
+- Test maze generation produces playable, connected mazes.
+- Test shared dungeon behavior for PoA.
+- Test solo/party behavior for Geldoff's Maze.
 
 **Risk:** HIGH — replacing live game content, needs thorough testing on dev/test server
 
 ### Phase 8: Cleanup
-- Update `return_from_maze()` to work with instance-based mazes (eject from dungeon)
-- Update `maze_time_left` timer to use dungeon idle system
-- Remove hardcoded area name lookups from `spell_maze`
-- Mark old maze .are files as deprecated
-- Update area.lst if maze areas are removed
+- Update `return_from_maze()` to work with instance-based mazes (eject from dungeon).
+- Update `maze_time_left` timer to use dungeon idle system.
+- Remove hardcoded area name lookups from `spell_maze`.
+- Remove old maze `.are` files and related scripts.
 
 **Risk:** MEDIUM — touches existing maze spell flow
 
@@ -637,19 +709,19 @@ Extend dungeon index serialization:
 
 | File | Changes |
 |------|---------|
-| `merc.h` | New structs, new fields on existing structs, new constants |
-| `blueprint.c` | Maze generation algorithm, clone_blueprint_section maze path |
-| `dungeon.c` | Shared dungeon logic, commence/failure, group validation |
+| `merc.h` | New structs, new fields on existing structs, new constants, `DUNGEON_SOLO_INSTANCE` |
+| `blueprint.c` | Maze generation algorithm, `clone_blueprint_section` maze path, maze file I/O for blueprint sections |
+| `dungeon.c` | Shared/solo dungeon logic, commence/failure, group validation, idle timeout |
 | `mem.c` | Allocation/deallocation for new structs |
-| `tables.c` | `BSTYPE_MAZE` table entry, dungeon flag entries, death release table, trigger entries |
+| `tables.c` | `BSTYPE_MAZE` table entry, dungeon flag entries (including `solo_instance`), death release table, trigger entries |
 | `scripts.h` | New trigger types, new command declarations |
-| `script_commands.c` | New script commands, enhanced spawndungeon |
+| `script_commands.c` | New script commands (`dungeoncommence`, `dungeonfailure`, `instancefailure`), enhanced `spawndungeon` |
 | `script_ifc.c` | New IFCHECKs |
-| `io/json/json_area.c` | Maze serialization/deserialization |
+| `src/io/json/json_area.c` | **Crucially update for embedded JSON serialization/deserialization of Blueprint Sections, Blueprints, and Dungeons.** |
 | `editors/blueprints/bsedit.c` | Maze OLC subcommands |
 | `editors/dungeons/dngedit.c` | Group/shared/death-release OLC commands |
-| `magic_astral.c` | Updated spell_maze to use dungeon system |
-| `handler.c` | Updated return_from_maze for instance-based mazes |
+| `magic_astral.c` | Updated `spell_maze` to use dungeon system |
+| `handler.c` | Updated `return_from_maze` for instance-based mazes |
 | `update.c` | Maze timer integration with dungeon idle |
 | `Makefile` | Update if new .c files added |
 | `CMakeLists.txt` | Update if new .c files added |
@@ -658,9 +730,7 @@ Extend dungeon index serialization:
 
 | File | Changes |
 |------|---------|
-| `area/blueprints.are` (or new .json) | New blueprint template rooms for mazes |
-| `data/world/blueprints.dat` → `.json` | Maze blueprint section definitions |
-| `data/world/dungeons.dat` → `.json` | Shared dungeon index with new fields |
+| `area/<area_name>.json` | Existing area JSON files will now embed `blueprint_sections` and `dungeons` arrays. |
 
 ---
 
@@ -671,24 +741,26 @@ Extend dungeon index serialization:
 - Maze with fixed rooms (connected and isolated)
 - Maze template weight distribution
 - Shared dungeon creation and lookup
+- Solo dungeon creation and ownership
 - Group size validation
+- JSON serialization/deserialization of new maze and dungeon fields.
 
 ### Integration Tests
-- Full instance creation with BSTYPE_MAZE section
-- Multi-floor dungeon with maze floors and PREVFLOOR/NEXTFLOOR connections
-- Shared dungeon: multiple players entering same dungeon
-- Solo dungeon: separate instances per player/group
-- Script-driven dungeon spawning via `spawndungeon`
-- Dungeon commence/completion/failure lifecycle
-- JSON round-trip: serialize maze blueprint → deserialize → verify identical
+- Full instance creation with `BSTYPE_MAZE` section.
+- Multi-floor dungeon with maze floors and `PREVFLOOR`/`NEXTFLOOR` connections.
+- Shared dungeon (`DUNGEON_SHARED`): multiple players entering same dungeon.
+- Solo dungeon (`DUNGEON_SOLO_INSTANCE`): separate instances per player/group, verifies idle timeout and destruction.
+- Script-driven dungeon spawning via `spawndungeon`.
+- Dungeon commence/completion/failure lifecycle.
+- JSON round-trip: serialize area with embedded blueprints/dungeons → deserialize → verify identical structure and data.
 
 ### Gameplay Tests (Manual, on dev server)
-- Walk through generated mazes — verify connectivity, no dead unreachable areas
-- Cast maze spell — verify player lands in instance, timeout ejects correctly
-- Multiple players in shared PoA dungeon — verify same instance
-- Group enters Geldoff's Maze — verify solo instance
-- Death in dungeon — verify death_release behavior
-- Dungeon idle timeout — verify cleanup after all players leave
+- Walk through generated mazes — verify connectivity, no dead unreachable areas.
+- Cast maze spell — verify player lands in instance, timeout ejects correctly.
+- Multiple players in shared PoA dungeon — verify same instance.
+- Group enters Geldoff's Maze — verify solo instance and proper cleanup.
+- Death in dungeon — verify `death_release` behavior.
+- Dungeon idle timeout — verify cleanup after all players leave a solo instance.
 
 ---
 
@@ -704,7 +776,7 @@ Extend dungeon index serialization:
 
 5. **Scripted layout commands priority:** The `layout`/`links`/`levels` commands are complex. Should they be deferred to a later phase if the initial maze areas use static (non-scripted) configuration?
 
-6. **`.dat` → `.json` migration:** Should the blueprint/dungeon data format migration to JSON happen as part of this work, or separately? Currently `blueprints.dat` and `dungeons.dat` are binary format.
+6. **`.dat` → `.json` migration:** This plan *assumes* that blueprint/dungeon data will be stored directly in area JSON files. The migration of existing `blueprints.dat` and `dungeons.dat` (binary formats) to this embedded JSON format is a prerequisite or a concurrent task.
 
 ---
 
