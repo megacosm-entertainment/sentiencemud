@@ -364,8 +364,8 @@ Static analysis for catching bugs, undefined behavior, and style issues:
 # Run on a single file (requires compile_commands.json)
 clang-tidy myfile.c
 
-# Generate compile_commands.json from CMake
-cd src/.build && cmake --preset debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# compile_commands.json is generated automatically during CMake configuration.
+# After running ./build or ./config, find it at src/.build/compile_commands.json
 ```
 
 ## License

@@ -54,3 +54,4 @@ build/
 CLAUDE.md
 AGENTS.md
 src.code-workspace
+clang-tidy-report.txt

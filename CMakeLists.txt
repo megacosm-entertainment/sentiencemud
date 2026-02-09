@@ -9,6 +9,9 @@ project(sent)
 option(BUILD_TESTS "Build unit tests" OFF)
 option(ENABLE_COVERAGE "Enable code coverage instrumentation (gcov/lcov)" OFF)
 
+# Always generate compile_commands.json for clang-tidy and IDE integration
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if(ENABLE_COVERAGE)
     if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
         message(WARNING "Coverage is best supported with GCC. Results may vary with other compilers.")
