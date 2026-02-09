@@ -2486,7 +2486,7 @@ void bust_a_prompt(CHAR_DATA *ch)
                 if (ch->in_wilds)
                     sprintf(buf2, "(%ld, %ld)", ch->in_room->x, ch->in_room->y);
                 else
-                    sprintf(buf2, "%ld", ch->in_room->vnum);
+                    sprintf(buf2, "%s", widevnum_string_room(ch->in_room, ch->in_room->area));
             } else
                 sprintf(buf2, " ");
         } else

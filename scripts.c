@@ -5798,7 +5798,21 @@ static bool __attribute__ ((unused)) match_target_name(register char *a, registe
 }
 
 
-int test_vnumname_trigger(char *name, int vnum, int type,
+/**
+ * trigger_match_vnum - Check if a trigger's numeric phrase matches an entity
+ *
+ * For widevnum triggers (auid#vnum format): matches both area and vnum.
+ * For legacy bare vnum triggers: matches vnum only (any area, backward compat).
+ */
+static inline bool trigger_match_vnum(PROG_LIST *prg, AREA_DATA *entity_area, int vnum)
+{
+    if (prg->trig_is_widevnum) {
+        return (prg->trig_wnum.pArea == entity_area && prg->trig_wnum.vnum == (long)vnum);
+    }
+    return match_equal(prg->trig_number, vnum);
+}
+
+int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type,
             CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
             CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
             OBJ_DATA *obj1, OBJ_DATA *obj2,
@@ -5838,7 +5852,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                 // Loop Level 2
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                     if (is_trigger_type(prg->trig_type,type)) {
-                        if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
+                        if ( (prg->numeric && trigger_match_vnum(prg, entity_area, vnum)) ||
                             (!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
                             ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
                             if( ret != PRET_NOSCRIPT ) {
@@ -5863,7 +5877,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
             // Loop Level 1:
             while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                 if (is_trigger_type(prg->trig_type,type)) {
-                    if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
+                    if ( (prg->numeric && trigger_match_vnum(prg, entity_area, vnum)) ||
                         (!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
                         ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                             if( ret != PRET_NOSCRIPT ) {
@@ -5892,7 +5906,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                     // Loop Level 2
                     while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                         if (is_trigger_type(prg->trig_type,type)) {
-                            if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
+                            if ( (prg->numeric && !prg->trig_is_widevnum && match_equal(prg->trig_number, 0)) ||
                                 (!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
                                 ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
                                 if( ret != PRET_NOSCRIPT ) {
@@ -5917,7 +5931,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                 // Loop Level 1:
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                     if (is_trigger_type(prg->trig_type,type)) {
-                        if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
+                        if ( (prg->numeric && !prg->trig_is_widevnum && match_equal(prg->trig_number, 0)) ||
                             (!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
                             ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                                 if( ret != PRET_NOSCRIPT) {
@@ -5952,7 +5966,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                 iterator_start(&pit, token->pIndexData->progs[slot]);
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                     if (is_trigger_type(prg->trig_type,type)) {
-                        if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
+                        if ( (prg->numeric && trigger_match_vnum(prg, entity_area, vnum)) ||
                             (!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
                             ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                             if( ret != PRET_NOSCRIPT) {
@@ -5980,7 +5994,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
             iterator_start(&pit, obj->pIndexData->progs[slot]);
             while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                 if (is_trigger_type(prg->trig_type,type)) {
-                    if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
+                    if ( (prg->numeric && trigger_match_vnum(prg, entity_area, vnum)) ||
                         (!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
                         ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                             if( ret != PRET_NOSCRIPT) {
@@ -6007,7 +6021,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                     iterator_start(&pit, token->pIndexData->progs[slot]);
                     while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                         if (is_trigger_type(prg->trig_type,type)) {
-                            if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
+                            if ( (prg->numeric && !prg->trig_is_widevnum && match_equal(prg->trig_number, 0)) ||
                                 (!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
                                 ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                                 if( ret != PRET_NOSCRIPT) {
@@ -6035,7 +6049,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                 iterator_start(&pit, obj->pIndexData->progs[slot]);
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                     if (is_trigger_type(prg->trig_type,type)) {
-                        if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
+                        if ( (prg->numeric && !prg->trig_is_widevnum && match_equal(prg->trig_number, 0)) ||
                             (!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
                             ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                                 if( ret != PRET_NOSCRIPT) {
@@ -6079,7 +6093,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                 iterator_start(&pit, token->pIndexData->progs[slot]);
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                     if (is_trigger_type(prg->trig_type,type)) {
-                        if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
+                        if ( (prg->numeric && trigger_match_vnum(prg, entity_area, vnum)) ||
                             (!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
                             ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                             if( ret != PRET_NOSCRIPT) {
@@ -6105,7 +6119,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
             iterator_start(&pit, source->progs->progs[slot]);
             while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                 if (is_trigger_type(prg->trig_type,type)) {
-                    if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
+                    if ( (prg->numeric && trigger_match_vnum(prg, entity_area, vnum)) ||
                         (!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
                         ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                             if( ret != PRET_NOSCRIPT) {
@@ -6130,7 +6144,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                     iterator_start(&pit, token->pIndexData->progs[slot]);
                     while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                         if (is_trigger_type(prg->trig_type,type)) {
-                            if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
+                            if ( (prg->numeric && !prg->trig_is_widevnum && match_equal(prg->trig_number, 0)) ||
                                 (!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
                                 ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                                 if( ret != PRET_NOSCRIPT ) {
@@ -6156,7 +6170,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
                 iterator_start(&pit, source->progs->progs[slot]);
                 while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
                     if (is_trigger_type(prg->trig_type,type)) {
-                        if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
+                        if ( (prg->numeric && !prg->trig_is_widevnum && match_equal(prg->trig_number, 0)) ||
                             (!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
                             ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
                                 if( ret != PRET_NOSCRIPT) {
@@ -6188,7 +6202,8 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 int p_give_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
             CHAR_DATA *ch, OBJ_DATA *dropped, int type)
 {
-    return test_vnumname_trigger(dropped->name, dropped->pIndexData->vnum, type,
+    return test_vnumname_trigger(dropped->name, dropped->pIndexData->vnum,
+                    dropped->pIndexData->area, type,
                     mob, obj, room, ch, NULL, NULL, dropped, NULL, NULL);
 }
 
@@ -7154,7 +7169,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-                MOB_INDEX_DATA *mob_index = get_mob_index_global(arg->d.num);
+                MOB_INDEX_DATA *mob_index = get_mob_index_from_info(info, arg->d.num);
                 if(!mob_index) return;
 
                 vch = get_char_world_index(NULL, mob_index);
@@ -7411,7 +7426,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-                OBJ_INDEX_DATA *obj_index = get_obj_index_global(arg->d.num);
+                OBJ_INDEX_DATA *obj_index = get_obj_index_from_info(info, arg->d.num);
 
                 obj = get_obj_world_index(NULL, obj_index, false);
             }
@@ -8804,6 +8819,63 @@ AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info)
     return info->block->script->area;
 }
 
+/**
+ * get_script_from_info - Look up a script using the calling script's area context
+ *
+ * Tries the script's own area first, then falls back to global lookup.
+ */
+SCRIPT_DATA *get_script_from_info(SCRIPT_VARINFO *info, long vnum, int type)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    SCRIPT_DATA *script = area ? get_script_index(area, vnum, type) : NULL;
+    if (!script) script = get_script_index_global(vnum, type);
+    return script;
+}
+
+/**
+ * get_mob_index_from_info - Look up a mob index using the calling script's area context
+ */
+MOB_INDEX_DATA *get_mob_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    MOB_INDEX_DATA *mob = area ? get_mob_index(area, vnum) : NULL;
+    if (!mob) mob = get_mob_index_global(vnum);
+    return mob;
+}
+
+/**
+ * get_obj_index_from_info - Look up an obj index using the calling script's area context
+ */
+OBJ_INDEX_DATA *get_obj_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    OBJ_INDEX_DATA *obj = area ? get_obj_index(area, vnum) : NULL;
+    if (!obj) obj = get_obj_index_global(vnum);
+    return obj;
+}
+
+/**
+ * get_room_index_from_info - Look up a room index using the calling script's area context
+ */
+ROOM_INDEX_DATA *get_room_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    ROOM_INDEX_DATA *room = area ? get_room_index(area, vnum) : NULL;
+    if (!room) room = get_room_index_global(vnum);
+    return room;
+}
+
+/**
+ * get_token_index_from_info - Look up a token index using the calling script's area context
+ */
+TOKEN_INDEX_DATA *get_token_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    TOKEN_INDEX_DATA *tok = area ? get_token_index(area, vnum) : NULL;
+    if (!tok) tok = get_token_index_global(vnum);
+    return tok;
+}
+
 // OLOAD $VNUM|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
@@ -8981,7 +9053,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
     info->progs->lastreturn = 1;
 
     obj->script_created = true;
-    obj->created_script_vnum = info->block->script->vnum;
+    obj->created_script_load.vnum = info->block->script->vnum;
     obj->created_script_type = info->block->script->type;
 
     return obj;

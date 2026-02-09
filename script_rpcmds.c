@@ -208,12 +208,22 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
-    if (!arg[0] || !is_number(arg)) {
+    if (!arg[0]) {
         send_to_char("Rpstat where?\n\r", ch);
         return;
     }
 
-    if (!(room = get_room_index_global(atoi(arg)))) {
+    {
+        WNUM wnum = { NULL, 0 };
+        parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum);
+
+        if (wnum.pArea)
+            room = get_room_index(wnum.pArea, wnum.vnum);
+        else
+            room = get_room_index_global(wnum.vnum);
+    }
+
+    if (!room) {
         send_to_char("No such room.\n\r", ch);
         return;
     }
@@ -579,7 +589,7 @@ SCRIPT_CMD(do_rpcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_RPROG))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, PRG_RPROG))) {
         pbugf(LOG_SCRIPTS, "RpCall: invalid prog from vnum %d.", info->room->vnum);
         return;
     }
@@ -4272,7 +4282,7 @@ SCRIPT_CMD(do_rpinput)
     default: return;
     }
 
-    if(vnum < 1 || !get_script_index_global(vnum, PRG_RPROG)) return;
+    if(vnum < 1 || !get_script_from_info(info, vnum, PRG_RPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
         pbugf(LOG_SCRIPTS,"RpInput - Error in parsing.",0);
@@ -5560,7 +5570,7 @@ SCRIPT_CMD(do_rpxcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
         pbugf(LOG_SCRIPTS,"RpCall: invalid prog from vnum %d.", info->room->vnum);
         return;
     }

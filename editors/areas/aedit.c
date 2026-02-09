@@ -127,8 +127,8 @@ AEDIT(aedit_show)
         flag_string(place_flags, pArea->place_flags));
     add_buf(buffer, buf);
 
-    sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea, pArea->airship_land_spot) == NULL ? "{XNone" :
-        get_room_index(pArea, pArea->airship_land_spot)->name, pArea->airship_land_spot);
+    sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea, pArea->airship_land_load.vnum) == NULL ? "{XNone" :
+        get_room_index(pArea, pArea->airship_land_load.vnum)->name, pArea->airship_land_load.vnum);
     add_buf(buffer, buf);
 
 
@@ -167,7 +167,7 @@ AEDIT(aedit_show)
 
         while(temp != NULL)
     {
-        sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
+        sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_load.vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
         add_buf(buffer, buf);
             temp = temp->next;
     }
@@ -348,7 +348,7 @@ AEDIT(aedit_airshipland)
         return false;
     }
 
-    pArea->airship_land_spot = room_wnum.vnum;
+    pArea->airship_land_load.vnum = room_wnum.vnum;
     sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
         pArea->name, room_wnum.vnum, pRoom->name);
     send_to_char(buf, ch);
@@ -1117,10 +1117,10 @@ AEDIT(aedit_postoffice)
     return false;
     }
 
-    sprintf(buf, "Set post office of %s to %s(%ld)\n\r", pArea->name, room->name, vnum);
+    sprintf(buf, "Set post office of %s to %s(%s)\n\r", pArea->name, room->name, widevnum_string_room(room, pArea));
     send_to_char(buf, ch);
 
-    pArea->post_office = vnum;
+    pArea->post_office_load.vnum = vnum;
     return true;
 }
 
@@ -1173,8 +1173,15 @@ AEDIT (aedit_addaprog)
     list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-    list->trig_number		= atoi(list->trig_phrase);
-    list->numeric		= is_number(list->trig_phrase);
+    if (is_widevnum_format(phrase)) {
+        list->numeric = true;
+        list->trig_is_widevnum = true;
+        parse_widevnum_load(phrase, &list->trig_load);
+        list->trig_number = (int)list->trig_load.vnum;
+    } else {
+        list->trig_number = atoi(list->trig_phrase);
+        list->numeric = is_number(list->trig_phrase);
+    }
 
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);

@@ -485,8 +485,8 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "Recall %ld\n", 	area->recall.id[0]);
     fprintf(fp, "Open %d\n", 	  	area->open);
     fprintf(fp, "Repop %d\n",		area->repop);
-    fprintf(fp, "PostOffice %ld\n",	area->post_office);
-    fprintf(fp, "AirshipLand %ld\n", 	area->airship_land_spot);
+    fprintf(fp, "PostOffice %ld\n",	area->post_office_load.vnum);
+    fprintf(fp, "AirshipLand %ld\n", 	area->airship_land_load.vnum);
     fprintf(fp, "Description %s~\n", fix_string(area->description));
     if(area->comments)
         fprintf(fp, "Comments %s~\n", fix_string(area->comments));
@@ -902,10 +902,10 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     fprintf(fp, "Material %s~\n", mob->material[0] == '\0' ? "Unknown" : mob->material);
     if (mob->corpse_type)
     fprintf(fp, "CorpseType %ld\n", (long int)mob->corpse_type);
-    if (mob->corpse)
-        fprintf(fp, "CorpseVnum %ld\n", mob->corpse);
-    if (mob->zombie)
-        fprintf(fp, "CorpseZombie %ld\n", mob->zombie);
+    if (mob->corpse_load.vnum)
+        fprintf(fp, "CorpseVnum %ld\n", mob->corpse_load.vnum);
+    if (mob->zombie_load.vnum)
+        fprintf(fp, "CorpseZombie %ld\n", mob->zombie_load.vnum);
     if(mob->comments)
         fprintf(fp, "Comments %s~\n", fix_string(mob->comments));
 
@@ -1539,6 +1539,11 @@ AREA_DATA *read_area_new(FILE *fp)
                     apr->trig_number = tsn;
                     apr->numeric = true;
 
+                } else if (is_widevnum_format(apr->trig_phrase)) {
+                    apr->numeric = true;
+                    apr->trig_is_widevnum = true;
+                    parse_widevnum_load(apr->trig_phrase, &apr->trig_load);
+                    apr->trig_number = (int)apr->trig_load.vnum;
                 } else {
                     apr->trig_number = atoi(apr->trig_phrase);
                     apr->numeric = is_number(apr->trig_phrase);
@@ -1555,7 +1560,7 @@ AREA_DATA *read_area_new(FILE *fp)
         KEY("AreaWhoFlags",	dummy,	fread_number(fp));
         KEY("AreaWhoFlags2",	dummy,	fread_number(fp));
         KEY("AreaWho",		area->area_who,	fread_number(fp));
-        KEY("AirshipLand",	area->airship_land_spot, fread_number(fp));
+        KEY("AirshipLand",	area->airship_land_load.vnum, fread_number(fp));
         break;
 
         case 'B':
@@ -1592,7 +1597,7 @@ AREA_DATA *read_area_new(FILE *fp)
         break;
 
         case 'P':
-            KEY("PostOffice",	area->post_office,	fread_number(fp));
+            KEY("PostOffice",	area->post_office_load.vnum,	fread_number(fp));
         KEY("PlaceType",	area->place_flags,	fread_number(fp));
         break;
 
@@ -1674,7 +1679,7 @@ AREA_DATA *read_area_new(FILE *fp)
         // Handled after all areas are loaded, since there can be cross area handling
     }
 
-    if (!area->wilds_uid && area->airship_land_spot > 0)
+    if (!area->wilds_uid && area->airship_land_load.vnum > 0)
     {
         area->wilds_uid = 6;	// The overworld wilderness
     }
@@ -2281,6 +2286,11 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
                     rpr->trig_number = tsn;
                     rpr->numeric = true;
 
+                } else if (is_widevnum_format(rpr->trig_phrase)) {
+                    rpr->numeric = true;
+                    rpr->trig_is_widevnum = true;
+                    parse_widevnum_load(rpr->trig_phrase, &rpr->trig_load);
+                    rpr->trig_number = (int)rpr->trig_load.vnum;
                 } else {
                     rpr->trig_number = atoi(rpr->trig_phrase);
                     rpr->numeric = is_number(rpr->trig_phrase);
@@ -2469,8 +2479,8 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
         case 'C':
             KEYS("CreatorSig", mob->creator_sig,	fread_string(fp));
             KEY("CorpseType", mob->corpse_type,	fread_number(fp));
-            KEY("CorpseVnum", mob->corpse,	fread_number(fp));
-            KEY("CorpseZombie", mob->zombie,	fread_number(fp));
+            KEY("CorpseVnum", mob->corpse_load.vnum,	fread_number(fp));
+            KEY("CorpseZombie", mob->zombie_load.vnum,	fread_number(fp));
             KEY("Comments", mob->comments, fread_string(fp));
             break;
 
@@ -2556,6 +2566,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
                     mpr->trig_number = tsn;
                     mpr->numeric = true;
 
+                } else if (is_widevnum_format(mpr->trig_phrase)) {
+                    mpr->numeric = true;
+                    mpr->trig_is_widevnum = true;
+                    parse_widevnum_load(mpr->trig_phrase, &mpr->trig_load);
+                    mpr->trig_number = (int)mpr->trig_load.vnum;
                 } else {
                     mpr->trig_number = atoi(mpr->trig_phrase);
                     mpr->numeric = is_number(mpr->trig_phrase);
@@ -2851,12 +2866,15 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     opr->trig_number = tsn;
                     opr->numeric = true;
 
+                } else if (is_widevnum_format(opr->trig_phrase)) {
+                    opr->numeric = true;
+                    opr->trig_is_widevnum = true;
+                    parse_widevnum_load(opr->trig_phrase, &opr->trig_load);
+                    opr->trig_number = (int)opr->trig_load.vnum;
                 } else {
                     opr->trig_number = atoi(opr->trig_phrase);
                     opr->numeric = is_number(opr->trig_phrase);
                 }
-                opr->trig_number = atoi(opr->trig_phrase);
-                opr->numeric = is_number(opr->trig_phrase);
                 //SET_BIT(room->rprog_flags, rpr->trig_type);
 
                 if(!obj->progs) obj->progs = new_prog_bank();
@@ -3879,12 +3897,15 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
                     tpr->trig_number = tsn;
                     tpr->numeric = true;
 
+                } else if (is_widevnum_format(tpr->trig_phrase)) {
+                    tpr->numeric = true;
+                    tpr->trig_is_widevnum = true;
+                    parse_widevnum_load(tpr->trig_phrase, &tpr->trig_load);
+                    tpr->trig_number = (int)tpr->trig_load.vnum;
                 } else {
                     tpr->trig_number = atoi(tpr->trig_phrase);
                     tpr->numeric = is_number(tpr->trig_phrase);
                 }
-                tpr->trig_number = atoi(tpr->trig_phrase);
-                tpr->numeric = is_number(tpr->trig_phrase);
 
                 if(!token->progs) token->progs = new_prog_bank();
 
@@ -3948,7 +3969,7 @@ void save_area_trade( FILE *fp, AREA_DATA *pArea )
     fprintf( fp, "%ld\n", pTrade->max_qty );
     fprintf( fp, "%ld\n", pTrade->replenish_amount );
     fprintf( fp, "%ld\n", pTrade->replenish_time );
-    fprintf( fp, "%ld\n", pTrade->obj_vnum );
+    fprintf( fp, "%ld\n", pTrade->obj_load.vnum );
     }
 
     fprintf( fp, "#0\n\n\n\n" );

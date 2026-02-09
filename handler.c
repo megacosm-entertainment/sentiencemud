@@ -7121,7 +7121,19 @@ void token_to_char(TOKEN_DATA *token, CHAR_DATA *ch)
     token_to_char_ex(token, ch, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
 }
 
-TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count)
+/**
+ * get_token_list - Find a token in a list by vnum with optional area constraint
+ *
+ * When area is NULL, matches any token with the given vnum (legacy behavior).
+ * When area is non-NULL, only matches tokens from that specific area.
+ *
+ * @param tokens  Token list to search
+ * @param vnum    Token vnum to match
+ * @param area    Area constraint (NULL = match any area)
+ * @param count   Which occurrence to return (1 = first match)
+ * @return        Matching token or NULL
+ */
+TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, AREA_DATA *area, int count)
 {
     TOKEN_DATA *token;
     ITERATOR it;
@@ -7130,7 +7142,10 @@ TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count)
 
     iterator_start(&it, tokens);
     while( (token = (TOKEN_DATA*)iterator_nextdata(&it)) ) {
-        if( IS_VALID(token) && token->pIndexData && token->pIndexData->vnum == vnum && !--count )
+        if( IS_VALID(token) && token->pIndexData
+            && token->pIndexData->vnum == vnum
+            && (!area || token->pIndexData->area == area)
+            && !--count )
             break;
     }
     iterator_stop(&it);
@@ -7138,10 +7153,10 @@ TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count)
     return token;
 }
 
-/* finds a token on an object given the vnum */
-TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, int count)
+/* finds a token on a character given the vnum, optionally constrained to area */
+TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, AREA_DATA *area, int count)
 {
-    return get_token_list(ch->ltokens, vnum, count);
+    return get_token_list(ch->ltokens, vnum, area, count);
 }
 
 void token_from_obj(TOKEN_DATA *token)
@@ -7202,10 +7217,10 @@ void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj)
 }
 
 
-/* finds a token on a char given the vnum */
-TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, int count)
+/* finds a token on an object given the vnum, optionally constrained to area */
+TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, AREA_DATA *area, int count)
 {
-    return get_token_list(obj->ltokens, vnum, count);
+    return get_token_list(obj->ltokens, vnum, area, count);
 }
 
 void token_from_room(TOKEN_DATA *token)
@@ -7284,10 +7299,10 @@ void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room)
 }
 
 
-/* finds a token on a char given the vnum */
-TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, int count)
+/* finds a token on a room given the vnum */
+TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, AREA_DATA *area, int count)
 {
-    return get_token_list(room->ltokens, vnum, count);
+    return get_token_list(room->ltokens, vnum, area, count);
 }
 
 
@@ -9710,7 +9725,7 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
                 if( nextdest.room->wilds )
                     printf_to_char(ch, "visit: depth = %d, door = %d, Wilds = <%ld, %d, %d>\n\r", depth, door, nextdest.room->wilds->uid, nextdest.room->x, nextdest.room->y);
                 else
-                    printf_to_char(ch, "visit: depth = %d, door = %d, Room = <%ld>\n\r", depth, door, nextdest.room->vnum);
+                    printf_to_char(ch, "visit: depth = %d, door = %d, Room = <%s>\n\r", depth, door, widevnum_string_room(nextdest.room, ch->in_room->area));
             }*/
         } else {
 //			printf_to_char(ch, "visit: depth = %d, door = %d, Unloaded Wilds = <%d, %d>\n\r", depth, door, nextdest.wx, nextdest.wy);
@@ -12871,6 +12886,43 @@ bool parse_widevnum_load(const char *str, WNUM_LOAD *wload)
     }
 
     return (wload->vnum > 0);
+}
+
+/**
+ * is_widevnum_format - Check if a string is in widevnum format (auid#vnum)
+ *
+ * Returns true for strings like "923#1234" (digits, hash, digits).
+ * Returns false for bare numbers, names, or empty strings.
+ *
+ * @param str  String to check
+ * @return     true if string matches the widevnum format
+ */
+bool is_widevnum_format(const char *str)
+{
+    const char *p;
+
+    if (!str || !*str)
+        return false;
+
+    p = str;
+
+    // First part: digits (area UID)
+    if (!isdigit((unsigned char)*p))
+        return false;
+    while (isdigit((unsigned char)*p)) p++;
+
+    // Hash separator
+    if (*p != '#')
+        return false;
+    p++;
+
+    // Second part: digits (vnum)
+    if (!isdigit((unsigned char)*p))
+        return false;
+    while (isdigit((unsigned char)*p)) p++;
+
+    // Must be end of string
+    return (*p == '\0');
 }
 
 /**

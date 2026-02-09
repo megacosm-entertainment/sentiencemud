@@ -1074,10 +1074,10 @@ REDIT(redit_mreset)
     char_to_room(newmob, pRoom);
 //    if (HAS_TRIGGER_MOB(newmob, TRIG_REPOP))
     p_percent_trigger(newmob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-    sprintf(output, "%s (%ld) has been loaded and added to resets.\n\r"
+    sprintf(output, "%s (%s) has been loaded and added to resets.\n\r"
     "There will be a maximum of %ld loaded to this room.\n\r",
     capitalize(pMobIndex->short_descr),
-    pMobIndex->vnum,
+    widevnum_string_mobile(pMobIndex, pRoom->area),
     pReset->arg2);
     send_to_char(output, ch);
     act("$n has created $N!", ch, newmob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -1148,9 +1148,9 @@ REDIT(redit_oreset)
     newobj = create_object(pObjIndex, number_fuzzy(olevel), true);
     obj_to_room(newobj, pRoom);
 
-    sprintf(output, "%s (%ld) has been loaded and added to resets.\n\r",
+    sprintf(output, "%s (%s) has been loaded and added to resets.\n\r",
         capitalize(pObjIndex->short_descr),
-        pObjIndex->vnum);
+        widevnum_string_object(pObjIndex, pRoom->area));
     send_to_char(output, ch);
     }
     else
@@ -1176,12 +1176,16 @@ REDIT(redit_oreset)
     newobj->cost = 0;
     obj_to_obj(newobj, to_obj);
 
-    sprintf(output, "%s (%ld) has been loaded into "
-        "%s (%ld) and added to resets.\n\r",
-        capitalize(newobj->short_descr),
-        newobj->pIndexData->vnum,
-        to_obj->short_descr,
-        to_obj->pIndexData->vnum);
+    {
+        char wnum1[64];
+        strcpy(wnum1, widevnum_string_object(newobj->pIndexData, pRoom->area));
+        sprintf(output, "%s (%s) has been loaded into "
+            "%s (%s) and added to resets.\n\r",
+            capitalize(newobj->short_descr),
+            wnum1,
+            to_obj->short_descr,
+            widevnum_string_object(to_obj->pIndexData, pRoom->area));
+    }
     send_to_char(output, ch);
     }
     else
@@ -1207,9 +1211,9 @@ REDIT(redit_oreset)
     if (!IS_SET(pObjIndex->wear_flags, wear_bit(wear_loc)))
     {
         sprintf(output,
-            "%s (%ld) has wear flags: [%s]\n\r",
+            "%s (%s) has wear flags: [%s]\n\r",
             capitalize(pObjIndex->short_descr),
-            pObjIndex->vnum,
+            widevnum_string_object(pObjIndex, pRoom->area),
         flag_string(wear_flags, pObjIndex->wear_flags));
         send_to_char(output, ch);
         return false;
@@ -1274,13 +1278,17 @@ REDIT(redit_oreset)
     if (pReset->command == 'E')
         equip_char(to_mob, newobj, pReset->arg3.value);
 
-    sprintf(output, "%s (%ld) has been loaded "
-        "%s of %s (%ld) and added to resets.\n\r",
-        capitalize(pObjIndex->short_descr),
-        pObjIndex->vnum,
-        flag_string(wear_loc_strings, pReset->arg3.value),
-        to_mob->short_descr,
-        to_mob->pIndexData->vnum);
+    {
+        char wnum1[64];
+        strcpy(wnum1, widevnum_string_object(pObjIndex, pRoom->area));
+        sprintf(output, "%s (%s) has been loaded "
+            "%s of %s (%s) and added to resets.\n\r",
+            capitalize(pObjIndex->short_descr),
+            wnum1,
+            flag_string(wear_loc_strings, pReset->arg3.value),
+            to_mob->short_descr,
+            widevnum_string_mobile(to_mob->pIndexData, pRoom->area));
+    }
     send_to_char(output, ch);
     }
     else	/* Display Syntax */
@@ -1689,8 +1697,15 @@ REDIT (redit_addrprog)
     list->vnum            = atol(num);
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-    list->trig_number		= atoi(list->trig_phrase);
-    list->numeric		= is_number(list->trig_phrase);
+    if (is_widevnum_format(phrase)) {
+        list->numeric = true;
+        list->trig_is_widevnum = true;
+        parse_widevnum_load(phrase, &list->trig_load);
+        list->trig_number = (int)list->trig_load.vnum;
+    } else {
+        list->trig_number = atoi(list->trig_phrase);
+        list->numeric = is_number(list->trig_phrase);
+    }
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);
     list_appendlink(pRoom->progs->progs[slot], list);

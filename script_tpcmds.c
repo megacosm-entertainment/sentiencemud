@@ -282,24 +282,31 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
     }
 
     if (arg3[0] != '\0' && !id_lookup) {
-        vnum = atol(arg3);
+        WNUM wnum = { NULL, 0 };
+        parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum);
+        vnum = wnum.vnum;
 
-        if (get_token_index_global(vnum) == NULL) {
+        if (wnum.pArea) {
+            if (get_token_index(wnum.pArea, wnum.vnum) == NULL) {
+                send_to_char("That token vnum does not exist.\n\r", ch);
+                return;
+            }
+        } else if (get_token_index_global(wnum.vnum) == NULL) {
             send_to_char("That token vnum does not exist.\n\r", ch);
             return;
         }
 
-        if (victim && !(token = get_token_char(victim, vnum, count))) {
+        if (victim && !(token = get_token_char(victim, vnum, NULL, count))) {
             act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (object && !(token = get_token_obj(object, vnum, count))) {
+        if (object && !(token = get_token_obj(object, vnum, NULL, count))) {
             act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (room && !(token = get_token_room(room, vnum, count))) {
+        if (room && !(token = get_token_room(room, vnum, NULL, count))) {
             send_to_char("The room doesn't have that token.", ch);
             return;
         }
@@ -627,17 +634,17 @@ SCRIPT_CMD(do_tpadjust)
         default: break;
         }
 
-        if (vnum < 1 || !get_token_index_global(vnum)) {
+        if (vnum < 1 || !get_token_index_from_info(info, vnum)) {
             pbugf(LOG_SCRIPTS,"TpAdjust - invalid token vnum from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
         if(victim)
-            token = get_token_char(victim, vnum, count);
+            token = get_token_char(victim, vnum, NULL, count);
         else if(object)
-            token = get_token_obj(object, vnum, count);
+            token = get_token_obj(object, vnum, NULL, count);
         else if(room)
-            token = get_token_room(room, vnum, count);
+            token = get_token_room(room, vnum, NULL, count);
 
         if (!token) return;
     }
@@ -794,7 +801,7 @@ SCRIPT_CMD(do_tpcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_TPROG))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, PRG_TPROG))) {
         pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
         return;
     }
@@ -1319,21 +1326,21 @@ SCRIPT_CMD(do_tpgive)
     default: break;
     }
 
-    if (vnum < 1 || !(token_index = get_token_index_global(vnum))) {
+    if (vnum < 1 || !(token_index = get_token_index_from_info(info, vnum))) {
         pbugf(LOG_SCRIPTS,"TpGive - invalid token vnum from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     if (is_singular_token(token_index)) {
-        if (victim && get_token_char(victim, vnum, 1)) {
+        if (victim && get_token_char(victim, vnum, NULL, 1)) {
             pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to char %s",
                 token_index->name, token_index->vnum, HANDLE(victim));
             return;
-        } else if (object && get_token_obj(object, vnum, 1)) {
+        } else if (object && get_token_obj(object, vnum, NULL, 1)) {
             pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to object %s",
                 token_index->name, token_index->vnum, object->short_descr);
             return;
-        } else if (room && get_token_room(room, vnum, 1)) {
+        } else if (room && get_token_room(room, vnum, NULL, 1)) {
             pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to room %s",
                 token_index->name, token_index->vnum, room->name);
             return;
@@ -1417,11 +1424,11 @@ SCRIPT_CMD(do_tpjunk)
         }
 
         if(victim)
-            token = get_token_char(victim, vnum, count);
+            token = get_token_char(victim, vnum, NULL, count);
         else if(object)
-            token = get_token_obj(object, vnum, count);
+            token = get_token_obj(object, vnum, NULL, count);
         else if(room)
-            token = get_token_room(room, vnum, count);
+            token = get_token_room(room, vnum, NULL, count);
 
         if (!token) return;
     }
@@ -4774,7 +4781,7 @@ SCRIPT_CMD(do_tpinput)
     default: return;
     }
 
-    if(vnum < 1 || !get_script_index_global(vnum, PRG_TPROG)) return;
+    if(vnum < 1 || !get_script_from_info(info, vnum, PRG_TPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
         pbugf(LOG_SCRIPTS,"TpInput - Error in parsing from vnum %ld.", VNUM(info->token));
@@ -6070,7 +6077,7 @@ SCRIPT_CMD(do_tpxcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
         pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
         return;
     }
@@ -6860,9 +6867,9 @@ SCRIPT_CMD(do_tpscriptwait)
 
     if(!actor_mob && !actor_obj && !actor_token) return;
 
-    if(success < 1 || !get_script_index_global(success, prog_type)) return;
-    if(failure < 1 || !get_script_index_global(failure, prog_type)) return;
-    if(pulse > 0 && !get_script_index_global(pulse, prog_type)) return;
+    if(success < 1 || !get_script_from_info(info, success, prog_type)) return;
+    if(failure < 1 || !get_script_from_info(info, failure, prog_type)) return;
+    if(pulse > 0 && !get_script_from_info(info, pulse, prog_type)) return;
 
     wait = UMAX(wait, 1);
 
@@ -6881,9 +6888,9 @@ SCRIPT_CMD(do_tpscriptwait)
         mob->script_wait_id[0] = actor_token->id[0];
         mob->script_wait_id[1] = actor_token->id[1];
     }
-    mob->script_wait_success = get_script_index_global(success, prog_type);
-    mob->script_wait_failure = get_script_index_global(failure, prog_type);
-    mob->script_wait_pulse = (pulse > 0) ? get_script_index_global(pulse, prog_type) : NULL;
+    mob->script_wait_success = get_script_from_info(info, success, prog_type);
+    mob->script_wait_failure = get_script_from_info(info, failure, prog_type);
+    mob->script_wait_pulse = (pulse > 0) ? get_script_from_info(info, pulse, prog_type) : NULL;
 
     //printf_to_char(mob, "script_wait started: %d\n\r", wait);
 

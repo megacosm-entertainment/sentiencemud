@@ -616,7 +616,7 @@ SCRIPT_CMD(do_opcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_OPROG))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, PRG_OPROG))) {
         pbugf(LOG_SCRIPTS, "OpCall: invalid prog from vnum %d.", VNUM(info->obj));
         return;
     }
@@ -4617,7 +4617,7 @@ SCRIPT_CMD(do_opinput)
     default: return;
     }
 
-    if(vnum < 1 || !get_script_index_global(vnum, PRG_OPROG)) return;
+    if(vnum < 1 || !get_script_from_info(info, vnum, PRG_OPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
         pbugf(LOG_SCRIPTS, "OpInput - Error in parsing from vnum %ld.", VNUM(info->obj));
@@ -5912,7 +5912,7 @@ SCRIPT_CMD(do_opxcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
         pbugf(LOG_SCRIPTS, "OpCall: invalid prog from vnum %ld.", VNUM(info->obj));
         return;
     }
@@ -7110,9 +7110,9 @@ SCRIPT_CMD(do_opscriptwait)
 
     if(!actor_mob && !actor_obj && !actor_token) return;
 
-    if(success < 1 || !get_script_index_global(success, prog_type)) return;
-    if(failure < 1 || !get_script_index_global(failure, prog_type)) return;
-    if(pulse > 0 && !get_script_index_global(pulse, prog_type)) return;
+    if(success < 1 || !get_script_from_info(info, success, prog_type)) return;
+    if(failure < 1 || !get_script_from_info(info, failure, prog_type)) return;
+    if(pulse > 0 && !get_script_from_info(info, pulse, prog_type)) return;
 
     wait = UMAX(wait, 1);
 
@@ -7131,9 +7131,9 @@ SCRIPT_CMD(do_opscriptwait)
         mob->script_wait_id[0] = actor_token->id[0];
         mob->script_wait_id[1] = actor_token->id[1];
     }
-    mob->script_wait_success = get_script_index_global(success, prog_type);
-    mob->script_wait_failure = get_script_index_global(failure, prog_type);
-    mob->script_wait_pulse = (pulse > 0) ? get_script_index_global(pulse, prog_type) : NULL;
+    mob->script_wait_success = get_script_from_info(info, success, prog_type);
+    mob->script_wait_failure = get_script_from_info(info, failure, prog_type);
+    mob->script_wait_pulse = (pulse > 0) ? get_script_from_info(info, pulse, prog_type) : NULL;
 
     //printf_to_char(mob, "script_wait started: wait = %d\n\r", wait);
     //printf_to_char(mob, "script_wait started: success = %d\n\r", success);

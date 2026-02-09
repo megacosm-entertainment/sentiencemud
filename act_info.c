@@ -2055,8 +2055,8 @@ void do_area(CHAR_DATA *ch, char *argument)
 
     // One post office per area
             sprintf(buf, "{WPost Office              {X%s\n\r",
-                get_room_index(pArea, pArea->post_office) == NULL ? "None" :
-                get_room_index(pArea, pArea->post_office)->name);
+                get_room_index(pArea, pArea->post_office_wnum.vnum) == NULL ? "None" :
+                get_room_index(pArea, pArea->post_office_wnum.vnum)->name);
             send_to_char(buf, ch);
 
 
@@ -2117,10 +2117,10 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
                     room->area->anum, room->area->name,
                     room->source->vnum,room->id[0],room->id[1]);
             } else {
-                sprintf(buf, "{g[Room %ld]", room->vnum);
+                sprintf(buf, "{g[Room %s]", widevnum_string_room(room, ch->in_room->area));
             }
         } else {
-            sprintf(buf, "{G[Room %ld]", room->vnum);
+            sprintf(buf, "{G[Room %s]", widevnum_string_room(room, ch->in_room->area));
         }
 
         if( room->persist )
@@ -3370,7 +3370,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
         if (ch->in_wilds)
             sprintf(buf, "{YObvious exits from room at (%ld, %ld):{x\n\r", ch->in_room->x, ch->in_room->y);
         else
-            sprintf(buf, "{YObvious exits from room %ld:{x\n\r", ch->in_room->vnum);
+            sprintf(buf, "{YObvious exits from room %s:{x\n\r", widevnum_string_room(ch->in_room, ch->in_room->area));
     } else
         sprintf(buf, "{YObvious exits:{x\n\r");
 
@@ -3427,7 +3427,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
                     if(to_room->wilds)
                         sprintf(buf + strlen(buf), " ({Gwilds (%lu, %lu, %lu){x)\n\r", to_room->wilds->uid, to_room->x, to_room->y);
                     else
-                        sprintf(buf + strlen(buf), " ({Groom %ld{x)\n\r", to_room->vnum);
+                        sprintf(buf + strlen(buf), " ({Groom %s{x)\n\r", widevnum_string_room(to_room, ch->in_room->area));
                 } else
                     sprintf(buf + strlen(buf), "\n\r");
             }
@@ -3483,7 +3483,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
                     if(to_room->wilds)
                         sprintf(buf + strlen(buf), " ({Gwilds (%lu, %lu, %lu){x)\n\r", to_room->wilds->uid, to_room->x, to_room->y);
                     else
-                        sprintf(buf + strlen(buf), " ({Groom %ld{x)\n\r", to_room->vnum);
+                        sprintf(buf + strlen(buf), " ({Groom %s{x)\n\r", widevnum_string_room(to_room, ch->in_room->area));
                 } else
                     sprintf(buf + strlen(buf), "\n\r");
             }

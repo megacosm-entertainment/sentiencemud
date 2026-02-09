@@ -325,7 +325,7 @@ BSEDIT( bsedit_recall )
     }
 
     bs->recall_ref.load.vnum = vnum; bs->recall_ref.load.auid = bs->area ? bs->area->uid : 0; bs->recall_room = get_room_index(bs->area ? bs->area : get_system_area_fallback(), vnum);
-    sprintf(buf, "Recall set to %.30s (%ld)\n\r", room->name, vnum);
+    sprintf(buf, "Recall set to %.30s (%s)\n\r", room->name, widevnum_string_room(room, bs->area));
     send_to_char(buf, ch);
     return true;
 }

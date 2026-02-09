@@ -3058,7 +3058,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->script_created)
     {
         fprintf(fp, "Created_script_type %d\n", obj->created_script_type);
-        fprintf(fp, "Created_script_vnum %ld\n", obj->created_script_vnum);
+        fprintf(fp, "Created_script_vnum %ld\n", obj->created_script_load.vnum);
     }
 
     if (obj->creation_time)
@@ -3696,7 +3696,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
             if (!str_cmp(word, "Created_script_vnum"))
             {
-                obj->created_script_vnum = fread_number(fp);
+                obj->created_script_load.vnum = fread_number(fp);
                 obj->script_created = true;
                 fMatch = true;
                 break;

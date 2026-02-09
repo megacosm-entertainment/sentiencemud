@@ -3085,16 +3085,16 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_AREA_RECALL:
         arg->type = ENT_ROOM;
         arg->d.room = (arg->d.area && location_isset(&arg->d.area->recall)) ? location_to_room(&arg->d.area->recall) : NULL;
-    if (arg->d.area && arg->d.area->post_office > 0) {
-        AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office, NULL);
+    if (arg->d.area && arg->d.area->post_office_wnum.vnum > 0) {
+        AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office_wnum.vnum, NULL);
         if (!post_area) post_area = get_system_area_fallback();
-        arg->d.room = get_room_index(post_area, arg->d.area->post_office);
+        arg->d.room = get_room_index(post_area, arg->d.area->post_office_wnum.vnum);
     } else {
         arg->d.room = NULL;
     }
     case ENTITY_AREA_POSTOFFICE:
         arg->type = ENT_ROOM;
-        arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area, arg->d.area->post_office) : NULL;
+        arg->d.room = (arg->d.area && arg->d.area->post_office_wnum.vnum > 0) ? get_room_index(arg->d.area, arg->d.area->post_office_wnum.vnum) : NULL;
         break;
     case ENTITY_AREA_LOWERVNUM:
         arg->type = ENT_NUMBER;
@@ -6267,8 +6267,8 @@ void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code, BUFFER *
     case ESCAPE_LI:
         if(info->mob) one_argument(info->mob->name,buf);
         else if(info->obj) one_argument(info->obj->name,buf);
-        else if(info->room) sprintf(buf,"%d",(int)info->room->vnum);
-        else if(info->token) sprintf(buf,"%d",(int)info->token->pIndexData->vnum);
+        else if(info->room) s = (char*)widevnum_string_room(info->room, NULL);
+        else if(info->token) s = (char*)widevnum_string_token(info->token->pIndexData, NULL);
         break;
     case ESCAPE_LJ:
         if(info->mob) s = (char*)he_she[URANGE(0, info->mob->sex, 2)];
@@ -6433,8 +6433,7 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
                 add_buf(buffer,var->_.s);
             break;
         case VAR_ROOM:
-            sprintf(buf,"%d",var->_.r ? (int)var->_.r->vnum : 0);
-            add_buf(buffer,buf);
+            add_buf(buffer, var->_.r ? (char*)widevnum_string_room(var->_.r, NULL) : "0");
             break;
         case VAR_EXIT:
             add_buf(buffer,dir_name[var->_.door.door]);
@@ -6452,8 +6451,7 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
             }
             break;
         case VAR_TOKEN:
-            sprintf(buf,"%d",var->_.t ? (int)var->_.t->pIndexData->vnum : 0);
-            add_buf(buffer,buf);
+            add_buf(buffer, (var->_.t && var->_.t->pIndexData) ? (char*)widevnum_string_token(var->_.t->pIndexData, NULL) : "0");
             break;
 
         case VAR_CONNECTION:

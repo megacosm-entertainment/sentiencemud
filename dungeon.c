@@ -373,6 +373,11 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
                         dpr->trig_number = tsn;
                         dpr->numeric = true;
 
+                    } else if (is_widevnum_format(dpr->trig_phrase)) {
+                        dpr->numeric = true;
+                        dpr->trig_is_widevnum = true;
+                        parse_widevnum_load(dpr->trig_phrase, &dpr->trig_load);
+                        dpr->trig_number = (int)dpr->trig_load.vnum;
                     } else {
                         dpr->trig_number = atoi(dpr->trig_phrase);
                         dpr->numeric = is_number(dpr->trig_phrase);

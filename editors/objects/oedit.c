@@ -2597,8 +2597,15 @@ OEDIT (oedit_addoprog)
     list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-    list->trig_number		= atoi(list->trig_phrase);
-    list->numeric		= is_number(list->trig_phrase);
+    if (is_widevnum_format(phrase)) {
+        list->numeric = true;
+        list->trig_is_widevnum = true;
+        parse_widevnum_load(phrase, &list->trig_load);
+        list->trig_number = (int)list->trig_load.vnum;
+    } else {
+        list->trig_number = atoi(list->trig_phrase);
+        list->numeric = is_number(list->trig_phrase);
+    }
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);
 

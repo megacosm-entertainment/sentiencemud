@@ -2151,14 +2151,20 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 1:
             if (atoi(argument) != 0)
             {
-                if (!get_obj_index_global(atoi(argument)))
+                WNUM key_wnum = { NULL, 0 };
+                OBJ_INDEX_DATA *key_obj;
+                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
+                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
+                if (!key_obj)
                 {
                     send_to_char("No such object exists.\n\r\n\r", ch);
                     return false;
                 }
+                pObj->value[1] = key_wnum.vnum;
             }
+            else
+                pObj->value[1] = 0;
             send_to_char("Vnum set.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
             break;
         }
         break;
@@ -2512,20 +2518,26 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 4:
             if (atoi(argument) != 0)
             {
-                if (!get_obj_index_global(atoi(argument)))
+                WNUM key_wnum = { NULL, 0 };
+                OBJ_INDEX_DATA *key_obj;
+                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
+                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
+                if (!key_obj)
                 {
                     send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
                     return false;
                 }
 
-                if (get_obj_index_global(atoi(argument))->item_type != ITEM_KEY)
+                if (key_obj->item_type != ITEM_KEY)
                 {
                     send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
                     return false;
                 }
+                pObj->value[4] = key_wnum.vnum;
             }
+            else
+                pObj->value[4] = 0;
             send_to_char("PORTAL KEY SET.\n\r\n\r", ch);
-            pObj->value[4] = atoi(argument);
             break;
         case 5:
             if( IS_SET(pObj->value[2], GATE_DUNGEON) )
@@ -2751,20 +2763,26 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 2:
             if (atoi(argument) != 0)
             {
-                if (!get_obj_index_global(atoi(argument)))
+                WNUM key_wnum = { NULL, 0 };
+                OBJ_INDEX_DATA *key_obj;
+                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
+                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
+                if (!key_obj)
                 {
                     send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
                     return false;
                 }
 
-                if (get_obj_index_global(atoi(argument))->item_type != ITEM_KEY)
+                if (key_obj->item_type != ITEM_KEY)
                 {
                     send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
                     return false;
                 }
+                pObj->value[2] = key_wnum.vnum;
             }
+            else
+                pObj->value[2] = 0;
             send_to_char("CONTAINER KEY SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
             break;
         case 3:
             if (atoi (argument) > 225 && ch->tot_level < MAX_LEVEL)
@@ -3000,20 +3018,26 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 2:
             if (atoi(argument) != 0)
             {
-                if (!get_obj_index_global(atoi(argument)))
+                WNUM key_wnum = { NULL, 0 };
+                OBJ_INDEX_DATA *key_obj;
+                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
+                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
+                if (!key_obj)
                 {
                     send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
                     return false;
                 }
 
-                if (get_obj_index_global(atoi(argument))->item_type != ITEM_KEY)
+                if (key_obj->item_type != ITEM_KEY)
                 {
                     send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
                     return false;
                 }
+                pObj->value[2] = key_wnum.vnum;
             }
+            else
+                pObj->value[2] = 0;
             send_to_char("BOOK KEY SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
             break;
         }
         break;

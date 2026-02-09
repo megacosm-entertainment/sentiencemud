@@ -136,7 +136,7 @@ BPEDIT( bpedit_show )
             }
             else
             {
-                snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, room->vnum, room->name, section->vnum, section->name);
+                snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%s) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, widevnum_string_room(room, bp->area), room->name, section->vnum, section->name);
             }
             add_buf(buffer, buf);
         }
@@ -219,7 +219,11 @@ BPEDIT( bpedit_show )
 
                     if( (bl && bl->room) || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR) )
                     {
-                        sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, dir_name[bl->door]);
+                        const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
+                        if (room_str)
+                            sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%s:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
+                        else
+                            sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
@@ -261,7 +265,11 @@ BPEDIT( bpedit_show )
 
                     if( (bl && bl->room) || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR) )
                     {
-                        sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, dir_name[bl->door]);
+                        const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
+                        if (room_str)
+                            sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%s:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
+                        else
+                            sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
@@ -337,7 +345,7 @@ BPEDIT( bpedit_show )
                     break;
                 case VAR_ROOM:
                     if(var->_.r && var->_.r->vnum > 0)
-                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%s{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,widevnum_string_room(var->_.r, bp->area));
                     else
                         sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
                     break;
@@ -1356,8 +1364,15 @@ BPEDIT (bpedit_addiprog)
     list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-    list->trig_number		= atoi(list->trig_phrase);
-    list->numeric		= is_number(list->trig_phrase);
+    if (is_widevnum_format(phrase)) {
+        list->numeric = true;
+        list->trig_is_widevnum = true;
+        parse_widevnum_load(phrase, &list->trig_load);
+        list->trig_number = (int)list->trig_load.vnum;
+    } else {
+        list->trig_number = atoi(list->trig_phrase);
+        list->numeric = is_number(list->trig_phrase);
+    }
     list->script          = code;
 
     list_appendlink(blueprint->progs[slot], list);

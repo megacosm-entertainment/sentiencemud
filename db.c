@@ -701,6 +701,7 @@ void load_notes(void);
 void load_bans(void);
 void fix_rooms(void);
 void fix_object_locks(void);
+void fix_area_fields(void);
 void fix_mobprogs(void);
 void reset_area(AREA_DATA * pArea);
 void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int chance);
@@ -1114,6 +1115,8 @@ void boot_db(void)
     fix_rooms();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving object lock keys");
     fix_object_locks();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
+    fix_area_fields();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
     fix_vlinks();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_shops");
@@ -1384,6 +1387,72 @@ void fix_object_locks(void)
 }
 
 /*
+ * fix_area_fields - Resolve WNUM_LOAD fields on areas and mob indices
+ *
+ * After all areas are loaded, translates persistent area_uid + vnum pairs
+ * into runtime pArea + vnum for: area post_office, airship_land_spot,
+ * mob index corpse/zombie obj vnums, and trade item obj vnums.
+ */
+void fix_area_fields(void)
+{
+    AREA_DATA *pArea;
+    MOB_INDEX_DATA *mob;
+    int iHash;
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        /* Area-level fields (always area-local for post_office, cross-area for airship) */
+        if (pArea->post_office_load.vnum > 0)
+        {
+            pArea->post_office_wnum.pArea = pArea->post_office_load.auid > 0
+                ? get_area_from_uid(pArea->post_office_load.auid) : pArea;
+            pArea->post_office_wnum.vnum = pArea->post_office_load.vnum;
+        }
+
+        if (pArea->airship_land_load.vnum > 0)
+        {
+            pArea->airship_land_wnum.pArea = pArea->airship_land_load.auid > 0
+                ? get_area_from_uid(pArea->airship_land_load.auid)
+                : find_area_by_vnum(pArea->airship_land_load.vnum, NULL);
+            pArea->airship_land_wnum.vnum = pArea->airship_land_load.vnum;
+        }
+
+        /* Mob index corpse/zombie object vnums */
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
+            {
+                if (mob->corpse_load.vnum > 0)
+                {
+                    mob->corpse_wnum.pArea = mob->corpse_load.auid > 0
+                        ? get_area_from_uid(mob->corpse_load.auid) : pArea;
+                    mob->corpse_wnum.vnum = mob->corpse_load.vnum;
+                }
+
+                if (mob->zombie_load.vnum > 0)
+                {
+                    mob->zombie_wnum.pArea = mob->zombie_load.auid > 0
+                        ? get_area_from_uid(mob->zombie_load.auid) : pArea;
+                    mob->zombie_wnum.vnum = mob->zombie_load.vnum;
+                }
+            }
+        }
+
+        /* Trade item object vnums */
+        for (TRADE_ITEM *trade = pArea->trade_list; trade != NULL; trade = trade->next)
+        {
+            if (trade->obj_load.vnum > 0)
+            {
+                trade->obj_wnum.pArea = trade->obj_load.auid > 0
+                    ? get_area_from_uid(trade->obj_load.auid) : pArea;
+                trade->obj_wnum.vnum = trade->obj_load.vnum;
+            }
+        }
+    }
+}
+
+
+/*
  * Translate all room exits from virtual to real.
  * Has to be done after all rooms are read in.
  * Check for bad reverse exits.
@@ -1480,9 +1549,16 @@ void fix_mobprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( mob->progs[slot] ) {
                     iterator_start(&it, mob->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_MPROG))) {
+                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_MPROG);
+                        if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_MPROG);
+                        if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
                             exit(1);
+                        }
+
+                        // Resolve widevnum trigger phrases
+                        if (trigger->trig_is_widevnum) {
+                            resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                         }
                     }
                     iterator_stop(&it);
@@ -1507,9 +1583,16 @@ void fix_objprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( obj->progs[slot] ) {
                     iterator_start(&it, obj->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_OPROG))) {
+                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_OPROG);
+                        if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_OPROG);
+                        if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
                             exit(1);
+                        }
+
+                        // Resolve widevnum trigger phrases
+                        if (trigger->trig_is_widevnum) {
+                            resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                         }
                     }
                     iterator_stop(&it);
@@ -1533,9 +1616,16 @@ void fix_roomprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( room->progs->progs[slot] ) {
                     iterator_start(&it, room->progs->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_RPROG))) {
+                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_RPROG);
+                        if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_RPROG);
+                        if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
                             exit(1);
+                        }
+
+                        // Resolve widevnum trigger phrases
+                        if (trigger->trig_is_widevnum) {
+                            resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                         }
                     }
                     iterator_stop(&it);
@@ -1560,9 +1650,16 @@ void fix_tokenprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( token->progs[slot] ) {
                     iterator_start(&it, token->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_TPROG))) {
+                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_TPROG);
+                        if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_TPROG);
+                        if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_tokenprogs: code vnum %d not found on token %ld", trigger->vnum, token->vnum);
                             exit(1);
+                        }
+
+                        // Resolve widevnum trigger phrases
+                        if (trigger->trig_is_widevnum) {
+                            resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                         }
                     }
                     iterator_stop(&it);
@@ -1586,9 +1683,16 @@ void fix_areaprogs(void)
         for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs->progs[slot] ) {
             iterator_start(&it, pArea->progs->progs[slot]);
             while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_APROG))) {
+                trigger->script = get_script_index(pArea, trigger->vnum, PRG_APROG);
+                if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_APROG);
+                if (!trigger->script) {
                     log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "fix_areaprogs: code vnum %d not found on area %ld", trigger->vnum, pArea->uid);
                     exit(1);
+                }
+
+                // Resolve widevnum trigger phrases
+                if (trigger->trig_is_widevnum) {
+                    resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                 }
             }
             iterator_stop(&it);
@@ -1610,9 +1714,16 @@ void fix_instanceprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( blueprint->progs[slot] ) {
                     iterator_start(&it, blueprint->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_IPROG))) {
+                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_IPROG);
+                        if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_IPROG);
+                        if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
                             exit(1);
+                        }
+
+                        // Resolve widevnum trigger phrases
+                        if (trigger->trig_is_widevnum) {
+                            resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                         }
                     }
                     iterator_stop(&it);
@@ -1637,9 +1748,16 @@ void fix_dungeonprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( dungeon_index->progs[slot] ) {
                     iterator_start(&it, dungeon_index->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        if (!(trigger->script = get_script_index_global(trigger->vnum, PRG_DPROG))) {
+                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_DPROG);
+                        if (!trigger->script) trigger->script = get_script_index_global(trigger->vnum, PRG_DPROG);
+                        if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
                             exit(1);
+                        }
+
+                        // Resolve widevnum trigger phrases
+                        if (trigger->trig_is_widevnum) {
+                            resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
                         }
                     }
                     iterator_stop(&it);
@@ -3036,7 +3154,8 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
     mob->size				= pMobIndex->size;
     mob->material			= str_dup(pMobIndex->material);
     mob->corpse_type		= pMobIndex->corpse_type;
-    mob->corpse_vnum		= pMobIndex->corpse;
+    mob->corpse_load		= pMobIndex->corpse_load;
+    mob->corpse_wnum		= pMobIndex->corpse_wnum;
 
     mob->affected_by_perm[0]	= mob->race ? mob->race->aff[0] : 0;
     mob->affected_by_perm[1]	= mob->race ? mob->race->aff[1] : 0;
@@ -3558,7 +3677,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->old_description        = NULL;
     obj->loaded_by      = NULL;
     obj->script_created = false;
-    obj->created_script_vnum = 0;
+    obj->created_script_load.vnum = 0;
     obj->created_script_type = 0;
     obj->creation_time = current_time;
     obj->material	= str_dup(pObjIndex->material);
@@ -6769,8 +6888,8 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
     fprintf(fp, "Material %s~\n", (!ch->material[0] ? "Unknown" : ch->material));
     if (ch->corpse_type)
         fprintf(fp, "CorpseType %ld\n", (long int)ch->corpse_type);
-    if (ch->corpse_vnum)
-        fprintf(fp, "CorpseVnum %ld\n", ch->corpse_vnum);
+    if (ch->corpse_load.vnum)
+        fprintf(fp, "CorpseVnum %ld\n", ch->corpse_wnum.vnum);
 
 
 
@@ -8058,7 +8177,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
                 }
                 KEY("Comm",			ch->comm,			fread_flag(fp));
                 KEY("CorpseType",	ch->corpse_type,	fread_number(fp));
-                KEY("CorpseVnum",	ch->corpse_vnum,	fread_number(fp));
+                KEY("CorpseVnum",	ch->corpse_load.vnum,	fread_number(fp));
 //				KEY("CorpseZombie",	ch->zombie,		fread_number(fp));
                 break;
             case 'D':

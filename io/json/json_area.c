@@ -397,8 +397,8 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     /* Other settings */
     json_object_set_new(root, "wilds_uid", json_integer(area->wilds_uid));
     json_object_set_new(root, "repop", json_integer(area->repop));
-    json_object_set_new(root, "post_office", json_integer(area->post_office));
-    json_object_set_new(root, "airship_land", json_integer(area->airship_land_spot));
+    json_object_set_new(root, "post_office", json_integer(area->post_office_load.vnum));
+    json_object_set_new(root, "airship_land", json_integer(area->airship_land_load.vnum));
     
     /* Descriptions */
     json_object_set_new(root, "description", json_string(area->description ? area->description : ""));
@@ -532,8 +532,8 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
         }
     }
     area->repop = json_get_int_default(json, "repop", 15);
-    area->post_office = json_get_int_default(json, "post_office", 0);
-    area->airship_land_spot = json_get_int_default(json, "airship_land", 0);
+    area->post_office_load.vnum = json_get_int_default(json, "post_office", 0);
+    area->airship_land_load.vnum = json_get_int_default(json, "airship_land", 0);
     
     /* Descriptions */
     area->description = str_dup(json_get_string_default(json, "description", ""));
@@ -2466,10 +2466,10 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
     // Corpse info
     if (mob->corpse_type)
         json_object_set_new(json, "corpse_type", json_integer(mob->corpse_type));
-    if (mob->corpse)
-        json_object_set_new(json, "corpse_vnum", json_integer(mob->corpse));
-    if (mob->zombie)
-        json_object_set_new(json, "zombie_vnum", json_integer(mob->zombie));
+    if (mob->corpse_load.vnum)
+        json_object_set_new(json, "corpse_vnum", json_integer(mob->corpse_load.vnum));
+    if (mob->zombie_load.vnum)
+        json_object_set_new(json, "zombie_vnum", json_integer(mob->zombie_load.vnum));
     
     if (mob->boss)
         json_object_set_new(json, "boss", json_true());
@@ -2628,8 +2628,8 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
     
     // Corpse info
     mob->corpse_type = json_get_int_default(json, "corpse_type", 0);
-    mob->corpse = json_get_int_default(json, "corpse_vnum", 0);
-    mob->zombie = json_get_int_default(json, "zombie_vnum", 0);
+    mob->corpse_load.vnum = json_get_int_default(json, "corpse_vnum", 0);
+    mob->zombie_load.vnum = json_get_int_default(json, "zombie_vnum", 0);
     mob->boss = json_get_bool_default(json, "boss", false);
     
     // Pronouns
@@ -3828,8 +3828,17 @@ LLIST **json_area_deserialize_progs(json_t *json, AREA_DATA *area, int prog_type
         trigger->vnum = vnum;
         trigger->trig_type = tindex;
         trigger->trig_phrase = str_dup(phrase);
-        trigger->numeric = json_get_bool_default(prog_json, "numeric", false);
-        trigger->trig_number = trigger->numeric ? json_get_int_default(prog_json, "number", 0) : atoi(phrase);
+        if (is_widevnum_format(phrase)) {
+            trigger->numeric = true;
+            trigger->trig_is_widevnum = true;
+            parse_widevnum_load(phrase, &trigger->trig_load);
+            trigger->trig_number = (int)trigger->trig_load.vnum;
+        } else {
+            trigger->numeric = json_get_bool_default(prog_json, "numeric", false);
+            trigger->trig_number = trigger->numeric ?
+                json_get_int_default(prog_json, "number", 0) :
+                atoi(phrase);
+        }
         
         /* Script will be linked in fix_*progs() functions during boot */
         trigger->script = NULL;
@@ -4154,12 +4163,12 @@ json_t *json_area_serialize_trade_list(TRADE_ITEM *trade_list, AREA_DATA *area)
         json_object_set_new(trade_obj, "replenish_time", json_integer(trade->replenish_time));
         
         /* Object vnum - use widevnum format */
-        if (trade->obj_vnum > 0) {
-            OBJ_INDEX_DATA *trade_obj_idx = get_obj_index_global(trade->obj_vnum);
+        if (trade->obj_load.vnum > 0) {
+            OBJ_INDEX_DATA *trade_obj_idx = get_obj_index_global(trade->obj_load.vnum);
             if (trade_obj_idx) {
                 json_object_set_new(trade_obj, "obj_vnum", json_string(widevnum_string_object(trade_obj_idx, NULL)));
             } else {
-                json_object_set_new(trade_obj, "obj_vnum", json_integer(trade->obj_vnum));
+                json_object_set_new(trade_obj, "obj_vnum", json_integer(trade->obj_load.vnum));
             }
         }
         
@@ -4669,19 +4678,26 @@ void json_area_deserialize_trade_list(json_t *json, AREA_DATA *area)
 
         /* Handle widevnum string or legacy integer for obj_vnum */
         long obj_vnum = 0;
+        WNUM_LOAD obj_wload = { 0, 0 };
         json_t *obj_vnum_json = json_object_get(trade_json, "obj_vnum");
         if (obj_vnum_json && json_is_string(obj_vnum_json)) {
-            WNUM_LOAD wload;
-            if (parse_widevnum_load(json_string_value(obj_vnum_json), &wload)) {
-                obj_vnum = wload.vnum;
+            if (parse_widevnum_load(json_string_value(obj_vnum_json), &obj_wload)) {
+                obj_vnum = obj_wload.vnum;
             }
         } else {
             obj_vnum = json_get_int_default(trade_json, "obj_vnum", 0);
+            obj_wload.vnum = obj_vnum;
         }
-        
+
         /* Create the trade item */
-        new_trade_item(area, trade_type, replenish_time, replenish_amount, 
+        new_trade_item(area, trade_type, replenish_time, replenish_amount,
                       max_qty, min_price, max_price, obj_vnum);
+
+        /* Store the full WNUM_LOAD on the newly created trade item (it's at head of list) */
+        if (area->trade_list) {
+            area->trade_list->obj_load.auid = obj_wload.auid;
+            area->trade_list->obj_load.vnum = obj_wload.vnum;
+        }
     }
 }
 

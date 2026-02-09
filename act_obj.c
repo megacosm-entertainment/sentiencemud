@@ -5499,7 +5499,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
         temp = ch->in_room->area->trade_list;
         while( temp != NULL)
         {
-            obj_index = get_obj_index( ch->in_room->area, temp->obj_vnum );
+            obj_index = get_obj_index( ch->in_room->area, temp->obj_wnum.vnum );
             if ( is_name( trade_item, trade_table[temp->trade_type].name ) ||
                 is_name( trade_item, obj_index->name ) )
             {
@@ -5538,10 +5538,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
             deduct_cost( ch, cost );
 
             /* Create object and stick it in the cart */
-            pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_vnum ), 1, true );
+            pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_wnum.vnum ), 1, true );
             if ( pObj == NULL )
             {
-                pbugf(LOG_ERROR, "A commodity object did not exist, vnum was: %d", temp->obj_vnum );
+                pbugf(LOG_ERROR, "A commodity object did not exist, vnum was: %d", temp->obj_wnum.vnum );
                 return;
             }
 
@@ -5578,10 +5578,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
             for (count = 0; count < counter; count++)
             {
                 /* Create object and stick it in the cart */
-                pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_vnum ), 1, true );
+                pObj = create_object( get_obj_index( ch->in_room->area, temp->obj_wnum.vnum ), 1, true );
                 if ( pObj == NULL )
                 {
-                    pbugf(LOG_ERROR, "A commodity object did not exist, vnum was: %d", temp->obj_vnum );
+                    pbugf(LOG_ERROR, "A commodity object did not exist, vnum was: %d", temp->obj_wnum.vnum );
                     return;
                 }
                 obj_to_obj( pObj, cart );
@@ -5653,7 +5653,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
         act("{Y$n steps through the tunnel.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
         char_from_room(ch);
-        char_to_room(ch, get_room_index(tunneler_place_table[i].vnum));
+        char_to_room(ch, get_room_index_global(tunneler_place_table[i].vnum));
 
         do_function(ch, &do_look, "auto");
         return;
@@ -7052,7 +7052,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
         for(temp = ch->in_room->area->trade_list; temp != NULL; temp = temp->next)
         {
-            obj_index = get_obj_index(ch->in_room->area, temp->obj_vnum);
+            obj_index = get_obj_index(ch->in_room->area, temp->obj_wnum.vnum);
             if (obj_index->value[0] == pObj->value[0])
             {
                 break;

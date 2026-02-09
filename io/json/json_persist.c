@@ -1420,8 +1420,8 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
     if (ch->corpse_type) {
         json_object_set_new(json, "corpse_type", json_integer(ch->corpse_type));
     }
-    if (ch->corpse_vnum) {
-        json_object_set_new(json, "corpse_vnum", json_integer(ch->corpse_vnum));
+    if (ch->corpse_load.vnum) {
+        json_object_set_new(json, "corpse_vnum", json_integer(ch->corpse_load.vnum));
     }
 
     /* Communication and misc */
@@ -1786,7 +1786,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     value = json_object_get(json, "corpse_type");
     if (value) ch->corpse_type = json_integer_value(value);
     value = json_object_get(json, "corpse_vnum");
-    if (value) ch->corpse_vnum = json_integer_value(value);
+    if (value) ch->corpse_load.vnum = json_integer_value(value);
 
     /* Communication and misc */
     value = json_object_get(json, "comm");

@@ -328,6 +328,11 @@ BLUEPRINT *load_blueprint(FILE *fp)
                         ipr->trig_number = tsn;
                         ipr->numeric = true;
 
+                    } else if (is_widevnum_format(ipr->trig_phrase)) {
+                        ipr->numeric = true;
+                        ipr->trig_is_widevnum = true;
+                        parse_widevnum_load(ipr->trig_phrase, &ipr->trig_load);
+                        ipr->trig_number = (int)ipr->trig_load.vnum;
                     } else {
                         ipr->trig_number = atoi(ipr->trig_phrase);
                         ipr->numeric = is_number(ipr->trig_phrase);

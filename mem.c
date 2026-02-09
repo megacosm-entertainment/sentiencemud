@@ -2384,7 +2384,7 @@ void new_trade_item( AREA_DATA *area, int16_t type, long replenish_time, long re
     item->max_qty = max_qty;
     item->min_price = min_price;
     item->max_price = max_price;
-    item->obj_vnum = obj_vnum;
+    item->obj_load.vnum = obj_vnum;
     item->area   = area->anum;
 
     item->next = area->trade_list;

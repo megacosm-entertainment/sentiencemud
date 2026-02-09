@@ -2952,7 +2952,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
             add_buf(output, " ");
             one_argument(obj->name, buf);
-            sprintf(buf2,"(%ld)", obj->pIndexData->vnum);
+            sprintf(buf2,"(%s)", widevnum_string_object(obj->pIndexData, ch->in_room->area));
             strcat(buf, buf2);
             add_buf(output, buf);
         }
@@ -2966,7 +2966,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
         add_buf(output,"{CClones:{x\n\r");
         for(clone = location->clones; clone; clone = clone->next) {
             switch(clone->environ_type) {
-            case ENVIRON_ROOM: sprintf(buf,"{W%lu:%lu{x at Room [%ld:%lu:%lu]", clone->id[0], clone->id[1], clone->environ.room->vnum, clone->environ.room->id[0], clone->environ.room->id[1]); break;
+            case ENVIRON_ROOM: sprintf(buf,"{W%lu:%lu{x at Room [%s:%lu:%lu]", clone->id[0], clone->id[1], widevnum_string_room(clone->environ.room, NULL), clone->environ.room->id[0], clone->environ.room->id[1]); break;
             case ENVIRON_MOBILE: sprintf(buf,"{W%lu:%lu{x in Mobile '%s' %ld [%lu:%lu]", clone->id[0], clone->id[1], clone->environ.mob->short_descr, VNUM(clone->environ.mob), clone->environ.mob->id[0], clone->environ.mob->id[1]); break;
             case ENVIRON_OBJECT: sprintf(buf,"{W%lu:%lu{x in Object '%s' %ld [%lu:%lu]", clone->id[0], clone->id[1], clone->environ.obj->short_descr, VNUM(clone->environ.obj), clone->environ.obj->id[0], clone->environ.obj->id[1]); break;
             case ENVIRON_TOKEN: sprintf(buf,"{W%lu:%lu{x in Token '%s' %ld [%lu:%lu]", clone->id[0], clone->id[1], clone->environ.token->name, VNUM(clone->environ.token), clone->environ.token->id[0], clone->environ.token->id[1]); break;
@@ -3170,12 +3170,12 @@ void do_ostat(CHAR_DATA *ch, char *argument)
     }
     else if (obj->script_created && ch->tot_level >= LEVEL_IMMORTAL)
     {		
-        sprintf(buf, "{YItem created by \t<send \"%sdump %ld|%sedit %ld\" hint=\"Dump code for %s %ld|Edit %s %ld\">%s %ld\t</send>.\n\r", 
-        script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
-        script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
-        script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum, 
-        script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum,
-        script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum);
+        sprintf(buf, "{YItem created by \t<send \"%sdump %ld|%sedit %ld\" hint=\"Dump code for %s %ld|Edit %s %ld\">%s %ld\t</send>.\n\r",
+        script_type_table[obj->created_script_type].prog_command, obj->created_script_load.vnum,
+        script_type_table[obj->created_script_type].prog_command, obj->created_script_load.vnum,
+        script_type_table[obj->created_script_type].prog_type, obj->created_script_load.vnum,
+        script_type_table[obj->created_script_type].prog_type, obj->created_script_load.vnum,
+        script_type_table[obj->created_script_type].prog_type, obj->created_script_load.vnum);
         
         add_buf(output, buf);
     }
@@ -3239,18 +3239,19 @@ void do_ostat(CHAR_DATA *ch, char *argument)
     }
     else if (obj->in_room != NULL)
     {
-        sprintf(buf, "{BIn room{X: \t<send href='rshow %ld'>%ld\t</send>{X\n\r", obj->in_room->vnum, obj->in_room->vnum);
+        const char *room_str = widevnum_string_room(obj->in_room, ch->in_room->area);
+        sprintf(buf, "{BIn room{X: \t<send href='rshow %s'>%s\t</send>{X\n\r", room_str, room_str);
         add_buf(output, buf);
     }
     if (obj->in_obj != NULL)
     {
-        sprintf(buf, "{BIn object{X: \t<send href='stat obj %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->in_obj->id[0], obj->in_obj->id[1], obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
+        sprintf(buf, "{BIn object{X: \t<send href='stat obj %ld %ld'>%s (%s)\t</send>{X\n\r", obj->in_obj->id[0], obj->in_obj->id[1], obj->in_obj->short_descr, widevnum_string_object(obj->in_obj->pIndexData, ch->in_room->area));
         add_buf(output, buf);
     }
     if (obj->carried_by != NULL)
     {
         if (IS_NPC(obj->carried_by))
-            sprintf(buf, "{BCarried by{X: \t<send href='stat mob %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->carried_by->id[0], obj->carried_by->id[1], obj->carried_by->name, obj->carried_by->pIndexData->vnum);
+            sprintf(buf, "{BCarried by{X: \t<send href='stat mob %ld %ld'>%s (%s)\t</send>{X\n\r", obj->carried_by->id[0], obj->carried_by->id[1], obj->carried_by->name, widevnum_string_mobile(obj->carried_by->pIndexData, ch->in_room->area));
         else
             sprintf(buf, "{BCarried by{X: \t<send href='stat char %s'>%s\t</send>{X\n\r", obj->carried_by->name, obj->carried_by->name);
         add_buf(output, buf);
@@ -3868,17 +3869,17 @@ void do_tstat(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        if (victim  && !(token= get_token_char(victim, vnum, count))) {
+        if (victim  && !(token= get_token_char(victim, vnum, NULL, count))) {
             act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (object && !(token = get_token_obj(object, vnum, count))) {
+        if (object && !(token = get_token_obj(object, vnum, NULL, count))) {
             act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (room && !(token = get_token_room(room, vnum, count))) {
+        if (room && !(token = get_token_room(room, vnum, NULL, count))) {
             send_to_char("The room doesn't have that token.", ch);
             return;
         }
@@ -6309,7 +6310,7 @@ void do_restore(CHAR_DATA *ch, char *argument)
         }
 
 
-        sprintf(buf, "$N restored room %ld.", ch->in_room->vnum);
+        sprintf(buf, "$N restored room %s.", widevnum_string_room(ch->in_room, NULL));
         wiznet(buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE, get_staff_rank(ch));
 
         send_to_char("Room restored.\n\r",ch);
@@ -6968,7 +6969,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
     count = number_argument(arg2,arg2b);
     vnum = atol(arg2b);
 
-    if ((token = get_token_char(victim, vnum, count)) == NULL) {
+    if ((token = get_token_char(victim, vnum, NULL, count)) == NULL) {
         send_to_char("Character doesn't have that token vnum.\n\r", ch);
         return;
     }
@@ -7718,7 +7719,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
                 }
 
                 i++;
-                sprintf(buf, "%2d [%-8ld] %s\n\r", i, treasure->room->vnum, treasure->room->name);
+                sprintf(buf, "%2d [%-8s] %s\n\r", i, widevnum_string_room(treasure->room, NULL), treasure->room->name);
                 send_to_char(buf, ch);
             }
             iterator_stop(&it);
@@ -11160,7 +11161,7 @@ void do_token(CHAR_DATA *ch, char *argument)
             }
 
             if (is_singular_token(token_index)) {
-                if ((token = get_token_char(victim, token_wnum.vnum, 1)) != NULL) {
+                if ((token = get_token_char(victim, token_wnum.vnum, token_wnum.pArea, 1)) != NULL) {
                     send_to_char("Only one copy of this token can be given.\n\r", ch);
                     return;
                 }
@@ -11195,7 +11196,7 @@ void do_token(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if ((token = get_token_char(victim, token_wnum.vnum, count)) == NULL) {
+            if ((token = get_token_char(victim, token_wnum.vnum, token_wnum.pArea, count)) == NULL) {
                 send_to_char("Token not found on victim.\n\r", ch);
                 return;
             }
@@ -11247,28 +11248,28 @@ void do_token(CHAR_DATA *ch, char *argument)
             }
 
             if (is_singular_token(token_index)) {
-                if ((token = get_token_obj(obj, token_wnum.vnum, 1)) != NULL) {
+                if ((token = get_token_obj(obj, token_wnum.vnum, token_wnum.pArea, 1)) != NULL) {
                     send_to_char("Only one copy of this token can be given.\n\r", ch);
                     return;
                 }
             }
 
             TOKEN_DATA *token = give_token(token_index, NULL, obj, NULL);
-            sprintf(buf, "Gave token %s(%ld) to object %s\n\r", token_index->name, token_index->vnum, obj->short_descr);
+            sprintf(buf, "Gave token %s(%s) to object %s\n\r", token_index->name, widevnum_string(token_index->area, token_index->vnum, ch->in_room->area), obj->short_descr);
             send_to_char(buf, ch);
 
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
         } else if (!str_cmp(arg, "junk")) {
-            if ((token = get_token_obj(obj, token_wnum.vnum, count)) == NULL) {
+            if ((token = get_token_obj(obj, token_wnum.vnum, token_wnum.pArea, count)) == NULL) {
                 send_to_char("Token not found on object.\n\r", ch);
                 return;
             }
 
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
-            sprintf(buf, "Removed token %s(%ld.%ld) from object %s\n\r",
-                token->name, count, token->pIndexData->vnum, obj->short_descr);
+            sprintf(buf, "Removed token %s(%ld.%s) from object %s\n\r",
+                token->name, count, widevnum_string(token->pIndexData->area, token->pIndexData->vnum, ch->in_room->area), obj->short_descr);
             send_to_char(buf, ch);
 
             token_from_obj(token);
@@ -11293,37 +11294,39 @@ void do_token(CHAR_DATA *ch, char *argument)
             }
 
             if (is_singular_token(token_index)) {
-                if ((token = get_token_room(ch->in_room, token_wnum.vnum, 1)) != NULL) {
+                if ((token = get_token_room(ch->in_room, token_wnum.vnum, token_wnum.pArea, 1)) != NULL) {
                     send_to_char("Only one copy of this token can be given.\n\r", ch);
                     return;
                 }
             }
 
             TOKEN_DATA *token = give_token(token_index, NULL, NULL, ch->in_room);
+            const char *tok_str = widevnum_string(token_index->area, token_index->vnum, ch->in_room->area);
             if( ch->in_room->wilds && IS_SET(ch->in_room->room_flag[1], ROOM_VIRTUAL_ROOM))
-                sprintf(buf, "Gave token %s(%ld) to wilds room %ld @ (%ld, %ld)\n\r", token_index->name, token_index->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
+                sprintf(buf, "Gave token %s(%s) to wilds room %ld @ (%ld, %ld)\n\r", token_index->name, tok_str, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
             else if( ch->in_room->source )
-                sprintf(buf, "Gave token %s(%ld) to clone room %ld ID(%lu:%lu)\n\r", token_index->name, token_index->vnum, ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
+                sprintf(buf, "Gave token %s(%s) to clone room %s ID(%lu:%lu)\n\r", token_index->name, tok_str, widevnum_string_room(ch->in_room->source, ch->in_room->area), ch->in_room->id[0], ch->in_room->id[1]);
             else
-                sprintf(buf, "Gave token %s(%ld) to room %ld\n\r", token_index->name, token_index->vnum, ch->in_room->vnum);
+                sprintf(buf, "Gave token %s(%s) to room %s\n\r", token_index->name, tok_str, widevnum_string_room(ch->in_room, ch->in_room->area));
             send_to_char(buf, ch);
 
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
         } else if (!str_cmp(arg, "junk")) {
-            if ((token = get_token_room(ch->in_room, token_wnum.vnum, count)) == NULL) {
+            if ((token = get_token_room(ch->in_room, token_wnum.vnum, token_wnum.pArea, count)) == NULL) {
                 send_to_char("Token not found on object.\n\r", ch);
                 return;
             }
 
             p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
+            const char *rtok_str = widevnum_string(token->pIndexData->area, token->pIndexData->vnum, ch->in_room->area);
             if( ch->in_room->wilds && IS_SET(ch->in_room->room_flag[1], ROOM_VIRTUAL_ROOM))
-                sprintf(buf, "Removed token %s(%ld.%ld) from wilds room %ld @ (%ld, %ld)\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
+                sprintf(buf, "Removed token %s(%ld.%s) from wilds room %ld @ (%ld, %ld)\n\r", token->name, count, rtok_str, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
             else if( ch->in_room->source )
-                sprintf(buf, "Removed token %s(%ld.%ld) from clone room %ld ID(%lu:%lu)\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
+                sprintf(buf, "Removed token %s(%ld.%s) from clone room %s ID(%lu:%lu)\n\r", token->name, count, rtok_str, widevnum_string_room(ch->in_room->source, ch->in_room->area), ch->in_room->id[0], ch->in_room->id[1]);
             else
-                sprintf(buf, "Removed token %s(%ld.%ld) from room %ld\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->vnum);
+                sprintf(buf, "Removed token %s(%ld.%s) from room %s\n\r", token->name, count, rtok_str, widevnum_string_room(ch->in_room, ch->in_room->area));
             send_to_char(buf, ch);
 
             token_from_room(token);

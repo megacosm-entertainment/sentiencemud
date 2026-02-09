@@ -79,9 +79,18 @@ SPELL_FUNC(spell_animate_dead)
             return false;
         }
 
-        vnum = CORPSE_MOBILE(obj) ? CORPSE_MOBILE(obj) : obj->orig_vnum;
-    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-    if (!area) area = get_system_area_fallback();
+        AREA_DATA *area;
+        if (CORPSE_MOBILE(obj)) {
+            vnum = CORPSE_MOBILE(obj);
+            area = CORPSE_MOBILE_AUID(obj) > 0
+                ? get_area_from_uid(CORPSE_MOBILE_AUID(obj))
+                : find_area_by_vnum(vnum, NULL);
+        } else {
+            vnum = obj->orig_wnum.vnum;
+            area = obj->orig_wnum.pArea;
+            if (!area) area = find_area_by_vnum(vnum, NULL);
+        }
+        if (!area) area = get_system_area_fallback();
 
         index = get_mob_index(area, vnum);
         victim = create_mobile(index, false);
@@ -145,7 +154,7 @@ SPELL_FUNC(spell_animate_dead)
         SET_BIT(victim->affected_by[0], AFF_CHARM);
         SET_BIT(victim->act[0], ACT_ANIMATED);
         SET_BIT(victim->act[0], ACT_UNDEAD);
-        victim->corpse_vnum = index->zombie;
+        victim->corpse_load.vnum = index->zombie_load.vnum;
         victim->parts = CORPSE_PARTS(obj);
         char_to_room(victim, ch->in_room);
         victim->pIndexData->count--;  // Animated mobs dont add to world count.
@@ -440,9 +449,10 @@ SPELL_FUNC(spell_raise_dead)
         } else {
             bool keep_mob = true;
 
-            AREA_DATA *area = find_area_by_vnum(obj->orig_vnum, NULL);
+            AREA_DATA *area = obj->orig_wnum.pArea;
+            if (!area) area = find_area_by_vnum(obj->orig_wnum.vnum, NULL);
             if (!area) area = get_system_area_fallback();
-            victim = create_mobile(get_mob_index(area, obj->orig_vnum), false);
+            victim = create_mobile(get_mob_index(area, obj->orig_wnum.vnum), false);
             // Regardless what wealth the normal mob has...
             victim->gold = 0;
             victim->silver = 0;

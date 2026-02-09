@@ -580,7 +580,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     BLUEPRINT *blueprint;
     DUNGEON_INDEX_DATA *dungeon;
     CMD_DATA *command;
-    static char buf[20];
+    static char buf[64];
     char buf2[MSL];
 
     buf[0] = '\0';
@@ -592,15 +592,15 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         break;
     case ED_ROOM:
         pRoom = ch->in_room;
-        sprintf(buf, "%ld", pRoom ? pRoom->vnum : 0);
+        sprintf(buf, "%s", pRoom ? widevnum_string_room(pRoom, NULL) : "0");
         break;
     case ED_OBJECT:
         pObj = (OBJ_INDEX_DATA *)ch->desc->pEdit;
-        sprintf(buf, "%ld", pObj ? pObj->vnum : 0);
+        sprintf(buf, "%s", pObj ? widevnum_string_object(pObj, NULL) : "0");
         break;
     case ED_MOBILE:
         pMob = (MOB_INDEX_DATA *)ch->desc->pEdit;
-        sprintf(buf, "%ld", pMob ? pMob->vnum : 0);
+        sprintf(buf, "%s", pMob ? widevnum_string_mobile(pMob, NULL) : "0");
         break;
     case ED_MPCODE:
     case ED_OPCODE:
@@ -610,7 +610,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     case ED_IPCODE:
     case ED_DPCODE:
         prog = (SCRIPT_DATA *)ch->desc->pEdit;
-        sprintf(buf, "%ld", (long int)(prog ? prog->vnum : 0));
+        sprintf(buf, "%s", prog ? widevnum_string_script(prog, NULL) : "0");
         break;
     case ED_HELP:
         {
@@ -662,12 +662,12 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 
     case ED_SHIP:
         pShip = (SHIP_INDEX_DATA *)ch->desc->pEdit;
-        sprintf(buf, "%ld", pShip ? pShip->vnum : 0);
+        sprintf(buf, "%s", pShip ? widevnum_string_ship(pShip, NULL) : "0");
         break;
 
     case ED_TOKEN:
         pTokenIndex = (TOKEN_INDEX_DATA *) ch->desc->pEdit;
-        sprintf(buf, "%ld", pTokenIndex ? pTokenIndex->vnum : 0);
+        sprintf(buf, "%s", pTokenIndex ? widevnum_string_token(pTokenIndex, NULL) : "0");
         break;
 
 /* VIZZWILDS */
@@ -683,17 +683,17 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 
     case ED_BPSECT:
         bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit;
-        sprintf(buf, "%ld", bpsect ? bpsect->vnum : 0);
+        sprintf(buf, "%s", bpsect ? widevnum_string_blueprint_section(bpsect, NULL) : "0");
         break;
 
     case ED_BLUEPRINT:
         blueprint = (BLUEPRINT *)ch->desc->pEdit;
-        sprintf(buf, "%ld", blueprint ? blueprint->vnum : 0);
+        sprintf(buf, "%s", blueprint ? widevnum_string_blueprint(blueprint, NULL) : "0");
         break;
 
     case ED_DUNGEON:
         dungeon = (DUNGEON_INDEX_DATA*)ch->desc->pEdit;
-        sprintf(buf, "%ld", dungeon ? dungeon->vnum : 0);
+        sprintf(buf, "%s", dungeon ? widevnum_string_dungeon(dungeon, NULL) : "0");
         break;
 
     case ED_CMDEDIT:
@@ -3385,7 +3385,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     {
         char *noc;
         noc = nocolour(pRoomIndex->name);
-        sprintf(buf, "[%5ld] %-17.16s", pRoomIndex->vnum, noc);
+        sprintf(buf, "[%s] %-17.16s", widevnum_string_room(pRoomIndex, pArea), noc);
         free_string(noc);
         if (!add_buf(buf1, buf))
         {
@@ -3460,7 +3460,7 @@ void do_mlist(CHAR_DATA *ch, char *argument)
         char *noc;
         found = true;
         noc = nocolour(pMobIndex->short_descr);
-        sprintf(buf, "{x[%5ld] %-17.16s{x", pMobIndex->vnum, noc);
+        sprintf(buf, "{x[%s] %-17.16s{x", widevnum_string_mobile(pMobIndex, pArea), noc);
         add_buf(buf1, buf);
         free_string(noc);
         if (++col % 3 == 0)
@@ -3978,7 +3978,7 @@ void do_dislink(CHAR_DATA *ch, char *argument)
     room->name = str_dup("NULL");
     }
 
-    sprintf(buf, "Dislinked room %s (%ld)\n\r", room->name, room->vnum);
+    sprintf(buf, "Dislinked room %s (%s)\n\r", room->name, widevnum_string_room(room, NULL));
     send_to_char(buf, ch);
 }
 

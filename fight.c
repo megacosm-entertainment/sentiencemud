@@ -2970,9 +2970,10 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
     int min,max;
 
     if(corpse->item_type == ITEM_CORPSE_NPC) {
-        AREA_DATA *mob_area = find_area_by_vnum(corpse->orig_vnum, NULL);
+        AREA_DATA *mob_area = corpse->orig_wnum.pArea;
+        if (!mob_area) mob_area = find_area_by_vnum(corpse->orig_wnum.vnum, NULL);
         if (!mob_area) mob_area = get_system_area_fallback();
-        MOB_INDEX_DATA *mob = get_mob_index(mob_area, corpse->orig_vnum);
+        MOB_INDEX_DATA *mob = get_mob_index(mob_area, corpse->orig_wnum.vnum);
 
         // Check if the corpse has owner name/short information
         if( IS_NULLSTR(corpse->owner_name) )
@@ -3096,16 +3097,18 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         name = ch->name;
         short_desc = ch->short_descr;
 
-        AREA_DATA *corpse_area = (ch->corpse_vnum > 0) ? find_area_by_vnum(ch->corpse_vnum, NULL) : NULL;
+        AREA_DATA *corpse_area = ch->corpse_wnum.pArea;
+        if (!corpse_area && ch->corpse_load.vnum > 0) corpse_area = find_area_by_vnum(ch->corpse_load.vnum, NULL);
         if (!corpse_area) corpse_area = get_system_area_fallback();
-        obj_index = (ch->corpse_vnum > 0) ? get_obj_index(corpse_area, ch->corpse_vnum) : NULL;
+        obj_index = (ch->corpse_wnum.vnum > 0) ? get_obj_index(corpse_area, ch->corpse_wnum.vnum) : NULL;
 
         if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
             obj_index = get_reserved_obj_index("obj_corpse_npc");
 
         corpse = create_object(obj_index, 0, true);
         // [3,6]
-        corpse->orig_vnum = ch->pIndexData->vnum;
+        corpse->orig_wnum.pArea = ch->pIndexData->area;
+        corpse->orig_wnum.vnum = ch->pIndexData->vnum;
 
         if (!IS_IMMORTAL(ch) && ch->gold > 0)
         {

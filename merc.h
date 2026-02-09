@@ -4091,8 +4091,10 @@ struct	mob_index_data
     char *		owner; /* mainly for personal mounts */
     char *		skeywds; /* script keywords */
     pVARIABLE		index_vars;
-    long		corpse;
-    long		zombie;	/* Animated corpse */
+    WNUM_LOAD	corpse_load;
+    WNUM		corpse_wnum;
+    WNUM_LOAD	zombie_load;
+    WNUM		zombie_wnum;
     int			corpse_type;
     char *      comments;
 
@@ -4128,8 +4130,10 @@ struct mail_data
     long    expire_script; // Script to run when the mail expires
     long    originating_script; // Script that sent the mail, if any.
     int     orig_script_type; // Type of script that sent the mail, if any.
-    long    from_location; // Origination point for the mail, vnum
-    long    to_location; // Destination point for the mail, vnum
+    WNUM_LOAD from_location_load;
+    WNUM      from_location_wnum;
+    WNUM_LOAD to_location_load;
+    WNUM      to_location_wnum;
     int		status;		/* for keeping track of the mail is */
 };
 
@@ -4872,7 +4876,8 @@ struct	char_data
     int			set_death_type;
 
     int			corpse_type;
-    long		corpse_vnum;
+    WNUM_LOAD	corpse_load;
+    WNUM		corpse_wnum;
 
     /* @@@NIB */
     int			wildview_bonus_x;
@@ -5217,7 +5222,8 @@ struct	pc_data
     /*QUEST_INDEX_DATA    *quests; / keep track of indexed quests and their parts
 
     char *  	    	owner_of_boat_before_logoff;
-  long  	 	vnum_of_boat_before_logoff;
+  WNUM_LOAD	boat_logoff_load;
+  WNUM		boat_logoff_wnum;
 
 
     int 		rank[3];
@@ -5454,7 +5460,8 @@ struct	obj_data
     char *		old_full_description;
     char *		loaded_by;
     bool        script_created;
-    long        created_script_vnum;
+    WNUM_LOAD   created_script_load;
+    WNUM        created_script_wnum;
     int         created_script_type;
     time_t      creation_time;
     int			item_type;
@@ -5476,7 +5483,7 @@ struct	obj_data
     int			times_fixed;
     long 		value	[8];
     SPELL_DATA		*spells;
-    long		orig_vnum;
+    WNUM		orig_wnum;
 
     LOCK_STATE		*lock;
 
@@ -5711,7 +5718,8 @@ struct	area_data {
      creatures that travel around. */
     int land_x;
     int land_y;
-    long airship_land_spot;
+    WNUM_LOAD airship_land_load;
+    WNUM      airship_land_wnum;
 
     char *map;
     int map_size_x;
@@ -5738,7 +5746,8 @@ struct	area_data {
     SHIP_DATA *ship_list;
     TRADE_ITEM *trade_list;
 
-    long post_office;
+    WNUM_LOAD post_office_load;
+    WNUM      post_office_wnum;
 
     INVASION_QUEST *invasion_quest;
 
@@ -5842,7 +5851,8 @@ struct trade_item
     long 	replenish_amount;
     long 	replenish_time;
     int  	replenish_current_time;
-    long 	obj_vnum;
+    WNUM_LOAD obj_load;
+    WNUM      obj_wnum;
     long 	buy_price;
     long 	sell_price;
     long 	qty;
@@ -7268,8 +7278,11 @@ struct prog_list
 {
     int		trig_type;
     char *		trig_phrase;
-    int			trig_number;	// atoi(trig_phrase)
+    int			trig_number;	// atoi(trig_phrase) - bare vnum for legacy matching
     bool		numeric;
+    bool		trig_is_widevnum;	// true if phrase was widevnum format (auid#vnum)
+    WNUM_LOAD	trig_load;		// Persistent: area UID + vnum (widevnum triggers only)
+    WNUM		trig_wnum;		// Runtime: area pointer + vnum (resolved at boot)
     long		vnum;
     SCRIPT_DATA *	script;		/* @@@NIB : 20070123  */
     PROG_LIST *	next;
@@ -7997,6 +8010,7 @@ extern int16_t	gsn_soul_essence;
 #define CORPSE_PARTS(obj)	((obj)->value[3])
 #define CORPSE_FLAGS(obj)	((obj)->value[4])
 #define CORPSE_MOBILE(obj)	((obj)->value[5])
+#define CORPSE_MOBILE_AUID(obj)	((obj)->value[6])
 
 /*
  * Description macros.
@@ -8997,7 +9011,6 @@ void deduct_move( CHAR_DATA *ch, int amount );
 bool is_wearable( OBJ_DATA *obj );
 bool is_using_anyone( OBJ_DATA *obj );
 void return_from_maze( CHAR_DATA *ch );
-CHAR_DATA *get_char_world_vnum( CHAR_DATA *ch, long vnum );
 int get_number_in_container( OBJ_DATA *obj );
 AREA_DATA *find_area_kwd( char *keyword );
 long get_dp_value( OBJ_DATA *obj );
@@ -9037,14 +9050,14 @@ TOKEN_DATA *give_token(TOKEN_INDEX_DATA *token_index, CHAR_DATA *ch, OBJ_DATA *o
 void token_from_char(TOKEN_DATA *token);
 void token_to_char(TOKEN_DATA *token, CHAR_DATA *ch);
 void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags);
-TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count);
-TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, int count);
+TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, AREA_DATA *area, int count);
+TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, AREA_DATA *area, int count);
 void token_from_obj(TOKEN_DATA *token);
 void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj);
-TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, int count);
+TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, AREA_DATA *area, int count);
 void token_from_room(TOKEN_DATA *token);
 void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room);
-TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, int count);
+TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, AREA_DATA *area, int count);
 void fix_magic_object_index(OBJ_INDEX_DATA *obj);
 void extract_event(EVENT_DATA *event);
 void extract_project_inquiry(PROJECT_INQUIRY_DATA *pinq);
@@ -9167,6 +9180,7 @@ HELP_DATA *read_help_new( FILE *fp );
 bool check_social( CHAR_DATA *ch, char *command, char *argument );
 void	interpret	args( ( CHAR_DATA *ch, char *argument ) );
 bool	is_number	args( ( const char *arg ) );
+bool	is_widevnum_format(const char *str);
 bool	is_percent	args( ( char *arg ) );
 int	number_argument	args( ( char *argument, char *arg ) );
 int	mult_argument	args( ( char *argument, char *arg) );

@@ -3955,7 +3955,7 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
         if( treasure->room != NULL )
         {
             ROOM_INDEX_DATA *room = treasure->room;
-            sprintf(buf, "{x\t\t%ld - %s{x\n\r", room->vnum, room->name);
+            sprintf(buf, "{x\t\t%s - %s{x\n\r", widevnum_string_room(room, NULL), room->name);
             add_buf(buffer,buf);
         }
     }

@@ -170,14 +170,14 @@ MEDIT(medit_show)
     sprintf(buf, "Corpse Type:  {C[{x%s{C]{x\n\r", flag_string(corpse_types, pMob->corpse_type));
     add_buf(buffer, buf);
 
-    if (pMob->corpse) {
-        OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->corpse);
+    if (pMob->corpse_load.vnum) {
+        OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->corpse_load.vnum);
         sprintf(buf, "Corpse Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
         add_buf(buffer, buf);
     }
 
-    if (pMob->zombie) {
-        OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->zombie);
+    if (pMob->zombie_load.vnum) {
+        OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->zombie_load.vnum);
         sprintf(buf, "Zombie Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
         add_buf(buffer, buf);
     }
@@ -404,11 +404,7 @@ MEDIT(medit_show)
                         }
                         else
                         {
-                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
-                                sprintf(item, "%s (%ld#%ld)", obj->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
-                            } else {
-                                sprintf(item, "%s (%ld)", obj->short_descr, pStock->entity.wnum.vnum);
-                            }
+                                sprintf(item, "%s (%s)", obj->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
                         }
                     }
                     else
@@ -428,11 +424,7 @@ MEDIT(medit_show)
                         }
                         else
                         {
-                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
-                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
-                            } else {
-                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
-                            }
+                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
                         }
                     }
                     else
@@ -451,11 +443,7 @@ MEDIT(medit_show)
                         }
                         else
                         {
-                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
-                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
-                            } else {
-                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
-                            }
+                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
                         }
                     }
                     else
@@ -474,11 +462,7 @@ MEDIT(medit_show)
                         }
                         else
                         {
-                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
-                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
-                            } else {
-                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
-                            }
+                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
                         }
                     }
                     else
@@ -498,11 +482,7 @@ MEDIT(medit_show)
                         }
                         else
                         {
-                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
-                                sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
-                            } else {
-                                sprintf(item, "%s (%ld)", mob->short_descr, pStock->entity.wnum.vnum);
-                            }
+                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
                         }
                     }
                     else
@@ -520,11 +500,7 @@ MEDIT(medit_show)
                         }
                         else
                         {
-                            if (pStock->entity.wnum.pArea && pStock->entity.wnum.pArea != pMob->area) {
-                                sprintf(item, "%s (%ld#%ld)", ship_index->name, pStock->entity.wnum.pArea->uid, pStock->entity.wnum.vnum);
-                            } else {
-                                sprintf(item, "%s (%ld)", ship_index->name, pStock->entity.wnum.vnum);
-                            }
+                            sprintf(item, "%s (%s)", ship_index->name, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
                         }
 
                     }
@@ -1244,7 +1220,7 @@ MEDIT(medit_corpsevnum)
     if (!str_cmp(argument, "0"))
     {
         send_to_char("Corpse object cleared.\n\r",ch);
-        pMob->corpse = 0;
+        pMob->corpse_load.vnum = 0;
         return true;
     }
 
@@ -1261,7 +1237,7 @@ MEDIT(medit_corpsevnum)
     }
 
     send_to_char("Corpse object vnum set.\n\r",ch);
-    pMob->corpse = obj_wnum.vnum;
+    pMob->corpse_load.vnum = obj_wnum.vnum;
     return true;
 }
 
@@ -1280,7 +1256,7 @@ MEDIT(medit_zombievnum)
     if (!str_cmp(argument, "0"))
     {
         send_to_char("Zombie corpse object cleared.\n\r",ch);
-        pMob->zombie = 0;
+        pMob->zombie_load.vnum = 0;
         return true;
     }
 
@@ -1297,7 +1273,7 @@ MEDIT(medit_zombievnum)
     }
 
     send_to_char("Zombie corpse object set.\n\r",ch);
-    pMob->zombie = obj_wnum.vnum;
+    pMob->zombie_load.vnum = obj_wnum.vnum;
     return true;
 }
 
@@ -3067,8 +3043,15 @@ MEDIT (medit_addmprog)
     list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-    list->trig_number		= atoi(list->trig_phrase);
-    list->numeric		= is_number(list->trig_phrase);
+    if (is_widevnum_format(phrase)) {
+        list->numeric = true;
+        list->trig_is_widevnum = true;
+        parse_widevnum_load(phrase, &list->trig_load);
+        list->trig_number = (int)list->trig_load.vnum;
+    } else {
+        list->trig_number = atoi(list->trig_phrase);
+        list->numeric = is_number(list->trig_phrase);
+    }
 
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);

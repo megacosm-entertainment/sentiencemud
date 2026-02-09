@@ -492,7 +492,7 @@ DNGEDIT( dngedit_show )
     room = dng->entry_room;
     if( room )
     {
-        sprintf(buf, "Entry:       [%ld] %-.30s\n\r", room->vnum, room->name);
+        sprintf(buf, "Entry:       [%s] %-.30s\n\r", widevnum_string_room(room, dng->area), room->name);
         add_buf(buffer, buf);
     }
     else
@@ -502,7 +502,7 @@ DNGEDIT( dngedit_show )
     room = dng->exit_room;
     if( room )
     {
-        sprintf(buf, "Exit:        [%ld] %-.30s\n\r", room->vnum, room->name);
+        sprintf(buf, "Exit:        [%s] %-.30s\n\r", widevnum_string_room(room, dng->area), room->name);
         add_buf(buffer, buf);
     }
     else
@@ -5609,8 +5609,15 @@ DNGEDIT (dngedit_adddprog)
     list->vnum            = script_wnum.vnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
-    list->trig_number		= atoi(list->trig_phrase);
-    list->numeric		= is_number(list->trig_phrase);
+    if (is_widevnum_format(phrase)) {
+        list->numeric = true;
+        list->trig_is_widevnum = true;
+        parse_widevnum_load(phrase, &list->trig_load);
+        list->trig_number = (int)list->trig_load.vnum;
+    } else {
+        list->trig_number = atoi(list->trig_phrase);
+        list->numeric = is_number(list->trig_phrase);
+    }
     list->script          = code;
 
     list_appendlink(dungeon->progs[slot], list);

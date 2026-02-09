@@ -687,9 +687,9 @@ DECL_IFC_FUN(ifc_hastoken)
     else if(ISARG_TOK(1))
         vnum = ARG_TOK(1)->pIndexData->vnum;
 
-    if(ISARG_MOB(0)) *ret = true && get_token_char(ARG_MOB(0), vnum, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
-    else if(ISARG_OBJ(0)) *ret = true && get_token_obj(ARG_OBJ(0), vnum, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
-    else if(ISARG_ROOM(0)) *ret = true && get_token_room(ARG_ROOM(0), vnum, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+    if(ISARG_MOB(0)) *ret = true && get_token_char(ARG_MOB(0), vnum, NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+    else if(ISARG_OBJ(0)) *ret = true && get_token_obj(ARG_OBJ(0), vnum, NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+    else if(ISARG_ROOM(0)) *ret = true && get_token_room(ARG_ROOM(0), vnum, NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
     else return false;
 
     return true;
@@ -822,7 +822,7 @@ DECL_IFC_FUN(ifc_iscasting)
     int sn;
 
     *ret = ISARG_MOB(0) && ARG_MOB(0)->cast > 0 &&
-        ((ISARG_NUM(1) && (token = get_token_char(ARG_MOB(0), ARG_NUM(1), (ISARG_NUM(2) ? ARG_NUM(2) : 1))) &&
+        ((ISARG_NUM(1) && (token = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1))) &&
                 token->pIndexData->type == TOKEN_SPELL && ARG_MOB(0)->cast_token == token) ||
             (ISARG_TOK(1) && ARG_TOK(0)->pIndexData->type == TOKEN_SPELL &&
                 ARG_TOK(1)->player == ARG_MOB(0) && ARG_MOB(0)->cast_token == ARG_TOK(1)) ||
@@ -1360,7 +1360,7 @@ DECL_IFC_FUN(ifc_mobexists)
     if(ISARG_NUM(0)) {
         MOB_INDEX_DATA *pMobIndex;
 
-        if (!(pMobIndex = get_mob_index_global(ARG_NUM(0))))
+        if (!(pMobIndex = get_mob_index_from_info(info, ARG_NUM(0))))
             *ret = false;
         else
             *ret = (bool)(int)(get_char_world_index(NULL, pMobIndex) && 1);
@@ -1369,7 +1369,7 @@ DECL_IFC_FUN(ifc_mobexists)
         if (is_number(ARG_STR(0))) {
             MOB_INDEX_DATA *pMobIndex;
 
-            if (!(pMobIndex = get_mob_index_global(atol(ARG_STR(0)))))
+            if (!(pMobIndex = get_mob_index_from_info(info, atol(ARG_STR(0)))))
                 *ret = false;
             else
                 *ret = (bool)(int)(get_char_world_index(NULL, pMobIndex) && 1);
@@ -1383,10 +1383,10 @@ DECL_IFC_FUN(ifc_mobexists)
 DECL_IFC_FUN(ifc_mobhere)
 {
     if(ISARG_NUM(0))
-        *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, ARG_NUM(0), NULL) && 1));
+        *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, ARG_NUM(0), get_area_from_scriptinfo(info)) && 1));
     else if(ISARG_STR(0)) {
         WNUM wnum_temp;
-        if (parse_widevnum(ARG_STR(0), NULL, &wnum_temp))
+        if (parse_widevnum(ARG_STR(0), get_area_from_scriptinfo(info), &wnum_temp))
             *ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, wnum_temp.vnum, wnum_temp.pArea) && 1));
         else
             *ret = ((bool)(int)(get_char_room(mob, obj ? obj_room(obj) : (token ? token_room(token) : room), ARG_STR(0)) && 1));
@@ -1494,10 +1494,10 @@ DECL_IFC_FUN(ifc_objextra4)
 DECL_IFC_FUN(ifc_objhere)
 {
     if(ISARG_NUM(0))
-        *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, ARG_NUM(0), NULL) && 1));
+        *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, ARG_NUM(0), get_area_from_scriptinfo(info)) && 1));
     else if(ISARG_STR(0)) {
         WNUM wnum_temp;
-        if (parse_widevnum(ARG_STR(0), NULL, &wnum_temp))
+        if (parse_widevnum(ARG_STR(0), get_area_from_scriptinfo(info), &wnum_temp))
             *ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, wnum_temp.vnum, wnum_temp.pArea) && 1));
         else
             *ret = ((bool)(int)(get_obj_here(mob, obj ? obj_room(obj) : (token ? token_room(token) : room), ARG_STR(0)) && 1));
@@ -2122,7 +2122,7 @@ DECL_IFC_FUN(ifc_tokencount)
     TOKEN_DATA *tok;
     int i;
 
-    if((ISARG_NUM(1) && !(ti = get_token_index_global(ARG_NUM(1)))))
+    if((ISARG_NUM(1) && !(ti = get_token_index_from_info(info, ARG_NUM(1)))))
         return false;
 
     if(ISARG_MOB(0)) tok = ARG_MOB(0)->tokens;
@@ -2139,7 +2139,7 @@ DECL_IFC_FUN(ifc_tokencount)
 DECL_IFC_FUN(ifc_tokenexists)
 {
     TOKEN_INDEX_DATA *ti;
-    *ret = (ISARG_NUM(0) && (ti = get_token_index_global(ARG_NUM(0))) && ti->loaded > 0);
+    *ret = (ISARG_NUM(0) && (ti = get_token_index_from_info(info, ARG_NUM(0))) && ti->loaded > 0);
     return true;
 }
 
@@ -2148,22 +2148,22 @@ DECL_IFC_FUN(ifc_tokentimer)
     TOKEN_DATA *tok;
 
     if(ISARG_MOB(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
-        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), ARG_NUM(2));
+        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, ARG_NUM(2));
 
     } else if(ISARG_OBJ(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
-        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), ARG_NUM(2));
+        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), NULL, ARG_NUM(2));
 
     } else if(ISARG_ROOM(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
-        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), ARG_NUM(2));
+        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), NULL, ARG_NUM(2));
 
     } else if(ISARG_MOB(0) && ISARG_NUM(1)) {
-        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), 1);
+        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, 1);
 
     } else if(ISARG_OBJ(0) && ISARG_NUM(1)) {
-        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), 1);
+        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), NULL, 1);
 
     } else if(ISARG_ROOM(0) && ISARG_NUM(1)) {
-        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), 1);
+        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), NULL, 1);
 
     } else if(ISARG_TOK(0)) {
         tok = ARG_TOK(0);
@@ -2188,27 +2188,27 @@ DECL_IFC_FUN(ifc_tokenvalue)
     int val;
 
     if(ISARG_MOB(0) && ISARG_NUM(1) && ISARG_NUM(2) && ISARG_NUM(3)) {
-        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), ARG_NUM(2));
+        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, ARG_NUM(2));
         val = ARG_NUM(3);
 
     } else if(ISARG_OBJ(0) && ISARG_NUM(1) && ISARG_NUM(2) && ISARG_NUM(3)) {
-        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), ARG_NUM(2));
+        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), NULL, ARG_NUM(2));
         val = ARG_NUM(3);
 
     } else if(ISARG_ROOM(0) && ISARG_NUM(1) && ISARG_NUM(2) && ISARG_NUM(3)) {
-        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), ARG_NUM(2));
+        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), NULL, ARG_NUM(2));
         val = ARG_NUM(3);
 
     } else if(ISARG_MOB(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
-        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), 1);
+        tok = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, 1);
         val = ARG_NUM(2);
 
     } else if(ISARG_OBJ(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
-        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), 1);
+        tok = get_token_obj(ARG_OBJ(0), ARG_NUM(1), NULL, 1);
         val = ARG_NUM(2);
 
     } else if(ISARG_ROOM(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
-        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), 1);
+        tok = get_token_room(ARG_ROOM(0), ARG_NUM(1), NULL, 1);
         val = ARG_NUM(2);
 
     } else if(ISARG_TOK(0) && ISARG_NUM(1)) {
@@ -3693,7 +3693,7 @@ DECL_IFC_FUN(ifc_testtokenspell)
 DECL_IFC_FUN(ifc_isspell)
 {
     if(ISARG_MOB(0) && ISARG_NUM(1)) {
-        token = get_token_char(ARG_MOB(0), ARG_NUM(1), (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+        token = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
         *ret = token ? (token->pIndexData->type == TOKEN_SPELL) : false;
     } else if(ISARG_TOK(0)) {
         *ret = (ARG_TOK(0)->pIndexData->type == TOKEN_SPELL);
@@ -4600,7 +4600,7 @@ DECL_IFC_FUN(ifc_mobclones)
     if(ISARG_ROOM(0)) {
         location = ARG_ROOM(0);
 
-        if(ISARG_NUM(1)) index = get_mob_index_global(ARG_NUM(1));
+        if(ISARG_NUM(1)) index = get_mob_index_from_info(info, ARG_NUM(1));
         else if(VALID_NPC(1)) index = ARG_MOB(1)->pIndexData;
         //if(ISARG_MOBIDX(1)) index = ARG_MOBIDX(1);
         else
@@ -4615,7 +4615,7 @@ DECL_IFC_FUN(ifc_mobclones)
         else
             return false;
 
-        index = get_mob_index_global(ARG_NUM(0));
+        index = get_mob_index_from_info(info, ARG_NUM(0));
     } else if(VALID_NPC(0)) {
         if(mob) location = mob->in_room;
         else if(obj) location = obj_room(obj);
@@ -4664,7 +4664,7 @@ DECL_IFC_FUN(ifc_objclones)
     if(ISARG_ROOM(0)) {
         location = ARG_ROOM(0);
 
-        if(ISARG_NUM(1)) index = get_obj_index_global(ARG_NUM(1));
+        if(ISARG_NUM(1)) index = get_obj_index_from_info(info, ARG_NUM(1));
         else if(ISARG_OBJ(1)) index = ARG_OBJ(1)->pIndexData;
         //if(ISARG_OBJIDX(1)) index = ARG_OBJIDX(1);
         else
@@ -4679,7 +4679,7 @@ DECL_IFC_FUN(ifc_objclones)
         else
             return false;
 
-        index = get_obj_index_global(ARG_NUM(0));
+        index = get_obj_index_from_info(info, ARG_NUM(0));
     } else if(ISARG_OBJ(0)) {
         if(mob) location = mob->in_room;
         else if(obj) location = obj_room(obj);
@@ -4857,7 +4857,7 @@ DECL_IFC_FUN(ifc_loaded)
             {
                 if( ISARG_NUM(1) )
                 {
-                    MOB_INDEX_DATA *mobindex = get_mob_index_global(ARG_NUM(1));
+                    MOB_INDEX_DATA *mobindex = get_mob_index_from_info(info, ARG_NUM(1));
 
                     if( mobindex )
                     {
@@ -4877,7 +4877,7 @@ DECL_IFC_FUN(ifc_loaded)
             {
                 if( ISARG_NUM(1) )
                 {
-                    OBJ_INDEX_DATA *objindex = get_obj_index_global(ARG_NUM(1));
+                    OBJ_INDEX_DATA *objindex = get_obj_index_from_info(info, ARG_NUM(1));
 
                     *ret = objindex ? objindex->count : 0;
                 }

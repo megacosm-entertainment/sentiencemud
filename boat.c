@@ -2598,11 +2598,11 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
         else if( room->source )
         {
             // Only scripting should ever cause this situation
-            snprintf(buf, len, "{Y%s {x({W%ld{x):{C%lu{x:{C%lu{x", room->name, room->source->vnum, room->id[0], room->id[1]);
+            snprintf(buf, len, "{Y%s {x({W%s{x):{C%lu{x:{C%lu{x", room->name, widevnum_string_room(room->source, NULL), room->id[0], room->id[1]);
         }
         else
         {
-            snprintf(buf, len, "{Y%s {x({W%ld{x)", room->name, room->vnum);
+            snprintf(buf, len, "{Y%s {x({W%s{x)", room->name, widevnum_string_room(room, NULL));
         }
     }
     else
@@ -5203,7 +5203,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
         {
             if( str_infix(argument, area->name) ) continue;
 
-            if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
+            if( area->wilds_uid != uid || area->airship_land_wnum.vnum < 1 ) continue;
 
             int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
 
@@ -5220,9 +5220,10 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot, NULL);
+        AREA_DATA *land_area = to_area->airship_land_wnum.pArea;
+        if (!land_area) land_area = find_area_by_vnum(to_area->airship_land_load.vnum, NULL);
         if (!land_area) land_area = get_system_area_fallback();
-        to_room = get_room_index(land_area, to_area->airship_land_spot);
+        to_room = get_room_index(land_area, to_area->airship_land_wnum.vnum);
         if( !to_room )
         {
             ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -5256,7 +5257,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
             for( AREA_DATA *area = area_first; area; area = area->next )
             {
-                if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
+                if( area->wilds_uid != uid || area->airship_land_wnum.vnum < 1 ) continue;
 
                 int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
 
@@ -5273,9 +5274,10 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            AREA_DATA *land_area = find_area_by_vnum(to_area->airship_land_spot, NULL);
+            AREA_DATA *land_area = to_area->airship_land_wnum.pArea;
+            if (!land_area) land_area = find_area_by_vnum(to_area->airship_land_load.vnum, NULL);
             if (!land_area) land_area = get_system_area_fallback();
-            to_room = get_room_index(land_area, to_area->airship_land_spot);
+            to_room = get_room_index(land_area, to_area->airship_land_wnum.vnum);
             if( !to_room )
             {
                 ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");

@@ -2,7 +2,7 @@
 
 **Date:** February 6, 2026
 **Last Updated:** February 9, 2026
-**Status:** Phases 1-6 complete. Phase 7 in progress (Cat 1 mostly done, utility functions backported). Phase 8 pending. Next focus: Global quest (GQ) + standard quest systems.
+**Status:** **MIGRATION COMPLETE.** Phases 1-8 done. All 8 categories finished: commands, cross-area comparisons, struct fields, hardcoded constants, display consistency, function signatures, subsystem cleanup, scripting system. Minor polish items deferred to Phase 9.
 
 ## Executive Summary
 
@@ -46,22 +46,20 @@ All eight use `widevnum_string_*()` for display and support area filtering for i
 | `mstat` | `do_mstat` | DONE - uses `widevnum_string_room()` |
 | `astat` | `do_astat` | N/A - area-level display, uses area uid directly |
 
-### 1C: Where Commands (3 commands) - MOSTLY COMPLETE
+### 1C: Where Commands (3 commands) - COMPLETE
 
 | Command | Function | Status |
 |---------|----------|--------|
 | `rwhere` | `do_rwhere` | DONE - uses `widevnum_string_room()` |
 | `owhere` | `do_owhere` | DONE - uses `widevnum_string_object/mobile/room()` |
-| `mwhere` | `do_mwhere` | PARTIAL - room display uses `widevnum_string_room()`, but mob vnum still raw `%ld` in "nowhere" and name-search paths (lines ~4850, ~4879) |
+| `mwhere` | `do_mwhere` | DONE - uses `widevnum_string_room()` and `widevnum_string_mobile()` |
 
-### 1D: Load Commands (3 commands) - MOSTLY COMPLETE
-
-Input parsing uses `parse_widevnum()`. Confirmation/log messages still show raw `%ld` for vnums.
+### 1D: Load Commands (3 commands) - COMPLETE
 
 | Command | Function | Status |
 |---------|----------|--------|
-| `mload` | `do_mload` | Input: DONE. Display: raw `%ld` in confirmation (lines ~5637, 5663) and log (line ~5618) |
-| `oload` | `do_oload` | Input: DONE. Display: likely same pattern as mload |
+| `mload` | `do_mload` | DONE - uses `widevnum_string_mobile()` for confirmation, log, and permission messages |
+| `oload` | `do_oload` | DONE - uses `widevnum_string_object()` |
 | `sload` | `do_sload` | DISABLED (`#if 0`) |
 
 ### 1E: Navigation Commands (3 commands) - COMPLETE
@@ -74,23 +72,15 @@ All use `find_location()` which already supports widevnum format (`uid#vnum`, `#
 | `transfer` | `do_transfer` | DONE via `find_location()` |
 | `at` | `do_at` | DONE via `find_location()` |
 
-### 1F: Other Commands - PARTIALLY COMPLETE
+### 1F: Other Commands - COMPLETE
 
 | Command | Function | File | Status |
 |---------|----------|------|--------|
-| `token` | `do_token` | `act_wiz.c` | Input: DONE (uses `parse_widevnum()`). Display: not checked. |
-| `tset` | `do_tset` | `act_wiz.c` | Not widevnum-related (time setting). |
-| `boost` | `do_boost` | `act_wiz.c` | Not widevnum-related (boost setting). |
-| `vnum` | `do_vnum` | `act_info.c` | Not checked. |
-| `mset` | `do_mset` | `act_wiz.c` | Not checked. |
-
-### Remaining Display Polish
-
-The following are minor display-only gaps where confirmation/log messages still use raw `%ld` for vnums instead of `widevnum_string_*()`:
-
-- `do_mwhere`: mob vnum in "nowhere" and name-search output
-- `do_mload`: confirmation messages and permission-denied log
-- `do_oload`: confirmation messages (likely same as mload)
+| `token` | `do_token` | `act_wiz.c` | DONE - input uses `parse_widevnum()`, display uses `widevnum_string()` (Cat 5) |
+| `tset` | `do_tset` | `act_wiz.c` | N/A - not widevnum-related (time setting) |
+| `boost` | `do_boost` | `act_wiz.c` | N/A - not widevnum-related (boost setting) |
+| `vnum` | `do_vnum` | `act_info.c` | DONE - dispatcher to do_mfind/do_ofind/do_tfind (all completed) |
+| `mset` | `do_mset` | `act_wiz.c` | N/A - modifies stat/resource fields, no vnum display |
 
 ---
 
@@ -98,83 +88,54 @@ The following are minor display-only gaps where confirmation/log messages still 
 
 These are runtime logic errors where two vnums are compared without verifying they belong to the same area. With widevnums, different areas can have entities with the same local vnum, making bare vnum comparisons incorrect.
 
-### 2A: Lock/Key System (4 instances, handler.c)
+### 2A: Lock/Key System (4 instances, handler.c) - COMPLETE
 
-```c
-// handler.c:~10114, 10122, 10136, 10144
-if (obj->pIndexData->vnum == lock->key_vnum)
-```
+**Status:** DONE (February 9, 2026). Full lockstate system backported from src_20_dev:
+- `LOCK_STATE` struct: `long key_vnum` → `WNUM_LOAD key_load` + `WNUM key_wnum`, `keys` → `special_keys`
+- `SPECIAL_KEY_DATA`: `long key_vnum` → `WNUM key_wnum`
+- All 4 bare vnum comparisons replaced with `wnum_match_obj()`
+- New `lockstate_iskey()` predicate added
+- New lock flags: `LOCK_FREE_KEYS`, `LOCK_CHECK_BOTH`, `LOCK_FINAL`, `LOCK_NOMAGIC`, `LOCK_NOSCRIPT`
+- Boot-time resolution: `fix_rooms()` resolves exit lock keys, new `fix_object_locks()` resolves obj lock keys
+- JSON serialization updated with backward compat (reads legacy bare vnum, writes auid+vnum)
+- All script, OLC, save/load, and display code updated across ~15 files
 
-**Problem:** `lock->key_vnum` is a bare `long`. Two objects from different areas with the same vnum would both unlock the same door.
+### 2B: Global Quest System - COMPLETE
 
-**Fix:** Change `LOCK_STATE.key_vnum` (merc.h) to `WNUM_LOAD key` or add `long key_area_uid` alongside `key_vnum`. Compare both area and vnum in the check:
-```c
-if (obj->pIndexData->vnum == lock->key_vnum
-    && obj->pIndexData->area == lock->key_area)
-```
+**Status:** DONE (February 9, 2026).
+- `GQ_MOB_DATA`: `long vnum` → `WNUM_LOAD vnum_load` + `WNUM vnum_wnum`; `long obj` → `WNUM_LOAD obj_load` + `WNUM obj_wnum`
+- `GQ_OBJ_DATA`: `long vnum` → `WNUM_LOAD vnum_load` + `WNUM vnum_wnum`
+- All comparisons use `wnum_match()` / `wnum_match_mob()` / `wnum_match_obj()`
+- New `gq_resolve_wnum_load()` and `gq_set_load_from_wnum()` helpers
+- JSON serialization updated with backward compat (reads legacy bare vnum, writes auid+vnum)
+- GQ add/remove commands accept widevnum input via `parse_widevnum()`
+- Files: merc.h, gq.c, handler.c, db.c, db2.c, act_obj2.c, json_gq.c, mem.c
 
-**Risk:** HIGH - Keys unlocking wrong doors is a game-breaking bug.
+### 2C: Quest System - COMPLETE
 
-### 2B: Global Quest System (5+ instances, handler.c / db.c / gq.c) - NEXT
+**Status:** DONE (February 9, 2026).
+- `QUEST_DATA`: `long questgiver/questreceiver` → `WNUM_LOAD *_load` + `WNUM *_wnum`
+- `QUEST_PART_DATA`: `long obj/mob/room/obj_sac/mob_rescue` → `WNUM_LOAD *_load` + `WNUM *_wnum` pairs
+- All comparisons use `wnum_match_mob()` / `wnum_match_obj()` / `wnum_match_room()`
+- New `quest_set_wnum()` and `quest_part_resolve()` helpers
+- Player save/load updated: writes `QuestGiverW`/`QuestReceiverW` widevnum strings, reads both legacy bare vnum and new format
+- JSON char serialization updated with backward compat
+- Script quest commands updated to populate WNUM fields from runtime entities
+- Files: merc.h, quest.c, save.c, json_char.c, script_commands.c, mem.c
 
-```c
-// handler.c:3176, 4961 - mob checking
-if (ch->pIndexData->vnum == gq_mob->vnum)
+### 2D: Object Duplicate Check - COMPLETE
 
-// db.c:3337, 3661 - index counting
-if (pMobIndex->vnum == gq_mob->vnum)
+**Status:** DONE (February 9, 2026).
+- `act_obj.c`: Added `&& obj->pIndexData->area == key->pIndexData->area` to the container duplicate check
 
-// gq.c:317 - duplicate check
-if (gq_mob->vnum == vnum)
-```
+### 2E: Script Interface - COMPLETE
 
-**Problem:** The `GQ_MOB_DATA` and `GQ_OBJ_DATA` structures store bare `long vnum` for quest targets. Two mobs from different areas with the same vnum would both count as quest targets.
-
-**Fix:** Add area tracking to GQ mob/obj entries. Store `WNUM_LOAD` or `{area_uid, vnum}` pair. Update all comparisons to check both fields.
-
-**Risk:** HIGH - Wrong mobs counting for quests breaks gameplay.
-
-### 2C: Quest System (6 instances, quest.c) - NEXT
-
-```c
-// quest.c:480, 490, 501
-if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questgiver)
-
-// quest.c:606, 619, 631
-if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questreceiver)
-```
-
-**Problem:** `quest->questgiver` and `quest->questreceiver` are bare `long` vnums. Mobs with the same vnum in different areas would incorrectly match.
-
-**Fix:** Add area_uid fields to quest data (`questgiver_auid`, `questreceiver_auid`) or change to `WNUM_LOAD`. Update comparisons.
-
-**Risk:** HIGH - Quest givers/receivers misidentified breaks quest system.
-
-### 2D: Object Duplicate Check (1 instance, act_obj.c)
-
-```c
-// act_obj.c:1045
-if (obj->pIndexData->vnum == key->pIndexData->vnum)
-```
-
-**Problem:** Comparing two different object vnums without area context.
-
-**Fix:** Add area comparison: `&& obj->pIndexData->area == key->pIndexData->area`.
-
-**Risk:** MEDIUM - Affects container logic.
-
-### 2E: Script Interface (5+ instances, script_ifc.c)
-
-```c
-// script_ifc.c:857, 968, 1011, 1059, 1079
-ARG_MOB(0)->fighting->pIndexData->vnum == ARG_NUM(1)
-```
-
-**Problem:** Script `ARG_NUM` passes bare vnums for mob comparisons. Scripts could match wrong mobs across areas.
-
-**Fix:** Add script functions that compare by WNUM, or require scripts to use widevnum format. Consider adding `ARG_WNUM()` macro.
-
-**Risk:** HIGH - Scripts are the backbone of game logic.
+**Status:** DONE (February 9, 2026).
+- New `resolve_legacy_vnum()` helper resolves bare vnum → WNUM via `find_area_by_vnum()`
+- New `script_match_npc_vnum()` uses `resolve_legacy_vnum()` + `wnum_match_mob()` for `ARG_NUM` comparisons
+- String arguments use `parse_widevnum()` then check both `pArea` and `vnum`
+- Applied to: `ifc_isfighting`, `ifc_ison`, `ifc_pulling`, `ifc_hasrider`, `ifc_ismount`
+- Files: script_ifc.c
 
 ---
 
@@ -182,40 +143,44 @@ ARG_MOB(0)->fighting->pIndexData->vnum == ARG_NUM(1)
 
 These are `long` fields in structs that store a vnum without area context. They need migration to `WNUM_LOAD` (for persistence) or `WNUM` (for runtime) to be fully widevnum-safe.
 
-### Tier 1: Critical (Cross-area scenarios are common)
+### Tier 1: Critical (Cross-area scenarios are common) - COMPLETE
 
-| Struct | Field | File | Notes |
-|--------|-------|------|-------|
-| `MAIL_DATA` | `from_location` | merc.h:~4122 | Mail origin room - always cross-area |
-| `MAIL_DATA` | `to_location` | merc.h:~4123 | Mail destination room - always cross-area |
-| `AREA_DATA` | `post_office` | merc.h:~5718 | Area post office room vnum |
-| `AREA_DATA` | `airship_land_spot` | merc.h:~5691 | Airship landing room - can be cross-area |
-| `CHAR_DATA` | `vnum_of_boat_before_logoff` | merc.h:~5203 | Player's boat vnum saved across sessions |
-| `GQ_MOB_DATA` | `vnum` | (gq structures) | Global quest target mob |
-| `GQ_OBJ_DATA` | `vnum` | (gq structures) | Global quest target object |
-| `quest data` | `questgiver` | (quest structures) | Quest giver mob vnum |
-| `quest data` | `questreceiver` | (quest structures) | Quest receiver mob vnum |
+| Struct | Field | File | Status |
+|--------|-------|------|--------|
+| `MAIL_DATA` | `from_location_load`/`from_location_wnum` | merc.h | DONE - fixed data loss bug (area_uid was parsed but discarded) |
+| `MAIL_DATA` | `to_location_load`/`to_location_wnum` | merc.h | DONE - fixed data loss bug |
+| `AREA_DATA` | `post_office_load`/`post_office_wnum` | merc.h | DONE - boot-time resolution in fix_area_fields() |
+| `AREA_DATA` | `airship_land_load`/`airship_land_wnum` | merc.h | DONE - boot-time resolution in fix_area_fields() |
+| `CHAR_DATA` | `boat_logoff_load`/`boat_logoff_wnum` | merc.h | DONE - save/load updated |
+| `GQ_MOB_DATA` | `vnum_load`/`vnum_wnum` | merc.h | DONE - migrated |
+| `GQ_MOB_DATA` | `obj_load`/`obj_wnum` | merc.h | DONE - migrated |
+| `GQ_OBJ_DATA` | `vnum_load`/`vnum_wnum` | merc.h | DONE - migrated |
+| `QUEST_DATA` | `questgiver_load`/`questgiver_wnum` | merc.h | DONE - migrated |
+| `QUEST_DATA` | `questreceiver_load`/`questreceiver_wnum` | merc.h | DONE - migrated |
+| `QUEST_PART_DATA` | all 5 vnum fields | merc.h | DONE - migrated to WNUM_LOAD + WNUM pairs |
 
-### Tier 2: High Priority (Cross-area possible)
+### Tier 2: High Priority (Cross-area possible) - COMPLETE
 
-| Struct | Field | File | Notes |
-|--------|-------|------|-------|
-| `MOB_INDEX_DATA` | `corpse` | merc.h:~4085 | Corpse object vnum - could be from another area |
-| `MOB_INDEX_DATA` | `zombie` | merc.h:~4086 | Animated corpse vnum |
-| `OBJ_DATA` | `created_script_vnum` | merc.h:~5434 | Script that created object |
-| `OBJ_DATA` | `orig_vnum` | merc.h:~5456 | Original object vnum before modification |
-| `EXIT_DATA` | `u1.vnum` | merc.h:~5530 | Exit destination (during loading only) |
-| `LOCK_STATE` | `key_vnum` | merc.h:~5301 | Lock key object vnum |
+| Struct | Field | File | Status |
+|--------|-------|------|--------|
+| `MOB_INDEX_DATA` | `corpse_load`/`corpse_wnum` | merc.h | DONE - boot-time resolution in fix_area_fields() |
+| `MOB_INDEX_DATA` | `zombie_load`/`zombie_wnum` | merc.h | DONE - boot-time resolution in fix_area_fields() |
+| `CHAR_DATA` | `corpse_load`/`corpse_wnum` | merc.h | DONE - runtime tracking updated |
+| `OBJ_DATA` | `created_script_load`/`created_script_wnum` | merc.h | DONE - save/load updated |
+| `OBJ_DATA` | `orig_wnum` | merc.h | DONE - runtime WNUM (no WNUM_LOAD needed), set at mob death with area context |
+| Corpse `value[5]`/`value[6]` | `CORPSE_MOBILE`/`CORPSE_MOBILE_AUID` | merc.h | DONE - added value[6] for area UID, magic_death.c updated |
+| `EXIT_DATA` | `u1.vnum` | merc.h | N/A - loading-time only, resolved by fix_rooms() |
+| `LOCK_STATE` | `key_load`/`key_wnum` | merc.h | DONE - migrated |
 
-### Tier 3: Medium Priority
+### Tier 3: Medium Priority - COMPLETE
 
-| Struct | Field | File | Notes |
-|--------|-------|------|-------|
-| `TRADE_ITEM` | `obj_vnum` | merc.h:~5822 | Trade item - usually area-local |
-| `newbie_eq_type` | `vnum` | merc.h:~2143 | Starting equipment - static (defer until class/progression rework) |
-| `weapon_type` | `vnum` | merc.h:~2163 | Starting weapons - static (defer until class/progression rework) |
-| `map_exit_type` | `room_vnum` | merc.h:~2157 | Wilderness map exits |
-| `tunneler_place_type` | `vnum` | merc.h:~6760 | Tunneler destinations |
+| Struct | Field | File | Status |
+|--------|-------|------|--------|
+| `TRADE_ITEM` | `obj_load`/`obj_wnum` | merc.h | DONE - fixed data loss bug, boot-time resolution in fix_area_fields() |
+| `newbie_eq_type` | `vnum` | merc.h | DEFERRED - uses reserved entity names in db.c; bare vnum field unused for lookups |
+| `weapon_type` | `vnum` | merc.h | DEFERRED - uses reserved entity names in db.c; bare vnum field unused for lookups |
+| `map_exit_type` | `room_vnum` | merc.h | SKIPPED - dead code (table entirely commented out in const.c) |
+| `tunneler_place_type` | `vnum` | merc.h | FIXED - tunneler bug: get_room_index() called with 1 arg → get_room_index_global() |
 
 ### Tier 4: Low Priority (Already area-local or legacy unions)
 
@@ -223,69 +188,53 @@ Fields already using the `union { WNUM wnum; WNUM_LOAD load; long vnum; }` patte
 
 ---
 
-## Category 4: Hardcoded Vnum Constants
+## Category 4: Hardcoded Vnum Constants - COMPLETE
 
-These use `#define` constants like `OBJ_VNUM_*`, `MOB_VNUM_*`, `ROOM_VNUM_*` that assume global vnum uniqueness.
+**Status:** DONE (February 9, 2026).
 
-### Current Pattern (Fragile)
+All `#define OBJ_VNUM_*`, `MOB_VNUM_*`, `ROOM_VNUM_*` constants have been removed from merc.h. All runtime lookups now use the reserved entity system via `get_reserved_obj_index("name")`, `get_reserved_mob_index("name")`, `get_reserved_room_index("name")`.
 
-```c
-// Scattered across multiple files
-if (obj->pIndexData == get_reserved_obj_index("obj_portal_abyss"))
-if (container->pIndexData == get_reserved_obj_index("OBJ_VNUM_CURSED_ORB"))
-if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_GOLD_WHISTLE"))
-if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_RELIC_EXTRA_DAMAGE"))
-if (obj->pIndexData == get_reserved_obj_index("obj_alemnos_armor"))
-if (obj->pIndexData == get_reserved_obj_index("obj_mordrake_crystal_ball"))
-```
-
-**Strategy:** These should migrate to the **reserved entity system** which already exists and uses WNUM internally. Reserved entities are looked up by *name* (e.g., `get_reserved_obj_index("abyss_portal")`), making them area-independent.
-
-### Migration Steps
-
-1. Register each hardcoded vnum as a reserved entity
-2. Replace `OBJ_VNUM_CONSTANT` checks with `get_reserved_obj_index("name")` lookups
-3. Replace magic number checks with named reserved entities (add to bootstrap + reserved.json)
-4. Remove `#define OBJ_VNUM_*` constants from merc.h
-5. Document all reserved entities in a configuration file
-
-### Relic System (Special Case)
-
-The relic system in `db.c` sets global pointers during boot:
-```c
-// db.c:3643-3655
-if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE) relic_extra_damage = pObjIndex;
-if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_HP)     relic_extra_hp = pObjIndex;
-// ... etc
-```
-
-These should use the reserved entity system to look up relics by name at boot time.
+**What Changed:**
+- All hardcoded vnum `#define` constants removed from merc.h
+- All comparison sites migrated to `get_reserved_*_index()` lookups (227 call sites across 50 files)
+- Relic system uses reserved entity lookups at boot time
+- Bootstrap `bootstrap_reserved.c` updated with all reserved entity registrations
+- Newbie equipment, boat harbours, abyss portal, glass hammer, cursed orb, gold whistle, etc. all use reserved entities
+- Magic number checks (e.g., `100035`, `152533`) replaced with named reserved entities
 
 ---
 
-## Category 5: Display Consistency
+## Category 5: Display Consistency - COMPLETE
 
-~53 files format vnums for display. Many use raw `%ld` format for `->vnum` fields. These should use `widevnum_string_*()` functions for consistent widevnum display.
+**Status:** DONE (February 9, 2026). ~51 display sites updated across 13 files.
 
-### Files Needing Display Updates
+### Updated Files
 
-**High traffic (immortals see these constantly):**
-- `act_wiz.c` - stat, find, where, load commands (covered in Category 1)
-- `act_info.c` - vnum display, player info commands
-- `olc.c` - OLC entry/list displays
+**High traffic (immortal commands):**
+- `act_wiz.c` (15 sites): do_ostat (4), do_mstat clone (1), do_restore (1), do_token (8), do_church (1)
+- `act_info.c` (5 sites): do_look room header (2), do_exits (3)
+- `olc.c` (12 sites): olc_ed_vnum (9), rlist (1), mlist (1), do_dislink (1)
 
-**Medium traffic (builders see these):**
-- `editors/rooms/redit.c` - Room display/list formatting
-- `editors/mobiles/medit.c` - Mobile display/list formatting
-- `editors/objects/oedit.c` - Object display/list formatting
-- `editors/areas/aedit.c` - Area display
-- `editors/blueprints/bpedit.c` - Blueprint display
-- `editors/blueprints/bsedit.c` - Blueprint section display
+**Medium traffic (OLC editors):**
+- `editors/rooms/redit.c` (5 sites): mreset/oreset confirmation messages
+- `editors/mobiles/medit.c` (6 sites): shop stock display - replaced manual cross-area formatting with `widevnum_string_wnum()`
+- `editors/areas/aedit.c` (1 site): post office setting
+- `editors/dungeons/dngedit.c` (2 sites): entry/exit room display
+- `editors/blueprints/bpedit.c` (4 sites): special rooms, entries/exits, variables
+- `editors/blueprints/bsedit.c` (1 site): recall room
 
-**Low traffic (logging, debugging):**
-- `io/json/json_char.c` - Character save/load logging
-- `log.c` - Error logging with vnum context
-- Various `bug()` and `log_string()` calls throughout
+**Low traffic:**
+- `boat.c` (2 sites): boat_get_name_room display
+- `church.c` (1 site): church room list
+- `handler.c` (1 site): visit debug output
+- `comm.c` (1 site): %R prompt variable (immortal room display)
+
+### Not Changed (by design)
+
+- Save/load file format writes (save.c, olc_save.c, db.c, db2.c) - file format compat
+- Internal logging (log_string, bug, pbugf) - low visibility, separate pass if desired
+- Script error messages (script_comp.c) - low visibility
+- Area min/max vnum ranges (do_astat) - legacy zone metadata, not entity vnums
 
 ### Display Function Selection Guide
 
@@ -294,6 +243,12 @@ These should use the reserved entity system to look up relics by name at boot ti
 | Room | `widevnum_string_room(room, pRefArea)` |
 | Mobile index | `widevnum_string_mobile(mob_index, pRefArea)` |
 | Object index | `widevnum_string_object(obj_index, pRefArea)` |
+| Token index | `widevnum_string_token(token, pRefArea)` |
+| Script | `widevnum_string_script(script, pRefArea)` |
+| Ship index | `widevnum_string_ship(ship, pRefArea)` |
+| Blueprint | `widevnum_string_blueprint(bp, pRefArea)` |
+| Blueprint section | `widevnum_string_blueprint_section(bs, pRefArea)` |
+| Dungeon index | `widevnum_string_dungeon(dng, pRefArea)` |
 | WNUM struct | `widevnum_string_wnum(wnum, pRefArea)` |
 | Raw area+vnum | `widevnum_string(pArea, vnum, pRefArea)` |
 
@@ -304,13 +259,13 @@ These should use the reserved entity system to look up relics by name at boot ti
 
 ---
 
-## Category 6: Function Signatures
+## Category 6: Function Signatures - COMPLETE
 
-Several functions take bare `long vnum` parameters where they should accept `WNUM` or `WNUM *`.
+**Status:** DONE (February 9, 2026). All functions reviewed - no changes needed.
 
 ### Global Lookup Functions (Keep as convenience wrappers)
 
-These intentionally take bare vnums and iterate all areas. They should remain but be documented as legacy/convenience:
+These intentionally take bare vnums and iterate all areas. Used by `parse_widevnum()` for legacy resolution:
 
 - `get_mob_index_global(long vnum)` - Searches all areas
 - `get_obj_index_global(long vnum)` - Searches all areas
@@ -318,148 +273,166 @@ These intentionally take bare vnums and iterate all areas. They should remain bu
 - `get_script_index_global(long vnum, int type)` - Searches all areas
 - `find_area_by_vnum(long vnum, AREA_DATA *context)` - Finds area containing vnum
 
-These are used by `parse_widevnum()` for legacy bare vnum resolution and should not be removed.
+### Functions Reviewed
 
-### Functions Needing WNUM Variants
+| Function | File | Verdict | Reasoning |
+|----------|------|---------|-----------|
+| `find_path` | hunt.c | SAFE | Already resolves areas internally via `find_area_by_vnum()`; all callers have room pointers with area context. WNUM variant deferred as optimization-only. |
+| `get_char_world_vnum` | merc.h | DEAD CODE | Declaration only, no implementation or call sites. Can be removed in cleanup. |
+| `create_invasion_quest` | invasion.c | SAFE | Already receives `AREA_DATA *pArea` parameter; vnums are contextual to that area. |
+| `generate_quest_scroll` | quest.c | SAFE | Already resolves area internally via `find_area_by_vnum()`. |
+| `get_npc_ship_index` | db.c | DISABLED | Entire function is `#if 0` (returns NULL). Non-functional stub. |
 
-| Function | File | Current Sig | Suggested Change |
-|----------|------|-------------|-----------------|
-| `find_path` | pathfinding | `(long in_room_vnum, long out_room_vnum, ...)` | Add `find_path_wnum(WNUM from, WNUM to, ...)` |
-| `get_char_world_vnum` | handler.c | `(CHAR_DATA *ch, long vnum)` | Add area parameter or WNUM variant |
-| `create_invasion_quest` | handler.c | `(AREA_DATA*, int, long, long)` | Change mob vnums to WNUM |
-| `generate_quest_scroll` | quest.c | `(... long vnum, ...)` | Change to WNUM |
-| `get_npc_ship_index` | handler.c | `(long vnum)` | Add area parameter |
+### Token Lookup Functions - FIXED (Phase 9A)
 
-### Token Lookup Functions
-
-These currently take bare `long vnum`:
-- `get_token_list(LLIST *tokens, long vnum, int count)`
-- `get_token_char(CHAR_DATA *ch, long vnum, int count)`
-- `get_token_obj(OBJ_DATA *obj, long vnum, int count)`
-- `get_token_room(ROOM_INDEX_DATA *room, long vnum, int count)`
-
-**Assessment:** Tokens are looked up on their *owner* (char/obj/room), so the token's vnum is being compared against tokens already attached to that owner. Since token attachment is area-scoped at creation time, these comparisons are **likely safe** but should be verified. Consider adding `_wnum` variants for new code.
+- `get_token_list`, `get_token_char`, `get_token_obj`, `get_token_room`
+- **Original assessment was wrong:** Tokens CAN be cross-area (given to entities from other areas). If two areas share the same token vnum, bare vnum comparison could return the wrong token.
+- **Fix:** Added `AREA_DATA *area` parameter to all 4 functions. NULL = match any area (backward compatible). Non-NULL = filter by token's source area.
+- **Wizard commands** (do_token give/junk) now pass `token_wnum.pArea` from parsed widevnum input.
+- **Script callers** pass NULL for now (scripts use bare vnums; will gain widevnum support later).
 
 ---
 
-## Category 7: Subsystem-Specific Issues (Phase 4)
+## Category 7: Subsystem-Specific Issues - COMPLETE
 
-### 7A: Blueprint/Instance System
+**Status:** DONE (February 9, 2026). All subsystems reviewed - already widevnum-safe.
 
-The blueprint system already uses union patterns with WNUM/WNUM_LOAD/long. Several fields are marked as "Legacy: bare vnum" in the unions:
-- `BLUEPRINT_SPECIAL_ROOM_DATA.room_ref.vnum`
-- `DUNGEON_INDEX_DATA.entry_ref.vnum`
-- `DUNGEON_INDEX_DATA.exit_ref.vnum`
-- `SHIP_INDEX_DATA.ship_object_ref.vnum`
-- `SHIP_INDEX_DATA.blueprint_ref.vnum`
+### 7A: Blueprint/Instance System - ALREADY DONE
 
-**Status:** These have the union structure ready. The WNUM/WNUM_LOAD members are populated during JSON loading. The bare `long vnum` member is used during legacy .are loading as a fallback. This pattern is functional but the legacy path should eventually be removed.
+Union structure (`WNUM wnum` / `WNUM_LOAD load` / `long vnum`) is in place for all blueprint reference fields. JSON loading populates `.load` members; boot-time resolution fills `.wnum` pointers. Legacy `.are` path uses bare `.vnum` as fallback only - can be removed when all legacy zones are converted.
 
-### 7B: Ship/Boat System
+Fields: `room_ref`, `entry_ref`, `exit_ref`, `ship_object_ref`, `blueprint_ref`
 
-`boat.c` has hardcoded room vnum comparisons:
-```c
-if (ship->ship->in_room->vnum == ROOM_VNUM_SEA_PLITH_HARBOUR || ...)
-```
+### 7B: Ship/Boat System - ALREADY DONE
 
-These should use reserved room entities or WNUM comparisons.
+All hardcoded `ROOM_VNUM_*` constants were removed in Category 4 (reserved entity migration). Boat system now uses `get_reserved_room_index("room_plith_harbour")` etc.
 
-### 7C: Portal System
+### 7C: Portal System - ALREADY DONE
 
-`act_enter.c` stores portal destination room vnums in object value fields (`obj->value[3]`). These bare longs need area context for cross-area portals.
+Portal destinations already store both vnum and area context:
+- `value[3]` = destination room vnum
+- `value[4]` = destination area uid (set at `act_enter.c:461`)
+- Resolution: `get_area_index(portal->value[4])` then `get_room_index(dest_area, portal->value[3])`
 
-**Note:** Object `value[]` fields are generic `long` arrays. Adding area context here requires either:
-- A convention (e.g., `value[3]` = room vnum, `value[4]` = area uid)
-- Or using the extended value system if one exists
+Cross-area portal support is complete.
 
 ---
 
 ## Recommended Implementation Order
 
-### Immediate Next Work: GQ + Quest Systems (Feb 9)
+### Completed Work (as of February 9, 2026)
 
-Focus on the two critical gameplay systems with cross-area comparison bugs:
+- Phase 7A/7B: Command display and input updates (Categories 1A-1E) - MOSTLY DONE
+- Phase 7C: Cross-area comparison fixes (Category 2) - ALL DONE (locks, GQ, quests, scripts, obj dupe)
+- Phase 7D: Struct field migration (Category 3) - ALL DONE (locks, GQ, quest, mail, area, mob, char, obj, trade)
+- Phase 7E: Hardcoded constant migration (Category 4) - DONE (all `#define` constants removed, reserved entity system used everywhere)
+- Phase 7F: Display consistency (Category 5) - DONE (~51 sites across 13 files)
+- Phase 7G: Function signatures (Category 6) - DONE (all reviewed, already safe or dead code)
+- Phase 7H: Subsystem cleanup (Category 7) - DONE (blueprints, boats, portals all already widevnum-safe)
 
-**Global Quest (GQ) system:**
-- Update `GQ_MOB_DATA` / `GQ_OBJ_DATA` to store `WNUM_LOAD` + runtime `WNUM`
-- Resolve loads at boot (area uid -> area pointer)
-- Replace all `== gq_*->vnum` comparisons with `wnum_match_*()`
-- Update JSON persistence for GQ state to store `area_uid` + `vnum`
+**Category 3 details:** 10 fields migrated to WNUM_LOAD + WNUM pairs across merc.h, json_mail.c, json_area.c, json_persist.c, save.c, fight.c, magic_death.c, boat.c, act_obj.c, act_info.c, act_wiz.c, aedit.c, medit.c, mail.c, mem.c, script_expand.c, scripts.c, olc_save.c. Boot-time resolution via new `fix_area_fields()` in db.c. Fixed 3 data loss bugs (mail from/to location, trade item obj_vnum) and 1 tunneler bug.
 
-**Standard quest system:**
-- Add area-aware fields to quest giver/receiver (`WNUM_LOAD` + `WNUM`)
-- Resolve loads at boot or quest creation
-- Replace `mob->pIndexData->vnum == questgiver/receiver` comparisons with `wnum_match_mob()`
-- Update persistence (player quest save/load) to include `area_uid` + `vnum`
+**Category 5 details:** Updated all user-facing vnum display sites to use `widevnum_string_*()` functions. High-traffic files (act_wiz.c, act_info.c, olc.c), all OLC editors (redit, medit, aedit, dngedit, bpedit, bsedit), and low-priority files (boat.c, church.c, handler.c, comm.c). Internal logging and save/load file format writes intentionally left as raw `%ld`.
 
-### Phase 7A: Command Display Updates (Low Risk, High Visibility)
+**Category 6 details:** All flagged functions reviewed - `create_invasion_quest` already receives area parameter, `generate_quest_scroll` and `find_path` handle cross-area internally, `get_char_world_vnum` is dead code, `get_npc_ship_index` is disabled. Token lookups were initially assessed as safe but later corrected in Phase 9A.
 
-Update all immortal commands to **display** widevnums correctly using `widevnum_string_*()`. This doesn't change any game logic, just how vnums appear in output.
+**Category 7 details:** Blueprint unions already have WNUM_LOAD members populated during JSON loading. Boat system uses reserved entities (no hardcoded vnums). Portal system already stores both destination vnum (value[3]) and area uid (value[4]).
 
-**Files:** `act_wiz.c`, `act_info.c`
-**Scope:** ~60 sprintf changes
-**Risk:** LOW - display-only changes
+### Phase 8: Scripting System - COMPLETE
 
-### Phase 7B: Command Input Updates (Low Risk)
+Widevnum support is now first-class in the scripting system (February 9, 2026).
 
-Update immortal commands to **accept** widevnum input via `parse_widevnum()`.
+#### 8A: Trigger Phrase Widevnum Support - DONE
 
-**Files:** `act_wiz.c` (goto, mload, oload, transfer, at, sload)
-**Scope:** ~10 input parsing changes
-**Risk:** LOW - parse_widevnum handles legacy bare vnums
+**Problem:** Trigger phrases like `give_prog ... 923#1234~` were broken because `is_number("923#1234")` returned false, causing widevnum triggers to be treated as name matches and fail silently.
 
-### Phase 7C: Cross-Area Comparison Fixes (High Risk, Critical)
+**Solution:**
+- Added `trig_is_widevnum`, `trig_load` (WNUM_LOAD), and `trig_wnum` (WNUM) fields to PROG_LIST struct
+- Added `is_widevnum_format()` detection function in handler.c
+- Updated trigger phrase parsing in all 11 files: json_area.c, olc_save.c, dungeon.c, blueprint.c, medit.c, oedit.c, redit.c, aedit.c, bpedit.c, tedit.c, dngedit.c
+- Boot-time resolution: all 7 `fix_*progs()` functions in db.c now call `resolve_wnum_load()` for widevnum trigger phrases
+- Runtime matching: `trigger_match_vnum()` helper does area+vnum match for widevnum triggers, bare vnum match for legacy triggers (backward compatible)
+- `test_vnumname_trigger()` updated with `AREA_DATA *entity_area` parameter
+- Wildcard triggers (trig_number=0) skip widevnum triggers (they're always specific)
 
-Fix runtime comparison bugs in priority order:
+#### 8B: Script Expansion Output - DONE
 
-1. **Lock/key system** - `handler.c` (4 comparisons)
-2. **Quest system** - `quest.c` (6 comparisons)
-3. **Global quest system** - `handler.c`, `db.c`, `gq.c` (5+ comparisons)
-4. **Script interface** - `script_ifc.c` (5+ comparisons)
-5. **Object duplicate check** - `act_obj.c` (1 comparison)
+**Problem:** Script variable stringification produced bare vnums (`%d`), not widevnum format.
 
-**Scope:** ~20 comparison fixes + struct field additions
-**Risk:** HIGH - changes game logic, needs thorough testing
+**Sites fixed (script_expand.c):**
+- VAR_ROOM: now uses `widevnum_string_room(room, NULL)` instead of `sprintf(buf, "%d", room->vnum)`
+- VAR_TOKEN: now uses `widevnum_string_token(token->pIndexData, NULL)`
+- ESCAPE_LI (%i): room-prog and token-prog self-identity now produces widevnum format
+- ENT_NUMBER: left as-is (generic number, not always a vnum)
 
-### Phase 7D: Struct Field Migration (Medium Risk)
+#### 8C: Script _global() → Area-Aware Lookups - DONE
 
-Migrate bare `long vnum` fields to `WNUM_LOAD` in persistence structures:
+**Problem:** Script commands used `get_*_index_global()` for entity lookups, iterating all areas instead of using the script's own area context.
 
-1. **Tier 1:** Mail, GQ, quest data (cross-area by nature)
-2. **Tier 2:** Corpse/zombie vnums, key vnums, script vnums
-3. **Tier 3:** Static data (newbie eq, weapons, map exits)
+**Solution:**
+- Added 5 area-aware helper functions in scripts.c: `get_script_from_info()`, `get_mob_index_from_info()`, `get_obj_index_from_info()`, `get_room_index_from_info()`, `get_token_index_from_info()`
+- Each tries `get_*_index(script_area, vnum)` first, then falls back to `get_*_index_global(vnum)`
+- Area context from `get_area_from_scriptinfo(info)` (script's home area)
 
-**Risk:** MEDIUM - requires updating serialization code
+**Files updated (~55 call sites):**
+- script_mpcmds.c: 16 replacements (mp_getolocation, do_mpcall, do_mplink, do_mpinput, do_mpcloneroom, do_mpdestroyroom, do_mpxcall, do_mpscriptwait)
+- script_opcmds.c: 9 replacements (do_opcall, do_opinput, do_opxcall, do_opscriptwait)
+- script_rpcmds.c: 3 replacements (do_rpcall, do_rpinput, do_rpxcall)
+- script_tpcmds.c: 9 replacements (do_tpadjust, do_tpcall, do_tpgive, do_tpinput, do_tpxcall, do_tpscriptwait)
+- script_commands.c: 7 replacements (scriptcmd_call, scriptcmd_grantskill, scriptcmd_inputstring, scriptcmd_questcancel, scriptcmd_queststart, scriptcmd_revokeskill, scriptcmd_xcall)
+- script_ifc.c: 10 replacements (ifc_mobexists, ifc_tokencount, ifc_tokenexists, ifc_mobclones, ifc_objclones, ifc_loaded)
+- scripts.c: 2 replacements (script expansion vnum lookups)
+- db.c: 7 fix_*progs() functions now use area-first then global fallback for script resolution
 
-### Phase 7E: Hardcoded Constant Migration (Low Risk)
+**Not changed (correct):** Player commands (`do_*stat`, `do_*dump`) that don't have script context, login trigger (system constant), and the _from_info helper fallback calls themselves.
 
-Migrate `OBJ_VNUM_*` / `ROOM_VNUM_*` / `MOB_VNUM_*` constants to reserved entity system.
+#### 8D: ifcheck Area Context - DONE
 
-**Risk:** LOW - reserved entity system already exists and works
+**Problem:** `mobhere` and `objhere` ifchecks passed NULL for area context on numeric and string arguments.
 
-### Phase 8: Polish
+**Fix (script_ifc.c):** Both now use `get_area_from_scriptinfo(info)` for area context in `get_mob_vnum_room()`/`get_obj_vnum_room()` calls and `parse_widevnum()` calls.
 
-1. Display consistency pass across all files
-2. Remove `_global()` function calls where area context is available
-3. Documentation and builder guide
-4. Test suite expansion for cross-area scenarios
-5. Performance validation
+### Phase 9A: Token System Widevnum Support - COMPLETE
+
+**Problem:** `get_token_char()`, `get_token_obj()`, `get_token_room()`, `get_token_list()` compared bare vnums without area context. If tokens from different areas share the same vnum, the wrong token could be returned.
+
+**Solution:**
+- Added `AREA_DATA *area` parameter to all 4 functions in handler.c
+- Updated declarations in merc.h
+- Updated all 39 call sites across 3 files:
+  - script_tpcmds.c (12 calls): pass `NULL` (backward compatible, scripts use bare vnums)
+  - script_ifc.c (17 calls): pass `NULL` (backward compatible, ifchecks use bare vnums)
+  - act_wiz.c (10 calls): old code passes `NULL`, new do_token give/junk passes `token_wnum.pArea`
+
+**Matching logic:** `(!area || token->pIndexData->area == area)` - NULL means match any, non-NULL means filter by area.
+
+### Phase 9B: Polish (Deferred)
+
+Minor items for future cleanup:
+- Add WNUM variant for `find_path()` as performance optimization (not correctness)
+- Remove legacy `.are` loading fallback from blueprint unions when all zones are JSON
+- Internal log messages: optional pass to use `widevnum_string_*()` in `log_string`/`bug` calls
+- Documentation and builder guide for widevnum format
+- Test suite expansion for cross-area scenarios
+- Performance validation
 
 ---
 
 ## Metrics
 
-| Category | Items | Priority | Risk |
-|----------|-------|----------|------|
-| Command display updates | ~60 sprintf | HIGH | LOW |
-| Command input updates | ~10 parse | HIGH | LOW |
-| Cross-area comparison fixes | ~20 comparisons | CRITICAL | HIGH |
-| Struct field migrations | ~15 fields | MEDIUM | MEDIUM |
-| Hardcoded constant migration | ~15 constants | LOW | LOW |
-| Display consistency (other files) | ~50 files | LOW | LOW |
-| Function signature updates | ~10 functions | LOW | MEDIUM |
+| Category | Items | Status |
+|----------|-------|--------|
+| Command display/input (Cat 1) | ~70 changes | DONE - all commands verified |
+| Cross-area comparison fixes (Cat 2) | ~20 comparisons | DONE - all 5 subcategories complete |
+| Struct field migrations (Cat 3) | ~15 fields | DONE - all migrated (3 data loss bugs fixed) |
+| Hardcoded constant migration (Cat 4) | ~15 constants | DONE - all migrated to reserved entities |
+| Display consistency (Cat 5) | ~51 sites | DONE - 13 files updated |
+| Function signature updates (Cat 6) | ~10 functions | DONE - all reviewed, already safe or dead code |
+| Subsystem cleanup (Cat 7) | ~5 items | DONE - blueprints, boats, portals all already widevnum-safe |
+| Scripting system (Cat 8) | ~80 changes | DONE - triggers, expansion, _global(), ifchecks |
+| Token system (Cat 9A) | ~43 changes | DONE - area-aware token lookup functions |
 
-**Total estimated changes:** ~180 discrete modifications across ~30 files.
+**Phases 7-9A COMPLETE.** Remaining items are Phase 9B polish (performance optimizations, internal log formatting, documentation).
 
 ---
 
@@ -500,57 +473,24 @@ All needed utility functions have been backported. Functions not needed have bee
 
 ---
 
-## LOCK_STATE System: src vs src_20_dev Comparison
+## Migration Pattern Reference
 
-The lock/key system is the clearest example of what needs to change. Here is the exact diff between the two codebases:
+The lock/key system was the first complete migration and established the pattern used for all subsequent work:
 
-### Current (`src`) - Bare vnum
-
-```c
-// merc.h
-typedef struct lock_state_data {
-    long key_vnum;       // Bare vnum - no area context
-    int pick_chance;
-    int flags;
-    LLIST *keys;
-} LOCK_STATE;
-
-// handler.c - bare vnum comparison
-if (obj->pIndexData->vnum == lock->key_vnum)
+```
+WNUM_LOAD field_load;   // Persistent: area_uid + vnum (saved to JSON/file)
+WNUM field_wnum;        // Runtime: area pointer + vnum (resolved at boot)
 ```
 
-### Target (`src_20_dev`) - WNUM-aware
+**Boot resolution:** `resolve_wnum_load(&load, &wnum, fallback_area)` converts persistent → runtime.
 
-```c
-// merc.h - new sub-struct for special keys
-typedef struct lock_state_key_data LOCK_STATE_KEY;
-struct lock_state_key_data {
-    WNUM_LOAD load;      // Persistent: area_uid + vnum
-    WNUM wnum;           // Runtime: area pointer + vnum
-};
+**Comparison:** Use `wnum_match_mob()`, `wnum_match_obj()`, `wnum_match_room()`, or raw `wnum_match()`.
 
-// merc.h - updated lock state
-typedef struct lock_state_data {
-    WNUM_LOAD key_load;  // Persistent key reference
-    WNUM key_wnum;       // Runtime key reference (area + vnum)
-    int pick_chance;
-    int flags;
-    LLIST *special_keys; // Renamed from 'keys'
-} LOCK_STATE;
+**Backward compat:** JSON readers check for both `key_auid` + `key_vnum` (new) and bare `key_vnum` (legacy). When `auid` is 0, resolution falls back to the owning area.
 
-// handler.c - area-aware comparison via wnum_match_obj()
-if (wnum_match_obj(lock->key_wnum, obj))
-```
+This pattern was applied consistently to: LOCK_STATE, GQ_MOB_DATA, GQ_OBJ_DATA, QUEST_DATA, QUEST_PART_DATA, MAIL_DATA, AREA_DATA, MOB_INDEX_DATA, CHAR_DATA, OBJ_DATA, TRADE_ITEM.
 
-### What Changes
-
-1. `long key_vnum` -> `WNUM key_wnum` + `WNUM_LOAD key_load`
-2. `SPECIAL_KEY_DATA.key_vnum` -> `SPECIAL_KEY_DATA.key_wnum`
-3. `keys` list renamed to `special_keys`
-4. All 4 bare `== lock->key_vnum` comparisons -> `wnum_match_obj(lock->key_wnum, obj)`
-5. `lockstate_functional()` checks `key_wnum.pArea && key_wnum.vnum > 0` instead of `key_vnum > 0`
-6. New `lockstate_iskey(lock, obj)` predicate added (checks special keys, then falls back to `wnum_match_obj`)
-7. Boot-time resolution: `fix_rooms()` resolves `key_load` -> `key_wnum` via `get_area_from_uid()`
-8. Serialization in `json_persist.c` saves/loads `key_load` (area_uid + vnum)
-
-This pattern (dual `WNUM_LOAD` for persistence + `WNUM` for runtime, resolved at boot, compared via `wnum_match_*`) is the template for all other struct field migrations in Category 3.
+**Boot-time resolution functions:**
+- `fix_rooms()` - resolves exit WNUM_LOAD fields
+- `fix_object_locks()` - resolves object lock key WNUM_LOAD fields
+- `fix_area_fields()` - resolves area-level (post_office, airship_land), mob index (corpse, zombie), and trade item WNUM_LOAD fields

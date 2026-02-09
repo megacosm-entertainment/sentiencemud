@@ -147,16 +147,18 @@ json_t *mail_to_json(MAIL_DATA *mail)
     }
     
     /* Location references with WNUM support */
-    if (mail->from_location != 0) {
-        ROOM_INDEX_DATA *from_room = get_room_index_global(mail->from_location);
-        long from_auid = (from_room && from_room->area) ? from_room->area->uid : 0;
-        json_object_set_new(json, "from_location", wnum_to_json_str(from_auid, mail->from_location));
+    if (mail->from_location_load.vnum > 0) {
+        long from_auid = mail->from_location_load.auid;
+        if (from_auid == 0 && mail->from_location_wnum.pArea)
+            from_auid = mail->from_location_wnum.pArea->uid;
+        json_object_set_new(json, "from_location", wnum_to_json_str(from_auid, mail->from_location_load.vnum));
     }
-    
-    if (mail->to_location != 0) {
-        ROOM_INDEX_DATA *to_room = get_room_index_global(mail->to_location);
-        long to_auid = (to_room && to_room->area) ? to_room->area->uid : 0;
-        json_object_set_new(json, "to_location", wnum_to_json_str(to_auid, mail->to_location));
+
+    if (mail->to_location_load.vnum > 0) {
+        long to_auid = mail->to_location_load.auid;
+        if (to_auid == 0 && mail->to_location_wnum.pArea)
+            to_auid = mail->to_location_wnum.pArea->uid;
+        json_object_set_new(json, "to_location", wnum_to_json_str(to_auid, mail->to_location_load.vnum));
     }
     
     /* Objects in package */
@@ -244,13 +246,25 @@ MAIL_DATA *json_to_mail(json_t *json)
     value = json_object_get(json, "from_location");
     if (value) {
         parse_wnum_from_json(value, &area_uid, &vnum);
-        mail->from_location = vnum;
+        mail->from_location_load.auid = area_uid;
+        mail->from_location_load.vnum = vnum;
+        AREA_DATA *from_area = area_uid > 0 ? get_area_from_uid(area_uid) : find_area_by_vnum(vnum, NULL);
+        if (from_area) {
+            mail->from_location_wnum.pArea = from_area;
+            mail->from_location_wnum.vnum = vnum;
+        }
     }
-    
+
     value = json_object_get(json, "to_location");
     if (value) {
         parse_wnum_from_json(value, &area_uid, &vnum);
-        mail->to_location = vnum;
+        mail->to_location_load.auid = area_uid;
+        mail->to_location_load.vnum = vnum;
+        AREA_DATA *to_area = area_uid > 0 ? get_area_from_uid(area_uid) : find_area_by_vnum(vnum, NULL);
+        if (to_area) {
+            mail->to_location_wnum.pArea = to_area;
+            mail->to_location_wnum.vnum = vnum;
+        }
     }
     
     /* Objects */

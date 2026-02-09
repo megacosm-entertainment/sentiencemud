@@ -482,7 +482,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                     *room = &room_used_for_wilderness;
                 }
             } else
-                *room = get_room_index_global(x);
+                *room = get_room_index_from_info(info, x);
             break;
 
         case ENT_STRING:
@@ -508,7 +508,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                             rest = rest2;
 
                             id2 = arg->d.num;
-                            *room = get_clone_room(get_room_index_global(vnum),id1,id2);
+                            *room = get_clone_room(get_room_index_from_info(info, vnum),id1,id2);
                         }
                     }
                 }
@@ -536,7 +536,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                         *room = &room_used_for_wilderness;
                     }
                 } else
-                    *room = get_room_index_global(x);
+                    *room = get_room_index_from_info(info, x);
             } else {
                 // Named locations: <name>
                 loc = NULL;
@@ -950,7 +950,7 @@ SCRIPT_CMD(do_mpcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, PRG_MPROG))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, PRG_MPROG))) {
         pbugf(LOG_SCRIPTS, "MpCall: invalid prog from vnum %d.", VNUM(info->mob));
         return;
     }
@@ -2654,9 +2654,9 @@ SCRIPT_CMD(do_mplink)
     }
 
     if(id1 > 0 || id2 > 0)
-        dest = get_clone_room(get_room_index_global(vnum),id1,id2);
+        dest = get_clone_room(get_room_index_from_info(info, vnum),id1,id2);
     else if(vnum > 0)
-        dest = get_room_index_global(vnum);
+        dest = get_room_index_from_info(info, vnum);
     else if(environ)
         dest = &room_pointer_environment;
     else
@@ -5075,7 +5075,7 @@ SCRIPT_CMD(do_mpinput)
     default: return;
     }
 
-    if(vnum < 1 || !get_script_index_global(vnum, PRG_MPROG)) return;
+    if(vnum < 1 || !get_script_from_info(info, vnum, PRG_MPROG)) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
         pbugf(LOG_SCRIPTS, "MpInput - Error in parsing from vnum %ld.", VNUM(info->mob));
@@ -6220,7 +6220,7 @@ SCRIPT_CMD(do_mpcloneroom)
 
     vnum = arg->d.num;
 
-    source = get_room_index_global(vnum);
+    source = get_room_index_from_info(info, vnum);
     if(!source) return;
 
     if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
@@ -6664,7 +6664,7 @@ SCRIPT_CMD(do_mpdestroyroom)
 
     vnum = arg->d.num;
 
-    room = get_room_index_global(vnum);
+    room = get_room_index_from_info(info, vnum);
     if(!room) return;
 
     // Get id
@@ -6921,7 +6921,7 @@ SCRIPT_CMD(do_mpxcall)
     default: vnum = 0; break;
     }
 
-    if (vnum < 1 || !(script = get_script_index_global(vnum, space))) {
+    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
         pbugf(LOG_SCRIPTS, "MpCall: invalid prog from vnum %ld.", VNUM(info->mob));
         return;
     }
@@ -8119,9 +8119,9 @@ SCRIPT_CMD(do_mpscriptwait)
 
     if(!actor_mob && !actor_obj && !actor_token) return;
 
-    if(success < 1 || !get_script_index_global(success, prog_type)) return;
-    if(failure < 1 || !get_script_index_global(failure, prog_type)) return;
-    if(pulse > 0 && !get_script_index_global(pulse, prog_type)) return;
+    if(success < 1 || !get_script_from_info(info, success, prog_type)) return;
+    if(failure < 1 || !get_script_from_info(info, failure, prog_type)) return;
+    if(pulse > 0 && !get_script_from_info(info, pulse, prog_type)) return;
 
     wait = UMAX(wait, 1);
 
@@ -8140,9 +8140,9 @@ SCRIPT_CMD(do_mpscriptwait)
         mob->script_wait_id[0] = actor_token->id[0];
         mob->script_wait_id[1] = actor_token->id[1];
     }
-    mob->script_wait_success = get_script_index_global(success, prog_type);
-    mob->script_wait_failure = get_script_index_global(failure, prog_type);
-    mob->script_wait_pulse = (pulse > 0) ? get_script_index_global(pulse, prog_type) : NULL;
+    mob->script_wait_success = get_script_from_info(info, success, prog_type);
+    mob->script_wait_failure = get_script_from_info(info, failure, prog_type);
+    mob->script_wait_pulse = (pulse > 0) ? get_script_from_info(info, pulse, prog_type) : NULL;
 
     //printf_to_char(mob, "script_wait started: %d\n\r", wait);
 
