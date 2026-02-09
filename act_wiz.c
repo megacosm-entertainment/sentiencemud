@@ -4830,9 +4830,9 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             if (victim->in_room==NULL) {
                 found = true;
                 count++;
-                sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%5ld] %-28s %lx\n\r", count,
+                sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] %-28s %lx\n\r", count,
                     (long)victim->id[0], (long)victim->id[1],
-                    IS_NPC(victim) ? victim->pIndexData->vnum : 0,
+                    IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0",
                     IS_NPC(victim) ? victim->short_descr : victim->name,
                     (long)victim);
                 add_buf(buffer,buf);
@@ -4859,11 +4859,11 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             is_name(argument, victim->name)) {
             found = true;
             count++;
-            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%5ld] %-28s [%5ld] %s\n\r", count,
+            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] %-28s [%s] %s\n\r", count,
             (long)victim->id[0], (long)victim->id[1],
-            IS_NPC(victim) ? victim->pIndexData->vnum : 0,
+            IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0",
             IS_NPC(victim) ? victim->short_descr : victim->name,
-            victim->in_room->vnum,
+            widevnum_string_room(victim->in_room, NULL),
             victim->in_room->name);
             add_buf(buffer,buf);
         }
@@ -5598,10 +5598,10 @@ void do_mload(CHAR_DATA *ch, char *argument)
     if (!IS_BUILDER(ch, pMobIndex->area))
     {
         send_to_char("You aren't a builder in that area - action logged.\n\r", ch);
-        plogf(LOG_ADMIN, "do_mload: %s tried to load %s (vnum %ld) in area %s without permissions!",
+        plogf(LOG_ADMIN, "do_mload: %s tried to load %s (%s) in area %s without permissions!",
             ch->name,
             pMobIndex->short_descr,
-            pMobIndex->vnum,
+            widevnum_string_mobile(pMobIndex, NULL),
             pMobIndex->area->name);
         return;
     }
@@ -5617,9 +5617,9 @@ void do_mload(CHAR_DATA *ch, char *argument)
             
         p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 
-        sprintf(buf, "Loaded %s (%ld)",
+        sprintf(buf, "Loaded %s (%s)",
             pMobIndex->short_descr,
-            pMobIndex->vnum);
+            widevnum_string_mobile(pMobIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf,"$N loads %s.", victim->short_descr);
@@ -5643,10 +5643,10 @@ void do_mload(CHAR_DATA *ch, char *argument)
             amt, pMobIndex->short_descr);
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         
-        sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
-            amt, pMobIndex->short_descr, pMobIndex->vnum);
+        sprintf(buf, "{Y({G%d{Y){x Loaded %s (%s)",
+            amt, pMobIndex->short_descr, widevnum_string_mobile(pMobIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        
+
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
             amt, pMobIndex->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
@@ -5736,10 +5736,10 @@ void do_oload(CHAR_DATA *ch, char *argument)
     if (!has_access_area(ch, pObjIndex->area))
     {
         send_to_char("Insufficient security to load object - action logged.\n\r", ch);
-        plogf(LOG_ADMIN, "do_oload: %s tried to load %s (vnum %ld) in area %s without permissions!",
+        plogf(LOG_ADMIN, "do_oload: %s tried to load %s (%s) in area %s without permissions!",
             ch->name,
             pObjIndex->short_descr,
-            pObjIndex->vnum,
+            widevnum_string_object(pObjIndex, NULL),
             pObjIndex->area->name);
         return;
     }
@@ -5761,7 +5761,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
         }
 
         act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        sprintf(buf, "Loaded $p (%ld)", obj->pIndexData->vnum);
+        sprintf(buf, "Loaded $p (%s)", widevnum_string_object(obj->pIndexData, NULL));
         act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
 
@@ -5793,8 +5793,8 @@ void do_oload(CHAR_DATA *ch, char *argument)
         sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt,
             pObjIndex->short_descr);
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
-            amt, pObjIndex->short_descr, pObjIndex->vnum);
+        sprintf(buf, "{Y({G%d{Y){x Loaded %s (%s)",
+            amt, pObjIndex->short_descr, widevnum_string_object(pObjIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));

@@ -168,58 +168,8 @@ bool create_minimal_data_files(void)
  *
  * @return  true on success
  */
-bool interactive_account_setup(void)
+static void free_credentials(char *username, char *email, char *password, char *confirm)
 {
-    char *username = NULL;
-    char *email = NULL;
-    char *password = NULL;
-    char *confirm = NULL;
-    bool success = false;
-
-    printf("\n=== First Staff Account Setup ===\n\n");
-
-    username = prompt_username();
-    if (!username) {
-        fprintf(stderr, "Failed to get username\n");
-        goto cleanup;
-    }
-
-    if (player_exists(username)) {
-        fprintf(stderr, "Account '%s' already exists. Bootstrap cannot overwrite existing accounts.\n", username);
-        goto cleanup;
-    }
-
-    email = prompt_email();
-    if (!email) {
-        fprintf(stderr, "Failed to get email\n");
-        goto cleanup;
-    }
-
-    password = prompt_password("Enter password (8+ characters): ");
-    if (!password) {
-        fprintf(stderr, "Failed to get password\n");
-        goto cleanup;
-    }
-
-    confirm = prompt_password("Confirm password: ");
-    if (!confirm) {
-        fprintf(stderr, "Failed to confirm password\n");
-        goto cleanup;
-    }
-
-    if (strcmp(password, confirm) != 0) {
-        fprintf(stderr, "\nPasswords do not match. Bootstrap failed.\n");
-        goto cleanup;
-    }
-
-    if (!bootstrap_create_account_and_character(username, email, password)) {
-        fprintf(stderr, "Failed to create account\n");
-        goto cleanup;
-    }
-
-    success = true;
-
-cleanup:
     if (username) free(username);
     if (email) free(email);
     if (password) {
@@ -230,8 +180,65 @@ cleanup:
         memset(confirm, 0, strlen(confirm));
         free(confirm);
     }
+}
 
-    return success;
+bool interactive_account_setup(void)
+{
+    char *username = NULL;
+    char *email = NULL;
+    char *password = NULL;
+    char *confirm = NULL;
+
+    printf("\n=== First Staff Account Setup ===\n\n");
+
+    username = prompt_username();
+    if (!username) {
+        fprintf(stderr, "Failed to get username\n");
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    if (player_exists(username)) {
+        fprintf(stderr, "Account '%s' already exists. Bootstrap cannot overwrite existing accounts.\n", username);
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    email = prompt_email();
+    if (!email) {
+        fprintf(stderr, "Failed to get email\n");
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    password = prompt_password("Enter password (8+ characters): ");
+    if (!password) {
+        fprintf(stderr, "Failed to get password\n");
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    confirm = prompt_password("Confirm password: ");
+    if (!confirm) {
+        fprintf(stderr, "Failed to confirm password\n");
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    if (strcmp(password, confirm) != 0) {
+        fprintf(stderr, "\nPasswords do not match. Bootstrap failed.\n");
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    if (!bootstrap_create_account_and_character(username, email, password)) {
+        fprintf(stderr, "Failed to create account\n");
+        free_credentials(username, email, password, confirm);
+        return false;
+    }
+
+    free_credentials(username, email, password, confirm);
+    return true;
 }
 
 /**
@@ -306,6 +313,8 @@ int run_bootstrap(void)
         return 1;
     }
 
+    bool skip_data_creation = false;
+
     if (!check_bootstrap_needed()) {
         printf("All required files exist. Bootstrap not needed.\n");
         printf("Use -bootstrap to force re-run if desired.\n");
@@ -324,15 +333,14 @@ int run_bootstrap(void)
             return 0;
         }
 
-        goto account_setup;
+        skip_data_creation = true;
     }
 
-    if (!create_minimal_data_files()) {
+    if (!skip_data_creation && !create_minimal_data_files()) {
         fprintf(stderr, "\nBootstrap failed during file creation.\n");
         return 1;
     }
 
-account_setup:
     if (!interactive_account_setup()) {
         fprintf(stderr, "\nBootstrap failed during account setup.\n");
         return 1;

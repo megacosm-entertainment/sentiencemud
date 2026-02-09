@@ -362,7 +362,98 @@ Penalties are saved as part of the account JSON file:
 
 Expired penalties are not automatically deleted — they remain in the history for escalation checks and audit purposes. A periodic cleanup can archive penalties older than a configurable retention window (e.g., 90 days).
 
-### 6.9 Relationship to Existing Systems
+### 6.9 Player Word Filters (Personal Content Filtering)
+
+Separate from staff-enforced moderation, players can define their own word/phrase filters for content that isn't against the rules but that they personally don't want to see. Filtered words are replaced inline rather than suppressing the entire message.
+
+This sits alongside the existing `IGNORE_DATA` system on `pc_data`:
+- **Ignore** = "I don't want messages from this *person*"
+- **Word filter** = "I don't want to see this *content* from anyone"
+
+#### Data Structure
+
+```c
+typedef struct word_filter_data WORD_FILTER_DATA;
+
+struct word_filter_data
+{
+    WORD_FILTER_DATA *next;
+    char *pattern;          /* word or phrase to match (case-insensitive) */
+    char *replacement;      /* what to display instead, or NULL for default mask */
+};
+```
+
+Stored on `pc_data` alongside `ignoring`:
+
+```c
+struct pc_data
+{
+    ...
+    IGNORE_DATA     *ignoring;
+    WORD_FILTER_DATA *word_filters;   /* player-defined content filters */
+    char            *filter_mask;     /* default replacement string, e.g. "****" */
+    ...
+};
+```
+
+#### How It Works
+
+Filtering happens at **display time** on the receiver's side — after the message exits the pub/sub pipeline but before it's sent to the player's descriptor. The original message in the Redis Stream is never modified.
+
+```c
+/* Applied in the receiver's message formatting, after ignore checks */
+char *apply_word_filters(PC_DATA *pcdata, const char *message) {
+    char *result = str_dup(message);
+
+    for (WORD_FILTER_DATA *wf = pcdata->word_filters; wf; wf = wf->next) {
+        /* Case-insensitive search and replace */
+        result = str_replace_ci(result, wf->pattern,
+            wf->replacement ? wf->replacement : pcdata->filter_mask);
+    }
+
+    return result;
+}
+```
+
+#### Player Commands
+
+```
+filter add <word/phrase> [replacement]  — Add a filter. If no replacement, uses default mask
+filter remove <word/phrase>             — Remove a filter
+filter list                             — Show current filters
+filter mask <string>                    — Set the default replacement (default: "***")
+```
+
+Examples:
+```
+> filter add "pineapple pizza" [REDACTED FOR TASTE]
+Filter added: "pineapple pizza" → "[REDACTED FOR TASTE]"
+
+> filter add poop
+Filter added: "poop" → "***"
+
+> filter mask ####
+Default filter mask set to: "####"
+```
+
+#### Design Considerations
+
+**1. Replacement is per-filter, with a fallback default.**
+A player might want profanity replaced with `"***"` but a specific topic replaced with something humorous. Per-filter replacements allow this while the `filter_mask` default keeps simple cases simple.
+
+**2. Filters apply to all channels uniformly.**
+There's no per-channel filter — if a player filters a word, it's filtered everywhere. This keeps the system simple. If per-channel filtering is needed later, the `WORD_FILTER_DATA` struct can gain a `channel_id` field.
+
+**3. Matching is case-insensitive and substring-based.**
+Filtering "poop" also catches "POOP" and "poopy." This prevents trivial circumvention via capitalization. More sophisticated pattern matching (regex, l33tspeak normalization) could be added later but isn't needed initially.
+
+**4. Original messages are never altered.**
+The filter runs on the receiver's copy of the message text. Other players see the original. The Redis Stream history retains the unmodified message — staff reviewing reports see what was actually said.
+
+**5. Persistence.**
+Word filters are saved in the player's character file as part of `pc_data`, similar to how `IGNORE_DATA` is persisted today.
+
+### 6.10 Relationship to Existing Systems
 
 | Existing | Replaced By | Notes |
 |----------|------------|-------|
