@@ -3983,7 +3983,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                 long vnum = fread_number(fp);
                 AREA_DATA *area = find_area_by_vnum(vnum, NULL);
                 if (!area) area = get_system_area_fallback();
-                room = get_room_index(area, fread_number(fp));
+                room = get_room_index(area, vnum);
                 obj->in_room = room;
                 fMatch = true;
             }
