@@ -3490,7 +3490,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf, "{BVnum:{x %s  {BRace:{x %s  {BBody Type:{x %s  {BRoom:{x %s\n\r",
-                 widevnum_string_room(victim->in_room, NULL),
+                 IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "N/A",
                  victim->race ? victim->race->name : "unknown",
                  body_type_info[victim->body_type].name,
                  victim->in_room == NULL ? "0#0" : widevnum_string_room(victim->in_room, NULL));
@@ -5564,7 +5564,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
     else {
         // Parse widevnum
         WNUM mob_wnum;
-        AREA_DATA *context = strchr(arg1, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg1, context, &mob_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum, area#vnum or $reserved_name\n\r", ch);
             return;
@@ -5702,7 +5702,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
     else {
         // Parse widevnum
         WNUM obj_wnum;
-        AREA_DATA *context = strchr(arg1, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg1, context, &obj_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum, area#vnum or $reserved_name\n\r", ch);
             return;
@@ -11143,7 +11143,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         
         // Parse widevnum for token
         WNUM token_wnum;
-        AREA_DATA *context = strchr(arg4b, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg4b, context, &token_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return;
@@ -11235,7 +11235,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         
         // Parse widevnum for token
         WNUM token_wnum;
-        AREA_DATA *context = strchr(arg4b, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg4b, context, &token_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return;
@@ -11281,7 +11281,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         
         // Parse widevnum for token
         WNUM token_wnum;
-        AREA_DATA *context = strchr(arg4b, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg4b, context, &token_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return;

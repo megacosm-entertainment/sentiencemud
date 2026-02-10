@@ -1250,7 +1250,7 @@ bool json_save_instances(void)
     return true;
 }
 
-bool json_load_instances(void)
+int json_load_instances(void)
 {
     int dungeons_loaded, ships_loaded, instances_loaded;
     
@@ -1259,10 +1259,77 @@ bool json_load_instances(void)
     ships_loaded = json_persist_load_all_ships();
     instances_loaded = json_persist_load_all_instances();
     
+    int total = dungeons_loaded + ships_loaded + instances_loaded;
+    
     log_stringf("json_load_instances: Loaded %d dungeons, %d ships, %d instances from persist directories",
         dungeons_loaded, ships_loaded, instances_loaded);
     
-    return true;
+    return total;
+}
+
+bool json_load_instances_file(const char *path)
+{
+    json_error_t error;
+    json_t *root;
+    json_t *array;
+    size_t i;
+    int dungeons_loaded = 0, ships_loaded = 0, instances_loaded = 0;
+
+    root = json_load_file(path, 0, &error);
+    if (!root) {
+        log_stringf("json_load_instances_file: Failed to load %s: %s", path, error.text);
+        return false;
+    }
+
+    if (!json_is_object(root)) {
+        log_stringf("json_load_instances_file: Root is not an object in %s", path);
+        json_decref(root);
+        return false;
+    }
+
+    /* Load dungeons */
+    array = json_object_get(root, "dungeons");
+    if (json_is_array(array)) {
+        for (i = 0; i < json_array_size(array); i++) {
+            DUNGEON *dungeon = json_to_dungeon(json_array_get(array, i));
+            if (dungeon) {
+                list_appendlink(loaded_dungeons, dungeon);
+                dungeons_loaded++;
+            }
+        }
+    }
+
+    /* Load ships */
+    array = json_object_get(root, "ships");
+    if (json_is_array(array)) {
+        for (i = 0; i < json_array_size(array); i++) {
+            SHIP_DATA *ship = json_to_ship(json_array_get(array, i));
+            if (ship) {
+                list_appendlink(loaded_ships, ship);
+                ships_loaded++;
+            }
+        }
+    }
+
+    /* Load standalone instances */
+    array = json_object_get(root, "instances");
+    if (json_is_array(array)) {
+        for (i = 0; i < json_array_size(array); i++) {
+            INSTANCE *instance = json_to_instance(json_array_get(array, i));
+            if (instance) {
+                list_appendlink(loaded_instances, instance);
+                instances_loaded++;
+            }
+        }
+    }
+
+    json_decref(root);
+
+    int total = dungeons_loaded + ships_loaded + instances_loaded;
+    log_stringf("json_load_instances_file: Loaded %d dungeons, %d ships, %d instances from %s",
+        dungeons_loaded, ships_loaded, instances_loaded, path);
+
+    return (total > 0);
 }
 
 /***************************************************************************

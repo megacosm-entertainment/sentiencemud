@@ -1282,7 +1282,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
     {
     WNUM wnum;
     // Use NULL context for bare vnums (global search), or current area for #vnum format
-    AREA_DATA *context = strchr(arg, '#') ? (ch->in_room ? ch->in_room->area : NULL) : NULL;
+    AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
     if (!parse_widevnum(arg, context, &wnum)) {
         send_to_char("Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
         return;
@@ -1462,7 +1462,7 @@ void do_oedit(CHAR_DATA *ch, char *argument)
     {
     WNUM wnum;
     // Use NULL context for bare vnums (global search), or current area for #vnum format
-    AREA_DATA *context = strchr(arg1, '#') ? (ch->in_room ? ch->in_room->area : NULL) : NULL;
+    AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
     if (!parse_widevnum(arg1, context, &wnum)) {
         send_to_char("OEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
         return;
@@ -1527,7 +1527,7 @@ void do_medit(CHAR_DATA *ch, char *argument)
     {
     WNUM wnum;
     // Use NULL context for bare vnums (global search), or current area for #vnum format
-    AREA_DATA *context = strchr(arg1, '#') ? (ch->in_room ? ch->in_room->area : NULL) : NULL;
+    AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
     if (!parse_widevnum(arg1, context, &wnum)) {
         send_to_char("MEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
         return;
@@ -2369,7 +2369,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
         {
         WNUM mob_wnum;
         // Use NULL context for bare vnums (legacy global lookup), current area for widevnum formats
-        AREA_DATA *context = strchr(arg3, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg3, context, &mob_wnum))
         {
             send_to_char("Invalid mob vnum format. Use: vnum, #vnum, uid#vnum, or 'AreaName'#vnum\n\r", ch);
@@ -2401,7 +2401,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
         {
         WNUM obj_wnum;
         // Use NULL context for bare vnums (legacy global lookup), current area for widevnum formats
-        AREA_DATA *context = strchr(arg3, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(arg3, context, &obj_wnum))
         {
             send_to_char("Invalid object vnum format. Use: vnum, #vnum, uid#vnum, or 'AreaName'#vnum\n\r", ch);
@@ -2423,7 +2423,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
             OBJ_INDEX_DATA *temp;
             WNUM container_wnum;
             // Use NULL context for bare vnums (legacy global lookup), current area for widevnum formats
-            AREA_DATA *context = strchr(arg5, '#') ? ch->in_room->area : NULL;
+            AREA_DATA *context = ch->in_room->area;
             
             if (!parse_widevnum(arg5, context, &container_wnum))
             {

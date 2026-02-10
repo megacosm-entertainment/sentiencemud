@@ -823,7 +823,7 @@ MEDIT(medit_create)
     {
     // Parse widevnum format
     WNUM wnum;
-    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+    AREA_DATA *context = ch->in_room->area;
     if (!parse_widevnum(argument, context, &wnum)) {
         send_to_char("MEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -1676,7 +1676,7 @@ MEDIT(medit_shop)
                 if(argument && argument[0] != '\0')
                 {
                     WNUM obj_wnum;
-                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    AREA_DATA *context = ch->in_room->area;
                     
                     if (!parse_widevnum(argument, context, &obj_wnum)) {
                         send_to_char("Invalid object vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
@@ -1727,7 +1727,7 @@ MEDIT(medit_shop)
                 if(argument && argument[0] != '\0')
                 {
                     WNUM mob_wnum;
-                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    AREA_DATA *context = ch->in_room->area;
                     
                     if (!parse_widevnum(argument, context, &mob_wnum)) {
                         send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
@@ -1773,7 +1773,7 @@ MEDIT(medit_shop)
                 if(argument && argument[0] != '\0')
                 {
                     WNUM mob_wnum;
-                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    AREA_DATA *context = ch->in_room->area;
                     
                     if (!parse_widevnum(argument, context, &mob_wnum)) {
                         send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
@@ -1819,7 +1819,7 @@ MEDIT(medit_shop)
                 if(argument && argument[0] != '\0')
                 {
                     WNUM mob_wnum;
-                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    AREA_DATA *context = ch->in_room->area;
                     
                     if (!parse_widevnum(argument, context, &mob_wnum)) {
                         send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);
@@ -1865,7 +1865,7 @@ MEDIT(medit_shop)
                 if(argument && argument[0] != '\0')
                 {
                     WNUM mob_wnum;
-                    AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+                    AREA_DATA *context = ch->in_room->area;
                     
                     if (!parse_widevnum(argument, context, &mob_wnum)) {
                         send_to_char("Invalid mob vnum format. Use: vnum, uid#vnum, #vnum, or 'AreaName'#vnum\n\r", ch);

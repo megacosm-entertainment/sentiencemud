@@ -80,7 +80,10 @@ DUNGEON *json_to_dungeon(json_t *json);
 
 /* Main batch functions - iterate all entities */
 bool json_save_instances(void);
-bool json_load_instances(void);
+int json_load_instances(void);
+
+/* Load from monolithic instances.json file */
+bool json_load_instances_file(const char *path);
 
 /* Individual persist functions - save single entity to file */
 bool json_persist_save_ship(SHIP_DATA *ship);

@@ -683,7 +683,7 @@ WEDIT ( wedit_vlink )
         if(pVLink) {
         if(pVLink->current_linkage == VLINK_UNLINKED) {
             WNUM room_wnum;
-            AREA_DATA *context = strchr(arg3, '#') ? ch->in_room->area : NULL;
+            AREA_DATA *context = ch->in_room->area;
             if (parse_widevnum(arg3, context, &room_wnum) && room_wnum.vnum > 0) {
                 value = room_wnum.vnum;
                 ROOM_INDEX_DATA *destRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);

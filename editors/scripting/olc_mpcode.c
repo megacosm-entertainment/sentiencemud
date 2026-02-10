@@ -900,7 +900,7 @@ MPEDIT (mpedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {
@@ -966,7 +966,7 @@ OPEDIT (opedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {
@@ -1032,7 +1032,7 @@ RPEDIT (rpedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {
@@ -1098,7 +1098,7 @@ TPEDIT (tpedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {
@@ -1166,7 +1166,7 @@ APEDIT (apedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {
@@ -1232,7 +1232,7 @@ IPEDIT (ipedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {
@@ -1301,7 +1301,7 @@ DPEDIT (dpedit_create)
     else
     {
         // Context-aware parsing: allow relative (#vnum) or absolute (area#vnum) format
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         
         if (!parse_widevnum(argument, context, &script_wnum))
         {

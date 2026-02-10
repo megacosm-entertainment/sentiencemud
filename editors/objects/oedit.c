@@ -1807,7 +1807,7 @@ OEDIT(oedit_create)
     else
     {
         WNUM wnum;
-        AREA_DATA *context = strchr(argument, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
         if (!parse_widevnum(argument, context, &wnum)) {
             send_to_char("Invalid vnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;

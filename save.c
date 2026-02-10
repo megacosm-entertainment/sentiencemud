@@ -7388,3 +7388,207 @@ void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen) {
         obj = next;
     }
 }
+
+/**
+ * do_migratefiles - Batch convert old pfile format accounts and characters to JSON
+ *
+ * Iterates through all account and character directories, detects files still
+ * in old pfile format, loads them using the existing infrastructure, and
+ * re-saves them in JSON format. Old pfiles are backed up automatically by
+ * the JSON write functions.
+ *
+ * Usage: migratefiles [accounts|characters]
+ *   No argument: migrate both accounts and characters
+ *   accounts:    migrate only account files
+ *   characters:  migrate only character files
+ */
+void do_migratefiles(CHAR_DATA *ch, char *argument)
+{
+    DIR *letter_dir;
+    struct dirent *entry;
+    char dir_path[MAX_INPUT_LENGTH];
+    char file_path[MAX_STRING_LENGTH];
+    char letter;
+    bool do_accounts = true;
+    bool do_characters = true;
+    int acct_total = 0, acct_converted = 0, acct_skipped = 0, acct_failed = 0;
+    int char_total = 0, char_converted = 0, char_skipped = 0, char_failed = 0;
+
+    if (argument[0] != '\0') {
+        if (!str_prefix(argument, "accounts")) {
+            do_characters = false;
+        } else if (!str_prefix(argument, "characters")) {
+            do_accounts = false;
+        } else {
+            send_to_char("Syntax: migratefiles [accounts|characters]\n\r", ch);
+            return;
+        }
+    }
+
+    send_to_char("Starting pfile to JSON migration...\n\r", ch);
+    log_stringf("MIGRATE: %s initiated pfile to JSON migration (accounts=%s, characters=%s)",
+               ch->name, do_accounts ? "yes" : "no", do_characters ? "yes" : "no");
+
+    if (do_accounts) {
+        send_to_char("\n\r{YMigrating accounts...{x\n\r", ch);
+
+        for (letter = 'a'; letter <= 'z'; letter++) {
+            sprintf(dir_path, "%s%c", ACCOUNT_DIR, letter);
+            letter_dir = opendir(dir_path);
+            if (!letter_dir)
+                continue;
+
+            while ((entry = readdir(letter_dir)) != NULL) {
+                if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+                    continue;
+                if (entry->d_name[0] == '.')
+                    continue;
+
+                snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, entry->d_name);
+                acct_total++;
+
+                if (json_is_account_json(file_path)) {
+                    acct_skipped++;
+                    continue;
+                }
+
+                DESCRIPTOR_DATA temp_d;
+                memset(&temp_d, 0, sizeof(temp_d));
+
+                if (load_account(&temp_d, entry->d_name)) {
+                    save_account(temp_d.account);
+
+                    bool is_cached = false;
+                    if (loaded_accounts) {
+                        ITERATOR it;
+                        ACCOUNT_DATA *check;
+                        iterator_start(&it, loaded_accounts);
+                        while ((check = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+                            if (check == temp_d.account) {
+                                is_cached = true;
+                                break;
+                            }
+                        }
+                        iterator_stop(&it);
+
+                        if (is_cached) {
+                            list_remlink(loaded_accounts, temp_d.account, false);
+                        }
+                    }
+                    free_account(temp_d.account);
+
+                    acct_converted++;
+                    printf_to_char(ch, "  {GConverted:{x %s\n\r", entry->d_name);
+                    log_stringf("MIGRATE: Converted account %s to JSON", entry->d_name);
+                } else {
+                    acct_failed++;
+                    printf_to_char(ch, "  {RFailed:{x  %s\n\r", entry->d_name);
+                    log_stringf("MIGRATE: Failed to load account %s for conversion", entry->d_name);
+                    if (temp_d.account)
+                        free_account(temp_d.account);
+                }
+            }
+
+            closedir(letter_dir);
+        }
+
+        printf_to_char(ch, "\n\r{WAccount migration complete:{x %d total, {G%d converted{x, %d already JSON, {R%d failed{x\n\r",
+                       acct_total, acct_converted, acct_skipped, acct_failed);
+        log_stringf("MIGRATE: Account results - %d total, %d converted, %d skipped, %d failed",
+                   acct_total, acct_converted, acct_skipped, acct_failed);
+    }
+
+    if (do_characters) {
+        send_to_char("\n\r{YMigrating characters...{x\n\r", ch);
+
+        for (letter = 'a'; letter <= 'z'; letter++) {
+            sprintf(dir_path, "%s%c", PLAYER_DIR, letter);
+            letter_dir = opendir(dir_path);
+            if (!letter_dir)
+                continue;
+
+            while ((entry = readdir(letter_dir)) != NULL) {
+                if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+                    continue;
+                if (entry->d_name[0] == '.')
+                    continue;
+
+                // Skip files with extensions (e.g. .gz, .bak)
+                if (strchr(entry->d_name, '.'))
+                    continue;
+
+                snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, entry->d_name);
+                char_total++;
+
+                if (json_is_json_file(file_path)) {
+                    char_skipped++;
+                    continue;
+                }
+
+                // Check if character is currently online - skip if so
+                bool online = false;
+                DESCRIPTOR_DATA *d_check;
+                for (d_check = descriptor_list; d_check; d_check = d_check->next) {
+                    if (d_check->character && !str_cmp(d_check->character->name, entry->d_name)) {
+                        online = true;
+                        break;
+                    }
+                }
+                if (online) {
+                    char_skipped++;
+                    printf_to_char(ch, "  {YSkipped:{x %s (online)\n\r", entry->d_name);
+                    continue;
+                }
+
+                DESCRIPTOR_DATA temp_d;
+                memset(&temp_d, 0, sizeof(temp_d));
+
+                if (load_char_obj(&temp_d, entry->d_name) && temp_d.character) {
+                    CHAR_DATA *temp_ch = temp_d.character;
+
+                    char json_path[512];
+                    json_t *char_json = NULL;
+
+                    json_get_char_path(temp_ch->name, json_path, sizeof(json_path));
+
+                    char_json = char_to_json(temp_ch);
+                    if (char_json) {
+                        int result = json_dump_file(char_json, json_path,
+                                                    JSON_INDENT(2) | JSON_PRESERVE_ORDER);
+                        if (result == 0) {
+                            char_converted++;
+                            printf_to_char(ch, "  {GConverted:{x %s\n\r", entry->d_name);
+                            log_stringf("MIGRATE: Converted character %s to JSON", entry->d_name);
+                        } else {
+                            char_failed++;
+                            printf_to_char(ch, "  {RFailed:{x  %s (JSON write error)\n\r", entry->d_name);
+                            log_stringf("MIGRATE: Failed to write JSON for character %s", entry->d_name);
+                        }
+                        json_decref(char_json);
+                    } else {
+                        char_failed++;
+                        printf_to_char(ch, "  {RFailed:{x  %s (serialization error)\n\r", entry->d_name);
+                        log_stringf("MIGRATE: Failed to serialize character %s", entry->d_name);
+                    }
+
+                    extract_char(temp_ch, true);
+                } else {
+                    char_failed++;
+                    printf_to_char(ch, "  {RFailed:{x  %s (load error)\n\r", entry->d_name);
+                    log_stringf("MIGRATE: Failed to load character %s for conversion", entry->d_name);
+                    if (temp_d.character)
+                        extract_char(temp_d.character, true);
+                }
+            }
+
+            closedir(letter_dir);
+        }
+
+        printf_to_char(ch, "\n\r{WCharacter migration complete:{x %d total, {G%d converted{x, %d already JSON, {R%d failed{x\n\r",
+                       char_total, char_converted, char_skipped, char_failed);
+        log_stringf("MIGRATE: Character results - %d total, %d converted, %d skipped, %d failed",
+                   char_total, char_converted, char_skipped, char_failed);
+    }
+
+    send_to_char("\n\r{WMigration complete.{x\n\r", ch);
+}

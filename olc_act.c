@@ -1116,8 +1116,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
             return false;
         }
 
-        // Context: use current area for '#vnum' format, NULL for global lookup
-        context = strchr(arg, '#') ? ch->in_room->area : NULL;
+        context = ch->in_room->area;
         
         if (!parse_widevnum(arg, context, &room_wnum))
         {
@@ -1200,8 +1199,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
         if( IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT) ||
             IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
         {
-            // Parse widevnum for blueprint validation
-            context = strchr(arg, '#') ? ch->in_room->area : NULL;
+            context = ch->in_room->area;
             if (!parse_widevnum(arg, context, &room_wnum))
             {
                 send_to_char("Invalid room vnum format.\n\r", ch);
@@ -1257,8 +1255,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
         }
 
-        // Context: use current area for '#vnum' format, NULL for global lookup
-        context = strchr(arg, '#') ? ch->in_room->area : NULL;
+        context = ch->in_room->area;
         
         if (!parse_widevnum(arg, context, &room_wnum))
         {
@@ -1376,7 +1373,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
         }
 
         WNUM wnum;
-        AREA_DATA *context = strchr(arg, '#') ? ch->in_room->area : NULL;
+        AREA_DATA *context = ch->in_room->area;
 
         if (!parse_widevnum(arg, context, &wnum))
         {

@@ -9206,26 +9206,34 @@ void load_instances()
     char *word;
     bool fMatch;
     
-    // Try JSON format first
-    fp = fopen(INSTANCES_FILE_JSON, "r");
-    if (fp != NULL)
-    {
-        fclose(fp);
-        
-        if (json_load_instances()) {
-            log_string("Loaded instances from JSON format");
-            resolve_ships();
-            return;
-        }
-        
-        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to load instances.json, trying .dat format");
+    // Tier 1: Try persist directories
+    int loaded = json_load_instances();
+    if (loaded > 0) {
+        log_stringf("Loaded %d entities from persist directories", loaded);
+        resolve_ships();
+        return;
     }
     
-    // Fall back to legacy .dat format
+    // Tier 2: Try monolithic instances.json
+    if (json_load_instances_file(INSTANCES_FILE_JSON)) {
+        log_string("Loaded instances from monolithic JSON file");
+        resolve_ships();
+        
+        log_string("Migrating instances to persist directory format...");
+        json_save_instances();
+        
+        char old_path[256];
+        snprintf(old_path, sizeof(old_path), "%s.old", INSTANCES_FILE_JSON);
+        rename(INSTANCES_FILE_JSON, old_path);
+        log_stringf("Archived old instances.json to %s", old_path);
+        return;
+    }
+    
+    // Tier 3: Fall back to legacy .dat format
     fp = fopen(INSTANCES_FILE, "r");
     if (fp == NULL)
     {
-        log_message(LOG_LEVEL_BUG, LOG_ERROR, "No instances file found (tried .json and .dat)");
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "No instances file found (tried persist dirs, .json, and .dat)");
         return;
     }
 
@@ -9272,7 +9280,6 @@ void load_instances()
         }
 
         if (!fMatch) {
-            //char buf[MSL];
             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "load_instances: no match for word %.50s", word);
         }
 
@@ -9287,7 +9294,6 @@ void load_instances()
     if (json_save_instances()) {
         log_string("Migration successful - instances saved as JSON");
         
-        // Archive the old .dat file
         char old_path[256];
         snprintf(old_path, sizeof(old_path), "%s.old", INSTANCES_FILE);
         rename(INSTANCES_FILE, old_path);

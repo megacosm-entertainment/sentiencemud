@@ -3337,6 +3337,7 @@ const struct do_func_type do_func_table[] =
         { "do_wizhelp",                 do_wizhelp },
         { "do_invis",                   do_invis },
         { "do_wizlock",                 do_wizlock },
+{ "do_migratefiles",            do_migratefiles },
         { "do_wiznet",                  do_wiznet },
         { "do_zecho",                   do_zecho },
         { "do_zot",                     do_zot },

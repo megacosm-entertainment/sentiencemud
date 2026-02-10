@@ -48,6 +48,7 @@
 #include "../../db.h"
 #include "../../recycle.h"
 #include "../../tables.h"
+#include "../../bootstrap/bootstrap_internal.h"
 #include "../../olc.h"
 #include "../../olc_save.h"
 #include "../../scripts.h"
@@ -197,13 +198,19 @@ bool load_commands()
         return false;
     }
 
-    if (!json_load_commands(COMMANDS_JSON_FILE))
+    if (json_load_commands(COMMANDS_JSON_FILE))
+        return true;
+
+    log_string("commands.json not found, generating from cmd_table[]...");
+
+    if (create_commands_json() && json_load_commands(COMMANDS_JSON_FILE))
     {
-        perrf(LOG_INIT, COMMANDS_JSON_FILE " not found. Run with -bootstrap to generate it.");
-        return false;
+        log_string("Generated and loaded commands.json from cmd_table[]");
+        return true;
     }
 
-    return true;
+    perrf(LOG_INIT, "Failed to load or generate commands. Run with -bootstrap.");
+    return false;
 }
 
 void do_cmdlist(CHAR_DATA *ch, char *argument)

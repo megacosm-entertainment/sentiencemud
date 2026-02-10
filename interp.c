@@ -462,6 +462,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "wizhelp",	do_wizhelp,	POS_DEAD,	L5,  LOG_NORMAL, 1, true },
     { "wizinvis",	do_invis,	POS_DEAD,	L5,  LOG_NORMAL, 1, true },
     { "wizlock",	do_wizlock,	POS_DEAD,	L1,  LOG_ALWAYS, 1, true },
+{ "migratefiles",	do_migratefiles,	POS_DEAD,	ML,  LOG_ALWAYS, 1, true },
     { "wiznet",		do_wiznet,	POS_DEAD,	L5,  LOG_NORMAL, 1, true },
     { "zecho",		do_zecho,	POS_DEAD,	L4,  LOG_ALWAYS, 1, false },
     { "zot", 		do_zot,		POS_DEAD,       L5,  LOG_ALWAYS, 1, false },
