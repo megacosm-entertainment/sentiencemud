@@ -3746,6 +3746,11 @@ const struct game_setting_type game_settings_table[] = {
 
     /* Debug/Logging Settings */
     { "crash_dump_dir",       &game_settings.crash_dump_dir,       SETTING_TYPE_STRING, SETTING_CAT_DEBUG,    "Directory for crash dumps and core files",                   true,  false, false },
+    { "crypto_key_passphrase", &game_settings.crypto_key_passphrase, SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Passphrase for generating encryption key (if not using file-based key)", true, false, true },
+    { "crypto_key_passphrase_previous", &game_settings.crypto_key_passphrase_previous, SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Previous passphrase for key rotation (if not using file-based key)", true, false, true },
+    { "crypto_salt_file",     &game_settings.crypto_salt_file,     SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "File containing salt for key generation (if using file-based key)", true, false, false },
+    { "crypto_use_passphrase", &game_settings.crypto_use_passphrase, SETTING_TYPE_BOOL, SETTING_CAT_SECURITY, "Whether to use passphrase-based key generation instead of file-based key", true, false, false },
+    { "crypto_key_version",     &game_settings.crypto_key_version,     SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Version number for the current encryption key, used for key rotation", true, false, false },
 
     { NULL, NULL, 0, 0, NULL, false, false }  /* Terminator */
 };

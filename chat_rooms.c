@@ -1463,7 +1463,8 @@ void read_chat_rooms()
 	
 	// Always read new format (area_uid, vnum, max_people)
 	// The file has been migrated to the new format
-	chat->area_uid = fread_number(fp);
+    // Not yet!
+	//chat->area_uid = fread_number(fp);
 	chat->vnum = fread_number(fp);
 	chat->max_people = fread_number(fp);
 	last_chat = chat;
