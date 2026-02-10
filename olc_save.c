@@ -1060,7 +1060,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 
     if(obj->lock)
     {
-        fprintf(fp, "Lock %ld %ld %d %d\n", obj->lock->key_load.auid, obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);
+        fprintf(fp, "Lock %ld %d %d\n", obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);
     }
 
     // Save item spells here.
@@ -2793,7 +2793,6 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     obj->lock = new_lock_state();
                 }
 
-                obj->lock->key_load.auid = fread_number(fp);
                 obj->lock->key_load.vnum = fread_number(fp);
                 obj->lock->flags = fread_number(fp);
                 obj->lock->pick_chance = fread_number(fp);
