@@ -1426,7 +1426,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
             if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                 sprintf(buf, "%s drops %s.", ch->name, cart->short_descr);
-                plogf(LOG_ADMIN, buf);
+                plog(LOG_ADMIN, buf);
                 wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
             }
 
@@ -1475,7 +1475,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
         if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
             sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
-            plogf(LOG_ADMIN, buf);
+            plog(LOG_ADMIN, buf);
             wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
         }
 
@@ -1557,7 +1557,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
                     if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                         sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
-                        plogf(LOG_ADMIN, buf);
+                        plog(LOG_ADMIN, buf);
                         wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
                     }
 
@@ -1755,7 +1755,7 @@ void do_give(CHAR_DATA *ch, char *argument)
             sprintf(buf,"%s gives %s %ld %s.",
                 ch->name, IS_NPC(victim) ? victim->short_descr : victim->name,
                 amount, gold ? "gold" : "silver");
-            plogf(LOG_ADMIN, buf);
+            plog(LOG_ADMIN, buf);
             wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
         }
 
@@ -1923,7 +1923,7 @@ void do_give(CHAR_DATA *ch, char *argument)
             ch->name,
             obj->short_descr,
             IS_NPC(victim) ? victim->short_descr : victim->name);
-        plogf(LOG_ADMIN, buf);
+        plog(LOG_ADMIN, buf);
         wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
     }
 

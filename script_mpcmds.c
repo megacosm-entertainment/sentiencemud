@@ -5908,7 +5908,7 @@ SCRIPT_CMD(do_mpalterexit)
     if(script_security < min_sec) {
         sprintf(buf,"MpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        pbugf(LOG_SCRIPTS, buf);
+        pbug(LOG_SCRIPTS, buf);
         return;
     }
 
@@ -6386,7 +6386,7 @@ SCRIPT_CMD(do_mpalterroom)
         if(script_security < min_sec) {
             sprintf(buf,"MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            pbugf(LOG_SCRIPTS, buf);
+            pbug(LOG_SCRIPTS, buf);
             return;
         }
 
@@ -6430,7 +6430,7 @@ SCRIPT_CMD(do_mpalterroom)
     if(script_security < min_sec) {
         sprintf(buf,"MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        pbugf(LOG_SCRIPTS, buf);
+        pbug(LOG_SCRIPTS, buf);
         return;
     }
 

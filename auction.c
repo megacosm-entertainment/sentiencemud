@@ -201,7 +201,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 
     sprintf(buf, "{M[AUCTION] %s has stopped the auction of %s{M - item removed.{x\n\r",
         ch->name, auction_info.item->short_descr);
-    plogf(LOG_INFO, buf);
+    plog(LOG_INFO, buf);
     for ( d = descriptor_list; d != NULL; d = d->next )
     {
         CHAR_DATA *victim;
@@ -257,7 +257,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
             ch->name, auction_info.item->short_descr);
     auction_channel( buf );
 
-    plogf(LOG_ADMIN, buf);
+    plog(LOG_ADMIN, buf);
 
     if (auction_info.high_bidder != NULL)
         auction_info.high_bidder->pcdata->bankbalance

@@ -1242,7 +1242,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
             IS_NPC(victim) ? victim->short_descr : victim->name);
         wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 
-        plogf(LOG_ADMIN, buf);
+        plog(LOG_ADMIN, buf);
         }
     }
 
@@ -1287,7 +1287,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
     IS_NPC(victim) ? victim->short_descr : victim->name);
     wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 
-    plogf(LOG_ADMIN, buf);
+    plog(LOG_ADMIN, buf);
 }
 
 
@@ -6059,8 +6059,8 @@ void do_advance(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (IS_NPC(ch)) {
-        sprintf("do_advance: NPC %s(%ld) tried to advance", ch->pIndexData->short_descr, ch->pIndexData->vnum);
-    plogf(LOG_ADMIN, buf);
+        sprintf(buf, "do_advance: NPC %s(%ld) tried to advance", ch->pIndexData->short_descr, ch->pIndexData->vnum);
+    plog(LOG_ADMIN, buf);
     send_to_char("No.\n\r", ch);
     return;
     }

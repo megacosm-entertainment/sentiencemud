@@ -1576,7 +1576,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 
     sprintf(log_buf, "%s has quit.", ch->name);
 
-    plogf(LOG_INFO, log_buf);
+    plog(LOG_INFO, log_buf);
     wiznet("$N rejoins the real world.",
     ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
 

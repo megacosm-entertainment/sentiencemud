@@ -5463,7 +5463,7 @@ void bug(const char *str, ...)
     vsnprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), str, args);
     va_end(args);
 
-    pbugf(LOG_ERROR, buf);
+    pbug(LOG_ERROR, buf);
         if (fBootDb && game_settings.note_boot_errors)
         boot_error_log("%s", buf);
 }
@@ -5484,7 +5484,7 @@ void log_stringf(const char *fmt,...)
     va_start (args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end (args);
-    plogf(LOG_INFO, buf);
+    plog(LOG_INFO, buf);
 }
 
 

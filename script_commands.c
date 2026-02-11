@@ -5371,7 +5371,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
         if(script_security < min_sec) {
             sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
             wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-            pbugf(LOG_SCRIPTS, buf);
+            pbug(LOG_SCRIPTS, buf);
             return;
         }
 
@@ -5426,7 +5426,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
     if(script_security < min_sec) {
         sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        pbugf(LOG_SCRIPTS, buf);
+        pbug(LOG_SCRIPTS, buf);
         return;
     }
 

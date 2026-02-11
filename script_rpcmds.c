@@ -4554,7 +4554,7 @@ SCRIPT_CMD(do_rpalterexit)
     if(script_security < min_sec) {
         sprintf(buf,"RpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
         wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-        pbugf(LOG_SCRIPTS, buf);
+        pbug(LOG_SCRIPTS, buf);
         return;
     }
 
