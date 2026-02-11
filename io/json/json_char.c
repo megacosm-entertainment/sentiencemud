@@ -405,15 +405,12 @@ static json_t *inventory_to_json(CHAR_DATA *ch)
     json_t *inventory;
     OBJ_DATA *obj;
     ITERATOR it;
-    int total_in_list = 0;
     int written_count = 0;
 
     inventory = json_array();
 
     // Use lcarrying (LIST structure) instead of carrying (deprecated linked list)
     if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
-        total_in_list = list_size(ch->lcarrying);
-        log_stringf("inventory_to_json: %s has %d items in lcarrying", ch->name, total_in_list);
 
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
@@ -423,19 +420,10 @@ static json_t *inventory_to_json(CHAR_DATA *ch)
                 if (json_obj) {
                     json_array_append_new(inventory, json_obj);
                     written_count++;
-                    log_stringf("  inventory_to_json: wrote vnum=%ld name='%s'",
-                               obj->pIndexData->vnum, obj->name ? obj->name : "(null)");
                 }
-            } else {
-                log_stringf("  inventory_to_json: SKIPPED vnum=%ld name='%s' locker=%d in_obj=%s wear_loc=%d",
-                           obj->pIndexData->vnum, obj->name ? obj->name : "(null)",
-                           obj->locker, obj->in_obj ? "yes" : "no", obj->wear_loc);
             }
         }
         iterator_stop(&it);
-        log_stringf("inventory_to_json: wrote %d top-level items for %s", written_count, ch->name);
-    } else {
-        log_stringf("inventory_to_json: %s has no lcarrying list!", ch->name);
     }
 
     return inventory;
@@ -620,7 +608,13 @@ static json_t *tokens_to_json(CHAR_DATA *ch)
         }
         json_object_set_new(token_obj, "values", values);
 
-        // TODO: Token variables (if needed)
+        // Script variables
+        if (token->progs) {
+            json_t *vars = json_persist_scriptdata_to_json(token->progs);
+            if (vars) {
+                json_object_set_new(token_obj, "variables", vars);
+            }
+        }
 
         json_array_append_new(tokens, token_obj);
     }
@@ -3080,6 +3074,12 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 for (int i = 0; i < MAX_TOKEN_VALUES && i < json_array_size(values); i++) {
                     token->value[i] = json_integer_value(json_array_get(values, i));
                 }
+            }
+
+            // Script variables
+            value = json_object_get(array_elem, "variables");
+            if (value && json_is_array(value)) {
+                json_persist_json_to_scriptdata(value, &token->progs);
             }
 
             token->next = ch->tokens;

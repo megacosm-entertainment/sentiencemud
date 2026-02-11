@@ -2275,7 +2275,7 @@ if (ch->in_room == NULL) {
         sprintf(buf, "fread_char: %s password set to %s", ch->name, ch->pcdata->pwd);
         log_string(buf);
         fMatch = true;
-
+        break;
         }
         //KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
         
@@ -3016,18 +3016,6 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     AFFECT_DATA *paf;
     //char buf[MSL];
 
-    // DIAGNOSTIC: Log object being written
-    static int write_count = 0;
-    write_count++;
-    log_stringf("fwrite_obj_new[%d]: Writing %s (id %ld, vnum %ld, nest %d, locker=%d, in_obj=%s)",
-               write_count,
-               obj->short_descr ? obj->short_descr : "(null)",
-               obj->id[0],
-               obj->pIndexData ? obj->pIndexData->vnum : 0,
-               iNest,
-               obj->locker,
-               obj->in_obj ? obj->in_obj->short_descr : "NULL");
-
     /*
      * Slick recursion to write lists backwards,
      * so loading them will load in forwards order.
@@ -3140,7 +3128,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         fprintf(fp, "Locker %d\n", obj->locker);
 
     if (obj->lock)
-        fprintf(fp, "Lock %ld %ld %d %d\n", obj->lock->key_load.auid, obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);
+        fprintf(fp, "LockW %ld %ld %d %d\n", obj->lock->key_load.auid, obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);
 
     // Permanent flags based
     fprintf(fp, "PermExtra %ld\n",	obj->extra_perm[0] );
@@ -3410,8 +3398,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
         } else
             word   = fread_word(fp);
         fMatch = false;
-
-//		pbugf(LOG_ERROR, "Fread_obj_new: word = '%s'", word);
 
         switch (UPPER(word[0]))
         {
@@ -3918,6 +3904,22 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
             KEY("Locker",	obj->locker,		fread_number(fp));
 
             if( !str_cmp(word,"Lock") )
+            {
+                if( !obj->lock )
+                {
+                    obj->lock = new_lock_state();
+                }
+
+                obj->lock->key_load.auid = 0;
+                obj->lock->key_load.vnum = fread_number(fp);
+                obj->lock->flags = fread_number(fp);
+                obj->lock->pick_chance = fread_number(fp);
+
+                fMatch = true;
+                break;
+            }
+
+            if( !str_cmp(word,"LockW") )
             {
                 if( !obj->lock )
                 {

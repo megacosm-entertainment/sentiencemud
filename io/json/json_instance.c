@@ -45,6 +45,8 @@ extern void instance_section_tallyentities(INSTANCE_SECTION *section);
 /* JSON persist functions for complete room serialization */
 extern json_t *json_persist_room_to_json(ROOM_INDEX_DATA *room);
 extern ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json);
+extern json_t *json_persist_scriptdata_to_json(PROG_DATA *progs);
+extern void json_persist_json_to_scriptdata(json_t *json, PROG_DATA **progs);
 
 /* Existing persist functions for objects/mobiles */
 extern void persist_save_object(FILE *fp, OBJ_DATA *obj);
@@ -380,6 +382,14 @@ json_t *instance_to_json(INSTANCE *instance)
     iterator_stop(&it);
     json_object_set_new(json, "sections", sections_array);
     
+    /* Script variables */
+    if (instance->progs && instance->progs->vars) {
+        json_t *vars = json_persist_scriptdata_to_json(instance->progs);
+        if (vars) {
+            json_object_set_new(json, "variables", vars);
+        }
+    }
+
     /* Special room references */
     json_object_set_new(json, "recall", room_ref_to_json(instance->recall));
     json_object_set_new(json, "entrance", room_ref_to_json(instance->entrance));
@@ -465,6 +475,12 @@ INSTANCE *json_to_instance(json_t *json)
         }
     }
     
+    /* Script variables (override blueprint defaults with saved runtime values) */
+    value = json_object_get(json, "variables");
+    if (value && json_is_array(value)) {
+        json_persist_json_to_scriptdata(value, &instance->progs);
+    }
+
     /* Special rooms */
     value = json_object_get(json, "recall");
     instance->recall = json_to_room_ref(value);
@@ -751,6 +767,14 @@ json_t *dungeon_to_json(DUNGEON *dungeon)
     }
     iterator_stop(&it);
     json_object_set_new(json, "floors", floors_array);
+
+    /* Script variables */
+    if (dungeon->progs && dungeon->progs->vars) {
+        json_t *vars = json_persist_scriptdata_to_json(dungeon->progs);
+        if (vars) {
+            json_object_set_new(json, "variables", vars);
+        }
+    }
     
     return json;
 }
@@ -832,6 +856,12 @@ DUNGEON *json_to_dungeon(json_t *json)
                 list_appendlink(dungeon->floors, instance);
             }
         }
+    }
+
+    /* Script variables (override index defaults with saved runtime values) */
+    value = json_object_get(json, "variables");
+    if (value && json_is_array(value)) {
+        json_persist_json_to_scriptdata(value, &dungeon->progs);
     }
     
     return dungeon;
