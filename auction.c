@@ -491,6 +491,17 @@ void auction_update()
 
         if ( auction_info.high_bidder == NULL || auction_info.item == NULL )
     {
+        if ( auction_info.item == NULL )
+        {
+            auction_channel( "No bids on the item{M - item removed.{x\n\r" );
+            auction_info.item           = NULL;
+            auction_info.owner          = NULL;
+            auction_info.high_bidder    = NULL;
+            auction_info.current_bid    = 0;
+            auction_info.status         = 0;
+            return;
+        }
+
         sprintf(buf, "No bids on %s{M - item removed.{x\n\r",
         auction_info.item->short_descr);
         auction_channel( buf );

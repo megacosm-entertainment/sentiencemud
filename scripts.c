@@ -3732,7 +3732,10 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
     mob = obj_room(obj)->people;
     else if (token)
     mob = token_room(token)->people;
-    else mob = room->people;
+    else if (room)
+    mob = room->people;
+    else
+    return NULL;
 
     for (; mob; mob = mob->next_in_room)
     if (IS_NPC(mob) && mob->pIndexData->vnum == vnum && (!area || mob->pIndexData->area == area))
@@ -3760,8 +3763,10 @@ OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
     vobj = obj_room(obj)->contents;
     else if (token)
     vobj = token_room(token)->contents;
-    else
+    else if (room)
     vobj = room->contents;
+    else
+    return NULL;
 
     for (; vobj; vobj = vobj->next_content)
     if (vobj->pIndexData->vnum == vnum && (!area || vobj->pIndexData->area == area))

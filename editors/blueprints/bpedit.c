@@ -218,7 +218,7 @@ BPEDIT( bpedit_show )
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( (bl && bl->room) || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR) )
+                    if( bl && (bl->room || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR)) )
                     {
                         const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
                         if (room_str)
@@ -264,7 +264,7 @@ BPEDIT( bpedit_show )
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( (bl && bl->room) || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR) )
+                    if( bl && (bl->room || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR)) )
                     {
                         const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
                         if (room_str)

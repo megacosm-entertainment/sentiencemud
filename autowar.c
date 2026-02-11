@@ -562,6 +562,8 @@ void test_for_end_of_war()
     {
         sprintf( buf, "{RThe winners have forfeited the war.{x\n\r" );
         war_channel( buf );
+        free_auto_war( auto_war );
+        return;
     }
 
     wch = auto_war->team_players;
@@ -645,6 +647,8 @@ void test_for_end_of_war()
     {
         sprintf( buf, "{RThe war has been forfeited.{x\n\r" );
         war_channel( buf );
+        free_auto_war( auto_war );
+        return;
     }
 
     if ( auto_war->team_players->alignment < 0 )

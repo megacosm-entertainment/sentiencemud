@@ -373,9 +373,9 @@ BSEDIT( bsedit_rooms )
         send_to_char("Vnum range set.\n\r", ch);
 
         // Make sure recall point is still inside room range
-        if( bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum > 0 )
+        if( (bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum) > 0 )
         {
-            if( bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum < lvnum || bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum > uvnum )
+            if( (bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum) < lvnum || (bs->recall_room ? bs->recall_room->vnum : bs->recall_ref.load.vnum) > uvnum )
             {
                 send_to_char("{YRecall room outside of new range.  Clearing.{x\n\r", ch);
                 bs->recall_ref.load.vnum = 0; bs->recall_ref.load.auid = 0; bs->recall_room = NULL;
@@ -391,7 +391,7 @@ BSEDIT( bsedit_rooms )
             {
                 next = cur->next;
 
-                if( cur->room ? cur->room->vnum : cur->room_ref.load.vnum < lvnum || cur->room ? cur->room->vnum : cur->room_ref.load.vnum > uvnum )
+                if( (cur->room ? cur->room->vnum : cur->room_ref.load.vnum) < lvnum || (cur->room ? cur->room->vnum : cur->room_ref.load.vnum) > uvnum )
                 {
                     sprintf(buf, "Link %.30s outside of new vnum range.  Removing.\n\r", cur->name);
                     send_to_char(buf, ch);

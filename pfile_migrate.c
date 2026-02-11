@@ -211,6 +211,51 @@ static bool backup_old_pfile(const char *name, bool is_account)
     return success;
 }
 
+/**
+ * pfile_is_complete - Check if an old-format pfile is structurally complete
+ *
+ * Validates that the file is not truncated by checking that the last
+ * section (either #PLAYER or #O) has a proper "End" marker. Truncated
+ * files would cause fread_word/fread_number to hit EOF and produce
+ * garbage data or crash.
+ *
+ * @param file_path  Full path to the pfile
+ * @return           true if file appears complete, false if truncated
+ */
+static bool pfile_is_complete(const char *file_path)
+{
+    FILE *fp = fopen(file_path, "r");
+    if (!fp)
+        return false;
+
+    /* Read the last meaningful line of the file */
+    char last_line[256] = {0};
+    char line[256];
+
+    while (fgets(line, sizeof(line), fp)) {
+        /* Strip trailing whitespace */
+        int len = strlen(line);
+        while (len > 0 && isspace((unsigned char)line[len - 1]))
+            line[--len] = '\0';
+
+        /* Track last non-empty line */
+        if (len > 0)
+            strncpy(last_line, line, sizeof(last_line) - 1);
+    }
+    fclose(fp);
+
+    /* A complete old-format pfile ends with "End" (last object/player section)
+     * or "#END" (rare, some formats use this as file terminator) */
+    if (!str_cmp(last_line, "End") || !str_cmp(last_line, "#END"))
+        return true;
+
+    log_message_f(LOG_LEVEL_WARN, LOG_WARN,
+        "pfile_is_complete: %s last line is '%s' (expected 'End')",
+        file_path, last_line);
+
+    return false;
+}
+
 /***************************************************************************
  * Player Migration Functions                                               *
  ***************************************************************************/
@@ -248,6 +293,13 @@ bool migrate_player(char *name, bool backup)
         log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
             "migrate_player: %s already JSON format", name);
         return true;
+    }
+
+    /* Validate that old-format pfile is not truncated */
+    if (!pfile_is_complete(file_path)) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+            "migrate_player: %s appears truncated/corrupt - skipping", name);
+        return false;
     }
 
     log_message_f(LOG_LEVEL_INFO, LOG_INFO,
@@ -424,6 +476,13 @@ bool migrate_account(char *name, bool backup, void *vstats)
 
     log_message_f(LOG_LEVEL_INFO, LOG_INFO,
         "Migrating account: %s", name);
+
+    /* Validate that old-format account file is not truncated */
+    if (!pfile_is_complete(file_path)) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+            "migrate_account: %s appears truncated/corrupt - skipping", name);
+        return false;
+    }
 
     memset(&d, 0, sizeof(DESCRIPTOR_DATA));
     d.connected = CON_PLAYING;

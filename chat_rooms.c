@@ -1179,12 +1179,15 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
     }
 
     // see if we are adding or removing
+    CHAT_BAN_DATA *found_ban = NULL;
     for (ban = chat->bans; ban != NULL; ban = ban->next)
     {
     if (!str_cmp(ban->name, arg))
+    {
+        found_ban = ban;
         add = false;
-    else
-        add = true;
+        break;
+    }
     }
 
     if (strlen(arg) > 12)
@@ -1197,11 +1200,11 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
         arg, chat->name);
     send_to_char(buf, ch);
     }
-    else
+    else if (found_ban)
     {
-    chat_remove_ban(chat, ban);
+    chat_remove_ban(chat, found_ban);
     sprintf(buf, "{YUnbanned \"%s\" from #%s.{x\n\r",
-        ban->name, chat->name);
+        found_ban->name, chat->name);
     }
 }
 

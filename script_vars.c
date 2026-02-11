@@ -1025,7 +1025,7 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
         data->id[3] = room->z;
     } else {
         data->id[0] = 0;
-        data->id[1] = room->source->vnum;
+        data->id[1] = room->vnum;
         data->id[2] = 0;
         data->id[3] = 0;
     }
@@ -1058,7 +1058,7 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
         data->id[3] = room->z;
     } else {
         data->id[0] = 0;
-        data->id[1] = room->source->vnum;
+        data->id[1] = room->vnum;
         data->id[2] = 0;
         data->id[3] = 0;
     }
@@ -1173,7 +1173,7 @@ bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
         data->id[3] = room->z;
     } else {
         data->id[0] = 0;
-        data->id[1] = room->source->vnum;
+        data->id[1] = room->vnum;
         data->id[2] = 0;
         data->id[3] = 0;
     }

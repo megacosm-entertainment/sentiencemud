@@ -924,7 +924,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                           do_function(ch, &do_look, "auto");
                         }
 
-            if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
+            if (MOUNTED(ch) && !IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
               send_to_char("You are thrown wildly around in circles and find yourself plummeting to the ground!\n\r", ch);
                     send_to_char("{RYou hit the ground with a loud thump!!!{x\n\r", ch);
                            damage(ch, ch, 30000, 0, DAM_NONE, false);

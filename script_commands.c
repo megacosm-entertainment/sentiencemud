@@ -1837,7 +1837,7 @@ SCRIPT_CMD(scriptcmd_detach)
         }
         else if( !str_prefix(field, "reply") )
         {
-            mob->reply = NULL;
+            if (mob) mob->reply = NULL;
         }
     }
 

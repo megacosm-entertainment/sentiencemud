@@ -4340,15 +4340,16 @@ SCRIPT_DATA *get_script_index_global(long vnum, int type)
  */
 char fread_letter(FILE *fp)
 {
-    char c;
+    int c;
 
     do
     {
     c = getc(fp);
+    if (c == EOF) return '\0';
     }
     while (ISSPACE(c));
 
-    return c;
+    return (char)c;
 }
 
 
@@ -4855,8 +4856,7 @@ char *fread_word(FILE *fp)
 {
     static char word[MAX_INPUT_LENGTH];
     char *pword;
-    char cEnd;
-        //char buf[MAX_STRING_LENGTH];
+    int cEnd;
 
     if (feof(fp)) {
     log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_word: EOF encountered");
@@ -4866,6 +4866,11 @@ char *fread_word(FILE *fp)
     do
     {
     cEnd = getc(fp);
+    if (cEnd == EOF) {
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Fread_word: EOF encountered while skipping whitespace");
+        word[0] = '\0';
+        return word;
+    }
     }
     while (ISSPACE(cEnd));
 
@@ -4882,7 +4887,14 @@ char *fread_word(FILE *fp)
 
     for (; pword < word + MAX_INPUT_LENGTH; pword++)
     {
-    *pword = getc(fp);
+    int ch = getc(fp);
+    if (ch == EOF)
+    {
+        *pword = '\0';
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fread_word: EOF mid-word (%s).", word);
+        return word;
+    }
+    *pword = (char)ch;
     if (cEnd == ' ' ? ISSPACE(*pword) : *pword == cEnd)
     {
         if (cEnd == ' ')

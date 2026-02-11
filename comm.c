@@ -3715,7 +3715,7 @@ void show_string(struct descriptor_data *d, char *input)
         else if (!*scan || (show_lines > 0 && lines >= show_lines))
         {
             *scan = '\0';
-            if (IS_SET(d->character->act[0], PLR_COLOUR))
+            if (d->character && IS_SET(d->character->act[0], PLR_COLOUR))
                 write_to_buffer(d,buffer,strlen(buffer));
             else
                 write_to_buffer(d,nocolour(buffer),strlen_no_colours(buffer));

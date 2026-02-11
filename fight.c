@@ -4907,7 +4907,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
             deduct_move(ch, 75);
 
             if (IS_SET(obj->value[1], EX_NOBASH) ||
-                (!obj->lock && !obj->lock->pick_chance && IS_SET(obj->value[1], EX_NOPASS)))
+                ((!obj->lock || !obj->lock->pick_chance) && IS_SET(obj->value[1], EX_NOPASS)))
             {
                 chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
 
@@ -6383,7 +6383,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
                     || (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
                     || (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
                     || number_range(0,ch->daze) != 0
-                    || (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE))))
+                    || (IS_NPC(ch) && pexit->u1.to_room && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE))))
                     continue;
             }
             else
@@ -6410,7 +6410,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
                 || (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
                 || (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
                 || number_range(0,ch->daze) != 0
-                || (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE)))) {
+                || (IS_NPC(ch) && pexit->u1.to_room && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE)))) {
                 door = -1;
             }
         }

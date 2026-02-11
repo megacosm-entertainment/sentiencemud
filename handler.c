@@ -7075,6 +7075,12 @@ void token_from_char(TOKEN_DATA *token)
 
     list_remlink(token->player->ltokens, token, false);
 
+    if (token_tmp == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_char: token not found in char's token list");
+        token->player = NULL;
+        return;
+    }
+
     if (token_prev == NULL)
         token_tmp->player->tokens = token_tmp->next;
     else
@@ -7180,6 +7186,12 @@ void token_from_obj(TOKEN_DATA *token)
 
     list_remlink(token->object->ltokens, token, false);
 
+    if (token_tmp == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_obj: token not found in object's token list");
+        token->object = NULL;
+        return;
+    }
+
     if (token_prev == NULL)
         token_tmp->object->tokens = token_tmp->next;
     else
@@ -7254,6 +7266,12 @@ void token_from_room(TOKEN_DATA *token)
         token->name, token->pIndexData->vnum, token->room->name, token->room->vnum);
 
     list_remlink(token->room->ltokens, token, false);
+
+    if (token_tmp == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "token_from_room: token not found in room's token list");
+        token->room = NULL;
+        return;
+    }
 
     if (token_prev == NULL)
         token_tmp->room->tokens = token_tmp->next;
@@ -7431,6 +7449,11 @@ if (!IS_VALID(ev))
         ev_last = ev_temp;
     }
 
+    if (ev_temp == NULL) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "extract_event: event not found in global list");
+        return;
+    }
+
     if (ev_last != NULL)
         ev_last->next = ev_temp->next;
     else
@@ -7522,6 +7545,11 @@ void extract_project_inquiry(PROJECT_INQUIRY_DATA *pinq)
      pinq_tmp_last = pinq_tmp;
      }
 
+     if (pinq_tmp == NULL) {
+     log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "extract_project_inquiry: inquiry not found in project list");
+     return;
+     }
+
      if (!pinq_tmp_last)
      project->inquiries = pinq_tmp->next;
      else
@@ -7535,6 +7563,11 @@ void extract_project_inquiry(PROJECT_INQUIRY_DATA *pinq)
          break;
 
      pinq_tmp_last = pinq_tmp;
+     }
+
+     if (pinq_tmp == NULL) {
+     log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "extract_project_inquiry: inquiry not found in global list");
+     return;
      }
 
      if (!pinq_tmp_last)

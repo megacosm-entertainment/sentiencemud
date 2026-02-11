@@ -1777,7 +1777,7 @@ SCRIPT_CMD(do_rpotransfer)
     }
 
     switch(arg->type) {
-    case ENT_STRING: obj = get_obj_here(NULL, info->room, arg->d.str);
+    case ENT_STRING: obj = get_obj_here(NULL, info->room, arg->d.str); break;
     case ENT_OBJECT: obj = arg->d.obj; break;
     default: obj = NULL; break;
     }

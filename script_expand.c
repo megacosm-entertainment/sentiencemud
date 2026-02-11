@@ -2177,7 +2177,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
     case ENTITY_MOB_LEVEL:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level;
+        arg->d.num = arg->d.mob ? ((IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level) : 0;
         break;
 
     case ENTITY_MOB_LASTLOGOFF:
@@ -2198,25 +2198,37 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_MOB_CREATED:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->creation_date : arg->d.mob->creation_time;
+        arg->d.num = arg->d.mob ? ((!IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->creation_date : arg->d.mob->creation_time) : 0;
         break;
     case ENTITY_MOB_LASTLOGOFF_HUMAN:
         arg->type = ENT_STRING;
-        struct tm *logoff_time = localtime(&arg->d.mob->pcdata->last_logoff);
-        strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
-        arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
+        if (arg->d.mob && !IS_NPC(arg->d.mob)) {
+            struct tm *logoff_time = localtime(&arg->d.mob->pcdata->last_logoff);
+            strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
+            arg->d.str = str_dup(time_str);
+        } else {
+            arg->d.str = (char *)&str_empty[0];
+        }
         break;
     case ENTITY_MOB_LASTLOGIN_HUMAN:
         arg->type = ENT_STRING;
-        struct tm *login_time = localtime(&arg->d.mob->pcdata->last_login);
-        strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
-        arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
+        if (arg->d.mob && !IS_NPC(arg->d.mob)) {
+            struct tm *login_time = localtime(&arg->d.mob->pcdata->last_login);
+            strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
+            arg->d.str = str_dup(time_str);
+        } else {
+            arg->d.str = (char *)&str_empty[0];
+        }
         break;
     case ENTITY_MOB_CREATED_HUMAN:
         arg->type = ENT_STRING;
-        struct tm *creation_time = localtime(&arg->d.mob->pcdata->creation_date);
-        strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
-        arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
+        if (arg->d.mob && !IS_NPC(arg->d.mob)) {
+            struct tm *creation_time = localtime(&arg->d.mob->pcdata->creation_date);
+            strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
+            arg->d.str = str_dup(time_str);
+        } else {
+            arg->d.str = (char *)&str_empty[0];
+        }
         break;
     case ENTITY_MOB_LASTLOGOFF_DELTA:
         arg->type = ENT_NUMBER;
@@ -2228,7 +2240,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_MOB_CREATED_DELTA:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->creation_date : current_time - arg->d.mob->creation_time;
+        arg->d.num = arg->d.mob ? ((!IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->creation_date : current_time - arg->d.mob->creation_time) : 0;
         break;
     case ENTITY_MOB_BODY_TYPE_VALUE:
         arg->d.num = self->body_type;
@@ -3185,7 +3197,7 @@ char *expand_entity_list_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             for(mob = *arg->d.list.ptr.mob;mob;mob = mob->next_in_room) count++;
             if(count > 0) {
                 count = number_range(1,count);
-                for(mob = *arg->d.list.ptr.mob;count-- > 0;mob = mob->next_in_room);
+                for(mob = *arg->d.list.ptr.mob; --count > 0; mob = mob->next_in_room);
                 arg->d.mob = mob;
             } else
                 arg->d.mob = NULL;
@@ -3229,7 +3241,7 @@ char *expand_entity_list_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             for(obj = *arg->d.list.ptr.obj;obj;obj = obj->next_content) count++;
             if(count > 0) {
                 count = number_range(1,count);
-                for(obj = *arg->d.list.ptr.obj;count-- > 0;obj = obj->next_content);
+                for(obj = *arg->d.list.ptr.obj; --count > 0; obj = obj->next_content);
                 arg->d.obj = obj;
             } else
                 arg->d.obj = NULL;
@@ -3273,7 +3285,7 @@ char *expand_entity_list_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             for(token = *arg->d.list.ptr.tok;token;token = token->next) count++;
             if(count > 0) {
                 count = number_range(1,count);
-                for(token = *arg->d.list.ptr.tok;count-- > 0;token = token->next);
+                for(token = *arg->d.list.ptr.tok; --count > 0; token = token->next);
                 arg->d.token = token;
             } else
                 arg->d.token = NULL;
@@ -3317,7 +3329,7 @@ char *expand_entity_list_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
             for(affect = *arg->d.list.ptr.aff;affect;affect = affect->next) count++;
             if(count > 0) {
                 count = number_range(1,count);
-                for(affect = *arg->d.list.ptr.aff;count-- > 0;affect = affect->next);
+                for(affect = *arg->d.list.ptr.aff; --count > 0; affect = affect->next);
                 arg->d.aff = affect;
             } else
                 arg->d.aff = NULL;
