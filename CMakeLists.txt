@@ -213,6 +213,7 @@ set(SOURCE_FILES
     io/json/json_socials.c
     io/json/json_staff.c
     save.c
+    pfile_migrate.c
     scan.c
     script_commands.c
     script_comp.c

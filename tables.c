@@ -3429,6 +3429,8 @@ const struct do_func_type do_func_table[] =
         { "do_cmdshow",                 do_cmdshow },
         { "do_testemail",                do_testemail },
         { "do_pwreset",                 do_pwreset  },
+        { "do_pwmigrate",               do_pwmigrate },
+        { "do_migrate",                 do_migrate },
         { "do_lvlaudit",                do_lvlaudit },
         { "do_keygen",                     do_keygen },
         { "do_mfareset",                do_mfareset },

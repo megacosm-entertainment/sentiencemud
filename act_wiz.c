@@ -5036,7 +5036,6 @@ void do_shutdow(CHAR_DATA *ch, char *argument)
  */
 void do_shutdown(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *d,*d_next;
     CHAR_DATA *vch, *tch;
     TOKEN_DATA *token;
@@ -5552,7 +5551,6 @@ void do_mload(CHAR_DATA *ch, char *argument)
     MOB_INDEX_DATA *pMobIndex;
     CHAR_DATA *victim;
     int amt = 1;
-    long vnum;
     int i;
 
     argument = one_argument(argument, arg1);
@@ -5572,7 +5570,6 @@ void do_mload(CHAR_DATA *ch, char *argument)
             send_to_char("No reserved mobile with that name found.\n\r", ch);
             return;
         }
-        vnum = pMobIndex->vnum;
     }
     else {
         // Parse widevnum
@@ -5583,7 +5580,6 @@ void do_mload(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        vnum = mob_wnum.vnum;
         pMobIndex = get_mob_index(mob_wnum.pArea, mob_wnum.vnum);
     }
 
@@ -5690,7 +5686,6 @@ void do_oload(CHAR_DATA *ch, char *argument)
     OBJ_INDEX_DATA *pObjIndex;
     OBJ_DATA *obj;
     int amt = 1;
-    long vnum;
     int i;
 
     argument = one_argument(argument, arg1);
@@ -5710,7 +5705,6 @@ void do_oload(CHAR_DATA *ch, char *argument)
             send_to_char("No reserved object with that name found.\n\r", ch);
             return;
         }
-        vnum = pObjIndex->vnum;
     }
     else {
         // Parse widevnum
@@ -5721,7 +5715,6 @@ void do_oload(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        vnum = obj_wnum.vnum;
         pObjIndex = get_obj_index(obj_wnum.pArea, obj_wnum.vnum);
     }
 
@@ -13326,13 +13319,16 @@ void do_pwmigrate(CHAR_DATA *ch, char *argument)
     int recovery_hashed_count = 0;
     int recovery_plaintext_count = 0;
     int recovery_none_count = 0;
-    bool check_otp = !str_cmp(arg, "otpcheck") || !str_cmp(arg, "all");
-    bool check_recovery = !str_cmp(arg, "recoverycheck") || !str_cmp(arg, "all");
+    bool check_otp;
+    bool check_recovery;
 
     if (IS_NPC(ch))
         return;
 
     one_argument(argument, arg);
+    
+    check_otp = !str_cmp(arg, "otpcheck") || !str_cmp(arg, "all");
+    check_recovery = !str_cmp(arg, "recoverycheck") || !str_cmp(arg, "all");
 
     if (arg[0] == '\0') {
         send_to_char("Syntax:\n\r", ch);
@@ -13359,7 +13355,6 @@ void do_pwmigrate(CHAR_DATA *ch, char *argument)
             continue;
 
         while ((ent = readdir(dir)) != NULL) {
-            char filepath[512];
             ACCOUNT_DATA *acct;
             bool was_loaded = false;
             int pwd_version;

@@ -293,7 +293,6 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room, OBJ_DATA **container, CHAR_DATA **carrier, int *wear_loc)
 {
     char *rest, *rest2;
-    long vnum;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AREA_DATA *area;

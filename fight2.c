@@ -445,13 +445,15 @@ if (ch->lworn) {
     {
         ch->shifted = SHIFTED_SLAYER;
         pMob = IS_REMORT(ch) ? get_reserved_mob_index("mob_shifted_changeling") : get_reserved_mob_index("mob_shifted_slayer");
-        ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
+        if (pMob)
+            ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
     }
     else
     {
             ch->shifted = SHIFTED_WEREWOLF;
         pMob = get_reserved_mob_index("mob_shifted_werewolf");
-        ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
+        if (pMob)
+            ch->affected_by[0]|= pMob->race ? pMob->race->aff[0] : 0;
     }
 
     /* figure out how many classes - 1 to figure out how much stat boost to give. */
