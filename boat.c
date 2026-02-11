@@ -619,8 +619,10 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
         top_ship_index_vnum = ship->vnum;
 
     /* Assign ship to area based on vnum range */
-    ship->area = find_area_by_vnum(ship->vnum, NULL);
-    if (!ship->area)
+    WNUM wnum;
+    if (resolve_widevnum(ship->vnum, NULL, &wnum))
+        ship->area = wnum.pArea;
+    else
         ship->area = get_system_area_fallback();
 
     while (str_cmp((word = fread_word(fp)), "#-SHIP"))
@@ -5221,7 +5223,11 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
         }
 
         AREA_DATA *land_area = to_area->airship_land_wnum.pArea;
-        if (!land_area) land_area = find_area_by_vnum(to_area->airship_land_load.vnum, NULL);
+        if (!land_area) {
+            WNUM wnum;
+            if (resolve_widevnum(to_area->airship_land_load.vnum, NULL, &wnum))
+                land_area = wnum.pArea;
+        }
         if (!land_area) land_area = get_system_area_fallback();
         to_room = get_room_index(land_area, to_area->airship_land_wnum.vnum);
         if( !to_room )
@@ -5275,7 +5281,11 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
             }
 
             AREA_DATA *land_area = to_area->airship_land_wnum.pArea;
-            if (!land_area) land_area = find_area_by_vnum(to_area->airship_land_load.vnum, NULL);
+            if (!land_area) {
+                WNUM wnum;
+                if (resolve_widevnum(to_area->airship_land_load.vnum, NULL, &wnum))
+                    land_area = wnum.pArea;
+            }
             if (!land_area) land_area = get_system_area_fallback();
             to_room = get_room_index(land_area, to_area->airship_land_wnum.vnum);
             if( !to_room )
@@ -8441,6 +8451,10 @@ void shedit(CHAR_DATA *ch, char *argument)
         {
             if ((*shedit_table[cmd].olc_fun) (ch, argument))
             {
+                SHIP_INDEX_DATA *ship;
+                EDIT_SHIP(ch, ship);
+                if (ship && ship->area)
+                    SET_BIT(ship->area->area_flags, AREA_CHANGED);
                 ships_changed = true;
             }
 

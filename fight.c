@@ -2971,7 +2971,11 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 
     if(corpse->item_type == ITEM_CORPSE_NPC) {
         AREA_DATA *mob_area = corpse->orig_wnum.pArea;
-        if (!mob_area) mob_area = find_area_by_vnum(corpse->orig_wnum.vnum, NULL);
+        if (!mob_area) {
+            WNUM wnum;
+            if (resolve_widevnum(corpse->orig_wnum.vnum, NULL, &wnum))
+                mob_area = wnum.pArea;
+        }
         if (!mob_area) mob_area = get_system_area_fallback();
         MOB_INDEX_DATA *mob = get_mob_index(mob_area, corpse->orig_wnum.vnum);
 
@@ -3098,7 +3102,11 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         short_desc = ch->short_descr;
 
         AREA_DATA *corpse_area = ch->corpse_wnum.pArea;
-        if (!corpse_area && ch->corpse_load.vnum > 0) corpse_area = find_area_by_vnum(ch->corpse_load.vnum, NULL);
+        if (!corpse_area && ch->corpse_load.vnum > 0) {
+            WNUM wnum;
+            if (resolve_widevnum(ch->corpse_load.vnum, NULL, &wnum))
+                corpse_area = wnum.pArea;
+        }
         if (!corpse_area) corpse_area = get_system_area_fallback();
         obj_index = (ch->corpse_wnum.vnum > 0) ? get_obj_index(corpse_area, ch->corpse_wnum.vnum) : NULL;
 
@@ -8057,7 +8065,10 @@ CHAR_DATA* create_player_hunter(long vnum, CHAR_DATA *target)
 {
     CHAR_DATA *challenger;
 
-    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
+    AREA_DATA *area = NULL;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, NULL, &wnum))
+        area = wnum.pArea;
     if (!area) area = get_system_area_fallback();
     challenger = create_mobile( get_mob_index( area, vnum ), false );
         challenger->target_name = target->name;

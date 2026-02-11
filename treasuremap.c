@@ -250,7 +250,10 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 
         // create object
         long treasure_vnum = treasure_table[i];
-        AREA_DATA *treasure_area = find_area_by_vnum(treasure_vnum, NULL);
+        AREA_DATA *treasure_area = NULL;
+        WNUM treasure_wnum;
+        if (resolve_widevnum(treasure_vnum, NULL, &treasure_wnum))
+            treasure_area = treasure_wnum.pArea;
         if (!treasure_area) treasure_area = get_system_area_fallback();
         treasure = create_object(get_obj_index(treasure_area, treasure_vnum), 0, true);
 

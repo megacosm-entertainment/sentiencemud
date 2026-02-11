@@ -1165,7 +1165,7 @@ REDIT(redit_oreset)
     pReset->arg1.wnum.pArea = obj_wnum.pArea;
     pReset->arg1.wnum.vnum	= obj_wnum.vnum;
     pReset->arg2	= 0;
-    AREA_DATA *container_area = find_area_by_vnum(to_obj->pIndexData->vnum, NULL);
+    AREA_DATA *container_area = to_obj->pIndexData->area;
     if (!container_area) container_area = get_system_area_fallback();
     pReset->arg3.wnum.pArea = container_area;
     pReset->arg3.wnum.vnum	= to_obj->pIndexData->vnum;

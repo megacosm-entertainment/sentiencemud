@@ -239,9 +239,13 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
     // Determine which area owns the rooms in this blueprint section
     // by checking the lower_vnum (do this before fix_blueprint_section)
     if (bs->lower_vnum > 0) {
-        bs->area = find_area_by_vnum(bs->lower_vnum, NULL);
-        if (!bs->area) {
+        WNUM wnum;
+        if (resolve_widevnum(bs->lower_vnum, NULL, &wnum))
+            bs->area = wnum.pArea;
+        else
             bs->area = get_system_area_fallback();
+
+        if (!bs->area) {
             log_message_f(LOG_LEVEL_WARN, LOG_INIT, "Blueprint section %ld references vnums starting at %ld but no area found", bs->vnum, bs->lower_vnum);
         }
     }
@@ -576,8 +580,14 @@ void load_blueprints()
         {
             SCRIPT_DATA *pr = read_script_new(fp, NULL, IFC_I);
             if(pr) {
-                pr->next = iprog_list;
-                iprog_list = pr;
+                WNUM wnum;
+                if (resolve_widevnum(pr->vnum, NULL, &wnum))
+                    pr->area = wnum.pArea;
+                else
+                    pr->area = get_system_area_fallback();
+                
+                pr->next = pr->area->iprog_list;
+                pr->area->iprog_list = pr;
 
                 if( pr->vnum > top_iprog_index )
                     top_iprog_index = pr->vnum;
@@ -775,9 +785,12 @@ bool save_blueprints()
         }
     }
 
-    for( SCRIPT_DATA *scr = iprog_list; scr; scr = scr->next)
-    {
-        save_script_new(fp,NULL,scr,"INSTANCE");
+    // Save instance progs from all areas
+    for (AREA_DATA *area = area_first; area != NULL; area = area->next) {
+        for( SCRIPT_DATA *scr = area->iprog_list; scr; scr = scr->next)
+        {
+            save_script_new(fp,NULL,scr,"INSTANCE");
+        }
     }
 
     fprintf(fp, "#END\n");
@@ -2174,6 +2187,10 @@ void bsedit(CHAR_DATA *ch, char *argument)
         {
             if ((*bsedit_table[cmd].olc_fun) (ch, argument))
             {
+                BLUEPRINT_SECTION *bs;
+                EDIT_BPSECT(ch, bs);
+                if (bs && bs->area)
+                    SET_BIT(bs->area->area_flags, AREA_CHANGED);
                 blueprints_changed = true;
             }
 
@@ -2592,6 +2609,10 @@ void bpedit(CHAR_DATA *ch, char *argument)
         {
             if ((*bpedit_table[cmd].olc_fun) (ch, argument))
             {
+                BLUEPRINT *bp;
+                EDIT_BLUEPRINT(ch, bp);
+                if (bp && bp->area)
+                    SET_BIT(bp->area->area_flags, AREA_CHANGED);
                 blueprints_changed = true;
             }
 

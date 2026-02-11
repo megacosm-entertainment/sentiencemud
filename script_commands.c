@@ -194,12 +194,12 @@ void do_apdump(CHAR_DATA *ch, char *argument)
     WNUM wnum = { NULL, 0 };
 
     one_argument(argument, buf);
-    parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum);
+    if (!parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
 
-    if (wnum.pArea)
-        aprg = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG);
-    else
-        aprg = get_script_index_global(wnum.vnum, PRG_APROG);
+    aprg = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG);
 
     if (!aprg) {
         send_to_char("No such AREAprogram.\n\r", ch);
@@ -234,12 +234,12 @@ void do_ipdump(CHAR_DATA *ch, char *argument)
     WNUM wnum = { NULL, 0 };
 
     one_argument(argument, buf);
-    parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum);
+    if (!parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
 
-    if (wnum.pArea)
-        iprg = get_script_index(wnum.pArea, wnum.vnum, PRG_IPROG);
-    else
-        iprg = get_script_index_global(wnum.vnum, PRG_IPROG);
+    iprg = get_script_index(wnum.pArea, wnum.vnum, PRG_IPROG);
 
     if (!iprg) {
         send_to_char("No such INSTANCEprogram.\n\r", ch);
@@ -273,12 +273,12 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
     WNUM wnum = { NULL, 0 };
 
     one_argument(argument, buf);
-    parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum);
+    if (!parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
 
-    if (wnum.pArea)
-        dprg = get_script_index(wnum.pArea, wnum.vnum, PRG_DPROG);
-    else
-        dprg = get_script_index_global(wnum.vnum, PRG_DPROG);
+    dprg = get_script_index(wnum.pArea, wnum.vnum, PRG_DPROG);
 
     if (!dprg) {
         send_to_char("No such DUNGEONprogram.\n\r", ch);

@@ -5650,7 +5650,8 @@ struct reset_data
 /*
  * Area definition.
  */
-struct	area_data {
+struct	area_data 
+{
 
     char __type;
     AREA_DATA *next;
@@ -9123,6 +9124,13 @@ AREA_DATA *get_area_index(long uid);
 extern WNUM wnum_zero;
 bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum);
 bool parse_widevnum_load(const char *str, WNUM_LOAD *wload);
+
+static inline bool resolve_widevnum(long vnum, AREA_DATA *context, WNUM *wnum)
+{
+    char buf[MIL];
+    snprintf(buf, sizeof(buf), "%ld", vnum);
+    return parse_widevnum(buf, context, wnum);
+}
 void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea);
 
 /* WNUM matching - area-aware entity comparison */

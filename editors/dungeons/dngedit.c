@@ -688,10 +688,14 @@ DNGEDIT( dngedit_create )
     dng = new_dungeon_index();
     dng->vnum = value;
 
-    iHash							= dng->vnum % MAX_KEY_HASH;
-    dng->next						= dungeon_index_hash[iHash];
-    dungeon_index_hash[iHash]	= dng;
-    ch->desc->pEdit					= (void *)dng;
+    WNUM area_wnum;
+    if (resolve_widevnum(value, NULL, &area_wnum)) {
+        dng->area = area_wnum.pArea;
+        iHash = dng->vnum % MAX_KEY_HASH;
+        dng->next = dng->area->dungeon_index_hash[iHash];
+        dng->area->dungeon_index_hash[iHash] = dng;
+    }
+    ch->desc->pEdit = (void *)dng;
 
     if( dng->vnum > top_dungeon_vnum)
         top_dungeon_vnum = dng->vnum;

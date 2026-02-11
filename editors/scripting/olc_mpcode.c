@@ -212,9 +212,9 @@ void mpedit( CHAR_DATA *ch, char *argument)
 
     if (pMcode)
     {
-    ad = get_vnum_area( pMcode->vnum );
+    ad = pMcode->area;
 
-    if ( ad == NULL ) /* ??? */
+    if ( ad == NULL )
     {
         edit_done(ch);
         return;
@@ -245,7 +245,7 @@ void mpedit( CHAR_DATA *ch, char *argument)
     if (!str_prefix(command, mpedit_table[cmd].name) )
     {
         if ((*mpedit_table[cmd].olc_fun) (ch, argument) && pMcode)
-            if ((ad = get_vnum_area(pMcode->vnum)) != NULL)
+            if ((ad = pMcode->area) != NULL)
                 SET_BIT(ad->area_flags, AREA_CHANGED);
         return;
     }
@@ -272,9 +272,9 @@ void opedit( CHAR_DATA *ch, char *argument)
 
     if (pOcode)
     {
-    ad = get_vnum_area( pOcode->vnum );
+    ad = pOcode->area;
 
-    if ( ad == NULL ) /* ??? */
+    if ( ad == NULL )
     {
         edit_done(ch);
         return;
@@ -305,7 +305,7 @@ void opedit( CHAR_DATA *ch, char *argument)
     if (!str_prefix(command, opedit_table[cmd].name) )
     {
         if ((*opedit_table[cmd].olc_fun) (ch, argument) && pOcode)
-            if ((ad = get_vnum_area(pOcode->vnum)) != NULL)
+            if ((ad = pOcode->area) != NULL)
                 SET_BIT(ad->area_flags, AREA_CHANGED);
         return;
     }
@@ -332,9 +332,9 @@ void rpedit( CHAR_DATA *ch, char *argument)
 
     if (pRcode)
     {
-    ad = get_vnum_area( pRcode->vnum );
+    ad = pRcode->area;
 
-    if ( ad == NULL ) /* ??? */
+    if ( ad == NULL )
     {
         edit_done(ch);
         return;
@@ -365,7 +365,7 @@ void rpedit( CHAR_DATA *ch, char *argument)
     if (!str_prefix(command, rpedit_table[cmd].name) )
     {
         if ((*rpedit_table[cmd].olc_fun) (ch, argument) && pRcode)
-            if ((ad = get_vnum_area(pRcode->vnum)) != NULL)
+            if ((ad = pRcode->area) != NULL)
                 SET_BIT(ad->area_flags, AREA_CHANGED);
         return;
     }
@@ -392,9 +392,9 @@ void tpedit( CHAR_DATA *ch, char *argument)
 
     if (pTcode)
     {
-    ad = get_vnum_area( pTcode->vnum );
+    ad = pTcode->area;
 
-    if ( ad == NULL ) /* ??? */
+    if ( ad == NULL )
     {
         edit_done(ch);
         return;
@@ -425,7 +425,7 @@ void tpedit( CHAR_DATA *ch, char *argument)
     if (!str_prefix(command, tpedit_table[cmd].name) )
     {
         if ((*tpedit_table[cmd].olc_fun) (ch, argument) && pTcode)
-            if ((ad = get_vnum_area(pTcode->vnum)) != NULL)
+            if ((ad = pTcode->area) != NULL)
                 SET_BIT(ad->area_flags, AREA_CHANGED);
         return;
     }
@@ -452,9 +452,9 @@ void apedit( CHAR_DATA *ch, char *argument)
 
     if (pAcode)
     {
-    ad = get_vnum_area( pAcode->vnum );
+    ad = pAcode->area;
 
-    if ( ad == NULL ) /* ??? */
+    if ( ad == NULL )
     {
         edit_done(ch);
         return;
@@ -485,7 +485,7 @@ void apedit( CHAR_DATA *ch, char *argument)
     if (!str_prefix(command, apedit_table[cmd].name) )
     {
         if ((*apedit_table[cmd].olc_fun) (ch, argument) && pAcode)
-            if ((ad = get_vnum_area(pAcode->vnum)) != NULL)
+            if ((ad = pAcode->area) != NULL)
                 SET_BIT(ad->area_flags, AREA_CHANGED);
         return;
     }
@@ -926,13 +926,14 @@ MPEDIT (mpedit_create)
 
     pMcode			= new_script();
     pMcode->vnum		= value;
-    pMcode->next		= mprog_list;
+    pMcode->next		= ad->mprog_list;
     pMcode->type		= PRG_MPROG;
     pMcode->area		= ad;
-    mprog_list			= pMcode;
+    ad->mprog_list		= pMcode;
     ch->desc->pEdit		= (void *)pMcode;
     ch->desc->editor		= ED_MPCODE;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("MobProgram Code Created.\n\r", ch);
 
     return true;
@@ -992,13 +993,14 @@ OPEDIT (opedit_create)
 
     pOcode			= new_script();
     pOcode->vnum		= value;
-    pOcode->next		= oprog_list;
+    pOcode->next		= ad->oprog_list;
     pOcode->area		= ad;
-    oprog_list			= pOcode;
+    ad->oprog_list		= pOcode;
     pOcode->type		= PRG_OPROG;
     ch->desc->pEdit		= (void *)pOcode;
     ch->desc->editor		= ED_OPCODE;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("ObjProgram Code Created.\n\r", ch);
 
     return true;
@@ -1058,13 +1060,14 @@ RPEDIT (rpedit_create)
 
     pRcode			= new_script();
     pRcode->vnum		= value;
-    pRcode->next		= rprog_list;
+    pRcode->next		= ad->rprog_list;
     pRcode->area		= ad;
-    rprog_list			= pRcode;
+    ad->rprog_list		= pRcode;
     pRcode->type		= PRG_RPROG;
     ch->desc->pEdit		= (void *)pRcode;
     ch->desc->editor		= ED_RPCODE;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("RoomProgram Code Created.\n\r", ch);
 
     return true;
@@ -1125,12 +1128,13 @@ TPEDIT (tpedit_create)
     pTcode			= new_script();
     pTcode->vnum		= value;
     pTcode->area		= ad;
-    pTcode->next		= tprog_list;
-    tprog_list			= pTcode;
+    pTcode->next		= ad->tprog_list;
+    ad->tprog_list		= pTcode;
     pTcode->type		= PRG_TPROG;
     ch->desc->pEdit		= (void *)pTcode;
     ch->desc->editor		= ED_TPCODE;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("TokenProgram Code Created.\n\r", ch);
 
     return true;
@@ -1193,12 +1197,13 @@ APEDIT (apedit_create)
     pAcode			= new_script();
     pAcode->vnum		= value;
     pAcode->area		= ad;
-    pAcode->next		= aprog_list;
-    aprog_list			= pAcode;
+    pAcode->next		= ad->aprog_list;
+    ad->aprog_list		= pAcode;
     pAcode->type		= PRG_APROG;
     ch->desc->pEdit		= (void *)pAcode;
     ch->desc->editor		= ED_APCODE;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("AreaProgram Code Created.\n\r", ch);
 
     return true;
@@ -1259,8 +1264,8 @@ IPEDIT (ipedit_create)
     pIcode			= new_script();
     pIcode->vnum		= value;
     pIcode->area		= ad;
-    pIcode->next		= iprog_list;
-    iprog_list			= pIcode;
+    pIcode->next		= ad->iprog_list;
+    ad->iprog_list		= pIcode;
     pIcode->type		= PRG_IPROG;
     ch->desc->pEdit		= (void *)pIcode;
     ch->desc->editor		= ED_IPCODE;
@@ -1268,6 +1273,8 @@ IPEDIT (ipedit_create)
     if (value > top_iprog_index)
         top_iprog_index = value;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
+    blueprints_changed = true;
     send_to_char("InstanceProgram Code Created.\n\r", ch);
 
     return true;
@@ -1328,8 +1335,8 @@ DPEDIT (dpedit_create)
     pDcode			= new_script();
     pDcode->vnum		= value;
     pDcode->area		= ad;
-    pDcode->next		= dprog_list;
-    dprog_list			= pDcode;
+    pDcode->next		= ad->dprog_list;
+    ad->dprog_list		= pDcode;
     pDcode->type		= PRG_DPROG;
     ch->desc->pEdit		= (void *)pDcode;
     ch->desc->editor		= ED_DPCODE;
@@ -1337,6 +1344,8 @@ DPEDIT (dpedit_create)
     if (value > top_dprog_index)
         top_dprog_index = value;
 
+    SET_BIT(ad->area_flags, AREA_CHANGED);
+    dungeons_changed = true;
     send_to_char("DungeonProgram Code Created.\n\r", ch);
 
     return true;
@@ -1589,10 +1598,9 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     SCRIPT_DATA *prg;
     char buf[MSL], *noc;
     BUFFER *buffer;
-    long min,max,tmp;
-    bool error;
+    long min,max;
     AREA_DATA *area, *ad;
-
+    SCRIPT_DATA *list_head = NULL;
 
     area = ch->in_room->area;
 
@@ -1632,7 +1640,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
         if( max < 1 ) return;
 
         if(max < min) {
-            tmp = max;
+            long tmp = max;
             max = min;
             min = tmp;
         }
@@ -1642,52 +1650,27 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     }
 
     switch(type) {
-    case PRG_MPROG:
-    case PRG_OPROG:
-    case PRG_RPROG:
-    case PRG_TPROG:
-    case PRG_APROG:
-        if( min < 0 )
-        {
-            min = area->min_vnum;
-            max = area->max_vnum;
-        }
-        break;
-
-    case PRG_IPROG:
-        prg = iprog_list;
-        if( min < 0 )
-        {
-            min = 1;
-            max = top_iprog_index;
-        }
-
-        break;
-    case PRG_DPROG:
-        prg = dprog_list;
-        if( min < 0 )
-        {
-            min = 1;
-            max = top_dprog_index;
-        }
-        break;
+    case PRG_MPROG: list_head = area->mprog_list; break;
+    case PRG_OPROG: list_head = area->oprog_list; break;
+    case PRG_RPROG: list_head = area->rprog_list; break;
+    case PRG_TPROG: list_head = area->tprog_list; break;
+    case PRG_APROG: list_head = area->aprog_list; break;
+    case PRG_IPROG: list_head = area->iprog_list ? area->iprog_list : iprog_list; break;
+    case PRG_DPROG: list_head = area->dprog_list ? area->dprog_list : dprog_list; break;
     default: return;
     }
-
-
 
     if(!ch->lines)
         send_to_char("{RWARNING:{W Having scrolling off limits how many scripts you can see.{x\n\r", ch);
 
     buffer = new_buf();
 
-    error = false;
-    for( long vnum = min; vnum <= max; vnum++)
+    for( prg = list_head; prg; prg = prg->next )
     {
-        prg = get_script_index_global(vnum, type);
-        if( !prg ) continue;
+        if (min > 0 && max > 0 && (prg->vnum < min || prg->vnum > max))
+            continue;
 
-        ad = get_vnum_area(prg->vnum);
+        ad = prg->area;
 
         len = sprintf(buf,"{B[{W%-4d{B]  ",count);
         if(!ad)
@@ -1728,17 +1711,10 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
         buf[len+2] = 0;
         count++;
         if(!add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH)) {
-            error = true;
             break;
         }
-
-//		send_to_char(buf, ch);
-
     }
 
-    if (error) {
-    send_to_char("Too many scripts to list.  Please shorten!\n\r", ch);
-    } else {
     if ( count == 1 ) {
         add_buf( buffer, "No existing scripts in that range.\n\r" );
     } else {
@@ -1746,13 +1722,10 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
         send_to_char("{b-------------------------------------------------------------------------\n\r", ch);
     }
 
-//	sprintf(buf,"%d\n\r",strlen(buffer->string));
-//	send_to_char(buf,ch);
     page_to_char(buf_string(buffer), ch);
-    }
     free_buf(buffer);
-
 }
+
 
 MPEDIT( mpedit_list )
 {

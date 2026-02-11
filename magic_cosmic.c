@@ -29,7 +29,10 @@ SPELL_FUNC(spell_create_food)
 
     i = number_range(100066, 100076);
 
-    AREA_DATA *area = find_area_by_vnum(i, NULL);
+    AREA_DATA *area = NULL;
+    WNUM wnum;
+    if (resolve_widevnum(i, NULL, &wnum))
+        area = wnum.pArea;
     if (!area) area = get_system_area_fallback();
     food = create_object(get_obj_index(area, i), 0, true);
     food->value[0] = level / 2;

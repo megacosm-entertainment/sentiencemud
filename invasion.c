@@ -34,8 +34,13 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
 
     if (p_leader_vnum > 0 && p_mob_vnum > 0) {
       // Custom invasion with provided vnums - use global lookup
-      AREA_DATA *leader_area = find_area_by_vnum(p_leader_vnum, NULL);
-      AREA_DATA *mob_area = find_area_by_vnum(p_mob_vnum, NULL);
+      AREA_DATA *leader_area = NULL;
+      AREA_DATA *mob_area = NULL;
+      WNUM leader_wnum, mob_wnum;
+      if (resolve_widevnum(p_leader_vnum, NULL, &leader_wnum))
+          leader_area = leader_wnum.pArea;
+      if (resolve_widevnum(p_mob_vnum, NULL, &mob_wnum))
+          mob_area = mob_wnum.pArea;
       if (!leader_area) leader_area = get_system_area_fallback();
       if (!mob_area) mob_area = get_system_area_fallback();
       leader_index = get_mob_index(leader_area, p_leader_vnum);

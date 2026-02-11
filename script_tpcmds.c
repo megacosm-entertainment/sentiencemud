@@ -411,9 +411,9 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                     *room = &room_used_for_wilderness;
                 }
             } else {
-                AREA_DATA *area = find_area_by_vnum(x, NULL);
-                if (!area) area = get_system_area_fallback();
-                *room = get_room_index(area, x);
+                WNUM room_wnum;
+                if (resolve_widevnum(x, NULL, &room_wnum))
+                    *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
             }
             break;
 
@@ -435,10 +435,10 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                             rest = rest2;
 
                             id2 = arg->d.num;
-id2 = arg->d.num;
-AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-if (!area) area = get_system_area_fallback();
-*room = get_clone_room(get_room_index(area, vnum),id1,id2);						}
+                            WNUM room_wnum;
+                            if (resolve_widevnum(vnum, NULL, &room_wnum))
+                                *room = get_clone_room(get_room_index(room_wnum.pArea, room_wnum.vnum), id1, id2);
+                        }
                     }
                 }
             } else if(!str_cmp(arg->d.str,"wilds")) {
@@ -3120,14 +3120,13 @@ SCRIPT_CMD(do_tplink)
         return;
     }
 
+    WNUM dest_wnum;
     if(id1 > 0 || id2 > 0) {
-        AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-        if (!area) area = get_system_area_fallback();
-        dest = get_clone_room(get_room_index(area, vnum),id1,id2);
+        if (resolve_widevnum(vnum, NULL, &dest_wnum))
+            dest = get_clone_room(get_room_index(dest_wnum.pArea, dest_wnum.vnum),id1,id2);
     } else if(vnum > 0) {
-        AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-        if (!area) area = get_system_area_fallback();
-        dest = get_room_index(area, vnum);
+        if (resolve_widevnum(vnum, NULL, &dest_wnum))
+            dest = get_room_index(dest_wnum.pArea, dest_wnum.vnum);
     } else if(environ)
         dest = &room_pointer_environment;
     else
@@ -4988,9 +4987,9 @@ SCRIPT_CMD(do_tpalterexit)
         switch(arg->type) {
 case ENT_NUMBER:
     {
-        AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-        if (!area) area = get_system_area_fallback();
-        room = get_room_index(area, arg->d.num);
+        WNUM room_wnum;
+        if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
+            room = get_room_index(room_wnum.pArea, room_wnum.vnum);
     }
     break;
         case ENT_ROOM:		room = arg->d.room; break;
@@ -5368,11 +5367,9 @@ SCRIPT_CMD(do_tpcloneroom)
 
     vnum = arg->d.num;
 
-vnum = arg->d.num;
-
-AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-if (!area) area = get_system_area_fallback();
-source = get_room_index(area, vnum);	if(!source) return;
+    WNUM source_wnum;
+    if (!resolve_widevnum(vnum, NULL, &source_wnum) || !(source = get_room_index(source_wnum.pArea, source_wnum.vnum)))
+        return;
 
     if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
         return;
@@ -5821,10 +5818,9 @@ SCRIPT_CMD(do_tpdestroyroom)
 
     vnum = arg->d.num;
 
-    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-    if (!area) area = get_system_area_fallback();
-    room = get_room_index(area, vnum);
-    if(!room) return;
+    WNUM room_wnum;
+    if (!resolve_widevnum(vnum, NULL, &room_wnum) || !(room = get_room_index(room_wnum.pArea, room_wnum.vnum)))
+        return;
 
     // Get id
     if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
@@ -7462,9 +7458,11 @@ SCRIPT_CMD(do_tpcheckpoint)
         break;
     case ENT_NUMBER:
         if( arg->d.num > 0 ) {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            mob->checkpoint = get_room_index(area, arg->d.num);
+            WNUM room_wnum;
+            if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
+                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            else
+                mob->checkpoint = NULL;
         }
         break;
     case ENT_ROOM:

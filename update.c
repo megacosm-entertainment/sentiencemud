@@ -2468,9 +2468,12 @@ void obj_update(void)
                         pbugf(LOG_ERROR, "Seed has 0 vnum.", obj->pIndexData->vnum);
                     else {
                         OBJ_DATA *new_obj;
-long seed_vnum = obj->value[1];
-AREA_DATA *seed_area = find_area_by_vnum(seed_vnum, NULL);
-if (!seed_area) seed_area = get_system_area_fallback();
+                        long seed_vnum = obj->value[1];
+                        AREA_DATA *seed_area = NULL;
+                        WNUM seed_wnum;
+                        if (resolve_widevnum(seed_vnum, NULL, &seed_wnum))
+                            seed_area = seed_wnum.pArea;
+                        if (!seed_area) seed_area = get_system_area_fallback();
                         if (get_obj_index(seed_area, seed_vnum) == NULL) {
                             pbugf(LOG_ERROR, "Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
                             continue;

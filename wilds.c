@@ -1119,7 +1119,10 @@ bool link_vlink(WILDS_VLINK *pVLink)
             pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
             pExit->door.lock = pExit->door.rs_lock;
             pExit->u1.vnum = pVLink->destvnum;
-            AREA_DATA *dest_area = find_area_by_vnum(pExit->u1.vnum, NULL);
+            AREA_DATA *dest_area = NULL;
+            WNUM dest_wnum;
+            if (resolve_widevnum(pExit->u1.vnum, NULL, &dest_wnum))
+                dest_area = dest_wnum.pArea;
             if (!dest_area) dest_area = get_system_area_fallback();
             pExit->u1.to_room = get_room_index(dest_area, pExit->u1.vnum);
             pExit->orig_door = pVLink->door;    /* OLC */
@@ -1137,7 +1140,10 @@ bool link_vlink(WILDS_VLINK *pVLink)
     if (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS))
     {
         // if the static room happens to be loaded up
-        AREA_DATA *rev_area = find_area_by_vnum(pVLink->destvnum, NULL);
+        AREA_DATA *rev_area = NULL;
+        WNUM rev_wnum;
+        if (resolve_widevnum(pVLink->destvnum, NULL, &rev_wnum))
+            rev_area = rev_wnum.pArea;
         if (!rev_area) rev_area = get_system_area_fallback();
         if ((pRevRoom=get_room_index(rev_area, pVLink->destvnum))!=NULL)
         {
@@ -1254,7 +1260,10 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
     if (IS_SET(pVLink->current_linkage, VLINK_TO_WILDS))
     {
         /* Check if reverse-side exit exists */
-        AREA_DATA *rev_area2 = find_area_by_vnum(pVLink->destvnum, NULL);
+        AREA_DATA *rev_area2 = NULL;
+        WNUM rev_wnum2;
+        if (resolve_widevnum(pVLink->destvnum, NULL, &rev_wnum2))
+            rev_area2 = rev_wnum2.pArea;
         if (!rev_area2) rev_area2 = get_system_area_fallback();
         if ((pRevRoom = get_room_index(rev_area2, pVLink->destvnum)) !=NULL)
         {
@@ -2957,7 +2966,10 @@ void link_vlinks (WILDS_DATA *pWilds)
 
     for (pVLink = pWilds->pVLink;pVLink;pVLink = pVLink->next)
     {
-        AREA_DATA *vlink_area = find_area_by_vnum(pVLink->destvnum, NULL);
+        AREA_DATA *vlink_area = NULL;
+        WNUM vlink_wnum;
+        if (resolve_widevnum(pVLink->destvnum, NULL, &vlink_wnum))
+            vlink_area = vlink_wnum.pArea;
         if (!vlink_area) vlink_area = get_system_area_fallback();
         if ((pRevLinkRoomIndex = get_room_index(vlink_area, pVLink->destvnum)) == NULL)
         {

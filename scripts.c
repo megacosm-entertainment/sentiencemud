@@ -6319,7 +6319,12 @@ int script_login(CHAR_DATA *ch) // @@@NIB
     variable_dynamic_fix_mobile(ch);
 
     // Run the SYSTEM LOGIN ROOM SCRIPT
-    script = get_script_index_global(RPROG_VNUM_PLAYER_INIT,PRG_RPROG);
+    WNUM wnum;
+    if (resolve_widevnum(RPROG_VNUM_PLAYER_INIT, NULL, &wnum))
+        script = get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG);
+    else
+        script = NULL;
+
     if(script) {
         script_force_execute = true;
         script_security = SYSTEM_SCRIPT_SECURITY;
@@ -8827,9 +8832,10 @@ AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info)
 SCRIPT_DATA *get_script_from_info(SCRIPT_VARINFO *info, long vnum, int type)
 {
     AREA_DATA *area = get_area_from_scriptinfo(info);
-    SCRIPT_DATA *script = area ? get_script_index(area, vnum, type) : NULL;
-    if (!script) script = get_script_index_global(vnum, type);
-    return script;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_script_index(wnum.pArea, wnum.vnum, type);
+    return NULL;
 }
 
 /**
@@ -8838,9 +8844,10 @@ SCRIPT_DATA *get_script_from_info(SCRIPT_VARINFO *info, long vnum, int type)
 MOB_INDEX_DATA *get_mob_index_from_info(SCRIPT_VARINFO *info, long vnum)
 {
     AREA_DATA *area = get_area_from_scriptinfo(info);
-    MOB_INDEX_DATA *mob = area ? get_mob_index(area, vnum) : NULL;
-    if (!mob) mob = get_mob_index_global(vnum);
-    return mob;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_mob_index(wnum.pArea, wnum.vnum);
+    return NULL;
 }
 
 /**
@@ -8849,9 +8856,10 @@ MOB_INDEX_DATA *get_mob_index_from_info(SCRIPT_VARINFO *info, long vnum)
 OBJ_INDEX_DATA *get_obj_index_from_info(SCRIPT_VARINFO *info, long vnum)
 {
     AREA_DATA *area = get_area_from_scriptinfo(info);
-    OBJ_INDEX_DATA *obj = area ? get_obj_index(area, vnum) : NULL;
-    if (!obj) obj = get_obj_index_global(vnum);
-    return obj;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_obj_index(wnum.pArea, wnum.vnum);
+    return NULL;
 }
 
 /**
@@ -8860,9 +8868,10 @@ OBJ_INDEX_DATA *get_obj_index_from_info(SCRIPT_VARINFO *info, long vnum)
 ROOM_INDEX_DATA *get_room_index_from_info(SCRIPT_VARINFO *info, long vnum)
 {
     AREA_DATA *area = get_area_from_scriptinfo(info);
-    ROOM_INDEX_DATA *room = area ? get_room_index(area, vnum) : NULL;
-    if (!room) room = get_room_index_global(vnum);
-    return room;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_room_index(wnum.pArea, wnum.vnum);
+    return NULL;
 }
 
 /**
@@ -8871,9 +8880,10 @@ ROOM_INDEX_DATA *get_room_index_from_info(SCRIPT_VARINFO *info, long vnum)
 TOKEN_INDEX_DATA *get_token_index_from_info(SCRIPT_VARINFO *info, long vnum)
 {
     AREA_DATA *area = get_area_from_scriptinfo(info);
-    TOKEN_INDEX_DATA *tok = area ? get_token_index(area, vnum) : NULL;
-    if (!tok) tok = get_token_index_global(vnum);
-    return tok;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_token_index(wnum.pArea, wnum.vnum);
+    return NULL;
 }
 
 // OLOAD $VNUM|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]

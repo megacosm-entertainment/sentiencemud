@@ -218,9 +218,8 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
         if (!is_number(arg) && !str_infix(arg, area->name)) {
             if (!(room = location_to_room(&area->recall))) {
                 for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-                    AREA_DATA *search_area = find_area_by_vnum(vnum, NULL);
-                    if (!search_area) search_area = get_system_area_fallback();
-                    if ((rm = get_room_index(search_area, vnum)))
+                    WNUM search_wnum;
+                    if (resolve_widevnum(vnum, NULL, &search_wnum) && (rm = get_room_index(search_wnum.pArea, search_wnum.vnum)))
                         room = rm;
                 }
             }
@@ -3132,9 +3131,9 @@ void extract_char(CHAR_DATA *ch, bool fPull)
                 int range;
                 range = number_range(0, dp_max - dp_min);
                 long plane_vnum = dp_min + range;
-                AREA_DATA *plane_area = find_area_by_vnum(plane_vnum, NULL);
-                if (!plane_area) plane_area = get_system_area_fallback();
-                death_room = get_room_index(plane_area, plane_vnum);
+                WNUM plane_wnum;
+                if (resolve_widevnum(plane_vnum, NULL, &plane_wnum))
+                    death_room = get_room_index(plane_wnum.pArea, plane_wnum.vnum);
                 ch->hit = number_range(1, ch->max_hit);
                 ch->mana = number_range(1, ch->max_mana);
                 ch->move = number_range(1, ch->max_move);
@@ -8183,9 +8182,9 @@ void get_random_room_target(ROOM_INDEX_DATA *room, OBJ_DATA **obj, CHAR_DATA **c
 ROOM_INDEX_DATA *idfind_vroom(register unsigned long id1, register unsigned long id2)
 {
     ROOM_INDEX_DATA *room;
-    AREA_DATA *area = find_area_by_vnum((long)id1, NULL);
-    if (!area) area = get_system_area_fallback();
-    room = get_room_index(area, (long)id1);
+    WNUM wnum;
+    if (resolve_widevnum((long)id1, NULL, &wnum))
+        room = get_room_index(wnum.pArea, wnum.vnum);
 
     if(!room) return NULL;
 
@@ -9442,9 +9441,9 @@ ROOM_INDEX_DATA *location_to_room(LOCATION *loc)
         if(wilds && !(room = get_wilds_vroom(wilds,loc->id[0],loc->id[1])))
             room = create_wilds_vroom(wilds,loc->id[0],loc->id[1]);
     } else if(loc->id[0]) {
-        AREA_DATA *area = find_area_by_vnum(loc->id[0], NULL);
-        if (!area) area = get_system_area_fallback();
-        room = get_room_index(area, loc->id[0]);
+        WNUM wnum;
+        if (resolve_widevnum(loc->id[0], NULL, &wnum))
+            room = get_room_index(wnum.pArea, wnum.vnum);
         if(room && (loc->id[1] || loc->id[2]))
             room = get_clone_room(room,loc->id[1],loc->id[2]);
     }
@@ -9683,9 +9682,9 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
             pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
             if( pVLink != NULL ) {
                 if( !pVLink->pDestRoom ) {
-                    AREA_DATA *dest_area = find_area_by_vnum(pVLink->destvnum, NULL);
-                    if (!dest_area) dest_area = get_system_area_fallback();
-                    nextdest.room = get_room_index(dest_area, pVLink->destvnum);
+                    WNUM dest_wnum;
+                    if (resolve_widevnum(pVLink->destvnum, NULL, &dest_wnum))
+                        nextdest.room = get_room_index(dest_wnum.pArea, dest_wnum.vnum);
                 }
                 else
                     nextdest.room = pVLink->pDestRoom;

@@ -399,7 +399,10 @@ json_t *json_church_serialize(CHURCH_DATA *church)
 
     /* Key object vnum - use widevnum format */
     if (church->key > 0) {
-        AREA_DATA *key_area = find_area_by_vnum(church->key, NULL);
+        AREA_DATA *key_area = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(church->key, NULL, &wnum))
+            key_area = wnum.pArea;
         OBJ_INDEX_DATA *key_obj = key_area ? get_obj_index(key_area, church->key) : NULL;
         if (key_obj) {
             json_object_set_new(root, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));

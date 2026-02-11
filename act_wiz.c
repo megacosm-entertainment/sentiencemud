@@ -1923,9 +1923,16 @@ void do_startinvasion(CHAR_DATA *ch, char *argument)
   mob_vnum = atol(arg3);
   max_level = atoi(arg4);
 
-  AREA_DATA *leader_area = find_area_by_vnum(leader_vnum, NULL);
+  AREA_DATA *leader_area = NULL;
+  WNUM leader_wnum;
+  if (resolve_widevnum(leader_vnum, NULL, &leader_wnum))
+      leader_area = leader_wnum.pArea;
   if (!leader_area) leader_area = get_system_area_fallback();
-  AREA_DATA *mob_area = find_area_by_vnum(mob_vnum, NULL);
+
+  AREA_DATA *mob_area = NULL;
+  WNUM mob_wnum;
+  if (resolve_widevnum(mob_vnum, NULL, &mob_wnum))
+      mob_area = mob_wnum.pArea;
   if (!mob_area) mob_area = get_system_area_fallback();
   
   if (get_mob_index(leader_area, leader_vnum) == NULL || get_mob_index(mob_area, mob_vnum) == NULL) {
@@ -2773,7 +2780,10 @@ void do_rstat(CHAR_DATA *ch, char *argument)
             else
                 sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", location->recall.wuid);
         } else if(location->recall.id[0] > 0) {
-            AREA_DATA *recall_area = find_area_by_vnum(location->recall.id[0], NULL);
+            AREA_DATA *recall_area = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(location->recall.id[0], NULL, &wnum))
+                recall_area = wnum.pArea;
             if (!recall_area) recall_area = get_system_area_fallback();
             recall = get_room_index(recall_area, location->recall.id[0]);
             if (recall)
@@ -3862,7 +3872,10 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     if (arg3[0] != '\0' && !id_lookup) {
         vnum = atol(arg3);
 
-        AREA_DATA *tok_area = find_area_by_vnum(vnum, NULL);
+        AREA_DATA *tok_area = NULL;
+        WNUM res;
+        if (resolve_widevnum(vnum, NULL, &res))
+            tok_area = res.pArea;
         if (!tok_area) tok_area = get_system_area_fallback();
         if (get_token_index(tok_area, vnum) == NULL) {
             send_to_char("That token vnum does not exist.\n\r", ch);
@@ -7658,9 +7671,10 @@ void do_chset(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg2, "recall"))
     {
     long recall_vnum = atol(arg3);
-    AREA_DATA *recall_area = find_area_by_vnum(recall_vnum, NULL);
-    if (!recall_area) recall_area = get_system_area_fallback();
-    ROOM_INDEX_DATA *recall_room = get_room_index(recall_area, recall_vnum);
+    WNUM wnum;
+    ROOM_INDEX_DATA *recall_room = NULL;
+    if (resolve_widevnum(recall_vnum, NULL, &wnum))
+        recall_room = get_room_index(wnum.pArea, wnum.vnum);
     if (recall_room == NULL)
     {
         send_to_char("That room doesn't exist.\n\r", ch);
@@ -7682,9 +7696,10 @@ void do_chset(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg2, "key"))
     {
     long key_vnum = atol(arg3);
-    AREA_DATA *key_area = find_area_by_vnum(key_vnum, NULL);
-    if (!key_area) key_area = get_system_area_fallback();
-    OBJ_INDEX_DATA *key_obj = get_obj_index(key_area, key_vnum);
+    WNUM wnum;
+    OBJ_INDEX_DATA *key_obj = NULL;
+    if (resolve_widevnum(key_vnum, NULL, &wnum))
+        key_obj = get_obj_index(wnum.pArea, wnum.vnum);
     if (key_obj == NULL)
     {
         send_to_char("That object doesn't exist.\n\r", ch);
@@ -7745,9 +7760,12 @@ void do_chset(CHAR_DATA *ch, char *argument)
             }
 
             long vnum = atol(argument);
-            AREA_DATA *room_area = find_area_by_vnum(vnum, NULL);
-            if (!room_area) room_area = get_system_area_fallback();
-            ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
+            WNUM wnum;
+            ROOM_INDEX_DATA *room = NULL;
+            if (resolve_widevnum(vnum, NULL, &wnum))
+                room = get_room_index(wnum.pArea, wnum.vnum);
+            else
+                room = get_room_index(get_system_area_fallback(), vnum);
 
             if(!room)
             {
@@ -7786,9 +7804,12 @@ void do_chset(CHAR_DATA *ch, char *argument)
             }
 
             long vnum = atol(argument);
-            AREA_DATA *room_area = find_area_by_vnum(vnum, NULL);
-            if (!room_area) room_area = get_system_area_fallback();
-            ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
+            WNUM wnum;
+            ROOM_INDEX_DATA *room = NULL;
+            if (resolve_widevnum(vnum, NULL, &wnum))
+                room = get_room_index(wnum.pArea, wnum.vnum);
+            else
+                room = get_room_index(get_system_area_fallback(), vnum);
 
             if(!room)
             {
@@ -10202,9 +10223,14 @@ void do_junk(CHAR_DATA *ch, char *argument)
 
     if (is_number(arg2)) {
         long vnum = atol(arg2);
-        AREA_DATA *obj_area = find_area_by_vnum(vnum, NULL);
-        if (!obj_area) obj_area = get_system_area_fallback();
-        if (get_obj_index(obj_area, vnum) == NULL)
+        WNUM wnum;
+        OBJ_INDEX_DATA *obj_ind = NULL;
+        if (resolve_widevnum(vnum, NULL, &wnum))
+            obj_ind = get_obj_index(wnum.pArea, wnum.vnum);
+        else
+            obj_ind = get_obj_index(get_system_area_fallback(), vnum);
+
+        if (obj_ind == NULL)
         {
             send_to_char("No such object even exists.\n\r", ch);
             return;
@@ -11500,6 +11526,17 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         break;
 
     case ITEM_PORTAL:
+    {
+        WNUM key_wnum;
+        OBJ_INDEX_DATA *key_index = NULL;
+        const char *key_name = "none";
+
+        if (obj->value[4] > 0 && resolve_widevnum(obj->value[4], NULL, &key_wnum))
+            key_index = get_obj_index(key_wnum.pArea, key_wnum.vnum);
+
+        if (key_index)
+            key_name = key_index->short_descr;
+
         if( IS_SET(obj->value[2], GATE_DUNGEON) )
         {
             // DUNGEON portal
@@ -11514,7 +11551,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
                 (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
+                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], key_name,
                 (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
         }
         else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
@@ -11529,7 +11566,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
+                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[4], key_name,
                 (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[5]);
         }
         else if(obj->value[3] > 0)
@@ -11545,7 +11582,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
                 (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none");
+                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], key_name);
         }
         else
         {
@@ -11561,13 +11598,14 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
                 (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
                 (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], (obj->value[4] > 0 && get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])) ? get_obj_index(find_area_by_vnum(obj->value[4], NULL) ?: get_system_area_fallback(), obj->value[4])->short_descr : "none",
-                (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5], 
+                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], key_name,
+                (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5],
                 (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
                 (obj->value[6] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
         }
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_FURNITURE:
         sprintf(buf,
@@ -11753,6 +11791,19 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         break;
 
     case ITEM_CONTAINER:
+    {
+        char *key_name = "none";
+        if (obj->value[2] > 0) {
+            WNUM wnum;
+            OBJ_INDEX_DATA *key_index = NULL;
+            if (resolve_widevnum(obj->value[2], NULL, &wnum))
+                key_index = get_obj_index(wnum.pArea, wnum.vnum);
+            else
+                key_index = get_obj_index(get_system_area_fallback(), obj->value[2]);
+            
+            if (key_index) key_name = key_index->short_descr;
+        }
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
         "{B[  {Wv1{B]{%s Flags:{x      [%s]\n\r"
@@ -11762,14 +11813,13 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
         (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(container_flags, obj->value[1]),
         (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
-                (obj->value[2] > 0 && (get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])))
-                    ? get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])->short_descr
-                    : "none",
+        key_name,
         obj->value[2],
         (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
         (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_WEAPON_CONTAINER:
         sprintf(buf,
@@ -11868,18 +11918,30 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         break;
 
     case ITEM_BOOK:
+    {
+        char *key_name = "none";
+        if (obj->value[2] > 0) {
+            WNUM wnum;
+            OBJ_INDEX_DATA *key_index = NULL;
+            if (resolve_widevnum(obj->value[2], NULL, &wnum))
+                key_index = get_obj_index(wnum.pArea, wnum.vnum);
+            else
+                key_index = get_obj_index(get_system_area_fallback(), obj->value[2]);
+            
+            if (key_index) key_name = key_index->short_descr;
+        }
+
         sprintf(buf,
         "{B[  {Wv1{B]{%s Flags:{x      [%s]\n\r"
         "{B[  {Wv2{B]{%s Key:{x     %s [%ld]\n\r",
         (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", 
         flag_string(container_flags, obj->value[1]),
         (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
-                (obj->value[2] > 0 && (get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])))
-                    ? get_obj_index(find_area_by_vnum(obj->value[2], NULL) ? find_area_by_vnum(obj->value[2], NULL) : get_system_area_fallback(), obj->value[2])->short_descr
-                    : "none",
-                obj->value[2]);
+        key_name,
+        obj->value[2]);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_TELESCOPE:
         if( obj->value[4] < 0 )

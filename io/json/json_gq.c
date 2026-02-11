@@ -68,10 +68,11 @@ static void gq_resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum)
         return;
     }
 
-    fallback = find_area_by_vnum(load->vnum, NULL);
-    if (!fallback) {
+    WNUM res;
+    if (resolve_widevnum(load->vnum, NULL, &res))
+        fallback = res.pArea;
+    else
         fallback = get_system_area_fallback();
-    }
 
     resolve_wnum_load(load, wnum, fallback);
 }

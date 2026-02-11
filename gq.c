@@ -33,7 +33,15 @@ static void gq_resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum)
         return;
     }
 
-    area = (load->auid > 0) ? get_area_from_uid(load->auid) : find_area_by_vnum(load->vnum, NULL);
+    if (load->auid > 0) {
+        area = get_area_from_uid(load->auid);
+    } else {
+        WNUM res;
+        if (resolve_widevnum(load->vnum, NULL, &res))
+            area = res.pArea;
+        else
+            area = NULL;
+    }
     if (!area) {
         area = get_system_area_fallback();
     }

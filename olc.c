@@ -2707,13 +2707,15 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (get_room_index((find_area_by_vnum(old_v, NULL) ?: get_system_area_fallback()), old_v) == NULL)
+    WNUM old_wnum;
+    if (!resolve_widevnum(old_v, NULL, &old_wnum) || get_room_index(old_wnum.pArea, old_wnum.vnum) == NULL)
     {
      send_to_char("That room doesn't exist.\n\r", ch);
     return;
     }
 
-    if (get_room_index((find_area_by_vnum(new_v, NULL) ?: get_system_area_fallback()), new_v) != NULL)
+    WNUM new_wnum;
+    if (resolve_widevnum(new_v, NULL, &new_wnum) && get_room_index(new_wnum.pArea, new_wnum.vnum) != NULL)
     {
      send_to_char("That room vnum is already taken.\n\r", ch);
     return;
@@ -3068,13 +3070,13 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
  */
 void do_rpcopy(CHAR_DATA *ch, char *argument)
 {
-    AREA_DATA *area;
     long old_v;
     long new_v;
     SCRIPT_DATA *old_rpcode;
     SCRIPT_DATA *new_rpc;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
+    WNUM wnum_old, wnum_new;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -3082,43 +3084,47 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: rpcopy <old_vnum> <new_vnum>\n\r", ch);
-    return;
+        return;
     }
 
-    old_v = atol(arg);
-    new_v = atol(arg2);
+    if (!parse_widevnum(arg, ch->in_room->area, &wnum_old))
+    {
+        send_to_char("Invalid source vnum format.\n\r", ch);
+        return;
+    }
 
-    if ((old_rpcode = get_script_index_global(old_v, PRG_RPROG)) == NULL)
+    if (!parse_widevnum(arg2, ch->in_room->area, &wnum_new))
+    {
+        send_to_char("Invalid target vnum format.\n\r", ch);
+        return;
+    }
+
+    old_v = wnum_old.vnum;
+    new_v = wnum_new.vnum;
+
+    if ((old_rpcode = get_script_index(wnum_old.pArea, old_v, PRG_RPROG)) == NULL)
     {
         send_to_char("That ROOMprog doesn't exist.\n\r", ch);
-    return;
+        return;
     }
 
-    if (get_script_index_global(new_v, PRG_RPROG) != NULL)
+    if (get_script_index(wnum_new.pArea, new_v, PRG_RPROG) != NULL)
     {
-    send_to_char("That ROOMprog vnum is already taken.\n\r", ch);
-    return;
+        send_to_char("That ROOMprog vnum is already taken.\n\r", ch);
+        return;
     }
 
-    area = get_vnum_area(old_v);
-    if (!IS_BUILDER(ch, area))
+    if (!IS_BUILDER(ch, wnum_old.pArea))
     {
-        send_to_char("You're not a builder in that area, so you can't "
+        send_to_char("You're not a builder in the source area, so you can't "
             "copy from it.\n\r", ch);
-    return;
+        return;
     }
 
-    area = get_vnum_area(new_v);
-    if (area == NULL)
+    if (!IS_BUILDER(ch, wnum_new.pArea))
     {
-        send_to_char("That vnum is not assigned an area.\n\r", ch);
-    return;
-    }
-
-    if (!IS_BUILDER(ch, area))
-    {
-        send_to_char("You can't build in that area.\n\r", ch);
-    return;
+        send_to_char("You can't build in the target area.\n\r", ch);
+        return;
     }
 
     edit_done(ch);
@@ -3126,15 +3132,16 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
     new_rpc = new_script();
     new_rpc->vnum = new_v;
     new_rpc->edit_src = str_dup(old_rpcode->src);
-    new_rpc->area = area;
+    new_rpc->area = wnum_new.pArea;
     compile_script(NULL,new_rpc, new_rpc->edit_src, IFC_R);
-    new_rpc->next = rprog_list;
-    rprog_list = new_rpc;
+    
+    new_rpc->next = wnum_new.pArea->rprog_list;
+    wnum_new.pArea->rprog_list = new_rpc;
 
     ch->desc->pEdit             = (void *)new_rpc;
     ch->desc->editor            = ED_RPCODE;
 
-    SET_BIT(area->area_flags, AREA_CHANGED);
+    SET_BIT(wnum_new.pArea->area_flags, AREA_CHANGED);
     send_to_char("RoomProgram code copied.\n\r",ch);
 }
 
@@ -3144,57 +3151,61 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
  */
 void do_mpcopy(CHAR_DATA *ch, char *argument)
 {
-    AREA_DATA *area;
     long old_v;
     long new_v;
     SCRIPT_DATA *old_mpcode;
     SCRIPT_DATA *new_mpc;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
+    WNUM wnum_old, wnum_new;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-    send_to_char("Syntax: mpcopy <old_vnum> <new_vnum>\n\r", ch);
-    return;
+        send_to_char("Syntax: mpcopy <old_vnum> <new_vnum>\n\r", ch);
+        return;
     }
 
-    old_v = atol(arg);
-    new_v = atol(arg2);
-
-    if ((old_mpcode = get_script_index_global(old_v, PRG_MPROG)) == NULL)
+    if (!parse_widevnum(arg, ch->in_room->area, &wnum_old))
     {
-    send_to_char("That MOBprog doesn't exist.\n\r", ch);
-    return;
+        send_to_char("Invalid source vnum format.\n\r", ch);
+        return;
     }
 
-    if (get_script_index_global(new_v, PRG_MPROG) != NULL)
+    if (!parse_widevnum(arg2, ch->in_room->area, &wnum_new))
+    {
+        send_to_char("Invalid target vnum format.\n\r", ch);
+        return;
+    }
+
+    old_v = wnum_old.vnum;
+    new_v = wnum_new.vnum;
+
+    if ((old_mpcode = get_script_index(wnum_old.pArea, old_v, PRG_MPROG)) == NULL)
+    {
+        send_to_char("That MOBprog doesn't exist.\n\r", ch);
+        return;
+    }
+
+    if (get_script_index(wnum_new.pArea, new_v, PRG_MPROG) != NULL)
     {
         send_to_char("That MOBprog vnum is already taken.\n\r", ch);
-    return;
+        return;
     }
 
-    area = get_vnum_area(old_v);
-    if (!IS_BUILDER(ch, area))
+    if (!IS_BUILDER(ch, wnum_old.pArea))
     {
-        send_to_char("You're not a builder in that area, so you can't "
+        send_to_char("You're not a builder in the source area, so you can't "
             "copy from it.\n\r", ch);
-    return;
+        return;
     }
 
-    area = get_vnum_area(new_v);
-    if (area == NULL)
+    if (!IS_BUILDER(ch, wnum_new.pArea))
     {
-        send_to_char("That vnum is not assigned an area.\n\r", ch);
-    return;
-    }
-
-    if (!IS_BUILDER(ch, area))
-    {
-        send_to_char("You can't build in that area.\n\r", ch);
-    return;
+        send_to_char("You can't build in the target area.\n\r", ch);
+        return;
     }
 
     edit_done(ch);
@@ -3202,16 +3213,17 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
     ch->pcdata->immortal->last_olc_command = current_time;
     new_mpc = new_script();
     new_mpc->vnum = new_v;
-    new_mpc->area = area;
+    new_mpc->area = wnum_new.pArea;
     new_mpc->edit_src = str_dup(old_mpcode->src);
     compile_script(NULL,new_mpc, new_mpc->edit_src, IFC_M);
-    new_mpc->next = mprog_list;
-    mprog_list = new_mpc;
+    
+    new_mpc->next = wnum_new.pArea->mprog_list;
+    wnum_new.pArea->mprog_list = new_mpc;
 
     ch->desc->pEdit             = (void *)new_mpc;
     ch->desc->editor            = ED_MPCODE;
 
-    SET_BIT(area->area_flags, AREA_CHANGED);
+    SET_BIT(wnum_new.pArea->area_flags, AREA_CHANGED);
     send_to_char("MobProgram code copied.\n\r",ch);
 }
 
@@ -3221,13 +3233,13 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
  */
 void do_opcopy(CHAR_DATA *ch, char *argument)
 {
-    AREA_DATA *area;
     long old_v;
     long new_v;
     SCRIPT_DATA *old_opcode;
     SCRIPT_DATA *new_opc;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
+    WNUM wnum_old, wnum_new;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -3235,43 +3247,47 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: opcopy <old_vnum> <new_vnum>\n\r", ch);
-    return;
+        return;
     }
 
-    old_v = atol(arg);
-    new_v = atol(arg2);
+    if (!parse_widevnum(arg, ch->in_room->area, &wnum_old))
+    {
+        send_to_char("Invalid source vnum format.\n\r", ch);
+        return;
+    }
 
-    if ((old_opcode = get_script_index_global(old_v, PRG_OPROG)) == NULL)
+    if (!parse_widevnum(arg2, ch->in_room->area, &wnum_new))
+    {
+        send_to_char("Invalid target vnum format.\n\r", ch);
+        return;
+    }
+
+    old_v = wnum_old.vnum;
+    new_v = wnum_new.vnum;
+
+    if ((old_opcode = get_script_index(wnum_old.pArea, old_v, PRG_OPROG)) == NULL)
     {
         send_to_char("That OBJprog doesn't exist.\n\r", ch);
-    return;
+        return;
     }
 
-    if (get_script_index_global(new_v, PRG_OPROG) != NULL)
+    if (get_script_index(wnum_new.pArea, new_v, PRG_OPROG) != NULL)
     {
         send_to_char("That OBJprog vnum is already taken.\n\r", ch);
-    return;
+        return;
     }
 
-    area = get_vnum_area(old_v);
-    if (!IS_BUILDER(ch, area))
+    if (!IS_BUILDER(ch, wnum_old.pArea))
     {
-        send_to_char("You're not a builder in that area, so you can't "
+        send_to_char("You're not a builder in the source area, so you can't "
              "copy from it.\n\r", ch);
         return;
     }
 
-    area = get_vnum_area(new_v);
-    if (area == NULL)
+    if (!IS_BUILDER(ch, wnum_new.pArea))
     {
-        send_to_char("That vnum is not assigned an area.\n\r", ch);
+        send_to_char("You can't build in the target area.\n\r", ch);
         return;
-    }
-
-    if (!IS_BUILDER(ch, area))
-    {
-    send_to_char("You can't build in that area.\n\r", ch);
-    return;
     }
 
     edit_done(ch);
@@ -3279,16 +3295,17 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
     ch->pcdata->immortal->last_olc_command = current_time;
     new_opc = new_script();
     new_opc->vnum = new_v;
-    new_opc->area = area;
+    new_opc->area = wnum_new.pArea;
     new_opc->edit_src = str_dup(old_opcode->src);
     compile_script(NULL,new_opc, new_opc->edit_src, IFC_O);
-    new_opc->next = oprog_list;
-    oprog_list = new_opc;
+    
+    new_opc->next = wnum_new.pArea->oprog_list;
+    wnum_new.pArea->oprog_list = new_opc;
 
     ch->desc->pEdit             = (void *)new_opc;
     ch->desc->editor            = ED_OPCODE;
 
-    SET_BIT(area->area_flags, AREA_CHANGED);
+    SET_BIT(wnum_new.pArea->area_flags, AREA_CHANGED);
     send_to_char("ObjProgram code copied.\n\r",ch);
 }
 

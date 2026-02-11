@@ -5840,9 +5840,9 @@ SCRIPT_CMD(do_mpalterexit)
         switch(arg->type) {
         case ENT_NUMBER:
     {
-        AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-        if (!area) area = get_system_area_fallback();
-        room = get_room_index(area, arg->d.num);
+        WNUM room_wnum;
+        if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
+            room = get_room_index(room_wnum.pArea, room_wnum.vnum);
     }
     break;
         case ENT_ROOM:		room = arg->d.room; break;
@@ -8185,9 +8185,11 @@ SCRIPT_CMD(do_mpsaveplayer)
         break;
     case ENT_NUMBER:
         if( arg->d.num > 0 ) {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            mob->checkpoint = get_room_index(area, arg->d.num);
+            WNUM room_wnum;
+            if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
+                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            else
+                mob->checkpoint = NULL;
         }
         break;
     case ENT_ROOM:
@@ -8232,9 +8234,11 @@ SCRIPT_CMD(do_mpcheckpoint)
         break;
     case ENT_NUMBER:
         if( arg->d.num > 0 ) {
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            mob->checkpoint = get_room_index(area, arg->d.num);
+            WNUM room_wnum;
+            if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
+                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            else
+                mob->checkpoint = NULL;
         }
         break;
     case ENT_ROOM:

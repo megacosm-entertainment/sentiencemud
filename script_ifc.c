@@ -110,20 +110,7 @@ extern bool wiznet_script;
 
 static bool resolve_legacy_vnum(long vnum, WNUM *wnum)
 {
-    AREA_DATA *area;
-
-    if (!wnum || vnum < 1) {
-        return false;
-    }
-
-    area = find_area_by_vnum(vnum, NULL);
-    if (!area) {
-        area = get_system_area_fallback();
-    }
-
-    wnum->pArea = area;
-    wnum->vnum = vnum;
-    return (wnum->pArea != NULL);
+    return resolve_widevnum(vnum, NULL, wnum);
 }
 
 static bool script_match_npc_vnum(CHAR_DATA *mob, long vnum)
@@ -4085,9 +4072,9 @@ DECL_IFC_FUN(ifc_istreasureroom)
         if(ISARG_ROOM(0)) here = ARG_ROOM(0);
         else if(ISARG_NUM(0)) {
             long vnum = ARG_NUM(0);
-            AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-            if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, vnum);
+            WNUM wnum;
+            if (resolve_widevnum(vnum, NULL, &wnum))
+                here = get_room_index(wnum.pArea, wnum.vnum);
         }
 
         if(here) {
@@ -4108,9 +4095,9 @@ DECL_IFC_FUN(ifc_istreasureroom)
         if(ISARG_ROOM(1)) here = ARG_ROOM(1);
         else if(ISARG_NUM(1)) {
             long vnum = ARG_NUM(1);
-            AREA_DATA *area = find_area_by_vnum(vnum, NULL);
-            if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, vnum);
+            WNUM wnum;
+            if (resolve_widevnum(vnum, NULL, &wnum))
+                here = get_room_index(wnum.pArea, wnum.vnum);
         }
 
         *ret = here ? is_treasure_room(church, here) : false;

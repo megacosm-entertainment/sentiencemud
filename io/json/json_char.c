@@ -1099,13 +1099,19 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         WNUM questreceiver_wnum = ch->quest->questreceiver_wnum;
 
         if (!questgiver_wnum.pArea && ch->quest->questgiver_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(ch->quest->questgiver_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&ch->quest->questgiver_load, &questgiver_wnum, fallback);
         }
 
         if (!questreceiver_wnum.pArea && ch->quest->questreceiver_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(ch->quest->questreceiver_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&ch->quest->questreceiver_load, &questreceiver_wnum, fallback);
         }
@@ -1128,27 +1134,42 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
                 json_object_set_new(part_obj, "index", json_integer(part->index));
                 json_object_set_new(part_obj, "minutes", json_integer(part->minutes));
                 if (part->obj_load.vnum > 0 && !part->obj_wnum.pArea) {
-                    AREA_DATA *fallback = find_area_by_vnum(part->obj_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(part->obj_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&part->obj_load, &part->obj_wnum, fallback);
                 }
                 if (part->mob_load.vnum > 0 && !part->mob_wnum.pArea) {
-                    AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
                 }
                 if (part->room_load.vnum > 0 && !part->room_wnum.pArea) {
-                    AREA_DATA *fallback = find_area_by_vnum(part->room_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(part->room_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&part->room_load, &part->room_wnum, fallback);
                 }
                 if (part->obj_sac_load.vnum > 0 && !part->obj_sac_wnum.pArea) {
-                    AREA_DATA *fallback = find_area_by_vnum(part->obj_sac_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(part->obj_sac_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&part->obj_sac_load, &part->obj_sac_wnum, fallback);
                 }
                 if (part->mob_rescue_load.vnum > 0 && !part->mob_rescue_wnum.pArea) {
-                    AREA_DATA *fallback = find_area_by_vnum(part->mob_rescue_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(part->mob_rescue_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&part->mob_rescue_load, &part->mob_rescue_wnum, fallback);
                 }
@@ -1527,7 +1548,12 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         vnum = wnum.vnum;
     } else {
         vnum = json_integer_value(value);
-        pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+        AREA_DATA *pArea = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(vnum, NULL, &wnum))
+            pArea = wnum.pArea;
+        if (!pArea) pArea = get_system_area_fallback();
+        pObjIndex = get_obj_index(pArea, vnum);
     }
     if (!pObjIndex) {
         log_stringf("json_to_obj: object index not found for vnum %ld", vnum);
@@ -2342,7 +2368,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) {
             if (json_is_string(value)) {
                 if (parse_widevnum_load(json_string_value(value), &ch->quest->questgiver_load)) {
-                    AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(ch->quest->questgiver_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum, fallback);
                 }
@@ -2350,7 +2379,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 ch->quest->questgiver_load.vnum = json_integer_value(value);
                 ch->quest->questgiver_load.auid = 0;
                 if (ch->quest->questgiver_load.vnum > 0) {
-                    AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(ch->quest->questgiver_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum, fallback);
                 }
@@ -2362,7 +2394,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) {
             if (json_is_string(value)) {
                 if (parse_widevnum_load(json_string_value(value), &ch->quest->questreceiver_load)) {
-                    AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(ch->quest->questreceiver_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum, fallback);
                 }
@@ -2370,7 +2405,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 ch->quest->questreceiver_load.vnum = json_integer_value(value);
                 ch->quest->questreceiver_load.auid = 0;
                 if (ch->quest->questreceiver_load.vnum > 0) {
-                    AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(ch->quest->questreceiver_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
                     if (!fallback) fallback = get_system_area_fallback();
                     resolve_wnum_load(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum, fallback);
                 }
@@ -2401,14 +2439,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 value = json_object_get(part_elem, "obj");
                 if (value) {
                     if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &part->obj_load)) {
-                        AREA_DATA *fallback = find_area_by_vnum(part->obj_load.vnum, NULL);
+                        AREA_DATA *fallback = NULL;
+                        WNUM wnum;
+                        if (resolve_widevnum(part->obj_load.vnum, NULL, &wnum))
+                            fallback = wnum.pArea;
                         if (!fallback) fallback = get_system_area_fallback();
                         resolve_wnum_load(&part->obj_load, &part->obj_wnum, fallback);
                     } else if (json_is_integer(value)) {
                         part->obj_load.auid = 0;
                         part->obj_load.vnum = json_integer_value(value);
                         if (part->obj_load.vnum > 0) {
-                            AREA_DATA *fallback = find_area_by_vnum(part->obj_load.vnum, NULL);
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(part->obj_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
                             if (!fallback) fallback = get_system_area_fallback();
                             resolve_wnum_load(&part->obj_load, &part->obj_wnum, fallback);
                         }
@@ -2417,14 +2461,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 value = json_object_get(part_elem, "mob");
                 if (value) {
                     if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &part->mob_load)) {
-                        AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
+                        AREA_DATA *fallback = NULL;
+                        WNUM wnum;
+                        if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
+                            fallback = wnum.pArea;
                         if (!fallback) fallback = get_system_area_fallback();
                         resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
                     } else if (json_is_integer(value)) {
                         part->mob_load.auid = 0;
                         part->mob_load.vnum = json_integer_value(value);
                         if (part->mob_load.vnum > 0) {
-                            AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
                             if (!fallback) fallback = get_system_area_fallback();
                             resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
                         }
@@ -2433,14 +2483,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 value = json_object_get(part_elem, "room");
                 if (value) {
                     if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &part->room_load)) {
-                        AREA_DATA *fallback = find_area_by_vnum(part->room_load.vnum, NULL);
+                        AREA_DATA *fallback = NULL;
+                        WNUM wnum;
+                        if (resolve_widevnum(part->room_load.vnum, NULL, &wnum))
+                            fallback = wnum.pArea;
                         if (!fallback) fallback = get_system_area_fallback();
                         resolve_wnum_load(&part->room_load, &part->room_wnum, fallback);
                     } else if (json_is_integer(value)) {
                         part->room_load.auid = 0;
                         part->room_load.vnum = json_integer_value(value);
                         if (part->room_load.vnum > 0) {
-                            AREA_DATA *fallback = find_area_by_vnum(part->room_load.vnum, NULL);
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(part->room_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
                             if (!fallback) fallback = get_system_area_fallback();
                             resolve_wnum_load(&part->room_load, &part->room_wnum, fallback);
                         }
@@ -2449,14 +2505,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 value = json_object_get(part_elem, "obj_sac");
                 if (value) {
                     if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &part->obj_sac_load)) {
-                        AREA_DATA *fallback = find_area_by_vnum(part->obj_sac_load.vnum, NULL);
+                        AREA_DATA *fallback = NULL;
+                        WNUM wnum;
+                        if (resolve_widevnum(part->obj_sac_load.vnum, NULL, &wnum))
+                            fallback = wnum.pArea;
                         if (!fallback) fallback = get_system_area_fallback();
                         resolve_wnum_load(&part->obj_sac_load, &part->obj_sac_wnum, fallback);
                     } else if (json_is_integer(value)) {
                         part->obj_sac_load.auid = 0;
                         part->obj_sac_load.vnum = json_integer_value(value);
                         if (part->obj_sac_load.vnum > 0) {
-                            AREA_DATA *fallback = find_area_by_vnum(part->obj_sac_load.vnum, NULL);
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(part->obj_sac_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
                             if (!fallback) fallback = get_system_area_fallback();
                             resolve_wnum_load(&part->obj_sac_load, &part->obj_sac_wnum, fallback);
                         }
@@ -2465,14 +2527,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 value = json_object_get(part_elem, "mob_rescue");
                 if (value) {
                     if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &part->mob_rescue_load)) {
-                        AREA_DATA *fallback = find_area_by_vnum(part->mob_rescue_load.vnum, NULL);
+                        AREA_DATA *fallback = NULL;
+                        WNUM wnum;
+                        if (resolve_widevnum(part->mob_rescue_load.vnum, NULL, &wnum))
+                            fallback = wnum.pArea;
                         if (!fallback) fallback = get_system_area_fallback();
                         resolve_wnum_load(&part->mob_rescue_load, &part->mob_rescue_wnum, fallback);
                     } else if (json_is_integer(value)) {
                         part->mob_rescue_load.auid = 0;
                         part->mob_rescue_load.vnum = json_integer_value(value);
                         if (part->mob_rescue_load.vnum > 0) {
-                            AREA_DATA *fallback = find_area_by_vnum(part->mob_rescue_load.vnum, NULL);
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(part->mob_rescue_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
                             if (!fallback) fallback = get_system_area_fallback();
                             resolve_wnum_load(&part->mob_rescue_load, &part->mob_rescue_wnum, fallback);
                         }
@@ -2702,7 +2770,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 }
             } else {
                 long vnum = json_integer_value(vnum_val);
-                pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+                AREA_DATA *pArea = NULL;
+                WNUM wnum;
+                if (resolve_widevnum(vnum, NULL, &wnum))
+                    pArea = wnum.pArea;
+                if (!pArea) pArea = get_system_area_fallback();
+                pTokenIndex = get_token_index(pArea, vnum);
             }
             if (!pTokenIndex) {
                 log_string("json_read_char_internal: bad token vnum");
@@ -2978,7 +3051,12 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 }
             } else {
                 long vnum = json_integer_value(vnum_val);
-                pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+                AREA_DATA *pArea = NULL;
+                WNUM wnum;
+                if (resolve_widevnum(vnum, NULL, &wnum))
+                    pArea = wnum.pArea;
+                if (!pArea) pArea = get_system_area_fallback();
+                pTokenIndex = get_token_index(pArea, vnum);
             }
             if (!pTokenIndex) {
                 log_string("json_read_char_remaining: bad token vnum");

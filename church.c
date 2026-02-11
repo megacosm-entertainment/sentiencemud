@@ -3933,16 +3933,34 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     sprintf(buf, "{YAlignment:{x %s\n\r", buf2);
     add_buf(buffer, buf);
 
+    ROOM_INDEX_DATA *recall_room = NULL;
+    if (church->recall_point.id[0] > 0) {
+        AREA_DATA *area = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(church->recall_point.id[0], NULL, &wnum))
+            area = wnum.pArea;
+        if (!area) area = get_system_area_fallback();
+        recall_room = get_room_index(area, church->recall_point.id[0]);
+    }
+
     sprintf(buf, "{YRecall Point:{x %ld - %s\n\r",
         church->recall_point.id[0],
-    get_room_index(find_area_by_vnum(church->recall_point.id[0], NULL) ? find_area_by_vnum(church->recall_point.id[0], NULL) : get_system_area_fallback(), church->recall_point.id[0]) == NULL ?
-        "none" : get_room_index(find_area_by_vnum(church->recall_point.id[0], NULL) ? find_area_by_vnum(church->recall_point.id[0], NULL) : get_system_area_fallback(), church->recall_point.id[0])->name);
+        recall_room ? recall_room->name : "none");
     add_buf(buffer, buf);
+
+    OBJ_INDEX_DATA *key_index = NULL;
+    if (church->key > 0) {
+        AREA_DATA *area = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(church->key, NULL, &wnum))
+            area = wnum.pArea;
+        if (!area) area = get_system_area_fallback();
+        key_index = get_obj_index(area, church->key);
+    }
 
     sprintf(buf, "{YKey:{x %ld - %s\n\r",
         church->key,
-    get_obj_index(find_area_by_vnum(church->key, NULL) ? find_area_by_vnum(church->key, NULL) : get_system_area_fallback(), church->key) == NULL ?
-        "none" : get_obj_index(find_area_by_vnum(church->key, NULL) ? find_area_by_vnum(church->key, NULL) : get_system_area_fallback(), church->key)->short_descr);
+        key_index ? key_index->short_descr : "none");
     add_buf(buffer, buf);
 
     sprintf(buf, "{YTreasure Room(s):{x\n\r");
@@ -5084,7 +5102,10 @@ if (!str_cmp(word, "#MEMBER")) {
                 KEY("ToggledPK", church->pk, fread_number(fp));
                                 if (!str_cmp(word, "TreasureRoom")) {
                     long vnum = fread_number(fp);
-                    AREA_DATA *room_area = find_area_by_vnum(vnum, NULL);
+                    AREA_DATA *room_area = NULL;
+                    WNUM res;
+                    if (resolve_widevnum(vnum, NULL, &res))
+                        room_area = res.pArea;
                     if (!room_area) room_area = get_system_area_fallback();
                     ROOM_INDEX_DATA *room = get_room_index(room_area, vnum);
                     bool is_default = (fread_number(fp) == 1);

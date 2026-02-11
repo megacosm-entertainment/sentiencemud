@@ -910,9 +910,13 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
         if (part->mob_load.vnum != -1 && !part->complete)
         {
                 if (!part->mob_wnum.pArea && part->mob_load.vnum > 0) {
-                    AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
-                    if (!fallback) fallback = get_system_area_fallback();
-                    resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
+                    WNUM wnum;
+                    if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
+                        part->mob_wnum = wnum;
+                    else {
+                        AREA_DATA *fallback = get_system_area_fallback();
+                        resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
+                    }
                 }
                 if (wnum_match_mob(part->mob_wnum, victim))
                 {

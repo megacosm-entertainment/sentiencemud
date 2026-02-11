@@ -338,7 +338,10 @@ void global_reset( void )
         continue;
 
         if (!gq_mob->vnum_wnum.pArea && gq_mob->vnum_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(gq_mob->vnum_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(gq_mob->vnum_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&gq_mob->vnum_load, &gq_mob->vnum_wnum, fallback);
         }
@@ -346,7 +349,10 @@ void global_reset( void )
         if ( gq_mob->obj_wnum.vnum != 0 )
         {
         if (!gq_mob->obj_wnum.pArea && gq_mob->obj_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(gq_mob->obj_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(gq_mob->obj_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&gq_mob->obj_load, &gq_mob->obj_wnum, fallback);
         }
@@ -375,7 +381,10 @@ void global_reset( void )
         if ( number_percent() < gq_obj->repop )
         {
         if (!gq_obj->vnum_wnum.pArea && gq_obj->vnum_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(gq_obj->vnum_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(gq_obj->vnum_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&gq_obj->vnum_load, &gq_obj->vnum_wnum, fallback);
         }
@@ -1256,8 +1265,13 @@ void do_dump( CHAR_DATA *ch, char *argument )
 
                 //Container attributes
                 if (obj->item_type == ITEM_CONTAINER) {
-                    AREA_DATA *key_area = obj->value[2] > 0 ? find_area_by_vnum(obj->value[2], NULL) : NULL;
-                    if (key_area == NULL && obj->value[2] > 0) key_area = get_system_area_fallback();
+                    AREA_DATA *key_area = NULL;
+                    if (obj->value[2] > 0) {
+                        WNUM wnum;
+                        if (resolve_widevnum(obj->value[2], NULL, &wnum))
+                            key_area = wnum.pArea;
+                        if (!key_area) key_area = get_system_area_fallback();
+                    }
                     OBJ_INDEX_DATA *key = key_area ? get_obj_index(key_area, obj->value[2]) : NULL;
                     fprintf(fp, "%s[%ld]	%ld	%ld	%s	", key == NULL ? "None" : key->short_descr,
                         key == NULL ? 0 : key->vnum, obj->value[3],

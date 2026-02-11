@@ -66,13 +66,14 @@ static void quest_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, long vn
 
 static void quest_part_resolve(WNUM_LOAD *load, WNUM *wnum)
 {
-    AREA_DATA *fallback;
-
     if (!load || !wnum || wnum->pArea || load->vnum < 1) {
         return;
     }
 
-    fallback = find_area_by_vnum(load->vnum, NULL);
+    AREA_DATA *fallback = NULL;
+    WNUM res;
+    if (resolve_widevnum(load->vnum, NULL, &res))
+        fallback = res.pArea;
     if (!fallback) fallback = get_system_area_fallback();
     resolve_wnum_load(load, wnum, fallback);
 }
@@ -144,7 +145,12 @@ static void resolve_quest_tokens(void)
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
     char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
-    OBJ_INDEX_DATA *scroll_index = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+    AREA_DATA *scroll_area = NULL;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, NULL, &wnum))
+        scroll_area = wnum.pArea;
+    if (!scroll_area) scroll_area = get_system_area_fallback();
+    OBJ_INDEX_DATA *scroll_index = get_obj_index(scroll_area, vnum);
     if( scroll_index == NULL )
     {
         scroll_index = get_reserved_obj_index("obj_quest_scroll");

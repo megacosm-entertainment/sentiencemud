@@ -199,9 +199,9 @@ void do_besteq(CHAR_DATA *ch, char *argument)
 
     for (number2 = 0; number2 < 100000; number2++)
     {
-    AREA_DATA *search_area = find_area_by_vnum((long) number2, NULL);
-    if (!search_area) continue;
-    obj = get_obj_index(search_area, (long) number2);
+        WNUM wnum;
+        if (!resolve_widevnum((long) number2, NULL, &wnum)) continue;
+        obj = get_obj_index(wnum.pArea, wnum.vnum);
 
     if (obj == NULL)
         continue;

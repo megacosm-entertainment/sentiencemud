@@ -102,7 +102,10 @@ SPELL_FUNC(spell_create_rose)
     else if (chance > 10 && chance <= 35) vnum = number_range(100082, 100089);
     else vnum = number_range(100176, 100189);
 
-    AREA_DATA *area = find_area_by_vnum(vnum, NULL);
+    AREA_DATA *area = NULL;
+    WNUM wnum;
+    if (resolve_widevnum(vnum, NULL, &wnum))
+        area = wnum.pArea;
     if (!area) area = get_system_area_fallback();
     rose = create_object(get_obj_index(area, vnum), 0, true);
     act("You have created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_CHAR, NULL, NULL);

@@ -56,7 +56,14 @@ struct nodes
     int	ancestor;
 };
 
-#define IS_DIR		(get_room_index(find_area_by_vnum(q_head->room_nr, NULL) ? find_area_by_vnum(q_head->room_nr, NULL) : get_system_area_fallback(), q_head->room_nr)->exit[i])
+#define IS_DIR		(get_room_index(({ \
+    AREA_DATA *_area = NULL; \
+    WNUM _wnum; \
+    if (resolve_widevnum(q_head->room_nr, NULL, &_wnum)) \
+        _area = _wnum.pArea; \
+    if (!_area) _area = get_system_area_fallback(); \
+    _area; \
+}), q_head->room_nr)->exit[i])
 #define GO_OK		(!IS_SET( IS_DIR->exit_info, EX_CLOSED ))
 #define GO_OK_SMARTER	1
 
@@ -321,7 +328,10 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
     thru_doors = false;
     }
 
-    AREA_DATA *start_area = find_area_by_vnum(in_room_vnum, NULL);
+    AREA_DATA *start_area = NULL;
+    WNUM start_wnum;
+    if (resolve_widevnum(in_room_vnum, NULL, &start_wnum))
+        start_area = start_wnum.pArea;
     if (!start_area) start_area = get_system_area_fallback();
     startp = get_room_index( start_area, in_room_vnum );
 
@@ -336,7 +346,10 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 
     while(q_head)
     {
-    AREA_DATA *here_area = find_area_by_vnum(q_head->room_nr, NULL);
+    AREA_DATA *here_area = NULL;
+    WNUM here_wnum;
+    if (resolve_widevnum(q_head->room_nr, NULL, &here_wnum))
+        here_area = here_wnum.pArea;
     if (!here_area) here_area = get_system_area_fallback();
     herep = get_room_index( here_area, q_head->room_nr );
     /* for each room test all directions */

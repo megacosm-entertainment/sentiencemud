@@ -79,16 +79,24 @@ SPELL_FUNC(spell_animate_dead)
             return false;
         }
 
-        AREA_DATA *area;
+        AREA_DATA *area = NULL;
         if (CORPSE_MOBILE(obj)) {
             vnum = CORPSE_MOBILE(obj);
-            area = CORPSE_MOBILE_AUID(obj) > 0
-                ? get_area_from_uid(CORPSE_MOBILE_AUID(obj))
-                : find_area_by_vnum(vnum, NULL);
+            if (CORPSE_MOBILE_AUID(obj) > 0)
+                area = get_area_from_uid(CORPSE_MOBILE_AUID(obj));
+            else {
+                WNUM res;
+                if (resolve_widevnum(vnum, NULL, &res))
+                    area = res.pArea;
+            }
         } else {
             vnum = obj->orig_wnum.vnum;
             area = obj->orig_wnum.pArea;
-            if (!area) area = find_area_by_vnum(vnum, NULL);
+            if (!area) {
+                WNUM res;
+                if (resolve_widevnum(vnum, NULL, &res))
+                    area = res.pArea;
+            }
         }
         if (!area) area = get_system_area_fallback();
 
@@ -450,7 +458,11 @@ SPELL_FUNC(spell_raise_dead)
             bool keep_mob = true;
 
             AREA_DATA *area = obj->orig_wnum.pArea;
-            if (!area) area = find_area_by_vnum(obj->orig_wnum.vnum, NULL);
+            if (!area) {
+                WNUM res;
+                if (resolve_widevnum(obj->orig_wnum.vnum, NULL, &res))
+                    area = res.pArea;
+            }
             if (!area) area = get_system_area_fallback();
             victim = create_mobile(get_mob_index(area, obj->orig_wnum.vnum), false);
             // Regardless what wealth the normal mob has...

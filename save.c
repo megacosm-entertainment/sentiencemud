@@ -818,13 +818,19 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
         WNUM questreceiver_wnum = ch->quest->questreceiver_wnum;
 
         if (!questgiver_wnum.pArea && ch->quest->questgiver_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(ch->quest->questgiver_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&ch->quest->questgiver_load, &questgiver_wnum, fallback);
         }
 
         if (!questreceiver_wnum.pArea && ch->quest->questreceiver_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM wnum;
+            if (resolve_widevnum(ch->quest->questreceiver_load.vnum, NULL, &wnum))
+                fallback = wnum.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&ch->quest->questreceiver_load, &questreceiver_wnum, fallback);
         }
@@ -1902,14 +1908,20 @@ long v = fread_number(fp);
 unsigned long id1 = fread_number(fp);
 unsigned long id2 = fread_number(fp);
 
-AREA_DATA *area = find_area_by_vnum(v, NULL);
+AREA_DATA *area = NULL;
+WNUM wnum;
+if (resolve_widevnum(v, NULL, &wnum))
+    area = wnum.pArea;
 if (!area) area = get_system_area_fallback();
 room = get_room_index(area, v);
 
 ch->in_room = get_clone_room(room,id1,id2);
 
 if (ch->in_room == NULL) {
-    AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
+    AREA_DATA *fallback_area = NULL;
+    WNUM fallback_wnum;
+    if (resolve_widevnum(11001, NULL, &fallback_wnum))
+        fallback_area = fallback_wnum.pArea;
     if (!fallback_area) fallback_area = get_system_area_fallback();
     ch->in_room = get_room_index(fallback_area, 11001);
 }
@@ -2337,7 +2349,10 @@ if (ch->in_room == NULL) {
             }
             wnum_str = fread_word(fp);
             if (parse_widevnum_load(wnum_str, &ch->quest->questgiver_load)) {
-                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+                AREA_DATA *fallback = NULL;
+                WNUM res;
+                if (resolve_widevnum(ch->quest->questgiver_load.vnum, NULL, &res))
+                    fallback = res.pArea;
                 if (!fallback) fallback = get_system_area_fallback();
                 resolve_wnum_load(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum, fallback);
             }
@@ -2354,7 +2369,10 @@ if (ch->in_room == NULL) {
             ch->quest->questgiver_load.vnum = fread_number(fp);
             ch->quest->questgiver_load.auid = 0;
             {
-                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questgiver_load.vnum, NULL);
+                AREA_DATA *fallback = NULL;
+                WNUM res;
+                if (resolve_widevnum(ch->quest->questgiver_load.vnum, NULL, &res))
+                    fallback = res.pArea;
                 if (!fallback) fallback = get_system_area_fallback();
                 resolve_wnum_load(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum, fallback);
             }
@@ -2382,7 +2400,10 @@ if (ch->in_room == NULL) {
             }
             wnum_str = fread_word(fp);
             if (parse_widevnum_load(wnum_str, &ch->quest->questreceiver_load)) {
-                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+                AREA_DATA *fallback = NULL;
+                WNUM res;
+                if (resolve_widevnum(ch->quest->questreceiver_load.vnum, NULL, &res))
+                    fallback = res.pArea;
                 if (!fallback) fallback = get_system_area_fallback();
                 resolve_wnum_load(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum, fallback);
             }
@@ -2399,7 +2420,10 @@ if (ch->in_room == NULL) {
             ch->quest->questreceiver_load.vnum = fread_number(fp);
             ch->quest->questreceiver_load.auid = 0;
             {
-                AREA_DATA *fallback = find_area_by_vnum(ch->quest->questreceiver_load.vnum, NULL);
+                AREA_DATA *fallback = NULL;
+                WNUM res;
+                if (resolve_widevnum(ch->quest->questreceiver_load.vnum, NULL, &res))
+                    fallback = res.pArea;
                 if (!fallback) fallback = get_system_area_fallback();
                 resolve_wnum_load(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum, fallback);
             }
@@ -2418,7 +2442,10 @@ if (ch->in_room == NULL) {
         part->obj_load.auid = 0;
         part->obj_load.vnum = fread_number(fp);
         if (part->obj_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(part->obj_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM res;
+            if (resolve_widevnum(part->obj_load.vnum, NULL, &res))
+                fallback = res.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&part->obj_load, &part->obj_wnum, fallback);
         }
@@ -2439,7 +2466,10 @@ if (ch->in_room == NULL) {
         part->obj_sac_load.auid = 0;
         part->obj_sac_load.vnum = fread_number(fp);
         if (part->obj_sac_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(part->obj_sac_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM res;
+            if (resolve_widevnum(part->obj_sac_load.vnum, NULL, &res))
+                fallback = res.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&part->obj_sac_load, &part->obj_sac_wnum, fallback);
         }
@@ -2460,7 +2490,10 @@ if (ch->in_room == NULL) {
         part->mob_rescue_load.auid = 0;
         part->mob_rescue_load.vnum = fread_number(fp);
         if (part->mob_rescue_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(part->mob_rescue_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM res;
+            if (resolve_widevnum(part->mob_rescue_load.vnum, NULL, &res))
+                fallback = res.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&part->mob_rescue_load, &part->mob_rescue_wnum, fallback);
         }
@@ -2481,7 +2514,10 @@ if (ch->in_room == NULL) {
         part->mob_load.auid = 0;
         part->mob_load.vnum = fread_number(fp);
         if (part->mob_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(part->mob_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM res;
+            if (resolve_widevnum(part->mob_load.vnum, NULL, &res))
+                fallback = res.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
         }
@@ -2502,7 +2538,10 @@ if (ch->in_room == NULL) {
         part->room_load.auid = 0;
         part->room_load.vnum = fread_number(fp);
         if (part->room_load.vnum > 0) {
-            AREA_DATA *fallback = find_area_by_vnum(part->room_load.vnum, NULL);
+            AREA_DATA *fallback = NULL;
+            WNUM res;
+            if (resolve_widevnum(part->room_load.vnum, NULL, &res))
+                fallback = res.pArea;
             if (!fallback) fallback = get_system_area_fallback();
             resolve_wnum_load(&part->room_load, &part->room_wnum, fallback);
         }
@@ -2592,12 +2631,18 @@ if (ch->in_room == NULL) {
 if (!str_cmp(word, "Room"))
 {
     long room_vnum = fread_number(fp);
-    AREA_DATA *area = find_area_by_vnum(room_vnum, NULL);
+    AREA_DATA *area = NULL;
+    WNUM wnum;
+    if (resolve_widevnum(room_vnum, NULL, &wnum))
+        area = wnum.pArea;
     if (!area) area = get_system_area_fallback();
     ch->in_room = get_room_index(area, room_vnum);
     if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
     {
-        AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
+        AREA_DATA *fallback_area = NULL;
+        WNUM fallback_wnum;
+        if (resolve_widevnum(11001, NULL, &fallback_wnum))
+            fallback_area = fallback_wnum.pArea;
         if (!fallback_area) fallback_area = get_system_area_fallback();
         ch->in_room = get_room_index(fallback_area, 11001);
     }
@@ -3981,7 +4026,10 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
             {
                 ROOM_INDEX_DATA *room;
                 long vnum = fread_number(fp);
-                AREA_DATA *area = find_area_by_vnum(vnum, NULL);
+                AREA_DATA *area = NULL;
+                WNUM wnum;
+                if (resolve_widevnum(vnum, NULL, &wnum))
+                    area = wnum.pArea;
                 if (!area) area = get_system_area_fallback();
                 room = get_room_index(area, vnum);
                 obj->in_room = room;
@@ -4210,7 +4258,10 @@ void read_permanent_objs()
                 }
                 else
                 {
-                AREA_DATA *area = find_area_by_vnum(obj->in_room->vnum, NULL);
+                AREA_DATA *area = NULL;
+                WNUM wnum;
+                if (resolve_widevnum(obj->in_room->vnum, NULL, &wnum))
+                    area = wnum.pArea;
                 if (!area) area = get_system_area_fallback();
                 ROOM_INDEX_DATA *to_room = get_room_index(area, obj->in_room->vnum);
                 obj->in_room = NULL;
@@ -5467,13 +5518,15 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 
 static void quest_part_resolve_wnum(WNUM_LOAD *load, WNUM *wnum)
 {
-    AREA_DATA *fallback;
 
     if (!load || !wnum || wnum->pArea || load->vnum < 1) {
         return;
     }
 
-    fallback = find_area_by_vnum(load->vnum, NULL);
+    AREA_DATA *fallback = NULL;
+    WNUM res;
+    if (resolve_widevnum(load->vnum, NULL, &res))
+        fallback = res.pArea;
     if (!fallback) fallback = get_system_area_fallback();
     resolve_wnum_load(load, wnum, fallback);
 }

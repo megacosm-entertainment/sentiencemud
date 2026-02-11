@@ -559,8 +559,12 @@ void load_dungeons()
         {
             SCRIPT_DATA *pr = read_script_new(fp, NULL, IFC_D);
             if(pr) {
-                pr->next = dprog_list;
-                dprog_list = pr;
+                WNUM area_wnum;
+                if (resolve_widevnum(pr->vnum, NULL, &area_wnum)) {
+                    pr->area = area_wnum.pArea;
+                    pr->next = pr->area->dprog_list;
+                    pr->area->dprog_list = pr;
+                }
 
                 if( pr->vnum > top_dprog_index )
                     top_dprog_index = pr->vnum;
@@ -802,9 +806,12 @@ bool save_dungeons()
         }
     }
 
-    for( SCRIPT_DATA *scr = dprog_list; scr; scr = scr->next)
-    {
-        save_script_new(fp,NULL,scr,"DUNGEON");
+    // Save dungeon progs from all areas
+    for (AREA_DATA *area = area_first; area != NULL; area = area->next) {
+        for( SCRIPT_DATA *scr = area->dprog_list; scr; scr = scr->next)
+        {
+            save_script_new(fp,NULL,scr,"DUNGEON");
+        }
     }
 
     fprintf(fp, "#END\n");
@@ -1389,9 +1396,9 @@ void extract_dungeon(DUNGEON *dungeon)
 
     room = dungeon->entry_room;
     if( !room ) {
-        AREA_DATA *fallback_area = find_area_by_vnum(11001, NULL);
-        if (!fallback_area) fallback_area = get_system_area_fallback();
-        room = get_room_index(fallback_area, 11001);
+        WNUM fallback_wnum;
+        if (resolve_widevnum(11001, NULL, &fallback_wnum))
+            room = get_room_index(fallback_wnum.pArea, fallback_wnum.vnum);
     }
 
     // Dump all mobiles
@@ -1821,6 +1828,10 @@ void dngedit(CHAR_DATA *ch, char *argument)
         {
             if ((*dngedit_table[cmd].olc_fun) (ch, argument))
             {
+                DUNGEON_INDEX_DATA *dng;
+                EDIT_DUNGEON(ch, dng);
+                if (dng && dng->area)
+                    SET_BIT(dng->area->area_flags, AREA_CHANGED);
                 dungeons_changed = true;
             }
 

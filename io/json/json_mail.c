@@ -248,7 +248,14 @@ MAIL_DATA *json_to_mail(json_t *json)
         parse_wnum_from_json(value, &area_uid, &vnum);
         mail->from_location_load.auid = area_uid;
         mail->from_location_load.vnum = vnum;
-        AREA_DATA *from_area = area_uid > 0 ? get_area_from_uid(area_uid) : find_area_by_vnum(vnum, NULL);
+        AREA_DATA *from_area = NULL;
+        if (area_uid > 0) {
+            from_area = get_area_from_uid(area_uid);
+        } else {
+            WNUM wnum;
+            if (resolve_widevnum(vnum, NULL, &wnum))
+                from_area = wnum.pArea;
+        }
         if (from_area) {
             mail->from_location_wnum.pArea = from_area;
             mail->from_location_wnum.vnum = vnum;
@@ -260,7 +267,14 @@ MAIL_DATA *json_to_mail(json_t *json)
         parse_wnum_from_json(value, &area_uid, &vnum);
         mail->to_location_load.auid = area_uid;
         mail->to_location_load.vnum = vnum;
-        AREA_DATA *to_area = area_uid > 0 ? get_area_from_uid(area_uid) : find_area_by_vnum(vnum, NULL);
+        AREA_DATA *to_area = NULL;
+        if (area_uid > 0) {
+            to_area = get_area_from_uid(area_uid);
+        } else {
+            WNUM wnum;
+            if (resolve_widevnum(vnum, NULL, &wnum))
+                to_area = wnum.pArea;
+        }
         if (to_area) {
             mail->to_location_wnum.pArea = to_area;
             mail->to_location_wnum.vnum = vnum;

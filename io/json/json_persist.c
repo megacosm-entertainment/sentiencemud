@@ -647,7 +647,12 @@ TOKEN_DATA *json_persist_json_to_token(json_t *json)
     } else {
         /* Legacy integer format */
         long vnum = json_integer_value(value);
-        pTokenIndex = get_token_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+        AREA_DATA *pArea = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(vnum, NULL, &wnum))
+            pArea = wnum.pArea;
+        if (!pArea) pArea = get_system_area_fallback();
+        pTokenIndex = get_token_index(pArea, vnum);
     }
     if (!pTokenIndex) {
         log_stringf("json_persist_json_to_token: token index not found");
@@ -959,7 +964,12 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     } else {
         /* Legacy integer format */
         long vnum = json_integer_value(value);
-        pObjIndex = get_obj_index((find_area_by_vnum(vnum, NULL) ?: get_system_area_fallback()), vnum);
+        AREA_DATA *pArea = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(vnum, NULL, &wnum))
+            pArea = wnum.pArea;
+        if (!pArea) pArea = get_system_area_fallback();
+        pObjIndex = get_obj_index(pArea, vnum);
     }
     if (!pObjIndex) {
         log_stringf("json_persist_json_to_object: object index not found");
@@ -1585,7 +1595,10 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     } else {
         /* Legacy integer format */
         long vnum = json_integer_value(value);
-        AREA_DATA *area = find_area_by_vnum(vnum, NULL);
+        AREA_DATA *area = NULL;
+        WNUM wnum;
+        if (resolve_widevnum(vnum, NULL, &wnum))
+            area = wnum.pArea;
         if (!area) area = get_system_area_fallback();
         pMobIndex = get_mob_index(area, vnum);
     }
