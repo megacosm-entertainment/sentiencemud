@@ -178,7 +178,23 @@ int get_olc_screen_width(CHAR_DATA *ch);
 int get_olc_screen_height(CHAR_DATA *ch);
 
 // Script/prog display helpers
-void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title);
+#define MAX_PROG_GROUP_TRIGGERS 64
+#define MAX_PROG_GROUPS 32
+
+typedef struct prog_group_entry {
+    PROG_LIST *entry;   // The PROG_LIST from the slot
+    int slot;           // Which TRIGSLOT it lives in
+} PROG_GROUP_ENTRY;
+
+typedef struct prog_group {
+    long vnum;
+    SCRIPT_DATA *script;
+    PROG_GROUP_ENTRY triggers[MAX_PROG_GROUP_TRIGGERS];
+    int trigger_count;
+} PROG_GROUP;
+
+int prog_build_groups(LLIST **progs, PROG_GROUP *groups, int max_groups, int type);
+void olc_show_progs_grouped(BUFFER *buffer, LLIST **progs, int type, const char *title);
 char *olc_show_script_status(SCRIPT_DATA *prog, int type);
 
 // Flag display helpers (existing, used by olc_render_flags internally)

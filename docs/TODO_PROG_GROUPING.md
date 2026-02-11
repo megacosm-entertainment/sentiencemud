@@ -54,14 +54,18 @@ See [PLAN_PROG_GROUPING.md](PLAN_PROG_GROUPING.md) for full design.
 
 ## Phase 3: JSON Format Change
 
-- [ ] Rewrite `json_area_serialize_progs()` to use `prog_build_groups()` (json_area.c:3712)
-- [ ] Extract old deserializer into `json_area_deserialize_progs_flat()` (json_area.c:3765)
-- [ ] Implement `json_area_deserialize_progs_grouped()` for new format
-- [ ] Update `json_area_deserialize_progs()` to detect format and dispatch
+- [x] Rewrite `json_area_serialize_progs()` to group by script pointer and write widevnum strings
+- [x] Extract old deserializer into `json_area_deserialize_progs_flat()`
+- [x] Implement `json_area_deserialize_progs_grouped()` for new format with widevnum parsing
+- [x] Update `json_area_deserialize_progs()` to detect format and dispatch
+- [x] Add `script_is_widevnum` / `script_load` fields to `PROG_LIST` in merc.h
+- [x] Update all 7 `fix_*progs()` in db.c to prefer `script_load`, backfill legacy entries
+- [x] Update all 7 `add*prog` OLC commands to populate `script_load` from resolved widevnum
+- [x] Update `prog_build_groups()` to group by script pointer instead of bare vnum
 - [ ] Test: load old-format area, verify correct behavior
 - [ ] Test: save area, verify new JSON format
 - [ ] Test: reload saved area, verify round-trip integrity
-- [ ] Build and test
+- [x] Build and test
 
 ## Phase 4: Reverse Lookup (`uses` command)
 

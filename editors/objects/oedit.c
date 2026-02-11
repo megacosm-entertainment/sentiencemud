@@ -32,6 +32,8 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+
 extern void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
 
@@ -320,7 +322,7 @@ OEDIT(oedit_show)
 
 
     if (pObj->progs)
-        olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
+        olc_show_progs_grouped(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
 
     if (pObj->index_vars)
         olc_show_index_vars(buffer, pObj->index_vars);
@@ -2593,8 +2595,15 @@ OEDIT (oedit_addoprog)
     // Make sure this has a list of progs!
     if(!pObj->progs) pObj->progs = new_prog_bank();
 
+    if (edit_trigger_exists(pObj->progs, code, tindex, phrase)) {
+        send_to_char("That trigger/phrase pair is already attached to that script on this object.\n\r", ch);
+        return false;
+    }
+
     list                  = new_trigger();
     list->vnum            = script_wnum.vnum;
+    list->script_is_widevnum = (script_wnum.pArea != NULL);
+    if (list->script_is_widevnum) { list->script_load.auid = script_wnum.pArea->uid; list->script_load.vnum = script_wnum.vnum; }
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     if (is_widevnum_format(phrase)) {
@@ -2618,33 +2627,71 @@ OEDIT (oedit_addoprog)
 OEDIT (oedit_deloprog)
 {
     OBJ_INDEX_DATA *pObj;
-    char oprog[MAX_STRING_LENGTH];
-    long value;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    int group_idx, trig_idx;
+    PROG_GROUP groups[MAX_PROG_GROUPS];
+    int num_groups;
 
     EDIT_OBJ(ch, pObj);
 
-    one_argument(argument, oprog);
-    if (!is_number(oprog) || oprog[0] == '\0')
-    {
-    send_to_char("Syntax:  deloprog [#oprog]\n\r",ch);
-    return false;
+    if (!pObj->progs) {
+        send_to_char("This object has no programs attached.\n\r", ch);
+        return false;
     }
 
-    value = atol (oprog);
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
 
-    if (value < 0)
-    {
-    send_to_char("Only non-negative oprog-numbers allowed.\n\r",ch);
-    return false;
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax:  deloprog <group#>\n\r", ch);
+        send_to_char("         deloprog <group#> <trigger#>\n\r", ch);
+        return false;
     }
 
-    if(!edit_deltrigger(pObj->progs,value)) {
-    send_to_char("No such oprog.\n\r",ch);
-    return false;
+    if (!is_number(arg1)) {
+        send_to_char("Please specify a valid group number.\n\r", ch);
+        return false;
     }
 
-    send_to_char("Oprog removed.\n\r", ch);
-    return true;
+    group_idx = atoi(arg1);
+    num_groups = prog_build_groups(pObj->progs, groups, MAX_PROG_GROUPS, PRG_OPROG);
+
+    if (group_idx < 1 || group_idx > num_groups) {
+        send_to_char("Invalid group number.\n\r", ch);
+        return false;
+    }
+
+    PROG_GROUP *group = &groups[group_idx - 1];
+
+    if (arg2[0] == '\0') {
+        // Delete entire group (all triggers for this script)
+        if (edit_delscript(pObj->progs, group->script)) {
+            send_to_char("Script group removed.\n\r", ch);
+            return true;
+        }
+    } else {
+        // Delete specific trigger within group
+        if (!is_number(arg2)) {
+            send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
+            return false;
+        }
+
+        trig_idx = atoi(arg2);
+        if (trig_idx < 1 || trig_idx > group->trigger_count) {
+            send_to_char("Invalid trigger number within that group.\n\r", ch);
+            return false;
+        }
+
+        PROG_GROUP_ENTRY *entry = &group->triggers[trig_idx - 1];
+        if (edit_deltrigger_specific(pObj->progs, group->script, entry->entry->trig_type, entry->entry->trig_phrase)) {
+            send_to_char("Trigger removed from script group.\n\r", ch);
+            return true;
+        }
+    }
+
+    send_to_char("No such program or trigger found.\n\r", ch);
+    return false;
 }
 
 OEDIT(oedit_desc)

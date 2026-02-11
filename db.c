@@ -1551,12 +1551,23 @@ void fix_mobprogs(void)
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
                         trigger->script = NULL;
-                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                        if (trigger->script_is_widevnum) {
+                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                            if (sArea)
+                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_MPROG);
+                        }
+                        if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_MPROG);
 
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
                             exit(1);
+                        }
+
+                        if (!trigger->script_is_widevnum && trigger->script->area) {
+                            trigger->script_is_widevnum = true;
+                            trigger->script_load.auid = trigger->script->area->uid;
+                            trigger->script_load.vnum = trigger->script->vnum;
                         }
 
                         // Resolve widevnum trigger phrases
@@ -1588,12 +1599,23 @@ void fix_objprogs(void)
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
                         trigger->script = NULL;
-                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                        if (trigger->script_is_widevnum) {
+                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                            if (sArea)
+                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_OPROG);
+                        }
+                        if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_OPROG);
 
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
                             exit(1);
+                        }
+
+                        if (!trigger->script_is_widevnum && trigger->script->area) {
+                            trigger->script_is_widevnum = true;
+                            trigger->script_load.auid = trigger->script->area->uid;
+                            trigger->script_load.vnum = trigger->script->vnum;
                         }
 
                         // Resolve widevnum trigger phrases
@@ -1624,12 +1646,23 @@ void fix_roomprogs(void)
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
                         trigger->script = NULL;
-                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                        if (trigger->script_is_widevnum) {
+                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                            if (sArea)
+                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_RPROG);
+                        }
+                        if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_RPROG);
 
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
                             exit(1);
+                        }
+
+                        if (!trigger->script_is_widevnum && trigger->script->area) {
+                            trigger->script_is_widevnum = true;
+                            trigger->script_load.auid = trigger->script->area->uid;
+                            trigger->script_load.vnum = trigger->script->vnum;
                         }
 
                         // Resolve widevnum trigger phrases
@@ -1661,12 +1694,23 @@ void fix_tokenprogs(void)
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
                         trigger->script = NULL;
-                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                        if (trigger->script_is_widevnum) {
+                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                            if (sArea)
+                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_TPROG);
+                        }
+                        if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_TPROG);
 
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_tokenprogs: code vnum %d not found on token %ld", trigger->vnum, token->vnum);
                             exit(1);
+                        }
+
+                        if (!trigger->script_is_widevnum && trigger->script->area) {
+                            trigger->script_is_widevnum = true;
+                            trigger->script_load.auid = trigger->script->area->uid;
+                            trigger->script_load.vnum = trigger->script->vnum;
                         }
 
                         // Resolve widevnum trigger phrases
@@ -1697,12 +1741,23 @@ void fix_areaprogs(void)
             while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                 WNUM script_wnum;
                 trigger->script = NULL;
-                if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                if (trigger->script_is_widevnum) {
+                    AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                    if (sArea)
+                        trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_APROG);
+                }
+                if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                     trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_APROG);
 
                 if (!trigger->script) {
                     log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "fix_areaprogs: code vnum %d not found on area %ld", trigger->vnum, pArea->uid);
                     exit(1);
+                }
+
+                if (!trigger->script_is_widevnum && trigger->script->area) {
+                    trigger->script_is_widevnum = true;
+                    trigger->script_load.auid = trigger->script->area->uid;
+                    trigger->script_load.vnum = trigger->script->vnum;
                 }
 
                 // Resolve widevnum trigger phrases
@@ -1731,12 +1786,23 @@ void fix_instanceprogs(void)
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
                         trigger->script = NULL;
-                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                        if (trigger->script_is_widevnum) {
+                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                            if (sArea)
+                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_IPROG);
+                        }
+                        if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_IPROG);
 
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
                             exit(1);
+                        }
+
+                        if (!trigger->script_is_widevnum && trigger->script->area) {
+                            trigger->script_is_widevnum = true;
+                            trigger->script_load.auid = trigger->script->area->uid;
+                            trigger->script_load.vnum = trigger->script->vnum;
                         }
 
                         // Resolve widevnum trigger phrases
@@ -1768,12 +1834,23 @@ void fix_dungeonprogs(void)
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
                         trigger->script = NULL;
-                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                        if (trigger->script_is_widevnum) {
+                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
+                            if (sArea)
+                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_DPROG);
+                        }
+                        if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_DPROG);
 
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
                             exit(1);
+                        }
+
+                        if (!trigger->script_is_widevnum && trigger->script->area) {
+                            trigger->script_is_widevnum = true;
+                            trigger->script_load.auid = trigger->script->area->uid;
+                            trigger->script_load.vnum = trigger->script->vnum;
                         }
 
                         // Resolve widevnum trigger phrases

@@ -32,6 +32,7 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
 
 extern bool redit_blueprint_oncreate;
 extern bool change_exit(CHAR_DATA *ch, char *argument, int door);
@@ -276,7 +277,7 @@ REDIT(redit_show)
         add_buf(buf1, "    {W(None set){x\n\r");
 
     if (pRoom->progs->progs)
-        olc_show_progs(buf1, pRoom->progs->progs, PRG_RPROG, "RoomProg Vnum");
+        olc_show_progs_grouped(buf1, pRoom->progs->progs, PRG_RPROG, "RoomProg Vnum");
 
     if (pRoom->index_vars)
         olc_show_index_vars(buf1, pRoom->index_vars);
@@ -1693,8 +1694,15 @@ REDIT (redit_addrprog)
     // Make sure this has a list of progs!
     if(!pRoom->progs->progs) pRoom->progs->progs = new_prog_bank();
 
+    if (edit_trigger_exists(pRoom->progs->progs, code, tindex, phrase)) {
+        send_to_char("That trigger/phrase pair is already attached to that script on this room.\n\r", ch);
+        return false;
+    }
+
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->vnum            = script_wnum.vnum;
+    list->script_is_widevnum = (script_wnum.pArea != NULL);
+    if (list->script_is_widevnum) { list->script_load.auid = script_wnum.pArea->uid; list->script_load.vnum = script_wnum.vnum; }
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     if (is_widevnum_format(phrase)) {
@@ -1718,39 +1726,71 @@ REDIT (redit_addrprog)
 REDIT (redit_delrprog)
 {
     ROOM_INDEX_DATA *pRoom;
-    char rprog[MAX_STRING_LENGTH];
-    long value;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    int group_idx, trig_idx;
+    PROG_GROUP groups[MAX_PROG_GROUPS];
+    int num_groups;
 
     EDIT_ROOM(ch, pRoom);
 
-    one_argument(argument, rprog);
-    if (rprog[0] == '\0')
-    {
-    send_to_char("Syntax:  delrprog [#rprog]\n\r",ch);
-    return false;
-    }
-
-    WNUM script_wnum;
-    if (!parse_widevnum(rprog, pRoom->area, &script_wnum)) {
-        send_to_char("Invalid script widevnum format.\n\r", ch);
+    if (!pRoom->progs->progs) {
+        send_to_char("This room has no programs attached.\n\r", ch);
         return false;
     }
 
-    value = script_wnum.vnum;
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
 
-    if (value < 0)
-    {
-    send_to_char("Only non-negative rprog-numbers allowed.\n\r",ch);
-    return false;
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax:  delrprog <group#>\n\r", ch);
+        send_to_char("         delrprog <group#> <trigger#>\n\r", ch);
+        return false;
     }
 
-    if(!edit_deltrigger(pRoom->progs->progs,value)) {
-    send_to_char("No such rprog.\n\r",ch);
-    return false;
+    if (!is_number(arg1)) {
+        send_to_char("Please specify a valid group number.\n\r", ch);
+        return false;
     }
 
-    send_to_char("Rprog removed.\n\r", ch);
-    return true;
+    group_idx = atoi(arg1);
+    num_groups = prog_build_groups(pRoom->progs->progs, groups, MAX_PROG_GROUPS, PRG_RPROG);
+
+    if (group_idx < 1 || group_idx > num_groups) {
+        send_to_char("Invalid group number.\n\r", ch);
+        return false;
+    }
+
+    PROG_GROUP *group = &groups[group_idx - 1];
+
+    if (arg2[0] == '\0') {
+        // Delete entire group (all triggers for this script)
+        if (edit_delscript(pRoom->progs->progs, group->script)) {
+            send_to_char("Script group removed.\n\r", ch);
+            return true;
+        }
+    } else {
+        // Delete specific trigger within group
+        if (!is_number(arg2)) {
+            send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
+            return false;
+        }
+
+        trig_idx = atoi(arg2);
+        if (trig_idx < 1 || trig_idx > group->trigger_count) {
+            send_to_char("Invalid trigger number within that group.\n\r", ch);
+            return false;
+        }
+
+        PROG_GROUP_ENTRY *entry = &group->triggers[trig_idx - 1];
+        if (edit_deltrigger_specific(pRoom->progs->progs, group->script, entry->entry->trig_type, entry->entry->trig_phrase)) {
+            send_to_char("Trigger removed from script group.\n\r", ch);
+            return true;
+        }
+    }
+
+    send_to_char("No such program or trigger found.\n\r", ch);
+    return false;
 }
 
 REDIT(redit_addcdesc)

@@ -203,36 +203,89 @@ const char *format_ac_string(MOB_INDEX_DATA *pMob) {
 }
 
 
-
-void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
+int prog_build_groups(LLIST **progs, PROG_GROUP *groups, int max_groups, int type)
 {
-    char buf[MSL];
-    int cnt, slot;
+    int group_count = 0;
+    int slot;
 
-    for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-        if(list_size(progs[slot]) > 0) ++cnt;
+    for (slot = 0; slot < TRIGSLOT_MAX; slot++) {
+        ITERATOR it;
+        PROG_LIST *trigger;
+        iterator_start(&it, progs[slot]);
+        while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+            int i;
+            bool found = false;
 
-    if (cnt > 0) {
-        sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "Number", "Vnum      ", "Trigger", "Phrase", "Status      ", " Name");
-        add_buf(buffer, buf);
-
-        sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "------", "-----------", "-------", "------", "------------", " -----");
-        add_buf(buffer, buf);
-
-        for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-            ITERATOR it;
-            PROG_LIST *trigger;
-            SCRIPT_DATA *prog;
-            iterator_start(&it, progs[slot]);
-            while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                prog = get_script_index_global(trigger->vnum, type);                
-                sprintf(buf, "{C[{W%4d{C]{x %-12ld %-10s %-10s %-9s %-5s\n\r", cnt,
-                    trigger->vnum, trigger_name(trigger->trig_type),
-                    trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
-                add_buf(buffer, buf);
-                cnt++;
+            for (i = 0; i < group_count; i++) {
+                if (trigger->script && groups[i].script == trigger->script) {
+                    if (groups[i].trigger_count < MAX_PROG_GROUP_TRIGGERS) {
+                        groups[i].triggers[groups[i].trigger_count].entry = trigger;
+                        groups[i].triggers[groups[i].trigger_count].slot = slot;
+                        groups[i].trigger_count++;
+                    }
+                    found = true;
+                    break;
+                } else if (!trigger->script && groups[i].vnum == trigger->vnum) {
+                    if (groups[i].trigger_count < MAX_PROG_GROUP_TRIGGERS) {
+                        groups[i].triggers[groups[i].trigger_count].entry = trigger;
+                        groups[i].triggers[groups[i].trigger_count].slot = slot;
+                        groups[i].trigger_count++;
+                    }
+                    found = true;
+                    break;
+                }
             }
-            iterator_stop(&it);
+
+            if (!found && group_count < max_groups) {
+                groups[group_count].vnum = trigger->vnum;
+                groups[group_count].script = trigger->script
+                    ? trigger->script
+                    : get_script_index_global(trigger->vnum, type);
+                groups[group_count].triggers[0].entry = trigger;
+                groups[group_count].triggers[0].slot = slot;
+                groups[group_count].trigger_count = 1;
+                group_count++;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return group_count;
+}
+
+void olc_show_progs_grouped(BUFFER *buffer, LLIST **progs, int type, const char *title)
+{
+    PROG_GROUP groups[MAX_PROG_GROUPS];
+    int group_count;
+    int i, j;
+    char buf[MSL];
+
+    group_count = prog_build_groups(progs, groups, MAX_PROG_GROUPS, type);
+
+    if (group_count > 0) {
+        if (!IS_NULLSTR(title)) {
+            sprintf(buf, "{R%s{x\n\r", title);
+            add_buf(buffer, buf);
+        } else {
+            add_buf(buffer, "{RScripts:{x\n\r");
+        }
+
+        for (i = 0; i < group_count; i++) {
+            SCRIPT_DATA *prog = groups[i].script;
+            sprintf(buf, "{C[{W%2d{C] %-12s \"%-20s\" %s{x\n\r",
+                i + 1,
+                prog ? widevnum_string_script(prog, NULL) : formatf("%ld", groups[i].vnum),
+                prog ? prog->name : "Unknown",
+                olc_show_script_status(prog, type));
+            add_buf(buffer, buf);
+
+            for (j = 0; j < groups[i].trigger_count; j++) {
+                PROG_LIST *trigger = groups[i].triggers[j].entry;
+                sprintf(buf, "       {g%-10s {x%s\n\r",
+                    trigger_name(trigger->trig_type),
+                    trigger_phrase_olcshow(trigger->trig_type, trigger->trig_phrase, false, false));
+                add_buf(buffer, buf);
+            }
         }
     }
 }

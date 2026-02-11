@@ -32,6 +32,7 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
 
 AEDIT(aedit_show)
 {
@@ -186,7 +187,7 @@ AEDIT(aedit_show)
 
 
     if (pArea->progs->progs)
-        olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
+        olc_show_progs_grouped(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
 
     if (pArea->index_vars)
         olc_show_index_vars(buffer, pArea->index_vars);
@@ -1169,8 +1170,15 @@ AEDIT (aedit_addaprog)
     // Make sure this has a list of progs!
     if(!pArea->progs->progs) pArea->progs->progs = new_prog_bank();
 
+    if (edit_trigger_exists(pArea->progs->progs, code, tindex, phrase)) {
+        send_to_char("That trigger/phrase pair is already attached to that script on this area.\n\r", ch);
+        return false;
+    }
+
     list                  = new_trigger();
     list->vnum            = script_wnum.vnum;
+    list->script_is_widevnum = (script_wnum.pArea != NULL);
+    if (list->script_is_widevnum) { list->script_load.auid = script_wnum.pArea->uid; list->script_load.vnum = script_wnum.vnum; }
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     if (is_widevnum_format(phrase)) {
@@ -1196,33 +1204,71 @@ AEDIT (aedit_addaprog)
 AEDIT (aedit_delaprog)
 {
     AREA_DATA *pArea;
-    char aprog[MAX_STRING_LENGTH];
-    int value;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    int group_idx, trig_idx;
+    PROG_GROUP groups[MAX_PROG_GROUPS];
+    int num_groups;
 
     EDIT_AREA(ch, pArea);
 
-    one_argument(argument, aprog);
-    if (!is_number(aprog) || aprog[0] == '\0')
-    {
-       send_to_char("Syntax:  delaprog [#aprog]\n\r",ch);
-       return false;
-    }
-
-    value = atol (aprog);
-
-    if (value < 0)
-    {
-        send_to_char("Only non-negative aprog-numbers allowed.\n\r",ch);
+    if (!pArea->progs->progs) {
+        send_to_char("This area has no programs attached.\n\r", ch);
         return false;
     }
 
-    if(!edit_deltrigger(pArea->progs->progs,value)) {
-    send_to_char("No such aprog.\n\r",ch);
-    return false;
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax:  delaprog <group#>\n\r", ch);
+        send_to_char("         delaprog <group#> <trigger#>\n\r", ch);
+        return false;
     }
 
-    send_to_char("Aprog removed.\n\r", ch);
-    return true;
+    if (!is_number(arg1)) {
+        send_to_char("Please specify a valid group number.\n\r", ch);
+        return false;
+    }
+
+    group_idx = atoi(arg1);
+    num_groups = prog_build_groups(pArea->progs->progs, groups, MAX_PROG_GROUPS, PRG_APROG);
+
+    if (group_idx < 1 || group_idx > num_groups) {
+        send_to_char("Invalid group number.\n\r", ch);
+        return false;
+    }
+
+    PROG_GROUP *group = &groups[group_idx - 1];
+
+    if (arg2[0] == '\0') {
+        // Delete entire group (all triggers for this script)
+        if (edit_delscript(pArea->progs->progs, group->script)) {
+            send_to_char("Script group removed.\n\r", ch);
+            return true;
+        }
+    } else {
+        // Delete specific trigger within group
+        if (!is_number(arg2)) {
+            send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
+            return false;
+        }
+
+        trig_idx = atoi(arg2);
+        if (trig_idx < 1 || trig_idx > group->trigger_count) {
+            send_to_char("Invalid trigger number within that group.\n\r", ch);
+            return false;
+        }
+
+        PROG_GROUP_ENTRY *entry = &group->triggers[trig_idx - 1];
+        if (edit_deltrigger_specific(pArea->progs->progs, group->script, entry->entry->trig_type, entry->entry->trig_phrase)) {
+            send_to_char("Trigger removed from script group.\n\r", ch);
+            return true;
+        }
+    }
+
+    send_to_char("No such program or trigger found.\n\r", ch);
+    return false;
 }
 
 AEDIT(aedit_varset)

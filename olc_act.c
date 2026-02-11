@@ -827,29 +827,109 @@ bool check_range(long lower, long upper)
     return true;
 }
 
-bool edit_deltrigger(LLIST **list, int index)
+/**
+ * Check if a script is attached to an entity.
+ */
+bool edit_script_attached(LLIST **progs, SCRIPT_DATA *script)
 {
-    PROG_LIST *trigger;
-    int slot;
-    ITERATOR it;
+    if (!progs || !script) return false;
 
-    if(list) {
-        for(slot = 0; slot < TRIGSLOT_MAX; slot++) {
-            iterator_start(&it, list[slot]);
-            while(( trigger = (PROG_LIST *)iterator_nextdata(&it) )) {
-                if(!index--) {
-                    iterator_remcurrent(&it);
-                    break;
-                }
-            }
-            iterator_stop(&it);
+    for (int slot = 0; slot < TRIGSLOT_MAX; slot++) {
+        if (!progs[slot]) continue;
 
-            if(trigger) {
-                free_trigger(trigger);
+        ITERATOR it;
+        PROG_LIST *trigger;
+        iterator_start(&it, progs[slot]);
+        while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+            if (trigger->script == script) {
+                iterator_stop(&it);
                 return true;
             }
         }
+        iterator_stop(&it);
     }
+
+    return false;
+}
+
+/**
+ * Check if a specific trigger (type + phrase) is already attached to an entity
+ * for a specific script.
+ */
+bool edit_trigger_exists(LLIST **progs, SCRIPT_DATA *script, int trig_type, const char *phrase)
+{
+    if (!progs || !script) return false;
+
+    int slot = trigger_table[trig_type].slot;
+    if (slot < 0 || slot >= TRIGSLOT_MAX || !progs[slot]) return false;
+
+    ITERATOR it;
+    PROG_LIST *trigger;
+    iterator_start(&it, progs[slot]);
+    while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+        if (trigger->script == script &&
+            trigger->trig_type == trig_type &&
+            !str_cmp(trigger->trig_phrase, phrase)) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
+}
+
+/**
+ * Delete all triggers for a specific script attached to an entity.
+ */
+bool edit_delscript(LLIST **progs, SCRIPT_DATA *script)
+{
+    if (!progs || !script) return false;
+
+    bool found = false;
+    for (int slot = 0; slot < TRIGSLOT_MAX; slot++) {
+        if (!progs[slot]) continue;
+
+        ITERATOR it;
+        PROG_LIST *trigger;
+        iterator_start(&it, progs[slot]);
+        while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+            if (trigger->script == script) {
+                iterator_remcurrent(&it);
+                free_trigger(trigger);
+                found = true;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return found;
+}
+
+/**
+ * Delete a specific trigger (type + phrase) for a specific script attached to an entity.
+ */
+bool edit_deltrigger_specific(LLIST **progs, SCRIPT_DATA *script, int trig_type, const char *phrase)
+{
+    if (!progs || !script) return false;
+
+    int slot = trigger_table[trig_type].slot;
+    if (slot < 0 || slot >= TRIGSLOT_MAX || !progs[slot]) return false;
+
+    ITERATOR it;
+    PROG_LIST *trigger;
+    iterator_start(&it, progs[slot]);
+    while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+        if (trigger->script == script &&
+            trigger->trig_type == trig_type &&
+            !str_cmp(trigger->trig_phrase, phrase)) {
+            iterator_remcurrent(&it);
+            free_trigger(trigger);
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
 
     return false;
 }

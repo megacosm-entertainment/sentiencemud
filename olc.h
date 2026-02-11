@@ -152,7 +152,12 @@ bool show_help( CHAR_DATA *ch, char *argument );
 bool show_version( CHAR_DATA *ch, char *argument );
 int cd_phrase_lookup( int condition, char *phrase );
 void add_reset( ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index );
-bool edit_deltrigger(LLIST **list, int index);
+
+/* Script management helpers (olc_act.c) */
+bool edit_script_attached(LLIST **progs, SCRIPT_DATA *script);
+bool edit_trigger_exists(LLIST **progs, SCRIPT_DATA *script, int trig_type, const char *phrase);
+bool edit_delscript(LLIST **progs, SCRIPT_DATA *script);
+bool edit_deltrigger_specific(LLIST **progs, SCRIPT_DATA *script, int trig_type, const char *phrase);
 
 
 /*
@@ -661,7 +666,6 @@ char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
 
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
 bool check_range(long lower, long upper);
-void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title);
 
 #define RSGEDIT( fun )           bool fun(CHAR_DATA *ch, char*argument)
 

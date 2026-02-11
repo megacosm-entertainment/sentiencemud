@@ -7284,7 +7284,9 @@ struct prog_list
     bool		trig_is_widevnum;	// true if phrase was widevnum format (auid#vnum)
     WNUM_LOAD	trig_load;		// Persistent: area UID + vnum (widevnum triggers only)
     WNUM		trig_wnum;		// Runtime: area pointer + vnum (resolved at boot)
-    long		vnum;
+    long		vnum;			// Script vnum (bare, legacy fallback)
+    bool		script_is_widevnum;	// true if loaded from widevnum format
+    WNUM_LOAD	script_load;		// Persistent: area UID + vnum for script
     SCRIPT_DATA *	script;		/* @@@NIB : 20070123  */
     PROG_LIST *	next;
     bool		valid;

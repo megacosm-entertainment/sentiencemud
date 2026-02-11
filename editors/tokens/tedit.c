@@ -172,7 +172,7 @@ static void tedit_show_scripts(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_inde
     add_buf(ctx->buffer, "{YAttached Token Programs:{x\n\r\n\r");
 
     if (token_index->progs) {
-        olc_show_progs(ctx->buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
+        olc_show_progs_grouped(ctx->buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
     } else {
         add_buf(ctx->buffer, "   {D(none){x\n\r");
     }
@@ -916,8 +916,15 @@ TEDIT (tedit_addtprog)
     return false;
     }
 
+    if (edit_trigger_exists(token_index->progs, code, tindex, phrase)) {
+        send_to_char("That trigger/phrase pair is already attached to that script on this token.\n\r", ch);
+        return false;
+    }
+
     list                  = new_trigger();
     list->vnum            = script_wnum.vnum;
+    list->script_is_widevnum = (script_wnum.pArea != NULL);
+    if (list->script_is_widevnum) { list->script_load.auid = script_wnum.pArea->uid; list->script_load.vnum = script_wnum.vnum; }
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
     if (is_widevnum_format(phrase)) {
@@ -941,33 +948,71 @@ TEDIT (tedit_addtprog)
 TEDIT (tedit_deltprog)
 {
     TOKEN_INDEX_DATA *token_index;
-    char tprog[MAX_STRING_LENGTH];
-    int value;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    int group_idx, trig_idx;
+    PROG_GROUP groups[MAX_PROG_GROUPS];
+    int num_groups;
 
     EDIT_TOKEN(ch, token_index);
 
-    one_argument(argument, tprog);
-    if (!is_number(tprog) || tprog[0] == '\0')
-    {
-       send_to_char("Syntax:  delmprog [#mprog]\n\r",ch);
-       return false;
-    }
-
-    value = atol (tprog);
-
-    if (value < 0)
-    {
-        send_to_char("Only non-negative tprog-numbers allowed.\n\r",ch);
+    if (!token_index->progs) {
+        send_to_char("This token has no programs attached.\n\r", ch);
         return false;
     }
 
-    if(!edit_deltrigger(token_index->progs,value)) {
-    send_to_char("No such mprog.\n\r",ch);
-    return false;
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax:  deltprog <group#>\n\r", ch);
+        send_to_char("         deltprog <group#> <trigger#>\n\r", ch);
+        return false;
     }
 
-    send_to_char("Tprog removed.\n\r", ch);
-    return true;
+    if (!is_number(arg1)) {
+        send_to_char("Please specify a valid group number.\n\r", ch);
+        return false;
+    }
+
+    group_idx = atoi(arg1);
+    num_groups = prog_build_groups(token_index->progs, groups, MAX_PROG_GROUPS, PRG_TPROG);
+
+    if (group_idx < 1 || group_idx > num_groups) {
+        send_to_char("Invalid group number.\n\r", ch);
+        return false;
+    }
+
+    PROG_GROUP *group = &groups[group_idx - 1];
+
+    if (arg2[0] == '\0') {
+        // Delete entire group (all triggers for this script)
+        if (edit_delscript(token_index->progs, group->script)) {
+            send_to_char("Script group removed.\n\r", ch);
+            return true;
+        }
+    } else {
+        // Delete specific trigger within group
+        if (!is_number(arg2)) {
+            send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
+            return false;
+        }
+
+        trig_idx = atoi(arg2);
+        if (trig_idx < 1 || trig_idx > group->trigger_count) {
+            send_to_char("Invalid trigger number within that group.\n\r", ch);
+            return false;
+        }
+
+        PROG_GROUP_ENTRY *entry = &group->triggers[trig_idx - 1];
+        if (edit_deltrigger_specific(token_index->progs, group->script, entry->entry->trig_type, entry->entry->trig_phrase)) {
+            send_to_char("Trigger removed from script group.\n\r", ch);
+            return true;
+        }
+    }
+
+    send_to_char("No such program or trigger found.\n\r", ch);
+    return false;
 }
 
 TEDIT(tedit_varset)

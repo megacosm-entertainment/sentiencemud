@@ -16,6 +16,7 @@
 #include "../../scripts.h"
 #include "json_area.h"
 #include "../cache/redis_cache.h"
+#include "../../editors/common.h"
 
 #include "../../wilds.h"
 
@@ -3745,57 +3746,75 @@ json_t *json_area_serialize_progs(LLIST **progs, AREA_DATA *area)
     json_t *array = json_array();
     if (!array) return NULL;
     
-    int slot, count = 0;
+    SCRIPT_DATA *group_scripts[MAX_PROG_GROUPS];
+    json_t *group_objects[MAX_PROG_GROUPS];
+    json_t *group_triggers[MAX_PROG_GROUPS];
+    int group_count = 0;
+    int slot;
     ITERATOR it;
     PROG_LIST *trigger;
     
-    /* Iterate through all 15 trigger slots */
     for (slot = 0; slot < TRIGSLOT_MAX; slot++) {
         if (!progs[slot] || list_size(progs[slot]) == 0)
             continue;
             
         iterator_start(&it, progs[slot]);
         while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-            json_t *prog_json = json_object();
-            if (!prog_json) continue;
-            
-            /* Script vnum */
-            json_object_set_new(prog_json, "vnum", json_integer(trigger->vnum));
-            
-            /* Trigger type name (human-readable) */
-            const char *trigger_name = (trigger->trig_type >= 0 && trigger->trig_type < trigger_table_size) 
+            const char *trig_name = (trigger->trig_type >= 0 && trigger->trig_type < trigger_table_size) 
                 ? trigger_table[trigger->trig_type].name : "unknown";
-            json_object_set_new(prog_json, "trigger", json_string(trigger_name));
-            
-            /* Trigger phrase */
             const char *phrase = trigger->trig_phrase ? trigger->trig_phrase : "";
-            json_object_set_new(prog_json, "phrase", json_string(phrase));
             
-            /* Numeric flag and number (for optimization) */
-            json_object_set_new(prog_json, "numeric", trigger->numeric ? json_true() : json_false());
-            if (trigger->numeric)
-                json_object_set_new(prog_json, "number", json_integer(trigger->trig_number));
+            json_t *trig_json = json_object();
+            if (!trig_json) continue;
+            json_object_set_new(trig_json, "type", json_string(trig_name));
+            json_object_set_new(trig_json, "phrase", json_string(phrase));
             
-            json_array_append_new(array, prog_json);
-            count++;
+            int gi;
+            bool found = false;
+            for (gi = 0; gi < group_count; gi++) {
+                if (group_scripts[gi] == trigger->script) {
+                    json_array_append_new(group_triggers[gi], trig_json);
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found && group_count < MAX_PROG_GROUPS) {
+                json_t *prog_json = json_object();
+                if (!prog_json) { json_decref(trig_json); continue; }
+                
+                json_t *triggers_arr = json_array();
+                if (trigger->script && trigger->script->area)
+                    json_object_set_new(prog_json, "vnum", json_string(widevnum_string_script(trigger->script, NULL)));
+                else
+                    json_object_set_new(prog_json, "vnum", json_integer(trigger->vnum));
+                json_object_set_new(prog_json, "triggers", triggers_arr);
+                json_array_append_new(triggers_arr, trig_json);
+                
+                group_scripts[group_count] = trigger->script;
+                group_objects[group_count] = prog_json;
+                group_triggers[group_count] = triggers_arr;
+                group_count++;
+            }
         }
         iterator_stop(&it);
     }
     
-    /* Return NULL if no progs were serialized */
-    if (count == 0) {
+    if (group_count == 0) {
         json_decref(array);
         return NULL;
+    }
+    
+    int gi;
+    for (gi = 0; gi < group_count; gi++) {
+        json_array_append_new(array, group_objects[gi]);
     }
     
     return array;
 }
 
-LLIST **json_area_deserialize_progs(json_t *json, AREA_DATA *area, int prog_type)
+static LLIST **json_area_deserialize_progs_flat(json_t *json, AREA_DATA *area, int prog_type)
 {
-    if (!json || !json_is_array(json))
-        return NULL;
-    
     LLIST **progs = new_prog_bank();
     if (!progs) return NULL;
     
@@ -3806,24 +3825,21 @@ LLIST **json_area_deserialize_progs(json_t *json, AREA_DATA *area, int prog_type
         long vnum = json_get_int_default(prog_json, "vnum", 0);
         if (vnum == 0) continue;
         
-        const char *trigger_name = json_get_string_default(prog_json, "trigger", "");
+        const char *trig_name = json_get_string_default(prog_json, "trigger", "");
         const char *phrase = json_get_string_default(prog_json, "phrase", "");
         
-        /* Look up trigger type */
-        int tindex = trigger_index((char *)trigger_name, prog_type);
+        int tindex = trigger_index((char *)trig_name, prog_type);
         if (tindex < 0) {
-            log_stringf("json_area_deserialize_progs: unknown trigger type '%s'", trigger_name);
+            log_stringf("json_area_deserialize_progs: unknown trigger type '%s'", trig_name);
             continue;
         }
         
-        /* Get trigger slot */
         int slot = trigger_table[tindex].slot;
         if (slot < 0 || slot >= TRIGSLOT_MAX) {
-            log_stringf("json_area_deserialize_progs: invalid slot %d for trigger '%s'", slot, trigger_name);
+            log_stringf("json_area_deserialize_progs: invalid slot %d for trigger '%s'", slot, trig_name);
             continue;
         }
         
-        /* Create new trigger */
         PROG_LIST *trigger = new_trigger();
         trigger->vnum = vnum;
         trigger->trig_type = tindex;
@@ -3840,14 +3856,102 @@ LLIST **json_area_deserialize_progs(json_t *json, AREA_DATA *area, int prog_type
                 atoi(phrase);
         }
         
-        /* Script will be linked in fix_*progs() functions during boot */
         trigger->script = NULL;
-        
-        /* Add to appropriate slot */
         list_appendlink(progs[slot], trigger);
     }
     
     return progs;
+}
+
+static LLIST **json_area_deserialize_progs_grouped(json_t *json, AREA_DATA *area, int prog_type)
+{
+    LLIST **progs = new_prog_bank();
+    if (!progs) return NULL;
+    
+    size_t gindex;
+    json_t *group_json;
+    
+    json_array_foreach(json, gindex, group_json) {
+        json_t *vnum_json = json_object_get(group_json, "vnum");
+        if (!vnum_json) continue;
+        
+        WNUM_LOAD script_load = {0, 0};
+        long bare_vnum = 0;
+        bool has_widevnum = false;
+        
+        if (json_is_string(vnum_json)) {
+            const char *vnum_str = json_string_value(vnum_json);
+            if (is_widevnum_format(vnum_str)) {
+                parse_widevnum_load(vnum_str, &script_load);
+                bare_vnum = script_load.vnum;
+                has_widevnum = true;
+            } else {
+                bare_vnum = atol(vnum_str);
+            }
+        } else {
+            bare_vnum = json_integer_value(vnum_json);
+        }
+        if (bare_vnum == 0) continue;
+        
+        json_t *triggers_arr = json_object_get(group_json, "triggers");
+        if (!triggers_arr || !json_is_array(triggers_arr)) continue;
+        
+        size_t tindex_arr;
+        json_t *trig_json;
+        
+        json_array_foreach(triggers_arr, tindex_arr, trig_json) {
+            const char *trig_name = json_get_string_default(trig_json, "type", "");
+            const char *phrase = json_get_string_default(trig_json, "phrase", "");
+            
+            int tindex = trigger_index((char *)trig_name, prog_type);
+            if (tindex < 0) {
+                log_stringf("json_area_deserialize_progs: unknown trigger type '%s'", trig_name);
+                continue;
+            }
+            
+            int slot = trigger_table[tindex].slot;
+            if (slot < 0 || slot >= TRIGSLOT_MAX) {
+                log_stringf("json_area_deserialize_progs: invalid slot %d for trigger '%s'", slot, trig_name);
+                continue;
+            }
+            
+            PROG_LIST *trigger = new_trigger();
+            trigger->vnum = bare_vnum;
+            trigger->script_is_widevnum = has_widevnum;
+            trigger->script_load = script_load;
+            trigger->trig_type = tindex;
+            trigger->trig_phrase = str_dup(phrase);
+            if (is_widevnum_format(phrase)) {
+                trigger->numeric = true;
+                trigger->trig_is_widevnum = true;
+                parse_widevnum_load(phrase, &trigger->trig_load);
+                trigger->trig_number = (int)trigger->trig_load.vnum;
+            } else {
+                trigger->numeric = is_number((char *)phrase);
+                trigger->trig_number = atoi(phrase);
+            }
+            
+            trigger->script = NULL;
+            list_appendlink(progs[slot], trigger);
+        }
+    }
+    
+    return progs;
+}
+
+LLIST **json_area_deserialize_progs(json_t *json, AREA_DATA *area, int prog_type)
+{
+    if (!json || !json_is_array(json))
+        return NULL;
+    
+    json_t *first = json_array_get(json, 0);
+    if (!first)
+        return NULL;
+    
+    if (json_object_get(first, "triggers"))
+        return json_area_deserialize_progs_grouped(json, area, prog_type);
+    else
+        return json_area_deserialize_progs_flat(json, area, prog_type);
 }
 
 /***************************************************************************
