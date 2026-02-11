@@ -1549,7 +1549,11 @@ void fix_mobprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( mob->progs[slot] ) {
                     iterator_start(&it, mob->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_MPROG);
+                        WNUM script_wnum;
+                        trigger->script = NULL;
+                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                            trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_MPROG);
+
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
                             exit(1);
@@ -1582,7 +1586,11 @@ void fix_objprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( obj->progs[slot] ) {
                     iterator_start(&it, obj->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_OPROG);
+                        WNUM script_wnum;
+                        trigger->script = NULL;
+                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                            trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_OPROG);
+
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
                             exit(1);
@@ -1614,7 +1622,11 @@ void fix_roomprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( room->progs->progs[slot] ) {
                     iterator_start(&it, room->progs->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_RPROG);
+                        WNUM script_wnum;
+                        trigger->script = NULL;
+                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                            trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_RPROG);
+
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
                             exit(1);
@@ -1717,7 +1729,11 @@ void fix_instanceprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( blueprint->progs[slot] ) {
                     iterator_start(&it, blueprint->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_IPROG);
+                        WNUM script_wnum;
+                        trigger->script = NULL;
+                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                            trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_IPROG);
+
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
                             exit(1);
@@ -1750,7 +1766,11 @@ void fix_dungeonprogs(void)
                 for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( dungeon_index->progs[slot] ) {
                     iterator_start(&it, dungeon_index->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                        trigger->script = get_script_index(pArea, trigger->vnum, PRG_DPROG);
+                        WNUM script_wnum;
+                        trigger->script = NULL;
+                        if (resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                            trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_DPROG);
+
                         if (!trigger->script) {
                             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
                             exit(1);
