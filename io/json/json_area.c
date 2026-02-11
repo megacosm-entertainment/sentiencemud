@@ -4816,17 +4816,7 @@ void fix_shops(void)
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing shop stocks");
     
     for (area = area_first; area; area = area->next) {
-        int hash_index, hash_count;
-        
-        if ((area->max_vnum - area->min_vnum) >= MAX_KEY_HASH) {
-            hash_index = 0;
-            hash_count = MAX_KEY_HASH;
-        } else {
-            hash_index = area->min_vnum % MAX_KEY_HASH;
-            hash_count = area->max_vnum - area->min_vnum + 1;
-        }
-        
-        for (int j = 0; j < hash_count; j++) {
+        for (int j = 0; j < MAX_KEY_HASH; j++) {
             for (MOB_INDEX_DATA *mob = area->mob_index_hash[j]; mob; mob = mob->next) {
                 if (mob->vnum && mob->pShop) {
                     for (SHOP_STOCK_DATA *stock = mob->pShop->stock; stock; stock = stock->next) {
@@ -4929,8 +4919,7 @@ void fix_shops(void)
                 }
             }
             
-            if (++hash_index == MAX_KEY_HASH)
-                hash_index = 0;
+
         }
     }
 }
