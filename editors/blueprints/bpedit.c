@@ -968,7 +968,8 @@ BPEDIT( bpedit_static )
                 return false;
             }
 
-            BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
+            BLUEPRINT_SECTION_REF *bs_ref = list_nthdata(bp->sections, section);
+            BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
             WNUM room_wnum;
             AREA_DATA *context = strchr(arg4, '#') ? bp->area : NULL;
@@ -1034,6 +1035,7 @@ BPEDIT( bpedit_static )
 
         if( !str_prefix(arg2, "add") )
         {
+            BLUEPRINT_SECTION_REF *bs_ref;
             BLUEPRINT_SECTION *bs;
 
             argument = one_argument(argument, arg3);
@@ -1057,7 +1059,8 @@ BPEDIT( bpedit_static )
                 return false;
             }
 
-            bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section1);
+            bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, section1);
+            bs = bs_ref ? bs_ref->section : NULL;
             if( !get_section_link(bs, link1) )
             {
                 send_to_char("Link index out of range.\n\r", ch);
@@ -1070,7 +1073,8 @@ BPEDIT( bpedit_static )
                 return false;
             }
 
-            bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section2);
+            bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, section2);
+            bs = bs_ref ? bs_ref->section : NULL;
             if( !get_section_link(bs, link2) )
             {
                 send_to_char("Link index out of range.\n\r", ch);
@@ -1198,7 +1202,8 @@ BPEDIT( bpedit_static )
                     return false;
                 }
 
-                BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+                BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, section);
+                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
                 if( !get_section_link(bs, link) )
                 {
@@ -1274,7 +1279,8 @@ BPEDIT( bpedit_static )
                     return false;
                 }
 
-                BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+                BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, section);
+                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
                 if( !get_section_link(bs, link) )
                 {
