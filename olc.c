@@ -2691,73 +2691,71 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     EXTRA_DESCR_DATA *new_ed;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
-    long old_v;
-    long new_v;
+    WNUM wnum_old, wnum_new;
     int iHash;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    old_v = atol(arg);
-    new_v = atol(arg2);
-
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: rcopy <old_vnum> <new_vnum>\n\r", ch);
-    return;
+	return;
     }
 
-    WNUM old_wnum;
-    if (!resolve_widevnum(old_v, NULL, &old_wnum) || get_room_index(old_wnum.pArea, old_wnum.vnum) == NULL)
+    if (!parse_widevnum(arg, ch->in_room->area, &wnum_old))
     {
-     send_to_char("That room doesn't exist.\n\r", ch);
-    return;
+        send_to_char("Invalid source vnum format.\n\r", ch);
+	return;
     }
 
-    WNUM new_wnum;
-    if (resolve_widevnum(new_v, NULL, &new_wnum) && get_room_index(new_wnum.pArea, new_wnum.vnum) != NULL)
+    if (!parse_widevnum(arg2, ch->in_room->area, &wnum_new))
     {
-     send_to_char("That room vnum is already taken.\n\r", ch);
-    return;
+        send_to_char("Invalid target vnum format.\n\r", ch);
+	return;
     }
 
-    area = get_vnum_area(old_v);
-    if (!IS_BUILDER(ch, area))
+    if ((old_room = get_room_index(wnum_old.pArea, wnum_old.vnum)) == NULL)
+    {
+        send_to_char("That room doesn't exist.\n\r", ch);
+	return;
+    }
+
+    if (get_room_index(wnum_new.pArea, wnum_new.vnum) != NULL)
+    {
+        send_to_char("That room vnum is already taken.\n\r", ch);
+	return;
+    }
+
+    if (!IS_BUILDER(ch, wnum_old.pArea))
     {
         send_to_char("You're not a builder in that area, so you can't "
              "copy from it.\n\r", ch);
-    return;
+	return;
     }
 
-    area = get_vnum_area(new_v);
-    if (area == NULL)
-    {
-        send_to_char("That vnum is not assigned an area.\n\r", ch);
-    return;
-    }
+    area = wnum_new.pArea;
 
     if (!IS_BUILDER(ch, area))
     {
         send_to_char("You can't build in that area.\n\r", ch);
-    return;
+	return;
     }
 
     edit_done(ch);
 
     ch->pcdata->immortal->last_olc_command = current_time;
-    AREA_DATA *old_area = find_area_by_vnum(old_v, NULL);
-    if (!old_area) old_area = get_system_area_fallback();
-    old_room = get_room_index(old_area, old_v);
+    old_room = get_room_index(wnum_old.pArea, wnum_old.vnum);
     new_room = new_room_index();
 
     new_room->area                 = area;
     list_appendlink(area->room_list, new_room);	// Add to the area room list
 
-    new_room->vnum                 = new_v;
-    if (new_v > top_vnum_room)
-        top_vnum_room = new_v;
+    new_room->vnum                 = wnum_new.vnum;
+    if (wnum_new.vnum > top_vnum_room)
+        top_vnum_room = wnum_new.vnum;
 
-    iHash                       = new_v % MAX_KEY_HASH;
+    iHash                       = wnum_new.vnum % MAX_KEY_HASH;
     new_room->next              = room_index_hash[iHash];
     room_index_hash[iHash]      = new_room;
     ch->desc->pEdit             = (void *)new_room;
@@ -2802,8 +2800,7 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
     MOB_INDEX_DATA *new_mob;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
-    long old_v;
-    long new_v;
+    WNUM wnum_old, wnum_new;
     int iHash;
 
     argument = one_argument(argument, arg);
@@ -2811,57 +2808,60 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-    send_to_char("Syntax: mcopy <old_vnum> <new_vnum>\n\r", ch);
-    return;
+	send_to_char("Syntax: mcopy <old_vnum> <new_vnum>\n\r", ch);
+	return;
     }
 
-    old_v = atol(arg);
-    new_v = atol(arg2);
-
-    if ((old_mob = get_mob_index((find_area_by_vnum(old_v, NULL) ?: get_system_area_fallback()), old_v)) == NULL)
+    if (!parse_widevnum(arg, ch->in_room->area, &wnum_old))
     {
-    send_to_char("That mob doesn't exist.\n\r", ch);
-    return;
+	send_to_char("Invalid source vnum format.\n\r", ch);
+	return;
     }
 
-    if (get_mob_index((find_area_by_vnum(new_v, NULL) ?: get_system_area_fallback()), new_v) != NULL)
+    if (!parse_widevnum(arg2, ch->in_room->area, &wnum_new))
+    {
+	send_to_char("Invalid target vnum format.\n\r", ch);
+	return;
+    }
+
+    if ((old_mob = get_mob_index(wnum_old.pArea, wnum_old.vnum)) == NULL)
+    {
+	send_to_char("That mob doesn't exist.\n\r", ch);
+	return;
+    }
+
+    if (get_mob_index(wnum_new.pArea, wnum_new.vnum) != NULL)
     {
         send_to_char("That mob vnum is already taken.\n\r", ch);
-    return;
+	return;
     }
 
-    area = get_vnum_area(old_v);
-    if (!IS_BUILDER(ch, area))
+    if (!IS_BUILDER(ch, wnum_old.pArea))
     {
-    send_to_char("You're not a builder in that area, so you can't "
+	send_to_char("You're not a builder in that area, so you can't "
                      "copy from it.\n\r", ch);
-    return;
+	return;
     }
 
-    area = get_vnum_area(new_v);
-    if (area == NULL)
-    {
-    send_to_char("That vnum is not assigned an area.\n\r", ch);
-    return;
-    }
+    area = wnum_new.pArea;
 
     if (!IS_BUILDER(ch, area))
     {
-    send_to_char("You can't build in that area.\n\r", ch);
-    return;
+	send_to_char("You can't build in that area.\n\r", ch);
+	return;
     }
 
     edit_done(ch);
 
     ch->pcdata->immortal->last_olc_command = current_time;
     new_mob       = new_mob_index();
-    new_mob->vnum = new_v;
+    new_mob->vnum = wnum_new.vnum;
     new_mob->area = area;
 
-    if (new_v > top_vnum_mob)
-        top_vnum_mob = new_v;
+    if (wnum_new.vnum > top_vnum_mob)
+        top_vnum_mob = wnum_new.vnum;
 
-    iHash			= new_v % MAX_KEY_HASH;
+    iHash			= wnum_new.vnum % MAX_KEY_HASH;
     new_mob->next		= mob_index_hash[iHash];
     mob_index_hash[iHash]	= new_mob;
     ch->desc->pEdit		= (void *)new_mob;
@@ -2933,8 +2933,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     int i;
-    long old_v;
-    long new_v;
+    WNUM wnum_old, wnum_new;
     int iHash;
 
     argument = one_argument(argument, arg);
@@ -2943,56 +2942,59 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
         send_to_char("Syntax: ocopy <old_vnum> <new_vnum>\n\r", ch);
-    return;
+	return;
     }
 
-    old_v = atol(arg);
-    new_v = atol(arg2);
+    if (!parse_widevnum(arg, ch->in_room->area, &wnum_old))
+    {
+        send_to_char("Invalid source vnum format.\n\r", ch);
+	return;
+    }
 
-    if ((old_obj = get_obj_index((find_area_by_vnum(old_v, NULL) ?: get_system_area_fallback()), old_v)) == NULL)
+    if (!parse_widevnum(arg2, ch->in_room->area, &wnum_new))
+    {
+        send_to_char("Invalid target vnum format.\n\r", ch);
+	return;
+    }
+
+    if ((old_obj = get_obj_index(wnum_old.pArea, wnum_old.vnum)) == NULL)
     {
         send_to_char("That obj doesn't exist.\n\r", ch);
-    return;
+	return;
     }
 
-    if (get_obj_index((find_area_by_vnum(new_v, NULL) ?: get_system_area_fallback()), new_v) != NULL)
+    if (get_obj_index(wnum_new.pArea, wnum_new.vnum) != NULL)
     {
         send_to_char("That obj vnum is already taken.\n\r", ch);
-    return;
+	return;
     }
 
-    area = get_vnum_area(old_v);
-    if (!IS_BUILDER(ch, area))
+    if (!IS_BUILDER(ch, wnum_old.pArea))
     {
         send_to_char("You're not a builder in that area, so you can't "
             "copy from it.\n\r", ch);
-    return;
+	return;
     }
 
-    area = get_vnum_area(new_v);
-    if (area == NULL)
-    {
-        send_to_char("That vnum is not assigned an area.\n\r", ch);
-    return;
-    }
+    area = wnum_new.pArea;
 
     if (!IS_BUILDER(ch, area))
     {
-    send_to_char("You can't build in that area.\n\r", ch);
-    return;
+	send_to_char("You can't build in that area.\n\r", ch);
+	return;
     }
 
     edit_done(ch);
 
     ch->pcdata->immortal->last_olc_command = current_time;
     new_obj		= new_obj_index();
-    new_obj->vnum	= new_v;
+    new_obj->vnum	= wnum_new.vnum;
     new_obj->area	= area;
 
-    if (new_v > top_vnum_obj)
-        top_vnum_obj = new_v;
+    if (wnum_new.vnum > top_vnum_obj)
+        top_vnum_obj = wnum_new.vnum;
 
-    iHash			= new_v % MAX_KEY_HASH;
+    iHash			= wnum_new.vnum % MAX_KEY_HASH;
     new_obj->next		= obj_index_hash[iHash];
     obj_index_hash[iHash]	= new_obj;
     ch->desc->editor		= ED_OBJECT;
