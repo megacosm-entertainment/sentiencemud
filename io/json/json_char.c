@@ -32,6 +32,7 @@
 extern const struct flag_type act_flags[];
 extern const struct flag_type act2_flags[];
 extern const struct flag_type plr_flags[];
+extern const struct flag_type plr2_flags[];
 extern const struct flag_type affect_flags[];
 extern const struct flag_type affect2_flags[];
 extern const struct flag_type imm_flags[];
@@ -906,9 +907,14 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "sex", json_integer(ch->sex));
     json_object_set_new(basic, "body_type", json_integer(ch->body_type));
 
-    // **FIX #1: Save ALL character flags as human-readable arrays**
-    json_object_set_new(basic, "act_flags", flags_to_json_array(act_flags, ch->act[0]));
-    json_object_set_new(basic, "act2_flags", flags_to_json_array(act2_flags, ch->act[1]));
+    // Save act/plr flags as human-readable arrays using the correct table
+    if (ch->pcdata) {
+        json_object_set_new(basic, "plr_flags", flags_to_json_array(plr_flags, ch->act[0]));
+        json_object_set_new(basic, "plr2_flags", flags_to_json_array(plr2_flags, ch->act[1]));
+    } else {
+        json_object_set_new(basic, "act_flags", flags_to_json_array(act_flags, ch->act[0]));
+        json_object_set_new(basic, "act2_flags", flags_to_json_array(act2_flags, ch->act[1]));
+    }
     json_object_set_new(basic, "comm_flags", flags_to_json_array(comm_flags, ch->comm));
     if (ch->pcdata) {
         json_object_set_new(basic, "channel_flags", flags_to_json_array(channel_flags, ch->pcdata->channel_flags));
@@ -2380,23 +2386,42 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     ch->sex = json_integer_value(json_object_get(character, "sex"));
     ch->body_type = json_integer_value(json_object_get(character, "body_type"));
 
-    // **FIX #1: Load ALL character flags (prefer human-readable arrays, fall back to numeric)**
-    // Try loading from flag name arrays first
-    value = json_object_get(character, "act_flags");
-    if (value && json_is_array(value)) {
-        ch->act[0] = flags_from_json_array(act_flags, value);
-    } else {
-        // Fall back to numeric format for backward compatibility
-        value = json_object_get(character, "act");
-        if (value) ch->act[0] = json_integer_value(value);
-    }
+    // Load act/plr flags using the correct table for PCs vs NPCs
+    if (ch->pcdata) {
+        // PC: prefer plr_flags/plr2_flags arrays, fall back to numeric
+        value = json_object_get(character, "plr_flags");
+        if (value && json_is_array(value)) {
+            ch->act[0] = flags_from_json_array(plr_flags, value);
+        } else {
+            // Fall back to numeric (handles legacy files and old act_flags arrays)
+            value = json_object_get(character, "act");
+            if (value) ch->act[0] = json_integer_value(value);
+        }
 
-    value = json_object_get(character, "act2_flags");
-    if (value && json_is_array(value)) {
-        ch->act[1] = flags_from_json_array(act2_flags, value);
+        value = json_object_get(character, "plr2_flags");
+        if (value && json_is_array(value)) {
+            ch->act[1] = flags_from_json_array(plr2_flags, value);
+        } else {
+            value = json_object_get(character, "act2");
+            if (value) ch->act[1] = json_integer_value(value);
+        }
     } else {
-        value = json_object_get(character, "act2");
-        if (value) ch->act[1] = json_integer_value(value);
+        // NPC: use act_flags/act2_flags arrays, fall back to numeric
+        value = json_object_get(character, "act_flags");
+        if (value && json_is_array(value)) {
+            ch->act[0] = flags_from_json_array(act_flags, value);
+        } else {
+            value = json_object_get(character, "act");
+            if (value) ch->act[0] = json_integer_value(value);
+        }
+
+        value = json_object_get(character, "act2_flags");
+        if (value && json_is_array(value)) {
+            ch->act[1] = flags_from_json_array(act2_flags, value);
+        } else {
+            value = json_object_get(character, "act2");
+            if (value) ch->act[1] = json_integer_value(value);
+        }
     }
 
     value = json_object_get(character, "comm_flags");
