@@ -131,6 +131,8 @@ void login_read_imotd(DESCRIPTOR_DATA *d, char *argument);
 void login_read_motd(DESCRIPTOR_DATA *d, char *argument);
 void proceed_to_game(DESCRIPTOR_DATA *d);
 bool is_reconnecting(CHAR_DATA *ch);
+ACCOUNT_CHARACTER *find_most_recent_character(ACCOUNT_DATA *acct);
+bool set_default_character(ACCOUNT_DATA *acct, const char *char_name);
 
 /*
  * Main Nanny Dispatcher (stays in nanny.c)

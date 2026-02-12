@@ -55,6 +55,7 @@
 #include "io/json/json_char.h"
 #include "io/json/json_account.h"
 #include "traits.h"
+#include "account/preferences.h"
 
 /***************************************************************************
  * JSON Migration Control                                                  *
@@ -121,39 +122,11 @@
 #define VO_004_EX_INFURIATING	(J)
 
 
-// Version structures
+// Version structures removed — all pfiles migrated to JSON.
+// Legacy version migrations (< VERSION_PLAYER_010) have been retired.
 
-struct __player_data_version_008
-{
-    int invis_level;
-    int incog_level;
-};
-
-static void __init_player_versioning_008(struct __player_data_version_008 *data)
-{
-    data->invis_level = 0;
-    data->incog_level = 0;
-}
-
-#define OLD_LEVEL_MINIGOD		150
-#define OLD_LEVEL_GOD			151
-#define OLD_LEVEL_ASCENDANT		152
-#define OLD_LEVEL_SUPREMACY		153
-#define OLD_LEVEL_CREATOR		154
-#define OLD_LEVEL_IMPLEMENTOR	155
-
-struct __player_data_versioning
-{
-    struct __player_data_version_008 _008;
-};
-
-static void __init_player_versioning(struct __player_data_versioning *data)
-{
-    __init_player_versioning_008(&data->_008);
-}
-
-void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
-void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning );
+void fread_char(CHAR_DATA *ch, FILE *fp);
+void fix_character( CHAR_DATA *ch );
 
 
 // External functions
@@ -1069,10 +1042,8 @@ extern pVARIABLE variable_tail;
  * Load a char and inventory into a new ch structure.
  */
 // Internal function with load_full parameter
-static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_full)
+static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool load_full)
 {
-    struct __player_data_versioning __versioning;
-
     char strsave[MAX_INPUT_LENGTH];
     char buf[MSL];
     CHAR_DATA *ch;
@@ -1090,7 +1061,6 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
     long total_ms;
 
     gettimeofday(&start_time, NULL);
-    __init_player_versioning(&__versioning);
 
     ch = new_char();
     ch->pcdata = new_pcdata();
@@ -1222,7 +1192,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
             if (!str_cmp(word, "ENDLOCKER")) { section = NULL; continue; }
             
             if (!str_cmp(word, "PLAYER"))
-                fread_char(ch, fp, &__versioning);
+                fread_char(ch, fp);
             else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O")) {
                 obj = fread_obj_new(fp);
                 if (!obj) continue;
@@ -1385,7 +1355,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, char *name, bool load_ful
 
     // Fix char.
     if (found)
-        fix_character(ch, &__versioning);
+        fix_character(ch);
 
     /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
        to re-shift, so we have to switch it to none first. */
@@ -1487,14 +1457,14 @@ if (found && !IS_NPC(ch) &&
 }
 
 // Public wrapper - load full character data (inventory, equipment, skills, etc.)
-bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
+bool load_char_obj(DESCRIPTOR_DATA *d, const char *name)
 {
     return load_char_obj_internal(d, name, true);
 }
 
 // Public wrapper - load basic character data only (no inventory, equipment, skills)
 // Used for character menu display - defers heavy loading until game entry
-bool load_char_obj_basic(DESCRIPTOR_DATA *d, char *name)
+bool load_char_obj_basic(DESCRIPTOR_DATA *d, const char *name)
 {
     return load_char_obj_internal(d, name, false);
 }
@@ -1502,7 +1472,7 @@ bool load_char_obj_basic(DESCRIPTOR_DATA *d, char *name)
 /*
  * Read in a char.
  */
-void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning)
+void fread_char(CHAR_DATA *ch, FILE *fp)
 {
     AREA_DATA *pArea = NULL;
     char buf[MAX_STRING_LENGTH];
@@ -4736,7 +4706,7 @@ void cleanup_affects(OBJ_DATA *obj)
 
 #define HAS_ALL_BITS(a, b) (((a) & (b)) == (a))
 
-void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning )
+void fix_character( CHAR_DATA *ch )
 {
     int i;
     char buf[MSL];
@@ -4869,13 +4839,6 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
     ch->parts = ch->race ? (ch->race->parts & ~ch->lostparts) : 0;
     ch->lostparts = 0;
 
-    if (ch->version < 2)
-    {
-        group_add(ch,"global skills",false);
-        group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
-        ch->version = 2;
-    }
-
     /* make sure they have any new skills that have been added */
     if (ch->pcdata->class_mage != -1)		group_add(ch, class_table[ch->pcdata->class_mage].base_group, false);
     if (ch->pcdata->class_cleric != -1)		group_add(ch, class_table[ch->pcdata->class_cleric].base_group, false);
@@ -4886,33 +4849,6 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
     if (ch->pcdata->second_sub_class_cleric != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_cleric].default_group, false);
     if (ch->pcdata->second_sub_class_thief != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_thief].default_group, false);
     if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, false);
-
-    if (ch->version < 6)
-        ch->version = 6;
-
-    /* reset affects */
-    if (ch->version < 7)
-    {
-        if (IS_AFFECTED2(ch, AFF2_ENSNARE))
-            REMOVE_BIT(ch->affected_by[1], AFF2_ENSNARE);
-
-        if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
-            SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
-
-        ch->version = 7;
-    }
-
-    if (ch->version < 8)
-    {
-        REMOVE_BIT(ch->comm, COMM_NOAUTOWAR);
-        ch->version = 8;
-    }
-
-    if (ch->version < 10)
-    {
-        REMOVE_BIT(ch->act[0], PLR_PK);
-        ch->version = 10;
-    }
 
     if (IS_IMMORTAL(ch))
     {
@@ -4940,87 +4876,18 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
         REMOVE_BIT(ch->act[0], PLR_BUILDING);
     }
 
-    // Everyone with an expired locker rent as of this login point will have their locker rent auto-forgiven.
-    if( ch->version < VERSION_PLAYER_003)
-    {
-        if( ch->locker_rent > 0 )
-        {
-            struct tm *now_time;
-            struct tm *rent_time;
-
-            now_time = (struct tm *)localtime(&current_time);
-            rent_time = (struct tm *)localtime(&ch->locker_rent);
-
-            if( now_time > rent_time )
-            {
-                ch->locker_rent = current_time;
-                rent_time = (struct tm *)localtime(&ch->locker_rent);
-                rent_time->tm_mon += 1;
-                ch->locker_rent = (time_t) mktime(rent_time);
-            }
-        }
-        ch->version = VERSION_PLAYER_003;
+    /* VERSION_PLAYER_010: Migrate legacy bitfield state into preferences.
+     * Characters without explicit preferences get their current toggle,
+     * channel, prompt, wimpy, and scroll state snapshotted so account
+     * preference inheritance works correctly. */
+    if (ch->version < VERSION_PLAYER_010) {
+        pref_migrate_character(ch);
+        ch->version = VERSION_PLAYER_010;
     }
 
-    if( ch->version < VERSION_PLAYER_004 ) {
-        // Update all affects from object to include their wear slot
-        ch->version = VERSION_PLAYER_004;
-    }
-
-    if( ch->version < VERSION_PLAYER_005 )
-    {
-        if( IS_IMMORTAL(ch) )
-        {
-            // Give existing immortals HOLYWARP
-            SET_BIT(ch->act[1], PLR_HOLYWARP);
-        }
-
-        ch->version = VERSION_PLAYER_005;
-    }
-
-    if (ch->version < VERSION_PLAYER_007 )
-    {
-        SET_BIT(ch->act[1], PLR_COMPASS);
-        SET_BIT(ch->act[1], PLR_AUTOCAT);
-
-        ch->version = VERSION_PLAYER_007;
-    }
-
-    if (ch->tot_level >= OLD_LEVEL_MINIGOD)
-    {
-        switch(ch->tot_level)
-        {
-        default:					ch->pcdata->staff_rank = STAFF_IMMORTAL; break;
-        case OLD_LEVEL_ASCENDANT:	ch->pcdata->staff_rank = STAFF_ASCENDANT; break;
-        case OLD_LEVEL_SUPREMACY:	ch->pcdata->staff_rank = STAFF_SUPREMACY; break;
-        case OLD_LEVEL_CREATOR:		ch->pcdata->staff_rank = STAFF_CREATOR; break;
-        case OLD_LEVEL_IMPLEMENTOR:	ch->pcdata->staff_rank = STAFF_IMPLEMENTOR; break;
-        }
-    }
-    else
-        ch->pcdata->staff_rank = STAFF_PLAYER;
-
-    switch(__versioning->_008.invis_level)
-    {
-        default:					ch->invis_level = STAFF_PLAYER; break;
-        case OLD_LEVEL_MINIGOD:		ch->invis_level = STAFF_IMMORTAL; break;
-        case OLD_LEVEL_GOD:			ch->invis_level = STAFF_IMMORTAL; break;
-        case OLD_LEVEL_ASCENDANT:	ch->invis_level = STAFF_ASCENDANT; break;
-        case OLD_LEVEL_SUPREMACY:	ch->invis_level = STAFF_SUPREMACY; break;
-        case OLD_LEVEL_CREATOR:		ch->invis_level = STAFF_CREATOR; break;
-        case OLD_LEVEL_IMPLEMENTOR:	ch->invis_level = STAFF_IMPLEMENTOR; break;
-    }
-
-    switch(__versioning->_008.incog_level)
-    {
-        default:					ch->incog_level = STAFF_PLAYER; break;
-        case OLD_LEVEL_MINIGOD:		ch->incog_level = STAFF_IMMORTAL; break;
-        case OLD_LEVEL_GOD:			ch->incog_level = STAFF_IMMORTAL; break;
-        case OLD_LEVEL_ASCENDANT:	ch->incog_level = STAFF_ASCENDANT; break;
-        case OLD_LEVEL_SUPREMACY:	ch->incog_level = STAFF_SUPREMACY; break;
-        case OLD_LEVEL_CREATOR:		ch->incog_level = STAFF_CREATOR; break;
-        case OLD_LEVEL_IMPLEMENTOR:	ch->incog_level = STAFF_IMPLEMENTOR; break;
-    }
+    /* Future version-gated migrations go here:
+     * if (ch->version < VERSION_PLAYER_011) { ... ch->version = VERSION_PLAYER_011; }
+     */
 
     if (ch->pcdata != NULL) {
         if (ch->pronoun_he_she == NULL || ch->pronoun_he_she[0] == '\0') {
@@ -5045,8 +4912,6 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
         }
     }
 }
-
-
 
 
 bool missing_class(CHAR_DATA *ch)

@@ -21,6 +21,7 @@
 #include "../../recycle.h"
 #include "json_char.h"
 #include "json_persist.h"
+#include "../../account/preferences.h"
 #include "../cache/redis_cache.h"
 #include "../../wilds.h"
 
@@ -203,10 +204,13 @@ CHAR_INFO_CACHE *json_to_char_info(json_t *json)
 json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
 {
     json_t *json_obj, *contains_array, *affects_array, *extra_descr_array, *spells_array, *tokens_array;
+    json_t *catalysts_array;
     AFFECT_DATA *paf;
     EXTRA_DESCR_DATA *ed;
     SPELL_DATA *spell;
     TOKEN_DATA *token;
+    WAYPOINT_DATA *wp;
+    ITERATOR it;
     int i;
 
     if (!obj) {
@@ -309,6 +313,91 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
         json_object_set_new(json_obj, "material", json_string(obj->material));
     }
 
+    // Version and persistence
+    if (obj->version) {
+        json_object_set_new(json_obj, "version", json_integer(obj->version));
+    }
+    if (obj->persist) {
+        json_object_set_new(json_obj, "persist", json_boolean(obj->persist));
+    }
+
+    // Wear flags (if different from prototype)
+    if (obj->wear_flags != obj->pIndexData->wear_flags) {
+        json_object_set_new(json_obj, "wear_flags", json_integer(obj->wear_flags));
+    }
+
+    // Last wear location
+    if (obj->last_wear_loc != WEAR_NONE) {
+        json_object_set_new(json_obj, "last_wear_loc", json_integer(obj->last_wear_loc));
+    }
+
+    // Enchantment count
+    if (obj->num_enchanted > 0) {
+        json_object_set_new(json_obj, "num_enchanted", json_integer(obj->num_enchanted));
+    }
+
+    // Locker flag
+    if (obj->locker) {
+        json_object_set_new(json_obj, "locker", json_boolean(obj->locker));
+    }
+
+    // Old descriptions (pre-customize, for uncustomize command)
+    if (obj->old_name) {
+        json_object_set_new(json_obj, "old_name", json_string(obj->old_name));
+    }
+    if (obj->old_short_descr) {
+        json_object_set_new(json_obj, "old_short_descr", json_string(obj->old_short_descr));
+    }
+    if (obj->old_description) {
+        json_object_set_new(json_obj, "old_description", json_string(obj->old_description));
+    }
+    if (obj->old_full_description) {
+        json_object_set_new(json_obj, "old_full_description", json_string(obj->old_full_description));
+    }
+
+    // Loaded by / corpse ownership
+    if (obj->loaded_by) {
+        json_object_set_new(json_obj, "loaded_by", json_string(obj->loaded_by));
+    }
+    if (obj->owner_name) {
+        json_object_set_new(json_obj, "owner_name", json_string(obj->owner_name));
+    }
+    if (obj->owner_short) {
+        json_object_set_new(json_obj, "owner_short", json_string(obj->owner_short));
+    }
+
+    // Permanent extra flags (for tracking enchant/customize changes)
+    {
+        bool has_perm_extra = false;
+        for (i = 0; i < 4; i++) {
+            if (obj->extra_perm[i]) { has_perm_extra = true; break; }
+        }
+        if (has_perm_extra) {
+            json_t *perm_array = json_array();
+            for (i = 0; i < 4; i++) {
+                json_array_append_new(perm_array, json_integer(obj->extra_perm[i]));
+            }
+            json_object_set_new(json_obj, "extra_perm", perm_array);
+        }
+    }
+
+    // Permanent weapon flags
+    if (obj->item_type == ITEM_WEAPON && obj->weapon_flags_perm) {
+        json_object_set_new(json_obj, "weapon_flags_perm", json_integer(obj->weapon_flags_perm));
+    }
+
+    // Script creation tracking
+    if (obj->script_created) {
+        json_object_set_new(json_obj, "script_created", json_boolean(obj->script_created));
+        json_object_set_new(json_obj, "created_script_type", json_integer(obj->created_script_type));
+        if (obj->created_script_load.vnum) {
+            json_object_set_new(json_obj, "created_script_vnum", json_integer(obj->created_script_load.vnum));
+        }
+    }
+    if (obj->creation_time) {
+        json_object_set_new(json_obj, "creation_time", json_integer(obj->creation_time));
+    }
+
     // Extra descriptions
     extra_descr_array = json_array();
     for (ed = obj->extra_descr; ed; ed = ed->next) {
@@ -323,25 +412,34 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
         json_decref(extra_descr_array);
     }
 
-    // Affects
+    // Affects - use comprehensive format (where, group, custom_name)
     affects_array = json_array();
     for (paf = obj->affected; paf; paf = paf->next) {
-        json_t *aff = json_object();
-        json_object_set_new(aff, "type", json_integer(paf->type));
-        json_object_set_new(aff, "level", json_integer(paf->level));
-        json_object_set_new(aff, "duration", json_integer(paf->duration));
-        json_object_set_new(aff, "location", json_integer(paf->location));
-        json_object_set_new(aff, "modifier", json_integer(paf->modifier));
-        json_object_set_new(aff, "bitvector", json_integer(paf->bitvector));
-        if (paf->bitvector2) {
-            json_object_set_new(aff, "bitvector2", json_integer(paf->bitvector2));
+        json_t *aff = json_persist_affect_to_json(paf);
+        if (aff) {
+            json_array_append_new(affects_array, aff);
         }
-        json_array_append_new(affects_array, aff);
     }
     if (json_array_size(affects_array) > 0) {
         json_object_set_new(json_obj, "affects", affects_array);
     } else {
         json_decref(affects_array);
+    }
+
+    // Catalysts
+    catalysts_array = json_array();
+    for (paf = obj->catalyst; paf; paf = paf->next) {
+        json_t *cat = json_persist_affect_to_json(paf);
+        if (cat) {
+            json_object_set_new(cat, "catalyst_type",
+                json_string(flag_string(catalyst_types, paf->type)));
+            json_array_append_new(catalysts_array, cat);
+        }
+    }
+    if (json_array_size(catalysts_array) > 0) {
+        json_object_set_new(json_obj, "catalysts", catalysts_array);
+    } else {
+        json_decref(catalysts_array);
     }
 
     // Spells (for wands, staves, scrolls, potions)
@@ -357,6 +455,36 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
         json_object_set_new(json_obj, "spells", spells_array);
     } else {
         json_decref(spells_array);
+    }
+
+    // Lock state
+    if (obj->lock) {
+        json_t *lock_json = json_persist_lock_to_json(obj->lock);
+        if (lock_json) {
+            json_object_set_new(json_obj, "lock", lock_json);
+        }
+    }
+
+    // Waypoints
+    if (obj->waypoints && IS_VALID(obj->waypoints)) {
+        json_t *wp_array = json_array();
+        iterator_start(&it, obj->waypoints);
+        while ((wp = (WAYPOINT_DATA *)iterator_nextdata(&it))) {
+            json_t *wp_json = json_object();
+            json_object_set_new(wp_json, "w", json_integer(wp->w));
+            json_object_set_new(wp_json, "x", json_integer(wp->x));
+            json_object_set_new(wp_json, "y", json_integer(wp->y));
+            if (wp->name) {
+                json_object_set_new(wp_json, "name", json_string(wp->name));
+            }
+            json_array_append_new(wp_array, wp_json);
+        }
+        iterator_stop(&it);
+        if (json_array_size(wp_array) > 0) {
+            json_object_set_new(json_obj, "waypoints", wp_array);
+        } else {
+            json_decref(wp_array);
+        }
     }
 
     // Object tokens
@@ -703,6 +831,7 @@ static json_t *affects_to_json(CHAR_DATA *ch)
         json_object_set_new(aff, "location", json_integer(paf->location));
         json_object_set_new(aff, "modifier", json_integer(paf->modifier));
         json_object_set_new(aff, "bitvector", json_integer(paf->bitvector));
+        json_object_set_new(aff, "slot", json_integer(paf->slot));
 
         if (paf->bitvector2) {
             json_object_set_new(aff, "bitvector2", json_integer(paf->bitvector2));
@@ -728,7 +857,18 @@ static json_t *char_metadata_to_json(CHAR_DATA *ch)
     meta = json_object();
 
     // Format version
-    json_object_set_new(meta, "format_version", json_integer(2));
+    json_object_set_new(meta, "format_version", json_integer(3));
+
+    // Player data version (for migration tracking)
+    json_object_set_new(meta, "version", json_integer(VERSION_PLAYER));
+
+    // Character unique ID
+    if (ch->id[0] || ch->id[1]) {
+        json_t *char_id = json_array();
+        json_array_append_new(char_id, json_integer(ch->id[0]));
+        json_array_append_new(char_id, json_integer(ch->id[1]));
+        json_object_set_new(meta, "character_id", char_id);
+    }
 
     // Timestamps
     if (ch->pcdata) {
@@ -954,8 +1094,10 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     if (ch->pcdata) {
         json_object_set_new(basic, "title", json_string(ch->pcdata->title ? ch->pcdata->title : ""));
         json_object_set_new(basic, "description", json_string(ch->description ? ch->description : ""));
-        json_object_set_new(basic, "played_hours", json_integer(ch->played + (int)(current_time - ch->logon) / 3600));
+        // Save playtime in seconds (raw value, not divided by 3600)
+        json_object_set_new(basic, "played", json_integer(ch->played + (int)(current_time - ch->logon)));
         json_object_set_new(basic, "last_login", json_integer(ch->pcdata->last_login));
+        json_object_set_new(basic, "last_logoff", json_integer(ch->pcdata->last_logoff));
 
         // *** BANK BALANCE - CRITICAL! ***
         json_object_set_new(basic, "bankbalance", json_integer(ch->pcdata->bankbalance));
@@ -965,11 +1107,51 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(basic, "last_level", json_integer(ch->pcdata->last_level));
         json_object_set_new(basic, "quests_completed", json_integer(ch->pcdata->quests_completed));
         json_object_set_new(basic, "security", json_integer(ch->pcdata->security));
+        json_object_set_new(basic, "staff_rank", json_integer(ch->pcdata->staff_rank));
+        json_object_set_new(basic, "class_current", json_integer(ch->pcdata->class_current));
+        json_object_set_new(basic, "sub_class_current", json_integer(ch->pcdata->sub_class_current));
+        json_object_set_new(basic, "challenge_delay", json_integer(ch->pcdata->challenge_delay));
+        json_object_set_new(basic, "need_change_pw", json_integer(ch->pcdata->need_change_pw));
+        json_object_set_new(basic, "danger_range", json_integer(ch->pcdata->danger_range));
+
+        // Note read timestamps
+        json_object_set_new(basic, "last_note", json_integer(ch->pcdata->last_note));
+        json_object_set_new(basic, "last_idea", json_integer(ch->pcdata->last_idea));
+        json_object_set_new(basic, "last_penalty", json_integer(ch->pcdata->last_penalty));
+        json_object_set_new(basic, "last_news", json_integer(ch->pcdata->last_news));
+        json_object_set_new(basic, "last_changes", json_integer(ch->pcdata->last_changes));
+        json_object_set_new(basic, "last_project_inquiry", json_integer(ch->pcdata->last_project_inquiry));
+
+        // Pre-level vitals snapshot
+        json_object_set_new(basic, "hit_before", json_integer(ch->pcdata->hit_before));
+        json_object_set_new(basic, "mana_before", json_integer(ch->pcdata->mana_before));
+        json_object_set_new(basic, "move_before", json_integer(ch->pcdata->move_before));
+
+        // Last area string
+        if (ch->pcdata->last_area && ch->pcdata->last_area[0] != '\0') {
+            json_object_set_new(basic, "last_area", json_string(ch->pcdata->last_area));
+        }
+
+        // AFK message
+        if (IS_SET(ch->comm, COMM_AFK) && ch->pcdata->afk_message != NULL) {
+            json_object_set_new(basic, "afk_message", json_string(ch->pcdata->afk_message));
+        }
+
+        // Player flag
+        if (ch->pcdata->flag && ch->pcdata->flag[0] != '\0') {
+            json_object_set_new(basic, "player_flag", json_string(ch->pcdata->flag));
+        }
 
         // *** USER PREFERENCES ***
         json_object_set_new(basic, "scroll_lines", json_integer(ch->lines)); // Page length
         json_object_set_new(basic, "prompt", json_string(ch->prompt ? ch->prompt : ""));
         json_object_set_new(basic, "verb_preference", json_integer(ch->verb_preference));
+
+        // Character preference overrides
+        if (ch->pcdata->preferences) {
+            json_object_set_new(basic, "preference_overrides",
+                prefs_to_json(ch->pcdata->preferences));
+        }
 
         // Pronouns
         if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0') {
@@ -1040,6 +1222,154 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         if (ch->church) {
             json_object_set_new(basic, "church", json_string(ch->church->name));
         }
+
+        // Immortal imm_flag (custom who-tag)
+        if (ch->pcdata->immortal && ch->pcdata->immortal->imm_flag != NULL &&
+            str_cmp(ch->pcdata->immortal->imm_flag, "none")) {
+            json_object_set_new(basic, "imm_flag", json_string(ch->pcdata->immortal->imm_flag));
+        }
+
+        // Character-level auth data (for unlinked characters or mid-migration)
+        {
+            bool is_unlinked = IS_NULLSTR(ch->pcdata->account_name);
+            bool has_auth_data = !IS_NULLSTR(ch->pcdata->pwd) || ch->pcdata->mfa_enabled;
+
+            if (is_unlinked || has_auth_data) {
+                if (!IS_NULLSTR(ch->pcdata->pwd)) {
+                    json_object_set_new(basic, "char_password", json_string(ch->pcdata->pwd));
+                    json_object_set_new(basic, "char_password_version", json_integer(ch->pcdata->pwd_vers));
+                }
+                if (!IS_NULLSTR(ch->pcdata->old_pwd)) {
+                    json_object_set_new(basic, "char_old_password", json_string(ch->pcdata->old_pwd));
+                }
+                if (!IS_NULLSTR(ch->pcdata->reset_code)) {
+                    json_object_set_new(basic, "char_reset_code", json_string(ch->pcdata->reset_code));
+                    json_object_set_new(basic, "char_reset_time", json_integer(ch->pcdata->reset_time));
+                    json_object_set_new(basic, "char_reset_state", json_integer(ch->pcdata->reset_state));
+                }
+                if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
+                    json_object_set_new(basic, "char_mfa_key", json_string(ch->pcdata->mfa_key));
+                }
+                if (ch->pcdata->mfa_enabled) {
+                    json_object_set_new(basic, "char_mfa_enabled", json_boolean(true));
+                    if (!IS_NULLSTR(ch->pcdata->mfa_pending_key)) {
+                        json_object_set_new(basic, "char_mfa_pending_key", json_string(ch->pcdata->mfa_pending_key));
+                    }
+                    json_object_set_new(basic, "char_mfa_pending", json_boolean(ch->pcdata->mfa_pending));
+
+                    json_t *recovery_arr = json_array();
+                    for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+                        if (ch->pcdata->recovery_codes[i]) {
+                            json_t *rc = json_object();
+                            json_object_set_new(rc, "code", json_string(ch->pcdata->recovery_codes[i]));
+                            json_object_set_new(rc, "used", json_boolean(ch->pcdata->recovery_used[i]));
+                            json_array_append_new(recovery_arr, rc);
+                        }
+                    }
+                    if (json_array_size(recovery_arr) > 0) {
+                        json_object_set_new(basic, "char_recovery_codes", recovery_arr);
+                    } else {
+                        json_decref(recovery_arr);
+                    }
+                }
+            }
+        }
+
+        // Character-level email fields (for unlinked characters or mid-migration)
+        if (!IS_NULLSTR(ch->pcdata->email)) {
+            json_object_set_new(basic, "char_email", json_string(ch->pcdata->email));
+            json_object_set_new(basic, "char_email_verified", json_boolean(ch->pcdata->email_verified));
+        }
+        if (!IS_NULLSTR(ch->pcdata->pending_email)) {
+            json_object_set_new(basic, "char_pending_email", json_string(ch->pcdata->pending_email));
+        }
+        if (!IS_NULLSTR(ch->pcdata->email_verification_code)) {
+            json_object_set_new(basic, "char_email_verification_code", json_string(ch->pcdata->email_verification_code));
+            json_object_set_new(basic, "char_email_verification_time", json_integer(ch->pcdata->email_verification_time));
+        }
+        if (ch->pcdata->email_verification_last_sent > 0) {
+            json_object_set_new(basic, "char_email_verification_last_sent", json_integer(ch->pcdata->email_verification_last_sent));
+        }
+
+        // Ignore list
+        if (ch->pcdata->ignoring) {
+            json_t *ignore_arr = json_array();
+            IGNORE_DATA *ignore;
+            for (ignore = ch->pcdata->ignoring; ignore; ignore = ignore->next) {
+                json_t *ignore_obj = json_object();
+                json_object_set_new(ignore_obj, "name", json_string(ignore->name));
+                if (ignore->reason && ignore->reason[0] != '\0') {
+                    json_object_set_new(ignore_obj, "reason", json_string(ignore->reason));
+                }
+                json_array_append_new(ignore_arr, ignore_obj);
+            }
+            json_object_set_new(basic, "ignoring", ignore_arr);
+        }
+
+        // Vis-to list (selective visibility)
+        if (ch->pcdata->vis_to_people) {
+            json_t *visto_arr = json_array();
+            STRING_DATA *string;
+            for (string = ch->pcdata->vis_to_people; string; string = string->next) {
+                json_array_append_new(visto_arr, json_string(string->string));
+            }
+            json_object_set_new(basic, "vis_to", visto_arr);
+        }
+
+        // Quiet-to list
+        if (ch->pcdata->quiet_people) {
+            json_t *quiet_arr = json_array();
+            STRING_DATA *string;
+            for (string = ch->pcdata->quiet_people; string; string = string->next) {
+                json_array_append_new(quiet_arr, json_string(string->string));
+            }
+            json_object_set_new(basic, "quiet_to", quiet_arr);
+        }
+
+        // Room before arena
+        if (location_isset(&ch->pcdata->room_before_arena)) {
+            json_t *rba = json_object();
+            json_object_set_new(rba, "wuid", json_integer(ch->pcdata->room_before_arena.wuid));
+            json_t *rba_id = json_array();
+            json_array_append_new(rba_id, json_integer(ch->pcdata->room_before_arena.id[0]));
+            json_array_append_new(rba_id, json_integer(ch->pcdata->room_before_arena.id[1]));
+            json_array_append_new(rba_id, json_integer(ch->pcdata->room_before_arena.id[2]));
+            json_object_set_new(rba, "id", rba_id);
+            json_object_set_new(basic, "room_before_arena", rba);
+        }
+
+        // Granted commands
+        if (ch->pcdata->commands) {
+            json_t *cmd_arr = json_array();
+            COMMAND_DATA *cmd;
+            for (cmd = ch->pcdata->commands; cmd; cmd = cmd->next) {
+                json_array_append_new(cmd_arr, json_string(cmd->name));
+            }
+            json_object_set_new(basic, "granted_commands", cmd_arr);
+        }
+    }
+
+    // Death state
+    if (ch->dead) {
+        json_object_set_new(basic, "dead", json_boolean(true));
+        json_object_set_new(basic, "death_time_left", json_integer(ch->time_left_death));
+    }
+
+    // Shifted form (werewolf/slayer)
+    if (ch->shifted != SHIFTED_NONE) {
+        json_object_set_new(basic, "shifted", json_integer(ch->shifted));
+    }
+
+    // Before-social room marker
+    if (location_isset(&ch->before_social)) {
+        json_t *bs = json_object();
+        json_object_set_new(bs, "wuid", json_integer(ch->before_social.wuid));
+        json_t *bs_id = json_array();
+        json_array_append_new(bs_id, json_integer(ch->before_social.id[0]));
+        json_array_append_new(bs_id, json_integer(ch->before_social.id[1]));
+        json_array_append_new(bs_id, json_integer(ch->before_social.id[2]));
+        json_object_set_new(bs, "id", bs_id);
+        json_object_set_new(basic, "before_social", bs);
     }
 
     // Position (room location or wilderness)
@@ -1289,9 +1619,49 @@ json_t *char_to_json(CHAR_DATA *ch)
         json_decref(affects);
     }
 
-    // TODO: Add in future if needed:
-    // - variables (script variables)
-    // - other player-specific data
+    // Songs section (bard songs learned)
+    if (ch->pcdata) {
+        json_t *songs = json_array();
+        for (int sn = 0; sn < MAX_SONGS; sn++) {
+            if (ch->pcdata->songs_learned[sn] && music_table[sn].name) {
+                json_array_append_new(songs, json_string(music_table[sn].name));
+            }
+        }
+        if (json_array_size(songs) > 0) {
+            json_object_set_new(root, "songs", songs);
+        } else {
+            json_decref(songs);
+        }
+    }
+
+    // Ships section (ship ownership by ID pairs)
+    if (ch->pcdata && ch->pcdata->ships && list_size(ch->pcdata->ships) > 0) {
+        json_t *ships_arr = json_array();
+        ITERATOR sit;
+        SHIP_DATA *ship;
+        iterator_start(&sit, ch->pcdata->ships);
+        while ((ship = (SHIP_DATA *)iterator_nextdata(&sit))) {
+            json_t *ship_id = json_array();
+            json_array_append_new(ship_id, json_integer(ship->id[0]));
+            json_array_append_new(ship_id, json_integer(ship->id[1]));
+            json_array_append_new(ships_arr, ship_id);
+        }
+        iterator_stop(&sit);
+        json_object_set_new(root, "ships", ships_arr);
+    }
+
+    // Unlocked areas section (area UIDs)
+    if (ch->pcdata && ch->pcdata->unlocked_areas && list_size(ch->pcdata->unlocked_areas) > 0) {
+        json_t *unlocked = json_array();
+        ITERATOR uait;
+        AREA_DATA *unlocked_area;
+        iterator_start(&uait, ch->pcdata->unlocked_areas);
+        while ((unlocked_area = (AREA_DATA *)iterator_nextdata(&uait))) {
+            json_array_append_new(unlocked, json_integer(unlocked_area->uid));
+        }
+        iterator_stop(&uait);
+        json_object_set_new(root, "unlocked_areas", unlocked);
+    }
 
     return root;
 }
@@ -1678,6 +2048,89 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         obj->material = str_dup(json_string_value(value));
     }
 
+    // Version and persistence
+    value = json_object_get(json_obj, "version");
+    if (value) obj->version = json_integer_value(value);
+    value = json_object_get(json_obj, "persist");
+    if (value) obj->persist = json_is_true(value);
+
+    // Wear flags
+    value = json_object_get(json_obj, "wear_flags");
+    if (value) obj->wear_flags = json_integer_value(value);
+
+    // Last wear location
+    value = json_object_get(json_obj, "last_wear_loc");
+    if (value) obj->last_wear_loc = json_integer_value(value);
+
+    // Enchantment count
+    value = json_object_get(json_obj, "num_enchanted");
+    if (value) obj->num_enchanted = json_integer_value(value);
+
+    // Locker flag
+    value = json_object_get(json_obj, "locker");
+    if (value) obj->locker = json_is_true(value);
+
+    // Old descriptions (pre-customize)
+    value = json_object_get(json_obj, "old_name");
+    if (value) {
+        free_string(obj->old_name);
+        obj->old_name = str_dup(json_string_value(value));
+    }
+    value = json_object_get(json_obj, "old_short_descr");
+    if (value) {
+        free_string(obj->old_short_descr);
+        obj->old_short_descr = str_dup(json_string_value(value));
+    }
+    value = json_object_get(json_obj, "old_description");
+    if (value) {
+        free_string(obj->old_description);
+        obj->old_description = str_dup(json_string_value(value));
+    }
+    value = json_object_get(json_obj, "old_full_description");
+    if (value) {
+        free_string(obj->old_full_description);
+        obj->old_full_description = str_dup(json_string_value(value));
+    }
+
+    // Loaded by / corpse ownership
+    value = json_object_get(json_obj, "loaded_by");
+    if (value) {
+        free_string(obj->loaded_by);
+        obj->loaded_by = str_dup(json_string_value(value));
+    }
+    value = json_object_get(json_obj, "owner_name");
+    if (value) {
+        free_string(obj->owner_name);
+        obj->owner_name = str_dup(json_string_value(value));
+    }
+    value = json_object_get(json_obj, "owner_short");
+    if (value) {
+        free_string(obj->owner_short);
+        obj->owner_short = str_dup(json_string_value(value));
+    }
+
+    // Permanent extra flags
+    value = json_object_get(json_obj, "extra_perm");
+    if (value && json_is_array(value)) {
+        for (i = 0; i < 4 && i < (int)json_array_size(value); i++) {
+            obj->extra_perm[i] = json_integer_value(json_array_get(value, i));
+        }
+    }
+
+    // Permanent weapon flags
+    value = json_object_get(json_obj, "weapon_flags_perm");
+    if (value) obj->weapon_flags_perm = json_integer_value(value);
+
+    // Script creation tracking
+    value = json_object_get(json_obj, "script_created");
+    if (value) obj->script_created = json_is_true(value);
+    value = json_object_get(json_obj, "created_script_type");
+    if (value) obj->created_script_type = json_integer_value(value);
+    value = json_object_get(json_obj, "created_script_vnum");
+    if (value) obj->created_script_load.vnum = json_integer_value(value);
+    value = json_object_get(json_obj, "creation_time");
+    if (value) obj->creation_time = json_integer_value(value);
+
     // Extra descriptions
     value = json_object_get(json_obj, "extra_descr");
     if (value && json_is_array(value)) {
@@ -1690,25 +2143,27 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         }
     }
 
-    // Affects
+    // Affects - use comprehensive format (where, group, custom_name)
     value = json_object_get(json_obj, "affects");
     if (value && json_is_array(value)) {
         json_array_foreach(value, index, array_elem) {
-            AFFECT_DATA *paf = new_affect();
-            paf->type = json_integer_value(json_object_get(array_elem, "type"));
-            paf->level = json_integer_value(json_object_get(array_elem, "level"));
-            paf->duration = json_integer_value(json_object_get(array_elem, "duration"));
-            paf->location = json_integer_value(json_object_get(array_elem, "location"));
-            paf->modifier = json_integer_value(json_object_get(array_elem, "modifier"));
-            paf->bitvector = json_integer_value(json_object_get(array_elem, "bitvector"));
-
-            json_t *bv2 = json_object_get(array_elem, "bitvector2");
-            if (bv2) {
-                paf->bitvector2 = json_integer_value(bv2);
+            AFFECT_DATA *paf = json_persist_json_to_affect(array_elem);
+            if (paf) {
+                paf->next = obj->affected;
+                obj->affected = paf;
             }
+        }
+    }
 
-            paf->next = obj->affected;
-            obj->affected = paf;
+    // Catalysts
+    value = json_object_get(json_obj, "catalysts");
+    if (value && json_is_array(value)) {
+        json_array_foreach(value, index, array_elem) {
+            AFFECT_DATA *paf = json_persist_json_to_affect(array_elem);
+            if (paf) {
+                paf->next = obj->catalyst;
+                obj->catalyst = paf;
+            }
         }
     }
 
@@ -1722,6 +2177,33 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
             spell->repop = json_integer_value(json_object_get(array_elem, "repop"));
             spell->next = obj->spells;
             obj->spells = spell;
+        }
+    }
+
+    // Lock state
+    value = json_object_get(json_obj, "lock");
+    if (value && json_is_object(value)) {
+        obj->lock = json_persist_json_to_lock(value);
+    }
+
+    // Waypoints
+    value = json_object_get(json_obj, "waypoints");
+    if (value && json_is_array(value)) {
+        if (!obj->waypoints) {
+            obj->waypoints = list_create(false);
+        }
+        json_array_foreach(value, index, array_elem) {
+            WAYPOINT_DATA *wp = new_waypoint();
+            json_t *wp_val;
+            wp_val = json_object_get(array_elem, "w");
+            if (wp_val) wp->w = json_integer_value(wp_val);
+            wp_val = json_object_get(array_elem, "x");
+            if (wp_val) wp->x = json_integer_value(wp_val);
+            wp_val = json_object_get(array_elem, "y");
+            if (wp_val) wp->y = json_integer_value(wp_val);
+            wp_val = json_object_get(array_elem, "name");
+            if (wp_val) wp->name = str_dup(json_string_value(wp_val));
+            list_appendlink(obj->waypoints, wp);
         }
     }
 
@@ -1787,8 +2269,9 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     // Assign a unique object ID if not already set
     get_obj_id(obj);
 
-    // Apply object fixes (times_allowed_fixed, etc.)
-    obj->times_allowed_fixed = obj->pIndexData->times_allowed_fixed;
+    // Apply object fixes
+    // Note: times_allowed_fixed is already correctly loaded from JSON above
+    // (or defaults to prototype value from create_object_noid), do NOT overwrite it
     fix_object(obj);
 
     return obj;
@@ -1842,6 +2325,23 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(metadata, "created");
         if (value) {
             ch->pcdata->creation_date = json_integer_value(value);
+        }
+
+        // Character unique ID
+        json_t *char_id = json_object_get(metadata, "character_id");
+        if (char_id && json_is_array(char_id)) {
+            ch->id[0] = json_integer_value(json_array_get(char_id, 0));
+            ch->id[1] = json_integer_value(json_array_get(char_id, 1));
+        }
+
+        // Player data version
+        value = json_object_get(metadata, "version");
+        if (value) {
+            ch->version = json_integer_value(value);
+        } else {
+            // Pre-versioning JSON file: all legacy migrations are done,
+            // but new version-gated migrations (010+) should still run.
+            ch->version = VERSION_PLAYER_009;
         }
 
         // Account linkage
@@ -2028,7 +2528,21 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         ch->description = str_dup(str);
     }
 
-    ch->played = json_integer_value(json_object_get(character, "played_hours"));
+    // Load played time (seconds). New format uses "played" (raw seconds).
+    // Backward compat: old format used "played_hours" (divided by 3600), so multiply back.
+    value = json_object_get(character, "played");
+    if (value) {
+        ch->played = json_integer_value(value);
+    } else {
+        value = json_object_get(character, "played_hours");
+        if (value) {
+            ch->played = json_integer_value(value) * 3600;
+        }
+    }
+
+    // Last logoff (for offline regen calculations)
+    value = json_object_get(character, "last_logoff");
+    if (value && ch->pcdata) ch->pcdata->last_logoff = json_integer_value(value);
 
     // *** LOAD CRITICAL MISSING FIELDS - Combat Stats ***
     value = json_object_get(character, "hitroll");
@@ -2215,6 +2729,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "verb_preference");
         if (value) ch->verb_preference = json_integer_value(value);
 
+        // Character preference overrides
+        json_t *pref_overrides = json_object_get(character, "preference_overrides");
+        if (pref_overrides && json_is_array(pref_overrides)) {
+            json_to_prefs(pref_overrides, &ch->pcdata->preferences);
+        }
+
         // Pronouns
         str = json_string_value(json_object_get(character, "pronoun_he_she"));
         if (str) {
@@ -2317,6 +2837,252 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         str = json_string_value(json_object_get(character, "church"));
         if (str) {
             ch->church = get_church_by_name(str);
+        }
+
+        // Immortal imm_flag (custom who-tag)
+        str = json_string_value(json_object_get(character, "imm_flag"));
+        if (str && ch->pcdata->immortal) {
+            free_string(ch->pcdata->immortal->imm_flag);
+            ch->pcdata->immortal->imm_flag = str_dup(str);
+        }
+
+        // Staff rank
+        value = json_object_get(character, "staff_rank");
+        if (value) ch->pcdata->staff_rank = json_integer_value(value);
+
+        // Current class/subclass selection
+        value = json_object_get(character, "class_current");
+        if (value) ch->pcdata->class_current = json_integer_value(value);
+        value = json_object_get(character, "sub_class_current");
+        if (value) ch->pcdata->sub_class_current = json_integer_value(value);
+
+        // Challenge delay, password change, danger range
+        value = json_object_get(character, "challenge_delay");
+        if (value) ch->pcdata->challenge_delay = json_integer_value(value);
+        value = json_object_get(character, "need_change_pw");
+        if (value) ch->pcdata->need_change_pw = json_integer_value(value);
+        value = json_object_get(character, "danger_range");
+        if (value) ch->pcdata->danger_range = json_integer_value(value);
+
+        // Note read timestamps
+        value = json_object_get(character, "last_note");
+        if (value) ch->pcdata->last_note = json_integer_value(value);
+        value = json_object_get(character, "last_idea");
+        if (value) ch->pcdata->last_idea = json_integer_value(value);
+        value = json_object_get(character, "last_penalty");
+        if (value) ch->pcdata->last_penalty = json_integer_value(value);
+        value = json_object_get(character, "last_news");
+        if (value) ch->pcdata->last_news = json_integer_value(value);
+        value = json_object_get(character, "last_changes");
+        if (value) ch->pcdata->last_changes = json_integer_value(value);
+        value = json_object_get(character, "last_project_inquiry");
+        if (value) ch->pcdata->last_project_inquiry = json_integer_value(value);
+
+        // Pre-level vitals snapshot
+        value = json_object_get(character, "hit_before");
+        if (value) ch->pcdata->hit_before = json_integer_value(value);
+        value = json_object_get(character, "mana_before");
+        if (value) ch->pcdata->mana_before = json_integer_value(value);
+        value = json_object_get(character, "move_before");
+        if (value) ch->pcdata->move_before = json_integer_value(value);
+
+        // Last area string
+        str = json_string_value(json_object_get(character, "last_area"));
+        if (str) {
+            free_string(ch->pcdata->last_area);
+            ch->pcdata->last_area = str_dup(str);
+        }
+
+        // AFK message
+        str = json_string_value(json_object_get(character, "afk_message"));
+        if (str) {
+            free_string(ch->pcdata->afk_message);
+            ch->pcdata->afk_message = str_dup(str);
+        }
+
+        // Player flag
+        str = json_string_value(json_object_get(character, "player_flag"));
+        if (str) {
+            free_string(ch->pcdata->flag);
+            ch->pcdata->flag = str_dup(str);
+        }
+
+        // Character-level auth data (for unlinked characters or mid-migration)
+        str = json_string_value(json_object_get(character, "char_password"));
+        if (str) {
+            free_string(ch->pcdata->pwd);
+            ch->pcdata->pwd = str_dup(str);
+        }
+        value = json_object_get(character, "char_password_version");
+        if (value) ch->pcdata->pwd_vers = json_integer_value(value);
+
+        str = json_string_value(json_object_get(character, "char_old_password"));
+        if (str) {
+            free_string(ch->pcdata->old_pwd);
+            ch->pcdata->old_pwd = str_dup(str);
+        }
+
+        str = json_string_value(json_object_get(character, "char_reset_code"));
+        if (str) {
+            free_string(ch->pcdata->reset_code);
+            ch->pcdata->reset_code = str_dup(str);
+        }
+        value = json_object_get(character, "char_reset_time");
+        if (value) ch->pcdata->reset_time = json_integer_value(value);
+        value = json_object_get(character, "char_reset_state");
+        if (value) ch->pcdata->reset_state = json_integer_value(value);
+
+        str = json_string_value(json_object_get(character, "char_mfa_key"));
+        if (str) {
+            free_string(ch->pcdata->mfa_key);
+            ch->pcdata->mfa_key = str_dup(str);
+        }
+        ch->pcdata->mfa_enabled = json_is_true(json_object_get(character, "char_mfa_enabled"));
+        ch->pcdata->mfa_pending = json_is_true(json_object_get(character, "char_mfa_pending"));
+
+        str = json_string_value(json_object_get(character, "char_mfa_pending_key"));
+        if (str) {
+            free_string(ch->pcdata->mfa_pending_key);
+            ch->pcdata->mfa_pending_key = str_dup(str);
+        }
+
+        // Recovery codes
+        {
+            json_t *recovery = json_object_get(character, "char_recovery_codes");
+            if (recovery && json_is_array(recovery)) {
+                int ri = 0;
+                size_t ridx;
+                json_t *relem;
+                json_array_foreach(recovery, ridx, relem) {
+                    if (ri >= MFA_RECOVERY_CODES) break;
+                    str = json_string_value(json_object_get(relem, "code"));
+                    if (str) {
+                        free_string(ch->pcdata->recovery_codes[ri]);
+                        ch->pcdata->recovery_codes[ri] = str_dup(str);
+                        ch->pcdata->recovery_used[ri] = json_is_true(json_object_get(relem, "used"));
+                    }
+                    ri++;
+                }
+            }
+        }
+
+        // Character-level email fields
+        str = json_string_value(json_object_get(character, "char_email"));
+        if (str) {
+            free_string(ch->pcdata->email);
+            ch->pcdata->email = str_dup(str);
+        }
+        ch->pcdata->email_verified = json_is_true(json_object_get(character, "char_email_verified"));
+
+        str = json_string_value(json_object_get(character, "char_pending_email"));
+        if (str) {
+            free_string(ch->pcdata->pending_email);
+            ch->pcdata->pending_email = str_dup(str);
+        }
+        str = json_string_value(json_object_get(character, "char_email_verification_code"));
+        if (str) {
+            free_string(ch->pcdata->email_verification_code);
+            ch->pcdata->email_verification_code = str_dup(str);
+        }
+        value = json_object_get(character, "char_email_verification_time");
+        if (value) ch->pcdata->email_verification_time = json_integer_value(value);
+        value = json_object_get(character, "char_email_verification_last_sent");
+        if (value) ch->pcdata->email_verification_last_sent = json_integer_value(value);
+
+        // Ignore list
+        json_t *ignoring = json_object_get(character, "ignoring");
+        if (ignoring && json_is_array(ignoring)) {
+            json_array_foreach(ignoring, index, array_elem) {
+                const char *ignore_name = json_string_value(json_object_get(array_elem, "name"));
+                if (ignore_name) {
+                    IGNORE_DATA *ignore = new_ignore();
+                    ignore->name = str_dup(ignore_name);
+                    const char *ignore_reason = json_string_value(json_object_get(array_elem, "reason"));
+                    if (ignore_reason) {
+                        ignore->reason = str_dup(ignore_reason);
+                    }
+                    ignore->next = ch->pcdata->ignoring;
+                    ch->pcdata->ignoring = ignore;
+                }
+            }
+        }
+
+        // Vis-to list (selective visibility)
+        json_t *visto = json_object_get(character, "vis_to");
+        if (visto && json_is_array(visto)) {
+            json_array_foreach(visto, index, array_elem) {
+                str = json_string_value(array_elem);
+                if (str) {
+                    STRING_DATA *string = new_string_data();
+                    string->string = str_dup(str);
+                    string->next = ch->pcdata->vis_to_people;
+                    ch->pcdata->vis_to_people = string;
+                }
+            }
+        }
+
+        // Quiet-to list
+        json_t *quietto = json_object_get(character, "quiet_to");
+        if (quietto && json_is_array(quietto)) {
+            json_array_foreach(quietto, index, array_elem) {
+                str = json_string_value(array_elem);
+                if (str) {
+                    STRING_DATA *string = new_string_data();
+                    string->string = str_dup(str);
+                    string->next = ch->pcdata->quiet_people;
+                    ch->pcdata->quiet_people = string;
+                }
+            }
+        }
+
+        // Room before arena (LOCATION)
+        json_t *rba = json_object_get(character, "room_before_arena");
+        if (rba && json_is_object(rba)) {
+            value = json_object_get(rba, "wuid");
+            if (value) ch->pcdata->room_before_arena.wuid = json_integer_value(value);
+            json_t *rba_id = json_object_get(rba, "id");
+            if (rba_id && json_is_array(rba_id)) {
+                ch->pcdata->room_before_arena.id[0] = json_integer_value(json_array_get(rba_id, 0));
+                ch->pcdata->room_before_arena.id[1] = json_integer_value(json_array_get(rba_id, 1));
+                ch->pcdata->room_before_arena.id[2] = json_integer_value(json_array_get(rba_id, 2));
+            }
+        }
+
+        // Granted commands
+        json_t *granted = json_object_get(character, "granted_commands");
+        if (granted && json_is_array(granted)) {
+            json_array_foreach(granted, index, array_elem) {
+                str = json_string_value(array_elem);
+                if (str) {
+                    COMMAND_DATA *cmd = new_command();
+                    cmd->name = str_dup(str);
+                    cmd->next = ch->pcdata->commands;
+                    ch->pcdata->commands = cmd;
+                }
+            }
+        }
+    }
+
+    // Death state
+    value = json_object_get(character, "dead");
+    if (value) ch->dead = json_is_true(value);
+    value = json_object_get(character, "death_time_left");
+    if (value) ch->time_left_death = json_integer_value(value);
+
+    // Shifted form (werewolf/slayer)
+    value = json_object_get(character, "shifted");
+    if (value) ch->shifted = json_integer_value(value);
+
+    // Before-social room marker (LOCATION)
+    json_t *bs = json_object_get(character, "before_social");
+    if (bs && json_is_object(bs)) {
+        value = json_object_get(bs, "wuid");
+        if (value) ch->before_social.wuid = json_integer_value(value);
+        json_t *bs_id = json_object_get(bs, "id");
+        if (bs_id && json_is_array(bs_id)) {
+            ch->before_social.id[0] = json_integer_value(json_array_get(bs_id, 0));
+            ch->before_social.id[1] = json_integer_value(json_array_get(bs_id, 1));
+            ch->before_social.id[2] = json_integer_value(json_array_get(bs_id, 2));
         }
     }
 
@@ -2736,6 +3502,9 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             paf->modifier = json_integer_value(json_object_get(array_elem, "modifier"));
             paf->bitvector = json_integer_value(json_object_get(array_elem, "bitvector"));
 
+            value = json_object_get(array_elem, "slot");
+            if (value) paf->slot = json_integer_value(value);
+
             value = json_object_get(array_elem, "bitvector2");
             if (value) {
                 paf->bitvector2 = json_integer_value(value);
@@ -2828,6 +3597,50 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             pos++;
         }
     }
+
+    // Read songs section (bard songs learned by name)
+    json_t *songs_array = json_object_get(root, "songs");
+    if (songs_array && json_is_array(songs_array) && ch->pcdata) {
+        json_array_foreach(songs_array, index, array_elem) {
+            str = json_string_value(array_elem);
+            if (str) {
+                int song = music_lookup((char *)str);
+                if (song >= 0 && song < MAX_SONGS) {
+                    ch->pcdata->songs_learned[song] = true;
+                } else {
+                    log_stringf("json_read_char: unknown song '%s' for %s", str, ch->name);
+                }
+            }
+        }
+    }
+
+    // Read ships section (ship ownership by ID pairs)
+    json_t *ships_array = json_object_get(root, "ships");
+    if (ships_array && json_is_array(ships_array) && ch->pcdata) {
+        json_array_foreach(ships_array, index, array_elem) {
+            if (json_is_array(array_elem) && json_array_size(array_elem) >= 2) {
+                unsigned long id1 = json_integer_value(json_array_get(array_elem, 0));
+                unsigned long id2 = json_integer_value(json_array_get(array_elem, 1));
+                SHIP_DATA *ship = find_ship_uid(id1, id2);
+                if (IS_VALID(ship)) {
+                    list_appendlink(ch->pcdata->ships, ship);
+                }
+            }
+        }
+    }
+
+    // Read unlocked areas section (area UIDs)
+    json_t *unlocked_array = json_object_get(root, "unlocked_areas");
+    if (unlocked_array && json_is_array(unlocked_array) && ch->pcdata) {
+        json_array_foreach(unlocked_array, index, array_elem) {
+            long uid = json_integer_value(array_elem);
+            AREA_DATA *unlocked_area = get_area_from_uid(uid);
+            if (unlocked_area) {
+                player_unlock_area(ch, unlocked_area);
+            }
+        }
+    }
+
     } // End if (load_heavy) - close the block that started at skills section
 
     // Mark load state
@@ -3017,6 +3830,9 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             paf->modifier = json_integer_value(json_object_get(array_elem, "modifier"));
             paf->bitvector = json_integer_value(json_object_get(array_elem, "bitvector"));
 
+            value = json_object_get(array_elem, "slot");
+            if (value) paf->slot = json_integer_value(value);
+
             value = json_object_get(array_elem, "bitvector2");
             if (value) {
                 paf->bitvector2 = json_integer_value(value);
@@ -3109,6 +3925,49 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             }
 
             pos++;
+        }
+    }
+
+    // Read songs section (bard songs learned by name)
+    json_t *songs_array = json_object_get(root, "songs");
+    if (songs_array && json_is_array(songs_array) && ch->pcdata) {
+        json_array_foreach(songs_array, index, array_elem) {
+            str = json_string_value(array_elem);
+            if (str) {
+                int song = music_lookup((char *)str);
+                if (song >= 0 && song < MAX_SONGS) {
+                    ch->pcdata->songs_learned[song] = true;
+                } else {
+                    log_stringf("json_read_char_remaining: unknown song '%s' for %s", str, ch->name);
+                }
+            }
+        }
+    }
+
+    // Read ships section (ship ownership by ID pairs)
+    json_t *ships_array = json_object_get(root, "ships");
+    if (ships_array && json_is_array(ships_array) && ch->pcdata) {
+        json_array_foreach(ships_array, index, array_elem) {
+            if (json_is_array(array_elem) && json_array_size(array_elem) >= 2) {
+                unsigned long id1 = json_integer_value(json_array_get(array_elem, 0));
+                unsigned long id2 = json_integer_value(json_array_get(array_elem, 1));
+                SHIP_DATA *ship = find_ship_uid(id1, id2);
+                if (IS_VALID(ship)) {
+                    list_appendlink(ch->pcdata->ships, ship);
+                }
+            }
+        }
+    }
+
+    // Read unlocked areas section (area UIDs)
+    json_t *unlocked_array = json_object_get(root, "unlocked_areas");
+    if (unlocked_array && json_is_array(unlocked_array) && ch->pcdata) {
+        json_array_foreach(unlocked_array, index, array_elem) {
+            long uid = json_integer_value(array_elem);
+            AREA_DATA *unlocked_area = get_area_from_uid(uid);
+            if (unlocked_area) {
+                player_unlock_area(ch, unlocked_area);
+            }
         }
     }
 

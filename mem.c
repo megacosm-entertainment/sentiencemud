@@ -1218,7 +1218,7 @@ bool add_buf_char(BUFFER *buffer, char ch)
 }
 
 
-bool add_buf(BUFFER *buffer, char *string)
+bool add_buf(BUFFER *buffer, const char *string)
 {
     int len;
     char *oldstr;
@@ -5001,6 +5001,9 @@ ACCOUNT_CHARACTER *new_account_character()
     acct_char->email_verification_time = 0;
     acct_char->email_verification_last_sent = 0;
 
+    // Staff notes
+    acct_char->staff_notes = NULL;
+
     return acct_char;
 }
 
@@ -5035,6 +5038,15 @@ void free_account_character(ACCOUNT_CHARACTER *acct_char)
     if (acct_char->email)       free_string(acct_char->email);
     if (acct_char->pending_email) free_string(acct_char->pending_email);
     if (acct_char->email_verification_code) free_string(acct_char->email_verification_code);
+
+    // Free staff notes
+    {
+        ACCOUNT_NOTE_DATA *note, *note_next;
+        for (note = acct_char->staff_notes; note; note = note_next) {
+            note_next = note->next;
+            free_account_note(note);
+        }
+    }
 
     free(acct_char);
 }
@@ -5072,6 +5084,7 @@ ACCOUNT_DATA *new_account(void)
     account->mfa_key = str_dup("");
     account->mfa_enabled = false;
     account->characters = list_create(false);
+    account->avail_races = list_create(false);
     account->default_character = str_dup("");
     
     VALIDATE(account);
@@ -5113,6 +5126,7 @@ void free_account(ACCOUNT_DATA *account)
     free_string(account->mfa_key);
     
     list_destroy(account->characters);
+    list_destroy(account->avail_races);
     if (list_haslink(loaded_accounts, account))
         list_remlink(loaded_accounts, account, NULL);
     

@@ -44,6 +44,7 @@
 #include "tables.h"
 #include "io/cache/redis_cache.h"
 #include "traits.h"
+#include "account/penalty.h"
 
 
 
@@ -372,7 +373,9 @@ bool can_speak_channels(CHAR_DATA *ch)
         return false;
     }
 
-    if (IS_SET(ch->comm,COMM_NOCHANNELS)) {
+    if (IS_SET(ch->comm,COMM_NOCHANNELS)
+        || (!IS_NPC(ch) && ch->desc && ch->desc->account
+            && has_penalty(ch->desc->account, PENALTY_NOCHANNELS, ch->name))) {
         send_to_char("The gods have revoked your channel priviliges.\n\r",ch);
         return false;
     }
@@ -1105,7 +1108,9 @@ void do_tell(CHAR_DATA *ch, char *argument)
     char msg[2*MSL];
     CHAR_DATA *victim;
 
-    if (IS_SET(ch->comm, COMM_NOTELL))
+    if (IS_SET(ch->comm, COMM_NOTELL)
+        || (!IS_NPC(ch) && ch->desc && ch->desc->account
+            && has_penalty(ch->desc->account, PENALTY_NOTELL, ch->name)))
     {
         send_to_char("Your tells have been revoked.\n\r", ch);
         return;
@@ -1309,7 +1314,9 @@ void do_yell(CHAR_DATA *ch, char *argument)
     char buf[MSL], msg[2*MSL];
     DESCRIPTOR_DATA *d;
 
-    if (IS_SET(ch->comm, COMM_NOCHANNELS))
+    if (IS_SET(ch->comm, COMM_NOCHANNELS)
+        || (!IS_NPC(ch) && ch->desc && ch->desc->account
+            && has_penalty(ch->desc->account, PENALTY_NOCHANNELS, ch->name)))
     {
     send_to_char("You can't yell.\n\r", ch);
     return;
@@ -2622,7 +2629,9 @@ void do_gtell(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (IS_SET(ch->comm, COMM_NOTELL)) {
+    if (IS_SET(ch->comm, COMM_NOTELL)
+        || (!IS_NPC(ch) && ch->desc && ch->desc->account
+            && has_penalty(ch->desc->account, PENALTY_NOTELL, ch->name))) {
         send_to_char("Your message didn't get through!\n\r", ch);
         return;
     }
@@ -3666,7 +3675,9 @@ void do_quote(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (IS_SET(ch->comm,COMM_NOCHANNELS))
+    if (IS_SET(ch->comm,COMM_NOCHANNELS)
+        || (!IS_NPC(ch) && ch->desc && ch->desc->account
+            && has_penalty(ch->desc->account, PENALTY_NOCHANNELS, ch->name)))
     {
     send_to_char("The gods have revoked your channel priviliges.\n\r", ch);
     return;
@@ -3714,49 +3725,6 @@ void do_quote(CHAR_DATA *ch, char *argument)
     }
     }
     }
-}
-
-
-/**
- * do_email - View or change the player's email address (DEPRECATED)
- *
- * Without argument: Displays the current email address.
- * With argument: Sets a new email address (basic validation: min 5 chars, must contain @).
- *
- * NOTE: Email management has been moved to the account system. This character-level
- * email field is deprecated and may be removed in a future refactor.
- *
- * @param ch        The character viewing/setting email
- * @param argument  New email address, or empty to view current
- *
- * Planned refactor: player.c (never executed)
- */
-void do_email(CHAR_DATA *ch, char *argument)
-{
-    char arg[MSL];
-    char buf[MSL];
-
-    if (IS_NPC(ch)) {
-    pbugf(LOG_ERROR, "NPC");
-    return;
-    }
-
-    argument = one_argument(argument, arg);
-    if (arg[0] == '\0') {
-    sprintf(buf, "Your e-mail address is currently: {W%s{x.\n\r", ch->pcdata->email);
-    send_to_char(buf, ch);
-    return;
-    }
-
-    if (strlen(arg) < 5 || str_infix("@", arg)) {
-    send_to_char("Invalid e-mail address.\n\r", ch);
-    return;
-    }
-
-    free_string(ch->pcdata->email);
-    ch->pcdata->email = str_dup(arg);
-    sprintf(buf, "Your e-mail address has been set to {W%s{x.\n\r", ch->pcdata->email);
-    send_to_char(buf, ch);
 }
 
 

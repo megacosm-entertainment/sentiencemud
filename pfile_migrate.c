@@ -148,7 +148,7 @@ static bool check_and_upgrade_plaintext_password(ACCOUNT_DATA *account,
 static bool backup_old_pfile(const char *name, bool is_account)
 {
     char old_path[2048];
-    char backup_path[2048];
+    char backup_path[4096];
     char backup_dir[2048];
     FILE *src, *dst;
     char buffer[8192];
@@ -350,7 +350,7 @@ int migrate_all_players(bool backup)
 {
     MIGRATION_STATS stats;
     char dir_path[2048];
-    char file_path[2048];
+    char file_path[4096];
     DIR *dir;
     struct dirent *entry;
     int letter;
@@ -533,7 +533,7 @@ int migrate_all_accounts(bool backup)
 {
     MIGRATION_STATS stats;
     char dir_path[2048];
-    char file_path[2048];
+    char file_path[4096];
     DIR *dir;
     struct dirent *entry;
     int letter;

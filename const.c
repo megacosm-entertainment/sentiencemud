@@ -433,6 +433,9 @@ const  struct player_setting_type    pc_set_table[] =
     {	"favskills",	0,	PLR_FAVSKILLS,	0, false,	STAFF_PLAYER, SETTING_OFF },
     {	"compass",	0,	PLR_COMPASS,	0,	false,	STAFF_PLAYER,	SETTING_ON},
     {	"autocatalyst", 0, PLR_AUTOCAT,	0,	false, STAFF_PLAYER,	SETTING_ON},
+    {	"autoafk",	0,	PLR_AUTOAFK,	0,	false, STAFF_PLAYER,	SETTING_OFF},
+    {	"hideidle",	0,	PLR_HIDE_IDLE,	0,	false, STAFF_PLAYER,	SETTING_OFF},
+    {	"timestamps",	0,	PLR_SHOW_TIMESTAMPS,0,	false, STAFF_PLAYER,	SETTING_OFF},
 /*    {	"building",     PLR_BUILDING,	 0,		0,		false,  STAFF_IMMORTAL,	SETTING_OFF	},*/
     {	NULL,		0,		 0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	}
 };

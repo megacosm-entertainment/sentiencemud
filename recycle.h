@@ -121,7 +121,7 @@ BUFFER	*new_buf args( (void) );
 BUFFER  *new_buf_size args( (int size) );
 void	free_buf args( (BUFFER *buffer) );
 bool	add_buf_char args( (BUFFER *buffer, char ch) );
-bool	add_buf args( (BUFFER *buffer, char *string) );
+bool	add_buf args( (BUFFER *buffer, const char *string) );
 bool	bprintf(BUFFER *buffer, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 void	clear_buf args( (BUFFER *buffer) );
 char	*buf_string args( (BUFFER *buffer) );

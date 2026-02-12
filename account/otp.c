@@ -441,7 +441,7 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
     generate_totp_key(key, sizeof(key));
     
     // Save key to account as pending - encrypt the key before storing
-    char *encrypted_key = encrypt_string(key);
+    char *encrypted_key = encrypt_string_versioned(key);
     free_string(acct->mfa_pending_key);
     acct->mfa_pending_key = str_dup(encrypted_key);
     free_string(encrypted_key);
@@ -532,8 +532,16 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
     return false;
 }
 
-/*
- * Check if a TOTP code is valid for an account
+/**
+ * check_account_mfa - Validate a TOTP code or recovery code for an account
+ *
+ * Checks the TOTP code against the account's active or pending MFA key.
+ * If a pending key validates, it is activated (setup confirmation).
+ * Falls back to recovery codes if TOTP validation fails.
+ *
+ * @param acct  Account to validate against
+ * @param code  User-provided TOTP code or recovery code
+ * @return      true if code is valid, false otherwise
  */
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
     const char *encrypted_key;
@@ -544,104 +552,41 @@ bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
     // Migrate OTP key encryption if needed
     migrate_otp_key(acct, NULL);
 
-    encrypted_key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
-    if (IS_NULLSTR(encrypted_key)) return false;
+    // Use pending key if in setup mode, otherwise use active key
+    encrypted_key = !IS_NULLSTR(acct->mfa_pending_key) ?
+                    acct->mfa_pending_key : acct->mfa_key;
 
-    // validate_totp_code now handles decryption
-    return validate_totp_code(encrypted_key, code);
-}
+    if (!IS_NULLSTR(encrypted_key)) {
+        // Check TOTP code against the key (validate_totp_code handles decryption)
+        bool valid = validate_totp_code(encrypted_key, code);
 
-/*
- * In-game command to manage MFA
- */
-void do_keygen(CHAR_DATA *ch, char *argument)
-{
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);
-        return;
-    }
-
-    if (IS_NPC(ch)) {
-        send_to_char("NPCs cannot use MFA.\n\r", ch);
-        return;
-    }
-
-    if (!strcmp(argument, "clear")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-            send_to_char("You do not have an MFA key to clear.\n\r", ch);
-            return;
+        // If code validates against pending key, activate it
+        if (valid && !IS_NULLSTR(acct->mfa_pending_key)) {
+            free_string(acct->mfa_key);
+            acct->mfa_key = str_dup(acct->mfa_pending_key);
+            free_string(acct->mfa_pending_key);
+            acct->mfa_pending_key = str_dup("");
+            acct->mfa_enabled = true;
+            acct->mfa_pending = false;
+            save_account(acct);
         }
-        free_string(ch->pcdata->mfa_key);
-        ch->pcdata->mfa_key = str_dup("");
-        ch->pcdata->mfa_enabled = false;
-        //ch->pcdata->qr_code_expiration = 0;
-        send_to_char("Your MFA key has been cleared.\n\r", ch);
-        return;
+
+        if (valid)
+            return true;
     }
-    else if (!strcmp(argument, "generate")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-            setup_mfa_for_char(ch, true);
-        }
-        else {
-            send_to_char("You already have an MFA key. If you would like to generate a new key, please run 'keygen clear'.\n\r", ch);
+
+    // Check recovery codes as fallback
+    for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+        if (!IS_NULLSTR(acct->recovery_codes[i]) &&
+            !acct->recovery_used[i] &&
+            verify_recovery_code_hash(acct->recovery_codes[i], code)) {
+            acct->recovery_used[i] = true;
+            save_account(acct);
+            return true;
         }
     }
-    else if (!str_prefix(argument, "confirm")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-            send_to_char("You do not have an MFA key to validate.\n\r", ch);
-            return;
-        }
-        
 
-
-        // Prompt the user to enter the MFA code
-        send_to_char("Please enter the code from your MFA app to authenticate your account.\n\r", ch);
-        ch->pcdata->mfa_question = true;
-        return;
-    }
-    else {
-        send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);
-        return;
-    }
-}
-
-/*
- * Compatibility function
- * -- Updated to encrypt keys before storing
- */
-void generate_key(CHAR_DATA *ch, char *key)
-{
-    ACCOUNT_DATA *acct = NULL;
-    ACCOUNT_CHARACTER *acct_char = NULL;
-    bool has_auth_data = false;
-    cotp_error_t cotp_err;
-    
-    // Get account character data
-    if (ch->desc && ch->desc->account) {
-        acct = ch->desc->account;
-        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-    }
-    
-    if (!has_auth_data || !acct_char) {
-        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "generate_key: No account character entry found for %s", ch->name);
-        return;
-    }
-    
-    char *secret_key = base32_encode((uchar *)key, strlen(key)+1, &cotp_err);
-    
-    // Encrypt the key before storing
-    char *encrypted_key = encrypt_string(secret_key);
-    
-    if (!IS_NULLSTR(acct_char->mfa_key)) {
-        free_string(acct_char->mfa_key);
-    }
-    
-    acct_char->mfa_key = str_dup(encrypted_key);
-    free(secret_key);
-    free_string(encrypted_key);
-    
-    // Save the changes
-    save_account(acct);
+    return false;
 }
 
 /*

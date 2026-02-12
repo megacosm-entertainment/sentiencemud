@@ -100,7 +100,7 @@ bool handle_password_input(DESCRIPTOR_DATA *d, char *argument, password_check_ty
         case PW_SET_NEW: {
             /* Validate password strength */
             char error_msg[256];
-            if (!validate_password_strength_basic(argument, error_msg, sizeof(error_msg))) {
+            if (!validate_password_strength(argument, error_msg, sizeof(error_msg))) {
                 nanny_send_error(d, error_msg);
                 return false;
             }

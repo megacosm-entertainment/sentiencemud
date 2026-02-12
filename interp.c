@@ -42,6 +42,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "scripts.h"
+#include "account/penalty.h"
 
 /*
 // Command logging types
@@ -151,6 +152,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "report",		do_report,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "rules",		do_rules,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "score",		do_score,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
+    { "standing",	do_standing,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "scry",		do_scry,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "skills",		do_skills,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "socials",	do_socials,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
@@ -167,20 +169,20 @@ const	struct	cmd_type	cmd_table	[] =
     // Configuration commands
     { "alias",		do_alias,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
 
-    { "autolist",	do_toggle,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
+    { "autolist",	do_prefs,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "colour",		do_colour,	POS_DEAD,        0,  LOG_NORMAL, 1, true},
     { "color",		do_colour,      POS_DEAD,        0,  LOG_NORMAL, 1, true},
-    { "config",	        do_toggle,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
+    { "config",	        do_prefs,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "description",	do_description,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "delet",			do_delet,	POS_DEAD,	 0,  LOG_ALWAYS, 0, false },
     { "delete",			do_delete,	POS_STANDING,	 0,  LOG_ALWAYS, 1, false },
-    { "email",			do_email,	POS_DEAD,	 0,  LOG_ALWAYS, 1, true },
-    { "password",		do_password,	POS_DEAD,	 0,  LOG_ALWAYS, 1, true },
+    { "preferences",		do_prefs,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
+    { "prefs",			do_prefs,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "prompt",			do_prompt,	POS_DEAD,        0,  LOG_NORMAL, 1, true },
     { "showdamage",		do_showdamage,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "scroll",			do_scroll,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "title",			do_title,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
-    { "toggle",			do_toggle,	POS_DEAD,	 0,  LOG_NORMAL, 0, true },
+    { "toggle",			do_prefs,	POS_DEAD,	 0,  LOG_NORMAL, 0, true },
     { "unalias",		do_unalias,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "wimpy",			do_wimpy,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
 
@@ -833,7 +835,9 @@ void interpret( CHAR_DATA *ch, char *argument )
     return;
 
     // Frozen people can't do anything
-    if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_FREEZE))
+    if (!IS_NPC(ch) && (IS_SET(ch->act[0], PLR_FREEZE)
+        || (ch->desc && ch->desc->account
+            && has_penalty(ch->desc->account, PENALTY_FREEZE, ch->name))))
     {
     send_to_char( "You're totally frozen!\n\r", ch );
     return;
@@ -966,28 +970,6 @@ void interpret( CHAR_DATA *ch, char *argument )
         send_to_char("Please answer yes or no.\n\r", ch);
         return;
     }
-    }
-
-    if (!IS_NPC(ch) && ch->pcdata->mfa_question)
-    {
-        if (command[0] != '\0')
-        {
-                // Validate the MFA code
-                if (check_mfa(ch, command)) {
-                    ch->pcdata->mfa_enabled = true;
-                    //ch->pcdata->qr_code_expiration = 0;
-                    send_to_char("Your MFA key has been validated and enabled.\n\r", ch);
-                } else {
-                    send_to_char("The code you provided is incorrect. Please try '2fa confirm' again.\n\r", ch);
-                }
-                ch->pcdata->mfa_question = false;
-                return;
-        }
-        else
-        {
-            send_to_char("{YEnter your MFA code:{x ", ch);
-            return;
-        }
     }
 
     if (!IS_NPC(ch) && ch->pcdata->inquiry_subject != NULL) {
@@ -1473,7 +1455,10 @@ if (ch->pk_question)
         strcpy( logline, "" );
 
         if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
-        &&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
+        &&*/ ((!IS_NPC(ch) && (IS_SET(ch->act[0], PLR_LOG)
+            || (ch->desc && ch->desc->account
+                && has_penalty(ch->desc->account, PENALTY_LOG, ch->name))))
+            || logAll || selected_command->log == LOG_ALWAYS))
         {
             char s[2 * MAX_INPUT_LENGTH];
             char *ps;

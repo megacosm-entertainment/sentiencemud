@@ -270,6 +270,8 @@ struct script_type {
 // Break inventory into LOCKER, EQUIPMENT, and INVENTORY sections.
 #define VERSION_PLAYER_009 0x01000008
 // Switch from sex to body types, etc.
+#define VERSION_PLAYER_010 0x01000009
+// Migrate legacy bitfield/flag state into the preferences system.
 
 #define VERSION_MOBILE_001    0x01000001
 
@@ -297,13 +299,18 @@ struct script_type {
 #define VERSION_MOBILE		VERSION_MOBILE_001
 #define VERSION_OBJECT		VERSION_OBJECT_004
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_009
+#define VERSION_PLAYER		VERSION_PLAYER_010
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
 #define VERSION_WILDS		0x01000000
 #define VERSION_DATABASE	0x01000000
 #define VERSION_CHURCH      VERSION_CHURCH_001
+
+/* Account data version - for JSON account file migrations */
+#define VERSION_ACCOUNT_000 0           /* No version field saved (pre-versioning) */
+#define VERSION_ACCOUNT_001 1           /* Initial versioned format */
+#define VERSION_ACCOUNT     VERSION_ACCOUNT_001
 
 /* Setting type constants */
 #define SETTING_TYPE_BOOL 0
@@ -365,6 +372,9 @@ typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
 typedef struct	pc_data			PC_DATA;
 typedef struct  account_data    ACCOUNT_DATA;
+typedef struct  penalty_data    PENALTY_DATA;
+typedef struct  bonus_data      BONUS_DATA;
+typedef struct  pref_entry      PREF_ENTRY;
 typedef struct	questor_data	QUESTOR_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
@@ -1401,6 +1411,9 @@ struct game_settings_data
     char *crypto_salt_file;               // Path to salt file for key derivation (default: data/system/.crypto_salt_v{version})
     bool crypto_use_passphrase;           // Use passphrase-based key derivation instead of file-based key
     int crypto_key_version;               // Current encryption key version (for rotation support)
+
+    /* Preference Defaults */
+    PREF_ENTRY *pref_defaults;            // Server-wide preference defaults (overrides pc_set_table hardcoded defaults)
 };
 
 /* Changeset structures */
@@ -1754,7 +1767,9 @@ struct church_treasure_room
 #define CON_SET_CUSTOM_PRONOUN_REFL     82
 #define CON_SET_CUSTOM_VERB_PREF        83
 #define CON_SET_CUSTOM_PRONOUNS_CONFIRM 84
-#define CON_MAX 85
+#define CON_CONFIRM_RESET_PREFS        85
+#define CON_ACCOUNT_PREFS              86
+#define CON_MAX 87
 
 #define MFA_RECOVERY_CODES 5
 
@@ -4989,6 +5004,13 @@ int temp_log_entry_id;
 
 #define SHOW_CHANNEL_FLAG(ch, flag)  (!IS_NPC(ch) && IS_SET((ch)->pcdata->channel_flags, (flag)))
 
+/* Note categories for account/character notes */
+#define NOTE_CAT_INFO       0  /* General information */
+#define NOTE_CAT_WARNING    1  /* Warning to player */
+#define NOTE_CAT_PUNISHMENT 2  /* Record of punishment */
+#define NOTE_CAT_REWARD     3  /* Record of reward */
+#define NOTE_CAT_MAX        4
+
 typedef struct account_note_data ACCOUNT_NOTE_DATA;
 
 struct account_note_data
@@ -4998,6 +5020,8 @@ struct account_note_data
     char *subject;           /* Note subject/title */
     char *text;              /* Note content */
     time_t timestamp;        /* When note was created */
+    int category;            /* NOTE_CAT_* category */
+    char *penalty_ref;       /* Optional penalty ID link */
 };
 
 struct account_data
@@ -5050,9 +5074,9 @@ struct account_data
     int character_limit; // Maximum number of characters allowed on the account
     int staff_limit;     // Maximum number of staff characters allowed on the account
     bool staff_account;  // Is this account a staff account?
-    BAN_DATA *bans;
-    //    PENALTY_DATA * penalties;
-    //    BONUS_DATA * bonuses;
+    PENALTY_DATA *penalties;       // Unified penalty records
+    BONUS_DATA *bonuses;            // Unified bonus records
+    PREF_ENTRY *preferences;        // Account-level preferences
     long acct_flags;                // Account flags
     LLIST *characters;              // List of characters on the account
     LLIST *notes;                   // List of notes on the account
@@ -5110,6 +5134,8 @@ struct account_character_data
     time_t email_verification_time; // Time of email verification
     time_t email_verification_last_sent; // Time of last email verification code sent
 
+    // Staff notes (character-level)
+    ACCOUNT_NOTE_DATA *staff_notes;  // Staff notes for this character
 };
 
 /* ACCOUNT_CHARACTER typedef moved to forward declarations before descriptor_data */
@@ -5157,7 +5183,6 @@ struct	pc_data
     char *      mfa_key;
     time_t      qr_code_expiration;
     bool        mfa_enabled;
-    bool mfa_question;
     char *account_name;          /* Account this character belongs to */
     unsigned long account_id[2]; /* Account this character belongs to (by ID) */
     bool account_pwd_override;
@@ -5253,6 +5278,7 @@ struct	pc_data
     bool mfa_pending;                         // True if setup in progress
     char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
     bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
+    PREF_ENTRY *preferences;                  // Character preference overrides
 };
 
 
@@ -9252,7 +9278,7 @@ bool check_reconnect args((DESCRIPTOR_DATA * d, char *name, bool fConn));
 bool check_playing args((DESCRIPTOR_DATA * d, char *name));
 bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
 void add_possible_subclasses(CHAR_DATA *ch, char *string);
-void add_possible_races(CHAR_DATA *ch, char *string);
+void add_possible_races(ACCOUNT_DATA *account, char *string);
 void save_area_list();
 void save_area_new(AREA_DATA *area);
 bool load_account(DESCRIPTOR_DATA *d, char *name);
@@ -9308,6 +9334,14 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
 bool is_reconnecting(CHAR_DATA *ch);
 void reconnect_char(DESCRIPTOR_DATA *d);
 void string_end_accnote(CHAR_DATA *ch);
+void string_end_charnote(CHAR_DATA *ch);
+void free_account_note(ACCOUNT_NOTE_DATA *note);
+void free_all_account_notes(ACCOUNT_DATA *account);
+int account_note_count(ACCOUNT_NOTE_DATA *notes);
+int account_note_count_by_category(ACCOUNT_NOTE_DATA *notes, int category);
+const char *note_category_name(int category);
+int note_category_lookup(const char *name);
+void notify_staff_of_notes(DESCRIPTOR_DATA *d);
 void login_character_delete(DESCRIPTOR_DATA *d, char argument);
 bool delete_character(CHAR_DATA *ch);
 bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry);
@@ -9386,8 +9420,8 @@ int rpcmd_lookup(char *command);*/
 
 /* save.c */
 bool find_class_skill( CHAR_DATA *ch, int class );
-bool load_char_obj	args( ( DESCRIPTOR_DATA *d, char *name ) );
-bool load_char_obj_basic args( ( DESCRIPTOR_DATA *d, char *name ) );
+bool load_char_obj	args( ( DESCRIPTOR_DATA *d, const char *name ) );
+bool load_char_obj_basic args( ( DESCRIPTOR_DATA *d, const char *name ) );
 bool update_object( OBJ_DATA *obj );
 OBJ_DATA *fread_obj_new( FILE *fp );
 void cleanup_affects( OBJ_DATA *obj );
@@ -10208,7 +10242,6 @@ bool check_social_status(CHAR_DATA *ch);
 void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 
-void generate_key(CHAR_DATA *ch, char *key);
 bool check_mfa(CHAR_DATA *ch, char *argument);
 char *sha256_crypt(const char *pwd);
 /* SSL functions */

@@ -11,6 +11,7 @@
 #include "../../tables.h"
 #include "json_game_settings.h"
 #include "../../secret.h"
+#include "../../account/preferences.h"
 
 #define GAME_SETTINGS_JSON_FILE DATA_DIR "system/game_settings.json"
 #define GAME_SETTINGS_DAT_BACKUP DATA_DIR "system/game_settings.dat.backup"
@@ -352,6 +353,11 @@ json_t *game_settings_to_json(void)
         json_object_set_new(root, category_names[i], categories[i]);
     }
 
+    // Add preference defaults (stored separately from the table-driven settings)
+    if (game_settings.pref_defaults) {
+        json_object_set_new(root, "preferences", prefs_to_json(game_settings.pref_defaults));
+    }
+
     return root;
 }
 
@@ -433,6 +439,14 @@ bool json_to_game_settings(json_t *root)
                 break;
             }
         }
+    }
+
+    // Load preference defaults (stored separately from the table-driven settings)
+    json_t *prefs = json_object_get(root, "preferences");
+    if (prefs && json_is_array(prefs)) {
+        free_pref_list(game_settings.pref_defaults);
+        game_settings.pref_defaults = NULL;
+        json_to_prefs(prefs, &game_settings.pref_defaults);
     }
 
     return true;
@@ -644,6 +658,9 @@ static void init_game_settings_defaults(void)
     game_settings.crypto_salt_file = str_empty;
     game_settings.crypto_use_passphrase = false;  // Default to file-based key (backward compatible)
     game_settings.crypto_key_version = 1;         // Default version
+
+    /* Preference Defaults */
+    game_settings.pref_defaults = NULL;
 }
 
 int json_game_settings_read(void)

@@ -22,8 +22,12 @@
 #include "wilds.h"
 #include "protocol.h"
 #include "account/auth.h"
+#include "account/penalty.h"
+#include "account/preferences.h"
+#include "account/unlock.h"
 #include "io/json/json_char.h"
 #include "nanny/nanny_utils.h"
+#include "nanny/nanny_menus.h"
 
 /*
  * NANNY SYSTEM - LOGIN AND CHARACTER CREATION
@@ -337,6 +341,14 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     acct->last_login = current_time;
     save_account(acct); // Save account on successful login
 
+    // Check for account-level deny penalty
+    if (has_penalty(acct, PENALTY_DENY, NULL)) {
+        log_message_f(LOG_LEVEL_WARN, LOG_SECURITY, "Denying account %s@%s (account penalty).", acct->username, d->host);
+        write_to_buffer(d, "This account has been denied access.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
     // Show the account menu
     display_account_menu(d);
     d->connected = CON_ACCOUNT_MENU;
@@ -598,6 +610,13 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rEmail verification cancelled.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+
     if (!str_cmp(argument, acct->email_verification_code)) {
         free_string(acct->email);
         acct->email = str_dup(acct->pending_email);
@@ -613,7 +632,7 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
     } else {
-        write_to_buffer(d, "Invalid code. Try again: ", 0);
+        write_to_buffer(d, "Invalid code. Try again (or 'cancel' to cancel): ", 0);
     }
 }
 
@@ -667,12 +686,19 @@ void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
 
     free_auth_data(auth);
 
+    if (!str_cmp(argument, "cancel")) {
+        write_to_buffer(d, "\n\rReturning to account menu.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+
     if (valid) {
         d->mfa_verified = true;
         display_account_mfa_menu(d, "");
         d->connected = CON_ACCOUNT_MFA_MENU;
     } else {
-        write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
+        write_to_buffer(d, "Invalid MFA or recovery code. Try again (or 'cancel'): ", 0);
     }
 }
 
@@ -693,9 +719,10 @@ void login_account_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
             if (acct->mfa_pending_key != NULL)
                 free_string(acct->mfa_pending_key);
             acct->mfa_pending_key = str_dup("");
-            
-            // No need to set mfa_enabled = false, as we now check for key presence
-            
+
+            acct->mfa_enabled = false;
+            acct->mfa_pending = false;
+
             // Clear recovery codes
             for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
                 if (acct->recovery_codes[i] != NULL)
@@ -811,7 +838,6 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     char level_buf[50];
     char race_buf[50];
     char class_buf[50];
-    ITERATOR it;
     ACCOUNT_CHARACTER *ch_entry;
     char *default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
     ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
@@ -844,38 +870,62 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     }
     write_to_buffer(d, buf, 0);
 }
-    
-    // First pass: separate staff and regular characters
-    iterator_start(&it, acct->characters);
-    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
-            staff_chars[staff_count++] = ch_entry;
-        } else {
-            regular_chars[regular_count++] = ch_entry;
+
+    /* Account status summary line */
+    {
+        int active_penalties = 0, active_bonuses = 0;
+        PENALTY_DATA *pen;
+        BONUS_DATA *bon;
+
+        for (pen = acct->penalties; pen; pen = pen->next)
+            if (!is_penalty_expired(pen)) active_penalties++;
+        for (bon = acct->bonuses; bon; bon = bon->next)
+            if (!is_bonus_expired(bon)) active_bonuses++;
+
+        int unlocks = account_race_unlock_count(acct);
+
+        /* Build compact status line */
+        char status[MAX_STRING_LENGTH];
+        status[0] = '\0';
+
+        if (active_penalties > 0) {
+            sprintf(buf, "{R%d penalt%s{x", active_penalties,
+                active_penalties == 1 ? "y" : "ies");
+            strcat(status, buf);
         }
-    }
-    iterator_stop(&it);
-    
-    // Sort characters alphabetically in two buckets (staff and normal)
-    for (int i = 0; i < staff_count - 1; i++) {
-        for (int j = 0; j < staff_count - i - 1; j++) {
-            if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
-                ACCOUNT_CHARACTER *temp = staff_chars[j];
-                staff_chars[j] = staff_chars[j+1];
-                staff_chars[j+1] = temp;
+        if (active_bonuses > 0) {
+            if (status[0] != '\0') strcat(status, " | ");
+            sprintf(buf, "{G%d bonus%s{x", active_bonuses,
+                active_bonuses == 1 ? "" : "es");
+            strcat(status, buf);
+        }
+        if (unlocks > 0) {
+            if (status[0] != '\0') strcat(status, " | ");
+            sprintf(buf, "{C%d race unlock%s{x", unlocks,
+                unlocks == 1 ? "" : "s");
+            strcat(status, buf);
+        }
+
+        /* Staff: show note summary */
+        if (d->character && IS_IMMORTAL(d->character)) {
+            int acct_notes = account_note_count(acct->staff_notes);
+            if (acct_notes > 0) {
+                if (status[0] != '\0') strcat(status, " | ");
+                sprintf(buf, "{Y%d staff note%s{x", acct_notes,
+                    acct_notes == 1 ? "" : "s");
+                strcat(status, buf);
             }
         }
-    }
-    
-    for (int i = 0; i < regular_count - 1; i++) {
-        for (int j = 0; j < regular_count - i - 1; j++) {
-            if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
-                ACCOUNT_CHARACTER *temp = regular_chars[j];
-                regular_chars[j] = regular_chars[j+1];
-                regular_chars[j+1] = temp;
-            }
+
+        if (status[0] != '\0') {
+            write_to_buffer(d, "Status: ", 0);
+            write_to_buffer(d, status, 0);
+            write_to_buffer(d, "\n\r", 0);
         }
     }
+    
+    // Separate and sort characters into staff/regular buckets
+    sort_account_characters(acct, staff_chars, &staff_count, regular_chars, &regular_count, 100);
     
     // Display staff characters first
     if (staff_count > 0) {
@@ -975,6 +1025,56 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         write_to_buffer(d, "   {RNo characters found.{x\n\r", 0);
     }
     
+    // Display active account penalties
+    if (acct->penalties) {
+        write_to_buffer(d, "\n\r{RActive Penalties:{x\n\r", 0);
+        PENALTY_DATA *pen;
+        for (pen = acct->penalties; pen; pen = pen->next) {
+            if (is_penalty_expired(pen))
+                continue;
+            char dur[64];
+            if (pen->expires_at == 0)
+                sprintf(dur, "{RPermanent{x");
+            else {
+                penalty_format_duration(pen->expires_at - current_time, dur, sizeof(dur));
+            }
+            if (pen->scope == PENALTY_SCOPE_CHARACTER && !IS_NULLSTR(pen->target_name)) {
+                sprintf(buf, "   {R*{x %-14s ({Y%s{x) - %s\n\r",
+                    penalty_type_name(pen->type), pen->target_name, dur);
+            } else {
+                sprintf(buf, "   {R*{x %-14s ({Caccount{x) - %s\n\r",
+                    penalty_type_name(pen->type), dur);
+            }
+            write_to_buffer(d, buf, 0);
+        }
+    }
+
+    // Display active account bonuses
+    if (acct->bonuses) {
+        write_to_buffer(d, "\n\r{GActive Bonuses:{x\n\r", 0);
+        BONUS_DATA *bon;
+        for (bon = acct->bonuses; bon; bon = bon->next) {
+            if (is_bonus_expired(bon))
+                continue;
+            char dur[64];
+            if (bon->expires_at == 0)
+                sprintf(dur, "{GPermanent{x");
+            else {
+                penalty_format_duration(bon->expires_at - current_time, dur, sizeof(dur));
+            }
+            char scope_str[64];
+            if (bon->scope == BONUS_SCOPE_UNASSIGNED)
+                sprintf(scope_str, "{Yunassigned{x");
+            else if (bon->scope == BONUS_SCOPE_CHARACTER && !IS_NULLSTR(bon->target_name))
+                sprintf(scope_str, "{Y%s{x", bon->target_name);
+            else
+                sprintf(scope_str, "{Caccount{x");
+            sprintf(buf, "   {G+{x %-10s %+d%% (%s) - %s\n\r",
+                bonus_type_name(bon->type), bon->value, scope_str, dur);
+            write_to_buffer(d, buf, 0);
+        }
+    }
+
     // Display menu options with divider
     write_to_buffer(d, "\n\r", 0);
     sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
@@ -1028,6 +1128,8 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     if (!DEV_SKIP_MFA)
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
 
+    write_to_buffer(d, "{GA{x) Account preferences\n\r", 0);
+
     if (default_char != NULL) {
         sprintf(buf, "{GY{x) Log in with default character ({C%s{x)\n\r", default_char);
         write_to_buffer(d, buf, 0);
@@ -1043,360 +1145,27 @@ void display_account_menu(DESCRIPTOR_DATA *d)
 }
 
 // This handles the selections in the account menu.
-// It can lead to a number of states:
-// CON_CREATING_NEW_CHAR (creating a new character)
-// CON_CREATING_NEW_STAFF_CHAR (creating a new staff character)
-// CON_LINKING_CHARACTER (linking an existing character)
-// CON_GET_ACCOUNT_EMAIL (changing email address)
-// CON_GET_ACCOUNT_PASSWORD (changing password)
-// CON_ACCOUNT_MFA_MENU (MFA settings)
-// CON_VERIFY_ACCOUNT_EMAIL_CHANGE (verifying email address)
+// Dispatches to handler functions in nanny_menus.c.
 void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
 {
-    ACCOUNT_DATA *acct = d->account;
-    ACCOUNT_CHARACTER *ch_entry;
-    int choice = 0;
-    ITERATOR it;
-    
-    ACCOUNT_CHARACTER *acct_char = NULL;
-    bool has_auth_data = false;
-    bool has_char_pwd = false;
-    bool has_char_mfa = false;
-    bool found = false;
+    char arg[MAX_INPUT_LENGTH];
 
-    // Arrays to store sorted characters
-    ACCOUNT_CHARACTER *staff_chars[100];
-    ACCOUNT_CHARACTER *regular_chars[100];
-    int staff_count = 0;
-    int regular_count = 0;
-
-    // Handle letter choices (menu options)
-    if (argument[0] != '\0' && argument[1] == '\0' && !isdigit(argument[0])) 
-    {
-
+    /* Handle single-letter menu options */
+    if (argument[0] != '\0' && argument[1] == '\0' && !isdigit(argument[0])) {
         switch (toupper(argument[0])) {
-            case 'C': // Create new character
-                if (game_settings.require_email_verif && !IS_EMAIL_VERIFIED(acct)) {
-                    write_to_buffer(d, "\n\rYou must verify your email address before creating characters.\n\r", 0);
-                    write_to_buffer(d, "Select 'V' from the menu to verify your email address.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                if (!account_has_immortal(acct) && game_settings.new_char_lock) {
-                    if (!IS_NULLSTR(game_settings.new_char_lock_msg))
-                        write_to_buffer(d, game_settings.new_char_lock_msg, 0);
-                    else
-                        write_to_buffer(d, "New characters are not being accepted at this time.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                {
-                    int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
-                    int nonstaff_count = account_count_nonstaff_characters(acct);
-                    if (max_chars > 0 && nonstaff_count >= max_chars) {
-                        write_to_buffer(d, "\n\r{RYou have reached the maximum number of characters for your account.{x\n\r", 0);
-                        write_to_buffer(d, "Delete an existing character or contact staff for assistance.\n\r", 0);
-                        display_account_menu(d);
-                        return;
-                    }
-                }
-                d->connected = CON_CREATING_NEW_CHAR;
-                return;
-
-            case 'I': // Create new staff character
-                if (!IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
-                    write_to_buffer(d, "\n\r{RYou do not have permission to create staff characters.{x\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                {
-                    int staff_limit = acct->staff_limit;
-                    int staff_count = account_count_staff_characters(acct);
-                    if (staff_limit > 0 && staff_count >= staff_limit) {
-                        write_to_buffer(d, "\n\r{RYou have reached your staff character limit for this account.{x\n\r", 0);
-                        display_account_menu(d);
-                        return;
-                    }
-                }
-
-                d->connected = CON_CREATING_NEW_STAFF_CHAR;
-                return;
-
-            case 'L': // Link existing character
-                if (!can_link_characters(acct)) {
-                    write_to_buffer(d, "Linking is not available for your account.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                d->connected = CON_LINK_CHARACTER_NAME;
-                return;
-
-            case 'E': // Change email address
-                if (!game_settings.enable_email) {
-                    write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                write_to_buffer(d, "\n\rCurrent email: ", 0);
-                write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
-                d->connected = CON_CHANGE_ACCOUNT_EMAIL;
-                return;
-
-            case 'P': // Change password
-                if (DEV_SKIP_PASSWORD) {
-                    write_to_buffer(d, "\n\rPasswords are disabled in development mode.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                ProtocolNoEcho(d, true);
-                d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
-                break;
-
-            case 'M': // MFA settings
-                if (DEV_SKIP_MFA) {
-                    write_to_buffer(d, "\n\rMFA is disabled in development mode.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                display_account_mfa_menu(d, "");
-                return;
-
-            case 'Q': // Quit
-                write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
-                close_socket(d);
-                return;
-            case 'R':
-            if (!game_settings.enable_email){
-                write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-        
-                resend_account_verification_code(d);
-                display_account_menu(d);
-                return;
-            case 'S': // Shared storage (vault) info
-                if (!game_settings.vault_enabled) {
-                    write_to_buffer(d, "\n\rVault is not enabled.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                display_shared_storage_info(d);
-                return;
-            case 'V':
-                    if (!game_settings.enable_email){
-                write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-                if (acct->email_verified) {
-                    write_to_buffer(d, "\n\rYour email is already verified.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                if (IS_NULLSTR(acct->pending_email)) {
-                    write_to_buffer(d, "No pending email to verify. Change your email address first.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
-                return;
-
-            case 'Y': // Default character
-                if (IS_NULLSTR(acct->default_character)) {
-                    write_to_buffer(d, "No default character has been set.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Find the character entry
-                iterator_start(&it, acct->characters);
-                while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-                    if (!str_cmp(ch_entry->name, acct->default_character)) {
-                        found = true;
-                        break;
-                    }
-                }
-                iterator_stop(&it);
-                
-                if (!found) {
-                    write_to_buffer(d, "Default character not found in your account.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Check if already online
-                if (is_character_online(ch_entry->name)) {
-                    write_to_buffer(d, "That character is already logged in.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Clear any existing character data
-                if (d->character) {
-                    free_char(d->character);
-                    d->character = NULL;
-                }
-                
-                // Reset reconnection flags
-                d->reconnect_ch = NULL;
-                d->reconnecting = false;
-                
-                log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Direct login: Loading default character");
-
-                // Load the character - this should create a new character
-                if (!load_char_obj(d, ch_entry->name)) {
-                    write_to_buffer(d, "Error loading character.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Verify the character was loaded correctly
-                if (!d->character) {
-                    log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Direct login: Character loaded but d->character is NULL");
-                    write_to_buffer(d, "Error loading character data.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Get account character data
-                has_auth_data = get_character_auth_data(d->character, acct, &acct_char);
-                
-                if (!has_auth_data || !acct_char) {
-                    write_to_buffer(d, "Error with character authentication data.\n\r", 0);
-                    free_char(d->character);
-                    d->character = NULL;
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Handle authentication inline
-                has_char_pwd = !IS_NULLSTR(acct_char->pwd);
-                has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
-                
-                // Check for reconnection
-                if (check_reconnect(d, d->character->name, false)) {
-                    // Let reconnect handler take over
-                    if (d->connected != CON_ACCOUNT_MENU) {
-                        return;
-                    }
-                    // Else fall through to auth checks
-                }
-                
-                // Check password if needed
-                if (!DEV_SKIP_PASSWORD && has_char_pwd) {
-                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_PASSWORD;
-                    return;
-                }
-                
-                // Check MFA if needed
-                if (!DEV_SKIP_MFA && has_char_mfa) {
-                    write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_MFA;
-                    return;
-                }
-                
-                // If no auth needed, proceed to game
-                if (d->reconnecting && d->reconnect_ch) {
-                    complete_reconnect(d);
-                } else {
-                    proceed_to_game(d);
-                }
-                return;
-                
-            case 'Z': // Most recently played character
-                ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
-                
-                if (!recent_char) {
-                    write_to_buffer(d, "No eligible recent character found.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Check if already online
-                if (is_character_online(recent_char->name)) {
-                    write_to_buffer(d, "That character is already logged in.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Clear any existing character data
-                if (d->character) {
-                    free_char(d->character);
-                    d->character = NULL;
-                }
-                
-                // Reset reconnection flags
-                d->reconnect_ch = NULL;
-                d->reconnecting = false;
-                
-                log_message(LOG_LEVEL_DEBUG, LOG_DEBUG, "Direct login: Loading most recent character");
-
-                // Load the character
-                if (!load_char_obj(d, recent_char->name)) {
-                    write_to_buffer(d, "Error loading character.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-                
-                if (!d->character) {
-                    log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Direct login: Character loaded but d->character is NULL");
-                    write_to_buffer(d, "Error loading character data.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-
-                // Get account character data - reuse the variables declared at the top
-                has_auth_data = get_character_auth_data(d->character, acct, &acct_char);
-                
-                if (!has_auth_data || !acct_char) {
-                    write_to_buffer(d, "Error with character authentication data.\n\r", 0);
-                    free_char(d->character);
-                    d->character = NULL;
-                    display_account_menu(d);
-                    return;
-                }
-                
-                // Handle authentication inline
-                has_char_pwd = !IS_NULLSTR(acct_char->pwd);
-                has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
-                
-                // Check for reconnection
-                if (check_reconnect(d, d->character->name, false)) {
-                    // Let reconnect handler take over
-                    if (d->connected != CON_ACCOUNT_MENU) {
-                        return;
-                    }
-                    // Else fall through to auth checks
-                }
-                
-                // Check password if needed
-                if (!DEV_SKIP_PASSWORD && has_char_pwd) {
-                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_PASSWORD;
-                    return;
-                }
-                
-                // Check MFA if needed
-                if (!DEV_SKIP_MFA && has_char_mfa) {
-                    write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_MFA;
-                    return;
-                }
-                
-                // If no auth needed, proceed to game
-                if (d->reconnecting && d->reconnect_ch) {
-                    complete_reconnect(d);
-                } else {
-                    proceed_to_game(d);
-                }
-                return;
-
+            case 'C': handle_account_create_character(d); return;
+            case 'I': handle_account_create_staff(d);     return;
+            case 'L': handle_account_link_character(d);    return;
+            case 'E': handle_account_change_email(d);      return;
+            case 'P': handle_account_change_password(d);   return;
+            case 'M': handle_account_mfa_menu(d);          return;
+            case 'A': handle_account_preferences(d);     return;
+            case 'Q': handle_account_logout(d);            return;
+            case 'R': handle_account_resend_verification(d); return;
+            case 'S': handle_account_shared_storage(d);    return;
+            case 'V': handle_account_verify_email(d);      return;
+            case 'Y': handle_account_default_character(d); return;
+            case 'Z': handle_account_recent_character(d);  return;
             default:
                 write_to_buffer(d, "Invalid choice.\n\r", 0);
                 display_account_menu(d);
@@ -1404,95 +1173,21 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
         }
     }
 
-
-
-    // (Only reached if not a menu letter)
-    if (isdigit(argument[0]) || isalpha(argument[0])) {
-        // First separate and count staff/regular characters
-        iterator_start(&it, acct->characters);
-        while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-            if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
-                staff_chars[staff_count++] = ch_entry;
-            } else {
-                regular_chars[regular_count++] = ch_entry;
-            }
-        }
-        iterator_stop(&it);
-
-        // Sort staff characters alphabetically
-        for (int i = 0; i < staff_count - 1; i++) {
-            for (int j = 0; j < staff_count - i - 1; j++) {
-                if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
-                    ACCOUNT_CHARACTER *temp = staff_chars[j];
-                    staff_chars[j] = staff_chars[j+1];
-                    staff_chars[j+1] = temp;
-                }
-            }
-        }
-        // Sort regular characters alphabetically
-        for (int i = 0; i < regular_count - 1; i++) {
-            for (int j = 0; j < regular_count - i - 1; j++) {
-                if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
-                    ACCOUNT_CHARACTER *temp = regular_chars[j];
-                    regular_chars[j] = regular_chars[j+1];
-                    regular_chars[j+1] = temp;
-                }
-            }
-        }
-
-        int total_count = staff_count + regular_count;
-
-        // If numeric, select by number
-        if (isdigit(argument[0])) {
-            choice = atoi(argument);
-            if (choice < 1 || choice > total_count) {
-                write_to_buffer(d, "Invalid character selection.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            if (choice <= staff_count) {
-                ch_entry = staff_chars[choice - 1];
-            } else {
-                ch_entry = regular_chars[choice - staff_count - 1];
-            }
-            select_character(d, ch_entry);
-            return;
-        }
-
-        // If alpha, select by name (case-insensitive, partial match allowed)
-        char arg[MAX_INPUT_LENGTH];
-        one_argument(argument, arg);
-        ACCOUNT_CHARACTER *found_entry = NULL;
-        // Search staff first
-        for (int i = 0; i < staff_count; i++) {
-            if (!str_prefix(arg, staff_chars[i]->name)) {
-                found_entry = staff_chars[i];
-                break;
-            }
-        }
-        // If not found, search regular
-        if (!found_entry) {
-            for (int i = 0; i < regular_count; i++) {
-                if (!str_prefix(arg, regular_chars[i]->name)) {
-                    found_entry = regular_chars[i];
-                    break;
-                }
-            }
-        }
-        if (found_entry) {
-            select_character(d, found_entry);
-            return;
-        } else {
-            write_to_buffer(d, "No character by that name found.\n\r", 0);
-            display_account_menu(d);
-            return;
-        }
+    /* Handle numeric or alpha character selection */
+    if (isdigit(argument[0])) {
+        handle_account_select_by_number(d, atoi(argument));
+        return;
     }
 
-    // If nothing matched, show error
+    if (isalpha(argument[0])) {
+        one_argument(argument, arg);
+        handle_account_select_by_name(d, arg);
+        return;
+    }
+
+    /* Nothing matched */
     write_to_buffer(d, "Invalid choice.\n\r", 0);
     display_account_menu(d);
-    d->connected = CON_ACCOUNT_MENU;
 }
 
 
@@ -1682,6 +1377,397 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
 }
 
 
+/***************************************************************************
+ * Account Preferences Menu                                                *
+ ***************************************************************************/
+
+/**
+ * get_default_bool - Get the effective default value for a toggle setting
+ *
+ * Checks game_settings.pref_defaults first, then falls back to the
+ * hardcoded default_state in pc_set_table.
+ *
+ * @param name           The setting name
+ * @param table_default  The default_state from pc_set_table (SETTING_ON/OFF)
+ * @return               true if the default is ON
+ */
+static bool get_default_bool(const char *name, int table_default)
+{
+    /* Check game_settings overrides first */
+    PREF_ENTRY *gp = pref_find(game_settings.pref_defaults, name);
+    if (gp && gp->type == PREF_TYPE_BOOL)
+        return gp->val.b;
+
+    return (table_default == SETTING_ON);
+}
+
+/* Channel names and their pref keys for account-level display/toggle.
+ * Channels are stored as "channel_<name>" boolean prefs where true = ON. */
+static const struct {
+    const char *name;       /* Display name (also used for toggle input) */
+    const char *pref_key;   /* Key in the preferences list */
+} acct_channel_table[] = {
+    { "gossip",    "channel_gossip"   },
+    { "ooc",       "channel_ooc"      },
+    { "music",     "channel_music"    },
+    { "auction",   "channel_auction"  },
+    { "yell",      "channel_yell"     },
+    { "quote",     "channel_quote"    },
+    { "helper",    "channel_helper"   },
+    { "ct",        "channel_ct"       },
+    { "gq",        "channel_gq"       },
+    { "autowar",   "channel_autowar"  },
+    { "announce",  "channel_announce" },
+    { "hints",     "channel_hints"    },
+    { "flaming",   "channel_flaming"  },
+    { NULL, NULL }
+};
+
+/**
+ * display_account_prefs_menu - Show account preferences with toggle options
+ *
+ * Displays all player-level toggle settings, channel settings, prompt,
+ * scroll, and wimpy with their current effective value at the account
+ * level. Settings with an account override show (acct), otherwise (def)
+ * for game default.
+ *
+ * @param d  The descriptor at the account menu
+ */
+void display_account_prefs_menu(DESCRIPTOR_DATA *d)
+{
+    ACCOUNT_DATA *acct = d->account;
+    char buf[MAX_STRING_LENGTH];
+
+    write_to_buffer(d, "\n\r{B=={W[ {YACCOUNT PREFERENCES {W]{B=={x\n\r", 0);
+    write_to_buffer(d, "{DSet defaults for all your characters. Character-specific\n\r"
+                       "overrides (set in-game via 'prefs') take priority.{x\n\r", 0);
+
+    /* --- Toggle Settings --- */
+    write_to_buffer(d, "\n\r{Y--- Toggle Settings ---{x\n\r", 0);
+    write_to_buffer(d, "{D  Setting          Value    Source{x\n\r", 0);
+    write_to_buffer(d, "{D──────────────────────────────────────────{x\n\r", 0);
+
+    for (int i = 0; pc_set_table[i].name; i++) {
+        if (pc_set_table[i].min_rank > STAFF_PLAYER)
+            continue;
+
+        PREF_ENTRY *acct_pref = pref_find(acct->preferences, pc_set_table[i].name);
+        bool is_on;
+        const char *source_tag;
+
+        if (acct_pref && acct_pref->type == PREF_TYPE_BOOL) {
+            is_on = acct_pref->val.b;
+            source_tag = "{C(acct){x";
+        } else {
+            is_on = get_default_bool(pc_set_table[i].name,
+                                     pc_set_table[i].default_state);
+            source_tag = "{D(def){x ";
+        }
+
+        sprintf(buf, "  %-16s %s    %s\n\r",
+                pc_set_table[i].name,
+                is_on ? "{WON{x " : "{DOFF{x",
+                source_tag);
+        write_to_buffer(d, buf, 0);
+    }
+
+    /* Wimpy */
+    {
+        PREF_ENTRY *wp = pref_find(acct->preferences, "wimpy");
+        if (wp && wp->type == PREF_TYPE_INT) {
+            sprintf(buf, "  %-16s {W%-5d{x  {C(acct){x\n\r", "wimpy", wp->val.i);
+        } else {
+            PREF_ENTRY *gp = pref_find(game_settings.pref_defaults, "wimpy");
+            int def_wimpy = (gp && gp->type == PREF_TYPE_INT) ? gp->val.i : 0;
+            sprintf(buf, "  %-16s {W%-5d{x  {D(def){x\n\r", "wimpy", def_wimpy);
+        }
+        write_to_buffer(d, buf, 0);
+    }
+
+    /* Scroll (lines per page) */
+    {
+        PREF_ENTRY *sp = pref_find(acct->preferences, "scroll");
+        if (sp && sp->type == PREF_TYPE_INT) {
+            if (sp->val.i == 0)
+                sprintf(buf, "  %-16s {DOFF{x    {C(acct){x\n\r", "scroll");
+            else
+                sprintf(buf, "  %-16s {W%-5d{x  {C(acct){x\n\r", "scroll", sp->val.i);
+        } else {
+            PREF_ENTRY *gp = pref_find(game_settings.pref_defaults, "scroll");
+            int def_scroll = (gp && gp->type == PREF_TYPE_INT) ? gp->val.i : 0;
+            if (def_scroll == 0)
+                sprintf(buf, "  %-16s {DOFF{x    {D(def){x\n\r", "scroll");
+            else
+                sprintf(buf, "  %-16s {W%-5d{x  {D(def){x\n\r", "scroll", def_scroll);
+        }
+        write_to_buffer(d, buf, 0);
+    }
+
+    /* --- Channel Settings --- */
+    write_to_buffer(d, "\n\r{Y--- Channel Settings ---{x\n\r", 0);
+    write_to_buffer(d, "{D  Channel          Status   Source{x\n\r", 0);
+    write_to_buffer(d, "{D──────────────────────────────────────────{x\n\r", 0);
+
+    for (int i = 0; acct_channel_table[i].name; i++) {
+        PREF_ENTRY *cp = pref_find(acct->preferences, acct_channel_table[i].pref_key);
+        bool is_on;
+        const char *source_tag;
+
+        if (cp && cp->type == PREF_TYPE_BOOL) {
+            is_on = cp->val.b;
+            source_tag = "{C(acct){x";
+        } else {
+            /* Default: all channels ON */
+            is_on = true;
+            source_tag = "{D(def){x ";
+        }
+
+        sprintf(buf, "  %-16s %s    %s\n\r",
+                acct_channel_table[i].name,
+                is_on ? "{WON{x " : "{DOFF{x",
+                source_tag);
+        write_to_buffer(d, buf, 0);
+    }
+
+    /* --- Prompt --- */
+    write_to_buffer(d, "\n\r{Y--- Prompt ---{x\n\r", 0);
+    {
+        PREF_ENTRY *pp = pref_find(acct->preferences, "prompt");
+        if (pp && pp->type == PREF_TYPE_STRING && !IS_NULLSTR(pp->val.str)) {
+            sprintf(buf, "  Prompt: {W%s{x  {C(acct){x\n\r", pp->val.str);
+        } else {
+            sprintf(buf, "  Prompt: {W(game default){x  {D(def){x\n\r");
+        }
+        write_to_buffer(d, buf, 0);
+    }
+
+    /* Summary */
+    int acct_prefs = acct->preferences ? pref_count(acct->preferences) : 0;
+    write_to_buffer(d, "\n\r", 0);
+    if (acct_prefs > 0) {
+        sprintf(buf, "{D%d account preference%s set.{x\n\r",
+                acct_prefs, acct_prefs == 1 ? "" : "s");
+        write_to_buffer(d, buf, 0);
+    }
+
+    write_to_buffer(d, "\n\r{DType a setting or channel name to toggle it.{x\n\r", 0);
+    write_to_buffer(d, "{DType 'wimpy <value>' to set wimpy.{x\n\r", 0);
+    write_to_buffer(d, "{DType 'scroll <lines>' to set scroll (0 = off, 10-100).{x\n\r", 0);
+    write_to_buffer(d, "{DType 'prompt <string>' to set prompt, 'prompt clear' to reset.{x\n\r", 0);
+    write_to_buffer(d, "{GR{x) Reset all account preferences\n\r", 0);
+    write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
+
+    d->connected = CON_ACCOUNT_PREFS;
+}
+
+/**
+ * login_account_prefs_menu - Handle input at the account preferences menu
+ *
+ * Processes setting toggles, channel toggles, wimpy, scroll, prompt
+ * changes, reset, and back navigation.
+ *
+ * @param d         The descriptor
+ * @param argument  User input
+ */
+void login_account_prefs_menu(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    char arg[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+
+    argument = one_argument(argument, arg);
+
+    if (IS_NULLSTR(arg)) {
+        display_account_prefs_menu(d);
+        return;
+    }
+
+    /* Back to account menu */
+    if (toupper(arg[0]) == 'B' && arg[1] == '\0') {
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+
+    /* Reset all account preferences */
+    if (toupper(arg[0]) == 'R' && arg[1] == '\0') {
+        int count = acct->preferences ? pref_count(acct->preferences) : 0;
+        if (count == 0) {
+            write_to_buffer(d, "\n\rYou have no account preferences to reset.\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        /* Free all preferences */
+        while (acct->preferences) {
+            PREF_ENTRY *next = acct->preferences->next;
+            if (acct->preferences->key && acct->preferences->key != str_empty)
+                free_string(acct->preferences->key);
+            if (acct->preferences->type == PREF_TYPE_STRING
+                && acct->preferences->val.str
+                && acct->preferences->val.str != str_empty)
+                free_string(acct->preferences->val.str);
+            free(acct->preferences);
+            acct->preferences = next;
+        }
+
+        save_account(acct);
+        sprintf(buf, "\n\rCleared %d account preference%s. All settings reverted to game defaults.\n\r",
+                count, count == 1 ? "" : "s");
+        write_to_buffer(d, buf, 0);
+        display_account_prefs_menu(d);
+        return;
+    }
+
+    /* Wimpy setting */
+    if (!str_prefix(arg, "wimpy")) {
+        char val_arg[MAX_INPUT_LENGTH];
+        one_argument(argument, val_arg);
+
+        if (IS_NULLSTR(val_arg)) {
+            write_to_buffer(d, "\n\rSyntax: wimpy <value>\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        if (!is_number(val_arg)) {
+            write_to_buffer(d, "\n\rWimpy must be a number.\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        int val = atoi(val_arg);
+        if (val < 0 || val > 1000) {
+            write_to_buffer(d, "\n\rWimpy must be between 0 and 1000.\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        pref_set_int(&acct->preferences, PREF_CAT_TOGGLE, "wimpy", val);
+        save_account(acct);
+        sprintf(buf, "\n\rAccount wimpy set to {W%d{x.\n\r", val);
+        write_to_buffer(d, buf, 0);
+        display_account_prefs_menu(d);
+        return;
+    }
+
+    /* Scroll setting */
+    if (!str_prefix(arg, "scroll")) {
+        char val_arg[MAX_INPUT_LENGTH];
+        one_argument(argument, val_arg);
+
+        if (IS_NULLSTR(val_arg)) {
+            write_to_buffer(d, "\n\rSyntax: scroll <lines>  (0 = off, 10-100)\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        if (!is_number(val_arg)) {
+            write_to_buffer(d, "\n\rScroll must be a number.\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        int val = atoi(val_arg);
+        if (val != 0 && (val < 10 || val > 100)) {
+            write_to_buffer(d, "\n\rScroll must be 0 (off) or between 10 and 100.\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        pref_set_int(&acct->preferences, PREF_CAT_DISPLAY, "scroll", val);
+        save_account(acct);
+        if (val == 0)
+            write_to_buffer(d, "\n\rAccount scroll paging {DOFF{x.\n\r", 0);
+        else {
+            sprintf(buf, "\n\rAccount scroll set to {W%d{x lines.\n\r", val);
+            write_to_buffer(d, buf, 0);
+        }
+        display_account_prefs_menu(d);
+        return;
+    }
+
+    /* Prompt setting */
+    if (!str_prefix(arg, "prompt")) {
+        if (IS_NULLSTR(argument)) {
+            write_to_buffer(d, "\n\rSyntax: prompt <string>  or  prompt clear\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        if (!str_cmp(argument, "clear") || !str_cmp(argument, "reset")) {
+            pref_remove(&acct->preferences, "prompt");
+            save_account(acct);
+            write_to_buffer(d, "\n\rAccount prompt cleared. Game default will be used.\n\r", 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+
+        pref_set_string(&acct->preferences, PREF_CAT_PROMPT, "prompt", argument);
+        save_account(acct);
+        sprintf(buf, "\n\rAccount prompt set to: {W%s{x\n\r", argument);
+        write_to_buffer(d, buf, 0);
+        display_account_prefs_menu(d);
+        return;
+    }
+
+    /* Toggle a setting from pc_set_table */
+    for (int i = 0; pc_set_table[i].name; i++) {
+        if (pc_set_table[i].min_rank > STAFF_PLAYER)
+            continue;
+
+        if (!str_prefix(arg, pc_set_table[i].name)) {
+            PREF_ENTRY *acct_pref = pref_find(acct->preferences, pc_set_table[i].name);
+            bool current_val;
+
+            if (acct_pref && acct_pref->type == PREF_TYPE_BOOL) {
+                current_val = acct_pref->val.b;
+            } else {
+                current_val = get_default_bool(pc_set_table[i].name,
+                                               pc_set_table[i].default_state);
+            }
+
+            bool new_val = !current_val;
+            pref_set_bool(&acct->preferences, PREF_CAT_TOGGLE,
+                          pc_set_table[i].name, new_val);
+            save_account(acct);
+
+            sprintf(buf, "\n\r%s is now %s{x for your account.\n\r",
+                    pc_set_table[i].name,
+                    new_val ? "{WON" : "{DOFF");
+            write_to_buffer(d, buf, 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+    }
+
+    /* Toggle a channel */
+    for (int i = 0; acct_channel_table[i].name; i++) {
+        if (!str_prefix(arg, acct_channel_table[i].name)) {
+            PREF_ENTRY *cp = pref_find(acct->preferences,
+                                       acct_channel_table[i].pref_key);
+            bool current_val = (cp && cp->type == PREF_TYPE_BOOL)
+                               ? cp->val.b : true; /* default: ON */
+
+            bool new_val = !current_val;
+            pref_set_bool(&acct->preferences, PREF_CAT_CHANNEL,
+                          acct_channel_table[i].pref_key, new_val);
+            save_account(acct);
+
+            sprintf(buf, "\n\r%s channel is now %s{x for your account.\n\r",
+                    acct_channel_table[i].name,
+                    new_val ? "{WON" : "{DOFF");
+            write_to_buffer(d, buf, 0);
+            display_account_prefs_menu(d);
+            return;
+        }
+    }
+
+    /* No match */
+    write_to_buffer(d, "\n\rUnknown setting. Type a setting or channel name to toggle it.\n\r", 0);
+    display_account_prefs_menu(d);
+}
+
 void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 {
 
@@ -1720,7 +1806,8 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 
         ch = d->character;
 
-        if (IS_SET(ch->act[0], PLR_DENY))
+        if (IS_SET(ch->act[0], PLR_DENY)
+            || (d->account && has_penalty(d->account, PENALTY_DENY, ch->name)))
         {
             log_message_f(LOG_LEVEL_WARN, LOG_SECURITY, "Denying access to %s@%s.", argument, d->host);
             write_to_buffer(d, "You are denied access.\n\r", 0);
@@ -2169,8 +2256,39 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
 
     wiznet("Newbie alert!  $N sighted.", ch, NULL, WIZ_NEWBIE, 0, 0);
 
-    send_to_char("\n\r{YChoose an alignment ({GGood/Neutral/Evil{Y):{x ", ch);
-    d->connected = CON_GET_ALIGNMENT;
+    /* Show available races (starting + account-unlocked) */
+    send_to_char("\n\r{YThe following races are available to you:{x\n\r", ch);
+
+    bool has_unlocked = false;
+    for (RACE_DATA *r = race_list; r; r = r->next) {
+        if (!race_available_for_creation(r, d->account))
+            continue;
+
+        char rbuf[MSL];
+        const char *tag = "";
+        if (!r->starting && d->account && account_has_race_unlock(d->account, r->id)) {
+            tag = " {Y(unlocked){x";
+            has_unlocked = true;
+        }
+        if (r->description && r->description[0]) {
+            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), r->description, tag);
+        } else {
+            sprintf(rbuf, "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
+        }
+        send_to_char(rbuf, ch);
+    }
+
+    if (has_unlocked) {
+        send_to_char("\n\r{DRaces marked (unlocked) were earned through gameplay.{x\n\r", ch);
+    }
+
+    send_to_char("\n\r{xYou will now be asked which race you would like your character to\n\r", ch);
+    send_to_char("{xbelong to. Each race has its advantages and disadvantages. You can\n\r", ch);
+    send_to_char("{xinspect each of the races by typing \"help <race>\". To get a summary\n\r", ch);
+    send_to_char("{xof all the races, type \"help\".\n\r", ch);
+
+    send_to_char("\n\r{YChoose your race (type \"help <race>\" for more information):{x ", ch);
+    d->connected = CON_GET_NEW_RACE;
 }
 
 void login_get_alignment(DESCRIPTOR_DATA *d, char *argument)
@@ -2256,7 +2374,7 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
     one_argument(argument,arg);
 
         sprintf(races, "\n\r{YChoose your race");
-        add_possible_races(ch, races);
+        add_possible_races(d->account, races);
         strcat(races, "{Y:{x ");
 
         if (!strcmp(arg,"help"))
@@ -2308,7 +2426,21 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
             return;
         }
 
+        if (!race_available_for_creation(race, d->account)) {
+            send_to_char("That race is not available to you.\n\r", ch);
+            send_to_char(races, ch);
+            return;
+        }
+
 ch->race = race;
+
+        /* Derive alignment from race's default */
+        if (race->default_alignment < 0)
+            ch->alignment = -750;
+        else if (race->default_alignment > 0)
+            ch->alignment = 750;
+        else
+            ch->alignment = 0;
 
         /* initialize stats */
         for (i = 0; i < MAX_STATS; i++) {
@@ -2553,10 +2685,24 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     if (!list_haslink(loaded_chars, ch))
         list_appendlink(loaded_chars, ch);
     
+    // Migrate legacy penalty flags to account penalty system
+    if (d->account) {
+        migrate_legacy_penalties(d->account, ch);
+    }
+
     d->connected = CON_PLAYING;
     
     // Reset character stats
     reset_char(ch);
+
+    /* Apply account preferences on login.
+     * This ensures account-level settings (and updated game defaults)
+     * take effect each login, unless the character has an explicit
+     * override saved in their own preferences list. */
+    if (d->account) {
+        pref_apply_to_character(d->account, ch,
+                                ch->pcdata ? ch->pcdata->preferences : NULL);
+    }
 
     // Show server stats
     playernum = 0;
@@ -2593,8 +2739,6 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
             if (get_reserved_room_index("room_begin_new_character")) {
                 char_to_room(ch, get_reserved_room_index("room_begin_new_character"));
                 do_function(ch, &do_changes, "catchup");
-                SET_BIT(ch->comm, COMM_NO_OOC);
-                SET_BIT(ch->comm, COMM_NO_FLAMING);
                 send_to_char("\n\r", ch);
                 
                 // Announce new player
@@ -2692,6 +2836,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     
     // Final login processing
     wiznet("$N has entered the game.", d->character, NULL, WIZ_LOGINS, 0, 0);
+    notify_staff_of_notes(d);
     do_function(ch, &do_look, "auto");
     do_function(ch, &do_unread, "");
     
@@ -2882,6 +3027,16 @@ void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
     }
     
     write_to_buffer(d, "\n\r", 2);
+
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "Character link cancelled.\n\r", 0);
+        ProtocolNoEcho(d, false);
+        if (d->character) free_char(d->character);
+        d->character = NULL;
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
 
     // Use auth API for character password verification (from PC_DATA for unlinked chars)
     AUTH_DATA *auth = get_auth_data(ch, d->account);
@@ -3208,7 +3363,88 @@ void display_character_menu(DESCRIPTOR_DATA *d)
 
         write_to_buffer(d, "{D+---------------------+---------------+---------------------+---------------+{x\n\r", 0);
     }
-    
+
+    // Display character-specific penalties
+    if (d->account && d->account->penalties) {
+        bool header_shown = false;
+        PENALTY_DATA *pen;
+        for (pen = d->account->penalties; pen; pen = pen->next) {
+            if (is_penalty_expired(pen))
+                continue;
+            // Show account-scope penalties and character-scope matching this char
+            if (pen->scope == PENALTY_SCOPE_CHARACTER
+                && (IS_NULLSTR(pen->target_name) || str_cmp(pen->target_name, ch->name)))
+                continue;
+            if (!header_shown) {
+                write_to_buffer(d, "\n\r{RActive Penalties:{x\n\r", 0);
+                header_shown = true;
+            }
+            char dur[64];
+            if (pen->expires_at == 0)
+                sprintf(dur, "{RPermanent{x");
+            else
+                penalty_format_duration(pen->expires_at - current_time, dur, sizeof(dur));
+            sprintf(buf, "   {R*{x %-14s (%s) - %s\n\r",
+                penalty_type_name(pen->type),
+                pen->scope == PENALTY_SCOPE_ACCOUNT ? "{Caccount{x" : "{Ycharacter{x",
+                dur);
+            write_to_buffer(d, buf, 0);
+        }
+    }
+
+    // Display character-specific bonuses
+    if (d->account && d->account->bonuses) {
+        bool header_shown = false;
+        BONUS_DATA *bon;
+        for (bon = d->account->bonuses; bon; bon = bon->next) {
+            if (is_bonus_expired(bon))
+                continue;
+            // Show account-scope, unassigned, and character-scope matching this char
+            if (bon->scope == BONUS_SCOPE_CHARACTER
+                && (IS_NULLSTR(bon->target_name) || str_cmp(bon->target_name, ch->name)))
+                continue;
+            if (!header_shown) {
+                write_to_buffer(d, "\n\r{GActive Bonuses:{x\n\r", 0);
+                header_shown = true;
+            }
+            char dur[64];
+            if (bon->expires_at == 0)
+                sprintf(dur, "{GPermanent{x");
+            else
+                penalty_format_duration(bon->expires_at - current_time, dur, sizeof(dur));
+            char scope_str[64];
+            if (bon->scope == BONUS_SCOPE_UNASSIGNED)
+                sprintf(scope_str, "{Yunassigned{x");
+            else if (bon->scope == BONUS_SCOPE_CHARACTER)
+                sprintf(scope_str, "{Ycharacter{x");
+            else
+                sprintf(scope_str, "{Caccount{x");
+            sprintf(buf, "   {G+{x %-10s %+d%% (%s) - %s\n\r",
+                bonus_type_name(bon->type), bon->value, scope_str, dur);
+            write_to_buffer(d, buf, 0);
+        }
+    }
+
+    /* Staff: show character note count */
+    if (d->character && IS_IMMORTAL(d->character) && acct_char->staff_notes) {
+        int cnotes = account_note_count(acct_char->staff_notes);
+        int warnings = account_note_count_by_category(acct_char->staff_notes, NOTE_CAT_WARNING);
+        int punishments = account_note_count_by_category(acct_char->staff_notes, NOTE_CAT_PUNISHMENT);
+        sprintf(buf, "\n\r{YStaff Notes:{x %d total", cnotes);
+        if (warnings > 0) {
+            char tmp[32];
+            sprintf(tmp, ", {Y%d warning%s{x", warnings, warnings == 1 ? "" : "s");
+            strcat(buf, tmp);
+        }
+        if (punishments > 0) {
+            char tmp[32];
+            sprintf(tmp, ", {R%d punishment%s{x", punishments, punishments == 1 ? "" : "s");
+            strcat(buf, tmp);
+        }
+        strcat(buf, "\n\r");
+        write_to_buffer(d, buf, 0);
+    }
+
     // Menu options divider
     write_to_buffer(d, "\n\r", 0);
     sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
@@ -3257,6 +3493,8 @@ void display_character_menu(DESCRIPTOR_DATA *d)
 
     write_to_buffer(d, "{GY{x) Set as default character\n\r", 0);
 
+    if (!ch->deleted)
+        write_to_buffer(d, "{GT{x) Reset settings to account defaults\n\r", 0);
 
     write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
 }
@@ -3365,17 +3603,18 @@ void login_character_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
     
     switch (toupper(argument[0])) {
         case 'Y':
-            // Clear MFA key - this effectively disables MFA, no flag needed
+            // Clear MFA keys
             if (acct_char->mfa_key != NULL)
                 free_string(acct_char->mfa_key);
             acct_char->mfa_key = str_dup("");
-            
-            // Clear any pending MFA key with null check
+
             if (acct_char->mfa_pending_key != NULL)
                 free_string(acct_char->mfa_pending_key);
             acct_char->mfa_pending_key = str_dup("");
-            
-            // Clear recovery codes with null checks
+
+            acct_char->mfa_enabled = false;
+
+            // Clear recovery codes
             for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
                 if (acct_char->recovery_codes[i] != NULL)
                     free_string(acct_char->recovery_codes[i]);
@@ -3461,315 +3700,61 @@ void login_confirm_delete_character(DESCRIPTOR_DATA *d, char *argument)
 // When selecting a character from the account menu, check for additional character security
 void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
 {
-    CHAR_DATA *ch = d->character;
-    ACCOUNT_DATA *acct = d->account;
-    ACCOUNT_CHARACTER *acct_char = NULL;
-    bool has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-    
-    // If we don't have valid auth data, this is an error
-    if (!has_auth_data || !acct_char) {
-        write_to_buffer(d, "\n\r{RERROR: Unable to find character authentication data.{x\n\r", 0);
-        display_character_menu(d);
-        d->connected = CON_CHARACTER_MENU;
-        return;
-    }
-    
-    // Get authentication status from account_character data
-    bool has_char_pwd = !IS_NULLSTR(acct_char->pwd);
-    bool has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
-    // Check if MFA is in setup progress by checking for pending key
-    //bool mfa_pending = !IS_NULLSTR(acct_char->mfa_pending_key);
-
+    /* Dispatches to handler functions in nanny_menus.c */
     switch (toupper(argument[0])) {
-        case 'L': // Log in with this character
-            if (ch->deleted) {
-                write_to_buffer(d, "This character is flagged for deletion. Please cancel deletion first.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            if (check_playing(d, ch->name))
-                return;
-                
-            bool is_reconnecting_attempt = check_reconnect(d, ch->name, true);
-
-            if (is_reconnecting_attempt && d->connected != CON_CHARACTER_MENU) {
-                return;
-            }
-                
-            if (!DEV_SKIP_PASSWORD) {
-                if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
-                    !has_char_pwd &&
-                    (IS_NULLSTR(acct->passwd) || acct->passwd_version == 0)) {
-                    write_to_buffer(d, "\n\r{RERROR: Staff characters require a unique password.{x\n\r", 0);
-                    write_to_buffer(d, "You must set a unique password for this character before logging in.\n\r", 0);
-                    display_character_menu(d);
-                    return;
-                }
-                
-                if (has_char_pwd) {
-                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_PASSWORD;
-                    return;
-                }
-            }
-
-            if (!DEV_SKIP_MFA) {
-                if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff &&
-                    !has_char_mfa &&
-                    (IS_NULLSTR(acct->mfa_key))) {
-                    write_to_buffer(d, "\n\r{RERROR: Staff characters require MFA to be enabled.{x\n\r", 0);
-                    write_to_buffer(d, "You must enable MFA on either your account or this character before logging in.\n\r", 0);
-                    display_character_menu(d);
-                    return;
-                }
-
-                if (has_char_mfa) {
-                    write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_MFA;
-                    return;
-                }
-                
-                if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff && !IS_NULLSTR(acct->mfa_key) && !has_char_mfa) {
-                    write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
-                    d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
-                    return;
-                }
-            }
-            if (d->reconnecting && d->reconnect_ch) {
-                complete_reconnect(d);
-            } else {
-                proceed_to_game(d);
-            }
-            break;
-
-        case 'P': // Set/change character password
-            if (DEV_SKIP_PASSWORD) {
-                write_to_buffer(d, "Character password setting is disabled in development mode.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            if (has_char_pwd) {
-                write_to_buffer(d, "This character already has a password set.\n\r", 0);
-                write_to_buffer(d, "Do you want to change it? (Y/N): ", 0);
-            } else {
-                write_to_buffer(d, "Setting a character-specific password will require\n\r", 0);
-                write_to_buffer(d, "an additional password when logging in as this character.\n\r", 0);
-                write_to_buffer(d, "Do you want to set a password for this character? (Y/N): ", 0);
-            }
-            
-            d->connected = CON_CHARACTER_PASSWORD;
-            break;
-
-        case 'X': // Clear character password (only shown if password is set)
-            if (DEV_SKIP_PASSWORD) {
-                write_to_buffer(d, "Character password setting is disabled in development mode.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            if (!has_char_pwd) {
-                write_to_buffer(d, "This character does not have a password set.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            // Clear the password
-            free_string(acct_char->pwd);
-            acct_char->pwd = str_dup("");
-            acct_char->pwd_vers = 0;
-            save_account(acct);
-            
-            write_to_buffer(d, "Character password has been cleared.\n\r", 0);
-            display_character_menu(d);
-            return;
-
-        case 'M': // MFA settings
-            if (DEV_SKIP_MFA) {
-                write_to_buffer(d, "MFA settings are disabled in development mode.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            display_character_mfa_menu(d, "");
-            break;
-
-        case 'E': // Change email address
-            if (!game_settings.enable_email) {
-                write_to_buffer(d, "\n\r{REmail is currently disabled on this server.{x\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            write_to_buffer(d, "\n\rCurrent email: ", 0);
-            write_to_buffer(d, IS_NULLSTR(acct_char->email) ? "Not set\n\r" : acct_char->email, 0);
-            write_to_buffer(d, "\n\rEnter new email address: ", 0);
-            d->connected = CON_CHANGE_CHARACTER_EMAIL;
-            return;
-
-        case 'V': // Verify email
-            if (!game_settings.enable_email) {
-                write_to_buffer(d, "\n\r{REmail is currently disabled on this server.{x\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            if (acct_char->email_verified) {
-                write_to_buffer(d, "\n\rYour character email is already verified.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            if (IS_NULLSTR(acct_char->pending_email)) {
-                write_to_buffer(d, "No pending email to verify. Change your email address first.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            write_to_buffer(d, "Enter the code sent to your email: ", 0);
-            d->connected = CON_VERIFY_CHARACTER_EMAIL_CHANGE;
-            return;
-
-        case 'R': // Resend verification email
-            if (!game_settings.enable_email) {
-                write_to_buffer(d, "\n\r{REmail is currently disabled on this server.{x\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            resend_character_verification_code(d);
-            display_character_menu(d);
-            return;
-
-        case 'U': // Unlink (if allowed)
-            if (!can_unlink_characters(acct)) {
-                write_to_buffer(d, "Unlinking is not available for your account.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            if (IS_IMMORTAL(ch)) {
-                write_to_buffer(d, "\n\r{RStaff characters cannot be unlinked through the menu.{x\n\r", 0);
-                write_to_buffer(d, "Please contact an administrator for assistance.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            // Prevent unlink if character is flagged for deletion
-            if (ch->deleted) {
-                write_to_buffer(d, "You cannot unlink a character that is flagged for deletion.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            // Require password and/or MFA if set
-            if (has_char_pwd) {
-                write_to_buffer(d, "This character requires password verification before unlinking.\n\r", 0);
-                ProtocolNoEcho(d, true);
-                d->connected = CON_VERIFY_UNLINK_PASSWORD;
-                return;
-            }
-            
-            if (has_char_mfa) {
-                write_to_buffer(d, "This character has MFA enabled. ", 0);
-                ProtocolNoEcho(d, true);
-                d->connected = CON_VERIFY_UNLINK_MFA;
-                return;
-            }
-            
-            // If no password/MFA, go straight to new password prompt
-            write_to_buffer(d, "Enter a new password for this character: ", 0);
-            ProtocolNoEcho(d, true);
-            d->connected = CON_SET_UNLINK_PASSWORD;
-            return;
-
-        case 'D': // Delete character
-            if (IS_IMMORTAL(ch)) {
-                write_to_buffer(d, "\n\r{RStaff characters cannot be deleted through the menu.{x\n\r", 0);
-                write_to_buffer(d, "Please contact an administrator for assistance.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            // If already flagged for deletion and account allows immediate delete
-            if (ch->deleted && IS_SET(acct->acct_flags, ACCT_CAN_DELETE_IMMEDIATELY)) {
-                write_to_buffer(d, "\n\r{RThis will permanently delete the character.{x\n\r", 0);
-                write_to_buffer(d, "Type 'DELETE NOW' to confirm immediate deletion, or 'C' to cancel: ", 0);
-                d->connected = CON_VERIFY_CHARACTER_DELETE;
-                return;
-            }
-            
-            if (ch->deleted) {
-                write_to_buffer(d, "This character is already flagged for deletion.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            // Require password and/or MFA if set
-            if (has_char_pwd) {
-                write_to_buffer(d, "This character requires password verification before deletion.\n\r", 0);
-                write_to_buffer(d, "Enter character password: ", 0);
-                ProtocolNoEcho(d, true);
-                d->connected = CON_VERIFY_DELETE_PASSWORD;
-                return;
-            }
-            
-            if (has_char_mfa) {
-                write_to_buffer(d, "This character has MFA enabled. ", 0);
-                ProtocolNoEcho(d, true);
-                d->connected = CON_VERIFY_DELETE_MFA;
-                return;
-            }
-            
-            write_to_buffer(d, "\n\r{RWARNING: This will flag your character for deletion!{x\n\r", 0);
-            write_to_buffer(d, "Type 'DELETE' to confirm or anything else to cancel: ", 0);
-            d->connected = CON_CONFIRM_DELETE_CHARACTER;
-            break;
-
-        case 'C': // Cancel deletion
-            if (!ch->deleted) {
-                write_to_buffer(d, "This character is not flagged for deletion.\n\r", 0);
-                display_character_menu(d);
-                return;
-            }
-            
-            ch->deleted = false;
-            ch->delete_time = 0;
-            
-            // Update account character entry
-            acct_char->deleted = false;
-            acct_char->delete_time = 0;
-            
-            save_char_obj(ch);
-            save_account(acct);
-            
-            write_to_buffer(d, "Character deletion canceled.\n\r", 0);
-            display_character_menu(d);
-            return;
-
-    case 'Y': // Set as default character
-        if (set_default_character(acct, ch->name)) {
-            write_to_buffer(d, "This character has been set as your default login character.\n\r", 0);
-        } else {
-            write_to_buffer(d, "Error setting default character.\n\r", 0);
-        }
-        display_character_menu(d);
-        break;
-
-        case 'B': // Back to account menu
-            free_char(d->character);
-            d->character = NULL;
-            display_account_menu(d);
-            d->connected = CON_ACCOUNT_MENU;
-            break;
-
+        case 'L': handle_character_login(d);              break;
+        case 'P': handle_character_change_password(d);    break;
+        case 'X': handle_character_clear_password(d);     break;
+        case 'M': handle_character_mfa_menu(d);           break;
+        case 'E': handle_character_change_email(d);       break;
+        case 'V': handle_character_verify_email(d);       break;
+        case 'R': handle_character_resend_verification(d); break;
+        case 'U': handle_character_unlink(d);             break;
+        case 'D': handle_character_delete(d);             break;
+        case 'C': handle_character_cancel_delete(d);      break;
+        case 'Y': handle_character_set_default(d);        break;
+        case 'T': handle_character_reset_prefs(d);        break;
+        case 'B': handle_character_back_to_account(d);    break;
         default:
             write_to_buffer(d, "Invalid choice.\n\r", 0);
             display_character_menu(d);
             break;
+    }
+}
+
+/**
+ * login_confirm_reset_prefs - Handle Y/N confirmation for setting reset
+ *
+ * If the user confirms, clears all character overrides, resets to game
+ * defaults, and applies account preferences. The character is then saved.
+ *
+ * @param d         The descriptor
+ * @param argument  User input (Y or N)
+ */
+void login_confirm_reset_prefs(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+    ACCOUNT_DATA *acct = d->account;
+
+    switch (toupper(argument[0])) {
+    case 'Y':
+        pref_reset_to_defaults(acct, ch);
+        save_char_obj(ch);
+        write_to_buffer(d,
+            "\n\r{GSettings have been reset to defaults and account preferences applied.{x\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        break;
+
+    case 'N':
+        write_to_buffer(d, "\n\rReset cancelled.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        break;
+
+    default:
+        write_to_buffer(d, "Please enter Y or N: ", 0);
+        break;
     }
 }
 
@@ -3786,6 +3771,14 @@ void login_verify_unlink_password(DESCRIPTOR_DATA *d, char *argument)
         log_message(LOG_LEVEL_ERROR, LOG_ERROR, "login_verify_unlink_password: Called on character with no account data");
         ProtocolNoEcho(d, false);
         write_to_buffer(d, "Error verifying character. Please contact staff.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rUnlink cancelled.\n\r", 0);
+        ProtocolNoEcho(d, false);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
@@ -3818,10 +3811,15 @@ void login_verify_unlink_password(DESCRIPTOR_DATA *d, char *argument)
 void login_verify_unlink_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
-    if (!check_char_mfa(ch, argument)) {
-        write_to_buffer(d, "Invalid MFA code.\n\r", 0);
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rUnlink cancelled.\n\r", 0);
+        ProtocolNoEcho(d, false);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    if (!check_char_mfa(ch, argument)) {
+        write_to_buffer(d, "Invalid MFA code (or 'cancel' to cancel): ", 0);
         return;
     }
     // MFA verified, prompt for new password
@@ -4208,8 +4206,18 @@ void login_account_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
     bool valid = verify_mfa_code(argument, auth);
     free_auth_data(auth);
 
+    if (!str_cmp(argument, "cancel")) {
+        write_to_buffer(d, "\n\rMFA setup cancelled.\n\r", 0);
+        free_string(acct->mfa_pending_key);
+        acct->mfa_pending_key = str_dup("");
+        save_account(acct);
+        display_account_mfa_menu(d, "");
+        d->connected = CON_ACCOUNT_MFA_MENU;
+        return;
+    }
+
     if (!valid) {
-        write_to_buffer(d, "Invalid MFA code. Please try again: ", 0);
+        write_to_buffer(d, "Invalid MFA code. Please try again (or 'cancel'): ", 0);
         return;
     }
     
@@ -4361,10 +4369,12 @@ void login_change_account_password(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
     
-    if (argument[0] == '\0')
+    if (argument[0] == '\0' || !str_cmp(argument, "cancel"))
     {
-        // Re-prompt without error if input is empty
-        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+        write_to_buffer(d, "\n\rPassword change cancelled.\n\r", 0);
+        ProtocolNoEcho(d, false);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
         return;
     }
     
@@ -4402,6 +4412,18 @@ void login_confirm_account_password_change(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
     
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rPassword change cancelled.\n\r", 0);
+        if (d->new_password_buffer) {
+            free_string(d->new_password_buffer);
+            d->new_password_buffer = NULL;
+        }
+        ProtocolNoEcho(d, false);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+
     if (!d->new_password_buffer) {
         write_to_buffer(d, "An error occurred. Please try changing password again.\n\r", 0);
         // Go back to password entry
@@ -4456,6 +4478,13 @@ void login_verify_delete_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
     ProtocolNoEcho(d, false);
+
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "Deletion cancelled.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
     
     // If we don't have valid auth data, this is an error
     if (!has_auth_data || !acct_char) {
@@ -4501,11 +4530,17 @@ void login_verify_delete_password(DESCRIPTOR_DATA *d, char *argument)
 void login_verify_delete_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
-    
-    if (!check_char_mfa(ch, argument)) {
-        write_to_buffer(d, "Invalid MFA code.\n\r", 0);
+
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rDeletion cancelled.\n\r", 0);
+        ProtocolNoEcho(d, false);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    
+    if (!check_char_mfa(ch, argument)) {
+        write_to_buffer(d, "Invalid MFA code (or 'cancel' to cancel): ", 0);
         return;
     }
     
@@ -5040,8 +5075,20 @@ void login_character_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
     bool valid = verify_mfa_code(argument, auth);
     free_auth_data(auth);
 
+    if (!str_cmp(argument, "cancel")) {
+        write_to_buffer(d, "\n\rMFA setup cancelled.\n\r", 0);
+        if (acct_char) {
+            free_string(acct_char->mfa_pending_key);
+            acct_char->mfa_pending_key = str_dup("");
+            save_account(acct);
+        }
+        display_character_mfa_menu(d, "");
+        d->connected = CON_CHARACTER_MFA_MENU;
+        return;
+    }
+
     if (!valid) {
-        write_to_buffer(d, "Invalid MFA code. Please try again: ", 0);
+        write_to_buffer(d, "Invalid MFA code. Please try again (or 'cancel'): ", 0);
         d->connected = CON_CHARACTER_MFA_CONFIRM;
         return;
     }
@@ -5101,11 +5148,18 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
 
     free_auth_data(auth);
     
+    if (!str_cmp(argument, "cancel")) {
+        write_to_buffer(d, "\n\rReturning to character menu.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+
     if (mfa_valid) {
         d->mfa_verified = true;
         display_character_mfa_menu(d, "");
     } else {
-        write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
+        write_to_buffer(d, "Invalid MFA or recovery code. Try again (or 'cancel'): ", 0);
     }
 }
 
@@ -5210,9 +5264,8 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char subclasses[MSL];
     CHAR_DATA *ch;
-    int iClass,i,weapon;
+    int iClass,weapon;
     HELP_DATA *help;
-    long vector, *field;
     ch = d->character;
         sprintf(subclasses, "\n\r{YChoose your subclass ");
         add_possible_subclasses(ch, subclasses);
@@ -5306,39 +5359,10 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
         send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
         buf[0] = '\0';
 
-        /* Set up default toggles*/
-        for (i = 0; pc_set_table[i].name != NULL; i++)
-        {
-            if (pc_set_table[i].default_state == SETTING_ON && get_staff_rank(ch) >= pc_set_table[i].min_rank)
-            {
-                if (pc_set_table[i].vector != 0)
-                {
-                    vector = pc_set_table[i].vector;
-                    field = &ch->act[0];
-                }
-                else if (pc_set_table[i].vector2 != 0)
-                {
-                    vector = pc_set_table[i].vector2;
-                    field = &ch->act[1];
-                }
-                else if (pc_set_table[i].vector_comm != 0)
-                {
-                    vector = pc_set_table[i].vector_comm;
-                    field = &ch->comm;
-                }
-                else
-                    continue;
-
-                if (pc_set_table[i].inverted)
-                {
-                    REMOVE_BIT(*field, vector);
-                }
-                else
-                {
-                    SET_BIT(*field, vector);
-                }
-            }
-        }
+        /* Apply game defaults from pc_set_table, then account prefs on top */
+        pref_apply_game_defaults(ch);
+        if (d->account)
+            pref_apply_to_character(d->account, ch, ch->pcdata->preferences);
 
         ch->level     = 0;
         ch->tot_level = 0;
@@ -5509,8 +5533,12 @@ void login_verify_character_email_change(DESCRIPTOR_DATA *d, char *argument)
         write_to_buffer(d, "\n\rYour character's email address has been updated and verified.\n\r", 0);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
+    } else if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rEmail verification cancelled.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
     } else {
-        write_to_buffer(d, "Invalid code. Try again: ", 0);
+        write_to_buffer(d, "Invalid code. Try again (or 'cancel' to cancel): ", 0);
     }
 }
 
@@ -5521,15 +5549,16 @@ void login_change_character_email(DESCRIPTOR_DATA *d, char *argument)
     ACCOUNT_CHARACTER *acct_char = NULL;
     bool has_auth_data = get_character_auth_data(ch, acct, &acct_char);
 
-    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
-        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
-        write_to_buffer(d, "Enter your e-mail address (or 'cancel' to cancel): ", 0);
-        return;
-    }
-    
-    if (!str_cmp(argument, "cancel")) {
+    if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
+        write_to_buffer(d, "\n\rEmail change cancelled.\n\r", 0);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+
+    if (!strstr(argument, "@") || !strstr(argument, ".")) {
+        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
+        write_to_buffer(d, "Enter your e-mail address (or 'cancel' to cancel): ", 0);
         return;
     }
     
@@ -6445,6 +6474,10 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
         login_account_mfa_menu(d, argument);
         break;
 
+    case CON_ACCOUNT_PREFS:
+        login_account_prefs_menu(d, argument);
+        break;
+
     case CON_GET_ACCOUNT_MFA_FOR_CHAR:
         login_get_account_mfa_for_char(d, argument);
         break;
@@ -6523,6 +6556,10 @@ case CON_VERIFY_UNLINK_MFA:
     break;
 case CON_SET_UNLINK_PASSWORD:
     login_set_unlink_password(d, argument);
+    break;
+
+case CON_CONFIRM_RESET_PREFS:
+    login_confirm_reset_prefs(d, argument);
     break;
 
 

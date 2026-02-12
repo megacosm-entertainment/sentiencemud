@@ -51,6 +51,9 @@ C_FILES = \
     account/auth_sodium.c \
     account/otp.c \
     account/account_notes.c \
+    account/penalty.c \
+    account/preferences.c \
+    account/unlock.c \
     act_comm.c \
     act_enter.c \
     act_info.c \

@@ -369,7 +369,18 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     
     /* Flags */
     json_object_set_new(root, "flags", flags_to_json_array(area->area_flags, area_flags));
-    /* place_type not in current structure - skip for now */
+    if (area->place_flags) {
+        json_object_set_new(root, "place_flags", json_integer(area->place_flags));
+    }
+    if (area->open) {
+        json_object_set_new(root, "open", json_boolean(area->open));
+    }
+    if (area->min_level || area->max_level) {
+        json_t *olc_levels = json_object();
+        json_object_set_new(olc_levels, "min", json_integer(area->min_level));
+        json_object_set_new(olc_levels, "max", json_integer(area->max_level));
+        json_object_set_new(root, "olc_levels", olc_levels);
+    }
     
     /* Coordinates */
     json_object_set_new(coords, "x", json_integer(area->x));
@@ -406,6 +417,21 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(root, "comments", json_string(area->comments ? area->comments : ""));
     json_object_set_new(root, "notes", json_string(area->notes ? area->notes : ""));
     
+    /* OLC Point Boosts */
+    if (area->points) {
+        json_t *boosts = json_array();
+        OLC_POINT_BOOST *boost;
+        for (boost = area->points; boost; boost = boost->next) {
+            json_t *b = json_object();
+            json_object_set_new(b, "category", json_integer(boost->category));
+            json_object_set_new(b, "usage", json_integer(boost->usage));
+            json_object_set_new(b, "imp", json_integer(boost->imp));
+            json_object_set_new(b, "area", json_integer(boost->area));
+            json_array_append_new(boosts, b);
+        }
+        json_object_set_new(root, "olc_point_boosts", boosts);
+    }
+
     /* Version tracking */
     json_object_set_new(versions, "area", json_integer(area->version_area));
     json_object_set_new(versions, "mobile", json_integer(area->version_mobile));
@@ -478,6 +504,17 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
     
     /* Flags */
     area->area_flags = json_array_to_flags(json_object_get(json, "flags"), area_flags);
+    area->place_flags = json_get_int_default(json, "place_flags", 0);
+    area->open = json_get_bool_default(json, "open", false);
+    
+    /* OLC level range (separate from display range) */
+    {
+        json_t *olc_levels = json_object_get(json, "olc_levels");
+        if (olc_levels) {
+            area->min_level = json_get_int_default(olc_levels, "min", 0);
+            area->max_level = json_get_int_default(olc_levels, "max", 0);
+        }
+    }
     
     /* Coordinates */
     coords = json_object_get(json, "coordinates");
@@ -551,6 +588,30 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
         area->version_token = json_get_int_default(versions, "token", VERSION_TOKEN);
         area->version_script = json_get_int_default(versions, "script", VERSION_SCRIPT);
         area->version_wilds = json_get_int_default(versions, "wilds", VERSION_WILDS);
+    }
+
+    /* OLC Point Boosts */
+    {
+        json_t *boosts = json_object_get(json, "olc_point_boosts");
+        if (boosts && json_is_array(boosts)) {
+            OLC_POINT_BOOST *last = NULL;
+            size_t bidx;
+            json_t *belem;
+            json_array_foreach(boosts, bidx, belem) {
+                OLC_POINT_BOOST *boost = new_olc_point_boost();
+                boost->category = json_get_int_default(belem, "category", 0);
+                boost->usage = json_get_int_default(belem, "usage", 0);
+                boost->imp = json_get_int_default(belem, "imp", 0);
+                boost->area = json_get_int_default(belem, "area", 0);
+                boost->next = NULL;
+                if (!area->points) {
+                    area->points = boost;
+                } else {
+                    last->next = boost;
+                }
+                last = boost;
+            }
+        }
     }
     
     return true;
@@ -2512,7 +2573,41 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
             json_object_set_new(json, "index_vars", index_vars);
     }
     
-    // TODO: Questor, Crew
+    /* Questor */
+    if (mob->pQuestor) {
+        json_t *questor = json_object();
+        json_object_set_new(questor, "scroll", json_integer(mob->pQuestor->scroll));
+        if (mob->pQuestor->keywords && mob->pQuestor->keywords[0] != '\0')
+            json_object_set_new(questor, "keywords", json_string(mob->pQuestor->keywords));
+        if (mob->pQuestor->short_descr && mob->pQuestor->short_descr[0] != '\0')
+            json_object_set_new(questor, "short_descr", json_string(mob->pQuestor->short_descr));
+        if (mob->pQuestor->long_descr && mob->pQuestor->long_descr[0] != '\0')
+            json_object_set_new(questor, "long_descr", json_string(mob->pQuestor->long_descr));
+        if (mob->pQuestor->header && mob->pQuestor->header[0] != '\0')
+            json_object_set_new(questor, "header", json_string(mob->pQuestor->header));
+        if (mob->pQuestor->footer && mob->pQuestor->footer[0] != '\0')
+            json_object_set_new(questor, "footer", json_string(mob->pQuestor->footer));
+        if (mob->pQuestor->prefix && mob->pQuestor->prefix[0] != '\0')
+            json_object_set_new(questor, "prefix", json_string(mob->pQuestor->prefix));
+        if (mob->pQuestor->suffix && mob->pQuestor->suffix[0] != '\0')
+            json_object_set_new(questor, "suffix", json_string(mob->pQuestor->suffix));
+        if (mob->pQuestor->line_width != 70)
+            json_object_set_new(questor, "line_width", json_integer(mob->pQuestor->line_width));
+        json_object_set_new(json, "questor", questor);
+    }
+
+    /* Crew */
+    if (IS_VALID(mob->pCrew)) {
+        json_t *crew = json_object();
+        json_object_set_new(crew, "min_rank", json_integer(mob->pCrew->min_rank));
+        json_object_set_new(crew, "scouting", json_integer(mob->pCrew->scouting));
+        json_object_set_new(crew, "gunning", json_integer(mob->pCrew->gunning));
+        json_object_set_new(crew, "oarring", json_integer(mob->pCrew->oarring));
+        json_object_set_new(crew, "mechanics", json_integer(mob->pCrew->mechanics));
+        json_object_set_new(crew, "navigation", json_integer(mob->pCrew->navigation));
+        json_object_set_new(crew, "leadership", json_integer(mob->pCrew->leadership));
+        json_object_set_new(json, "crew", crew);
+    }
     
     return json;
 }
@@ -2673,6 +2768,46 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
     // Index vars
     mob->index_vars = json_area_deserialize_index_vars(json_object_get(json, "index_vars"), area);
     
+    /* Questor */
+    {
+        json_t *questor = json_object_get(json, "questor");
+        if (questor && json_is_object(questor)) {
+            mob->pQuestor = new_questor_data();
+            mob->pQuestor->scroll = json_get_int_default(questor, "scroll", mob->pQuestor->scroll);
+            const char *qstr;
+            qstr = json_get_string_default(questor, "keywords", NULL);
+            if (qstr) { free_string(mob->pQuestor->keywords); mob->pQuestor->keywords = str_dup(qstr); }
+            qstr = json_get_string_default(questor, "short_descr", NULL);
+            if (qstr) { free_string(mob->pQuestor->short_descr); mob->pQuestor->short_descr = str_dup(qstr); }
+            qstr = json_get_string_default(questor, "long_descr", NULL);
+            if (qstr) { free_string(mob->pQuestor->long_descr); mob->pQuestor->long_descr = str_dup(qstr); }
+            qstr = json_get_string_default(questor, "header", NULL);
+            if (qstr) { free_string(mob->pQuestor->header); mob->pQuestor->header = str_dup(qstr); }
+            qstr = json_get_string_default(questor, "footer", NULL);
+            if (qstr) { free_string(mob->pQuestor->footer); mob->pQuestor->footer = str_dup(qstr); }
+            qstr = json_get_string_default(questor, "prefix", NULL);
+            if (qstr) { free_string(mob->pQuestor->prefix); mob->pQuestor->prefix = str_dup(qstr); }
+            qstr = json_get_string_default(questor, "suffix", NULL);
+            if (qstr) { free_string(mob->pQuestor->suffix); mob->pQuestor->suffix = str_dup(qstr); }
+            mob->pQuestor->line_width = json_get_int_default(questor, "line_width", 70);
+        }
+    }
+
+    /* Crew */
+    {
+        json_t *crew = json_object_get(json, "crew");
+        if (crew && json_is_object(crew)) {
+            mob->pCrew = new_ship_crew_index();
+            mob->pCrew->min_rank = json_get_int_default(crew, "min_rank", 0);
+            mob->pCrew->scouting = json_get_int_default(crew, "scouting", 0);
+            mob->pCrew->gunning = json_get_int_default(crew, "gunning", 0);
+            mob->pCrew->oarring = json_get_int_default(crew, "oarring", 0);
+            mob->pCrew->mechanics = json_get_int_default(crew, "mechanics", 0);
+            mob->pCrew->navigation = json_get_int_default(crew, "navigation", 0);
+            mob->pCrew->leadership = json_get_int_default(crew, "leadership", 0);
+        }
+    }
+
     // Add to area hash table for lookups
     int iHash = mob->vnum % MAX_KEY_HASH;
     mob->next = area->mob_index_hash[iHash];
@@ -2829,7 +2964,23 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
             json_object_set_new(json, "index_vars", index_vars);
     }
     
-    // TODO: Spells
+    /* Spells */
+    if (obj->spells) {
+        json_t *spell_array = json_array();
+        SPELL_DATA *spell;
+        for (spell = obj->spells; spell; spell = spell->next) {
+            json_t *sp = json_object();
+            json_object_set_new(sp, "name", json_string(skill_table[spell->sn].name));
+            json_object_set_new(sp, "level", json_integer(spell->level));
+            json_object_set_new(sp, "repop", json_integer(spell->repop));
+            json_array_append_new(spell_array, sp);
+        }
+        if (json_array_size(spell_array) > 0) {
+            json_object_set_new(json, "spells", spell_array);
+        } else {
+            json_decref(spell_array);
+        }
+    }
     
     return json;
 }
@@ -2995,6 +3146,36 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
     
     obj->persist = json_get_bool_default(json, "persist", false);
     
+    /* Spells */
+    {
+        json_t *spell_array = json_object_get(json, "spells");
+        if (spell_array && json_is_array(spell_array)) {
+            SPELL_DATA *last_spell = NULL;
+            size_t sidx;
+            json_t *selem;
+            json_array_foreach(spell_array, sidx, selem) {
+                const char *spell_name = json_get_string_default(selem, "name", NULL);
+                if (!spell_name) continue;
+                int sn = skill_lookup(spell_name);
+                if (sn < 0) continue;
+                if (!str_cmp(skill_table[sn].name, "reserved")
+                ||  !str_cmp(skill_table[sn].name, "none"))
+                    continue;
+                SPELL_DATA *spell = new_spell();
+                spell->sn = sn;
+                spell->level = json_get_int_default(selem, "level", 0);
+                spell->repop = json_get_int_default(selem, "repop", 0);
+                spell->next = NULL;
+                if (!obj->spells) {
+                    obj->spells = spell;
+                } else {
+                    last_spell->next = spell;
+                }
+                last_spell = spell;
+            }
+        }
+    }
+
     // Add to area hash table for lookups
     int iHash = obj->vnum % MAX_KEY_HASH;
     obj->next = area->obj_index_hash[iHash];

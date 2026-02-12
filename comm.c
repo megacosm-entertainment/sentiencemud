@@ -88,6 +88,7 @@
 #include "io/cache/async_cache.h"
 #include "io/json/json_persist.h"
 #include "traits.h"
+#include "account/unlock.h"
 
 /*
  * Socket and TCP/IP stuff.
@@ -188,7 +189,7 @@ void	stop_idling		args((CHAR_DATA *ch));
 void    bust_a_prompt           args((CHAR_DATA *ch));
 bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
 void add_possible_subclasses(CHAR_DATA *ch, char *string);
-void add_possible_races(CHAR_DATA *ch, char *string);
+void add_possible_races(ACCOUNT_DATA *account, char *string);
 
 
 #define MAX_LOGFILE		1000000
@@ -2258,12 +2259,6 @@ void bust_a_prompt(CHAR_DATA *ch)
     if(ch->desc && ch->desc->input && !ch->desc->inputString) {
         send_to_char(ch->desc->input_prompt ? ch->desc->input_prompt : " >", ch);
         send_to_char("{x \n\r", ch);
-        return;
-    }
-
-    if (!IS_NPC(ch) && ch->pcdata->mfa_question)
-    {
-        send_to_char("{YMFA Code:{X\n\r", ch);
         return;
     }
 
@@ -4620,13 +4615,13 @@ void update_pc_timers(CHAR_DATA *ch)
 /**
  * add_possible_races - Append available race names to a string
  *
- * Appends a formatted list of starting races that match the character's
- * alignment. Used during character creation to show valid race choices.
+ * Appends a formatted list of all races available for character creation,
+ * including starting races and any account-unlocked races.
  *
- * @param ch      The character being created (for alignment check)
+ * @param account The account creating the character (for unlock checks)
  * @param string  The string to append race list to
  */
-void add_possible_races(CHAR_DATA *ch, char *string)
+void add_possible_races(ACCOUNT_DATA *account, char *string)
 {
     char buf[MSL];
     RACE_DATA *race;
@@ -4635,17 +4630,14 @@ void add_possible_races(CHAR_DATA *ch, char *string)
     sprintf(buf, " {B[{C");
     for (race = race_list; race; race = race->next)
     {
-    if (race->starting
-    && ((ch->alignment == 0 && race->default_alignment == 0)
-    ||  (ch->alignment  < 0 && race->default_alignment < 0)
-    ||  (ch->alignment  > 0 && race->default_alignment > 0)))
-    {
-        if (found)
-        strcat(buf, " ");
+        if (race_available_for_creation(race, account))
+        {
+            if (found)
+                strcat(buf, " ");
 
-        found = true;
-        strcat(buf, race->name);
-    }
+            found = true;
+            strcat(buf, race->name);
+        }
     }
 
     strcat(buf, "{B]{x");

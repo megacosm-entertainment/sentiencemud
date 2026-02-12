@@ -960,7 +960,7 @@ static int leaderboard_migrate(CHAR_DATA *ch)
     DIR *dirp, *subdirp;
     struct dirent *dp, *subdp;
     CHAR_LEADERBOARD_STATS stats;
-    char path[256];
+    char path[512];
     int count = 0;
     char letter;
 

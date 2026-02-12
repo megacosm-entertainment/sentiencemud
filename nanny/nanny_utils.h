@@ -24,7 +24,6 @@ void nanny_return_to_character_menu(DESCRIPTOR_DATA *d);
 
 /* Input Validation */
 bool validate_email_format(const char *email);
-bool validate_password_strength_basic(const char *password, char *error_msg, int error_len);
 bool validate_account_name(const char *name);
 
 /* Login Attempt Tracking */
@@ -51,5 +50,12 @@ void nanny_send_prompt(DESCRIPTOR_DATA *d, const char *prompt);
 void nanny_send_message(DESCRIPTOR_DATA *d, const char *message);
 void nanny_send_error(DESCRIPTOR_DATA *d, const char *error);
 void nanny_send_success(DESCRIPTOR_DATA *d, const char *message);
+
+/* Direct Login & Character Sorting */
+void direct_login_character(DESCRIPTOR_DATA *d, const char *char_name);
+void sort_account_characters(ACCOUNT_DATA *acct,
+    ACCOUNT_CHARACTER **staff_chars, int *staff_count,
+    ACCOUNT_CHARACTER **regular_chars, int *regular_count,
+    int max);
 
 #endif /* NANNY_UTILS_H */

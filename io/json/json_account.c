@@ -18,6 +18,9 @@
 #include <jansson.h>
 #include "../../merc.h"
 #include "../../tables.h"
+#include "../../account/penalty.h"
+#include "../../account/preferences.h"
+#include "../../account/unlock.h"
 #include "json_account.h"
 #include "json_char.h"  // For obj_to_json() reuse
 
@@ -146,6 +149,9 @@ static json_t *account_metadata_to_json(ACCOUNT_DATA *account)
     // Format version
     json_object_set_new(meta, "format_version", json_integer(2));
 
+    // Account data version (for migration tracking)
+    json_object_set_new(meta, "version", json_integer(VERSION_ACCOUNT));
+
     // Account ID (unique identifier)
     json_t *account_id = json_array();
     json_array_append_new(account_id, json_integer(account->id[0]));
@@ -238,6 +244,30 @@ static json_t *account_basic_to_json(ACCOUNT_DATA *account)
         json_object_set_new(basic, "vault_rent", json_integer(account->vault_rent));
     }
 
+    // Host info
+    if (account->creation_host && account->creation_host[0] != '\0') {
+        json_object_set_new(basic, "creation_host", json_string(account->creation_host));
+    }
+    if (account->last_login_host && account->last_login_host[0] != '\0') {
+        json_object_set_new(basic, "last_login_host", json_string(account->last_login_host));
+    }
+
+    // Default character
+    if (account->default_character && account->default_character[0] != '\0') {
+        json_object_set_new(basic, "default_character", json_string(account->default_character));
+    }
+
+    // MFA pending enrollment
+    if (account->mfa_pending_key && account->mfa_pending_key[0] != '\0') {
+        json_object_set_new(basic, "mfa_pending_key", json_string(account->mfa_pending_key));
+        json_object_set_new(basic, "mfa_pending", json_boolean(account->mfa_pending));
+    }
+
+    // Email verification rate-limiting timestamp
+    if (account->email_verification_last_sent > 0) {
+        json_object_set_new(basic, "email_verification_last_sent", json_integer(account->email_verification_last_sent));
+    }
+
     return basic;
 }
 
@@ -310,6 +340,81 @@ static json_t *characters_to_json(ACCOUNT_DATA *account)
             json_object_set_new(char_obj, "mfa_enabled", json_boolean(ac->mfa_enabled));
         }
 
+        // Last host
+        if (ac->last_host && ac->last_host[0] != '\0') {
+            json_object_set_new(char_obj, "last_host", json_string(ac->last_host));
+        }
+
+        // Old password (for migration)
+        if (ac->old_pwd && ac->old_pwd[0] != '\0') {
+            json_object_set_new(char_obj, "old_password", json_string(ac->old_pwd));
+        }
+
+        // Password reset
+        if (ac->reset_code && ac->reset_code[0] != '\0') {
+            json_object_set_new(char_obj, "reset_code", json_string(ac->reset_code));
+            json_object_set_new(char_obj, "reset_time", json_integer(ac->reset_time));
+            json_object_set_new(char_obj, "reset_state", json_integer(ac->reset_state));
+        }
+
+        // MFA pending enrollment (character-level)
+        if (ac->mfa_pending_key && ac->mfa_pending_key[0] != '\0') {
+            json_object_set_new(char_obj, "mfa_pending_key", json_string(ac->mfa_pending_key));
+        }
+
+        // MFA recovery codes (character-level)
+        {
+            int i;
+            json_t *char_recovery = json_array();
+            for (i = 0; i < MFA_RECOVERY_CODES; i++) {
+                if (ac->recovery_codes[i]) {
+                    json_t *rc = json_object();
+                    json_object_set_new(rc, "code", json_string(ac->recovery_codes[i]));
+                    json_object_set_new(rc, "used", json_boolean(ac->recovery_used[i]));
+                    json_array_append_new(char_recovery, rc);
+                }
+            }
+            if (json_array_size(char_recovery) > 0) {
+                json_object_set_new(char_obj, "recovery_codes", char_recovery);
+            } else {
+                json_decref(char_recovery);
+            }
+        }
+
+        // Email (character-level)
+        if (ac->email && ac->email[0] != '\0') {
+            json_object_set_new(char_obj, "email", json_string(ac->email));
+            json_object_set_new(char_obj, "email_verified", json_boolean(ac->email_verified));
+        }
+        if (ac->pending_email && ac->pending_email[0] != '\0') {
+            json_object_set_new(char_obj, "pending_email", json_string(ac->pending_email));
+        }
+        if (ac->email_verification_code && ac->email_verification_code[0] != '\0') {
+            json_object_set_new(char_obj, "email_verification_code", json_string(ac->email_verification_code));
+            json_object_set_new(char_obj, "email_verification_time", json_integer(ac->email_verification_time));
+        }
+        if (ac->email_verification_last_sent > 0) {
+            json_object_set_new(char_obj, "email_verification_last_sent", json_integer(ac->email_verification_last_sent));
+        }
+
+        // Character-level staff notes
+        if (ac->staff_notes) {
+            json_t *char_notes = json_array();
+            ACCOUNT_NOTE_DATA *cnote;
+            for (cnote = ac->staff_notes; cnote; cnote = cnote->next) {
+                json_t *cn_obj = json_object();
+                json_object_set_new(cn_obj, "author", json_string(cnote->author));
+                json_object_set_new(cn_obj, "timestamp", json_integer(cnote->timestamp));
+                json_object_set_new(cn_obj, "subject", json_string(cnote->subject));
+                json_object_set_new(cn_obj, "text", json_string(cnote->text));
+                json_object_set_new(cn_obj, "category", json_integer(cnote->category));
+                if (!IS_NULLSTR(cnote->penalty_ref))
+                    json_object_set_new(cn_obj, "penalty_ref", json_string(cnote->penalty_ref));
+                json_array_append_new(char_notes, cn_obj);
+            }
+            json_object_set_new(char_obj, "staff_notes", char_notes);
+        }
+
         json_array_append_new(characters, char_obj);
     }
 
@@ -360,6 +465,9 @@ static json_t *staff_notes_to_json(ACCOUNT_DATA *account)
         json_object_set_new(note_obj, "timestamp", json_integer(note->timestamp));
         json_object_set_new(note_obj, "subject", json_string(note->subject));
         json_object_set_new(note_obj, "text", json_string(note->text));
+        json_object_set_new(note_obj, "category", json_integer(note->category));
+        if (!IS_NULLSTR(note->penalty_ref))
+            json_object_set_new(note_obj, "penalty_ref", json_string(note->penalty_ref));
 
         json_array_append_new(notes, note_obj);
     }
@@ -409,6 +517,30 @@ json_t *account_to_json(ACCOUNT_DATA *account)
         json_object_set_new(root, "staff_notes", staff_notes);
     } else {
         json_decref(staff_notes);
+    }
+
+    // Penalties section
+    if (account->penalties) {
+        json_object_set_new(root, "penalties",
+            penalties_to_json(account->penalties));
+    }
+
+    // Bonuses section
+    if (account->bonuses) {
+        json_object_set_new(root, "bonuses",
+            bonuses_to_json(account->bonuses));
+    }
+
+    // Preferences section
+    if (account->preferences) {
+        json_object_set_new(root, "preferences",
+            prefs_to_json(account->preferences));
+    }
+
+    // Unlocked races section
+    json_t *unlocked = unlocked_races_to_json(account);
+    if (unlocked) {
+        json_object_set_new(root, "unlocked_races", unlocked);
     }
 
     return root;
@@ -537,6 +669,15 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
             account->id[1] = json_integer_value(json_array_get(account_id, 1));
         }
 
+        // Account data version
+        value = json_object_get(metadata, "version");
+        if (value) {
+            account->version = json_integer_value(value);
+        } else {
+            // Pre-versioning JSON file
+            account->version = VERSION_ACCOUNT_000;
+        }
+
         // Timestamps
         value = json_object_get(metadata, "created");
         if (value) account->creation_date = json_integer_value(value);
@@ -646,6 +787,37 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
     value = json_object_get(account_obj, "vault_rent");
     if (value) account->vault_rent = json_integer_value(value);
 
+    // Host info
+    str = json_string_value(json_object_get(account_obj, "creation_host"));
+    if (str) {
+        free_string(account->creation_host);
+        account->creation_host = str_dup(str);
+    }
+    str = json_string_value(json_object_get(account_obj, "last_login_host"));
+    if (str) {
+        free_string(account->last_login_host);
+        account->last_login_host = str_dup(str);
+    }
+
+    // Default character
+    str = json_string_value(json_object_get(account_obj, "default_character"));
+    if (str) {
+        free_string(account->default_character);
+        account->default_character = str_dup(str);
+    }
+
+    // MFA pending enrollment
+    str = json_string_value(json_object_get(account_obj, "mfa_pending_key"));
+    if (str) {
+        free_string(account->mfa_pending_key);
+        account->mfa_pending_key = str_dup(str);
+    }
+    account->mfa_pending = json_is_true(json_object_get(account_obj, "mfa_pending"));
+
+    // Email verification rate-limiting timestamp
+    value = json_object_get(account_obj, "email_verification_last_sent");
+    if (value) account->email_verification_last_sent = json_integer_value(value);
+
     // Read characters section
     characters = json_object_get(root, "characters");
     if (characters && json_is_array(characters)) {
@@ -655,23 +827,24 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
         }
 
         json_array_foreach(characters, index, array_elem) {
-            ACCOUNT_CHARACTER *ac = (ACCOUNT_CHARACTER *)alloc_mem(sizeof(ACCOUNT_CHARACTER));
+            ACCOUNT_CHARACTER *ac = new_account_character();
+            if (!ac) continue;
 
             // Basic character info
             str = json_string_value(json_object_get(array_elem, "name"));
-            if (str) ac->name = str_dup(str);
+            if (str) { free_string(ac->name); ac->name = str_dup(str); }
 
             ac->current_level = json_integer_value(json_object_get(array_elem, "current_level"));
             ac->tot_level = json_integer_value(json_object_get(array_elem, "tot_level"));
 
             str = json_string_value(json_object_get(array_elem, "race_name"));
-            if (str) ac->race_name = str_dup(str);
+            if (str) { free_string(ac->race_name); ac->race_name = str_dup(str); }
 
             str = json_string_value(json_object_get(array_elem, "class_name"));
-            if (str) ac->class_name = str_dup(str);
+            if (str) { free_string(ac->class_name); ac->class_name = str_dup(str); }
 
             str = json_string_value(json_object_get(array_elem, "last_area"));
-            if (str) ac->last_area = str_dup(str);
+            if (str) { free_string(ac->last_area); ac->last_area = str_dup(str); }
 
             // Character status
             ac->staff = json_is_true(json_object_get(array_elem, "staff"));
@@ -692,14 +865,123 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
             // Character-specific auth override
             str = json_string_value(json_object_get(array_elem, "password"));
             if (str) {
+                free_string(ac->pwd);
                 ac->pwd = str_dup(str);
                 ac->pwd_vers = json_integer_value(json_object_get(array_elem, "password_version"));
             }
 
             str = json_string_value(json_object_get(array_elem, "mfa_key"));
             if (str) {
+                free_string(ac->mfa_key);
                 ac->mfa_key = str_dup(str);
                 ac->mfa_enabled = json_is_true(json_object_get(array_elem, "mfa_enabled"));
+            }
+
+            // Last host
+            str = json_string_value(json_object_get(array_elem, "last_host"));
+            if (str) {
+                free_string(ac->last_host);
+                ac->last_host = str_dup(str);
+            }
+
+            // Old password (migration)
+            str = json_string_value(json_object_get(array_elem, "old_password"));
+            if (str) {
+                free_string(ac->old_pwd);
+                ac->old_pwd = str_dup(str);
+            }
+
+            // Password reset
+            str = json_string_value(json_object_get(array_elem, "reset_code"));
+            if (str) {
+                free_string(ac->reset_code);
+                ac->reset_code = str_dup(str);
+            }
+            value = json_object_get(array_elem, "reset_time");
+            if (value) ac->reset_time = json_integer_value(value);
+            value = json_object_get(array_elem, "reset_state");
+            if (value) ac->reset_state = json_integer_value(value);
+
+            // MFA pending enrollment (character-level)
+            str = json_string_value(json_object_get(array_elem, "mfa_pending_key"));
+            if (str) {
+                free_string(ac->mfa_pending_key);
+                ac->mfa_pending_key = str_dup(str);
+            }
+
+            // MFA recovery codes (character-level)
+            {
+                json_t *char_recovery = json_object_get(array_elem, "recovery_codes");
+                if (char_recovery && json_is_array(char_recovery)) {
+                    int ri = 0;
+                    size_t ridx;
+                    json_t *relem;
+                    json_array_foreach(char_recovery, ridx, relem) {
+                        if (ri >= MFA_RECOVERY_CODES) break;
+                        str = json_string_value(json_object_get(relem, "code"));
+                        if (str) {
+                            free_string(ac->recovery_codes[ri]);
+                            ac->recovery_codes[ri] = str_dup(str);
+                            ac->recovery_used[ri] = json_is_true(json_object_get(relem, "used"));
+                        }
+                        ri++;
+                    }
+                }
+            }
+
+            // Email (character-level)
+            str = json_string_value(json_object_get(array_elem, "email"));
+            if (str) {
+                free_string(ac->email);
+                ac->email = str_dup(str);
+            }
+            ac->email_verified = json_is_true(json_object_get(array_elem, "email_verified"));
+
+            str = json_string_value(json_object_get(array_elem, "pending_email"));
+            if (str) {
+                free_string(ac->pending_email);
+                ac->pending_email = str_dup(str);
+            }
+            str = json_string_value(json_object_get(array_elem, "email_verification_code"));
+            if (str) {
+                free_string(ac->email_verification_code);
+                ac->email_verification_code = str_dup(str);
+            }
+            value = json_object_get(array_elem, "email_verification_time");
+            if (value) ac->email_verification_time = json_integer_value(value);
+            value = json_object_get(array_elem, "email_verification_last_sent");
+            if (value) ac->email_verification_last_sent = json_integer_value(value);
+
+            // Character-level staff notes
+            {
+                json_t *char_notes = json_object_get(array_elem, "staff_notes");
+                if (char_notes && json_is_array(char_notes)) {
+                    ACCOUNT_NOTE_DATA *prev_cnote = NULL;
+                    size_t cnidx;
+                    json_t *cnelem;
+                    json_array_foreach(char_notes, cnidx, cnelem) {
+                        ACCOUNT_NOTE_DATA *cnote = (ACCOUNT_NOTE_DATA *)alloc_mem(sizeof(ACCOUNT_NOTE_DATA));
+                        cnote->next = NULL;
+                        cnote->penalty_ref = NULL;
+
+                        str = json_string_value(json_object_get(cnelem, "author"));
+                        cnote->author = str ? str_dup(str) : str_dup("unknown");
+                        cnote->timestamp = json_integer_value(json_object_get(cnelem, "timestamp"));
+                        str = json_string_value(json_object_get(cnelem, "subject"));
+                        cnote->subject = str ? str_dup(str) : str_dup("");
+                        str = json_string_value(json_object_get(cnelem, "text"));
+                        cnote->text = str ? str_dup(str) : str_dup("");
+                        cnote->category = json_integer_value(json_object_get(cnelem, "category"));
+                        str = json_string_value(json_object_get(cnelem, "penalty_ref"));
+                        if (str) cnote->penalty_ref = str_dup(str);
+
+                        if (!ac->staff_notes)
+                            ac->staff_notes = cnote;
+                        else
+                            prev_cnote->next = cnote;
+                        prev_cnote = cnote;
+                    }
+                }
             }
 
             // Add to account's character list
@@ -739,6 +1021,11 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
             str = json_string_value(json_object_get(array_elem, "text"));
             if (str) note->text = str_dup(str);
 
+            note->category = json_integer_value(json_object_get(array_elem, "category"));
+            str = json_string_value(json_object_get(array_elem, "penalty_ref"));
+            if (str) note->penalty_ref = str_dup(str);
+            else note->penalty_ref = NULL;
+
             // Link to list
             if (!account->staff_notes) {
                 account->staff_notes = note;
@@ -747,6 +1034,30 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
             }
             prev_note = note;
         }
+    }
+
+    // Read penalties
+    json_t *penalties_arr = json_object_get(root, "penalties");
+    if (penalties_arr && json_is_array(penalties_arr)) {
+        json_to_penalties(penalties_arr, &account->penalties);
+    }
+
+    // Read bonuses
+    json_t *bonuses_arr = json_object_get(root, "bonuses");
+    if (bonuses_arr && json_is_array(bonuses_arr)) {
+        json_to_bonuses(bonuses_arr, &account->bonuses);
+    }
+
+    // Read preferences
+    json_t *prefs_arr = json_object_get(root, "preferences");
+    if (prefs_arr && json_is_array(prefs_arr)) {
+        json_to_prefs(prefs_arr, &account->preferences);
+    }
+
+    // Read unlocked races
+    json_t *unlocked_arr = json_object_get(root, "unlocked_races");
+    if (unlocked_arr && json_is_array(unlocked_arr)) {
+        json_to_unlocked_races(unlocked_arr, account);
     }
 
     json_decref(root);
