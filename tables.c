@@ -3475,6 +3475,8 @@ const struct do_func_type do_func_table[] =
         { "do_bonus", do_bonus },
         { "do_prefadmin", do_prefadmin },
         { "do_raceunlock", do_raceunlock },
+        { "do_racedit", do_racedit },
+        { "do_traitedit", do_traitedit },
         { NULL, NULL }
 };
 

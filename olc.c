@@ -19,6 +19,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "editors/common.h"
+#include "traits.h"
 extern const char *medit_tab_names[];
 extern GLOBAL_DATA gconfig;
 /*
@@ -51,6 +52,14 @@ char *editor_name_table[] = {
     "IpEdit",
     "DpEdit",
     "CMDEdit",
+    "ChgSet",       // 23 ED_CHANGESET
+    "AccNote",      // 24 ED_ACCNOTE
+    "ChLog",        // 25 ED_CHLOG
+    "SocEdit",      // 26 ED_SOCIAL
+    "GameEdit",     // 27 ED_GAMESETTING
+    "CharNote",     // 28 ED_CHARNOTE
+    "RaceEdit",     // 29 ED_RACE
+    "TraitEdit",    // 30 ED_TRAIT
 };
 
 int editor_max_tabs_table[] = {
@@ -77,6 +86,14 @@ int editor_max_tabs_table[] = {
     0,		// IpEdit
     0,		// DpEdit
     0,		// CMDEdit
+    0,		// ChgSet
+    0,		// AccNote
+    0,		// ChLog
+    0,		// SocEdit
+    0,		// GameEdit
+    0,		// CharNote
+    0,		// RaceEdit
+    0,		// TraitEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -102,6 +119,8 @@ const struct editor_cmd_type editor_table[] =
     { "wilderness",    do_wedit	},
     { "vlink",		do_vledit	},
     { "command",    do_cmdedit  },
+    { "race",       do_racedit  },
+    { "trait",      do_traitedit },
     { NULL,			0,			}
 };
 
@@ -515,6 +534,12 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
     case ED_SOCIAL:
         socialedit(d->character, d->incomm);
         break;
+    case ED_RACE:
+        racedit(d->character, d->incomm);
+        break;
+    case ED_TRAIT:
+        traitedit(d->character, d->incomm);
+        break;
 
     default:
         return false;
@@ -704,6 +729,25 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             sprintf(buf, "--");
         break;
 
+    case ED_RACE:
+        {
+            RACE_DATA *race_ed = (RACE_DATA *)ch->desc->pEdit;
+            if (race_ed)
+                sprintf(buf, "%s", race_ed->id);
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
+    case ED_TRAIT:
+        {
+            TRAIT_DEF *trait_ed = (TRAIT_DEF *)ch->desc->pEdit;
+            if (trait_ed)
+                sprintf(buf, "%s", trait_ed->id);
+            else
+                sprintf(buf, "--");
+        }
+        break;
 
     default:
         sprintf(buf, " ");
@@ -825,6 +869,12 @@ bool show_commands(CHAR_DATA *ch, char *argument)
         break;
     case ED_SOCIAL:
         show_olc_cmds(ch, socialedit_table);
+        break;
+    case ED_RACE:
+        show_olc_cmds(ch, racedit_table);
+        break;
+    case ED_TRAIT:
+        show_olc_cmds(ch, traitedit_table);
         break;
     }
 

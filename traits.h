@@ -74,6 +74,7 @@ extern int		trait_def_count;
 
 void		load_trait_definitions(void);
 TRAIT_DEF *	trait_def_lookup(const char *id);
+TRAIT_DEF *	trait_def_lookup_name(const char *name);
 
 /***************************************************************************
  * Race Trait Query API                                                    *

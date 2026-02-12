@@ -62,6 +62,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_CHLOG 25
 #define ED_SOCIAL 26
 #define ED_GAMESETTING    27  // Or whatever value is appropriate
+#define ED_RACE           29
+#define ED_TRAIT          30
 
 
 
@@ -84,6 +86,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define SOCEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define RACEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define TRAITEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -116,6 +120,8 @@ void	dpedit	( CHAR_DATA *ch, char *argument );
 void	cmdedit	( CHAR_DATA *ch, char *argument );
 void    gameedit ( CHAR_DATA *ch, char *argument );
 void    socialedit( CHAR_DATA *ch, char *argument );
+void    racedit  ( CHAR_DATA *ch, char *argument );
+void    traitedit( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -188,6 +194,8 @@ extern const struct olc_cmd_type        ipedit_table[];
 extern const struct olc_cmd_type        dpedit_table[];
 extern const struct olc_cmd_type        cmdedit_table[];
 extern const struct olc_cmd_type        socialedit_table[];
+extern const struct olc_cmd_type        racedit_table[];
+extern const struct olc_cmd_type        traitedit_table[];
 
 
 /*
@@ -211,6 +219,8 @@ DECLARE_DO_FUN( do_vledit       );
 DECLARE_DO_FUN( do_bsedit       );
 DECLARE_DO_FUN( do_dngedit       );
 DECLARE_DO_FUN( do_cmdedit      );
+DECLARE_DO_FUN( do_racedit      );
+DECLARE_DO_FUN( do_traitedit    );
 
 
 /*
@@ -629,6 +639,50 @@ DECLARE_OLC_FUN(socialedit_list);
 DECLARE_OLC_FUN(socialedit_save);
 
 /*
+ * Race Editor Prototypes
+ */
+DECLARE_OLC_FUN( racedit_show );
+DECLARE_OLC_FUN( racedit_name );
+DECLARE_OLC_FUN( racedit_whoname );
+DECLARE_OLC_FUN( racedit_description );
+DECLARE_OLC_FUN( racedit_comments );
+DECLARE_OLC_FUN( racedit_playable );
+DECLARE_OLC_FUN( racedit_starting );
+DECLARE_OLC_FUN( racedit_alignment );
+DECLARE_OLC_FUN( racedit_size );
+DECLARE_OLC_FUN( racedit_stats );
+DECLARE_OLC_FUN( racedit_maxstats );
+DECLARE_OLC_FUN( racedit_maxvitals );
+DECLARE_OLC_FUN( racedit_form );
+DECLARE_OLC_FUN( racedit_parts );
+DECLARE_OLC_FUN( racedit_act );
+DECLARE_OLC_FUN( racedit_affects );
+DECLARE_OLC_FUN( racedit_offensive );
+DECLARE_OLC_FUN( racedit_immunities );
+DECLARE_OLC_FUN( racedit_resistances );
+DECLARE_OLC_FUN( racedit_vulnerabilities );
+DECLARE_OLC_FUN( racedit_skills );
+DECLARE_OLC_FUN( racedit_prerequisite );
+DECLARE_OLC_FUN( racedit_remortinto );
+DECLARE_OLC_FUN( racedit_trait );
+DECLARE_OLC_FUN( racedit_save );
+DECLARE_OLC_FUN( racedit_list );
+
+/*
+ * Trait Editor Prototypes
+ */
+DECLARE_OLC_FUN( traitedit_show );
+DECLARE_OLC_FUN( traitedit_name );
+DECLARE_OLC_FUN( traitedit_category );
+DECLARE_OLC_FUN( traitedit_description );
+DECLARE_OLC_FUN( traitedit_type );
+DECLARE_OLC_FUN( traitedit_default );
+DECLARE_OLC_FUN( traitedit_create );
+DECLARE_OLC_FUN( traitedit_delete );
+DECLARE_OLC_FUN( traitedit_save );
+DECLARE_OLC_FUN( traitedit_list );
+
+/*
  * Macros
  */
 #define TOGGLE_BIT(var, bit)    ((var) ^= (bit))
@@ -660,6 +714,8 @@ DECLARE_OLC_FUN(socialedit_save);
 #define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_CMD(ch, command)   ( command = (CMD_DATA *)ch->desc->pEdit )
 #define EDIT_SOCIAL(ch, social)  (social = (struct social_type *)ch->desc->pEdit)
+#define EDIT_RACE(ch, race)      (race = (RACE_DATA *)ch->desc->pEdit)
+#define EDIT_TRAIT(ch, def)      (def = (TRAIT_DEF *)ch->desc->pEdit)
 
 
 /*

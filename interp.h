@@ -636,6 +636,8 @@ DECLARE_DO_FUN( do_coffer );
 DECLARE_DO_FUN( do_acctlink );
 DECLARE_DO_FUN( do_acctunlink );
 DECLARE_DO_FUN( do_socialedit );
+DECLARE_DO_FUN( do_racedit );
+DECLARE_DO_FUN( do_traitedit );
 DECLARE_DO_FUN( do_reserved );
 DECLARE_DO_FUN( do_pronouns );
 DECLARE_DO_FUN( do_gcstats );

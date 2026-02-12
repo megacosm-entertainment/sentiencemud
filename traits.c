@@ -151,6 +151,50 @@ TRAIT_DEF *trait_def_lookup(const char *id)
     return NULL;
 }
 
+
+/**
+ * trait_def_lookup_name - Find a trait definition by ID or display name
+ *
+ * Tries exact ID match first, then exact name match, then prefix matching
+ * on both ID and name.
+ *
+ * @param name  Trait identifier or display name string
+ * @return      Pointer to the trait definition, or NULL if not found
+ */
+TRAIT_DEF *trait_def_lookup_name(const char *name)
+{
+    TRAIT_DEF *def;
+
+    if (!name || !name[0])
+        return NULL;
+
+    /* Exact ID match */
+    for (def = trait_def_list; def; def = def->next) {
+        if (!str_cmp(def->id, name))
+            return def;
+    }
+
+    /* Exact name match */
+    for (def = trait_def_list; def; def = def->next) {
+        if (!str_cmp(def->name, name))
+            return def;
+    }
+
+    /* Prefix match on ID */
+    for (def = trait_def_list; def; def = def->next) {
+        if (!str_prefix(name, def->id))
+            return def;
+    }
+
+    /* Prefix match on name */
+    for (def = trait_def_list; def; def = def->next) {
+        if (!str_prefix(name, def->name))
+            return def;
+    }
+
+    return NULL;
+}
+
 /***************************************************************************
  * Race Trait Initialization                                               *
  ***************************************************************************/
@@ -400,4 +444,69 @@ const char *race_get_trait_string(RACE_DATA *race, const char *trait_id)
         return NULL;
 
     return race->trait_values[def->index].string_val;
+}
+
+
+/***************************************************************************
+ * Trait Definition Saving                                                 *
+ ***************************************************************************/
+
+/**
+ * save_trait_definitions - Write all trait definitions to traits.json
+ *
+ * Serializes the global trait_def_list back to the JSON format used
+ * by load_trait_definitions(). Overwrites the existing file.
+ *
+ * @return  true on success, false on failure
+ */
+bool save_trait_definitions(void)
+{
+    json_t *root, *traits_arr, *trait_obj;
+    TRAIT_DEF *def;
+
+    root = json_object();
+    json_object_set_new(root, "_format", json_string("trait_definitions"));
+    json_object_set_new(root, "_version", json_integer(1));
+
+    traits_arr = json_array();
+
+    for (def = trait_def_list; def; def = def->next) {
+        if (!def->valid)
+            continue;
+
+        trait_obj = json_object();
+        json_object_set_new(trait_obj, "id", json_string(def->id));
+        json_object_set_new(trait_obj, "name", json_string(def->name ? def->name : ""));
+        json_object_set_new(trait_obj, "description", json_string(def->description ? def->description : ""));
+        json_object_set_new(trait_obj, "category", json_string(def->category ? def->category : ""));
+
+        switch (def->type) {
+            case TRAIT_BOOLEAN:
+                json_object_set_new(trait_obj, "type", json_string("boolean"));
+                json_object_set_new(trait_obj, "default", json_boolean(def->default_bool));
+                break;
+            case TRAIT_INTEGER:
+                json_object_set_new(trait_obj, "type", json_string("integer"));
+                json_object_set_new(trait_obj, "default", json_integer(def->default_int));
+                break;
+            case TRAIT_STRING:
+                json_object_set_new(trait_obj, "type", json_string("string"));
+                json_object_set_new(trait_obj, "default",
+                    def->default_string ? json_string(def->default_string) : json_null());
+                break;
+        }
+
+        json_array_append_new(traits_arr, trait_obj);
+    }
+
+    json_object_set_new(root, "traits", traits_arr);
+
+    if (json_dump_file(root, TRAITS_FILE, JSON_INDENT(2)) != 0) {
+        pbugf(LOG_ERROR, "save_trait_definitions: Failed to write " TRAITS_FILE);
+        json_decref(root);
+        return false;
+    }
+
+    json_decref(root);
+    return true;
 }

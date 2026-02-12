@@ -504,3 +504,172 @@ bool race_has_skill(RACE_DATA *race, const char *skill_name)
     iterator_stop(&it);
     return false;
 }
+
+
+/***************************************************************************
+ * JSON Race Saving                                                        *
+ ***************************************************************************/
+
+/**
+ * flags_to_json_array - Convert a bitmask to a JSON array of flag name strings
+ *
+ * Inverse of flags_from_json_array. Iterates the flag table and adds
+ * the name of each flag whose bit is set.
+ *
+ * @param flag_table  The flag_type table to use for name lookup
+ * @param bits        The bitmask to convert
+ * @return            A json_t array of strings (caller must decref)
+ */
+static json_t *flags_to_json_array(const struct flag_type *flag_table, long bits)
+{
+    json_t *arr = json_array();
+
+    if (!flag_table || bits == 0)
+        return arr;
+
+    for (int i = 0; flag_table[i].name != NULL; i++) {
+        if (flag_table[i].bit != 0 && IS_SET(bits, flag_table[i].bit))
+            json_array_append_new(arr, json_string(flag_table[i].name));
+    }
+
+    return arr;
+}
+
+
+/**
+ * save_race_json - Save a race to its JSON file in data/races/
+ *
+ * Writes the race data in the same JSON format that race_load_json reads.
+ * The file is written to DATA_DIR "races/<race_id>.json".
+ *
+ * @param race  The race to save
+ * @return      true on success, false on failure
+ */
+bool save_race_json(RACE_DATA *race)
+{
+    json_t *root, *obj, *arr;
+    char path[512];
+    ITERATOR it;
+    char *skill;
+
+    if (!race || !race->id) {
+        pbugf(LOG_ERROR, "save_race_json: NULL race or id");
+        return false;
+    }
+
+    root = json_object();
+
+    /* Metadata */
+    json_object_set_new(root, "_format", json_string("race_data"));
+    json_object_set_new(root, "_version", json_integer(1));
+
+    /* Core identification */
+    json_object_set_new(root, "id", json_string(race->id));
+    json_object_set_new(root, "uid", json_integer(race->uid));
+    json_object_set_new(root, "name", json_string(race->name ? race->name : ""));
+    json_object_set_new(root, "description", json_string(race->description ? race->description : ""));
+    json_object_set_new(root, "comments", json_string(race->comments ? race->comments : ""));
+
+    /* Playability */
+    json_object_set_new(root, "playable", json_boolean(race->playable));
+    json_object_set_new(root, "starting", json_boolean(race->starting));
+
+    /* Display */
+    obj = json_object();
+    json_object_set_new(obj, "who_name", json_string(race->who_name ? race->who_name : ""));
+    json_object_set_new(root, "display", obj);
+
+    /* Physical */
+    obj = json_object();
+    json_object_set_new(obj, "min_size", json_integer(race->min_size));
+    json_object_set_new(obj, "max_size", json_integer(race->max_size));
+    json_object_set_new(obj, "default_alignment", json_integer(race->default_alignment));
+    json_object_set_new(obj, "form", flags_to_json_array(form_flags, race->form));
+    json_object_set_new(obj, "parts", flags_to_json_array(part_flags, race->parts));
+    json_object_set_new(root, "physical", obj);
+
+    /* Combat */
+    obj = json_object();
+    json_object_set_new(obj, "act", flags_to_json_array(act_flags, race->act[0]));
+    json_object_set_new(obj, "act2", flags_to_json_array(act2_flags, race->act[1]));
+    json_object_set_new(obj, "affects", flags_to_json_array(affect_flags, race->aff[0]));
+    json_object_set_new(obj, "affects2", flags_to_json_array(affect2_flags, race->aff[1]));
+    json_object_set_new(obj, "offensive", flags_to_json_array(off_flags, race->off));
+    json_object_set_new(obj, "immunities", flags_to_json_array(imm_flags, race->imm));
+    json_object_set_new(obj, "resistances", flags_to_json_array(res_flags, race->res));
+    json_object_set_new(obj, "vulnerabilities", flags_to_json_array(vuln_flags, race->vuln));
+    json_object_set_new(root, "combat", obj);
+
+    /* Attributes */
+    obj = json_object();
+    {
+        json_t *stats = json_object();
+        json_object_set_new(stats, "str", json_integer(race->stats[STAT_STR]));
+        json_object_set_new(stats, "int", json_integer(race->stats[STAT_INT]));
+        json_object_set_new(stats, "wis", json_integer(race->stats[STAT_WIS]));
+        json_object_set_new(stats, "dex", json_integer(race->stats[STAT_DEX]));
+        json_object_set_new(stats, "con", json_integer(race->stats[STAT_CON]));
+        json_object_set_new(obj, "stats", stats);
+
+        json_t *max_stats = json_object();
+        json_object_set_new(max_stats, "str", json_integer(race->max_stats[STAT_STR]));
+        json_object_set_new(max_stats, "int", json_integer(race->max_stats[STAT_INT]));
+        json_object_set_new(max_stats, "wis", json_integer(race->max_stats[STAT_WIS]));
+        json_object_set_new(max_stats, "dex", json_integer(race->max_stats[STAT_DEX]));
+        json_object_set_new(max_stats, "con", json_integer(race->max_stats[STAT_CON]));
+        json_object_set_new(obj, "max_stats", max_stats);
+
+        json_t *vitals = json_object();
+        json_object_set_new(vitals, "hp", json_integer(race->max_vitals[0]));
+        json_object_set_new(vitals, "mana", json_integer(race->max_vitals[1]));
+        json_object_set_new(vitals, "move", json_integer(race->max_vitals[2]));
+        json_object_set_new(obj, "max_vitals", vitals);
+    }
+    json_object_set_new(root, "attributes", obj);
+
+    /* Skills */
+    arr = json_array();
+    if (race->skills) {
+        iterator_start(&it, race->skills);
+        while ((skill = (char *)iterator_nextdata(&it))) {
+            json_array_append_new(arr, json_string(skill));
+        }
+        iterator_stop(&it);
+    }
+    json_object_set_new(root, "skills", arr);
+
+    /* Starting equipment */
+    arr = json_array();
+    for (int i = 0; i < MAX_RACE_STARTING_EQ; i++) {
+        if (race->starting_eq[i] != 0)
+            json_array_append_new(arr, json_integer(race->starting_eq[i]));
+    }
+    json_object_set_new(root, "starting_equipment", arr);
+
+    /* Remort */
+    obj = json_object();
+    if (race->remort_race_id && race->remort_race_id[0])
+        json_object_set_new(obj, "prerequisite_race", json_string(race->remort_race_id));
+    if (race->remort_into_id && race->remort_into_id[0])
+        json_object_set_new(obj, "remort_into", json_string(race->remort_into_id));
+    json_object_set_new(root, "remort", obj);
+
+    /* Traits */
+    {
+        json_t *traits = (json_t *)race_save_traits_json(race);
+        if (traits)
+            json_object_set_new(root, "traits", traits);
+    }
+
+    /* Write to file */
+    snprintf(path, sizeof(path), "%sraces/%s.json", DATA_DIR, race->id);
+
+    if (json_dump_file(root, path, JSON_INDENT(2) | JSON_SORT_KEYS) != 0) {
+        pbugf(LOG_ERROR, "save_race_json: Failed to write %s", path);
+        json_decref(root);
+        return false;
+    }
+
+    json_decref(root);
+    return true;
+}
