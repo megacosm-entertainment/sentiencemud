@@ -3320,10 +3320,9 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
-    bool range = false;
-    (void)range;
-    long vnum_min;
-    long vnum_max;
+    bool use_range = false;
+    long vnum_min = 0;
+    long vnum_max = 0;
     int col = 0;
 
     argument = one_argument(argument, arg);
@@ -3332,19 +3331,15 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     // Parse target area and vnum range
     if (arg[0] == '\0')
     {
-        // No args - use current area's full range
+        // No args - list all rooms in current area
         pArea = ch->in_room->area;
-        vnum_min = pArea->min_vnum;
-        vnum_max = pArea->max_vnum;
     }
     else if (arg2[0] == '\0')
     {
         // One arg - could be area name or error
         if ((pArea = find_area(arg)))
         {
-            // Area name specified
-            vnum_min = pArea->min_vnum;
-            vnum_max = pArea->max_vnum;
+            // Area name specified - list all rooms
         }
         else
         {
@@ -3390,17 +3385,17 @@ void do_rlist(CHAR_DATA *ch, char *argument)
             vnum_max = tmp;
         }
         
-        range = true;
+        use_range = true;
     }
 
     buf1  = new_buf();
 
-    // Iterate through all hash buckets to catch widevnum entities
+    // Iterate through all hash buckets in the area
     for (int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
     for (pRoomIndex = pArea->room_index_hash[iHash]; pRoomIndex != NULL; pRoomIndex = pRoomIndex->next)
     {
-    if (pRoomIndex->vnum >= vnum_min && pRoomIndex->vnum <= vnum_max)
+    if (!use_range || (pRoomIndex->vnum >= vnum_min && pRoomIndex->vnum <= vnum_max))
     {
         char *noc;
         noc = nocolour(pRoomIndex->name);
