@@ -40,8 +40,11 @@ const struct script_cmd_type area_cmd_table[] = {
     { "call",				scriptcmd_call,				false,	true	},
     { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+    { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+    { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+    { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
     { "mail",				scriptcmd_mail,				true,	true	},
     { "mload",				scriptcmd_mload,			false,	true	},
     { "mute",				scriptcmd_mute,				false,	true	},
@@ -73,8 +76,11 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "call",				scriptcmd_call,				false,	true	},
     { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+    { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+    { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+    { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
     { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
     { "mail",				scriptcmd_mail,				true,	true	},
     { "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
@@ -108,8 +114,11 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "call",				scriptcmd_call,				false,	true	},
     { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+    { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+    { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+    { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
     { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
     { "mail",				scriptcmd_mail,				true,	true	},
     { "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
@@ -1860,6 +1869,38 @@ SCRIPT_CMD(scriptcmd_dungeoncomplete)
     }
 }
 
+// DUNGEONCOMMENCE $DUNGEON
+SCRIPT_CMD(scriptcmd_dungeoncommence)
+{
+    if(!expand_argument(info,argument,arg))
+        return;
+
+    if( arg->type == ENT_DUNGEON ) {
+        if( !IS_SET(arg->d.dungeon->flags, DUNGEON_COMMENCED) )
+        {
+            SET_BIT(arg->d.dungeon->flags, DUNGEON_COMMENCED);
+
+            p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_COMMENCED, NULL);
+        }
+    }
+}
+
+// DUNGEONFAILURE $DUNGEON
+SCRIPT_CMD(scriptcmd_dungeonfailure)
+{
+    if(!expand_argument(info,argument,arg))
+        return;
+
+    if( arg->type == ENT_DUNGEON ) {
+        if( !IS_SET(arg->d.dungeon->flags, DUNGEON_FAILED) )
+        {
+            SET_BIT(arg->d.dungeon->flags, DUNGEON_FAILED);
+
+            p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED, NULL);
+        }
+    }
+}
+
 
 //////////////////////////////////////
 // E
@@ -2522,6 +2563,23 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
             p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
 
             SET_BIT(arg->d.instance->flags, INSTANCE_COMPLETED);
+        }
+    }
+}
+
+// INSTANCEFAILURE $INSTANCE
+SCRIPT_CMD(scriptcmd_instancefailure)
+{
+    if(!expand_argument(info,argument,arg))
+        return;
+
+    if( arg->type == ENT_INSTANCE )
+    {
+        if( !IS_SET(arg->d.instance->flags, INSTANCE_FAILED) )
+        {
+            SET_BIT(arg->d.instance->flags, INSTANCE_FAILED);
+
+            p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED, NULL);
         }
     }
 }

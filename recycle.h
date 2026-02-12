@@ -146,6 +146,12 @@ void free_script_param(SCRIPT_PARAM *arg);
 BLUEPRINT_LINK *new_blueprint_link();
 void free_blueprint_link(BLUEPRINT_LINK *bl);
 
+MAZE_WEIGHTED_ROOM *new_maze_weighted_room();
+void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *mwr);
+
+MAZE_FIXED_ROOM *new_maze_fixed_room();
+void free_maze_fixed_room(MAZE_FIXED_ROOM *mfr);
+
 BLUEPRINT_SECTION *new_blueprint_section();
 void free_blueprint_section(BLUEPRINT_SECTION *bs);
 

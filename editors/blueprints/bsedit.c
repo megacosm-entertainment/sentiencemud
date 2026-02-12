@@ -75,6 +75,54 @@ BSEDIT( bsedit_show )
     add_buf(buffer, bs->description ? bs->description : "(none)\n\r");
     add_buf(buffer, "\n\r");
 
+    // Show maze data if type is BSTYPE_MAZE
+    if (bs->type == BSTYPE_MAZE) {
+        sprintf(buf, "Maze Size:   %ld x %ld\n\r", bs->maze_x, bs->maze_y);
+        add_buf(buffer, buf);
+
+        if (bs->maze_templates && list_size(bs->maze_templates) > 0) {
+            ITERATOR it;
+            MAZE_WEIGHTED_ROOM *mwr;
+            int idx = 0;
+            add_buf(buffer, "{YMaze Templates:{x\n\r");
+            iterator_start(&it, bs->maze_templates);
+            while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
+                ++idx;
+                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Room: {W%ld{x %s\n\r",
+                    idx, mwr->weight,
+                    mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
+                    mwr->room ? mwr->room->name : "(unresolved)");
+                add_buf(buffer, buf);
+            }
+            iterator_stop(&it);
+            sprintf(buf, "  Total Weight: {W%d{x\n\r", bs->total_maze_weight);
+            add_buf(buffer, buf);
+        } else {
+            add_buf(buffer, "{YMaze Templates:{x (none)\n\r");
+        }
+
+        if (bs->maze_fixed_rooms && list_size(bs->maze_fixed_rooms) > 0) {
+            ITERATOR it;
+            MAZE_FIXED_ROOM *mfr;
+            int idx = 0;
+            add_buf(buffer, "{YMaze Fixed Rooms:{x\n\r");
+            iterator_start(&it, bs->maze_fixed_rooms);
+            while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it))) {
+                ++idx;
+                sprintf(buf, "  {Y[{W%3d{Y]{x Pos: ({W%d{x,{W%d{x)  Room: {W%ld{x %s  Connected: %s\n\r",
+                    idx, mfr->x, mfr->y,
+                    mfr->room ? mfr->room->vnum : mfr->room_ref.load.vnum,
+                    mfr->room ? mfr->room->name : "(unresolved)",
+                    mfr->connected ? "{GYes{x" : "{RNo{x");
+                add_buf(buffer, buf);
+            }
+            iterator_stop(&it);
+        } else {
+            add_buf(buffer, "{YMaze Fixed Rooms:{x (none)\n\r");
+        }
+        add_buf(buffer, "\n\r");
+    }
+
     add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
     add_buf(buffer, bs->comments ? bs->comments : "(none)\n\r");
     add_buf(buffer, "\n\r-----\n\r");
@@ -710,5 +758,282 @@ BSEDIT( bsedit_link )
     }
 
     bsedit_link(ch, "");
+    return false;
+}
+
+BSEDIT( bsedit_maze )
+{
+    BLUEPRINT_SECTION *bs;
+    char arg[MIL];
+    char arg2[MIL];
+
+    EDIT_BPSECT(ch, bs);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  maze size <width> <height>\n\r", ch);
+        send_to_char("         maze templates list\n\r", ch);
+        send_to_char("         maze templates add <weight> <room_vnum>\n\r", ch);
+        send_to_char("         maze templates remove <#>\n\r", ch);
+        send_to_char("         maze fixed list\n\r", ch);
+        send_to_char("         maze fixed add <x> <y> <room_vnum> [connected]\n\r", ch);
+        send_to_char("         maze fixed remove <#>\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg2);
+
+    if (!str_cmp(arg, "size")) {
+        if (arg2[0] == '\0' || argument[0] == '\0') {
+            send_to_char("Syntax:  maze size <width> <height>\n\r", ch);
+            return false;
+        }
+
+        int w = atoi(arg2);
+        int h = atoi(argument);
+
+        if (w < 1 || h < 1 || w > 100 || h > 100) {
+            send_to_char("Maze dimensions must be between 1 and 100.\n\r", ch);
+            return false;
+        }
+
+        bs->maze_x = w;
+        bs->maze_y = h;
+
+        // Clear fixed rooms since coordinates may be invalid
+        if (bs->maze_fixed_rooms) {
+            MAZE_FIXED_ROOM *mfr;
+            while ((mfr = (MAZE_FIXED_ROOM *)list_nthdata(bs->maze_fixed_rooms, 1))) {
+                list_remnthlink(bs->maze_fixed_rooms, 1, false);
+                free_maze_fixed_room(mfr);
+            }
+        }
+
+        char buf[MSL];
+        sprintf(buf, "Maze size set to %d x %d. Fixed rooms cleared.\n\r", w, h);
+        send_to_char(buf, ch);
+        return true;
+    }
+
+    if (!str_cmp(arg, "templates")) {
+        if (!str_cmp(arg2, "list")) {
+            if (!bs->maze_templates || list_size(bs->maze_templates) < 1) {
+                send_to_char("No maze templates defined.\n\r", ch);
+                return false;
+            }
+
+            ITERATOR it;
+            MAZE_WEIGHTED_ROOM *mwr;
+            char buf[MSL];
+            int idx = 0;
+
+            send_to_char("{YMaze Templates:{x\n\r", ch);
+            iterator_start(&it, bs->maze_templates);
+            while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
+                ++idx;
+                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Room: {W%ld{x %s\n\r",
+                    idx, mwr->weight,
+                    mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
+                    mwr->room ? mwr->room->name : "(unresolved)");
+                send_to_char(buf, ch);
+            }
+            iterator_stop(&it);
+
+            sprintf(buf, "  Total Weight: {W%d{x\n\r", bs->total_maze_weight);
+            send_to_char(buf, ch);
+            return false;
+        }
+
+        if (!str_cmp(arg2, "add")) {
+            char weight_arg[MIL];
+            argument = one_argument(argument, weight_arg);
+
+            if (weight_arg[0] == '\0' || argument[0] == '\0') {
+                send_to_char("Syntax:  maze templates add <weight> <room_vnum>\n\r", ch);
+                return false;
+            }
+
+            int weight = atoi(weight_arg);
+            if (weight < 1) {
+                send_to_char("Weight must be at least 1.\n\r", ch);
+                return false;
+            }
+
+            WNUM room_wnum;
+            AREA_DATA *context = strchr(argument, '#') ? NULL : bs->area;
+            if (!parse_widevnum(argument, context, &room_wnum)) {
+                send_to_char("Invalid widevnum format.\n\r", ch);
+                return false;
+            }
+
+            ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            if (!room) {
+                send_to_char("That room does not exist.\n\r", ch);
+                return false;
+            }
+
+            MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
+            mwr->weight = weight;
+            mwr->room_ref.load.vnum = room_wnum.vnum;
+            mwr->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+            mwr->room = room;
+
+            if (!bs->maze_templates)
+                bs->maze_templates = list_create(false);
+
+            list_appendlink(bs->maze_templates, mwr);
+            bs->total_maze_weight += weight;
+
+            char buf[MSL];
+            sprintf(buf, "Template added: Room %ld (%s) with weight %d.\n\r",
+                room->vnum, room->name, weight);
+            send_to_char(buf, ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "remove")) {
+            if (argument[0] == '\0') {
+                send_to_char("Syntax:  maze templates remove <#>\n\r", ch);
+                return false;
+            }
+
+            int idx = atoi(argument);
+            MAZE_WEIGHTED_ROOM *mwr = (MAZE_WEIGHTED_ROOM *)list_nthdata(bs->maze_templates, idx);
+            if (!mwr) {
+                send_to_char("Invalid template number.\n\r", ch);
+                return false;
+            }
+
+            bs->total_maze_weight -= mwr->weight;
+            list_remnthlink(bs->maze_templates, idx, false);
+            free_maze_weighted_room(mwr);
+
+            send_to_char("Template removed.\n\r", ch);
+            return true;
+        }
+
+        send_to_char("Syntax:  maze templates list|add|remove\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(arg, "fixed")) {
+        if (!str_cmp(arg2, "list")) {
+            if (!bs->maze_fixed_rooms || list_size(bs->maze_fixed_rooms) < 1) {
+                send_to_char("No fixed rooms defined.\n\r", ch);
+                return false;
+            }
+
+            ITERATOR it;
+            MAZE_FIXED_ROOM *mfr;
+            char buf[MSL];
+            int idx = 0;
+
+            send_to_char("{YMaze Fixed Rooms:{x\n\r", ch);
+            iterator_start(&it, bs->maze_fixed_rooms);
+            while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it))) {
+                ++idx;
+                sprintf(buf, "  {Y[{W%3d{Y]{x Pos: ({W%d{x,{W%d{x)  Room: {W%ld{x %s  Connected: %s\n\r",
+                    idx, mfr->x, mfr->y,
+                    mfr->room ? mfr->room->vnum : mfr->room_ref.load.vnum,
+                    mfr->room ? mfr->room->name : "(unresolved)",
+                    mfr->connected ? "{GYes{x" : "{RNo{x");
+                send_to_char(buf, ch);
+            }
+            iterator_stop(&it);
+            return false;
+        }
+
+        if (!str_cmp(arg2, "add")) {
+            char x_arg[MIL], y_arg[MIL], vnum_arg[MIL];
+            argument = one_argument(argument, x_arg);
+            argument = one_argument(argument, y_arg);
+            argument = one_argument(argument, vnum_arg);
+
+            if (x_arg[0] == '\0' || y_arg[0] == '\0' || vnum_arg[0] == '\0') {
+                send_to_char("Syntax:  maze fixed add <x> <y> <room_vnum> [connected]\n\r", ch);
+                return false;
+            }
+
+            int x = atoi(x_arg);
+            int y = atoi(y_arg);
+
+            if (bs->maze_x < 1 || bs->maze_y < 1) {
+                send_to_char("Set maze size first.\n\r", ch);
+                return false;
+            }
+
+            if (x < 1 || x > bs->maze_x || y < 1 || y > bs->maze_y) {
+                char buf[MSL];
+                sprintf(buf, "Coordinates must be within 1..%ld, 1..%ld.\n\r", bs->maze_x, bs->maze_y);
+                send_to_char(buf, ch);
+                return false;
+            }
+
+            WNUM room_wnum;
+            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            if (!parse_widevnum(vnum_arg, context, &room_wnum)) {
+                send_to_char("Invalid widevnum format.\n\r", ch);
+                return false;
+            }
+
+            ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            if (!room) {
+                send_to_char("That room does not exist.\n\r", ch);
+                return false;
+            }
+
+            bool connected = true;
+            if (argument[0] != '\0') {
+                if (!str_cmp(argument, "connected") || !str_cmp(argument, "true") || !str_cmp(argument, "yes"))
+                    connected = true;
+                else if (!str_cmp(argument, "disconnected") || !str_cmp(argument, "false") || !str_cmp(argument, "no"))
+                    connected = false;
+            }
+
+            MAZE_FIXED_ROOM *mfr = new_maze_fixed_room();
+            mfr->x = x;
+            mfr->y = y;
+            mfr->connected = connected;
+            mfr->room_ref.load.vnum = room_wnum.vnum;
+            mfr->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+            mfr->room = room;
+
+            if (!bs->maze_fixed_rooms)
+                bs->maze_fixed_rooms = list_create(false);
+
+            list_appendlink(bs->maze_fixed_rooms, mfr);
+
+            char buf[MSL];
+            sprintf(buf, "Fixed room added at (%d,%d): Room %ld (%s), connected: %s.\n\r",
+                x, y, room->vnum, room->name, connected ? "yes" : "no");
+            send_to_char(buf, ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "remove")) {
+            if (argument[0] == '\0') {
+                send_to_char("Syntax:  maze fixed remove <#>\n\r", ch);
+                return false;
+            }
+
+            int idx = atoi(argument);
+            MAZE_FIXED_ROOM *mfr = (MAZE_FIXED_ROOM *)list_nthdata(bs->maze_fixed_rooms, idx);
+            if (!mfr) {
+                send_to_char("Invalid fixed room number.\n\r", ch);
+                return false;
+            }
+
+            list_remnthlink(bs->maze_fixed_rooms, idx, false);
+            free_maze_fixed_room(mfr);
+
+            send_to_char("Fixed room removed.\n\r", ch);
+            return true;
+        }
+
+        send_to_char("Syntax:  maze fixed list|add|remove\n\r", ch);
+        return false;
+    }
+
+    bsedit_maze(ch, "");
     return false;
 }

@@ -525,6 +525,7 @@ DECLARE_OLC_FUN( vledit_show            );
 /* Blueprint Section Editor */
 DECLARE_OLC_FUN( bsedit_list			);
 DECLARE_OLC_FUN( bsedit_show			);
+DECLARE_OLC_FUN( bsedit_maze			);
 DECLARE_OLC_FUN( bsedit_create			);
 DECLARE_OLC_FUN( bsedit_name			);
 DECLARE_OLC_FUN( bsedit_description		);
@@ -556,6 +557,11 @@ DECLARE_OLC_FUN( bpedit_flags			);
 // Dungeon Editor
 DECLARE_OLC_FUN( dngedit_list			);
 DECLARE_OLC_FUN( dngedit_show			);
+DECLARE_OLC_FUN( dngedit_mingroup		);
+DECLARE_OLC_FUN( dngedit_maxgroup		);
+DECLARE_OLC_FUN( dngedit_maxplayers		);
+DECLARE_OLC_FUN( dngedit_deathrelease	);
+DECLARE_OLC_FUN( dngedit_idletimeout	);
 DECLARE_OLC_FUN( dngedit_create			);
 DECLARE_OLC_FUN( dngedit_name			);
 DECLARE_OLC_FUN( dngedit_description	);

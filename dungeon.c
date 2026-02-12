@@ -1458,7 +1458,7 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, WNUM wnum)
         if (match && wnum.pArea) {
             match = (dng->index->area == wnum.pArea);
         }
-        if (match && dungeon_isowner_player(dng, ch))
+        if (match && (IS_SET(dng->flags, DUNGEON_SHARED) || dungeon_isowner_player(dng, ch)))
             break;
     }
     iterator_stop(&dit);
@@ -1526,6 +1526,17 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor)
         }
         iterator_stop(&it);
     }
+    else
+    {
+        // Check max_players for shared dungeons
+        if (IS_SET(leader_dng->flags, DUNGEON_SHARED) &&
+            leader_dng->index->max_players > 0 &&
+            list_size(leader_dng->players) >= leader_dng->index->max_players)
+        {
+            send_to_char("The dungeon is full.\n\r", ch);
+            return NULL;
+        }
+    }
 
     dungeon_addowner_player(leader_dng, ch);
 
@@ -1558,7 +1569,11 @@ void dungeon_check_empty(DUNGEON *dungeon)
     {
         dungeon->empty = true;
         if( dungeon_can_idle(dungeon) )
-            dungeon->idle_timer = UMAX(DUNGEON_IDLE_TIMEOUT, dungeon->idle_timer);
+        {
+            int timeout = (dungeon->index && dungeon->index->idle_timeout > 0)
+                ? dungeon->index->idle_timeout : DUNGEON_IDLE_TIMEOUT;
+            dungeon->idle_timer = UMAX(timeout, dungeon->idle_timer);
+        }
     }
 
     if( !dungeon->empty && !dungeon_can_idle(dungeon) )
@@ -1637,14 +1652,19 @@ const struct olc_cmd_type dngedit_table[] =
     { "commands",		show_commands		},
     { "comments",		dngedit_comments	},
     { "create",			dngedit_create		},
+    { "deathrelease",	dngedit_deathrelease	},
     { "deldprog",		dngedit_deldprog	},
     { "description",	dngedit_description	},
     { "entry",			dngedit_entry		},
     { "exit",			dngedit_exit		},
     { "flags",			dngedit_flags		},
     { "floors",			dngedit_floors		},
+    { "idletimeout",	dngedit_idletimeout	},
     { "levels",			dngedit_levels		},
     { "list",			dngedit_list		},
+    { "maxgroup",		dngedit_maxgroup		},
+    { "maxplayers",		dngedit_maxplayers	},
+    { "mingroup",		dngedit_mingroup		},
     { "mountout",		dngedit_mountout	},
     { "name",			dngedit_name		},
     { "portalout",		dngedit_portalout	},

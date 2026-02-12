@@ -2863,6 +2863,7 @@ const struct flag_type blueprint_section_flags[] =
 const struct flag_type blueprint_section_types[] =
 {
     { "static",			BSTYPE_STATIC,			true	},
+    { "maze",			BSTYPE_MAZE,			true	},
     { NULL,				0,						false	}
 };
 
@@ -2870,6 +2871,7 @@ const struct flag_type instance_flags[] =
 {
     { "completed",			INSTANCE_COMPLETED,			false	},
     { "destroy",			INSTANCE_DESTROY,			false	},
+    { "failed",				INSTANCE_FAILED,			false	},
     { "idle_on_complete",	INSTANCE_IDLE_ON_COMPLETE,	true	},
     { "no_idle",			INSTANCE_NO_IDLE,			true	},
     { "no_save",			INSTANCE_NO_SAVE,			true	},
@@ -2878,13 +2880,30 @@ const struct flag_type instance_flags[] =
 
 const struct flag_type dungeon_flags[] =
 {
+    { "commenced",			DUNGEON_COMMENCED,			false	},
     { "completed",			DUNGEON_COMPLETED,			false	},
     { "destroy",			DUNGEON_DESTROY,			false	},
+    { "failed",				DUNGEON_FAILED,				false	},
+    { "failure_on_empty",	DUNGEON_FAILURE_ON_EMPTY,	true	},
+    { "failure_on_wipe",	DUNGEON_FAILURE_ON_WIPE,	true	},
+    { "group_commence",		DUNGEON_GROUP_COMMENCE,		true	},
     { "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	true	},
     { "no_idle",			DUNGEON_NO_IDLE,			true	},
     { "no_save",			DUNGEON_NO_SAVE,			true	},
     { "scripted_levels",    DUNGEON_SCRIPTED_LEVELS,    false   },
+    { "shared",				DUNGEON_SHARED,				true	},
+    { "solo_instance",		DUNGEON_SOLO_INSTANCE,		true	},
     { NULL,					0,							false	}
+};
+
+const struct flag_type death_release_types[] =
+{
+    { "normal",			DEATH_RELEASE_NORMAL,		true	},
+    { "to_start",		DEATH_RELEASE_TO_START,		true	},
+    { "to_floor",		DEATH_RELEASE_TO_FLOOR,		true	},
+    { "to_checkpoint",	DEATH_RELEASE_TO_CHECKPOINT,true	},
+    { "failure",		DEATH_RELEASE_FAILURE,		true	},
+    { NULL,				0,							false	}
 };
 
 const struct flag_type transfer_modes[] =

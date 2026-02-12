@@ -9517,10 +9517,19 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death)
     loc = location_to_room(&ch->recall);
     memset(&ch->recall,0,sizeof(LOCATION));
 
-    // 2) Room assigned recalls
+    // 2) Instance/dungeon recall - if the player is in an instanced room
+    if (!loc && ch->in_room && IS_VALID(ch->in_room->instance_section)
+        && IS_VALID(ch->in_room->instance_section->instance))
+    {
+        INSTANCE *inst = ch->in_room->instance_section->instance;
+        if (inst->recall)
+            loc = inst->recall;
+    }
+
+    // 3) Room assigned recalls
     if(!loc) loc = location_to_room(&ch->in_room->recall);
 
-    // 3) Area assigned recalls
+    // 4) Area assigned recalls
     if(!loc) loc = location_to_room(&ch->in_room->area->recall);
 
     return loc;

@@ -1452,7 +1452,20 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     } else if (ch->in_room) {
         // Character is in regular room - use widevnum format
         json_object_set_new(position, "type", json_string("room"));
-        json_object_set_new(position, "room_vnum", json_string(widevnum_string_room(ch->in_room, NULL)));
+
+        // If player is in a dungeon/instance room, save the dungeon entry room
+        // instead of the instanced clone room (which won't exist on reload)
+        ROOM_INDEX_DATA *save_room = ch->in_room;
+        if (IS_VALID(ch->in_room->instance_section)
+            && IS_VALID(ch->in_room->instance_section->instance))
+        {
+            INSTANCE *inst = ch->in_room->instance_section->instance;
+            if (inst->dungeon && inst->dungeon->entry_room)
+                save_room = inst->dungeon->entry_room;
+            else if (inst->entrance)
+                save_room = inst->entrance;
+        }
+        json_object_set_new(position, "room_vnum", json_string(widevnum_string_room(save_room, NULL)));
     } else {
         // No position set - will use recall
         json_decref(position);

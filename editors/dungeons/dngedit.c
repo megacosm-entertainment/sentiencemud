@@ -489,6 +489,24 @@ DNGEDIT( dngedit_show )
         sprintf(buf, "Repop:       {Dnever{X\n\r");
     add_buf(buffer, buf);
 
+    if (dng->idle_timeout > 0)
+        sprintf(buf, "IdleTimeout: %d minutes\n\r", dng->idle_timeout);
+    else
+        sprintf(buf, "IdleTimeout: %d minutes {D(default){x\n\r", DUNGEON_IDLE_TIMEOUT);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "MinGroup:    %d%s\n\r", dng->min_group, dng->min_group == 0 ? " (no minimum)" : "");
+    add_buf(buffer, buf);
+
+    sprintf(buf, "MaxGroup:    %d%s\n\r", dng->max_group, dng->max_group == 0 ? " (unlimited)" : "");
+    add_buf(buffer, buf);
+
+    sprintf(buf, "MaxPlayers:  %d%s\n\r", dng->max_players, dng->max_players == 0 ? " (unlimited)" : "");
+    add_buf(buffer, buf);
+
+    sprintf(buf, "DeathRelease: %s\n\r", flag_string(death_release_types, dng->death_release));
+    add_buf(buffer, buf);
+
     /* Entry room - use the resolved pointer */
     room = dng->entry_room;
     if( room )
@@ -5698,4 +5716,100 @@ DNGEDIT(dngedit_varclear)
     EDIT_DUNGEON(ch, dungeon);
 
     return olc_varclear(&dungeon->index_vars, ch, argument, false);
+}
+
+DNGEDIT(dngedit_mingroup)
+{
+    DUNGEON_INDEX_DATA *dng;
+    EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax:  mingroup <number>  (0 = no minimum)\n\r", ch);
+        return false;
+    }
+
+    dng->min_group = atoi(argument);
+    char buf[MSL];
+    sprintf(buf, "Minimum group size set to %d.\n\r", dng->min_group);
+    send_to_char(buf, ch);
+    return true;
+}
+
+DNGEDIT(dngedit_maxgroup)
+{
+    DUNGEON_INDEX_DATA *dng;
+    EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax:  maxgroup <number>  (0 = unlimited)\n\r", ch);
+        return false;
+    }
+
+    dng->max_group = atoi(argument);
+    char buf[MSL];
+    sprintf(buf, "Maximum group size set to %d.\n\r", dng->max_group);
+    send_to_char(buf, ch);
+    return true;
+}
+
+DNGEDIT(dngedit_maxplayers)
+{
+    DUNGEON_INDEX_DATA *dng;
+    EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax:  maxplayers <number>  (0 = unlimited)\n\r", ch);
+        return false;
+    }
+
+    dng->max_players = atoi(argument);
+    char buf[MSL];
+    sprintf(buf, "Maximum players set to %d.\n\r", dng->max_players);
+    send_to_char(buf, ch);
+    return true;
+}
+
+DNGEDIT(dngedit_deathrelease)
+{
+    DUNGEON_INDEX_DATA *dng;
+    int value;
+    EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  deathrelease <type>\n\r", ch);
+        send_to_char("Types: normal, start, floor, checkpoint, failure\n\r", ch);
+        return false;
+    }
+
+    if ((value = flag_value(death_release_types, argument)) == NO_FLAG) {
+        send_to_char("Invalid death release type.\n\r", ch);
+        send_to_char("Types: normal, start, floor, checkpoint, failure\n\r", ch);
+        return false;
+    }
+
+    dng->death_release = value;
+    char buf[MSL];
+    sprintf(buf, "Death release set to %s.\n\r", flag_string(death_release_types, value));
+    send_to_char(buf, ch);
+    return true;
+}
+
+DNGEDIT(dngedit_idletimeout)
+{
+    DUNGEON_INDEX_DATA *dng;
+    EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax:  idletimeout <minutes>  (0 = default 15 minutes)\n\r", ch);
+        return false;
+    }
+
+    dng->idle_timeout = atoi(argument);
+    char buf[MSL];
+    if (dng->idle_timeout > 0)
+        sprintf(buf, "Idle timeout set to %d minutes.\n\r", dng->idle_timeout);
+    else
+        sprintf(buf, "Idle timeout set to default (%d minutes).\n\r", DUNGEON_IDLE_TIMEOUT);
+    send_to_char(buf, ch);
+    return true;
 }

@@ -788,6 +788,13 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
     dungeon->repop = json_get_int_default(json, "repop", 0);
     dungeon->flags = json_get_int_default(json, "flags", 0);
     
+    // Group management
+    dungeon->min_group = json_get_int_default(json, "min_group", 0);
+    dungeon->max_group = json_get_int_default(json, "max_group", 0);
+    dungeon->max_players = json_get_int_default(json, "max_players", 0);
+    dungeon->death_release = json_get_int_default(json, "death_release", 0);
+    dungeon->idle_timeout = json_get_int_default(json, "idle_timeout", 0);
+    
     // Zone out strings
     const char *zone_out = json_get_string_default(json, "zone_out", "");
     if (zone_out && zone_out[0] != '\0')
@@ -1088,6 +1095,62 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
     
     section->type = json_get_int_default(json, "type", 0);
     section->flags = json_get_int_default(json, "flags", 0);
+    
+    // Maze data (only for BSTYPE_MAZE sections)
+    section->maze_x = json_get_int_default(json, "maze_w", 0);
+    section->maze_y = json_get_int_default(json, "maze_h", 0);
+    section->total_maze_weight = 0;
+    section->maze_templates = list_create(false);
+    section->maze_fixed_rooms = list_create(false);
+    
+    json_t *maze_templates = json_object_get(json, "maze_templates");
+    if (maze_templates && json_is_array(maze_templates)) {
+        size_t mt_index;
+        json_t *mt_json;
+        json_array_foreach(maze_templates, mt_index, mt_json) {
+            MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
+            mwr->weight = json_get_int_default(mt_json, "weight", 1);
+            json_t *room_ref = json_object_get(mt_json, "room");
+            if (room_ref && json_is_string(room_ref)) {
+                WNUM_LOAD wload;
+                if (parse_widevnum_load(json_string_value(room_ref), &wload)) {
+                    mwr->room_ref.load.auid = wload.auid;
+                    mwr->room_ref.load.vnum = wload.vnum;
+                }
+            } else {
+                mwr->room_ref.load.auid = area->uid;
+                mwr->room_ref.load.vnum = json_get_int_default(mt_json, "room", 0);
+            }
+            mwr->room = NULL;  // Resolved in fix pass
+            section->total_maze_weight += mwr->weight;
+            list_appendlink(section->maze_templates, mwr);
+        }
+    }
+    
+    json_t *maze_fixed = json_object_get(json, "maze_fixed_rooms");
+    if (maze_fixed && json_is_array(maze_fixed)) {
+        size_t mf_index;
+        json_t *mf_json;
+        json_array_foreach(maze_fixed, mf_index, mf_json) {
+            MAZE_FIXED_ROOM *mfr = new_maze_fixed_room();
+            mfr->x = json_get_int_default(mf_json, "x", 0);
+            mfr->y = json_get_int_default(mf_json, "y", 0);
+            mfr->connected = json_get_bool_default(mf_json, "connected", true);
+            json_t *room_ref = json_object_get(mf_json, "room");
+            if (room_ref && json_is_string(room_ref)) {
+                WNUM_LOAD wload;
+                if (parse_widevnum_load(json_string_value(room_ref), &wload)) {
+                    mfr->room_ref.load.auid = wload.auid;
+                    mfr->room_ref.load.vnum = wload.vnum;
+                }
+            } else {
+                mfr->room_ref.load.auid = area->uid;
+                mfr->room_ref.load.vnum = json_get_int_default(mf_json, "room", 0);
+            }
+            mfr->room = NULL;  // Resolved in fix pass
+            list_appendlink(section->maze_fixed_rooms, mfr);
+        }
+    }
     
     // Room range - can be integer vnum or WNUM string
     json_t *lower_vnum_json = json_object_get(json, "lower_vnum");
@@ -4630,6 +4693,52 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
     json_object_set_new(json, "lower_vnum", json_integer(section->lower_vnum));
     json_object_set_new(json, "upper_vnum", json_integer(section->upper_vnum));
     
+    /* Maze data (only for BSTYPE_MAZE sections) */
+    if (section->type == BSTYPE_MAZE) {
+        json_object_set_new(json, "maze_w", json_integer(section->maze_x));
+        json_object_set_new(json, "maze_h", json_integer(section->maze_y));
+        
+        if (section->maze_templates && list_size(section->maze_templates) > 0) {
+            json_t *mt_array = json_array();
+            ITERATOR it;
+            MAZE_WEIGHTED_ROOM *mwr;
+            iterator_start(&it, section->maze_templates);
+            while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
+                json_t *mt_json = json_object();
+                json_object_set_new(mt_json, "weight", json_integer(mwr->weight));
+                if (mwr->room) {
+                    json_object_set_new(mt_json, "room", json_string(widevnum_string_room(mwr->room, NULL)));
+                } else {
+                    json_object_set_new(mt_json, "room", json_integer(mwr->room_ref.load.vnum));
+                }
+                json_array_append_new(mt_array, mt_json);
+            }
+            iterator_stop(&it);
+            json_object_set_new(json, "maze_templates", mt_array);
+        }
+        
+        if (section->maze_fixed_rooms && list_size(section->maze_fixed_rooms) > 0) {
+            json_t *mf_array = json_array();
+            ITERATOR it;
+            MAZE_FIXED_ROOM *mfr;
+            iterator_start(&it, section->maze_fixed_rooms);
+            while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it))) {
+                json_t *mf_json = json_object();
+                json_object_set_new(mf_json, "x", json_integer(mfr->x));
+                json_object_set_new(mf_json, "y", json_integer(mfr->y));
+                json_object_set_new(mf_json, "connected", mfr->connected ? json_true() : json_false());
+                if (mfr->room) {
+                    json_object_set_new(mf_json, "room", json_string(widevnum_string_room(mfr->room, NULL)));
+                } else {
+                    json_object_set_new(mf_json, "room", json_integer(mfr->room_ref.load.vnum));
+                }
+                json_array_append_new(mf_array, mf_json);
+            }
+            iterator_stop(&it);
+            json_object_set_new(json, "maze_fixed_rooms", mf_array);
+        }
+    }
+    
     /* Recall room - use widevnum format */
     if (section->recall_room) {
         json_object_set_new(json, "recall_room", json_string(widevnum_string_room(section->recall_room, NULL)));
@@ -4846,6 +4955,18 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
     json_object_set_new(json, "area_who", json_integer(dungeon->area_who));
     json_object_set_new(json, "repop", json_integer(dungeon->repop));
     json_object_set_new(json, "flags", json_integer(dungeon->flags));
+    
+    /* Group management */
+    if (dungeon->min_group > 0)
+        json_object_set_new(json, "min_group", json_integer(dungeon->min_group));
+    if (dungeon->max_group > 0)
+        json_object_set_new(json, "max_group", json_integer(dungeon->max_group));
+    if (dungeon->max_players > 0)
+        json_object_set_new(json, "max_players", json_integer(dungeon->max_players));
+    if (dungeon->death_release > 0)
+        json_object_set_new(json, "death_release", json_integer(dungeon->death_release));
+    if (dungeon->idle_timeout > 0)
+        json_object_set_new(json, "idle_timeout", json_integer(dungeon->idle_timeout));
     
     /* Zone out strings */
     if (dungeon->zone_out && dungeon->zone_out[0] != '\0')

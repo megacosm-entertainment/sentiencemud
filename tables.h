@@ -328,6 +328,7 @@ extern	const struct flag_type blueprint_section_flags[];
 extern	const struct flag_type blueprint_section_types[];
 extern	const struct flag_type instance_flags[];
 extern	const struct flag_type dungeon_flags[];
+extern	const struct flag_type death_release_types[];
 
 extern	const struct flag_type transfer_modes[];
 

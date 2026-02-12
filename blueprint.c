@@ -1152,12 +1152,356 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
     return count;
 }
 
+
+/*
+ * Maze generation internals
+ */
+
+#define MAZE_MAX_DIR    4
+
+typedef struct __maze_room_cell {
+    int x;
+    int y;
+    ROOM_INDEX_DATA *room;
+    int options[MAZE_MAX_DIR];
+    int total_options;
+    bool visited;
+} MAZE_CELL;
+
+static void __purge_maze_cells(MAZE_CELL *cells, int total)
+{
+    for (int i = 0; i < total; i++) {
+        ROOM_INDEX_DATA *room = cells[i].room;
+        if (room)
+            extract_clone_room(room->source, room->id[0], room->id[1], true);
+    }
+    free_mem(cells, sizeof(MAZE_CELL) * total);
+}
+
+static inline void __maze_link_room(ROOM_INDEX_DATA *room, int door, ROOM_INDEX_DATA *dest)
+{
+    EXIT_DATA *exClone;
+
+    room->exit[door] = exClone = new_exit();
+    exClone->exit_info = 0;
+    exClone->keyword = str_dup("");
+    exClone->short_desc = str_dup("");
+    exClone->long_desc = str_dup("");
+    exClone->rs_flags = 0;
+    exClone->orig_door = door;
+    exClone->door.strength = 0;
+    exClone->door.material = NULL;
+    exClone->from_room = room;
+    exClone->u1.to_room = dest;
+
+    door = rev_dir[door];
+    dest->exit[door] = exClone = new_exit();
+    exClone->exit_info = 0;
+    exClone->keyword = str_dup("");
+    exClone->short_desc = str_dup("");
+    exClone->long_desc = str_dup("");
+    exClone->rs_flags = 0;
+    exClone->orig_door = door;
+    exClone->door.strength = 0;
+    exClone->door.material = NULL;
+    exClone->from_room = dest;
+    exClone->u1.to_room = room;
+}
+
+static inline void __maze_remove_option(MAZE_CELL *cell, int door)
+{
+    if (door < DIR_NORTH || door >= DIR_UP) return;
+
+    for (int i = 0; i < cell->total_options; i++) {
+        if (cell->options[i] == door) {
+            --(cell->total_options);
+            cell->options[i] = cell->options[cell->total_options];
+            return;
+        }
+    }
+}
+
+static inline bool __maze_has_option(MAZE_CELL *cell, int door)
+{
+    if (door < DIR_NORTH || door >= DIR_UP) return false;
+
+    for (int i = 0; i < cell->total_options; i++) {
+        if (cell->options[i] == door)
+            return true;
+    }
+    return false;
+}
+
 /**
- * clone_blueprint_section - Create a live instance section from a template
+ * blueprint_section_generate_maze - Generate a procedural maze for an instance section
  *
- * Clones all rooms in the blueprint section's vnum range, creating virtual
- * rooms with unique IDs. Also clones exits between rooms within the section
- * and fixes up portal object destinations.
+ * Uses a randomized DFS (depth-first search) algorithm to carve passages through
+ * a grid of rooms. Supports fixed rooms at specific coordinates and weighted random
+ * template selection for the remaining cells.
+ *
+ * @param section  The instance section to populate with maze rooms
+ * @param bs       The blueprint section definition containing maze parameters
+ * @return         true on success, false on error
+ */
+bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTION *bs)
+{
+    static int dir_offsets[MAX_DIR][2] = {
+        { 0, -1},   // NORTH
+        { 1,  0},   // EAST
+        { 0,  1},   // SOUTH
+        {-1,  0},   // WEST
+        { 0,  0},   // UP
+        { 0,  0},   // DOWN
+        { 1, -1},   // NORTHEAST
+        {-1, -1},   // NORTHWEST
+        { 1,  1},   // SOUTHEAST
+        {-1,  1}    // SOUTHWEST
+    };
+
+    ITERATOR it;
+    if (bs->maze_x < 1 || bs->maze_y < 1) return false;
+
+    int total = bs->maze_x * bs->maze_y;
+    MAZE_CELL *cells = (MAZE_CELL *)alloc_mem(sizeof(MAZE_CELL) * total);
+    if (!cells) return false;
+
+    // Initialize all cells with NSEW options
+    for (int i = 0; i < total; i++) {
+        cells[i].visited = false;
+        cells[i].room = NULL;
+        cells[i].options[0] = DIR_NORTH;
+        cells[i].options[1] = DIR_EAST;
+        cells[i].options[2] = DIR_SOUTH;
+        cells[i].options[3] = DIR_WEST;
+        cells[i].total_options = MAZE_MAX_DIR;
+    }
+
+    // Assign grid coordinates (1-based)
+    int maze_idx = 0;
+    for (int _y = 1; _y <= bs->maze_y; _y++)
+        for (int _x = 1; _x <= bs->maze_x; _x++, maze_idx++) {
+            cells[maze_idx].x = _x;
+            cells[maze_idx].y = _y;
+        }
+
+    // Remove boundary options (edges can't go outside the grid)
+    for (int i = 0; i < bs->maze_x; i++) {
+        __maze_remove_option(&cells[i], DIR_NORTH);
+        __maze_remove_option(&cells[total - i - 1], DIR_SOUTH);
+    }
+    for (int i = 0; i < bs->maze_y; i++) {
+        __maze_remove_option(&cells[i * bs->maze_x], DIR_WEST);
+        __maze_remove_option(&cells[(i + 1) * bs->maze_x - 1], DIR_EAST);
+    }
+
+    // Determine the area to get rooms from
+    AREA_DATA *area = bs->rooms_area ? bs->rooms_area :
+                      (bs->area ? bs->area : NULL);
+
+    if (!area) {
+        free_mem(cells, sizeof(MAZE_CELL) * total);
+        return false;
+    }
+
+    // Place fixed rooms first
+    MAZE_FIXED_ROOM *mfr;
+    iterator_start(&it, bs->maze_fixed_rooms);
+    while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it))) {
+        if (mfr->x >= 1 && mfr->x <= bs->maze_x &&
+            mfr->y >= 1 && mfr->y <= bs->maze_y) {
+            int findex = (mfr->y - 1) * bs->maze_x + (mfr->x - 1);
+
+            if (cells[findex].room) {
+                iterator_stop(&it);
+                __purge_maze_cells(cells, total);
+                return false;
+            }
+
+            long vnum = mfr->room ? mfr->room->vnum : mfr->room_ref.vnum;
+            ROOM_INDEX_DATA *source = get_room_index(area, vnum);
+
+            if (source) {
+                ROOM_INDEX_DATA *room = create_virtual_room_nouid(source, false, false, true);
+
+                if (!room) {
+                    iterator_stop(&it);
+                    __purge_maze_cells(cells, total);
+                    return false;
+                }
+
+                get_vroom_id(room);
+
+                cells[findex].room = room;
+                if (!mfr->connected) {
+                    cells[findex].visited = true;
+                    cells[findex].total_options = 0;
+                }
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    // Generate the rest of the rooms from weighted templates
+    for (int i = 0; i < total; i++) {
+        if (cells[i].room) continue;    // Fixed room already placed
+
+        int w = number_range(1, bs->total_maze_weight);
+
+        MAZE_WEIGHTED_ROOM *mwr;
+        long vnum = 0;
+        iterator_start(&it, bs->maze_templates);
+        while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
+            if (w <= mwr->weight) {
+                vnum = mwr->room ? mwr->room->vnum : mwr->room_ref.vnum;
+                break;
+            } else {
+                w -= mwr->weight;
+            }
+        }
+        iterator_stop(&it);
+
+        if (vnum < 1) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        ROOM_INDEX_DATA *source = get_room_index(area, vnum);
+
+        if (source) {
+            ROOM_INDEX_DATA *room = create_virtual_room_nouid(source, false, false, true);
+
+            if (!room) {
+                __purge_maze_cells(cells, total);
+                return false;
+            }
+
+            get_vroom_id(room);
+
+            cells[i].room = room;
+        }
+    }
+
+    // Place all the exits from the fixed rooms first (existing exits in templates)
+    int x = 1;
+    int y = 1;
+    for (int i = 0; i < total; i++) {
+        ROOM_INDEX_DATA *room = cells[i].room;
+        ROOM_INDEX_DATA *source = room->source;
+
+        for (int j = 0; j < MAX_DIR; j++) {
+            if (room->exit[j]) continue;    // Already made
+
+            int x1 = x + dir_offsets[j][0];
+            int y1 = y + dir_offsets[j][1];
+
+            EXIT_DATA *exParent = source->exit[j];
+            if (exParent) {
+                MAZE_CELL *dest;
+                if (!IS_SET(exParent->exit_info, EX_ENVIRONMENT)) {
+                    // Out of bounds
+                    if (x1 < 1 || x1 > bs->maze_x) continue;
+                    if (y1 < 1 || y1 > bs->maze_y) continue;
+
+                    // UP/DOWN exits must be environment
+                    if (x1 == x && y1 == y) continue;
+                    int index1 = (y1 - 1) * bs->maze_x + (x1 - 1);
+                    dest = &cells[index1];
+                } else {
+                    dest = NULL;
+                }
+
+                EXIT_DATA *exClone;
+
+                room->exit[j] = exClone = new_exit();
+                exClone->exit_info = exParent->exit_info;
+                exClone->keyword = str_dup(exParent->keyword);
+                exClone->short_desc = str_dup(exParent->short_desc);
+                exClone->long_desc = str_dup(exParent->long_desc);
+                exClone->rs_flags = exParent->rs_flags;
+                exClone->orig_door = exParent->orig_door;
+                exClone->door.strength = exParent->door.strength;
+                exClone->door.material = exParent->door.material ? str_dup(exParent->door.material) : NULL;
+                exClone->door.lock = exParent->door.rs_lock;
+                exClone->door.rs_lock = exParent->door.rs_lock;
+                exClone->from_room = room;
+                if (dest != NULL) {
+                    exClone->u1.to_room = dest->room;
+
+                    // Remove the remote direction's option in the destination room
+                    __maze_remove_option(dest, rev_dir[j]);
+                } else {
+                    exClone->u1.to_room = NULL;
+                }
+
+                // Remove this direction as an option
+                __maze_remove_option(&cells[i], j);
+            }
+        }
+
+        x++;
+        if (x > bs->maze_x) {
+            y++;
+            x = 1;
+        }
+    }
+
+    // DFS maze carving - add exits to the rest of the rooms
+    LLIST *maze_visited = list_create(false);
+    for (int i = 0; i < total; i++) {
+        // This check accounts for fixed rooms creating pockets or divisions in the maze
+        if (cells[i].visited) continue;
+
+        // Start point
+        MAZE_CELL *current;
+        MAZE_CELL *next;
+        list_addlink(maze_visited, &cells[i]);
+        do {
+            current = (MAZE_CELL *)list_nthdata(maze_visited, 1);
+            current->visited = true;
+
+            if (current->total_options > 0) {
+                int opt = number_range(0, current->total_options - 1);
+                int dir = current->options[opt];
+                // First, remove the option
+                __maze_remove_option(current, dir);
+
+                // Get the destination on the map
+                int nx = current->x + dir_offsets[dir][0];
+                int ny = current->y + dir_offsets[dir][1];
+                int nidx = (ny - 1) * bs->maze_x + (nx - 1);
+                next = &cells[nidx];
+
+                // If we have never visited it and destination has the option to connect
+                if (!next->visited && __maze_has_option(next, rev_dir[dir])) {
+                    __maze_remove_option(next, rev_dir[dir]);
+                    __maze_link_room(current->room, dir, next->room);
+
+                    list_addlink(maze_visited, next);
+                }
+            } else {
+                list_remnthlink(maze_visited, 1, false);
+            }
+        } while (list_size(maze_visited) > 0);
+    }
+    list_destroy(maze_visited);
+
+    // Add all rooms to the instance section
+    for (int i = 0; i < total; i++) {
+        if (!list_appendlink(section->rooms, cells[i].room)) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        cells[i].room->instance_section = section;
+        cells[i].room = NULL;   // Prevent purge from extracting
+    }
+
+    free_mem(cells, sizeof(MAZE_CELL) * total);
+    return true;
+}
+
+
+/**
  *
  * @param parent  Blueprint section template to clone
  * @return        New INSTANCE_SECTION with cloned rooms, or NULL on error
@@ -1184,6 +1528,40 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
     
     if (!area) {
         pbugf(LOG_ERROR, "clone_blueprint_section: No valid area for section vnum %ld", parent->vnum);
+        return section;
+    }
+
+    // Maze sections use procedural generation instead of vnum-range cloning
+    if (parent->type == BSTYPE_MAZE) {
+        if (!blueprint_section_generate_maze(section, parent)) {
+            pbugf(LOG_ERROR, "clone_blueprint_section: Maze generation failed for section vnum %ld", parent->vnum);
+            free_instance_section(section);
+            return NULL;
+        }
+
+        // Fix up portals in maze rooms
+        ROOM_INDEX_DATA *mroom;
+        ITERATOR mit;
+        iterator_start(&mit, section->rooms);
+        while ((mroom = (ROOM_INDEX_DATA *)iterator_nextdata(&mit))) {
+            for (OBJ_DATA *obj = mroom->contents; obj; obj = obj->next_content) {
+                if (obj->item_type == ITEM_PORTAL && !IS_SET(obj->value[2], GATE_DUNGEON)) {
+                    ROOM_INDEX_DATA *dest;
+                    long pvnum = obj->value[3];
+                    if (pvnum > 0 && obj->value[5] <= 0) {
+                        if ((dest = instance_section_get_room_byvnum(section, pvnum))) {
+                            obj->value[6] = dest->id[0];
+                            obj->value[7] = dest->id[1];
+                        } else {
+                            obj->value[6] = 0;
+                            obj->value[7] = 0;
+                        }
+                    }
+                }
+            }
+        }
+        iterator_stop(&mit);
+
         return section;
     }
     
@@ -1964,6 +2342,7 @@ const struct olc_cmd_type bsedit_table[] =
     { "recall",			bsedit_recall		},
     { "rooms",			bsedit_rooms		},
     { "link",			bsedit_link			},
+    { "maze",			bsedit_maze			},
     { NULL,				NULL				}
 
 };

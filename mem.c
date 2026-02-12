@@ -4068,6 +4068,68 @@ void free_blueprint_link(BLUEPRINT_LINK *bl)
     blueprint_link_free = bl;
 }
 
+MAZE_WEIGHTED_ROOM *maze_weighted_room_free;
+
+MAZE_WEIGHTED_ROOM *new_maze_weighted_room()
+{
+    MAZE_WEIGHTED_ROOM *mwr;
+    if(maze_weighted_room_free == NULL)
+        mwr = alloc_perm(sizeof(MAZE_WEIGHTED_ROOM));
+    else {
+        mwr = maze_weighted_room_free;
+        maze_weighted_room_free = maze_weighted_room_free->next;
+    }
+
+    mwr->weight = 0;
+    mwr->room_ref.load.auid = 0;
+    mwr->room_ref.load.vnum = 0;
+    mwr->room = NULL;
+
+    VALIDATE(mwr);
+    return mwr;
+}
+
+void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *mwr)
+{
+    if(!IS_VALID(mwr)) return;
+
+    INVALIDATE(mwr);
+    mwr->next = maze_weighted_room_free;
+    maze_weighted_room_free = mwr;
+}
+
+MAZE_FIXED_ROOM *maze_fixed_room_free;
+
+MAZE_FIXED_ROOM *new_maze_fixed_room()
+{
+    MAZE_FIXED_ROOM *mfr;
+    if(maze_fixed_room_free == NULL)
+        mfr = alloc_perm(sizeof(MAZE_FIXED_ROOM));
+    else {
+        mfr = maze_fixed_room_free;
+        maze_fixed_room_free = maze_fixed_room_free->next;
+    }
+
+    mfr->x = 0;
+    mfr->y = 0;
+    mfr->room_ref.load.auid = 0;
+    mfr->room_ref.load.vnum = 0;
+    mfr->room = NULL;
+    mfr->connected = true;
+
+    VALIDATE(mfr);
+    return mfr;
+}
+
+void free_maze_fixed_room(MAZE_FIXED_ROOM *mfr)
+{
+    if(!IS_VALID(mfr)) return;
+
+    INVALIDATE(mfr);
+    mfr->next = maze_fixed_room_free;
+    maze_fixed_room_free = mfr;
+}
+
 BLUEPRINT_SECTION *blueprint_section_free;
 
 BLUEPRINT_SECTION *new_blueprint_section()
@@ -4095,6 +4157,12 @@ BLUEPRINT_SECTION *new_blueprint_section()
     bs->lower_vnum = 0;
     bs->upper_vnum = 0;
 
+    bs->maze_x = 0;
+    bs->maze_y = 0;
+    bs->maze_templates = list_create(false);
+    bs->total_maze_weight = 0;
+    bs->maze_fixed_rooms = list_create(false);
+
     bs->links = NULL;
 
     VALIDATE(bs);
@@ -4112,6 +4180,26 @@ void free_blueprint_section(BLUEPRINT_SECTION *bs)
     {
         bln = blc->next;
         free_blueprint_link(blc);
+    }
+
+    if (bs->maze_templates) {
+        ITERATOR it;
+        MAZE_WEIGHTED_ROOM *mwr;
+        iterator_start(&it, bs->maze_templates);
+        while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+            free_maze_weighted_room(mwr);
+        iterator_stop(&it);
+        list_destroy(bs->maze_templates);
+    }
+
+    if (bs->maze_fixed_rooms) {
+        ITERATOR it;
+        MAZE_FIXED_ROOM *mfr;
+        iterator_start(&it, bs->maze_fixed_rooms);
+        while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+            free_maze_fixed_room(mfr);
+        iterator_stop(&it);
+        list_destroy(bs->maze_fixed_rooms);
     }
 
     INVALIDATE(bs);
