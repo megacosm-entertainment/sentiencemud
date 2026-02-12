@@ -468,7 +468,15 @@ bool migrate_account(char *name, bool backup, void *vstats)
                     save_account(d.account);
                 }
             }
-            free_account(d.account);
+            /* Only free if we loaded a fresh copy from disk.
+             * load_account() returns cached accounts from loaded_accounts
+             * with an incremented refcount — freeing those would invalidate
+             * pointers held by active descriptors (use-after-free crash). */
+            if (d.account->refcount > 1) {
+                d.account->refcount--;
+            } else {
+                free_account(d.account);
+            }
         }
         
         return true;
@@ -519,7 +527,14 @@ bool migrate_account(char *name, bool backup, void *vstats)
         success = false;
     }
 
-    free_account(d.account);
+    /* Only free if we loaded a fresh copy from disk.
+     * load_account() returns cached accounts with incremented refcount;
+     * freeing those would invalidate pointers held by active descriptors. */
+    if (d.account->refcount > 1) {
+        d.account->refcount--;
+    } else {
+        free_account(d.account);
+    }
     return success;
 }
 

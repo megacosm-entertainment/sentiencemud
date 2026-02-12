@@ -52,6 +52,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "scripts.h"
+#include "io/cache/redis_cache.h"
 #include "wilds.h"
 #include "traits.h"
 
@@ -11209,44 +11210,74 @@ int get_staff_rank(CHAR_DATA *ch)
 }
 
 
-bool delete_character(CHAR_DATA *ch)
+/**
+ * delete_character_by_name - Permanently delete a character pfile by name
+ *
+ * Moves the character's pfile from the active player directory to the
+ * old player archive directory with a timestamp suffix. Also removes the
+ * .json summary file and invalidates the Redis cache entry.
+ *
+ * This variant takes a name string directly, avoiding the need to load
+ * an entire CHAR_DATA just to get the name (e.g., during account purge).
+ *
+ * @param name  The character name to delete
+ * @return      true if the pfile was successfully moved, false on error
+ */
+bool delete_character_by_name(const char *name)
 {
     char old_path[MAX_INPUT_LENGTH];
     char new_path[MAX_INPUT_LENGTH];
+    char json_path[MAX_INPUT_LENGTH];
     char timestamp[64];
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
-    char buf[MAX_STRING_LENGTH];
 
-    // Remove from account if attached
-    if (ch->pcdata && !IS_NULLSTR(ch->pcdata->account_name)) {
-        ACCOUNT_DATA *acct = get_account_by_name(ch->pcdata->account_name);
-        if (acct) {
-            account_remove_character(acct, ch->name);
-            save_account(acct);
-        }
-        // Clear account linkage on the character
-        free_string(ch->pcdata->account_name);
-        ch->pcdata->account_name = str_dup("");
-        ch->pcdata->account_id[0] = 0;
-        ch->pcdata->account_id[1] = 0;
-    }
+    if (IS_NULLSTR(name))
+        return false;
 
     // Format timestamp: DAY_MONTH_YEAR_HOURMINSEC
     strftime(timestamp, sizeof(timestamp), "%d_%m_%Y_%H%M%S", tm_info);
 
-    // Build source and destination paths
-    snprintf(old_path, sizeof(old_path), "%s/%s", PLAYER_DIR, capitalize(ch->name));
-    snprintf(new_path, sizeof(new_path), "%s/%s_%s", OLD_PLAYER_DIR, capitalize(ch->name), timestamp);
+    // Build source and destination paths using letter subdirectory
+    snprintf(old_path, sizeof(old_path), "%s%c/%s",
+             PLAYER_DIR, tolower(name[0]), capitalize(name));
+    snprintf(new_path, sizeof(new_path), "%s%s_%s",
+             OLD_PLAYER_DIR, capitalize(name), timestamp);
 
-    // Try to move the file
-    if (rename(old_path, new_path) == 0) {
-        return true;
-    } else {
-        sprintf(buf, "delete_character: Failed to move %s to %s: %s", old_path, new_path, strerror(errno));
-        log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "%s", buf);
+    // Invalidate Redis cache
+    redis_invalidate_char(name);
+
+    // Try to move the pfile
+    if (rename(old_path, new_path) != 0) {
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+            "delete_character: Failed to move %s to %s: %s",
+            old_path, new_path, strerror(errno));
         return false;
     }
+
+    // Remove the .json summary/index file if it exists
+    snprintf(json_path, sizeof(json_path), "%s%c/%s.json",
+             PLAYER_DIR, tolower(name[0]), capitalize(name));
+    remove(json_path);  // Ignore errors — file may not exist
+
+    log_message_f(LOG_LEVEL_INFO, LOG_INFO,
+        "delete_character: Moved %s to %s", old_path, new_path);
+
+    return true;
+}
+
+/**
+ * delete_character - Permanently delete a character pfile
+ *
+ * Convenience wrapper around delete_character_by_name() that extracts
+ * the name from a loaded CHAR_DATA.
+ *
+ * @param ch  The character whose pfile to delete
+ * @return    true if the pfile was successfully moved, false on error
+ */
+bool delete_character(CHAR_DATA *ch)
+{
+    return delete_character_by_name(ch->name);
 }
 
 bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry) {
@@ -11255,7 +11286,7 @@ bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry) {
     if (ch_entry->delete_time == 0)
         return false;
     long delay = game_settings.character_delete_delay_days;
-    if (delay <= 0) delay = 30; // Default to 7 days if not set
+    if (delay <= 0) delay = 30; // Default to 30 days if not set
     return (current_time - ch_entry->delete_time) >= (delay * 86400);
 }
 

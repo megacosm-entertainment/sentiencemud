@@ -3146,7 +3146,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
     
     obj->persist = json_get_bool_default(json, "persist", false);
     
-    /* Spells */
+    /* Spells - load from explicit spell array */
     {
         json_t *spell_array = json_object_get(json, "spells");
         if (spell_array && json_is_array(spell_array)) {
@@ -3173,6 +3173,138 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
                 }
                 last_spell = spell;
             }
+        }
+    }
+
+    /* Migrate legacy value-based spells to obj->spells.
+     * Old format stored spell data in value[] array:
+     *   Armour/Weapon/Ranged: value[5]=level, value[6]=spell1, value[7]=spell2
+     *   Light:                value[3]=level, value[4]=spell1, value[5]=spell2
+     *   Artifact:             value[0]=level, value[1]=spell1, value[2]=spell2
+     *   Scroll/Pill/Potion:   value[0]=level, value[1-4]=spells
+     *   Wand/Staff:           value[0]=level, value[3]=spell
+     * After migration, the value slots are zeroed to prevent double-migration. */
+    if (obj->spells == NULL) {
+        switch (obj->item_type) {
+        case ITEM_ARMOUR:
+        case ITEM_WEAPON:
+        case ITEM_RANGED_WEAPON:
+            if (obj->value[5] > 0) {
+                if (obj->value[6] > 0 && obj->value[6] < MAX_SKILL
+                &&  skill_table[obj->value[6]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[6];
+                    sp->level = obj->value[5];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                if (obj->value[7] > 0 && obj->value[7] < MAX_SKILL
+                &&  skill_table[obj->value[7]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[7];
+                    sp->level = obj->value[5];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                obj->value[5] = 0;
+                obj->value[6] = 0;
+                obj->value[7] = 0;
+            }
+            break;
+
+        case ITEM_LIGHT:
+            if (obj->value[3] > 0) {
+                if (obj->value[4] > 0 && obj->value[4] < MAX_SKILL
+                &&  skill_table[obj->value[4]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[4];
+                    sp->level = obj->value[3];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                if (obj->value[5] > 0 && obj->value[5] < MAX_SKILL
+                &&  skill_table[obj->value[5]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[5];
+                    sp->level = obj->value[3];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                obj->value[3] = 0;
+                obj->value[4] = 0;
+                obj->value[5] = 0;
+            }
+            break;
+
+        case ITEM_ARTIFACT:
+            if (obj->value[0] > 0) {
+                if (obj->value[1] > 0 && obj->value[1] < MAX_SKILL
+                &&  skill_table[obj->value[1]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[1];
+                    sp->level = obj->value[0];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                if (obj->value[2] > 0 && obj->value[2] < MAX_SKILL
+                &&  skill_table[obj->value[2]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[2];
+                    sp->level = obj->value[0];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                obj->value[0] = 0;
+                obj->value[1] = 0;
+                obj->value[2] = 0;
+            }
+            break;
+
+        case ITEM_SCROLL:
+        case ITEM_PILL:
+        case ITEM_POTION:
+            if (obj->value[0] > 0) {
+                for (int vi = 1; vi <= 4; vi++) {
+                    if (obj->value[vi] > 0 && obj->value[vi] < MAX_SKILL
+                    &&  skill_table[obj->value[vi]].spell_fun != spell_null) {
+                        SPELL_DATA *sp = new_spell();
+                        sp->sn = obj->value[vi];
+                        sp->level = obj->value[0];
+                        sp->repop = 100;
+                        sp->next = obj->spells;
+                        obj->spells = sp;
+                    }
+                }
+                for (int vi = 0; vi <= 4; vi++)
+                    obj->value[vi] = 0;
+            }
+            break;
+
+        case ITEM_WAND:
+        case ITEM_STAFF:
+            if (obj->value[0] > 0) {
+                if (obj->value[3] > 0 && obj->value[3] < MAX_SKILL
+                &&  skill_table[obj->value[3]].spell_fun != spell_null) {
+                    SPELL_DATA *sp = new_spell();
+                    sp->sn = obj->value[3];
+                    sp->level = obj->value[0];
+                    sp->repop = 100;
+                    sp->next = obj->spells;
+                    obj->spells = sp;
+                }
+                obj->value[0] = 0;
+                obj->value[3] = 0;
+            }
+            break;
+
+        default:
+            break;
         }
     }
 

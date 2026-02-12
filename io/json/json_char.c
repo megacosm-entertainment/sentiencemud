@@ -670,10 +670,25 @@ static long flags_from_json_array(const struct flag_type *flag_table, json_t *fl
  * Skills Serialization - WITH HUMAN-READABLE NAMES                       *
  ***************************************************************************/
 
+/**
+ * json_parse_skill_source - Parse a skill source string from JSON
+ *
+ * @param str  Source string ("script", "script_perm", "affect") or NULL
+ * @return     SKILLSRC_* constant, defaults to SKILLSRC_NORMAL
+ */
+static char json_parse_skill_source(const char *str)
+{
+    if (!str) return SKILLSRC_NORMAL;
+    if (!strcmp(str, "script"))      return SKILLSRC_SCRIPT;
+    if (!strcmp(str, "script_perm")) return SKILLSRC_SCRIPT_PERM;
+    if (!strcmp(str, "affect"))      return SKILLSRC_AFFECT;
+    return SKILLSRC_NORMAL;
+}
+
 static json_t *skills_to_json(CHAR_DATA *ch)
 {
     json_t *skills;
-    int sn;
+    SKILL_ENTRY *entry;
 
     if (!ch->pcdata) {
         return json_object();
@@ -681,21 +696,60 @@ static json_t *skills_to_json(CHAR_DATA *ch)
 
     skills = json_object();
 
-    // Save skills with skill NAME as key (more robust than numeric ID)
-    for (sn = 0; sn < MAX_SKILL; sn++) {
-        if ((ch->pcdata->learned[sn] > 0 || ch->pcdata->mod_learned[sn] != 0) && skill_table[sn].name) {
+    // Save skills from sorted_skills list — preserves source and flags
+    for (entry = ch->sorted_skills; entry; entry = entry->next) {
+        // Skip token-based entries (they're saved in the tokens section)
+        if (IS_VALID(entry->token))
+            continue;
+
+        int sn = entry->sn;
+        if (sn <= 0 || sn >= MAX_SKILL || !skill_table[sn].name)
+            continue;
+
+        json_t *skill_data = json_object();
+
+        if (ch->pcdata->learned[sn] > 0) {
+            json_object_set_new(skill_data, "learned", json_integer(ch->pcdata->learned[sn]));
+        }
+
+        if (ch->pcdata->mod_learned[sn] != 0) {
+            json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
+        }
+
+        // Save source if non-default
+        if (entry->source != SKILLSRC_NORMAL) {
+            const char *source_name = NULL;
+            switch (entry->source) {
+                case SKILLSRC_SCRIPT:      source_name = "script"; break;
+                case SKILLSRC_SCRIPT_PERM: source_name = "script_perm"; break;
+                case SKILLSRC_AFFECT:      source_name = "affect"; break;
+            }
+            if (source_name)
+                json_object_set_new(skill_data, "source", json_string(source_name));
+        }
+
+        // Save flags if non-default (strip SKILL_SPELL — determined at load time)
+        long save_flags = entry->flags & ~SKILL_SPELL;
+        if (save_flags != SKILL_AUTOMATIC) {
+            json_object_set_new(skill_data, "flags",
+                json_string(flag_string(skill_flags, entry->flags & ~SKILL_SPELL)));
+        }
+
+        json_object_set_new(skills, skill_table[sn].name, skill_data);
+    }
+
+    // Safety net: catch any skills in learned[] not represented in sorted_skills
+    // This handles edge cases during migration from old format
+    for (int sn = 0; sn < MAX_SKILL; sn++) {
+        if ((ch->pcdata->learned[sn] > 0 || ch->pcdata->mod_learned[sn] != 0)
+            && skill_table[sn].name
+            && !json_object_get(skills, skill_table[sn].name)) {
+
             json_t *skill_data = json_object();
-
-            if (ch->pcdata->learned[sn] > 0) {
+            if (ch->pcdata->learned[sn] > 0)
                 json_object_set_new(skill_data, "learned", json_integer(ch->pcdata->learned[sn]));
-            }
-
-            // Add skill modifiers (if any)
-            if (ch->pcdata->mod_learned[sn] != 0) {
+            if (ch->pcdata->mod_learned[sn] != 0)
                 json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
-            }
-
-            // Use skill name as key (robust against ID changes)
             json_object_set_new(skills, skill_table[sn].name, skill_data);
         }
     }
@@ -3494,6 +3548,26 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 // Very old format - just the percentage as integer
                 ch->pcdata->learned[sn] = json_integer_value(skill_value);
             }
+
+            // Parse source and flags from JSON (defaults match old behavior)
+            char source = SKILLSRC_NORMAL;
+            long flags = SKILL_AUTOMATIC;
+            if (json_is_object(skill_value)) {
+                const char *source_str = json_string_value(json_object_get(skill_value, "source"));
+                source = json_parse_skill_source(source_str);
+
+                const char *flags_str = json_string_value(json_object_get(skill_value, "flags"));
+                if (flags_str) {
+                    flags = flag_value(skill_flags, (char *)flags_str);
+                    if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
+                }
+            }
+
+            // Add to sorted_skills list so 'skills'/'spells' commands work
+            if (skill_table[sn].spell_fun == spell_null)
+                skill_entry_addskill(ch, sn, NULL, source, flags);
+            else
+                skill_entry_addspell(ch, sn, NULL, source, flags);
         }
     }
 
@@ -3632,6 +3706,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 int song = music_lookup((char *)str);
                 if (song >= 0 && song < MAX_SONGS) {
                     ch->pcdata->songs_learned[song] = true;
+                    skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
                 } else {
                     log_stringf("json_read_char: unknown song '%s' for %s", str, ch->name);
                 }
@@ -3822,6 +3897,26 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             } else {
                 ch->pcdata->learned[sn] = json_integer_value(skill_value);
             }
+
+            // Parse source and flags from JSON (defaults match old behavior)
+            char source = SKILLSRC_NORMAL;
+            long flags = SKILL_AUTOMATIC;
+            if (json_is_object(skill_value)) {
+                const char *source_str = json_string_value(json_object_get(skill_value, "source"));
+                source = json_parse_skill_source(source_str);
+
+                const char *flags_str = json_string_value(json_object_get(skill_value, "flags"));
+                if (flags_str) {
+                    flags = flag_value(skill_flags, (char *)flags_str);
+                    if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
+                }
+            }
+
+            // Add to sorted_skills list so 'skills'/'spells' commands work
+            if (skill_table[sn].spell_fun == spell_null)
+                skill_entry_addskill(ch, sn, NULL, source, flags);
+            else
+                skill_entry_addspell(ch, sn, NULL, source, flags);
         }
     }
 
@@ -3962,6 +4057,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 int song = music_lookup((char *)str);
                 if (song >= 0 && song < MAX_SONGS) {
                     ch->pcdata->songs_learned[song] = true;
+                    skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
                 } else {
                     log_stringf("json_read_char_remaining: unknown song '%s' for %s", str, ch->name);
                 }

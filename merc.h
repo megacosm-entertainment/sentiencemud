@@ -9343,6 +9343,7 @@ const char *note_category_name(int category);
 int note_category_lookup(const char *name);
 void notify_staff_of_notes(DESCRIPTOR_DATA *d);
 void login_character_delete(DESCRIPTOR_DATA *d, char argument);
+bool delete_character_by_name(const char *name);
 bool delete_character(CHAR_DATA *ch);
 bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry);
 void *iterator_peek_nextdata(ITERATOR *it);

@@ -123,7 +123,15 @@
 
 
 // Version structures removed — all pfiles migrated to JSON.
-// Legacy version migrations (< VERSION_PLAYER_010) have been retired.
+// Legacy version migrations restored for loading old .dat format pfiles.
+
+// Old level constants for staff rank migration from legacy .dat pfiles
+#define OLD_LEVEL_MINIGOD              150
+#define OLD_LEVEL_GOD                  151
+#define OLD_LEVEL_ASCENDANT            152
+#define OLD_LEVEL_SUPREMACY            153
+#define OLD_LEVEL_CREATOR              154
+#define OLD_LEVEL_IMPLEMENTOR  155
 
 void fread_char(CHAR_DATA *ch, FILE *fp);
 void fix_character( CHAR_DATA *ch );
@@ -4839,6 +4847,17 @@ void fix_character( CHAR_DATA *ch )
     ch->parts = ch->race ? (ch->race->parts & ~ch->lostparts) : 0;
     ch->lostparts = 0;
 
+    /* Legacy version migrations for old .dat format pfiles.
+     * These are needed when loading characters saved before the JSON migration.
+     * Each block bumps ch->version so the migration only runs once per character. */
+
+    if (ch->version < 2)
+    {
+        group_add(ch,"global skills",false);
+        group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
+        ch->version = 2;
+    }
+
     /* make sure they have any new skills that have been added */
     if (ch->pcdata->class_mage != -1)		group_add(ch, class_table[ch->pcdata->class_mage].base_group, false);
     if (ch->pcdata->class_cleric != -1)		group_add(ch, class_table[ch->pcdata->class_cleric].base_group, false);
@@ -4849,6 +4868,33 @@ void fix_character( CHAR_DATA *ch )
     if (ch->pcdata->second_sub_class_cleric != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_cleric].default_group, false);
     if (ch->pcdata->second_sub_class_thief != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_thief].default_group, false);
     if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, false);
+
+    if (ch->version < 6)
+        ch->version = 6;
+
+    /* reset affects */
+    if (ch->version < 7)
+    {
+        if (IS_AFFECTED2(ch, AFF2_ENSNARE))
+            REMOVE_BIT(ch->affected_by[1], AFF2_ENSNARE);
+
+        if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
+            SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
+
+        ch->version = 7;
+    }
+
+    if (ch->version < 8)
+    {
+        REMOVE_BIT(ch->comm, COMM_NOAUTOWAR);
+        ch->version = 8;
+    }
+
+    if (ch->version < 10)
+    {
+        REMOVE_BIT(ch->act[0], PLR_PK);
+        ch->version = 10;
+    }
 
     if (IS_IMMORTAL(ch))
     {
@@ -4874,6 +4920,67 @@ void fix_character( CHAR_DATA *ch )
         sprintf(buf, "fix_character: toggling off builder flag for non-immortal %s", ch->name);
         log_string(buf);
         REMOVE_BIT(ch->act[0], PLR_BUILDING);
+    }
+
+    // Everyone with an expired locker rent as of this login point will have their locker rent auto-forgiven.
+    if( ch->version < VERSION_PLAYER_003)
+    {
+        if( ch->locker_rent > 0 )
+        {
+            struct tm *now_time;
+            struct tm *rent_time;
+
+            now_time = (struct tm *)localtime(&current_time);
+            rent_time = (struct tm *)localtime(&ch->locker_rent);
+
+            if( now_time > rent_time )
+            {
+                ch->locker_rent = current_time;
+                rent_time = (struct tm *)localtime(&ch->locker_rent);
+                rent_time->tm_mon += 1;
+                ch->locker_rent = (time_t) mktime(rent_time);
+            }
+        }
+        ch->version = VERSION_PLAYER_003;
+    }
+
+    if( ch->version < VERSION_PLAYER_004 ) {
+        // Update all affects from object to include their wear slot
+        ch->version = VERSION_PLAYER_004;
+    }
+
+    if( ch->version < VERSION_PLAYER_005 )
+    {
+        if( IS_IMMORTAL(ch) )
+        {
+            // Give existing immortals HOLYWARP
+            SET_BIT(ch->act[1], PLR_HOLYWARP);
+        }
+
+        ch->version = VERSION_PLAYER_005;
+    }
+
+    if (ch->version < VERSION_PLAYER_007 )
+    {
+        SET_BIT(ch->act[1], PLR_COMPASS);
+        SET_BIT(ch->act[1], PLR_AUTOCAT);
+
+        ch->version = VERSION_PLAYER_007;
+    }
+
+    /* Legacy level-to-staff-rank migration for old .dat format pfiles.
+     * Old pfiles stored immortal level as tot_level (150-155).
+     * Convert to modern staff_rank system. */
+    if (ch->tot_level >= OLD_LEVEL_MINIGOD && ch->pcdata->staff_rank == STAFF_PLAYER)
+    {
+        switch(ch->tot_level)
+        {
+        default:                               ch->pcdata->staff_rank = STAFF_IMMORTAL; break;
+        case OLD_LEVEL_ASCENDANT:      ch->pcdata->staff_rank = STAFF_ASCENDANT; break;
+        case OLD_LEVEL_SUPREMACY:      ch->pcdata->staff_rank = STAFF_SUPREMACY; break;
+        case OLD_LEVEL_CREATOR:                ch->pcdata->staff_rank = STAFF_CREATOR; break;
+        case OLD_LEVEL_IMPLEMENTOR:    ch->pcdata->staff_rank = STAFF_IMPLEMENTOR; break;
+        }
     }
 
     /* VERSION_PLAYER_010: Migrate legacy bitfield state into preferences.
@@ -5806,25 +5913,29 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     }
     iterator_stop(&cit);
 
-ITERATOR it;
-//ACCOUNT_CHARACTER *next_entry;
+    // Purge soft-deleted characters that have passed the expiration delay.
+    // Uses delete_character_by_name() to avoid loading the full character just
+    // to get a name. After purging, save the account so removals persist to disk.
+    ITERATOR it;
+    bool purged_any = false;
 
-iterator_start(&it, account->characters);
-while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-//    next_entry = (ACCOUNT_CHARACTER *)iterator_peek_nextdata(&it); // Save next in case we remove
-    if (should_purge_deleted_character(ch_entry)) {
-        // Load the character file
-        DESCRIPTOR_DATA temp_d;
-        memset(&temp_d, 0, sizeof(temp_d));
-        if (load_char_obj(&temp_d, ch_entry->name) && temp_d.character) {
-            delete_character(temp_d.character); // This handles unlinking and file move
-            free_char(temp_d.character);
+    iterator_start(&it, account->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (should_purge_deleted_character(ch_entry)) {
+            log_stringf("load_account: Purging expired character '%s' from account '%s'",
+                ch_entry->name, account->username);
+            delete_character_by_name(ch_entry->name);
+            list_remlink(account->characters, ch_entry, false);
+            free_account_character(ch_entry);
+            purged_any = true;
         }
-        list_remlink(account->characters, ch_entry, false);
-        free_account_character(ch_entry);
     }
-}
-iterator_stop(&it);
+    iterator_stop(&it);
+
+    if (purged_any) {
+        account->character_count = list_size(account->characters);
+        save_account(account);
+    }
 
     // Add to loaded_accounts list if found
     if (found && loaded_accounts)
@@ -7000,6 +7111,20 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
     bool found = false;
     char c;
 
+    // Check loaded_accounts cache first
+    if (loaded_accounts) {
+        ITERATOR it;
+        ACCOUNT_DATA *acct;
+        iterator_start(&it, loaded_accounts);
+        while ((acct = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+            if (acct->id[0] == id0 && acct->id[1] == id1) {
+                iterator_stop(&it);
+                return acct;
+            }
+        }
+        iterator_stop(&it);
+    }
+
     // Check each letter directory
     for (c = 'a'; c <= 'z' && !found; c++) {
         sprintf(dir_path, "%s%c", ACCOUNT_DIR, c);
@@ -7015,7 +7140,25 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
                 continue;
                 
             sprintf(acct_path, "%s/%s", dir_path, entry->d_name);
-            
+
+            // Try JSON format first
+            if (json_is_account_json(acct_path)) {
+                DESCRIPTOR_DATA d;
+                memset(&d, 0, sizeof(d));
+                if (load_account(&d, entry->d_name) && d.account) {
+                    if (d.account->id[0] == id0 && d.account->id[1] == id1) {
+                        account = d.account;
+                        found = true;
+                    } else {
+                        if (d.account->refcount > 1)
+                            d.account->refcount--;
+                        else
+                            free_account(d.account);
+                    }
+                }
+                continue;
+            }
+
             fp = fopen(acct_path, "r");
             if (!fp) 
                 continue;
@@ -7084,6 +7227,24 @@ ACCOUNT_DATA *find_account_by_name(char *username)
         return NULL;
     }
 
+    // Check loaded_accounts cache first to avoid allocating an orphaned
+    // account object.  load_account() also checks this cache, but it
+    // overwrites d.account with the cached pointer — previously this
+    // function ignored that and returned the pre-allocated (orphaned)
+    // new_account instead.  Checking here avoids the allocation entirely.
+    if (loaded_accounts) {
+        ITERATOR it;
+        ACCOUNT_DATA *acct;
+        iterator_start(&it, loaded_accounts);
+        while ((acct = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+            if (!str_cmp(acct->username, username)) {
+                iterator_stop(&it);
+                return acct;
+            }
+        }
+        iterator_stop(&it);
+    }
+
     // Initialize temporary descriptor
     memset(&d, 0, sizeof(d));
 
@@ -7100,7 +7261,12 @@ ACCOUNT_DATA *find_account_by_name(char *username)
     d.account = account;
     
     if (load_account(&d, username)) {
-        return account;
+        // Use d.account — load_account may have replaced it with a
+        // cached version.  If it did, free the orphaned allocation.
+        if (d.account != account) {
+            free_account(account);
+        }
+        return d.account;
     } else {
         // Something went wrong during loading
         free_account(account);
