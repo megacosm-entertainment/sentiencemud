@@ -124,6 +124,36 @@ BSEDIT( bsedit_show )
         } else {
             add_buf(buffer, "{YMaze Fixed Rooms:{x (none)\n\r");
         }
+
+        // Show map data
+        if (bs->map_data) {
+            MAZE_MAP_DATA *mmd = bs->map_data;
+            add_buf(buffer, "{YMaze Map:{x\n\r");
+
+            if (mmd->obj) {
+                sprintf(buf, "  Object:  {W[%ld]{x %s\n\r", mmd->obj->vnum, mmd->obj->short_descr);
+            } else if (mmd->obj_ref.load.vnum > 0) {
+                sprintf(buf, "  Object:  {W[%ld]{x (unresolved)\n\r", mmd->obj_ref.load.vnum);
+            } else {
+                sprintf(buf, "  Object:  {Dnone{x\n\r");
+            }
+            add_buf(buffer, buf);
+
+            if (mmd->mob) {
+                sprintf(buf, "  Carrier: {W[%ld]{x %s\n\r", mmd->mob->vnum, mmd->mob->short_descr);
+            } else if (mmd->mob_ref.load.vnum > 0) {
+                sprintf(buf, "  Carrier: {W[%ld]{x (unresolved)\n\r", mmd->mob_ref.load.vnum);
+            } else {
+                sprintf(buf, "  Carrier: {Dnone (map placed in first room){x\n\r");
+            }
+            add_buf(buffer, buf);
+
+            sprintf(buf, "  Solve:   %s\n\r", mmd->solve ? "{GYes{x" : "{RNo{x");
+            add_buf(buffer, buf);
+        } else {
+            add_buf(buffer, "{YMaze Map:{x (not configured)\n\r");
+        }
+
         add_buf(buffer, "\n\r");
     }
 
@@ -816,6 +846,10 @@ BSEDIT( bsedit_maze )
         send_to_char("         maze fixed list\n\r", ch);
         send_to_char("         maze fixed add <x> <y> <room_vnum> [connected]\n\r", ch);
         send_to_char("         maze fixed remove <#>\n\r", ch);
+        send_to_char("         maze map obj <obj_vnum>    - template map object\n\r", ch);
+        send_to_char("         maze map mob <mob_vnum>    - mob that carries the map\n\r", ch);
+        send_to_char("         maze map solve             - toggle solution path display\n\r", ch);
+        send_to_char("         maze map clear             - remove map configuration\n\r", ch);
         send_to_char("\n\rExit Count: 0=any, 1=dead end, 2=tunnel, 3=fork, 4=crossroads\n\r", ch);
         return false;
     }
@@ -1092,6 +1126,106 @@ BSEDIT( bsedit_maze )
         }
 
         send_to_char("Syntax:  maze fixed list|add|remove\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(arg, "map")) {
+        if (!str_cmp(arg2, "obj")) {
+            if (argument[0] == '\0') {
+                send_to_char("Syntax:  maze map obj <obj_vnum>\n\r", ch);
+                return false;
+            }
+
+            char vnum_arg[MIL];
+            one_argument(argument, vnum_arg);
+
+            WNUM obj_wnum;
+            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            if (!parse_widevnum(vnum_arg, context, &obj_wnum)) {
+                send_to_char("Invalid widevnum format.\n\r", ch);
+                return false;
+            }
+
+            OBJ_INDEX_DATA *pObj = get_obj_index(obj_wnum.pArea, obj_wnum.vnum);
+            if (!pObj) {
+                send_to_char("That object does not exist.\n\r", ch);
+                return false;
+            }
+
+            if (pObj->item_type != ITEM_MAP) {
+                send_to_char("{YWarning:{x Object is not ITEM_MAP type. Map display may not work correctly.\n\r", ch);
+            }
+
+            if (!bs->map_data)
+                bs->map_data = new_maze_map_data();
+
+            bs->map_data->obj_ref.load.vnum = obj_wnum.vnum;
+            bs->map_data->obj_ref.load.auid = obj_wnum.pArea ? obj_wnum.pArea->uid : 0;
+            bs->map_data->obj = pObj;
+
+            char buf[MSL];
+            sprintf(buf, "Map object set to [%ld] %s.\n\r", pObj->vnum, pObj->short_descr);
+            send_to_char(buf, ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "mob")) {
+            if (argument[0] == '\0') {
+                send_to_char("Syntax:  maze map mob <mob_vnum>\n\r", ch);
+                return false;
+            }
+
+            char vnum_arg[MIL];
+            one_argument(argument, vnum_arg);
+
+            WNUM mob_wnum;
+            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            if (!parse_widevnum(vnum_arg, context, &mob_wnum)) {
+                send_to_char("Invalid widevnum format.\n\r", ch);
+                return false;
+            }
+
+            MOB_INDEX_DATA *pMob = get_mob_index(mob_wnum.pArea, mob_wnum.vnum);
+            if (!pMob) {
+                send_to_char("That mobile does not exist.\n\r", ch);
+                return false;
+            }
+
+            if (!bs->map_data)
+                bs->map_data = new_maze_map_data();
+
+            bs->map_data->mob_ref.load.vnum = mob_wnum.vnum;
+            bs->map_data->mob_ref.load.auid = mob_wnum.pArea ? mob_wnum.pArea->uid : 0;
+            bs->map_data->mob = pMob;
+
+            char buf[MSL];
+            sprintf(buf, "Map carrier mob set to [%ld] %s.\n\r", pMob->vnum, pMob->short_descr);
+            send_to_char(buf, ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "solve")) {
+            if (!bs->map_data)
+                bs->map_data = new_maze_map_data();
+
+            bs->map_data->solve = !bs->map_data->solve;
+
+            char buf[MSL];
+            sprintf(buf, "Map solution path: %s.\n\r", bs->map_data->solve ? "{GEnabled{x" : "{RDisabled{x");
+            send_to_char(buf, ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "clear")) {
+            if (bs->map_data) {
+                free_maze_map_data(bs->map_data);
+                bs->map_data = NULL;
+            }
+            send_to_char("Map configuration cleared.\n\r", ch);
+            return true;
+        }
+
+        send_to_char("Syntax:  maze map obj|mob|solve|clear\n\r", ch);
         return false;
     }
 

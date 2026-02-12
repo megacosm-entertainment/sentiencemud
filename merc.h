@@ -464,6 +464,7 @@ typedef struct blueprint_link_data BLUEPRINT_LINK;
 typedef struct blueprint_section_data BLUEPRINT_SECTION;
 typedef struct blueprint_maze_weighted_room MAZE_WEIGHTED_ROOM;
 typedef struct blueprint_maze_fixed_room MAZE_FIXED_ROOM;
+typedef struct blueprint_maze_map_data MAZE_MAP_DATA;
 typedef struct static_blueprint_link STATIC_BLUEPRINT_LINK;
 typedef struct blueprint_data BLUEPRINT;
 typedef struct instance_section_data INSTANCE_SECTION;
@@ -6426,6 +6427,26 @@ struct blueprint_maze_weighted_room {
     ROOM_INDEX_DATA *room;      // Resolved room pointer
 };
 
+// Maze map data - configuration for generating a map object during maze creation
+struct blueprint_maze_map_data {
+    MAZE_MAP_DATA *next;
+    bool valid;
+
+    union {
+        WNUM_LOAD load;         // During load: area_uid + vnum
+        long vnum;              // Legacy: bare vnum
+    } obj_ref;
+    OBJ_INDEX_DATA *obj;        // Resolved map object template (ITEM_MAP)
+
+    union {
+        WNUM_LOAD load;         // During load: area_uid + vnum
+        long vnum;              // Legacy: bare vnum
+    } mob_ref;
+    MOB_INDEX_DATA *mob;        // Resolved mob that carries the map
+
+    bool solve;                 // true = mark solution path on map
+};
+
 // Maze fixed room - anchored at specific grid coordinates
 struct blueprint_maze_fixed_room {
     MAZE_FIXED_ROOM *next;
@@ -6503,6 +6524,7 @@ struct blueprint_section_data {
     LLIST *maze_templates;      // MAZE_WEIGHTED_ROOM * - weighted room pool
     int total_maze_weight;      // Sum of all template weights
     LLIST *maze_fixed_rooms;    // MAZE_FIXED_ROOM * - anchored rooms
+    MAZE_MAP_DATA *map_data;    // Optional map object generation config
 
     BLUEPRINT_LINK *links;
 };
@@ -6611,6 +6633,8 @@ struct instance_section_data {
     INSTANCE *instance;
 
     LLIST *rooms;
+
+    char *map_text;                 // Rendered ASCII map for maze sections (NULL if no map)
 };
 
 struct named_special_room_data {

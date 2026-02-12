@@ -152,6 +152,9 @@ void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *mwr);
 MAZE_FIXED_ROOM *new_maze_fixed_room();
 void free_maze_fixed_room(MAZE_FIXED_ROOM *mfr);
 
+MAZE_MAP_DATA *new_maze_map_data();
+void free_maze_map_data(MAZE_MAP_DATA *mmd);
+
 BLUEPRINT_SECTION *new_blueprint_section();
 void free_blueprint_section(BLUEPRINT_SECTION *bs);
 

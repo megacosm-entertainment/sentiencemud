@@ -1172,6 +1172,168 @@ typedef struct __maze_room_cell {
     int num_exits;                  // Total exit count (computed after DFS)
 } MAZE_CELL;
 
+/**
+ * maze_render_map - Render an ASCII map of a maze grid
+ *
+ * Produces a text representation of the maze using +, -, |, and space
+ * characters. Optionally marks the solution path from top-left (0,0)
+ * to bottom-right (w-1,h-1) with '.' markers.
+ *
+ * @param cells   The maze cell grid
+ * @param width   Grid width
+ * @param height  Grid height
+ * @param solve   Whether to solve and mark the solution path
+ * @return        str_dup'd string of the rendered map (caller must free_string)
+ */
+static char *maze_render_map(MAZE_CELL *cells, int width, int height, bool solve)
+{
+    int total = width * height;
+
+    // Solve the maze if requested (BFS from cell 0 to cell total-1)
+    if (solve) {
+        bool *visited = (bool *)alloc_mem(sizeof(bool) * total);
+        int *prev = (int *)alloc_mem(sizeof(int) * total);
+        int *queue = (int *)alloc_mem(sizeof(int) * total);
+
+        static int dir_offsets_map[4][2] = {
+            { 0, -1},   // NORTH
+            { 1,  0},   // EAST
+            { 0,  1},   // SOUTH
+            {-1,  0},   // WEST
+        };
+
+        for (int i = 0; i < total; i++) {
+            visited[i] = false;
+            prev[i] = -1;
+        }
+
+        int head = 0, tail = 0;
+        queue[tail++] = 0;
+        visited[0] = true;
+
+        while (head < tail) {
+            int ci = queue[head++];
+            if (ci == total - 1) break;
+
+            int cx = ci % width;
+            int cy = ci / width;
+
+            for (int d = 0; d < MAZE_MAX_DIR; d++) {
+                if (!cells[ci].has_exit[d]) continue;
+
+                int nx = cx + dir_offsets_map[d][0];
+                int ny = cy + dir_offsets_map[d][1];
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+
+                int ni = ny * width + nx;
+                if (visited[ni]) continue;
+
+                visited[ni] = true;
+                prev[ni] = ci;
+                queue[tail++] = ni;
+            }
+        }
+
+        // Mark solution path by backtracking from the end
+        for (int i = total - 1; i >= 0 && i != -1; i = prev[i])
+            cells[i].visited = true;  // Reuse 'visited' field as path marker
+
+        free_mem(visited, sizeof(bool) * total);
+        free_mem(prev, sizeof(int) * total);
+        free_mem(queue, sizeof(int) * total);
+    } else {
+        for (int i = 0; i < total; i++)
+            cells[i].visited = false;
+    }
+
+    // Render the map: each row produces two lines (horizontal + vertical)
+    // Width: (width * 2 + 1) chars + newline per line
+    // Height: (height * 2 + 1) lines
+    BUFFER *buf = new_buf();
+    char line[(width + 1) * 2 + 4];
+
+    // Top border
+    char *lp = line;
+    for (int w = 0; w < width; w++) {
+        *lp++ = '+';
+        *lp++ = '-';
+    }
+    *lp++ = '+';
+    *lp++ = '\n';
+    *lp++ = '\r';
+    *lp = '\0';
+    add_buf(buf, line);
+
+    for (int h = 0; h < height; h++) {
+        // Vertical walls (left wall + cell + right wall per cell)
+        lp = line;
+        for (int w = 0; w < width; w++) {
+            int ci = h * width + w;
+            if (cells[ci].has_exit[DIR_WEST])
+                *lp++ = (cells[ci].visited && w > 0 && cells[ci - 1].visited) ? '.' : ' ';
+            else
+                *lp++ = '|';
+            *lp++ = cells[ci].visited ? '.' : ' ';
+        }
+        *lp++ = '|';
+        *lp++ = '\n';
+        *lp++ = '\r';
+        *lp = '\0';
+        add_buf(buf, line);
+
+        // Horizontal walls below this row
+        lp = line;
+        for (int w = 0; w < width; w++) {
+            int ci = h * width + w;
+            *lp++ = '+';
+            if (cells[ci].has_exit[DIR_SOUTH])
+                *lp++ = (cells[ci].visited && h < height - 1 &&
+                         cells[(h + 1) * width + w].visited) ? '.' : ' ';
+            else
+                *lp++ = '-';
+        }
+        *lp++ = '+';
+        *lp++ = '\n';
+        *lp++ = '\r';
+        *lp = '\0';
+        add_buf(buf, line);
+    }
+
+    char *result = str_dup(buf_string(buf));
+    free_buf(buf);
+    return result;
+}
+
+/**
+ * maze_generate_map_text - Render the maze map and store on the section
+ *
+ * Renders the ASCII maze map from the cell grid and stores the resulting
+ * text on the instance section's map_text field.  The actual map object
+ * is populated by a repop trigger script on the template object that
+ * reads $(self.room.section.map) and sets its own full_description.
+ *
+ * @param section   Instance section to store the map text on
+ * @param bs        Blueprint section with map_data configuration
+ * @param cells     Maze cell grid (before freeing)
+ * @param width     Grid width (bs->maze_x)
+ * @param height    Grid height (bs->maze_y)
+ */
+static void maze_generate_map_text(INSTANCE_SECTION *section, BLUEPRINT_SECTION *bs,
+                                   MAZE_CELL *cells, int width, int height)
+{
+    MAZE_MAP_DATA *md = bs->map_data;
+    if (!md) return;
+
+    // Render the ASCII map
+    char *map_text = maze_render_map(cells, width, height, md->solve);
+    if (!map_text) return;
+
+    // Store on the section for script access via $(section.map)
+    if (section->map_text)
+        free_string(section->map_text);
+    section->map_text = map_text;
+}
+
 static void __purge_maze_cells(MAZE_CELL *cells, int total)
 {
     for (int i = 0; i < total; i++) {
@@ -1588,6 +1750,13 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
         cells[i].room = NULL;   // Prevent purge from extracting
     }
 
+    // ========================================================================
+    // PHASE 6: MAP TEXT - render and store map if configured
+    // ========================================================================
+
+    if (bs->map_data)
+        maze_generate_map_text(section, bs, cells, bs->maze_x, bs->maze_y);
+
     free_mem(cells, sizeof(MAZE_CELL) * total);
     return true;
 }
@@ -1996,6 +2165,8 @@ bool generate_static_instance(INSTANCE *instance)
  * instance_section_reset_rooms - Reset all rooms in an instance section
  *
  * Calls reset_room() on each room to respawn mobiles and objects.
+ * Map objects have their full_description set by the object's own repop
+ * trigger script, which reads $(self.room.section.map).
  *
  * @param section  Instance section to reset
  */

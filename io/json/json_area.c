@@ -1170,6 +1170,42 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
         }
     }
     
+    // Maze map data
+    json_t *map_data_json = json_object_get(json, "maze_map");
+    if (map_data_json && json_is_object(map_data_json)) {
+        MAZE_MAP_DATA *mmd = new_maze_map_data();
+
+        json_t *obj_ref = json_object_get(map_data_json, "obj");
+        if (obj_ref && json_is_string(obj_ref)) {
+            WNUM_LOAD wload;
+            if (parse_widevnum_load(json_string_value(obj_ref), &wload)) {
+                mmd->obj_ref.load.auid = wload.auid;
+                mmd->obj_ref.load.vnum = wload.vnum;
+            }
+        } else {
+            mmd->obj_ref.load.auid = area->uid;
+            mmd->obj_ref.load.vnum = json_get_int_default(map_data_json, "obj", 0);
+        }
+
+        json_t *mob_ref = json_object_get(map_data_json, "mob");
+        if (mob_ref && json_is_string(mob_ref)) {
+            WNUM_LOAD wload;
+            if (parse_widevnum_load(json_string_value(mob_ref), &wload)) {
+                mmd->mob_ref.load.auid = wload.auid;
+                mmd->mob_ref.load.vnum = wload.vnum;
+            }
+        } else {
+            mmd->mob_ref.load.auid = area->uid;
+            mmd->mob_ref.load.vnum = json_get_int_default(map_data_json, "mob", 0);
+        }
+
+        mmd->solve = json_get_bool_default(map_data_json, "solve", false);
+        mmd->obj = NULL;
+        mmd->mob = NULL;
+
+        section->map_data = mmd;
+    }
+
     // Room range - can be integer vnum or WNUM string
     json_t *lower_vnum_json = json_object_get(json, "lower_vnum");
     if (lower_vnum_json) {
@@ -4767,6 +4803,29 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
             }
             iterator_stop(&it);
             json_object_set_new(json, "maze_fixed_rooms", mf_array);
+        }
+
+        // Map data
+        if (section->map_data) {
+            MAZE_MAP_DATA *mmd = section->map_data;
+            json_t *map_json = json_object();
+
+            if (mmd->obj) {
+                json_object_set_new(map_json, "obj", json_string(widevnum_string_object(mmd->obj, NULL)));
+            } else if (mmd->obj_ref.load.vnum > 0) {
+                json_object_set_new(map_json, "obj", json_integer(mmd->obj_ref.load.vnum));
+            }
+
+            if (mmd->mob) {
+                json_object_set_new(map_json, "mob", json_string(widevnum_string_mobile(mmd->mob, NULL)));
+            } else if (mmd->mob_ref.load.vnum > 0) {
+                json_object_set_new(map_json, "mob", json_integer(mmd->mob_ref.load.vnum));
+            }
+
+            if (mmd->solve)
+                json_object_set_new(map_json, "solve", json_true());
+
+            json_object_set_new(json, "maze_map", map_json);
         }
     }
     

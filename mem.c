@@ -4131,6 +4131,39 @@ void free_maze_fixed_room(MAZE_FIXED_ROOM *mfr)
     maze_fixed_room_free = mfr;
 }
 
+MAZE_MAP_DATA *maze_map_data_free;
+
+MAZE_MAP_DATA *new_maze_map_data()
+{
+    MAZE_MAP_DATA *mmd;
+    if(maze_map_data_free == NULL)
+        mmd = alloc_perm(sizeof(MAZE_MAP_DATA));
+    else {
+        mmd = maze_map_data_free;
+        maze_map_data_free = maze_map_data_free->next;
+    }
+
+    mmd->obj_ref.load.auid = 0;
+    mmd->obj_ref.load.vnum = 0;
+    mmd->obj = NULL;
+    mmd->mob_ref.load.auid = 0;
+    mmd->mob_ref.load.vnum = 0;
+    mmd->mob = NULL;
+    mmd->solve = false;
+
+    VALIDATE(mmd);
+    return mmd;
+}
+
+void free_maze_map_data(MAZE_MAP_DATA *mmd)
+{
+    if(!IS_VALID(mmd)) return;
+
+    INVALIDATE(mmd);
+    mmd->next = maze_map_data_free;
+    maze_map_data_free = mmd;
+}
+
 BLUEPRINT_SECTION *blueprint_section_free;
 
 BLUEPRINT_SECTION *new_blueprint_section()
@@ -4163,6 +4196,7 @@ BLUEPRINT_SECTION *new_blueprint_section()
     bs->maze_templates = list_create(false);
     bs->total_maze_weight = 0;
     bs->maze_fixed_rooms = list_create(false);
+    bs->map_data = NULL;
 
     bs->links = NULL;
 
@@ -4201,6 +4235,11 @@ void free_blueprint_section(BLUEPRINT_SECTION *bs)
             free_maze_fixed_room(mfr);
         iterator_stop(&it);
         list_destroy(bs->maze_fixed_rooms);
+    }
+
+    if (bs->map_data) {
+        free_maze_map_data(bs->map_data);
+        bs->map_data = NULL;
     }
 
     INVALIDATE(bs);
@@ -4386,6 +4425,7 @@ INSTANCE_SECTION *new_instance_section()
         section = alloc_perm(sizeof(INSTANCE_SECTION));
 
     section->rooms = list_create(false);
+    section->map_text = NULL;
 
     VALIDATE(section);
     return section;
@@ -4405,6 +4445,11 @@ void free_instance_section(INSTANCE_SECTION *section)
     iterator_stop(&rit);
 
     list_destroy(section->rooms);
+
+    if (section->map_text) {
+        free_string(section->map_text);
+        section->map_text = NULL;
+    }
 
     variable_clearfield(VAR_SECTION, section);
 

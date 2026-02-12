@@ -588,6 +588,23 @@ char *compile_entity(char *str,int type, char **store)
                 compile_error_show(buf);
                 return NULL;
             } 
+        } else if(ent == ENT_EQUIPMENT) {
+            if(suffix[0]) {
+                sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            int wearloc = stat_lookup(field, wear_loc_flags, MAX_WEAR);
+            if (wearloc <= 0 || wearloc >= MAX_WEAR)
+            {
+                sprintf(buf,"Line %d: invalid wear location '%s' in equipment entity.", compile_current_line, field);
+                compile_error_show(buf);
+                return NULL;
+            }
+
+            *p++ = ESCAPE_EXTRA + wearloc - WEAR_NONE;
+            next_ent = ENT_OBJECT;
+
         } else if(ent == ENT_RESERVED_MOBILE || ent == ENT_RESERVED_OBJECT || 
                   ent == ENT_RESERVED_ROOM || ent == ENT_RESERVED_AREA || 
                   ent == ENT_RESERVED_TOKEN || ent == ENT_RESERVED_RPROG || 
