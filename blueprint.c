@@ -1152,6 +1152,70 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
     return count;
 }
 
+/**
+ * instance_section_count_obj - Count objects of a given type in a section
+ *
+ * Counts objects matching the given object index in all rooms of the
+ * instance section, including room contents and character inventories.
+ *
+ * @param section    Instance section to search
+ * @param pObjIndex  Object index to count
+ * @return           Number of matching objects
+ */
+int instance_section_count_obj(INSTANCE_SECTION *section, OBJ_INDEX_DATA *pObjIndex)
+{
+    if (!IS_VALID(section)) return 0;
+
+    int count = 0;
+    ROOM_INDEX_DATA *room;
+    ITERATOR rit;
+    iterator_start(&rit, section->rooms);
+    while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+    {
+        for (OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+        {
+            if (obj->pIndexData == pObjIndex)
+                ++count;
+        }
+
+        for (CHAR_DATA *ch = room->people; ch; ch = ch->next_in_room)
+        {
+            for (OBJ_DATA *obj = ch->carrying; obj; obj = obj->next_content)
+            {
+                if (obj->pIndexData == pObjIndex)
+                    ++count;
+            }
+        }
+    }
+    iterator_stop(&rit);
+
+    return count;
+}
+
+/**
+ * instance_count_obj - Count objects of a given type in entire instance
+ *
+ * @param instance   Instance to search
+ * @param pObjIndex  Object index to count
+ * @return           Total count across all sections
+ */
+int instance_count_obj(INSTANCE *instance, OBJ_INDEX_DATA *pObjIndex)
+{
+    if (!IS_VALID(instance)) return 0;
+
+    int count = 0;
+    ITERATOR it;
+    INSTANCE_SECTION *section;
+    iterator_start(&it, instance->sections);
+    while ((section = (INSTANCE_SECTION *)iterator_nextdata(&it)))
+    {
+        count += instance_section_count_obj(section, pObjIndex);
+    }
+    iterator_stop(&it);
+
+    return count;
+}
+
 
 /*
  * Maze generation internals
@@ -1164,6 +1228,7 @@ typedef struct __maze_room_cell {
     int y;
     ROOM_INDEX_DATA *room;
     ROOM_INDEX_DATA *source;        // Source template for fixed rooms
+    MAZE_WEIGHTED_ROOM *template;   // Weighted template used for this cell (NULL for fixed rooms)
     int options[MAZE_MAX_DIR];
     int total_options;
     bool visited;
@@ -1436,6 +1501,7 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
         cells[i].visited = false;
         cells[i].room = NULL;
         cells[i].source = NULL;
+        cells[i].template = NULL;
         cells[i].is_fixed = false;
         cells[i].num_exits = 0;
         cells[i].options[0] = DIR_NORTH;
@@ -1629,11 +1695,13 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
 
         int w = number_range(1, filtered_weight);
         long vnum = 0;
+        MAZE_WEIGHTED_ROOM *selected_template = NULL;
         iterator_start(&it, bs->maze_templates);
         while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
             if (mwr->exit_count == 0 || mwr->exit_count == cell_exits) {
                 if (w <= mwr->weight) {
                     vnum = mwr->room ? mwr->room->vnum : mwr->room_ref.vnum;
+                    selected_template = mwr;
                     break;
                 } else {
                     w -= mwr->weight;
@@ -1661,6 +1729,7 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
 
         get_vroom_id(room);
         cells[i].room = room;
+        cells[i].template = selected_template;
     }
 
     // ========================================================================
@@ -1711,6 +1780,8 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
     }
 
     // Wire up DFS carved exits (bare exits between maze cells)
+    // If either cell has an exit template, apply its door/lock properties.
+    // Destination cell's template takes precedence over source cell's.
     for (int i = 0; i < total; i++) {
         for (int d = 0; d < MAZE_MAX_DIR; d++) {
             if (!cells[i].has_exit[d]) continue;
@@ -1721,17 +1792,41 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
             if (nx < 1 || nx > bs->maze_x || ny < 1 || ny > bs->maze_y) continue;
             int ni = (ny - 1) * bs->maze_x + (nx - 1);
 
+            // Find applicable exit template (destination priority)
+            MAZE_WEIGHTED_ROOM *et = NULL;
+            if (cells[ni].template && (cells[ni].template->exit_template.flags & EX_ISDOOR))
+                et = cells[ni].template;
+            else if (cells[i].template && (cells[i].template->exit_template.flags & EX_ISDOOR))
+                et = cells[i].template;
+
             EXIT_DATA *ex = new_exit();
-            ex->exit_info = 0;
-            ex->keyword = str_dup("");
-            ex->short_desc = str_dup("");
-            ex->long_desc = str_dup("");
-            ex->rs_flags = 0;
             ex->orig_door = d;
-            ex->door.strength = 0;
-            ex->door.material = NULL;
             ex->from_room = cells[i].room;
             ex->u1.to_room = cells[ni].room;
+
+            if (et) {
+                ex->exit_info = et->exit_template.flags;
+                ex->rs_flags = et->exit_template.flags;
+                ex->keyword = str_dup(et->exit_template.keyword ? et->exit_template.keyword : "door");
+                ex->short_desc = str_dup("");
+                ex->long_desc = str_dup("");
+                ex->door.strength = et->exit_template.strength;
+                ex->door.material = et->exit_template.material ? str_dup(et->exit_template.material) : NULL;
+                ex->door.lock = et->exit_template.lock;
+                ex->door.rs_lock = et->exit_template.lock;
+                // special_keys are wired up later by instance_apply_specialkeys()
+                ex->door.lock.special_keys = NULL;
+                ex->door.rs_lock.special_keys = NULL;
+            } else {
+                ex->exit_info = 0;
+                ex->keyword = str_dup("");
+                ex->short_desc = str_dup("");
+                ex->long_desc = str_dup("");
+                ex->rs_flags = 0;
+                ex->door.strength = 0;
+                ex->door.material = NULL;
+            }
+
             cells[i].room->exit[d] = ex;
         }
     }
@@ -2858,7 +2953,7 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT_SECTION *bs;
     void *old_edit;
-    long value;
+    WNUM wnum;
 
     if (argument[0] == '\0')
     {
@@ -2866,14 +2961,13 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!is_number(argument))
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
     {
-        send_to_char("Vnum must be a number.\n\r", ch);
+        send_to_char("Invalid vnum format.\n\r", ch);
         return;
     }
 
-    value = atol(argument);
-    if (!(bs = get_blueprint_section(value)))
+    if (!(bs = get_blueprint_section_for_area(wnum.pArea, wnum.vnum)))
     {
         send_to_char("That blueprint section does not exist.\n\r", ch);
         return;

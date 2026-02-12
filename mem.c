@@ -4086,6 +4086,19 @@ MAZE_WEIGHTED_ROOM *new_maze_weighted_room()
     mwr->room_ref.load.vnum = 0;
     mwr->room = NULL;
 
+    // Exit template defaults
+    mwr->exit_template.flags = 0;
+    mwr->exit_template.keyword = NULL;
+    mwr->exit_template.strength = 0;
+    mwr->exit_template.material = NULL;
+    mwr->exit_template.lock.key_load.auid = 0;
+    mwr->exit_template.lock.key_load.vnum = 0;
+    mwr->exit_template.lock.key_wnum.pArea = NULL;
+    mwr->exit_template.lock.key_wnum.vnum = 0;
+    mwr->exit_template.lock.pick_chance = 0;
+    mwr->exit_template.lock.flags = 0;
+    mwr->exit_template.lock.special_keys = NULL;
+
     VALIDATE(mwr);
     return mwr;
 }
@@ -4093,6 +4106,15 @@ MAZE_WEIGHTED_ROOM *new_maze_weighted_room()
 void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *mwr)
 {
     if(!IS_VALID(mwr)) return;
+
+    if (mwr->exit_template.keyword) {
+        free_string(mwr->exit_template.keyword);
+        mwr->exit_template.keyword = NULL;
+    }
+    if (mwr->exit_template.material) {
+        free_string(mwr->exit_template.material);
+        mwr->exit_template.material = NULL;
+    }
 
     INVALIDATE(mwr);
     mwr->next = maze_weighted_room_free;

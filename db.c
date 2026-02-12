@@ -2133,6 +2133,47 @@ void fix_blueprint_references(void)
                         }
                     }
                 }
+
+                /* Resolve maze template exit template key references */
+                if (bs->maze_templates) {
+                    ITERATOR mt_it;
+                    MAZE_WEIGHTED_ROOM *mwr;
+                    iterator_start(&mt_it, bs->maze_templates);
+                    while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&mt_it))) {
+                        /* Resolve room pointer */
+                        if (mwr->room_ref.load.vnum > 0 && !mwr->room) {
+                            AREA_DATA *target = mwr->room_ref.load.auid > 0
+                                ? get_area_from_uid(mwr->room_ref.load.auid) : pArea;
+                            if (target)
+                                mwr->room = get_room_index(target, mwr->room_ref.load.vnum);
+                        }
+
+                        /* Resolve exit template key */
+                        if (mwr->exit_template.lock.key_load.vnum > 0) {
+                            AREA_DATA *key_area = mwr->exit_template.lock.key_load.auid > 0
+                                ? get_area_from_uid(mwr->exit_template.lock.key_load.auid) : pArea;
+                            mwr->exit_template.lock.key_wnum.pArea = key_area;
+                            mwr->exit_template.lock.key_wnum.vnum = mwr->exit_template.lock.key_load.vnum;
+                        }
+                    }
+                    iterator_stop(&mt_it);
+                }
+
+                /* Resolve maze fixed room pointers */
+                if (bs->maze_fixed_rooms) {
+                    ITERATOR mf_it;
+                    MAZE_FIXED_ROOM *mfr;
+                    iterator_start(&mf_it, bs->maze_fixed_rooms);
+                    while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&mf_it))) {
+                        if (mfr->room_ref.load.vnum > 0 && !mfr->room) {
+                            AREA_DATA *target = mfr->room_ref.load.auid > 0
+                                ? get_area_from_uid(mfr->room_ref.load.auid) : pArea;
+                            if (target)
+                                mfr->room = get_room_index(target, mfr->room_ref.load.vnum);
+                        }
+                    }
+                    iterator_stop(&mf_it);
+                }
             }
         }
     }
@@ -2926,23 +2967,53 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             else
                 limit = pReset->arg2;
 
-            if (pRoom->area->nplayer > 0 ||
-                (LastObj = get_obj_type(pObjToIndex, pRoom)) == NULL ||
-                (LastObj->in_room == NULL && !last) ||
-                (pObjIndex->count >= limit) ||
-                (count = count_obj_list(pObjIndex, LastObj->contains)) > pReset->arg4 )
             {
-                last = false;
-                break;
+                int obj_count;
+                int players;
+
+                if (pRoom->instance_section != NULL)
+                {
+                    INSTANCE *instance = pRoom->instance_section->instance;
+                    obj_count = instance_count_obj(instance, pObjIndex);
+
+                    if (IS_VALID(instance->dungeon))
+                        players = list_size(instance->dungeon->players);
+                    else
+                        players = list_size(instance->players);
+
+                    instanced = true;
+                }
+                else
+                {
+                    obj_count = pObjIndex->count;
+                    players = pRoom->area->nplayer;
+                }
+
+                if (players > 0 ||
+                    (LastObj = get_obj_type(pObjToIndex, pRoom)) == NULL ||
+                    (LastObj->in_room == NULL && !last) ||
+                    (obj_count >= limit) ||
+                    (count = count_obj_list(pObjIndex, LastObj->contains)) > pReset->arg4)
+                {
+                    last = false;
+                    break;
+                }
             }
             /* lastObj->level  -  ROM */
 
             while (count < pReset->arg4)
             {
                 pObj = create_object(pObjIndex, number_fuzzy(LastObj->level), true);
+                if (instanced)
+                    SET_BIT(pObj->extra[2], ITEM_INSTANCE_OBJ);
                 obj_to_obj(pObj, LastObj);
                 count++;
-                if (pObjIndex->count >= limit)
+                if (instanced)
+                {
+                    if (instance_count_obj(pRoom->instance_section->instance, pObjIndex) >= limit)
+                        break;
+                }
+                else if (pObjIndex->count >= limit)
                     break;
             }
 
@@ -2972,6 +3043,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
             {
                 int limit;
+                int obj_count;
+
                 if (pReset->arg2 > 50)
                     limit = 6;
                 else if (pReset->arg2 == -1 || pReset->arg2 == 0)
@@ -2979,9 +3052,19 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 else
                     limit = pReset->arg2;
 
-                if (pObjIndex->count < limit || number_range(0,4) == 0)
+                if (pRoom->instance_section != NULL)
+                {
+                    obj_count = instance_count_obj(pRoom->instance_section->instance, pObjIndex);
+                    instanced = true;
+                }
+                else
+                    obj_count = pObjIndex->count;
+
+                if (obj_count < limit || number_range(0,4) == 0)
                 {
                     pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), true);
+                    if (instanced)
+                        SET_BIT(pObj->extra[2], ITEM_INSTANCE_OBJ);
                 }
                 else
                     break;

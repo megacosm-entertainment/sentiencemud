@@ -6425,6 +6425,15 @@ struct blueprint_maze_weighted_room {
         long vnum;              // Legacy: bare vnum
     } room_ref;
     ROOM_INDEX_DATA *room;      // Resolved room pointer
+
+    // Exit template - properties applied to DFS-carved exits connecting to this room
+    struct {
+        int flags;              // EX_ISDOOR | EX_CLOSED | EX_LOCKED etc.
+        char *keyword;          // Door keyword ("door", "gate", etc.)
+        int16_t strength;       // Door strength
+        char *material;         // Door material
+        LOCK_STATE lock;        // Lock properties (key, pick_chance, lock_flags)
+    } exit_template;
 };
 
 // Maze map data - configuration for generating a map object during maze creation
@@ -10168,6 +10177,8 @@ bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
+int instance_section_count_obj(INSTANCE_SECTION *section, OBJ_INDEX_DATA *pObjIndex);
+int instance_count_obj(INSTANCE *instance, OBJ_INDEX_DATA *pObjIndex);
 void instance_update();
 void instance_save(FILE *fp, INSTANCE *instance);
 bool save_instances();

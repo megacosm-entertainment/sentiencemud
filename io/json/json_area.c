@@ -1140,6 +1140,33 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
                 mwr->room_ref.load.vnum = json_get_int_default(mt_json, "room", 0);
             }
             mwr->room = NULL;  // Resolved in fix pass
+
+            /* Exit template properties */
+            json_t *et_json = json_object_get(mt_json, "exit_template");
+            if (et_json && json_is_object(et_json)) {
+                mwr->exit_template.flags = json_array_to_flags(json_object_get(et_json, "flags"), exit_flags);
+                mwr->exit_template.keyword = str_dup(json_get_string_default(et_json, "keyword", "door"));
+                mwr->exit_template.strength = (int16_t)json_get_int_default(et_json, "strength", 0);
+                const char *mat = json_get_string_default(et_json, "material", "");
+                mwr->exit_template.material = (mat[0] != '\0') ? str_dup(mat) : NULL;
+
+                json_t *key_json = json_object_get(et_json, "key");
+                if (key_json && json_is_string(key_json)) {
+                    WNUM_LOAD wload;
+                    if (parse_widevnum_load(json_string_value(key_json), &wload))
+                        mwr->exit_template.lock.key_load = wload;
+                } else {
+                    mwr->exit_template.lock.key_load.auid = area->uid;
+                    mwr->exit_template.lock.key_load.vnum = json_get_int_default(et_json, "key", 0);
+                }
+                mwr->exit_template.lock.pick_chance = json_get_int_default(et_json, "pick_chance", 0);
+                json_t *lf_json = json_object_get(et_json, "lock_flags");
+                if (lf_json && json_is_array(lf_json))
+                    mwr->exit_template.lock.flags = json_array_to_flags(lf_json, lock_flags);
+                else
+                    mwr->exit_template.lock.flags = json_get_int_default(et_json, "lock_flags", 0);
+            }
+
             section->total_maze_weight += mwr->weight;
             list_appendlink(section->maze_templates, mwr);
         }
@@ -4778,6 +4805,32 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
                 } else {
                     json_object_set_new(mt_json, "room", json_integer(mwr->room_ref.load.vnum));
                 }
+
+                /* Exit template properties */
+                if (mwr->exit_template.flags & EX_ISDOOR) {
+                    json_t *et_json = json_object();
+                    json_object_set_new(et_json, "flags", flags_to_json_array(mwr->exit_template.flags, exit_flags));
+                    if (mwr->exit_template.keyword && mwr->exit_template.keyword[0] != '\0')
+                        json_object_set_new(et_json, "keyword", json_string(mwr->exit_template.keyword));
+                    if (mwr->exit_template.strength > 0)
+                        json_object_set_new(et_json, "strength", json_integer(mwr->exit_template.strength));
+                    if (mwr->exit_template.material && mwr->exit_template.material[0] != '\0')
+                        json_object_set_new(et_json, "material", json_string(mwr->exit_template.material));
+                    if (mwr->exit_template.lock.key_wnum.pArea && mwr->exit_template.lock.key_wnum.vnum > 0) {
+                        OBJ_INDEX_DATA *key_obj = get_obj_index(mwr->exit_template.lock.key_wnum.pArea,
+                                                                 mwr->exit_template.lock.key_wnum.vnum);
+                        if (key_obj)
+                            json_object_set_new(et_json, "key", json_string(widevnum_string_object(key_obj, NULL)));
+                        else
+                            json_object_set_new(et_json, "key", json_integer(mwr->exit_template.lock.key_wnum.vnum));
+                    }
+                    if (mwr->exit_template.lock.pick_chance > 0)
+                        json_object_set_new(et_json, "pick_chance", json_integer(mwr->exit_template.lock.pick_chance));
+                    if (mwr->exit_template.lock.flags)
+                        json_object_set_new(et_json, "lock_flags", flags_to_json_array(mwr->exit_template.lock.flags, lock_flags));
+                    json_object_set_new(mt_json, "exit_template", et_json);
+                }
+
                 json_array_append_new(mt_array, mt_json);
             }
             iterator_stop(&it);

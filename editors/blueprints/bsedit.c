@@ -97,6 +97,33 @@ BSEDIT( bsedit_show )
                     mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
                     mwr->room ? mwr->room->name : "(unresolved)");
                 add_buf(buffer, buf);
+                if (mwr->exit_template.flags & EX_ISDOOR) {
+                    sprintf(buf, "         {cExit Template:{x flags={W%s{x keyword={W%s{x",
+                        flag_string(exit_flags, mwr->exit_template.flags),
+                        mwr->exit_template.keyword ? mwr->exit_template.keyword : "door");
+                    add_buf(buffer, buf);
+                    if (mwr->exit_template.strength > 0) {
+                        sprintf(buf, " str={W%d{x", mwr->exit_template.strength);
+                        add_buf(buffer, buf);
+                    }
+                    if (mwr->exit_template.material) {
+                        sprintf(buf, " mat={W%s{x", mwr->exit_template.material);
+                        add_buf(buffer, buf);
+                    }
+                    if (mwr->exit_template.lock.key_wnum.vnum > 0) {
+                        sprintf(buf, " key={W%ld{x", mwr->exit_template.lock.key_wnum.vnum);
+                        add_buf(buffer, buf);
+                    }
+                    if (mwr->exit_template.lock.pick_chance > 0) {
+                        sprintf(buf, " pick={W%d%%{x", mwr->exit_template.lock.pick_chance);
+                        add_buf(buffer, buf);
+                    }
+                    if (mwr->exit_template.lock.flags) {
+                        sprintf(buf, " lock={W%s{x", flag_string(lock_flags, mwr->exit_template.lock.flags));
+                        add_buf(buffer, buf);
+                    }
+                    add_buf(buffer, "\n\r");
+                }
             }
             iterator_stop(&it);
             sprintf(buf, "  Total Weight: {W%d{x\n\r", bs->total_maze_weight);
@@ -588,7 +615,9 @@ BSEDIT( bsedit_link )
 
     if( !str_cmp(arg, "add") )
     {
-        if( bs->lower_vnum < 1 || bs->upper_vnum < 1 )
+        bool is_maze = (bs->type == BSTYPE_MAZE);
+
+        if( !is_maze && (bs->lower_vnum < 1 || bs->upper_vnum < 1) )
         {
             send_to_char("Vnum range must be set first.\n\r", ch);
             return false;
@@ -602,7 +631,7 @@ BSEDIT( bsedit_link )
         }
 
         long vnum = room_wnum.vnum;
-        if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+        if( !is_maze && (vnum < bs->lower_vnum || vnum > bs->upper_vnum) )
         {
             send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
             return false;
@@ -615,19 +644,6 @@ BSEDIT( bsedit_link )
             return false;
         }
 
-        bool found = false;
-        for( int i = 0; i < MAX_DIR; i++ )
-        {
-            if( room->exit[i] )
-                found = true;
-        }
-
-        if( !found )
-        {
-            send_to_char("That room has no exits.\n\r,", ch);
-            return false;
-        }
-
         int door = parse_door(argument);
         if( door < 0 )
         {
@@ -635,17 +651,36 @@ BSEDIT( bsedit_link )
             return false;
         }
 
-        EXIT_DATA *ex = room->exit[door];
-        if( !ex )
-        {
-            send_to_char("That is an invalid exit.\n\r", ch);
-            return false;
-        }
+        EXIT_DATA *ex = NULL;
 
-        if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
+        // Maze sections: exits are created at instantiation, skip exit validation
+        if( !is_maze )
         {
-            send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
-            return false;
+            bool found = false;
+            for( int i = 0; i < MAX_DIR; i++ )
+            {
+                if( room->exit[i] )
+                    found = true;
+            }
+
+            if( !found )
+            {
+                send_to_char("That room has no exits.\n\r", ch);
+                return false;
+            }
+
+            ex = room->exit[door];
+            if( !ex )
+            {
+                send_to_char("That is an invalid exit.\n\r", ch);
+                return false;
+            }
+
+            if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
+            {
+                send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
+                return false;
+            }
         }
 
         link = new_blueprint_link();
@@ -756,7 +791,7 @@ BSEDIT( bsedit_link )
         }
 
         long vnum = room_wnum.vnum;
-        if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+        if( bs->type != BSTYPE_MAZE && (vnum < bs->lower_vnum || vnum > bs->upper_vnum) )
         {
             send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
             return false;
@@ -769,17 +804,21 @@ BSEDIT( bsedit_link )
             return false;
         }
 
-        bool found = false;
-        for( int i = 0; i < MAX_DIR; i++ )
+        // Skip exit validation for maze sections (exits created at instantiation)
+        if( bs->type != BSTYPE_MAZE )
         {
-            if( room->exit[i] )
-                found = true;
-        }
+            bool found = false;
+            for( int i = 0; i < MAX_DIR; i++ )
+            {
+                if( room->exit[i] )
+                    found = true;
+            }
 
-        if( !found )
-        {
-            send_to_char("That room has no exits.\n\r,", ch);
-            return false;
+            if( !found )
+            {
+                send_to_char("That room has no exits.\n\r", ch);
+                return false;
+            }
         }
 
         link->room_ref.load.vnum = vnum; link->room_ref.load.auid = bs->area ? bs->area->uid : 0; link->room = room;
@@ -808,16 +847,21 @@ BSEDIT( bsedit_link )
         }
 
         EXIT_DATA *ex = link->room->exit[door];
-        if( !ex )
-        {
-            send_to_char("That is an invalid exit.\n\r", ch);
-            return false;
-        }
 
-        if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
+        // Skip exit validation for maze sections (exits created at instantiation)
+        if( bs->type != BSTYPE_MAZE )
         {
-            send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
-            return false;
+            if( !ex )
+            {
+                send_to_char("That is an invalid exit.\n\r", ch);
+                return false;
+            }
+
+            if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
+            {
+                send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
+                return false;
+            }
         }
 
         link->door = door;
@@ -843,6 +887,14 @@ BSEDIT( bsedit_maze )
         send_to_char("         maze templates list\n\r", ch);
         send_to_char("         maze templates add <weight> <room_vnum> [exit_count]\n\r", ch);
         send_to_char("         maze templates remove <#>\n\r", ch);
+        send_to_char("         maze templates exit <#> flags <exit_flags>\n\r", ch);
+        send_to_char("         maze templates exit <#> keyword <word>\n\r", ch);
+        send_to_char("         maze templates exit <#> strength <value>\n\r", ch);
+        send_to_char("         maze templates exit <#> material <name>\n\r", ch);
+        send_to_char("         maze templates exit <#> key <obj_vnum>\n\r", ch);
+        send_to_char("         maze templates exit <#> pick <chance>\n\r", ch);
+        send_to_char("         maze templates exit <#> lockflags <flags>\n\r", ch);
+        send_to_char("         maze templates exit <#> clear\n\r", ch);
         send_to_char("         maze fixed list\n\r", ch);
         send_to_char("         maze fixed add <x> <y> <room_vnum> [connected]\n\r", ch);
         send_to_char("         maze fixed remove <#>\n\r", ch);
@@ -914,6 +966,25 @@ BSEDIT( bsedit_maze )
                     mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
                     mwr->room ? mwr->room->name : "(unresolved)");
                 send_to_char(buf, ch);
+                if (mwr->exit_template.flags & EX_ISDOOR) {
+                    sprintf(buf, "         {cExit Template:{x flags={W%s{x keyword={W%s{x",
+                        flag_string(exit_flags, mwr->exit_template.flags),
+                        mwr->exit_template.keyword ? mwr->exit_template.keyword : "door");
+                    send_to_char(buf, ch);
+                    if (mwr->exit_template.lock.key_wnum.vnum > 0) {
+                        sprintf(buf, " key={W%ld{x", mwr->exit_template.lock.key_wnum.vnum);
+                        send_to_char(buf, ch);
+                    }
+                    if (mwr->exit_template.lock.pick_chance > 0) {
+                        sprintf(buf, " pick={W%d%%{x", mwr->exit_template.lock.pick_chance);
+                        send_to_char(buf, ch);
+                    }
+                    if (mwr->exit_template.lock.flags) {
+                        sprintf(buf, " lock={W%s{x", flag_string(lock_flags, mwr->exit_template.lock.flags));
+                        send_to_char(buf, ch);
+                    }
+                    send_to_char("\n\r", ch);
+                }
             }
             iterator_stop(&it);
 
@@ -1007,7 +1078,159 @@ BSEDIT( bsedit_maze )
             return true;
         }
 
-        send_to_char("Syntax:  maze templates list|add|remove\n\r", ch);
+        if (!str_cmp(arg2, "exit")) {
+            char idx_arg[MIL];
+            argument = one_argument(argument, idx_arg);
+
+            char prop_arg[MIL];
+            argument = one_argument(argument, prop_arg);
+
+            if (idx_arg[0] == '\0' || prop_arg[0] == '\0') {
+                send_to_char("Syntax:  maze templates exit <#> <property> [value]\n\r", ch);
+                send_to_char("Properties: flags keyword strength material key pick lockflags clear\n\r", ch);
+                return false;
+            }
+
+            int idx = atoi(idx_arg);
+            MAZE_WEIGHTED_ROOM *mwr = (MAZE_WEIGHTED_ROOM *)list_nthdata(bs->maze_templates, idx);
+            if (!mwr) {
+                send_to_char("Invalid template number.\n\r", ch);
+                return false;
+            }
+
+            if (!str_cmp(prop_arg, "flags")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> flags <exit_flags>\n\r", ch);
+                    return false;
+                }
+                int value = flag_value(exit_flags, argument);
+                if (value == NO_FLAG) {
+                    send_to_char("Invalid exit flag(s).\n\r", ch);
+                    return false;
+                }
+                mwr->exit_template.flags = value;
+                /* Ensure EX_ISDOOR is always set when any flags present */
+                if (mwr->exit_template.flags)
+                    SET_BIT(mwr->exit_template.flags, EX_ISDOOR);
+                send_to_char("Exit template flags set.\n\r", ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "keyword")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> keyword <word>\n\r", ch);
+                    return false;
+                }
+                if (mwr->exit_template.keyword)
+                    free_string(mwr->exit_template.keyword);
+                mwr->exit_template.keyword = str_dup(argument);
+                send_to_char("Exit template keyword set.\n\r", ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "strength")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> strength <value>\n\r", ch);
+                    return false;
+                }
+                mwr->exit_template.strength = (int16_t)atoi(argument);
+                send_to_char("Exit template strength set.\n\r", ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "material")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> material <name>\n\r", ch);
+                    return false;
+                }
+                if (mwr->exit_template.material)
+                    free_string(mwr->exit_template.material);
+                mwr->exit_template.material = str_dup(argument);
+                send_to_char("Exit template material set.\n\r", ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "key")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> key <obj_vnum>\n\r", ch);
+                    return false;
+                }
+                WNUM key_wnum;
+                AREA_DATA *context = strchr(argument, '#') ? NULL : bs->area;
+                if (!parse_widevnum(argument, context, &key_wnum)) {
+                    send_to_char("Invalid widevnum format.\n\r", ch);
+                    return false;
+                }
+                OBJ_INDEX_DATA *key_obj = get_obj_index(key_wnum.pArea, key_wnum.vnum);
+                if (!key_obj) {
+                    send_to_char("That object does not exist.\n\r", ch);
+                    return false;
+                }
+                mwr->exit_template.lock.key_load.auid = key_wnum.pArea ? key_wnum.pArea->uid : 0;
+                mwr->exit_template.lock.key_load.vnum = key_wnum.vnum;
+                mwr->exit_template.lock.key_wnum = key_wnum;
+                char buf[MSL];
+                sprintf(buf, "Exit template key set to %ld (%s).\n\r", key_obj->vnum, key_obj->short_descr);
+                send_to_char(buf, ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "pick")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> pick <chance 0-100>\n\r", ch);
+                    return false;
+                }
+                int pick = atoi(argument);
+                if (pick < 0 || pick > 100) {
+                    send_to_char("Pick chance must be 0-100.\n\r", ch);
+                    return false;
+                }
+                mwr->exit_template.lock.pick_chance = pick;
+                send_to_char("Exit template pick chance set.\n\r", ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "lockflags")) {
+                if (argument[0] == '\0') {
+                    send_to_char("Syntax:  maze templates exit <#> lockflags <flags>\n\r", ch);
+                    return false;
+                }
+                int value = flag_value(lock_flags, argument);
+                if (value == NO_FLAG) {
+                    send_to_char("Invalid lock flag(s).\n\r", ch);
+                    return false;
+                }
+                mwr->exit_template.lock.flags = value;
+                send_to_char("Exit template lock flags set.\n\r", ch);
+                return true;
+            }
+
+            if (!str_cmp(prop_arg, "clear")) {
+                mwr->exit_template.flags = 0;
+                if (mwr->exit_template.keyword) {
+                    free_string(mwr->exit_template.keyword);
+                    mwr->exit_template.keyword = NULL;
+                }
+                mwr->exit_template.strength = 0;
+                if (mwr->exit_template.material) {
+                    free_string(mwr->exit_template.material);
+                    mwr->exit_template.material = NULL;
+                }
+                mwr->exit_template.lock.key_load.auid = 0;
+                mwr->exit_template.lock.key_load.vnum = 0;
+                mwr->exit_template.lock.key_wnum.pArea = NULL;
+                mwr->exit_template.lock.key_wnum.vnum = 0;
+                mwr->exit_template.lock.pick_chance = 0;
+                mwr->exit_template.lock.flags = 0;
+                send_to_char("Exit template cleared.\n\r", ch);
+                return true;
+            }
+
+            send_to_char("Properties: flags keyword strength material key pick lockflags clear\n\r", ch);
+            return false;
+        }
+
+        send_to_char("Syntax:  maze templates list|add|remove|exit\n\r", ch);
         return false;
     }
 
