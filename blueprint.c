@@ -1163,9 +1163,13 @@ typedef struct __maze_room_cell {
     int x;
     int y;
     ROOM_INDEX_DATA *room;
+    ROOM_INDEX_DATA *source;        // Source template for fixed rooms
     int options[MAZE_MAX_DIR];
     int total_options;
     bool visited;
+    bool is_fixed;                  // true if this cell has a fixed room
+    bool has_exit[MAZE_MAX_DIR];    // Directions with exits (from DFS or fixed room sources)
+    int num_exits;                  // Total exit count (computed after DFS)
 } MAZE_CELL;
 
 static void __purge_maze_cells(MAZE_CELL *cells, int total)
@@ -1269,11 +1273,16 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
     for (int i = 0; i < total; i++) {
         cells[i].visited = false;
         cells[i].room = NULL;
+        cells[i].source = NULL;
+        cells[i].is_fixed = false;
+        cells[i].num_exits = 0;
         cells[i].options[0] = DIR_NORTH;
         cells[i].options[1] = DIR_EAST;
         cells[i].options[2] = DIR_SOUTH;
         cells[i].options[3] = DIR_WEST;
         cells[i].total_options = MAZE_MAX_DIR;
+        for (int d = 0; d < MAZE_MAX_DIR; d++)
+            cells[i].has_exit[d] = false;
     }
 
     // Assign grid coordinates (1-based)
@@ -1303,7 +1312,11 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
         return false;
     }
 
-    // Place fixed rooms first
+    // ========================================================================
+    // PHASE 1: TOPOLOGY - determine maze connectivity before creating rooms
+    // ========================================================================
+
+    // Mark fixed room cells (don't create rooms yet - just record source info)
     MAZE_FIXED_ROOM *mfr;
     iterator_start(&it, bs->maze_fixed_rooms);
     while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it))) {
@@ -1311,7 +1324,7 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
             mfr->y >= 1 && mfr->y <= bs->maze_y) {
             int findex = (mfr->y - 1) * bs->maze_x + (mfr->x - 1);
 
-            if (cells[findex].room) {
+            if (cells[findex].is_fixed) {
                 iterator_stop(&it);
                 __purge_maze_cells(cells, total);
                 return false;
@@ -1321,17 +1334,8 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
             ROOM_INDEX_DATA *source = get_room_index(area, vnum);
 
             if (source) {
-                ROOM_INDEX_DATA *room = create_virtual_room_nouid(source, false, false, true);
-
-                if (!room) {
-                    iterator_stop(&it);
-                    __purge_maze_cells(cells, total);
-                    return false;
-                }
-
-                get_vroom_id(room);
-
-                cells[findex].room = room;
+                cells[findex].is_fixed = true;
+                cells[findex].source = source;
                 if (!mfr->connected) {
                     cells[findex].visited = true;
                     cells[findex].total_options = 0;
@@ -1341,117 +1345,42 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
     }
     iterator_stop(&it);
 
-    // Generate the rest of the rooms from weighted templates
+    // Pre-scan fixed room source exits to remove DFS options
     for (int i = 0; i < total; i++) {
-        if (cells[i].room) continue;    // Fixed room already placed
+        if (!cells[i].is_fixed || !cells[i].source) continue;
 
-        int w = number_range(1, bs->total_maze_weight);
-
-        MAZE_WEIGHTED_ROOM *mwr;
-        long vnum = 0;
-        iterator_start(&it, bs->maze_templates);
-        while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
-            if (w <= mwr->weight) {
-                vnum = mwr->room ? mwr->room->vnum : mwr->room_ref.vnum;
-                break;
-            } else {
-                w -= mwr->weight;
-            }
-        }
-        iterator_stop(&it);
-
-        if (vnum < 1) {
-            __purge_maze_cells(cells, total);
-            return false;
-        }
-
-        ROOM_INDEX_DATA *source = get_room_index(area, vnum);
-
-        if (source) {
-            ROOM_INDEX_DATA *room = create_virtual_room_nouid(source, false, false, true);
-
-            if (!room) {
-                __purge_maze_cells(cells, total);
-                return false;
-            }
-
-            get_vroom_id(room);
-
-            cells[i].room = room;
-        }
-    }
-
-    // Place all the exits from the fixed rooms first (existing exits in templates)
-    int x = 1;
-    int y = 1;
-    for (int i = 0; i < total; i++) {
-        ROOM_INDEX_DATA *room = cells[i].room;
-        ROOM_INDEX_DATA *source = room->source;
+        ROOM_INDEX_DATA *source = cells[i].source;
+        int cx = cells[i].x;
+        int cy = cells[i].y;
 
         for (int j = 0; j < MAX_DIR; j++) {
-            if (room->exit[j]) continue;    // Already made
-
-            int x1 = x + dir_offsets[j][0];
-            int y1 = y + dir_offsets[j][1];
-
             EXIT_DATA *exParent = source->exit[j];
-            if (exParent) {
-                MAZE_CELL *dest;
-                if (!IS_SET(exParent->exit_info, EX_ENVIRONMENT)) {
-                    // Out of bounds
-                    if (x1 < 1 || x1 > bs->maze_x) continue;
-                    if (y1 < 1 || y1 > bs->maze_y) continue;
+            if (!exParent) continue;
 
-                    // UP/DOWN exits must be environment
-                    if (x1 == x && y1 == y) continue;
-                    int index1 = (y1 - 1) * bs->maze_x + (x1 - 1);
-                    dest = &cells[index1];
-                } else {
-                    dest = NULL;
-                }
-
-                EXIT_DATA *exClone;
-
-                room->exit[j] = exClone = new_exit();
-                exClone->exit_info = exParent->exit_info;
-                exClone->keyword = str_dup(exParent->keyword);
-                exClone->short_desc = str_dup(exParent->short_desc);
-                exClone->long_desc = str_dup(exParent->long_desc);
-                exClone->rs_flags = exParent->rs_flags;
-                exClone->orig_door = exParent->orig_door;
-                exClone->door.strength = exParent->door.strength;
-                exClone->door.material = exParent->door.material ? str_dup(exParent->door.material) : NULL;
-                exClone->door.lock = exParent->door.rs_lock;
-                exClone->door.rs_lock = exParent->door.rs_lock;
-                exClone->from_room = room;
-                if (dest != NULL) {
-                    exClone->u1.to_room = dest->room;
-
-                    // Remove the remote direction's option in the destination room
-                    __maze_remove_option(dest, rev_dir[j]);
-                } else {
-                    exClone->u1.to_room = NULL;
-                }
-
-                // Remove this direction as an option
+            // Mark this direction on the fixed cell and remove DFS option
+            if (j < MAZE_MAX_DIR) {
+                cells[i].has_exit[j] = true;
                 __maze_remove_option(&cells[i], j);
             }
-        }
 
-        x++;
-        if (x > bs->maze_x) {
-            y++;
-            x = 1;
+            // For non-environment cardinal exits, also mark the destination cell
+            if (!IS_SET(exParent->exit_info, EX_ENVIRONMENT) && j < MAZE_MAX_DIR) {
+                int x1 = cx + dir_offsets[j][0];
+                int y1 = cy + dir_offsets[j][1];
+                if (x1 >= 1 && x1 <= bs->maze_x && y1 >= 1 && y1 <= bs->maze_y) {
+                    int index1 = (y1 - 1) * bs->maze_x + (x1 - 1);
+                    cells[index1].has_exit[rev_dir[j]] = true;
+                    __maze_remove_option(&cells[index1], rev_dir[j]);
+                }
+            }
         }
     }
 
-    // DFS maze carving - add exits to the rest of the rooms
+    // DFS maze carving on abstract grid (record topology, don't create exits yet)
     LLIST *maze_visited = list_create(false);
     for (int i = 0; i < total; i++) {
-        // This check accounts for fixed rooms creating pockets or divisions in the maze
         if (cells[i].visited) continue;
 
-        // Start point
         MAZE_CELL *current;
         MAZE_CELL *next;
         list_addlink(maze_visited, &cells[i]);
@@ -1462,19 +1391,19 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
             if (current->total_options > 0) {
                 int opt = number_range(0, current->total_options - 1);
                 int dir = current->options[opt];
-                // First, remove the option
                 __maze_remove_option(current, dir);
 
-                // Get the destination on the map
                 int nx = current->x + dir_offsets[dir][0];
                 int ny = current->y + dir_offsets[dir][1];
                 int nidx = (ny - 1) * bs->maze_x + (nx - 1);
                 next = &cells[nidx];
 
-                // If we have never visited it and destination has the option to connect
                 if (!next->visited && __maze_has_option(next, rev_dir[dir])) {
                     __maze_remove_option(next, rev_dir[dir]);
-                    __maze_link_room(current->room, dir, next->room);
+
+                    // Record the carved connection (don't create exits yet)
+                    current->has_exit[dir] = true;
+                    next->has_exit[rev_dir[dir]] = true;
 
                     list_addlink(maze_visited, next);
                 }
@@ -1485,7 +1414,170 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
     }
     list_destroy(maze_visited);
 
-    // Add all rooms to the instance section
+    // ========================================================================
+    // PHASE 2: COUNT EXITS - determine exit count per cell for template selection
+    // ========================================================================
+
+    for (int i = 0; i < total; i++) {
+        cells[i].num_exits = 0;
+        for (int d = 0; d < MAZE_MAX_DIR; d++) {
+            if (cells[i].has_exit[d])
+                cells[i].num_exits++;
+        }
+    }
+
+    // ========================================================================
+    // PHASE 3: CREATE ROOMS - select templates based on exit count
+    // ========================================================================
+
+    // Create fixed rooms from their specific templates
+    for (int i = 0; i < total; i++) {
+        if (!cells[i].is_fixed || !cells[i].source) continue;
+
+        ROOM_INDEX_DATA *room = create_virtual_room_nouid(cells[i].source, false, false, true);
+        if (!room) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        get_vroom_id(room);
+        cells[i].room = room;
+    }
+
+    // Create non-fixed rooms from weighted templates (filtered by exit_count)
+    for (int i = 0; i < total; i++) {
+        if (cells[i].room) continue;    // Fixed room already placed
+
+        int cell_exits = cells[i].num_exits;
+
+        // Calculate filtered weight for templates matching this exit count
+        int filtered_weight = 0;
+        MAZE_WEIGHTED_ROOM *mwr;
+        iterator_start(&it, bs->maze_templates);
+        while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
+            if (mwr->exit_count == 0 || mwr->exit_count == cell_exits)
+                filtered_weight += mwr->weight;
+        }
+        iterator_stop(&it);
+
+        if (filtered_weight < 1) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        int w = number_range(1, filtered_weight);
+        long vnum = 0;
+        iterator_start(&it, bs->maze_templates);
+        while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
+            if (mwr->exit_count == 0 || mwr->exit_count == cell_exits) {
+                if (w <= mwr->weight) {
+                    vnum = mwr->room ? mwr->room->vnum : mwr->room_ref.vnum;
+                    break;
+                } else {
+                    w -= mwr->weight;
+                }
+            }
+        }
+        iterator_stop(&it);
+
+        if (vnum < 1) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        ROOM_INDEX_DATA *source = get_room_index(area, vnum);
+        if (!source) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        ROOM_INDEX_DATA *room = create_virtual_room_nouid(source, false, false, true);
+        if (!room) {
+            __purge_maze_cells(cells, total);
+            return false;
+        }
+
+        get_vroom_id(room);
+        cells[i].room = room;
+    }
+
+    // ========================================================================
+    // PHASE 4: WIRE UP EXITS - create actual exit structures
+    // ========================================================================
+
+    // Wire up fixed room source exits (preserving door properties, keywords, etc.)
+    for (int i = 0; i < total; i++) {
+        if (!cells[i].is_fixed || !cells[i].source) continue;
+
+        ROOM_INDEX_DATA *room = cells[i].room;
+        ROOM_INDEX_DATA *source = cells[i].source;
+        int cx = cells[i].x;
+        int cy = cells[i].y;
+
+        for (int j = 0; j < MAX_DIR; j++) {
+            if (room->exit[j]) continue;
+
+            EXIT_DATA *exParent = source->exit[j];
+            if (!exParent) continue;
+
+            MAZE_CELL *dest = NULL;
+            if (!IS_SET(exParent->exit_info, EX_ENVIRONMENT)) {
+                int x1 = cx + dir_offsets[j][0];
+                int y1 = cy + dir_offsets[j][1];
+                if (x1 < 1 || x1 > bs->maze_x) continue;
+                if (y1 < 1 || y1 > bs->maze_y) continue;
+                if (x1 == cx && y1 == cy) continue;    // UP/DOWN without environment
+                int index1 = (y1 - 1) * bs->maze_x + (x1 - 1);
+                dest = &cells[index1];
+            }
+
+            EXIT_DATA *exClone = new_exit();
+            exClone->exit_info = exParent->exit_info;
+            exClone->keyword = str_dup(exParent->keyword);
+            exClone->short_desc = str_dup(exParent->short_desc);
+            exClone->long_desc = str_dup(exParent->long_desc);
+            exClone->rs_flags = exParent->rs_flags;
+            exClone->orig_door = exParent->orig_door;
+            exClone->door.strength = exParent->door.strength;
+            exClone->door.material = exParent->door.material ? str_dup(exParent->door.material) : NULL;
+            exClone->door.lock = exParent->door.rs_lock;
+            exClone->door.rs_lock = exParent->door.rs_lock;
+            exClone->from_room = room;
+            exClone->u1.to_room = dest ? dest->room : NULL;
+            room->exit[j] = exClone;
+        }
+    }
+
+    // Wire up DFS carved exits (bare exits between maze cells)
+    for (int i = 0; i < total; i++) {
+        for (int d = 0; d < MAZE_MAX_DIR; d++) {
+            if (!cells[i].has_exit[d]) continue;
+            if (cells[i].room->exit[d]) continue;  // Already wired by fixed room
+
+            int nx = cells[i].x + dir_offsets[d][0];
+            int ny = cells[i].y + dir_offsets[d][1];
+            if (nx < 1 || nx > bs->maze_x || ny < 1 || ny > bs->maze_y) continue;
+            int ni = (ny - 1) * bs->maze_x + (nx - 1);
+
+            EXIT_DATA *ex = new_exit();
+            ex->exit_info = 0;
+            ex->keyword = str_dup("");
+            ex->short_desc = str_dup("");
+            ex->long_desc = str_dup("");
+            ex->rs_flags = 0;
+            ex->orig_door = d;
+            ex->door.strength = 0;
+            ex->door.material = NULL;
+            ex->from_room = cells[i].room;
+            ex->u1.to_room = cells[ni].room;
+            cells[i].room->exit[d] = ex;
+        }
+    }
+
+    // ========================================================================
+    // PHASE 5: FINALIZE - add rooms to the instance section
+    // ========================================================================
+
     for (int i = 0; i < total; i++) {
         if (!list_appendlink(section->rooms, cells[i].room)) {
             __purge_maze_cells(cells, total);

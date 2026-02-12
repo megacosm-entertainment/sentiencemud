@@ -1110,6 +1110,7 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
         json_array_foreach(maze_templates, mt_index, mt_json) {
             MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
             mwr->weight = json_get_int_default(mt_json, "weight", 1);
+            mwr->exit_count = json_get_int_default(mt_json, "exit_count", 0);
             json_t *room_ref = json_object_get(mt_json, "room");
             if (room_ref && json_is_string(room_ref)) {
                 WNUM_LOAD wload;
@@ -4706,6 +4707,8 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
             while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
                 json_t *mt_json = json_object();
                 json_object_set_new(mt_json, "weight", json_integer(mwr->weight));
+                if (mwr->exit_count > 0)
+                    json_object_set_new(mt_json, "exit_count", json_integer(mwr->exit_count));
                 if (mwr->room) {
                     json_object_set_new(mt_json, "room", json_string(widevnum_string_room(mwr->room, NULL)));
                 } else {

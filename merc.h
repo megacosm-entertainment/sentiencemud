@@ -6418,6 +6418,7 @@ struct blueprint_maze_weighted_room {
     bool valid;
 
     int weight;                 // Probability weight for selection
+    int exit_count;             // 0 = any exit count, 1-4 = specific (dead end, tunnel, fork, crossroads)
     union {
         WNUM_LOAD load;         // During load: area_uid + vnum
         long vnum;              // Legacy: bare vnum

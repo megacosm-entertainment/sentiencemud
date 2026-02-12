@@ -88,8 +88,12 @@ BSEDIT( bsedit_show )
             iterator_start(&it, bs->maze_templates);
             while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
                 ++idx;
-                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Room: {W%ld{x %s\n\r",
+                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Exits: {W%s{x  Room: {W%ld{x %s\n\r",
                     idx, mwr->weight,
+                    mwr->exit_count == 0 ? "Any" :
+                    mwr->exit_count == 1 ? " 1 " :
+                    mwr->exit_count == 2 ? " 2 " :
+                    mwr->exit_count == 3 ? " 3 " : " 4 ",
                     mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
                     mwr->room ? mwr->room->name : "(unresolved)");
                 add_buf(buffer, buf);
@@ -772,11 +776,12 @@ BSEDIT( bsedit_maze )
     if (argument[0] == '\0') {
         send_to_char("Syntax:  maze size <width> <height>\n\r", ch);
         send_to_char("         maze templates list\n\r", ch);
-        send_to_char("         maze templates add <weight> <room_vnum>\n\r", ch);
+        send_to_char("         maze templates add <weight> <room_vnum> [exit_count]\n\r", ch);
         send_to_char("         maze templates remove <#>\n\r", ch);
         send_to_char("         maze fixed list\n\r", ch);
         send_to_char("         maze fixed add <x> <y> <room_vnum> [connected]\n\r", ch);
         send_to_char("         maze fixed remove <#>\n\r", ch);
+        send_to_char("\n\rExit Count: 0=any, 1=dead end, 2=tunnel, 3=fork, 4=crossroads\n\r", ch);
         return false;
     }
 
@@ -831,8 +836,12 @@ BSEDIT( bsedit_maze )
             iterator_start(&it, bs->maze_templates);
             while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
                 ++idx;
-                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Room: {W%ld{x %s\n\r",
+                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Exits: {W%s{x  Room: {W%ld{x %s\n\r",
                     idx, mwr->weight,
+                    mwr->exit_count == 0 ? "Any" :
+                    mwr->exit_count == 1 ? " 1 " :
+                    mwr->exit_count == 2 ? " 2 " :
+                    mwr->exit_count == 3 ? " 3 " : " 4 ",
                     mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
                     mwr->room ? mwr->room->name : "(unresolved)");
                 send_to_char(buf, ch);
@@ -848,8 +857,11 @@ BSEDIT( bsedit_maze )
             char weight_arg[MIL];
             argument = one_argument(argument, weight_arg);
 
-            if (weight_arg[0] == '\0' || argument[0] == '\0') {
-                send_to_char("Syntax:  maze templates add <weight> <room_vnum>\n\r", ch);
+            char vnum_arg[MIL];
+            argument = one_argument(argument, vnum_arg);
+
+            if (weight_arg[0] == '\0' || vnum_arg[0] == '\0') {
+                send_to_char("Syntax:  maze templates add <weight> <room_vnum> [exit_count]\n\r", ch);
                 return false;
             }
 
@@ -859,9 +871,18 @@ BSEDIT( bsedit_maze )
                 return false;
             }
 
+            int exit_count = 0;
+            if (argument[0] != '\0') {
+                exit_count = atoi(argument);
+                if (exit_count < 0 || exit_count > 4) {
+                    send_to_char("Exit count must be 0-4 (0=any, 1=dead end, 2=tunnel, 3=fork, 4=crossroads).\n\r", ch);
+                    return false;
+                }
+            }
+
             WNUM room_wnum;
-            AREA_DATA *context = strchr(argument, '#') ? NULL : bs->area;
-            if (!parse_widevnum(argument, context, &room_wnum)) {
+            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            if (!parse_widevnum(vnum_arg, context, &room_wnum)) {
                 send_to_char("Invalid widevnum format.\n\r", ch);
                 return false;
             }
@@ -874,6 +895,7 @@ BSEDIT( bsedit_maze )
 
             MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
             mwr->weight = weight;
+            mwr->exit_count = exit_count;
             mwr->room_ref.load.vnum = room_wnum.vnum;
             mwr->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
             mwr->room = room;
@@ -885,8 +907,12 @@ BSEDIT( bsedit_maze )
             bs->total_maze_weight += weight;
 
             char buf[MSL];
-            sprintf(buf, "Template added: Room %ld (%s) with weight %d.\n\r",
-                room->vnum, room->name, weight);
+            sprintf(buf, "Template added: Room %ld (%s) with weight %d, exits %s.\n\r",
+                room->vnum, room->name, weight,
+                exit_count == 0 ? "any" :
+                exit_count == 1 ? "1 (dead end)" :
+                exit_count == 2 ? "2 (tunnel)" :
+                exit_count == 3 ? "3 (fork)" : "4 (crossroads)");
             send_to_char(buf, ch);
             return true;
         }

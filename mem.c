@@ -4081,6 +4081,7 @@ MAZE_WEIGHTED_ROOM *new_maze_weighted_room()
     }
 
     mwr->weight = 0;
+    mwr->exit_count = 0;
     mwr->room_ref.load.auid = 0;
     mwr->room_ref.load.vnum = 0;
     mwr->room = NULL;
