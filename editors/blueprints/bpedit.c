@@ -127,7 +127,7 @@ BPEDIT( bpedit_show )
         {
             BLUEPRINT_SECTION_REF *section_ref = list_nthdata(bp->sections, special->section);
             BLUEPRINT_SECTION *section = section_ref ? section_ref->section : NULL;
-            AREA_DATA *area = section ? section->area : NULL;
+            AREA_DATA *area = section ? (section->rooms_area ? section->rooms_area : section->area) : NULL;
             if (!area) area = get_system_area_fallback();
             ROOM_INDEX_DATA *room = get_room_index(area, special->room ? special->room->vnum : special->room_ref.load.vnum);
 

@@ -21,7 +21,7 @@
 #include "../../wilds.h"
 
 extern void list_blueprint_sections(CHAR_DATA *ch, char *argument);
-extern bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, long upper);
+extern bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, AREA_DATA *rooms_area, long lower, long upper);
 
 extern long top_blueprint_section_vnum;
 
@@ -65,10 +65,9 @@ BSEDIT( bsedit_show )
     }
     add_buf(buffer, buf);
 
-    sprintf(buf, "Lower Vnum:  %ld\n\r", bs->lower_vnum);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Upper Vnum:  %ld\n\r", bs->upper_vnum);
+    sprintf(buf, "Room Range:  %s - %s\n\r",
+        bs->rooms_area ? widevnum_string(bs->rooms_area, bs->lower_vnum, bs->area) : "(not set)",
+        bs->rooms_area ? widevnum_string(bs->rooms_area, bs->upper_vnum, bs->area) : "(not set)");
     add_buf(buffer, buf);
 
     add_buf(buffer, "Description:\n\r");
@@ -429,7 +428,7 @@ BSEDIT( bsedit_recall )
     }
 
     WNUM room_wnum;
-    AREA_DATA *context = strchr(argument, '#') ? bs->area : NULL;
+    AREA_DATA *context = strchr(argument, '#') ? bs->area : (bs->rooms_area ? bs->rooms_area : bs->area);
     if (!parse_widevnum(argument, context, &room_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -456,7 +455,8 @@ BSEDIT( bsedit_recall )
         return false;
     }
 
-    bs->recall_ref.load.vnum = vnum; bs->recall_ref.load.auid = bs->area ? bs->area->uid : 0; bs->recall_room = get_room_index(bs->area ? bs->area : get_system_area_fallback(), vnum);
+    AREA_DATA *recall_area = bs->rooms_area ? bs->rooms_area : (bs->area ? bs->area : get_system_area_fallback());
+    bs->recall_ref.load.vnum = vnum; bs->recall_ref.load.auid = recall_area->uid; bs->recall_room = room;
     sprintf(buf, "Recall set to %.30s (%s)\n\r", room->name, widevnum_string_room(room, bs->area));
     send_to_char(buf, ch);
     return true;
@@ -481,7 +481,7 @@ BSEDIT( bsedit_rooms )
     }
 
     WNUM wnum_lower, wnum_upper;
-    AREA_DATA *context = ch->in_room->area;
+    AREA_DATA *context = bs->rooms_area ? bs->rooms_area : ch->in_room->area;
 
     if (!parse_widevnum(arg, context, &wnum_lower) || !wnum_lower.pArea) {
         send_to_char("Invalid lower vnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
@@ -509,10 +509,15 @@ BSEDIT( bsedit_rooms )
         uvnum = vnum;
     }
 
-    if( validate_vnum_range(ch, bs, lvnum, uvnum) )
+    if( validate_vnum_range(ch, bs, wnum_lower.pArea, lvnum, uvnum) )
     {
         bs->lower_vnum = lvnum;
         bs->upper_vnum = uvnum;
+        bs->rooms_area = wnum_lower.pArea;
+        bs->lower_vnum_ref.load.auid = wnum_lower.pArea->uid;
+        bs->lower_vnum_ref.load.vnum = lvnum;
+        bs->upper_vnum_ref.load.auid = wnum_upper.pArea->uid;
+        bs->upper_vnum_ref.load.vnum = uvnum;
 
         send_to_char("Vnum range set.\n\r", ch);
 
@@ -624,7 +629,7 @@ BSEDIT( bsedit_link )
         }
 
         WNUM room_wnum;
-        AREA_DATA *context = strchr(arg2, '#') ? bs->area : NULL;
+        AREA_DATA *context = strchr(arg2, '#') ? NULL : (bs->rooms_area ? bs->rooms_area : bs->area);
         if (!parse_widevnum(arg2, context, &room_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
@@ -784,7 +789,7 @@ BSEDIT( bsedit_link )
         }
 
         WNUM room_wnum;
-        AREA_DATA *context = strchr(argument, '#') ? bs->area : NULL;
+        AREA_DATA *context = strchr(argument, '#') ? NULL : (bs->rooms_area ? bs->rooms_area : bs->area);
         if (!parse_widevnum(argument, context, &room_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;

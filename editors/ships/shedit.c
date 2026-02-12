@@ -383,9 +383,10 @@ SHEDIT( shedit_blueprint )
             iterator_start(&sit, bp->sections);
             while( (section = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
             {
+                AREA_DATA *sect_area = section->rooms_area ? section->rooms_area : bp->area;
                 for( long vnum = section->lower_vnum; vnum <= section->upper_vnum; vnum++)
                 {
-                    ROOM_INDEX_DATA *room = get_room_index(bp->area, vnum);
+                    ROOM_INDEX_DATA *room = get_room_index(sect_area, vnum);
 
                     if( room )
                     {

@@ -240,10 +240,24 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
     // by checking the lower_vnum (do this before fix_blueprint_section)
     if (bs->lower_vnum > 0) {
         WNUM wnum;
-        if (resolve_widevnum(bs->lower_vnum, NULL, &wnum))
+        if (resolve_widevnum(bs->lower_vnum, NULL, &wnum)) {
             bs->area = wnum.pArea;
-        else
+            bs->rooms_area = wnum.pArea;
+            bs->lower_vnum_ref.load.auid = wnum.pArea->uid;
+            bs->lower_vnum_ref.load.vnum = wnum.vnum;
+            bs->lower_vnum = wnum.vnum;  // Store local vnum
+        } else {
             bs->area = get_system_area_fallback();
+        }
+
+        if (bs->upper_vnum > 0 && bs->rooms_area) {
+            WNUM uwnum;
+            if (resolve_widevnum(bs->upper_vnum, NULL, &uwnum)) {
+                bs->upper_vnum_ref.load.auid = uwnum.pArea->uid;
+                bs->upper_vnum_ref.load.vnum = uwnum.vnum;
+                bs->upper_vnum = uwnum.vnum;  // Store local vnum
+            }
+        }
 
         if (!bs->area) {
             log_message_f(LOG_LEVEL_WARN, LOG_INIT, "Blueprint section %ld references vnums starting at %ld but no area found", bs->vnum, bs->lower_vnum);
@@ -2770,13 +2784,13 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
     {
         for(BLUEPRINT_SECTION *section = pArea->blueprint_section_hash[iHash]; section; section = section->next)
         {
-            sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x   %11ld   %11ld-%-11ld \n\r",
+            sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x   %11ld   %s - %s\n\r",
                 section->vnum,
                 section->name,
                 flag_string(blueprint_section_types, section->type),
                 section->recall_room ? section->recall_room->vnum : 0,
-                section->lower_vnum,
-                section->upper_vnum);
+                section->rooms_area ? widevnum_string(section->rooms_area, section->lower_vnum, pArea) : "0",
+                section->rooms_area ? widevnum_string(section->rooms_area, section->upper_vnum, pArea) : "0");
 
             ++lines;
             if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
@@ -2993,20 +3007,20 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
  * - Contains rooms marked for blueprint use (ROOM_BLUEPRINT or AREA_BLUEPRINT)
  * - Has no exits leading outside the range or to wilderness
  *
- * @param ch       Staff character (for error messages)
- * @param section  Blueprint section being validated
- * @param lower    Lower bound of vnum range
- * @param upper    Upper bound of vnum range
- * @return         true if range is valid for use
+ * @param ch         Staff character (for error messages)
+ * @param section    Blueprint section being validated
+ * @param rooms_area Area where the rooms reside
+ * @param lower      Lower bound of vnum range
+ * @param upper      Upper bound of vnum range
+ * @return           true if range is valid for use
  */
-bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, long upper)
+bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, AREA_DATA *rooms_area, long lower, long upper)
 {
     char buf[MSL];
 
-    // Check the range spans just one area.
-    if( !check_range(lower, upper) )
+    if( !rooms_area )
     {
-        send_to_char("Vnums must be in the same area.\n\r", ch);
+        send_to_char("Could not resolve the area for that vnum range.\n\r", ch);
         return false;
     }
 
@@ -3014,14 +3028,16 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
     BLUEPRINT_SECTION *bs;
     int iHash;
     
-    // Check all areas for overlapping sections
+    // Check for overlapping sections whose rooms reside in the same area.
+    // Sections referencing rooms in different areas use separate vnum
+    // namespaces and cannot overlap.
     for (AREA_DATA *area = area_first; area != NULL; area = area->next) {
         for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
         {
             for(bs = area->blueprint_section_hash[iHash]; bs; bs = bs->next)
             {
-                // Only check against other sections
-                if( bs != section )
+                // Only check against other sections whose rooms are in the same area
+                if( bs != section && bs->rooms_area == rooms_area )
                 {
                     if( (lower >= bs->lower_vnum && lower <= bs->upper_vnum ) ||
                         (upper >= bs->lower_vnum && upper <= bs->upper_vnum ) ||
@@ -3043,8 +3059,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 
     for(long vnum = lower; vnum <= upper; vnum++)
     {
-AREA_DATA *bp_area = section->area ? section->area : get_system_area_fallback();
-            ROOM_INDEX_DATA *room = get_room_index(bp_area, vnum);
+        ROOM_INDEX_DATA *room = get_room_index(rooms_area, vnum);
 
         if( room )
         {

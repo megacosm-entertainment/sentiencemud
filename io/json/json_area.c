@@ -4781,9 +4781,14 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
     json_object_set_new(json, "type", json_integer(section->type));
     json_object_set_new(json, "flags", json_integer(section->flags));
     
-    /* Room range */
-    json_object_set_new(json, "lower_vnum", json_integer(section->lower_vnum));
-    json_object_set_new(json, "upper_vnum", json_integer(section->upper_vnum));
+    /* Room range - always save as widevnum string for cross-area support */
+    if (section->rooms_area) {
+        json_object_set_new(json, "lower_vnum", json_string(widevnum_string(section->rooms_area, section->lower_vnum, area)));
+        json_object_set_new(json, "upper_vnum", json_string(widevnum_string(section->rooms_area, section->upper_vnum, area)));
+    } else {
+        json_object_set_new(json, "lower_vnum", json_integer(section->lower_vnum));
+        json_object_set_new(json, "upper_vnum", json_integer(section->upper_vnum));
+    }
     
     /* Maze data (only for BSTYPE_MAZE sections) */
     if (section->type == BSTYPE_MAZE) {
