@@ -8789,20 +8789,22 @@ bool list_movelink(LLIST *lp, int from, int to)
 
             // Update list size
             lp->size++;
+
+            // Update head and tail if necessary
+            if (old == lp->head) lp->head = old->next;
+            if (old == lp->tail) lp->tail = old->prev;
+
+            // Remove old link from its current position
+            if (old->prev) old->prev->next = old->next;
+            if (old->next) old->next->prev = old->prev;
+
+            free_mem(old, sizeof(LLIST_LINK));
+
+            // Update list size
+            lp->size--;
+
+            return true;
         }
-
-        // Update head and tail if necessary
-        if (old == lp->head) lp->head = old->next;
-        if (old == lp->tail) lp->tail = old->prev;
-
-        // Remove old link from its current position
-        if (old->prev) old->prev->next = old->next;
-        if (old->next) old->next->prev = old->prev;
-
-        free(old);
-
-        // Update list size
-        lp->size--;
     }
 
     return false;
@@ -8840,16 +8842,16 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 
                     if( link->prev )
                     {
+                        new_link->prev = link->prev;
                         new_link->next = link;
                         link->prev->next = new_link;
                         link->prev = new_link;
-                        
                     }
                     else
                     {
-                        new_link->next = lp->head;
-                        lp->head = link;
-                        link->prev = NULL;
+                        new_link->next = link;
+                        link->prev = new_link;
+                        lp->head = new_link;
                     }
 
                     lp->size++;
@@ -8874,6 +8876,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
             lp->tail = link;
             link->data = data;
             lp->size++;
+            return true;
         }
 
     }
@@ -9269,9 +9272,11 @@ void iterator_reset(ITERATOR *it)
     if(it) {
         if(it->list && it->list->valid) {
             it->current = it->list->head;
+            it->moved = false;
         } else {
             it->list = NULL;
             it->current = NULL;
+            it->moved = false;
         }
     }
 }

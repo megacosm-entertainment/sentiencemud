@@ -774,6 +774,15 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
     dungeon->area = area;
     dungeon->valid = true;
     
+    /* Initialize string and list fields to safe defaults */
+    dungeon->name = &str_empty[0];
+    dungeon->description = &str_empty[0];
+    dungeon->comments = &str_empty[0];
+    dungeon->zone_out = &str_empty[0];
+    dungeon->zone_out_portal = &str_empty[0];
+    dungeon->zone_out_mount = &str_empty[0];
+    dungeon->floors = list_create(false);
+    
     // Basic info
     dungeon->vnum = json_get_int_default(json, "vnum", 0);
     dungeon->name = str_dup(json_get_string_default(json, "name", "Unnamed Dungeon"));
@@ -850,7 +859,6 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
     // Floors - list of blueprint references (store as WNUM_LOAD, will be resolved to pointers later)
     json_t *floors = json_object_get(json, "floors");
     if (floors && json_is_array(floors)) {
-        dungeon->floors = list_create(false);
         size_t index;
         json_t *floor_val;
         
@@ -1279,6 +1287,17 @@ BLUEPRINT *json_area_deserialize_blueprint(json_t *json, AREA_DATA *area)
     
     blueprint->valid = true;
     blueprint->area = area;
+    
+    /* Initialize list fields so they're always valid, even if JSON lacks them */
+    blueprint->name = &str_empty[0];
+    blueprint->description = &str_empty[0];
+    blueprint->comments = &str_empty[0];
+    blueprint->sections = list_create(false);
+    blueprint->special_rooms = list_createx(false, NULL, NULL);
+    blueprint->_static.layout = NULL;
+    blueprint->_static.recall = -1;
+    blueprint->_static.entries = list_createx(false, NULL, NULL);
+    blueprint->_static.exits = list_createx(false, NULL, NULL);
     
     // Basic info
     blueprint->vnum = json_get_int_default(json, "vnum", 0);
