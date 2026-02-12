@@ -643,56 +643,75 @@ DNGEDIT( dngedit_show )
 DNGEDIT( dngedit_create )
 {
     DUNGEON_INDEX_DATA *dng;
+    AREA_DATA *pArea;
     long  value;
     int  iHash;
 
-    // Auto-vnum: empty or "0" finds next available
+    // Auto-vnum: empty or "0" finds next available in current area
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-        long last_vnum = 0;
-        value = top_dungeon_vnum + 1;
-        for(last_vnum = 1; last_vnum <= top_dungeon_vnum; last_vnum++)
+        pArea = ch->in_room->area;
+        value = 0;
+
+        for (long try_vnum = 1; try_vnum < MAX_KEY_HASH * 100; try_vnum++)
         {
-            if( !get_dungeon_index(last_vnum) )
+            if (!get_dungeon_index_for_area(pArea, try_vnum))
             {
-                value = last_vnum;
+                value = try_vnum;
                 break;
             }
+        }
+
+        if (value == 0)
+        {
+            send_to_char("DNGEdit: Could not find an available vnum in this area.\n\r", ch);
+            return false;
         }
     }
     else
     {
-        // Parse widevnum - dungeons are global so no context needed
         WNUM dng_wnum;
-        if (!parse_widevnum(argument, NULL, &dng_wnum)) {
-            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        if (!parse_widevnum(argument, ch->in_room->area, &dng_wnum)) {
+            send_to_char("DNGEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
-        
+
         value = dng_wnum.vnum;
-        
-        if( get_dungeon_index(value) )
-        {
-            send_to_char("That vnum already exists.\n\r", ch);
-            return false;
-        }
+        pArea = dng_wnum.pArea;
+    }
+
+    if (!pArea)
+    {
+        send_to_char("DNGEdit: That vnum is not assigned an area.\n\r", ch);
+        return false;
+    }
+
+    if (!IS_BUILDER(ch, pArea))
+    {
+        send_to_char("DNGEdit: Vnum in an area you cannot build in.\n\r", ch);
+        return false;
+    }
+
+    if (get_dungeon_index_for_area(pArea, value))
+    {
+        send_to_char("DNGEdit: That vnum already exists.\n\r", ch);
+        return false;
     }
 
     dng = new_dungeon_index();
     dng->vnum = value;
+    dng->area = pArea;
 
-    WNUM area_wnum;
-    if (resolve_widevnum(value, NULL, &area_wnum)) {
-        dng->area = area_wnum.pArea;
-        iHash = dng->vnum % MAX_KEY_HASH;
-        dng->next = dng->area->dungeon_index_hash[iHash];
-        dng->area->dungeon_index_hash[iHash] = dng;
-    }
-    ch->desc->pEdit = (void *)dng;
+    iHash                                   = dng->vnum % MAX_KEY_HASH;
+    dng->next                               = pArea->dungeon_index_hash[iHash];
+    pArea->dungeon_index_hash[iHash]        = dng;
+    ch->desc->pEdit                         = (void *)dng;
 
-    if( dng->vnum > top_dungeon_vnum)
+    if (dng->vnum > top_dungeon_vnum)
         top_dungeon_vnum = dng->vnum;
 
+    send_to_char("Dungeon Created.\n\r", ch);
+    SET_BIT(pArea->area_flags, AREA_CHANGED);
     return true;
 }
 

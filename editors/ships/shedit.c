@@ -164,52 +164,75 @@ SHEDIT( shedit_show )
 SHEDIT( shedit_create )
 {
     SHIP_INDEX_DATA *ship;
+    AREA_DATA *pArea;
     long  value;
     int  iHash;
 
-    // Auto-vnum: empty or "0" finds next available
+    // Auto-vnum: empty or "0" finds next available in current area
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-        long last_vnum = 0;
-        value = top_ship_index_vnum + 1;
-        for(last_vnum = 1; last_vnum <= top_ship_index_vnum; last_vnum++)
+        pArea = ch->in_room->area;
+        value = 0;
+
+        for (long try_vnum = 1; try_vnum < MAX_KEY_HASH * 100; try_vnum++)
         {
-            if( !get_ship_index(last_vnum) )
+            if (!get_ship_index_for_area(pArea, try_vnum))
             {
-                value = last_vnum;
+                value = try_vnum;
                 break;
             }
+        }
+
+        if (value == 0)
+        {
+            send_to_char("SHEdit: Could not find an available vnum in this area.\n\r", ch);
+            return false;
         }
     }
     else
     {
-        // Parse widevnum - ships are global so no context needed
         WNUM ship_wnum;
-        if (!parse_widevnum(argument, NULL, &ship_wnum)) {
-            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        if (!parse_widevnum(argument, ch->in_room->area, &ship_wnum)) {
+            send_to_char("SHEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
-        
+
         value = ship_wnum.vnum;
-        
-        if( get_ship_index(value) )
-        {
-            send_to_char("That vnum already exists.\n\r", ch);
-            return false;
-        }
+        pArea = ship_wnum.pArea;
+    }
+
+    if (!pArea)
+    {
+        send_to_char("SHEdit: That vnum is not assigned an area.\n\r", ch);
+        return false;
+    }
+
+    if (!IS_BUILDER(ch, pArea))
+    {
+        send_to_char("SHEdit: Vnum in an area you cannot build in.\n\r", ch);
+        return false;
+    }
+
+    if (get_ship_index_for_area(pArea, value))
+    {
+        send_to_char("SHEdit: That vnum already exists.\n\r", ch);
+        return false;
     }
 
     ship = new_ship_index();
     ship->vnum = value;
+    ship->area = pArea;
 
-    iHash							= ship->vnum % MAX_KEY_HASH;
-    ship->next						= ship_index_hash[iHash];
-    ship_index_hash[iHash]			= ship;
-    ch->desc->pEdit					= (void *)ship;
+    iHash                               = ship->vnum % MAX_KEY_HASH;
+    ship->next                          = pArea->ship_index_hash[iHash];
+    pArea->ship_index_hash[iHash]       = ship;
+    ch->desc->pEdit                     = (void *)ship;
 
-    if( ship->vnum > top_ship_index_vnum)
+    if (ship->vnum > top_ship_index_vnum)
         top_ship_index_vnum = ship->vnum;
 
+    send_to_char("Ship Created.\n\r", ch);
+    SET_BIT(pArea->area_flags, AREA_CHANGED);
     return true;
 }
 

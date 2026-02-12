@@ -349,53 +349,75 @@ BPEDIT( bpedit_show )
 BPEDIT( bpedit_create )
 {
     BLUEPRINT *bp;
-
+    AREA_DATA *pArea;
     long  value;
     int  iHash;
 
-    // Auto-vnum: empty or "0" finds next available
+    // Auto-vnum: empty or "0" finds next available in current area
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-        long last_vnum = 0;
-        value = top_blueprint_vnum + 1;
-        for(last_vnum = 1; last_vnum <= top_blueprint_vnum; last_vnum++)
+        pArea = ch->in_room->area;
+        value = 0;
+
+        for (long try_vnum = 1; try_vnum < MAX_KEY_HASH * 100; try_vnum++)
         {
-            if( !get_blueprint(last_vnum) )
+            if (!get_blueprint_for_area(pArea, try_vnum))
             {
-                value = last_vnum;
+                value = try_vnum;
                 break;
             }
+        }
+
+        if (value == 0)
+        {
+            send_to_char("BPEdit: Could not find an available vnum in this area.\n\r", ch);
+            return false;
         }
     }
     else
     {
-        // Parse widevnum - blueprints are global so no context needed
         WNUM bp_wnum;
-        if (!parse_widevnum(argument, NULL, &bp_wnum)) {
-            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        if (!parse_widevnum(argument, ch->in_room->area, &bp_wnum)) {
+            send_to_char("BPEdit: Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
-        
+
         value = bp_wnum.vnum;
-        
-        if( get_blueprint(value) )
-        {
-            send_to_char("That vnum already exists.\n\r", ch);
-            return false;
-        }
+        pArea = bp_wnum.pArea;
+    }
+
+    if (!pArea)
+    {
+        send_to_char("BPEdit: That vnum is not assigned an area.\n\r", ch);
+        return false;
+    }
+
+    if (!IS_BUILDER(ch, pArea))
+    {
+        send_to_char("BPEdit: Vnum in an area you cannot build in.\n\r", ch);
+        return false;
+    }
+
+    if (get_blueprint_for_area(pArea, value))
+    {
+        send_to_char("BPEdit: That vnum already exists.\n\r", ch);
+        return false;
     }
 
     bp = new_blueprint();
     bp->vnum = value;
+    bp->area = pArea;
 
-    iHash							= bp->vnum % MAX_KEY_HASH;
-    bp->next						= blueprint_hash[iHash];
-    blueprint_hash[iHash]			= bp;
-    ch->desc->pEdit					= (void *)bp;
+    iHash                           = bp->vnum % MAX_KEY_HASH;
+    bp->next                        = pArea->blueprint_hash[iHash];
+    pArea->blueprint_hash[iHash]    = bp;
+    ch->desc->pEdit                 = (void *)bp;
 
-    if( bp->vnum > top_blueprint_vnum)
+    if (bp->vnum > top_blueprint_vnum)
         top_blueprint_vnum = bp->vnum;
 
+    send_to_char("Blueprint Created.\n\r", ch);
+    SET_BIT(pArea->area_flags, AREA_CHANGED);
     return true;
 
 }
