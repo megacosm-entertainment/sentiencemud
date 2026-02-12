@@ -418,19 +418,31 @@ BSEDIT( bsedit_rooms )
 
     if( arg[0] == '\0' || argument[0] == '\0' )
     {
-        send_to_char("Syntax:  rooms [lower vnum][upper vnum]\n\r", ch);
-        send_to_char("{YVnums must be in the same area.{x\n\r", ch);
+        send_to_char("Syntax:  rooms <lower vnum> <upper vnum>\n\r", ch);
+        send_to_char("{YVnums must be in the same area. Use #vnum or area#vnum format.{x\n\r", ch);
         return false;
     }
 
-    if( !is_number(arg) || !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
+    WNUM wnum_lower, wnum_upper;
+    AREA_DATA *context = ch->in_room->area;
+
+    if (!parse_widevnum(arg, context, &wnum_lower) || !wnum_lower.pArea) {
+        send_to_char("Invalid lower vnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    lvnum = atol(arg);
-    uvnum = atol(argument);
+    if (!parse_widevnum(argument, context, &wnum_upper) || !wnum_upper.pArea) {
+        send_to_char("Invalid upper vnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if (wnum_lower.pArea != wnum_upper.pArea) {
+        send_to_char("Lower and upper vnums must be in the same area.\n\r", ch);
+        return false;
+    }
+
+    lvnum = wnum_lower.vnum;
+    uvnum = wnum_upper.vnum;
 
     // Silently swap the bounds if necessary, don't be annoying
     if( uvnum < lvnum )

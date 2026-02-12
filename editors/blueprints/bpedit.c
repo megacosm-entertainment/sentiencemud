@@ -607,7 +607,7 @@ BPEDIT( bpedit_section )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  section add <vnum>\n\r", ch);
+        send_to_char("Syntax:  section add <#vnum|area#vnum>\n\r", ch);
         send_to_char("         section delete <#>\n\r", ch);
         send_to_char("         section list\n\r", ch);
         return false;
@@ -617,20 +617,25 @@ BPEDIT( bpedit_section )
 
     if( !str_prefix(arg, "add") )
     {
-        if(!is_number(argument))
-        {
-            send_to_char("That is not a number.\n\r", ch);
+        WNUM wnum;
+        if (!parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
 
-        bs = get_blueprint_section(atol(argument));
+        bs = get_blueprint_section_for_area(wnum.pArea, wnum.vnum);
         if( !bs )
         {
             send_to_char("That blueprint section does not exist.\n\r", ch);
             return false;
         }
 
-        if( !list_appendlink(bp->sections, bs) )
+        BLUEPRINT_SECTION_REF *ref = alloc_perm(sizeof(BLUEPRINT_SECTION_REF));
+        ref->section_ref.load.auid = wnum.pArea->uid;
+        ref->section_ref.load.vnum = wnum.vnum;
+        ref->section = bs;
+
+        if( !list_appendlink(bp->sections, ref) )
         {
             send_to_char("{WError adding blueprint section to blueprint.{x\n\r", ch);
             return false;
@@ -746,10 +751,19 @@ BPEDIT( bpedit_section )
             add_buf(buffer, "     [  Vnum  ] [             Name             ]\n\r");
             add_buf(buffer, "------------------------------------------------\n\r");
 
+            BLUEPRINT_SECTION_REF *section_ref;
+
             iterator_start(&sit, bp->sections);
-            while( (bs = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
+            while( (section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&sit)) )
             {
-                sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, bs->vnum, bs->name);
+                if (section_ref->section) {
+                    sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, 
+                        section_ref->section->vnum, 
+                        section_ref->section->name ? section_ref->section->name : "(unnamed)");
+                } else {
+                    sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line,
+                        section_ref->section_ref.load.auid, section_ref->section_ref.load.vnum);
+                }
                 add_buf(buffer, buf);
             }
 

@@ -43,18 +43,18 @@ void dngedit_buffer_floors(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
         BLUEPRINT *bp;
 
         add_buf(buffer, "{gFloors:{x\n\r");
-        add_buf(buffer, "{g     [  Vnum  ] [             Name             ]\n\r");
-        add_buf(buffer, "{g=================================================\n\r");
+        add_buf(buffer, "{g     [    Vnum    ] [             Name             ]\n\r");
+        add_buf(buffer, "{g=====================================================\n\r");
 
         int floor = 0;
         iterator_start(&fit, dng->floors);
         while( (bp = (BLUEPRINT *)iterator_nextdata(&fit)) )
         {
-            sprintf(buf, "{W%4d  {G%8ld   {x%-.30s{x\n\r", ++floor, bp->vnum, bp->name);
+            sprintf(buf, "{W%4d  {G%-12s {x%-.30s{x\n\r", ++floor, widevnum_string_blueprint(bp, NULL), bp->name);
             add_buf(buffer, buf);
         }
         iterator_stop(&fit);
-        add_buf(buffer, "=================================================\n\r");
+        add_buf(buffer, "=====================================================\n\r");
     }
     else
     {
@@ -833,7 +833,7 @@ DNGEDIT( dngedit_floors )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  floors add <vnum>\n\r", ch);
+        send_to_char("Syntax:  floors add <#vnum|area#vnum>\n\r", ch);
         send_to_char("         floors remove #\n\r", ch);
         send_to_char("         floors list\n\r", ch);
         return false;
@@ -854,15 +854,13 @@ DNGEDIT( dngedit_floors )
 
     if( !str_prefix(arg, "add") )
     {
-        if( !is_number(argument) )
-        {
-            send_to_char("That is not a number.\n\r", ch);
+        WNUM bp_wnum;
+        if (!parse_widevnum(argument, ch->in_room->area, &bp_wnum) || !bp_wnum.pArea) {
+            send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
             return false;
         }
 
-        long bp_vnum = atol(argument);
-
-        BLUEPRINT *bp = get_blueprint(bp_vnum);
+        BLUEPRINT *bp = get_blueprint_for_area(bp_wnum.pArea, bp_wnum.vnum);
 
         if( !bp )
         {
@@ -2017,25 +2015,22 @@ DNGEDIT( dngedit_levels )
 DNGEDIT( dngedit_entry )
 {
     DUNGEON_INDEX_DATA *dng;
-    long value;
 
     EDIT_DUNGEON(ch, dng);
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  entry <vnum>\n\r", ch);
+        send_to_char("Syntax:  entry <#vnum|area#vnum>\n\r", ch);
         return false;
     }
 
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
+    WNUM entry_wnum;
+    if (!parse_widevnum(argument, ch->in_room->area, &entry_wnum) || !entry_wnum.pArea) {
+        send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    value = atol(argument);
-
-    ROOM_INDEX_DATA *room = get_room_index(dng->area, value);
+    ROOM_INDEX_DATA *room = get_room_index(entry_wnum.pArea, entry_wnum.vnum);
     if( !room )
     {
         send_to_char("That room does not exist.\n\r", ch);
@@ -2043,8 +2038,8 @@ DNGEDIT( dngedit_entry )
     }
 
     /* Store in WNUM_LOAD format */
-    dng->entry_ref.load.vnum = value;
-    dng->entry_ref.load.auid = dng->area->uid;
+    dng->entry_ref.load.vnum = entry_wnum.vnum;
+    dng->entry_ref.load.auid = entry_wnum.pArea->uid;
     /* Also set the resolved pointer */
     dng->entry_room = room;
     
@@ -2055,25 +2050,22 @@ DNGEDIT( dngedit_entry )
 DNGEDIT( dngedit_exit )
 {
     DUNGEON_INDEX_DATA *dng;
-    long value;
 
     EDIT_DUNGEON(ch, dng);
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  exit <vnum>\n\r", ch);
+        send_to_char("Syntax:  exit <#vnum|area#vnum>\n\r", ch);
         return false;
     }
 
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
+    WNUM exit_wnum;
+    if (!parse_widevnum(argument, ch->in_room->area, &exit_wnum) || !exit_wnum.pArea) {
+        send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    value = atol(argument);
-
-    ROOM_INDEX_DATA *room = get_room_index(dng->area, value);
+    ROOM_INDEX_DATA *room = get_room_index(exit_wnum.pArea, exit_wnum.vnum);
     if( !room )
     {
         send_to_char("That room does not exist.\n\r", ch);
@@ -2081,8 +2073,8 @@ DNGEDIT( dngedit_exit )
     }
 
     /* Store in WNUM_LOAD format */
-    dng->exit_ref.load.vnum = value;
-    dng->exit_ref.load.auid = dng->area->uid;
+    dng->exit_ref.load.vnum = exit_wnum.vnum;
+    dng->exit_ref.load.auid = exit_wnum.pArea->uid;
     /* Also set the resolved pointer */
     dng->exit_room = room;
     

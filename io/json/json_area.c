@@ -847,7 +847,7 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
     }
     dungeon->exit_room = NULL;  // Will be resolved in fix pass
     
-    // Floors - list of blueprint vnums (store as integers, will be resolved to pointers later)
+    // Floors - list of blueprint references (store as WNUM_LOAD, will be resolved to pointers later)
     json_t *floors = json_object_get(json, "floors");
     if (floors && json_is_array(floors)) {
         dungeon->floors = list_create(false);
@@ -855,11 +855,20 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
         json_t *floor_val;
         
         json_array_foreach(floors, index, floor_val) {
-            if (json_is_integer(floor_val)) {
-                long *floor_num = alloc_perm(sizeof(long));
-                *floor_num = json_integer_value(floor_val);
-                list_appendlink(dungeon->floors, floor_num);
+            WNUM_LOAD *wload = alloc_perm(sizeof(WNUM_LOAD));
+            if (json_is_string(floor_val)) {
+                /* Widevnum string format: "auid#vnum" */
+                if (!parse_widevnum_load(json_string_value(floor_val), wload)) {
+                    continue;
+                }
+            } else if (json_is_integer(floor_val)) {
+                /* Legacy: bare vnum, assume same area */
+                wload->auid = area ? area->uid : 0;
+                wload->vnum = json_integer_value(floor_val);
+            } else {
+                continue;
             }
+            list_appendlink(dungeon->floors, wload);
         }
     }
     
@@ -4987,7 +4996,7 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
         json_object_set_new(json, "exit_room", json_string(widevnum_string_room(dungeon->exit_room, NULL)));
     }
     
-    /* Floors - list of blueprint vnums */
+    /* Floors - list of blueprint widevnums */
     if (dungeon->floors && list_size(dungeon->floors) > 0) {
         json_t *floors_array = json_array();
         ITERATOR it;
@@ -4995,7 +5004,7 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
         while(iterator_nextdata(&it)) {
             BLUEPRINT *bp = (BLUEPRINT*)iterator_currentdata(&it);
             if (bp) {
-                json_array_append_new(floors_array, json_integer(bp->vnum));
+                json_array_append_new(floors_array, json_string(widevnum_string_blueprint(bp, NULL)));
             }
         }
         iterator_stop(&it);

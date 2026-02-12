@@ -323,18 +323,17 @@ SHEDIT( shedit_blueprint )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  blueprint [vnum]\n\r", ch);
+        send_to_char("Syntax:  blueprint <#vnum|area#vnum>\n\r", ch);
         return false;
     }
 
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
+    WNUM bp_wnum;
+    if (!parse_widevnum(argument, ch->in_room->area, &bp_wnum) || !bp_wnum.pArea) {
+        send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    long bp_vnum = atol(argument);
-    if( !(bp = get_blueprint(bp_vnum)) )
+    if( !(bp = get_blueprint_for_area(bp_wnum.pArea, bp_wnum.vnum)) )
     {
         send_to_char("Blueprint does not exist.\n\r", ch);
         return false;

@@ -713,6 +713,7 @@ void fix_areaprogs(void);
 void fix_instanceprogs(void);
 void fix_dungeonprogs(void);
 void fix_dungeon_rooms(void);
+void fix_dungeon_floors(void);
 void fix_blueprint_references(void);
 
 
@@ -1154,6 +1155,8 @@ void boot_db(void)
     fix_dungeon_rooms();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing blueprint room references");
     fix_blueprint_references();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing dungeon floor references");
+    fix_dungeon_floors();
 
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading persistance");
     if(!persist_load()) {
@@ -1938,6 +1941,76 @@ void fix_dungeon_rooms(void)
                             dungeon->exit_ref.load.vnum);
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * fix_dungeon_floors - Resolve floor blueprint references at boot time
+ *
+ * During JSON loading, dungeon floors are stored as WNUM_LOAD pointers
+ * (area uid + vnum pairs). This function resolves them to actual BLUEPRINT
+ * pointers by looking up each reference. The original list is replaced with
+ * a new list containing resolved BLUEPRINT pointers.
+ *
+ * Must be called after all areas and blueprints are loaded and after
+ * fix_blueprint_references() has run.
+ */
+void fix_dungeon_floors(void)
+{
+    AREA_DATA *pArea;
+    DUNGEON_INDEX_DATA *dungeon;
+    int iHash;
+
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing dungeon floor references");
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (dungeon = pArea->dungeon_index_hash[iHash]; dungeon != NULL; dungeon = dungeon->next) {
+                if (!dungeon->floors || list_size(dungeon->floors) == 0)
+                    continue;
+
+                LLIST *resolved_floors = list_create(false);
+                WNUM_LOAD *wload;
+                ITERATOR it;
+
+                iterator_start(&it, dungeon->floors);
+                while ((wload = (WNUM_LOAD *)iterator_nextdata(&it))) {
+                    AREA_DATA *target_area = NULL;
+                    BLUEPRINT *bp = NULL;
+
+                    if (wload->auid > 0) {
+                        target_area = get_area_index(wload->auid);
+                    }
+
+                    if (target_area) {
+                        bp = get_blueprint_for_area(target_area, wload->vnum);
+                    } else {
+                        /* Legacy: search all areas when area_uid is 0 */
+                        AREA_DATA *search_area;
+                        for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                            bp = get_blueprint_for_area(search_area, wload->vnum);
+                            if (bp)
+                                break;
+                        }
+                    }
+
+                    if (bp) {
+                        list_appendlink(resolved_floors, bp);
+                    } else {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Dungeon '%s' (vnum %ld in %s): floor blueprint %ld#%ld not found",
+                            dungeon->name ? dungeon->name : "unnamed",
+                            dungeon->vnum,
+                            pArea->name,
+                            wload->auid, wload->vnum);
+                    }
+                }
+                iterator_stop(&it);
+
+                list_destroy(dungeon->floors);
+                dungeon->floors = resolved_floors;
             }
         }
     }
