@@ -10,6 +10,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "editors/common.h"
 
 extern bool wiznet_script;
 
@@ -209,10 +210,7 @@ void do_opdump(CHAR_DATA *ch, char *argument)
 void do_opstat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
-    PROG_LIST *oprg;
     OBJ_DATA *obj;
-    ITERATOR it;
-    int i, slot;
     BUFFER *output = new_buf();
 
     one_argument(argument, arg);
@@ -262,17 +260,7 @@ void do_opstat(CHAR_DATA *ch, char *argument)
     if (!obj->pIndexData->progs)
         add_buf(output, "[No programs set]\n\r");
     else
-    for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-        iterator_start(&it, obj->pIndexData->progs[slot]);
-        while(( oprg = (PROG_LIST *)iterator_nextdata(&it))) {
-            sprintf(arg, "[%2d] Trigger [%-8s] Program [%4ld] Phrase [%s]\n\r",
-                ++i, trigger_name(oprg->trig_type),
-                oprg->vnum,
-                trigger_phrase(oprg->trig_type,oprg->trig_phrase));
-            add_buf(output, arg);
-        }
-        iterator_stop(&it);
-    }
+        olc_show_progs_grouped(output, obj->pIndexData->progs, PRG_OPROG, NULL);
 
     if(obj->progs->vars)
         pstat_variable_list(output, obj->progs->vars);

@@ -10,6 +10,7 @@
 #include "recycle.h"
 #include "wilds.h"
 #include "tables.h"
+#include "editors/common.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -247,10 +248,7 @@ void do_mpdump(CHAR_DATA *ch, char *argument)
 void do_mpstat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
-    ITERATOR it;
-    PROG_LIST *mprg;
     CHAR_DATA *victim;
-    int i, slot;
     BUFFER *output = new_buf();
 
     one_argument(argument, arg);
@@ -306,17 +304,7 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
     if (!victim->pIndexData->progs)
         add_buf(output, "[No programs set]\n\r");
     else
-        for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-            iterator_start(&it, victim->pIndexData->progs[slot]);
-            while(( mprg = (PROG_LIST *)iterator_nextdata(&it))) {
-                sprintf(arg, "[%2d] Trigger [%-8s] Program [%4ld] Phrase [%s]\n\r",
-                    ++i, trigger_name(mprg->trig_type),
-                    mprg->vnum,
-                    trigger_phrase(mprg->trig_type,mprg->trig_phrase));
-                add_buf(output, arg);
-            }
-            iterator_stop(&it);
-        }
+        olc_show_progs_grouped(output, victim->pIndexData->progs, PRG_MPROG, NULL);
 
     if(victim->progs->vars)
         pstat_variable_list(output, victim->progs->vars);

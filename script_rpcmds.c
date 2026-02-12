@@ -10,6 +10,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "editors/common.h"
 
 #define DEBUG_MODULE
 #include "debug.h"
@@ -203,10 +204,7 @@ void do_rpdump(CHAR_DATA *ch, char *argument)
 void do_rpstat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
-    ITERATOR it;
-    PROG_LIST *rprg;
     ROOM_INDEX_DATA *room;
-    int i, slot;
     BUFFER *output = new_buf();
 
     one_argument(argument, arg);
@@ -249,17 +247,7 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
     if (!room->progs->progs)
         add_buf(output, "[No programs set]\n\r");
     else
-    for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-        iterator_start(&it, room->progs->progs[slot]);
-        while(( rprg = (PROG_LIST *)iterator_nextdata(&it))) {
-            sprintf(arg, "[%2d] Trigger [%-8s] Program [%4ld] Phrase [%s]\n\r",
-                ++i, trigger_name(rprg->trig_type),
-                rprg->vnum,
-                trigger_phrase(rprg->trig_type,rprg->trig_phrase));
-            add_buf(output, arg);
-        }
-        iterator_stop(&it);
-    }
+        olc_show_progs_grouped(output, room->progs->progs, PRG_RPROG, NULL);
 
     if(room->progs->vars)
         pstat_variable_list(output, room->progs->vars);

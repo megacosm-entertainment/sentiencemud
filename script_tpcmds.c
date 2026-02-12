@@ -10,6 +10,7 @@
 #include "recycle.h"
 #include "wilds.h"
 #include "tables.h"
+#include "editors/common.h"
 #include "debug.h"
 
 // Commands used by token scripts
@@ -227,9 +228,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
     CHAR_DATA *victim = NULL;
     OBJ_DATA *object = NULL;
     ROOM_INDEX_DATA *room = NULL;
-    ITERATOR it;
-    PROG_LIST *tprg;
-    int i, slot, count;
+    int count;
     long vnum = 0;
     bool id_lookup = false;
     BUFFER *output = new_buf();
@@ -338,17 +337,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
     if (!token->pIndexData || !token->pIndexData->progs)
         add_buf(output, "[No programs set]\n\r");
     else
-    for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-        iterator_start(&it, token->pIndexData->progs[slot]);
-        while(( tprg = (PROG_LIST *)iterator_nextdata(&it))) {
-            sprintf(arg, "[%2d] Trigger [%-8s] Program [%4ld] Phrase [%s]\n\r",
-                ++i, trigger_name(tprg->trig_type),
-                tprg->vnum,
-                trigger_phrase(tprg->trig_type,tprg->trig_phrase));
-            add_buf(output, arg);
-        }
-        iterator_stop(&it);
-    }
+        olc_show_progs_grouped(output, token->pIndexData->progs, PRG_TPROG, NULL);
 
     if(token->progs->vars)
         pstat_variable_list(output, token->progs->vars);
