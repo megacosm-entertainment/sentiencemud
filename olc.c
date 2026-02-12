@@ -2756,8 +2756,8 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
         top_vnum_room = wnum_new.vnum;
 
     iHash                       = wnum_new.vnum % MAX_KEY_HASH;
-    new_room->next              = room_index_hash[iHash];
-    room_index_hash[iHash]      = new_room;
+    new_room->next              = area->room_index_hash[iHash];
+    area->room_index_hash[iHash] = new_room;
     ch->desc->pEdit             = (void *)new_room;
     ch->desc->editor		= ED_ROOM;
 
@@ -2862,8 +2862,8 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
         top_vnum_mob = wnum_new.vnum;
 
     iHash			= wnum_new.vnum % MAX_KEY_HASH;
-    new_mob->next		= mob_index_hash[iHash];
-    mob_index_hash[iHash]	= new_mob;
+    new_mob->next		= area->mob_index_hash[iHash];
+    area->mob_index_hash[iHash]	= new_mob;
     ch->desc->pEdit		= (void *)new_mob;
     ch->desc->editor		= ED_MOBILE;
 
@@ -2995,8 +2995,8 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
         top_vnum_obj = wnum_new.vnum;
 
     iHash			= wnum_new.vnum % MAX_KEY_HASH;
-    new_obj->next		= obj_index_hash[iHash];
-    obj_index_hash[iHash]	= new_obj;
+    new_obj->next		= area->obj_index_hash[iHash];
+    area->obj_index_hash[iHash]	= new_obj;
     ch->desc->editor		= ED_OBJECT;
     ch->desc->pEdit		= (void *)new_obj;
 

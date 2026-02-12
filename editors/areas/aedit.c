@@ -792,7 +792,7 @@ AEDIT(aedit_file)
     }
 
     free_string(pArea->file_name);
-    strcat(file, ".are");
+    strcat(file, ".json");
     pArea->file_name = str_dup(file);
 
     send_to_char("Filename set.\n\r", ch);
