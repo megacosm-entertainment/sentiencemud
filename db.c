@@ -738,102 +738,96 @@ void init_string_space()
 void fixup_area_reset_references(void)
 {
     AREA_DATA *area;
+    ITERATOR it;
+    ROOM_INDEX_DATA *room;
     int fixed = 0, failed = 0;
     
     for (area = area_first; area; area = area->next) {
-        int hash_index = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? 0 : area->min_vnum % MAX_KEY_HASH;
-        int hash_count = (area->max_vnum - area->min_vnum) >= MAX_KEY_HASH ? MAX_KEY_HASH : area->max_vnum - area->min_vnum + 1;
-        
-        for (int j = 0; j < hash_count; j++) {
-            for (ROOM_INDEX_DATA *room = area->room_index_hash[hash_index]; room; room = room->next) {
-                if (room->vnum && room->area == area) {
-                    for (RESET_DATA *reset = room->reset_first; reset; reset = reset->next) {
-                        // Convert arg1 WNUM_LOAD to WNUM for entity-referencing commands
-                        switch (reset->command) {
-                            case 'M': case 'O': case 'G': case 'E':
-                            {
-                                long auid = reset->arg1.load.auid;
-                                long vnum = reset->arg1.load.vnum;
-                                
-                                if (auid) {
-                                    AREA_DATA *found_area = get_area_index(auid);
-                                    if (found_area) {
-                                        reset->arg1.wnum.pArea = found_area;
-                                        reset->arg1.wnum.vnum = vnum;
-                                        fixed++;
-                                    } else {
-                                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
-                                            "fixup_area_reset_references: Could not resolve area UID %ld for reset '%c' in room %ld",
-                                            auid, reset->command, room->vnum);
-                                        reset->arg1.wnum.pArea = NULL; // Fall back to legacy behavior
-                                        reset->arg1.wnum.vnum = vnum;
-                                        failed++;
-                                    }
-                                } else {
-                                    // auid=0 means legacy (use current area)
-                                    reset->arg1.wnum.pArea = NULL;
-                                    reset->arg1.wnum.vnum = vnum;
-                                }
-                                break;
+        iterator_start(&it, area->room_list);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) != NULL) {
+            for (RESET_DATA *reset = room->reset_first; reset; reset = reset->next) {
+                // Convert arg1 WNUM_LOAD to WNUM for entity-referencing commands
+                switch (reset->command) {
+                    case 'M': case 'O': case 'G': case 'E':
+                    {
+                        long auid = reset->arg1.load.auid;
+                        long vnum = reset->arg1.load.vnum;
+                        
+                        if (auid) {
+                            AREA_DATA *found_area = get_area_index(auid);
+                            if (found_area) {
+                                reset->arg1.wnum.pArea = found_area;
+                                reset->arg1.wnum.vnum = vnum;
+                                fixed++;
+                            } else {
+                                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, 
+                                    "fixup_area_reset_references: Could not resolve area UID %ld for reset '%c' in room %ld",
+                                    auid, reset->command, room->vnum);
+                                reset->arg1.wnum.pArea = NULL;
+                                reset->arg1.wnum.vnum = vnum;
+                                failed++;
                             }
-                            
-                            case 'P':
-                            {
-                                // Convert arg1 (object)
-                                long auid1 = reset->arg1.load.auid;
-                                long vnum1 = reset->arg1.load.vnum;
-                                
-                                if (auid1) {
-                                    AREA_DATA *found_area = get_area_index(auid1);
-                                    if (found_area) {
-                                        reset->arg1.wnum.pArea = found_area;
-                                        reset->arg1.wnum.vnum = vnum1;
-                                        fixed++;
-                                    } else {
-                                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                                            "fixup_area_reset_references: Could not resolve object area UID %ld for reset 'P' in room %ld",
-                                            auid1, room->vnum);
-                                        reset->arg1.wnum.pArea = NULL;
-                                        reset->arg1.wnum.vnum = vnum1;
-                                        failed++;
-                                    }
-                                } else {
-                                    reset->arg1.wnum.pArea = NULL;
-                                    reset->arg1.wnum.vnum = vnum1;
-                                }
-                                
-                                // Convert arg3 (container)
-                                long auid3 = reset->arg3.load.auid;
-                                long vnum3 = reset->arg3.load.vnum;
-                                
-                                if (auid3) {
-                                    AREA_DATA *found_area = get_area_index(auid3);
-                                    if (found_area) {
-                                        reset->arg3.wnum.pArea = found_area;
-                                        reset->arg3.wnum.vnum = vnum3;
-                                        fixed++;
-                                    } else {
-                                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                                            "fixup_area_reset_references: Could not resolve container area UID %ld for reset 'P' in room %ld",
-                                            auid3, room->vnum);
-                                        reset->arg3.wnum.pArea = NULL;
-                                        reset->arg3.wnum.vnum = vnum3;
-                                        failed++;
-                                    }
-                                } else {
-                                    reset->arg3.wnum.pArea = NULL;
-                                    reset->arg3.wnum.vnum = vnum3;
-                                }
-                                break;
-                            }
+                        } else {
+                            // auid=0 means legacy (use current area)
+                            reset->arg1.wnum.pArea = NULL;
+                            reset->arg1.wnum.vnum = vnum;
                         }
+                        break;
+                    }
+                    
+                    case 'P':
+                    {
+                        // Convert arg1 (object)
+                        long auid1 = reset->arg1.load.auid;
+                        long vnum1 = reset->arg1.load.vnum;
+                        
+                        if (auid1) {
+                            AREA_DATA *found_area = get_area_index(auid1);
+                            if (found_area) {
+                                reset->arg1.wnum.pArea = found_area;
+                                reset->arg1.wnum.vnum = vnum1;
+                                fixed++;
+                            } else {
+                                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                    "fixup_area_reset_references: Could not resolve object area UID %ld for reset 'P' in room %ld",
+                                    auid1, room->vnum);
+                                reset->arg1.wnum.pArea = NULL;
+                                reset->arg1.wnum.vnum = vnum1;
+                                failed++;
+                            }
+                        } else {
+                            reset->arg1.wnum.pArea = NULL;
+                            reset->arg1.wnum.vnum = vnum1;
+                        }
+                        
+                        // Convert arg3 (container)
+                        long auid3 = reset->arg3.load.auid;
+                        long vnum3 = reset->arg3.load.vnum;
+                        
+                        if (auid3) {
+                            AREA_DATA *found_area = get_area_index(auid3);
+                            if (found_area) {
+                                reset->arg3.wnum.pArea = found_area;
+                                reset->arg3.wnum.vnum = vnum3;
+                                fixed++;
+                            } else {
+                                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                    "fixup_area_reset_references: Could not resolve container area UID %ld for reset 'P' in room %ld",
+                                    auid3, room->vnum);
+                                reset->arg3.wnum.pArea = NULL;
+                                reset->arg3.wnum.vnum = vnum3;
+                                failed++;
+                            }
+                        } else {
+                            reset->arg3.wnum.pArea = NULL;
+                            reset->arg3.wnum.vnum = vnum3;
+                        }
+                        break;
                     }
                 }
             }
-            
-            if (++hash_index == MAX_KEY_HASH)
-                hash_index = 0;
         }
+        iterator_stop(&it);
     }
     
     if (fixed > 0) {
