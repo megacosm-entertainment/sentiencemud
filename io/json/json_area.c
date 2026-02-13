@@ -3270,6 +3270,14 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         }
     }
     
+    // Portal destination: resolve bare vnum to area UID
+    if (obj->item_type == ITEM_PORTAL && obj->value[3] > 0
+    &&  obj->value[4] == 0 && !IS_SET(obj->value[2], GATE_DUNGEON)) {
+        AREA_DATA *dest_area = find_area_by_vnum(obj->value[3], area);
+        if (dest_area)
+            obj->value[4] = dest_area->uid;
+    }
+    
     // Numeric fields
     obj->level = json_get_int_default(json, "level", 0);
     obj->weight = json_get_int_default(json, "weight", 0);

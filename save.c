@@ -4695,6 +4695,14 @@ void fix_object(OBJ_DATA *obj)
         obj->version = VERSION_OBJECT_004;
     }
 
+    // Resolve bare portal destination vnums to area UIDs
+    if (obj->item_type == ITEM_PORTAL && obj->value[3] > 0
+    &&  obj->value[4] == 0 && !IS_SET(obj->value[2], GATE_DUNGEON)) {
+        AREA_DATA *dest_area = find_area_by_vnum(obj->value[3],
+            obj->pIndexData ? obj->pIndexData->area : NULL);
+        if (dest_area)
+            obj->value[4] = dest_area->uid;
+    }
 
     // Just update it
     obj->version = VERSION_OBJECT;
