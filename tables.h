@@ -216,6 +216,8 @@ extern	const	struct	church_band_rank_type	church_band_rank_table[];
 extern	const	struct	church_cult_rank_type	church_cult_rank_table[];
 extern	const	struct	church_order_rank_type	church_order_rank_table[];
 extern	const	struct	church_church_rank_type	church_church_rank_table[];
+/* DEPRECATED: Use class_exp_per_level() from class_data.h instead.
+ * This table is retained only for legacy compatibility during migration. */
 extern  const   struct  exp_table	exp_per_level_table[];
 extern	const	struct	position_type	position_table[];
 extern	const	struct	sex_type	sex_table[];

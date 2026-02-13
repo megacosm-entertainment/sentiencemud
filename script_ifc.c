@@ -3973,7 +3973,7 @@ DECL_IFC_FUN(ifc_xp)
 
 DECL_IFC_FUN(ifc_maxxp)
 {
-    *ret = ISARG_MOB(0) ? (IS_NPC(ARG_MOB(0)) ? ARG_MOB(0)->maxexp : exp_per_level(ARG_MOB(0),ARG_MOB(0)->pcdata->points)) : 0;
+    *ret = ISARG_MOB(0) ? (IS_NPC(ARG_MOB(0)) ? ARG_MOB(0)->maxexp : exp_per_level(ARG_MOB(0), NULL, ARG_MOB(0)->pcdata->points)) : 0;
     return true;
 }
 

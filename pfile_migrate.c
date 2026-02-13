@@ -637,7 +637,7 @@ void do_migrate(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (get_trust(ch) < MAX_LEVEL) {
+    if (!IS_IMPLEMENTOR(ch)) {
         send_to_char("Only implementors can use this command.\n\r", ch);
         return;
     }

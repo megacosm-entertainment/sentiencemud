@@ -14,6 +14,7 @@
 
 //#define DEBUG_MODULE
 #include "debug.h"
+#include "skill_data.h"
 
 void reset_reckoning();
 
@@ -601,6 +602,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
     af.group	= group;
     af.where     = where;
     af.type      = skill;
+    af.skill = skill_from_sn(af.type);
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -969,6 +971,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
         af.where = TO_AFFECTS;
         af.group     = AFFGROUP_BIOLOGICAL;
         af.type  = gsn_toxins;
+    af.skill = skill_from_sn(af.type);
         af.level = victim->bitten_level;
         af.duration = duration;
         af.location = APPLY_STR;
@@ -1249,7 +1252,7 @@ SCRIPT_CMD(scriptcmd_award)
             field_name = "quest points";
 
         } else if( !str_prefix(field, "experience") || !str_cmp(field, "xp") ) {
-            gain_exp(victim, amount, true);
+            gain_exp(victim, NULL, amount, true);
             field_name = "experience";
 
         } else
@@ -1317,7 +1320,7 @@ SCRIPT_CMD(scriptcmd_breathe)
     if(!attacker)
         return;
 
-    (*breath_fun[i]) (*breath_gsn[i] , attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE);
+    (*breath_fun[i])(skill_from_sn(*breath_gsn[i]), attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     info->progs->lastreturn = 1;
 }

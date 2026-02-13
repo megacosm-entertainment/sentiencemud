@@ -14,6 +14,7 @@
 #include "interp.h"
 #include "tables.h"
 #include "traits.h"
+#include "skill_data.h"
 
 
 void do_smite(CHAR_DATA *ch, char *argument)
@@ -468,6 +469,7 @@ if (ch->lworn) {
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_METARACIAL;
     af.type      = gsn_sanctuary;
+    af.skill = skill_from_sn(af.type);
     af.level     = ch->tot_level * 2;
     af.duration = -1;
     af.location  = APPLY_AC;
@@ -479,6 +481,7 @@ if (ch->lworn) {
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_METARACIAL;
     af.type      = gsn_infravision;
+    af.skill = skill_from_sn(af.type);
     af.level     = ch->tot_level * 2;
     af.duration = -1;
     af.location  = APPLY_NONE;
@@ -490,6 +493,7 @@ if (ch->lworn) {
     af.where     = TO_AFFECTS;
     af.group	 = AFFGROUP_METARACIAL;
     af.type      = gsn_haste;
+    af.skill = skill_from_sn(af.type);
     af.level     = ch->tot_level * 2;
     af.duration = -1;
     af.location  = APPLY_DEX;
@@ -502,6 +506,7 @@ if (ch->lworn) {
         af.where = TO_AFFECTS;
     af.group = AFFGROUP_METARACIAL;
     af.type = gsn_regeneration;
+    af.skill = skill_from_sn(af.type);
     af.level = ch->tot_level;
     af.duration = -1;
     af.location  = APPLY_NONE;
@@ -512,6 +517,7 @@ if (ch->lworn) {
 
     af.where       = TO_AFFECTS;
     af.type	 = gsn_shift;
+    af.skill = skill_from_sn(af.type);
     af.level  = ch->tot_level;
     af.duration = -1;
     af.bitvector = 0;

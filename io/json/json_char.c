@@ -24,6 +24,11 @@
 #include "../../account/preferences.h"
 #include "../cache/redis_cache.h"
 #include "../../wilds.h"
+#include "../../skill_data.h"
+#include "../../traits.h"
+#include "../../class_data.h"
+#include "../../skill_group.h"
+#include "../../song_data.h"
 
 /***************************************************************************
  * External Flag Tables                                                    *
@@ -706,14 +711,18 @@ static json_t *skills_to_json(CHAR_DATA *ch)
         if (sn <= 0 || sn >= MAX_SKILL || !skill_table[sn].name)
             continue;
 
+        // Sync entry rating from learned[] to capture any runtime changes
+        entry->rating = ch->pcdata->learned[sn];
+        entry->mod_rating = ch->pcdata->mod_learned[sn];
+
         json_t *skill_data = json_object();
 
-        if (ch->pcdata->learned[sn] > 0) {
-            json_object_set_new(skill_data, "learned", json_integer(ch->pcdata->learned[sn]));
+        if (entry->rating > 0) {
+            json_object_set_new(skill_data, "learned", json_integer(entry->rating));
         }
 
-        if (ch->pcdata->mod_learned[sn] != 0) {
-            json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
+        if (entry->mod_rating != 0) {
+            json_object_set_new(skill_data, "mod_learned", json_integer(entry->mod_rating));
         }
 
         // Save source if non-default
@@ -849,13 +858,30 @@ static json_t *groups_to_json(CHAR_DATA *ch)
 
     groups = json_array();
 
-    // Save learned skill groups with human-readable names
-    for (gn = 0; gn < MAX_GROUP; gn++) {
-        if (ch->pcdata->group_known[gn] && group_table[gn].name) {
-            json_t *group_data = json_object();
-            json_object_set_new(group_data, "id", json_integer(gn));
-            json_object_set_new(group_data, "name", json_string(group_table[gn].name));
-            json_array_append_new(groups, group_data);
+    // Save known skill groups from the new LLIST if populated, otherwise fall
+    // back to the legacy bool array so existing characters still serialize.
+    if (ch->pcdata->known_groups && list_size(ch->pcdata->known_groups) > 0) {
+        ITERATOR sg_it;
+        SKILL_GROUP *sg;
+        iterator_start(&sg_it, ch->pcdata->known_groups);
+        while ((sg = (SKILL_GROUP *)iterator_nextdata(&sg_it))) {
+            if (sg->name) {
+                json_t *group_data = json_object();
+                int gn = group_lookup(sg->name);
+                json_object_set_new(group_data, "id", json_integer(gn >= 0 ? gn : -1));
+                json_object_set_new(group_data, "name", json_string(sg->name));
+                json_array_append_new(groups, group_data);
+            }
+        }
+        iterator_stop(&sg_it);
+    } else {
+        for (gn = 0; gn < MAX_GROUP; gn++) {
+            if (ch->pcdata->group_known[gn] && group_table[gn].name) {
+                json_t *group_data = json_object();
+                json_object_set_new(group_data, "id", json_integer(gn));
+                json_object_set_new(group_data, "name", json_string(group_table[gn].name));
+                json_array_append_new(groups, group_data);
+            }
         }
     }
 
@@ -1696,8 +1722,11 @@ json_t *char_to_json(CHAR_DATA *ch)
     if (ch->pcdata) {
         json_t *songs = json_array();
         for (int sn = 0; sn < MAX_SONGS; sn++) {
-            if (ch->pcdata->songs_learned[sn] && music_table[sn].name) {
-                json_array_append_new(songs, json_string(music_table[sn].name));
+            if (ch->pcdata->songs_learned[sn]) {
+                SONG_DATA *sd = song_lookup_uid(sn);
+                if (sd) {
+                    json_array_append_new(songs, json_string(sd->name));
+                }
             }
         }
         if (json_array_size(songs) > 0) {
@@ -1734,6 +1763,44 @@ json_t *char_to_json(CHAR_DATA *ch)
         }
         iterator_stop(&uait);
         json_object_set_new(root, "unlocked_areas", unlocked);
+    }
+
+    // Personal trait overrides (only saves explicitly set traits)
+    if (ch->pcdata) {
+        json_t *traits = (json_t *)char_save_traits_json(ch);
+        if (traits)
+            json_object_set_new(root, "traits", traits);
+    }
+
+    // New class system class levels
+    if (ch->pcdata && ch->pcdata->classes && list_size(ch->pcdata->classes) > 0) {
+        json_t *class_levels = json_array();
+        ITERATOR clit;
+        CLASS_LEVEL *cl;
+        iterator_start(&clit, ch->pcdata->classes);
+        while ((cl = (CLASS_LEVEL *)iterator_nextdata(&clit))) {
+            if (cl->clazz) {
+                json_t *entry = json_object();
+                json_object_set_new(entry, "uid", json_integer(cl->clazz->uid));
+                json_object_set_new(entry, "name", json_string(cl->clazz->name));
+                json_object_set_new(entry, "level", json_integer(cl->level));
+                json_object_set_new(entry, "xp", json_integer(cl->xp));
+                if (cl->active_title)
+                    json_object_set_new(entry, "active_title", json_string(cl->active_title));
+                if (cl->custom_data)
+                    json_object_set_new(entry, "custom_data", json_deep_copy(cl->custom_data));
+                // Mark current class
+                if (ch->pcdata->current_class == cl)
+                    json_object_set_new(entry, "current", json_true());
+                json_array_append_new(class_levels, entry);
+            }
+        }
+        iterator_stop(&clit);
+        json_object_set_new(root, "class_levels", class_levels);
+
+        if (ch->pcdata->pending_free_levels > 0)
+            json_object_set_new(root, "pending_free_levels",
+                                json_integer(ch->pcdata->pending_free_levels));
     }
 
     return root;
@@ -3531,6 +3598,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     if (skills && json_is_object(skills)) {
         const char *skill_key;
         json_t *skill_value;
+        SKILL_ENTRY *entry;
         json_object_foreach(skills, skill_key, skill_value) {
             int sn;
 
@@ -3581,6 +3649,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
                 skill_entry_addspell(ch, sn, NULL, source, flags);
+
+            // Populate entry rating fields from loaded learned[] data
+            entry = skill_entry_findsn(ch->sorted_skills, sn);
+            if (entry) {
+                entry->rating = ch->pcdata->learned[sn];
+                entry->mod_rating = ch->pcdata->mod_learned[sn];
+            }
         }
     }
 
@@ -3588,9 +3663,25 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     json_t *skill_groups = json_object_get(root, "skill_groups");
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
-            int gn = json_integer_value(json_object_get(array_elem, "id"));
+            /* Try name-based resolution first, fall back to integer id */
+            const char *gname = json_string_value(json_object_get(array_elem, "name"));
+            int gn = -1;
+
+            if (gname && gname[0])
+                gn = group_lookup(gname);
+
+            if (gn < 0)
+                gn = json_integer_value(json_object_get(array_elem, "id"));
+
             if (gn >= 0 && gn < MAX_GROUP) {
                 ch->pcdata->group_known[gn] = true;
+
+                /* Also populate known_groups LLIST */
+                if (group_table[gn].name) {
+                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
+                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                        list_appendlink(ch->pcdata->known_groups, sg);
+                }
             }
         }
     }
@@ -3608,6 +3699,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
             paf->where = json_integer_value(json_object_get(array_elem, "where"));
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
+            paf->skill = skill_from_sn(paf->type);
             paf->level = json_integer_value(json_object_get(array_elem, "level"));
             paf->duration = json_integer_value(json_object_get(array_elem, "duration"));
             paf->location = json_integer_value(json_object_get(array_elem, "location"));
@@ -3716,9 +3808,9 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         json_array_foreach(songs_array, index, array_elem) {
             str = json_string_value(array_elem);
             if (str) {
-                int song = music_lookup((char *)str);
-                if (song >= 0 && song < MAX_SONGS) {
-                    ch->pcdata->songs_learned[song] = true;
+                SONG_DATA *song = song_lookup((char *)str);
+                if (song) {
+                    ch->pcdata->songs_learned[song->uid] = true;
                     skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
                 } else {
                     log_stringf("json_read_char: unknown song '%s' for %s", str, ch->name);
@@ -3755,6 +3847,67 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     }
 
     } // End if (load_heavy) - close the block that started at skills section
+
+    // Load personal trait overrides (lightweight, always loaded)
+    if (ch->pcdata) {
+        json_t *traits = json_object_get(root, "traits");
+        if (traits && json_is_object(traits)) {
+            char_init_traits(ch);
+            char_load_traits_json(ch, (void *)traits);
+        }
+    }
+
+    // Load new class system class levels (lightweight, always loaded)
+    if (ch->pcdata) {
+        json_t *class_levels_arr = json_object_get(root, "class_levels");
+        if (class_levels_arr && json_is_array(class_levels_arr)) {
+            json_array_foreach(class_levels_arr, index, array_elem) {
+                if (!json_is_object(array_elem))
+                    continue;
+
+                /* Look up class by UID first, then by name as fallback */
+                CLASS_DATA *clazz = NULL;
+                value = json_object_get(array_elem, "uid");
+                if (value)
+                    clazz = class_find_uid((int16_t)json_integer_value(value));
+                if (!clazz) {
+                    str = json_string_value(json_object_get(array_elem, "name"));
+                    if (str)
+                        clazz = class_find_exact(str);
+                }
+                if (!clazz)
+                    continue;
+
+                int level = json_integer_value(json_object_get(array_elem, "level"));
+                add_class_level(ch, clazz, level);
+
+                /* Retrieve the just-added class level entry for extra data */
+                CLASS_LEVEL *cl = get_class_level(ch, clazz);
+                if (cl) {
+                    value = json_object_get(array_elem, "xp");
+                    if (value) cl->xp = json_integer_value(value);
+
+                    str = json_string_value(json_object_get(array_elem, "active_title"));
+                    if (str && str[0])
+                        cl->active_title = str_dup(str);
+
+                    json_t *custom = json_object_get(array_elem, "custom_data");
+                    if (custom && json_is_object(custom))
+                        cl->custom_data = json_deep_copy(custom);
+
+                    /* Mark as current class if flagged */
+                    value = json_object_get(array_elem, "current");
+                    if (value && json_is_true(value))
+                        ch->pcdata->current_class = cl;
+                }
+            }
+        }
+
+        /* Load pending free levels (overflow from class max_level changes) */
+        value = json_object_get(root, "pending_free_levels");
+        if (value)
+            ch->pcdata->pending_free_levels = json_integer_value(value);
+    }
 
     // Mark load state
     if (ch->pcdata) {
@@ -3887,6 +4040,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     if (skills && json_is_object(skills)) {
         const char *skill_key;
         json_t *skill_value;
+        SKILL_ENTRY *entry;
         json_object_foreach(skills, skill_key, skill_value) {
             int sn;
 
@@ -3930,6 +4084,13 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
                 skill_entry_addspell(ch, sn, NULL, source, flags);
+
+            // Populate entry rating fields from loaded learned[] data
+            entry = skill_entry_findsn(ch->sorted_skills, sn);
+            if (entry) {
+                entry->rating = ch->pcdata->learned[sn];
+                entry->mod_rating = ch->pcdata->mod_learned[sn];
+            }
         }
     }
 
@@ -3937,9 +4098,25 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     json_t *skill_groups = json_object_get(root, "skill_groups");
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
-            int gn = json_integer_value(json_object_get(array_elem, "id"));
+            /* Try name-based resolution first, fall back to integer id */
+            const char *gname = json_string_value(json_object_get(array_elem, "name"));
+            int gn = -1;
+
+            if (gname && gname[0])
+                gn = group_lookup(gname);
+
+            if (gn < 0)
+                gn = json_integer_value(json_object_get(array_elem, "id"));
+
             if (gn >= 0 && gn < MAX_GROUP) {
                 ch->pcdata->group_known[gn] = true;
+
+                /* Also populate known_groups LLIST */
+                if (group_table[gn].name) {
+                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
+                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                        list_appendlink(ch->pcdata->known_groups, sg);
+                }
             }
         }
     }
@@ -3957,6 +4134,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
 
             paf->where = json_integer_value(json_object_get(array_elem, "where"));
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
+            paf->skill = skill_from_sn(paf->type);
             paf->level = json_integer_value(json_object_get(array_elem, "level"));
             paf->duration = json_integer_value(json_object_get(array_elem, "duration"));
             paf->location = json_integer_value(json_object_get(array_elem, "location"));
@@ -4067,9 +4245,9 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
         json_array_foreach(songs_array, index, array_elem) {
             str = json_string_value(array_elem);
             if (str) {
-                int song = music_lookup((char *)str);
-                if (song >= 0 && song < MAX_SONGS) {
-                    ch->pcdata->songs_learned[song] = true;
+                SONG_DATA *song = song_lookup((char *)str);
+                if (song) {
+                    ch->pcdata->songs_learned[song->uid] = true;
                     skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
                 } else {
                     log_stringf("json_read_char_remaining: unknown song '%s' for %s", str, ch->name);

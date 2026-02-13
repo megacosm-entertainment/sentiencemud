@@ -96,7 +96,7 @@ typedef struct wnum_load_data {
 #define DECLARE_SPELL_FUN( fun )	SPELL_FUN fun
 #define DECLARE_OBJ_FUN( fun )		OBJ_FUN	  fun
 #define DECLARE_ROOM_FUN( fun )		ROOM_FUN  fun
-#define SPELL_FUNC(s)	bool s (int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
+#define SPELL_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc, int invocation)
 #define IS_EMAIL_VERIFIED(obj) \
     (!game_settings.require_email_verif || (obj)->email_verified)
 typedef unsigned long flag_t;
@@ -273,6 +273,12 @@ struct script_type {
 #define VERSION_PLAYER_010 0x01000009
 // Migrate legacy bitfield/flag state into the preferences system.
 
+#define VERSION_PLAYER_011 0x0100000A
+// Migrate learned[]/mod_learned[] into SKILL_ENTRY.rating/mod_rating.
+
+#define VERSION_PLAYER_012 0x0100000B
+// Migrate legacy class fields to CLASS_LEVEL entries.
+
 #define VERSION_MOBILE_001    0x01000001
 
 #define VERSION_OBJECT_001	0x01000000
@@ -299,7 +305,7 @@ struct script_type {
 #define VERSION_MOBILE		VERSION_MOBILE_001
 #define VERSION_OBJECT		VERSION_OBJECT_004
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_010
+#define VERSION_PLAYER		VERSION_PLAYER_012
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -341,6 +347,9 @@ struct script_type {
 #define AES_IV_SIZE 16   // 128 bits
 #define CRYPTO_SALT_SIZE 16
 
+/* Forward declaration for Jansson JSON type (used by CLASS_LEVEL.custom_data) */
+struct json_t;
+
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
 typedef struct	area_data		AREA_DATA;
@@ -352,6 +361,14 @@ typedef struct	char_data		CHAR_DATA;
 typedef struct  event_data		EVENT_DATA;
 typedef struct	race_data		RACE_DATA;
 typedef struct	invasion_quest		INVASION_QUEST;
+typedef struct	skill_data		SKILL_DATA;
+typedef struct	skill_class_level	SKILL_CLASS_LEVEL;
+typedef struct	class_data		CLASS_DATA;
+typedef struct	class_level		CLASS_LEVEL;
+typedef struct	class_reward		CLASS_REWARD;
+typedef struct	class_title		CLASS_TITLE;
+typedef struct	skill_group_data	SKILL_GROUP;
+typedef struct	song_data		SONG_DATA;
 typedef struct	chat_room_data		CHAT_ROOM_DATA;
 typedef struct	descriptor_data		DESCRIPTOR_DATA;
 typedef struct	exit_data		EXIT_DATA;
@@ -376,6 +393,8 @@ typedef struct  penalty_data    PENALTY_DATA;
 typedef struct  bonus_data      BONUS_DATA;
 typedef struct  pref_entry      PREF_ENTRY;
 typedef struct	questor_data	QUESTOR_DATA;
+typedef struct	trainer_data	TRAINER_DATA;
+typedef struct	trainer_entry	TRAINER_ENTRY;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	reset_data		RESET_DATA;
@@ -506,7 +525,9 @@ struct special_key_data
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
 typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 typedef bool SPEC_FUN	(CHAR_DATA *ch);
-typedef bool SPELL_FUN	(int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
+typedef bool SPELL_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc, int invocation);
+typedef void CLASS_ENTER_FUN(CHAR_DATA *ch);
+typedef void CLASS_LEAVE_FUN(CHAR_DATA *ch);
 typedef void OBJ_FUN	(OBJ_DATA *obj, char *argument);
 typedef void ROOM_FUN	(ROOM_INDEX_DATA *room, char *argument);
 typedef bool CHAR_TEST	(CHAR_DATA *ch, CHAR_DATA *ach, CHAR_DATA *bch);	/* NIB : 20070122 : For act_new( ) */
@@ -563,9 +584,14 @@ typedef struct skill_entry_type {
     bool practice;		// Can this be practiced/trained?
     bool improve;		// Can this improve through use?
     bool isspell;		// Whether this is a spell;
-    int16_t sn;			// Skill Number
-    int16_t song;		// Song Number
+    SKILL_DATA *skill_data;	// Pointer to master skill definition (NULL during migration)
+    int16_t sn;			// Skill Number (legacy, remove in Phase 9)
+    SONG_DATA *song;		// Song data pointer (NULL if not a song entry)
     TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
+    int rating;			// Skill percentage (0-100+), replaces learned[sn]
+    int mod_rating;		// Rating modifier, replaces mod_learned[sn]
+    int16_t cross_class_scope;  // REWARD_SCOPE_* — how this skill is shared across classes
+    CLASS_DATA *source_class;   // Class that granted this skill (NULL = not class-granted)
 } SKILL_ENTRY;
 
 typedef struct script_switch_case_data SCRIPT_SWITCH_CASE;
@@ -963,8 +989,14 @@ struct olc_point_area_data {
  * Game parameters. We should look at moving most of this into game settings.
  */
 #define AUCTION_LENGTH          5
+
+/* LEVEL_HERO and LEVEL_IMMORTAL: legacy constants.
+ * Do NOT use for player authority checks — use IS_IMMORTAL() or IS_STAFF().
+ * These remain only for NPC level comparisons and object level caps.
+ * In a multi-class world, player tot_level can exceed these values. */
 #define LEVEL_HERO		120
 #define LEVEL_IMMORTAL		150
+
 #define LEVEL_NEWBIE		10
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
@@ -2401,7 +2433,8 @@ struct	affect_data
     bool		valid;
     int16_t		group;
     int16_t		where;
-    int16_t		type;
+    SKILL_DATA *	skill;		/* Pointer to skill (NULL for custom-named/catalyst) */
+    int16_t		type;		/* Legacy: skill number for compat; remove in Phase 9 */
     int16_t		level;
     int16_t		duration;
     int16_t		location;
@@ -4061,6 +4094,7 @@ struct	mob_index_data
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
     QUESTOR_DATA *	pQuestor;
+    TRAINER_DATA *	pTrainer;
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
@@ -4203,6 +4237,32 @@ struct questor_data
 #define QUESTOR_MOB		0
 #define QUESTOR_OBJ		1
 #define QUESTOR_ROOM	2
+
+/*
+ * Trainer data — per-mob customizable skill/spell/song training
+ *
+ * Each entry specifies a skill the mob can train, with optional
+ * max rating cap and script-based access gating.
+ */
+struct trainer_entry
+{
+    TRAINER_ENTRY *next;
+    bool valid;
+    char *skill_name;           /* Name of skill/spell/song */
+    int max_rating;             /* Maximum rating this trainer can train to (0 = default cap) */
+    int cost_gold;              /* Gold cost per session (0 = default) */
+    int cost_trains;            /* Train point cost per session (0 = default) */
+    char *check_script;         /* Script to check eligibility (NULL = always available) */
+};
+
+struct trainer_data
+{
+    TRAINER_DATA *next;
+    bool valid;
+    TRAINER_ENTRY *entries;     /* Linked list of trainable skills */
+    int flags;                  /* Reserved for future use */
+    char *greeting;             /* Custom greeting message (NULL = default) */
+};
 
 /* For randomly generated quests */
 struct quest_data
@@ -4412,8 +4472,8 @@ struct cmd_data
 
     long     type;           // Command type
     long        addl_types;     // Additional command types, for use as arguments to the 'commands' command.
-    int16_t     level;          // Minimum level to use command. (Deprecated)
-    int16_t     rank;           // Minimum position to use command.
+    int16_t     level;          // (Deprecated) Was minimum level; use 'rank' instead. Retained for struct compat only.
+    int16_t     rank;           // Minimum staff rank to use command (STAFF_PLAYER..STAFF_IMPLEMENTOR).
     int16_t     position;       // Minimum position to use command.
     int16_t     log;            // Command log level.
     bool        enabled;        // Is the command enabled?
@@ -4667,9 +4727,8 @@ struct	char_data
     OBJ_DATA		*recite_scroll;
     OBJ_DATA 		*resurrect_target;
     char			*music_target;
-    int				song_num;
+    SONG_DATA		*song;
     SCRIPT_DATA		*song_script;		/* The scripted spell to be done */
-    TOKEN_DATA		*sont_token;		/* The token from which the script call is made */
     int				song_mana;
     OBJ_DATA		*song_instrument;
 
@@ -5200,7 +5259,11 @@ struct	pc_data
     char *      pronoun_himself_herself; // e.g., "themself", "zirself", "himself"
     verb_form_preference_t verb_preference;
 
+    /* New class system — data-driven multi-classing */
+    LLIST *             classes;            /* LLIST of CLASS_LEVEL */
+    CLASS_LEVEL *       current_class;      /* Active class (points into classes list) */
 
+    /* Legacy class fields — kept during migration, removed in Phase 9 */
     int			class_current;
     int			sub_class_current;
     int			class_mage;
@@ -5227,9 +5290,12 @@ struct	pc_data
     int			last_level;
     int			condition	[5];
     bool		songs_learned[MAX_SONGS];
+    bool		songs_unlocked[MAX_SONGS];    /* Transient: songs unlocked for rehearsal by class rewards */
     int			learned		[MAX_SKILL];
     int			mod_learned	[MAX_SKILL];
-    bool		group_known	[MAX_GROUP];
+    bool		group_known	[MAX_GROUP];  /* Legacy — kept during migration (Phase 9 removal) */
+    LLIST *		known_groups;		      /* LLIST of SKILL_GROUP * — replaces group_known[] */
+    int			pending_free_levels;          /* Overflow levels awaiting account transfer */
     long		points;
     bool              	confirm_delete;
     char *		alias[MAX_ALIAS];
@@ -5282,6 +5348,9 @@ struct	pc_data
     char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
     bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
     PREF_ENTRY *preferences;                  // Character preference overrides
+
+    /* Personal trait overrides (indexed array, allocated by char_init_traits) */
+    struct trait_value * trait_values;
 };
 
 
@@ -7050,6 +7119,221 @@ struct	skill_type
 };
 
 /*
+ * SKILL_DATA — New data-driven skill definition.
+ *
+ * Replaces entries in the legacy skill_table[] array. Skills are loaded
+ * from individual JSON files in data/skills/ and accessed via hash table
+ * lookups (skill_find/skill_search) instead of gsn_* global indices.
+ *
+ * During the migration period, SKILL_DATA coexists with skill_table[].
+ * The bootstrap process assigns uid values matching the original skill_table
+ * array indices, so existing saved data (which uses sn) continues to work.
+ */
+#define MAX_SKILL_VALUES        8
+
+struct skill_data
+{
+    SKILL_DATA *        next;               /* Hash chain / global list link */
+    bool                valid;
+
+    /* Identity */
+    int16_t             uid;                /* Stable unique ID (matches legacy sn after bootstrap) */
+    bool                isspell;            /* true = spell, false = skill */
+    char *              name;               /* Canonical name (primary lookup key) */
+    char *              display;            /* Display name (if different from internal name) */
+    char *              help_keyword;       /* Help system keyword */
+    char *              summary;            /* One-line summary for hints/MXP */
+
+    long                flags;              /* SKILLFLAG_* bitfield */
+
+    /* Class availability (new system — dynamic list) */
+    LLIST *             class_levels;       /* LLIST of SKILL_CLASS_LEVEL */
+    int16_t             default_level;      /* Fallback level when class_levels is empty */
+    int16_t             difficulty;          /* Base difficulty rating */
+
+    /* Legacy class availability (for migration, kept until Phase 9) */
+    int16_t             skill_level[MAX_CLASS]; /* Level needed by class (4 classes) */
+    int16_t             rating[MAX_CLASS];      /* How hard it is to learn (4 classes) */
+
+    /* Invocation */
+    SPELL_FUN *         spell_fun;          /* Spell function (NULL for non-spell skills) */
+    char *              spell_fun_name;     /* Function name string (for serialization) */
+    int16_t             target;             /* TAR_* target type */
+    int16_t             minimum_position;   /* Minimum position to use */
+    int16_t             min_mana;           /* Mana cost */
+    int16_t             beats;              /* Lag after use (in pulses) */
+
+    /* Racial restriction */
+    RACE_DATA *         race;               /* NULL = any race; otherwise racial-only */
+    char *              race_name;          /* Race name string (for serialization) */
+
+    /* Messages */
+    char *              noun_damage;        /* Damage noun ("acid blast") */
+    char *              msg_off;            /* Wear-off message */
+    char *              msg_obj;            /* Object wear-off message */
+    char *              msg_disp;           /* Display message */
+
+    /* Crafting / ink */
+    int                 inks[3][2];
+
+    /* Token coupling (for token-driven spells) */
+    TOKEN_INDEX_DATA *  token_index;        /* Associated token template */
+    WNUM_LOAD           token_wnum;         /* Widevnum for deferred token resolution */
+
+    /* Legacy compatibility (kept during migration) */
+    int16_t *           pgsn;               /* Pointer to associated gsn_ global (NULL in new skills) */
+
+    /* Generic values for extensibility */
+    int                 values[MAX_SKILL_VALUES];
+    char *              value_names[MAX_SKILL_VALUES];
+};
+
+/*
+ * SKILL_CLASS_LEVEL — Per-class skill availability entry.
+ *
+ * Each SKILL_DATA has an LLIST of these, defining at what level
+ * each class can learn the skill and how difficult it is for them.
+ */
+struct skill_class_level
+{
+    char *              class_name;         /* Class name (string reference) */
+    CLASS_DATA *        clazz;              /* Resolved CLASS_DATA pointer (NULL until boot resolves) */
+    int16_t             level;              /* Level at which this class gets the skill */
+    int16_t             rating;             /* Difficulty rating for this class */
+};
+
+/*
+ * CLASS_REWARD — Level-based reward/unlock for a class.
+ *
+ * Defines what a class grants at each level: skills, skill groups, titles,
+ * stat bonuses, tokens, scripts, or custom data. Stored as an LLIST on
+ * CLASS_DATA, sorted by level. The reward type determines how the name,
+ * value, and data fields are interpreted.
+ *
+ * During boot, REWARD_SKILL and REWARD_GROUP rewards are resolved into
+ * SKILL_CLASS_LEVEL entries so existing skill-lookup code continues to work.
+ */
+/*
+ * CLASS_TITLE — A selectable title for a class.
+ *
+ * Each class has a list of titles. One title is the default (available to
+ * all characters in the class). Other titles are unlocked via REWARD_TITLE
+ * rewards at specific levels.
+ */
+struct class_title
+{
+    CLASS_TITLE *       next;
+    bool                valid;
+
+    char *              keyword;            /* Internal name for lookups ("default", "master") */
+    char *              display;            /* Full display name ("Archmage", "Sorceress") */
+    char *              who_name;           /* Short 'who' list name ("  Archmage  ") */
+    bool                is_default;         /* If true, available without unlocking */
+};
+
+struct class_reward
+{
+    CLASS_REWARD *      next;
+    bool                valid;
+
+    int16_t             level;              /* Level at which this reward is granted */
+    int16_t             type;               /* REWARD_* constant */
+    int16_t             scope;              /* REWARD_SCOPE_* cross-class availability */
+    char *              name;               /* Type-dependent: skill/group/script name, stat, etc. */
+    int                 value;              /* Type-dependent: skill rating, bonus amount, etc. */
+    long                flags;              /* REWARD_* flag bitfield */
+
+    /* Extended data for complex reward types (titles, token wnums, script args) */
+    struct json_t *     data;               /* Optional JSON object, NULL if unused */
+};
+
+/*
+ * CLASS_DATA — New data-driven class definition.
+ *
+ * Replaces entries in the legacy class_table[] and sub_class_table[] arrays.
+ * Classes are loaded from individual JSON files in data/classes/ and accessed
+ * via hash table lookups (class_find/class_find_exact) instead of array indices.
+ *
+ * During the migration period, CLASS_DATA coexists with class_table[] and
+ * sub_class_table[]. The bootstrap process creates CLASS_DATA entries from
+ * sub_class_table on first run.
+ */
+struct class_data
+{
+    CLASS_DATA *        next;               /* Hash chain / global list link */
+    bool                valid;
+
+    /* Identity */
+    int16_t             uid;                /* Stable unique ID */
+    char *              name;               /* Canonical name (primary lookup key) */
+    char *              description;        /* Long description */
+
+    /* (Deprecated) Body-type-aware display names — use titles list instead */
+    char *              display[BODY_TYPE_MAX]; /* Legacy: full display name per body type */
+    char *              who[BODY_TYPE_MAX];     /* Legacy: short name for 'who' list per body type */
+
+    /* Selectable titles for this class */
+    LLIST *             titles;             /* LLIST of CLASS_TITLE (one must be is_default) */
+
+    /* Classification */
+    int16_t             type;               /* CLASS_TYPE_* category */
+    long                flags;              /* CLASS_* bitfield (COMBATIVE, NO_LEVEL, etc.) */
+
+    /* Skills/Groups */
+    LLIST *             groups;             /* Skill groups granted by this class */
+
+    /* Reward/unlock progression */
+    LLIST *             rewards;            /* LLIST of CLASS_REWARD, sorted by level */
+
+    /* Progression */
+    int16_t             primary_stat;       /* Primary attribute (STAT_STR, etc.) */
+    int16_t             max_level;          /* Maximum level achievable in this class */
+    int                 hp_min;             /* Min HP gain per level */
+    int                 hp_max;             /* Max HP gain per level */
+    bool                gains_mana;         /* Whether class gains mana on level */
+    long                weapon;             /* Starting weapon vnum */
+
+    /* Per-class XP curve (NULL = use global default curve) */
+    long *              xp_table;           /* Array of XP-per-level, indexed 0..max_level-1 */
+    int                 xp_table_size;      /* Number of entries in xp_table */
+
+    /* Lifecycle callbacks */
+    CLASS_ENTER_FUN *   enter;              /* Called when player switches TO this class */
+    CLASS_LEAVE_FUN *   leave;              /* Called when player switches FROM this class */
+    char *              enter_fun_name;     /* Function name string (for serialization) */
+    char *              leave_fun_name;     /* Function name string (for serialization) */
+
+    /* Trait values (indexed array, allocated by class_init_traits) */
+    struct trait_value * trait_values;
+
+    /* Global cached pointer (replaces gcl_* globals from src_20_dev) */
+    CLASS_DATA **       gcl;                /* Pointer-to-pointer for fast lookup caching */
+};
+
+/*
+ * CLASS_LEVEL — Per-character class level entry.
+ *
+ * Each PC has an LLIST of these on pcdata->classes, tracking their
+ * level and XP in each class they have joined. The current_class
+ * pointer on pcdata points to one of these entries.
+ */
+struct class_level
+{
+    CLASS_LEVEL *       next;
+    bool                valid;
+
+    CLASS_DATA *        clazz;              /* Which class */
+    int                 level;              /* Current level in this class */
+    long                xp;                 /* Current XP in this class */
+
+    /* Title selection */
+    char *              active_title;       /* Keyword of chosen title, NULL = default */
+
+    /* Class-specific custom data (ranger pets, crafting mastery, etc.) */
+    struct json_t *     custom_data;        /* Free-form JSON object, NULL if unused */
+};
+
+/*
  * Function prototypes for skills and spells.
  */
 int	get_skill			( CHAR_DATA *ch, int sn );
@@ -7097,11 +7381,51 @@ struct music_type
     int16_t	target;			/* Legal targets		*/
 };
 
+/*
+ * Data-driven song definition — replaces music_table[] usage.
+ * Loaded from JSON at boot via load_songs() in song_data.c.
+ *
+ * TODO (future expansion):
+ * - Add TOKEN_INDEX_DATA *token for script-based song effects.
+ * - Add presong_fun / song_fun for C-level callbacks.
+ * - Add instrument type requirements.
+ */
+struct song_data
+{
+    char *	name;			/* Song display name		*/
+    int		uid;			/* Unique identifier		*/
+    int		level;			/* Level to learn the song	*/
+    int16_t	mana;			/* Mana cost			*/
+    int16_t	target;			/* Legal targets (TAR_*)	*/
+    int16_t	beats;			/* Play duration (ticks)	*/
+    char *	spell1;			/* First spell cast		*/
+    char *	spell2;			/* Second spell cast		*/
+    char *	spell3;			/* Third spell cast		*/
+    long	flags;			/* Song flags (reserved)	*/
+};
+
 struct  group_type
 {
     char *	name;
     int16_t	rating[MAX_CLASS];
     char *	spells[MAX_IN_GROUP];
+};
+
+/*
+ * SKILL_GROUP — Named collection of skills.
+ *
+ * A lightweight grouping mechanism used by REWARD_GROUP to grant batches
+ * of skills at once. Each group is a named list of skill name strings.
+ * Groups are loaded from data/skill_groups/ or bootstrapped from the
+ * legacy group_table[] on first run.
+ */
+struct skill_group_data
+{
+    SKILL_GROUP *       next;
+    bool                valid;
+
+    char *              name;               /* Group name ("warrior basics", etc.) */
+    LLIST *             contents;           /* LLIST of char * — skill name strings */
 };
 
 #define RPROG_VNUM_PLAYER_INIT 1	// Called when a player/immortal logs in, to give them various tokens and whatnot that are needed from the start
@@ -7983,10 +8307,15 @@ extern int16_t	gsn_soul_essence;
 #define IS_NPC(ch)		(IS_SET((ch)->act[0], ACT_IS_NPC))
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
-#define IS_IMMORTAL(ch)		(get_staff_rank(ch) >= STAFF_IMMORTAL && !IS_NPC(ch) && ch->pcdata->immortal != NULL)
-#define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->level == MAX_LEVEL))
+#define IS_IMMORTAL(ch)		(!IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
+#define IS_IMPLEMENTOR(ch)	(IS_IMMORTAL(ch) && (get_staff_rank(ch) >= STAFF_IMPLEMENTOR))
+
+/* DEPRECATED: Do not use for new code. These compare against tot_level which
+ * is a progression metric, not an authority indicator. In a multi-class world,
+ * mortals can exceed LEVEL_HERO. Use IS_IMMORTAL() or IS_STAFF() instead. */
 #define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
 #define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
+
 #define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
 #define IS_AFFECTED2(ch, sn)	(IS_SET((ch)->affected_by[1], (sn)))
 #define IN_NATURAL_FORM(ch)	(ch->natural_form)
@@ -9550,7 +9879,7 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded);
 bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
 void 	list_group_costs args( ( CHAR_DATA *ch ) );
 void    list_group_known args( ( CHAR_DATA *ch ) );
-long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
+long 	exp_per_level	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );
 int 	group_lookup	args( (const char *name) );
@@ -9580,7 +9909,7 @@ RID *	room_by_name	args( ( char *target, int level, bool error) );
 /* update.c */
 void	healing_locket_update args( ( CHAR_DATA *ch ) );
 void	advance_level	args( ( CHAR_DATA *ch, bool hide ) );
-void	gain_exp	args( ( CHAR_DATA *ch, int gain, bool show ) );
+void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show ) );
 void	gain_condition	args( ( CHAR_DATA *ch, int iCond, int value ) );
 void	update_handler	args( ( void ) );
 void    pneuma_relic_update args( ( void ) );
@@ -10042,18 +10371,18 @@ float diminishing_returns(float val, float scale);
 float diminishing_inverse(float val, float scale);
 
 SKILL_ENTRY *skill_entry_findname( SKILL_ENTRY *list, char *str );
-SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, int song );
+SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, SONG_DATA *song );
 SKILL_ENTRY *skill_entry_findsn( SKILL_ENTRY *list, int sn );
 SKILL_ENTRY *skill_entry_findtoken( SKILL_ENTRY *list, TOKEN_DATA *token );
 SKILL_ENTRY *skill_entry_findtokenindex( SKILL_ENTRY *list, TOKEN_INDEX_DATA *token_index );
 void skill_entry_addskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags);
 void skill_entry_addspell (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags);
-void skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source);
-void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, bool isspell);
+void skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source);
+void skill_entry_remove (SKILL_ENTRY **list, int sn, SONG_DATA *song, TOKEN_DATA *token, bool isspell);
 void skill_entry_removeentry (SKILL_ENTRY **list, SKILL_ENTRY *entry);
 void skill_entry_removeskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token);
 void skill_entry_removespell (CHAR_DATA *ch, int sn, TOKEN_DATA *token);
-void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token);
+void skill_entry_removesong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token);
 int token_skill_rating( TOKEN_DATA *token);
 int token_skill_mana( TOKEN_DATA *token);
 int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry);
@@ -10121,7 +10450,7 @@ void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container);
 bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container);
 void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse);
 
-int music_lookup( char *name);
+SONG_DATA *music_lookup( char *name);  /* DEPRECATED: use song_lookup() from song_data.h */
 bool is_char_busy(CHAR_DATA *ch);
 bool obj_has_spell(OBJ_DATA *obj, char *name);
 void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent);

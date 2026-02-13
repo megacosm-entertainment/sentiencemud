@@ -20,6 +20,7 @@
 
 SPELL_FUNC(spell_deathbarbs)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     CHAR_DATA *temp_char, *next;
     int dam;

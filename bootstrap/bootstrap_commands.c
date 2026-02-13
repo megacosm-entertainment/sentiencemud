@@ -44,6 +44,11 @@ bool create_commands_json(void)
         char *func_name = do_func_name(cmd_table[i].do_fun);
         json_object_set_new(cmd, "function", json_string(func_name ? func_name : ""));
 
+        /* NOTE: cmd_table[].level values use the old level macros (ML/L1-L6/IM/HE)
+         * which are NOT valid staff_rank values. The bootstrap mapping is only
+         * meaningful if cmd_table[] is updated to use STAFF_* constants, or if
+         * a conversion function is added. The existing commands.json already
+         * has correct rank values from prior OLC editing. */
         json_object_set_new(cmd, "rank", json_integer(cmd_table[i].level));
         json_object_set_new(cmd, "log", json_integer(cmd_table[i].log));
         json_object_set_new(cmd, "position", json_integer(cmd_table[i].position));

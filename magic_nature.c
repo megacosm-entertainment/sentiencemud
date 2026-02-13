@@ -23,6 +23,7 @@
 
 SPELL_FUNC(spell_call_familiar)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     ITERATOR it;
     int lvl;
@@ -91,6 +92,7 @@ SPELL_FUNC(spell_call_familiar)
 
 SPELL_FUNC(spell_create_rose)
 {
+    int sn = skill->uid;
     OBJ_DATA *rose;
     int chance;
     long vnum;
@@ -121,6 +123,7 @@ SPELL_FUNC(spell_create_rose)
 
 SPELL_FUNC(spell_control_weather)
 {
+    int sn = skill->uid;
     char *target_name = (char *) vo;
 
     if (!target_name) {
@@ -144,6 +147,7 @@ SPELL_FUNC(spell_control_weather)
 
 SPELL_FUNC(spell_eagle_eye)
 {
+    int sn = skill->uid;
     long bonus_view;
     SHIP_DATA *ship = get_room_ship(ch->in_room);
     ROOM_INDEX_DATA *room = ch->in_room;
@@ -173,6 +177,7 @@ SPELL_FUNC(spell_eagle_eye)
 
 SPELL_FUNC(spell_ensnare)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -192,6 +197,7 @@ SPELL_FUNC(spell_ensnare)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_PHYSICAL;
     af.type = sn;
+    af.skill = skill;
     af.location = APPLY_DEX;
     af.modifier = -3;
     af.level = level + 1;
@@ -208,6 +214,7 @@ SPELL_FUNC(spell_ensnare)
 
 SPELL_FUNC(spell_master_weather)
 {
+    int sn = skill->uid;
     char *target_name = (char *) vo;
 
     if (!str_prefix(target_name, "clear")) {
@@ -236,6 +243,7 @@ SPELL_FUNC(spell_master_weather)
 
 SPELL_FUNC(spell_vision)
 {
+    int sn = skill->uid;
     SHIP_DATA *ship = get_room_ship(ch->in_room);
     ROOM_INDEX_DATA *room = ch->in_room;
     long bonus_view;
@@ -266,6 +274,7 @@ SPELL_FUNC(spell_vision)
 
 SPELL_FUNC(spell_web)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
 
@@ -285,6 +294,7 @@ SPELL_FUNC(spell_web)
     af.where     = TO_AFFECTS;
     af.group    = AFFGROUP_PHYSICAL;
     af.type      = sn;
+    af.skill = skill;
     af.level     = level;
     af.location  = APPLY_HITROLL;
     af.modifier  = -4;

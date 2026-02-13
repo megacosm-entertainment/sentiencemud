@@ -20,6 +20,7 @@
 
 SPELL_FUNC(spell_gate)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     bool gate_pet;
     int distance, catalyst;
@@ -78,7 +79,8 @@ SPELL_FUNC(spell_gate)
 
 SPELL_FUNC(spell_maze)
 {
-    int skill;
+    int sn = skill->uid;
+    int skill_pct;
     CHAR_DATA *victim = NULL;
     ROOM_INDEX_DATA *room;
     AREA_DATA *area;
@@ -116,10 +118,10 @@ SPELL_FUNC(spell_maze)
         return false;
     }
 
-    skill = get_skill(ch, gsn_maze);
+    skill_pct = get_skill(ch, gsn_maze);
     if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze"))) {
         send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
-        ch->daze += 10 - number_range(0, skill/10);
+        ch->daze += 10 - number_range(0, skill_pct/10);
         return false;
     }
     if (victim->fighting == ch || ch->fighting)
@@ -165,6 +167,7 @@ SPELL_FUNC(spell_maze)
 
 SPELL_FUNC(spell_nexus)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     OBJ_DATA *portal;
     ROOM_INDEX_DATA *to_room, *from_room;
@@ -263,6 +266,7 @@ SPELL_FUNC(spell_nexus)
 
 SPELL_FUNC(spell_reflection)
 {
+    int sn = skill->uid;
     CHAR_DATA *reflection;
     char buf[MAX_STRING_LENGTH];
 
@@ -306,6 +310,7 @@ SPELL_FUNC(spell_reflection)
 
 SPELL_FUNC(spell_summon)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
 
     victim = (CHAR_DATA *) vo;

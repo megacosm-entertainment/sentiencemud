@@ -19,6 +19,7 @@
 
 SPELL_FUNC(spell_shriek)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -41,6 +42,7 @@ SPELL_FUNC(spell_shriek)
 
 SPELL_FUNC(spell_silence)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     int lvl, catalyst;
@@ -82,6 +84,7 @@ SPELL_FUNC(spell_silence)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = catalyst / lvl;
     af.location = APPLY_NONE;
@@ -98,6 +101,7 @@ SPELL_FUNC(spell_silence)
 
 SPELL_FUNC(spell_vocalize)
 {
+    int sn = skill->uid;
     char buf[MAX_STRING_LENGTH];
     char speaker[MAX_INPUT_LENGTH];
     char dir[MAX_INPUT_LENGTH];

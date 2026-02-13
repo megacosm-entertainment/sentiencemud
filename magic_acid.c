@@ -20,6 +20,7 @@
 
 SPELL_FUNC(spell_acid_blast)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -35,6 +36,7 @@ SPELL_FUNC(spell_acid_blast)
 
 SPELL_FUNC(spell_acid_breath)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 

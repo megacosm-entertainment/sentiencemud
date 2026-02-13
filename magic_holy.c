@@ -16,9 +16,11 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "skill_data.h"
 
 SPELL_FUNC(spell_avatar_shield)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -43,6 +45,7 @@ SPELL_FUNC(spell_avatar_shield)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_DIVINE;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration  = perm ? -1 : 35;
     af.modifier = 0;
@@ -58,6 +61,7 @@ SPELL_FUNC(spell_avatar_shield)
 
 SPELL_FUNC(spell_bless)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -97,6 +101,7 @@ SPELL_FUNC(spell_bless)
         af.where = TO_OBJECT;
         af.group = AFFGROUP_ENCHANT;
         af.type	= sn;
+    af.skill = skill;
         af.level = level;
         af.duration = 6 + level/4;
         af.location = APPLY_HITROLL;
@@ -127,6 +132,7 @@ SPELL_FUNC(spell_bless)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_DIVINE;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (6+level);
     af.location = APPLY_HITROLL;
@@ -143,6 +149,7 @@ SPELL_FUNC(spell_bless)
 
 SPELL_FUNC(spell_dispel_evil)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -168,6 +175,7 @@ SPELL_FUNC(spell_dispel_evil)
 
 SPELL_FUNC(spell_exorcism)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     ROOM_INDEX_DATA *room;
     AREA_DATA *area;
@@ -235,6 +243,7 @@ SPELL_FUNC(spell_exorcism)
 
 SPELL_FUNC(spell_glorious_bolt)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -262,6 +271,7 @@ SPELL_FUNC(spell_glorious_bolt)
 
 SPELL_FUNC(spell_holy_shield)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj;
     AFFECT_DATA af;
     bool perm = false;
@@ -295,6 +305,7 @@ SPELL_FUNC(spell_holy_shield)
         af.where = TO_OBJECT;
         af.group = AFFGROUP_ENCHANT;
         af.type	= sn;
+    af.skill = skill;
         af.level = level;
         af.duration = perm ? -1 : (6 + level);
         af.location = APPLY_AC;
@@ -312,6 +323,7 @@ SPELL_FUNC(spell_holy_shield)
 
 SPELL_FUNC(spell_holy_sword)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj;
     AFFECT_DATA af;
     bool perm = false;
@@ -344,6 +356,7 @@ SPELL_FUNC(spell_holy_sword)
         af.where = TO_OBJECT;
         af.group = AFFGROUP_ENCHANT;
         af.type	= sn;
+    af.skill = skill;
         af.level = level;
         af.duration = perm ? -1 : (6 + level);
         af.location = 0;
@@ -361,6 +374,7 @@ SPELL_FUNC(spell_holy_sword)
 
 SPELL_FUNC(spell_holy_word)
 {
+    int sn = skill->uid;
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
     int dam;
@@ -380,18 +394,18 @@ SPELL_FUNC(spell_holy_word)
             (IS_EVIL(ch) && IS_EVIL(vch)) ||
             (IS_NEUTRAL(ch) && IS_NEUTRAL(vch))) {
             send_to_char("You feel full of holy power!\n\r",vch);
-            spell_frenzy(frenzy_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
-            spell_bless(bless_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+            spell_frenzy(skill_from_sn(frenzy_num),level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+            spell_bless(skill_from_sn(bless_num),level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
         } else if ((IS_GOOD(ch) && IS_EVIL(vch)) || (IS_EVIL(ch) && IS_GOOD(vch))) {
             if (!is_safe_spell(ch,vch,true)) {
-                spell_curse(curse_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+                spell_curse(skill_from_sn(curse_num),level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                 send_to_char("{YYou are struck down!{x\n\r",vch);
                 dam = dice(level,8);
                 damage(ch,vch,dam,sn,DAM_HOLY,true);
             }
         } else if (IS_NEUTRAL(ch)) {
             if (!is_safe_spell(ch,vch,true)) {
-                spell_curse(curse_num,level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+                spell_curse(skill_from_sn(curse_num),level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                 send_to_char("{YYou are struck down!{x\n\r",vch);
                 dam = dice(level,5);
                 damage(ch,vch,dam,sn,DAM_MAGIC,true);
@@ -408,6 +422,7 @@ SPELL_FUNC(spell_holy_word)
 
 SPELL_FUNC(spell_light_shroud)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -433,6 +448,7 @@ SPELL_FUNC(spell_light_shroud)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_DIVINE;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (3 + level/5);
     af.location = APPLY_NONE;
@@ -448,6 +464,7 @@ SPELL_FUNC(spell_light_shroud)
 
 SPELL_FUNC(spell_remove_curse)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     bool found = false;
@@ -529,6 +546,7 @@ SPELL_FUNC(spell_remove_curse)
 
 SPELL_FUNC(spell_sanctuary)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     int sk;
@@ -554,6 +572,7 @@ SPELL_FUNC(spell_sanctuary)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_DIVINE;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
 
     sk = get_skill(ch,sn);

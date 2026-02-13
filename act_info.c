@@ -53,6 +53,8 @@
 #include "wilds.h"
 #include "scripts.h"
 #include "traits.h"
+#include "skill_data.h"
+#include "class_data.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -2683,7 +2685,7 @@ void do_look(CHAR_DATA * ch, char *argument)
             if (perform_lore)
             {
                 send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
             }
             else
                 send_to_char("\n\r", ch);
@@ -2699,7 +2701,7 @@ void do_look(CHAR_DATA * ch, char *argument)
             if (perform_lore)
             {
                 send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
             }
             else
                 send_to_char("\n\r", ch);
@@ -2714,7 +2716,7 @@ void do_look(CHAR_DATA * ch, char *argument)
         if (perform_lore)
         {
             send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-            spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+            spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
         }
         else
             send_to_char("\n\r", ch);
@@ -2845,7 +2847,7 @@ void do_look(CHAR_DATA * ch, char *argument)
                     if (perform_lore)
                     {
                         send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                        spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                        spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                     }
                     else
                         send_to_char("\n\r", ch);
@@ -2914,7 +2916,7 @@ void do_look(CHAR_DATA * ch, char *argument)
                     if (perform_lore)
                     {
                         send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                        spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                        spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                     }
                     else
                         send_to_char("\n\r", ch);
@@ -2932,7 +2934,7 @@ void do_look(CHAR_DATA * ch, char *argument)
                     if (perform_lore)
                     {
                         send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                        spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                        spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                     }
                     else
                         send_to_char("\n\r", ch);
@@ -3222,7 +3224,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
                     send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                    spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                    spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                 } else
                     send_to_char("\n\r", ch);
 
@@ -3262,7 +3264,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
                     send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                    spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                    spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                 } else
                     send_to_char("\n\r", ch);
 
@@ -3310,7 +3312,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
         if (perform_lore)
         {
             send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-            spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+            spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
         }
         else
             send_to_char("\n\r", ch);
@@ -3599,13 +3601,26 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(subclass, "%s", sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
     subclass[0] = LOWER(subclass[0]);
     /* LINE 2 *** */
-    sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
-        ch->name,
-        IS_NPC(ch) ? "" : ch->pcdata->title,
-        body_type_info[ch->body_type].name,
-        ch->race ? ch->race->name : "unknown",
-        IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name,
-        IS_NPC(ch) ? "mobile" : subclass);
+    {
+        /* Use new class system display if available, fall back to legacy */
+        const char *class_disp;
+        const char *subclass_disp;
+        CLASS_DATA *cur_class = get_current_class(ch);
+        if (cur_class) {
+            class_disp = class_display_ch(cur_class, ch);
+            subclass_disp = class_disp;  /* New system: class IS the subclass */
+        } else {
+            class_disp = IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name;
+            subclass_disp = IS_NPC(ch) ? "mobile" : subclass;
+        }
+        sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
+            ch->name,
+            IS_NPC(ch) ? "" : ch->pcdata->title,
+            body_type_info[ch->body_type].name,
+            ch->race ? ch->race->name : "unknown",
+            class_disp,
+            subclass_disp);
+    }
 
     for (i = fstr_len(buf); i < 75; i++)
     strcat(buf, " ");
@@ -3704,7 +3719,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     if (!IS_NPC(ch) && ch->level < LEVEL_HERO)
     {
     sprintf(buf, "{BExp to Level: {x%ld",
-        (exp_per_level(ch, ch->pcdata->points) - ch->exp));
+        (exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp));
     for (i = fstr_len(buf); i < 25; i++)
         strcat(buf, " ");
     send_to_char(buf, ch);
@@ -5110,18 +5125,25 @@ iterator_stop(&it);
     ||   !str_prefix(arg, wch->name)
     ||   ((!str_cmp(arg, "immortal")
            || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm"))
-          && wch->tot_level >= LEVEL_IMMORTAL)
+          && IS_IMMORTAL(wch))
     ||   (church != NULL && wch->church == church)
     ||   (wch->race && !str_prefix(arg, wch->race->name))
-    ||   !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex]))
+    ||   !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex])
+    ||   (get_current_class(wch) && !str_prefix(arg, class_display_ch(get_current_class(wch), wch))))
         ;
     else
         continue;
 
-    if (wch->tot_level >= LEVEL_IMMORTAL)
+    if (IS_IMMORTAL(wch))
         strcpy(classstr,wch->pcdata->immortal->imm_flag);
-    else
-        strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+    else {
+        /* Use new class system if available, fall back to legacy */
+        CLASS_DATA *who_class = get_current_class(wch);
+        if (who_class)
+            strcpy(classstr, class_who_ch(who_class, wch));
+        else
+            strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+    }
     classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
     if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
@@ -5251,7 +5273,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 
         class = sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex];
 
-        if (wch->tot_level >= LEVEL_IMMORTAL)
+        if (IS_IMMORTAL(wch))
         class = wch->pcdata->immortal->imm_flag;
 
     if(!IS_IMMORTAL(wch)) {

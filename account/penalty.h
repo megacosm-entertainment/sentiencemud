@@ -76,7 +76,8 @@ struct penalty_data {
 #define BONUS_QP              4  /* Quest point multiplier (value = pct)   */
 #define BONUS_TRAIN           5  /* Training multiplier (value = pct)      */
 #define BONUS_CUSTOM          6  /* Custom/descriptive bonus               */
-#define BONUS_MAX             7  /* Sentinel - keep last                   */
+#define BONUS_FREE_LEVELS     7  /* Free class levels (value = count)      */
+#define BONUS_MAX             8  /* Sentinel - keep last                   */
 
 /***************************************************************************
  * Bonus Scope                                                             *

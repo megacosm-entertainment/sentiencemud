@@ -11,6 +11,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "editors/common.h"
+#include "skill_data.h"
 
 extern bool wiznet_script;
 
@@ -829,7 +830,7 @@ SCRIPT_CMD(do_opcast)
     if ((target == TARGET_CHAR && !vch) ||
         (target == TARGET_OBJ  && !obj) ||
         target == TARGET_ROOM || target == TARGET_NONE)
-        (*skill_table[sn].spell_fun)(sn, info->obj->level, proxy, to, target, WEAR_NONE);
+        (*skill_table[sn].spell_fun)(skill_from_sn(sn), info->obj->level, proxy, to, target, WEAR_NONE, INVOC_INTERNAL);
     else {
         sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", info->obj->short_descr, info->obj->pIndexData->vnum);
         log_string(buf);
@@ -4272,6 +4273,7 @@ SCRIPT_CMD(do_opaddaffect)
     af.group	= group;
     af.where     = where;
     af.type      = skill;
+    af.skill = skill_from_sn(af.type);
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;

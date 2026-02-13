@@ -17,6 +17,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "traits.h"
+#include "skill_data.h"
 
 bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth, int door)
 {
@@ -66,6 +67,7 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
 
 SPELL_FUNC(spell_flash)
 {
+    int sn = skill->uid;
     void *argv[3];
 
     if(both_hands_full(ch)) {
@@ -86,6 +88,7 @@ SPELL_FUNC(spell_flash)
 
 SPELL_FUNC(spell_improved_invisibility)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     bool perm = false;
@@ -109,6 +112,7 @@ SPELL_FUNC(spell_improved_invisibility)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = (perm) ? -1 : (level/4 + 3);
     af.location = APPLY_NONE;
@@ -125,6 +129,7 @@ SPELL_FUNC(spell_improved_invisibility)
 
 SPELL_FUNC(spell_continual_light)
 {
+    int sn = skill->uid;
         OBJ_DATA *obj;
 
     obj = (OBJ_DATA *) vo;
@@ -155,6 +160,7 @@ SPELL_FUNC(spell_continual_light)
 
 SPELL_FUNC(spell_starflare)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     CHAR_DATA *vnext;
     int dam;
@@ -175,7 +181,7 @@ SPELL_FUNC(spell_starflare)
                     dam /= 3;
 
                 damage(ch, victim, dam, sn, 0, true);
-                spell_blindness(gsn_blindness, level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE);
+                spell_blindness(skill_from_sn(gsn_blindness), level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
                 level -= 4;
             }

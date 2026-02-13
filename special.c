@@ -40,6 +40,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
+#include "skill_data.h"
 
 /*
  * The following special functions are available for mobiles.
@@ -322,7 +323,7 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
 
     if ( ( sn = skill_lookup( spell_name ) ) < 0 )
     return false;
-    (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    (*skill_table[sn].spell_fun)(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 
@@ -383,7 +384,7 @@ bool spec_breath_gas( CHAR_DATA *ch )
 
     if ( ( sn = skill_lookup( "gas breath" ) ) < 0 )
     return false;
-    (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE);
+    (*skill_table[sn].spell_fun)(skill_from_sn(sn), ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 
@@ -942,7 +943,7 @@ bool spec_poison( CHAR_DATA *ch )
     act( "You bite $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
     act( "$n bites $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
     act( "$n bites you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL    );
-    spell_poison( gsn_poison, ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE);
+    spell_poison(skill_from_sn(gsn_poison), ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 
@@ -962,7 +963,7 @@ bool spec_thief( CHAR_DATA *ch )
     v_next = victim->next_in_room;
 
     if ( IS_NPC(victim)
-    ||   victim->tot_level >= LEVEL_IMMORTAL
+    ||   IS_IMMORTAL(victim)
     ||   number_bits( 5 ) != 0
     ||   !can_see(ch,victim))
         continue;

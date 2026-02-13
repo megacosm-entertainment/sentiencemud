@@ -19,6 +19,7 @@
 
 SPELL_FUNC(spell_dark_shroud)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -50,6 +51,7 @@ SPELL_FUNC(spell_dark_shroud)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (3 + level/5);
     af.location = APPLY_NONE;
@@ -69,6 +71,7 @@ SPELL_FUNC(spell_dark_shroud)
 
 SPELL_FUNC(spell_momentary_darkness)
 {
+    int sn = skill->uid;
     OBJ_INDEX_DATA *index;
     OBJ_DATA *darkness;
     CHAR_DATA *rch;

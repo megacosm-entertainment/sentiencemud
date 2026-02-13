@@ -16,10 +16,12 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "skill_data.h"
 
 
 SPELL_FUNC(spell_curse)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -51,6 +53,7 @@ SPELL_FUNC(spell_curse)
         af.where = TO_OBJECT;
         af.group = AFFGROUP_ENCHANT;
         af.type = sn;
+    af.skill = skill;
         af.level = level;
         af.duration = URANGE(1,2 * level, 5);
         af.location = 0;
@@ -77,6 +80,7 @@ SPELL_FUNC(spell_curse)
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_DIVINE;
         af.type = sn;
+    af.skill = skill;
         af.level = level;
         af.duration = 2*level;
         af.location = APPLY_HITROLL;
@@ -98,6 +102,7 @@ SPELL_FUNC(spell_curse)
 
 SPELL_FUNC(spell_demonfire)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -110,12 +115,13 @@ SPELL_FUNC(spell_demonfire)
         dam /= 2;
 
     damage(ch, victim, dam, sn, DAM_NEGATIVE ,true);
-    spell_curse(gsn_curse, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
+    spell_curse(skill_from_sn(gsn_curse), 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 
 SPELL_FUNC(spell_destruction)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
 
     if (IS_SET(obj->extra[0], ITEM_NOPURGE) || !IS_SET(obj->wear_flags, ITEM_TAKE)) {
@@ -134,6 +140,7 @@ SPELL_FUNC(spell_destruction)
 
 SPELL_FUNC(spell_dispel_good)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -159,6 +166,7 @@ SPELL_FUNC(spell_dispel_good)
 
 SPELL_FUNC(spell_slow)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     int lvl, catalyst;
@@ -195,6 +203,7 @@ SPELL_FUNC(spell_slow)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = (catalyst/lvl)+2;//level/2;
     af.location = APPLY_DEX;
@@ -210,6 +219,7 @@ SPELL_FUNC(spell_slow)
 
 SPELL_FUNC(spell_weaken)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -220,6 +230,7 @@ SPELL_FUNC(spell_weaken)
     af.where     = TO_AFFECTS;
     af.group    = AFFGROUP_MAGICAL;
     af.type      = sn;
+    af.skill = skill;
     af.level     = level;
     af.duration  = URANGE(1, level / 2, 5);
     af.location  = APPLY_STR;

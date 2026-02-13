@@ -21,6 +21,11 @@
 #include "wilds.h"
 #include "io/json/json_area.h"
 
+/* Forward declarations for trainer data */
+void save_trainer_new(FILE *fp, TRAINER_DATA *trainer);
+TRAINER_ENTRY *read_trainer_entry_new(FILE *fp);
+TRAINER_DATA *read_trainer_new(FILE *fp);
+
 // VERSION_ROOM_001 special defines
 #define VR_001_EX_LOCKED		(C)
 #define VR_001_EX_PICKPROOF		(F)
@@ -916,6 +921,9 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if (mob->pQuestor != NULL)
         save_questor_new(fp, mob->pQuestor);
 
+    if (mob->pTrainer != NULL)
+        save_trainer_new(fp, mob->pTrainer);
+
     /* save the shop */
     if (mob->pShop != NULL)
         save_shop_new(fp, mob->pShop);
@@ -1249,6 +1257,33 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
     fprintf(fp, "Suffix %s~\n", fix_string(questor->suffix));
     fprintf(fp, "LineWidth %d\n", questor->line_width);
     fprintf(fp, "#-QUESTOR\n");
+}
+
+void save_trainer_new(FILE *fp, TRAINER_DATA *trainer)
+{
+    TRAINER_ENTRY *entry;
+
+    fprintf(fp, "#TRAINER\n");
+    if (trainer->greeting && trainer->greeting[0] != '\0')
+        fprintf(fp, "Greeting %s~\n", fix_string(trainer->greeting));
+    if (trainer->flags)
+        fprintf(fp, "Flags %d\n", trainer->flags);
+
+    for (entry = trainer->entries; entry; entry = entry->next) {
+        if (!IS_VALID(entry)) continue;
+        fprintf(fp, "#TENTRY\n");
+        fprintf(fp, "Skill %s~\n", entry->skill_name);
+        if (entry->max_rating)
+            fprintf(fp, "MaxRating %d\n", entry->max_rating);
+        if (entry->cost_gold)
+            fprintf(fp, "CostGold %d\n", entry->cost_gold);
+        if (entry->cost_trains)
+            fprintf(fp, "CostTrains %d\n", entry->cost_trains);
+        if (entry->check_script)
+            fprintf(fp, "CheckScript %s~\n", entry->check_script);
+        fprintf(fp, "#-TENTRY\n");
+    }
+    fprintf(fp, "#-TRAINER\n");
 }
 
 void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
@@ -2458,6 +2493,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
                 mob->pQuestor = questor;
                 break;
             }
+            if (!str_cmp(word, "#TRAINER")) {
+                fMatch = true;
+                mob->pTrainer = read_trainer_new(fp);
+                break;
+            }
 
             break;
 
@@ -3574,6 +3614,74 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
     }
 
     return questor;
+}
+
+TRAINER_ENTRY *read_trainer_entry_new(FILE *fp)
+{
+    TRAINER_ENTRY *entry;
+    char *word;
+
+    entry = new_trainer_entry();
+
+    while (str_cmp((word = fread_word(fp)), "#-TENTRY"))
+    {
+        fMatch = false;
+        switch (word[0]) {
+        case 'C':
+            KEY("CostGold", entry->cost_gold, fread_number(fp));
+            KEY("CostTrains", entry->cost_trains, fread_number(fp));
+            KEYS("CheckScript", entry->check_script, fread_string(fp));
+            break;
+        case 'M':
+            KEY("MaxRating", entry->max_rating, fread_number(fp));
+            break;
+        case 'S':
+            KEYS("Skill", entry->skill_name, fread_string(fp));
+            break;
+        }
+        if (!fMatch)
+            pbugf(LOG_ERROR, "read_trainer_entry_new: no match for word %s", word);
+    }
+
+    return entry;
+}
+
+TRAINER_DATA *read_trainer_new(FILE *fp)
+{
+    TRAINER_DATA *trainer;
+    TRAINER_ENTRY *last = NULL;
+    char *word;
+
+    trainer = new_trainer_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TRAINER"))
+    {
+        fMatch = false;
+        switch (word[0]) {
+        case '#':
+            if (!str_cmp(word, "#TENTRY")) {
+                TRAINER_ENTRY *entry = read_trainer_entry_new(fp);
+                entry->next = NULL;
+                if (last)
+                    last->next = entry;
+                else
+                    trainer->entries = entry;
+                last = entry;
+                fMatch = true;
+            }
+            break;
+        case 'F':
+            KEY("Flags", trainer->flags, fread_number(fp));
+            break;
+        case 'G':
+            KEYS("Greeting", trainer->greeting, fread_string(fp));
+            break;
+        }
+        if (!fMatch)
+            pbugf(LOG_ERROR, "read_trainer_new: no match for word %s", word);
+    }
+
+    return trainer;
 }
 
 SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)

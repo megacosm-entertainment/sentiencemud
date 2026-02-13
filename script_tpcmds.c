@@ -12,6 +12,7 @@
 #include "tables.h"
 #include "editors/common.h"
 #include "debug.h"
+#include "skill_data.h"
 
 // Commands used by token scripts
 const struct script_cmd_type token_cmd_table[] = {
@@ -4434,6 +4435,7 @@ SCRIPT_CMD(do_tpaddaffect)
     af.group	= group;
     af.where     = where;
     af.type      = skill;
+    af.skill = skill_from_sn(af.type);
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;

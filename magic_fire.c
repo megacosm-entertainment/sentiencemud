@@ -78,6 +78,7 @@ void afterburn_end(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int door, vo
 
 SPELL_FUNC(spell_afterburn)
 {
+    int sn = skill->uid;
     char *arg = (char *) vo;
     int max_depth;
     int door;
@@ -164,6 +165,7 @@ SPELL_FUNC(spell_afterburn)
 
 SPELL_FUNC(spell_burning_hands)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -179,6 +181,7 @@ SPELL_FUNC(spell_burning_hands)
 
 SPELL_FUNC(spell_fire_barrier)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -203,6 +206,7 @@ SPELL_FUNC(spell_fire_barrier)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 3);
     af.location = APPLY_NONE;
@@ -218,6 +222,7 @@ SPELL_FUNC(spell_fire_barrier)
 
 SPELL_FUNC(spell_fire_breath)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     CHAR_DATA *vch, *vch_next;
     int dam;
@@ -269,6 +274,7 @@ SPELL_FUNC(spell_fire_breath)
 
 SPELL_FUNC(spell_fire_cloud)
 {
+    int sn = skill->uid;
     OBJ_INDEX_DATA *inferno;
     OBJ_DATA *fire_cloud;
     OBJ_DATA *obj;
@@ -327,6 +333,7 @@ SPELL_FUNC(spell_fire_cloud)
 
 SPELL_FUNC(spell_fireball)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -354,6 +361,7 @@ SPELL_FUNC(spell_fireball)
 
 SPELL_FUNC(spell_fireproof)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -372,6 +380,7 @@ SPELL_FUNC(spell_fireproof)
     af.where = TO_OBJECT;
     af.group = AFFGROUP_ENCHANT;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = number_fuzzy(level / 4);
     af.location = APPLY_NONE;
@@ -388,6 +397,7 @@ SPELL_FUNC(spell_fireproof)
 
 SPELL_FUNC(spell_flamestrike)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -409,6 +419,7 @@ SPELL_FUNC(spell_flamestrike)
 
 SPELL_FUNC(spell_inferno)
 {
+    int sn = skill->uid;
     OBJ_DATA *inferno;
     OBJ_DATA *obj;
 
@@ -427,10 +438,12 @@ SPELL_FUNC(spell_inferno)
 
 SPELL_FUNC(spell_hell_forge)
 {
+    int sn = skill->uid;
     return true;
 }
 
 SPELL_FUNC(spell_magma_flow)
 {
+    int sn = skill->uid;
     return true;
 }

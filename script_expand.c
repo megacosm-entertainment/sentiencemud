@@ -1879,7 +1879,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_MOB_SONG:
         arg->type = ENT_SONG;
-        arg->d.song = arg->d.mob ? arg->d.mob->song_num : -1;
+        arg->d.song = arg->d.mob ? arg->d.mob->song : NULL;
         break;
     case ENTITY_MOB_SONGTOKEN:
         arg->type = ENT_TOKEN;
@@ -2204,7 +2204,7 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_MOB_SONG:
         arg->type = ENT_SONG;
-        arg->d.song = -1;
+        arg->d.song = NULL;
         break;
     case ENTITY_MOB_SONGTOKEN:
         arg->type = ENT_TOKEN;
@@ -4585,15 +4585,12 @@ char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    const struct music_type* pSong = NULL;
-
-    if( arg->d.song >= 0 && arg->d.song < MAX_SONGS && music_table[arg->d.song].name != NULL )
-        pSong = &music_table[arg->d.song];
+    SONG_DATA *pSong = arg->d.song;
 
     switch(*str) {
     case ENTITY_SONG_NUMBER:
         arg->type = ENT_NUMBER;
-        arg->d.num = arg->d.song;	// Redundant!
+        arg->d.num = pSong ? pSong->uid : -1;
         break;
     case ENTITY_SONG_NAME:
         arg->type = ENT_STRING;

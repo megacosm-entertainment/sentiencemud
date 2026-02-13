@@ -24,6 +24,7 @@
 
 SPELL_FUNC(spell_create_food)
 {
+    int sn = skill->uid;
     OBJ_DATA *food;
     long i;
 
@@ -50,6 +51,7 @@ SPELL_FUNC(spell_create_food)
 // Perfect Catalyst:	allows one more enchant to the maximum
 SPELL_FUNC(spell_enchant_armour)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj;
     AFFECT_DATA *paf;
     int result, fail;
@@ -111,6 +113,7 @@ SPELL_FUNC(spell_enchant_armour)
         for (paf = obj->affected; paf; paf = paf->next) {
             if (paf->location == APPLY_AC) {
                 paf->type = sn;
+                paf->skill = skill;
                 paf->modifier -= number_range(1, 4);
                 paf->level = UMAX(paf->level,level);
             } else if (number_percent() < 15) {
@@ -138,6 +141,7 @@ SPELL_FUNC(spell_enchant_armour)
         paf->where = TO_OBJECT;
         paf->group = AFFGROUP_ENCHANT;
         paf->type = sn;
+        paf->skill = skill;
         paf->level = level;
         paf->duration = -1;
         paf->location = APPLY_AC;
@@ -154,6 +158,7 @@ SPELL_FUNC(spell_enchant_armour)
 
 SPELL_FUNC(spell_enchant_object)
 {
+    (void)skill; /* No sn needed — skill pointer used directly where needed */
     OBJ_DATA *obj;
     int fail;
 
@@ -191,6 +196,7 @@ SPELL_FUNC(spell_enchant_object)
 
 SPELL_FUNC(spell_enchant_weapon)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj;
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_hit;
@@ -284,6 +290,7 @@ SPELL_FUNC(spell_enchant_weapon)
         paf->where = TO_OBJECT;
         paf->group = AFFGROUP_ENCHANT;
         paf->type = sn;
+        paf->skill = skill;
         paf->level = level;
         paf->duration = -1;
         paf->location = APPLY_DAMROLL;
@@ -304,6 +311,7 @@ SPELL_FUNC(spell_enchant_weapon)
 
         paf->where = TO_OBJECT;
         paf->type = sn;
+        paf->skill = skill;
         paf->group = AFFGROUP_ENCHANT;
         paf->level = level;
         paf->duration = -1;

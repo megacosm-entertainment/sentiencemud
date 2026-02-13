@@ -20,6 +20,7 @@
 
 SPELL_FUNC(spell_animate_dead)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     MOB_INDEX_DATA *index;
     char buf[MAX_STRING_LENGTH];
@@ -197,6 +198,7 @@ SPELL_FUNC(spell_animate_dead)
 
 SPELL_FUNC(spell_death_grip)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -226,6 +228,7 @@ SPELL_FUNC(spell_death_grip)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 6 + 5);
     af.location = APPLY_NONE;
@@ -243,6 +246,7 @@ SPELL_FUNC(spell_death_grip)
 
 SPELL_FUNC(spell_deathsight)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     bool perm = false;
@@ -268,6 +272,7 @@ SPELL_FUNC(spell_deathsight)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.location = APPLY_NONE;
     af.modifier = 0;
     af.level = level;
@@ -283,6 +288,7 @@ SPELL_FUNC(spell_deathsight)
 
 SPELL_FUNC(spell_kill)
 {
+    int sn = skill->uid;
     ROOM_INDEX_DATA *here;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
@@ -367,6 +373,7 @@ SPELL_FUNC(spell_kill)
 
 SPELL_FUNC(spell_raise_dead)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     char buf[MAX_STRING_LENGTH];
     OBJ_DATA *obj;

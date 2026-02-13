@@ -1952,6 +1952,9 @@ const	struct	bit_type	bitvector_type	[]	=
 };
 
 
+/* DEPRECATED: Use class_exp_per_level() from class_data.h instead.
+ * This table is retained only for legacy code that indexes by tot_level.
+ * New code should use CLASS_DATA.xp_table or the default curve in class_data.c. */
 const struct exp_table exp_per_level_table[] =
 {
     {250}, // 1

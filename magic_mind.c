@@ -20,6 +20,7 @@
 
 SPELL_FUNC(spell_calm)
 {
+    int sn = skill->uid;
     CHAR_DATA *vch;
     AFFECT_DATA af;
     bool found = false;
@@ -46,6 +47,7 @@ SPELL_FUNC(spell_calm)
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_MENTAL;
         af.type = sn;
+    af.skill = skill;
         af.level = level;
         af.duration = level/4;
         af.location = APPLY_HITROLL;
@@ -63,6 +65,7 @@ SPELL_FUNC(spell_calm)
 
 SPELL_FUNC(spell_charm_person)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
 
@@ -111,6 +114,7 @@ SPELL_FUNC(spell_charm_person)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MENTAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = number_fuzzy(level / 4);
     af.location = 0;
@@ -131,6 +135,7 @@ SPELL_FUNC(spell_charm_person)
 
 SPELL_FUNC(spell_detect_hidden)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -155,6 +160,7 @@ SPELL_FUNC(spell_detect_hidden)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : level;
     af.location = APPLY_NONE;
@@ -171,6 +177,7 @@ SPELL_FUNC(spell_detect_hidden)
 
 SPELL_FUNC(spell_detect_invis)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -195,6 +202,7 @@ SPELL_FUNC(spell_detect_invis)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : level;
     af.modifier = 0;
@@ -211,6 +219,7 @@ SPELL_FUNC(spell_detect_invis)
 
 SPELL_FUNC(spell_detect_magic)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -235,6 +244,7 @@ SPELL_FUNC(spell_detect_magic)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : level;
     af.modifier = 0;
@@ -250,6 +260,7 @@ SPELL_FUNC(spell_detect_magic)
 
 SPELL_FUNC(spell_frenzy)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -289,6 +300,7 @@ SPELL_FUNC(spell_frenzy)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_DIVINE;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 3);
     af.modifier  = level / 6;
@@ -312,6 +324,7 @@ SPELL_FUNC(spell_frenzy)
 
 SPELL_FUNC(spell_morphlock)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     int lvl, catalyst;
@@ -357,6 +370,7 @@ SPELL_FUNC(spell_morphlock)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MENTAL;
     af.type = sn;
+    af.skill = skill;
     af.location = APPLY_NONE;
     af.modifier = 0;
     af.level = level + 1;
@@ -370,6 +384,7 @@ SPELL_FUNC(spell_morphlock)
 
 SPELL_FUNC(spell_sleep)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -382,6 +397,7 @@ SPELL_FUNC(spell_sleep)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = 1;
     af.location = APPLY_NONE;
@@ -401,6 +417,7 @@ SPELL_FUNC(spell_sleep)
 
 SPELL_FUNC(spell_third_eye)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *skull;
     AFFECT_DATA af;
@@ -438,6 +455,7 @@ SPELL_FUNC(spell_third_eye)
     af.where = TO_OBJECT;
     af.group = AFFGROUP_ENCHANT;
     af.type	= sn;
+    af.skill = skill;
     af.level = level;
     af.duration = (level * level / 900);	// 1 to 16
     af.duration = UMAX(1,af.duration);

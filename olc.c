@@ -60,6 +60,9 @@ char *editor_name_table[] = {
     "CharNote",     // 28 ED_CHARNOTE
     "RaceEdit",     // 29 ED_RACE
     "TraitEdit",    // 30 ED_TRAIT
+    "SkEdit",       // 31 ED_SKILL
+    "GrEdit",       // 32 ED_GROUP
+    "SoEdit",       // 33 ED_SONG
 };
 
 int editor_max_tabs_table[] = {
@@ -94,6 +97,9 @@ int editor_max_tabs_table[] = {
     0,		// CharNote
     0,		// RaceEdit
     0,		// TraitEdit
+    0,		// SkEdit
+    0,		// GrEdit
+    0,		// SoEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -121,6 +127,9 @@ const struct editor_cmd_type editor_table[] =
     { "command",    do_cmdedit  },
     { "race",       do_racedit  },
     { "trait",      do_traitedit },
+    { "skill",      do_skedit    },
+    { "group",      do_gredit    },
+    { "song",       do_soedit    },
     { NULL,			0,			}
 };
 
@@ -338,6 +347,7 @@ const struct olc_cmd_type medit_table[] =
     {   "position",     medit_position  },
     {   "prev", 	medit_prev      },
     {	"questor",		medit_questor	},
+    {	"trainer",		medit_trainer	},
     {	"crew",		medit_crew	},
     {	"boss",		medit_boss	},
     {   "race",         medit_race      },
@@ -539,6 +549,15 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
         break;
     case ED_TRAIT:
         traitedit(d->character, d->incomm);
+        break;
+    case ED_SKILL:
+        skedit(d->character, d->incomm);
+        break;
+    case ED_GROUP:
+        gredit(d->character, d->incomm);
+        break;
+    case ED_SONG:
+        soedit(d->character, d->incomm);
         break;
 
     default:
@@ -749,6 +768,36 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         }
         break;
 
+    case ED_SKILL:
+        {
+            SKILL_DATA *sk_ed = (SKILL_DATA *)ch->desc->pEdit;
+            if (sk_ed)
+                sprintf(buf, "%s", sk_ed->name);
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
+    case ED_GROUP:
+        {
+            SKILL_GROUP *gr_ed = (SKILL_GROUP *)ch->desc->pEdit;
+            if (gr_ed)
+                sprintf(buf, "%s", gr_ed->name);
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
+    case ED_SONG:
+        {
+            SONG_DATA *so_ed = (SONG_DATA *)ch->desc->pEdit;
+            if (so_ed)
+                sprintf(buf, "%s", so_ed->name);
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
     default:
         sprintf(buf, " ");
         break;
@@ -875,6 +924,15 @@ bool show_commands(CHAR_DATA *ch, char *argument)
         break;
     case ED_TRAIT:
         show_olc_cmds(ch, traitedit_table);
+        break;
+    case ED_SKILL:
+        show_olc_cmds(ch, skedit_table);
+        break;
+    case ED_GROUP:
+        show_olc_cmds(ch, gredit_table);
+        break;
+    case ED_SONG:
+        show_olc_cmds(ch, soedit_table);
         break;
     }
 

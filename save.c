@@ -56,6 +56,10 @@
 #include "io/json/json_account.h"
 #include "traits.h"
 #include "account/preferences.h"
+#include "skill_data.h"
+#include "class_data.h"
+#include "skill_group.h"
+#include "song_data.h"
 
 /***************************************************************************
  * JSON Migration Control                                                  *
@@ -1614,6 +1618,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
             log_string("fread_char: unknown skill.");
         else
             paf->type = sn;
+        paf->skill = skill_from_sn(sn);
 
         paf->level	= fread_number(fp);
         paf->duration	= fread_number(fp);
@@ -1638,6 +1643,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                     log_string("fread_char: unknown skill.");
                 else
                     paf->type = sn;
+                paf->skill = skill_from_sn(sn);
 
         paf->custom_name = NULL;
         paf->group  = AFFGROUP_MAGICAL;
@@ -1667,6 +1673,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                     log_string("fread_char: unknown skill.");
                 else
                     paf->type = sn;
+                paf->skill = skill_from_sn(sn);
 
                 paf->custom_name = NULL;
                 paf->group  = flag_value(affgroup_mobile_flags,fread_word(fp));
@@ -2022,7 +2029,16 @@ if (ch->in_room == NULL) {
             log_string(buf);
                 }
                 else
+                {
                     ch->pcdata->group_known[gn] = true;
+
+                    /* Also populate known_groups LLIST */
+                    if (group_table[gn].name) {
+                        SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
+                        if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                            list_appendlink(ch->pcdata->known_groups, sg);
+                    }
+                }
 
                 fMatch = true;
                 break;
@@ -2746,6 +2762,11 @@ if (!str_cmp(word, "Room"))
                     skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 else
                     skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+
+                // Populate entry rating from loaded data
+                SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
+                if (entry)
+                    entry->rating = value;
             }
 
             fMatch = true;
@@ -2773,19 +2794,19 @@ if (!str_cmp(word, "Room"))
 
         if (!str_cmp(word, "Song"))
         {
-            int song;
+            SONG_DATA *song;
             char *temp;
 
             temp = fread_word(fp);
-            song = music_lookup(temp);
-            if (song < 0)
+            song = song_lookup(temp);
+            if (song == NULL)
             {
                 sprintf(buf, "fread_char: unknown song %s", temp);
                 log_string(buf);
             }
             else
             {
-                ch->pcdata->songs_learned[song] = true;
+                ch->pcdata->songs_learned[song->uid] = true;
                 skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
             }
 
@@ -3407,6 +3428,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
                     pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
+                paf->skill = skill_from_sn(sn);
 
                 paf->level	= fread_number(fp);
                 paf->duration	= fread_number(fp);
@@ -3482,6 +3504,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
                     pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
+                paf->skill = skill_from_sn(sn);
 
                 paf->where	= fread_number(fp);
                 paf->group	= AFFGROUP_MAGICAL;
@@ -3508,6 +3531,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
                     pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
+                paf->skill = skill_from_sn(sn);
 
                 paf->where	= fread_number(fp);
                 paf->group	= fread_number(fp);
@@ -4992,8 +5016,111 @@ void fix_character( CHAR_DATA *ch )
         ch->version = VERSION_PLAYER_010;
     }
 
+    /* VERSION_PLAYER_011: Migrate learned[]/mod_learned[] into SKILL_ENTRY.
+     * Prior to this version, skill percentages lived only in the PC_DATA
+     * arrays. This one-time migration copies them into the SKILL_ENTRY
+     * fields (rating/mod_rating) so the entry becomes the source of truth.
+     * The learned[] arrays are still written to for backward compatibility
+     * during the transition period. */
+    if (ch->version < VERSION_PLAYER_011) {
+        SKILL_ENTRY *entry;
+        for (entry = ch->sorted_skills; entry; entry = entry->next) {
+            if (entry->sn > 0 && entry->sn < MAX_SKILL) {
+                entry->rating = ch->pcdata->learned[entry->sn];
+                entry->mod_rating = ch->pcdata->mod_learned[entry->sn];
+            }
+        }
+        ch->version = VERSION_PLAYER_011;
+    }
+
+    /* VERSION_PLAYER_012: Migrate legacy class fields to CLASS_LEVEL entries.
+     * Characters saved with the old 18-field system (class_mage, sub_class_mage,
+     * etc.) need their data converted into the new CLASS_LEVEL list.  If the
+     * character was already saved in JSON with class_levels, the list will be
+     * non-empty and we skip the bootstrap. */
+    if (ch->version < VERSION_PLAYER_012) {
+        if (ch->pcdata && list_size(ch->pcdata->classes) == 0) {
+            /* Map each of the 8 subclass slots to a CLASS_DATA entry. */
+            int sub_slots[8] = {
+                ch->pcdata->sub_class_mage,
+                ch->pcdata->sub_class_cleric,
+                ch->pcdata->sub_class_thief,
+                ch->pcdata->sub_class_warrior,
+                ch->pcdata->second_sub_class_mage,
+                ch->pcdata->second_sub_class_cleric,
+                ch->pcdata->second_sub_class_thief,
+                ch->pcdata->second_sub_class_warrior,
+            };
+
+            for (int i = 0; i < 8; i++) {
+                if (sub_slots[i] < 0 || sub_slots[i] >= MAX_SUB_CLASS)
+                    continue;
+
+                CLASS_DATA *clazz = class_from_legacy(0, sub_slots[i]);
+                if (!clazz)
+                    continue;
+
+                /* Current subclass gets ch->level; completed classes get MAX_CLASS_LEVEL. */
+                int level = (sub_slots[i] == ch->pcdata->sub_class_current)
+                          ? ch->level
+                          : MAX_CLASS_LEVEL;
+
+                add_class_level(ch, clazz, level);
+
+                if (sub_slots[i] == ch->pcdata->sub_class_current)
+                    ch->pcdata->current_class = get_class_level(ch, clazz);
+            }
+
+            /* Level overflow: clamp any class level that exceeds its class max_level. */
+            if (list_size(ch->pcdata->classes) > 0) {
+                ITERATOR cl_it;
+                CLASS_LEVEL *cl;
+                int total_overflow = 0;
+
+                iterator_start(&cl_it, ch->pcdata->classes);
+                while ((cl = (CLASS_LEVEL *)iterator_nextdata(&cl_it))) {
+                    if (cl->clazz && cl->level > cl->clazz->max_level) {
+                        int overflow = cl->level - cl->clazz->max_level;
+                        total_overflow += overflow;
+                        log_stringf("fix_character: %s class %s level %d clamped to max %d (overflow %d)",
+                                    ch->name, cl->clazz->name, cl->level,
+                                    cl->clazz->max_level, overflow);
+                        cl->level = cl->clazz->max_level;
+                    }
+                }
+                iterator_stop(&cl_it);
+
+                if (total_overflow > 0) {
+                    ch->pcdata->pending_free_levels += total_overflow;
+                    log_stringf("fix_character: %s has %d overflow free levels pending account transfer",
+                                ch->name, total_overflow);
+                }
+            }
+
+            if (list_size(ch->pcdata->classes) > 0) {
+                log_stringf("fix_character: migrated %d class levels for %s",
+                            list_size(ch->pcdata->classes), ch->name);
+            }
+        }
+
+        /* Bootstrap known_groups LLIST from legacy group_known[] array.
+         * The JSON load path now populates both, but characters loaded from
+         * dat or from older JSON files may only have the bool array set. */
+        if (ch->pcdata && list_size(ch->pcdata->known_groups) == 0) {
+            for (int gn = 0; gn < MAX_GROUP; gn++) {
+                if (ch->pcdata->group_known[gn] && group_table[gn].name) {
+                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
+                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                        list_appendlink(ch->pcdata->known_groups, sg);
+                }
+            }
+        }
+
+        ch->version = VERSION_PLAYER_012;
+    }
+
     /* Future version-gated migrations go here:
-     * if (ch->version < VERSION_PLAYER_011) { ... ch->version = VERSION_PLAYER_011; }
+     * if (ch->version < VERSION_PLAYER_013) { ... ch->version = VERSION_PLAYER_013; }
      */
 
     if (ch->pcdata != NULL) {
@@ -5358,8 +5485,8 @@ void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
                 skill_table[entry->sn].name);
         }
 
-        if( entry->song >= 0 && entry->song < MAX_SONGS ) {
-            fprintf(fp, "Song %s~\n", music_table[entry->song].name);
+        if( entry->song != NULL ) {
+            fprintf(fp, "Song %s~\n", entry->song->name);
         }
 /*
     for (sn = 0; sn < MAX_SONGS && music_table[sn].name; sn++)
@@ -5398,7 +5525,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 {
     TOKEN_DATA *token = NULL;
     int sn = -1;
-    int song = -1;
+    SONG_DATA *song = NULL;
     long flags = SKILL_AUTOMATIC;
     int rating = -1, mod = 0;	// For built-in skills
     char source = SKILLSRC_NORMAL;
@@ -5411,8 +5538,8 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
         fMatch = false;
 
         if (!str_cmp(word, "End")) {
-            if( song >= 0 ) {
-                ch->pcdata->songs_learned[song] = true;
+            if( song != NULL ) {
+                ch->pcdata->songs_learned[song->uid] = true;
                 skill_entry_addsong(ch, song, NULL, source);
             } else if(sn > 0) {
                 ch->pcdata->learned[sn] = rating;
@@ -5421,6 +5548,13 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
                     skill_entry_addskill(ch, sn, NULL, source, flags);
                 else
                     skill_entry_addspell(ch, sn, NULL, source, flags);
+
+                // Populate entry rating from loaded data
+                SKILL_ENTRY *se = skill_entry_findsn(ch->sorted_skills, sn);
+                if (se) {
+                    se->rating = rating;
+                    se->mod_rating = mod;
+                }
             } else if(IS_VALID(token))
                 token_to_char_ex(token, ch, source, flags);
 
@@ -5452,7 +5586,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
             }
 
             if(IS_KEY("Song")) {
-                song = music_lookup(fread_string(fp));
+                song = song_lookup(fread_string(fp));
                 fMatch = true;
                 break;
             }

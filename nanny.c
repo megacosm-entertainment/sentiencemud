@@ -28,6 +28,9 @@
 #include "io/json/json_char.h"
 #include "nanny/nanny_utils.h"
 #include "nanny/nanny_menus.h"
+#include "class_data.h"
+#include "skill_group.h"
+#include "traits.h"
 
 /*
  * NANNY SYSTEM - LOGIN AND CHARACTER CREATION
@@ -2482,11 +2485,14 @@ ch->race = race;
 
 }
 
+static void finalize_new_character(DESCRIPTOR_DATA *d);
+
+/* DEPRECATED: login_get_new_sex is no longer part of the normal character
+ * creation flow. Body type selection (CON_GET_NEW_BODY_TYPE) now handles
+ * sex/pronoun assignment. Retained for the dispatch table only. */
 void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch;
-    char buf[MSL];
-    int iClass;
 
     while (ISSPACE(*argument))
         argument++;
@@ -2505,27 +2511,9 @@ void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
 
-        send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-        send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-        send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-        send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-        send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-        send_to_char("brand new subclasses.\n\r\n\r", ch);
-
-        send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
-
-        strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-        for (iClass = 0; iClass < MAX_CLASS; iClass++)
-        {
-            if (iClass > 0)
-                strcat(buf, " ");
-            strcat(buf, class_table[iClass].name);
-        }
-        strcat(buf, "{B]{Y:{x ");
-        send_to_char(buf, ch);
-        d->connected = CON_GET_NEW_CLASS;
-        return;
-    }
+    /* Skip class selection — assign defaults and finalize */
+    finalize_new_character(d);
+}
 
 
 void login_read_imotd(DESCRIPTOR_DATA *d, char *argument)
@@ -5164,6 +5152,87 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
 }
 
 
+/**
+ * finalize_new_character - Assign default class and finalize new character creation
+ *
+ * Replaces the interactive class/subclass selection flow. Assigns the default
+ * CLASS_DATA, sets up starting skills/groups from that class, applies
+ * preferences, initializes traits, and advances to CON_READ_MOTD.
+ * Starting weapon is handled by a post-creation script.
+ *
+ * Legacy class fields (class_current, sub_class_current, etc.) are left at
+ * their pcdata defaults (-1 / 0). Code that reads them must gracefully handle
+ * those values until they are removed in Phase 9.
+ *
+ * @param d  Descriptor of the character being created
+ */
+static void finalize_new_character(DESCRIPTOR_DATA *d)
+{
+    CHAR_DATA *ch = d->character;
+    CLASS_DATA *new_class;
+
+    log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s new player.", ch->name, d->host);
+
+    SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
+
+    /* Assign default class from the new class system */
+    new_class = class_get_default();
+    if (new_class) {
+        add_class_level(ch, new_class, 0);
+        ch->pcdata->current_class = get_class_level(ch, new_class);
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO,
+            "nanny: assigned default class '%s' to %s",
+            new_class->name, ch->name);
+
+        /* Add skill groups defined by the class */
+        group_add(ch, "global skills", false);
+        if (new_class->groups) {
+            ITERATOR it;
+            SKILL_GROUP *sg;
+            iterator_start(&it, new_class->groups);
+            while ((sg = (SKILL_GROUP *)iterator_nextdata(&it)))
+                group_add(ch, sg->name, false);
+            iterator_stop(&it);
+        }
+    } else {
+        log_message(LOG_LEVEL_BUG, LOG_ERROR,
+            "nanny: no default class found — new character has no class!");
+        group_add(ch, "global skills", false);
+    }
+
+    /* Make it so no notes appear */
+    ch->pcdata->last_note    = current_time;
+    ch->pcdata->last_idea    = current_time;
+    ch->pcdata->last_penalty = current_time;
+    ch->pcdata->last_news    = current_time;
+    ch->pcdata->last_changes = current_time;
+
+    send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
+
+    /* Apply game defaults from pc_set_table, then account prefs on top */
+    pref_apply_game_defaults(ch);
+    if (d->account)
+        pref_apply_to_character(d->account, ch, ch->pcdata->preferences);
+
+    ch->level     = 0;
+    ch->tot_level = 0;
+
+    /* Initialize personal trait values for the new character */
+    char_init_traits(ch);
+
+    /* Save new character to the account if applicable */
+    if (d->account) {
+        account_add_character(d->account, ch);
+        save_account(d->account);
+    }
+
+    d->connected = CON_READ_MOTD;
+}
+
+
+/* DEPRECATED: login_get_new_class and login_get_sub_class are no longer part of
+ * the normal character creation flow. Default class is now assigned automatically
+ * by finalize_new_character(). These functions are retained for reference only. */
 void login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5381,6 +5450,27 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
         }
 
         ch->pcdata->learned[weapon] = 50;
+
+    /* Assign default class(es) from the new class system */
+    {
+        /* Try to find the selected sub_class in the new CLASS_DATA system */
+        CLASS_DATA *new_class = class_from_legacy(
+            ch->pcdata->class_current, ch->pcdata->sub_class_current);
+
+        if (!new_class)
+            new_class = class_get_default();
+
+        if (new_class) {
+            add_class_level(ch, new_class, 0);
+            ch->pcdata->current_class = get_class_level(ch, new_class);
+            log_message_f(LOG_LEVEL_INFO, LOG_INFO,
+                "nanny: assigned class '%s' to %s",
+                new_class->name, ch->name);
+        }
+    }
+
+    /* Initialize personal trait values for the new character */
+    char_init_traits(ch);
 
     ch->level = 0;
 
@@ -5779,8 +5869,6 @@ void login_get_char_body_type(DESCRIPTOR_DATA *d, char *argument) {
 
 void login_char_get_default_pronouns(DESCRIPTOR_DATA *d, char *argument) {
     CHAR_DATA *ch = d->character;
-    char buf[MSL];
-    int iClass;
 
     if (!ch) {
         write_to_buffer(d, "Error: No character found.\n\r", 0);
@@ -5790,26 +5878,7 @@ void login_char_get_default_pronouns(DESCRIPTOR_DATA *d, char *argument) {
 
     if (LOWER(argument[0]) == 'y') {
         write_to_buffer(d, "\n\rDefault pronouns accepted.\n\r", 0);
-
-        send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-        send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-        send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-        send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-        send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-        send_to_char("brand new subclasses.\n\r\n\r", ch);
-
-        send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
-
-        strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-        for (iClass = 0; iClass < MAX_CLASS; iClass++)
-        {
-            if (iClass > 0)
-                strcat(buf, " ");
-            strcat(buf, class_table[iClass].name);
-        }
-        strcat(buf, "{B]{Y:{x ");
-        send_to_char(buf, ch);
-        d->connected = CON_GET_NEW_CLASS;
+        finalize_new_character(d);
         return;
     } else if (LOWER(argument[0]) == 'n') {
         write_to_buffer(d, "\n\rOkay, let's set your custom pronouns.\n\r", 0);
@@ -5983,7 +6052,6 @@ void login_char_set_custom_verb_pref(DESCRIPTOR_DATA *d, char *argument) {
 void login_char_set_custom_pronouns_confirm(DESCRIPTOR_DATA *d, char *argument) {
     CHAR_DATA *ch = d->character;
     char buf[MSL];
-    int iClass;
 
     if (!ch) {
         write_to_buffer(d, "Error: No character found.\n\r", 0);
@@ -5993,25 +6061,7 @@ void login_char_set_custom_pronouns_confirm(DESCRIPTOR_DATA *d, char *argument) 
 
     if (LOWER(argument[0]) == 'y') {
         write_to_buffer(d, "\n\rCustom pronoun settings confirmed.\n\r", 0);
-        send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-        send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-        send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-        send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-        send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-        send_to_char("brand new subclasses.\n\r\n\r", ch);
-
-        send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
-
-        strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-        for (iClass = 0; iClass < MAX_CLASS; iClass++)
-        {
-            if (iClass > 0)
-                strcat(buf, " ");
-            strcat(buf, class_table[iClass].name);
-        }
-        strcat(buf, "{B]{Y:{x ");
-        send_to_char(buf, ch);
-        d->connected = CON_GET_NEW_CLASS;
+        finalize_new_character(d);
         return;
     } else if (LOWER(argument[0]) == 'n' || !str_cmp(argument, "back")) {
         write_to_buffer(d, "\n\rOkay, let's review the pronoun options for your chosen body type.\n\r", 0);

@@ -55,6 +55,8 @@
 #include "io/cache/redis_cache.h"
 #include "wilds.h"
 #include "traits.h"
+#include "class_data.h"
+#include "skill_data.h"
 
 
 unsigned char crypto_key[AES_KEY_SIZE]; // Server-side key
@@ -470,6 +472,14 @@ int get_skill(CHAR_DATA *ch, int sn)
     else
         skill = 0;
 
+    /* Cross-class scope check: if skill was granted by a class, verify it's
+     * still available with the character's current active class. */
+    if (skill > 0) {
+        SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
+        if (entry && entry->source_class && !is_skill_available_for_class(ch, entry))
+            skill = 0;
+    }
+
     if(skill > 0) {
         skill += ch->pcdata->mod_learned[sn];
         skill = URANGE(1,skill,100);
@@ -622,6 +632,54 @@ int get_objweapon_sn(OBJ_DATA *obj)
    }
 
    return sn;
+}
+
+/**
+ * get_skill_level - Get the minimum level at which a class grants a skill
+ *
+ * Checks the SKILL_DATA's class_levels list for the character's current
+ * class (or any of their classes). Returns the lowest level at which the
+ * skill is available, or MAX_LEVEL if the character's classes don't grant
+ * it at all.
+ *
+ * @param ch  Character to check
+ * @param sn  Skill number (legacy sn)
+ * @return    Level at which the skill is available, or MAX_LEVEL if not
+ */
+int get_skill_level(CHAR_DATA *ch, int sn)
+{
+    SKILL_DATA *sd;
+    int best_level = MAX_LEVEL;
+
+    if (IS_NPC(ch) || !ch->pcdata)
+        return 0;
+
+    /* Find the SKILL_DATA for this sn */
+    sd = skill_from_sn(sn);
+    if (!sd || !sd->class_levels)
+        return skill_table[sn].skill_level[ch->pcdata->class_current];
+
+    /* Check all class_levels on the skill for classes the character has */
+    ITERATOR it;
+    SKILL_CLASS_LEVEL *scl;
+    iterator_start(&it, sd->class_levels);
+    while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
+        CLASS_DATA *clazz = scl->clazz;
+        if (!clazz && scl->class_name)
+            clazz = class_find_exact(scl->class_name);
+
+        if (clazz && has_class_level(ch, clazz)) {
+            if (scl->level < best_level)
+                best_level = scl->level;
+        }
+    }
+    iterator_stop(&it);
+
+    /* If no new-system match, fall back to legacy */
+    if (best_level == MAX_LEVEL)
+        return skill_table[sn].skill_level[ch->pcdata->class_current];
+
+    return best_level;
 }
 
 
@@ -909,7 +967,7 @@ int get_max_train(CHAR_DATA *ch, int stat)
  */
 int can_carry_n(CHAR_DATA *ch)
 {
-    if (!IS_NPC(ch) && ch->level >= LEVEL_IMMORTAL)
+    if (IS_IMMORTAL(ch))
     return 1000;
 
     if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_PET))
@@ -926,7 +984,7 @@ int can_carry_w(CHAR_DATA *ch)
 {
     int weight;
 
-    if (!IS_NPC(ch) && ch->level >= LEVEL_IMMORTAL)
+    if (IS_IMMORTAL(ch))
     return 10000000;
 
     if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_PET))
@@ -1468,6 +1526,10 @@ bool affect_removeall_obj(OBJ_DATA *obj)
                 break;
             }
 
+        /* Unlink from source token if present */
+        if (IS_VALID(paf->token))
+            list_remlink(paf->token->affects, paf, false);
+
         free_affect(paf);
     }
 
@@ -1540,6 +1602,10 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
             return reset_ch;
         }
     }
+
+    /* Unlink from source token if present */
+    if (IS_VALID(paf->token))
+        list_remlink(paf->token->affects, paf, false);
 
     free_affect(paf);
 
@@ -3248,23 +3314,27 @@ void extract_token(TOKEN_DATA *token)
         p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL);
     }
 
-    /* Remove all affects created by this token */
+    /* Remove all affects created by this token from their owners */
     if (token->affects)
     {
-    iterator_start(&it, token->affects);
-    while ((paf = (AFFECT_DATA *)iterator_nextdata(&it)))
-    {
-        /* Find and remove the affect from its owner (char or obj) */
-        if (paf->valid)
+        iterator_start(&it, token->affects);
+        while ((paf = (AFFECT_DATA *)iterator_nextdata(&it)))
         {
-        /* The affect_remove functions will unlink from token->affects */
-        /* We need to handle both character and object affects */
-        /* For simplicity, we'll just invalidate and unlink here */
-        paf->token = NULL;  /* Break the link to avoid double-removal */
+            if (paf->valid)
+            {
+                /* Break the back-link first to prevent affect_remove from
+                 * trying to modify this list while we're iterating it */
+                paf->token = NULL;
+
+                /* Remove the affect from its owning character or object */
+                if (token->player)
+                    affect_remove(token->player, paf);
+                else if (token->object)
+                    affect_remove_obj(token->object, paf);
+            }
         }
-    }
-    iterator_stop(&it);
-    list_clear(token->affects);  /* Clear the list */
+        iterator_stop(&it);
+        list_clear(token->affects);
     }
 
     if(token->player)
@@ -6532,7 +6602,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     return false;
     }
 
-    if (!IS_NPC(ch) && ch->tot_level >= LEVEL_IMMORTAL)
+    if (IS_IMMORTAL(ch))
     return true;
 
     if (IS_SOCIAL(ch))
@@ -7068,7 +7138,7 @@ void token_from_char(TOKEN_DATA *token)
 
     if(token->type == TOKEN_SKILL) skill_entry_removeskill(token->player, 0, token);
     else if(token->type == TOKEN_SPELL) skill_entry_removespell(token->player, 0, token);
-    else if(token->type == TOKEN_SONG) skill_entry_removesong(token->player, -1, token);
+    else if(token->type == TOKEN_SONG) skill_entry_removesong(token->player, NULL, token);
 
     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_from_char: removed token %s(%ld) from char %s(%ld)",
         token->name, token->pIndexData->vnum,
@@ -7115,7 +7185,7 @@ void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
     // Do sorted lists
     if(token->type == TOKEN_SKILL) skill_entry_addskill(token->player, 0, token, source, flags);
     else if(token->type == TOKEN_SPELL) skill_entry_addspell(token->player, 0, token, source, flags);
-    else if(token->type == TOKEN_SONG) skill_entry_addsong(token->player,-1,token, source);
+    else if(token->type == TOKEN_SONG) skill_entry_addsong(token->player, NULL, token, source);
 
     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "token_to_char: gave token %s(%ld) to char %s(%ld)",
         token->name, token->pIndexData->vnum,
@@ -11353,7 +11423,7 @@ void generate_discord_who() {
             continue;
         }
 
-        if (wch->tot_level >= LEVEL_IMMORTAL)
+        if (IS_IMMORTAL(wch))
             strcpy(classstr, wch->pcdata->immortal->imm_flag);
         else
             strcpy(classstr, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);

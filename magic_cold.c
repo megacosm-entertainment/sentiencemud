@@ -20,6 +20,7 @@
 
 SPELL_FUNC(spell_chill_touch)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     int dam;
@@ -32,6 +33,7 @@ SPELL_FUNC(spell_chill_touch)
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_MAGICAL;
         af.type = sn;
+    af.skill = skill;
         af.level = level;
         af.duration = 6;
         af.location = APPLY_STR;
@@ -49,6 +51,7 @@ SPELL_FUNC(spell_chill_touch)
 
 SPELL_FUNC(spell_frost_barrier)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -72,6 +75,7 @@ SPELL_FUNC(spell_frost_barrier)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 3);
     af.location = APPLY_NONE;
@@ -88,6 +92,7 @@ SPELL_FUNC(spell_frost_barrier)
 
 SPELL_FUNC(spell_frost_breath)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     CHAR_DATA *vch, *vch_next;
     int dam;
@@ -140,6 +145,7 @@ SPELL_FUNC(spell_frost_breath)
 
 SPELL_FUNC(spell_ice_shards)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -310,6 +316,7 @@ void glacialwave_end(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int door, 
 
 SPELL_FUNC(spell_glacial_wave)
 {
+    int sn = skill->uid;
     struct glacialwave_data data;
     OBJ_DATA *obj;
     char *arg = (char *) vo;
@@ -387,6 +394,7 @@ SPELL_FUNC(spell_glacial_wave)
 
 SPELL_FUNC(spell_ice_storm)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj;
     CHAR_DATA *vch;
     ROOM_INDEX_DATA *room;

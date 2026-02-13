@@ -14,6 +14,7 @@
 
 #define DEBUG_MODULE
 #include "debug.h"
+#include "skill_data.h"
 
 
 const struct script_cmd_type room_cmd_table[] = {
@@ -3938,6 +3939,7 @@ SCRIPT_CMD(do_rpaddaffect)
     af.group = group;
     af.where = where;
     af.type = skill;
+    af.skill = skill_from_sn(af.type);
     af.location = loc;
     af.modifier = mod;
     af.level = level;

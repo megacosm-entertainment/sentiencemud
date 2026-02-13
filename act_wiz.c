@@ -3173,12 +3173,12 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
     add_buf(output, buf);
 
-    if (obj->loaded_by != NULL && ch->tot_level >= LEVEL_IMMORTAL)
+    if (obj->loaded_by != NULL && IS_IMMORTAL(ch))
     {
     sprintf(buf, "{YItem loaded by: {x%s\n\r", obj->loaded_by);
     add_buf(output, buf);
     }
-    else if (obj->script_created && ch->tot_level >= LEVEL_IMMORTAL)
+    else if (obj->script_created && IS_IMMORTAL(ch))
     {		
         sprintf(buf, "{YItem created by \t<send \"%sdump %ld|%sedit %ld\" hint=\"Dump code for %s %ld|Edit %s %ld\">%s %ld\t</send>.\n\r",
         script_type_table[obj->created_script_type].prog_command, obj->created_script_load.vnum,
@@ -6097,7 +6097,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (level > get_trust(ch))
+    if (level > MAX_LEVEL && !IS_IMPLEMENTOR(ch))
     {
     send_to_char("Limited to your trust level.\n\r", ch);
     return;
@@ -6273,7 +6273,7 @@ void do_trust(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (level > get_trust(ch))
+    if (level > MAX_LEVEL && !IS_IMPLEMENTOR(ch))
     {
     send_to_char("Limited to your trust.\n\r", ch);
     return;
@@ -9023,7 +9023,7 @@ void do_force(CHAR_DATA *ch, char *argument)
     {
         DESCRIPTOR_DATA *desc,*desc_next;
 
-        if (ch->tot_level < MAX_LEVEL - 1)
+        if (!IS_STAFF(ch, STAFF_SUPREMACY))
     {
             send_to_char("Not at your level!\n\r",ch);
         return;
@@ -9035,7 +9035,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 
         if (desc->connected==CON_PLAYING
         &&  get_staff_rank(desc->character) < get_staff_rank(ch)
-            &&  desc->character->level >= LEVEL_HERO)
+            &&  IS_IMMORTAL(desc->character))
         {
         act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
         interpret(desc->character, argument);
@@ -10288,8 +10288,8 @@ void do_alevel(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    xp = exp_per_level(victim, victim->pcdata->points) - victim->exp;
-    gain_exp(victim, xp, false);
+    xp = exp_per_level(victim, NULL, victim->pcdata->points) - victim->exp;
+    gain_exp(victim, NULL, xp, false);
 
     return;
 }

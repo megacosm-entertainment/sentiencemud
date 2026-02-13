@@ -225,7 +225,7 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
         int count = 0;
 
         add_buf(buffer, "Commands:\n");
-        add_buf(buffer, "####  Name               Level  Position    Log    Enabled  Function       Help  \n");
+        add_buf(buffer, "####  Name                Rank  Position    Log    Enabled  Function       Help  \n");
         add_buf(buffer, "----  ----               -----  --------  ------   -------  --------     --------\n");
 
         ITERATOR it;
@@ -292,7 +292,7 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
             else
                 sprintf(helpstatus, "{GBoth{X");
 
-            sprintf(buf, "{W%3d{X)  \t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %3d  %8s  %6s  %8s  %-12.12s %-12s{X\n\r",
+            sprintf(buf, "{W%3d{X)  \t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %-5.5s  %8s  %6s  %8s  %-12.12s %-12s{X\n\r",
                 list_getindex(commands_list, command),
                 command->name,
                 command->name,
@@ -303,7 +303,7 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
                 line_colour,
                 pad_string(command->name, 20, NULL, NULL),
                 line_colour,
-                command->level,
+                flag_string(staff_ranks, command->rank),
                 position_table[command->position].name,
                 log_flags[command->log].name,
                 command->enabled ? "Enabled" : "Disabled",

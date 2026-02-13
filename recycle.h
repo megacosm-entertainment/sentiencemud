@@ -134,6 +134,11 @@ void free_list_uid_data(LLIST_UID_DATA *luid);
 QUESTOR_DATA *new_questor_data();
 void free_questor_data(QUESTOR_DATA *q);
 
+TRAINER_ENTRY *new_trainer_entry();
+void free_trainer_entry(TRAINER_ENTRY *entry);
+TRAINER_DATA *new_trainer_data();
+void free_trainer_data(TRAINER_DATA *t);
+
 OLC_POINT_BOOST *new_olc_point_boost();
 void free_olc_point_boost(OLC_POINT_BOOST *boost);
 

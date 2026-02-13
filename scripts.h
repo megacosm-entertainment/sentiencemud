@@ -1217,7 +1217,7 @@ struct script_var_type {
         SHIP_DATA *ship;
         bool boolean;
         int sn;
-        int song;
+        SONG_DATA *song;
         struct {
             CHAR_DATA *owner;
             TOKEN_DATA *token;
@@ -1416,7 +1416,7 @@ struct script_parameter {
         
 
         int sn;
-        int song;
+        SONG_DATA *song;
         struct {
             union {
                 CHAR_DATA **mob;

@@ -18,6 +18,8 @@
 #include "wilds.h"
 #include "io/cache/redis_cache.h"
 #include "traits.h"
+#include "skill_data.h"
+#include "class_data.h"
 
 extern void persist_save(void);
 
@@ -383,8 +385,23 @@ void advance_level(CHAR_DATA *ch, bool hide)
 }
 
 
-// Give a character exp
-void gain_exp(CHAR_DATA *ch, int gain, bool show)
+/**
+ * gain_exp - Give a character experience points
+ *
+ * Awards XP to a character, targeting a specific class. If clazz is NULL,
+ * XP goes to the character's current active class. This allows quests,
+ * scripts, and other systems to award XP to specific classes (e.g.,
+ * "blacksmith XP" even while the player's active class is a combat class).
+ *
+ * XP is stored on CLASS_LEVEL.xp (per-class) and mirrored to ch->exp
+ * for legacy compatibility.
+ *
+ * @param ch     Character receiving XP
+ * @param clazz  Target class (NULL = current class)
+ * @param gain   Amount of XP to award
+ * @param show   Whether to display the XP gain message
+ */
+void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -417,40 +434,94 @@ void gain_exp(CHAR_DATA *ch, int gain, bool show)
             }
         }
     } else {
-        if (ch->tot_level >= 120)
+        /* Resolve target class */
+        if (!clazz)
+            clazz = get_current_class(ch);
+
+        CLASS_LEVEL *cl = clazz ? get_class_level(ch, clazz) : NULL;
+
+        if (!cl) {
+            /* Fallback: no class system yet, use legacy ch->exp */
+            if (ch->tot_level >= LEVEL_HERO)
+                return;
+
+            ch->exp = UMIN(exp_per_level(ch, NULL, ch->pcdata->points), ch->exp + gain);
+
+            if (ch->exp >= exp_per_level(ch, NULL, ch->pcdata->points)
+                && ch->level < MAX_CLASS_LEVEL) {
+                send_to_char("{MYou raise a level!!{x\n\r", ch);
+                ch->exp = 0;
+                ch->level += 1;
+                ch->tot_level += 1;
+                advance_level(ch, false);
+                p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LEVEL, NULL);
+                save_char_obj(ch);
+            }
+            return;
+        }
+
+        /* Check max level for this class */
+        if (cl->level >= clazz->max_level)
             return;
 
-        /* make sure you never get more than the exp for your level */
-        ch->exp = UMIN(exp_per_level(ch,ch->pcdata->points), ch->exp + gain);
+        /* Check overall level cap */
+        if (ch->tot_level >= LEVEL_HERO)
+            return;
 
-        if (ch->tot_level < LEVEL_HERO && ch->level < MAX_CLASS_LEVEL &&
-            ch->exp >= exp_per_level(ch,ch->pcdata->points)) {
+        /* Accumulate XP on the class level */
+        long maxexp = exp_per_level(ch, clazz, ch->pcdata->points);
+        if (maxexp <= 0)
+            return;
 
-            send_to_char("{MYou raise a level!!{x\n\r", ch);
-            ch->exp = 0;
-            ch->level += 1;
-            ch->tot_level += 1;
+        cl->xp = cl->xp + gain;
+
+        /* Mirror to ch->exp for legacy compatibility (current class only) */
+        if (clazz == get_current_class(ch))
+            ch->exp = cl->xp;
+
+        /* Level up check */
+        if (cl->xp >= maxexp) {
+
+            const char *class_disp = class_display_ch(clazz, ch);
+            sprintf(buf, "{MYou raise a level in {+{W%s{M!!{x\n\r",
+                    class_disp ? class_disp : clazz->name);
+            send_to_char(buf, ch);
+
+            cl->xp = 0;
+            cl->level++;
+            ch->level = cl->level; /* Sync legacy ch->level */
+            ch->exp = 0;           /* Reset legacy XP */
+
+            /* Only count toward tot_level if this class allows it */
+            if (!IS_SET(clazz->flags, CLASS_NO_LEVEL))
+                ch->tot_level += 1;
+
             if( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) )
                 ch->deathsight_vision = ch->tot_level;
 
-            sprintf(buf,"%s gained level %d",ch->name,ch->level);
+            sprintf(buf, "%s gained level %d in %s", ch->name, cl->level, clazz->name);
+            log_string(buf);
 
-            sprintf(buf, "All congratulate %s who is now level %d!!!", ch->name, ch->tot_level);
+            sprintf(buf, "All congratulate %s who is now level %d in %s!!!",
+                    ch->name, cl->level,
+                    class_disp ? class_disp : clazz->name);
             crier_announce(buf);
 
-            if (ch->level >= MAX_CLASS_LEVEL) {
-                if (ch->tot_level != 120) {
-                    send_to_char("You are now ready to multiclass."
+            if (cl->level >= clazz->max_level) {
+                if (ch->tot_level < LEVEL_HERO) {
+                    send_to_char("You have reached the highest level in this class."
                         "\n\rType 'help multiclass' for more information.\n\r", ch);
                 }
             }
 
-            log_string(buf);
-            sprintf(buf,"$N has attained level %d!",ch->level);
-            wiznet(buf,ch,NULL,WIZ_LEVELS,0,0);
-            advance_level(ch,false);
+            sprintf(buf, "$N has attained level %d as %s!", cl->level, clazz->name);
+            wiznet(buf, ch, NULL, WIZ_LEVELS, 0, 0);
+            advance_level(ch, false);
 
-            p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL);
+            /* Apply class rewards for the new level */
+            apply_class_rewards(ch, clazz, cl->level, cl->level, false);
+
+            p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LEVEL, NULL);
 
             save_char_obj(ch);
         }
@@ -803,7 +874,7 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
         return;
     }
 
-    if (value == 0 || IS_NPC(ch) || ch->level >= LEVEL_IMMORTAL)
+    if (value == 0 || IS_NPC(ch) || IS_IMMORTAL(ch))
         return;
 
     condition = ch->pcdata->condition[iCond];
@@ -2865,6 +2936,7 @@ void aggr_update(void)
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_PHYSICAL;
                 af.type      = gsn_blindness;
+    af.skill = skill_from_sn(af.type);
                 af.level     = obj->level;
                 af.location  = APPLY_HITROLL;
                 af.modifier  = -4;
@@ -2921,6 +2993,7 @@ void aggr_update(void)
             af.where     = TO_AFFECTS;
             af.group	 = AFFGROUP_PHYSICAL;
             af.type      = gsn_blindness;
+    af.skill = skill_from_sn(af.type);
             af.level     = obj->level;
             af.location  = APPLY_HITROLL;
             af.modifier  = -4;
@@ -2941,6 +3014,7 @@ void aggr_update(void)
             af.where     = TO_AFFECTS;
             af.group	 = AFFGROUP_PHYSICAL;
             af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
             af.level     = obj->level * 3/4;
             af.duration  = URANGE(1,obj->level / 2, 5);
             af.location  = APPLY_STR;
@@ -3124,7 +3198,7 @@ void aggr_update(void)
     */
     // Stop there for NPCs; for mortal PCs, aggress
     if (IS_NPC(wch)
-    ||  wch->level >= LEVEL_IMMORTAL
+    ||  IS_IMMORTAL(wch)
     ||  wch->in_room == NULL
     ||  !can_room_update(wch->in_room))
         continue;
@@ -4062,9 +4136,9 @@ void msdp_update( void )
             MSDPSetNumber( d, eMSDP_ALIGNMENT, d->character->alignment );
             MSDPSetNumber( d, eMSDP_EXPERIENCE, d->character->exp );
             MSDPSetNumber( d, eMSDP_EXPERIENCE_MAX, exp_per_level(d->character,
-               d->character->pcdata->points)  );
+               NULL, d->character->pcdata->points)  );
             MSDPSetNumber( d, eMSDP_EXPERIENCE_TNL, ((d->character->level + 1) *
-               exp_per_level(d->character, d->character->pcdata->points) -
+               exp_per_level(d->character, NULL, d->character->pcdata->points) -
                d->character->exp ) );
 
             MSDPSetNumber( d, eMSDP_HEALTH, d->character->hit );
@@ -4237,8 +4311,8 @@ void gmcp_update( void )
 
             UpdateGMCPNumber( d, GMCP_ALIGNMENT, d->character->alignment );
             UpdateGMCPNumber( d, GMCP_XP, d->character->exp );
-            UpdateGMCPNumber( d, GMCP_XP_MAX, exp_per_level( d->character, d->character->pcdata->points) );
-            UpdateGMCPNumber( d, GMCP_XP_TNL, ( ( d->character->level + 1 ) * exp_per_level( d->character, d->character->pcdata->points ) - d->character->exp ) );
+            UpdateGMCPNumber( d, GMCP_XP_MAX, exp_per_level( d->character, NULL, d->character->pcdata->points) );
+            UpdateGMCPNumber( d, GMCP_XP_TNL, ( ( d->character->level + 1 ) * exp_per_level( d->character, NULL, d->character->pcdata->points ) - d->character->exp ) );
             UpdateGMCPNumber( d, GMCP_PRACTICE, d->character->practice );
             UpdateGMCPNumber( d, GMCP_MONEY, d->character->gold );
 

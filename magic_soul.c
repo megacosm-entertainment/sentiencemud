@@ -19,11 +19,12 @@
 
 SPELL_FUNC(spell_soul_essence)
 {
+    int sn = skill->uid;
     char buf[MSL];
     OBJ_DATA *obj;
     char *arg = (char *) vo;
     int souls, i;
-    int skill, skill2;
+    int skill_pct, skill2;
     bool found = false, all;
     ITERATOR it;
 
@@ -56,10 +57,10 @@ SPELL_FUNC(spell_soul_essence)
     }
 
     if (found) {
-        skill = get_skill(ch,gsn_soul_essence); skill = UMAX(0,skill);
+        skill_pct = get_skill(ch,gsn_soul_essence); skill_pct = UMAX(0,skill_pct);
         skill2 = get_skill(ch,gsn_soul_essence); skill2 = UMAX(0,skill2);
 
-        i = i * skill * skill2 / 10000;
+        i = i * skill_pct * skill2 / 10000;
 
         // Give boost for avatars and wraiths
         if(ch->race && (!str_cmp(ch->race->id, "avatar") || !str_cmp(ch->race->id, "wraith")))

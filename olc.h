@@ -64,6 +64,9 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_GAMESETTING    27  // Or whatever value is appropriate
 #define ED_RACE           29
 #define ED_TRAIT          30
+#define ED_SKILL          31
+#define ED_GROUP          32
+#define ED_SONG           33
 
 
 
@@ -88,6 +91,9 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define SOCEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 #define RACEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 #define TRAITEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
+#define SKEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
+#define GREDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
+#define SOEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -122,6 +128,9 @@ void    gameedit ( CHAR_DATA *ch, char *argument );
 void    socialedit( CHAR_DATA *ch, char *argument );
 void    racedit  ( CHAR_DATA *ch, char *argument );
 void    traitedit( CHAR_DATA *ch, char *argument );
+void    skedit   ( CHAR_DATA *ch, char *argument );
+void    gredit   ( CHAR_DATA *ch, char *argument );
+void    soedit   ( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -196,6 +205,9 @@ extern const struct olc_cmd_type        cmdedit_table[];
 extern const struct olc_cmd_type        socialedit_table[];
 extern const struct olc_cmd_type        racedit_table[];
 extern const struct olc_cmd_type        traitedit_table[];
+extern const struct olc_cmd_type        skedit_table[];
+extern const struct olc_cmd_type        gredit_table[];
+extern const struct olc_cmd_type        soedit_table[];
 
 
 /*
@@ -221,6 +233,9 @@ DECLARE_DO_FUN( do_dngedit       );
 DECLARE_DO_FUN( do_cmdedit      );
 DECLARE_DO_FUN( do_racedit      );
 DECLARE_DO_FUN( do_traitedit    );
+DECLARE_DO_FUN( do_skedit       );
+DECLARE_DO_FUN( do_gredit       );
+DECLARE_DO_FUN( do_soedit       );
 
 
 /*
@@ -683,6 +698,57 @@ DECLARE_OLC_FUN( traitedit_save );
 DECLARE_OLC_FUN( traitedit_list );
 
 /*
+ * Skill Editor Prototypes
+ */
+DECLARE_OLC_FUN( skedit_show );
+DECLARE_OLC_FUN( skedit_list );
+DECLARE_OLC_FUN( skedit_name );
+DECLARE_OLC_FUN( skedit_display );
+DECLARE_OLC_FUN( skedit_level );
+DECLARE_OLC_FUN( skedit_difficulty );
+DECLARE_OLC_FUN( skedit_mana );
+DECLARE_OLC_FUN( skedit_beats );
+DECLARE_OLC_FUN( skedit_target );
+DECLARE_OLC_FUN( skedit_position );
+DECLARE_OLC_FUN( skedit_damtype );
+DECLARE_OLC_FUN( skedit_msgoff );
+DECLARE_OLC_FUN( skedit_msgobj );
+DECLARE_OLC_FUN( skedit_spellfun );
+DECLARE_OLC_FUN( skedit_flags );
+DECLARE_OLC_FUN( skedit_class );
+DECLARE_OLC_FUN( skedit_save );
+
+/*
+ * Group Editor Prototypes
+ */
+DECLARE_OLC_FUN( gredit_show );
+DECLARE_OLC_FUN( gredit_list );
+DECLARE_OLC_FUN( gredit_name );
+DECLARE_OLC_FUN( gredit_add );
+DECLARE_OLC_FUN( gredit_remove );
+DECLARE_OLC_FUN( gredit_create );
+DECLARE_OLC_FUN( gredit_delete );
+DECLARE_OLC_FUN( gredit_save );
+
+/*
+ * Song Editor Prototypes
+ */
+DECLARE_OLC_FUN( soedit_show );
+DECLARE_OLC_FUN( soedit_list );
+DECLARE_OLC_FUN( soedit_name );
+DECLARE_OLC_FUN( soedit_level );
+DECLARE_OLC_FUN( soedit_mana );
+DECLARE_OLC_FUN( soedit_beats );
+DECLARE_OLC_FUN( soedit_target );
+DECLARE_OLC_FUN( soedit_spell );
+DECLARE_OLC_FUN( soedit_save );
+
+/*
+ * MEdit Trainer Sub-editor
+ */
+DECLARE_OLC_FUN( medit_trainer );
+
+/*
  * Macros
  */
 #define TOGGLE_BIT(var, bit)    ((var) ^= (bit))
@@ -716,6 +782,9 @@ DECLARE_OLC_FUN( traitedit_list );
 #define EDIT_SOCIAL(ch, social)  (social = (struct social_type *)ch->desc->pEdit)
 #define EDIT_RACE(ch, race)      (race = (RACE_DATA *)ch->desc->pEdit)
 #define EDIT_TRAIT(ch, def)      (def = (TRAIT_DEF *)ch->desc->pEdit)
+#define EDIT_SKILL(ch, skill)    (skill = (SKILL_DATA *)ch->desc->pEdit)
+#define EDIT_GROUP(ch, group)    (group = (SKILL_GROUP *)ch->desc->pEdit)
+#define EDIT_SONG(ch, song)      (song = (SONG_DATA *)ch->desc->pEdit)
 
 
 /*

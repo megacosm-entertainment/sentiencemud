@@ -661,9 +661,9 @@ OEDIT(oedit_addspell)
     }
     }
 
-    if ((i = atoi(level)) < 1 || i > get_trust(ch))
+    if ((i = atoi(level)) < 1 || i > MAX_LEVEL)
     {
-    sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+    sprintf(buf, "Level range is 1-%d.\n\r", MAX_LEVEL);
     send_to_char(buf, ch);
     return false;
     }

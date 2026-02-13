@@ -41,6 +41,7 @@
 #include "strings.h"
 #include "merc.h"
 #include "interp.h"
+#include "tables.h"
 #include "scripts.h"
 #include "account/penalty.h"
 
@@ -132,6 +133,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "affects",	do_affects,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "challenge",	do_challenge,	POS_SLEEPING,	 0,  LOG_ALWAYS, 1, false },
     { "changes",	do_changes,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
+    { "classes",	do_classes,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "commands",	do_commands,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "consider",	do_consider,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "count",		do_count,	POS_SLEEPING,	 0,  LOG_NORMAL, 1, false },
@@ -140,6 +142,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "equipment",	do_equipment,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "examine",	do_examine,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "flag",		do_flag,	POS_RESTING,	 0,  LOG_NORMAL, 1, true },
+    { "freelevel",	do_freelevel,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "gold",		do_worth,	POS_SLEEPING,	 0,  LOG_NORMAL, 1, false },
     { "help",		do_help,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
     { "house",	 	do_house,	POS_RESTING,	 0,  LOG_ALWAYS, 1, false },
@@ -152,6 +155,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "report",		do_report,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "rules",		do_rules,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "score",		do_score,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
+    { "setclass",	do_setclass,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "standing",	do_standing,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "scry",		do_scry,	POS_DEAD,	 0,  LOG_NORMAL, 1, false },
     { "skills",		do_skills,	POS_DEAD,	 0,  LOG_NORMAL, 1, true },
@@ -474,6 +478,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "alist",		do_alist,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "asave",          do_asave_new,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "asearch",	do_asearch,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
+    { "clslist",	do_clslist,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "dislink",	do_dislink,	POS_DEAD,    L5,  LOG_ALWAYS, 1, true },
     { "edit",		do_olc,		POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "hedit",		do_hedit,	POS_DEAD,    L4,  LOG_ALWAYS, 1, true },
@@ -1442,7 +1447,7 @@ if (ch->pk_question)
     // Stop abuse.
     if (selected_command != NULL && found)
     {
-        if (IS_NPC(ch) && selected_command->level >= LEVEL_IMMORTAL)
+        if (IS_NPC(ch) && selected_command->rank >= STAFF_IMMORTAL)
         {
             sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
             ch->short_descr, ch->pIndexData->vnum, selected_command->name);
@@ -1889,7 +1894,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
                 if (command->type != cmdtype)
                     continue;
 
-                if (command->level <= LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+                if (command->rank == STAFF_PLAYER && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
                 {
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
@@ -1939,7 +1944,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
     col = 0;
             while((command = (CMD_DATA *)iterator_nextdata(&cit)))
             {
-                if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+                if (command->rank == STAFF_PLAYER && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
                 {
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
@@ -1997,7 +2002,7 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
     for ( rank = STAFF_IMMORTAL; rank <= get_staff_rank(ch); rank++ )
     {
         col = 0;
-        sprintf(buf, "\n\r{B*{G*{B* {XCommands for level {W%d{X {B*{G*{B*{X\n\r", rank);
+        sprintf(buf, "\n\r{B*{G*{B* {XCommands for rank {W%s{X {B*{G*{B*{X\n\r", flag_string(staff_ranks, rank));
         send_to_char(buf,ch);
 
         ITERATOR it;
@@ -2007,7 +2012,7 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
             if (cmdtype != -1 && !IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
                 continue;
 
-            if (command->rank == rank && command->level <= get_staff_rank(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+            if (command->rank == rank && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
             {
                 if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
                     sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
@@ -2064,7 +2069,7 @@ void stop_music( CHAR_DATA *ch, bool messages )
     free_string( ch->music_target_name );
     ch->music_target_name = NULL;
     ch->music = 0;
-    ch->song_num = -1;
+    ch->song = NULL;
     ch->song_token = NULL;
     ch->song_script = NULL;
     ch->song_instrument = NULL;

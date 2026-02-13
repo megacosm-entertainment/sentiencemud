@@ -45,6 +45,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "traits.h"
+#include "skill_data.h"
 
 #define MAX_BACKSTAB_DAMAGE 15000
 #define MAX_FLEE_ATTEMPTS 10
@@ -1069,6 +1070,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_BIOLOGICAL;
                 af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
                 af.level     = level * 3/4;
                 af.duration  = URANGE(1,level / 2, 5);
                 af.location  = APPLY_STR;
@@ -1198,6 +1200,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_PHYSICAL;
                 af.type      = gsn_blindness;
+    af.skill = skill_from_sn(af.type);
                 af.level     = wield->level/2;
                 af.location  = APPLY_HITROLL;
                 af.modifier  = -4;
@@ -3582,6 +3585,7 @@ bool visit_func_deathsight (ROOM_INDEX_DATA *room, void *argv[], int argc, int d
     af.where     = TO_AFFECTS;
     af.group    = AFFGROUP_MAGICAL;
     af.type      = gsn_blindness;
+    af.skill = skill_from_sn(af.type);
     af.level     = level;
     af.location  = APPLY_HITROLL;
     af.modifier  = -4;
@@ -3971,10 +3975,10 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 
     victim->position = POS_STANDING;
 
-    spell_fly(gsn_fly, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-    spell_detect_invis(gsn_detect_invis, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-    spell_detect_hidden(gsn_detect_hidden, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-    spell_infravision(gsn_infravision, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
+    spell_fly(skill_from_sn(gsn_fly), victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_detect_invis(skill_from_sn(gsn_detect_invis), victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_detect_hidden(skill_from_sn(gsn_detect_hidden), victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_infravision(skill_from_sn(gsn_infravision), victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     // Do anything that might be required AFTER you truly die, such as expire any affects
     p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_AFTERDEATH, NULL);
@@ -4161,7 +4165,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
                 pc_xp *= 1.05;
             }
 
-            gain_exp(gch, pc_xp, true);
+            gain_exp(gch, NULL, pc_xp, true);
         }
 
         // Process worn objects for XP triggers
@@ -4665,6 +4669,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
         af.where	= TO_AFFECTS;
         af.group     = AFFGROUP_METARACIAL;
         af.type		= gsn_berserk;
+    af.skill = skill_from_sn(af.type);
         af.level	= ch->tot_level;
         af.duration	= 5;
         af.modifier	= UMAX(1,ch->tot_level/10);
@@ -5407,6 +5412,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
                     af.where = TO_AFFECTS;
                     af.group     = AFFGROUP_BIOLOGICAL;
                     af.type  = gsn_toxins;
+    af.skill = skill_from_sn(af.type);
                     af.level = victim->bitten_level;
                     af.duration = 5;
                     af.location = APPLY_STR;
@@ -5436,6 +5442,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
                         af.where     = TO_AFFECTS;
                         af.group     = AFFGROUP_BIOLOGICAL;
                         af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
                         af.level     = level * 3/4;
                         af.duration  = URANGE(1,level / 2, 5);
                         af.location  = APPLY_STR;
@@ -5481,7 +5488,7 @@ void bitten_end(CHAR_DATA *ch)
     act("{R$n's face flushes red as the toxins reach $s brain.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     affect_strip(ch, gsn_toxins);
-    (*toxin_table[ch->bitten_type].spell) (gsn_toxins, ch->bitten_level, NULL, ch, TARGET_CHAR, WEAR_NONE);
+    (*toxin_table[ch->bitten_type].spell)(skill_from_sn(gsn_toxins), ch->bitten_level, NULL, ch, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     ch->bitten = 0;
     ch->bitten_level = 0;
@@ -5614,6 +5621,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
         af.where	= TO_AFFECTS;
         af.group     = AFFGROUP_PHYSICAL;
         af.type 	= gsn_blindness;
+    af.skill = skill_from_sn(af.type);
         af.level 	= ch->tot_level;
         af.duration	= 1;
         af.location	= APPLY_HITROLL;
@@ -5643,6 +5651,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
             af.where	= TO_AFFECTS;
             af.group     = AFFGROUP_PHYSICAL;
             af.type 	= gsn_blindness;
+    af.skill = skill_from_sn(af.type);
             af.level 	= ch->tot_level;
             af.duration	= 1;
             af.location	= APPLY_HITROLL;
@@ -5759,7 +5768,7 @@ void do_breathe(CHAR_DATA *ch, char *argument)
 
     WAIT_STATE(ch,skill_table[gsn_breath].beats);
 
-    (*breath_fun[i]) (*breath_gsn[i] , ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    (*breath_fun[i])(skill_from_sn(*breath_gsn[i]), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     check_improve(ch,gsn_breath,true,4);
 }
@@ -5970,7 +5979,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
     check_improve(ch,gsn_burgle,true,5);
     chance = get_skill(ch, gsn_burgle) / 10;
 
-    if (ch->level > LEVEL_HERO)
+    if (IS_IMMORTAL(ch))
         chance = 100;
 
     if (number_percent() < chance) {
@@ -6260,6 +6269,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
             af.where = TO_AFFECTS;
             af.group     = AFFGROUP_PHYSICAL;
             af.type = gsn_sleep;
+    af.skill = skill_from_sn(af.type);
             af.level = ch->tot_level+(weapon?(weapon->level/5):0);
             af.duration = weapon ? number_range(2,4) : 1;
             af.location = APPLY_NONE;
@@ -7936,6 +7946,7 @@ void do_warcry(CHAR_DATA *ch, char *argument)
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_PHYSICAL;
     af.type      = gsn_warcry;
+    af.skill = skill_from_sn(af.type);
     af.level     = ch->tot_level;
     af.duration  = 3;
     af.location  = APPLY_STR;

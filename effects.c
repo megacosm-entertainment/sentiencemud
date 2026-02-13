@@ -15,6 +15,7 @@
 // VIZZWILDS
 #include "wilds.h"
 #include "traits.h"
+#include "skill_data.h"
 
 
 void acid_effect(void *vo, int level, int dam, int target)
@@ -198,6 +199,7 @@ void cold_effect(void *vo, int level, int dam, int target)
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
             af.type      = gsn_chill_touch;
+    af.skill = skill_from_sn(af.type);
             af.level     = level;
             af.duration  = 6;
             af.location  = APPLY_STR;
@@ -320,6 +322,7 @@ void fire_effect(void *vo, int level, int dam, int target)
             af.where        = TO_AFFECTS;
             af.group        = AFFGROUP_PHYSICAL;
             af.type         = gsn_fire_breath;
+    af.skill = skill_from_sn(af.type);
             af.level        = level;
             af.duration     = 1;//number_range(0,level/10);
             af.location     = APPLY_HITROLL;
@@ -513,6 +516,7 @@ void poison_effect(void *vo, int level, int dam, int target)
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
             af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
             af.level     = level;
             af.duration  = level / 2;
             af.location  = APPLY_STR;
@@ -857,6 +861,7 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
     if(af.bitvector) {
         af.where     = TO_AFFECTS;
         af.type      = gsn_toxic_fumes;
+    af.skill = skill_from_sn(af.type);
         af.level     = level;
         af.duration  = duration;
         af.location  = APPLY_STR;
@@ -866,6 +871,7 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 
     af.where     = TO_AFFECTS;
     af.type      = gsn_toxic_fumes;
+    af.skill = skill_from_sn(af.type);
     af.level     = level;
     af.duration  = duration;
     af.location  = APPLY_MOVE;

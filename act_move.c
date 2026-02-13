@@ -43,6 +43,7 @@
 #include "olc.h"
 #include "wilds.h"
 #include "traits.h"
+#include "skill_data.h"
 
 
 /**
@@ -1039,6 +1040,7 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
                     af.where     = TO_AFFECTS;
                     af.group     = AFFGROUP_PHYSICAL;
                     af.type      = gsn_blindness;
+    af.skill = skill_from_sn(af.type);
                     af.level     = 3; /* obj->level; */
                     af.location  = APPLY_HITROLL;
                     af.modifier  = -4;
@@ -3227,6 +3229,7 @@ memset(&af,0,sizeof(af));
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_PHYSICAL;
     af.type      = gsn_sneak;
+    af.skill = skill_from_sn(af.type);
     af.level     = ch->level;
     af.duration  = ch->level;
     af.location  = APPLY_NONE;
@@ -4163,6 +4166,7 @@ memset(&af,0,sizeof(af));
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_PHYSICAL;
     af.type      = gsn_evasion;
+    af.skill = skill_from_sn(af.type);
     af.level     = ch->tot_level;
     af.duration  = ch->tot_level/3;
     af.location  = APPLY_DEX;
@@ -4561,6 +4565,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
         af.where     = TO_AFFECTS;
         af.group     = AFFGROUP_PHYSICAL;
         af.type      = gsn_flight;
+    af.skill = skill_from_sn(af.type);
         af.level     = MOUNTED(ch)->tot_level;
         af.duration  = -1;
         af.location  = APPLY_NONE;
@@ -4619,6 +4624,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
         af.where     = TO_AFFECTS;
         af.group     = AFFGROUP_PHYSICAL;
         af.type      = gsn_flight;
+    af.skill = skill_from_sn(af.type);
         af.level     = ch->tot_level;
         af.duration  = -1;
         af.location  = APPLY_NONE;

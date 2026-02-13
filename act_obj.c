@@ -44,6 +44,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "traits.h"
+#include "skill_data.h"
 
 /**
  * obj_has_money - Check if a container has money visible to character
@@ -2617,6 +2618,7 @@ memset(&af,0,sizeof(af));
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
             af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
             af.level     = ch->tot_level * percent / 100;
             af.duration  = ch->tot_level/2 * percent / 100;
             af.location  = 0;
@@ -3003,6 +3005,7 @@ memset(&af,0,sizeof(af));
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_BIOLOGICAL;
     af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
     af.level	 = number_fuzzy(amount);
     af.duration  = 3 * amount;
     af.location  = APPLY_NONE;
@@ -3088,8 +3091,8 @@ void do_eat(CHAR_DATA *ch, char *argument)
     {
         long xp;
 
-    xp = exp_per_level(ch, ch->pcdata->points) - ch->exp;
-    gain_exp(ch, xp, false);
+    xp = exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp;
+    gain_exp(ch, NULL, xp, false);
     extract_obj(obj);
     return;
     }
@@ -3121,6 +3124,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
         af.where	 = TO_AFFECTS;
         af.group     = AFFGROUP_BIOLOGICAL;
         af.type      = gsn_poison;
+    af.skill = skill_from_sn(af.type);
         af.level 	 = number_fuzzy(obj->value[0]);
         af.duration  = 2 * obj->value[0];
         af.location  = APPLY_NONE;
@@ -6876,7 +6880,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
         act("You ask $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n asks $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        spell_identify(gsn__inspect, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
+        spell_identify(skill_from_sn(gsn__inspect), ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
     }
     else if( request.stock != NULL )
     {
@@ -6899,7 +6903,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
                     sprintf(buf, "{YExpires After{y:{X %d hours{x\n\r", request.stock->duration);
                     send_to_char(buf, ch);
                 }
-                spell_identify(gsn__inspect, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
+                spell_identify(skill_from_sn(gsn__inspect), ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
             }
             extract_obj(obj);
             return;
@@ -8294,17 +8298,17 @@ void do_hands(CHAR_DATA *ch, char *argument)
     act("{C$n's hands glow a brilliant blue.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     sn = skill_lookup("cure disease");
-    spell_cure_disease(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_disease(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     sn = skill_lookup("cure poison");
-    spell_cure_poison(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_poison(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     sn = skill_lookup("cure blindness");
-    spell_cure_blindness(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_blindness(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     /* @@@NIB : 20070127 : for curing the toxic fumes*/
     sn = skill_lookup("cure toxic");
-    spell_cure_toxic(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_toxic(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     check_improve(ch, gsn_healing_hands, true, 1);
 }
 
@@ -8884,6 +8888,7 @@ memset(&af,0,sizeof(af));
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
             af.type      = gsn_infuse;
+    af.skill = skill_from_sn(af.type);
             af.level     = (ch->tot_level * skill)/ 100;
             af.duration  = ((ch->tot_level/2) * skill)/ 100;
             af.location  = 0;

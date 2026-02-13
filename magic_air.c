@@ -19,11 +19,13 @@
 
 SPELL_FUNC(spell_air_pocket)
 {
+    int sn = skill->uid;
     return false;
 }
 
 SPELL_FUNC(spell_faerie_fog)
 {
+    int sn = skill->uid;
     CHAR_DATA *ich;
 
     act("$n conjures a cloud of purple smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -56,6 +58,7 @@ SPELL_FUNC(spell_faerie_fog)
 
 SPELL_FUNC(spell_fly)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -79,6 +82,7 @@ SPELL_FUNC(spell_fly)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level + 3);
     af.location = 0;
@@ -97,6 +101,7 @@ SPELL_FUNC(spell_fly)
 
 SPELL_FUNC(spell_underwater_breathing)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -123,6 +128,7 @@ SPELL_FUNC(spell_underwater_breathing)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : 35;
     af.modifier = 0;
@@ -138,6 +144,7 @@ SPELL_FUNC(spell_underwater_breathing)
 
 SPELL_FUNC(spell_wind_of_confusion)
 {
+    int sn = skill->uid;
     CHAR_DATA *vch;
 
     send_to_char("{MYou summon forth a howling wind!{x\n\r", ch);

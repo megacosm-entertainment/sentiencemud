@@ -1,0 +1,197 @@
+/***************************************************************************
+ *  Class Data System - Public API                                         *
+ *                                                                         *
+ *  Data-driven class definitions loaded from JSON files.                  *
+ *  Replaces the legacy static class_table[] and sub_class_table[] arrays. *
+ ***************************************************************************/
+
+#ifndef CLASS_DATA_H
+#define CLASS_DATA_H
+
+/* Forward declarations — full structs are in merc.h */
+typedef struct class_data CLASS_DATA;
+typedef struct class_level CLASS_LEVEL;
+typedef struct class_reward CLASS_REWARD;
+typedef struct class_title CLASS_TITLE;
+
+/***************************************************************************
+ * Constants                                                               *
+ ***************************************************************************/
+
+#define CLASS_HASH_SIZE         64
+#define CLASSES_DIR             DATA_DIR "classes/"
+
+/* Class type categories — broader than the original 4 base classes */
+#define CLASS_TYPE_NONE         -1
+#define CLASS_TYPE_MAGE          0      /* Arcane caster */
+#define CLASS_TYPE_CLERIC        1      /* Divine caster */
+#define CLASS_TYPE_THIEF         2      /* Stealth/agility */
+#define CLASS_TYPE_WARRIOR       3      /* Melee combat */
+#define CLASS_TYPE_CRAFTING      4      /* Item creation (smithing, alchemy, etc.) */
+#define CLASS_TYPE_GATHERING     5      /* Resource collection (mining, herbalism) */
+#define CLASS_TYPE_EXPLORER      6      /* Discovery/navigation */
+#define MAX_CLASS_TYPE           7
+
+/* Class flags (bitfield) */
+#define CLASS_COMBATIVE         (A)    /* Class participates in combat */
+#define CLASS_NO_LEVEL          (B)    /* Levels do NOT count toward tot_level */
+#define CLASS_CASTER            (C)    /* Class uses mana */
+#define CLASS_HIDDEN            (D)    /* Not shown in class lists by default */
+#define CLASS_REMORT_ONLY       (E)    /* Requires remort to access */
+#define CLASS_DEFAULT           (F)    /* Auto-assigned to new characters on creation */
+
+/* Reward type constants — what a class grants at a given level */
+#define REWARD_SKILL            0      /* Grant access to a skill at a given rating */
+#define REWARD_GROUP            1      /* Grant all skills in a skill group */
+#define REWARD_TITLE            2      /* Change class display/who name at this level */
+#define REWARD_BONUS            3      /* Grant a stat or attribute bonus */
+#define REWARD_TOKEN            4      /* Grant a token to the character */
+#define REWARD_SCRIPT           5      /* Execute a script against the character */
+#define REWARD_CUSTOM           6      /* Write to CLASS_LEVEL.custom_data */
+#define REWARD_TRAIT            7      /* Grant or override a trait value */
+#define REWARD_SONG             8      /* Grant a song to the character */
+#define MAX_REWARD_TYPE         9
+
+/* Reward flags (bitfield) */
+#define REWARD_REVOKE_ON_LEAVE  (A)    /* Revoked when leaving this class */
+#define REWARD_ONE_TIME         (B)    /* Only triggers once (not re-applied on reload) */
+#define REWARD_HIDDEN           (C)    /* Not shown in class level list */
+#define REWARD_SONG_UNLOCK      (D)    /* Song reward: unlock for rehearsal only (not direct grant) */
+
+/* Reward scope — controls cross-class availability of granted skills/perks */
+#define REWARD_SCOPE_CLASS      0      /* Only when the granting class is active */
+#define REWARD_SCOPE_TYPE       1      /* Any class of the same CLASS_TYPE_* */
+#define REWARD_SCOPE_COMBAT     2      /* Any class with CLASS_COMBATIVE flag */
+#define REWARD_SCOPE_ALWAYS     3      /* Always available regardless of active class */
+#define MAX_REWARD_SCOPE        4
+
+/***************************************************************************
+ * Callback typedefs                                                       *
+ ***************************************************************************/
+
+typedef void CLASS_ENTER_FUN(CHAR_DATA *ch);
+typedef void CLASS_LEAVE_FUN(CHAR_DATA *ch);
+
+/***************************************************************************
+ * Lookup API                                                              *
+ ***************************************************************************/
+
+/* Primary lookups — return NULL if not found */
+CLASS_DATA *    class_find(const char *name);            /* Prefix match (case-insensitive) */
+CLASS_DATA *    class_find_exact(const char *name);      /* Exact match (case-insensitive) */
+CLASS_DATA *    class_find_uid(int16_t uid);             /* By UID (for deserialization) */
+
+/* Convenience */
+const char *    class_name(CLASS_DATA *clazz);           /* Returns name, or "none" if NULL */
+const char *    class_display(CLASS_DATA *clazz, int body_type);
+const char *    class_who(CLASS_DATA *clazz, int body_type);
+const char *    class_display_ch(CLASS_DATA *clazz, CHAR_DATA *ch);  /* Uses ch->body_type */
+const char *    class_who_ch(CLASS_DATA *clazz, CHAR_DATA *ch);      /* Uses ch->body_type */
+
+/* Title API */
+CLASS_TITLE *   class_find_title(CLASS_DATA *clazz, const char *keyword);  /* By keyword */
+CLASS_TITLE *   class_get_default_title(CLASS_DATA *clazz);               /* First is_default */
+const char *    class_title_display(CLASS_DATA *clazz, CLASS_LEVEL *cl);  /* Active or default display */
+const char *    class_title_who(CLASS_DATA *clazz, CLASS_LEVEL *cl);      /* Active or default who name */
+
+/* Global iteration */
+CLASS_DATA *    class_first(void);                       /* First in alphabetical global list */
+int             class_count(void);                       /* Total loaded class count */
+CLASS_DATA *    class_get_default(void);                 /* First class with CLASS_DEFAULT flag */
+
+/***************************************************************************
+ * Character Class API                                                     *
+ ***************************************************************************/
+
+/* Current class */
+CLASS_DATA *    get_current_class(CHAR_DATA *ch);
+
+/* Class level access */
+CLASS_LEVEL *   get_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);  /* NULL clazz = current */
+bool            has_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
+void            add_class_level(CHAR_DATA *ch, CLASS_DATA *clazz, int level);
+void            remove_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
+void            insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
+
+/* Queries */
+bool            is_current_class_combat(CHAR_DATA *ch);
+long            class_exp_per_level(CLASS_DATA *clazz, int level);
+const long *    class_default_xp_table(int *out_size);
+
+/***************************************************************************
+ * Compatibility / Migration API                                           *
+ ***************************************************************************/
+
+/* Map legacy class index (0-3) + sub_class index to CLASS_DATA */
+CLASS_DATA *    class_from_legacy(int class_idx, int sub_class_idx);
+
+/*
+ * CLASS_CACHED — File-local cached class pointer.
+ *
+ * Provides O(1) access after first lookup, replacing gcl_* globals.
+ * Usage:
+ *   CLASS_CACHED(cls_paladin, "paladin");
+ *   if (clazz == cls_paladin) { ... }
+ */
+#define CLASS_CACHED(var, name) \
+    static CLASS_DATA *var = NULL; \
+    if (!(var)) (var) = class_find_exact(name)
+
+/***************************************************************************
+ * Boot / Persistence                                                      *
+ ***************************************************************************/
+
+/* Load all classes from JSON files (or bootstrap from sub_class_table on first run) */
+void            load_class_data(void);
+
+/* Save a single class to its JSON file */
+void            save_class_data(CLASS_DATA *clazz);
+
+/* Save all classes to JSON files */
+void            save_all_class_data(void);
+
+/* Resolve skill class_levels string references to CLASS_DATA pointers */
+void            resolve_skill_class_pointers(void);
+
+/* Build SKILL_CLASS_LEVEL entries from class rewards (called at boot) */
+void            resolve_class_rewards_to_skill_levels(void);
+
+/***************************************************************************
+ * Reward System API                                                       *
+ ***************************************************************************/
+
+/* Apply class rewards to a character for a level range.
+ * on_join=true suppresses messages for already-applied rewards. */
+void            apply_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz,
+                    int from_level, int to_level, bool on_join);
+
+/* Revoke rewards with REWARD_REVOKE_ON_LEAVE flag */
+void            revoke_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz);
+
+/* Check if a skill entry is usable with the character's current class */
+bool            is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry);
+
+/***************************************************************************
+ * Memory Management                                                       *
+ ***************************************************************************/
+
+CLASS_DATA *    new_class_data(void);
+void            free_class_data(CLASS_DATA *data);
+CLASS_LEVEL *   new_class_level(void);
+void            free_class_level(CLASS_LEVEL *cl);
+CLASS_REWARD *  new_class_reward(void);
+void            free_class_reward(CLASS_REWARD *reward);
+CLASS_TITLE *   new_class_title(void);
+void            free_class_title(CLASS_TITLE *title);
+
+/***************************************************************************
+ * Flag / Type Tables (for OLC, serialization)                             *
+ ***************************************************************************/
+
+extern const struct flag_type class_types[];
+extern const struct flag_type class_flags[];
+extern const struct flag_type reward_types[];
+extern const struct flag_type reward_flags[];
+extern const struct flag_type reward_scopes[];
+
+#endif /* CLASS_DATA_H */

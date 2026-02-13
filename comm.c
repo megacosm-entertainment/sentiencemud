@@ -2433,7 +2433,7 @@ void bust_a_prompt(CHAR_DATA *ch)
         i = buf2; break;
     case 'X' :
         sprintf(buf2, "%ld", IS_NPC(ch) ? 0 :
-        exp_per_level(ch,ch->pcdata->points) - ch->exp);
+        exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp);
         i = buf2; break;
     case 'Q' :
         sprintf(buf2, "%ld", IS_NPC(ch) ? 0 : ch->pcdata->quests_completed);
@@ -2733,7 +2733,7 @@ void join_world(DESCRIPTOR_DATA * d)
 
         ch->level = 1;
         ch->tot_level = 1;
-        ch->exp = exp_per_level (ch, ch->pcdata->points);
+        ch->exp = exp_per_level (ch, NULL, ch->pcdata->points);
         ch->hit = ch->max_hit;
         ch->mana = ch->max_mana;
         ch->move = ch->max_move;

@@ -16,9 +16,11 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "skill_data.h"
 
 SPELL_FUNC(spell_cosmic_blast)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -30,13 +32,14 @@ SPELL_FUNC(spell_cosmic_blast)
     dam = dice(level,8);
     damage(ch,victim,dam,sn,DAM_ENERGY,true);
 
-    spell_blindness(gsn_blindness, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
+    spell_blindness(skill_from_sn(gsn_blindness), 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 
 
 SPELL_FUNC(spell_energy_drain)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
     int sk;
@@ -82,6 +85,7 @@ SPELL_FUNC(spell_energy_drain)
 
 SPELL_FUNC(spell_energy_field)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -106,6 +110,7 @@ SPELL_FUNC(spell_energy_field)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 6 + 4);
     af.location = APPLY_NONE;
@@ -122,6 +127,7 @@ SPELL_FUNC(spell_energy_field)
 
 SPELL_FUNC(spell_shield)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -146,6 +152,7 @@ SPELL_FUNC(spell_shield)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (8 + level);
     af.location = APPLY_AC;

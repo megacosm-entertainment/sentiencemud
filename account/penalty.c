@@ -50,6 +50,7 @@ const char *bonus_type_names[] = {
     "qp",           /* BONUS_QP            */
     "train",        /* BONUS_TRAIN         */
     "custom",       /* BONUS_CUSTOM        */
+    "freelevels",   /* BONUS_FREE_LEVELS   */
     NULL
 };
 

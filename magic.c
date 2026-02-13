@@ -47,6 +47,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "scripts.h"
+#include "skill_data.h"
 
 /*
  * Lookup a skill by name and return a pointer to the skill_type.
@@ -71,18 +72,8 @@ const skill_t *skill_type_lookup(const char *name)
 // Lookup a skill by name.
 int skill_lookup(const char *name)
 {
-    int sn;
-
-    for (sn = 0; sn < MAX_SKILL; sn++)
-    {
-    if (skill_table[sn].name == NULL)
-        break;
-    if (LOWER(name[0]) == LOWER(skill_table[sn].name[0])
-    &&   !str_prefix(name, skill_table[sn].name))
-        return sn;
-    }
-
-    return -1;
+    SKILL_DATA *sk = skill_search(name);
+    return sk ? sk->uid : -1;
 }
 
 
@@ -1048,9 +1039,9 @@ void cast_end(CHAR_DATA *ch)
 
         if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
             if (check_spell_deflection(ch, victim, sn))
-                (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
+                (*skill_table[sn].spell_fun) (skill_from_sn(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
         } else
-            (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
+            (*skill_table[sn].spell_fun) (skill_from_sn(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
 
 
         check_improve(ch,sn,!ch->casting_recovered,1);
@@ -1200,10 +1191,10 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
     if (target == TARGET_CHAR && victim != NULL)
     {
     if (check_spell_deflection(ch, victim, sn))
-        (*skill_table[sn].spell_fun) (sn, level, ch, vo, target, wear_loc);
+        (*skill_table[sn].spell_fun) (skill_from_sn(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
     }
     else
-        (*skill_table[sn].spell_fun) (sn, level, ch, vo,target, wear_loc);
+        (*skill_table[sn].spell_fun) (skill_from_sn(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
 
     if ((skill_table[sn].target == TAR_CHAR_OFFENSIVE
         || (skill_table[sn].target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR))
@@ -1334,7 +1325,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     ||   (target == TARGET_OBJ  && target_obj != NULL)
     ||    target == TARGET_ROOM
     ||    target == TARGET_NONE)
-    (*skill_table[sn].spell_fun)(sn, obj->level, ch, vo, target, WEAR_NONE);
+    (*skill_table[sn].spell_fun)(skill_from_sn(sn), obj->level, ch, vo, target, WEAR_NONE, INVOC_INTERNAL);
     else
     {
     sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", obj->short_descr, obj->pIndexData->vnum);
@@ -1497,6 +1488,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 
 SPELL_FUNC(spell_null)
 {
+    int sn = skill->uid;
     send_to_char("That's not a spell!\n\r", ch);
     return false;
 }

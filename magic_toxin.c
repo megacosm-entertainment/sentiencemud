@@ -21,6 +21,7 @@
 
 SPELL_FUNC(spell_fatigue)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -32,6 +33,7 @@ SPELL_FUNC(spell_fatigue)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = URANGE(1, level / 2, 5);
     af.location = APPLY_MOVE;
@@ -46,6 +48,7 @@ SPELL_FUNC(spell_fatigue)
 
 SPELL_FUNC(spell_gas_breath)
 {
+    int sn = skill->uid;
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
     int dam;
@@ -81,6 +84,7 @@ SPELL_FUNC(spell_gas_breath)
 
 SPELL_FUNC(spell_paralysis)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -99,6 +103,7 @@ SPELL_FUNC(spell_paralysis)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration  = level/4 + 3;
     af.location  = APPLY_NONE;
@@ -112,6 +117,7 @@ SPELL_FUNC(spell_paralysis)
 
 SPELL_FUNC(spell_plague)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -128,6 +134,7 @@ SPELL_FUNC(spell_plague)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level * 3/4;
     af.duration = URANGE(1,level, 5);
     af.location = APPLY_STR;
@@ -144,6 +151,7 @@ SPELL_FUNC(spell_plague)
 
 SPELL_FUNC(spell_poison)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -187,6 +195,7 @@ SPELL_FUNC(spell_poison)
             af.where = TO_WEAPON;
             af.group = AFFGROUP_WEAPON;
             af.type	= sn;
+    af.skill = skill;
             af.level = level / 2;
             af.duration = URANGE(1,level/8, 5);
             af.location = 0;
@@ -219,6 +228,7 @@ SPELL_FUNC(spell_poison)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = URANGE(1,level,5);
     af.location = APPLY_STR;
@@ -235,6 +245,7 @@ SPELL_FUNC(spell_poison)
 
 SPELL_FUNC(spell_stinking_cloud)
 {
+    int sn = skill->uid;
     OBJ_DATA *cloud;
     OBJ_DATA *obj;
 
@@ -252,6 +263,7 @@ SPELL_FUNC(spell_stinking_cloud)
 
 SPELL_FUNC(spell_toxic_fumes)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim;
 
     victim = (CHAR_DATA *) vo;
@@ -271,6 +283,7 @@ SPELL_FUNC(spell_toxic_fumes)
 
 SPELL_FUNC(spell_toxin_neurotoxin)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -312,6 +325,7 @@ SPELL_FUNC(spell_toxin_neurotoxin)
 
 SPELL_FUNC(spell_toxin_paralysis)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -351,6 +365,7 @@ SPELL_FUNC(spell_toxin_paralysis)
 
 SPELL_FUNC(spell_toxin_weakness)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -414,6 +429,7 @@ SPELL_FUNC(spell_toxin_weakness)
 
 SPELL_FUNC(spell_toxin_venom)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -463,6 +479,7 @@ SPELL_FUNC(spell_toxin_venom)
 
 SPELL_FUNC(spell_withering_cloud)
 {
+    int sn = skill->uid;
     OBJ_INDEX_DATA *index;
     OBJ_DATA *cloud;
     OBJ_DATA *obj;

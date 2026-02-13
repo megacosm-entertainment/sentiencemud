@@ -19,6 +19,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "olc.h"
+#include "skill_data.h"
 
 /**
  * With storms we only get the most important storm. If a tornado and a rain storm are over a city,
@@ -797,6 +798,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                             af.where	= TO_AFFECTS;
                             af.group	= AFFGROUP_PHYSICAL;
                             af.type 	= gsn_blindness;
+    af.skill = skill_from_sn(af.type);
                             af.level 	= 10;
                             af.duration	= 3;
                             af.location	= APPLY_HITROLL;
@@ -865,6 +867,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                             af.type 	= skill_lookup("blindness");
                             af.level 	= 10;
                             af.duration	= 3;
+                            af.skill = skill_from_sn(af.type);
                             af.location	= APPLY_HITROLL;
                             af.modifier	= -4;
                             af.bitvector 	= AFF_BLIND;

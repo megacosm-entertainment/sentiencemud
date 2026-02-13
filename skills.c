@@ -43,6 +43,10 @@
 #include "recycle.h"
 #include "tables.h"
 #include "db.h"
+#include "skill_data.h"
+#include "skill_group.h"
+#include "class_data.h"
+#include "song_data.h"
 
 #define MAX_SKILL_LEARNABLE	75
 #define MAX_SKILL_TRAINABLE	90
@@ -1156,20 +1160,34 @@ void do_skills(CHAR_DATA *ch, char *argument)
 }
 
 
-long exp_per_level(CHAR_DATA *ch, long points)
+/**
+ * exp_per_level - Get XP needed for the next level
+ *
+ * Returns the experience required to level up in the specified class.
+ * If clazz is NULL, uses the character's current class. Falls back
+ * to the class-based XP curve system (class_exp_per_level).
+ *
+ * @param ch      Character to query
+ * @param clazz   Target class (NULL = current class)
+ * @param points  Legacy parameter (unused, retained for signature compatibility)
+ * @return        XP needed, or 0 if at max level
+ */
+long exp_per_level(CHAR_DATA *ch, CLASS_DATA *clazz, long points)
 {
-    double expl;
-
     if (IS_NPC(ch))
-    return 1000;
+        return 1000;
 
-    expl = exp_per_level_table[ch->tot_level].exp;
+    if (!clazz)
+        clazz = get_current_class(ch);
+
+    CLASS_LEVEL *cl = get_class_level(ch, clazz);
+    if (!cl)
+        return 0;
+
+    long expl = class_exp_per_level(clazz, cl->level);
 
     if (IS_REMORT(ch))
         expl = 3 * expl / 2;
-
-    if (ch->level == MAX_CLASS_LEVEL)
-    expl = 0;
 
     return expl;
 }
@@ -1222,7 +1240,7 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
         sprintf(buf,"{WYou have become better at %s!{x\n\r", skill_table[sn].name);
         send_to_char(buf,ch);
         ch->pcdata->learned[sn]++;
-        gain_exp(ch, 2 * skill_table[sn].rating[this_class], true);
+        gain_exp(ch, NULL, 2 * skill_table[sn].rating[this_class], true);
     }
     }
     else
@@ -1236,7 +1254,7 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
         send_to_char(buf, ch);
         ch->pcdata->learned[sn] += number_range(1,3);
         ch->pcdata->learned[sn] = UMIN(ch->pcdata->learned[sn],100);
-        gain_exp(ch,2 * skill_table[sn].rating[ch->pcdata->class_current], true);
+        gain_exp(ch, NULL, 2 * skill_table[sn].rating[ch->pcdata->class_current], true);
     }
     }
 }
@@ -1268,6 +1286,14 @@ void gn_add(CHAR_DATA *ch, int gn)
     int i;
 
     ch->pcdata->group_known[gn] = true;
+
+    /* Also track in the new known_groups LLIST */
+    if (group_table[gn].name) {
+        SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
+        if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+            list_appendlink(ch->pcdata->known_groups, sg);
+    }
+
     for (i = 0; i < MAX_IN_GROUP; i++)
     {
         if (group_table[gn].spells[i] == NULL)
@@ -1283,6 +1309,13 @@ void gn_remove( CHAR_DATA *ch, int gn)
     int i;
 
     ch->pcdata->group_known[gn] = false;
+
+    /* Also remove from known_groups LLIST */
+    if (group_table[gn].name) {
+        SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
+        if (sg)
+            list_remlink(ch->pcdata->known_groups, sg, false);
+    }
 
     for ( i = 0; i < MAX_IN_GROUP; i ++)
     {
@@ -1551,15 +1584,25 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MSL];
-    int sn;
     CHAR_DATA *mob;
+    SONG_DATA *song;
+    ITERATOR sit;
     bool wasbard;
     bool found = false;
+    bool has_unlocked = false;
 
     if (IS_NPC(ch))
         return;
 
-    if( ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+    /* Check if the character has any songs unlocked via class rewards */
+    for (int i = 0; i < MAX_SONGS; i++) {
+        if (ch->pcdata->songs_unlocked[i]) {
+            has_unlocked = true;
+            break;
+        }
+    }
+
+    if( ch->pcdata->sub_class_thief != CLASS_THIEF_BARD && !has_unlocked)
     {
         send_to_char( "You wouldn't even know how to rehearse.\n\r", ch );
         return;
@@ -1577,18 +1620,21 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
         add_buf(buffer, "{YSong Title                            Level {x\n\r");
         add_buf(buffer, "{Y--------------------------------------------x\n\r");
 
-        for(sn = 0; (sn < MAX_SONGS) && music_table[sn].name; sn++)
+        iterator_start(&sit, song_get_list());
+        while ((song = (SONG_DATA *)iterator_nextdata(&sit)))
         {
-            if( !ch->pcdata->songs_learned[sn] &&
-                (music_table[sn].level <= ch->level || wasbard))
+            if( !ch->pcdata->songs_learned[song->uid] &&
+                ((song->level <= ch->level || wasbard) ||
+                 ch->pcdata->songs_unlocked[song->uid]))
             {
                 sprintf(buf, "%-30s %10d\n\r",
-                    music_table[sn].name,
-                    music_table[sn].level);
+                    song->name,
+                    song->level);
                 add_buf(buffer, buf);
                 found = true;
             }
         }
+        iterator_stop(&sit);
 
         if (found)
             page_to_char(buf_string(buffer), ch);
@@ -1609,24 +1655,29 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
         return;
     }
 
-    for(sn = 0; (sn < MAX_SONGS) && music_table[sn].name; sn++)
+    /* Find the requested song by name prefix */
+    song = NULL;
+    iterator_start(&sit, song_get_list());
+    while ((song = (SONG_DATA *)iterator_nextdata(&sit)))
     {
-        if( !ch->pcdata->songs_learned[sn] &&
-            (music_table[sn].level <= ch->level || wasbard) &&
-            !str_prefix(arg, music_table[sn].name))
+        if( !ch->pcdata->songs_learned[song->uid] &&
+            ((song->level <= ch->level || wasbard) ||
+             ch->pcdata->songs_unlocked[song->uid]) &&
+            !str_prefix(arg, song->name))
         {
             found = true;
             break;
         }
     }
+    iterator_stop(&sit);
 
-    if( !found )
+    if( !found || !song )
     {
         send_to_char("You can't rehearse that.\n\r", ch);
         return;
     }
 
-    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREHEARSE, music_table[sn].name))
+    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREHEARSE, song->name))
         return;
 
     if (ch->practice < 3) {
@@ -1634,12 +1685,12 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
         return;
     }
 
-    ch->pcdata->songs_learned[sn] = true;
-    skill_entry_addsong(ch, sn, NULL, SKILLSRC_NORMAL);
+    ch->pcdata->songs_learned[song->uid] = true;
+    skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
     ch->practice -= 3;
 
-    act("You rehearse {W$T{x.", ch, NULL, NULL, NULL, NULL, NULL, music_table[sn].name, TO_CHAR, NULL, NULL);
-    act("{+$n rehearses {x$T{x.", ch, NULL, NULL, NULL, NULL, NULL, music_table[sn].name, TO_ROOM, NULL, NULL);
+    act("You rehearse {W$T{x.", ch, NULL, NULL, NULL, NULL, NULL, song->name, TO_CHAR, NULL, NULL);
+    act("{+$n rehearses {x$T{x.", ch, NULL, NULL, NULL, NULL, NULL, song->name, TO_ROOM, NULL, NULL);
 }
 
 
@@ -1999,7 +2050,7 @@ char *skill_entry_name (SKILL_ENTRY *entry)
         if ( IS_VALID(entry->token) ) return entry->token->name;
 
         if ( entry->sn > 0 ) return skill_table[entry->sn].name;
-        if ( entry->song >= 0 ) return music_table[entry->song].name;
+        if ( entry->song ) return entry->song->name;
     }
 
     return &str_empty[0];
@@ -2012,8 +2063,8 @@ int skill_entry_compare (SKILL_ENTRY *a, SKILL_ENTRY *b)
     int cmp = str_cmp(an, bn);
 
     if( !cmp ) {
-        if( (a->sn > 0 || a->song >= 0) && IS_VALID(b->token)) cmp = -1;
-        else if( IS_VALID(a->token) && (b->sn > 0 || b->song >= 0)) cmp = 1;
+        if( (a->sn > 0 || a->song != NULL) && IS_VALID(b->token)) cmp = -1;
+        else if( IS_VALID(a->token) && (b->sn > 0 || b->song != NULL)) cmp = 1;
     }
 
     //log_stringf("skill_entry_compare: a(%s) %s b(%s)", an, ((cmp < 0) ? "<" : ((cmp > 0) ? ">" : "==")), bn);
@@ -2021,7 +2072,7 @@ int skill_entry_compare (SKILL_ENTRY *a, SKILL_ENTRY *b)
     return cmp;
 }
 
-void skill_entry_insert (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, long flags, char source)
+void skill_entry_insert (SKILL_ENTRY **list, int sn, SONG_DATA *song, TOKEN_DATA *token, long flags, char source)
 {
     SKILL_ENTRY *cur, *prev, *entry;
 
@@ -2033,6 +2084,10 @@ void skill_entry_insert (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token
     entry->song = song;
     entry->source = source;
     entry->flags = flags;
+
+    // Set SKILL_DATA pointer for navigation to skill definition
+    if (sn > 0 && sn < MAX_SKILL)
+        entry->skill_data = skill_from_sn(sn);
 
     if (IS_SET(entry->flags, SKILL_SPELL)) {
     entry->isspell = true;
@@ -2061,7 +2116,7 @@ void skill_entry_insert (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token
     entry->next = cur;
 }
 
-void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, bool isspell)
+void skill_entry_remove (SKILL_ENTRY **list, int sn, SONG_DATA *song, TOKEN_DATA *token, bool isspell)
 {
     SKILL_ENTRY *cur, *prev;
 
@@ -2070,7 +2125,7 @@ void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token
     while(cur) {
         if ( ((IS_VALID(token) && (cur->token == token)) ||
             (sn > 0 && (cur->sn == sn)) ||
-            ((song >= 0) && (cur->song == song))) &&
+            (song && (cur->song == song))) &&
             (!IS_SET(cur->flags, SKILL_SPELL) == !isspell)) {
 
             if(prev)
@@ -2148,9 +2203,9 @@ SKILL_ENTRY *skill_entry_findsn( SKILL_ENTRY *list, int sn )
     return list;
 }
 
-SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, int song )
+SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, SONG_DATA *song )
 {
-    if( song < 0 ) return NULL;
+    if( !song ) return NULL;
 
     while (list && list->song != song)
         list = list->next;
@@ -2188,7 +2243,7 @@ void skill_entry_addskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source
 */
     if( !sn && (!token || token->type != TOKEN_SKILL)) return;
 
-    skill_entry_insert( &ch->sorted_skills, sn, -1, token, (flags & ~SKILL_SPELL), source );
+    skill_entry_insert( &ch->sorted_skills, sn, NULL, token, (flags & ~SKILL_SPELL), source );
 }
 
 void skill_entry_addspell (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags)
@@ -2197,14 +2252,14 @@ void skill_entry_addspell (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source
 
     if( !sn && (!token || token->type != TOKEN_SPELL)) return;
 
-    skill_entry_insert( &ch->sorted_skills, sn, -1, token, (SKILL_SPELL | (flags & ~SKILL_SPELL)), source );
+    skill_entry_insert( &ch->sorted_skills, sn, NULL, token, (SKILL_SPELL | (flags & ~SKILL_SPELL)), source );
 }
 
-void skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source)
+void skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source)
 {
     if( !ch ) return;
 
-    if( song < 0 && (!token || token->type != TOKEN_SONG)) return;
+    if( !song && (!token || token->type != TOKEN_SONG)) return;
 
     skill_entry_insert( &ch->sorted_songs, 0, song, token, 0, source );
 }
@@ -2215,7 +2270,7 @@ void skill_entry_removeskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token)
 
     if( !sn && (!token || token->type != TOKEN_SKILL)) return;
 
-    skill_entry_remove( &ch->sorted_skills, sn, -1, token, false );
+    skill_entry_remove( &ch->sorted_skills, sn, NULL, token, false );
 }
 
 void skill_entry_removespell (CHAR_DATA *ch, int sn, TOKEN_DATA *token)
@@ -2224,14 +2279,14 @@ void skill_entry_removespell (CHAR_DATA *ch, int sn, TOKEN_DATA *token)
 
     if( !sn && (!token || token->type != TOKEN_SPELL)) return;
 
-    skill_entry_remove( &ch->sorted_skills, sn, -1, token, true );
+    skill_entry_remove( &ch->sorted_skills, sn, NULL, token, true );
 }
 
-void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token)
+void skill_entry_removesong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token)
 {
     if( !ch ) return;
 
-    if( song < 0 && (!token || token->type != TOKEN_SONG)) return;
+    if( !song && (!token || token->type != TOKEN_SONG)) return;
 
     skill_entry_remove( &ch->sorted_songs, 0, song, token, false );
 }
@@ -2314,8 +2369,8 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
             return -skill_table[entry->sn].skill_level[this_class];
 
         return skill_table[entry->sn].skill_level[this_class];
-    } else if( entry->song >= 0 ) {
-        return music_table[entry->song].level;
+    } else if( entry->song ) {
+        return entry->song->level;
     } else
         return 0;
 }
@@ -2326,8 +2381,8 @@ int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry)
         return token_skill_mana(entry->token);
     } else if( entry->sn >= 0) {
         return skill_table[entry->sn].min_mana;
-    } else if( entry->song >= 0) {
-        return music_table[entry->song].mana;
+    } else if( entry->song) {
+        return entry->song->mana;
     } else
         return 0;
 }

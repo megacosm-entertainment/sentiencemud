@@ -2751,6 +2751,34 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
         json_object_set_new(json, "questor", questor);
     }
 
+    /* Trainer */
+    if (mob->pTrainer) {
+        json_t *trainer = json_object();
+        if (mob->pTrainer->greeting && mob->pTrainer->greeting[0] != '\0')
+            json_object_set_new(trainer, "greeting", json_string(mob->pTrainer->greeting));
+        if (mob->pTrainer->flags)
+            json_object_set_new(trainer, "flags", json_integer(mob->pTrainer->flags));
+
+        json_t *entries = json_array();
+        TRAINER_ENTRY *entry;
+        for (entry = mob->pTrainer->entries; entry; entry = entry->next) {
+            if (!IS_VALID(entry)) continue;
+            json_t *jentry = json_object();
+            json_object_set_new(jentry, "skill", json_string(entry->skill_name));
+            if (entry->max_rating)
+                json_object_set_new(jentry, "max_rating", json_integer(entry->max_rating));
+            if (entry->cost_gold)
+                json_object_set_new(jentry, "cost_gold", json_integer(entry->cost_gold));
+            if (entry->cost_trains)
+                json_object_set_new(jentry, "cost_trains", json_integer(entry->cost_trains));
+            if (entry->check_script)
+                json_object_set_new(jentry, "check_script", json_string(entry->check_script));
+            json_array_append_new(entries, jentry);
+        }
+        json_object_set_new(trainer, "entries", entries);
+        json_object_set_new(json, "trainer", trainer);
+    }
+
     /* Crew */
     if (IS_VALID(mob->pCrew)) {
         json_t *crew = json_object();
@@ -2945,6 +2973,44 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
             qstr = json_get_string_default(questor, "suffix", NULL);
             if (qstr) { free_string(mob->pQuestor->suffix); mob->pQuestor->suffix = str_dup(qstr); }
             mob->pQuestor->line_width = json_get_int_default(questor, "line_width", 70);
+        }
+    }
+
+    /* Trainer */
+    {
+        json_t *trainer = json_object_get(json, "trainer");
+        if (trainer && json_is_object(trainer)) {
+            mob->pTrainer = new_trainer_data();
+            const char *greeting = json_get_string_default(trainer, "greeting", NULL);
+            if (greeting)
+                mob->pTrainer->greeting = str_dup(greeting);
+            mob->pTrainer->flags = json_get_int_default(trainer, "flags", 0);
+
+            json_t *entries = json_object_get(trainer, "entries");
+            if (entries && json_is_array(entries)) {
+                TRAINER_ENTRY *last = NULL;
+                size_t idx;
+                json_t *jentry;
+                json_array_foreach(entries, idx, jentry) {
+                    const char *sname = json_get_string_default(jentry, "skill", NULL);
+                    if (!sname) continue;
+                    TRAINER_ENTRY *entry = new_trainer_entry();
+                    free_string(entry->skill_name);
+                    entry->skill_name = str_dup(sname);
+                    entry->max_rating = json_get_int_default(jentry, "max_rating", 0);
+                    entry->cost_gold = json_get_int_default(jentry, "cost_gold", 0);
+                    entry->cost_trains = json_get_int_default(jentry, "cost_trains", 0);
+                    const char *script = json_get_string_default(jentry, "check_script", NULL);
+                    if (script)
+                        entry->check_script = str_dup(script);
+                    entry->next = NULL;
+                    if (last)
+                        last->next = entry;
+                    else
+                        mob->pTrainer->entries = entry;
+                    last = entry;
+                }
+            }
         }
     }
 

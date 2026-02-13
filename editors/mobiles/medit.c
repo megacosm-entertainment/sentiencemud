@@ -621,6 +621,40 @@ MEDIT(medit_show)
         add_buf(buffer, "\n\r");
     }
 
+    if (pMob->pTrainer)
+    {
+        TRAINER_DATA *trainer = pMob->pTrainer;
+        TRAINER_ENTRY *entry;
+
+        add_buf(buffer, "{GTrainer data:\n\r");
+
+        if (trainer->greeting && trainer->greeting[0])
+        {
+            sprintf(buf, "  {GGreeting: %s{x\n\r", trainer->greeting);
+            add_buf(buffer, buf);
+        }
+
+        if (trainer->entries)
+        {
+            add_buf(buffer, formatf("  {G%-25s %-6s %-6s %-8s %-15s{x\n\r",
+                "Skill/Spell/Song", "MaxRat", "Gold", "Trains", "Script"));
+            for (entry = trainer->entries; entry; entry = entry->next)
+            {
+                if (!IS_VALID(entry)) continue;
+                add_buf(buffer, formatf("  %-25s %-6d %-6d %-8d %-15s\n\r",
+                    entry->skill_name ? entry->skill_name : "?",
+                    entry->max_rating,
+                    entry->cost_gold,
+                    entry->cost_trains,
+                    entry->check_script ? entry->check_script : "(none)"));
+            }
+        }
+        else
+            add_buf(buffer, "  {G(no entries){x\n\r");
+
+        add_buf(buffer, "\n\r");
+    }
+
     if (pMob->progs)
         olc_show_progs_grouped(buffer, pMob->progs, PRG_MPROG, "MobProg Vnum");
 
@@ -3407,6 +3441,218 @@ MEDIT(medit_questor)
 
     return true;
 
+}
+
+/**
+ * medit_trainer - Sub-editor for per-mob trainer data
+ *
+ * Allows adding/removing trainer data and managing the list of
+ * skills/spells/songs this mob can train players on.
+ *
+ * Syntax:
+ *   trainer add             - Add trainer data to mob
+ *   trainer remove          - Remove trainer data from mob
+ *   trainer greeting <text> - Set custom greeting
+ *   trainer skill add <name> [maxrating] [gold] [trains] [script]
+ *   trainer skill remove <name>
+ *   trainer skill list      - List all entries
+ */
+MEDIT(medit_trainer)
+{
+    MOB_INDEX_DATA *pMob;
+    char arg[MIL];
+
+    EDIT_MOB(ch, pMob);
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("TRAINER ADD                          Adds trainer data to mob.\n\r", ch);
+        send_to_char("        REMOVE                       Removes trainer data from mob.\n\r", ch);
+        send_to_char("        GREETING [text]               Sets custom greeting.\n\r", ch);
+        send_to_char("        SKILL ADD <name> [max] [gold] [trains] [script]\n\r", ch);
+        send_to_char("        SKILL REMOVE <name>           Removes a trainable skill.\n\r", ch);
+        send_to_char("        SKILL LIST                    Lists trainable skills.\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    if (!str_prefix(arg, "add")) {
+        if (pMob->pTrainer != NULL) {
+            send_to_char("This mob already has trainer data.\n\r", ch);
+            return false;
+        }
+
+        pMob->pTrainer = new_trainer_data();
+        send_to_char("Trainer data added.\n\r", ch);
+        return true;
+
+    } else if (!str_prefix(arg, "remove")) {
+        if (pMob->pTrainer == NULL) {
+            send_to_char("This mob has no trainer data.\n\r", ch);
+            return false;
+        }
+
+        free_trainer_data(pMob->pTrainer);
+        pMob->pTrainer = NULL;
+        send_to_char("Trainer data removed.\n\r", ch);
+        return true;
+
+    } else if (!str_prefix(arg, "greeting")) {
+        if (pMob->pTrainer == NULL) {
+            send_to_char("This mob has no trainer data. Use 'trainer add' first.\n\r", ch);
+            return false;
+        }
+
+        if (IS_NULLSTR(argument)) {
+            if (pMob->pTrainer->greeting)
+                free_string(pMob->pTrainer->greeting);
+            pMob->pTrainer->greeting = NULL;
+            send_to_char("Greeting cleared.\n\r", ch);
+            return true;
+        }
+
+        if (pMob->pTrainer->greeting)
+            free_string(pMob->pTrainer->greeting);
+        pMob->pTrainer->greeting = str_dup(argument);
+        send_to_char("Greeting set.\n\r", ch);
+        return true;
+
+    } else if (!str_prefix(arg, "skill")) {
+        char sub[MIL];
+
+        if (pMob->pTrainer == NULL) {
+            send_to_char("This mob has no trainer data. Use 'trainer add' first.\n\r", ch);
+            return false;
+        }
+
+        argument = one_argument(argument, sub);
+
+        if (!str_prefix(sub, "add")) {
+            char name[MIL];
+            TRAINER_ENTRY *entry;
+            int max_rating = 0, cost_gold = 0, cost_trains = 0;
+            char script_arg[MIL];
+
+            argument = one_argument(argument, name);
+            if (name[0] == '\0') {
+                send_to_char("Syntax: trainer skill add <name> [max_rating] [gold] [trains] [script]\n\r", ch);
+                return false;
+            }
+
+            /* Parse optional numeric args */
+            char num[MIL];
+            argument = one_argument(argument, num);
+            if (num[0] && is_number(num)) {
+                max_rating = atoi(num);
+                argument = one_argument(argument, num);
+                if (num[0] && is_number(num)) {
+                    cost_gold = atoi(num);
+                    argument = one_argument(argument, num);
+                    if (num[0] && is_number(num)) {
+                        cost_trains = atoi(num);
+                        one_argument(argument, script_arg);
+                    } else {
+                        script_arg[0] = '\0';
+                    }
+                } else {
+                    script_arg[0] = '\0';
+                }
+            } else {
+                script_arg[0] = '\0';
+            }
+
+            /* Check for duplicate */
+            for (entry = pMob->pTrainer->entries; entry; entry = entry->next) {
+                if (IS_VALID(entry) && !str_cmp(entry->skill_name, name)) {
+                    entry->max_rating = max_rating;
+                    entry->cost_gold = cost_gold;
+                    entry->cost_trains = cost_trains;
+                    if (entry->check_script)
+                        free_string(entry->check_script);
+                    entry->check_script = script_arg[0] ? str_dup(script_arg) : NULL;
+                    send_to_char(formatf("Updated trainer entry '%s'.\n\r", name), ch);
+                    return true;
+                }
+            }
+
+            /* Add new entry */
+            entry = new_trainer_entry();
+            free_string(entry->skill_name);
+            entry->skill_name = str_dup(name);
+            entry->max_rating = max_rating;
+            entry->cost_gold = cost_gold;
+            entry->cost_trains = cost_trains;
+            entry->check_script = script_arg[0] ? str_dup(script_arg) : NULL;
+
+            /* Prepend to list */
+            entry->next = pMob->pTrainer->entries;
+            pMob->pTrainer->entries = entry;
+
+            send_to_char(formatf("Added trainer entry '%s'.\n\r", name), ch);
+            return true;
+
+        } else if (!str_prefix(sub, "remove")) {
+            char name[MIL];
+            TRAINER_ENTRY *entry, *prev = NULL;
+
+            one_argument(argument, name);
+            if (name[0] == '\0') {
+                send_to_char("Syntax: trainer skill remove <name>\n\r", ch);
+                return false;
+            }
+
+            for (entry = pMob->pTrainer->entries; entry; prev = entry, entry = entry->next) {
+                if (IS_VALID(entry) && !str_cmp(entry->skill_name, name)) {
+                    if (prev)
+                        prev->next = entry->next;
+                    else
+                        pMob->pTrainer->entries = entry->next;
+                    free_trainer_entry(entry);
+                    send_to_char(formatf("Removed trainer entry '%s'.\n\r", name), ch);
+                    return true;
+                }
+            }
+
+            send_to_char("No trainer entry with that name.\n\r", ch);
+            return false;
+
+        } else if (!str_prefix(sub, "list")) {
+            TRAINER_ENTRY *entry;
+            int count = 0;
+
+            if (!pMob->pTrainer->entries) {
+                send_to_char("No trainer entries.\n\r", ch);
+                return false;
+            }
+
+            send_to_char(formatf("{G%-25s %-6s %-6s %-8s %-15s{x\n\r",
+                "Skill/Spell/Song", "MaxRat", "Gold", "Trains", "Script"), ch);
+
+            for (entry = pMob->pTrainer->entries; entry; entry = entry->next) {
+                if (!IS_VALID(entry)) continue;
+                send_to_char(formatf("%-25s %-6d %-6d %-8d %-15s\n\r",
+                    entry->skill_name ? entry->skill_name : "?",
+                    entry->max_rating,
+                    entry->cost_gold,
+                    entry->cost_trains,
+                    entry->check_script ? entry->check_script : "(none)"), ch);
+                count++;
+            }
+
+            send_to_char(formatf("\n\r%d entries.\n\r", count), ch);
+            return false;
+
+        } else {
+            send_to_char("Syntax: trainer skill add|remove|list\n\r", ch);
+            return false;
+        }
+
+    } else {
+        medit_trainer(ch, "");
+        return false;
+    }
+
+    return true;
 }
 
 MEDIT( medit_crew )

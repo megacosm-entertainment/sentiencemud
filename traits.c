@@ -196,140 +196,127 @@ TRAIT_DEF *trait_def_lookup_name(const char *name)
 }
 
 /***************************************************************************
- * Race Trait Initialization                                               *
+ * Generic Trait Value Helpers                                             *
  ***************************************************************************/
 
 /**
- * race_init_traits - Allocate and initialize trait values array for a race
+ * trait_values_alloc - Allocate a trait_values array with defaults
  *
  * Allocates a TRAIT_VALUE array sized to trait_def_count and fills each
- * slot with the trait definition's default value. Must be called after
- * load_trait_definitions().
+ * slot with the trait definition's default value.
  *
- * @param race  The race to initialize traits for
+ * @return  Allocated and default-initialized array, or NULL if no traits defined
  */
-void race_init_traits(RACE_DATA *race)
+TRAIT_VALUE *trait_values_alloc(void)
 {
+    TRAIT_VALUE *tv;
     TRAIT_DEF *def;
 
-    if (!race || trait_def_count == 0)
-        return;
+    if (trait_def_count == 0)
+        return NULL;
 
-    race->trait_values = (TRAIT_VALUE *)alloc_perm(
-        sizeof(TRAIT_VALUE) * trait_def_count);
-    memset(race->trait_values, 0, sizeof(TRAIT_VALUE) * trait_def_count);
+    tv = (TRAIT_VALUE *)alloc_perm(sizeof(TRAIT_VALUE) * trait_def_count);
+    memset(tv, 0, sizeof(TRAIT_VALUE) * trait_def_count);
 
     for (def = trait_def_list; def; def = def->next) {
-        TRAIT_VALUE *tv = &race->trait_values[def->index];
-        tv->set = false;
+        TRAIT_VALUE *slot = &tv[def->index];
+        slot->set = false;
         switch (def->type) {
             case TRAIT_BOOLEAN:
-                tv->bool_val = def->default_bool;
+                slot->bool_val = def->default_bool;
                 break;
             case TRAIT_INTEGER:
-                tv->int_val = def->default_int;
+                slot->int_val = def->default_int;
                 break;
             case TRAIT_STRING:
-                tv->string_val = def->default_string ?
+                slot->string_val = def->default_string ?
                     str_dup(def->default_string) : NULL;
                 break;
         }
     }
+
+    return tv;
 }
 
-/***************************************************************************
- * Race Trait JSON Loading                                                 *
- ***************************************************************************/
-
 /**
- * race_load_traits_json - Parse trait values from a race's JSON "traits" object
+ * trait_values_load_json - Parse trait values from a JSON "traits" object
  *
  * Reads each key from the JSON traits object, looks up the matching trait
- * definition, and sets the value on the race's trait_values array.
+ * definition, and sets the value on the trait_values array.
  *
- * @param race        The race to load traits onto
+ * @param tv          The trait_values array to load into (must be pre-allocated)
  * @param traits_obj  A json_t* (cast from void*) pointing to the "traits" object
  */
-void race_load_traits_json(RACE_DATA *race, void *traits_obj)
+void trait_values_load_json(TRAIT_VALUE *tv, void *traits_obj)
 {
     json_t *obj = (json_t *)traits_obj;
     const char *key;
     json_t *val;
     TRAIT_DEF *def;
-    TRAIT_VALUE *tv;
 
-    if (!race || !obj || !json_is_object(obj) || !race->trait_values)
+    if (!tv || !obj || !json_is_object(obj))
         return;
 
     json_object_foreach(obj, key, val) {
         def = trait_def_lookup(key);
-        if (!def) {
-            pwarnf(LOG_INIT, "Race '%s': unknown trait '%s'", race->id, key);
+        if (!def)
             continue;
-        }
 
-        tv = &race->trait_values[def->index];
-        tv->set = true;
+        TRAIT_VALUE *slot = &tv[def->index];
+        slot->set = true;
 
         switch (def->type) {
             case TRAIT_BOOLEAN:
-                tv->bool_val = json_is_true(val);
+                slot->bool_val = json_is_true(val);
                 break;
             case TRAIT_INTEGER:
-                tv->int_val = (int)json_integer_value(val);
+                slot->int_val = (int)json_integer_value(val);
                 break;
             case TRAIT_STRING: {
                 const char *str = json_string_value(val);
-                tv->string_val = str ? str_dup(str) : NULL;
+                slot->string_val = str ? str_dup(str) : NULL;
                 break;
             }
         }
     }
 }
 
-/***************************************************************************
- * Race Trait JSON Saving                                                  *
- ***************************************************************************/
-
 /**
- * race_save_traits_json - Build a JSON object of non-default trait values
+ * trait_values_save_json - Build a JSON object of non-default trait values
  *
- * Creates a json_t object containing only traits that were explicitly set
- * on this race (differ from defaults). Returns NULL if no traits are set.
+ * Creates a json_t object containing only traits that were explicitly set.
+ * Returns NULL if no traits are set.
  *
- * @param race  The race to save traits for
- * @return      A json_t* (cast to void*), or NULL if no traits set
+ * @param tv  The trait_values array to save from
+ * @return    A json_t* (cast to void*), or NULL if no traits set
  */
-void *race_save_traits_json(RACE_DATA *race)
+void *trait_values_save_json(TRAIT_VALUE *tv)
 {
     json_t *obj;
     TRAIT_DEF *def;
-    TRAIT_VALUE *tv;
     int count = 0;
 
-    if (!race || !race->trait_values || trait_def_count == 0)
+    if (!tv || trait_def_count == 0)
         return NULL;
 
     obj = json_object();
 
     for (def = trait_def_list; def; def = def->next) {
-        tv = &race->trait_values[def->index];
-        if (!tv->set)
+        TRAIT_VALUE *slot = &tv[def->index];
+        if (!slot->set)
             continue;
 
         switch (def->type) {
             case TRAIT_BOOLEAN:
-                json_object_set_new(obj, def->id,
-                    json_boolean(tv->bool_val));
+                json_object_set_new(obj, def->id, json_boolean(slot->bool_val));
                 break;
             case TRAIT_INTEGER:
-                json_object_set_new(obj, def->id,
-                    json_integer(tv->int_val));
+                json_object_set_new(obj, def->id, json_integer(slot->int_val));
                 break;
             case TRAIT_STRING:
                 json_object_set_new(obj, def->id,
-                    tv->string_val ? json_string(tv->string_val)
-                                   : json_null());
+                    slot->string_val ? json_string(slot->string_val)
+                                     : json_null());
                 break;
         }
         count++;
@@ -341,6 +328,79 @@ void *race_save_traits_json(RACE_DATA *race)
     }
 
     return obj;
+}
+
+/***************************************************************************
+ * Race Trait Initialization                                               *
+ ***************************************************************************/
+
+/**
+ * race_init_traits - Allocate and initialize trait values array for a race
+ *
+ * Uses trait_values_alloc() to create a default-filled TRAIT_VALUE array
+ * and assigns it to the race. Must be called after load_trait_definitions().
+ *
+ * @param race  The race to initialize traits for
+ */
+void race_init_traits(RACE_DATA *race)
+{
+    if (!race || trait_def_count == 0)
+        return;
+
+    race->trait_values = trait_values_alloc();
+}
+
+/***************************************************************************
+ * Race Trait JSON Loading                                                 *
+ ***************************************************************************/
+
+/**
+ * race_load_traits_json - Parse trait values from a race's JSON "traits" object
+ *
+ * Delegates to trait_values_load_json with the race's trait_values array.
+ * Logs warnings for unknown trait keys.
+ *
+ * @param race        The race to load traits onto
+ * @param traits_obj  A json_t* (cast from void*) pointing to the "traits" object
+ */
+void race_load_traits_json(RACE_DATA *race, void *traits_obj)
+{
+    json_t *obj = (json_t *)traits_obj;
+    const char *key;
+    json_t *val;
+
+    if (!race || !obj || !json_is_object(obj) || !race->trait_values)
+        return;
+
+    /* Log unknown traits specifically for races */
+    json_object_foreach(obj, key, val) {
+        TRAIT_DEF *def = trait_def_lookup(key);
+        if (!def) {
+            pwarnf(LOG_INIT, "Race '%s': unknown trait '%s'", race->id, key);
+        }
+    }
+
+    trait_values_load_json(race->trait_values, traits_obj);
+}
+
+/***************************************************************************
+ * Race Trait JSON Saving                                                  *
+ ***************************************************************************/
+
+/**
+ * race_save_traits_json - Build a JSON object of non-default trait values
+ *
+ * Delegates to trait_values_save_json with the race's trait_values array.
+ *
+ * @param race  The race to save traits for
+ * @return      A json_t* (cast to void*), or NULL if no traits set
+ */
+void *race_save_traits_json(RACE_DATA *race)
+{
+    if (!race || !race->trait_values || trait_def_count == 0)
+        return NULL;
+
+    return trait_values_save_json(race->trait_values);
 }
 
 /***************************************************************************
@@ -446,6 +506,379 @@ const char *race_get_trait_string(RACE_DATA *race, const char *trait_id)
     return race->trait_values[def->index].string_val;
 }
 
+
+/***************************************************************************
+ * Class Trait API                                                         *
+ ***************************************************************************/
+
+/**
+ * class_init_traits - Allocate and initialize trait values array for a class
+ *
+ * @param clazz  The class to initialize traits for
+ */
+void class_init_traits(CLASS_DATA *clazz)
+{
+    if (!clazz || trait_def_count == 0)
+        return;
+
+    clazz->trait_values = trait_values_alloc();
+}
+
+/**
+ * class_load_traits_json - Parse trait values from a class's JSON "traits" object
+ *
+ * @param clazz       The class to load traits onto
+ * @param traits_obj  A json_t* (cast from void*) pointing to the "traits" object
+ */
+void class_load_traits_json(CLASS_DATA *clazz, void *traits_obj)
+{
+    json_t *obj = (json_t *)traits_obj;
+    const char *key;
+    json_t *val;
+
+    if (!clazz || !obj || !json_is_object(obj) || !clazz->trait_values)
+        return;
+
+    /* Log unknown traits specifically for classes */
+    json_object_foreach(obj, key, val) {
+        TRAIT_DEF *def = trait_def_lookup(key);
+        if (!def) {
+            pwarnf(LOG_INIT, "Class '%s': unknown trait '%s'", clazz->name, key);
+        }
+    }
+
+    trait_values_load_json(clazz->trait_values, traits_obj);
+}
+
+/**
+ * class_save_traits_json - Build a JSON object of non-default trait values
+ *
+ * @param clazz  The class to save traits for
+ * @return       A json_t* (cast to void*), or NULL if no traits set
+ */
+void *class_save_traits_json(CLASS_DATA *clazz)
+{
+    if (!clazz || !clazz->trait_values || trait_def_count == 0)
+        return NULL;
+
+    return trait_values_save_json(clazz->trait_values);
+}
+
+/**
+ * class_has_trait - Check if a class has a trait set to a non-default value
+ */
+bool class_has_trait(CLASS_DATA *clazz, const char *trait_id)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!clazz || !clazz->trait_values || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    tv = &clazz->trait_values[def->index];
+    switch (def->type) {
+        case TRAIT_BOOLEAN: return tv->bool_val;
+        case TRAIT_INTEGER: return tv->int_val != 0;
+        case TRAIT_STRING:  return tv->string_val != NULL;
+    }
+    return false;
+}
+
+/**
+ * class_get_trait_bool - Get a boolean trait value from a class
+ */
+bool class_get_trait_bool(CLASS_DATA *clazz, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!clazz || !clazz->trait_values || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    return clazz->trait_values[def->index].bool_val;
+}
+
+/**
+ * class_get_trait_int - Get an integer trait value from a class
+ */
+int class_get_trait_int(CLASS_DATA *clazz, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!clazz || !clazz->trait_values || !trait_id)
+        return 0;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return 0;
+
+    return clazz->trait_values[def->index].int_val;
+}
+
+/**
+ * class_get_trait_string - Get a string trait value from a class
+ */
+const char *class_get_trait_string(CLASS_DATA *clazz, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!clazz || !clazz->trait_values || !trait_id)
+        return NULL;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return NULL;
+
+    return clazz->trait_values[def->index].string_val;
+}
+
+/***************************************************************************
+ * Personal (Character) Trait API                                          *
+ ***************************************************************************/
+
+/**
+ * char_init_traits - Allocate and initialize personal trait values for a PC
+ *
+ * @param ch  The character to initialize traits for (must have pcdata)
+ */
+void char_init_traits(CHAR_DATA *ch)
+{
+    if (!ch || !ch->pcdata || trait_def_count == 0)
+        return;
+
+    ch->pcdata->trait_values = trait_values_alloc();
+}
+
+/**
+ * char_load_traits_json - Parse personal trait values from a character's JSON
+ *
+ * @param ch          The character to load traits onto
+ * @param traits_obj  A json_t* (cast from void*) pointing to the "traits" object
+ */
+void char_load_traits_json(CHAR_DATA *ch, void *traits_obj)
+{
+    if (!ch || !ch->pcdata || !ch->pcdata->trait_values)
+        return;
+
+    trait_values_load_json(ch->pcdata->trait_values, traits_obj);
+}
+
+/**
+ * char_save_traits_json - Build a JSON object of personal trait overrides
+ *
+ * @param ch  The character to save traits for
+ * @return    A json_t* (cast to void*), or NULL if no personal traits set
+ */
+void *char_save_traits_json(CHAR_DATA *ch)
+{
+    if (!ch || !ch->pcdata || !ch->pcdata->trait_values || trait_def_count == 0)
+        return NULL;
+
+    return trait_values_save_json(ch->pcdata->trait_values);
+}
+
+/***************************************************************************
+ * Unified Character Trait Query API (layered: personal > class > race)    *
+ *                                                                         *
+ * These check all three trait layers in priority order:                    *
+ *   1. Personal overrides (PC_DATA.trait_values)                          *
+ *   2. Current class traits (CLASS_DATA.trait_values)                     *
+ *   3. Race traits (RACE_DATA.trait_values)                               *
+ *                                                                         *
+ * For booleans: returns true if ANY layer has it set to true (OR).        *
+ * For integers: returns the value from the highest-priority layer that    *
+ *               has the trait explicitly set; falls back to race default. *
+ * For strings:  same as integers — highest-priority set value wins.       *
+ ***************************************************************************/
+
+/**
+ * ch_has_trait - Check if a character has a trait active at any layer
+ *
+ * @param ch        The character to check
+ * @param trait_id  Trait identifier string
+ * @return          True if the trait is active at any layer
+ */
+bool ch_has_trait(CHAR_DATA *ch, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!ch || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    /* Personal override (PC only) */
+    if (ch->pcdata && ch->pcdata->trait_values) {
+        TRAIT_VALUE *tv = &ch->pcdata->trait_values[def->index];
+        if (tv->set) {
+            switch (def->type) {
+                case TRAIT_BOOLEAN: if (tv->bool_val) return true; break;
+                case TRAIT_INTEGER: if (tv->int_val != 0) return true; break;
+                case TRAIT_STRING:  if (tv->string_val) return true; break;
+            }
+        }
+    }
+
+    /* Class traits (current class, PC only) */
+    if (ch->pcdata && ch->pcdata->current_class && ch->pcdata->current_class->clazz) {
+        CLASS_DATA *clazz = ch->pcdata->current_class->clazz;
+        if (clazz->trait_values) {
+            TRAIT_VALUE *tv = &clazz->trait_values[def->index];
+            if (tv->set) {
+                switch (def->type) {
+                    case TRAIT_BOOLEAN: if (tv->bool_val) return true; break;
+                    case TRAIT_INTEGER: if (tv->int_val != 0) return true; break;
+                    case TRAIT_STRING:  if (tv->string_val) return true; break;
+                }
+            }
+        }
+    }
+
+    /* Race traits */
+    if (ch->race && ch->race->trait_values) {
+        TRAIT_VALUE *tv = &ch->race->trait_values[def->index];
+        switch (def->type) {
+            case TRAIT_BOOLEAN: return tv->bool_val;
+            case TRAIT_INTEGER: return tv->int_val != 0;
+            case TRAIT_STRING:  return tv->string_val != NULL;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * ch_get_trait_bool - Get a boolean trait value across all layers
+ *
+ * Returns true if ANY layer (personal, class, or race) has the trait set
+ * to true. This provides OR semantics: a character with a race that has
+ * blood_feeding OR a class that grants blood_feeding will return true.
+ *
+ * @param ch        The character to query
+ * @param trait_id  Trait identifier string
+ * @return          True if any layer has the trait set to true
+ */
+bool ch_get_trait_bool(CHAR_DATA *ch, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!ch || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    /* Personal override */
+    if (ch->pcdata && ch->pcdata->trait_values
+        && ch->pcdata->trait_values[def->index].set
+        && ch->pcdata->trait_values[def->index].bool_val)
+        return true;
+
+    /* Class traits */
+    if (ch->pcdata && ch->pcdata->current_class && ch->pcdata->current_class->clazz) {
+        CLASS_DATA *clazz = ch->pcdata->current_class->clazz;
+        if (clazz->trait_values
+            && clazz->trait_values[def->index].set
+            && clazz->trait_values[def->index].bool_val)
+            return true;
+    }
+
+    /* Race traits (fallback) */
+    if (ch->race && ch->race->trait_values)
+        return ch->race->trait_values[def->index].bool_val;
+
+    return false;
+}
+
+/**
+ * ch_get_trait_int - Get an integer trait value across all layers
+ *
+ * Returns the value from the highest-priority layer where the trait is
+ * explicitly set. Priority: personal > class > race.
+ *
+ * @param ch        The character to query
+ * @param trait_id  Trait identifier string
+ * @return          The integer trait value, or 0 if not found
+ */
+int ch_get_trait_int(CHAR_DATA *ch, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!ch || !trait_id)
+        return 0;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return 0;
+
+    /* Personal override */
+    if (ch->pcdata && ch->pcdata->trait_values
+        && ch->pcdata->trait_values[def->index].set)
+        return ch->pcdata->trait_values[def->index].int_val;
+
+    /* Class traits */
+    if (ch->pcdata && ch->pcdata->current_class && ch->pcdata->current_class->clazz) {
+        CLASS_DATA *clazz = ch->pcdata->current_class->clazz;
+        if (clazz->trait_values && clazz->trait_values[def->index].set)
+            return clazz->trait_values[def->index].int_val;
+    }
+
+    /* Race traits (fallback) */
+    if (ch->race && ch->race->trait_values)
+        return ch->race->trait_values[def->index].int_val;
+
+    return 0;
+}
+
+/**
+ * ch_get_trait_string - Get a string trait value across all layers
+ *
+ * Returns the value from the highest-priority layer where the trait is
+ * explicitly set. Priority: personal > class > race.
+ *
+ * @param ch        The character to query
+ * @param trait_id  Trait identifier string
+ * @return          The string trait value, or NULL if not found
+ */
+const char *ch_get_trait_string(CHAR_DATA *ch, const char *trait_id)
+{
+    TRAIT_DEF *def;
+
+    if (!ch || !trait_id)
+        return NULL;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return NULL;
+
+    /* Personal override */
+    if (ch->pcdata && ch->pcdata->trait_values
+        && ch->pcdata->trait_values[def->index].set)
+        return ch->pcdata->trait_values[def->index].string_val;
+
+    /* Class traits */
+    if (ch->pcdata && ch->pcdata->current_class && ch->pcdata->current_class->clazz) {
+        CLASS_DATA *clazz = ch->pcdata->current_class->clazz;
+        if (clazz->trait_values && clazz->trait_values[def->index].set)
+            return clazz->trait_values[def->index].string_val;
+    }
+
+    /* Race traits (fallback) */
+    if (ch->race && ch->race->trait_values)
+        return ch->race->trait_values[def->index].string_val;
+
+    return NULL;
+}
 
 /***************************************************************************
  * Trait Definition Saving                                                 *

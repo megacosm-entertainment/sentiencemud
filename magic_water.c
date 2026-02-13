@@ -19,6 +19,7 @@
 
 SPELL_FUNC(spell_create_spring)
 {
+    int sn = skill->uid;
     OBJ_DATA *spring;
 
     spring = create_object(get_reserved_obj_index("obj_spring"), 0, true);
@@ -31,6 +32,7 @@ SPELL_FUNC(spell_create_spring)
 
 SPELL_FUNC(spell_create_water)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
     int water;
 

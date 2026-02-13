@@ -16,10 +16,12 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "skill_data.h"
 
 
 SPELL_FUNC(spell_cancellation)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     bool found = false;
     int number_affects;
@@ -58,6 +60,7 @@ SPELL_FUNC(spell_cancellation)
 
 SPELL_FUNC(spell_channel)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -87,6 +90,7 @@ SPELL_FUNC(spell_channel)
 
 SPELL_FUNC(spell_counter_spell)
 {
+    int sn = skill->uid;
     int mana;
     CHAR_DATA *victim;
 
@@ -143,7 +147,7 @@ SPELL_FUNC(spell_counter_spell)
 
         victim->mana -= mana/3;
         ch->mana -= (mana * 2)/3;
-        (*skill_table[sn].spell_fun)(sn, 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE);
+        (*skill_table[sn].spell_fun)(skill_from_sn(sn), 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE, INVOC_CAST);
     } else
         stop_casting(victim, true);
 
@@ -153,6 +157,7 @@ SPELL_FUNC(spell_counter_spell)
 
 SPELL_FUNC(spell_discharge)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
@@ -193,6 +198,7 @@ SPELL_FUNC(spell_discharge)
 
 SPELL_FUNC(spell_dispel_magic)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     bool found = false;
     int number_affects;
@@ -232,6 +238,7 @@ SPELL_FUNC(spell_dispel_magic)
 
 SPELL_FUNC(spell_dispel_room)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj = NULL;
     EXIT_DATA *pexit = NULL;
     ROOM_INDEX_DATA *pRoom = NULL;
@@ -333,6 +340,7 @@ SPELL_FUNC(spell_dispel_room)
 
 SPELL_FUNC(spell_magic_missile)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -348,6 +356,7 @@ SPELL_FUNC(spell_magic_missile)
 
 SPELL_FUNC(spell_recharge)
 {
+    int sn = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
     int charges;
 
@@ -411,6 +420,7 @@ SPELL_FUNC(spell_recharge)
 
 SPELL_FUNC(spell_refresh)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
 
     victim->move = UMIN(victim->move + (victim->max_move/8), victim->max_move);
@@ -426,6 +436,7 @@ SPELL_FUNC(spell_refresh)
 
 SPELL_FUNC(spell_spell_deflection)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -450,6 +461,7 @@ SPELL_FUNC(spell_spell_deflection)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : 4;
     af.location = APPLY_NONE;
@@ -466,6 +478,7 @@ SPELL_FUNC(spell_spell_deflection)
 
 SPELL_FUNC(spell_spell_shield)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -490,6 +503,7 @@ SPELL_FUNC(spell_spell_shield)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 6);
     af.location  = 0;
@@ -507,6 +521,7 @@ SPELL_FUNC(spell_spell_shield)
 
 SPELL_FUNC(spell_spell_trap)
 {
+    int sn = skill->uid;
     OBJ_DATA *trap;
 
     for (trap = ch->in_room->contents; trap; trap = trap->next_content) {

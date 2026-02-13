@@ -16,6 +16,9 @@
 #include "recycle.h"
 #include "interp.h"
 #include "scripts.h"
+#include "skill_data.h"
+#include "class_data.h"
+#include "traits.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -175,9 +178,16 @@ SKILL_ENTRY *new_skill_entry()
 
     entry->source = SKILLSRC_NORMAL;
     entry->isspell = false;
-    entry->song = -1;
+    entry->song = NULL;
     entry->practice = true;
     entry->improve = true;
+    entry->skill_data = NULL;
+    entry->sn = 0;
+    entry->token = NULL;
+    entry->rating = 0;
+    entry->mod_rating = 0;
+    entry->cross_class_scope = 0;   /* REWARD_SCOPE_CLASS */
+    entry->source_class = NULL;
 
     return entry;
 }
@@ -386,6 +396,7 @@ AFFECT_DATA *new_affect(void)
     af->custom_name = NULL;
     af->slot = WEAR_NONE;
     af->token = NULL;
+    af->skill = NULL;
 
     top_affect++;
 
@@ -404,6 +415,7 @@ void free_affect(AFFECT_DATA *af)
     affect_free = af;
 
     af->custom_name = NULL;
+    af->skill = NULL;
 
     variable_clearfield(VAR_AFFECT, af);
     script_clear_affect(af);
@@ -938,6 +950,11 @@ PC_DATA *new_pcdata(void)
 
     pcdata->unlocked_areas = list_create(false);
     pcdata->ships = list_create(false);
+    pcdata->classes = list_create(false);
+    pcdata->current_class = NULL;
+    pcdata->known_groups = list_create(false);
+    pcdata->pending_free_levels = 0;
+    pcdata->trait_values = NULL;
     pcdata->spam_block_navigation = false;
 
     
@@ -995,6 +1012,33 @@ void free_pcdata(PC_DATA *pcdata)
 
     string_vector_freeall(pcdata->script_prompts);
     pcdata->script_prompts = NULL;
+
+    /* Free class level entries before destroying the list */
+    if (pcdata->classes) {
+        ITERATOR cl_it;
+        CLASS_LEVEL *cl_entry;
+        iterator_start(&cl_it, pcdata->classes);
+        while ((cl_entry = (CLASS_LEVEL *)iterator_nextdata(&cl_it))) {
+            free_class_level(cl_entry);
+        }
+        iterator_stop(&cl_it);
+        list_destroy(pcdata->classes);
+    }
+    pcdata->current_class = NULL;
+
+    /* Free personal trait values */
+    if (pcdata->trait_values) {
+        /* Free any allocated string trait values */
+        for (int i = 0; i < trait_def_count; i++) {
+            if (pcdata->trait_values[i].string_val)
+                free_string(pcdata->trait_values[i].string_val);
+        }
+        free(pcdata->trait_values);
+        pcdata->trait_values = NULL;
+    }
+
+    /* known_groups stores borrowed pointers (SKILL_GROUP is global), no per-entry free */
+    list_destroy(pcdata->known_groups);
 
     list_destroy(pcdata->unlocked_areas);
     list_destroy(pcdata->ships);
@@ -2347,6 +2391,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     }
 
     free_questor_data( pMob->pQuestor );
+    free_trainer_data( pMob->pTrainer );
     if(pMob->pShop != NULL) free_shop( pMob->pShop );
 
     pMob->next              = mob_index_free;
@@ -4006,6 +4051,84 @@ void free_questor_data(QUESTOR_DATA *q)
     q->next = questor_free;
     questor_free = q;
 
+}
+
+/*
+ * Trainer data memory management
+ */
+
+TRAINER_ENTRY *trainer_entry_free = NULL;
+
+TRAINER_ENTRY *new_trainer_entry()
+{
+    TRAINER_ENTRY *entry;
+    if (!trainer_entry_free)
+        entry = alloc_perm(sizeof(TRAINER_ENTRY));
+    else {
+        entry = trainer_entry_free;
+        trainer_entry_free = trainer_entry_free->next;
+    }
+
+    VALIDATE(entry);
+    entry->next = NULL;
+    entry->skill_name = &str_empty[0];
+    entry->max_rating = 0;
+    entry->cost_gold = 0;
+    entry->cost_trains = 0;
+    entry->check_script = NULL;
+    return entry;
+}
+
+void free_trainer_entry(TRAINER_ENTRY *entry)
+{
+    if (!IS_VALID(entry)) return;
+
+    free_string(entry->skill_name);
+    if (entry->check_script)
+        free_string(entry->check_script);
+
+    INVALIDATE(entry);
+    entry->next = trainer_entry_free;
+    trainer_entry_free = entry;
+}
+
+TRAINER_DATA *trainer_free = NULL;
+
+TRAINER_DATA *new_trainer_data()
+{
+    TRAINER_DATA *t;
+    if (!trainer_free)
+        t = alloc_perm(sizeof(TRAINER_DATA));
+    else {
+        t = trainer_free;
+        trainer_free = trainer_free->next;
+    }
+
+    VALIDATE(t);
+    t->entries = NULL;
+    t->flags = 0;
+    t->greeting = NULL;
+    return t;
+}
+
+void free_trainer_data(TRAINER_DATA *t)
+{
+    TRAINER_ENTRY *entry, *entry_next;
+
+    if (!t) return;
+    if (!IS_VALID(t)) return;
+
+    for (entry = t->entries; entry; entry = entry_next) {
+        entry_next = entry->next;
+        free_trainer_entry(entry);
+    }
+
+    if (t->greeting)
+        free_string(t->greeting);
+
+    INVALIDATE(t);
+    t->next = trainer_free;
+    trainer_free = t;
 }
 
 

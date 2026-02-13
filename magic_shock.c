@@ -21,6 +21,7 @@
 
 SPELL_FUNC(spell_call_lightning)
 {
+    int sn = skill->uid;
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
     int dam;
@@ -57,6 +58,7 @@ SPELL_FUNC(spell_call_lightning)
 
 SPELL_FUNC(spell_chain_lightning)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     CHAR_DATA *tmp_vict,*last_vict,*next_vict;
     bool found;
@@ -141,6 +143,7 @@ SPELL_FUNC(spell_chain_lightning)
 
 SPELL_FUNC(spell_electrical_barrier)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -165,6 +168,7 @@ SPELL_FUNC(spell_electrical_barrier)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
     af.type = sn;
+    af.skill = skill;
     af.level = level;
     af.duration = perm ? -1 : (level / 3);
     af.location = APPLY_NONE;
@@ -181,6 +185,7 @@ SPELL_FUNC(spell_electrical_barrier)
 
 SPELL_FUNC(spell_lightning_breath)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -210,6 +215,7 @@ SPELL_FUNC(spell_lightning_breath)
 
 SPELL_FUNC(spell_lightning_bolt)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -232,6 +238,7 @@ SPELL_FUNC(spell_lightning_bolt)
 
 SPELL_FUNC(spell_shocking_grasp)
 {
+    int sn = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 

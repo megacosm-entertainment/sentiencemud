@@ -25,6 +25,7 @@
 #include "json_persist.h"
 #include "../../traits.h"
 #include "../cache/redis_cache.h"
+#include "../../skill_data.h"
 
 /***************************************************************************
  * External References                                                     *
@@ -507,6 +508,7 @@ AFFECT_DATA *json_persist_json_to_affect(json_t *json)
 
     value = json_object_get(json, "type");
     if (value) paf->type = json_integer_value(value);
+    paf->skill = skill_from_sn(paf->type);
 
     value = json_object_get(json, "where");
     if (value) paf->where = json_integer_value(value);
@@ -1856,10 +1858,12 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
             if (aff_val) {
                 paf->custom_name = create_affect_cname((char *)json_string_value(aff_val));
                 paf->type = -1;  /* Custom name, no skill */
+                paf->skill = NULL;
             } else {
                 aff_val = json_object_get(elem, "skill_name");
                 if (aff_val) {
                     paf->type = skill_lookup((char *)json_string_value(aff_val));
+                    paf->skill = skill_from_sn(paf->type);
                 }
             }
 

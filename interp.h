@@ -39,7 +39,9 @@ void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
 
 void cmd_under_construction(CHAR_DATA *ch);
 
-/* for command types */
+/* (Deprecated) Legacy level macros for cmd_table[] bootstrap fallback.
+ * Runtime commands use CMD_DATA.rank with STAFF_* constants instead.
+ * These are only meaningful for the static cmd_table[] array. */
 #define ML 	MAX_LEVEL	/* implementor */
 #define L1	MAX_LEVEL - 1  	/* creator */
 #define L2	MAX_LEVEL - 2	/* supremacy */
@@ -75,7 +77,7 @@ struct	cmd_type
     char * const	name;	   /* command name */
     DO_FUN *		do_fun;	   /* do_function */
     int16_t		position;  /* minimum position required */
-    int16_t		level;     /* min. level required */
+    int16_t		level;     /* (Deprecated) was min level; bootstrap only */
     int16_t		log;       /* log when? */
     int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
@@ -171,9 +173,11 @@ DECLARE_DO_FUN( do_chrem    	);
 DECLARE_DO_FUN(	do_chtalk	);
 DECLARE_DO_FUN(	do_church	);
 DECLARE_DO_FUN(	do_circle	);
+DECLARE_DO_FUN(	do_classes	);
 DECLARE_DO_FUN(	do_clear	);
 DECLARE_DO_FUN( do_clone	);
 DECLARE_DO_FUN(	do_close	);
+DECLARE_DO_FUN(	do_clslist	);
 DECLARE_DO_FUN( do_colour	);
 DECLARE_DO_FUN( do_colour       );
 DECLARE_DO_FUN( do_combine	);
@@ -231,6 +235,7 @@ DECLARE_DO_FUN(	do_follow	);
 DECLARE_DO_FUN(	do_force	);
 DECLARE_DO_FUN( do_formstate    );
 DECLARE_DO_FUN(	do_freeze	);
+DECLARE_DO_FUN(	do_freelevel	);
 DECLARE_DO_FUN(	do_get		);
 DECLARE_DO_FUN(	do_get2	);
 DECLARE_DO_FUN(	do_give		);
@@ -433,8 +438,7 @@ DECLARE_DO_FUN( do_sduty	);
 DECLARE_DO_FUN(	do_search	);
 DECLARE_DO_FUN(	do_secondary	);
 DECLARE_DO_FUN(	do_sell		);
-DECLARE_DO_FUN( do_set		);
-DECLARE_DO_FUN( do_sexual	);	/* What? hahaha*/
+DECLARE_DO_FUN( do_set		);DECLARE_DO_FUN(	do_setclass	);DECLARE_DO_FUN( do_sexual	);	/* What? hahaha*/
 DECLARE_DO_FUN( do_sflag	);
 DECLARE_DO_FUN( do_shape	);
 DECLARE_DO_FUN( do_shift	);

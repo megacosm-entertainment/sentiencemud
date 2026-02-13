@@ -58,6 +58,10 @@
 #include "io/json/json_area.h"
 #include "io/cache/redis_cache.h"
 #include "traits.h"
+#include "skill_data.h"
+#include "class_data.h"
+#include "skill_group.h"
+#include "song_data.h"
 
 /*
 #if !defined(OLD_RAND)
@@ -989,6 +993,28 @@ void boot_db(void)
 
     // Load races from JSON files (new race system)
     load_races();
+
+    // Load skills from JSON files (new skill system)
+    // On first run, bootstraps from legacy skill_table[] and saves JSON files.
+    load_skill_data();
+
+    // Load skill groups from JSON files (new skill group system)
+    // On first run, bootstraps from legacy group_table[] and saves JSON files.
+    load_skill_groups();
+
+    // Load songs from JSON files (new song system)
+    // On first run, bootstraps from legacy music_table[] and saves JSON files.
+    load_songs();
+
+    // Load classes from JSON files (new class system)
+    // On first run, bootstraps from legacy sub_class_table[] and saves JSON files.
+    load_class_data();
+
+    // Resolve cross-references between skills and classes
+    resolve_skill_class_pointers();
+
+    // Build SKILL_CLASS_LEVEL entries from class rewards
+    resolve_class_rewards_to_skill_levels();
 
     // Initialize certain lists
     loaded_instances = list_create(false);
@@ -3469,6 +3495,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_invis;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3484,6 +3511,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type 		= gsn_detect_invis;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3498,6 +3526,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_detect_hidden;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3512,6 +3541,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
             af.where		= TO_AFFECTS;
             af.type			= gsn_sanctuary;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3526,6 +3556,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_infravision;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3540,6 +3571,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_death_grip;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3554,6 +3586,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_fly;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3568,6 +3601,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_pass_door;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3582,6 +3616,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_haste;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_DEX;
@@ -3597,6 +3632,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= AFFGROUP_PHYSICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_warcry;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3611,6 +3647,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_light_shroud;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3625,6 +3662,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_healing_aura;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3639,6 +3677,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_energy_field;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3653,6 +3692,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_spell_shield;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3667,6 +3707,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_spell_deflection;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3681,6 +3722,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_avatar_shield;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3695,6 +3737,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_electrical_barrier;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3710,6 +3753,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_fire_barrier;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3724,6 +3768,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_frost_barrier;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3738,6 +3783,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_improved_invisibility;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3752,6 +3798,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= gsn_stone_skin;
+    af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -7769,6 +7816,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
                         log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_object: unknown skill.");
                     else
                         paf->type = sn;
+                        paf->skill = skill_from_sn(sn);
 
                     paf->where = fread_number(fp);
                     paf->group = fread_number(fp);
@@ -8339,6 +8387,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
                             log_message(LOG_LEVEL_WARN, LOG_WARN, "fread_char: unknown skill.");
                         else
                             paf->type = sn;
+                        paf->skill = skill_from_sn(sn);
                         paf->custom_name = NULL;
                         paf->group = flag_value(affgroup_mobile_flags, fread_word(fp));
                         if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;

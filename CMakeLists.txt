@@ -78,6 +78,7 @@ set(SOURCE_FILES
     account/penalty.c
     account/preferences.c
     account/unlock.c
+    act_class.c
     act_comm.c
     act_enter.c
     act_info.c
@@ -101,6 +102,7 @@ set(SOURCE_FILES
     bootstrap/bootstrap_reserved.c
     chat_rooms.c
     church.c
+    class_data.c
     comm.c
     connection.c
     connection_tcp.c
@@ -135,6 +137,9 @@ set(SOURCE_FILES
     editors/wilderness/wedit.c
     editors/races/racedit.c
     editors/traits/traitedit.c
+    editors/skills/skedit.c
+    editors/skills/gredit.c
+    editors/skills/soedit.c
     editors/common.c
     effects.c
     events.c
@@ -233,7 +238,10 @@ set(SOURCE_FILES
     scripts.c
     secret.c
     shoot.c
+    skill_data.c
+    skill_group.c
     skills.c
+    song_data.c
     special.c
     staff.c
     stats.c

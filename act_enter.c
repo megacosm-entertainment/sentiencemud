@@ -40,6 +40,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "wilds.h"
+#include "skill_data.h"
 
 
 /**
@@ -519,6 +520,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_PHYSICAL;
             af.type      = gsn_sneak;
+    af.skill = skill_from_sn(af.type);
             af.level     = ch->level;
             af.duration  = ch->level;
             af.location  = APPLY_NONE;

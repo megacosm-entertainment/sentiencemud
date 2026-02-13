@@ -33,6 +33,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
+#include "skill_data.h"
 
 void show_obj_stats( CHAR_DATA *ch, OBJ_DATA *obj );
 void auction_channel( char *msg );
@@ -149,8 +150,8 @@ void do_auction( CHAR_DATA *ch, char * argument )
             auction_info.high_bidder->name );
         send_to_char( buf, ch );
         }
-        spell_identify( gsn__auction, ch->tot_level, ch,
-            (void *) auction_info.item, TARGET_OBJ, WEAR_NONE );
+        spell_identify( skill_from_sn(gsn__auction), ch->tot_level, ch,
+            (void *) auction_info.item, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL );
         return;
     }
 
@@ -174,7 +175,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
         send_to_char( buf, ch );
     }
 
-    spell_identify( gsn__auction, ch->tot_level, ch, (void *) auction_info.item, TARGET_OBJ, WEAR_NONE );
+    spell_identify( skill_from_sn(gsn__auction), ch->tot_level, ch, (void *) auction_info.item, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL );
         /* AO 010217 LAME
     if ( ch->tot_level < obj->level - 25 && !IS_REMORT(ch))
     {
