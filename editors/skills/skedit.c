@@ -26,7 +26,6 @@ const struct olc_cmd_type skedit_table[] =
 {
     { "?",              show_help           },
     { "beats",          skedit_beats        },
-    { "class",          skedit_class        },
     { "commands",       show_commands       },
     { "comments",       skedit_comments     },
     { "damtype",        skedit_damtype      },
@@ -35,7 +34,6 @@ const struct olc_cmd_type skedit_table[] =
     { "display",        skedit_display      },
     { "flags",          skedit_flags        },
     { "helpkeyword",    skedit_helpkeyword  },
-    { "level",          skedit_level        },
     { "list",           skedit_list         },
     { "mana",           skedit_mana         },
     { "msgobj",         skedit_msgobj       },
@@ -144,7 +142,6 @@ SKEDIT(skedit_show)
     SKILL_DATA *skill;
     BUFFER *buf;
     ITERATOR it;
-    SKILL_CLASS_LEVEL *scl;
 
     EDIT_SKILL(ch, skill);
 
@@ -169,8 +166,8 @@ SKEDIT(skedit_show)
     add_buf(buf, formatf("{cFlags:{x %s\n\r",
             skill->flags ? flag_string(skill_flags, skill->flags) : "none"));
 
-    add_buf(buf, formatf("{cDefault Level:{x %d    {cDifficulty:{x %d\n\r",
-            skill->default_level, skill->difficulty));
+    add_buf(buf, formatf("{cDifficulty:{x %d\n\r",
+            skill->difficulty));
     add_buf(buf, formatf("{cMana:{x %-5d  {cBeats:{x %-5d  {cPosition:{x %s\n\r",
             skill->min_mana, skill->beats,
             position_table[UMAX(0, skill->minimum_position)].name));
@@ -188,23 +185,6 @@ SKEDIT(skedit_show)
             skill->msg_off ? skill->msg_off : "(none)"));
     add_buf(buf, formatf("{cMsg Obj:{x %s\n\r",
             skill->msg_obj ? skill->msg_obj : "(none)"));
-
-    /* Class availability */
-    if (skill->class_levels && list_size(skill->class_levels) > 0) {
-        add_buf(buf, "\n\r{cClass Availability:{x\n\r");
-        add_buf(buf, formatf("  {Y%-20s %-6s %-6s{x\n\r",
-                "Class", "Level", "Rating"));
-        add_buf(buf, formatf("  {Y%-20s %-6s %-6s{x\n\r",
-                "--------------------", "------", "------"));
-
-        iterator_start(&it, skill->class_levels);
-        while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
-            add_buf(buf, formatf("  %-20s %-6d %-6d\n\r",
-                    scl->class_name ? scl->class_name : "?",
-                    scl->level, scl->rating));
-        }
-        iterator_stop(&it);
-    }
 
     /* Legacy class levels */
     bool has_legacy = false;
@@ -249,11 +229,11 @@ SKEDIT(skedit_list)
     else if (!str_cmp(arg, "skills")) filter_skills = true;
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s %-5s{x\n\r",
-            "UID", "Name", "Type", "Level", "Mana", "Beats"));
-    add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s %-5s{x\n\r",
+    add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s{x\n\r",
+            "UID", "Name", "Type", "Mana", "Beats"));
+    add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s{x\n\r",
             "-----", "------------------------------", "------",
-            "-----", "-----", "-----"));
+            "-----", "-----"));
 
     for (skill = skill_first(); skill; skill = skill->next) {
         if (filter_spells && !skill->isspell) continue;
@@ -262,11 +242,10 @@ SKEDIT(skedit_list)
             && str_prefix(arg, skill->name))
             continue;
 
-        add_buf(buf, formatf("%-5d %-30s %-6s %-5d %-5d %-5d\n\r",
+        add_buf(buf, formatf("%-5d %-30s %-6s %-5d %-5d\n\r",
                 skill->uid,
                 skill->name,
                 skill->isspell ? "spell" : "skill",
-                skill->default_level,
                 skill->min_mana,
                 skill->beats));
         count++;
@@ -402,29 +381,6 @@ SKEDIT(skedit_helpkeyword)
     free_string(skill->help_keyword);
     skill->help_keyword = str_dup(argument);
     send_to_char("Help keyword set.\n\r", ch);
-    return true;
-}
-
-SKEDIT(skedit_level)
-{
-    SKILL_DATA *skill;
-    int value;
-
-    EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: level <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 1 || value > MAX_LEVEL) {
-        send_to_char(formatf("Level must be between 1 and %d.\n\r", MAX_LEVEL), ch);
-        return false;
-    }
-
-    skill->default_level = value;
-    send_to_char("Default level set.\n\r", ch);
     return true;
 }
 
@@ -668,113 +624,6 @@ SKEDIT(skedit_flags)
     send_to_char(formatf("Flags toggled. Current: %s\n\r",
             flag_string(skill_flags, skill->flags)), ch);
     return true;
-}
-
-/**
- * skedit_class - Manage per-class skill availability
- *
- * Syntax:
- *   class add <class_name> <level> [rating]
- *   class remove <class_name>
- *   class list
- */
-SKEDIT(skedit_class)
-{
-    SKILL_DATA *skill;
-    char arg1[MAX_INPUT_LENGTH];
-    char arg2[MAX_INPUT_LENGTH];
-    char arg3[MAX_INPUT_LENGTH];
-
-    EDIT_SKILL(ch, skill);
-
-    argument = one_argument(argument, arg1);
-    argument = one_argument(argument, arg2);
-    argument = one_argument(argument, arg3);
-
-    if (arg1[0] == '\0') {
-        send_to_char("Syntax: class add <class_name> <level> [rating]\n\r", ch);
-        send_to_char("        class remove <class_name>\n\r", ch);
-        return false;
-    }
-
-    if (!str_prefix(arg1, "add")) {
-        SKILL_CLASS_LEVEL *scl;
-        int level, rating = 1;
-
-        if (arg2[0] == '\0' || arg3[0] == '\0' || !is_number(arg3)) {
-            send_to_char("Syntax: class add <class_name> <level> [rating]\n\r", ch);
-            return false;
-        }
-
-        level = atoi(arg3);
-        if (argument[0] && is_number(argument))
-            rating = atoi(argument);
-
-        /* Check for existing entry */
-        if (skill->class_levels) {
-            ITERATOR it;
-            iterator_start(&it, skill->class_levels);
-            while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
-                if (scl->class_name && !str_cmp(scl->class_name, arg2)) {
-                    scl->level = level;
-                    scl->rating = rating;
-                    iterator_stop(&it);
-                    send_to_char(formatf("Updated %s: level %d, rating %d.\n\r",
-                                arg2, level, rating), ch);
-                    return true;
-                }
-            }
-            iterator_stop(&it);
-        }
-
-        /* Add new entry */
-        if (!skill->class_levels)
-            skill->class_levels = list_create(false);
-
-        scl = new_skill_class_level();
-        scl->class_name = str_dup(arg2);
-        scl->level = level;
-        scl->rating = rating;
-        list_appendlink(skill->class_levels, scl);
-
-        send_to_char(formatf("Added %s: level %d, rating %d.\n\r",
-                    arg2, level, rating), ch);
-        return true;
-    }
-
-    if (!str_prefix(arg1, "remove")) {
-        SKILL_CLASS_LEVEL *scl;
-        ITERATOR it;
-
-        if (arg2[0] == '\0') {
-            send_to_char("Syntax: class remove <class_name>\n\r", ch);
-            return false;
-        }
-
-        if (!skill->class_levels) {
-            send_to_char("No class entries to remove.\n\r", ch);
-            return false;
-        }
-
-        iterator_start(&it, skill->class_levels);
-        while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
-            if (scl->class_name && !str_cmp(scl->class_name, arg2)) {
-                iterator_remcurrent(&it);
-                free_string(scl->class_name);
-                iterator_stop(&it);
-                send_to_char(formatf("Removed class entry '%s'.\n\r", arg2), ch);
-                return true;
-            }
-        }
-        iterator_stop(&it);
-
-        send_to_char("Class entry not found.\n\r", ch);
-        return false;
-    }
-
-    send_to_char("Syntax: class add <class_name> <level> [rating]\n\r", ch);
-    send_to_char("        class remove <class_name>\n\r", ch);
-    return false;
 }
 
 SKEDIT(skedit_save)

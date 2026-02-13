@@ -150,12 +150,6 @@ void            save_class_data(CLASS_DATA *clazz);
 /* Save all classes to JSON files */
 void            save_all_class_data(void);
 
-/* Resolve skill class_levels string references to CLASS_DATA pointers */
-void            resolve_skill_class_pointers(void);
-
-/* Build SKILL_CLASS_LEVEL entries from class rewards (called at boot) */
-void            resolve_class_rewards_to_skill_levels(void);
-
 /***************************************************************************
  * Reward System API                                                       *
  ***************************************************************************/

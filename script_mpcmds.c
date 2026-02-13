@@ -2708,13 +2708,13 @@ SCRIPT_CMD(do_mpoload)
         switch(arg->type) {
         case ENT_NUMBER: level = arg->d.num; break;
         case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-        case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+        case ENT_MOBILE: level = arg->d.mob ? get_mob_level(arg->d.mob) : 0; break;
         case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
         default: level = 0; break;
         }
 
-        if(level <= 0 || level > get_trust(info->mob))
-            level = get_trust(info->mob);
+        if(level <= 0 || level > get_mob_level(info->mob))
+            level = get_mob_level(info->mob);
 
         if(rest && *rest) {
             argument = rest;
@@ -2769,7 +2769,7 @@ SCRIPT_CMD(do_mpoload)
         }
 
     } else
-        level = get_trust(info->mob);
+        level = get_mob_level(info->mob);
 
     obj = create_object(pObjIndex, level, true);
     if( to_room )

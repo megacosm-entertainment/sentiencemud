@@ -1678,7 +1678,7 @@ SCRIPT_CMD(do_rpoload)
         switch(arg->type) {
         case ENT_NUMBER: level = arg->d.num; break;
         case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-        case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+        case ENT_MOBILE: level = arg->d.mob ? get_mob_level(arg->d.mob) : 0; break;
         case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
         default: level = 0; break;
         }

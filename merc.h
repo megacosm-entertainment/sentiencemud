@@ -362,7 +362,6 @@ typedef struct  event_data		EVENT_DATA;
 typedef struct	race_data		RACE_DATA;
 typedef struct	invasion_quest		INVASION_QUEST;
 typedef struct	skill_data		SKILL_DATA;
-typedef struct	skill_class_level	SKILL_CLASS_LEVEL;
 typedef struct	class_data		CLASS_DATA;
 typedef struct	class_level		CLASS_LEVEL;
 typedef struct	class_reward		CLASS_REWARD;
@@ -7161,9 +7160,6 @@ struct skill_data
 
     long                flags;              /* SKILLFLAG_* bitfield */
 
-    /* Class availability (new system — dynamic list) */
-    LLIST *             class_levels;       /* LLIST of SKILL_CLASS_LEVEL */
-    int16_t             default_level;      /* Fallback level when class_levels is empty */
     int16_t             difficulty;          /* Base difficulty rating */
 
     /* Legacy class availability (for migration, kept until Phase 9) */
@@ -7204,20 +7200,6 @@ struct skill_data
 };
 
 /*
- * SKILL_CLASS_LEVEL — Per-class skill availability entry.
- *
- * Each SKILL_DATA has an LLIST of these, defining at what level
- * each class can learn the skill and how difficult it is for them.
- */
-struct skill_class_level
-{
-    char *              class_name;         /* Class name (string reference) */
-    CLASS_DATA *        clazz;              /* Resolved CLASS_DATA pointer (NULL until boot resolves) */
-    int16_t             level;              /* Level at which this class gets the skill */
-    int16_t             rating;             /* Difficulty rating for this class */
-};
-
-/*
  * CLASS_REWARD — Level-based reward/unlock for a class.
  *
  * Defines what a class grants at each level: skills, skill groups, titles,
@@ -7225,8 +7207,8 @@ struct skill_class_level
  * CLASS_DATA, sorted by level. The reward type determines how the name,
  * value, and data fields are interpreted.
  *
- * During boot, REWARD_SKILL and REWARD_GROUP rewards are resolved into
- * SKILL_CLASS_LEVEL entries so existing skill-lookup code continues to work.
+ * During boot, REWARD_SKILL and REWARD_GROUP rewards are used to determine
+ * which skills each class grants at what level.
  */
 /*
  * CLASS_TITLE — A selectable title for a class.
@@ -7354,7 +7336,6 @@ struct class_level
  */
 int	get_skill			( CHAR_DATA *ch, int sn );
 int	get_weapon_skill	( CHAR_DATA *ch, int sn );
-int     get_skill_level         ( CHAR_DATA *ch, int sn );
 int	get_adept_level		( CHAR_DATA *ch, int sn );
 int	mana_cost		( CHAR_DATA *ch, int min_mana, int level );
 int	skill_lookup		( const char *name );
@@ -8325,12 +8306,6 @@ extern int16_t	gsn_soul_essence;
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
 #define IS_IMMORTAL(ch)		(!IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
 #define IS_IMPLEMENTOR(ch)	(IS_IMMORTAL(ch) && (get_staff_rank(ch) >= STAFF_IMPLEMENTOR))
-
-/* DEPRECATED: Do not use for new code. These compare against tot_level which
- * is a progression metric, not an authority indicator. In a multi-class world,
- * mortals can exceed LEVEL_HERO. Use IS_IMMORTAL() or IS_STAFF() instead. */
-#define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
-#define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
 
 #define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
 #define IS_AFFECTED2(ch, sn)	(IS_SET((ch)->affected_by[1], (sn)))
@@ -9358,7 +9333,7 @@ int	get_objweapon_sn	args( (OBJ_DATA *obj) );
 int	get_weapon_skill args(( CHAR_DATA *ch, int sn ) );
 int     get_age         args( ( CHAR_DATA *ch ) );
 void	reset_char	args( ( CHAR_DATA *ch )  );
-int	get_trust	args( ( CHAR_DATA *ch ) );
+int	get_mob_level	args( ( CHAR_DATA *ch ) );
 int get_staff_rank(CHAR_DATA *ch);
 
 void set_mod_stat(CHAR_DATA *ch, int stat, int value);

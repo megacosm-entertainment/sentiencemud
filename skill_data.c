@@ -270,8 +270,6 @@ SKILL_DATA *new_skill_data(void)
 
     skill->valid = true;
     skill->uid = -1;
-    skill->class_levels = list_create(false);
-    skill->default_level = 31;  /* Not available by default */
     skill->difficulty = 1;
 
     /* Initialize legacy class arrays to "not available" */
@@ -281,22 +279,6 @@ SKILL_DATA *new_skill_data(void)
     }
 
     return skill;
-}
-
-/**
- * new_skill_class_level - Allocate and initialize a new SKILL_CLASS_LEVEL
- */
-SKILL_CLASS_LEVEL *new_skill_class_level(void)
-{
-    SKILL_CLASS_LEVEL *scl;
-
-    scl = (SKILL_CLASS_LEVEL *)alloc_perm(sizeof(SKILL_CLASS_LEVEL));
-    memset(scl, 0, sizeof(SKILL_CLASS_LEVEL));
-    scl->clazz = NULL;
-    scl->level = 31;
-    scl->rating = 1;
-
-    return scl;
 }
 
 /***************************************************************************
@@ -620,45 +602,6 @@ static SKILL_DATA *skill_load_json(const char *filename)
         skill->race = race_lookup(str);
     }
 
-    /* Class levels */
-    arr = json_object_get(root, "class_levels");
-    if (arr && json_is_array(arr)) {
-        json_array_foreach(arr, index, val) {
-            if (!json_is_object(val)) continue;
-
-            SKILL_CLASS_LEVEL *scl = new_skill_class_level();
-
-            str = json_string_value(json_object_get(val, "class"));
-            scl->class_name = str ? str_dup(str) : str_dup("unknown");
-
-            obj = json_object_get(val, "level");
-            scl->level = obj ? (int16_t)json_integer_value(obj) : 31;
-
-            obj = json_object_get(val, "rating");
-            scl->rating = obj ? (int16_t)json_integer_value(obj) : 1;
-
-            list_appendlink(skill->class_levels, scl);
-        }
-    }
-
-    /* Legacy class level arrays (populated from class_levels for compat) */
-    {
-        ITERATOR it;
-        SKILL_CLASS_LEVEL *scl;
-        static const char *class_names[] = { "mage", "cleric", "thief", "warrior" };
-        iterator_start(&it, skill->class_levels);
-        while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
-            for (int c = 0; c < MAX_CLASS; c++) {
-                if (!str_cmp(scl->class_name, class_names[c])) {
-                    skill->skill_level[c] = scl->level;
-                    skill->rating[c] = scl->rating;
-                    break;
-                }
-            }
-        }
-        iterator_stop(&it);
-    }
-
     /* Inks */
     arr = json_object_get(root, "inks");
     if (arr && json_is_array(arr)) {
@@ -746,8 +689,6 @@ void save_skill_data(SKILL_DATA *skill)
     json_t *root, *arr, *obj;
     char path[512];
     char safe_name[256];
-    ITERATOR it;
-    SKILL_CLASS_LEVEL *scl;
 
     if (!skill || !skill->name)
         return;
@@ -828,19 +769,6 @@ void save_skill_data(SKILL_DATA *skill)
     else
         json_object_set_new(root, "race", json_null());
 
-    /* Class levels */
-    arr = json_array();
-    iterator_start(&it, skill->class_levels);
-    while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
-        obj = json_object();
-        json_object_set_new(obj, "class", json_string(scl->class_name ? scl->class_name : "unknown"));
-        json_object_set_new(obj, "level", json_integer(scl->level));
-        json_object_set_new(obj, "rating", json_integer(scl->rating));
-        json_array_append_new(arr, obj);
-    }
-    iterator_stop(&it);
-    json_object_set_new(root, "class_levels", arr);
-
     /* Inks */
     arr = json_array();
     for (int i = 0; i < 3; i++) {
@@ -912,7 +840,6 @@ void save_all_skill_data(void)
  */
 static void bootstrap_skills_from_table(void)
 {
-    static const char *class_names[] = { "mage", "cleric", "thief", "warrior" };
     int sn;
     int count = 0;
 
@@ -936,17 +863,10 @@ static void bootstrap_skills_from_table(void)
         skill->isspell = (skill_table[sn].spell_fun != NULL
                        && skill_table[sn].spell_fun != spell_null);
 
-        /* Copy class levels */
+        /* Copy class levels (legacy arrays) */
         for (int c = 0; c < MAX_CLASS; c++) {
             skill->skill_level[c] = skill_table[sn].skill_level[c];
             skill->rating[c] = skill_table[sn].rating[c];
-
-            /* Create SKILL_CLASS_LEVEL entry */
-            SKILL_CLASS_LEVEL *scl = new_skill_class_level();
-            scl->class_name = str_dup(class_names[c]);
-            scl->level = skill_table[sn].skill_level[c];
-            scl->rating = skill_table[sn].rating[c];
-            list_appendlink(skill->class_levels, scl);
         }
 
         /* Spell function */

@@ -2794,7 +2794,7 @@ void hedit(CHAR_DATA *ch, char *argument)
 void do_hedit(CHAR_DATA *ch, char *argument)
 {
     /* 2006-07-21 Removed as per Areo's suggestion (Syn)
-    if (get_trust(ch) < MAX_LEVEL - 4) {
+    if (get_mob_level(ch) < MAX_LEVEL - 4) {
     send_to_char("Insufficient security to edit helpfiles. Action logged.\n\r", ch);
     return;
     }

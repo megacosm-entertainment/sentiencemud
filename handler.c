@@ -634,54 +634,6 @@ int get_objweapon_sn(OBJ_DATA *obj)
    return sn;
 }
 
-/**
- * get_skill_level - Get the minimum level at which a class grants a skill
- *
- * Checks the SKILL_DATA's class_levels list for the character's current
- * class (or any of their classes). Returns the lowest level at which the
- * skill is available, or MAX_LEVEL if the character's classes don't grant
- * it at all.
- *
- * @param ch  Character to check
- * @param sn  Skill number (legacy sn)
- * @return    Level at which the skill is available, or MAX_LEVEL if not
- */
-int get_skill_level(CHAR_DATA *ch, int sn)
-{
-    SKILL_DATA *sd;
-    int best_level = MAX_LEVEL;
-
-    if (IS_NPC(ch) || !ch->pcdata)
-        return 0;
-
-    /* Find the SKILL_DATA for this sn */
-    sd = skill_from_sn(sn);
-    if (!sd || !sd->class_levels)
-        return skill_table[sn].skill_level[ch->pcdata->class_current];
-
-    /* Check all class_levels on the skill for classes the character has */
-    ITERATOR it;
-    SKILL_CLASS_LEVEL *scl;
-    iterator_start(&it, sd->class_levels);
-    while ((scl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it))) {
-        CLASS_DATA *clazz = scl->clazz;
-        if (!clazz && scl->class_name)
-            clazz = class_find_exact(scl->class_name);
-
-        if (clazz && has_class_level(ch, clazz)) {
-            if (scl->level < best_level)
-                best_level = scl->level;
-        }
-    }
-    iterator_stop(&it);
-
-    /* If no new-system match, fall back to legacy */
-    if (best_level == MAX_LEVEL)
-        return skill_table[sn].skill_level[ch->pcdata->class_current];
-
-    return best_level;
-}
-
 
 int get_weapon_skill(CHAR_DATA *ch, int sn)
 {
@@ -863,10 +815,13 @@ void reset_char(CHAR_DATA *ch)
 }
 
 
-/*
- * Retrieve a character's trusted level for permission checking.
+/**
+ * get_mob_level - Get a mobile's effective level
+ *
+ * For NPCs, returns tot_level clamped to 1..149.
+ * For PCs, returns tot_level (used in scripting for object creation level).
  */
-int get_trust(CHAR_DATA *ch)
+int get_mob_level(CHAR_DATA *ch)
 {
     if (ch == NULL)
     return 0;

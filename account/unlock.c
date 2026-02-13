@@ -328,7 +328,7 @@ void do_raceunlock(CHAR_DATA *ch, char *argument)
             snprintf(buf, sizeof(buf),
                      "$N unlocked race '%s' for account %s",
                      race->name, account->username);
-            wiznet(buf, ch, NULL, WIZ_SECURE, 0, get_trust(ch));
+            wiznet(buf, ch, NULL, WIZ_SECURE, 0, get_mob_level(ch));
         } else {
             send_to_char("That race is already unlocked on that account.\n\r", ch);
         }
@@ -354,7 +354,7 @@ void do_raceunlock(CHAR_DATA *ch, char *argument)
             snprintf(buf, sizeof(buf),
                      "$N revoked race '%s' unlock from account %s",
                      arg_race, account->username);
-            wiznet(buf, ch, NULL, WIZ_SECURE, 0, get_trust(ch));
+            wiznet(buf, ch, NULL, WIZ_SECURE, 0, get_mob_level(ch));
         } else {
             send_to_char("That race is not unlocked on that account.\n\r", ch);
         }

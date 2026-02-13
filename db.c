@@ -1010,12 +1010,6 @@ void boot_db(void)
     // On first run, bootstraps from legacy sub_class_table[] and saves JSON files.
     load_class_data();
 
-    // Resolve cross-references between skills and classes
-    resolve_skill_class_pointers();
-
-    // Build SKILL_CLASS_LEVEL entries from class rewards
-    resolve_class_rewards_to_skill_levels();
-
     // Initialize certain lists
     loaded_instances = list_create(false);
     loaded_dungeons = list_create(false);

@@ -713,7 +713,6 @@ DECLARE_OLC_FUN( skedit_summary );
 DECLARE_OLC_FUN( skedit_description );
 DECLARE_OLC_FUN( skedit_comments );
 DECLARE_OLC_FUN( skedit_helpkeyword );
-DECLARE_OLC_FUN( skedit_level );
 DECLARE_OLC_FUN( skedit_difficulty );
 DECLARE_OLC_FUN( skedit_mana );
 DECLARE_OLC_FUN( skedit_beats );
@@ -724,7 +723,6 @@ DECLARE_OLC_FUN( skedit_msgoff );
 DECLARE_OLC_FUN( skedit_msgobj );
 DECLARE_OLC_FUN( skedit_spellfun );
 DECLARE_OLC_FUN( skedit_flags );
-DECLARE_OLC_FUN( skedit_class );
 DECLARE_OLC_FUN( skedit_save );
 
 /*

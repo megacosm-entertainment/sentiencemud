@@ -10,7 +10,6 @@
 
 /* Forward declarations — full structs are in merc.h */
 typedef struct skill_data SKILL_DATA;
-typedef struct skill_class_level SKILL_CLASS_LEVEL;
 
 /***************************************************************************
  * Constants                                                               *
@@ -115,6 +114,5 @@ void            save_all_skill_data(void);
  ***************************************************************************/
 
 SKILL_DATA *         new_skill_data(void);
-SKILL_CLASS_LEVEL *  new_skill_class_level(void);
 
 #endif /* SKILL_DATA_H */

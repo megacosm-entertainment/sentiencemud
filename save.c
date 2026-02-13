@@ -5036,7 +5036,7 @@ void fix_character( CHAR_DATA *ch )
     /* VERSION_PLAYER_012: Migrate legacy class fields to CLASS_LEVEL entries.
      * Characters saved with the old 18-field system (class_mage, sub_class_mage,
      * etc.) need their data converted into the new CLASS_LEVEL list.  If the
-     * character was already saved in JSON with class_levels, the list will be
+     * character was already saved in JSON with class data, the list will be
      * non-empty and we skip the bootstrap. */
     if (ch->version < VERSION_PLAYER_012) {
         if (ch->pcdata && list_size(ch->pcdata->classes) == 0) {
