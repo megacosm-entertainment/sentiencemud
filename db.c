@@ -430,6 +430,7 @@ void load_notes(void);
 void load_bans(void);
 void fix_rooms(void);
 void fix_object_locks(void);
+void fix_portal_destinations(void);
 void fix_area_fields(void);
 void fix_mobprogs(void);
 void reset_area(AREA_DATA * pArea);
@@ -845,6 +846,8 @@ void boot_db(void)
     fix_rooms();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving object lock keys");
     fix_object_locks();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving portal destination areas");
+    fix_portal_destinations();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
     fix_area_fields();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
@@ -1086,6 +1089,41 @@ void new_reset(ROOM_INDEX_DATA *pR, RESET_DATA *pReset)
     }
 
     top_reset++;
+}
+
+
+/**
+ * fix_portal_destinations - Resolve bare portal destination vnums to area UIDs
+ *
+ * After all areas are loaded, iterates every object index across all areas.
+ * For portals with a destination vnum (value[3]) but no area UID (value[4]),
+ * looks up which area owns that vnum and stores its UID in value[4].
+ * Skips dungeon portals (GATE_DUNGEON flag in value[2]).
+ */
+void fix_portal_destinations(void)
+{
+    AREA_DATA *pArea;
+    OBJ_INDEX_DATA *obj;
+    int iHash;
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
+            {
+                if (obj->item_type == ITEM_PORTAL
+                &&  obj->value[3] > 0
+                &&  obj->value[4] == 0
+                &&  !IS_SET(obj->value[2], GATE_DUNGEON))
+                {
+                    AREA_DATA *dest_area = find_area_by_vnum(obj->value[3], pArea);
+                    if (dest_area)
+                        obj->value[4] = dest_area->uid;
+                }
+            }
+        }
+    }
 }
 
 
