@@ -1169,6 +1169,19 @@ if (ch->pk_question)
 
         ch->orace = orace;
         ch->orace_question = false;
+
+        /* If current race is a remort of a path race (e.g., changeling→slayer),
+         * downgrade race to the path race prerequisite. We're deprecating the
+         * "remort of a path race" pattern in favor of remort OR path. */
+        if (ch->race) {
+            RACE_DATA *prereq = race_get_prerequisite(ch->race);
+            if (prereq && race_is_path(prereq)) {
+                printf_to_char(ch, "Your race has been changed from %s to %s.\n\r",
+                               ch->race->name, prereq->name);
+                ch->race = prereq;
+            }
+        }
+
         printf_to_char(ch, "Your original race has been set to %s.\n\r", orace->name);
         return;
     }
