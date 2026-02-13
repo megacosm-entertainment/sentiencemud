@@ -1034,9 +1034,12 @@ bool ch_has_trait(CHAR_DATA *ch, const char *trait_id)
 /**
  * ch_get_trait_bool - Get a boolean trait value across all layers
  *
- * Returns true if ANY layer (personal, current class, or race) has the trait
- * set to true. This provides OR semantics: a character with a race that has
- * blood_feeding OR a class that grants blood_feeding will return true.
+ * Returns true if ANY layer (personal, current class, race, or original race)
+ * has the trait set to true. This provides OR semantics: a character with a
+ * race that has blood_feeding OR a class that grants blood_feeding will
+ * return true.
+ *
+ * Priority: personal > class > race > original race (orace)
  *
  * @param ch        The character to query
  * @param trait_id  Trait identifier string
@@ -1068,9 +1071,15 @@ bool ch_get_trait_bool(CHAR_DATA *ch, const char *trait_id)
             return true;
     }
 
-    /* Race traits (fallback) */
-    if (ch->race && ch->race->trait_values)
-        return ch->race->trait_values[def->index].bool_val;
+    /* Race traits */
+    if (ch->race && ch->race->trait_values
+        && ch->race->trait_values[def->index].bool_val)
+        return true;
+
+    /* Original race traits (orace — base race before transformation) */
+    if (ch->orace && ch->orace->trait_values
+        && ch->orace->trait_values[def->index].bool_val)
+        return true;
 
     return false;
 }
@@ -1079,7 +1088,7 @@ bool ch_get_trait_bool(CHAR_DATA *ch, const char *trait_id)
  * ch_get_trait_int - Get an integer trait value across all layers
  *
  * Returns the value from the highest-priority layer where the trait is
- * explicitly set. Priority: personal > current class > race.
+ * explicitly set. Priority: personal > current class > race > original race.
  *
  * @param ch        The character to query
  * @param trait_id  Trait identifier string
@@ -1108,9 +1117,15 @@ int ch_get_trait_int(CHAR_DATA *ch, const char *trait_id)
             return clazz->trait_values[def->index].int_val;
     }
 
-    /* Race traits (fallback) */
-    if (ch->race && ch->race->trait_values)
+    /* Race traits */
+    if (ch->race && ch->race->trait_values
+        && ch->race->trait_values[def->index].set)
         return ch->race->trait_values[def->index].int_val;
+
+    /* Original race traits (orace — base race before transformation) */
+    if (ch->orace && ch->orace->trait_values
+        && ch->orace->trait_values[def->index].set)
+        return ch->orace->trait_values[def->index].int_val;
 
     return 0;
 }
@@ -1119,7 +1134,7 @@ int ch_get_trait_int(CHAR_DATA *ch, const char *trait_id)
  * ch_get_trait_string - Get a string trait value across all layers
  *
  * Returns the value from the highest-priority layer where the trait is
- * explicitly set. Priority: personal > current class > race.
+ * explicitly set. Priority: personal > current class > race > original race.
  *
  * @param ch        The character to query
  * @param trait_id  Trait identifier string
@@ -1148,9 +1163,15 @@ const char *ch_get_trait_string(CHAR_DATA *ch, const char *trait_id)
             return clazz->trait_values[def->index].string_val;
     }
 
-    /* Race traits (fallback) */
-    if (ch->race && ch->race->trait_values)
+    /* Race traits */
+    if (ch->race && ch->race->trait_values
+        && ch->race->trait_values[def->index].set)
         return ch->race->trait_values[def->index].string_val;
+
+    /* Original race traits (orace — base race before transformation) */
+    if (ch->orace && ch->orace->trait_values
+        && ch->orace->trait_values[def->index].set)
+        return ch->orace->trait_values[def->index].string_val;
 
     return NULL;
 }

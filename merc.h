@@ -4565,6 +4565,14 @@ struct cmd_data
 #define CLASS_THIEF_NINJA      	22
 #define CLASS_THIEF_SAGE       	23
 
+/* Race change flags — used with char_set_race() */
+#define RACE_CHANGE_SAVE_ORIGINAL   (A)  /* Store current race as orace before changing */
+#define RACE_CHANGE_OVERLAY         (B)  /* Merge new race properties with original race */
+#define RACE_CHANGE_KEEP_SKILLS     (C)  /* Don't remove old racial skills */
+#define RACE_CHANGE_KEEP_STATS      (D)  /* Don't clamp stats to new race caps */
+#define RACE_CHANGE_SILENT          (E)  /* Don't echo messages to the character */
+#define RACE_CHANGE_REVERT          (F)  /* Restore orace as current race, clear orace */
+
 #define SHIFTED_NONE   		0
 #define SHIFTED_WEREWOLF   	1
 #define SHIFTED_SLAYER 		2
@@ -9010,6 +9018,7 @@ int get_coord_distance( int x1, int y1, int x2, int y2 );
 CHAR_DATA *get_player(char *name);
 void	affect_fix_char( CHAR_DATA *ch );
 void    affect_modify( CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd );
+void    char_set_race( CHAR_DATA *ch, RACE_DATA *new_race, long flags );
 void	char_to_team    args( ( CHAR_DATA *ch ) );
 void	char_from_team  args( ( CHAR_DATA *ch ) );
 void	char_to_invasion    args( ( CHAR_DATA *ch, INVASION_QUEST *quest ) );

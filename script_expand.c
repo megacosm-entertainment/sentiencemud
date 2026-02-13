@@ -1782,6 +1782,14 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_RACE;
         arg->d.race = self ? self->race : NULL;
         break;
+    case ENTITY_MOB_ORIGINALRACE:
+        arg->type = ENT_STRING;
+        arg->d.str = (arg->d.mob && arg->d.mob->orace) ? (char*)arg->d.mob->orace->name : "none";
+        break;
+    case ENTITY_MOB_ORIGINALRACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = self ? self->orace : NULL;
+        break;
     case ENTITY_MOB_CLASS:
         arg->type = ENT_CLASS;
         arg->d.clazz = (self && !IS_NPC(self) && self->pcdata->current_class)
@@ -2132,6 +2140,16 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.str = buf_string(arg->buffer);
         break;
     case ENTITY_MOB_RACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = NULL;
+        break;
+    case ENTITY_MOB_ORIGINALRACE:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, "none");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_MOB_ORIGINALRACEDATA:
         arg->type = ENT_RACE;
         arg->d.race = NULL;
         break;

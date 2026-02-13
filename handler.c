@@ -13484,3 +13484,130 @@ void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type)
     // Set verb preference based on body type
     ch->verb_preference = body_type_info[new_body_type].verb_preference;
 }
+
+/**
+ * char_set_race - Change a character's race with full property recalculation
+ *
+ * Central function for all race changes (script altermob, remort, polymorph).
+ * Recalculates permanent affects, immunities, resistances, vulnerabilities,
+ * form, parts, size, racial skills, and stat caps. Calls affect_fix_char()
+ * to rebuild active flags from the new perm baseline.
+ *
+ * When RACE_CHANGE_OVERLAY is used with an orace, the new race's properties
+ * are merged with the original race (affects are OR'd, res/vuln/form/parts
+ * use new race, skills are unioned, stat caps use per-stat max).
+ *
+ * @param ch        Character to modify
+ * @param new_race  Target RACE_DATA (NULL to revert to orace)
+ * @param flags     RACE_CHANGE_* flags controlling behavior
+ */
+void char_set_race(CHAR_DATA *ch, RACE_DATA *new_race, long flags)
+{
+    RACE_DATA *old_race;
+
+    if (!ch)
+        return;
+
+    /* Handle revert: restore orace as current race */
+    if (IS_SET(flags, RACE_CHANGE_REVERT)) {
+        if (!ch->orace)
+            return;
+
+        new_race = ch->orace;
+        ch->orace = NULL;
+        REMOVE_BIT(flags, RACE_CHANGE_SAVE_ORIGINAL);
+        REMOVE_BIT(flags, RACE_CHANGE_OVERLAY);
+    }
+
+    if (!new_race)
+        return;
+
+    old_race = ch->race;
+
+    /* Save original race before changing (only if not already saved) */
+    if (IS_SET(flags, RACE_CHANGE_SAVE_ORIGINAL) && !ch->orace)
+        ch->orace = old_race;
+
+    /* Swap the race pointer */
+    ch->race = new_race;
+
+    /* --- Recalculate permanent baseline flags --- */
+
+    if (IS_SET(flags, RACE_CHANGE_OVERLAY) && ch->orace) {
+        /* Overlay mode: merge original + new race properties */
+        RACE_DATA *orig = ch->orace;
+
+        /* Affects: OR both races */
+        ch->affected_by_perm[0] = orig->aff[0] | new_race->aff[0];
+        ch->affected_by_perm[1] = orig->aff[1] | new_race->aff[1];
+
+        /* Immunities: OR both races */
+        ch->imm_flags_perm = orig->imm | new_race->imm;
+
+        /* Resistances/vulnerabilities: new race wins */
+        ch->res_flags_perm  = new_race->res;
+        ch->vuln_flags_perm = new_race->vuln;
+
+        /* Physical: new race wins */
+        ch->form  = new_race->form;
+        ch->parts = new_race->parts & ~ch->lostparts;
+        ch->size  = new_race->min_size;
+    } else {
+        /* Full replacement */
+        ch->affected_by_perm[0] = new_race->aff[0];
+        ch->affected_by_perm[1] = new_race->aff[1];
+        ch->imm_flags_perm  = new_race->imm;
+        ch->res_flags_perm  = new_race->res;
+        ch->vuln_flags_perm = new_race->vuln;
+
+        ch->form  = new_race->form;
+        ch->parts = new_race->parts & ~ch->lostparts;
+        ch->size  = new_race->min_size;
+    }
+
+    /* --- Racial skills --- */
+    if (!IS_SET(flags, RACE_CHANGE_KEEP_SKILLS) && !IS_NPC(ch)) {
+        /* Add new racial skills */
+        if (new_race->skills) {
+            ITERATOR it;
+            char *skill_name;
+            iterator_start(&it, new_race->skills);
+            while ((skill_name = (char *)iterator_nextdata(&it)))
+                group_add(ch, skill_name, false);
+            iterator_stop(&it);
+        }
+
+        /* In overlay mode, also ensure original race skills are present */
+        if (IS_SET(flags, RACE_CHANGE_OVERLAY) && ch->orace && ch->orace->skills) {
+            ITERATOR it;
+            char *skill_name;
+            iterator_start(&it, ch->orace->skills);
+            while ((skill_name = (char *)iterator_nextdata(&it)))
+                group_add(ch, skill_name, false);
+            iterator_stop(&it);
+        }
+    }
+
+    /* --- Stat caps --- */
+    if (!IS_SET(flags, RACE_CHANGE_KEEP_STATS) && !IS_NPC(ch)) {
+        for (int i = 0; i < MAX_STATS; i++) {
+            int cap = new_race->max_stats[i];
+
+            /* In overlay mode, use the higher cap of both races */
+            if (IS_SET(flags, RACE_CHANGE_OVERLAY) && ch->orace
+                && ch->orace->max_stats[i] > cap)
+                cap = ch->orace->max_stats[i];
+
+            if (ch->perm_stat[i] > cap)
+                set_perm_stat(ch, i, cap);
+        }
+    }
+
+    /* --- Rebuild active flags from new perm baseline --- */
+    affect_fix_char(ch);
+
+    if (!IS_SET(flags, RACE_CHANGE_SILENT) && !IS_NPC(ch)) {
+        printf_to_char(ch, "Your race has changed to %s.\n\r",
+                       new_race->name ? new_race->name : "unknown");
+    }
+}

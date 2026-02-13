@@ -1387,11 +1387,13 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
 /**
  * get_default_bool - Get the effective default value for a toggle setting
  *
- * Checks game_settings.pref_defaults first, then falls back to the
- * hardcoded default_state in pc_set_table.
+ * Returns the game's source-of-truth default for a setting. Checks
+ * game_settings.pref_defaults first (managed via 'prefadmin defaults'),
+ * then falls back to the factory default from pc_set_table if no
+ * explicit entry exists.
  *
  * @param name           The setting name
- * @param table_default  The default_state from pc_set_table (SETTING_ON/OFF)
+ * @param table_default  Factory default from pc_set_table (SETTING_ON/OFF)
  * @return               true if the default is ON
  */
 static bool get_default_bool(const char *name, int table_default)

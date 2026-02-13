@@ -268,6 +268,8 @@ ENT_FIELD entity_mobile[] = {
     {"prey",			ENTITY_MOB_HUNTING,			ENT_MOBILE	},
     {"race",			ENTITY_MOB_RACE,			ENT_STRING	},
     {"racedata",		ENTITY_MOB_RACEDATA,		ENT_RACE	},
+    {"originalrace",		ENTITY_MOB_ORIGINALRACE,		ENT_STRING	},
+    {"originalracedata",	ENTITY_MOB_ORIGINALRACEDATA,	ENT_RACE	},
     {"recall",			ENTITY_MOB_RECALL,			ENT_ROOM	},
     {"rider",			ENTITY_MOB_RIDER,			ENT_MOBILE	},
     {"room",			ENTITY_MOB_ROOM,			ENT_ROOM	},

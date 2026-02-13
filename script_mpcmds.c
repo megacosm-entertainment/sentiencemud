@@ -4355,6 +4355,7 @@ SCRIPT_CMD(do_mpaltermob)
     bool allowarith = true;
     bool allowbitwise = true;
     bool lookuprace = false;
+    long race_change_flags = 0;
     bool lookup_attack_type = false;
     bool hasmin = false;
     bool hasmax = false;
@@ -4476,7 +4477,9 @@ SCRIPT_CMD(do_mpaltermob)
     else if(!str_cmp(field,"pktimer"))	ptr = (int*)&mob->pk_timer;
     else if(!str_cmp(field,"pneuma"))	lptr = &mob->pneuma;
     else if(!str_cmp(field,"practice"))	ptr = &mob->practice;
-    else if(!str_cmp(field,"race"))		{ min_sec = 7; allowarith = false; lookuprace = true; /* race is handled separately */ }
+    else if(!str_cmp(field,"race"))		{ min_sec = 7; allowarith = false; lookuprace = true; race_change_flags = RACE_CHANGE_SAVE_ORIGINAL; }
+    else if(!str_cmp(field,"raceoverlay"))	{ min_sec = 7; allowarith = false; lookuprace = true; race_change_flags = RACE_CHANGE_SAVE_ORIGINAL | RACE_CHANGE_OVERLAY; }
+    else if(!str_cmp(field,"racerevert"))	{ min_sec = 7; allowarith = false; lookuprace = true; race_change_flags = RACE_CHANGE_REVERT; }
     else if(!str_cmp(field,"ranged"))	ptr = (int*)&mob->ranged;
     else if(!str_cmp(field,"recite"))	ptr = (int*)&mob->recite;
     else if(!str_cmp(field,"res"))		{ lptr = &mob->res_flags;  allowarith = false; flags = imm_flags; }
@@ -4530,13 +4533,16 @@ SCRIPT_CMD(do_mpaltermob)
 
     if( lookuprace )
     {
-        if( arg->type != ENT_STRING ) return;
+        if (IS_SET(race_change_flags, RACE_CHANGE_REVERT)) {
+            /* Revert to original race */
+            if (op == OPR_ASSIGN)
+                char_set_race(mob, NULL, race_change_flags | RACE_CHANGE_SILENT);
+        } else {
+            if( arg->type != ENT_STRING ) return;
 
-        // This is a race, can only be assigned
-        // Handle race assignment directly since it's now a pointer
-        RACE_DATA *new_race = race_lookup(arg->d.str);
-        if (new_race && op == OPR_ASSIGN) {
-            mob->race = new_race;
+            RACE_DATA *new_race = race_lookup(arg->d.str);
+            if (new_race && op == OPR_ASSIGN)
+                char_set_race(mob, new_race, race_change_flags | RACE_CHANGE_SILENT);
         }
         return;
     }

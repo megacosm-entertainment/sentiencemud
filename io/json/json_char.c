@@ -1011,6 +1011,8 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "level", json_integer(ch->level));
     json_object_set_new(basic, "tot_level", json_integer(ch->tot_level));
     json_object_set_new(basic, "race", json_string(ch->race ? ch->race->id : "human"));
+    if (ch->orace)
+        json_object_set_new(basic, "original_race", json_string(ch->orace->id));
     json_object_set_new(basic, "sex", json_integer(ch->sex));
     json_object_set_new(basic, "body_type", json_integer(ch->body_type));
 
@@ -2542,6 +2544,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     str = json_string_value(json_object_get(character, "race"));
     if (str) {
         ch->race = race_lookup(str);
+    }
+
+    str = json_string_value(json_object_get(character, "original_race"));
+    if (str) {
+        ch->orace = race_lookup(str);
     }
 
     ch->sex = json_integer_value(json_object_get(character, "sex"));

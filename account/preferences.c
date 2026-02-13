@@ -1248,7 +1248,8 @@ bool json_to_prefs(json_t *array, PREF_ENTRY **list)
  *   prefadmin <account> apply <character>                                 *
  *   prefadmin defaults list [category]                                    *
  *   prefadmin defaults set <key> <type> <value>                           *
- *   prefadmin defaults remove <key>                                       *
+ *   prefadmin defaults reset <key>                                        *
+ *   prefadmin defaults init                                               *
  ***************************************************************************/
 
 /**
@@ -1256,8 +1257,14 @@ bool json_to_prefs(json_t *array, PREF_ENTRY **list)
  *
  * Allows staff to view, set, remove, snapshot, and apply preferences
  * for an account. Also manages game-wide preference defaults via the
- * "defaults" subcommand, which are stored in game_settings and override
- * pc_set_table hardcoded values.
+ * "defaults" subcommand.
+ *
+ * The defaults subsystem is the game's source of truth for all default
+ * preference values. "defaults list" shows every known setting with its
+ * current effective value. "defaults init" populates all settings from
+ * the hardcoded factory values, making them explicitly editable.
+ * "defaults set" changes a default, and "defaults reset" reverts a
+ * setting back to its factory value from pc_set_table.
  *
  * @param ch        Staff character executing the command
  * @param argument  Command arguments
@@ -1280,7 +1287,8 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
         send_to_char("        prefadmin <account> apply <character>\n\r", ch);
         send_to_char("        prefadmin defaults list [category]\n\r", ch);
         send_to_char("        prefadmin defaults set <key> <type> <value>\n\r", ch);
-        send_to_char("        prefadmin defaults remove <key>\n\r", ch);
+        send_to_char("        prefadmin defaults reset <key>\n\r", ch);
+        send_to_char("        prefadmin defaults init\n\r", ch);
         send_to_char("\n\rCategories: toggle, channel, prompt, display\n\r", ch);
         send_to_char("Types: bool, int, string, bitfield\n\r", ch);
         return;
@@ -1289,9 +1297,11 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
     /*
      * SUBCOMMAND GROUP: defaults
      *
-     * When the first argument is "defaults", operate on game_settings.pref_defaults
-     * instead of a specific account. This manages server-wide preference defaults
-     * that override pc_set_table hardcoded values.
+     * When the first argument is "defaults", operate on game_settings.pref_defaults.
+     * This is the game's source of truth for all default preference values.
+     * Settings stored here are what new characters inherit. The pc_set_table
+     * hardcoded values serve only as factory fallbacks for settings not yet
+     * explicitly stored in pref_defaults.
      */
     if (!str_cmp(arg_account, "defaults")) {
         /*
@@ -1308,17 +1318,58 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                 }
             }
 
-            PREF_ENTRY *p;
             int count = 0;
 
-            send_to_char("{CGame-wide preference defaults{x:\n\r", ch);
-            send_to_char("{D+----+----------+----------+----------+--------------------------+{x\n\r", ch);
-            send_to_char("{D|{x {C#{x  {D|{x {CCategory{x {D|{x {CType{x     {D|{x {CKey{x      {D|{x {CValue{x                    {D|{x\n\r", ch);
-            send_to_char("{D+----+----------+----------+----------+--------------------------+{x\n\r", ch);
+            send_to_char("{CGame-wide preference defaults (source of truth){x:\n\r", ch);
+            send_to_char("{D+----+----------+----------+----------------+--------------+----------+{x\n\r", ch);
+            send_to_char("{D|{x {C#{x  {D|{x {CCategory{x {D|{x {CType{x     {D|{x {CKey{x            {D|{x {CValue{x        {D|{x {CSource{x   {D|{x\n\r", ch);
+            send_to_char("{D+----+----------+----------+----------------+--------------+----------+{x\n\r", ch);
 
+            /* Show all toggle settings from pc_set_table */
+            if (filter_cat < 0 || filter_cat == PREF_CAT_TOGGLE) {
+                for (int i = 0; pc_set_table[i].name; i++) {
+                    PREF_ENTRY *entry = pref_find(game_settings.pref_defaults, pc_set_table[i].name);
+                    bool effective_val;
+                    const char *source;
+
+                    if (entry && entry->type == PREF_TYPE_BOOL) {
+                        effective_val = entry->val.b;
+                        source = "{Gcustom{x  ";
+                    } else {
+                        effective_val = (pc_set_table[i].default_state == SETTING_ON);
+                        source = "{Dfactory{x ";
+                    }
+
+                    count++;
+                    sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-14s {D|{x %-12s {D|{x %-8s {D|{x\n\r",
+                            count,
+                            "toggle",
+                            "bool",
+                            pc_set_table[i].name,
+                            effective_val ? "{GOn{x" : "{ROf{xf",
+                            source);
+                    send_to_char(buf, ch);
+                }
+            }
+
+            /* Show any additional pref_defaults entries not in pc_set_table
+             * (channels, prompt, display, or other custom settings) */
+            PREF_ENTRY *p;
             for (p = game_settings.pref_defaults; p; p = p->next) {
+                /* Skip toggles already shown from pc_set_table */
+                bool in_table = false;
+                for (int i = 0; pc_set_table[i].name; i++) {
+                    if (!str_cmp(p->key, pc_set_table[i].name)) {
+                        in_table = true;
+                        break;
+                    }
+                }
+                if (in_table)
+                    continue;
+
                 if (filter_cat >= 0 && p->category != filter_cat)
                     continue;
+
                 count++;
 
                 char val_str[128];
@@ -1330,9 +1381,9 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                     sprintf(val_str, "%d", p->val.i);
                     break;
                 case PREF_TYPE_STRING:
-                    snprintf(val_str, sizeof(val_str), "%.24s%s",
+                    snprintf(val_str, sizeof(val_str), "%.12s%s",
                              p->val.str ? p->val.str : "",
-                             (p->val.str && strlen(p->val.str) > 24) ? "..." : "");
+                             (p->val.str && strlen(p->val.str) > 12) ? "..." : "");
                     break;
                 case PREF_TYPE_BITFIELD:
                     sprintf(val_str, "0x%lx", p->val.bits);
@@ -1342,7 +1393,7 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                     break;
                 }
 
-                sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-8s {D|{x %-24s {D|{x\n\r",
+                sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-14s {D|{x %-12s {D|{x {Gcustom{x   {D|{x\n\r",
                         count,
                         pref_category_name(p->category),
                         pref_type_name(p->type),
@@ -1351,13 +1402,10 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                 send_to_char(buf, ch);
             }
 
-            send_to_char("{D+----+----------+----------+----------+--------------------------+{x\n\r", ch);
-            if (count == 0)
-                send_to_char("   No game-wide preference defaults set.\n\r", ch);
-            else {
-                sprintf(buf, "   %d default%s listed.\n\r", count, count == 1 ? "" : "s");
-                send_to_char(buf, ch);
-            }
+            send_to_char("{D+----+----------+----------+----------------+--------------+----------+{x\n\r", ch);
+            sprintf(buf, "   %d setting%s listed.\n\r", count, count == 1 ? "" : "s");
+            send_to_char(buf, ch);
+            send_to_char("   {DSource: {Gcustom{D = explicitly set, {Dfactory = from code, use 'init' to populate all.{x\n\r", ch);
             return;
         }
 
@@ -1414,18 +1462,35 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
         }
 
         /*
-         * defaults remove <key>
+         * defaults reset <key> (also accepts "remove")
+         *
+         * Removes an explicit setting from pref_defaults, reverting it to
+         * the factory value from pc_set_table. For settings not in
+         * pc_set_table (channels, etc.), this removes them entirely.
          */
-        if (!str_prefix(arg_sub, "remove")) {
+        if (!str_prefix(arg_sub, "reset") || !str_prefix(arg_sub, "remove")) {
             argument = one_argument(argument, arg_key);
             if (IS_NULLSTR(arg_key)) {
-                send_to_char("Syntax: prefadmin defaults remove <key>\n\r", ch);
+                send_to_char("Syntax: prefadmin defaults reset <key>\n\r", ch);
                 return;
             }
 
             if (pref_remove(&game_settings.pref_defaults, arg_key)) {
+                /* Check if this key has a factory default in pc_set_table */
+                bool has_factory = false;
+                for (int i = 0; pc_set_table[i].name; i++) {
+                    if (!str_cmp(arg_key, pc_set_table[i].name)) {
+                        has_factory = true;
+                        sprintf(buf, "Default '%s' reset to factory value (%s). Game settings saved.\n\r",
+                                arg_key,
+                                pc_set_table[i].default_state == SETTING_ON ? "On" : "Off");
+                        break;
+                    }
+                }
+                if (!has_factory)
+                    sprintf(buf, "Default '%s' removed. Game settings saved.\n\r", arg_key);
+
                 json_game_settings_write();
-                sprintf(buf, "Game default preference '%s' removed. Game settings saved.\n\r", arg_key);
                 send_to_char(buf, ch);
             } else {
                 send_to_char("Preference not found in game defaults.\n\r", ch);
@@ -1433,7 +1498,39 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        send_to_char("Invalid defaults subcommand. Use: list, set, remove\n\r", ch);
+        /*
+         * defaults init
+         *
+         * Populate pref_defaults with all toggle settings from pc_set_table
+         * that don't already have an explicit entry. This makes every setting
+         * explicitly stored and editable, establishing pref_defaults as the
+         * complete source of truth.
+         */
+        if (!str_prefix(arg_sub, "init")) {
+            int seeded = 0;
+            int skipped = 0;
+
+            for (int i = 0; pc_set_table[i].name; i++) {
+                PREF_ENTRY *existing = pref_find(game_settings.pref_defaults, pc_set_table[i].name);
+                if (existing) {
+                    skipped++;
+                    continue;
+                }
+
+                bool default_val = (pc_set_table[i].default_state == SETTING_ON);
+                pref_set_bool(&game_settings.pref_defaults, PREF_CAT_TOGGLE,
+                              pc_set_table[i].name, default_val);
+                seeded++;
+            }
+
+            json_game_settings_write();
+            sprintf(buf, "Initialized %d setting%s from factory defaults (%d already set). Game settings saved.\n\r",
+                    seeded, seeded == 1 ? "" : "s", skipped);
+            send_to_char(buf, ch);
+            return;
+        }
+
+        send_to_char("Invalid defaults subcommand. Use: list, set, reset, init\n\r", ch);
         return;
     }
 
