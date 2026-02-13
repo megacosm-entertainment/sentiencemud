@@ -60,6 +60,29 @@ static void race_hash_insert(RACE_DATA *race)
     race_hash_table[idx] = entry;
 }
 
+/**
+ * race_hash_refresh_key - Update the hash table key for a race
+ *
+ * After an in-place reload, the hash entry's key pointer becomes stale
+ * because race_copy_fields frees the old id string. This refreshes
+ * the key to point to the race's current id.
+ *
+ * @param race  Race whose hash entry key should be refreshed
+ */
+static void race_hash_refresh_key(RACE_DATA *race)
+{
+    unsigned int idx = race_hash(race->id);
+    RACE_HASH_ENTRY *entry = race_hash_table[idx];
+
+    while (entry) {
+        if (entry->value == race) {
+            entry->key = race->id;
+            return;
+        }
+        entry = entry->next;
+    }
+}
+
 /***************************************************************************
  * Memory Management                                                       *
  ***************************************************************************/
@@ -456,6 +479,10 @@ RACE_DATA *race_reload(const char *id)
     if (existing) {
         /* In-place update */
         race_copy_fields(existing, temp);
+
+        /* Refresh the hash table key — race_copy_fields freed the old
+         * id string that the hash entry was pointing to. */
+        race_hash_refresh_key(existing);
 
         log_stringf("race_reload: Reloaded race '%s' (uid %d) in-place",
                      existing->name, existing->uid);

@@ -7465,9 +7465,9 @@ static bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door)
     if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
         return false;
 
-    /* Can't see through closed non-transparent doors */
-    if (IS_SET(pexit->exit_info, EX_CLOSED) /*&& !IS_SET(pexit->exit_info, EX_TRANSPARENT)*/)
-        return false;
+    /* Closed doors are visible as exits but handled specially in draw_exit */
+    /* Hidden closed doors that haven't been found are still hidden */
+    /* (already handled by EX_HIDDEN check above) */
 
     /* Check if destination room exists and is visible */
     to_room = pexit->u1.to_room;
@@ -7554,6 +7554,12 @@ static ROOM_INDEX_DATA *draw_exit(CHAR_DATA *ch, ROOM_INDEX_DATA *from_room,
     to_room = pexit->u1.to_room;
     if (!to_room)
         return NULL;
+
+    /* Closed doors: show link exists but not the room beyond */
+    if (IS_SET(pexit->exit_info, EX_CLOSED)) {
+        draw_map_char(map, x + dir_offsets[dir].conn_dx, y + dir_offsets[dir].conn_dy, '#');
+        return NULL;
+    }
 
     /* Draw connector */
     draw_map_char(map, x + dir_offsets[dir].conn_dx, y + dir_offsets[dir].conn_dy,
@@ -7837,6 +7843,11 @@ void convert_map_char(char *buf, char ch)
         *(buf++) = '{';
         *(buf++) = 'B';
         *(buf++) = 'X';
+        break;
+    case '#':   /* Closed door indicator */
+        *(buf++) = '{';
+        *(buf++) = 'y';  /* Dark yellow (brown) */
+        *(buf++) = '#';
         break;
     }
 }

@@ -1076,6 +1076,7 @@ static CLASS_DATA *class_load_json(const char *filename)
             else if (!str_cmp(str, "caster"))   SET_BIT(clazz->flags, CLASS_CASTER);
             else if (!str_cmp(str, "hidden"))   SET_BIT(clazz->flags, CLASS_HIDDEN);
             else if (!str_cmp(str, "remort_only")) SET_BIT(clazz->flags, CLASS_REMORT_ONLY);
+            else if (!str_cmp(str, "default"))  SET_BIT(clazz->flags, CLASS_DEFAULT);
         }
     }
 
@@ -1343,6 +1344,7 @@ void save_class_data(CLASS_DATA *clazz)
     if (IS_SET(clazz->flags, CLASS_CASTER))      json_array_append_new(arr, json_string("caster"));
     if (IS_SET(clazz->flags, CLASS_HIDDEN))      json_array_append_new(arr, json_string("hidden"));
     if (IS_SET(clazz->flags, CLASS_REMORT_ONLY)) json_array_append_new(arr, json_string("remort_only"));
+    if (IS_SET(clazz->flags, CLASS_DEFAULT))     json_array_append_new(arr, json_string("default"));
     json_object_set_new(root, "flags", arr);
 
     /* Display names */
@@ -1687,6 +1689,29 @@ static void class_build_path(const char *name, char *buf, size_t bufsize)
 }
 
 /**
+ * class_hash_refresh_key - Update the hash table key for a class
+ *
+ * After an in-place reload, the hash entry's key pointer becomes stale
+ * because class_copy_fields frees the old name string. This refreshes
+ * the key to point to the class's current name.
+ *
+ * @param clazz  Class whose hash entry key should be refreshed
+ */
+static void class_hash_refresh_key(CLASS_DATA *clazz)
+{
+    unsigned int idx = class_hash(clazz->name);
+    CLASS_HASH_ENTRY *entry = class_hash_tbl[idx];
+
+    while (entry) {
+        if (entry->value == clazz) {
+            entry->key = clazz->name;
+            return;
+        }
+        entry = entry->next;
+    }
+}
+
+/**
  * class_copy_fields - Copy all data fields from src to dst in-place
  *
  * Preserves dst's linked-list pointer (next), valid flag, and gcl pointer.
@@ -1835,6 +1860,10 @@ CLASS_DATA *class_reload(const char *name)
     if (existing) {
         /* In-place update — preserve the pointer */
         class_copy_fields(existing, temp);
+
+        /* Refresh the hash table key — class_copy_fields freed the old
+         * name string that the hash entry was pointing to. */
+        class_hash_refresh_key(existing);
 
         /* Free the empty shell (all contents already transferred) */
         /* Note: alloc_perm memory, can't actually free the struct itself */
