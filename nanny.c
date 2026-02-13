@@ -2273,6 +2273,15 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
         }
         if (!IS_NULLSTR(r->summary)) {
             sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), r->summary, tag);
+        } else if (!IS_NULLSTR(r->description)) {
+            /* Trim trailing newlines from description for one-line display */
+            char desc_buf[MSL];
+            strncpy(desc_buf, r->description, sizeof(desc_buf) - 1);
+            desc_buf[sizeof(desc_buf) - 1] = '\0';
+            char *p = desc_buf + strlen(desc_buf) - 1;
+            while (p >= desc_buf && (*p == '\n' || *p == '\r'))
+                *p-- = '\0';
+            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), desc_buf, tag);
         } else {
             sprintf(rbuf, "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
         }
