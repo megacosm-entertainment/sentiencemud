@@ -2165,9 +2165,17 @@ void login_confirm_new_name(DESCRIPTOR_DATA *d, char *argument)
     case 'y': case 'Y':
         // Check if we're creating a character from an account
         if (d->account) {
-            // Skip directly to ASCII color selection
-            write_to_buffer(d, "\n\rWould you like ascii colour (Y/N)? ", 0);
-            d->connected = CON_GET_ASCII;
+            /* If the account has a colour preference set, skip the prompt
+             * and apply it directly — the defaults system will handle it
+             * in finalize_new_character anyway. */
+            if (pref_get_source(d->account, NULL, "colour") != PREF_SOURCE_DEFAULT) {
+                if (pref_get_bool(d->account, NULL, "colour", false))
+                    SET_BIT(ch->act[0], PLR_COLOUR);
+                login_get_ascii(d, "skip");
+            } else {
+                write_to_buffer(d, "\n\rWould you like ascii colour (Y/N)? ", 0);
+                d->connected = CON_GET_ASCII;
+            }
         } else {
             // Original behavior for direct character creation
             ProtocolNoEcho(d, true);
@@ -2219,16 +2227,20 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
         argument++;
 
     ch = d->character;
-    switch (argument[0])
-    {
-    case 'y': case 'Y':
-        SET_BIT(ch->act[0], PLR_COLOUR);
-        break;
-    case 'n': case 'N':
-        break;
-    default:
-        write_to_buffer(d, "Yes/No.\n\rWould you like ascii colour? ", 0);
-        return;
+
+    /* "skip" means colour was already set by account prefs — skip the question */
+    if (str_cmp(argument, "skip")) {
+        switch (argument[0])
+        {
+        case 'y': case 'Y':
+            SET_BIT(ch->act[0], PLR_COLOUR);
+            break;
+        case 'n': case 'N':
+            break;
+        default:
+            write_to_buffer(d, "Yes/No.\n\rWould you like ascii colour? ", 0);
+            return;
+        }
     }
 
     send_to_char("\n\r{r-----{R======{D//// {WWelcome to the world of Sentience! {D\\\\{R======{r-----{x\n\r", ch);
@@ -2259,12 +2271,10 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
             tag = " {Y(unlocked){x";
             has_unlocked = true;
         }
-        if (r->description && r->description[0]) {
-            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name),
-                    !IS_NULLSTR(r->summary) ? r->summary : r->description, tag);
+        if (!IS_NULLSTR(r->summary)) {
+            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), r->summary, tag);
         } else {
-            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name),
-                    !IS_NULLSTR(r->summary) ? r->summary : "A playable race.", tag);
+            sprintf(rbuf, "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
         }
         send_to_char(rbuf, ch);
     }
