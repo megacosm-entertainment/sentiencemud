@@ -2266,6 +2266,7 @@ struct race_data
     char *	id;			/* Unique string identifier (e.g., "vampire") */
     int16_t	uid;			/* Numeric UID for serialization */
     char *	name;			/* Display name */
+    char *	summary;		/* One-line summary for char creation */
     char *	description;		/* Long description */
     char *	comments;		/* Builder notes */
 

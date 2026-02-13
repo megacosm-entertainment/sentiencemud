@@ -54,6 +54,7 @@ const struct olc_cmd_type racedit_table[] =
     { "skills",         racedit_skills      },
     { "starting",       racedit_starting    },
     { "stats",          racedit_stats       },
+    { "summary",        racedit_summary     },
     { "trait",          racedit_trait        },
     { "vulnerabilities", racedit_vulnerabilities },
     { "whoname",        racedit_whoname     },
@@ -189,6 +190,8 @@ RACEDIT(racedit_show)
     add_buf(buffer, formatf("{CID:           {x%s\n\r", race->id));
     add_buf(buffer, formatf("{CUID:          {x%d\n\r", race->uid));
     add_buf(buffer, formatf("{CName:         {W%s{x\n\r", race->name));
+    add_buf(buffer, formatf("{CSummary:      {x%s\n\r",
+        IS_NULLSTR(race->summary) ? "(none)" : race->summary));
     add_buf(buffer, formatf("{CWho Name:     {W%s{x\n\r", race->who_name));
     add_buf(buffer, formatf("{CPlayable:     {x%s\n\r", race->playable ? "{GYes{x" : "{DNo{x"));
     add_buf(buffer, formatf("{CStarting:     {x%s\n\r", race->starting ? "{GYes{x" : "{DNo{x"));
@@ -334,6 +337,38 @@ RACEDIT(racedit_name)
     free_string(race->name);
     race->name = str_dup(argument);
     send_to_char("Race name set.\n\r", ch);
+    return true;
+}
+
+
+/**
+ * racedit_summary - Set the one-line summary shown during character creation
+ *
+ * @param ch        Character editing
+ * @param argument  Summary text, or empty to clear
+ * @return          true if changed
+ */
+RACEDIT(racedit_summary)
+{
+    RACE_DATA *race;
+    EDIT_RACE(ch, race);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  summary <text>\n\r", ch);
+        send_to_char("         summary clear\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "clear")) {
+        free_string(race->summary);
+        race->summary = str_dup("");
+        send_to_char("Summary cleared.\n\r", ch);
+        return true;
+    }
+
+    free_string(race->summary);
+    race->summary = str_dup(argument);
+    send_to_char("Summary set.\n\r", ch);
     return true;
 }
 

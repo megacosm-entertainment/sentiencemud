@@ -2260,9 +2260,11 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
             has_unlocked = true;
         }
         if (r->description && r->description[0]) {
-            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), r->description, tag);
+            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name),
+                    !IS_NULLSTR(r->summary) ? r->summary : r->description, tag);
         } else {
-            sprintf(rbuf, "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
+            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name),
+                    !IS_NULLSTR(r->summary) ? r->summary : "A playable race.", tag);
         }
         send_to_char(rbuf, ch);
     }

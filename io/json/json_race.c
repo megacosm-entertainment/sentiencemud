@@ -198,6 +198,9 @@ static RACE_DATA *race_load_json(const char *filename)
     str = json_string_value(json_object_get(root, "description"));
     race->description = str_dup(str ? str : "");
 
+    str = json_string_value(json_object_get(root, "summary"));
+    race->summary = str_dup(str ? str : "");
+
     str = json_string_value(json_object_get(root, "comments"));
     race->comments = str_dup(str ? str : "");
 
@@ -358,6 +361,7 @@ static void race_copy_fields(RACE_DATA *dst, RACE_DATA *src)
     /* Free old strings on dst (alloc_perm'd strings use free_string) */
     free_string(dst->id);
     free_string(dst->name);
+    free_string(dst->summary);
     free_string(dst->description);
     free_string(dst->comments);
     free_string(dst->who_name);
@@ -384,6 +388,7 @@ static void race_copy_fields(RACE_DATA *dst, RACE_DATA *src)
     /* Copy identity */
     dst->id = src->id;
     dst->name = src->name;
+    dst->summary = src->summary;
     dst->description = src->description;
     dst->comments = src->comments;
     dst->who_name = src->who_name;
@@ -439,6 +444,7 @@ static void race_copy_fields(RACE_DATA *dst, RACE_DATA *src)
     /* Null out src to prevent double-free */
     src->id = NULL;
     src->name = NULL;
+    src->summary = NULL;
     src->description = NULL;
     src->comments = NULL;
     src->who_name = NULL;
@@ -792,6 +798,8 @@ bool save_race_json(RACE_DATA *race)
     json_object_set_new(root, "uid", json_integer(race->uid));
     json_object_set_new(root, "name", json_string(race->name ? race->name : ""));
     json_object_set_new(root, "description", json_string(race->description ? race->description : ""));
+    if (!IS_NULLSTR(race->summary))
+        json_object_set_new(root, "summary", json_string(race->summary));
     json_object_set_new(root, "comments", json_string(race->comments ? race->comments : ""));
 
     /* Playability */

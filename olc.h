@@ -663,6 +663,7 @@ DECLARE_OLC_FUN(socialedit_save);
  */
 DECLARE_OLC_FUN( racedit_show );
 DECLARE_OLC_FUN( racedit_name );
+DECLARE_OLC_FUN( racedit_summary );
 DECLARE_OLC_FUN( racedit_whoname );
 DECLARE_OLC_FUN( racedit_description );
 DECLARE_OLC_FUN( racedit_comments );
