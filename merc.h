@@ -2293,7 +2293,7 @@ struct race_data
     int		max_vitals[3];		/* Max HP/Mana/Move */
     int		min_size;		/* Minimum size */
     int		max_size;		/* Maximum size (usually same as min) */
-    int		default_alignment;	/* -1 evil, 0 neutral, 1 good */
+    int		default_alignment;	/* -1000 to 1000 alignment scale */
 
     /* Remort System */
     char *	remort_race_id;		/* ID of prerequisite race (NULL if none) */

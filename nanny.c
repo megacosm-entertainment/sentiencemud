@@ -2481,13 +2481,8 @@ static void apply_race_properties(CHAR_DATA *ch)
     if (!race)
         return;
 
-    /* Derive alignment from race's default */
-    if (race->default_alignment < 0)
-        ch->alignment = -750;
-    else if (race->default_alignment > 0)
-        ch->alignment = 750;
-    else
-        ch->alignment = 0;
+    /* Set alignment from race's default (full -1000..1000 range) */
+    ch->alignment = URANGE(-1000, race->default_alignment, 1000);
 
     /* Initialize stats from race */
     for (i = 0; i < MAX_STATS; i++) {

@@ -230,6 +230,12 @@ static RACE_DATA *race_load_json(const char *filename)
         val = json_object_get(obj, "default_alignment");
         race->default_alignment = val ? json_integer_value(val) : 0;
 
+        /* Migrate old -1/0/1 scale to full -1000..1000 range */
+        if (race->default_alignment == -1)
+            race->default_alignment = -750;
+        else if (race->default_alignment == 1)
+            race->default_alignment = 750;
+
         race->form = flags_from_json_array(form_flags, json_object_get(obj, "form"));
         race->parts = flags_from_json_array(part_flags, json_object_get(obj, "parts"));
     }

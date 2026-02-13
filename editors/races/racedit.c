@@ -513,14 +513,14 @@ RACEDIT(racedit_alignment)
     EDIT_RACE(ch, race);
 
     if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax:  alignment <-1|0|1>\n\r", ch);
-        send_to_char("  -1 = evil, 0 = neutral, 1 = good\n\r", ch);
+        send_to_char("Syntax:  alignment <-1000 to 1000>\n\r", ch);
+        send_to_char("  e.g. -750 = evil, 0 = neutral, 750 = good\n\r", ch);
         return false;
     }
 
     val = atoi(argument);
-    if (val < -1 || val > 1) {
-        send_to_char("Alignment must be -1, 0, or 1.\n\r", ch);
+    if (val < -1000 || val > 1000) {
+        send_to_char("Alignment must be between -1000 and 1000.\n\r", ch);
         return false;
     }
 
