@@ -294,14 +294,15 @@ static json_t *characters_to_json(ACCOUNT_DATA *account)
 
         json_t *char_obj = json_object();
 
-        // Basic character info - use IS_NULLSTR to validate strings before json_string
-        // This prevents crashes from dangling pointers that pass NULL check but are invalid
-        if (!IS_NULLSTR(ac->name)) {
-            json_object_set_new(char_obj, "name", json_string(ac->name));
-        } else {
-            log_stringf("characters_to_json: WARNING - character with NULL/empty name in account");
-            json_object_set_new(char_obj, "name", json_string("(unknown)"));
+        // Skip entries with no valid name — these are phantom entries from
+        // earlier bugs and should not be persisted
+        if (IS_NULLSTR(ac->name) || !str_cmp(ac->name, "(unknown)")) {
+            log_stringf("characters_to_json: skipping character with invalid name '%s'",
+                       ac->name ? ac->name : "(null)");
+            json_decref(char_obj);
+            continue;
         }
+        json_object_set_new(char_obj, "name", json_string(ac->name));
         json_object_set_new(char_obj, "current_level", json_integer(ac->current_level));
         json_object_set_new(char_obj, "tot_level", json_integer(ac->tot_level));
 
@@ -833,6 +834,14 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
             // Basic character info
             str = json_string_value(json_object_get(array_elem, "name"));
             if (str) { free_string(ac->name); ac->name = str_dup(str); }
+
+            // Skip entries with no valid name — phantom entries from earlier bugs
+            if (IS_NULLSTR(ac->name) || !str_cmp(ac->name, "(unknown)")) {
+                log_stringf("json_read_account: discarding character with invalid name '%s'",
+                           ac->name ? ac->name : "(null)");
+                free_account_character(ac);
+                continue;
+            }
 
             ac->current_level = json_integer_value(json_object_get(array_elem, "current_level"));
             ac->tot_level = json_integer_value(json_object_get(array_elem, "tot_level"));

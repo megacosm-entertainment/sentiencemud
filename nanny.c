@@ -2821,7 +2821,10 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         ch->train = 3;
         ch->practice = 5;
         set_title(ch, "");
-        
+        advance_level(ch, true);  /* silent level 1 stat gains */
+        ch->hit = ch->max_hit;
+        ch->mana = ch->max_mana;
+        ch->move = ch->max_move;
 
             moved_to_room = true;
             // Safely place in starting room
@@ -5276,10 +5279,10 @@ static void finalize_new_character(DESCRIPTOR_DATA *d)
 
     SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
 
-    /* Assign default class from the new class system */
+    /* Assign default class from the new class system at level 1 */
     new_class = class_get_default();
     if (new_class) {
-        add_class_level(ch, new_class, 0);
+        add_class_level(ch, new_class, 1);
         ch->pcdata->current_class = get_class_level(ch, new_class);
         log_message_f(LOG_LEVEL_INFO, LOG_INFO,
             "nanny: assigned default class '%s' to %s",
@@ -5315,8 +5318,8 @@ static void finalize_new_character(DESCRIPTOR_DATA *d)
     if (d->account)
         pref_apply_to_character(d->account, ch, ch->pcdata->preferences);
 
-    ch->level     = 0;
-    ch->tot_level = 0;
+    ch->level     = 1;
+    ch->tot_level = 0;  /* stays 0 so first-login setup block fires */
 
     /* Initialize personal trait values for the new character */
     char_init_traits(ch);

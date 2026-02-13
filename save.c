@@ -6661,6 +6661,13 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 
     if (!account || !ch || IS_NPC(ch)) {
         pbugf(LOG_ERROR, "account_add_character: invalid parameters");
+        add_char_depth--;
+        return;
+    }
+
+    if (IS_NULLSTR(ch->name)) {
+        log_stringf("account_add_character: skipping character with empty name");
+        add_char_depth--;
         return;
     }
 
