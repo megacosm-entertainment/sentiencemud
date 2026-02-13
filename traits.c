@@ -506,6 +506,141 @@ const char *race_get_trait_string(RACE_DATA *race, const char *trait_id)
     return race->trait_values[def->index].string_val;
 }
 
+/**
+ * race_set_trait_bool - Set a boolean trait on a race definition
+ *
+ * Allocates trait_values on-demand. Marks the trait as explicitly set.
+ *
+ * @param race      The race to modify
+ * @param trait_id  Trait identifier string
+ * @param value     The boolean value to set
+ * @return          True on success, false if race/trait is invalid
+ */
+bool race_set_trait_bool(RACE_DATA *race, const char *trait_id, bool value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!race || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_BOOLEAN)
+        return false;
+
+    if (!race->trait_values)
+        race_init_traits(race);
+    if (!race->trait_values)
+        return false;
+
+    tv = &race->trait_values[def->index];
+    tv->set = true;
+    tv->bool_val = value;
+    return true;
+}
+
+/**
+ * race_set_trait_int - Set an integer trait on a race definition
+ *
+ * @param race      The race to modify
+ * @param trait_id  Trait identifier string
+ * @param value     The integer value to set
+ * @return          True on success, false if race/trait is invalid
+ */
+bool race_set_trait_int(RACE_DATA *race, const char *trait_id, int value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!race || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_INTEGER)
+        return false;
+
+    if (!race->trait_values)
+        race_init_traits(race);
+    if (!race->trait_values)
+        return false;
+
+    tv = &race->trait_values[def->index];
+    tv->set = true;
+    tv->int_val = value;
+    return true;
+}
+
+/**
+ * race_set_trait_string - Set a string trait on a race definition
+ *
+ * @param race      The race to modify
+ * @param trait_id  Trait identifier string
+ * @param value     The string value to set (will be str_dup'd), or NULL to clear
+ * @return          True on success, false if race/trait is invalid
+ */
+bool race_set_trait_string(RACE_DATA *race, const char *trait_id, const char *value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!race || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_STRING)
+        return false;
+
+    if (!race->trait_values)
+        race_init_traits(race);
+    if (!race->trait_values)
+        return false;
+
+    tv = &race->trait_values[def->index];
+    tv->set = true;
+
+    if (tv->string_val) {
+        free_string(tv->string_val);
+        tv->string_val = NULL;
+    }
+
+    if (value && value[0])
+        tv->string_val = str_dup(value);
+
+    return true;
+}
+
+/**
+ * race_clear_trait - Clear a trait on a race, reverting to default
+ *
+ * @param race      The race to modify
+ * @param trait_id  Trait identifier string
+ * @return          True on success, false if race/trait is invalid
+ */
+bool race_clear_trait(RACE_DATA *race, const char *trait_id)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!race || !race->trait_values || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    tv = &race->trait_values[def->index];
+
+    if (tv->string_val) {
+        free_string(tv->string_val);
+        tv->string_val = NULL;
+    }
+
+    tv->set = false;
+    tv->bool_val = def->default_bool;
+    tv->int_val = def->default_int;
+    return true;
+}
+
 
 /***************************************************************************
  * Class Trait API                                                         *
@@ -637,6 +772,141 @@ const char *class_get_trait_string(CLASS_DATA *clazz, const char *trait_id)
         return NULL;
 
     return clazz->trait_values[def->index].string_val;
+}
+
+/**
+ * class_set_trait_bool - Set a boolean trait on a class definition
+ *
+ * Allocates trait_values on-demand. Marks the trait as explicitly set.
+ *
+ * @param clazz     The class to modify
+ * @param trait_id  Trait identifier string
+ * @param value     The boolean value to set
+ * @return          True on success, false if class/trait is invalid
+ */
+bool class_set_trait_bool(CLASS_DATA *clazz, const char *trait_id, bool value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!clazz || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_BOOLEAN)
+        return false;
+
+    if (!clazz->trait_values)
+        class_init_traits(clazz);
+    if (!clazz->trait_values)
+        return false;
+
+    tv = &clazz->trait_values[def->index];
+    tv->set = true;
+    tv->bool_val = value;
+    return true;
+}
+
+/**
+ * class_set_trait_int - Set an integer trait on a class definition
+ *
+ * @param clazz     The class to modify
+ * @param trait_id  Trait identifier string
+ * @param value     The integer value to set
+ * @return          True on success, false if class/trait is invalid
+ */
+bool class_set_trait_int(CLASS_DATA *clazz, const char *trait_id, int value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!clazz || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_INTEGER)
+        return false;
+
+    if (!clazz->trait_values)
+        class_init_traits(clazz);
+    if (!clazz->trait_values)
+        return false;
+
+    tv = &clazz->trait_values[def->index];
+    tv->set = true;
+    tv->int_val = value;
+    return true;
+}
+
+/**
+ * class_set_trait_string - Set a string trait on a class definition
+ *
+ * @param clazz     The class to modify
+ * @param trait_id  Trait identifier string
+ * @param value     The string value to set (will be str_dup'd), or NULL to clear
+ * @return          True on success, false if class/trait is invalid
+ */
+bool class_set_trait_string(CLASS_DATA *clazz, const char *trait_id, const char *value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!clazz || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_STRING)
+        return false;
+
+    if (!clazz->trait_values)
+        class_init_traits(clazz);
+    if (!clazz->trait_values)
+        return false;
+
+    tv = &clazz->trait_values[def->index];
+    tv->set = true;
+
+    if (tv->string_val) {
+        free_string(tv->string_val);
+        tv->string_val = NULL;
+    }
+
+    if (value && value[0])
+        tv->string_val = str_dup(value);
+
+    return true;
+}
+
+/**
+ * class_clear_trait - Clear a trait on a class, reverting to default
+ *
+ * @param clazz     The class to modify
+ * @param trait_id  Trait identifier string
+ * @return          True on success, false if class/trait is invalid
+ */
+bool class_clear_trait(CLASS_DATA *clazz, const char *trait_id)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!clazz || !clazz->trait_values || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    tv = &clazz->trait_values[def->index];
+
+    if (tv->string_val) {
+        free_string(tv->string_val);
+        tv->string_val = NULL;
+    }
+
+    tv->set = false;
+    tv->bool_val = def->default_bool;
+    tv->int_val = def->default_int;
+    return true;
 }
 
 /***************************************************************************
@@ -883,6 +1153,166 @@ const char *ch_get_trait_string(CHAR_DATA *ch, const char *trait_id)
         return ch->race->trait_values[def->index].string_val;
 
     return NULL;
+}
+
+/***************************************************************************
+ * Character Trait Setter API                                              *
+ *                                                                         *
+ * These modify the personal (PC_DATA) trait layer only. Race and class     *
+ * traits are loaded from their definition files and are not mutable at     *
+ * runtime through this API.                                               *
+ ***************************************************************************/
+
+/**
+ * ch_set_trait_bool - Set a boolean trait on a character's personal layer
+ *
+ * Allocates the trait_values array on-demand if it hasn't been initialized.
+ * Marks the trait as explicitly set so it overrides race/class layers.
+ *
+ * @param ch        The character to modify (must be a PC)
+ * @param trait_id  Trait identifier string
+ * @param value     The boolean value to set
+ * @return          True on success, false if ch/trait is invalid or NPC
+ */
+bool ch_set_trait_bool(CHAR_DATA *ch, const char *trait_id, bool value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!ch || !ch->pcdata || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_BOOLEAN)
+        return false;
+
+    if (!ch->pcdata->trait_values)
+        char_init_traits(ch);
+    if (!ch->pcdata->trait_values)
+        return false;
+
+    tv = &ch->pcdata->trait_values[def->index];
+    tv->set = true;
+    tv->bool_val = value;
+    return true;
+}
+
+/**
+ * ch_set_trait_int - Set an integer trait on a character's personal layer
+ *
+ * Allocates the trait_values array on-demand if it hasn't been initialized.
+ * Marks the trait as explicitly set so it overrides race/class layers.
+ *
+ * @param ch        The character to modify (must be a PC)
+ * @param trait_id  Trait identifier string
+ * @param value     The integer value to set
+ * @return          True on success, false if ch/trait is invalid or NPC
+ */
+bool ch_set_trait_int(CHAR_DATA *ch, const char *trait_id, int value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!ch || !ch->pcdata || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_INTEGER)
+        return false;
+
+    if (!ch->pcdata->trait_values)
+        char_init_traits(ch);
+    if (!ch->pcdata->trait_values)
+        return false;
+
+    tv = &ch->pcdata->trait_values[def->index];
+    tv->set = true;
+    tv->int_val = value;
+    return true;
+}
+
+/**
+ * ch_set_trait_string - Set a string trait on a character's personal layer
+ *
+ * Allocates the trait_values array on-demand if it hasn't been initialized.
+ * Frees any existing string value before setting the new one.
+ * Pass NULL or empty string to clear the string value.
+ *
+ * @param ch        The character to modify (must be a PC)
+ * @param trait_id  Trait identifier string
+ * @param value     The string value to set (will be str_dup'd), or NULL to clear
+ * @return          True on success, false if ch/trait is invalid or NPC
+ */
+bool ch_set_trait_string(CHAR_DATA *ch, const char *trait_id, const char *value)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!ch || !ch->pcdata || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def || def->type != TRAIT_STRING)
+        return false;
+
+    if (!ch->pcdata->trait_values)
+        char_init_traits(ch);
+    if (!ch->pcdata->trait_values)
+        return false;
+
+    tv = &ch->pcdata->trait_values[def->index];
+    tv->set = true;
+
+    if (tv->string_val) {
+        free_string(tv->string_val);
+        tv->string_val = NULL;
+    }
+
+    if (value && value[0])
+        tv->string_val = str_dup(value);
+
+    return true;
+}
+
+/**
+ * ch_clear_trait - Clear a personal trait override, reverting to class/race
+ *
+ * Resets the trait to its default state in the personal layer, allowing
+ * the class or race value to show through again.
+ *
+ * @param ch        The character to modify (must be a PC)
+ * @param trait_id  Trait identifier string
+ * @return          True on success, false if ch/trait is invalid or NPC
+ */
+bool ch_clear_trait(CHAR_DATA *ch, const char *trait_id)
+{
+    TRAIT_DEF *def;
+    TRAIT_VALUE *tv;
+
+    if (!ch || !ch->pcdata || !trait_id)
+        return false;
+
+    def = trait_def_lookup(trait_id);
+    if (!def)
+        return false;
+
+    if (!ch->pcdata->trait_values)
+        return true; /* Nothing to clear */
+
+    tv = &ch->pcdata->trait_values[def->index];
+
+    if (tv->string_val) {
+        free_string(tv->string_val);
+        tv->string_val = NULL;
+    }
+
+    tv->set = false;
+    tv->bool_val = def->default_bool;
+    tv->int_val = def->default_int;
+    if (def->default_string)
+        tv->string_val = str_dup(def->default_string);
+
+    return true;
 }
 
 /***************************************************************************

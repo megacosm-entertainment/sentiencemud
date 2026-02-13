@@ -2742,7 +2742,7 @@ if (!str_cmp(word, "Room"))
             value = fread_number(fp);
             temp = fread_word(fp);
             if (ch->version < VERSION_PLAYER_002 && !str_cmp(temp,"wither"))
-                sn = gsn_withering_cloud;
+                sn = skill_resolve_gsn("withering cloud");
             else
                 sn = skill_lookup(temp);
             if (sn <= 0)
@@ -2782,7 +2782,7 @@ if (!str_cmp(word, "Room"))
         value = fread_number(fp);
         temp = fread_word(fp) ;
         if (ch->version < VERSION_PLAYER_002 && !str_cmp(temp,"wither"))
-            sn = gsn_withering_cloud;
+            sn = skill_resolve_gsn("withering cloud");
         else
             sn = skill_lookup(temp);
         if (sn > 0) ch->pcdata->mod_learned[sn] = value;
@@ -4401,11 +4401,12 @@ void fix_object(OBJ_DATA *obj)
         // Fix dual enchant affects
         if (IS_SET(obj->extra[1], ITEM_ENCHANTED))
         {
+            int16_t sn_ench = skill_resolve_gsn("enchant weapon");
             for (af = obj->affected; af != NULL; af = af_next)
             {
                 af_next = af->next;
 
-                if (af->type == gsn_enchant_weapon)
+                if (af->type == sn_ench)
                 {
                     af_level = af->level;
 
@@ -4427,7 +4428,7 @@ void fix_object(OBJ_DATA *obj)
                 af->duration = -1;
                 af->location = APPLY_HITROLL;
                 af->modifier = af_hr_mod;
-                af->type = gsn_enchant_weapon;
+                af->type = sn_ench;
                 affect_to_obj(obj, af);
 
                 // DR mods
@@ -4437,7 +4438,7 @@ void fix_object(OBJ_DATA *obj)
                 af->duration = -1;
                 af->location = APPLY_DAMROLL;
                 af->modifier = af_dr_mod;
-                af->type = gsn_enchant_weapon;
+                af->type = sn_ench;
                 affect_to_obj(obj, af);
             }
         }

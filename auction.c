@@ -128,6 +128,8 @@ void do_auction( CHAR_DATA *ch, char * argument )
         return;
     }
 
+    SKILL_DATA *sk__auction = skill_find("_auction");
+
     if ( auction_info.owner == ch )
     {
         sprintf( buf, "\n\r{MYou are currently auctioning {x%s{M.{x\n\r",
@@ -150,7 +152,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
             auction_info.high_bidder->name );
         send_to_char( buf, ch );
         }
-        spell_identify( skill_from_sn(gsn__auction), ch->tot_level, ch,
+        spell_identify( sk__auction, ch->tot_level, ch,
             (void *) auction_info.item, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL );
         return;
     }
@@ -175,7 +177,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
         send_to_char( buf, ch );
     }
 
-    spell_identify( skill_from_sn(gsn__auction), ch->tot_level, ch, (void *) auction_info.item, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL );
+    spell_identify( sk__auction, ch->tot_level, ch, (void *) auction_info.item, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL );
         /* AO 010217 LAME
     if ( ch->tot_level < obj->level - 25 && !IS_REMORT(ch))
     {
@@ -391,7 +393,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
     AFFECT_DATA *af;
 
     for (af = obj->affected; af != NULL; af = af->next) {
-        if (af->type == gsn_third_eye) {
+        if (af->type == skill_resolve_gsn("third eye")) {
         act("The enchantment on $p prevents it from being auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return;
         }

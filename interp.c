@@ -577,6 +577,8 @@ const	struct	cmd_type	cmd_table	[] =
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, true },
     { "statsreload", do_reloadstats,	POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+    { "classreload", do_classreload,	POS_DEAD, MAX_LEVEL, LOG_ALWAYS, 1, true },
+    { "racereload", do_racereload,	POS_DEAD, MAX_LEVEL, LOG_ALWAYS, 1, true },
     { "leaderboard", do_leaderboard,	POS_DEAD, MAX_LEVEL, LOG_ALWAYS, 1, true },
     { "cmdlist", do_cmdlist, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
     { "cmdedit", do_cmdedit, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
@@ -1320,7 +1322,7 @@ if (ch->pk_question)
 */
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (found && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
-        affect_strip(ch, gsn_hide);
+        affect_strip(ch, skill_resolve_gsn("hide"));
         REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
         act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
         act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );

@@ -4542,7 +4542,7 @@ void update_pc_timers(CHAR_DATA *ch)
     --ch->trance;
     if (number_percent() < 4)
     {
-        if (number_percent() > get_skill(ch, gsn_deep_trance) - 10)
+        if (number_percent() > get_skill(ch, skill_resolve_gsn("deep trance")) - 10)
         {
         send_to_char("{YYou lose your meditative focus as something grabs your attention.{x\n\r", ch);
         act("{Y$n loses $s meditative focus as something grabs $s attention.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -4606,7 +4606,7 @@ void update_pc_timers(CHAR_DATA *ch)
     /* Update autohunt, move towards target*/
     if (ch != NULL && ch->hunting != NULL)
     {
-    if (number_percent() < (2 + 9 * get_skill(ch, gsn_hunt)/100))
+    if (number_percent() < (2 + 9 * get_skill(ch, skill_resolve_gsn("hunt"))/100))
         update_hunting_pc(ch);
     }
 }

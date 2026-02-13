@@ -275,7 +275,7 @@ SPELL_FUNC(spell_toxic_fumes)
     act("{gYou are enveloped by a toxic cloud.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     act("{gA toxic cloud forms around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    if (!affect_find(victim->affected,gsn_toxic_fumes))
+    if (!affect_find(victim->affected, skill_resolve_gsn("toxic fumes")))
         toxic_fumes_effect(victim,ch);
     return true;
 }
@@ -311,7 +311,7 @@ SPELL_FUNC(spell_toxin_neurotoxin)
     af.slot	= WEAR_NONE;
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_BIOLOGICAL;
-    af.type = gsn_neurotoxin;
+    af.type = skill_resolve_gsn("neurotoxin");
     af.level = victim->bitten_level;
     af.duration = number_range(5, 10);
     af.location = APPLY_INT;
@@ -391,11 +391,11 @@ SPELL_FUNC(spell_toxin_weakness)
         return false;
     }
 
-    if (!is_affected(victim, gsn_fatigue)) {
+    if (!is_affected(victim, skill_resolve_gsn("fatigue"))) {
         af.slot	= WEAR_NONE;
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_BIOLOGICAL;
-        af.type = gsn_fatigue;
+        af.type = skill_resolve_gsn("fatigue");
         af.level = level;
         af.duration = URANGE(1, level / 2, 5);
         af.location = APPLY_MOVE;
@@ -407,11 +407,11 @@ SPELL_FUNC(spell_toxin_weakness)
         act("$n looks extremely fatigued.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
     }
 
-    if (!is_affected(victim, gsn_weaken)) {
+    if (!is_affected(victim, skill_resolve_gsn("weaken"))) {
         af.slot	= WEAR_NONE;
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_BIOLOGICAL;
-        af.type = gsn_weaken;
+        af.type = skill_resolve_gsn("weaken");
         af.level = level;
         af.duration = URANGE(1, level / 2, 5);
         af.location = APPLY_STR;
@@ -460,7 +460,7 @@ SPELL_FUNC(spell_toxin_venom)
     af.slot	= WEAR_NONE;
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_BIOLOGICAL;
-    af.type = gsn_sleep;
+    af.type = skill_resolve_gsn("sleep");
     af.level = level;
     af.duration = number_range(1, 5);
     af.location = APPLY_NONE;

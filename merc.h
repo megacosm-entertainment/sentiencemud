@@ -2230,7 +2230,6 @@ struct weapon_type
     char *	name;
     long	vnum;
     int16_t	type;
-    int16_t	*gsn;
 };
 
 struct wiznet_type
@@ -2333,6 +2332,7 @@ void		load_races(void);
 void		free_races(void);
 RACE_DATA *	new_race_data(void);
 void		free_race_data(RACE_DATA *race);
+RACE_DATA *	race_reload(const char *id);
 
 #define MAX_HIT 	0
 #define MAX_MANA 	1
@@ -7116,7 +7116,6 @@ struct	skill_type
     SPELL_FUN *	spell_fun;		/* Spell pointer (for spells)	*/
     int16_t	target;			/* Legal targets		*/
     int16_t	minimum_position;	/* Position for caster / user	*/
-    int16_t *	pgsn;			/* Pointer to associated gsn	*/
     /* int16_t	slot;		 	Syn- reusing this as a racial skill toggle. */
     int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
                        This doesn't apply for skills that can be gotten from classes, like archery. */
@@ -7190,9 +7189,6 @@ struct skill_data
     /* Token coupling (for token-driven spells) */
     TOKEN_INDEX_DATA *  token_index;        /* Associated token template */
     WNUM_LOAD           token_wnum;         /* Widevnum for deferred token resolution */
-
-    /* Legacy compatibility (kept during migration) */
-    int16_t *           pgsn;               /* Pointer to associated gsn_ global (NULL in new skills) */
 
     /* Generic values for extensibility */
     int                 values[MAX_SKILL_VALUES];
@@ -7340,6 +7336,10 @@ int	get_adept_level		( CHAR_DATA *ch, int sn );
 int	mana_cost		( CHAR_DATA *ch, int min_mana, int level );
 int	skill_lookup		( const char *name );
 const skill_t *skill_type_lookup( const char *name );
+SKILL_DATA *skill_find		( const char *name );
+int16_t	skill_resolve_gsn	( const char *name );
+int16_t	skill_sn		( SKILL_DATA *skill );
+SKILL_DATA *skill_from_sn	( int sn );
 int	slot_lookup		( int slot );
 bool	saves_spell		( int level, CHAR_DATA *victim, int16_t dam_type );
 bool	saves_dispel		( CHAR_DATA *ch, CHAR_DATA *victim, int spell_level);
@@ -7958,286 +7958,6 @@ struct log_entry_data
     time_t			date;		/* Time the logged event happened */
     char			*text;		/* The log message */
 };
-
-
-/*
- * These are skill_lookup return values for common skills and spells.
- */
-
-extern int16_t   gsn__auction;
-extern int16_t   gsn__inspect;
-
-extern int16_t	gsn_acid_blast;
-extern int16_t	gsn_acid_breath;
-extern int16_t	gsn_acro;
-extern int16_t	gsn_afterburn;
-extern int16_t	gsn_air_spells;
-extern int16_t	gsn_ambush;
-extern int16_t	gsn_animate_dead;
-extern int16_t	gsn_archery;
-extern int16_t	gsn_armour;
-extern int16_t	gsn_athletics;
-extern int16_t	gsn_avatar_shield;
-extern int16_t	gsn_axe;
-extern int16_t	gsn_backstab;
-extern int16_t	gsn_bar;
-extern int16_t	gsn_bash;
-extern int16_t	gsn_behead;
-extern int16_t	gsn_berserk;
-extern int16_t	gsn_bind;
-extern int16_t	gsn_bite;
-extern int16_t	gsn_blackjack;
-extern int16_t	gsn_bless;
-extern int16_t	gsn_blindness;
-extern int16_t	gsn_blowgun;
-extern int16_t	gsn_bomb;
-extern int16_t	gsn_bow;
-extern int16_t	gsn_breath;
-extern int16_t	gsn_brew;
-extern int16_t	gsn_burgle;
-extern int16_t	gsn_burning_hands;
-extern int16_t	gsn_call_familiar;
-extern int16_t	gsn_call_lightning;
-extern int16_t	gsn_calm;
-extern int16_t	gsn_cancellation;
-extern int16_t	gsn_catch;
-extern int16_t	gsn_cause_critical;
-extern int16_t	gsn_cause_light;
-extern int16_t	gsn_cause_serious;
-extern int16_t	gsn_chain_lightning;
-extern int16_t	gsn_channel;
-extern int16_t	gsn_charge;
-extern int16_t	gsn_charm_person;
-extern int16_t	gsn_chill_touch;
-extern int16_t	gsn_circle;
-extern int16_t	gsn_cloak_of_guile;
-extern int16_t	gsn_colour_spray;
-extern int16_t	gsn_combine;
-extern int16_t	gsn_consume;
-extern int16_t	gsn_continual_light;
-extern int16_t	gsn_control_weather;
-extern int16_t	gsn_cosmic_blast;
-extern int16_t	gsn_counterspell;
-extern int16_t	gsn_create_food;
-extern int16_t	gsn_create_rose;
-extern int16_t	gsn_create_spring;
-extern int16_t	gsn_create_water;
-extern int16_t	gsn_crippling_touch;
-extern int16_t	gsn_crossbow;
-extern int16_t	gsn_cure_blindness;
-extern int16_t	gsn_cure_critical;
-extern int16_t	gsn_cure_disease;
-extern int16_t	gsn_cure_light;
-extern int16_t	gsn_cure_poison;
-extern int16_t	gsn_cure_serious;
-extern int16_t	gsn_cure_toxic;
-extern int16_t	gsn_curse;
-extern int16_t	gsn_dagger;
-extern int16_t	gsn_death_grip;
-extern int16_t	gsn_deathbarbs;
-extern int16_t	gsn_deathsight;
-extern int16_t	gsn_deception;
-extern int16_t	gsn_deep_trance;
-extern int16_t	gsn_demonfire;
-extern int16_t	gsn_destruction;
-extern int16_t	gsn_detect_hidden;
-extern int16_t	gsn_detect_invis;
-extern int16_t	gsn_detect_magic;
-extern int16_t	gsn_detect_traps;
-extern int16_t	gsn_dirt;
-extern int16_t	gsn_dirt_kicking;
-extern int16_t	gsn_disarm;
-extern int16_t	gsn_discharge;
-extern int16_t	gsn_dispel_evil;
-extern int16_t	gsn_dispel_good;
-extern int16_t	gsn_dispel_magic;
-extern int16_t	gsn_dispel_room;
-extern int16_t	gsn_dodge;
-extern int16_t	gsn_dual;
-extern int16_t	gsn_eagle_eye;
-extern int16_t	gsn_earth_spells;
-extern int16_t	gsn_earthquake;
-extern int16_t	gsn_electrical_barrier;
-extern int16_t	gsn_enchant_armour;
-extern int16_t	gsn_enchant_weapon;
-extern int16_t	gsn_energy_drain;
-extern int16_t	gsn_energy_field;
-extern int16_t	gsn_enhanced_damage;
-extern int16_t	gsn_ensnare;
-extern int16_t	gsn_entrap;
-extern int16_t	gsn_envenom;
-extern int16_t	gsn_evasion;
-extern int16_t	gsn_exorcism;
-extern int16_t	gsn_exotic;
-extern int16_t	gsn_fade;
-extern int16_t	gsn_faerie_fire;
-extern int16_t	gsn_faerie_fog;
-extern int16_t	gsn_fast_healing;
-extern int16_t	gsn_fatigue;
-extern int16_t	gsn_feign;
-extern int16_t	gsn_fire_barrier;
-extern int16_t	gsn_fire_breath;
-extern int16_t	gsn_fire_cloud;
-extern int16_t	gsn_fire_spells;
-extern int16_t	gsn_fireball;
-extern int16_t	gsn_fireproof;
-extern int16_t	gsn_flail;
-extern int16_t	gsn_flamestrike;
-extern int16_t	gsn_flight;
-extern int16_t	gsn_fly;
-extern int16_t	gsn_fourth_attack;
-extern int16_t	gsn_frenzy;
-extern int16_t	gsn_frost_barrier;
-extern int16_t	gsn_frost_breath;
-extern int16_t	gsn_gas_breath;
-extern int16_t	gsn_gate;
-extern int16_t	gsn_giant_strength;
-extern int16_t	gsn_glorious_bolt;
-extern int16_t	gsn_haggle;
-extern int16_t	gsn_hand_to_hand;
-extern int16_t	gsn_harm;
-extern int16_t	gsn_harpooning;
-extern int16_t	gsn_haste;
-extern int16_t	gsn_heal;
-extern int16_t	gsn_healing_aura;
-extern int16_t	gsn_healing_hands;
-extern int16_t	gsn_hide;
-extern int16_t	gsn_holdup;
-extern int16_t	gsn_holy_shield;
-extern int16_t	gsn_holy_sword;
-extern int16_t	gsn_holy_word;
-extern int16_t	gsn_holy_wrath;
-extern int16_t	gsn_hunt;
-extern int16_t	gsn_ice_storm;
-extern int16_t	gsn_identify;
-extern int16_t	gsn_improved_invisibility;
-extern int16_t	gsn_inferno;
-extern int16_t	gsn_infravision;
-extern int16_t	gsn_infuse;
-extern int16_t	gsn_intimidate;
-extern int16_t	gsn_invis;
-extern int16_t	gsn_judge;
-extern int16_t	gsn_kick;
-extern int16_t	gsn_kill;
-extern int16_t	gsn_leadership;
-extern int16_t	gsn_light_shroud;
-extern int16_t	gsn_lightning_bolt;
-extern int16_t	gsn_lightning_breath;
-extern int16_t	gsn_locate_object;
-extern int16_t	gsn_lore;
-extern int16_t	gsn_mace;
-extern int16_t	gsn_magic_missile;
-extern int16_t	gsn_martial_arts;
-extern int16_t	gsn_mass_healing;
-extern int16_t	gsn_mass_invis;
-extern int16_t	gsn_master_weather;
-extern int16_t	gsn_maze;
-extern int16_t	gsn_meditation;
-extern int16_t	gsn_mob_lore;
-extern int16_t	gsn_momentary_darkness;
-extern int16_t	gsn_morphlock;
-extern int16_t	gsn_mount_and_weapon_style;
-extern int16_t	gsn_music;
-extern int16_t	gsn_navigation;
-extern int16_t	gsn_neurotoxin;
-extern int16_t	gsn_nexus;
-extern int16_t	gsn_parry;
-extern int16_t	gsn_pass_door;
-extern int16_t	gsn_peek;
-extern int16_t	gsn_pick_lock;
-extern int16_t	gsn_plague;
-extern int16_t	gsn_poison;
-extern int16_t	gsn_polearm;
-extern int16_t	gsn_possess;
-extern int16_t	gsn_pursuit;
-extern int16_t	gsn_quarterstaff;
-extern int16_t	gsn_raise_dead;
-extern int16_t	gsn_recall;
-extern int16_t	gsn_recharge;
-extern int16_t	gsn_refresh;
-extern int16_t	gsn_regeneration;
-extern int16_t	gsn_remove_curse;
-extern int16_t	gsn_rending;
-extern int16_t	gsn_repair;
-extern int16_t	gsn_rescue;
-extern int16_t	gsn_resurrect;
-extern int16_t	gsn_reverie;
-extern int16_t	gsn_riding;
-extern int16_t	gsn_room_shield;
-extern int16_t	gsn_sanctuary;
-extern int16_t	gsn_scan;
-extern int16_t	gsn_scribe;
-extern int16_t	gsn_scrolls;
-extern int16_t	gsn_scry;
-extern int16_t	gsn_second_attack;
-extern int16_t	gsn_sense_danger;
-extern int16_t	gsn_shape;
-extern int16_t	gsn_shield;
-extern int16_t	gsn_shield_block;
-extern int16_t	gsn_shield_weapon_style;
-extern int16_t	gsn_shift;
-extern int16_t	gsn_shocking_grasp;
-extern int16_t	gsn_silence;
-extern int16_t	gsn_single_style;
-extern int16_t	gsn_skull;
-extern int16_t	gsn_sleep;
-extern int16_t	gsn_slit_throat;
-extern int16_t	gsn_slow;
-extern int16_t	gsn_smite;
-extern int16_t	gsn_sneak;
-extern int16_t	gsn_spear;
-extern int16_t	gsn_spell_deflection;
-extern int16_t	gsn_spell_shield;
-extern int16_t	gsn_spell_trap;
-extern int16_t	gsn_spirit_rack;
-extern int16_t	gsn_stake;
-extern int16_t	gsn_starflare;
-extern int16_t	gsn_staves;
-extern int16_t	gsn_steal;
-extern int16_t	gsn_stone_skin;
-extern int16_t	gsn_stone_spikes;
-extern int16_t	gsn_subvert;
-extern int16_t	gsn_summon;
-extern int16_t	gsn_survey;
-extern int16_t	gsn_swerve;
-extern int16_t	gsn_sword;
-extern int16_t	gsn_sword_and_dagger_style;
-extern int16_t	gsn_tail_kick;
-extern int16_t	gsn_tattoo;
-extern int16_t	gsn_temperance;
-extern int16_t	gsn_third_attack;
-extern int16_t	gsn_third_eye;
-extern int16_t	gsn_throw;
-extern int16_t	gsn_titanic_attack;
-extern int16_t	gsn_toxic_fumes;
-extern int16_t	gsn_toxins;
-extern int16_t	gsn_trackless_step;
-extern int16_t	gsn_trample;
-extern int16_t	gsn_trip;
-extern int16_t	gsn_turn_undead;
-extern int16_t	gsn_two_handed_style;
-extern int16_t	gsn_underwater_breathing;
-extern int16_t	gsn_vision;
-extern int16_t	gsn_wands;
-extern int16_t	gsn_warcry;
-extern int16_t	gsn_water_spells;
-extern int16_t	gsn_weaken;
-extern int16_t	gsn_weaving;
-extern int16_t	gsn_web;
-extern int16_t	gsn_whip;
-extern int16_t	gsn_wilderness_spear_style;
-extern int16_t	gsn_wind_of_confusion;
-extern int16_t	gsn_withering_cloud;
-extern int16_t	gsn_word_of_recall;
-
-extern int16_t	gsn_ice_shards;
-extern int16_t	gsn_stone_touch;
-extern int16_t	gsn_glacial_wave;
-extern int16_t	gsn_earth_walk;
-extern int16_t	gsn_flash;
-extern int16_t	gsn_shriek;
-extern int16_t	gsn_dark_shroud;
-extern int16_t	gsn_soul_essence;
 
 /*
  * Utility macros.

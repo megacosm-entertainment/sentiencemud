@@ -323,6 +323,7 @@ extern	const struct flag_type instrument_flags[];
 extern	const struct flag_type corpse_object_flags[];
 extern	const struct flag_type variable_types[];
 extern	const struct flag_type skill_flags[];
+extern	const struct flag_type song_flags[];
 
 extern	const struct flag_type shop_flags[];
 
@@ -357,4 +358,5 @@ extern const struct flag_type church_log_category_flags[];
 extern const CHURCH_LOG_META_CATEGORY church_log_meta_categories[];
 extern const struct flag_type staff_ranks[];
 extern const struct flag_type body_types[];
+extern const struct flag_type reward_types[];
 #endif

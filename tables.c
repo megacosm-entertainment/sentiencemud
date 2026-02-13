@@ -3448,6 +3448,8 @@ const struct do_func_type do_func_table[] =
         { "do_ships",                   do_ships },
         { "do_spawntreasuremap",                        do_spawntreasuremap },
         { "do_reloadstats",                     do_reloadstats },
+        { "do_classreload",                     do_classreload },
+        { "do_racereload",                      do_racereload },
         { "do_cmdlist",                 do_cmdlist },
         { "do_cmdedit",                 do_cmdedit },
         { "do_cmdshow",                 do_cmdshow },

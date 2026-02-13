@@ -718,7 +718,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
     SPELL_DATA *spell1, *spell2;
     SPELL_DATA *max_spell1, *max_spell2;
 
-    if ((chance = get_skill(ch, gsn_combine)) < 1)
+    if ((chance = get_skill(ch, skill_resolve_gsn("combine"))) < 1)
     {
         send_to_char("Leave that to the alchemists.\n\r", ch);
         return;
@@ -903,7 +903,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
             ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM, NULL, NULL);
         extract_obj(obj1);
         extract_obj(obj2);
-        check_improve(ch, gsn_combine, 1, false);
+        check_improve(ch, skill_resolve_gsn("combine"), 1, false);
         return;
     }
 
@@ -921,7 +921,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
     act("$n combines $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM, NULL, NULL);
 
     extract_obj(obj2);
-    check_improve(ch, gsn_combine, 1, true);
+    check_improve(ch, skill_resolve_gsn("combine"), 1, true);
 }
 
 
@@ -1018,7 +1018,7 @@ void do_consume(CHAR_DATA *ch, char *argument)
     if (is_dead(ch))
     return;
 
-    if ((chance = get_skill(ch,gsn_consume)) == 0)
+    if ((chance = get_skill(ch, skill_resolve_gsn("consume"))) == 0)
     {
         send_to_char("How disgusting!\n\r",ch);
         return;
@@ -1227,7 +1227,7 @@ void do_ink(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!(chance = get_skill(ch,gsn_tattoo))) {
+    if (!(chance = get_skill(ch, skill_resolve_gsn("tattoo")))) {
         send_to_char("Ink? What's that?\n\r",ch);
         return;
     }
@@ -1386,9 +1386,9 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     char tattoo_name[MAX_STRING_LENGTH];
     SPELL_DATA *spell;
 
-    if (!sn2) chance = get_skill(ch, gsn_tattoo) + get_skill(ch, gsn_tattoo) / 3 + get_skill(ch, gsn_tattoo)/7;
-    else if (!sn3) chance = get_skill(ch, gsn_tattoo) / 2 + get_skill(ch, gsn_tattoo) / 3;
-    else chance = get_skill(ch, gsn_tattoo) / 2;
+    if (!sn2) chance = get_skill(ch, skill_resolve_gsn("tattoo")) + get_skill(ch, skill_resolve_gsn("tattoo")) / 3 + get_skill(ch, skill_resolve_gsn("tattoo"))/7;
+    else if (!sn3) chance = get_skill(ch, skill_resolve_gsn("tattoo")) / 2 + get_skill(ch, skill_resolve_gsn("tattoo")) / 3;
+    else chance = get_skill(ch, skill_resolve_gsn("tattoo")) / 2;
 
     if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
@@ -1402,7 +1402,7 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     {
     act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("{YYou fail to coalesce the inks into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    check_improve(ch, gsn_tattoo, false, 2);
+    check_improve(ch, skill_resolve_gsn("tattoo"), false, 2);
     return;
     }
 
@@ -1424,7 +1424,7 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
 
-    check_improve(ch, gsn_tattoo, true, 2);
+    check_improve(ch, skill_resolve_gsn("tattoo"), true, 2);
 
     tattoo = create_object(get_reserved_obj_index("obj_blank_tattoo"), 1, false);
 

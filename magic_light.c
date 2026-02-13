@@ -41,7 +41,9 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
     af.slot	= WEAR_NONE;
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_MAGICAL;
-    af.type = gsn_blindness;
+    SKILL_DATA *sk_blind = skill_find("blindness");
+    af.type = skill_sn(sk_blind);
+    af.skill = sk_blind;
     af.level = level;
     af.location = APPLY_HITROLL;
     af.modifier = -4;
@@ -181,7 +183,7 @@ SPELL_FUNC(spell_starflare)
                     dam /= 3;
 
                 damage(ch, victim, dam, sn, 0, true);
-                spell_blindness(skill_from_sn(gsn_blindness), level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                spell_blindness(skill_find("blindness"), level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
                 level -= 4;
             }

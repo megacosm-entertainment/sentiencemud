@@ -101,7 +101,7 @@ SPELL_FUNC(spell_counter_spell)
         return false;
 
     sn = victim->cast_sn;
-    if (number_percent() < get_skill(ch, gsn_counterspell) && can_see(ch, victim)) {
+    if (number_percent() < get_skill(ch, skill_resolve_gsn("counterspell")) && can_see(ch, victim)) {
         stop_casting(victim, false);
         act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -371,7 +371,7 @@ SPELL_FUNC(spell_recharge)
         return false;
     }
 
-    if (number_percent() > get_skill(ch, gsn_recharge)) {
+    if (number_percent() > get_skill(ch, skill_resolve_gsn("recharge"))) {
         act("$p disappears as you screw up the spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n's $p disappears as $e screws up $s spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         extract_obj(obj);
@@ -392,9 +392,10 @@ SPELL_FUNC(spell_recharge)
             if (ch_has_trait(ch, "potion_recharge")) {
                 obj->value[0] = (obj->value[0] * 9)/10;
 
-                if (get_skill(ch, gsn_brew) < 75)
+                int16_t sn_brew = skill_resolve_gsn("brew");
+                if (get_skill(ch, sn_brew) < 75)
                     charges = 1;
-                else if (get_skill(ch, gsn_brew) < 85)
+                else if (get_skill(ch, sn_brew) < 85)
                     charges = 2;
                 else
                     charges = 3;

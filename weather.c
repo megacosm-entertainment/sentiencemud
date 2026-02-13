@@ -797,8 +797,9 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                             af.slot	= WEAR_NONE;
                             af.where	= TO_AFFECTS;
                             af.group	= AFFGROUP_PHYSICAL;
-                            af.type 	= gsn_blindness;
-    af.skill = skill_from_sn(af.type);
+                            SKILL_DATA *sk_blind = skill_find("blindness");
+                            af.type 	= skill_sn(sk_blind);
+    af.skill = sk_blind;
                             af.level 	= 10;
                             af.duration	= 3;
                             af.location	= APPLY_HITROLL;

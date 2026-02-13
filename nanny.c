@@ -5445,13 +5445,13 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
         /* Set up weapon skill*/
         switch (ch->pcdata->class_current)
         {
-        case CLASS_MAGE:	weapon = gsn_quarterstaff;	break;
-        case CLASS_CLERIC:	weapon = gsn_quarterstaff;	break;
-        case CLASS_THIEF:	weapon = gsn_dagger;		break;
-        case CLASS_WARRIOR:	weapon = gsn_sword;		break;
+        case CLASS_MAGE:	weapon = skill_resolve_gsn("quarterstaff");	break;
+        case CLASS_CLERIC:	weapon = skill_resolve_gsn("quarterstaff");	break;
+        case CLASS_THIEF:	weapon = skill_resolve_gsn("dagger");		break;
+        case CLASS_WARRIOR:	weapon = skill_resolve_gsn("sword");		break;
         default:
             log_message(LOG_LEVEL_BUG, LOG_ERROR, "nanny: bad current class in weapon pick");
-            weapon = gsn_sword;
+            weapon = skill_resolve_gsn("sword");
             break;
         }
 

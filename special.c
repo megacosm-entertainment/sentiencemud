@@ -943,7 +943,7 @@ bool spec_poison( CHAR_DATA *ch )
     act( "You bite $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
     act( "$n bites $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
     act( "$n bites you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL    );
-    spell_poison(skill_from_sn(gsn_poison), ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_poison(skill_find("poison"), ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 

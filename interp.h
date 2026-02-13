@@ -621,6 +621,8 @@ DECLARE_DO_FUN( do_collapse	);
 DECLARE_DO_FUN( do_spawntreasuremap );
 DECLARE_DO_FUN( do_activate );
 DECLARE_DO_FUN( do_reloadstats );
+DECLARE_DO_FUN( do_classreload );
+DECLARE_DO_FUN( do_racereload );
 DECLARE_DO_FUN( do_cmdlist );
 DECLARE_DO_FUN( do_cmdedit );
 DECLARE_DO_FUN( do_cmdshow );

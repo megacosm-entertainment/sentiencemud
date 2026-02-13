@@ -18,8 +18,18 @@
 #include <stdlib.h>
 #include "merc.h"
 #include "recycle.h"
+#include "tables.h"
 #include "song_data.h"
 #include <jansson.h>
+
+/***************************************************************************
+ * Song Flags                                                              *
+ ***************************************************************************/
+
+const struct flag_type song_flags[] = {
+    /* Reserved for future expansion (instrument requirements, restrictions, etc.) */
+    { "",   0,  false }
+};
 
 /***************************************************************************
  * Module State                                                            *

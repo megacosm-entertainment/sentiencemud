@@ -74,18 +74,6 @@ int16_t         skill_sn(SKILL_DATA *skill);
 /* Resolve a gsn by name — returns uid for backward compatibility with gsn_ patterns */
 int16_t         skill_resolve_gsn(const char *name);
 
-/*
- * SKILL_CACHED — File-local cached skill pointer.
- *
- * Provides O(1) access after first lookup, replacing gsn_ globals.
- * Usage:
- *   SKILL_CACHED(sk_backstab, "backstab");
- *   if (skill == sk_backstab) { ... }
- */
-#define SKILL_CACHED(var, name) \
-    static SKILL_DATA *var = NULL; \
-    if (!(var)) (var) = skill_find(name)
-
 /***************************************************************************
  * SPELL_FUN Name<->Pointer Resolution                                    *
  ***************************************************************************/

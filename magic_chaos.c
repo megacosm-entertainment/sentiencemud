@@ -115,7 +115,7 @@ SPELL_FUNC(spell_demonfire)
         dam /= 2;
 
     damage(ch, victim, dam, sn, DAM_NEGATIVE ,true);
-    spell_curse(skill_from_sn(gsn_curse), 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_curse(skill_find("curse"), 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 

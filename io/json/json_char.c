@@ -925,6 +925,15 @@ static json_t *affects_to_json(CHAR_DATA *ch)
         }
         json_object_set_new(aff, "where", json_integer(paf->where));
         json_object_set_new(aff, "type", json_integer(paf->type));
+
+        // Save skill name alongside numeric type for resilient loading
+        if (paf->type > 0) {
+            SKILL_DATA *sk = skill_from_sn(paf->type);
+            if (sk) {
+                json_object_set_new(aff, "type_name", json_string(sk->name));
+            }
+        }
+
         json_object_set_new(aff, "level", json_integer(paf->level));
         json_object_set_new(aff, "duration", json_integer(paf->duration));
         json_object_set_new(aff, "location", json_integer(paf->location));
@@ -3761,7 +3770,27 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
             paf->where = json_integer_value(json_object_get(array_elem, "where"));
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
-            paf->skill = skill_from_sn(paf->type);
+
+            // Resolve by name first (resilient to skill reordering)
+            str = json_string_value(json_object_get(array_elem, "type_name"));
+            if (str && str[0]) {
+                SKILL_DATA *sk = skill_find(str);
+                if (sk) {
+                    if (sk->uid != paf->type) {
+                        log_stringf("json_read_char: affect type_name '%s' uid %d != saved type %d for %s (auto-fixed)",
+                                    str, sk->uid, paf->type, ch->name);
+                        paf->type = sk->uid;
+                    }
+                    paf->skill = sk;
+                } else {
+                    log_stringf("json_read_char: affect type_name '%s' not found for %s, falling back to type %d",
+                                str, ch->name, paf->type);
+                    paf->skill = skill_from_sn(paf->type);
+                }
+            } else {
+                paf->skill = skill_from_sn(paf->type);
+            }
+
             paf->level = json_integer_value(json_object_get(array_elem, "level"));
             paf->duration = json_integer_value(json_object_get(array_elem, "duration"));
             paf->location = json_integer_value(json_object_get(array_elem, "location"));
@@ -4240,7 +4269,27 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
 
             paf->where = json_integer_value(json_object_get(array_elem, "where"));
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
-            paf->skill = skill_from_sn(paf->type);
+
+            // Resolve by name first (resilient to skill reordering)
+            str = json_string_value(json_object_get(array_elem, "type_name"));
+            if (str && str[0]) {
+                SKILL_DATA *sk = skill_find(str);
+                if (sk) {
+                    if (sk->uid != paf->type) {
+                        log_stringf("json_read_char: affect type_name '%s' uid %d != saved type %d for %s (auto-fixed)",
+                                    str, sk->uid, paf->type, ch->name);
+                        paf->type = sk->uid;
+                    }
+                    paf->skill = sk;
+                } else {
+                    log_stringf("json_read_char: affect type_name '%s' not found for %s, falling back to type %d",
+                                str, ch->name, paf->type);
+                    paf->skill = skill_from_sn(paf->type);
+                }
+            } else {
+                paf->skill = skill_from_sn(paf->type);
+            }
+
             paf->level = json_integer_value(json_object_get(array_elem, "level"));
             paf->duration = json_integer_value(json_object_get(array_elem, "duration"));
             paf->location = json_integer_value(json_object_get(array_elem, "location"));

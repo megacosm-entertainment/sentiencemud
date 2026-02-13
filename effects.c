@@ -198,7 +198,7 @@ void cold_effect(void *vo, int level, int dam, int target)
         act("{CA chill sinks deep into your bones.{x",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
-            af.type      = gsn_chill_touch;
+            af.type      = skill_resolve_gsn("chill touch");
     af.skill = skill_from_sn(af.type);
             af.level     = level;
             af.duration  = 6;
@@ -321,7 +321,7 @@ void fire_effect(void *vo, int level, int dam, int target)
                 victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR, NULL, NULL);
             af.where        = TO_AFFECTS;
             af.group        = AFFGROUP_PHYSICAL;
-            af.type         = gsn_fire_breath;
+            af.type         = skill_resolve_gsn("fire breath");
     af.skill = skill_from_sn(af.type);
             af.level        = level;
             af.duration     = 1;//number_range(0,level/10);
@@ -336,7 +336,7 @@ void fire_effect(void *vo, int level, int dam, int target)
 
         for ( pAf = victim->affected; pAf != NULL; pAf = pAf->next )
         {
-            if ( pAf->type == gsn_chill_touch && number_percent() < 25)
+            if ( pAf->type == skill_resolve_gsn("chill touch") && number_percent() < 25)
             {
                 affect_remove( victim, pAf );
                 send_to_char("You stop shivering and your muscles warm up.\n\r", victim );
@@ -515,7 +515,7 @@ void poison_effect(void *vo, int level, int dam, int target)
 
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
-            af.type      = gsn_poison;
+            af.type      = skill_resolve_gsn("poison");
     af.skill = skill_from_sn(af.type);
             af.level     = level;
             af.duration  = level / 2;
@@ -697,7 +697,8 @@ void damage_vampires( CHAR_DATA *ch, int dam )
     int chance;
 
     dam -= get_age(ch) * 2;
-    chance = get_skill( ch, gsn_temperance );
+    int16_t sn_temperance = skill_resolve_gsn("temperance");
+    chance = get_skill( ch, sn_temperance );
     if (chance > 0) {
     if ( chance < 6 ) dam -= 5;
     else if ( chance < 30 ) dam -= 20;
@@ -708,7 +709,7 @@ void damage_vampires( CHAR_DATA *ch, int dam )
     else dam = dam / 2;
     }
 
-    check_improve( ch, gsn_temperance, true, 8 );
+    check_improve( ch, sn_temperance, true, 8 );
 
     dam = UMAX( dam, 25 );
 
@@ -763,7 +764,7 @@ void hurt_vampires( CHAR_DATA *ch)
     if ( time_info.hour >= 16 )
     dam /= 2;
 
-    if (IS_AFFECTED(ch, gsn_stone_skin))
+    if (IS_AFFECTED(ch, skill_resolve_gsn("stone skin")))
     dam /= 2;
 
     damage_vampires(ch,dam);
@@ -818,6 +819,8 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 {
     int level, duration;
     AFFECT_DATA af;
+    SKILL_DATA *sk_tox = skill_find("toxic fumes");
+    int16_t sn_tox = skill_sn(sk_tox);
 
     level = ch ? ch->tot_level : 120;
     duration = ch ? URANGE(1,level,5) : -1;
@@ -860,8 +863,8 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 
     if(af.bitvector) {
         af.where     = TO_AFFECTS;
-        af.type      = gsn_toxic_fumes;
-    af.skill = skill_from_sn(af.type);
+        af.type      = sn_tox;
+    af.skill = sk_tox;
         af.level     = level;
         af.duration  = duration;
         af.location  = APPLY_STR;
@@ -870,8 +873,8 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
     }
 
     af.where     = TO_AFFECTS;
-    af.type      = gsn_toxic_fumes;
-    af.skill = skill_from_sn(af.type);
+    af.type      = sn_tox;
+    af.skill = sk_tox;
     af.level     = level;
     af.duration  = duration;
     af.location  = APPLY_MOVE;

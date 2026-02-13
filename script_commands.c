@@ -11,6 +11,9 @@
 #include "scripts.h"
 #include "magic.h"
 #include "wilds.h"
+#include "class_data.h"
+#include "song_data.h"
+#include "traits.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -970,8 +973,9 @@ SCRIPT_CMD(scriptcmd_applytoxin)
         AFFECT_DATA af;
         af.where = TO_AFFECTS;
         af.group     = AFFGROUP_BIOLOGICAL;
-        af.type  = gsn_toxins;
-    af.skill = skill_from_sn(af.type);
+        SKILL_DATA *sk_toxins = skill_find("toxins");
+        af.type  = skill_sn(sk_toxins);
+    af.skill = sk_toxins;
         af.level = victim->bitten_level;
         af.duration = duration;
         af.location = APPLY_STR;
@@ -1276,7 +1280,7 @@ SCRIPT_CMD(scriptcmd_award)
 SCRIPT_CMD(scriptcmd_breathe)
 {
     static char *breath_names[] = { "acid", "fire", "frost", "gas", "lightning", NULL };
-    static int16_t *breath_gsn[] = { &gsn_acid_breath, &gsn_fire_breath, &gsn_frost_breath, &gsn_gas_breath, &gsn_lightning_breath };
+    static const char *breath_skill_names[] = { "acid breath", "fire breath", "frost breath", "gas breath", "lightning breath" };
     static SPELL_FUN *breath_fun[] = { spell_acid_breath, spell_fire_breath, spell_frost_breath, spell_gas_breath, spell_lightning_breath };
     char *rest;
     CHAR_DATA *attacker = NULL;
@@ -1320,7 +1324,7 @@ SCRIPT_CMD(scriptcmd_breathe)
     if(!attacker)
         return;
 
-    (*breath_fun[i])(skill_from_sn(*breath_gsn[i]), attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    (*breath_fun[i])(skill_find(breath_skill_names[i]), attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     info->progs->lastreturn = 1;
 }
@@ -3839,16 +3843,371 @@ SCRIPT_CMD(scriptcmd_setalign)
 {
 }
 
+// SETCLASS $MOBILE $CLASSNAME
+// Switches a player's active class (they must already have the class).
+// Follows the same pattern as do_setclass in act_class.c.
 SCRIPT_CMD(scriptcmd_setclass)
 {
+    char *rest;
+    CHAR_DATA *mob;
+    CLASS_DATA *clazz;
+    CLASS_LEVEL *cl;
+    OBJ_DATA *obj, *obj_next;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    clazz = class_find(arg->d.str);
+    if (!clazz)
+        return;
+
+    cl = get_class_level(mob, clazz);
+    if (!cl)
+        return;
+
+    /* Already in this class */
+    if (mob->pcdata->current_class == cl)
+        return;
+
+    /* Revoke old class rewards */
+    if (mob->pcdata->current_class && mob->pcdata->current_class->clazz) {
+        CLASS_DATA *old_class = mob->pcdata->current_class->clazz;
+        if (old_class->leave)
+            (*old_class->leave)(mob);
+        revoke_class_rewards(mob, old_class);
+    }
+
+    /* Switch */
+    mob->pcdata->current_class = cl;
+
+    /* Enter new class */
+    if (cl->clazz->enter)
+        (*cl->clazz->enter)(mob);
+
+    apply_class_rewards(mob, cl->clazz, 1, cl->level, true);
+
+    /* Unequip gear above new class level */
+    for (obj = mob->carrying; obj != NULL; obj = obj_next) {
+        obj_next = obj->next_content;
+        if (obj->wear_loc != WEAR_NONE && cl->level < obj->level)
+            unequip_char(mob, obj, true);
+    }
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
 }
 
+// SETRACE $MOBILE $RACENAME
+// Changes a player's race and updates racial attributes.
 SCRIPT_CMD(scriptcmd_setrace)
 {
+    char *rest;
+    CHAR_DATA *mob;
+    RACE_DATA *race;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    race = race_lookup_name(arg->d.str);
+    if (!race)
+        race = race_lookup(arg->d.str);
+    if (!race || !race->playable)
+        return;
+
+    mob->race = race;
+    mob->affected_by_perm[0] = race->aff[0];
+    mob->affected_by_perm[1] = race->aff[1];
+    mob->imm_flags_perm = race->imm;
+    mob->res_flags_perm = race->res;
+    mob->vuln_flags_perm = race->vuln;
+    affect_fix_char(mob);
+    mob->form = race->form;
+    mob->parts = race->parts;
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// GRANTCLASS $MOBILE $CLASSNAME[ $LEVEL]
+// Grants a class to a player at the given level (default 1).
+SCRIPT_CMD(scriptcmd_grantclass)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    CLASS_DATA *clazz;
+    int level = 1;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    clazz = class_find(arg->d.str);
+    if (!clazz)
+        return;
+
+    /* Already has this class */
+    if (has_class_level(mob, clazz))
+        return;
+
+    /* Optional level */
+    if (*rest) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        if (arg->type == ENT_NUMBER)
+            level = URANGE(1, arg->d.num, clazz->max_level);
+    }
+
+    add_class_level(mob, clazz, level);
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// REVOKECLASS $MOBILE $CLASSNAME
+// Removes a class from a player, revoking its rewards.
+SCRIPT_CMD(scriptcmd_revokeclass)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    CLASS_DATA *clazz;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    clazz = class_find(arg->d.str);
+    if (!clazz)
+        return;
+
+    if (!has_class_level(mob, clazz))
+        return;
+
+    /* If revoking the current class, switch away first */
+    if (mob->pcdata->current_class
+        && mob->pcdata->current_class->clazz == clazz) {
+        if (clazz->leave)
+            (*clazz->leave)(mob);
+        revoke_class_rewards(mob, clazz);
+        mob->pcdata->current_class = NULL;
+    }
+
+    remove_class_level(mob, clazz);
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// GRANTSONG $MOBILE $SONGNAME
+// Grants a song to a player.
+SCRIPT_CMD(scriptcmd_grantsong)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    SONG_DATA *song;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    song = song_lookup(arg->d.str);
+    if (!song)
+        return;
+
+    /* Already has this song */
+    if (skill_entry_findsong(mob->sorted_songs, song))
+        return;
+
+    skill_entry_addsong(mob, song, NULL, SKILLSRC_SCRIPT);
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// REVOKESONG $MOBILE $SONGNAME
+// Removes a song from a player.
+SCRIPT_CMD(scriptcmd_revokesong)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    SONG_DATA *song;
+    SKILL_ENTRY *entry;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    song = song_lookup(arg->d.str);
+    if (!song)
+        return;
+
+    entry = skill_entry_findsong(mob->sorted_songs, song);
+    if (!entry)
+        return;
+
+    skill_entry_removeentry(&mob->sorted_songs, entry);
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// SETTRAIT $MOBILE $TRAITID $VALUE
+// Sets a personal trait override on a player.
+// For bool traits: 0/false/no = false, anything else = true.
+// For int traits: numeric value.
+// For string traits: string value (empty string to clear).
+SCRIPT_CMD(scriptcmd_settrait)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    TRAIT_DEF *def;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    def = trait_def_lookup(arg->d.str);
+    if (!def)
+        return;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    switch (def->type) {
+        case TRAIT_BOOLEAN: {
+            bool val;
+            if (arg->type == ENT_BOOLEAN)
+                val = arg->d.boolean;
+            else if (arg->type == ENT_NUMBER)
+                val = (arg->d.num != 0);
+            else if (arg->type == ENT_STRING)
+                val = (!str_cmp(arg->d.str, "true")
+                    || !str_cmp(arg->d.str, "yes")
+                    || !str_cmp(arg->d.str, "1"));
+            else
+                return;
+            if (!ch_set_trait_bool(mob, def->id, val))
+                return;
+            break;
+        }
+
+        case TRAIT_INTEGER: {
+            int val;
+            if (arg->type == ENT_NUMBER)
+                val = arg->d.num;
+            else if (arg->type == ENT_STRING)
+                val = atoi(arg->d.str);
+            else
+                return;
+            if (!ch_set_trait_int(mob, def->id, val))
+                return;
+            break;
+        }
+
+        case TRAIT_STRING:
+            if (arg->type != ENT_STRING)
+                return;
+            if (!ch_set_trait_string(mob, def->id,
+                    (arg->d.str[0] ? arg->d.str : NULL)))
+                return;
+            break;
+
+        default:
+            return;
+    }
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
 }
 
 SCRIPT_CMD(scriptcmd_setsubclass)
 {
+    /* Deprecated — subclass system removed. Kept as no-op for compatibility. */
 }
 
 

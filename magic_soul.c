@@ -57,8 +57,9 @@ SPELL_FUNC(spell_soul_essence)
     }
 
     if (found) {
-        skill_pct = get_skill(ch,gsn_soul_essence); skill_pct = UMAX(0,skill_pct);
-        skill2 = get_skill(ch,gsn_soul_essence); skill2 = UMAX(0,skill2);
+        int16_t sn_soul = skill_resolve_gsn("soul essence");
+        skill_pct = get_skill(ch,sn_soul); skill_pct = UMAX(0,skill_pct);
+        skill2 = get_skill(ch,sn_soul); skill2 = UMAX(0,skill2);
 
         i = i * skill_pct * skill2 / 10000;
 

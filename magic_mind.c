@@ -281,7 +281,7 @@ SPELL_FUNC(spell_frenzy)
         return false;
     }
 
-    if (is_affected(victim,gsn_calm)) {
+    if (is_affected(victim,skill_resolve_gsn("calm"))) {
         if (victim == ch)
             send_to_char("Why don't you just relax for a while?\n\r",ch);
         else

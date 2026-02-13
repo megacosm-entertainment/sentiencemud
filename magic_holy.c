@@ -85,7 +85,7 @@ SPELL_FUNC(spell_bless)
         if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
             AFFECT_DATA *paf;
 
-            paf = affect_find(obj->affected,gsn_curse);
+            paf = affect_find(obj->affected,skill_resolve_gsn("curse"));
             if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
                 if (paf) affect_remove_obj(obj,paf);
                 act("$p glows a pale blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
@@ -481,7 +481,7 @@ SPELL_FUNC(spell_remove_curse)
                 REMOVE_BIT(obj->extra[0],ITEM_NODROP);
                 REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
 
-                paf = affect_find(obj->affected,gsn_curse);
+                paf = affect_find(obj->affected,skill_resolve_gsn("curse"));
                 if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
                     if (paf) affect_remove_obj(obj,paf);
                     REMOVE_BIT(obj->extra[0],ITEM_EVIL);
@@ -500,7 +500,7 @@ SPELL_FUNC(spell_remove_curse)
     /* characters */
     victim = (CHAR_DATA *) vo;
 
-    if (check_dispel(ch,victim,gsn_curse)) {
+    if (check_dispel(ch,victim,skill_resolve_gsn("curse"))) {
         send_to_char("You feel better.\n\r",victim);
         act("$n looks more relaxed.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
     }

@@ -1663,6 +1663,199 @@ static void bootstrap_classes_from_table(void)
 }
 
 /***************************************************************************
+ * Hot-Reload                                                              *
+ ***************************************************************************/
+
+/**
+ * class_build_path - Build the JSON file path for a class by name
+ *
+ * @param name      Class name (spaces become underscores, lowered)
+ * @param buf       Output buffer
+ * @param bufsize   Size of output buffer
+ */
+static void class_build_path(const char *name, char *buf, size_t bufsize)
+{
+    char safe_name[256];
+
+    snprintf(safe_name, sizeof(safe_name), "%s", name);
+    for (char *p = safe_name; *p; p++) {
+        if (*p == ' ') *p = '_';
+        else *p = LOWER(*p);
+    }
+
+    snprintf(buf, bufsize, "%s%s.json", CLASSES_DIR, safe_name);
+}
+
+/**
+ * class_copy_fields - Copy all data fields from src to dst in-place
+ *
+ * Preserves dst's linked-list pointer (next), valid flag, and gcl pointer.
+ * Frees old strings/lists on dst before overwriting. Transfers ownership
+ * of src's allocated memory — caller must NOT free src's contents after.
+ *
+ * @param dst   Existing class struct to update
+ * @param src   Temporary class struct with new data (will be gutted)
+ */
+static void class_copy_fields(CLASS_DATA *dst, CLASS_DATA *src)
+{
+    /* Preserve structural fields */
+    CLASS_DATA *saved_next = dst->next;
+    CLASS_DATA **saved_gcl = dst->gcl;
+    int16_t saved_uid = dst->uid;   /* UID must not change */
+
+    /* Free old content on dst */
+    free_string(dst->name);
+    free_string(dst->description);
+    free_string(dst->comments);
+    free_string(dst->enter_fun_name);
+    free_string(dst->leave_fun_name);
+
+    for (int i = 0; i < BODY_TYPE_MAX; i++) {
+        free_string(dst->display[i]);
+        free_string(dst->who[i]);
+    }
+
+    if (dst->titles) {
+        ITERATOR it;
+        CLASS_TITLE *title;
+        iterator_start(&it, dst->titles);
+        while ((title = (CLASS_TITLE *)iterator_nextdata(&it)))
+            free_class_title(title);
+        iterator_stop(&it);
+        list_destroy(dst->titles);
+    }
+
+    if (dst->rewards) {
+        ITERATOR it;
+        CLASS_REWARD *reward;
+        iterator_start(&it, dst->rewards);
+        while ((reward = (CLASS_REWARD *)iterator_nextdata(&it)))
+            free_class_reward(reward);
+        iterator_stop(&it);
+        list_destroy(dst->rewards);
+    }
+
+    if (dst->groups)
+        list_destroy(dst->groups);
+
+    if (dst->trait_values) {
+        /* Free any trait strings before releasing the array */
+        for (int i = 0; i < trait_def_count; i++) {
+            if (dst->trait_values[i].string_val)
+                free_string(dst->trait_values[i].string_val);
+        }
+        /* alloc_perm memory — can't free the array itself */
+    }
+
+    if (dst->xp_table) {
+        /* alloc_perm memory — can't free */
+    }
+
+    /* Copy all data fields from src */
+    dst->name = src->name;
+    dst->description = src->description;
+    dst->comments = src->comments;
+    dst->type = src->type;
+    dst->flags = src->flags;
+    dst->primary_stat = src->primary_stat;
+    dst->max_level = src->max_level;
+    dst->hp_min = src->hp_min;
+    dst->hp_max = src->hp_max;
+    dst->gains_mana = src->gains_mana;
+    dst->weapon = src->weapon;
+    dst->xp_table = src->xp_table;
+    dst->xp_table_size = src->xp_table_size;
+    dst->enter_fun_name = src->enter_fun_name;
+    dst->leave_fun_name = src->leave_fun_name;
+    dst->enter = src->enter;
+    dst->leave = src->leave;
+    dst->groups = src->groups;
+    dst->rewards = src->rewards;
+    dst->titles = src->titles;
+    dst->trait_values = src->trait_values;
+
+    for (int i = 0; i < BODY_TYPE_MAX; i++) {
+        dst->display[i] = src->display[i];
+        dst->who[i] = src->who[i];
+    }
+
+    /* Restore structural fields */
+    dst->next = saved_next;
+    dst->gcl = saved_gcl;
+    dst->uid = saved_uid;
+    dst->valid = true;
+
+    /* Null out src's pointers so free_class_data() won't double-free */
+    src->name = NULL;
+    src->description = NULL;
+    src->comments = NULL;
+    src->enter_fun_name = NULL;
+    src->leave_fun_name = NULL;
+    src->groups = NULL;
+    src->rewards = NULL;
+    src->titles = NULL;
+    src->trait_values = NULL;
+    src->xp_table = NULL;
+    for (int i = 0; i < BODY_TYPE_MAX; i++) {
+        src->display[i] = NULL;
+        src->who[i] = NULL;
+    }
+}
+
+/**
+ * class_reload - Reload a class definition from its JSON file
+ *
+ * If the class already exists, updates it in-place (preserving all
+ * pointers to the CLASS_DATA struct). If it doesn't exist, loads it
+ * as a new class and registers it.
+ *
+ * @param name  Class name to reload (matches the JSON filename pattern)
+ * @return      The (re)loaded CLASS_DATA, or NULL on failure
+ */
+CLASS_DATA *class_reload(const char *name)
+{
+    char path[512];
+    CLASS_DATA *existing, *temp;
+
+    if (!name || !name[0])
+        return NULL;
+
+    class_build_path(name, path, sizeof(path));
+
+    /* Parse the JSON file */
+    temp = class_load_json(path);
+    if (!temp) {
+        log_stringf("class_reload: Failed to parse %s", path);
+        return NULL;
+    }
+
+    /* Check if this class already exists */
+    existing = class_find_exact(temp->name);
+
+    if (existing) {
+        /* In-place update — preserve the pointer */
+        class_copy_fields(existing, temp);
+
+        /* Free the empty shell (all contents already transferred) */
+        /* Note: alloc_perm memory, can't actually free the struct itself */
+
+        log_stringf("class_reload: Reloaded class '%s' (uid %d) in-place",
+                     existing->name, existing->uid);
+        return existing;
+    } else {
+        /* New class — assign UID and register */
+        if (temp->uid < 0)
+            temp->uid = ++top_class_uid;
+
+        class_register(temp);
+
+        log_stringf("class_reload: Loaded new class '%s' (uid %d)",
+                     temp->name, temp->uid);
+        return temp;
+    }
+}
+
+/***************************************************************************
  * Boot / Load                                                             *
  ***************************************************************************/
 

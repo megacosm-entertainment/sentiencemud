@@ -13,6 +13,9 @@
 #include "recycle.h"
 #include "wilds.h"
 #include "tables.h"
+#include "class_data.h"
+#include "song_data.h"
+#include "traits.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -1775,6 +1778,20 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_STRING;
         arg->d.str = (arg->d.mob && arg->d.mob->race) ? (char*)arg->d.mob->race->name : "unknown";
         break;
+    case ENTITY_MOB_RACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = self ? self->race : NULL;
+        break;
+    case ENTITY_MOB_CLASS:
+        arg->type = ENT_CLASS;
+        arg->d.clazz = (self && !IS_NPC(self) && self->pcdata->current_class)
+            ? self->pcdata->current_class->clazz : NULL;
+        break;
+    case ENTITY_MOB_CLASSLEVEL:
+        arg->type = ENT_CLASSLEVEL;
+        arg->d.classlevel = (self && !IS_NPC(self))
+            ? self->pcdata->current_class : NULL;
+        break;
     case ENTITY_MOB_ROOM:
         arg->type = ENT_ROOM;
         arg->d.room = arg->d.mob ? arg->d.mob->in_room : NULL;
@@ -2113,6 +2130,18 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         clear_buf(arg->buffer);
         add_buf(arg->buffer, "unknown");
         arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_MOB_RACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = NULL;
+        break;
+    case ENTITY_MOB_CLASS:
+        arg->type = ENT_CLASS;
+        arg->d.clazz = NULL;
+        break;
+    case ENTITY_MOB_CLASSLEVEL:
+        arg->type = ENT_CLASSLEVEL;
+        arg->d.classlevel = NULL;
         break;
     case ENTITY_MOB_ROOM:
         arg->type = ENT_ROOM;
@@ -3117,134 +3146,196 @@ char *expand_entity_list_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 
 char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
+    SKILL_DATA *skill = (arg->d.sn >= 0) ? skill_from_sn(arg->d.sn) : NULL;
+
     switch(*str) {
     case ENTITY_SKILL_GSN:
         arg->type = ENT_NUMBER;
-        arg->d.num = arg->d.sn;	// Redundant!
+        arg->d.num = skill ? skill->uid : -1;
         break;
 
     case ENTITY_SKILL_SPELL:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].spell_fun && skill_table[arg->d.sn].spell_fun != spell_null) ? 1 : 0;
+        arg->d.num = (skill && skill->isspell) ? 1 : 0;
+        break;
+
+    case ENTITY_SKILL_ISSPELL:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = skill ? skill->isspell : false;
         break;
 
     case ENTITY_SKILL_NAME:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
-        add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].name) ? skill_table[arg->d.sn].name : "");
+        add_buf(arg->buffer, (skill && skill->name) ? skill->name : "");
         arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_DISPLAY:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->display) ? skill->display : ((skill && skill->name) ? skill->name : ""));
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_DESCRIPTION:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->description) ? skill->description : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_SUMMARY:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->summary) ? skill->summary : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_COMMENTS:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->comments) ? skill->comments : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->uid : -1;
+        break;
+
+    case ENTITY_SKILL_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = skill ? skill->flags : 0;
+        arg->d.bv.table = skill_flags;
+        break;
+
+    case ENTITY_SKILL_DIFFICULTY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->difficulty : 0;
         break;
 
     case ENTITY_SKILL_BEATS:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].beats : 0;
+        arg->d.num = skill ? skill->beats : 0;
         break;
 
     case ENTITY_SKILL_LEVEL_WARRIOR:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_WARRIOR] : 0;
+        arg->d.num = skill ? skill->skill_level[CLASS_WARRIOR] : 0;
         break;
 
     case ENTITY_SKILL_LEVEL_CLERIC:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_CLERIC] : 0;
+        arg->d.num = skill ? skill->skill_level[CLASS_CLERIC] : 0;
         break;
 
     case ENTITY_SKILL_LEVEL_MAGE:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_MAGE] : 0;
+        arg->d.num = skill ? skill->skill_level[CLASS_MAGE] : 0;
         break;
 
     case ENTITY_SKILL_LEVEL_THIEF:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_THIEF] : 0;
+        arg->d.num = skill ? skill->skill_level[CLASS_THIEF] : 0;
         break;
-
 
     case ENTITY_SKILL_DIFFICULTY_WARRIOR:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_WARRIOR] : 0;
+        arg->d.num = skill ? skill->rating[CLASS_WARRIOR] : 0;
         break;
 
     case ENTITY_SKILL_DIFFICULTY_CLERIC:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_CLERIC] : 0;
+        arg->d.num = skill ? skill->rating[CLASS_CLERIC] : 0;
         break;
 
     case ENTITY_SKILL_DIFFICULTY_MAGE:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_MAGE] : 0;
+        arg->d.num = skill ? skill->rating[CLASS_MAGE] : 0;
         break;
 
     case ENTITY_SKILL_DIFFICULTY_THIEF:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_THIEF] : 0;
+        arg->d.num = skill ? skill->rating[CLASS_THIEF] : 0;
         break;
 
     case ENTITY_SKILL_TARGET:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].target : 0;
+        arg->d.num = skill ? skill->target : 0;
         break;
 
     case ENTITY_SKILL_POSITION:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].minimum_position : POS_DEAD;
+        arg->d.num = skill ? skill->minimum_position : POS_DEAD;
         break;
 
     case ENTITY_SKILL_NOUN:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
-        add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].noun_damage) ? skill_table[arg->d.sn].noun_damage: "");
+        add_buf(arg->buffer, (skill && skill->noun_damage) ? skill->noun_damage : "");
         arg->d.str = buf_string(arg->buffer);
         break;
 
     case ENTITY_SKILL_WEAROFF:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
-        add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_off) ? skill_table[arg->d.sn].msg_off : "");
+        add_buf(arg->buffer, (skill && skill->msg_off) ? skill->msg_off : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_OBJECT:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->msg_obj) ? skill->msg_obj : "");
         arg->d.str = buf_string(arg->buffer);
         break;
 
     case ENTITY_SKILL_DISPEL:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
-        add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_disp) ? skill_table[arg->d.sn].msg_disp : "");
+        add_buf(arg->buffer, (skill && skill->msg_disp) ? skill->msg_disp : "");
         arg->d.str = buf_string(arg->buffer);
         break;
 
     case ENTITY_SKILL_MANA:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].min_mana : 0;
+        arg->d.num = skill ? skill->min_mana : 0;
+        break;
+
+    case ENTITY_SKILL_RACE:
+        arg->type = ENT_RACE;
+        arg->d.race = skill ? skill->race : NULL;
         break;
 
     case ENTITY_SKILL_INK_TYPE1:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[0][0] : 0;
+        arg->d.num = skill ? skill->inks[0][0] : 0;
         break;
 
     case ENTITY_SKILL_INK_TYPE2:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[1][0] : 0;
+        arg->d.num = skill ? skill->inks[1][0] : 0;
         break;
 
     case ENTITY_SKILL_INK_TYPE3:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[2][0] : 0;
+        arg->d.num = skill ? skill->inks[2][0] : 0;
         break;
 
     case ENTITY_SKILL_INK_SIZE1:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[0][1] : 0;
+        arg->d.num = skill ? skill->inks[0][1] : 0;
         break;
 
     case ENTITY_SKILL_INK_SIZE2:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[1][1] : 0;
+        arg->d.num = skill ? skill->inks[1][1] : 0;
         break;
 
     case ENTITY_SKILL_INK_SIZE3:
         arg->type = ENT_NUMBER;
-        arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[2][1] : 0;
+        arg->d.num = skill ? skill->inks[2][1] : 0;
         break;
 
     default: return NULL;
@@ -4598,6 +4689,15 @@ char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         add_buf(arg->buffer, (pSong ? pSong->name : ""));
         arg->d.str = buf_string(arg->buffer);
         break;
+    case ENTITY_SONG_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->uid : -1;
+        break;
+    case ENTITY_SONG_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = pSong ? pSong->flags : 0;
+        arg->d.bv.table = song_flags;
+        break;
     case ENTITY_SONG_SPELL1:
         arg->type = ENT_SKILL;
         arg->d.sn = (pSong && pSong->spell1) ? skill_lookup(pSong->spell1) : -1;
@@ -4625,6 +4725,244 @@ char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_SONG_LEVEL:
         arg->type = ENT_NUMBER;
         arg->d.num = pSong ? pSong->level : -1;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_race(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    RACE_DATA *race = arg->d.race;
+
+    switch(*str) {
+    case ENTITY_RACE_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? race->name : "";
+        break;
+    case ENTITY_RACE_DESCRIPTION:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, race ? (race->description ? race->description : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_RACE_COMMENTS:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, race ? (race->comments ? race->comments : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_RACE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->uid : -1;
+        break;
+    case ENTITY_RACE_ID:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? (race->id ? race->id : "") : "";
+        break;
+    case ENTITY_RACE_PLAYABLE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = race ? race->playable : false;
+        break;
+    case ENTITY_RACE_STARTING:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = race ? race->starting : false;
+        break;
+    case ENTITY_RACE_ACT:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = race ? race->act : NULL;
+        arg->d.bm.bank = race ? act_flagbank : NULL;
+        break;
+    case ENTITY_RACE_AFFECTS:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = race ? race->aff : NULL;
+        arg->d.bm.bank = race ? affect_flagbank : NULL;
+        break;
+    case ENTITY_RACE_OFFENSE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->off : 0;
+        arg->d.bv.table = off_flags;
+        break;
+    case ENTITY_RACE_IMMUNE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->imm : 0;
+        arg->d.bv.table = imm_flags;
+        break;
+    case ENTITY_RACE_RESIST:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->res : 0;
+        arg->d.bv.table = res_flags;
+        break;
+    case ENTITY_RACE_VULN:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->vuln : 0;
+        arg->d.bv.table = vuln_flags;
+        break;
+    case ENTITY_RACE_FORM:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->form : 0;
+        arg->d.bv.table = form_flags;
+        break;
+    case ENTITY_RACE_PARTS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->parts : 0;
+        arg->d.bv.table = part_flags;
+        break;
+    case ENTITY_RACE_WHO:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? (race->who_name ? race->who_name : "") : "";
+        break;
+    case ENTITY_RACE_SIZE_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->min_size : 0;
+        break;
+    case ENTITY_RACE_SIZE_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_size : 0;
+        break;
+    case ENTITY_RACE_ALIGNMENT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->default_alignment : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_class(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CLASS_DATA *clazz = arg->d.clazz;
+
+    switch(*str) {
+    case ENTITY_CLASS_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = clazz ? clazz->name : "";
+        break;
+    case ENTITY_CLASS_DESCRIPTION:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, clazz ? (clazz->description ? clazz->description : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_CLASS_COMMENTS:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, clazz ? (clazz->comments ? clazz->comments : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_CLASS_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->uid : -1;
+        break;
+    case ENTITY_CLASS_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->type : -1;
+        break;
+    case ENTITY_CLASS_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = clazz ? clazz->flags : 0;
+        arg->d.bv.table = class_flags;
+        break;
+    case ENTITY_CLASS_PRIMARY_STAT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->primary_stat : -1;
+        break;
+    case ENTITY_CLASS_MAX_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->max_level : 0;
+        break;
+    case ENTITY_CLASS_HP_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->hp_min : 0;
+        break;
+    case ENTITY_CLASS_HP_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->hp_max : 0;
+        break;
+    case ENTITY_CLASS_GAINS_MANA:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = clazz ? clazz->gains_mana : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_classlevel(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CLASS_LEVEL *level = arg->d.classlevel;
+
+    switch(*str) {
+    case ENTITY_CLASSLEVEL_CLASS:
+        arg->type = ENT_CLASS;
+        arg->d.clazz = level ? level->clazz : NULL;
+        break;
+    case ENTITY_CLASSLEVEL_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = level ? level->level : 0;
+        break;
+    case ENTITY_CLASSLEVEL_XP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = level ? (int)level->xp : 0;
+        break;
+    case ENTITY_CLASSLEVEL_TITLE:
+        arg->type = ENT_STRING;
+        arg->d.str = level ? (level->active_title ? level->active_title : "") : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_skillentry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SKILL_ENTRY *entry = arg->d.entry;
+
+    switch(*str) {
+    case ENTITY_SKILLENTRY_SKILL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = entry ? entry->sn : -1;
+        break;
+    case ENTITY_SKILLENTRY_SONG:
+        arg->type = ENT_SONG;
+        arg->d.song = entry ? entry->song : NULL;
+        break;
+    case ENTITY_SKILLENTRY_RATING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->rating : 0;
+        break;
+    case ENTITY_SKILLENTRY_MOD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->mod_rating : 0;
+        break;
+    case ENTITY_SKILLENTRY_ISSPELL:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = entry ? entry->isspell : false;
+        break;
+    case ENTITY_SKILLENTRY_SOURCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->source : 0;
+        break;
+    case ENTITY_SKILLENTRY_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = entry ? entry->flags : 0;
+        arg->d.bv.table = skill_flags;
+        break;
+    case ENTITY_SKILLENTRY_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = entry ? entry->token : NULL;
         break;
 
     default: return NULL;
@@ -5695,6 +6033,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
         case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
         case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
+        case ENT_RACE:		next = expand_entity_race(info,str,arg); break;
+        case ENT_CLASS:		next = expand_entity_class(info,str,arg); break;
+        case ENT_CLASSLEVEL:	next = expand_entity_classlevel(info,str,arg); break;
+        case ENT_SKILLENTRY:	next = expand_entity_skillentry(info,str,arg); break;
         case ENT_CLONE_ROOM:	next = expand_entity_clone_room(info,str,arg); break;
         case ENT_WILDS_ROOM:	next = expand_entity_wilds_room(info,str,arg); break;
         case ENT_CLONE_DOOR:	next = expand_entity_clone_door(info,str,arg); break;
@@ -5885,6 +6227,44 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
     case ENT_SHIP:
         add_buf(buffer, IS_VALID(arg->d.ship) ? arg->d.ship->ship_name : SOMETHING);
         break;
+
+    case ENT_SKILL: {
+        SKILL_DATA *sk = (arg->d.sn >= 0) ? skill_from_sn(arg->d.sn) : NULL;
+        add_buf(buffer, sk ? sk->name : "none");
+        break;
+    }
+
+    case ENT_SONG:
+        add_buf(buffer, arg->d.song ? arg->d.song->name : "none");
+        break;
+
+    case ENT_RACE:
+        add_buf(buffer, arg->d.race ? arg->d.race->name : "unknown");
+        break;
+
+    case ENT_CLASS:
+        add_buf(buffer, arg->d.clazz ? arg->d.clazz->name : "none");
+        break;
+
+    case ENT_CLASSLEVEL: {
+        CLASS_LEVEL *cl = arg->d.classlevel;
+        if (cl && cl->clazz)
+            add_buf(buffer, cl->clazz->name);
+        else
+            add_buf(buffer, "none");
+        break;
+    }
+
+    case ENT_SKILLENTRY: {
+        SKILL_ENTRY *se = arg->d.entry;
+        if (se && se->skill_data)
+            add_buf(buffer, se->skill_data->name);
+        else if (se && se->song)
+            add_buf(buffer, se->song->name);
+        else
+            add_buf(buffer, "none");
+        break;
+    }
     
     case ENT_BITVECTOR:
         add_buf(buffer, flag_string(arg->d.bv.table, arg->d.bv.value));

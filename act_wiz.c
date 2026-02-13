@@ -55,6 +55,7 @@
 #include "io/json/json_game_settings.h"
 #include "log.h"
 #include "traits.h"
+#include "class_data.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -11471,6 +11472,142 @@ void do_reloadstats(CHAR_DATA *ch, char *argument)
     leaderboard_refresh_from_redis();
     leaderboard_save_backup();
     send_to_char("Leaderboards refreshed and backup saved.\n\r", ch);
+}
+
+/**
+ * do_classreload - Reload one or all class definitions from JSON
+ *
+ * Reloads class data from disk without a full reboot. Existing class
+ * structs are updated in-place so cached pointers remain valid.
+ *
+ * Syntax: classreload <name>
+ *         classreload all
+ *
+ * @param ch        Implementor using the command
+ * @param argument  Class name or "all"
+ */
+void do_classreload(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: classreload <name>\n\r"
+                      "        classreload all\n\r", ch);
+        return;
+    }
+
+    if (!str_cmp(arg, "all")) {
+        int count = 0, failed = 0;
+        DIR *dir = opendir("data/classes");
+        struct dirent *ent;
+
+        if (!dir) {
+            send_to_char("Could not open data/classes/ directory.\n\r", ch);
+            return;
+        }
+
+        while ((ent = readdir(dir)) != NULL) {
+            char *dot = strrchr(ent->d_name, '.');
+            if (!dot || str_cmp(dot, ".json"))
+                continue;
+
+            // Extract name from filename (strip .json)
+            char name[MAX_INPUT_LENGTH];
+            strncpy(name, ent->d_name, sizeof(name) - 1);
+            name[sizeof(name) - 1] = '\0';
+            char *ext = strrchr(name, '.');
+            if (ext) *ext = '\0';
+
+            // Convert underscores to spaces for lookup
+            for (char *p = name; *p; p++)
+                if (*p == '_') *p = ' ';
+
+            CLASS_DATA *cls = class_reload(name);
+            if (cls)
+                count++;
+            else
+                failed++;
+        }
+        closedir(dir);
+
+        printf_to_char(ch, "Classes reloaded: %d succeeded, %d failed.\n\r",
+                       count, failed);
+        return;
+    }
+
+    CLASS_DATA *cls = class_reload(arg);
+    if (cls)
+        printf_to_char(ch, "Class '%s' reloaded successfully.\n\r", cls->name);
+    else
+        printf_to_char(ch, "Failed to reload class '%s'.\n\r", arg);
+}
+
+/**
+ * do_racereload - Reload one or all race definitions from JSON
+ *
+ * Reloads race data from disk without a full reboot. Existing race
+ * structs are updated in-place so cached pointers remain valid.
+ *
+ * Syntax: racereload <id>
+ *         racereload all
+ *
+ * @param ch        Implementor using the command
+ * @param argument  Race id or "all"
+ */
+void do_racereload(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: racereload <id>\n\r"
+                      "        racereload all\n\r", ch);
+        return;
+    }
+
+    if (!str_cmp(arg, "all")) {
+        int count = 0, failed = 0;
+        DIR *dir = opendir("data/races");
+        struct dirent *ent;
+
+        if (!dir) {
+            send_to_char("Could not open data/races/ directory.\n\r", ch);
+            return;
+        }
+
+        while ((ent = readdir(dir)) != NULL) {
+            char *dot = strrchr(ent->d_name, '.');
+            if (!dot || str_cmp(dot, ".json"))
+                continue;
+
+            // Extract id from filename (strip .json)
+            char id[MAX_INPUT_LENGTH];
+            strncpy(id, ent->d_name, sizeof(id) - 1);
+            id[sizeof(id) - 1] = '\0';
+            char *ext = strrchr(id, '.');
+            if (ext) *ext = '\0';
+
+            RACE_DATA *race = race_reload(id);
+            if (race)
+                count++;
+            else
+                failed++;
+        }
+        closedir(dir);
+
+        printf_to_char(ch, "Races reloaded: %d succeeded, %d failed.\n\r",
+                       count, failed);
+        return;
+    }
+
+    RACE_DATA *race = race_reload(arg);
+    if (race)
+        printf_to_char(ch, "Race '%s' reloaded successfully.\n\r", race->name);
+    else
+        printf_to_char(ch, "Failed to reload race '%s'.\n\r", arg);
 }
 
 /**

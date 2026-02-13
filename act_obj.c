@@ -2083,7 +2083,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
  * do_repair - Repair damaged equipment
  *
  * Two repair methods supported:
- * 1. Self-repair using gsn_repair skill (if character has it)
+ * 1. Self-repair using skill_resolve_gsn("repair") skill (if character has it)
  *    - Repairs condition based on skill check
  *    - Uses movement points as cost
  *    - Full success restores 100% condition
@@ -2110,7 +2110,7 @@ void do_repair(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     /* first check if they can repair it themselves */
-    if ((sk = get_skill(ch, gsn_repair)) > 0)
+    if ((sk = get_skill(ch, skill_resolve_gsn("repair"))) > 0)
     {
         if (arg[0] == '\0')
     {
@@ -2499,7 +2499,7 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
 /**
  * do_envenom - Apply poison to food, drink, or weapons
  *
- * Uses gsn_envenom skill to poison consumables or weapons.
+ * Uses skill_resolve_gsn("envenom") skill to poison consumables or weapons.
  *
  * Food/Drink: Sets poison flag (value[3] = 1). Blessed or burn-proof
  * items are immune.
@@ -2509,7 +2509,7 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
  * Weapon must be bladed type (sword, dagger, axe, polearm).
  *
  * Higher skill = lower chance of being seen when poisoning.
- * Improves gsn_envenom on success/failure.
+ * Improves skill_resolve_gsn("envenom") on success/failure.
  *
  * @param ch        Character envenoming
  * @param argument  Item to poison
@@ -2522,7 +2522,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
     AFFECT_DATA af;
     int percent,skill;
 
-    if (get_skill(ch, gsn_envenom) == 0)
+    if (get_skill(ch, skill_resolve_gsn("envenom")) == 0)
     {
     send_to_char("What?\n\r", ch);
     return;
@@ -2542,7 +2542,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if ((skill = get_skill(ch,gsn_envenom)) < 1)
+    if ((skill = get_skill(ch,skill_resolve_gsn("envenom"))) < 1)
     {
     send_to_char("Are you crazy? You'd poison yourself!\n\r",ch);
     return;
@@ -2566,16 +2566,16 @@ void do_envenom(CHAR_DATA *ch, char *argument)
         if (!obj->value[3])
         {
         obj->value[3] = 1;
-        check_improve(ch,gsn_envenom,true,4);
+        check_improve(ch,skill_resolve_gsn("envenom"),true,4);
         }
-        WAIT_STATE(ch,skill_table[gsn_envenom].beats);
+        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
         return;
     }
 
     act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
     if (!obj->value[3])
-        check_improve(ch,gsn_envenom,false,4);
-    WAIT_STATE(ch,skill_table[gsn_envenom].beats);
+        check_improve(ch,skill_resolve_gsn("envenom"),false,4);
+    WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
     return;
      }
 
@@ -2617,7 +2617,7 @@ memset(&af,0,sizeof(af));
 
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
-            af.type      = gsn_poison;
+            af.type      = skill_resolve_gsn("poison");
     af.skill = skill_from_sn(af.type);
             af.level     = ch->tot_level * percent / 100;
             af.duration  = ch->tot_level/2 * percent / 100;
@@ -2633,15 +2633,15 @@ memset(&af,0,sizeof(af));
         if(number_range(0,105) > skill)
         act("$n coats $p with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You coat $p with venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-        check_improve(ch,gsn_envenom,true,3);
-        WAIT_STATE(ch,skill_table[gsn_envenom].beats);
+        check_improve(ch,skill_resolve_gsn("envenom"),true,3);
+        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
             return;
         }
     else
     {
         act("You fail to envenom $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-        check_improve(ch,gsn_envenom,false,3);
-        WAIT_STATE(ch,skill_table[gsn_envenom].beats);
+        check_improve(ch,skill_resolve_gsn("envenom"),false,3);
+        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
         return;
     }
     }
@@ -3004,7 +3004,7 @@ memset(&af,0,sizeof(af));
     send_to_char("You choke and gag.\n\r", ch);
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_BIOLOGICAL;
-    af.type      = gsn_poison;
+    af.type      = skill_resolve_gsn("poison");
     af.skill = skill_from_sn(af.type);
     af.level	 = number_fuzzy(amount);
     af.duration  = 3 * amount;
@@ -3123,7 +3123,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 
         af.where	 = TO_AFFECTS;
         af.group     = AFFGROUP_BIOLOGICAL;
-        af.type      = gsn_poison;
+        af.type      = skill_resolve_gsn("poison");
     af.skill = skill_from_sn(af.type);
         af.level 	 = number_fuzzy(obj->value[0]);
         af.duration  = 2 * obj->value[0];
@@ -3693,7 +3693,7 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 
         sn = get_weapon_sn(ch);
 
-        if (sn == gsn_hand_to_hand)
+        if (sn == skill_resolve_gsn("hand to hand"))
            return;
 
         skill = get_weapon_skill(ch,sn);
@@ -4450,16 +4450,16 @@ void recite_end(CHAR_DATA *ch)
     {
         act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 
-        if (number_percent() >= 20 + get_skill(ch,gsn_scrolls) * 4/5)
+        if (number_percent() >= 20 + get_skill(ch,skill_resolve_gsn("scrolls")) * 4/5)
         {
             send_to_char("You mispronounce a syllable.\n\r",ch);
-            check_improve(ch,gsn_scrolls,false,2);
+            check_improve(ch,skill_resolve_gsn("scrolls"),false,2);
         }
         else
         {
             for (spell = scroll->spells; spell != NULL; spell = spell->next)
                 obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
-            check_improve(ch,gsn_scrolls,true,2);
+            check_improve(ch,skill_resolve_gsn("scrolls"),true,2);
         }
 
         extract_obj(scroll);
@@ -4524,11 +4524,11 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     act("$n brandishes $p.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("You brandish $p.",  ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     if (ch->tot_level < staff->level
-    ||   number_percent() >= 20 + get_skill(ch,gsn_staves) * 4/5)
+    ||   number_percent() >= 20 + get_skill(ch,skill_resolve_gsn("staves")) * 4/5)
      {
         act ("You fail to invoke $p.",ch, NULL, NULL,staff, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act ("...and nothing happens.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
-        check_improve(ch,gsn_staves,false,2);
+        check_improve(ch,skill_resolve_gsn("staves"),false,2);
     }
     else
     {
@@ -4569,7 +4569,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
             obj_cast_spell(sn, spell->level, ch, vch, NULL);
         }
 
-        check_improve(ch,gsn_staves,true,2);
+        check_improve(ch,skill_resolve_gsn("staves"),true,2);
         }
     }
     }
@@ -4669,18 +4669,18 @@ void do_zap(CHAR_DATA *ch, char *argument)
     }
 
      if (ch->tot_level < wand->level
-    ||  number_percent() >= 20 + get_skill(ch,gsn_wands) * 4/5)
+    ||  number_percent() >= 20 + get_skill(ch,skill_resolve_gsn("wands")) * 4/5)
     {
         act("Your efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n's efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
-        check_improve(ch,gsn_wands,false,2);
+        check_improve(ch,skill_resolve_gsn("wands"),false,2);
     }
     else
     {
         for (spell = wand->spells; spell != NULL; spell = spell->next)
         obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
 
-        check_improve(ch,gsn_wands,true,2);
+        check_improve(ch,skill_resolve_gsn("wands"),true,2);
     }
     }
 
@@ -4696,11 +4696,11 @@ void do_zap(CHAR_DATA *ch, char *argument)
 /**
  * do_steal - Attempt to steal coins or items from a victim
  *
- * Uses gsn_steal skill to pilfer from another character.
+ * Uses skill_resolve_gsn("steal") skill to pilfer from another character.
  * Success is affected by:
  * - Victim awareness (sleeping -10%, can't see +25%, otherwise +50%)
  * - Highwayman subclass with active holdup = guaranteed success
- * - gsn_deception can detect PC thieves
+ * - skill_resolve_gsn("deception") can detect PC thieves
  * - CPK rooms required for PC vs PC stealing
  *
  * Coin theft: Steals random portion based on level ratio.
@@ -4773,7 +4773,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    WAIT_STATE(ch, skill_table[gsn_steal].beats);
+    WAIT_STATE(ch, skill_table[skill_resolve_gsn("steal")].beats);
     percent  = number_percent();
 
     if (!IS_AWAKE(victim))
@@ -4793,15 +4793,15 @@ void do_steal(CHAR_DATA *ch, char *argument)
         percent += 50;
     }
 
-    if (percent > get_skill(ch,gsn_steal)
+    if (percent > get_skill(ch,skill_resolve_gsn("steal"))
          || (!IS_NPC(victim)
-         && number_percent() < get_skill(victim, gsn_deception))
+         && number_percent() < get_skill(victim, skill_resolve_gsn("deception")))
          || (!IS_NPC(ch)
           && !IS_NPC(victim)
           && !IS_SET(ch->in_room->room_flag[0], ROOM_CPK)))
     {
     send_to_char("Oops.\n\r", ch);
-    affect_strip(ch,gsn_sneak);
+    affect_strip(ch,skill_resolve_gsn("sneak"));
     REMOVE_BIT(ch->affected_by[0],AFF_SNEAK);
 
     act("$n tried to steal from you.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL   );
@@ -4830,7 +4830,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     {
         if (IS_NPC(victim))
         {
-            check_improve(ch,gsn_steal,false,2);
+            check_improve(ch,skill_resolve_gsn("steal"),false,2);
         multi_hit(victim, ch, TYPE_UNDEFINED);
         }
     }
@@ -4866,7 +4866,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
             silver,gold);
 
     send_to_char(buf, ch);
-    check_improve(ch,gsn_steal,true,2);
+    check_improve(ch,skill_resolve_gsn("steal"),true,2);
     return;
     }
 
@@ -4916,7 +4916,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     obj_to_char(obj, ch);
     REMOVE_BIT(obj->extra[1], ITEM_KEPT);
     act("You pocket $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-    check_improve(ch,gsn_steal,true,2);
+    check_improve(ch,skill_resolve_gsn("steal"),true,2);
     send_to_char("{WGot it!{x\n\r", ch);
 }
 
@@ -5409,7 +5409,7 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
  * - Bankers: Withdraw from bank account
  *
  * Features:
- * - Haggling with gsn_haggle skill for discounts
+ * - Haggling with skill_resolve_gsn("haggle") skill for discounts
  * - Quantity purchases: "buy 5 sword"
  * - Stock items with limited quantities
  * - TRIG_BUY/TRIG_PREBUY can intercept purchases
@@ -5721,13 +5721,13 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
         /* haggle */
         roll = number_percent();
-        if (roll < get_skill(ch,gsn_haggle))
+        if (roll < get_skill(ch,skill_resolve_gsn("haggle")))
         {
             cost -= cost / 3 * roll / 100;
             /*sprintf(buf,"You haggle the price down to %d coins.\n\r",cost);*/
             /*send_to_char(buf,ch);*/
             haggled = true;
-            check_improve(ch,gsn_haggle,true,4);
+            check_improve(ch,skill_resolve_gsn("haggle"),true,4);
         }
 
         if ((ch->silver + 100 * ch->gold) < cost)
@@ -5877,11 +5877,11 @@ void do_buy(CHAR_DATA *ch, char *argument)
             {
                 /* haggle */
                 roll = number_percent();
-                if (roll < get_skill(ch,gsn_haggle))
+                if (roll < get_skill(ch,skill_resolve_gsn("haggle")))
                 {
                     cost -= ((cost/2) * roll)/100;
                     haggled = true;
-                    check_improve(ch,gsn_haggle,true,4);
+                    check_improve(ch,skill_resolve_gsn("haggle"),true,4);
                 }
             }
 
@@ -6149,7 +6149,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
                 }
             }
 
-            int chance = get_skill(ch, gsn_haggle);
+            int chance = get_skill(ch, skill_resolve_gsn("haggle"));
             long new_value = 0;
 
             if( IS_NULLSTR(stock->custom_price) )
@@ -6175,7 +6175,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
                 if( haggled )
                 {
                     act("You haggle with $N.",ch,keeper, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
-                    check_improve(ch,gsn_haggle,true,4);
+                    check_improve(ch,skill_resolve_gsn("haggle"),true,4);
                 }
 
                 // Deduct price
@@ -6880,7 +6880,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
         act("You ask $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n asks $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        spell_identify(skill_from_sn(gsn__inspect), ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+        spell_identify(skill_find("_inspect"), ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
     }
     else if( request.stock != NULL )
     {
@@ -6903,7 +6903,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
                     sprintf(buf, "{YExpires After{y:{X %d hours{x\n\r", request.stock->duration);
                     send_to_char(buf, ch);
                 }
-                spell_identify(skill_from_sn(gsn__inspect), ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                spell_identify(skill_find("_inspect"), ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
             }
             extract_obj(obj);
             return;
@@ -6975,7 +6975,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
  * Shop must accept the item type in its buy_type[] array.
  *
  * Features:
- * - Haggling with gsn_haggle skill for better prices
+ * - Haggling with skill_resolve_gsn("haggle") skill for better prices
  * - Commodity trading via ACT2_TRADER NPCs (cart system)
  * - Price reduction if shop already has duplicate
  * - TRIG_PRESELL can cancel sale
@@ -7125,7 +7125,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
             if( IS_NULLSTR(stock->custom_price) )
             {
                 bool haggled = false;
-                int chance = get_skill(ch, gsn_haggle);
+                int chance = get_skill(ch, skill_resolve_gsn("haggle"));
 
                 long silver = adjust_keeper_price(keeper, stock->silver, false);
                 if( silver > 0 )
@@ -7203,7 +7203,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
                 if( haggled ) {
                     send_to_char("You haggle with the shopkeeper.\n\r",ch);
-                    check_improve(ch,gsn_haggle,true,4);
+                    check_improve(ch,skill_resolve_gsn("haggle"),true,4);
                 }
 
                 sprintf(buf, "You sell $p for%s.", get_shop_purchase_price(silver, qp, dp, pneuma));
@@ -7264,13 +7264,13 @@ void do_sell(CHAR_DATA *ch, char *argument)
     {
         /* haggle */
         roll = number_percent();
-        if (roll < get_skill(ch,gsn_haggle))
+        if (roll < get_skill(ch,skill_resolve_gsn("haggle")))
         {
             send_to_char("You haggle with the shopkeeper.\n\r",ch);
             cost += obj->cost / 2 * roll / 100;
             cost = UMIN(cost,95 * get_cost(keeper,obj,true) / 100);
             cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
-            check_improve(ch,gsn_haggle,true,4);
+            check_improve(ch,skill_resolve_gsn("haggle"),true,4);
         }
     }
     sprintf(buf, "You sell $p for%s", get_shop_purchase_price(cost, 0, 0, 0));
@@ -7648,7 +7648,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
         if (IS_AFFECTED(ch, AFF_SNEAK))
     {
         send_to_char("You stop moving silently.\n\r", ch);
-        affect_strip(ch, gsn_sneak);
+        affect_strip(ch, skill_resolve_gsn("sneak"));
     }
 
     if (ch->pulled_cart != NULL)
@@ -7703,7 +7703,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
  *
  * Dual-purpose command:
  *
- * 1. Turn Undead (gsn_turn_undead skill):
+ * 1. Turn Undead (skill_resolve_gsn("turn undead") skill):
  *    - Affects undead characters with holy damage
  *    - Success causes damage, flee, and panic/daze
  *    - Chance based on level difference and skill
@@ -7732,7 +7732,7 @@ void do_turn(CHAR_DATA *ch, char *argument)
     }
 
     /* First look for a character to turn */
-    if ((vch = get_char_room(ch, NULL, arg)) && (skill = get_skill(ch, gsn_turn_undead)) > 0) {
+    if ((vch = get_char_room(ch, NULL, arg)) && (skill = get_skill(ch, skill_resolve_gsn("turn undead"))) > 0) {
         int chance;
 
         if(p_percent_trigger(vch,NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_ATTACK_TURN,"pretest") ||
@@ -7744,7 +7744,7 @@ void do_turn(CHAR_DATA *ch, char *argument)
 
         act("{WYou feel a powerful divine presence pass through you!{x",ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
-        WAIT_STATE(ch, skill_table[gsn_turn_undead].beats);
+        WAIT_STATE(ch, skill_table[skill_resolve_gsn("turn undead")].beats);
 
         if (IS_UNDEAD(vch)) {
             chance = (ch->tot_level - vch->tot_level) + skill / 5;
@@ -7791,11 +7791,11 @@ void do_turn(CHAR_DATA *ch, char *argument)
 /**
  * do_skull - Extract a skull from a player corpse
  *
- * Evil-aligned skill (gsn_skull) to take skulls from PC corpses.
+ * Evil-aligned skill (skill_resolve_gsn("skull")) to take skulls from PC corpses.
  * Creates either a golden skull (CPK death) or normal skull.
  *
  * Requirements:
- * - Must be NPC with alignment < 0, or PC with gsn_skull
+ * - Must be NPC with alignment < 0, or PC with skill_resolve_gsn("skull")
  * - Target must be ITEM_CORPSE_PC with PART_HEAD
  * - Corpse cannot be immortal level
  *
@@ -7816,7 +7816,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if ((IS_NPC(ch) && ch->alignment >= 0) || (!IS_NPC(ch) && get_skill(ch,gsn_skull) == 0))
+    if ((IS_NPC(ch) && ch->alignment >= 0) || (!IS_NPC(ch) && get_skill(ch,skill_resolve_gsn("skull")) == 0))
     {
     send_to_char("Why would you want to do such a thing?\n\r",ch);
     return;
@@ -7860,7 +7860,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
         chance = (ch->tot_level * 3)/4 - obj->level/10;
     else
-        chance = get_skill(ch, gsn_skull) - 3;
+        chance = get_skill(ch, skill_resolve_gsn("skull")) - 3;
 
     chance *= corpse_info_table[corpse].skulling_chance;
 
@@ -7868,7 +7868,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
     {
         act(corpse_info_table[corpse].skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act(corpse_info_table[corpse].skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        check_improve(ch, gsn_skull, false, 1);
+        check_improve(ch, skill_resolve_gsn("skull"), false, 1);
 //	    SET_BIT(obj->extra[0], ITEM_NOSKULL);
         REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
         REMOVE_BIT(CORPSE_PARTS(obj),PART_BRAINS);
@@ -7954,7 +7954,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
     sprintf(buf, corpse_info_table[corpse].skull_success_other, obj->owner);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     obj_to_char(skull, ch);
-    check_improve(ch, gsn_skull, true, 1);
+    check_improve(ch, skill_resolve_gsn("skull"), true, 1);
     }
     else
         act("There's no $t here.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR, NULL, NULL);
@@ -7962,11 +7962,11 @@ void do_skull(CHAR_DATA *ch, char *argument)
 
 
 /**
- * do_brew - Create potions from spells (gsn_brew skill)
+ * do_brew - Create potions from spells (skill_resolve_gsn("brew") skill)
  *
  * Alchemical skill to brew spells into potions. Requires:
  * - ITEM_EMPTY_VIAL in inventory
- * - Knowledge of gsn_brew skill
+ * - Knowledge of skill_resolve_gsn("brew") skill
  * - Knowledge of the target spell
  * - Sufficient mana (2/3 of spell cost)
  *
@@ -7997,7 +7997,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if ((chance = get_skill(ch,gsn_brew)) == 0)
+    if ((chance = get_skill(ch,skill_resolve_gsn("brew"))) == 0)
     {
         send_to_char("Brew? What's that?\n\r",ch);
         return;
@@ -8108,7 +8108,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
     char potion_name[MAX_STRING_LENGTH];
     SPELL_DATA *spell;
 
-    chance = (get_skill(ch, gsn_brew) * 2)/3 +
+    chance = (get_skill(ch, skill_resolve_gsn("brew")) * 2)/3 +
         get_skill(ch, sn)/3 - 10 +
         (get_curr_stat(ch, STAT_CON))/4;
 
@@ -8124,7 +8124,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
     {
     act("{Y$n's attempt to brew a potion fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("{YYou fail to contain the magic within the vial, shattering the vial completely.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    check_improve(ch, gsn_brew, false, 2);
+    check_improve(ch, skill_resolve_gsn("brew"), false, 2);
     return;
     }
 
@@ -8135,7 +8135,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
     sprintf(buf, "$n brews a potion of %s.", potion_name);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    check_improve(ch, gsn_brew, true, 2);
+    check_improve(ch, skill_resolve_gsn("brew"), true, 2);
 
     potion = create_object(get_reserved_obj_index("obj_potion"), 1, false);
 
@@ -8160,9 +8160,9 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
 
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
     {
-    if (get_skill(ch, gsn_brew) < 75)
+    if (get_skill(ch, skill_resolve_gsn("brew")) < 75)
         potion->value[5] = 1;
-    else if (get_skill(ch, gsn_brew) < 85)
+    else if (get_skill(ch, skill_resolve_gsn("brew")) < 85)
         potion->value[5] = 2;
     else
         potion->value[5] = 3;
@@ -8179,7 +8179,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
  * do_plant - Plant an object on another character
  *
  * Reverse of steal - places an item in target's inventory.
- * Uses gsn_plant skill. Target must be in room and visible.
+ * Uses skill_resolve_gsn("plant") skill. Target must be in room and visible.
  *
  * @param ch        Character planting
  * @param argument  Item and target
@@ -8230,7 +8230,7 @@ void do_plant(CHAR_DATA *ch, char *argument)
 /**
  * do_hands - Use healing hands skill to cure afflictions
  *
- * Clerical skill (gsn_healing_hands) that cures multiple conditions:
+ * Clerical skill (skill_resolve_gsn("healing hands")) that cures multiple conditions:
  * - Disease
  * - Poison
  * - Blindness
@@ -8260,7 +8260,7 @@ void do_hands(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if ((chance = get_skill(ch,gsn_healing_hands)) == 0)
+    if ((chance = get_skill(ch,skill_resolve_gsn("healing hands"))) == 0)
     {
     send_to_char("Hands? Keep your hands to yourself.\n\r",ch);
     return;
@@ -8284,13 +8284,13 @@ void do_hands(CHAR_DATA *ch, char *argument)
     act("$n places $s hands over $s heart.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
 
-    WAIT_STATE(ch, skill_table[gsn_healing_hands].beats);
+    WAIT_STATE(ch, skill_table[skill_resolve_gsn("healing hands")].beats);
 
-    if (number_percent() > get_skill(ch, gsn_healing_hands))
+    if (number_percent() > get_skill(ch, skill_resolve_gsn("healing hands")))
     {
     act("You see a faint glow of magic, but nothing happens.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     act("You see a faint glow of magic eminating from $n's hands, but nothing happens.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    check_improve(ch, gsn_healing_hands, false, 1);
+    check_improve(ch, skill_resolve_gsn("healing hands"), false, 1);
     return;
     }
 
@@ -8309,16 +8309,16 @@ void do_hands(CHAR_DATA *ch, char *argument)
     /* @@@NIB : 20070127 : for curing the toxic fumes*/
     sn = skill_lookup("cure toxic");
     spell_cure_toxic(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
-    check_improve(ch, gsn_healing_hands, true, 1);
+    check_improve(ch, skill_resolve_gsn("healing hands"), true, 1);
 }
 
 
 /**
- * do_scribe - Create scrolls from spells (gsn_scribe skill)
+ * do_scribe - Create scrolls from spells (skill_resolve_gsn("scribe") skill)
  *
  * Scribes up to 3 spells onto a blank scroll. Requires:
  * - ITEM_BLANK_SCROLL in inventory
- * - Knowledge of gsn_scribe skill
+ * - Knowledge of skill_resolve_gsn("scribe") skill
  * - Knowledge of target spell(s)
  * - Sufficient mana (2/3 of combined spell costs)
  *
@@ -8353,7 +8353,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if ((chance = get_skill(ch,gsn_scribe)) == 0)
+    if ((chance = get_skill(ch,skill_resolve_gsn("scribe"))) == 0)
     {
         send_to_char("Scribe? What's that?\n\r",ch);
         return;
@@ -8510,12 +8510,12 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     SPELL_DATA *spell;
 
     if (sn2 == 0)
-        chance = get_skill(ch, gsn_scribe);
+        chance = get_skill(ch, skill_resolve_gsn("scribe"));
     else
     if (sn3 == 0)
-        chance = get_skill(ch, gsn_scribe) / 2 + get_skill(ch, gsn_scribe) / 3 + get_skill(ch, gsn_scribe)/7;
+        chance = get_skill(ch, skill_resolve_gsn("scribe")) / 2 + get_skill(ch, skill_resolve_gsn("scribe")) / 3 + get_skill(ch, skill_resolve_gsn("scribe"))/7;
     else
-        chance = get_skill(ch, gsn_scribe) / 2 + get_skill(ch, gsn_scribe) / 3;
+        chance = get_skill(ch, skill_resolve_gsn("scribe")) / 2 + get_skill(ch, skill_resolve_gsn("scribe")) / 3;
 
     if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
@@ -8529,7 +8529,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     {
         act("{Y$n's scroll explodes into flame.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         act("{YYour blank scroll explodes into flame as you make a minor mistake.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        check_improve(ch, gsn_scribe, false, 3);
+        check_improve(ch, skill_resolve_gsn("scribe"), false, 3);
         return;
     }
 
@@ -8548,7 +8548,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     sprintf(buf, "$n creates a scroll of %s.", scroll_name);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    check_improve(ch, gsn_scribe, true, 3);
+    check_improve(ch, skill_resolve_gsn("scribe"), true, 3);
 
     scroll = create_object(get_reserved_obj_index("obj_scroll"), 1, false);
 
@@ -8705,10 +8705,10 @@ bool is_mana_regen_relic_in_room(ROOM_INDEX_DATA *room)
 
 
 /**
- * do_bomb - Create a smoke bomb (gsn_bomb skill)
+ * do_bomb - Create a smoke bomb (skill_resolve_gsn("bomb") skill)
  *
  * Begins crafting a smoke bomb. Requires:
- * - gsn_bomb skill
+ * - skill_resolve_gsn("bomb") skill
  * - Mana >= 50%
  * - Movement >= 50%
  *
@@ -8722,7 +8722,7 @@ void do_bomb(CHAR_DATA *ch, char *argument)
     if (is_dead(ch))
     return;
 
-    if (get_skill(ch,gsn_bomb) == 0)
+    if (get_skill(ch,skill_resolve_gsn("bomb")) == 0)
     {
         send_to_char("You know nothing about explosives.\n\r",ch);
         return;
@@ -8754,7 +8754,7 @@ void do_bomb(CHAR_DATA *ch, char *argument)
 void bomb_end(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
-    int chance = get_skill(ch, gsn_bomb);
+    int chance = get_skill(ch, skill_resolve_gsn("bomb"));
 
     if (number_percent() < chance)
     {
@@ -8772,13 +8772,13 @@ void bomb_end(CHAR_DATA *ch)
     else
         obj_to_char(obj, ch);
 
-    check_improve(ch, gsn_bomb, true, 1);
+    check_improve(ch, skill_resolve_gsn("bomb"), true, 1);
     } else {
     act("{Y$n's homemade explosives {REXPLODE{Y, causing $m great pain!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("{YYour smoke bomb {REXPLODES{Y as you bumble up the recipe! {ROUCH!!!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    damage(ch, ch, (2 * ch->max_hit)/3, gsn_bomb, DAM_ENERGY, false);
+    damage(ch, ch, (2 * ch->max_hit)/3, skill_resolve_gsn("bomb"), DAM_ENERGY, false);
 
-    check_improve(ch, gsn_bomb, false, 1);
+    check_improve(ch, skill_resolve_gsn("bomb"), false, 1);
     }
 
     ch->mana -= ch->mana/4;
@@ -8789,11 +8789,11 @@ void bomb_end(CHAR_DATA *ch)
 /**
  * do_infuse - Infuse a weapon with elemental power
  *
- * Uses gsn_infuse skill to add temporary elemental damage to a weapon.
+ * Uses skill_resolve_gsn("infuse") skill to add temporary elemental damage to a weapon.
  * Available infusion types: fire, cold, shock, acid, poison.
  *
  * Requirements:
- * - gsn_infuse skill
+ * - skill_resolve_gsn("infuse") skill
  * - Weapon in inventory
  * - Weapon type must be edged (sword, dagger, axe, etc.)
  * - Weapon cannot already have that infusion
@@ -8813,7 +8813,7 @@ void do_infuse(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
-    if ((skill = get_skill(ch, gsn_infuse)) == 0)
+    if ((skill = get_skill(ch, skill_resolve_gsn("infuse"))) == 0)
     {
     send_to_char("What?\n\r", ch);
     return;
@@ -8887,7 +8887,7 @@ memset(&af,0,sizeof(af));
     {
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
-            af.type      = gsn_infuse;
+            af.type      = skill_resolve_gsn("infuse");
     af.skill = skill_from_sn(af.type);
             af.level     = (ch->tot_level * skill)/ 100;
             af.duration  = ((ch->tot_level/2) * skill)/ 100;
@@ -8901,15 +8901,15 @@ memset(&af,0,sizeof(af));
 
             act("$n carefully infuses $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You carefully infuse $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-        check_improve(ch,gsn_infuse,true,3);
-        WAIT_STATE(ch,skill_table[gsn_infuse].beats);
+        check_improve(ch,skill_resolve_gsn("infuse"),true,3);
+        WAIT_STATE(ch,skill_table[skill_resolve_gsn("infuse")].beats);
             return;
         }
     else
     {
         act("You fail to infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-        check_improve(ch,gsn_infuse,false,3);
-        WAIT_STATE(ch,skill_table[gsn_infuse].beats);
+        check_improve(ch,skill_resolve_gsn("infuse"),false,3);
+        WAIT_STATE(ch,skill_table[skill_resolve_gsn("infuse")].beats);
         return;
     }
     }

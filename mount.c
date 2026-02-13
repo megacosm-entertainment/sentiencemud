@@ -86,7 +86,7 @@ void do_mount(CHAR_DATA *ch, char *argument)
     {
     act("{ROUCH! You attempt to mount $N, but $E bucks and kicks you off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     act("{R$n attempts to mount $N, but $E bucks and kicks $m off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    damage(mount, ch, ch->hit/5, gsn_kick, DAM_BASH, false);
+    damage(mount, ch, ch->hit/5, skill_resolve_gsn("kick"), DAM_BASH, false);
     stop_fighting(ch, true);
     ch->position = POS_RESTING;
     ch->bashed = 4;
@@ -107,12 +107,12 @@ void do_mount(CHAR_DATA *ch, char *argument)
 
     p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOUNT, NULL);
 
-    affect_strip(ch, gsn_sneak);
+    affect_strip(ch, skill_resolve_gsn("sneak"));
     REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
-    affect_strip(ch, gsn_hide);
+    affect_strip(ch, skill_resolve_gsn("hide"));
     REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
 
-    if (get_skill(ch, gsn_riding) > 0)
+    if (get_skill(ch, skill_resolve_gsn("riding")) > 0)
     add_grouped(mount, ch, true);
 }
 

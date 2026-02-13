@@ -42,9 +42,9 @@ SPELL_FUNC(spell_faerie_fog)
         if (!check_spell_deflection(ch, ich, sn))
             continue;
 
-        affect_strip(ich, gsn_invis);
-        affect_strip(ich, gsn_mass_invis);
-        affect_strip(ich, gsn_sneak);
+        affect_strip(ich, skill_resolve_gsn("invis"));
+        affect_strip(ich, skill_resolve_gsn("mass invis"));
+        affect_strip(ich, skill_resolve_gsn("sneak"));
 
         REMOVE_BIT(ich->affected_by[0], AFF_HIDE);
         REMOVE_BIT(ich->affected_by[0], AFF_INVISIBLE);

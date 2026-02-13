@@ -101,7 +101,7 @@ SPELL_FUNC(spell_colour_spray)
     if (saves_spell(level, victim,DAM_LIGHT))
         dam /= 2;
     else
-        spell_blindness(skill_from_sn(gsn_blindness),level/2,ch,(void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+        spell_blindness(skill_find("blindness"),level/2,ch,(void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     damage(ch, victim, dam, sn, DAM_LIGHT,true);
     return true;
@@ -180,10 +180,10 @@ SPELL_FUNC(spell_cure_disease)
         chance = 75;
 
     if (number_percent() < chance) {
-        affect_strip(victim, gsn_plague);
+        affect_strip(victim, skill_resolve_gsn("plague"));
         // @@@NIB : 20070127 : added in case the poison is from toxic fumes as well
         if (!IS_AFFECTED(victim, AFF_PLAGUE)) {
-            send_to_char(skill_table[gsn_plague].msg_off, victim);
+            send_to_char(skill_table[skill_resolve_gsn("plague")].msg_off, victim);
             send_to_char("\n\r", victim);
             act("$n looks relieved as $s sores vanish.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         } else if (victim == ch)
@@ -232,10 +232,10 @@ SPELL_FUNC(spell_cure_poison)
         chance = 75;
 
     if (number_percent() < chance) {
-        affect_strip(victim, gsn_poison);
+        affect_strip(victim, skill_resolve_gsn("poison"));
         // @@@NIB : 20070127 : added in case the poison is from toxic fumes as well
         if (!IS_AFFECTED(victim, AFF_POISON)) {
-            send_to_char(skill_table[gsn_poison].msg_off, victim);
+            send_to_char(skill_table[skill_resolve_gsn("poison")].msg_off, victim);
             send_to_char("\n\r", victim);
             act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         } else if (victim == ch)
@@ -270,7 +270,7 @@ SPELL_FUNC(spell_cure_toxic)
     int chance, helped;
     AFFECT_DATA *paf, *tox, *next;
 
-    if (!(tox = affect_find(victim->affected,gsn_toxic_fumes))) {
+    if (!(tox = affect_find(victim->affected,skill_resolve_gsn("toxic fumes")))) {
         if (victim == ch)
             send_to_char("You aren't suffering from toxic fumes.\n\r",ch);
         else
@@ -286,8 +286,8 @@ SPELL_FUNC(spell_cure_toxic)
     if (number_percent() < chance) {
         if(IS_IMMORTAL(ch) || (!IS_SET(victim->in_room->room_flag[1], ROOM_TOXIC_BOG) &&
             (victim->in_room->sector_type != SECT_TOXIC_BOG))) {
-            affect_strip(victim, gsn_toxic_fumes);
-            send_to_char(skill_table[gsn_toxic_fumes].msg_off, victim);
+            affect_strip(victim, skill_resolve_gsn("toxic fumes"));
+            send_to_char(skill_table[skill_resolve_gsn("toxic fumes")].msg_off, victim);
             send_to_char("\n\r", victim);
             act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         } else {
@@ -295,7 +295,7 @@ SPELL_FUNC(spell_cure_toxic)
             helped = false;
             for(paf = tox;paf;paf = next) {
                 next = paf->next;
-                if (paf->type == gsn_toxic_fumes) {
+                if (paf->type == skill_resolve_gsn("toxic fumes")) {
                     if(paf->duration > 0)
                         paf->duration = -paf->duration;
                     else if(!paf->duration)

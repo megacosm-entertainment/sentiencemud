@@ -1325,17 +1325,17 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 
 if (victim != ch
 && !IS_NPC(ch)
-&& number_percent() < get_skill(ch, gsn_peek))
+&& number_percent() < get_skill(ch, skill_resolve_gsn("peek")))
 {
     send_to_char("\n\rYou peek at the inventory:\n\r", ch);
-    check_improve(ch, gsn_peek, true, 4);
+    check_improve(ch, skill_resolve_gsn("peek"), true, 4);
 
 show_llist_to_char(victim->lcarrying, ch, true, true);
 }
 
     if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
     {
-    if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
+    if (IS_NPC(victim) && number_percent() < get_skill(ch, skill_resolve_gsn("mob lore")))
     {
         if (IS_SET(victim->act[0], ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
         act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -1343,7 +1343,7 @@ show_llist_to_char(victim->lcarrying, ch, true, true);
     {
         send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
         show_basic_mob_lore(ch, victim);
-        check_improve(ch, gsn_mob_lore, true, 7);
+        check_improve(ch, skill_resolve_gsn("mob lore"), true, 7);
     }
     }
     }
@@ -1879,7 +1879,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
     if (IN_WILDERNESS(ch))
     {
     int chance;
-    chance = get_skill(ch, gsn_survey);
+    chance = get_skill(ch, skill_resolve_gsn("survey"));
         if (chance == 0)
         {
         send_to_char("You are unsure of your exact coordinates.\n\r", ch);
@@ -2334,7 +2334,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
                 send_to_char("\n\r\n\r", ch);
             }
 
-            if (!remote && get_skill(ch, gsn_sense_danger) > 0 &&
+            if (!remote && get_skill(ch, skill_resolve_gsn("sense danger")) > 0 &&
                 (!IS_NPC(ch) && ch->pcdata->danger_range > 0)) {
                 int dir;
                 char buf2[MSL];
@@ -2362,7 +2362,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
                 send_to_char(buf,ch);
 
                 if (number_percent() == 1)
-                    check_improve(ch, gsn_sense_danger, true, 1);
+                    check_improve(ch, skill_resolve_gsn("sense danger"), true, 1);
             }
 
 #if 1
@@ -2685,7 +2685,7 @@ void do_look(CHAR_DATA * ch, char *argument)
             if (perform_lore)
             {
                 send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
             }
             else
                 send_to_char("\n\r", ch);
@@ -2701,13 +2701,13 @@ void do_look(CHAR_DATA * ch, char *argument)
             if (perform_lore)
             {
                 send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
             }
             else
                 send_to_char("\n\r", ch);
 
             p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-            check_improve(ch, gsn_lore, true, 10);
+            check_improve(ch, skill_resolve_gsn("lore"), true, 10);
             return;
         }
 
@@ -2716,13 +2716,13 @@ void do_look(CHAR_DATA * ch, char *argument)
         if (perform_lore)
         {
             send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-            spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+            spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
         }
         else
             send_to_char("\n\r", ch);
 
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-        check_improve(ch, gsn_lore, true, 10);
+        check_improve(ch, skill_resolve_gsn("lore"), true, 10);
 
         /* Handle special object types */
         if (obj->item_type == ITEM_SEXTANT)
@@ -2779,7 +2779,7 @@ void do_look(CHAR_DATA * ch, char *argument)
             /* Can person lore object */
             perform_lore = false;
             if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
-                /* get_skill(ch, gsn_lore) > 0 &&
+                /* get_skill(ch, skill_resolve_gsn("lore")) > 0 &&
                 number_percent() <= get_skill(ch, skill_lookup("lore")) && */
                 ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
                 !IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
@@ -2847,13 +2847,13 @@ void do_look(CHAR_DATA * ch, char *argument)
                     if (perform_lore)
                     {
                         send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                        spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                        spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                     }
                     else
                         send_to_char("\n\r", ch);
 
                     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-                    //check_improve(ch, gsn_lore, true, 10);
+                    //check_improve(ch, skill_resolve_gsn("lore"), true, 10);
                     return;
                 }
             }
@@ -2916,13 +2916,13 @@ void do_look(CHAR_DATA * ch, char *argument)
                     if (perform_lore)
                     {
                         send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                        spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                        spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                     }
                     else
                         send_to_char("\n\r", ch);
 
                     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-                    check_improve(ch, gsn_lore, true, 10);
+                    check_improve(ch, skill_resolve_gsn("lore"), true, 10);
                     return;
                 }
             }
@@ -2934,13 +2934,13 @@ void do_look(CHAR_DATA * ch, char *argument)
                     if (perform_lore)
                     {
                         send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                        spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                        spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                     }
                     else
                         send_to_char("\n\r", ch);
 
                     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-                    check_improve(ch, gsn_lore, true, 10);
+                    check_improve(ch, skill_resolve_gsn("lore"), true, 10);
 
                     if( obj->item_type == ITEM_TELESCOPE )
                     {
@@ -3224,7 +3224,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
                     send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                    spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                    spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                 } else
                     send_to_char("\n\r", ch);
 
@@ -3264,7 +3264,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
                     send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                    spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                    spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                 } else
                     send_to_char("\n\r", ch);
 
@@ -3299,8 +3299,8 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
     {
         if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,argument)) return;
 
-        if (get_skill(ch, gsn_lore) > 0 &&
-            number_percent() <= get_skill(ch, gsn_lore) &&
+        if (get_skill(ch, skill_resolve_gsn("lore")) > 0 &&
+            number_percent() <= get_skill(ch, skill_resolve_gsn("lore")) &&
             ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
             !IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
             (IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
@@ -3312,13 +3312,13 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
         if (perform_lore)
         {
             send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-            spell_identify(skill_from_sn(gsn_lore), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+            spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
         }
         else
             send_to_char("\n\r", ch);
 
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-        check_improve(ch, gsn_lore, true, 10);
+        check_improve(ch, skill_resolve_gsn("lore"), true, 10);
     }
 
     return;
@@ -4398,7 +4398,7 @@ void do_affects(CHAR_DATA * ch, char *argument)
                 sprintf(buf, "                           ");
             else
                 sprintf(buf, "{BSpell: {G%-20s{x",
-            paf->type == gsn_improved_invisibility ? "improved invis" : skill_table[paf->type].name);
+            paf->type == skill_resolve_gsn("improved invisibility") ? "improved invis" : skill_table[paf->type].name);
 
             send_to_char(buf, ch);
 
@@ -7259,7 +7259,7 @@ void do_scry(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if (!get_skill(ch, gsn_scry)) {
+    if (!get_skill(ch, skill_resolve_gsn("scry"))) {
         send_to_char("You know nothing of this skill.\n\r", ch);
         return;
     }
@@ -7285,14 +7285,14 @@ void do_scry(CHAR_DATA *ch, char *argument)
 
     send_to_char("{MYou concentrate, extending your aura to the rest of the world...{x\n\r", ch);
 
-    check_improve(ch,gsn_scry,true,5);
+    check_improve(ch,skill_resolve_gsn("scry"),true,5);
     buffer = new_buf();
     count = 0;
     iterator_start(&vit, loaded_chars);
     while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
     {
         if (victim->in_room && victim->in_room->area->open && is_name(arg, victim->name) && can_see(ch, victim) &&
-            IS_NPC(victim) && number_percent() < get_skill(ch, gsn_scry) &&
+            IS_NPC(victim) && number_percent() < get_skill(ch, skill_resolve_gsn("scry")) &&
             (!local || ch->in_room->area == victim->in_room->area) &&
             (	(victim->in_room->area->place_flags == PLACE_FIRST_CONTINENT) ||
                 (victim->in_room->area->place_flags == PLACE_SECOND_CONTINENT) ||
@@ -8279,7 +8279,7 @@ void do_collapse(CHAR_DATA *ch, char *argument)
  * @param sextant  The ITEM_SEXTANT object being used
  *
  * Requires: Being in wilderness or on a ship
- * Skills: gsn_navigation or gsn_survey
+ * Skills: skill_resolve_gsn("navigation") or skill_resolve_gsn("survey")
  */
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 {
@@ -8305,15 +8305,15 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
             x = ship->ship->in_room->x;
             y = ship->ship->in_room->y;
 
-            skill = get_skill(ch, gsn_navigation);
+            skill = get_skill(ch, skill_resolve_gsn("navigation"));
             if( skill > 0 )
-                gsn = gsn_navigation;
+                gsn = skill_resolve_gsn("navigation");
             else
             {
-                skill = get_skill(ch, gsn_survey);
+                skill = get_skill(ch, skill_resolve_gsn("survey"));
                 if( skill < 1 ) return;
 
-                gsn = gsn_survey;
+                gsn = skill_resolve_gsn("survey");
             }
 
             success = (number_percent() < skill);
@@ -8347,15 +8347,15 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
             x = ch->in_room->x;
             y = ch->in_room->y;
 
-            skill = get_skill(ch, gsn_survey);
+            skill = get_skill(ch, skill_resolve_gsn("survey"));
             if( skill > 0 )
-                gsn = gsn_survey;
+                gsn = skill_resolve_gsn("survey");
             else
             {
-                skill = get_skill(ch, gsn_navigation);
+                skill = get_skill(ch, skill_resolve_gsn("navigation"));
                 if( skill < 1 ) return;
 
-                gsn = gsn_navigation;
+                gsn = skill_resolve_gsn("navigation");
             }
 
             success = (number_percent() < skill);
@@ -8400,7 +8400,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
  * @param argument   Direction to look (direction name or degrees 0-359)
  *
  * Requires: Being in wilderness or on a ship, telescope expanded
- * Skills: gsn_survey or gsn_navigation affect accuracy
+ * Skills: skill_resolve_gsn("survey") or skill_resolve_gsn("navigation") affect accuracy
  */
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 {
@@ -8484,18 +8484,18 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 
         if( can_fudge )
         {
-            int skill1 = get_skill(ch, gsn_survey);
-            int skill2 = get_skill(ch, gsn_navigation);
+            int skill1 = get_skill(ch, skill_resolve_gsn("survey"));
+            int skill2 = get_skill(ch, skill_resolve_gsn("navigation"));
 
             if( skill1 >= skill2 )
             {
                 skill = skill1;
-                gsn = gsn_survey;
+                gsn = skill_resolve_gsn("survey");
             }
             else
             {
                 skill = skill2;
-                gsn = gsn_navigation;
+                gsn = skill_resolve_gsn("navigation");
             }
 
             int delta = number_percent() - skill;
@@ -8560,35 +8560,35 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
     if( IS_VALID(ship) )
     {
         // When on a ship, favor navigation over survey
-        skill = get_skill(ch, gsn_navigation);
+        skill = get_skill(ch, skill_resolve_gsn("navigation"));
 
         if( skill > 0 )
-            gsn = gsn_navigation;
+            gsn = skill_resolve_gsn("navigation");
         else
         {
-            skill = get_skill(ch, gsn_survey);
+            skill = get_skill(ch, skill_resolve_gsn("survey"));
 
             if( skill < 1 )
                 return;
 
-            gsn = gsn_survey;
+            gsn = skill_resolve_gsn("survey");
         }
     }
     else
     {
         // When not on a ship, favor survey over navigation
-        skill = get_skill(ch, gsn_survey);
+        skill = get_skill(ch, skill_resolve_gsn("survey"));
 
         if( skill > 0 )
-            gsn = gsn_survey;
+            gsn = skill_resolve_gsn("survey");
         else
         {
-            skill = get_skill(ch, gsn_navigation);
+            skill = get_skill(ch, skill_resolve_gsn("navigation"));
 
             if( skill < 1 )
                 return;
 
-            gsn = gsn_navigation;
+            gsn = skill_resolve_gsn("navigation");
         }
     }
 
@@ -8723,12 +8723,12 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
  * @param ch   The character reading the map
  * @param map  The ITEM_MAP object being read
  *
- * Skills: gsn_navigation affects ability to read coordinates
+ * Skills: skill_resolve_gsn("navigation") affects ability to read coordinates
  */
 void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 {
     bool success;
-    int skill = get_skill(ch, gsn_navigation);
+    int skill = get_skill(ch, skill_resolve_gsn("navigation"));
 
     if( list_size(map->waypoints) > 0 )
     {
@@ -8780,7 +8780,7 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 
         if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
         {
-            check_improve(ch, gsn_navigation, success, 10);
+            check_improve(ch, skill_resolve_gsn("navigation"), success, 10);
             ch->pcdata->spam_block_navigation = true;
         }
     }

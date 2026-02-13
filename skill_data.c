@@ -901,9 +901,6 @@ static void bootstrap_skills_from_table(void)
             skill->inks[i][1] = skill_table[sn].inks[i][1];
         }
 
-        /* Legacy pgsn pointer — record it so gsn_ initialization still works */
-        skill->pgsn = skill_table[sn].pgsn;
-
         /* Insert into sorted list */
         skill_insert_sorted(skill);
         count++;
@@ -922,9 +919,6 @@ static void bootstrap_skills_from_table(void)
         if (sk->uid >= 0 && sk->uid <= max_skill_uid)
             skill_uid_index[sk->uid] = sk;
 
-        /* Set gsn_ globals via pgsn pointers */
-        if (sk->pgsn)
-            *sk->pgsn = sk->uid;
     }
 
     /* Save all to JSON for subsequent boots */
@@ -1023,21 +1017,6 @@ void load_skill_data(void)
         skill_hash_insert(sk);
         if (sk->uid >= 0 && sk->uid <= max_skill_uid)
             skill_uid_index[sk->uid] = sk;
-    }
-
-    /* Resolve gsn_ globals by scanning skill_table for pgsn pointers
-     * and matching by name against loaded SKILL_DATA */
-    for (int sn = 0; sn < MAX_SKILL; sn++) {
-        if (skill_table[sn].name == NULL)
-            break;
-        if (skill_table[sn].pgsn == NULL)
-            continue;
-
-        SKILL_DATA *sk = skill_find(skill_table[sn].name);
-        if (sk) {
-            sk->pgsn = skill_table[sn].pgsn;
-            *sk->pgsn = sk->uid;
-        }
     }
 
     /* Resolve race pointers */

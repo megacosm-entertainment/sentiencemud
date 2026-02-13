@@ -88,7 +88,7 @@ SPELL_FUNC(spell_chain_lightning)
                     continue;
 
                 if (check_shield_block_projectile(ch, tmp_vict, "arc of lightning", NULL)) {
-                    if (number_percent() < get_skill(tmp_vict, gsn_shield_block)/4) {
+                    if (number_percent() < get_skill(tmp_vict, skill_resolve_gsn("shield block"))/4) {
                         act("The bolt arcs off $n's shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                         act("The bolt arcs off your shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         level = 0;

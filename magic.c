@@ -1563,7 +1563,8 @@ void do_reverie(CHAR_DATA *ch, char *argument)
     if (is_dead(ch))
     return;
 
-    if (get_skill(ch,gsn_reverie) == 0)
+    int16_t sn_reverie = skill_resolve_gsn("reverie");
+    if (get_skill(ch,sn_reverie) == 0)
     {
     send_to_char("You do not have this skill.\n\r",ch);
     return;
@@ -1634,7 +1635,7 @@ void do_reverie(CHAR_DATA *ch, char *argument)
     }
 
     time = 4;
-    time += (amount/120) * UMIN((100/get_skill(ch,gsn_reverie)),50);
+    time += (amount/120) * UMIN((100/get_skill(ch,sn_reverie)),50);
     //sprintf(buf, "%d", time); gecho(buf);
     REVERIE_STATE(ch,time);
 }
@@ -1673,7 +1674,7 @@ void reverie_end(CHAR_DATA *ch, int amount)
     if (ch->fighting != NULL)
     SET_BIT(ch->has_done, DONE_REVERIE);
 
-    check_improve(ch, gsn_reverie, true, 1);
+    check_improve(ch, skill_resolve_gsn("reverie"), true, 1);
 }
 
 

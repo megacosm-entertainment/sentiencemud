@@ -494,11 +494,11 @@ SPELL_FUNC(spell_identify)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
 
-    if (sn == gsn__auction || sn == gsn__inspect)
+    if (sn == skill_resolve_gsn("_auction") || sn == skill_resolve_gsn("_inspect"))
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, NULL);
-    else if(sn == gsn_lore)
+    else if(sn == skill_resolve_gsn("lore"))
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
-    else if(sn == gsn_identify)
+    else if(sn == skill_resolve_gsn("identify"))
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL);
 
     return true;

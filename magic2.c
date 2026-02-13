@@ -48,8 +48,9 @@ void do_trance(CHAR_DATA *ch, char *argument)
 {
     int chance;
     char buf[MSL];
+    int16_t sn_dt = skill_resolve_gsn("deep trance");
 
-    if ((chance = get_skill(ch, gsn_deep_trance)) == 0)
+    if ((chance = get_skill(ch, sn_dt)) == 0)
     {
     send_to_char("You do not have this skill.\n\r", ch);
     return;
@@ -71,7 +72,7 @@ void do_trance(CHAR_DATA *ch, char *argument)
     act("{YYou begin to meditate and fall into a trance.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     act("{Y$n begins to meditate and fall into a trance.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    ch->trance = 2 * PULSE_VIOLENCE + (100-get_skill(ch,gsn_deep_trance))/10;
+    ch->trance = 2 * PULSE_VIOLENCE + (100-get_skill(ch,sn_dt))/10;
 }
 
 
@@ -79,24 +80,25 @@ void trance_end(CHAR_DATA *ch)
 {
     int gain;
     char buf[MSL];
-    int chance = get_skill(ch, gsn_deep_trance);
+    int16_t sn_dt = skill_resolve_gsn("deep trance");
+    int chance = get_skill(ch, sn_dt);
     bool worked = true;
 
     send_to_char("{YYou come out of your trance.{x\n\r", ch);
 
     if (number_percent() < chance) {
     gain = ch->max_mana / 9;
-    gain += get_skill(ch, gsn_deep_trance)/10;
+    gain += get_skill(ch, sn_dt)/10;
 
     sprintf(buf, "You regain %d lost mana!", gain);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     ch->mana += gain;
 
-    check_improve(ch, gsn_deep_trance, true, 1);
+    check_improve(ch, sn_dt, true, 1);
     } else {
     send_to_char("You fail to gather any lost mana during your deep trance.\n\r", ch);
-    check_improve(ch, gsn_deep_trance, false, 1);
+    check_improve(ch, sn_dt, false, 1);
     worked = false;
     }
 
@@ -126,7 +128,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 
     // Find spell deflection
     for (af = victim->affected; af != NULL; af = af->next) {
-        if (af->type == gsn_spell_deflection)
+        if (af->type == skill_resolve_gsn("spell deflection"))
             break;
     }
 
@@ -211,7 +213,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 
     // Find spell deflection
     for (af = victim->affected; af != NULL; af = af->next) {
-        if (af->type == gsn_spell_deflection)
+        if (af->type == skill_resolve_gsn("spell deflection"))
             break;
     }
 

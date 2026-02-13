@@ -96,6 +96,12 @@ bool		race_get_trait_bool(RACE_DATA *race, const char *trait_id);
 int		race_get_trait_int(RACE_DATA *race, const char *trait_id);
 const char *	race_get_trait_string(RACE_DATA *race, const char *trait_id);
 
+/* Set traits on a race definition (runtime modification) */
+bool		race_set_trait_bool(RACE_DATA *race, const char *trait_id, bool value);
+bool		race_set_trait_int(RACE_DATA *race, const char *trait_id, int value);
+bool		race_set_trait_string(RACE_DATA *race, const char *trait_id, const char *value);
+bool		race_clear_trait(RACE_DATA *race, const char *trait_id);
+
 /***************************************************************************
  * Race Trait Loading (called from json_race.c)                            *
  ***************************************************************************/
@@ -113,6 +119,12 @@ bool		class_has_trait(CLASS_DATA *clazz, const char *trait_id);
 bool		class_get_trait_bool(CLASS_DATA *clazz, const char *trait_id);
 int		class_get_trait_int(CLASS_DATA *clazz, const char *trait_id);
 const char *	class_get_trait_string(CLASS_DATA *clazz, const char *trait_id);
+
+/* Set traits on a class definition (runtime modification) */
+bool		class_set_trait_bool(CLASS_DATA *clazz, const char *trait_id, bool value);
+bool		class_set_trait_int(CLASS_DATA *clazz, const char *trait_id, int value);
+bool		class_set_trait_string(CLASS_DATA *clazz, const char *trait_id, const char *value);
+bool		class_clear_trait(CLASS_DATA *clazz, const char *trait_id);
 
 /* Class trait init/load/save (mirrors race pattern) */
 void		class_init_traits(CLASS_DATA *clazz);
@@ -139,6 +151,12 @@ bool		ch_has_trait(CHAR_DATA *ch, const char *trait_id);
 bool		ch_get_trait_bool(CHAR_DATA *ch, const char *trait_id);
 int		ch_get_trait_int(CHAR_DATA *ch, const char *trait_id);
 const char *	ch_get_trait_string(CHAR_DATA *ch, const char *trait_id);
+
+/* Set personal trait overrides on a character (PC only) */
+bool		ch_set_trait_bool(CHAR_DATA *ch, const char *trait_id, bool value);
+bool		ch_set_trait_int(CHAR_DATA *ch, const char *trait_id, int value);
+bool		ch_set_trait_string(CHAR_DATA *ch, const char *trait_id, const char *value);
+bool		ch_clear_trait(CHAR_DATA *ch, const char *trait_id);
 
 /***************************************************************************
  * Trait Value Helpers (for direct array access)                           *

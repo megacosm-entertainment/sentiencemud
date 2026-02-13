@@ -454,6 +454,10 @@ enum entity_type_enum {
     ENT_AFFECT,
     ENT_CHURCH,
     ENT_SONG,
+    ENT_RACE,
+    ENT_CLASS,
+    ENT_CLASSLEVEL,
+    ENT_SKILLENTRY,
     ENT_VARIABLE,
     ENT_GROUP,
     ENT_DICE,
@@ -685,6 +689,9 @@ enum entity_mobile_enum {
     ENTITY_MOB_HIS_O,
     ENTITY_MOB_HIMSELF,
     ENTITY_MOB_RACE,
+    ENTITY_MOB_RACEDATA,
+    ENTITY_MOB_CLASS,
+    ENTITY_MOB_CLASSLEVEL,
     ENTITY_MOB_ROOM,
     ENTITY_MOB_HOUSE,
     ENTITY_MOB_CARRYING,
@@ -973,7 +980,18 @@ enum entity_skill_enum {
     ENTITY_SKILL_INK_TYPE2,
     ENTITY_SKILL_INK_SIZE2,
     ENTITY_SKILL_INK_TYPE3,
-    ENTITY_SKILL_INK_SIZE3
+    ENTITY_SKILL_INK_SIZE3,
+    /* New fields — appended to preserve compiled-script compatibility */
+    ENTITY_SKILL_DISPLAY,
+    ENTITY_SKILL_DESCRIPTION,
+    ENTITY_SKILL_SUMMARY,
+    ENTITY_SKILL_COMMENTS,
+    ENTITY_SKILL_UID,
+    ENTITY_SKILL_ISSPELL,
+    ENTITY_SKILL_FLAGS,
+    ENTITY_SKILL_DIFFICULTY,
+    ENTITY_SKILL_OBJECT,
+    ENTITY_SKILL_RACE,
 };
 
 enum entity_skillinfo_enum {
@@ -1003,6 +1021,62 @@ enum entity_song_enum {
     ENTITY_SONG_BEATS,
     ENTITY_SONG_MANA,
     ENTITY_SONG_LEVEL,
+    ENTITY_SONG_UID,
+    ENTITY_SONG_FLAGS,
+};
+
+enum entity_race_enum {
+    ENTITY_RACE_NAME = ESCAPE_EXTRA,
+    ENTITY_RACE_DESCRIPTION,
+    ENTITY_RACE_COMMENTS,
+    ENTITY_RACE_UID,
+    ENTITY_RACE_ID,
+    ENTITY_RACE_PLAYABLE,
+    ENTITY_RACE_STARTING,
+    ENTITY_RACE_ACT,
+    ENTITY_RACE_AFFECTS,
+    ENTITY_RACE_OFFENSE,
+    ENTITY_RACE_IMMUNE,
+    ENTITY_RACE_RESIST,
+    ENTITY_RACE_VULN,
+    ENTITY_RACE_FORM,
+    ENTITY_RACE_PARTS,
+    ENTITY_RACE_WHO,
+    ENTITY_RACE_SIZE_MIN,
+    ENTITY_RACE_SIZE_MAX,
+    ENTITY_RACE_ALIGNMENT,
+};
+
+enum entity_class_enum {
+    ENTITY_CLASS_NAME = ESCAPE_EXTRA,
+    ENTITY_CLASS_DESCRIPTION,
+    ENTITY_CLASS_COMMENTS,
+    ENTITY_CLASS_UID,
+    ENTITY_CLASS_TYPE,
+    ENTITY_CLASS_FLAGS,
+    ENTITY_CLASS_PRIMARY_STAT,
+    ENTITY_CLASS_MAX_LEVEL,
+    ENTITY_CLASS_HP_MIN,
+    ENTITY_CLASS_HP_MAX,
+    ENTITY_CLASS_GAINS_MANA,
+};
+
+enum entity_classlevel_enum {
+    ENTITY_CLASSLEVEL_CLASS = ESCAPE_EXTRA,
+    ENTITY_CLASSLEVEL_LEVEL,
+    ENTITY_CLASSLEVEL_XP,
+    ENTITY_CLASSLEVEL_TITLE,
+};
+
+enum entity_skillentry_enum {
+    ENTITY_SKILLENTRY_SKILL = ESCAPE_EXTRA,
+    ENTITY_SKILLENTRY_SONG,
+    ENTITY_SKILLENTRY_RATING,
+    ENTITY_SKILLENTRY_MOD,
+    ENTITY_SKILLENTRY_ISSPELL,
+    ENTITY_SKILLENTRY_SOURCE,
+    ENTITY_SKILLENTRY_FLAGS,
+    ENTITY_SKILLENTRY_TOKEN,
 };
 
 enum entity_variable_enum {
@@ -1417,6 +1491,10 @@ struct script_parameter {
 
         int sn;
         SONG_DATA *song;
+        RACE_DATA *race;
+        CLASS_DATA *clazz;
+        CLASS_LEVEL *classlevel;
+        SKILL_ENTRY *entry;
         struct {
             union {
                 CHAR_DATA **mob;
@@ -1536,6 +1614,11 @@ extern ENT_FIELD entity_list[];
 extern ENT_FIELD *entity_type_lists[];
 extern ENT_FIELD entity_skill_info[];
 extern ENT_FIELD entity_skill[];
+extern ENT_FIELD entity_song[];
+extern ENT_FIELD entity_race[];
+extern ENT_FIELD entity_class[];
+extern ENT_FIELD entity_classlevel[];
+extern ENT_FIELD entity_skillentry[];
 extern ENT_FIELD entity_conn[];
 extern ENT_FIELD entity_prior[];
 extern ENT_FIELD entity_instance_section[];
@@ -1589,6 +1672,8 @@ DECL_IFC_FUN(ifc_churchonline);
 DECL_IFC_FUN(ifc_churchrank);
 DECL_IFC_FUN(ifc_clan);
 DECL_IFC_FUN(ifc_class);
+DECL_IFC_FUN(ifc_classcount);
+DECL_IFC_FUN(ifc_classlevel);
 DECL_IFC_FUN(ifc_clones);
 DECL_IFC_FUN(ifc_container);
 DECL_IFC_FUN(ifc_cos);
@@ -1654,12 +1739,16 @@ DECL_IFC_FUN(ifc_handsfull);
 DECL_IFC_FUN(ifc_has);
 DECL_IFC_FUN(ifc_hascatalyst);
 DECL_IFC_FUN(ifc_hascheckpoint);
+DECL_IFC_FUN(ifc_hasclass);
 DECL_IFC_FUN(ifc_hasenvironment);
 DECL_IFC_FUN(ifc_hasprompt);
 DECL_IFC_FUN(ifc_hasqueue);
 DECL_IFC_FUN(ifc_hasship);
+DECL_IFC_FUN(ifc_hasskill);
+DECL_IFC_FUN(ifc_hassong);
 DECL_IFC_FUN(ifc_hassubclass);
 DECL_IFC_FUN(ifc_hastarget);
+DECL_IFC_FUN(ifc_hastrait);
 DECL_IFC_FUN(ifc_hastoken);
 DECL_IFC_FUN(ifc_hasvlink);
 DECL_IFC_FUN(ifc_healregen);
@@ -1685,6 +1774,7 @@ DECL_IFC_FUN(ifc_isbusy);
 DECL_IFC_FUN(ifc_iscasting);
 DECL_IFC_FUN(ifc_ischarm);
 DECL_IFC_FUN(ifc_ischurchexcom);
+DECL_IFC_FUN(ifc_isclass);
 DECL_IFC_FUN(ifc_iscloneroom);
 DECL_IFC_FUN(ifc_iscpkproof);
 DECL_IFC_FUN(ifc_isdead);
@@ -1876,6 +1966,8 @@ DECL_IFC_FUN(ifc_totalratio);
 DECL_IFC_FUN(ifc_totalwins);
 DECL_IFC_FUN(ifc_toxin);
 DECL_IFC_FUN(ifc_trains);
+DECL_IFC_FUN(ifc_traitint);
+DECL_IFC_FUN(ifc_traitstring);
 DECL_IFC_FUN(ifc_uses);
 DECL_IFC_FUN(ifc_value_ac);
 DECL_IFC_FUN(ifc_value_acstr);
@@ -2676,10 +2768,18 @@ SCRIPT_CMD(scriptcmd_entercombat);
 SCRIPT_CMD(scriptcmd_flee);
 SCRIPT_CMD(scriptcmd_inputstring);
 SCRIPT_CMD(scriptcmd_grantskill);
+SCRIPT_CMD(scriptcmd_grantclass);
+SCRIPT_CMD(scriptcmd_grantsong);
 SCRIPT_CMD(scriptcmd_questcomplete);
 SCRIPT_CMD(scriptcmd_revokeskill);
+SCRIPT_CMD(scriptcmd_revokeclass);
+SCRIPT_CMD(scriptcmd_revokesong);
 SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);
+SCRIPT_CMD(scriptcmd_setclass);
+SCRIPT_CMD(scriptcmd_setrace);
+SCRIPT_CMD(scriptcmd_setsubclass);
+SCRIPT_CMD(scriptcmd_settrait);
 
 SCRIPT_CMD(scriptcmd_questpartcustom);
 SCRIPT_CMD(scriptcmd_questpartgetitem);

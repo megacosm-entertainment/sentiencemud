@@ -560,11 +560,11 @@ int hit_gain(CHAR_DATA *ch)
         gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
         gain += ch_get_trait_int(ch, "hp_gain_max") - 10;
         number = number_percent();
-        if (number < get_skill(ch,gsn_fast_healing))
+        if (number < get_skill(ch,skill_resolve_gsn("fast healing")))
         {
             gain += number * gain / 100;
             if (ch->hit < ch->max_hit)
-                check_improve(ch,gsn_fast_healing,true,8);
+                check_improve(ch,skill_resolve_gsn("fast healing"),true,8);
         }
 
         switch (ch->position)
@@ -648,11 +648,11 @@ int mana_gain(CHAR_DATA *ch)
         gain = get_curr_stat(ch,STAT_WIS) + get_curr_stat(ch,STAT_INT) + ch->tot_level;
         number = number_percent();
 
-        if (number < get_skill(ch,gsn_meditation))
+        if (number < get_skill(ch,skill_resolve_gsn("meditation")))
         {
             gain += number * gain / 100;
             if (ch->mana < ch->max_mana)
-                check_improve(ch,gsn_meditation,true,8);
+                check_improve(ch,skill_resolve_gsn("meditation"),true,8);
         }
 
         if (!ch_has_trait(ch, "uses_mana"))
@@ -2094,16 +2094,16 @@ void char_update(void)
                 ch->in_room != get_reserved_room_index("room_plith_harbour") &&
                 ch->in_room != get_reserved_room_index("room_northern_harbour") &&
                 ch->in_room != get_reserved_room_index("room_southern_harbour") &&
-                !IS_NPC(ch) && is_affected(ch, gsn_fly))
+                !IS_NPC(ch) && is_affected(ch, skill_resolve_gsn("fly")))
             {
                 act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 act("You plummet into the ocean.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 act("{MThe air around $n sparks, $n plummets into the ocean.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-                affect_strip(ch, gsn_fly);
+                affect_strip(ch, skill_resolve_gsn("fly"));
             }
 
             // If they are physically flying... drain movement slowly
-            if (!IS_NPC(ch) && is_affected(ch, gsn_flight))
+            if (!IS_NPC(ch) && is_affected(ch, skill_resolve_gsn("flight")))
             {
                 bool fall = false;
                 int amount, weight;
@@ -2140,7 +2140,7 @@ void char_update(void)
                 }
 
                 if(fall) {
-                    affect_strip(ch,gsn_flight);
+                    affect_strip(ch,skill_resolve_gsn("flight"));
                     if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
                         ch->in_room->sector_type == SECT_WATER_SWIM ||
                         ch->in_room->sector_type == SECT_UNDERWATER ||
@@ -2316,14 +2316,14 @@ void char_update(void)
         {
             AFFECT_DATA *poison;
 
-            poison = affect_find(ch->affected,gsn_poison);
+            poison = affect_find(ch->affected,skill_resolve_gsn("poison"));
 
             if (poison != NULL)
             {
                 act("$n shivers and suffers.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 send_to_char("You shiver and suffer.\n\r", ch);
                 ch->set_death_type = DEATHTYPE_TOXIN;
-                damage(ch, ch, poison->level/10 + 1, gsn_poison, DAM_POISON, false);
+                damage(ch, ch, poison->level/10 + 1, skill_resolve_gsn("poison"), DAM_POISON, false);
             }
         }
         // Folks on the verge of death eventually go the whole way w/o help.
@@ -2792,7 +2792,7 @@ void aggr_update(void)
     if(wch->in_room) {
         int chance = 0;
          if(!IS_IMMORTAL(wch)) {
-            if((tox = affect_find(wch->affected,gsn_toxic_fumes))) {
+            if((tox = affect_find(wch->affected,skill_resolve_gsn("toxic fumes")))) {
                 int cough = false;
                 // is the mobile in a Toxic Bog?
                 if(wch->in_room &&
@@ -2805,7 +2805,7 @@ void aggr_update(void)
 
                     dec = (number_percent() < chance);
                     for(paf = tox;paf;paf = paf->next)
-                        if (paf->type == gsn_toxic_fumes) {
+                        if (paf->type == skill_resolve_gsn("toxic fumes")) {
                             if(paf->duration > 0)	// Switch all non-permanent affects to permanent
                                 paf->duration = -paf->duration;
                             else if(!paf->duration)
@@ -2828,7 +2828,7 @@ void aggr_update(void)
                 } else {
                     // Change all affects to non-permanent
                     for(paf = tox;paf;paf = paf->next)
-                        if (paf->type == gsn_toxic_fumes && paf->duration < 0)
+                        if (paf->type == skill_resolve_gsn("toxic fumes") && paf->duration < 0)
                             paf->duration = -paf->duration;
 
                     // Coughing messages
@@ -2847,7 +2847,7 @@ void aggr_update(void)
                     WAIT_STATE(wch,cough);
 
                     if(number_percent() < 50)
-                        damage(wch, wch, number_range(5,10), gsn_toxic_fumes, DAM_NONE, false);
+                        damage(wch, wch, number_range(5,10), skill_resolve_gsn("toxic fumes"), DAM_NONE, false);
                 }
             } else {
                 if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
@@ -2935,7 +2935,7 @@ void aggr_update(void)
                 af.slot	= WEAR_NONE;
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_PHYSICAL;
-                af.type      = gsn_blindness;
+                af.type      = skill_resolve_gsn("blindness");
     af.skill = skill_from_sn(af.type);
                 af.level     = obj->level;
                 af.location  = APPLY_HITROLL;
@@ -2992,7 +2992,7 @@ void aggr_update(void)
             af.slot	= WEAR_NONE;
             af.where     = TO_AFFECTS;
             af.group	 = AFFGROUP_PHYSICAL;
-            af.type      = gsn_blindness;
+            af.type      = skill_resolve_gsn("blindness");
     af.skill = skill_from_sn(af.type);
             af.level     = obj->level;
             af.location  = APPLY_HITROLL;
@@ -3013,7 +3013,7 @@ void aggr_update(void)
             af.slot	= WEAR_NONE;
             af.where     = TO_AFFECTS;
             af.group	 = AFFGROUP_PHYSICAL;
-            af.type      = gsn_poison;
+            af.type      = skill_resolve_gsn("poison");
     af.skill = skill_from_sn(af.type);
             af.level     = obj->level * 3/4;
             af.duration  = URANGE(1,obj->level / 2, 5);
@@ -3227,11 +3227,11 @@ void aggr_update(void)
         // Evasion lets you get away from aggro mobs.
         if (check_evasion(wch) == true)
         {
-            check_improve(wch, gsn_evasion, true, 8);
+            check_improve(wch, skill_resolve_gsn("evasion"), true, 8);
             continue;
         }
         else
-            check_improve(wch, gsn_evasion, false, 8);
+            check_improve(wch, skill_resolve_gsn("evasion"), false, 8);
 
         // Make the NPC agressor (ch) attack a RANDOM person in the room.
         count = 0;
@@ -3296,7 +3296,7 @@ void update_hunting(void)
     ||  mob->hunting->in_room->area != mob->in_room->area
     ||  IS_SET(mob->hunting->in_room->room_flag[0], ROOM_SAFE)
     ||  !can_see(mob, mob->hunting)
-    ||  number_percent() < get_skill(mob->hunting, gsn_trackless_step)/2
+    ||  number_percent() < get_skill(mob->hunting, skill_resolve_gsn("trackless step"))/2
     ||  (check_evasion(mob->hunting) == true && number_percent() < 33))
         stop_hunt(mob, false);
     else
@@ -3402,7 +3402,7 @@ void update_hunting_pc(CHAR_DATA *ch)
     }
     
     // Chance of failing
-    chance = get_skill(ch, gsn_hunt) * 3/4
+    chance = get_skill(ch, skill_resolve_gsn("hunt")) * 3/4
              + (get_curr_stat(ch, STAT_INT)
          +   get_curr_stat(ch, STAT_WIS)
          +   get_curr_stat(ch, STAT_DEX)) / 5;
@@ -3661,7 +3661,7 @@ void bitten_update(CHAR_DATA *ch)
     }
     }
 
-    damage(ch, ch, dice(UMAX(ch->bitten_level/8, 4),1), gsn_toxins, DAM_POISON, false);
+    damage(ch, ch, dice(UMAX(ch->bitten_level/8, 4),1), skill_resolve_gsn("toxins"), DAM_POISON, false);
 
     --ch->bitten;
     if (ch->bitten <= 0)

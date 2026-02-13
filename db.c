@@ -270,281 +270,6 @@ long gc_max_time = 0;
    is necesarry because I put the triggering mechanism in obj_to_char() and
    obj_to_room(). When the object is given to a char or a room, this variable
    is toggled off, and the object will then no longer trigger repop scripts. */
-int16_t gsn__auction;
-int16_t gsn__inspect;
-
-int16_t	gsn_acid_blast;
-int16_t	gsn_acid_breath;
-int16_t	gsn_acro;
-int16_t	gsn_afterburn;
-int16_t	gsn_air_spells;
-int16_t	gsn_ambush;
-int16_t	gsn_animate_dead;
-int16_t	gsn_archery;
-int16_t	gsn_armour;
-int16_t	gsn_athletics;
-int16_t	gsn_avatar_shield;
-int16_t	gsn_axe;
-int16_t	gsn_backstab;
-int16_t	gsn_bar;
-int16_t	gsn_bash;
-int16_t	gsn_behead;
-int16_t	gsn_berserk;
-int16_t	gsn_bind;
-int16_t	gsn_bite;
-int16_t	gsn_blackjack;
-int16_t	gsn_bless;
-int16_t	gsn_blindness;
-int16_t	gsn_blowgun;
-int16_t	gsn_bomb;
-int16_t	gsn_bow;
-int16_t	gsn_breath;
-int16_t	gsn_brew;
-int16_t	gsn_burgle;
-int16_t	gsn_burning_hands;
-int16_t	gsn_call_familiar;
-int16_t	gsn_call_lightning;
-int16_t	gsn_calm;
-int16_t	gsn_cancellation;
-int16_t	gsn_catch;
-int16_t	gsn_cause_critical;
-int16_t	gsn_cause_light;
-int16_t	gsn_cause_serious;
-int16_t	gsn_chain_lightning;
-int16_t	gsn_channel;
-int16_t	gsn_charge;
-int16_t	gsn_charm_person;
-int16_t	gsn_chill_touch;
-int16_t	gsn_circle;
-int16_t	gsn_cloak_of_guile;
-int16_t	gsn_colour_spray;
-int16_t	gsn_combine;
-int16_t	gsn_consume;
-int16_t	gsn_continual_light;
-int16_t	gsn_control_weather;
-int16_t	gsn_cosmic_blast;
-int16_t	gsn_counterspell;
-int16_t	gsn_create_food;
-int16_t	gsn_create_rose;
-int16_t	gsn_create_spring;
-int16_t	gsn_create_water;
-int16_t	gsn_crippling_touch;
-int16_t	gsn_crossbow;
-int16_t	gsn_cure_blindness;
-int16_t	gsn_cure_critical;
-int16_t	gsn_cure_disease;
-int16_t	gsn_cure_light;
-int16_t	gsn_cure_poison;
-int16_t	gsn_cure_serious;
-int16_t	gsn_cure_toxic;
-int16_t	gsn_curse;
-int16_t	gsn_dagger;
-int16_t	gsn_death_grip;
-int16_t	gsn_deathbarbs;
-int16_t	gsn_deathsight;
-int16_t	gsn_deception;
-int16_t	gsn_deep_trance;
-int16_t	gsn_demonfire;
-int16_t	gsn_destruction;
-int16_t	gsn_detect_hidden;
-int16_t	gsn_detect_invis;
-int16_t	gsn_detect_magic;
-int16_t	gsn_detect_traps;
-int16_t	gsn_dirt;
-int16_t	gsn_dirt_kicking;
-int16_t	gsn_disarm;
-int16_t	gsn_discharge;
-int16_t	gsn_dispel_evil;
-int16_t	gsn_dispel_good;
-int16_t	gsn_dispel_magic;
-int16_t	gsn_dispel_room;
-int16_t	gsn_dodge;
-int16_t	gsn_dual;
-int16_t	gsn_eagle_eye;
-int16_t	gsn_earth_spells;
-int16_t	gsn_earthquake;
-int16_t	gsn_electrical_barrier;
-int16_t	gsn_enchant_armour;
-int16_t	gsn_enchant_weapon;
-int16_t	gsn_energy_drain;
-int16_t	gsn_energy_field;
-int16_t	gsn_enhanced_damage;
-int16_t	gsn_ensnare;
-int16_t	gsn_entrap;
-int16_t	gsn_envenom;
-int16_t	gsn_evasion;
-int16_t	gsn_exorcism;
-int16_t	gsn_exotic;
-int16_t	gsn_fade;
-int16_t	gsn_faerie_fire;
-int16_t	gsn_faerie_fog;
-int16_t	gsn_fast_healing;
-int16_t	gsn_fatigue;
-int16_t	gsn_feign;
-int16_t	gsn_fire_barrier;
-int16_t	gsn_fire_breath;
-int16_t	gsn_fire_cloud;
-int16_t	gsn_fire_spells;
-int16_t	gsn_fireball;
-int16_t	gsn_fireproof;
-int16_t	gsn_flail;
-int16_t	gsn_flamestrike;
-int16_t	gsn_flight;
-int16_t	gsn_fly;
-int16_t	gsn_fourth_attack;
-int16_t	gsn_frenzy;
-int16_t	gsn_frost_barrier;
-int16_t	gsn_frost_breath;
-int16_t	gsn_gas_breath;
-int16_t	gsn_gate;
-int16_t	gsn_giant_strength;
-int16_t	gsn_glorious_bolt;
-int16_t	gsn_haggle;
-int16_t	gsn_hand_to_hand;
-int16_t	gsn_harm;
-int16_t	gsn_harpooning;
-int16_t	gsn_haste;
-int16_t	gsn_heal;
-int16_t	gsn_healing_aura;
-int16_t	gsn_healing_hands;
-int16_t	gsn_hide;
-int16_t	gsn_holdup;
-int16_t	gsn_holy_shield;
-int16_t	gsn_holy_sword;
-int16_t	gsn_holy_word;
-int16_t	gsn_holy_wrath;
-int16_t	gsn_hunt;
-int16_t	gsn_ice_storm;
-int16_t	gsn_identify;
-int16_t	gsn_improved_invisibility;
-int16_t	gsn_inferno;
-int16_t	gsn_infravision;
-int16_t	gsn_infuse;
-int16_t	gsn_intimidate;
-int16_t	gsn_invis;
-int16_t	gsn_judge;
-int16_t	gsn_kick;
-int16_t	gsn_kill;
-int16_t	gsn_leadership;
-int16_t	gsn_light_shroud;
-int16_t	gsn_lightning_bolt;
-int16_t	gsn_lightning_breath;
-int16_t	gsn_locate_object;
-int16_t	gsn_lore;
-int16_t	gsn_mace;
-int16_t	gsn_magic_missile;
-int16_t	gsn_martial_arts;
-int16_t	gsn_mass_healing;
-int16_t	gsn_mass_invis;
-int16_t	gsn_master_weather;
-int16_t	gsn_maze;
-int16_t	gsn_meditation;
-int16_t	gsn_mob_lore;
-int16_t	gsn_momentary_darkness;
-int16_t	gsn_morphlock;
-int16_t	gsn_mount_and_weapon_style;
-int16_t	gsn_music;
-int16_t	gsn_navigation;
-int16_t	gsn_neurotoxin;
-int16_t	gsn_nexus;
-int16_t	gsn_offhanded;
-int16_t	gsn_parry;
-int16_t	gsn_pass_door;
-int16_t	gsn_peek;
-int16_t	gsn_pick_lock;
-int16_t	gsn_plague;
-int16_t	gsn_poison;
-int16_t	gsn_polearm;
-int16_t	gsn_possess;
-int16_t	gsn_pursuit;
-int16_t	gsn_quarterstaff;
-int16_t	gsn_raise_dead;
-int16_t	gsn_recall;
-int16_t	gsn_recharge;
-int16_t	gsn_refresh;
-int16_t	gsn_regeneration;
-int16_t	gsn_remove_curse;
-int16_t	gsn_rending;
-int16_t	gsn_repair;
-int16_t	gsn_rescue;
-int16_t	gsn_resurrect;
-int16_t	gsn_reverie;
-int16_t	gsn_riding;
-int16_t	gsn_room_shield;
-int16_t	gsn_sanctuary;
-int16_t	gsn_scan;
-int16_t	gsn_scribe;
-int16_t	gsn_scrolls;
-int16_t	gsn_scry;
-int16_t	gsn_second_attack;
-int16_t	gsn_sense_danger;
-int16_t	gsn_shape;
-int16_t	gsn_shield;
-int16_t	gsn_shield_block;
-int16_t	gsn_shield_weapon_style;
-int16_t	gsn_shift;
-int16_t	gsn_shocking_grasp;
-int16_t	gsn_silence;
-int16_t	gsn_single_style;
-int16_t	gsn_skull;
-int16_t	gsn_sleep;
-int16_t	gsn_slit_throat;
-int16_t	gsn_slow;
-int16_t	gsn_smite;
-int16_t	gsn_sneak;
-int16_t	gsn_spear;
-int16_t	gsn_spell_deflection;
-int16_t	gsn_spell_shield;
-int16_t	gsn_spell_trap;
-int16_t	gsn_spirit_rack;
-int16_t	gsn_stake;
-int16_t	gsn_starflare;
-int16_t	gsn_staves;
-int16_t	gsn_steal;
-int16_t	gsn_stone_skin;
-int16_t	gsn_stone_spikes;
-int16_t	gsn_subvert;
-int16_t	gsn_summon;
-int16_t	gsn_survey;
-int16_t	gsn_swerve;
-int16_t	gsn_sword;
-int16_t	gsn_sword_and_dagger_style;
-int16_t	gsn_tail_kick;
-int16_t	gsn_tattoo;
-int16_t	gsn_temperance;
-int16_t	gsn_third_attack;
-int16_t	gsn_third_eye;
-int16_t	gsn_throw;
-int16_t	gsn_titanic_attack;
-int16_t	gsn_toxic_fumes;
-int16_t	gsn_toxins;
-int16_t	gsn_trackless_step;
-int16_t	gsn_trample;
-int16_t	gsn_trip;
-int16_t	gsn_turn_undead;
-int16_t	gsn_two_handed_style;
-int16_t	gsn_underwater_breathing;
-int16_t	gsn_vision;
-int16_t	gsn_wands;
-int16_t	gsn_warcry;
-int16_t	gsn_water_spells;
-int16_t	gsn_weaken;
-int16_t	gsn_weaving;
-int16_t	gsn_web;
-int16_t	gsn_whip;
-int16_t	gsn_wilderness_spear_style;
-int16_t	gsn_wind_of_confusion;
-int16_t	gsn_withering_cloud;
-int16_t	gsn_word_of_recall;
-
-int16_t	gsn_ice_shards;
-int16_t	gsn_stone_touch;
-int16_t	gsn_glacial_wave;
-int16_t	gsn_earth_walk;
-int16_t	gsn_flash;
-int16_t	gsn_shriek;
-int16_t	gsn_dark_shroud;
-int16_t	gsn_soul_essence;
 
 /*
  * Locals.
@@ -971,17 +696,7 @@ void boot_db(void)
      * processor load.
      */
     {
-    int sn, lev;
-
-    for (sn = 0; sn < MAX_SKILL; sn++)
-    {
-        if (skill_table[sn].pgsn != NULL)
-        *skill_table[sn].pgsn = sn;
-    }
-
-    // Special internal use only gsns
-    gsn__auction = -2;
-    gsn__inspect = -1;
+    int lev;
 
     for (lev = 0; lev != MAX_MOB_SKILL_LEVEL; lev++)
         mob_skill_table[lev] = 40 + 19 * log10(lev);
@@ -3488,7 +3203,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_invis;
+            af.type			= skill_resolve_gsn("invis");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3504,7 +3219,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type 		= gsn_detect_invis;
+            af.type 		= skill_resolve_gsn("detect invis");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3519,7 +3234,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_detect_hidden;
+            af.type			= skill_resolve_gsn("detect hidden");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3534,7 +3249,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_sanctuary;
+            af.type			= skill_resolve_gsn("sanctuary");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3549,7 +3264,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_infravision;
+            af.type			= skill_resolve_gsn("infravision");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3564,7 +3279,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_death_grip;
+            af.type			= skill_resolve_gsn("death grip");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3579,7 +3294,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_fly;
+            af.type			= skill_resolve_gsn("fly");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3594,7 +3309,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_pass_door;
+            af.type			= skill_resolve_gsn("pass door");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3609,7 +3324,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_haste;
+            af.type			= skill_resolve_gsn("haste");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3625,7 +3340,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= AFFGROUP_PHYSICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_warcry;
+            af.type			= skill_resolve_gsn("warcry");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3640,7 +3355,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_light_shroud;
+            af.type			= skill_resolve_gsn("light shroud");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3655,7 +3370,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_healing_aura;
+            af.type			= skill_resolve_gsn("healing aura");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3670,7 +3385,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_energy_field;
+            af.type			= skill_resolve_gsn("energy field");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3685,7 +3400,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_spell_shield;
+            af.type			= skill_resolve_gsn("spell shield");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3700,7 +3415,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_spell_deflection;
+            af.type			= skill_resolve_gsn("spell deflection");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3715,7 +3430,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_avatar_shield;
+            af.type			= skill_resolve_gsn("avatar shield");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3730,7 +3445,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_electrical_barrier;
+            af.type			= skill_resolve_gsn("electrical barrier");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3746,7 +3461,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_fire_barrier;
+            af.type			= skill_resolve_gsn("fire barrier");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3761,7 +3476,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_frost_barrier;
+            af.type			= skill_resolve_gsn("frost barrier");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3776,7 +3491,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_improved_invisibility;
+            af.type			= skill_resolve_gsn("improved invisibility");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;
@@ -3791,7 +3506,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         {
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
-            af.type			= gsn_stone_skin;
+            af.type			= skill_resolve_gsn("stone skin");
     af.skill = skill_from_sn(af.type);
             af.level		= mob->level;
             af.duration		= -1;

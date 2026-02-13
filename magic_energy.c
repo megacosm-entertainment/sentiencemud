@@ -32,7 +32,7 @@ SPELL_FUNC(spell_cosmic_blast)
     dam = dice(level,8);
     damage(ch,victim,dam,sn,DAM_ENERGY,true);
 
-    spell_blindness(skill_from_sn(gsn_blindness), 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_blindness(skill_find("blindness"), 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 

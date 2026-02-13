@@ -4001,11 +4001,13 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
         if (!IS_DEAD(ch)) check_room_flames(ch, show);
         //if (!IS_DEAD(ch)) check_ambush(ch);
 
-        if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsn_riding) > 0)
-            check_improve_show(ch, gsn_riding, true, 8, show);
+        int16_t sn_riding = skill_resolve_gsn("riding");
+        if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, sn_riding) > 0)
+            check_improve_show(ch, sn_riding, true, 8, show);
 
-        if (!MOUNTED(ch) && get_skill(ch, gsn_trackless_step) > 0 && number_percent() == 1)
-            check_improve_show(ch, gsn_trackless_step, true, 8, show);
+        int16_t sn_trackless = skill_resolve_gsn("trackless step");
+        if (!MOUNTED(ch) && get_skill(ch, sn_trackless) > 0 && number_percent() == 1)
+            check_improve_show(ch, sn_trackless, true, 8, show);
 
         /* Nature regen: regenerate in nature */
         if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch)) {

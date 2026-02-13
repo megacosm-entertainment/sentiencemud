@@ -504,60 +504,60 @@ int get_skill(CHAR_DATA *ch, int sn)
         else
             skill = 0;
     } //thief skills
-    else if (IS_SET(ch->act[0], ACT_THIEF) && (sn == gsn_sneak || sn == gsn_hide))
+    else if (IS_SET(ch->act[0], ACT_THIEF) && (sn == skill_resolve_gsn("sneak") || sn == skill_resolve_gsn("hide")))
         skill = 40+19 * log10(ch->tot_level)/2;
 
-        else if ((sn == gsn_dodge && IS_SET(ch->off_flags,OFF_DODGE))
-     ||       (sn == gsn_parry && IS_SET(ch->off_flags,OFF_PARRY)))
+        else if ((sn == skill_resolve_gsn("dodge") && IS_SET(ch->off_flags,OFF_DODGE))
+     ||       (sn == skill_resolve_gsn("parry") && IS_SET(ch->off_flags,OFF_PARRY)))
         skill = 40+19 * log10(ch->tot_level)/2;
 
-     else if (sn == gsn_shield_block)
+     else if (sn == skill_resolve_gsn("shield block"))
         skill = 40+19 * log10(ch->tot_level)/2;
 
-    else if (sn == gsn_second_attack
+    else if (sn == skill_resolve_gsn("second attack")
     && (IS_SET(ch->act[0],ACT_WARRIOR) || IS_SET(ch->act[0],ACT_THIEF)))
         skill = 40+19 * log10(ch->tot_level)/2;
 
-    else if (sn == gsn_third_attack && IS_SET(ch->act[0],ACT_WARRIOR))
+    else if (sn == skill_resolve_gsn("third attack") && IS_SET(ch->act[0],ACT_WARRIOR))
         skill = 40 * log10(ch->tot_level);
 
-    else if (sn == gsn_hand_to_hand)
+    else if (sn == skill_resolve_gsn("hand to hand"))
         skill = 40 + 19 * log10(ch->tot_level)/2;
 
-     else if (sn == gsn_bash && IS_SET(ch->off_flags,OFF_BASH))
+     else if (sn == skill_resolve_gsn("bash") && IS_SET(ch->off_flags,OFF_BASH))
         skill = 40 + 19 * log10(ch->tot_level)/1.5;
 
-    else if (sn == gsn_disarm
+    else if (sn == skill_resolve_gsn("disarm")
          &&  (IS_SET(ch->off_flags,OFF_DISARM)
          ||   IS_SET(ch->act[0],ACT_WARRIOR)
          ||	  IS_SET(ch->act[0],ACT_THIEF)))
         skill = 40 + 19*log10(ch->tot_level)/1.5;
 
-    else if (sn == gsn_berserk && IS_SET(ch->off_flags,OFF_BERSERK))
+    else if (sn == skill_resolve_gsn("berserk") && IS_SET(ch->off_flags,OFF_BERSERK))
         skill = 19*log10(ch->tot_level)/1.5;
 
-    else if (sn == gsn_kick)
+    else if (sn == skill_resolve_gsn("kick"))
         skill = 40 + 19*log10(ch->tot_level)/1.5;
 
-    else if (sn == gsn_backstab && IS_SET(ch->act[0],ACT_THIEF))
+    else if (sn == skill_resolve_gsn("backstab") && IS_SET(ch->act[0],ACT_THIEF))
         skill = 40 + 19*log10(ch->tot_level)/2;
 
-      else if (sn == gsn_rescue)
+      else if (sn == skill_resolve_gsn("rescue"))
         skill = 40 + 19*log10(ch->tot_level)/2;
 
-    else if (sn == gsn_recall)
+    else if (sn == skill_resolve_gsn("recall"))
         skill = 40 + 19*log10(ch->tot_level)/2;
 
-    else if (sn == gsn_sword
-    ||  sn == gsn_dagger
-    ||  sn == gsn_spear
-    ||  sn == gsn_mace
-    ||  sn == gsn_axe
-    ||  sn == gsn_flail
-    ||  sn == gsn_whip
-    ||  sn == gsn_stake
-    ||  sn == gsn_polearm
-    ||  sn == gsn_quarterstaff)
+    else if (sn == skill_resolve_gsn("sword")
+    ||  sn == skill_resolve_gsn("dagger")
+    ||  sn == skill_resolve_gsn("spear")
+    ||  sn == skill_resolve_gsn("mace")
+    ||  sn == skill_resolve_gsn("axe")
+    ||  sn == skill_resolve_gsn("flail")
+    ||  sn == skill_resolve_gsn("whip")
+    ||  sn == skill_resolve_gsn("stake")
+    ||  sn == skill_resolve_gsn("polearm")
+    ||  sn == skill_resolve_gsn("quarterstaff"))
         skill = 40 + 19*log10(ch->tot_level);
 
     else
@@ -587,22 +587,22 @@ int get_weapon_sn(CHAR_DATA *ch)
 
     wield = get_eq_char(ch, WEAR_WIELD);
     if (wield == NULL || wield->item_type != ITEM_WEAPON)
-        sn = gsn_hand_to_hand;
+        sn = skill_resolve_gsn("hand to hand");
 
     else switch (wield->value[0])
     {
         default :                  sn = -1; 	       		break;
-        case(WEAPON_SWORD):        sn = gsn_sword;         	break;
-        case(WEAPON_EXOTIC):       sn = gsn_exotic;         	break;
-        case(WEAPON_DAGGER):       sn = gsn_dagger;        	break;
-        case(WEAPON_SPEAR):        sn = gsn_spear;         	break;
-        case(WEAPON_MACE):         sn = gsn_mace;          	break;
-        case(WEAPON_AXE):          sn = gsn_axe;           	break;
-        case(WEAPON_FLAIL):        sn = gsn_flail;         	break;
-        case(WEAPON_WHIP):         sn = gsn_whip;          	break;
-        case(WEAPON_POLEARM):      sn = gsn_polearm;       	break;
-        case(WEAPON_STAKE):        sn = gsn_stake;       	break;
-    case(WEAPON_QUARTERSTAFF): sn = gsn_quarterstaff; 	break;
+        case(WEAPON_SWORD):        sn = skill_resolve_gsn("sword");         	break;
+        case(WEAPON_EXOTIC):       sn = skill_resolve_gsn("exotic");         	break;
+        case(WEAPON_DAGGER):       sn = skill_resolve_gsn("dagger");        	break;
+        case(WEAPON_SPEAR):        sn = skill_resolve_gsn("spear");         	break;
+        case(WEAPON_MACE):         sn = skill_resolve_gsn("mace");          	break;
+        case(WEAPON_AXE):          sn = skill_resolve_gsn("axe");           	break;
+        case(WEAPON_FLAIL):        sn = skill_resolve_gsn("flail");         	break;
+        case(WEAPON_WHIP):         sn = skill_resolve_gsn("whip");          	break;
+        case(WEAPON_POLEARM):      sn = skill_resolve_gsn("polearm");       	break;
+        case(WEAPON_STAKE):        sn = skill_resolve_gsn("stake");       	break;
+    case(WEAPON_QUARTERSTAFF): sn = skill_resolve_gsn("quarterstaff"); 	break;
    }
 
    return sn;
@@ -613,22 +613,22 @@ int get_objweapon_sn(OBJ_DATA *obj)
     int sn;
 
     if (!obj || obj->item_type != ITEM_WEAPON)
-        sn = gsn_hand_to_hand;
+        sn = skill_resolve_gsn("hand to hand");
 
     else switch (obj->value[0])
     {
         default :                  sn = -1; 	       		break;
-        case(WEAPON_SWORD):        sn = gsn_sword;         	break;
-        case(WEAPON_EXOTIC):       sn = gsn_exotic;         	break;
-        case(WEAPON_DAGGER):       sn = gsn_dagger;        	break;
-        case(WEAPON_SPEAR):        sn = gsn_spear;         	break;
-        case(WEAPON_MACE):         sn = gsn_mace;          	break;
-        case(WEAPON_AXE):          sn = gsn_axe;           	break;
-        case(WEAPON_FLAIL):        sn = gsn_flail;         	break;
-        case(WEAPON_WHIP):         sn = gsn_whip;          	break;
-        case(WEAPON_POLEARM):      sn = gsn_polearm;       	break;
-        case(WEAPON_STAKE):        sn = gsn_stake;       	break;
-    case(WEAPON_QUARTERSTAFF): sn = gsn_quarterstaff; 	break;
+        case(WEAPON_SWORD):        sn = skill_resolve_gsn("sword");         	break;
+        case(WEAPON_EXOTIC):       sn = skill_resolve_gsn("exotic");         	break;
+        case(WEAPON_DAGGER):       sn = skill_resolve_gsn("dagger");        	break;
+        case(WEAPON_SPEAR):        sn = skill_resolve_gsn("spear");         	break;
+        case(WEAPON_MACE):         sn = skill_resolve_gsn("mace");          	break;
+        case(WEAPON_AXE):          sn = skill_resolve_gsn("axe");           	break;
+        case(WEAPON_FLAIL):        sn = skill_resolve_gsn("flail");         	break;
+        case(WEAPON_WHIP):         sn = skill_resolve_gsn("whip");          	break;
+        case(WEAPON_POLEARM):      sn = skill_resolve_gsn("polearm");       	break;
+        case(WEAPON_STAKE):        sn = skill_resolve_gsn("stake");       	break;
+    case(WEAPON_QUARTERSTAFF): sn = skill_resolve_gsn("quarterstaff"); 	break;
    }
 
    return sn;
@@ -644,7 +644,7 @@ int get_weapon_skill(CHAR_DATA *ch, int sn)
     {
     if (sn == -1)
         skill = 3 * ch->level;
-    else if (sn == gsn_hand_to_hand)
+    else if (sn == skill_resolve_gsn("hand to hand"))
         skill = 40 + 2 * ch->level;
     else
         skill = 40 + 5 * ch->level / 2;
@@ -2119,11 +2119,11 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
         for (af = ch->affected; af != NULL; af = af->next)
         {
-            if (af->type == gsn_plague)
+            if (af->type == skill_resolve_gsn("plague"))
                 break;
         // @@@NIB : 20070127 : handle special cases
         //	So far, only toxic fumes does 'plague' too
-            if (af->type == gsn_toxic_fumes)
+            if (af->type == skill_resolve_gsn("toxic fumes"))
                 has_plague_af = true;
         }
 
@@ -2138,7 +2138,8 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
         plague.where		= TO_AFFECTS;
         plague.group		= AFFGROUP_BIOLOGICAL;
-        plague.type 		= gsn_plague;
+        plague.type 		= skill_resolve_gsn("plague");
+        plague.skill		= skill_from_sn(plague.type);
         plague.level 		= af->level - 1;
         plague.duration 	= number_range(1,2 * plague.level);
         plague.location		= APPLY_STR;
@@ -5443,10 +5444,10 @@ void deduct_move(CHAR_DATA *ch, int amount)
         amount /= 2;
 
     // athletics reduces movement usage
-    if (number_percent() < get_skill(ch, gsn_athletics) / 8)
+    if (number_percent() < get_skill(ch, skill_resolve_gsn("athletics")) / 8)
     {
     if (number_percent() == 1)
-        check_improve(ch, gsn_athletics, true, 8);
+        check_improve(ch, skill_resolve_gsn("athletics"), true, 8);
 
     return;
     }
@@ -9672,12 +9673,12 @@ bool obj_has_spell(OBJ_DATA *obj, char *name)
 void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent)
 {
     int restored;
-    affect_strip(ch,gsn_plague);
-    affect_strip(ch,gsn_poison);
-    affect_strip(ch,gsn_blindness);
-    affect_strip(ch,gsn_sleep);
-    affect_strip(ch,gsn_curse);
-    affect_strip(ch,gsn_toxic_fumes);	/* @@@NIB : 20070127*/
+    affect_strip(ch,skill_resolve_gsn("plague"));
+    affect_strip(ch,skill_resolve_gsn("poison"));
+    affect_strip(ch,skill_resolve_gsn("blindness"));
+    affect_strip(ch,skill_resolve_gsn("sleep"));
+    affect_strip(ch,skill_resolve_gsn("curse"));
+    affect_strip(ch,skill_resolve_gsn("toxic fumes"));	/* @@@NIB : 20070127*/
     ch->hit 	= ch->max_hit;
     ch->mana	= ch->max_mana;
     ch->move	= ch->max_move;

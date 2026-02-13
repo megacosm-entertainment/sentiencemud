@@ -313,6 +313,192 @@ static RACE_DATA *race_load_json(const char *filename)
 }
 
 /***************************************************************************
+ * Hot-Reload                                                              *
+ ***************************************************************************/
+
+/**
+ * race_copy_fields - Copy all data fields from src to dst in-place
+ *
+ * Preserves dst's linked-list pointer (next), valid flag, and uid.
+ * Transfers ownership of src's allocated memory.
+ *
+ * @param dst   Existing race struct to update
+ * @param src   Temporary race struct with new data (will be gutted)
+ */
+static void race_copy_fields(RACE_DATA *dst, RACE_DATA *src)
+{
+    /* Preserve structural fields */
+    RACE_DATA *saved_next = dst->next;
+    int16_t saved_uid = dst->uid;
+
+    /* Free old strings on dst (alloc_perm'd strings use free_string) */
+    free_string(dst->id);
+    free_string(dst->name);
+    free_string(dst->description);
+    free_string(dst->comments);
+    free_string(dst->who_name);
+    free_string(dst->remort_race_id);
+    free_string(dst->remort_into_id);
+
+    if (dst->skills) {
+        ITERATOR it;
+        char *skill_name;
+        iterator_start(&it, dst->skills);
+        while ((skill_name = (char *)iterator_nextdata(&it)))
+            free_string(skill_name);
+        iterator_stop(&it);
+        list_destroy(dst->skills);
+    }
+
+    if (dst->trait_values) {
+        for (int i = 0; i < trait_def_count; i++) {
+            if (dst->trait_values[i].string_val)
+                free_string(dst->trait_values[i].string_val);
+        }
+    }
+
+    /* Copy identity */
+    dst->id = src->id;
+    dst->name = src->name;
+    dst->description = src->description;
+    dst->comments = src->comments;
+    dst->who_name = src->who_name;
+
+    /* Copy flags */
+    dst->playable = src->playable;
+    dst->starting = src->starting;
+
+    /* Copy combat/physical properties */
+    dst->act[0] = src->act[0];
+    dst->act[1] = src->act[1];
+    dst->aff[0] = src->aff[0];
+    dst->aff[1] = src->aff[1];
+    dst->off = src->off;
+    dst->imm = src->imm;
+    dst->res = src->res;
+    dst->vuln = src->vuln;
+    dst->form = src->form;
+    dst->parts = src->parts;
+
+    /* Copy attributes */
+    for (int i = 0; i < MAX_STATS; i++) {
+        dst->stats[i] = src->stats[i];
+        dst->max_stats[i] = src->max_stats[i];
+    }
+    for (int i = 0; i < 3; i++)
+        dst->max_vitals[i] = src->max_vitals[i];
+
+    dst->min_size = src->min_size;
+    dst->max_size = src->max_size;
+    dst->default_alignment = src->default_alignment;
+
+    /* Copy skills list */
+    dst->skills = src->skills;
+
+    /* Copy starting equipment */
+    for (int i = 0; i < MAX_RACE_STARTING_EQ; i++)
+        dst->starting_eq[i] = src->starting_eq[i];
+
+    /* Copy remort */
+    dst->remort_race_id = src->remort_race_id;
+    dst->remort_into_id = src->remort_into_id;
+
+    /* Copy traits */
+    dst->trait_values = src->trait_values;
+
+    /* Restore structural fields */
+    dst->next = saved_next;
+    dst->uid = saved_uid;
+    dst->valid = true;
+
+    /* Null out src to prevent double-free */
+    src->id = NULL;
+    src->name = NULL;
+    src->description = NULL;
+    src->comments = NULL;
+    src->who_name = NULL;
+    src->remort_race_id = NULL;
+    src->remort_into_id = NULL;
+    src->skills = NULL;
+    src->trait_values = NULL;
+}
+
+/**
+ * race_reload - Reload a race definition from its JSON file
+ *
+ * If the race already exists, updates it in-place (preserving all
+ * pointers). If it doesn't exist, loads it as a new race and registers it.
+ *
+ * @param id    Race ID (matches the JSON filename, e.g. "human")
+ * @return      The (re)loaded RACE_DATA, or NULL on failure
+ */
+RACE_DATA *race_reload(const char *id)
+{
+    char path[512];
+    RACE_DATA *existing, *temp;
+
+    if (!id || !id[0])
+        return NULL;
+
+    /* Build path: data/races/<id>.json */
+    snprintf(path, sizeof(path), "%s%s.json", RACES_DIR, id);
+
+    /* Parse the JSON file */
+    temp = race_load_json(path);
+    if (!temp) {
+        log_stringf("race_reload: Failed to parse %s", path);
+        return NULL;
+    }
+
+    /* Check if race already exists by ID */
+    existing = race_lookup(temp->id);
+
+    if (existing) {
+        /* In-place update */
+        race_copy_fields(existing, temp);
+
+        log_stringf("race_reload: Reloaded race '%s' (uid %d) in-place",
+                     existing->name, existing->uid);
+        return existing;
+    } else {
+        /* New race — assign UID if needed, add to list and indexes */
+        if (temp->uid <= 0)
+            temp->uid = ++max_race_uid;
+
+        /* Append to linked list */
+        if (!race_list) {
+            race_list = temp;
+        } else {
+            RACE_DATA *last = race_list;
+            while (last->next)
+                last = last->next;
+            last->next = temp;
+        }
+        temp->next = NULL;
+
+        /* Add to hash table and UID index */
+        race_hash_insert(temp);
+
+        /* Grow UID index if needed */
+        if (temp->uid > max_race_uid) {
+            max_race_uid = temp->uid;
+        }
+        /* Note: UID index may need realloc for new entries beyond boot-time max.
+         * For safety, we skip UID indexing if the index wasn't allocated large enough.
+         * This only affects uid-based lookup for brand-new races added at runtime. */
+        if (race_uid_index && temp->uid <= max_race_uid) {
+            race_uid_index[temp->uid] = temp;
+        }
+
+        race_count++;
+
+        log_stringf("race_reload: Loaded new race '%s' (uid %d)",
+                     temp->name, temp->uid);
+        return temp;
+    }
+}
+
+/***************************************************************************
  * Race System Initialization                                              *
  ***************************************************************************/
 

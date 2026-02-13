@@ -40,17 +40,19 @@ typedef struct class_title CLASS_TITLE;
 #define CLASS_REMORT_ONLY       (E)    /* Requires remort to access */
 #define CLASS_DEFAULT           (F)    /* Auto-assigned to new characters on creation */
 
-/* Reward type constants — what a class grants at a given level */
-#define REWARD_SKILL            0      /* Grant access to a skill at a given rating */
-#define REWARD_GROUP            1      /* Grant all skills in a skill group */
-#define REWARD_TITLE            2      /* Change class display/who name at this level */
-#define REWARD_BONUS            3      /* Grant a stat or attribute bonus */
-#define REWARD_TOKEN            4      /* Grant a token to the character */
-#define REWARD_SCRIPT           5      /* Execute a script against the character */
-#define REWARD_CUSTOM           6      /* Write to CLASS_LEVEL.custom_data */
-#define REWARD_TRAIT            7      /* Grant or override a trait value */
-#define REWARD_SONG             8      /* Grant a song to the character */
-#define MAX_REWARD_TYPE         9
+/* Reward type constants — what a class grants at a given level.
+ * NOTE: Values start at 1, not 0, because flag_value()/flag_lookup()
+ * treat 0 as "not found." */
+#define REWARD_SKILL            1      /* Grant access to a skill at a given rating */
+#define REWARD_GROUP            2      /* Grant all skills in a skill group */
+#define REWARD_TITLE            3      /* Change class display/who name at this level */
+#define REWARD_BONUS            4      /* Grant a stat or attribute bonus */
+#define REWARD_TOKEN            5      /* Grant a token to the character */
+#define REWARD_SCRIPT           6      /* Execute a script against the character */
+#define REWARD_CUSTOM           7      /* Write to CLASS_LEVEL.custom_data */
+#define REWARD_TRAIT            8      /* Grant or override a trait value */
+#define REWARD_SONG             9      /* Grant a song to the character */
+#define MAX_REWARD_TYPE         10
 
 /* Reward flags (bitfield) */
 #define REWARD_REVOKE_ON_LEAVE  (A)    /* Revoked when leaving this class */
@@ -149,6 +151,9 @@ void            save_class_data(CLASS_DATA *clazz);
 
 /* Save all classes to JSON files */
 void            save_all_class_data(void);
+
+/* Reload a single class from its JSON file (in-place if exists, new if not) */
+CLASS_DATA *    class_reload(const char *name);
 
 /***************************************************************************
  * Reward System API                                                       *

@@ -9,6 +9,9 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "class_data.h"
+#include "song_data.h"
+#include "traits.h"
 #include <math.h>
 
 extern bool wiznet_script;
@@ -384,7 +387,15 @@ DECL_IFC_FUN(ifc_clan)
 
 DECL_IFC_FUN(ifc_class)
 {
-    return false;
+    *ret = false;
+    if (VALID_PLAYER(0) && ISARG_STR(1)) {
+        CLASS_DATA *clazz = class_find(ARG_STR(1));
+        if (clazz) {
+            CLASS_DATA *current = get_current_class(ARG_MOB(0));
+            *ret = (current == clazz);
+        }
+    }
+    return true;
 }
 
 DECL_IFC_FUN(ifc_clones)
@@ -3962,6 +3973,108 @@ DECL_IFC_FUN(ifc_isaffectwhere)
 DECL_IFC_FUN(ifc_skilllookup)
 {
     *ret = ISARG_STR(0) ? skill_lookup(ARG_STR(0)) : 0;
+    return true;
+}
+
+// hasclass $PLAYER 'classname' — does the player have this class unlocked?
+DECL_IFC_FUN(ifc_hasclass)
+{
+    *ret = false;
+    if (VALID_PLAYER(0) && ISARG_STR(1)) {
+        CLASS_DATA *clazz = class_find(ARG_STR(1));
+        if (clazz)
+            *ret = has_class_level(ARG_MOB(0), clazz);
+    }
+    return true;
+}
+
+// isclass $PLAYER 'classname' — is this the player's current active class?
+DECL_IFC_FUN(ifc_isclass)
+{
+    *ret = false;
+    if (VALID_PLAYER(0) && ISARG_STR(1)) {
+        CLASS_DATA *clazz = class_find(ARG_STR(1));
+        if (clazz) {
+            CLASS_DATA *current = get_current_class(ARG_MOB(0));
+            *ret = (current == clazz);
+        }
+    }
+    return true;
+}
+
+// classlevel $PLAYER 'classname' — level in a specific class (0 if not unlocked)
+DECL_IFC_FUN(ifc_classlevel)
+{
+    *ret = 0;
+    if (VALID_PLAYER(0) && ISARG_STR(1)) {
+        CLASS_DATA *clazz = class_find(ARG_STR(1));
+        if (clazz) {
+            CLASS_LEVEL *cl = get_class_level(ARG_MOB(0), clazz);
+            *ret = cl ? cl->level : 0;
+        }
+    }
+    return true;
+}
+
+// classcount $PLAYER — number of classes the player has unlocked
+DECL_IFC_FUN(ifc_classcount)
+{
+    *ret = 0;
+    if (VALID_PLAYER(0))
+        *ret = list_size(ARG_MOB(0)->pcdata->classes);
+    return true;
+}
+
+// hastrait $PLAYER 'trait_id' — does the character have this boolean trait?
+DECL_IFC_FUN(ifc_hastrait)
+{
+    *ret = false;
+    if (ISARG_MOB(0) && ISARG_STR(1))
+        *ret = ch_has_trait(ARG_MOB(0), ARG_STR(1));
+    return true;
+}
+
+// traitint $PLAYER 'trait_id' — integer trait value
+DECL_IFC_FUN(ifc_traitint)
+{
+    *ret = 0;
+    if (ISARG_MOB(0) && ISARG_STR(1))
+        *ret = ch_get_trait_int(ARG_MOB(0), ARG_STR(1));
+    return true;
+}
+
+// traitstring $PLAYER 'trait_id' — string trait value (returns as boolean match)
+DECL_IFC_FUN(ifc_traitstring)
+{
+    *ret = false;
+    if (ISARG_MOB(0) && ISARG_STR(1)) {
+        const char *val = ch_get_trait_string(ARG_MOB(0), ARG_STR(1));
+        *ret = (val && *val) ? true : false;
+    }
+    return true;
+}
+
+// hasskill $PLAYER 'skillname' — does the player have this skill at all?
+DECL_IFC_FUN(ifc_hasskill)
+{
+    *ret = false;
+    if (VALID_PLAYER(0) && ISARG_STR(1)) {
+        int sn = skill_lookup(ARG_STR(1));
+        if (sn > 0)
+            *ret = skill_entry_findsn(ARG_MOB(0)->sorted_skills, sn) ? true : false;
+    }
+    return true;
+}
+
+// hassong $PLAYER 'songname' — does the player know this song?
+DECL_IFC_FUN(ifc_hassong)
+{
+    *ret = false;
+    if (VALID_PLAYER(0) && ISARG_STR(1)) {
+        SONG_DATA *song = song_lookup(ARG_STR(1));
+        if (song)
+            *ret = skill_entry_findsong(ARG_MOB(0)->sorted_songs, song) ? true : false;
+    }
     return true;
 }
 

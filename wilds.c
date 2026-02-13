@@ -2729,10 +2729,12 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     {
         AFFECT_DATA *af, plague;
         CHAR_DATA *vch;
+        int16_t sn_plague = skill_resolve_gsn("plague");
+        SKILL_DATA *sk_plague = skill_from_sn(sn_plague);
 
         for (af = ch->affected; af != NULL; af = af->next)
         {
-            if (af->type == gsn_plague)
+            if (af->type == sn_plague)
                 break;
         }
 
@@ -2749,7 +2751,8 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         plague.where = TO_AFFECTS;
         plague.custom_name = NULL;
         plague.group = af->group;
-        plague.type = gsn_plague;
+        plague.type = sn_plague;
+        plague.skill = sk_plague;
         plague.level = af->level - 1;
         plague.duration = number_range (1, 2 * plague.level);
         plague.location = APPLY_STR;

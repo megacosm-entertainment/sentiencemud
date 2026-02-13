@@ -182,7 +182,7 @@ SPELL_FUNC(spell_ice_shards)
     /* CAP */
     dam = UMIN(dam, 2500);
 
-    damage(ch,victim,dam,gsn_ice_shards, DAM_COLD, true);
+    damage(ch,victim,dam,skill_resolve_gsn("ice shards"), DAM_COLD, true);
 
     return true;
 }
@@ -272,7 +272,7 @@ bool glacialwave_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int d
 
     if (gw->do_ice && number_range(0,24) < heat) gw->do_ice = false;	// It takes little to prevent ice storms
 
-    spellassist_room_freeze(room,ch,level,gw->large?8:5,gsn_glacial_wave);
+    spellassist_room_freeze(room,ch,level,gw->large?8:5,skill_resolve_gsn("glacial wave"));
 
     if( door >= 0 && door < MAX_DIR ) {
         if(gw->large)
@@ -309,7 +309,7 @@ void glacialwave_end(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int door, 
         sprintf(buf, "{CA glacial wave explodes in a fury of ice!{x\n\r");
     room_echo(room, buf);
 
-    if(gw->large) spellassist_room_freeze(room,ch,level,5,gsn_glacial_wave);
+    if(gw->large) spellassist_room_freeze(room,ch,level,5,skill_resolve_gsn("glacial wave"));
 
 }
 

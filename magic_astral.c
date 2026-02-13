@@ -118,7 +118,7 @@ SPELL_FUNC(spell_maze)
         return false;
     }
 
-    skill_pct = get_skill(ch, gsn_maze);
+    skill_pct = get_skill(ch, skill_resolve_gsn("maze"));
     if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze"))) {
         send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
         ch->daze += 10 - number_range(0, skill_pct/10);

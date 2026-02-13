@@ -79,7 +79,9 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "gecho",				do_mpgecho,					false,	true	},
     { "gforce",				do_mpgforce,				false,	true	},
     { "goto",				do_mpgoto,					false,	true	},
+    { "grantclass",			scriptcmd_grantclass,		false,	true	},
     { "grantskill",			scriptcmd_grantskill,		false,	true	},
+    { "grantsong",			scriptcmd_grantsong,		false,	true	},
     { "group",				do_mpgroup,					false,	true	},
     { "gtransfer",			do_mpgtransfer,				false,	true	},
     { "hunt",				do_mphunt,					false,	true	},
@@ -125,13 +127,18 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "resetdice",			do_mpresetdice,				true,	true	},
     { "resetroom",			scriptcmd_resetroom,		true,	true	},
     { "restore",			do_mprestore,				true,	true	},
+    { "revokeclass",		scriptcmd_revokeclass,		false,	true	},
     { "revokeskill",		scriptcmd_revokeskill,		false,	true	},
+    { "revokesong",			scriptcmd_revokesong,		false,	true	},
     { "saveplayer",			do_mpsaveplayer,			false,	true	},
     { "scriptwait",			do_mpscriptwait,			false,	true	},
     { "selfdestruct",		do_mpselfdestruct,			false,	false	},
     { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+    { "setclass",			scriptcmd_setclass,			false,	true	},
+    { "setrace",			scriptcmd_setrace,			false,	true	},
     { "setrecall",			do_mpsetrecall,				false,	true,	},
     { "settimer",			do_mpsettimer,				false,	true	},
+    { "settrait",			scriptcmd_settrait,			false,	true	},
     { "showroom",			do_mpshowroom,				true,	true	},
     { "skimprove",			do_mpskimprove,				true,	true	},
     { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
@@ -1214,10 +1221,11 @@ SCRIPT_CMD(do_mpchargemoney)
 
     one_argument(rest,buf);
     if (!str_cmp(buf,"haggle")) {
+        int16_t sn_haggle = skill_resolve_gsn("haggle");
         roll = number_percent();
-        if (roll < get_skill(victim, gsn_haggle)) {
+        if (roll < get_skill(victim, sn_haggle)) {
             amt -= amt * roll / 200;
-            check_improve(victim, gsn_haggle, true, 4);
+            check_improve(victim, sn_haggle, true, 4);
         }
     }
 

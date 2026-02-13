@@ -65,7 +65,8 @@ void do_scan(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg1);
 
-    skill = get_skill(ch,gsn_scan);
+    int16_t sn_scan = skill_resolve_gsn("scan");
+    skill = get_skill(ch,sn_scan);
 
     if (skill < 1)		max_depth = 4;
     else if (skill < 85)	max_depth = 5;
@@ -145,7 +146,7 @@ void do_scan(CHAR_DATA *ch, char *argument)
     */
 
     if (skill > 0)
-        check_improve( ch, gsn_scan, true, 1 );
+        check_improve( ch, sn_scan, true, 1 );
 }
 
 

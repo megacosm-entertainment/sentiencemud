@@ -355,7 +355,7 @@ SPELL_FUNC(spell_stone_spikes)
                 act("$n dodges the spikes!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             } else {
                 damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, true);
-                affect_strip(victim, gsn_sneak);
+                affect_strip(victim, skill_resolve_gsn("sneak"));
                 REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
                 REMOVE_BIT(victim->affected_by[0], AFF_SNEAK);
             }
@@ -379,7 +379,7 @@ SPELL_FUNC(spell_stone_spikes)
                         act("$n dodges the spikes!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     } else {
                         damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, true);
-                        affect_strip(victim, gsn_sneak);
+                        affect_strip(victim, skill_resolve_gsn("sneak"));
                         REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
                         REMOVE_BIT(victim->affected_by[0], AFF_SNEAK);
                     }

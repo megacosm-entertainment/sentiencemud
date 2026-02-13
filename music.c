@@ -43,7 +43,7 @@ void do_play(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument,arg);
     argument = one_argument(argument,arg2);
 
-    if ((chance = get_skill(ch,gsn_music)) == 0)
+    if ((chance = get_skill(ch, skill_resolve_gsn("music"))) == 0)
     {
         send_to_char("You whistle a little tune to yourself.\n\r",ch);
         return;
@@ -849,7 +849,7 @@ void music_end( CHAR_DATA *ch )
     }
     */
 
-    check_improve(ch, gsn_music, true, 2);
+    check_improve(ch, skill_resolve_gsn("music"), true, 2);
 }
 
 

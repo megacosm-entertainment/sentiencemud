@@ -23,14 +23,15 @@ void afterburn_hitroom(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int dam, int level)
 
     // Maybe add a chance for creating an inferno?
 
+    int16_t sn_afterburn = skill_resolve_gsn("afterburn");
     fire_effect((void *) room, level, dam, TARGET_ROOM);
     for (victim = room->people; victim ; victim = vnext) {
         vnext = victim->next_in_room;
         if (!is_safe(ch, victim, false) && victim != ch) {
-            if (!check_spell_deflection(ch, victim, gsn_afterburn))
+            if (!check_spell_deflection(ch, victim, sn_afterburn))
                 continue;
 
-            damage(ch, victim, dam, gsn_afterburn, DAM_FIRE, true);
+            damage(ch, victim, dam, sn_afterburn, DAM_FIRE, true);
             fire_effect((void *)victim, level, dam, TARGET_CHAR);
         }
     }
