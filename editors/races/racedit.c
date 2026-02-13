@@ -43,6 +43,7 @@ const struct olc_cmd_type racedit_table[] =
     { "name",           racedit_name        },
     { "offensive",      racedit_offensive   },
     { "parts",          racedit_parts       },
+    { "pathrace",       racedit_pathrace    },
     { "playable",       racedit_playable    },
     { "prerequisite",   racedit_prerequisite },
     { "remortinto",     racedit_remortinto  },
@@ -191,6 +192,7 @@ RACEDIT(racedit_show)
     add_buf(buffer, formatf("{CWho Name:     {W%s{x\n\r", race->who_name));
     add_buf(buffer, formatf("{CPlayable:     {x%s\n\r", race->playable ? "{GYes{x" : "{DNo{x"));
     add_buf(buffer, formatf("{CStarting:     {x%s\n\r", race->starting ? "{GYes{x" : "{DNo{x"));
+    add_buf(buffer, formatf("{CPath Race:    {x%s\n\r", race->path_race ? "{YYes{x" : "{DNo{x"));
 
     /* Description */
     add_buf(buffer, formatf("{CDescription:{x\n\r%s\n\r",
@@ -436,6 +438,28 @@ RACEDIT(racedit_starting)
 
     race->starting = !race->starting;
     send_to_char(formatf("Starting set to %s.\n\r", race->starting ? "Yes" : "No"), ch);
+    return true;
+}
+
+
+/**
+ * racedit_pathrace - Toggle whether the race is a path/transformation race
+ *
+ * Path races are transformations applied to any base race (e.g., lich,
+ * vampire, slayer). Characters who become a path race retain their
+ * original race as orace.
+ *
+ * @param ch        Character editing
+ * @param argument  Unused
+ * @return          true if changed
+ */
+RACEDIT(racedit_pathrace)
+{
+    RACE_DATA *race;
+    EDIT_RACE(ch, race);
+
+    race->path_race = !race->path_race;
+    send_to_char(formatf("Path race set to %s.\n\r", race->path_race ? "Yes" : "No"), ch);
     return true;
 }
 
@@ -1161,21 +1185,22 @@ RACEDIT(racedit_list)
     int count = 0;
 
     buffer = new_buf();
-    add_buf(buffer, "{R  UID  ID                Name                Playable  Starting  Remort{x\n\r");
-    add_buf(buffer, "{D ---- ------------------- ------------------- --------- --------- ------{x\n\r");
+    add_buf(buffer, "{R  UID  ID                Name                Playable  Starting  Remort  Path{x\n\r");
+    add_buf(buffer, "{D ---- ------------------- ------------------- --------- --------- ------- ------{x\n\r");
 
     for (race = race_list; race; race = race->next) {
         if (argument[0] != '\0' && str_prefix(argument, race->id)
             && str_prefix(argument, race->name))
             continue;
 
-        add_buf(buffer, formatf(" {C%4d{x %-19s %-19s %-9s %-9s %s\n\r",
+        add_buf(buffer, formatf(" {C%4d{x %-19s %-19s %-9s %-9s %-7s %s\n\r",
             race->uid,
             race->id,
             race->name,
             race->playable ? "{GYes{x" : "{DNo{x",
             race->starting ? "{GYes{x" : "{DNo{x",
-            race_is_remort(race) ? "{YYes{x" : "{DNo{x"));
+            race_is_remort(race) ? "{YYes{x" : "{DNo{x",
+            race->path_race ? "{YYes{x" : "{DNo{x"));
         count++;
     }
 

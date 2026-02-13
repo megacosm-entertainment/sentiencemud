@@ -204,6 +204,7 @@ static RACE_DATA *race_load_json(const char *filename)
     /* Playability flags */
     race->playable = json_is_true(json_object_get(root, "playable"));
     race->starting = json_is_true(json_object_get(root, "starting"));
+    race->path_race = json_is_true(json_object_get(root, "path_race"));
 
     /* Display section */
     obj = json_object_get(root, "display");
@@ -390,6 +391,7 @@ static void race_copy_fields(RACE_DATA *dst, RACE_DATA *src)
     /* Copy flags */
     dst->playable = src->playable;
     dst->starting = src->starting;
+    dst->path_race = src->path_race;
 
     /* Copy combat/physical properties */
     dst->act[0] = src->act[0];
@@ -680,7 +682,16 @@ bool race_is_remort(RACE_DATA *race)
     if (!race)
         return false;
 
-    return (race->remort_race_id != NULL && race->remort_race_id[0] != '\0');
+    return (race->remort_race_id != NULL && race->remort_race_id[0] != '\0')
+        || race->path_race;
+}
+
+bool race_is_path(RACE_DATA *race)
+{
+    if (!race)
+        return false;
+
+    return race->path_race;
 }
 
 RACE_DATA *race_get_remort_into(RACE_DATA *race)
@@ -786,6 +797,8 @@ bool save_race_json(RACE_DATA *race)
     /* Playability */
     json_object_set_new(root, "playable", json_boolean(race->playable));
     json_object_set_new(root, "starting", json_boolean(race->starting));
+    if (race->path_race)
+        json_object_set_new(root, "path_race", json_boolean(race->path_race));
 
     /* Display */
     obj = json_object();

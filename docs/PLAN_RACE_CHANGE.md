@@ -187,13 +187,17 @@ This keeps the existing remort behavior but routes through the central function.
    - `RACE_CHANGE_SAVE_ORIGINAL`, `RACE_CHANGE_OVERLAY`, `RACE_CHANGE_KEEP_SKILLS`,
      `RACE_CHANGE_KEEP_STATS`, `RACE_CHANGE_SILENT`, `RACE_CHANGE_REVERT`
 
-### Phase 2 — Remort Refactor (TODO)
+### Phase 2 — Remort Refactor (DONE)
 
 6. **Remort as "paths"** — skills.c
-   - Refactor `remort_player()` to call `char_set_race()` with
-     `RACE_CHANGE_SAVE_ORIGINAL | RACE_CHANGE_OVERLAY`
-   - Remort races (lich, vampire, slayer) become transformation paths
-     that overlay on the character's base race
+   - Refactored `remort_player()` to use `char_set_race()` with
+     `RACE_CHANGE_SAVE_ORIGINAL | RACE_CHANGE_OVERLAY | RACE_CHANGE_SILENT`
+   - Removed ~20 lines of manual flag/skill reset, replaced with single call
+   - Removed redundant `affect_fix_char()` (already called by `char_set_race()`)
+   - Remort races (lich, vampire, slayer) now overlay on the character's
+     base race, preserving it as `orace`
+
+### Phase 3 — Testing (TODO)
 
 7. **Testing** — unit tests for flag recalculation, overlay math, trait layering
 

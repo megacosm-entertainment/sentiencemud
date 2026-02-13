@@ -2551,6 +2551,21 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         ch->orace = race_lookup(str);
     }
 
+    /* Migration: auto-populate orace for existing remort/path characters */
+    if (ch->race && !ch->orace && !IS_NPC(ch)) {
+        if (race_is_remort(ch->race)) {
+            RACE_DATA *prereq = race_get_prerequisite(ch->race);
+
+            if (prereq && !race_is_path(prereq)) {
+                /* Standard remort chain with known base race — auto-set */
+                ch->orace = prereq;
+            } else if (race_is_path(ch->race)) {
+                /* Path/transformation race — must prompt player on login */
+                ch->orace_question = true;
+            }
+        }
+    }
+
     ch->sex = json_integer_value(json_object_get(character, "sex"));
     ch->body_type = json_integer_value(json_object_get(character, "body_type"));
 

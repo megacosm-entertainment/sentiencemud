@@ -1147,6 +1147,32 @@ if (ch->pk_question)
         return;
     }
 
+    // Original race selection (migration for path race characters)
+    if (ch->orace_question) {
+        RACE_DATA *orace;
+
+        if (!str_cmp(command, "list")) {
+            RACE_DATA *r;
+            send_to_char("{YAvailable original races:{x\n\r", ch);
+            for (r = race_list; r; r = r->next) {
+                if (r->playable && !race_is_remort(r))
+                    printf_to_char(ch, "  %s\n\r", r->name);
+            }
+            return;
+        }
+
+        orace = race_lookup(command);
+        if (!orace || !orace->playable || race_is_remort(orace)) {
+            send_to_char("That is not a valid original race. Type 'list' to see choices.\n\r", ch);
+            return;
+        }
+
+        ch->orace = orace;
+        ch->orace_question = false;
+        printf_to_char(ch, "Your original race has been set to %s.\n\r", orace->name);
+        return;
+    }
+
     // Convert church to a different alignment?
     if (!IS_NPC(ch) && ch->pcdata->convert_church != -1)
     {

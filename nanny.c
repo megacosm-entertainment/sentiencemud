@@ -2361,6 +2361,8 @@ void login_get_alignment(DESCRIPTOR_DATA *d, char *argument)
     d->connected = CON_GET_NEW_RACE;
 }
 
+static void apply_race_properties(CHAR_DATA *ch);
+
 void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 {
 
@@ -2369,7 +2371,6 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
     char races[MSL];
     CHAR_DATA *ch;
     RACE_DATA *race;
-    int i;
     HELP_DATA *help;
 
     while (ISSPACE(*argument))
@@ -2425,12 +2426,6 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
             return;
         }
 
-        if (race_is_remort(race)) {
-            send_to_char("You cannot choose that race.\n\r", ch);
-            send_to_char(races, ch);
-            return;
-        }
-
         if (!race_available_for_creation(race, d->account)) {
             send_to_char("That race is not available to you.\n\r", ch);
             send_to_char(races, ch);
@@ -2439,52 +2434,150 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 
 ch->race = race;
 
-        /* Derive alignment from race's default */
-        if (race->default_alignment < 0)
-            ch->alignment = -750;
-        else if (race->default_alignment > 0)
-            ch->alignment = 750;
-        else
-            ch->alignment = 0;
-
-        /* initialize stats */
-        for (i = 0; i < MAX_STATS; i++) {
-            ch->perm_stat[i] = race->stats[i];
-            ch->dirty_stat[i] = true;
-        }
-        ch->act[1]        = ch->act[1]|race->act[1];
-        ch->affected_by[0] = ch->affected_by[0]|race->aff[0];
-
-        ch->imm_flags_perm = race->imm;
-        ch->res_flags_perm = race->res;
-        ch->vuln_flags_perm = race->vuln;
-        /* 20203003 - Tieryo - Fixing racial affects */
-        ch->affected_by_perm[0] = race->aff[0];
-        ch->affected_by_perm[1] = race->aff[1];
-
-        ch->imm_flags	= ch->imm_flags|race->imm;
-        ch->res_flags	= ch->res_flags|race->res;
-        ch->vuln_flags	= ch->vuln_flags|race->vuln;
-        ch->form	= race->form;
-        ch->parts	= race->parts;
-
-        /* add skills */
-        if (race->skills) {
-            ITERATOR it;
-            char *skill_name;
-            iterator_start(&it, race->skills);
-            while ((skill_name = (char *)iterator_nextdata(&it))) {
-                group_add(ch, skill_name, false);
+        /* For remort/path races: set original race */
+        if (race_is_remort(race)) {
+            if (race_is_path(race)) {
+                /* Path race — need to prompt for original race */
+                send_to_char("\n\r{YAs a path race, you must choose your original race.{x\n\r", ch);
+                send_to_char("{YType 'list' to see available races, or enter a race name:{x ", ch);
+                d->connected = CON_GET_ORIGIN_RACE;
+                return;
+            } else {
+                /* Standard remort race — auto-set orace from prerequisite */
+                RACE_DATA *prereq = race_get_prerequisite(race);
+                if (prereq)
+                    ch->orace = prereq;
             }
-            iterator_stop(&it);
         }
 
-        ch->size = race->min_size;
+        /* Apply race properties (stats, flags, skills, size, alignment) */
+        apply_race_properties(ch);
 
         send_to_char("\n\r{YIs your body {wmasculine{Y, {Wfeminine{y, {Wneutral{Y, or {Wother{Y?{x ", ch);
         d->connected = CON_GET_NEW_BODY_TYPE;
         return;
 
+}
+
+/**
+ * apply_race_properties - Apply race properties to a new character
+ *
+ * Sets alignment, stats, affects, immunities, resistances, vulnerabilities,
+ * form, parts, size, and racial skills from the character's current race.
+ * For characters with an orace (original race), applies overlay semantics.
+ *
+ * @param ch  Character to apply race properties to
+ */
+static void apply_race_properties(CHAR_DATA *ch)
+{
+    RACE_DATA *race = ch->race;
+    int i;
+
+    if (!race)
+        return;
+
+    /* Derive alignment from race's default */
+    if (race->default_alignment < 0)
+        ch->alignment = -750;
+    else if (race->default_alignment > 0)
+        ch->alignment = 750;
+    else
+        ch->alignment = 0;
+
+    /* Initialize stats from race */
+    for (i = 0; i < MAX_STATS; i++) {
+        ch->perm_stat[i] = race->stats[i];
+        ch->dirty_stat[i] = true;
+    }
+
+    /* Apply flags — overlay with orace if present */
+    if (ch->orace) {
+        ch->affected_by_perm[0] = ch->orace->aff[0] | race->aff[0];
+        ch->affected_by_perm[1] = ch->orace->aff[1] | race->aff[1];
+        ch->imm_flags_perm = ch->orace->imm | race->imm;
+        ch->res_flags_perm  = race->res;
+        ch->vuln_flags_perm = race->vuln;
+    } else {
+        ch->affected_by_perm[0] = race->aff[0];
+        ch->affected_by_perm[1] = race->aff[1];
+        ch->imm_flags_perm = race->imm;
+        ch->res_flags_perm = race->res;
+        ch->vuln_flags_perm = race->vuln;
+    }
+
+    ch->act[1]         = ch->act[1] | race->act[1];
+    ch->affected_by[0] = ch->affected_by[0] | ch->affected_by_perm[0];
+    ch->imm_flags  = ch->imm_flags | ch->imm_flags_perm;
+    ch->res_flags  = ch->res_flags | ch->res_flags_perm;
+    ch->vuln_flags = ch->vuln_flags | ch->vuln_flags_perm;
+    ch->form  = race->form;
+    ch->parts = race->parts;
+    ch->size  = race->min_size;
+
+    /* Add skills from race (and orace in overlay) */
+    if (race->skills) {
+        ITERATOR it;
+        char *skill_name;
+        iterator_start(&it, race->skills);
+        while ((skill_name = (char *)iterator_nextdata(&it)))
+            group_add(ch, skill_name, false);
+        iterator_stop(&it);
+    }
+
+    if (ch->orace && ch->orace->skills) {
+        ITERATOR it;
+        char *skill_name;
+        iterator_start(&it, ch->orace->skills);
+        while ((skill_name = (char *)iterator_nextdata(&it)))
+            group_add(ch, skill_name, false);
+        iterator_stop(&it);
+    }
+}
+
+/**
+ * login_get_origin_race - Handle origin race selection for path races
+ *
+ * During character creation, if a player chose a path race (lich, vampire,
+ * slayer, etc.), they must select what their character's original race was
+ * before the transformation. Only non-remort, playable races are valid.
+ */
+void login_get_origin_race(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+    char arg[MAX_INPUT_LENGTH];
+    RACE_DATA *orace;
+
+    while (ISSPACE(*argument))
+        argument++;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0' || !str_cmp(arg, "list")) {
+        RACE_DATA *r;
+        send_to_char("{YAvailable original races:{x\n\r", ch);
+        for (r = race_list; r; r = r->next) {
+            if (r->playable && !race_is_remort(r))
+                printf_to_char(ch, "  %s\n\r", r->name);
+        }
+        send_to_char("\n\r{YChoose your original race:{x ", ch);
+        return;
+    }
+
+    orace = race_lookup(arg);
+    if (!orace || !orace->playable || race_is_remort(orace)) {
+        send_to_char("That is not a valid original race. Type 'list' to see choices.\n\r", ch);
+        return;
+    }
+
+    ch->orace = orace;
+    printf_to_char(ch, "\n\r{YYour original race before becoming %s was %s.{x\n\r",
+                   ch->race->name, orace->name);
+
+    /* Now apply race properties with overlay semantics */
+    apply_race_properties(ch);
+
+    send_to_char("\n\r{YIs your body {wmasculine{Y, {Wfeminine{y, {Wneutral{Y, or {Wother{Y?{x ", ch);
+    d->connected = CON_GET_NEW_BODY_TYPE;
 }
 
 static void finalize_new_character(DESCRIPTOR_DATA *d);
@@ -6381,6 +6474,10 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
     case CON_GET_NEW_RACE:
         login_get_new_race(d, argument);
+        break;
+
+    case CON_GET_ORIGIN_RACE:
+        login_get_origin_race(d, argument);
         break;
 
     case CON_GET_NEW_SEX:

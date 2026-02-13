@@ -668,6 +668,7 @@ DECLARE_OLC_FUN( racedit_description );
 DECLARE_OLC_FUN( racedit_comments );
 DECLARE_OLC_FUN( racedit_playable );
 DECLARE_OLC_FUN( racedit_starting );
+DECLARE_OLC_FUN( racedit_pathrace );
 DECLARE_OLC_FUN( racedit_alignment );
 DECLARE_OLC_FUN( racedit_size );
 DECLARE_OLC_FUN( racedit_stats );

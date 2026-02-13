@@ -1816,7 +1816,8 @@ struct church_treasure_room
 #define CON_SET_CUSTOM_PRONOUNS_CONFIRM 84
 #define CON_CONFIRM_RESET_PREFS        85
 #define CON_ACCOUNT_PREFS              86
-#define CON_MAX 87
+#define CON_GET_ORIGIN_RACE		87
+#define CON_MAX 88
 
 #define MFA_RECOVERY_CODES 5
 
@@ -2271,6 +2272,7 @@ struct race_data
     /* Flags */
     bool	playable;		/* Can players choose this? */
     bool	starting;		/* Available at character creation (not remort)? */
+    bool	path_race;		/* Transformation/path race (lich, vampire, slayer, etc.) */
 
     /* Combat/Inherent Properties */
     long	act[2];			/* ACT flags */
@@ -2323,6 +2325,7 @@ RACE_DATA *	race_lookup(const char *id);		/* By string ID - primary */
 RACE_DATA *	race_lookup_uid(int16_t uid);		/* By numeric UID */
 RACE_DATA *	race_lookup_name(const char *name);	/* By display name (fuzzy) */
 bool		race_is_remort(RACE_DATA *race);	/* Is this a remort race? */
+bool		race_is_path(RACE_DATA *race);	/* Is this a path/transformation race? */
 bool		race_has_skill(RACE_DATA *race, const char *skill_name);	/* Has racial skill? */
 RACE_DATA *	race_get_remort_into(RACE_DATA *race);	/* Get remort destination */
 RACE_DATA *	race_get_prerequisite(RACE_DATA *race);	/* Get prerequisite race */
@@ -4958,6 +4961,7 @@ struct	char_data
     bool 		cross_zone_question;
     bool 		personal_pk_question;
     bool		remort_question;
+    bool		orace_question;		/* Needs to select original race (migration) */
 
     bool 		in_war;
 

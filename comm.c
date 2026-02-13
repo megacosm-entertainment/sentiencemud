@@ -2274,6 +2274,12 @@ void bust_a_prompt(CHAR_DATA *ch)
         return;
     }
 
+    if (ch->orace_question)
+    {
+        send_to_char("{YSelect your original race (before you transformed):{x\n\r", ch);
+        return;
+    }
+
     if (ch->pnote != NULL)
     send_to_char("{Y[WRITING NOTE]{x", ch);
 

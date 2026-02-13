@@ -2452,9 +2452,12 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 
     class_info = &sub_class_table[remort_class];
 
+    RACE_DATA *remort_race = get_remort_race(ch);
+    if (!remort_race)
+        return;
+
     i = 0;
-    ch->race = get_remort_race(ch);
-    sprintf(buf2, "%s", ch->race ? ch->race->name : "Unknown");
+    sprintf(buf2, "%s", remort_race->name);
     while (buf2[i] != '\0')
     {
         buf2[i] = UPPER(buf2[i]);
@@ -2515,28 +2518,10 @@ void remort_player(CHAR_DATA *ch, int remort_class)
         set_perm_stat(ch, i, UMAX(val, 13));
     }
 
-    if (ch->race) {
-        ch->affected_by_perm[0] = ch->race->aff[0];
-        ch->affected_by_perm[1] = ch->race->aff[1];
-        ch->imm_flags_perm = ch->race->imm;
-        ch->res_flags_perm = ch->race->res;
-        ch->vuln_flags_perm = ch->race->vuln;
-
-        ch->form        = ch->race->form;
-        ch->parts       = ch->race->parts;
-        ch->lostparts	= 0;	// Restore anything lost
-
-        /* add skills for remort race*/
-        if (ch->race->skills) {
-            ITERATOR skill_it;
-            char *skill_name;
-            iterator_start(&skill_it, ch->race->skills);
-            while ((skill_name = (char *)iterator_nextdata(&skill_it))) {
-                group_add(ch, skill_name, false);
-            }
-            iterator_stop(&skill_it);
-        }
-    }
+    /* Restore lost parts and apply remort race as overlay on original */
+    ch->lostparts = 0;
+    char_set_race(ch, remort_race,
+        RACE_CHANGE_SAVE_ORIGINAL | RACE_CHANGE_OVERLAY | RACE_CHANGE_SILENT);
 
     ch->pcdata->hit_before  = ch->pcdata->perm_hit;
     ch->pcdata->mana_before = ch->pcdata->perm_mana;
@@ -2556,9 +2541,6 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 
     ch->tot_level = 1;
     ch->level = 1;
-
-    // Reset base affects - will reset affected_by, affected_by2, imm_flags, res_flags and vuln_flags
-    affect_fix_char(ch);
 
     char_from_room(ch);
     char_to_room(ch, get_reserved_room_index("room_begin_remort"));
