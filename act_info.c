@@ -5159,8 +5159,12 @@ iterator_stop(&it);
     /* @SYN070509 Get rid of imm level. */
     if (IS_IMMORTAL(wch))
         sprintf(level, "{WIMM{x");
-    else
-        sprintf(level, "{G%-3d", wch->tot_level);
+    else {
+        int who_level = (wch->pcdata && wch->pcdata->current_class)
+                        ? wch->pcdata->current_class->level
+                        : wch->tot_level;
+        sprintf(level, "{G%-3d", who_level);
+    }
 
     sprintf(buf,
         "{B[{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "

@@ -67,6 +67,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_SKILL          31
 #define ED_GROUP          32
 #define ED_SONG           33
+#define ED_CLASS          34
 
 
 
@@ -94,6 +95,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define SKEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
 #define GREDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
 #define SOEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
+#define CLSEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -131,6 +133,7 @@ void    traitedit( CHAR_DATA *ch, char *argument );
 void    skedit   ( CHAR_DATA *ch, char *argument );
 void    gredit   ( CHAR_DATA *ch, char *argument );
 void    soedit   ( CHAR_DATA *ch, char *argument );
+void    clsedit  ( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -208,6 +211,7 @@ extern const struct olc_cmd_type        traitedit_table[];
 extern const struct olc_cmd_type        skedit_table[];
 extern const struct olc_cmd_type        gredit_table[];
 extern const struct olc_cmd_type        soedit_table[];
+extern const struct olc_cmd_type        clsedit_table[];
 
 
 /*
@@ -236,6 +240,7 @@ DECLARE_DO_FUN( do_traitedit    );
 DECLARE_DO_FUN( do_skedit       );
 DECLARE_DO_FUN( do_gredit       );
 DECLARE_DO_FUN( do_soedit       );
+DECLARE_DO_FUN( do_clsedit      );
 
 
 /*
@@ -704,6 +709,10 @@ DECLARE_OLC_FUN( skedit_show );
 DECLARE_OLC_FUN( skedit_list );
 DECLARE_OLC_FUN( skedit_name );
 DECLARE_OLC_FUN( skedit_display );
+DECLARE_OLC_FUN( skedit_summary );
+DECLARE_OLC_FUN( skedit_description );
+DECLARE_OLC_FUN( skedit_comments );
+DECLARE_OLC_FUN( skedit_helpkeyword );
 DECLARE_OLC_FUN( skedit_level );
 DECLARE_OLC_FUN( skedit_difficulty );
 DECLARE_OLC_FUN( skedit_mana );
@@ -785,6 +794,7 @@ DECLARE_OLC_FUN( medit_trainer );
 #define EDIT_SKILL(ch, skill)    (skill = (SKILL_DATA *)ch->desc->pEdit)
 #define EDIT_GROUP(ch, group)    (group = (SKILL_GROUP *)ch->desc->pEdit)
 #define EDIT_SONG(ch, song)      (song = (SONG_DATA *)ch->desc->pEdit)
+#define EDIT_CLASS(ch, clazz)    (clazz = (CLASS_DATA *)ch->desc->pEdit)
 
 
 /*

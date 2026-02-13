@@ -20,6 +20,7 @@
 #include "wilds.h"
 #include "editors/common.h"
 #include "traits.h"
+#include "class_data.h"
 extern const char *medit_tab_names[];
 extern GLOBAL_DATA gconfig;
 /*
@@ -63,6 +64,7 @@ char *editor_name_table[] = {
     "SkEdit",       // 31 ED_SKILL
     "GrEdit",       // 32 ED_GROUP
     "SoEdit",       // 33 ED_SONG
+    "ClsEdit",      // 34 ED_CLASS
 };
 
 int editor_max_tabs_table[] = {
@@ -100,6 +102,7 @@ int editor_max_tabs_table[] = {
     0,		// SkEdit
     0,		// GrEdit
     0,		// SoEdit
+    0,		// ClsEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -130,6 +133,7 @@ const struct editor_cmd_type editor_table[] =
     { "skill",      do_skedit    },
     { "group",      do_gredit    },
     { "song",       do_soedit    },
+    { "class",      do_clsedit   },
     { NULL,			0,			}
 };
 
@@ -559,6 +563,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
     case ED_SONG:
         soedit(d->character, d->incomm);
         break;
+    case ED_CLASS:
+        clsedit(d->character, d->incomm);
+        break;
 
     default:
         return false;
@@ -798,6 +805,16 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         }
         break;
 
+    case ED_CLASS:
+        {
+            CLASS_DATA *cls_ed = (CLASS_DATA *)ch->desc->pEdit;
+            if (cls_ed)
+                sprintf(buf, "%s", cls_ed->name);
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
     default:
         sprintf(buf, " ");
         break;
@@ -933,6 +950,9 @@ bool show_commands(CHAR_DATA *ch, char *argument)
         break;
     case ED_SONG:
         show_olc_cmds(ch, soedit_table);
+        break;
+    case ED_CLASS:
+        show_olc_cmds(ch, clsedit_table);
         break;
     }
 

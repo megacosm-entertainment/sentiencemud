@@ -1056,6 +1056,10 @@ static CLASS_DATA *class_load_json(const char *filename)
     free_string(clazz->description);
     clazz->description = str ? str_dup(str) : str_dup("");
 
+    str = json_string_value(json_object_get(root, "comments"));
+    free_string(clazz->comments);
+    clazz->comments = str ? str_dup(str) : str_dup("");
+
     /* Type */
     str = json_string_value(json_object_get(root, "type"));
     clazz->type = class_type_from_string(str);
@@ -1248,6 +1252,41 @@ static CLASS_DATA *class_load_json(const char *filename)
     str = json_string_value(json_object_get(root, "leave_function"));
     if (str && str[0]) clazz->leave_fun_name = str_dup(str);
 
+    /* Sync legacy class fields to trait values as fallbacks.
+     * If a trait was explicitly set via the "traits" JSON block, it takes
+     * priority because trait_values_load_json already wrote it.  We only
+     * overwrite traits still at their defaults. */
+    if (clazz->trait_values || trait_def_count > 0) {
+        if (!clazz->trait_values)
+            class_init_traits(clazz);
+
+        if (clazz->trait_values) {
+            TRAIT_DEF *def;
+
+            /* hp_gain_min ← hp_min */
+            def = trait_def_lookup("hp_gain_min");
+            if (def && def->type == TRAIT_INTEGER
+                && clazz->trait_values[def->index].int_val == def->default_int)
+                clazz->trait_values[def->index].int_val = clazz->hp_min;
+
+            /* hp_gain_max ← hp_max */
+            def = trait_def_lookup("hp_gain_max");
+            if (def && def->type == TRAIT_INTEGER
+                && clazz->trait_values[def->index].int_val == def->default_int)
+                clazz->trait_values[def->index].int_val = clazz->hp_max;
+
+            /* uses_mana ← gains_mana */
+            def = trait_def_lookup("uses_mana");
+            if (def && def->type == TRAIT_BOOLEAN)
+                clazz->trait_values[def->index].bool_val = clazz->gains_mana;
+
+            /* primary_stat ← primary_stat (int) */
+            def = trait_def_lookup("primary_stat");
+            if (def && def->type == TRAIT_INTEGER)
+                clazz->trait_values[def->index].int_val = clazz->primary_stat;
+        }
+    }
+
     json_decref(root);
     return clazz;
 }
@@ -1290,6 +1329,9 @@ void save_class_data(CLASS_DATA *clazz)
 
     if (clazz->description && clazz->description[0])
         json_object_set_new(root, "description", json_string(clazz->description));
+
+    if (clazz->comments && clazz->comments[0])
+        json_object_set_new(root, "comments", json_string(clazz->comments));
 
     /* Type */
     json_object_set_new(root, "type", json_string(class_type_to_string(clazz->type)));
@@ -1549,6 +1591,27 @@ static void bootstrap_classes_from_table(void)
             clazz->hp_max = class_table[parent_class].hp_max;
             clazz->gains_mana = class_table[parent_class].fMana;
             clazz->weapon = class_table[parent_class].weapon;
+        }
+
+        /* Sync legacy stats into trait values */
+        if (clazz->trait_values) {
+            TRAIT_DEF *def;
+
+            def = trait_def_lookup("hp_gain_min");
+            if (def && def->type == TRAIT_INTEGER)
+                clazz->trait_values[def->index].int_val = clazz->hp_min;
+
+            def = trait_def_lookup("hp_gain_max");
+            if (def && def->type == TRAIT_INTEGER)
+                clazz->trait_values[def->index].int_val = clazz->hp_max;
+
+            def = trait_def_lookup("uses_mana");
+            if (def && def->type == TRAIT_BOOLEAN)
+                clazz->trait_values[def->index].bool_val = clazz->gains_mana;
+
+            def = trait_def_lookup("primary_stat");
+            if (def && def->type == TRAIT_INTEGER)
+                clazz->trait_values[def->index].int_val = clazz->primary_stat;
         }
 
         clazz->max_level = MAX_CLASS_LEVEL;

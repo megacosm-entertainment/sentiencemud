@@ -532,6 +532,12 @@ static SKILL_DATA *skill_load_json(const char *filename)
     str = json_string_value(json_object_get(root, "summary"));
     skill->summary = str ? str_dup(str) : NULL;
 
+    str = json_string_value(json_object_get(root, "description"));
+    skill->description = str ? str_dup(str) : NULL;
+
+    str = json_string_value(json_object_get(root, "comments"));
+    skill->comments = str ? str_dup(str) : NULL;
+
     str = json_string_value(json_object_get(root, "help_keyword"));
     skill->help_keyword = str ? str_dup(str) : NULL;
 
@@ -772,6 +778,12 @@ void save_skill_data(SKILL_DATA *skill)
 
     if (skill->summary)
         json_object_set_new(root, "summary", json_string(skill->summary));
+
+    if (skill->description)
+        json_object_set_new(root, "description", json_string(skill->description));
+
+    if (skill->comments)
+        json_object_set_new(root, "comments", json_string(skill->comments));
 
     if (skill->help_keyword)
         json_object_set_new(root, "help_keyword", json_string(skill->help_keyword));

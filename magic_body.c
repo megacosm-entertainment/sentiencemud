@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include "merc.h"
+#include "traits.h"
 #include "interp.h"
 #include "magic.h"
 #include "recycle.h"
@@ -124,7 +125,7 @@ SPELL_FUNC(spell_cure_blindness)
         return true;
     }
 
-    if (get_profession(ch, CLASS_CLERIC) != -1)
+    if (ch_has_trait(ch, "divine_healer"))
         chance = get_skill(ch, sn);
     else
         chance = 75;
@@ -173,7 +174,7 @@ SPELL_FUNC(spell_cure_disease)
         return false;
     }
 
-    if (get_profession(ch, CLASS_CLERIC) != -1)
+    if (ch_has_trait(ch, "divine_healer"))
         chance = get_skill(ch, sn);
     else
         chance = 75;
@@ -225,7 +226,7 @@ SPELL_FUNC(spell_cure_poison)
         return false;
     }
 
-    if (get_profession(ch, CLASS_CLERIC) != -1)
+    if (ch_has_trait(ch, "divine_healer"))
         chance = get_skill(ch, sn);
     else
         chance = 75;
@@ -277,7 +278,7 @@ SPELL_FUNC(spell_cure_toxic)
         return false;
     }
 
-    if (get_profession(ch, CLASS_CLERIC) != -1)
+    if (ch_has_trait(ch, "divine_healer"))
         chance = get_skill(ch, sn);
     else
         chance = 75;

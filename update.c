@@ -320,14 +320,14 @@ void advance_level(CHAR_DATA *ch, bool hide)
     (ch->played + (int) (current_time - ch->logon)) / 3600;
 
     add_hp	= con_app[get_curr_stat(ch,STAT_CON)].hitp + number_range(
-          class_table[get_profession(ch, CLASS_CURRENT)].hp_min,
-          class_table[get_profession(ch, CLASS_CURRENT)].hp_max);
+          ch_get_trait_int(ch, "hp_gain_min"),
+          ch_get_trait_int(ch, "hp_gain_max"));
 
     add_mana 	= get_curr_stat(ch,STAT_INT)/4 +
               get_curr_stat(ch,STAT_WIS)/4 +
           number_range(1, 10);
 
-    if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
+    if (!ch_has_trait(ch, "uses_mana"))
     add_mana /= 2;
 
     add_move	= get_curr_stat(ch, STAT_STR) / 2 + get_curr_stat(ch, STAT_DEX) / 2 + number_range(1, 3);
@@ -558,7 +558,7 @@ int hit_gain(CHAR_DATA *ch)
     else
     {
         gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
-        gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
+        gain += ch_get_trait_int(ch, "hp_gain_max") - 10;
         number = number_percent();
         if (number < get_skill(ch,gsn_fast_healing))
         {
@@ -600,8 +600,8 @@ int hit_gain(CHAR_DATA *ch)
     if (IS_AFFECTED(ch,AFF_REGENERATION) || (ch->tot_level < 31 && !IS_REMORT(ch)))
         gain *= 2;
 
-    // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+    // Nature regen: 33% more in natural terrain
+    if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch))
         gain += gain/3;
 
     /* If you have the relic you get 25% more */
@@ -655,7 +655,7 @@ int mana_gain(CHAR_DATA *ch)
                 check_improve(ch,gsn_meditation,true,8);
         }
 
-        if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
+        if (!ch_has_trait(ch, "uses_mana"))
             gain /= 2;
 
         switch (ch->position)
@@ -691,8 +691,8 @@ int mana_gain(CHAR_DATA *ch)
     if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
         gain /= 2;
 
-    // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+    // Nature regen: 33% more in natural terrain
+    if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch))
         gain += gain/3;
 
     if (ch->church) {
@@ -776,8 +776,8 @@ int move_gain(CHAR_DATA *ch)
     if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
         gain /= 2;
 
-    // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+    // Nature regen: 33% more in natural terrain
+    if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch))
         gain += gain/3;
 
     if (ch->tot_level < 31 && !IS_REMORT(ch))

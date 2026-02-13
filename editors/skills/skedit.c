@@ -28,10 +28,13 @@ const struct olc_cmd_type skedit_table[] =
     { "beats",          skedit_beats        },
     { "class",          skedit_class        },
     { "commands",       show_commands       },
+    { "comments",       skedit_comments     },
     { "damtype",        skedit_damtype      },
+    { "description",    skedit_description  },
     { "difficulty",     skedit_difficulty   },
     { "display",        skedit_display      },
     { "flags",          skedit_flags        },
+    { "helpkeyword",    skedit_helpkeyword  },
     { "level",          skedit_level        },
     { "list",           skedit_list         },
     { "mana",           skedit_mana         },
@@ -42,6 +45,7 @@ const struct olc_cmd_type skedit_table[] =
     { "save",           skedit_save         },
     { "show",           skedit_show         },
     { "spellfun",       skedit_spellfun     },
+    { "summary",        skedit_summary      },
     { "target",         skedit_target       },
     { NULL,             0                   }
 };
@@ -152,6 +156,15 @@ SKEDIT(skedit_show)
     add_buf(buf, formatf("{cName:{x %s\n\r", skill->name));
     if (skill->display && skill->display[0])
         add_buf(buf, formatf("{cDisplay:{x %s\n\r", skill->display));
+
+    add_buf(buf, formatf("{cSummary:{x %s\n\r",
+            skill->summary ? skill->summary : "(none)"));
+    add_buf(buf, formatf("{cHelp Keyword:{x %s\n\r",
+            skill->help_keyword ? skill->help_keyword : "(none)"));
+    if (skill->description && skill->description[0])
+        add_buf(buf, formatf("{cDescription:{x\n\r  %s\n\r", skill->description));
+    if (skill->comments && skill->comments[0])
+        add_buf(buf, formatf("{CComments:{x\n\r  %s\n\r", skill->comments));
 
     add_buf(buf, formatf("{cFlags:{x %s\n\r",
             skill->flags ? flag_string(skill_flags, skill->flags) : "none"));
@@ -302,6 +315,93 @@ SKEDIT(skedit_display)
     free_string(skill->display);
     skill->display = str_dup(argument);
     send_to_char("Display name set.\n\r", ch);
+    return true;
+}
+
+SKEDIT(skedit_summary)
+{
+    SKILL_DATA *skill;
+    EDIT_SKILL(ch, skill);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax: summary <one-line summary>\n\r"
+                     "        summary clear\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "clear")) {
+        free_string(skill->summary);
+        skill->summary = NULL;
+        send_to_char("Summary cleared.\n\r", ch);
+        return true;
+    }
+
+    free_string(skill->summary);
+    skill->summary = str_dup(argument);
+    send_to_char("Summary set.\n\r", ch);
+    return true;
+}
+
+SKEDIT(skedit_description)
+{
+    SKILL_DATA *skill;
+    EDIT_SKILL(ch, skill);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax: description <text>\n\r"
+                     "        description clear\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "clear")) {
+        free_string(skill->description);
+        skill->description = NULL;
+        send_to_char("Description cleared.\n\r", ch);
+        return true;
+    }
+
+    free_string(skill->description);
+    skill->description = str_dup(argument);
+    send_to_char("Description set.\n\r", ch);
+    return true;
+}
+
+SKEDIT(skedit_comments)
+{
+    SKILL_DATA *skill;
+    EDIT_SKILL(ch, skill);
+
+    if (argument[0] == '\0')
+    {
+        string_append(ch, &skill->comments);
+        return true;
+    }
+
+    send_to_char("Syntax:  comments\n\r", ch);
+    return false;
+}
+
+SKEDIT(skedit_helpkeyword)
+{
+    SKILL_DATA *skill;
+    EDIT_SKILL(ch, skill);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax: helpkeyword <keyword>\n\r"
+                     "        helpkeyword clear\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "clear")) {
+        free_string(skill->help_keyword);
+        skill->help_keyword = NULL;
+        send_to_char("Help keyword cleared.\n\r", ch);
+        return true;
+    }
+
+    free_string(skill->help_keyword);
+    skill->help_keyword = str_dup(argument);
+    send_to_char("Help keyword set.\n\r", ch);
     return true;
 }
 

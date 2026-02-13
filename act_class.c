@@ -130,12 +130,101 @@ static void mark_reward_applied(CLASS_LEVEL *cl, int level, int type, const char
  ***************************************************************************/
 
 /**
+ * skill_entry_add_source - Add a class source to a skill entry
+ *
+ * Adds a SKILL_SOURCE node for the given class/scope. If the class already
+ * has a source node, updates its scope if broader. After modifying the list,
+ * refreshes the cached source_class and cross_class_scope on the entry to
+ * reflect the broadest available scope.
+ *
+ * @param entry   The skill entry
+ * @param clazz   The granting class
+ * @param scope   REWARD_SCOPE_* constant
+ */
+static void skill_entry_add_source(SKILL_ENTRY *entry, CLASS_DATA *clazz, int scope)
+{
+    SKILL_SOURCE *src;
+
+    if (!entry || !clazz)
+        return;
+
+    /* Check if this class already has a source node */
+    for (src = entry->sources; src; src = src->next) {
+        if (src->clazz == clazz) {
+            /* Update scope if the new one is broader */
+            if (scope > src->scope)
+                src->scope = scope;
+            goto refresh;
+        }
+    }
+
+    /* Add a new source node */
+    src = new_skill_source();
+    src->clazz = clazz;
+    src->scope = scope;
+    src->next = entry->sources;
+    entry->sources = src;
+
+refresh:
+    /* Refresh cached fields — pick the broadest scope source */
+    entry->cross_class_scope = 0;
+    entry->source_class = NULL;
+    for (src = entry->sources; src; src = src->next) {
+        if (!entry->source_class || src->scope > entry->cross_class_scope) {
+            entry->source_class = src->clazz;
+            entry->cross_class_scope = src->scope;
+        }
+    }
+}
+
+/**
+ * skill_entry_remove_source - Remove a class source from a skill entry
+ *
+ * Removes the SKILL_SOURCE node for the given class. After removal,
+ * refreshes the cached source_class and cross_class_scope.
+ *
+ * @param entry   The skill entry
+ * @param clazz   The class to remove
+ * @return        true if sources remain, false if the entry has no more class sources
+ */
+static bool skill_entry_remove_source(SKILL_ENTRY *entry, CLASS_DATA *clazz)
+{
+    SKILL_SOURCE *src, *prev = NULL;
+
+    if (!entry || !clazz)
+        return (entry && entry->sources != NULL);
+
+    for (src = entry->sources; src; prev = src, src = src->next) {
+        if (src->clazz == clazz) {
+            if (prev)
+                prev->next = src->next;
+            else
+                entry->sources = src->next;
+            free_skill_source(src);
+            break;
+        }
+    }
+
+    /* Refresh cached fields */
+    entry->cross_class_scope = 0;
+    entry->source_class = NULL;
+    for (src = entry->sources; src; src = src->next) {
+        if (!entry->source_class || src->scope > entry->cross_class_scope) {
+            entry->source_class = src->clazz;
+            entry->cross_class_scope = src->scope;
+        }
+    }
+
+    return (entry->sources != NULL);
+}
+
+/**
  * apply_skill_reward - Grant a single skill to a character from a class reward
  *
  * Creates a SKILL_ENTRY for the skill if the character doesn't already have it.
- * Sets cross_class_scope and source_class on the entry. If the character already
- * has the skill (from another class or source), updates scope if the new scope
- * is broader.
+ * Adds the granting class as a source with the specified scope. If the character
+ * already has the skill (from another class or source), adds an additional source
+ * node without disturbing the existing ones.
  *
  * @param ch       The character
  * @param clazz    The granting class
@@ -160,10 +249,9 @@ static void apply_skill_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
     /* Check if character already has this skill */
     entry = skill_entry_findsn(ch->sorted_skills, sn);
     if (entry) {
-        /* Already has the skill — update scope if broader */
-        if (scope > entry->cross_class_scope) {
-            entry->cross_class_scope = scope;
-        }
+        /* Already has the skill — add this class as a source */
+        skill_entry_add_source(entry, clazz, scope);
+
         /* If this class grants it at a better rating and character hasn't learned it yet */
         if (rating > 0 && entry->rating <= 0) {
             entry->rating = 1;      /* Minimum usable rating */
@@ -182,8 +270,7 @@ static void apply_skill_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
     /* Find the just-inserted entry and set class metadata */
     entry = skill_entry_findsn(ch->sorted_skills, sn);
     if (entry) {
-        entry->cross_class_scope = scope;
-        entry->source_class = clazz;
+        skill_entry_add_source(entry, clazz, scope);
         if (rating > 0 && entry->rating <= 0) {
             entry->rating = 1;
             ch->pcdata->learned[sn] = 1;
@@ -538,21 +625,24 @@ void revoke_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz)
                 break;
 
             case REWARD_SKILL: {
-                /* Revoke skill if it was class-scoped */
+                /* Remove this class as a source; only remove the entry
+                 * entirely if no other class also grants it */
                 int sn = skill_lookup(reward->name);
                 if (sn >= 0 && sn < MAX_SKILL) {
                     SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
-                    if (entry && entry->source_class == clazz
-                        && entry->cross_class_scope == REWARD_SCOPE_CLASS) {
-                        skill_entry_remove(&ch->sorted_skills, sn, NULL, NULL,
-                                           entry->isspell);
+                    if (entry) {
+                        bool has_other = skill_entry_remove_source(entry, clazz);
+                        if (!has_other) {
+                            skill_entry_remove(&ch->sorted_skills, sn, NULL, NULL,
+                                               entry->isspell);
+                        }
                     }
                 }
                 break;
             }
 
             case REWARD_GROUP: {
-                /* Revoke group skills if they were class-scoped */
+                /* Revoke group skills — remove this class as source for each */
                 SKILL_GROUP *group = skill_group_find(reward->name);
                 if (group) {
                     ITERATOR git;
@@ -562,10 +652,12 @@ void revoke_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz)
                         int sn = skill_lookup(skill_name);
                         if (sn >= 0 && sn < MAX_SKILL) {
                             SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
-                            if (entry && entry->source_class == clazz
-                                && entry->cross_class_scope == REWARD_SCOPE_CLASS) {
-                                skill_entry_remove(&ch->sorted_skills, sn, NULL, NULL,
-                                                   entry->isspell);
+                            if (entry) {
+                                bool has_other = skill_entry_remove_source(entry, clazz);
+                                if (!has_other) {
+                                    skill_entry_remove(&ch->sorted_skills, sn, NULL, NULL,
+                                                       entry->isspell);
+                                }
                             }
                         }
                     }
@@ -584,17 +676,89 @@ void revoke_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz)
 }
 
 /***************************************************************************
+ * Skill Source Rebuild                                                     *
+ ***************************************************************************/
+
+/**
+ * rebuild_skill_sources - Populate skill source metadata from class rewards
+ *
+ * Called at login to ensure all SKILL_ENTRY nodes have correct SKILL_SOURCE
+ * data reflecting which classes grant them and at what scope. This handles
+ * characters loaded from JSON files that predate the multi-source system
+ * (where class_sources was not yet saved), and also ensures cross-class
+ * changes made while a character was offline are reflected.
+ *
+ * Only adds sources to skills the character already has — does not grant
+ * new skills or produce any output.
+ *
+ * @param ch  The character whose skill sources to rebuild
+ */
+void rebuild_skill_sources(CHAR_DATA *ch)
+{
+    ITERATOR it;
+    CLASS_LEVEL *cl;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->pcdata->classes)
+        return;
+
+    /* Iterate every class the character has joined */
+    iterator_start(&it, ch->pcdata->classes);
+    while ((cl = (CLASS_LEVEL *)iterator_nextdata(&it))) {
+        ITERATOR rit;
+        CLASS_REWARD *reward;
+
+        if (!cl->clazz || !cl->clazz->rewards)
+            continue;
+
+        iterator_start(&rit, cl->clazz->rewards);
+        while ((reward = (CLASS_REWARD *)iterator_nextdata(&rit))) {
+            if (reward->level > cl->level)
+                continue;
+
+            if (reward->type == REWARD_SKILL) {
+                /* Direct skill reward */
+                int sn = skill_lookup(reward->name);
+                if (sn >= 0 && sn < MAX_SKILL) {
+                    SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
+                    if (entry)
+                        skill_entry_add_source(entry, cl->clazz, reward->scope);
+                }
+            } else if (reward->type == REWARD_GROUP) {
+                /* Group reward — iterate group contents */
+                SKILL_GROUP *group = skill_group_find(reward->name);
+                if (group && group->contents) {
+                    ITERATOR git;
+                    char *skill_name;
+                    iterator_start(&git, group->contents);
+                    while ((skill_name = (char *)iterator_nextdata(&git))) {
+                        int sn = skill_lookup(skill_name);
+                        if (sn >= 0 && sn < MAX_SKILL) {
+                            SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
+                            if (entry)
+                                skill_entry_add_source(entry, cl->clazz, reward->scope);
+                        }
+                    }
+                    iterator_stop(&git);
+                }
+            }
+        }
+        iterator_stop(&rit);
+    }
+    iterator_stop(&it);
+}
+
+/***************************************************************************
  * Skill Scope Checking                                                    *
  ***************************************************************************/
 
 /**
  * is_skill_available_for_class - Check if a skill is usable with current class
  *
- * Checks the SKILL_ENTRY's cross_class_scope and source_class against the
- * character's current active class to determine if the skill is available.
+ * Checks ALL sources on the SKILL_ENTRY against the character's current active
+ * class. A skill is available if ANY source's scope makes it usable.
  *
- * Skills with no source_class (non-class-granted, e.g., racial or token) are
- * always available.
+ * Skills with no sources (non-class-granted, e.g., racial or token) are always
+ * available.
  *
  * @param ch     The character
  * @param entry  The skill entry to check
@@ -603,12 +767,13 @@ void revoke_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz)
 bool is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
     CLASS_DATA *current;
+    SKILL_SOURCE *src;
 
     if (!ch || !entry)
         return false;
 
     /* Non-class-granted skills are always available */
-    if (!entry->source_class)
+    if (!entry->sources && !entry->source_class)
         return true;
 
     /* Token-granted skills are always available */
@@ -617,28 +782,54 @@ bool is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry)
 
     current = get_current_class(ch);
 
-    /* If no active class, only SCOPE_ALWAYS skills are available */
-    if (!current)
-        return (entry->cross_class_scope == REWARD_SCOPE_ALWAYS);
+    /* Check each source — available if ANY source matches */
+    for (src = entry->sources; src; src = src->next) {
+        if (!src->clazz)
+            continue;
 
-    switch (entry->cross_class_scope) {
-        case REWARD_SCOPE_ALWAYS:
-            return true;
+        switch (src->scope) {
+            case REWARD_SCOPE_ALWAYS:
+                return true;
 
-        case REWARD_SCOPE_COMBAT:
-            /* Available if both source and current class are combative */
-            return IS_SET(entry->source_class->flags, CLASS_COMBATIVE)
-                && IS_SET(current->flags, CLASS_COMBATIVE);
+            case REWARD_SCOPE_COMBAT:
+                if (IS_SET(src->clazz->flags, CLASS_COMBATIVE)
+                    && current && IS_SET(current->flags, CLASS_COMBATIVE))
+                    return true;
+                break;
 
-        case REWARD_SCOPE_TYPE:
-            /* Available if current class is same type as source */
-            return (entry->source_class->type == current->type);
+            case REWARD_SCOPE_TYPE:
+                if (current && src->clazz->type == current->type)
+                    return true;
+                break;
 
-        case REWARD_SCOPE_CLASS:
-        default:
-            /* Available only when source class is the active class */
-            return (entry->source_class == current);
+            case REWARD_SCOPE_CLASS:
+            default:
+                if (current && src->clazz == current)
+                    return true;
+                break;
+        }
     }
+
+    /* Fallback: check legacy single-source fields if no sources list */
+    if (!entry->sources && entry->source_class) {
+        if (!current)
+            return (entry->cross_class_scope == REWARD_SCOPE_ALWAYS);
+
+        switch (entry->cross_class_scope) {
+            case REWARD_SCOPE_ALWAYS:
+                return true;
+            case REWARD_SCOPE_COMBAT:
+                return IS_SET(entry->source_class->flags, CLASS_COMBATIVE)
+                    && IS_SET(current->flags, CLASS_COMBATIVE);
+            case REWARD_SCOPE_TYPE:
+                return (entry->source_class->type == current->type);
+            case REWARD_SCOPE_CLASS:
+            default:
+                return (entry->source_class == current);
+        }
+    }
+
+    return false;
 }
 
 /***************************************************************************
@@ -923,7 +1114,7 @@ void do_classes(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "  {W%d{x {Y%-6s{x  %-19s  {G%-5d{x  %s\n\r",
                 i,
-                (ch->pcdata->current_class == cl) ? "{Y*{x    " : "      ",
+                (ch->pcdata->current_class == cl) ? "{Y*{x     " : "      ",
                 class_display_ch(cl->clazz, ch),
                 cl->level,
                 type_name);
@@ -1075,4 +1266,121 @@ void do_freelevel(CHAR_DATA *ch, char *argument)
     apply_class_rewards(ch, cl->clazz, cl->level, cl->level, false);
 
     save_char_obj(ch);
+}
+
+/**
+ * do_classinfo - Display detailed information about a class
+ *
+ * Shows the class description, type, key stats, and links to help files.
+ * Players can view info about any class, not just ones they hold.
+ *
+ * Syntax: classinfo <class name>
+ */
+void do_classinfo(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    CLASS_DATA *clazz;
+    BUFFER *buffer;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: classinfo <class name>\n\r", ch);
+        return;
+    }
+
+    clazz = class_find(arg);
+    if (!clazz) {
+        send_to_char("No such class found.\n\r", ch);
+        return;
+    }
+
+    /* Hide hidden classes from mortals */
+    if (IS_SET(clazz->flags, CLASS_HIDDEN) && !IS_IMMORTAL(ch)) {
+        send_to_char("No such class found.\n\r", ch);
+        return;
+    }
+
+    buffer = new_buf();
+
+    /* Header */
+    add_buf(buffer, formatf("{C=== Class: {W%s{C ==={x\n\r",
+                            class_display_ch(clazz, ch)));
+
+    /* Description */
+    if (!IS_NULLSTR(clazz->description)) {
+        add_buf(buffer, formatf("\n\r%s{x\n\r", clazz->description));
+    }
+
+    add_buf(buffer, "\n\r");
+
+    /* Type */
+    const char *type_name = "unknown";
+    int t;
+    for (t = 0; class_types[t].name; t++) {
+        if (class_types[t].bit == clazz->type) {
+            type_name = class_types[t].name;
+            break;
+        }
+    }
+    add_buf(buffer, formatf("{xType:        {W%s{x\n\r", type_name));
+
+    /* Max level */
+    add_buf(buffer, formatf("{xMax level:   {G%d{x\n\r", clazz->max_level));
+
+    /* Primary stat */
+    if (clazz->primary_stat >= 0 && clazz->primary_stat < MAX_STATS) {
+        static const char *stat_names[] = {
+            "Strength", "Intelligence", "Wisdom", "Dexterity", "Constitution"
+        };
+        add_buf(buffer, formatf("{xPrimary stat:{W %s{x\n\r",
+                                stat_names[clazz->primary_stat]));
+    }
+
+    /* Flags */
+    char flag_str[256] = "";
+    if (IS_SET(clazz->flags, CLASS_COMBATIVE))   strcat(flag_str, "Combative ");
+    if (IS_SET(clazz->flags, CLASS_CASTER))       strcat(flag_str, "Caster ");
+    if (IS_SET(clazz->flags, CLASS_REMORT_ONLY))  strcat(flag_str, "Remort ");
+    if (flag_str[0])
+        add_buf(buffer, formatf("{xTraits:      {Y%s{x\n\r", flag_str));
+
+    /* HP gain */
+    if (clazz->hp_min > 0 || clazz->hp_max > 0)
+        add_buf(buffer, formatf("{xHP per level:{G %d-%d{x\n\r", clazz->hp_min, clazz->hp_max));
+
+    /* Mana */
+    add_buf(buffer, formatf("{xGains mana:  %s\n\r",
+                            clazz->gains_mana ? "{GYes{x" : "{DNo{x"));
+
+    /* Player's relationship to this class */
+    if (!IS_NPC(ch) && ch->pcdata->classes) {
+        CLASS_LEVEL *cl;
+        ITERATOR it;
+        bool found = false;
+        iterator_start(&it, ch->pcdata->classes);
+        while ((cl = (CLASS_LEVEL *)iterator_nextdata(&it))) {
+            if (cl->clazz == clazz) {
+                found = true;
+                add_buf(buffer, formatf("\n\r{xYour level:  {G%d{x%s\n\r",
+                                        cl->level,
+                                        (ch->pcdata->current_class == cl)
+                                            ? " {Y(active){x" : ""));
+                break;
+            }
+        }
+        iterator_stop(&it);
+        if (!found)
+            add_buf(buffer, "\n\r{xYou are not currently in this class.{x\n\r");
+    }
+
+    /* Help file link */
+    HELP_DATA *help = lookup_help_exact(clazz->name, get_staff_rank(ch), topHelpCat);
+    if (help) {
+        add_buf(buffer, formatf("\n\r{xHelp:        \t<send href=\"help #%d\">{Whelp %s{x\t</send>\n\r",
+                                help->index, clazz->name));
+    }
+
+    page_to_char(buffer->string, ch);
+    free_buf(buffer);
 }

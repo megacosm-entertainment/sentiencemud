@@ -37,6 +37,7 @@
 #include <time.h>
 #include "merc.h"
 #include "interp.h"
+#include "olc.h"
 #include "tables.h"
 #include "scripts.h"
 
@@ -3083,6 +3084,7 @@ const struct do_func_type do_func_table[] =
         { "do_score",                   do_score },
         { "do_scry",                    do_scry },
         { "do_skills",                  do_skills },
+        { "do_skillinfo",               do_skillinfo },
         { "do_socials",                 do_socials },
         { "do_spells",                  do_spells },
         { "do_stats",                   do_stats },
@@ -3478,8 +3480,18 @@ const struct do_func_type do_func_table[] =
         { "do_bonus", do_bonus },
         { "do_prefadmin", do_prefadmin },
         { "do_raceunlock", do_raceunlock },
+        { "do_raceinfo", do_raceinfo },
         { "do_racedit", do_racedit },
         { "do_traitedit", do_traitedit },
+        { "do_skedit", do_skedit },
+        { "do_gredit", do_gredit },
+        { "do_soedit", do_soedit },
+        { "do_clsedit", do_clsedit },
+        { "do_setclass", do_setclass },
+        { "do_clslist", do_clslist },
+        { "do_classes", do_classes },
+        { "do_classinfo", do_classinfo },
+        { "do_freelevel", do_freelevel },
         { NULL, NULL }
 };
 

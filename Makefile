@@ -116,6 +116,7 @@ C_FILES = \
     editors/skills/skedit.c \
     editors/skills/gredit.c \
     editors/skills/soedit.c \
+    editors/classes/clsedit.c \
     editors/common.c \
     effects.c \
     events.c \

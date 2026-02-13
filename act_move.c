@@ -818,8 +818,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
     if (!MOUNTED(ch) && get_skill(ch, gsn_trackless_step) > 0 && number_percent() == 1)
         check_improve(ch, gsn_trackless_step, true, 8);
 
-    /* Druids regenerate in nature */
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
+    /* Nature regen: regenerate in nature */
+    if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch)) {
         ch->move += number_range(1,3);
         ch->move = UMIN(ch->move, ch->max_move);
         ch->hit += number_range(1,3);
@@ -2415,7 +2415,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 
     WAIT_STATE(ch, skill_table[gsn_pick_lock].beats);
 
-    if (get_profession(ch, SECOND_SUBCLASS_THIEF) != CLASS_THIEF_HIGHWAYMAN)
+    if (!ch_has_trait(ch, "lockpick_mastery"))
     {
         int skill = get_skill(ch,gsn_pick_lock);
 

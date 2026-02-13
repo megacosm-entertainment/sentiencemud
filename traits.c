@@ -701,6 +701,11 @@ void *char_save_traits_json(CHAR_DATA *ch)
 /**
  * ch_has_trait - Check if a character has a trait active at any layer
  *
+ * Checks layers in priority order: personal > current class > race.
+ * For booleans: returns true if ANY layer has it set to true (OR).
+ * For integers: returns true if any non-zero value is set.
+ * For strings:  returns true if any non-NULL value is set.
+ *
  * @param ch        The character to check
  * @param trait_id  Trait identifier string
  * @return          True if the trait is active at any layer
@@ -759,8 +764,8 @@ bool ch_has_trait(CHAR_DATA *ch, const char *trait_id)
 /**
  * ch_get_trait_bool - Get a boolean trait value across all layers
  *
- * Returns true if ANY layer (personal, class, or race) has the trait set
- * to true. This provides OR semantics: a character with a race that has
+ * Returns true if ANY layer (personal, current class, or race) has the trait
+ * set to true. This provides OR semantics: a character with a race that has
  * blood_feeding OR a class that grants blood_feeding will return true.
  *
  * @param ch        The character to query
@@ -804,7 +809,7 @@ bool ch_get_trait_bool(CHAR_DATA *ch, const char *trait_id)
  * ch_get_trait_int - Get an integer trait value across all layers
  *
  * Returns the value from the highest-priority layer where the trait is
- * explicitly set. Priority: personal > class > race.
+ * explicitly set. Priority: personal > current class > race.
  *
  * @param ch        The character to query
  * @param trait_id  Trait identifier string
@@ -844,7 +849,7 @@ int ch_get_trait_int(CHAR_DATA *ch, const char *trait_id)
  * ch_get_trait_string - Get a string trait value across all layers
  *
  * Returns the value from the highest-priority layer where the trait is
- * explicitly set. Priority: personal > class > race.
+ * explicitly set. Priority: personal > current class > race.
  *
  * @param ch        The character to query
  * @param trait_id  Trait identifier string

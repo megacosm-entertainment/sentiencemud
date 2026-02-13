@@ -450,8 +450,8 @@ void multi_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt)
         if(!is_combatant_valid(victim, vid[0], vid[1])) return;
     }
 
-    // better chance of 4th attack for marauder->destroyer
-    if (get_profession(ch, SUBCLASS_WARRIOR) == CLASS_WARRIOR_MARAUDER && get_profession(ch, SECOND_SUBCLASS_WARRIOR) == CLASS_WARRIOR_DESTROYER)
+    // Better chance of 4th attack with extra_attack_chance trait
+    if (ch_has_trait(ch, "extra_attack_chance"))
         chance = get_skill(ch, gsn_fourth_attack)/2;
     else
         chance = get_skill(ch, gsn_fourth_attack)/3;
@@ -854,8 +854,8 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
     if (race_has_trait(ch->race, "holy_damage_bonus") && (victim->alignment < 0 || IS_CHURCH_EVIL(victim)))
         dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
-    // Crusaders get 25% extra damage with exotic weapons
-    if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) == CLASS_WARRIOR_CRUSADER && wield && wield->value[0] == WEAPON_EXOTIC)
+    // Exotic weapon mastery: 25% extra damage with exotic weapons
+    if (ch_has_trait(ch, "exotic_weapon_mastery") && wield && wield->value[0] == WEAPON_EXOTIC)
         dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
     // Extra damage relic
@@ -889,12 +889,9 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
         }
     }
 
-    // Boost backstab; highwayman gets it slightly better
-    if (get_profession(ch, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_HIGHWAYMAN) {
-        if (dt == gsn_backstab && wield)
-            dam *= 30;
-    } else if (dt == gsn_backstab && wield)
-        dam *= 25;
+    // Boost backstab; backstab_multiplier trait controls damage
+    if (dt == gsn_backstab && wield)
+        dam *= ch_get_trait_int(ch, "backstab_multiplier");
 
     if (dt == gsn_circle && wield)
         dam *= 2;
@@ -1269,9 +1266,8 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
     victim->in_damage_function = true;
 
-    // sneaking doesn't wear off for rogue->ninja
-    if (IS_AFFECTED(ch, AFF_SNEAK) && !(get_profession(ch, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA &&
-        get_profession(ch, SUBCLASS_THIEF) == CLASS_THIEF_ROGUE))
+    // Stealth combat: sneaking doesn't wear off
+    if (IS_AFFECTED(ch, AFF_SNEAK) && !ch_has_trait(ch, "stealth_combat"))
         affect_strip(ch, gsn_sneak);
 
     if (IS_AFFECTED2(ch, AFF2_EVASION))
@@ -2371,8 +2367,8 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
         chance = chance / 2;
     }
 
-    // Ninja get better parry if wielding a sword and dagger
-    if (get_profession(victim, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA) {
+    // Sword and dagger parry: better parry if wielding a sword and dagger
+    if (ch_has_trait(victim, "sword_dagger_parry")) {
 
         if (weapon && weapon2 &&
             ((weapon->value[0] == WEAPON_SWORD && weapon2->value[0] == WEAPON_DAGGER) || (weapon->value[0] == WEAPON_DAGGER && weapon2->value[0] == WEAPON_SWORD))) {
@@ -2384,9 +2380,8 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
         }
     }
 
-    // Gladiator->destroyer also have better parry
-    if (get_profession(victim, SUBCLASS_WARRIOR) == CLASS_WARRIOR_GLADIATOR &&
-        get_profession(victim, SECOND_SUBCLASS_WARRIOR) == CLASS_WARRIOR_DESTROYER)
+    // Enhanced parry trait: better parry chance
+    if (ch_has_trait(victim, "enhanced_parry"))
         chance = (chance * 3)/2;
 
     ch->skill_chance = chance;
@@ -2819,7 +2814,7 @@ bool can_start_combat(CHAR_DATA *ch)
 
     if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_MOUNT) && MOUNTED(ch))
     {
-        if (IS_NPC(MOUNTED(ch)) || get_profession(MOUNTED(ch), SECOND_SUBCLASS_WARRIOR) != CLASS_WARRIOR_CRUSADER)
+        if (IS_NPC(MOUNTED(ch)) || !ch_has_trait(MOUNTED(ch), "mounted_combat"))
             return false;
     }
 
@@ -5920,7 +5915,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
         check_improve(ch,gsn_backstab,false,1);
     }
 
-    if (!failed && get_profession(ch, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA && victim && !IS_DEAD(victim) && victim->hit >= 1 &&
+    if (!failed && ch_has_trait(ch, "backstab_followup") && victim && !IS_DEAD(victim) && victim->hit >= 1 &&
         wields_item_type(ch, WEAPON_SWORD) && wields_item_type(ch, WEAPON_DAGGER) && skill2 > 0) {
         if(number_percent() < skill2) {
             OBJ_DATA *wield2;
@@ -6039,8 +6034,7 @@ void do_slit(CHAR_DATA *ch, char *argument)
 
     chance = get_skill(ch, gsn_slit_throat);
     chance += (ch->tot_level - victim->tot_level);
-    if (get_profession(ch, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA &&
-        get_profession(ch, SUBCLASS_THIEF) == CLASS_THIEF_ASSASSIN)
+    if (ch_has_trait(ch, "slit_throat_mastery"))
         chance = 3 * chance / 2;
 
     if (!get_eq_char(ch, WEAR_WIELD) && !get_eq_char(ch, WEAR_SECONDARY)) {
@@ -6246,10 +6240,10 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
     chance = get_skill(ch, gsn_blackjack);
     chance += (ch->tot_level - victim->tot_level);
 
-    if (get_profession(ch, SECOND_SUBCLASS_THIEF) != CLASS_THIEF_HIGHWAYMAN)
-        chance = chance/2;
-    else
+    if (ch_has_trait(ch, "blackjack_mastery"))
         chance = (chance*3)/2;
+    else
+        chance = chance/2;
 
     weapon = get_eq_char(victim, WEAR_WIELD);
     if (weapon && (number_percent() > 25 || weapon->item_type != ITEM_WEAPON || !IS_WEAPON_STAT(weapon,WEAPON_ANNEALED)))

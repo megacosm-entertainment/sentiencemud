@@ -744,6 +744,24 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_string(flag_string(skill_flags, entry->flags & ~SKILL_SPELL)));
         }
 
+        // Save class sources list
+        if (entry->sources) {
+            json_t *sources_arr = json_array();
+            SKILL_SOURCE *src;
+            for (src = entry->sources; src; src = src->next) {
+                if (src->clazz && src->clazz->name) {
+                    json_t *src_obj = json_object();
+                    json_object_set_new(src_obj, "class", json_string(src->clazz->name));
+                    json_object_set_new(src_obj, "scope", json_integer(src->scope));
+                    json_array_append_new(sources_arr, src_obj);
+                }
+            }
+            if (json_array_size(sources_arr) > 0)
+                json_object_set_new(skill_data, "class_sources", sources_arr);
+            else
+                json_decref(sources_arr);
+        }
+
         json_object_set_new(skills, skill_table[sn].name, skill_data);
     }
 
@@ -3655,6 +3673,50 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             if (entry) {
                 entry->rating = ch->pcdata->learned[sn];
                 entry->mod_rating = ch->pcdata->mod_learned[sn];
+
+                // Load class sources list
+                if (json_is_object(skill_value)) {
+                    json_t *class_sources = json_object_get(skill_value, "class_sources");
+                    if (class_sources && json_is_array(class_sources)) {
+                        size_t si;
+                        json_t *src_elem;
+                        SKILL_SOURCE *tail = NULL;
+
+                        json_array_foreach(class_sources, si, src_elem) {
+                            const char *cls_name = json_string_value(
+                                json_object_get(src_elem, "class"));
+                            if (!cls_name || !cls_name[0])
+                                continue;
+
+                            CLASS_DATA *clazz = class_find_exact(cls_name);
+                            if (!clazz)
+                                continue;
+
+                            SKILL_SOURCE *src = new_skill_source();
+                            src->clazz = clazz;
+                            src->scope = (int16_t)json_integer_value(
+                                json_object_get(src_elem, "scope"));
+                            src->next = NULL;
+
+                            if (!entry->sources)
+                                entry->sources = src;
+                            else
+                                tail->next = src;
+                            tail = src;
+                        }
+
+                        // Refresh cached fields from loaded sources
+                        if (entry->sources) {
+                            entry->source_class = entry->sources->clazz;
+                            entry->cross_class_scope = REWARD_SCOPE_CLASS;
+                            SKILL_SOURCE *s;
+                            for (s = entry->sources; s; s = s->next) {
+                                if (s->scope > entry->cross_class_scope)
+                                    entry->cross_class_scope = s->scope;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -4090,6 +4152,50 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             if (entry) {
                 entry->rating = ch->pcdata->learned[sn];
                 entry->mod_rating = ch->pcdata->mod_learned[sn];
+
+                // Load class sources list
+                if (json_is_object(skill_value)) {
+                    json_t *class_sources = json_object_get(skill_value, "class_sources");
+                    if (class_sources && json_is_array(class_sources)) {
+                        size_t si;
+                        json_t *src_elem;
+                        SKILL_SOURCE *tail = NULL;
+
+                        json_array_foreach(class_sources, si, src_elem) {
+                            const char *cls_name = json_string_value(
+                                json_object_get(src_elem, "class"));
+                            if (!cls_name || !cls_name[0])
+                                continue;
+
+                            CLASS_DATA *clazz = class_find_exact(cls_name);
+                            if (!clazz)
+                                continue;
+
+                            SKILL_SOURCE *src = new_skill_source();
+                            src->clazz = clazz;
+                            src->scope = (int16_t)json_integer_value(
+                                json_object_get(src_elem, "scope"));
+                            src->next = NULL;
+
+                            if (!entry->sources)
+                                entry->sources = src;
+                            else
+                                tail->next = src;
+                            tail = src;
+                        }
+
+                        // Refresh cached fields from loaded sources
+                        if (entry->sources) {
+                            entry->source_class = entry->sources->clazz;
+                            entry->cross_class_scope = REWARD_SCOPE_CLASS;
+                            SKILL_SOURCE *s;
+                            for (s = entry->sources; s; s = s->next) {
+                                if (s->scope > entry->cross_class_scope)
+                                    entry->cross_class_scope = s->scope;
+                            }
+                        }
+                    }
+                }
             }
         }
     }

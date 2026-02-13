@@ -2683,6 +2683,12 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     // Reset character stats
     reset_char(ch);
 
+    /* Rebuild skill source metadata from class rewards.
+     * This ensures dimming/availability works correctly for characters
+     * loaded from JSON files that predate the multi-source system,
+     * and picks up any cross-class reward changes made offline. */
+    rebuild_skill_sources(ch);
+
     /* Apply account preferences on login.
      * This ensures account-level settings (and updated game defaults)
      * take effect each login, unless the character has an explicit

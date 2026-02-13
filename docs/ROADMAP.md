@@ -103,6 +103,22 @@ Four phases: grouped display, updated OLC commands, JSON format change, reverse 
 
 Replace the implicit leader-pointer grouping with an explicit `GROUP_DATA` entity. Fixes a bug in `stop_grouped()`, eliminates O(N) group iteration over all loaded characters, and provides a stable group identity for downstream systems (pub/sub, party system).
 
+### Remort & Multiclass System Removal
+
+**Status:** Planned. Cleanup task.
+
+The legacy remort and multiclass systems are being superseded by the unified class/job progression system. These systems should be removed as a cleanup phase once the new progression system is fully operational.
+
+**Scope (~30+ files, ~150+ references):**
+- `remort` references across ~25 files (`skills.c`, `merc.h`, `handler.c`, `act_wiz.c`, script system, etc.)
+- `multiclass` / `multi_class` references across ~11 files (`skills.c`, `act_wiz.c`, `merc.h`, `interp.c`, script system, etc.)
+- `do_remort` command, remort-gated checks in skill/spell availability, remort race restrictions
+- Multiclass command, multiclass level tracking, multiclass skill modifiers
+- Script system hooks for remort/multiclass state (`script_*pcmds.c`, `scripts.h`)
+- Race remort prerequisites and remort-into chains (`race_is_remort()`, `race_get_remort_into()`, `race_get_prerequisite()`)
+
+**Approach:** Incremental removal — strip command entry points first, then gating checks, then struct fields, then script hooks. Each phase should build and run cleanly.
+
 ### Pub/Sub Communication
 
 **Docs:** [PLAN_pubsub_communication.md](PLAN_pubsub_communication.md)

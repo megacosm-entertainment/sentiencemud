@@ -204,3 +204,131 @@ void do_testemail (CHAR_DATA *ch, char *argument)
   quickmail_destroy(mailobj);
   quickmail_cleanup();
 }
+
+/**
+ * do_raceinfo - Display detailed information about a race
+ *
+ * Shows the race description, stats, size, and links to help files.
+ * Players can view any playable race; immortals can view all races.
+ *
+ * Syntax: raceinfo <race name>
+ */
+void do_raceinfo(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    RACE_DATA *race;
+    BUFFER *buffer;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: raceinfo <race name>\n\r", ch);
+        return;
+    }
+
+    race = race_lookup_name(arg);
+    if (!race) {
+        race = race_lookup(arg);
+    }
+    if (!race) {
+        send_to_char("No such race found.\n\r", ch);
+        return;
+    }
+
+    /* Hide non-playable races from mortals */
+    if (!race->playable && !IS_IMMORTAL(ch)) {
+        send_to_char("No such race found.\n\r", ch);
+        return;
+    }
+
+    buffer = new_buf();
+
+    /* Header */
+    add_buf(buffer, formatf("{C=== Race: {W%s{C ==={x\n\r", race->name));
+
+    /* Description */
+    if (!IS_NULLSTR(race->description)) {
+        add_buf(buffer, formatf("\n\r%s{x\n\r", race->description));
+    }
+
+    add_buf(buffer, "\n\r");
+
+    /* Availability */
+    if (race->starting)
+        add_buf(buffer, "{xAvailability: {GStarting race{x\n\r");
+    else if (race_is_remort(race))
+        add_buf(buffer, "{xAvailability: {YRemort race{x\n\r");
+    else if (race->playable)
+        add_buf(buffer, "{xAvailability: {YPlayable{x\n\r");
+    else
+        add_buf(buffer, "{xAvailability: {DNPC only{x\n\r");
+
+    /* Size */
+    if (race->min_size == race->max_size)
+        add_buf(buffer, formatf("{xSize:         {W%s{x\n\r",
+                                size_table[race->min_size].name));
+    else
+        add_buf(buffer, formatf("{xSize:         {W%s{x to {W%s{x\n\r",
+                                size_table[race->min_size].name,
+                                size_table[race->max_size].name));
+
+    /* Stats */
+    static const char *stat_short[] = {"Str", "Int", "Wis", "Dex", "Con"};
+    add_buf(buffer, "{xBase stats:   ");
+    for (int i = 0; i < MAX_STATS; i++) {
+        add_buf(buffer, formatf("{C%s{x:{W%d{x ", stat_short[i], race->stats[i]));
+    }
+    add_buf(buffer, "\n\r");
+
+    add_buf(buffer, "{xMax stats:    ");
+    for (int i = 0; i < MAX_STATS; i++) {
+        add_buf(buffer, formatf("{C%s{x:{W%d{x ", stat_short[i], race->max_stats[i]));
+    }
+    add_buf(buffer, "\n\r");
+
+    /* Racial skills */
+    if (race->skills && list_size(race->skills) > 0) {
+        add_buf(buffer, "\n\r{xRacial skills: ");
+        ITERATOR it;
+        char *skill_name;
+        bool first = true;
+        iterator_start(&it, race->skills);
+        while ((skill_name = (char *)iterator_nextdata(&it))) {
+            if (!first) add_buf(buffer, ", ");
+            add_buf(buffer, formatf("{W%s{x", skill_name));
+            first = false;
+        }
+        iterator_stop(&it);
+        add_buf(buffer, "\n\r");
+    }
+
+    /* Remort info */
+    if (race->remort_into_id) {
+        RACE_DATA *into = race_get_remort_into(race);
+        if (into)
+            add_buf(buffer, formatf("\n\r{xRemorts into: {W%s{x\n\r", into->name));
+    }
+    if (race->remort_race_id) {
+        RACE_DATA *prereq = race_get_prerequisite(race);
+        if (prereq)
+            add_buf(buffer, formatf("{xRequires:     {W%s{x\n\r", prereq->name));
+    }
+
+    /* Player's race check */
+    if (!IS_NPC(ch)) {
+        if (ch->race == race)
+            add_buf(buffer, "\n\r{YThis is your current race.{x\n\r");
+    }
+
+    /* Help file link */
+    HELP_DATA *help = lookup_help_exact(race->name, get_staff_rank(ch), topHelpCat);
+    if (!help && race->id)
+        help = lookup_help_exact(race->id, get_staff_rank(ch), topHelpCat);
+    if (help) {
+        add_buf(buffer, formatf("\n\r{xHelp:         \t<send href=\"help #%d\">{Whelp %s{x\t</send>\n\r",
+                                help->index, race->name));
+    }
+
+    page_to_char(buffer->string, ch);
+    free_buf(buffer);
+}

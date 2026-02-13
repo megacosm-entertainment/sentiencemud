@@ -2729,7 +2729,7 @@ void join_world(DESCRIPTOR_DATA * d)
         if(global.mud_telnetga)
             SET_BIT (ch->comm, COMM_TELNET_GA);
 
-        ch->perm_stat[class_table[ch->class].attr_prime] += 3;
+        ch->perm_stat[ch_get_trait_int(ch, "primary_stat")] += 3;
 
         ch->level = 1;
         ch->tot_level = 1;

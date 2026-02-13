@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include "merc.h"
+#include "traits.h"
 #include "interp.h"
 #include "magic.h"
 #include "recycle.h"
@@ -388,7 +389,7 @@ SPELL_FUNC(spell_recharge)
             break;
 
         case ITEM_POTION:
-            if (get_profession(ch, SECOND_SUBCLASS_CLERIC) == CLASS_CLERIC_ALCHEMIST) {
+            if (ch_has_trait(ch, "potion_recharge")) {
                 obj->value[0] = (obj->value[0] * 9)/10;
 
                 if (get_skill(ch, gsn_brew) < 75)

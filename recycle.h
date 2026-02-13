@@ -50,6 +50,10 @@ extern long mobile_count;
 SKILL_ENTRY *new_skill_entry();
 void free_skill_entry(SKILL_ENTRY *entry);
 
+SKILL_SOURCE *new_skill_source();
+void free_skill_source(SKILL_SOURCE *source);
+void free_skill_sources(SKILL_SOURCE *list);
+
 /* note recycling */
 #define ND NOTE_DATA
 ND	*new_note args( (void) );

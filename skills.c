@@ -1059,8 +1059,18 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
             if( hide_learned && skill >= MAX_SKILL_LEARNABLE) continue;
 
             if( !arg[0] || !str_prefix(arg, name) ) {
+                bool dimmed = !IS_IMMORTAL(ch)
+                    && !is_skill_available_for_class(ch, entry);
 
-                color = ( IS_IMMORTAL(ch) && IS_VALID(entry->token) ) ? 'G' : 'Y';
+                color = dimmed ? 'D'
+                    : (IS_IMMORTAL(ch) && IS_VALID(entry->token)) ? 'G' : 'Y';
+
+                /* Rating/status colors: dim everything when skill is unavailable */
+                char col_pct = dimmed ? 'D' : 'G';     /* learned percentage */
+                char col_mst = dimmed ? 'D' : 'M';     /* Master */
+                char col_mod = dimmed ? 'D' : 'W';     /* modifier */
+                char col_lrn = dimmed ? 'D' : 'C';     /* learn-per-prac */
+                char col_ulk = dimmed ? 'D' : 'W';     /* unlocks-at level */
 
                 sprintf(eff_name, "{%c%s", color, name);
 
@@ -1072,47 +1082,47 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
                         strcpy(min_mana, "---");
 
                     if( level < 0 )
-                        sprintf(buf, " %3d     %-8s %-26s    {xUnlocks at {W%d", i, min_mana, eff_name, -level);
+                        sprintf(buf, " %3d     %-8s %-26s    {xUnlocks at {%c%d", i, min_mana, eff_name, col_ulk, -level);
                     else {
                         rating = skill + mod;
                         rating = URANGE(0,rating,100);
 
                         if( rating >= 100 ) {	// MASTER
                             if( mod )
-                                sprintf(buf, " %3d     %-8s %-26s    {MMaster {W(%+d%%)", i, min_mana, eff_name, mod);
+                                sprintf(buf, " %3d     %-8s %-26s    {%cMaster {%c(%+d%%)", i, min_mana, eff_name, col_mst, col_mod, mod);
                             else
-                                sprintf(buf, " %3d     %-8s %-26s    {MMaster", i, min_mana, eff_name);
+                                sprintf(buf, " %3d     %-8s %-26s    {%cMaster", i, min_mana, eff_name, col_mst);
                         } else if( mod )
                             if ( show_learn_amount )
-                                sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, min_mana, eff_name, rating, mod, learn);
+                                sprintf(buf, " %3d     %-8s %-26s    {%c%d%% {%c(%+d%%) {%c- Gain %d%% per prac{X", i, min_mana, eff_name, col_pct, rating, col_mod, mod, col_lrn, learn);
                             else
-                                sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
+                                sprintf(buf, " %3d     %-8s %-26s    {%c%d%% {%c(%+d%%)", i, min_mana, eff_name, col_pct, rating, col_mod, mod);
                         else if ( show_learn_amount )
-                            sprintf(buf, " %3d     %-8s %-26s    {G%d%% {C- Gain %d%% per prac{X", i, min_mana,  eff_name, rating, learn);
+                            sprintf(buf, " %3d     %-8s %-26s    {%c%d%% {%c- Gain %d%% per prac{X", i, min_mana,  eff_name, col_pct, rating, col_lrn, learn);
                         else
-                            sprintf(buf, " %3d     %-8s %-26s    {G%d%%", i, min_mana,  eff_name, rating);
+                            sprintf(buf, " %3d     %-8s %-26s    {%c%d%%", i, min_mana,  eff_name, col_pct, rating);
                     }
                 } else {
                     if( level < 0 )
-                        sprintf(buf, " %3d     %-26s    {xUnlocks at {W%d", i, eff_name, -level);
+                        sprintf(buf, " %3d     %-26s    {xUnlocks at {%c%d", i, eff_name, col_ulk, -level);
                     else {
                         rating = skill + mod;
                         rating = URANGE(0,rating,100);
 
                         if( rating >= 100 ) {	// MASTER
                             if( mod )
-                                sprintf(buf, " %3d     %-26s    {MMaster {W(%+d%%)", i, eff_name, mod);
+                                sprintf(buf, " %3d     %-26s    {%cMaster {%c(%+d%%)", i, eff_name, col_mst, col_mod, mod);
                             else
-                                sprintf(buf, " %3d     %-26s    {MMaster", i, eff_name);
+                                sprintf(buf, " %3d     %-26s    {%cMaster", i, eff_name, col_mst);
                         } else if( mod )
                             if (show_learn_amount )
-                                sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, eff_name, rating, mod, learn);
+                                sprintf(buf, " %3d     %-26s    {%c%d%% {%c(%+d%%) {%c- Gain %d%% per prac{X", i, eff_name, col_pct, rating, col_mod, mod, col_lrn, learn);
                             else
-                                sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
+                                sprintf(buf, " %3d     %-26s    {%c%d%% {%c(%+d%%)", i, eff_name, col_pct, rating, col_mod, mod);
                         else if ( show_learn_amount )
-                            sprintf(buf, " %3d     %-26s    {G%d%% {C- Gain %d%% per prac{X", i, eff_name, rating, learn);
+                            sprintf(buf, " %3d     %-26s    {%c%d%% {%c- Gain %d%% per prac{X", i, eff_name, col_pct, rating, col_lrn, learn);
                         else
-                            sprintf(buf, " %3d     %-26s    {G%d%%", i, eff_name, rating);
+                            sprintf(buf, " %3d     %-26s    {%c%d%%", i, eff_name, col_pct, rating);
                     }
                 }
 
@@ -2603,4 +2613,148 @@ void remort_player(CHAR_DATA *ch, int remort_class)
         }
         iterator_stop(&it);
     }
+}
+
+/**
+ * do_skillinfo - Display detailed information about a skill or spell
+ *
+ * Shows the skill's summary, description, class sources, availability,
+ * and links to relevant help files. Available to all players for skills
+ * they have in their skill list.
+ *
+ * Syntax: skillinfo <skill name>
+ */
+void do_skillinfo(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    SKILL_ENTRY *entry;
+    BUFFER *buffer;
+
+    one_argument(argument, arg);
+
+    if (IS_NPC(ch)) {
+        send_to_char("NPCs don't have skills.\n\r", ch);
+        return;
+    }
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: skillinfo <skill or spell name>\n\r", ch);
+        return;
+    }
+
+    /* Find the skill entry on the character */
+    entry = skill_entry_findname(ch->sorted_skills, arg);
+    if (!entry) {
+        send_to_char("You don't have that skill or spell.\n\r", ch);
+        return;
+    }
+
+    int sn = entry->sn;
+    if (sn < 0 || sn >= MAX_SKILL || skill_table[sn].name == NULL) {
+        send_to_char("That skill appears to be invalid.\n\r", ch);
+        return;
+    }
+
+    const char *name = skill_entry_name(entry);
+    bool avail = IS_IMMORTAL(ch) || is_skill_available_for_class(ch, entry);
+
+    buffer = new_buf();
+
+    /* Header */
+    add_buf(buffer, formatf("{C=== %s: {W%s{C ==={x\n\r",
+                            entry->isspell ? "Spell" : "Skill", name));
+
+    /* Summary line */
+    SKILL_DATA *sd = entry->skill_data ? entry->skill_data : skill_from_sn(sn);
+    if (sd && sd->summary && sd->summary[0])
+        add_buf(buffer, formatf("{Y%s{x\n\r", sd->summary));
+
+    add_buf(buffer, "\n\r");
+
+    /* Description */
+    if (sd && sd->description && sd->description[0]) {
+        add_buf(buffer, formatf("{xDescription:{x\n\r"));
+        add_buf(buffer, formatf("  %s\n\r\n\r", sd->description));
+    }
+
+    /* Current rating */
+    int rating = skill_entry_rating(ch, entry);
+    int mod = skill_entry_mod(ch, entry);
+    int level = skill_entry_level(ch, entry);
+    int eff = URANGE(0, rating + mod, 100);
+
+    if (level < 0) {
+        add_buf(buffer, formatf("{xStatus:      {DUnlocks at level %d{x\n\r", -level));
+    } else if (eff >= 100) {
+        if (mod)
+            add_buf(buffer, formatf("{xStatus:      {MMaster{x ({W%+d%%{x modifier)\n\r", mod));
+        else
+            add_buf(buffer, formatf("{xStatus:      {MMaster{x\n\r"));
+    } else {
+        if (mod)
+            add_buf(buffer, formatf("{xStatus:      {G%d%%{x ({W%+d%%{x modifier)\n\r", eff, mod));
+        else
+            add_buf(buffer, formatf("{xStatus:      {G%d%%{x\n\r", eff));
+    }
+
+    /* Availability */
+    add_buf(buffer, formatf("{xAvailable:   %s\n\r",
+                            avail ? "{GYes{x" : "{DNo (not in correct class){x"));
+
+    /* Mana cost (spells only) */
+    if (entry->isspell) {
+        int mana = skill_entry_mana(ch, entry);
+        if (mana > 0)
+            add_buf(buffer, formatf("{xMana cost:   {C%d{x\n\r", mana));
+    }
+
+    add_buf(buffer, "\n\r");
+
+    /* Class sources */
+    if (entry->sources) {
+        add_buf(buffer, "{xClass sources:{x\n\r");
+        SKILL_SOURCE *src;
+        for (src = entry->sources; src; src = src->next) {
+            if (!src->clazz) continue;
+            const char *scope_str = flag_name(reward_scopes, src->scope);
+            add_buf(buffer, formatf("  {W%-20s{x  scope: {C%s{x\n\r",
+                                    class_display_ch(src->clazz, ch),
+                                    scope_str ? scope_str : "unknown"));
+        }
+        add_buf(buffer, "\n\r");
+    } else if (entry->source_class) {
+        /* Legacy single-source display */
+        const char *scope_str = flag_name(reward_scopes, entry->cross_class_scope);
+        add_buf(buffer, formatf("{xClass source: {W%s{x  scope: {C%s{x\n\r\n\r",
+                                class_display_ch(entry->source_class, ch),
+                                scope_str ? scope_str : "unknown"));
+    }
+
+    /* Skill flags */
+    if (sd) {
+        if (IS_SET(sd->flags, SKILLFLAG_PASSIVE))
+            add_buf(buffer, "{xType:        {YPassive{x (always active)\n\r");
+        if (IS_SET(sd->flags, SKILLFLAG_RACIAL))
+            add_buf(buffer, "{xType:        {YRacial{x skill\n\r");
+        if (IS_SET(sd->flags, SKILLFLAG_REMORT))
+            add_buf(buffer, "{xType:        {YRemort{x skill\n\r");
+    }
+
+    /* Help file link */
+    const char *help_kw = (sd && sd->help_keyword) ? sd->help_keyword : name;
+    HELP_DATA *help = lookup_help_exact((char *)help_kw, get_staff_rank(ch), topHelpCat);
+    if (help) {
+        add_buf(buffer, formatf("\n\r{xHelp:        \t<send href=\"help #%d\">{Whelp %s{x\t</send>\n\r",
+                                help->index, help_kw));
+    } else {
+        /* Try skill name as fallback keyword */
+        help = lookup_help_exact((char *)name, get_staff_rank(ch), topHelpCat);
+        if (help) {
+            add_buf(buffer, formatf("\n\r{xHelp:        \t<send href=\"help #%d\">{Whelp %s{x\t</send>\n\r",
+                                    help->index, name));
+        }
+    }
+
+    page_to_char(buffer->string, ch);
+    free_buf(buffer);
 }

@@ -577,6 +577,18 @@ typedef struct location_type {
 
 #define SKILL_AUTOMATIC			(SKILL_PRACTICE|SKILL_IMPROVE)
 
+/*
+ * SKILL_SOURCE - Tracks which class (and at what scope) granted a skill.
+ * A SKILL_ENTRY may have multiple sources if multiple classes grant the same
+ * skill. This enables correct revocation (only remove if no sources remain)
+ * and accurate availability checking (available if ANY source matches).
+ */
+typedef struct skill_source_type {
+    struct skill_source_type *next;
+    CLASS_DATA *clazz;          // The class that granted this skill
+    int16_t scope;              // REWARD_SCOPE_* — how broadly it's shared
+} SKILL_SOURCE;
+
 typedef struct skill_entry_type {
     struct skill_entry_type *next;
     char source;		// Source of the skill
@@ -590,8 +602,9 @@ typedef struct skill_entry_type {
     TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
     int rating;			// Skill percentage (0-100+), replaces learned[sn]
     int mod_rating;		// Rating modifier, replaces mod_learned[sn]
-    int16_t cross_class_scope;  // REWARD_SCOPE_* — how this skill is shared across classes
-    CLASS_DATA *source_class;   // Class that granted this skill (NULL = not class-granted)
+    int16_t cross_class_scope;  // REWARD_SCOPE_* — effective broadest scope (cached)
+    CLASS_DATA *source_class;   // Primary granting class (cached, first or broadest)
+    SKILL_SOURCE *sources;      // Linked list of all class sources
 } SKILL_ENTRY;
 
 typedef struct script_switch_case_data SCRIPT_SWITCH_CASE;
@@ -7143,6 +7156,8 @@ struct skill_data
     char *              display;            /* Display name (if different from internal name) */
     char *              help_keyword;       /* Help system keyword */
     char *              summary;            /* One-line summary for hints/MXP */
+    char *              description;        /* Longer description for skillinfo */
+    char *              comments;           /* Admin-only notes (not shown to players) */
 
     long                flags;              /* SKILLFLAG_* bitfield */
 
@@ -7267,6 +7282,7 @@ struct class_data
     int16_t             uid;                /* Stable unique ID */
     char *              name;               /* Canonical name (primary lookup key) */
     char *              description;        /* Long description */
+    char *              comments;           /* Admin-only notes (not shown to players) */
 
     /* (Deprecated) Body-type-aware display names — use titles list instead */
     char *              display[BODY_TYPE_MAX]; /* Legacy: full display name per body type */

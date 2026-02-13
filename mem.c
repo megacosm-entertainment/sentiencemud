@@ -188,14 +188,59 @@ SKILL_ENTRY *new_skill_entry()
     entry->mod_rating = 0;
     entry->cross_class_scope = 0;   /* REWARD_SCOPE_CLASS */
     entry->source_class = NULL;
+    entry->sources = NULL;
 
     return entry;
 }
 
 void free_skill_entry(SKILL_ENTRY *entry)
 {
+    /* Free any attached sources */
+    free_skill_sources(entry->sources);
+    entry->sources = NULL;
+    entry->source_class = NULL;
+
     entry->next = skill_entry_free;
     skill_entry_free = entry;
+}
+
+static SKILL_SOURCE *skill_source_free;
+
+SKILL_SOURCE *new_skill_source()
+{
+    SKILL_SOURCE *src;
+
+    if (skill_source_free == NULL)
+        src = alloc_perm(sizeof(SKILL_SOURCE));
+    else {
+        src = skill_source_free;
+        skill_source_free = skill_source_free->next;
+    }
+
+    src->next = NULL;
+    src->clazz = NULL;
+    src->scope = 0;  /* REWARD_SCOPE_CLASS */
+
+    return src;
+}
+
+void free_skill_source(SKILL_SOURCE *source)
+{
+    source->next = skill_source_free;
+    skill_source_free = source;
+}
+
+/**
+ * free_skill_sources - Free an entire linked list of SKILL_SOURCE nodes
+ */
+void free_skill_sources(SKILL_SOURCE *list)
+{
+    SKILL_SOURCE *next;
+    while (list) {
+        next = list->next;
+        free_skill_source(list);
+        list = next;
+    }
 }
 
 NOTE_DATA *new_note()

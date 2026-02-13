@@ -168,6 +168,9 @@ void            apply_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz,
 /* Revoke rewards with REWARD_REVOKE_ON_LEAVE flag */
 void            revoke_class_rewards(CHAR_DATA *ch, CLASS_DATA *clazz);
 
+/* Rebuild skill source metadata from class rewards (called at login) */
+void            rebuild_skill_sources(CHAR_DATA *ch);
+
 /* Check if a skill entry is usable with the character's current class */
 bool            is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry);
 
