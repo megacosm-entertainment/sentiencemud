@@ -1407,26 +1407,10 @@ static bool get_default_bool(const char *name, int table_default)
 }
 
 /* Channel names and their pref keys for account-level display/toggle.
- * Channels are stored as "channel_<name>" boolean prefs where true = ON. */
-static const struct {
-    const char *name;       /* Display name (also used for toggle input) */
-    const char *pref_key;   /* Key in the preferences list */
-} acct_channel_table[] = {
-    { "gossip",    "channel_gossip"   },
-    { "ooc",       "channel_ooc"      },
-    { "music",     "channel_music"    },
-    { "auction",   "channel_auction"  },
-    { "yell",      "channel_yell"     },
-    { "quote",     "channel_quote"    },
-    { "helper",    "channel_helper"   },
-    { "ct",        "channel_ct"       },
-    { "gq",        "channel_gq"       },
-    { "autowar",   "channel_autowar"  },
-    { "announce",  "channel_announce" },
-    { "hints",     "channel_hints"    },
-    { "flaming",   "channel_flaming"  },
-    { NULL, NULL }
-};
+ * Channels are stored as "channel_<name>" boolean prefs where true = ON.
+ * The canonical table is acct_channel_defaults in preferences.c;
+ * this alias provides local convenience. */
+#define acct_channel_table acct_channel_defaults
 
 /**
  * display_account_prefs_menu - Show account preferences with toggle options

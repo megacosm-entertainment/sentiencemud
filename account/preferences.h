@@ -74,6 +74,21 @@ extern const char *pref_source_names[];
 const char *pref_source_name(int source);
 
 /***************************************************************************
+ * Default Channel Table                                                   *
+ *                                                                         *
+ * Defines channels available at account level and their pref keys.        *
+ * All channels default to ON unless overridden.                           *
+ * Shared between nanny.c (account menu) and preferences.c (prefadmin).   *
+ ***************************************************************************/
+
+typedef struct {
+    const char *name;       /* Display name (also used for toggle input) */
+    const char *pref_key;   /* Key in the preferences list */
+} ACCT_CHANNEL_DEF;
+
+extern const ACCT_CHANNEL_DEF acct_channel_defaults[];
+
+/***************************************************************************
  * Preference Entry                                                        *
  *                                                                         *
  * A single named preference with a typed value. Stored as a linked list   *

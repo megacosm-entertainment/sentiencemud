@@ -20,6 +20,27 @@
 #include "preferences.h"
 
 /***************************************************************************
+ * Default Channel Table                                                   *
+ ***************************************************************************/
+
+const ACCT_CHANNEL_DEF acct_channel_defaults[] = {
+    { "gossip",    "channel_gossip"   },
+    { "ooc",       "channel_ooc"      },
+    { "music",     "channel_music"    },
+    { "auction",   "channel_auction"  },
+    { "yell",      "channel_yell"     },
+    { "quote",     "channel_quote"    },
+    { "helper",    "channel_helper"   },
+    { "ct",        "channel_ct"       },
+    { "gq",        "channel_gq"       },
+    { "autowar",   "channel_autowar"  },
+    { "announce",  "channel_announce" },
+    { "hints",     "channel_hints"    },
+    { "flaming",   "channel_flaming"  },
+    { NULL, NULL }
+};
+
+/***************************************************************************
  * Name Lookup Tables                                                      *
  ***************************************************************************/
 
@@ -680,8 +701,15 @@ void pref_apply_game_defaults(CHAR_DATA *ch)
 
         case PREF_CAT_CHANNEL:
             if (gp->type == PREF_TYPE_BOOL) {
+                /* Channel keys are stored as "channel_gossip" etc. but
+                 * channel_mute_table uses bare names like "gossip".
+                 * Strip the "channel_" prefix for matching. */
+                const char *chan_name = gp->key;
+                if (!str_prefix("channel_", chan_name))
+                    chan_name += 8;
+
                 for (int i = 0; channel_mute_table[i].name; i++) {
-                    if (str_cmp(channel_mute_table[i].name, gp->key))
+                    if (str_cmp(channel_mute_table[i].name, chan_name))
                         continue;
                     if (gp->val.b)
                         REMOVE_BIT(ch->comm, channel_mute_table[i].flag);
@@ -1331,14 +1359,15 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                     PREF_ENTRY *entry = pref_find(game_settings.pref_defaults, pc_set_table[i].name);
                     bool effective_val;
                     const char *source;
+                    bool factory_val = (pc_set_table[i].default_state == SETTING_ON);
 
                     if (entry && entry->type == PREF_TYPE_BOOL) {
                         effective_val = entry->val.b;
-                        source = "{Gcustom{x  ";
                     } else {
-                        effective_val = (pc_set_table[i].default_state == SETTING_ON);
-                        source = "{Dfactory{x ";
+                        effective_val = factory_val;
                     }
+
+                    source = (effective_val != factory_val) ? "{Ymodified{x" : "{Ddefault{x ";
 
                     count++;
                     sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-14s {D|{x %-12s {D|{x %-8s {D|{x\n\r",
@@ -1346,25 +1375,63 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                             "toggle",
                             "bool",
                             pc_set_table[i].name,
-                            effective_val ? "{GOn{x" : "{ROf{xf",
+                            effective_val ? "{GOn{x " : "{ROff{x",
                             source);
                     send_to_char(buf, ch);
                 }
             }
 
-            /* Show any additional pref_defaults entries not in pc_set_table
-             * (channels, prompt, display, or other custom settings) */
+            /* Show all channel settings */
+            if (filter_cat < 0 || filter_cat == PREF_CAT_CHANNEL) {
+                for (int i = 0; acct_channel_defaults[i].name; i++) {
+                    PREF_ENTRY *entry = pref_find(game_settings.pref_defaults,
+                                                  acct_channel_defaults[i].pref_key);
+                    bool effective_val;
+                    const char *source;
+                    /* Factory default for all channels is ON */
+                    bool factory_val = true;
+
+                    if (entry && entry->type == PREF_TYPE_BOOL) {
+                        effective_val = entry->val.b;
+                    } else {
+                        effective_val = factory_val;
+                    }
+
+                    source = (effective_val != factory_val) ? "{Ymodified{x" : "{Ddefault{x ";
+
+                    count++;
+                    sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-14s {D|{x %-12s {D|{x %-8s {D|{x\n\r",
+                            count,
+                            "channel",
+                            "bool",
+                            acct_channel_defaults[i].pref_key,
+                            effective_val ? "{GOn{x " : "{ROff{x",
+                            source);
+                    send_to_char(buf, ch);
+                }
+            }
+
+            /* Show any additional pref_defaults entries not already covered
+             * by pc_set_table or acct_channel_defaults */
             PREF_ENTRY *p;
             for (p = game_settings.pref_defaults; p; p = p->next) {
-                /* Skip toggles already shown from pc_set_table */
-                bool in_table = false;
+                /* Skip entries already shown above */
+                bool already_shown = false;
                 for (int i = 0; pc_set_table[i].name; i++) {
                     if (!str_cmp(p->key, pc_set_table[i].name)) {
-                        in_table = true;
+                        already_shown = true;
                         break;
                     }
                 }
-                if (in_table)
+                if (!already_shown) {
+                    for (int i = 0; acct_channel_defaults[i].name; i++) {
+                        if (!str_cmp(p->key, acct_channel_defaults[i].pref_key)) {
+                            already_shown = true;
+                            break;
+                        }
+                    }
+                }
+                if (already_shown)
                     continue;
 
                 if (filter_cat >= 0 && p->category != filter_cat)
@@ -1375,7 +1442,7 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                 char val_str[128];
                 switch (p->type) {
                 case PREF_TYPE_BOOL:
-                    sprintf(val_str, "%s", p->val.b ? "{GOn{x" : "{ROf{xf");
+                    sprintf(val_str, "%s", p->val.b ? "{GOn{x " : "{ROff{x");
                     break;
                 case PREF_TYPE_INT:
                     sprintf(val_str, "%d", p->val.i);
@@ -1393,7 +1460,7 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                     break;
                 }
 
-                sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-14s {D|{x %-12s {D|{x {Gcustom{x   {D|{x\n\r",
+                sprintf(buf, "{D|{x %-2d {D|{x %-8s {D|{x %-8s {D|{x %-14s {D|{x %-12s {D|{x {Ycustom{x   {D|{x\n\r",
                         count,
                         pref_category_name(p->category),
                         pref_type_name(p->type),
@@ -1405,7 +1472,7 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
             send_to_char("{D+----+----------+----------+----------------+--------------+----------+{x\n\r", ch);
             sprintf(buf, "   %d setting%s listed.\n\r", count, count == 1 ? "" : "s");
             send_to_char(buf, ch);
-            send_to_char("   {DSource: {Gcustom{D = explicitly set, {Dfactory = from code, use 'init' to populate all.{x\n\r", ch);
+            send_to_char("   {DSource: {Ddefault{D = factory value, {Ymodified{D = changed from factory, {Ycustom{D = extra.{x\n\r", ch);
             return;
         }
 
@@ -1502,14 +1569,15 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
          * defaults init
          *
          * Populate pref_defaults with all toggle settings from pc_set_table
-         * that don't already have an explicit entry. This makes every setting
-         * explicitly stored and editable, establishing pref_defaults as the
-         * complete source of truth.
+         * and all channel defaults that don't already have an explicit entry.
+         * This makes every setting explicitly stored and editable,
+         * establishing pref_defaults as the complete source of truth.
          */
         if (!str_prefix(arg_sub, "init")) {
             int seeded = 0;
             int skipped = 0;
 
+            /* Seed toggle settings from pc_set_table */
             for (int i = 0; pc_set_table[i].name; i++) {
                 PREF_ENTRY *existing = pref_find(game_settings.pref_defaults, pc_set_table[i].name);
                 if (existing) {
@@ -1520,6 +1588,20 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
                 bool default_val = (pc_set_table[i].default_state == SETTING_ON);
                 pref_set_bool(&game_settings.pref_defaults, PREF_CAT_TOGGLE,
                               pc_set_table[i].name, default_val);
+                seeded++;
+            }
+
+            /* Seed channel defaults (all ON by default) */
+            for (int i = 0; acct_channel_defaults[i].name; i++) {
+                PREF_ENTRY *existing = pref_find(game_settings.pref_defaults,
+                                                 acct_channel_defaults[i].pref_key);
+                if (existing) {
+                    skipped++;
+                    continue;
+                }
+
+                pref_set_bool(&game_settings.pref_defaults, PREF_CAT_CHANNEL,
+                              acct_channel_defaults[i].pref_key, true);
                 seeded++;
             }
 
@@ -1580,7 +1662,7 @@ void do_prefadmin(CHAR_DATA *ch, char *argument)
             char val_str[128];
             switch (p->type) {
             case PREF_TYPE_BOOL:
-                sprintf(val_str, "%s", p->val.b ? "{GOn{x" : "{ROf{xf");
+                sprintf(val_str, "%s", p->val.b ? "{GOn{x " : "{ROff{x");
                 break;
             case PREF_TYPE_INT:
                 sprintf(val_str, "%d", p->val.i);
