@@ -44,6 +44,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "account/penalty.h"
+#include "account/unlock.h"
 
 /*
 // Command logging types
@@ -1180,6 +1181,13 @@ if (ch->pk_question)
                                ch->race->name, prereq->name);
                 ch->race = prereq;
             }
+        }
+
+        /* Grant account unlock for their race so they can create new
+         * characters with it. */
+        if (ch->desc && ch->desc->account && ch->race) {
+            if (account_add_race_unlock(ch->desc->account, ch->race->id))
+                save_account(ch->desc->account);
         }
 
         printf_to_char(ch, "Your original race has been set to %s.\n\r", orace->name);

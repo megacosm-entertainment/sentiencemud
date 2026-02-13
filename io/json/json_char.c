@@ -28,6 +28,7 @@
 #include "../../traits.h"
 #include "../../class_data.h"
 #include "../../skill_group.h"
+#include "../../account/unlock.h"
 #include "../../song_data.h"
 
 /***************************************************************************
@@ -2562,6 +2563,19 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             } else if (race_is_path(ch->race)) {
                 /* Path/transformation race — must prompt player on login */
                 ch->orace_question = true;
+            }
+
+            /* Grant account unlock for their current race so they can
+             * create new characters with it. Skip deprecated races
+             * (remorts of path races like changeling/fiend/wraith) since
+             * those characters get downgraded to the path race. */
+            if (ch->desc && ch->desc->account
+                    && !(prereq && race_is_path(prereq))) {
+                if (account_add_race_unlock(ch->desc->account, ch->race->id)) {
+                    save_account(ch->desc->account);
+                    log_stringf("orace migration: unlocked race '%s' on account '%s'",
+                                ch->race->id, ch->desc->account->username);
+                }
             }
         }
     }
