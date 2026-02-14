@@ -68,7 +68,7 @@
 // Set to 0 to disable old pfile format writing (JSON only)
 // Set to 1 to write both formats during transition period
 // Once JSON is proven stable, change this to 0 to save write overhead
-#define WRITE_OLD_PFILE_FORMAT 1
+#define WRITE_OLD_PFILE_FORMAT 0
 
 #if defined(KEY)
 #undef KEY
@@ -205,9 +205,12 @@ char *print_flags(long flag)
 void save_char_obj(CHAR_DATA *ch)
 {
     char strsave[MAX_INPUT_LENGTH];
+#if WRITE_OLD_PFILE_FORMAT
     FILE *fp;
-    struct timeval start_time, end_time, dedup_time, write_time;
-    long dedup_ms, write_ms, total_ms;
+#endif
+    struct timeval start_time, end_time, dedup_time, write_time, section_start, section_end;
+    long dedup_ms, total_ms, section_ms;
+    (void)write_time; // used only in WRITE_OLD_PFILE_FORMAT path
 
     if (IS_NPC(ch))
     return;
@@ -221,6 +224,11 @@ void save_char_obj(CHAR_DATA *ch)
     gettimeofday(&start_time, NULL);
     remove_duplicate_objects_from_char(ch);
     gettimeofday(&dedup_time, NULL);
+
+    dedup_ms = (dedup_time.tv_sec - start_time.tv_sec) * 1000 +
+              (dedup_time.tv_usec - start_time.tv_usec) / 1000;
+    if (dedup_ms > 50)
+        log_stringf("PERFORMANCE save_char_obj %s: dedup took %ldms", ch->name, dedup_ms);
 
     // CRITICAL: Prevent recursive save loop and duplicate file writes
     // save_char_obj() can be called from account_add_character() at line 6361
@@ -236,6 +244,7 @@ void save_char_obj(CHAR_DATA *ch)
     // When save_char_obj is called from account_add_character, we should NOT
     // call account_add_character again (infinite loop!)
     if (is_top_level_save) {
+        gettimeofday(&section_start, NULL);
         if (ch->desc && ch->desc->account) {
             account_add_character(ch->desc->account, ch);
             // Account saving is typically handled at player quit or via specific account commands.
@@ -292,6 +301,11 @@ void save_char_obj(CHAR_DATA *ch)
                 }
             }
         }
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 50)
+            log_stringf("PERFORMANCE save_char_obj %s: account_add_character took %ldms", ch->name, section_ms);
 
     // Only write the file if this is the top-level save call
     // Recursive saves (from account_add_character) should not write the file
@@ -404,6 +418,11 @@ void save_char_obj(CHAR_DATA *ch)
     gettimeofday(&write_time, NULL);
     fclose(fp);
     rename(TEMP_FILE, strsave);
+
+    section_ms = (write_time.tv_sec - dedup_time.tv_sec) * 1000 +
+                (write_time.tv_usec - dedup_time.tv_usec) / 1000;
+    if (section_ms > 50)
+        log_stringf("PERFORMANCE save_char_obj %s: old_pfile_write took %ldms", ch->name, section_ms);
 #else
     // JSON-only mode: Just initialize timing variables
     gettimeofday(&write_time, NULL);
@@ -429,10 +448,24 @@ void save_char_obj(CHAR_DATA *ch)
         json_get_char_path(ch->name, json_path, sizeof(json_path));
 
         // Serialize character to JSON (needed for both disk and cache)
+        gettimeofday(&section_start, NULL);
         char_json = char_to_json(ch);
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 50)
+            log_stringf("PERFORMANCE save_char_obj %s: char_to_json took %ldms", ch->name, section_ms);
+
         if (char_json) {
             // Write to disk
+            gettimeofday(&section_start, NULL);
             int result = json_dump_file(char_json, json_path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
+            gettimeofday(&section_end, NULL);
+            section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                        (section_end.tv_usec - section_start.tv_usec) / 1000;
+            if (section_ms > 50)
+                log_stringf("PERFORMANCE save_char_obj %s: json_dump_file took %ldms", ch->name, section_ms);
+
             if (result != 0) {
                 log_stringf("save_char_obj: Failed to write JSON for %s", ch->name);
 #if WRITE_OLD_PFILE_FORMAT
@@ -444,7 +477,13 @@ void save_char_obj(CHAR_DATA *ch)
             }
 
             // Write-through cache: Update Redis with full character data
+            gettimeofday(&section_start, NULL);
             redis_cache_char_full(ch, char_json);
+            gettimeofday(&section_end, NULL);
+            section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                        (section_end.tv_usec - section_start.tv_usec) / 1000;
+            if (section_ms > 50)
+                log_stringf("PERFORMANCE save_char_obj %s: redis_cache_char_full took %ldms", ch->name, section_ms);
 
             // Cleanup
             json_decref(char_json);
@@ -456,32 +495,34 @@ void save_char_obj(CHAR_DATA *ch)
     // Cache character info in Redis for fast account menu display
     // Only cache on top-level saves (not during recursive account updates)
     if (is_top_level_save) {
+        gettimeofday(&section_start, NULL);
         redis_cache_char_info(ch);
         if (ch->desc) {
             redis_set_char_active(ch->name, true);
         }
         if (ch->pcdata)
             leaderboard_update_wealth(ch);
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 50)
+            log_stringf("PERFORMANCE save_char_obj %s: redis_info+active+leaderboard took %ldms", ch->name, section_ms);
     }
 
     gettimeofday(&end_time, NULL);
     save_depth--;
 
-    // Calculate timings for any save with inventory
+    // Always log total save time if it exceeds threshold
+    total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+              (end_time.tv_usec - start_time.tv_usec) / 1000;
+
     int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
                    (ch->llocker ? list_size(ch->llocker) : 0) +
                    (ch->lworn ? list_size(ch->lworn) : 0);
 
-    if (obj_count > 10) {
-        dedup_ms = (dedup_time.tv_sec - start_time.tv_sec) * 1000 +
-                  (dedup_time.tv_usec - start_time.tv_usec) / 1000;
-        write_ms = (write_time.tv_sec - dedup_time.tv_sec) * 1000 +
-                  (write_time.tv_usec - dedup_time.tv_usec) / 1000;
-        total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
-                  (end_time.tv_usec - start_time.tv_usec) / 1000;
-
-        log_stringf("PERFORMANCE save_char_obj: %s with %d objects - dedup: %ldms, write: %ldms, total: %ldms",
-                   ch->name, obj_count, dedup_ms, write_ms, total_ms);
+    if (total_ms > 100) {
+        log_stringf("PERFORMANCE save_char_obj: %s total: %ldms (objects: %d) [loaded_objects: %d]",
+                   ch->name, total_ms, obj_count, loaded_objects ? loaded_objects->size : 0);
     }
 }
 
