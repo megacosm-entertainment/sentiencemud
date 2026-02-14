@@ -1957,7 +1957,10 @@ void do_save(CHAR_DATA *ch, char *argument)
     if (!IS_IMMORTAL(ch) && ch->pcdata->last_manual_save > 0
         && current_time - ch->pcdata->last_manual_save < cooldown)
     {
-        send_to_char("You saved recently. Please wait a moment.\n\r", ch);
+        int time_remaining = cooldown - (current_time - ch->pcdata->last_manual_save);
+        char buf[MSL];
+        snprintf(buf, sizeof(buf), "You saved recently. Please wait %d seconds before saving again.\n\r", time_remaining);
+        send_to_char(buf, ch);
         return;
     }
 
