@@ -1572,10 +1572,14 @@ bool redis_process_area_cache_warm(void)
     char area_name[64];
     char key_buf[128];
     char *json_str;
+    struct timeval start_time, end_time;
+    long elapsed_ms;
 
     if (!redis_is_available()) {
         return false;
     }
+
+    gettimeofday(&start_time, NULL);
 
     pthread_mutex_lock(&redis_mutex);
     /* Pop one area name from the warm queue */
@@ -1620,7 +1624,15 @@ bool redis_process_area_cache_warm(void)
     freeReplyObject(reply);
     pthread_mutex_unlock(&redis_mutex);
 
-    log_stringf("Redis: Warmed cache for area %s", area_name);
+    gettimeofday(&end_time, NULL);
+    elapsed_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+                (end_time.tv_usec - start_time.tv_usec) / 1000;
+
+    if (elapsed_ms > 50) {
+        log_stringf("PERFORMANCE redis_process_area_cache_warm: area %s took %ldms", area_name, elapsed_ms);
+    } else {
+        log_stringf("Redis: Warmed cache for area %s (%ldms)", area_name, elapsed_ms);
+    }
     return true;
 }
 

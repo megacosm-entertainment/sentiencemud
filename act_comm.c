@@ -49,7 +49,6 @@
 
 
 
-
 /**
  * do_clear - Clear the player's terminal screen
  *
@@ -506,7 +505,7 @@ void gecho(char *message)
  */
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];//, timebuf[25];
+    char buf[MAX_STRING_LENGTH], msg[2*MSL];
     DESCRIPTOR_DATA *d;
     /* Not yet
     time_t rawtime;
@@ -640,7 +639,7 @@ void do_flame(CHAR_DATA *ch, char *argument)
                     sprintf(msg, "%s {r%s", ch->pcdata->flag, buf);
                 else
                     sprintf(msg, "{r%s", buf);
-                act_new("{r({WF{r): $$n flames '$t{r'{x", ch, d->character, NULL, NULL, NULL,NULL,NULL,msg,NULL, TO_VICT,POS_SLEEPING,NULL);
+                act_new("{r({WF{r): $$n flames '$t{r'{x", ch, d->character, NULL, NULL, NULL,NULL,NULL,msg,NULL, TO_VICT,POS_DEAD,NULL);
             }
         }
     }
@@ -1932,7 +1931,8 @@ iterator_stop(&it);
  * do_save - Manually save character data to disk
  *
  * Saves the character's current state to their pfile. Non-immortals
- * receive a brief wait state to prevent save spam.
+ * are rate-limited to one manual save every 3 seconds without blocking
+ * other input.
  *
  * @param ch        The character saving
  * @param argument  Unused
@@ -1952,11 +1952,20 @@ void do_save(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
     return;
 
+    /* Rate-limit manual saves for non-immortals without blocking input */
+    int cooldown = game_settings.save_cooldown_seconds > 0 ? game_settings.save_cooldown_seconds : 3;
+    if (!IS_IMMORTAL(ch) && ch->pcdata->last_manual_save > 0
+        && current_time - ch->pcdata->last_manual_save < cooldown)
+    {
+        send_to_char("You saved recently. Please wait a moment.\n\r", ch);
+        return;
+    }
+
     save_char_obj(ch);
     send_to_char("Saving.\n\r", ch);
 
     if (!IS_IMMORTAL(ch))
-    WAIT_STATE(ch, PULSE_VIOLENCE);
+        ch->pcdata->last_manual_save = current_time;
 }
 
 
@@ -3697,7 +3706,7 @@ void do_quote(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && IS_SET(ch->pcdata->channel_flags, FLAG_QUOTE))
+    if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_QUOTE))
     sprintf(msg, "{XYou quote {D\"%s {W%s{D\"{x\n\r", ch->pcdata->flag, buf);
     else
     sprintf(msg, "{XYou quote {D\"{W%s{D\"{x\n\r", buf);

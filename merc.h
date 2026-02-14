@@ -1350,6 +1350,7 @@ struct game_settings_data
     int max_login_attempts;       // How many login attempts are allowed before disconnecting?
     int idle_time;                // How many ticks until a user is considered idle?
     int idle_disconnect_time;     // How many ticks until an idle user is disconnected?
+    int save_cooldown_seconds;       // How many seconds must pass before a player can save again?
     int max_alias;                // How many aliases can a player have?
     int max_characters;           // How many characters can a player have (can be overridden by account data);
     int max_orgs;                 // How many organizations can exist?
@@ -5267,6 +5268,7 @@ struct	pc_data
     time_t		last_logoff;
     time_t		last_login;
     time_t		last_project_inquiry;
+    time_t		last_manual_save;
     char *      mfa_key;
     time_t      qr_code_expiration;
     bool        mfa_enabled;

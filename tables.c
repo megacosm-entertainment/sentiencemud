@@ -3698,6 +3698,7 @@ const struct game_setting_type game_settings_table[] = {
     { "max_login_attempts",  &game_settings.max_login_attempts,   SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Maximum login attempts before disconnecting",                true,  false, false },
     { "idle_time",           &game_settings.idle_time,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Ticks until a user is considered idle",                      true,  false, false },
     { "idle_disconnect_time", &game_settings.idle_disconnect_time, SETTING_TYPE_INT,   SETTING_CAT_GLOBAL,   "Ticks until an idle user is disconnected",                   true,  false, false },
+    { "save_cooldown_seconds",      &game_settings.save_cooldown_seconds,         SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Minimum seconds between character saves",                 true,  false, false },
     { "max_alias",           &game_settings.max_alias,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum aliases a player can have",                          true,  false, false },
     { "max_characters",      &game_settings.max_characters,       SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum characters a player can have",                       true,  false, false },
     { "enable_telnet",       &game_settings.enable_telnet,        SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow plaintext connections",                                true,  true, false  },
