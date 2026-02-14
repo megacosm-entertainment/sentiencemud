@@ -82,6 +82,7 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
+#include "class_data.h"
 #include "protocol.h"
 #include "bootstrap/bootstrap.h"
 #include "io/cache/redis_cache.h"
@@ -643,6 +644,7 @@ int main(int argc, char **argv)
         perror("Could not create 'loaded_objects'");
         exit(1);
     }
+    loaded_obj_hash_init();
 
     init_string_space();
 
@@ -2270,7 +2272,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 
     if( ch->remort_question )
     {
-        send_to_char("{YSelect your first remort class:{x\n\r", ch);
+        send_to_char("{YAre you ready to be reborn? (yes/no){x\n\r", ch);
         return;
     }
 
@@ -4681,7 +4683,9 @@ void add_possible_subclasses(CHAR_DATA *ch, char *string)
     count = 0;
     for (i = 0; i < MAX_SUB_CLASS; i++)
     {
-    if (!sub_class_table[i].remort
+    CLASS_DATA *sc = class_from_legacy(0, i);
+    if (!sc) continue;
+    if (!(sc->flags & CLASS_REMORT_ONLY)
     &&  ch->pcdata->class_current == sub_class_table[i].class)
     {
         if ((align == ALIGN_GOOD && sub_class_table[i].alignment == ALIGN_EVIL)
@@ -4693,7 +4697,7 @@ void add_possible_subclasses(CHAR_DATA *ch, char *string)
         if (count > 1)
         strcat(string, " ");
 
-        sprintf(buf, "%s", sub_class_table[i].name[ch->sex]);
+        sprintf(buf, "%s", class_display_ch(sc, ch));
         buf[0] = UPPER(buf[0]);
         strcat(string, buf);
     }

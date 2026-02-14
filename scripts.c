@@ -9059,6 +9059,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
         // This is the minimum actions necessary for a phantom object extraction
         list_remlink(loaded_objects, obj, false);
+        loaded_obj_hash_remove(obj);
         --obj->pIndexData->count;
         free_obj(obj);
         return NULL;

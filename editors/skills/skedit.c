@@ -141,7 +141,6 @@ SKEDIT(skedit_show)
 {
     SKILL_DATA *skill;
     BUFFER *buf;
-    ITERATOR it;
 
     EDIT_SKILL(ch, skill);
 
@@ -197,11 +196,13 @@ SKEDIT(skedit_show)
     if (has_legacy) {
         add_buf(buf, "\n\r{cLegacy Class Levels:{x ");
         for (int i = 0; i < MAX_CLASS; i++) {
-            if (skill->skill_level[i] < LEVEL_HERO)
+            if (skill->skill_level[i] < LEVEL_HERO) {
+                const char *cls_name = class_table[i].name;
                 add_buf(buf, formatf("%s=%d/%d ",
-                        class_table[i].name,
+                        cls_name,
                         skill->skill_level[i],
                         skill->rating[i]));
+            }
         }
         add_buf(buf, "\n\r");
     }

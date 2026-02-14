@@ -2107,6 +2107,19 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         obj->id[1] = json_integer_value(json_array_get(value, 1));
     }
 
+    // O(1) deduplication check: if an object with this ID is already loaded, skip it
+    if (obj->id[0] || obj->id[1]) {
+        OBJ_DATA *existing = loaded_obj_hash_find(obj->id[0], obj->id[1]);
+        if (existing) {
+            log_stringf("json_to_obj: DUPLICATE object vnum=%ld '%s' (id=%lu/%lu) - already loaded as '%s', skipping",
+                       vnum, obj->short_descr ? obj->short_descr : "(null)",
+                       obj->id[0], obj->id[1],
+                       existing->short_descr ? existing->short_descr : "(null)");
+            free_obj(obj);
+            return NULL;
+        }
+    }
+
     // Override fields if present in JSON
     value = json_object_get(json_obj, "name");
     if (value) {
@@ -2405,30 +2418,32 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         }
     }
 
-    // CRITICAL: Add object to loaded_objects and assign ID
-    // This matches the behavior of fread_obj_new() in save.c
-    // Without this, objects won't be:
-    // - Found by owhere, get_obj_world, etc.
-    // - Saved when character is saved
-    // - Properly tracked by the game
-    if (!list_haslink(loaded_objects, obj)) {
-        list_appendlink(loaded_objects, obj);
-        obj->pIndexData->count++;
-        log_stringf("json_to_obj: Added vnum=%ld '%s' to loaded_objects (id=%lu/%lu)",
-                   obj->pIndexData->vnum, obj->short_descr ? obj->short_descr : "(null)",
-                   obj->id[0], obj->id[1]);
-    }
+    // Add object to loaded_objects tracking list.
+    // The object was just created by create_object_noid with add_to_loaded_objs=false,
+    // so it is guaranteed to not be in the list yet (no need for list_haslink scan).
+    list_appendlink(loaded_objects, obj);
+    loaded_obj_hash_add(obj);
+    obj->pIndexData->count++;
 
     // Fix for scrolls/potions that have generic names - derive name from short_descr
     // This matches the VERSION_PLAYER_006 fix in the pfile loading code
-    if (obj->pIndexData == get_reserved_obj_index("obj_scroll")) {
+    // Cache the reserved index lookups to avoid repeated list traversals
+    static OBJ_INDEX_DATA *scroll_index = NULL;
+    static OBJ_INDEX_DATA *potion_index = NULL;
+    static bool reserved_cached = false;
+    if (!reserved_cached) {
+        scroll_index = get_reserved_obj_index("obj_scroll");
+        potion_index = get_reserved_obj_index("obj_potion");
+        reserved_cached = true;
+    }
+    if (scroll_index && obj->pIndexData == scroll_index) {
         if (!strcmp(obj->name, "scroll")) {
             free_string(obj->name);
             obj->name = short_to_name(obj->short_descr);
             log_stringf("json_to_obj: Fixed scroll name from short_descr, now '%s'", obj->name);
         }
     }
-    if (obj->pIndexData == get_reserved_obj_index("obj_potion")) {
+    if (potion_index && obj->pIndexData == potion_index) {
         if (!strcmp(obj->name, "potion")) {
             free_string(obj->name);
             obj->name = short_to_name(obj->short_descr);
@@ -2488,6 +2503,8 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     // Start timing
     gettimeofday(&start_time, NULL);
+    struct timeval section_start, section_end;
+    long section_ms;
 
     // Read metadata section
     metadata = json_object_get(root, "metadata");
@@ -3612,6 +3629,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     // Read inventory section (skip if not loading heavy data)
     if (load_heavy) {
+        gettimeofday(&section_start, NULL);
         inventory = json_object_get(root, "inventory");
         if (inventory && json_is_array(inventory)) {
             json_array_foreach(inventory, index, array_elem) {
@@ -3621,10 +3639,16 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 }
             }
         }
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 100)
+            log_stringf("PERFORMANCE %s: inventory load: %ldms", ch->name, section_ms);
     }
 
     // Read equipment section (skip if not loading heavy data)
     if (load_heavy) {
+        gettimeofday(&section_start, NULL);
         equipment = json_object_get(root, "equipment");
         if (equipment && json_is_array(equipment)) {
             json_array_foreach(equipment, index, array_elem) {
@@ -3638,10 +3662,16 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 }
             }
         }
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 100)
+            log_stringf("PERFORMANCE %s: equipment load: %ldms", ch->name, section_ms);
     }
 
     // Read locker section (skip if not loading heavy data)
     if (load_heavy) {
+        gettimeofday(&section_start, NULL);
         locker = json_object_get(root, "locker");
         if (locker && json_is_array(locker)) {
             json_array_foreach(locker, index, array_elem) {
@@ -3652,11 +3682,17 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 }
             }
         }
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 100)
+            log_stringf("PERFORMANCE %s: locker load: %ldms", ch->name, section_ms);
     }
 
     // **FIX #4: Read skills section - uses skill NAME as key (robust against ID changes)**
     // (skip if not loading heavy data)
     if (load_heavy) {
+    gettimeofday(&section_start, NULL);
     skills = json_object_get(root, "skills");
     if (skills && json_is_object(skills)) {
         const char *skill_key;
@@ -3665,8 +3701,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         json_object_foreach(skills, skill_key, skill_value) {
             int sn;
 
-            // Try to look up skill by name first (new format)
-            sn = skill_lookup(skill_key);
+            // Use hash-based exact match first (O(1)), fall back to prefix search
+            SKILL_DATA *sk = skill_find(skill_key);
+            sn = sk ? sk->uid : -1;
+            if (sn < 0)
+                sn = skill_lookup(skill_key);
 
             // If not found by name, try as numeric ID (backward compatibility with old format)
             if (sn < 0) {
@@ -3973,6 +4012,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         }
     }
 
+    gettimeofday(&section_end, NULL);
+    section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                (section_end.tv_usec - section_start.tv_usec) / 1000;
+    if (section_ms > 100)
+        log_stringf("PERFORMANCE %s: skills/affects/tokens load: %ldms", ch->name, section_ms);
+
     } // End if (load_heavy) - close the block that started at skills section
 
     // Load personal trait overrides (lightweight, always loaded)
@@ -4048,8 +4093,9 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
                    (ch->llocker ? list_size(ch->llocker) : 0) +
                    (ch->lworn ? list_size(ch->lworn) : 0);
-    log_stringf("PERFORMANCE json_read_char_internal: %s with %d objects (%s) - total: %ldms",
-               ch->name, obj_count, load_heavy ? "full" : "basic", total_ms);
+    log_stringf("PERFORMANCE json_read_char_internal: %s with %d objects (%s) - total: %ldms [loaded_objects: %d]",
+               ch->name, obj_count, load_heavy ? "full" : "basic", total_ms,
+               loaded_objects ? list_size(loaded_objects) : 0);
 
     log_stringf("JSON: Loaded character %s from %s (%s)", ch->name, source_name,
                 load_heavy ? "full" : "basic");
@@ -4171,7 +4217,11 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
         json_object_foreach(skills, skill_key, skill_value) {
             int sn;
 
-            sn = skill_lookup(skill_key);
+            // Use hash-based exact match first (O(1)), fall back to prefix search
+            SKILL_DATA *sk_found = skill_find(skill_key);
+            sn = sk_found ? sk_found->uid : -1;
+            if (sn < 0)
+                sn = skill_lookup(skill_key);
             if (sn < 0) {
                 sn = atoi(skill_key);
                 if (sn < 0 || sn >= MAX_SKILL) {
@@ -4484,8 +4534,9 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     int obj_count = (ch->lcarrying ? list_size(ch->lcarrying) : 0) +
                    (ch->llocker ? list_size(ch->llocker) : 0) +
                    (ch->lworn ? list_size(ch->lworn) : 0);
-    log_stringf("PERFORMANCE json_read_char_remaining: %s with %d objects - total: %ldms",
-               ch->name, obj_count, total_ms);
+    log_stringf("PERFORMANCE json_read_char_remaining: %s with %d objects - total: %ldms [loaded_objects: %d]",
+               ch->name, obj_count, total_ms,
+               loaded_objects ? list_size(loaded_objects) : 0);
 
     log_stringf("JSON: Completed loading remaining data for %s", ch->name);
     return true;

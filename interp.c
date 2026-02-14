@@ -45,6 +45,7 @@
 #include "scripts.h"
 #include "account/penalty.h"
 #include "account/unlock.h"
+#include "class_data.h"
 
 /*
 // Command logging types
@@ -1116,34 +1117,13 @@ if (ch->pk_question)
 
     // Remorting!
     if (ch->remort_question) {
-        int iClass;
-        if(!str_cmp(command, "help")) {
-            for (iClass = CLASS_WARRIOR_WARLORD; iClass < MAX_SUB_CLASS; iClass++) {
-                if (!str_cmp(argument, sub_class_table[iClass].name[ch->sex]))
-                    break;
-            }
-
-            if (iClass == MAX_SUB_CLASS || !can_choose_subclass(ch, iClass)) {
-                send_to_char("Not a valid subclass.\n\r", ch);
-                show_multiclass_choices(ch, ch);
-                return;
-            }
-
-            do_function(ch, do_help, sub_class_table[iClass].name[0]);
-
+        if (!str_prefix(command, "yes")) {
+            remort_player(ch);
+        } else if (!str_prefix(command, "no")) {
+            send_to_char("You decide not to remort.\n\r", ch);
+            ch->remort_question = false;
         } else {
-            for (iClass = CLASS_WARRIOR_WARLORD; iClass < MAX_SUB_CLASS; iClass++) {
-                if (!str_cmp(command, sub_class_table[iClass].name[ch->sex]))
-                    break;
-            }
-
-            if (iClass == MAX_SUB_CLASS || !can_choose_subclass(ch, iClass)) {
-                send_to_char("Not a valid subclass.\n\r", ch);
-                show_multiclass_choices(ch, ch);
-                return;
-            }
-
-            remort_player(ch, iClass);	// MWUHAHAHA
+            send_to_char("Are you ready to be reborn? (yes/no)\n\r", ch);
         }
         return;
     }

@@ -3838,10 +3838,14 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                     {
                         free_obj(obj);
                         obj = create_object(get_reserved_obj_index("obj_system_dummy"), 0 , false);
+                        // create_object already added to loaded_objects
                     }
-                    if (!list_haslink(loaded_objects, obj))
+                    else
                     {
+                        // fVnum path: created by create_object_noid with add_to_loaded_objs=false,
+                        // so it won't be in the list yet — add directly without O(n) scan.
                         list_appendlink(loaded_objects, obj);
+                        loaded_obj_hash_add(obj);
                         obj->pIndexData->count++;
                     }
                     if (make_new)
@@ -4887,20 +4891,59 @@ void fix_character( CHAR_DATA *ch )
     if (ch->version < 2)
     {
         group_add(ch,"global skills",false);
-        group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
+        {
+            CLASS_DATA *v2_class = class_from_legacy(ch->pcdata->class_current, -1);
+            if (v2_class) {
+                ITERATOR git;
+                SKILL_GROUP *sg;
+                iterator_start(&git, v2_class->groups);
+                while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                    group_add(ch, sg->name, false);
+                iterator_stop(&git);
+            } else {
+                group_add(ch, class_table[ch->pcdata->class_current].base_group, false);
+            }
+        }
         ch->version = 2;
     }
 
     /* make sure they have any new skills that have been added */
-    if (ch->pcdata->class_mage != -1)		group_add(ch, class_table[ch->pcdata->class_mage].base_group, false);
-    if (ch->pcdata->class_cleric != -1)		group_add(ch, class_table[ch->pcdata->class_cleric].base_group, false);
-    if (ch->pcdata->class_thief != -1)		group_add(ch, class_table[ch->pcdata->class_thief].base_group, false);
-    if (ch->pcdata->class_warrior != -1)	group_add(ch, class_table[ch->pcdata->class_warrior].base_group, false);
-
-    if (ch->pcdata->second_sub_class_mage != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_mage].default_group, false);
-    if (ch->pcdata->second_sub_class_cleric != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_cleric].default_group, false);
-    if (ch->pcdata->second_sub_class_thief != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_thief].default_group, false);
-    if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, false);
+    {
+        int *class_ptrs[] = {
+            &ch->pcdata->class_mage, &ch->pcdata->class_cleric,
+            &ch->pcdata->class_thief, &ch->pcdata->class_warrior,
+        };
+        int *remort_ptrs[] = {
+            &ch->pcdata->second_sub_class_mage, &ch->pcdata->second_sub_class_cleric,
+            &ch->pcdata->second_sub_class_thief, &ch->pcdata->second_sub_class_warrior,
+        };
+        for (int si = 0; si < 4; si++) {
+            if (*class_ptrs[si] != -1) {
+                CLASS_DATA *bc = class_from_legacy(*class_ptrs[si], -1);
+                if (bc) {
+                    ITERATOR git; SKILL_GROUP *sg;
+                    iterator_start(&git, bc->groups);
+                    while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                        group_add(ch, sg->name, false);
+                    iterator_stop(&git);
+                } else {
+                    group_add(ch, class_table[*class_ptrs[si]].base_group, false);
+                }
+            }
+            if (*remort_ptrs[si] != -1) {
+                CLASS_DATA *rc = class_from_legacy(0, *remort_ptrs[si]);
+                if (rc) {
+                    ITERATOR git; SKILL_GROUP *sg;
+                    iterator_start(&git, rc->groups);
+                    while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                        group_add(ch, sg->name, false);
+                    iterator_stop(&git);
+                } else {
+                    group_add(ch, sub_class_table[*remort_ptrs[si]].default_group, false);
+                }
+            }
+        }
+    }
 
     if (ch->version < 6)
         ch->version = 6;
@@ -6688,12 +6731,10 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 
             if (ch->pcdata && ch->pcdata->class_current) {
                 const char *class_name_str = NULL;
-                // Validate sub_class_current before using it as an index
-                if (ch->pcdata->sub_class_current >= 0 &&
-                    sub_class_table[ch->pcdata->sub_class_current].name[0] != NULL) {
-                    int sex_idx = (ch->sex >= 0 && ch->sex <= 2) ? ch->sex : 0;
-                    class_name_str = sub_class_table[ch->pcdata->sub_class_current].name[sex_idx];
-                }
+                /* Use new CLASS_DATA system for class name */
+                CLASS_DATA *acct_class = get_current_class(ch);
+                if (acct_class)
+                    class_name_str = class_display_ch(acct_class, ch);
                 if (!IS_NULLSTR(class_name_str)) {
                     free_string(acct_char->class_name);
                     acct_char->class_name = str_dup(class_name_str);
@@ -6890,11 +6931,10 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 
         if (ch->pcdata && ch->pcdata->sub_class_current) {
             const char *class_name_str = NULL;
-            if (ch->pcdata->sub_class_current >= 0 &&
-                sub_class_table[ch->pcdata->sub_class_current].name[0] != NULL) {
-                int sex_idx = (ch->sex >= 0 && ch->sex <= 2) ? ch->sex : 0;
-                class_name_str = sub_class_table[ch->pcdata->sub_class_current].name[sex_idx];
-            }
+            /* Use new CLASS_DATA system for class name */
+            CLASS_DATA *acct_class = get_current_class(ch);
+            if (acct_class)
+                class_name_str = class_display_ch(acct_class, ch);
             if (!IS_NULLSTR(class_name_str)) {
                 acct_char->class_name = str_dup(class_name_str);
             }
@@ -7184,11 +7224,10 @@ void update_account_character(CHAR_DATA *ch)
 
     if (ch->pcdata && ch->pcdata->sub_class_current) {
         const char *class_name_str = NULL;
-        if (ch->pcdata->sub_class_current >= 0 &&
-            sub_class_table[ch->pcdata->sub_class_current].name[0] != NULL) {
-            int sex_idx = (ch->sex >= 0 && ch->sex <= 2) ? ch->sex : 0;
-            class_name_str = sub_class_table[ch->pcdata->sub_class_current].name[sex_idx];
-        }
+        /* Use new CLASS_DATA system for class name */
+        CLASS_DATA *acct_class = get_current_class(ch);
+        if (acct_class)
+            class_name_str = class_display_ch(acct_class, ch);
         if (!IS_NULLSTR(class_name_str)) {
             acct_char->class_name = str_dup(class_name_str);
         } else {

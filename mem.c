@@ -925,8 +925,9 @@ void free_char( CHAR_DATA *ch )
         gettimeofday(&end_time, NULL);
         total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
                   (end_time.tv_usec - start_time.tv_usec) / 1000;
-        log_stringf("PERFORMANCE free_char: %s with %d top-level objects - total: %ldms",
-                   name_copy, total_objects, total_ms);
+        log_stringf("PERFORMANCE free_char: %s with %d top-level objects - total: %ldms [loaded_objects: %d]",
+                   name_copy, total_objects, total_ms,
+                   loaded_objects ? list_size(loaded_objects) : 0);
     }
 }
 

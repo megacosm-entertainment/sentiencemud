@@ -10009,6 +10009,28 @@ extern LLIST *loaded_objects;
 extern LLIST *loaded_accounts;
 extern LLIST *reserved_vnums;
 
+/*
+ * Loaded Object ID Hash - O(1) deduplication for object loading
+ *
+ * Maintains a hash table keyed on (id[0], id[1]) alongside loaded_objects.
+ * Use loaded_obj_hash_add/remove to keep in sync, and loaded_obj_hash_find
+ * to check for duplicate object IDs in O(1) time.
+ */
+#define LOADED_OBJ_HASH_SIZE    8192
+
+typedef struct loaded_obj_hash_entry {
+    unsigned long               id[2];
+    OBJ_DATA *                  obj;
+    struct loaded_obj_hash_entry *next;
+} LOADED_OBJ_HASH_ENTRY;
+
+extern LOADED_OBJ_HASH_ENTRY *loaded_obj_hash[LOADED_OBJ_HASH_SIZE];
+
+void        loaded_obj_hash_init    ( void );
+void        loaded_obj_hash_add     ( OBJ_DATA *obj );
+void        loaded_obj_hash_remove  ( OBJ_DATA *obj );
+OBJ_DATA *  loaded_obj_hash_find    ( unsigned long id0, unsigned long id1 );
+
 extern LLIST *conn_players;
 extern LLIST *conn_immortals;
 extern LLIST *conn_online;
@@ -10116,7 +10138,7 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry);
 char *skill_entry_name (SKILL_ENTRY *entry);
-void remort_player(CHAR_DATA *ch, int remort_class);
+void remort_player(CHAR_DATA *ch);
 
 void persist_addmobile(CHAR_DATA *mob);
 void persist_addobject(OBJ_DATA *obj);

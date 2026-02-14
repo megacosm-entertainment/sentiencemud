@@ -7559,7 +7559,7 @@ SCRIPT_CMD(do_tpremort)
     if (mob->tot_level < LEVEL_HERO) return;
 
     mob->remort_question = true;
-    show_multiclass_choices(mob, mob);
+    send_to_char("Are you ready to be reborn? (yes/no)\n\r", mob);
 
     info->token->progs->lastreturn = 1;
 }

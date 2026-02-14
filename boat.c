@@ -1051,6 +1051,7 @@ SHIP_DATA *create_ship(WNUM wnum)
             ship_index->blueprint_ref.load.auid,
             ship_index->blueprint_ref.load.vnum);
         list_remlink(loaded_objects, obj, true);
+        loaded_obj_hash_remove(obj);
         --obj->pIndexData->count;
         free_obj(obj);
         free_ship(ship);
@@ -1061,6 +1062,7 @@ SHIP_DATA *create_ship(WNUM wnum)
     if( !IS_VALID(instance) )
     {
         list_remlink(loaded_objects, obj, true);
+        loaded_obj_hash_remove(obj);
         --obj->pIndexData->count;
         free_obj(obj);
         free_ship(ship);

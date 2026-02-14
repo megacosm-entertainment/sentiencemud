@@ -832,6 +832,88 @@ bool is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry)
     return false;
 }
 
+/**
+ * class_grants_skill - Check if a CLASS_DATA grants a specific skill
+ *
+ * Checks the class's rewards list for REWARD_SKILL entries matching the
+ * skill directly, or REWARD_GROUP entries whose group contains the skill.
+ * Does not require a character — purely data-driven.
+ *
+ * @param clazz  The class to check
+ * @param sn     The skill number to look for
+ * @return       true if the class grants the skill
+ */
+bool class_grants_skill(CLASS_DATA *clazz, int sn)
+{
+    ITERATOR rit;
+    CLASS_REWARD *reward;
+    const char *skill_name;
+
+    if (!clazz || !clazz->rewards || sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    skill_name = skill_table[sn].name;
+    if (!skill_name || !skill_name[0])
+        return false;
+
+    iterator_start(&rit, clazz->rewards);
+    while ((reward = (CLASS_REWARD *)iterator_nextdata(&rit))) {
+        if (reward->type == REWARD_SKILL) {
+            if (!str_cmp(skill_name, reward->name)) {
+                iterator_stop(&rit);
+                return true;
+            }
+        } else if (reward->type == REWARD_GROUP) {
+            SKILL_GROUP *group = skill_group_find(reward->name);
+            if (group && group->contents) {
+                ITERATOR git;
+                char *gskill;
+                iterator_start(&git, group->contents);
+                while ((gskill = (char *)iterator_nextdata(&git))) {
+                    if (!str_cmp(skill_name, gskill)) {
+                        iterator_stop(&git);
+                        iterator_stop(&rit);
+                        return true;
+                    }
+                }
+                iterator_stop(&git);
+            }
+        }
+    }
+    iterator_stop(&rit);
+    return false;
+}
+
+/**
+ * any_class_grants_skill - Check if any of a character's classes grant a skill
+ *
+ * Iterates the character's CLASS_LEVEL list and checks each class's rewards
+ * for the specified skill. This replaces the legacy pattern of checking
+ * individual sub_class_* slots with has_subclass_skill / has_class_skill.
+ *
+ * @param ch  The character
+ * @param sn  The skill number to look for
+ * @return    true if any class the character has joined grants the skill
+ */
+bool any_class_grants_skill(CHAR_DATA *ch, int sn)
+{
+    ITERATOR it;
+    CLASS_LEVEL *cl;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->pcdata->classes)
+        return false;
+
+    iterator_start(&it, ch->pcdata->classes);
+    while ((cl = (CLASS_LEVEL *)iterator_nextdata(&it))) {
+        if (cl->clazz && class_grants_skill(cl->clazz, sn)) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+    return false;
+}
+
 /***************************************************************************
  * Player Commands                                                         *
  ***************************************************************************/

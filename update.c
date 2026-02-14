@@ -4281,7 +4281,10 @@ void gmcp_update( void )
 
             UpdateGMCPString( d, GMCP_NAME, d->character->name );
             UpdateGMCPString( d, GMCP_RACE, d->character->race ? d->character->race->name : "unknown" );
-            UpdateGMCPString( d, GMCP_CLASS, sub_class_table[d->character->pcdata->sub_class_current].name[d->character->sex] );
+            {
+                CLASS_DATA *gmcp_class = get_current_class(d->character);
+                UpdateGMCPString( d, GMCP_CLASS, gmcp_class ? class_display_ch(gmcp_class, d->character) : "Adventurer" );
+            }
 
             UpdateGMCPNumber( d, GMCP_HP, d->character->hit );
             UpdateGMCPNumber( d, GMCP_MANA, d->character->mana );

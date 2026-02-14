@@ -173,6 +173,12 @@ void            rebuild_skill_sources(CHAR_DATA *ch);
 /* Check if a skill entry is usable with the character's current class */
 bool            is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry);
 
+/* Check if a class grants a specific skill via its rewards */
+bool            class_grants_skill(CLASS_DATA *clazz, int sn);
+
+/* Check if any of a character's classes grant a specific skill */
+bool            any_class_grants_skill(CHAR_DATA *ch, int sn);
+
 /***************************************************************************
  * Memory Management                                                       *
  ***************************************************************************/

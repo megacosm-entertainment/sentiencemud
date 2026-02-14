@@ -2638,8 +2638,12 @@ if (regular_count > 0) {
                 level = vch->tot_level;
             tot_level = vch->tot_level;
             race_name = vch->race ? vch->race->name : "unknown";
-            if (vch->pcdata && vch->pcdata->sub_class_current) {
-                class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
+            if (vch->pcdata) {
+                CLASS_DATA *vch_class = get_current_class(vch);
+                if (vch_class)
+                    class_name = str_dup(class_display_ch(vch_class, vch));
+                else
+                    class_name = "Adventurer";
             }
             else
                 class_name = "Adventurer";
@@ -3687,20 +3691,38 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
     if (!IS_NPC(victim))
     {
-        sprintf(buf, "{BSubclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
-                     victim->pcdata->sub_class_mage < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_mage].name[victim->sex],
-                     victim->pcdata->sub_class_cleric < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_cleric].name[victim->sex],
-                     victim->pcdata->sub_class_thief < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_thief].name[victim->sex],
-                     victim->pcdata->sub_class_warrior < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_warrior].name[victim->sex]);
-        send_to_char(buf, ch);
-        if (IS_REMORT(victim))
-        {
-            sprintf(buf, "{BRemort Subclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
-                         victim->pcdata->second_sub_class_mage < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_mage].name[victim->sex],
-                         victim->pcdata->second_sub_class_cleric < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_cleric].name[victim->sex],
-                         victim->pcdata->second_sub_class_thief < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_thief].name[victim->sex],
-                         victim->pcdata->second_sub_class_warrior < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_warrior].name[victim->sex]);
+        /* Display all classes from CLASS_LEVEL list if available */
+        if (victim->pcdata->classes && list_size(victim->pcdata->classes) > 0) {
+            BUFFER *cls_buf = new_buf();
+            ITERATOR cls_it;
+            CLASS_LEVEL *cl;
+            add_buf(cls_buf, "{BClasses:{x ");
+            iterator_start(&cls_it, victim->pcdata->classes);
+            while ((cl = (CLASS_LEVEL *)iterator_nextdata(&cls_it))) {
+                if (cl->clazz)
+                    add_buf(cls_buf, formatf("%s ", class_display_ch(cl->clazz, victim)));
+            }
+            iterator_stop(&cls_it);
+            add_buf(cls_buf, "\n\r");
+            send_to_char(buf_string(cls_buf), ch);
+            free_buf(cls_buf);
+        } else {
+            /* Legacy fallback */
+            sprintf(buf, "{BSubclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
+                         victim->pcdata->sub_class_mage < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->sub_class_mage), victim),
+                         victim->pcdata->sub_class_cleric < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->sub_class_cleric), victim),
+                         victim->pcdata->sub_class_thief < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->sub_class_thief), victim),
+                         victim->pcdata->sub_class_warrior < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->sub_class_warrior), victim));
             send_to_char(buf, ch);
+            if (IS_REMORT(victim))
+            {
+                sprintf(buf, "{BRemort Subclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
+                             victim->pcdata->second_sub_class_mage < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->second_sub_class_mage), victim),
+                             victim->pcdata->second_sub_class_cleric < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->second_sub_class_cleric), victim),
+                             victim->pcdata->second_sub_class_thief < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->second_sub_class_thief), victim),
+                             victim->pcdata->second_sub_class_warrior < 0 ? "none" : class_display_ch(class_from_legacy(0, victim->pcdata->second_sub_class_warrior), victim));
+                send_to_char(buf, ch);
+            }
         }
     }
 
@@ -8253,11 +8275,19 @@ void do_mset(CHAR_DATA *ch, char *argument)
         char buf[MAX_STRING_LENGTH];
 
             strcpy(buf, "Possible classes are: ");
-            for (class = 0; class < MAX_CLASS; class++)
             {
-                    if (class > 0)
+                CLASS_DATA *clz;
+                bool first_cls = true;
+                for (clz = class_first(); clz; clz = clz->next) {
+                    if (clz->type < 0 || clz->type >= MAX_CLASS_TYPE)
+                        continue;
+                    if (clz->flags & CLASS_HIDDEN)
+                        continue;
+                    if (!first_cls)
                         strcat(buf, " ");
-                    strcat(buf, class_table[class].name);
+                    strcat(buf, class_name(clz));
+                    first_cls = false;
+                }
             }
             strcat(buf, ".\n\r");
 
@@ -9509,30 +9539,25 @@ void do_reckoning(CHAR_DATA *ch, char *argument)
  * do_immortalise - Advance a player to immortal/remort status
  *
  * Allows staff to grant a max-level player their remort (immortalization),
- * transforming them into a divine being with a chosen subclass. The player
- * must be at maximum level and not already remorting. If no subclass is
- * specified, shows available choices. Triggers dramatic global announcement.
+ * transforming them into a divine being. The player must be at maximum level
+ * and not already remorting. Triggers dramatic global announcement.
  *
  * @param ch        Staff member using the command
- * @param argument  "playername [subclass]"
+ * @param argument  "playername"
  *
  * Triggers: None (advancement utility, but triggers global echo)
  */
 void do_immortalise(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
-    //OBJ_DATA *obj;
     char arg[MAX_INPUT_LENGTH];
-    //char buf[MAX_STRING_LENGTH];
-    //char buf2[MSL];
-    int i;
 
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
         send_to_char("Immortalise whom?\n\r", ch);
-        send_to_char("Syntax: immortalise <person> <subclass>\n\r", ch);
+        send_to_char("Syntax: immortalise <person>\n\r", ch);
         return;
     }
 
@@ -9560,29 +9585,7 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (*argument == '\0')
-    {
-        show_multiclass_choices(victim, ch);
-        return;
-    }
-
-    for (i = CLASS_WARRIOR_WARLORD; i < MAX_SUB_CLASS; i++) {
-        if (!str_cmp(argument, sub_class_table[i].name[victim->sex]))
-            break;
-    }
-
-    if (i == MAX_SUB_CLASS) {
-        send_to_char("Not a valid subclass.\n\r", ch);
-        return;
-    }
-
-    if (!can_choose_subclass(victim, i))
-    {
-        act("$N cannot choose that subclass.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        return;
-    }
-
-    remort_player(victim, i);
+    remort_player(victim);
 
 #if 0
     sprintf(argument, "%s", sub_class_table[i].name[0]);
@@ -9817,7 +9820,10 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
     group_add(victim, sub_class_table[victim->pcdata->sub_class_current].default_group, true);
     victim->exp = 0;
 
-    sprintf(buf2, sub_class_table[victim->pcdata->sub_class_current].name[victim->sex]);
+    {
+        CLASS_DATA *fr_class = get_current_class(victim);
+        sprintf(buf2, "%s", fr_class ? class_display_ch(fr_class, victim) : "Adventurer");
+    }
     buf2[0] = UPPER(buf2[0]);
     sprintf(buf, "All congratulate %s, who is now a%s %s!",
         victim->name, (buf2[0] == 'A' || buf2[0] == 'I' || buf2[0] == 'E' || buf2[0] == 'U'

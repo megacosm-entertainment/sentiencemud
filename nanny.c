@@ -3311,9 +3311,15 @@ void display_character_menu(DESCRIPTOR_DATA *d)
         write_to_buffer(d, buf, 0);
 
         sprintf(label, "{CClass:{x");
-        sprintf(value, "{G%s{x", 
-            (ch->pcdata && ch->pcdata->sub_class_current) ? 
-            sub_class_table[ch->pcdata->sub_class_current].name[ch->sex] : "Adventurer");
+        {
+            const char *cls_disp = "Adventurer";
+            if (ch->pcdata) {
+                CLASS_DATA *nanny_class = get_current_class(ch);
+                if (nanny_class)
+                    cls_disp = class_display_ch(nanny_class, ch);
+            }
+            sprintf(value, "{G%s{x", cls_disp);
+        }
         sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
         write_to_buffer(d, buf, 0);
     }
@@ -5359,8 +5365,11 @@ void login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
             }
             else
             {
-                if ((iClass = class_lookup(argument)) != -1 &&
-                    (help = lookup_help_exact(class_table[iClass].name, 0, topHelpCat)) != NULL)
+                if ((iClass = class_lookup(argument)) != -1) {
+                    const char *cls_help_name = class_table[iClass].name;
+                    help = lookup_help_exact((char *)cls_help_name, 0, topHelpCat);
+                }
+                if (iClass != -1 && help != NULL)
                 {
                     sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
                     send_to_char(buf, ch);
@@ -5456,26 +5465,31 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
             else
             {
                 sprintf(buf, "%s", argument);
+                CLASS_DATA *found_class = NULL;
                 for (iClass = 0; iClass < MAX_SUB_CLASS; iClass++)
                 {
-                    if (!str_prefix(buf, sub_class_table[iClass].name[ch->sex]) &&
-                        !sub_class_table[iClass].remort)
+                    CLASS_DATA *sc = class_from_legacy(0, iClass);
+                    if (sc && !str_prefix(buf, class_display_ch(sc, ch)) &&
+                        !(sc->flags & CLASS_REMORT_ONLY)) {
+                        found_class = sc;
                         break;
+                    }
                 }
 
-                if (iClass == MAX_SUB_CLASS)
+                if (!found_class)
                     send_to_char("That's not a subclass.\n\r", ch);
                 else
                 {
-                    /* Kind of a hack for now*/
-                    if (!str_cmp(sub_class_table[iClass].name[ch->sex], "witch") ||
-                        !str_cmp(sub_class_table[iClass].name[ch->sex], "warlock"))
+                    const char *sc_name = class_display_ch(found_class, ch);
+
+                    if (!str_cmp(sc_name, "witch") ||
+                        !str_cmp(sc_name, "warlock"))
                         sprintf(buf, "Warlock Witch");
-                    else if (!str_cmp(sub_class_table[iClass].name[ch->sex], "sorcerer") ||
-                            !str_cmp(sub_class_table[iClass].name[ch->sex], "sorceress"))
+                    else if (!str_cmp(sc_name, "sorcerer") ||
+                            !str_cmp(sc_name, "sorceress"))
                         sprintf(buf, "Sorcerer Sorceress");
                     else
-                        sprintf(buf, sub_class_table[iClass].name[ch->sex]);
+                        sprintf(buf, "%s", class_name(found_class));
 
                     if ((help = lookup_help_exact(buf, 0, topHelpCat)) != NULL)
                     {
@@ -5519,8 +5533,30 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
         SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
 
         group_add(ch,"global skills",false);
-        group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
-        group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
+        {
+            CLASS_DATA *base_class = class_from_legacy(ch->pcdata->class_current, -1);
+            CLASS_DATA *sub_class = class_from_legacy(0, ch->pcdata->sub_class_current);
+            if (base_class) {
+                ITERATOR git;
+                SKILL_GROUP *sg;
+                iterator_start(&git, base_class->groups);
+                while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                    group_add(ch, sg->name, false);
+                iterator_stop(&git);
+            } else {
+                group_add(ch, class_table[ch->pcdata->class_current].base_group, false);
+            }
+            if (sub_class) {
+                ITERATOR git;
+                SKILL_GROUP *sg;
+                iterator_start(&git, sub_class->groups);
+                while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                    group_add(ch, sg->name, false);
+                iterator_stop(&git);
+            } else {
+                group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
+            }
+        }
 
         /* Make it so no notes appear*/
         ch->pcdata->last_note = current_time;

@@ -987,6 +987,20 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     value = json_object_get(json, "id1");
     if (value) obj->id[1] = json_integer_value(value);
 
+    /* O(1) deduplication check */
+    if (obj->id[0] || obj->id[1]) {
+        OBJ_DATA *existing = loaded_obj_hash_find(obj->id[0], obj->id[1]);
+        if (existing) {
+            log_stringf("json_persist_json_to_object: DUPLICATE object vnum=%ld '%s' (id=%lu/%lu) - already loaded as '%s', skipping",
+                       obj->pIndexData ? obj->pIndexData->vnum : 0,
+                       obj->short_descr ? obj->short_descr : "(null)",
+                       obj->id[0], obj->id[1],
+                       existing->short_descr ? existing->short_descr : "(null)");
+            free_obj(obj);
+            return NULL;
+        }
+    }
+
     value = json_object_get(json, "persist");
     if (value) obj->persist = json_boolean_value(value);
 
@@ -1230,11 +1244,12 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
         }
     }
 
-    /* Add object to loaded_objects and assign ID if needed */
-    if (!list_haslink(loaded_objects, obj)) {
-        list_appendlink(loaded_objects, obj);
-        obj->pIndexData->count++;
-    }
+    /* Add object to loaded_objects tracking list.
+     * The object was just created by create_object_noid with add_to_loaded_objs=false,
+     * so it is guaranteed to not be in the list yet (no need for list_haslink scan). */
+    list_appendlink(loaded_objects, obj);
+    loaded_obj_hash_add(obj);
+    obj->pIndexData->count++;
 
     /* Assign a unique object ID if not already set (loaded from JSON) */
     get_obj_id(obj);

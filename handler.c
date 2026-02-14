@@ -65,6 +65,85 @@ bool key_initialized;
 extern LLIST *loaded_instances;
 bool is_llist(const void *ptr);
 
+/***************************************************************************
+ * Loaded Object ID Hash Table                                             *
+ *                                                                         *
+ * O(1) lookup of objects by (id[0], id[1]) for deduplication during load.  *
+ * Maintained alongside the loaded_objects LLIST.                           *
+ ***************************************************************************/
+
+static inline unsigned int loaded_obj_hash_func(unsigned long id0, unsigned long id1)
+{
+    /* Mix both ID components. id0 is the primary counter, id1 is the high word. */
+    return (unsigned int)((id0 ^ (id1 * 2654435761UL)) % LOADED_OBJ_HASH_SIZE);
+}
+
+void loaded_obj_hash_init(void)
+{
+    memset(loaded_obj_hash, 0, sizeof(loaded_obj_hash));
+}
+
+void loaded_obj_hash_add(OBJ_DATA *obj)
+{
+    unsigned int idx;
+    LOADED_OBJ_HASH_ENTRY *entry;
+
+    if (!obj || (!obj->id[0] && !obj->id[1]))
+        return;
+
+    idx = loaded_obj_hash_func(obj->id[0], obj->id[1]);
+
+    /* Allocate a new hash entry */
+    entry = (LOADED_OBJ_HASH_ENTRY *)alloc_mem(sizeof(LOADED_OBJ_HASH_ENTRY));
+    entry->id[0] = obj->id[0];
+    entry->id[1] = obj->id[1];
+    entry->obj = obj;
+    entry->next = loaded_obj_hash[idx];
+    loaded_obj_hash[idx] = entry;
+}
+
+void loaded_obj_hash_remove(OBJ_DATA *obj)
+{
+    unsigned int idx;
+    LOADED_OBJ_HASH_ENTRY *entry, *prev;
+
+    if (!obj || (!obj->id[0] && !obj->id[1]))
+        return;
+
+    idx = loaded_obj_hash_func(obj->id[0], obj->id[1]);
+    prev = NULL;
+
+    for (entry = loaded_obj_hash[idx]; entry; entry = entry->next) {
+        if (entry->obj == obj) {
+            if (prev)
+                prev->next = entry->next;
+            else
+                loaded_obj_hash[idx] = entry->next;
+            free_mem(entry, sizeof(LOADED_OBJ_HASH_ENTRY));
+            return;
+        }
+        prev = entry;
+    }
+}
+
+OBJ_DATA *loaded_obj_hash_find(unsigned long id0, unsigned long id1)
+{
+    unsigned int idx;
+    LOADED_OBJ_HASH_ENTRY *entry;
+
+    if (!id0 && !id1)
+        return NULL;
+
+    idx = loaded_obj_hash_func(id0, id1);
+
+    for (entry = loaded_obj_hash[idx]; entry; entry = entry->next) {
+        if (entry->id[0] == id0 && entry->id[1] == id1)
+            return entry->obj;
+    }
+
+    return NULL;
+}
+
 // from act_info.c
 void show_char_to_char args((CHAR_DATA * list, CHAR_DATA * ch, CHAR_DATA * victim));
 bool check_blind args((CHAR_DATA * ch));
@@ -306,6 +385,17 @@ int class_lookup(const char *name)
 {
    int class;
 
+   /* Use new CLASS_DATA system for lookup */
+   CLASS_DATA *clazz = class_find(name);
+   if (clazz) {
+       /* Map back to legacy index via class type for backward compat */
+       for (class = 0; class < MAX_CLASS; class++) {
+           if (!str_prefix(name, class_table[class].name))
+               return class;
+       }
+   }
+
+   /* Fall back to direct table scan */
    for (class = 0; class < MAX_CLASS; class++)
    {
         if (LOWER(name[0]) == LOWER(class_table[class].name[0])
@@ -319,8 +409,25 @@ int class_lookup(const char *name)
 
 int sub_class_lookup(CHAR_DATA *ch, const char *name)
 {
-   int sub_class;
+   /* Use CLASS_DATA system — find by prefix match */
+   CLASS_DATA *clazz = class_find(name);
+   if (clazz) {
+       if (clazz->flags & CLASS_REMORT_ONLY)
+           return -1;
+       /* Check alignment constraints via legacy table for now */
+       for (int sc = 0; sc < MAX_SUB_CLASS; sc++) {
+           if (!str_cmp(clazz->name, sub_class_table[sc].name[0])) {
+               if (sub_class_table[sc].alignment == ALIGN_GOOD && ch->alignment < 0)
+                   return -1;
+               if (sub_class_table[sc].alignment == ALIGN_EVIL && ch->alignment > 0)
+                   return -1;
+               return sc;
+           }
+       }
+   }
 
+   /* Legacy fallback */
+   int sub_class;
    for (sub_class = 0; sub_class < MAX_SUB_CLASS; sub_class++)
    {
     if (!str_prefix(name, sub_class_table[sub_class].name[ch->sex])
@@ -343,8 +450,18 @@ int sub_class_lookup(CHAR_DATA *ch, const char *name)
 
 int sub_class_search(const char *name)
 {
-   int sub_class;
+   /* Use CLASS_DATA system for lookup */
+   CLASS_DATA *clazz = class_find(name);
+   if (clazz) {
+       /* Map back to legacy sub_class index */
+       for (int sc = 0; sc < MAX_SUB_CLASS; sc++) {
+           if (!str_cmp(clazz->name, sub_class_table[sc].name[0]))
+               return sc;
+       }
+   }
 
+   /* Legacy fallback */
+   int sub_class;
    for (sub_class = 0; sub_class < MAX_SUB_CLASS; sub_class++)
     if (!str_prefix(name, sub_class_table[sub_class].name[SEX_NEUTRAL]) ||
         !str_prefix(name, sub_class_table[sub_class].name[SEX_MALE]) ||
@@ -3038,6 +3155,7 @@ void extract_obj(OBJ_DATA *obj)
     }
 
     list_remlink(loaded_objects, obj, false);
+    loaded_obj_hash_remove(obj);
 
     // Clear the most recent corpse data on the player owner
     if( (obj->item_type == ITEM_CORPSE_PC) && !IS_NULLSTR(obj->owner) )
@@ -11226,20 +11344,10 @@ char *normalize_filename(const char *name)
 }
 
 bool is_duplicate_object(OBJ_DATA *obj) {
-    ITERATOR it;
-    OBJ_DATA *existing;
-    if (!loaded_objects) return false;
-    iterator_start(&it, loaded_objects);
-    while ((existing = (OBJ_DATA *)iterator_nextdata(&it))) {
-        if (existing->id[0] == obj->id[0] &&
-            existing->id[1] == obj->id[1] &&
-            existing->pIndexData == obj->pIndexData) {
-            iterator_stop(&it);
-            return true;
-        }
-    }
-    iterator_stop(&it);
-    return false;
+    if (!obj || (!obj->id[0] && !obj->id[1])) return false;
+    OBJ_DATA *existing = loaded_obj_hash_find(obj->id[0], obj->id[1]);
+    return (existing != NULL && existing != obj &&
+            existing->pIndexData == obj->pIndexData);
 }
 
 int get_staff_rank(CHAR_DATA *ch)
@@ -11381,8 +11489,13 @@ void generate_discord_who() {
 
         if (IS_IMMORTAL(wch))
             strcpy(classstr, wch->pcdata->immortal->imm_flag);
-        else
-            strcpy(classstr, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+        else {
+            CLASS_DATA *wch_class = get_current_class(wch);
+            if (wch_class)
+                strcpy(classstr, class_who_ch(wch_class, wch));
+            else
+                strcpy(classstr, "Adventurer");
+        }
 
         if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
             strcpy(racestr, "       ");

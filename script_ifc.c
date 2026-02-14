@@ -3357,14 +3357,21 @@ DECL_IFC_FUN(ifc_hassubclass)
     int sub;
 
     if(ISARG_MOB(0) && ISARG_STR(1) && !IS_NPC(ARG_MOB(0))) {
-        sub = sub_class_search(ARG_STR(1));
-        if(sub < 0)
-            *ret = false;
-        else {
-            if(sub_class_table[sub].remort)
-                *ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SECOND_CLASS_MAGE)) == sub) ? true : false;
-            else
-                *ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SUBCLASS_MAGE)) == sub) ? true : false;
+        /* Try new CLASS_DATA system first */
+        CLASS_DATA *clazz = class_find(ARG_STR(1));
+        if (clazz) {
+            *ret = has_class_level(ARG_MOB(0), clazz);
+        } else {
+            /* Legacy fallback */
+            sub = sub_class_search(ARG_STR(1));
+            if(sub < 0)
+                *ret = false;
+            else {
+                if(sub_class_table[sub].remort)
+                    *ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SECOND_CLASS_MAGE)) == sub) ? true : false;
+                else
+                    *ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SUBCLASS_MAGE)) == sub) ? true : false;
+            }
         }
 
     } else
@@ -3375,14 +3382,20 @@ DECL_IFC_FUN(ifc_hassubclass)
 
 DECL_IFC_FUN(ifc_issubclass)
 {
-    int sub;
-
     if(ISARG_MOB(0) && ISARG_STR(1) && !IS_NPC(ARG_MOB(0))) {
-        sub = sub_class_search(ARG_STR(1));
-        if(sub < 0)
-            *ret = false;
-        else
-            *ret = ((get_profession(ARG_MOB(0),SUBCLASS_CURRENT)) == sub) ? true : false;
+        /* Try new CLASS_DATA system first */
+        CLASS_DATA *clazz = class_find(ARG_STR(1));
+        if (clazz) {
+            CLASS_DATA *cur = get_current_class(ARG_MOB(0));
+            *ret = (cur == clazz) ? true : false;
+        } else {
+            /* Legacy fallback */
+            int sub = sub_class_search(ARG_STR(1));
+            if(sub < 0)
+                *ret = false;
+            else
+                *ret = ((get_profession(ARG_MOB(0),SUBCLASS_CURRENT)) == sub) ? true : false;
+        }
 
     } else
         *ret = false;

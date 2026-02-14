@@ -3552,7 +3552,7 @@ void do_worth(CHAR_DATA * ch, char *argument)
  * do_score - Display comprehensive character statistics
  *
  * Shows detailed character information in a formatted display including:
- * - Name, title, race, class, subclass
+ * - Name, title, race, class
  * - HP, mana, move, experience
  * - All attributes (str, int, wis, dex, con)
  * - Armor class values (pierce, bash, slash, exotic)
@@ -3572,7 +3572,6 @@ void do_worth(CHAR_DATA * ch, char *argument)
 void do_score(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
-    char subclass[MSL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
     int pierce_s;
@@ -3598,28 +3597,18 @@ void do_score(CHAR_DATA * ch, char *argument)
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
 
-    sprintf(subclass, "%s", sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
-    subclass[0] = LOWER(subclass[0]);
     /* LINE 2 *** */
     {
-        /* Use new class system display if available, fall back to legacy */
+        /* Use new class system display */
         const char *class_disp;
-        const char *subclass_disp;
         CLASS_DATA *cur_class = get_current_class(ch);
-        if (cur_class) {
-            class_disp = class_display_ch(cur_class, ch);
-            subclass_disp = class_disp;  /* New system: class IS the subclass */
-        } else {
-            class_disp = IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name;
-            subclass_disp = IS_NPC(ch) ? "mobile" : subclass;
-        }
-        sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
+        class_disp = cur_class ? class_display_ch(cur_class, ch) : "Adventurer";
+        sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B]{x",
             ch->name,
             IS_NPC(ch) ? "" : ch->pcdata->title,
             body_type_info[ch->body_type].name,
             ch->race ? ch->race->name : "unknown",
-            class_disp,
-            subclass_disp);
+            class_disp);
     }
 
     for (i = fstr_len(buf); i < 75; i++)
@@ -3944,66 +3933,6 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
-
-    /* Show Subclasses */
-    if (!IS_IMMORTAL(ch))
-    {
-    send_to_char("{xYou are proficient in the following subclasses:\n\r", ch);
-    if (get_profession(ch, SUBCLASS_MAGE) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_MAGE)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SUBCLASS_CLERIC) != -1)
-    {
-        if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_WITCH && ch->sex == SEX_MALE)
-        sprintf(buf, "{B[{x%s{B]{x", "warlock");
-
-        else
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_CLERIC)].name[ch->sex]);
-
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SUBCLASS_THIEF) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_THIEF)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SUBCLASS_WARRIOR) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_WARRIOR)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_MAGE)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_CLERIC)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_THIEF)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
-    {
-        sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_WARRIOR)].name[ch->sex]);
-        send_to_char(buf, ch);
-    }
-
-    send_to_char("\n\r", ch);
-    }
 
     /* if (!IS_NPC(ch) && ch->tot_level >= LEVEL_IMMORTAL && ch->pcdata->immortal)
     {
@@ -5128,7 +5057,6 @@ iterator_stop(&it);
           && IS_IMMORTAL(wch))
     ||   (church != NULL && wch->church == church)
     ||   (wch->race && !str_prefix(arg, wch->race->name))
-    ||   !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex])
     ||   (get_current_class(wch) && !str_prefix(arg, class_display_ch(get_current_class(wch), wch))))
         ;
     else
@@ -5137,12 +5065,8 @@ iterator_stop(&it);
     if (IS_IMMORTAL(wch))
         strcpy(classstr,wch->pcdata->immortal->imm_flag);
     else {
-        /* Use new class system if available, fall back to legacy */
         CLASS_DATA *who_class = get_current_class(wch);
-        if (who_class)
-            strcpy(classstr, class_who_ch(who_class, wch));
-        else
-            strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+        strcpy(classstr, who_class ? class_who_ch(who_class, wch) : "Adventurer");
     }
     classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
@@ -5275,7 +5199,10 @@ void do_whois(CHAR_DATA * ch, char *argument)
     {
         found = true;
 
-        class = sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex];
+        {
+            CLASS_DATA *whois_class = get_current_class(wch);
+            class = whois_class ? class_who_ch(whois_class, wch) : "Adventurer";
+        }
 
         if (IS_IMMORTAL(wch))
         class = wch->pcdata->immortal->imm_flag;
@@ -5315,7 +5242,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
              "Church       : %s\n\r{x"
              "Rank         : %s\n\r{x"
                         "Race         : %s\n\r{x"
-             "Subclass     : %s\n\r{x"
+             "Class        : %s\n\r{x"
              "Level        : %d\n\r\n\r"
              "Player Kills : {R%d{x\n\r"
              "Arena Kills  : {x%d{x\n\r"
