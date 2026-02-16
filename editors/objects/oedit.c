@@ -32,9 +32,10 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../item_types.h"
 #include "../common.h"
 
-extern void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer);
+extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
 
 
@@ -59,10 +60,18 @@ OEDIT(oedit_show)
     !pObj->area ? "No Area" : pObj->area->name);
     add_buf(buffer, buf);
 
-    sprintf(buf, "Vnum:         {B[{x%7ld{B]{x\n\rType:         {B[{x%s{B]{x\n\r",
+    sprintf(buf, "Vnum:         {B[{x%7ld{B]{x\n\rType:         {B[{x%s{B]{x",
     pObj->vnum,
     flag_string(type_flags, pObj->item_type));
     add_buf(buffer, buf);
+    for (int t = 0; t < ITEM__MAX; t++) {
+        if (t == pObj->item_type) continue;
+        if (TBIT_TST(pObj->type_flags, t)) {
+            sprintf(buf, " {D+{x {B[{x%s{B]{x", flag_string(type_flags, t));
+            add_buf(buffer, buf);
+        }
+    }
+    add_buf(buffer, "\n\r");
 
     sprintf(buf, "Persist:      {B[%s{B]{x\n\r", (pObj->persist ? "{WON" : "{Doff"));
     add_buf(buffer, buf);
@@ -328,7 +337,7 @@ OEDIT(oedit_show)
         olc_show_index_vars(buffer, pObj->index_vars);
 
 
-    print_obj_values(pObj, buffer);
+    oedit_show_type_data(pObj, buffer);
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);

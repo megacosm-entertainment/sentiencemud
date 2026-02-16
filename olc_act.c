@@ -32,8 +32,10 @@
 #include "interp.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "item_types.h"
 
 extern GLOBAL_DATA         gconfig;
+extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
 /* Return true if area changed, false if not. */
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
@@ -3198,7 +3200,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
     }
 
     buffer = new_buf();
-    print_obj_values(pObj, buffer);
+    oedit_show_type_data(pObj, buffer);
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
 

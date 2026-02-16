@@ -11,6 +11,7 @@
 #include "../../tables.h"
 #include "../../olc.h"
 #include "../../item_types.h"
+#include "../../recycle.h"
 #include <string.h>
 
 /* Forward declarations for helpers used by type commands */
@@ -2080,4 +2081,489 @@ OEDIT(oedit_weaponcon)
         WEAPON_CON(pObj)->weight_multiplier);
     send_to_char(buf, ch);
     return false;
+}
+
+/* ============================================================================
+ *  SHOW ALL TYPE DATA
+ * ============================================================================
+ *
+ * Writes human-readable type data for ALL active types on an object to a
+ * BUFFER.  Called by oedit_show so the editor displays every type that is
+ * present, not just the primary one.
+ */
+void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
+{
+    char buf[MSL];
+
+    if (IS_ARMOR(pObj)) {
+        sprintf(buf,
+            "\n\r{WArmour:{x\n\r"
+            "  {Gtype          {x %s\n\r"
+            "  {Gstrength      {x %s\n\r"
+            "  {Gpierce        {x [%d]\n\r"
+            "  {Gbash          {x [%d]\n\r"
+            "  {Gslash         {x [%d]\n\r"
+            "  {Gexotic        {x [%d]\n\r",
+            flag_string(armor_types, ARMOR(pObj)->armor_type),
+            armour_strength_table[ARMOR(pObj)->armor_strength].name,
+            ARMOR(pObj)->protection[0],
+            ARMOR(pObj)->protection[1],
+            ARMOR(pObj)->protection[2],
+            ARMOR(pObj)->protection[3]);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_BODY_PART(pObj)) {
+        RACE_DATA *part_race = race_lookup_uid((int16_t)BODY_PART(pObj)->race_uid);
+        sprintf(buf,
+            "\n\r{WBody Part:{x\n\r"
+            "  {Gparts         {x %s\n\r"
+            "  {Grace           {x %s\n\r",
+            flag_string(part_flags, BODY_PART(pObj)->parts),
+            part_race ? part_race->name : "unknown");
+        add_buf(buffer, buf);
+    }
+
+    if (IS_BOOK(pObj)) {
+        sprintf(buf,
+            "\n\r{WBook:{x\n\r"
+            "  {Gflags         {x [%s]\n\r",
+            flag_string(container_flags, BOOK(pObj)->flags));
+        add_buf(buffer, buf);
+    }
+
+    if (IS_CART(pObj)) {
+        sprintf(buf,
+            "\n\r{WCart:{x\n\r"
+            "  {Gcapacity      {x [%d]\n\r"
+            "  {Gdelay         {x [%d]\n\r"
+            "  {Gstrength      {x [%d]\n\r"
+            "  {Gitems         {x [%d]\n\r"
+            "  {Gweightmult    {x [%d]\n\r"
+            "  {Gflags         {x [%s]\n\r"
+            "  {Gvanish        {x [%d]\n\r",
+            CART(pObj)->capacity,
+            CART(pObj)->move_delay,
+            CART(pObj)->min_strength,
+            CART(pObj)->max_items,
+            CART(pObj)->weight_multiplier,
+            flag_string(cart_flags, CART(pObj)->flags),
+            CART(pObj)->vanish_time);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_COMPASS(pObj)) {
+        sprintf(buf,
+            "\n\r{WCompass:{x\n\r"
+            "  {Gaccuracy      {x [%d%%]\n\r",
+            COMPASS(pObj)->accuracy);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_CONTAINER(pObj)) {
+        sprintf(buf,
+            "\n\r{WContainer:{x\n\r"
+            "  {Gweight        {x [%d kg]\n\r"
+            "  {Gflags         {x [%s]\n\r"
+            "  {Gitems         {x [%d]\n\r"
+            "  {Gweightmult    {x [%d%%]\n\r",
+            CONTAINER(pObj)->max_weight,
+            flag_string(container_flags, CONTAINER(pObj)->flags),
+            CONTAINER(pObj)->max_items,
+            CONTAINER(pObj)->weight_multiplier);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_CORPSE(pObj)) {
+        sprintf(buf,
+            "\n\r{WCorpse:{x\n\r"
+            "  {Gtype          {x %s\n\r"
+            "  {Gresurrection  {x %d%%\n\r"
+            "  {Ganimation     {x %d%%\n\r"
+            "  {Gparts         {x %s\n\r"
+            "  {Gmobile        {x [%ld]\n\r",
+            flag_string(corpse_types, CORPSE(pObj)->corpse_type),
+            CORPSE(pObj)->resurrection,
+            CORPSE(pObj)->animation,
+            flag_string(part_flags, CORPSE(pObj)->body_parts),
+            CORPSE(pObj)->mobile_vnum);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_FLUID_CON(pObj)) {
+        sprintf(buf,
+            "\n\r{WFluid Container:{x\n\r"
+            "  {Gcapacity      {x [%d]\n\r"
+            "  {Gamount        {x [%d]\n\r"
+            "  {Gliquid        {x %s\n\r"
+            "  {Gpoison        {x %s\n\r"
+            "  {Grefill        {x [%d]\n\r",
+            FLUID_CON(pObj)->capacity,
+            FLUID_CON(pObj)->amount,
+            liq_table[FLUID_CON(pObj)->liquid].liq_name,
+            FLUID_CON(pObj)->poison != 0 ? "Yes" : "No",
+            FLUID_CON(pObj)->refill_rate);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_FOOD(pObj)) {
+        sprintf(buf,
+            "\n\r{WFood:{x\n\r"
+            "  {Ghunger        {x [%d]\n\r"
+            "  {Gfull          {x [%d]\n\r"
+            "  {Gpoison        {x %s\n\r"
+            "  {Gtimer         {x [%d]\n\r",
+            FOOD(pObj)->hunger,
+            FOOD(pObj)->full,
+            FOOD(pObj)->poison != 0 ? "Yes" : "No",
+            FOOD(pObj)->timer);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_FURNITURE(pObj)) {
+        sprintf(buf,
+            "\n\r{WFurniture:{x\n\r"
+            "  {Gpeople        {x [%d]\n\r"
+            "  {Gweight        {x [%d]\n\r"
+            "  {Gflags         {x %s\n\r"
+            "  {Gheal          {x [%d]\n\r"
+            "  {Gmana          {x [%d]\n\r"
+            "  {Gmove          {x [%d]\n\r",
+            FURNITURE(pObj)->max_people,
+            FURNITURE(pObj)->max_weight,
+            flag_string(furniture_flags, FURNITURE(pObj)->flags),
+            FURNITURE(pObj)->heal_rate,
+            FURNITURE(pObj)->mana_rate,
+            FURNITURE(pObj)->move_rate);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_HERB(pObj)) {
+        sprintf(buf,
+            "\n\r{WHerb:{x\n\r"
+            "  {Gtype          {x %s\n\r"
+            "  {Ghealing       {x [%d%%]\n\r"
+            "  {Gregen         {x [%d%%]\n\r"
+            "  {Grefresh       {x [%d%%]\n\r"
+            "  {Gimmunity      {x %s\n\r"
+            "  {Gresistance    {x %s\n\r"
+            "  {Gvulnerability {x %s\n\r"
+            "  {Gspell         {x %s\n\r",
+            herb_table[HERB(pObj)->type].name,
+            HERB(pObj)->healing,
+            HERB(pObj)->regenerative,
+            HERB(pObj)->refreshing,
+            flag_string(imm_flags, HERB(pObj)->immunity),
+            flag_string(res_flags, HERB(pObj)->resistance),
+            flag_string(vuln_flags, HERB(pObj)->vulnerability),
+            HERB(pObj)->spell > 0 ? skill_table[HERB(pObj)->spell].name : "none");
+        add_buf(buffer, buf);
+    }
+
+    if (IS_INK(pObj)) {
+        sprintf(buf,
+            "\n\r{WInk:{x\n\r"
+            "  {Gtype1         {x %s\n\r"
+            "  {Gtype2         {x %s\n\r"
+            "  {Gtype3         {x %s\n\r",
+            flag_string(catalyst_types, INK(pObj)->types[0]),
+            flag_string(catalyst_types, INK(pObj)->types[1]),
+            flag_string(catalyst_types, INK(pObj)->types[2]));
+        add_buf(buffer, buf);
+    }
+
+    if (IS_INSTRUMENT(pObj)) {
+        sprintf(buf,
+            "\n\r{WInstrument:{x\n\r"
+            "  {Gtype          {x %s\n\r"
+            "  {Gflags         {x %s\n\r"
+            "  {Gbeatsmin      {x [%d%%]\n\r"
+            "  {Gbeatsmax      {x [%d%%]\n\r",
+            flag_string(instrument_types, INSTRUMENT(pObj)->type),
+            flag_string(instrument_flags, INSTRUMENT(pObj)->flags),
+            INSTRUMENT(pObj)->beats_min,
+            INSTRUMENT(pObj)->beats_max);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_JEWELRY(pObj)) {
+        sprintf(buf,
+            "\n\r{WJewelry:{x\n\r"
+            "  {Gmana          {x [%d]\n\r",
+            JEWELRY(pObj)->max_mana);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_LIGHT(pObj)) {
+        if (LIGHT(pObj)->duration == -1) {
+            sprintf(buf,
+                "\n\r{WLight:{x\n\r"
+                "  {Gduration      {x Infinite [-1]\n\r"
+                "  {Gflags         {x [%s]\n\r",
+                flag_string(light_flags, LIGHT(pObj)->flags));
+        } else {
+            sprintf(buf,
+                "\n\r{WLight:{x\n\r"
+                "  {Gduration      {x [%d]\n\r"
+                "  {Gflags         {x [%s]\n\r",
+                LIGHT(pObj)->duration,
+                flag_string(light_flags, LIGHT(pObj)->flags));
+        }
+        add_buf(buffer, buf);
+    }
+
+    if (IS_MAP(pObj)) {
+        sprintf(buf,
+            "\n\r{WMap:{x\n\r"
+            "  {Gwuid          {x [%ld]\n\r"
+            "  {Gx             {x [%ld]\n\r"
+            "  {Gy             {x [%ld]\n\r",
+            MAP(pObj)->wuid,
+            MAP(pObj)->x,
+            MAP(pObj)->y);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_MIST(pObj)) {
+        sprintf(buf,
+            "\n\r{WMist:{x\n\r"
+            "  {Gobjects       {x [%d%%]\n\r"
+            "  {Gcharacters    {x [%d%%]\n\r"
+            "  {Groom          {x [%d%%]\n\r",
+            MIST(pObj)->obscure_objs,
+            MIST(pObj)->obscure_mobs,
+            MIST(pObj)->obscure_room);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_MONEY(pObj)) {
+        sprintf(buf,
+            "\n\r{WMoney:{x\n\r"
+            "  {Gsilver        {x [%d]\n\r"
+            "  {Ggold          {x [%d]\n\r",
+            MONEY(pObj)->silver,
+            MONEY(pObj)->gold);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_PAGE(pObj)) {
+        sprintf(buf,
+            "\n\r{WPage:{x\n\r"
+            "  {Gnumber        {x [%d]\n\r"
+            "  {Gtitle         {x %s\n\r",
+            PAGE(pObj)->page_no,
+            PAGE(pObj)->title ? PAGE(pObj)->title : "(none)");
+        add_buf(buffer, buf);
+    }
+
+    if (IS_PORTAL(pObj)) {
+        if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON)) {
+            sprintf(buf,
+                "\n\r{WPortal (Dungeon):{x\n\r"
+                "  {Gcharges      {x [%d]\n\r"
+                "  {Gexit         {x %s\n\r"
+                "  {Gflags        {x %s\n\r"
+                "  {Gdestination  {x [%ld] (dungeon)\n\r"
+                "  {Gparam1       {x [%ld] (floor)\n\r",
+                PORTAL(pObj)->charges,
+                flag_string(portal_exit_flags, PORTAL(pObj)->exit),
+                flag_string(portal_flags, PORTAL(pObj)->flags),
+                PORTAL(pObj)->params[0],
+                PORTAL(pObj)->params[1]);
+        } else if (IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) || PORTAL(pObj)->params[0] == -1) {
+            sprintf(buf,
+                "\n\r{WPortal (Area Random):{x\n\r"
+                "  {Gcharges      {x [%d]\n\r"
+                "  {Gexit         {x %s\n\r"
+                "  {Gflags        {x %s\n\r"
+                "  {Gparam1       {x [%ld] (area id)\n\r",
+                PORTAL(pObj)->charges,
+                flag_string(portal_exit_flags, PORTAL(pObj)->exit),
+                flag_string(portal_flags, PORTAL(pObj)->flags),
+                PORTAL(pObj)->params[1]);
+        } else if (PORTAL(pObj)->params[0] > 0) {
+            sprintf(buf,
+                "\n\r{WPortal (Static):{x\n\r"
+                "  {Gcharges      {x [%d]\n\r"
+                "  {Gexit         {x %s\n\r"
+                "  {Gflags        {x %s\n\r"
+                "  {Gdestination  {x [%ld] (vnum)\n\r",
+                PORTAL(pObj)->charges,
+                flag_string(portal_exit_flags, PORTAL(pObj)->exit),
+                flag_string(portal_flags, PORTAL(pObj)->flags),
+                PORTAL(pObj)->params[0]);
+        } else {
+            sprintf(buf,
+                "\n\r{WPortal (Wilderness):{x\n\r"
+                "  {Gcharges      {x [%d]\n\r"
+                "  {Gexit         {x %s\n\r"
+                "  {Gflags        {x %s\n\r"
+                "  {Gparam1       {x [%ld] (map uid)\n\r"
+                "  {Gparam2       {x [%ld] (map x)\n\r"
+                "  {Gparam3       {x [%ld] (map y)\n\r",
+                PORTAL(pObj)->charges,
+                flag_string(portal_exit_flags, PORTAL(pObj)->exit),
+                flag_string(portal_flags, PORTAL(pObj)->flags),
+                PORTAL(pObj)->params[1],
+                PORTAL(pObj)->params[2],
+                PORTAL(pObj)->params[3]);
+        }
+        add_buf(buffer, buf);
+    }
+
+    if (IS_SCROLL(pObj)) {
+        sprintf(buf,
+            "\n\r{WScroll:{x\n\r"
+            "  {Gmana          {x [%d]\n\r"
+            "  {Gflags         {x [%s]\n\r",
+            SCROLL(pObj)->max_mana,
+            flag_string(scroll_flags, SCROLL(pObj)->flags));
+        add_buf(buffer, buf);
+    }
+
+    if (IS_SEED(pObj)) {
+        sprintf(buf,
+            "\n\r{WSeed:{x\n\r"
+            "  {Gtime          {x [%d]\n\r"
+            "  {Gobject        {x [%ld]\n\r",
+            SEED(pObj)->growth_time,
+            SEED(pObj)->object_vnum);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_SEXTANT(pObj)) {
+        sprintf(buf,
+            "\n\r{WSextant:{x\n\r"
+            "  {Gaccuracy      {x [%d%%]\n\r",
+            SEXTANT(pObj)->accuracy);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_SHIP_TYPE(pObj)) {
+        sprintf(buf,
+            "\n\r{WShip:{x\n\r"
+            "  {Gweight        {x [%d kg]\n\r"
+            "  {Gdelay         {x [%d]\n\r"
+            "  {Gmincrew       {x [%d]\n\r"
+            "  {Gcapacity      {x [%d]\n\r"
+            "  {Gmaxcrew       {x [%d]\n\r"
+            "  {Groom          {x [%ld]\n\r"
+            "  {Ghitpoints     {x [%d]\n\r"
+            "  {Gguns          {x [%d]\n\r",
+            SHIP_TYPE(pObj)->weight,
+            SHIP_TYPE(pObj)->move_delay,
+            SHIP_TYPE(pObj)->min_crew,
+            SHIP_TYPE(pObj)->capacity,
+            SHIP_TYPE(pObj)->max_crew,
+            SHIP_TYPE(pObj)->first_room,
+            SHIP_TYPE(pObj)->hit_points,
+            SHIP_TYPE(pObj)->max_guns);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_TATTOO(pObj)) {
+        sprintf(buf,
+            "\n\r{WTattoo:{x\n\r"
+            "  {Gtouches       {x [%d]\n\r"
+            "  {Gfading        {x [%d%%]\n\r"
+            "  {Gfaderate      {x [%d]\n\r",
+            TATTOO(pObj)->touches,
+            TATTOO(pObj)->fading_chance,
+            TATTOO(pObj)->fading_rate);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_TELESCOPE(pObj)) {
+        if (TELESCOPE(pObj)->heading >= 0) {
+            sprintf(buf,
+                "\n\r{WTelescope:{x\n\r"
+                "  {Gdistance      {x [%d]\n\r"
+                "  {Gmindist       {x [%d]\n\r"
+                "  {Gmaxdist       {x [%d]\n\r"
+                "  {Gbonus         {x [%d]\n\r"
+                "  {Gheading       {x [%d]\n\r",
+                TELESCOPE(pObj)->distance,
+                TELESCOPE(pObj)->min_distance,
+                TELESCOPE(pObj)->max_distance,
+                TELESCOPE(pObj)->bonus_view,
+                TELESCOPE(pObj)->heading);
+        } else {
+            sprintf(buf,
+                "\n\r{WTelescope:{x\n\r"
+                "  {Gdistance      {x [%d]\n\r"
+                "  {Gmindist       {x [%d]\n\r"
+                "  {Gmaxdist       {x [%d]\n\r"
+                "  {Gbonus         {x [%d]\n\r"
+                "  {Gheading       {x [none]\n\r",
+                TELESCOPE(pObj)->distance,
+                TELESCOPE(pObj)->min_distance,
+                TELESCOPE(pObj)->max_distance,
+                TELESCOPE(pObj)->bonus_view);
+        }
+        add_buf(buffer, buf);
+    }
+
+    if (IS_TOOL(pObj)) {
+        sprintf(buf,
+            "\n\r{WTool:{x\n\r"
+            "  {Gtype          {x %s\n\r"
+            "  {Gtier          {x [%d]\n\r",
+            flag_string(tool_types, TOOL(pObj)->type),
+            TOOL(pObj)->tier);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_TRADE(pObj)) {
+        sprintf(buf,
+            "\n\r{WTrade:{x\n\r"
+            "  {Gtype          {x %s\n\r",
+            trade_table[TRADE(pObj)->trade_type].name);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_WAND(pObj)) {
+        sprintf(buf,
+            "\n\r{WWand/Staff:{x\n\r"
+            "  {Gmana          {x [%d]\n\r"
+            "  {Gcharges       {x [%d]\n\r"
+            "  {Gmaxcharges    {x [%d]\n\r"
+            "  {Gcooldown      {x [%d]\n\r"
+            "  {Grecharge      {x [%d]\n\r",
+            WAND(pObj)->max_mana,
+            WAND(pObj)->charges,
+            WAND(pObj)->max_charges,
+            WAND(pObj)->cooldown,
+            WAND(pObj)->recharge_time);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_WEAPON(pObj)) {
+        sprintf(buf,
+            "\n\r{WWeapon:{x\n\r"
+            "  {Gclass         {x %s\n\r"
+            "  {Gdice          {x %dd%d+%d\n\r"
+            "  {Gdamtype       {x %s\n\r"
+            "  {Gflags         {x %s\n\r"
+            "  {Grange         {x [%d]\n\r",
+            flag_string(weapon_class, WEAPON(pObj)->weapon_class),
+            WEAPON(pObj)->damage.number, WEAPON(pObj)->damage.size, WEAPON(pObj)->damage.bonus,
+            attack_table[WEAPON(pObj)->damage_type].name,
+            flag_string(weapon_type2, WEAPON(pObj)->flags),
+            WEAPON(pObj)->range);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_WEAPON_CON(pObj)) {
+        sprintf(buf,
+            "\n\r{WWeapon Container:{x\n\r"
+            "  {Gweight        {x [%d kg]\n\r"
+            "  {Gweapontype    {x %s\n\r"
+            "  {Gitems         {x [%d]\n\r"
+            "  {Gweightmult    {x [%d%%]\n\r",
+            WEAPON_CON(pObj)->max_weight,
+            flag_string(weapon_class, WEAPON_CON(pObj)->weapon_type),
+            WEAPON_CON(pObj)->max_items,
+            WEAPON_CON(pObj)->weight_multiplier);
+        add_buf(buffer, buf);
+    }
 }
