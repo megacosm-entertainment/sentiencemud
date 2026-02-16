@@ -57,24 +57,24 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     for ( obj = quiver->contains; obj != NULL; obj = obj->next_content )
     {
         if ( ( can_see_obj( ch, obj )
-        && ( bow->value[0] == RANGED_WEAPON_CROSSBOW
+        && ( WEAPON(bow)->weapon_class == RANGED_WEAPON_CROSSBOW
         &&   obj->item_type == ITEM_WEAPON
-        &&   obj->value[0] == WEAPON_BOLT)
+        &&   WEAPON(obj)->weapon_class == WEAPON_BOLT)
         &&   obj->level <= ch->tot_level )
 
-        ||  (bow->value[0] == RANGED_WEAPON_BOW
+        ||  (WEAPON(bow)->weapon_class == RANGED_WEAPON_BOW
           && obj->item_type == ITEM_WEAPON
-          && obj->value[0] == WEAPON_ARROW
+          && WEAPON(obj)->weapon_class == WEAPON_ARROW
           &&   obj->level <= ch->tot_level)
     // @@@NIB : 20070126 : Added quiver support
-        ||  (bow->value[0] == RANGED_WEAPON_BLOWGUN
+        ||  (WEAPON(bow)->weapon_class == RANGED_WEAPON_BLOWGUN
           && obj->item_type == ITEM_WEAPON
-          && obj->value[0] == WEAPON_DART
+          && WEAPON(obj)->weapon_class == WEAPON_DART
           &&   obj->level <= ch->tot_level)
 
-        ||  (bow->value[0] == RANGED_WEAPON_HARPOON
+        ||  (WEAPON(bow)->weapon_class == RANGED_WEAPON_HARPOON
           && obj->item_type == ITEM_WEAPON
-          && obj->value[0] == WEAPON_HARPOON
+          && WEAPON(obj)->weapon_class == WEAPON_HARPOON
           &&   obj->level <= ch->tot_level))
     // @@@NIB : 20070126 : Added quiver support
         break;
@@ -90,25 +90,25 @@ void do_shoot( CHAR_DATA *ch, char *argument )
             iterator_start(&it, ch->lcarrying);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
                 if (( can_see_obj(ch, obj)
-                && (bow->value[0] == RANGED_WEAPON_CROSSBOW
+                && (WEAPON(bow)->weapon_class == RANGED_WEAPON_CROSSBOW
                 &&  obj->item_type == ITEM_WEAPON
-                &&  obj->value[0] == WEAPON_BOLT)
+                &&  WEAPON(obj)->weapon_class == WEAPON_BOLT)
                 &&  obj->level <= ch->tot_level)
 
-                || (bow->value[0] == RANGED_WEAPON_BOW
+                || (WEAPON(bow)->weapon_class == RANGED_WEAPON_BOW
                     && obj->item_type == ITEM_WEAPON
-                    && obj->value[0] == WEAPON_ARROW
+                    && WEAPON(obj)->weapon_class == WEAPON_ARROW
                     && obj->level <= ch->tot_level)
 
                 // @@@NIB : 20070126 : Added inventory check
-                || (bow->value[0] == RANGED_WEAPON_BLOWGUN
+                || (WEAPON(bow)->weapon_class == RANGED_WEAPON_BLOWGUN
                     && obj->item_type == ITEM_WEAPON
-                    && obj->value[0] == WEAPON_DART
+                    && WEAPON(obj)->weapon_class == WEAPON_DART
                     && obj->level <= ch->tot_level)
 
-                || (bow->value[0] == RANGED_WEAPON_HARPOON
+                || (WEAPON(bow)->weapon_class == RANGED_WEAPON_HARPOON
                     && obj->item_type == ITEM_WEAPON
-                    && obj->value[0] == WEAPON_HARPOON
+                    && WEAPON(obj)->weapon_class == WEAPON_HARPOON
                     && obj->level <= ch->tot_level)) {
                     iterator_stop(&it);
                     break;
@@ -147,7 +147,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     if ( victim == NULL )
     {
     if ( direction != -1 )
-        victim = search_dir_name( ch, arg1, direction, bow->value[3] );
+        victim = search_dir_name( ch, arg1, direction, WEAPON(bow)->range );
     else
     {
         direction = -1;
@@ -156,7 +156,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
         {
         for ( ii = 0; ii < MAX_DIR; ii++ )
         {
-            if ( (vch = search_dir_name( ch, arg1, ii, bow->value[3] ) ) != NULL )
+            if ( (vch = search_dir_name( ch, arg1, ii, WEAPON(bow)->range ) ) != NULL )
             {
             if ( direction != -1 )
             {
@@ -191,7 +191,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     if ( is_safe( ch, victim, true ) )
     return;
 
-    range = get_distance( ch, arg1, direction, bow->value[3] );
+    range = get_distance( ch, arg1, direction, WEAPON(bow)->range );
 
     if ( quiver != NULL )
     { // have quiver
@@ -244,7 +244,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     }
 
     // If arrow from quiver then faster to load and aim
-    switch ( bow->value[0] ) {
+    switch ( WEAPON(bow)->weapon_class ) {
     default:
     case RANGED_WEAPON_EXOTIC:		beats = 8; break;
     case RANGED_WEAPON_BOW:		beats = 6; break;
@@ -303,7 +303,7 @@ void ranged_end( CHAR_DATA *ch )
 
     // Confirm victim still exists before firing.
     if ( ch->projectile_range > 0 )
-    victim = search_dir_name( ch, ch->projectile_victim, direction, bow->value[3] );
+    victim = search_dir_name( ch, ch->projectile_victim, direction, WEAPON(bow)->range );
     else
     victim = get_char_room( ch, NULL, ch->projectile_victim );
 
@@ -324,7 +324,7 @@ void ranged_end( CHAR_DATA *ch )
 
     // Setup skill % and sn.
     // @@@NIB : 20070128 ----------
-    switch(bow->value[0]) {
+    switch(WEAPON(bow)->weapon_class) {
     default:
     case RANGED_WEAPON_EXOTIC:		sn = skill_resolve_gsn("exotic"); break;
     case RANGED_WEAPON_BOW:		sn = skill_resolve_gsn("bow"); break;
@@ -375,8 +375,8 @@ void ranged_end( CHAR_DATA *ch )
     return;
     }
 
-    dam = dice( bow->value[1], bow->value[2] )
-    + dice( obj->value[1], obj->value[2] )
+    dam = dice( WEAPON(bow)->damage.number, WEAPON(bow)->damage.size )
+    + dice( WEAPON(obj)->damage.number, WEAPON(obj)->damage.size )
     + 40*log(GET_DAMROLL( ch ));
 
     dam += (dam * get_skill(ch, skill_resolve_gsn("archery")))/175;
@@ -411,7 +411,7 @@ void ranged_end( CHAR_DATA *ch )
     else if (IS_WEAPON_STAT(obj, WEAPON_RESONATE))
     dt = DAM_SOUND;
     else
-    dt = attack_table[obj->value[3]].damage;
+    dt = attack_table[WEAPON(obj)->damage_type].damage;
 
     // ch and victim in the same room
     if ( ch->in_room == victim->in_room )
@@ -859,7 +859,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     return;
     }
 
-    dam = dice( obj->value[1], obj->value[2] )
+    dam = dice( WEAPON(obj)->damage.number, WEAPON(obj)->damage.size )
     + 40*log(GET_DAMROLL( ch ));
 
     if ( ch->in_room == victim->in_room )
@@ -868,7 +868,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     act("$n throws $s $p at $N!",  ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
     act("You throw $p at $N!",     ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-    if ( damage( ch, victim, dam, skill_resolve_gsn("throw"), obj->value[3], true ) == false )
+    if ( damage( ch, victim, dam, skill_resolve_gsn("throw"), WEAPON(obj)->damage_type, true ) == false )
         victim = NULL;
 
     obj_from_char( obj );
@@ -943,7 +943,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
         /* generate miss messages */
             if (ch->in_room == victim->in_room)
             {
-            damage( ch, victim, 0, skill_resolve_gsn("throw"), obj->value[3], true );
+            damage( ch, victim, 0, skill_resolve_gsn("throw"), WEAPON(obj)->damage_type, true );
             }
         else
             {
@@ -977,7 +977,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     }
 
     /* do damage and generate messages */
-    if ( damage( ch, victim, dam, skill_resolve_gsn("throw") , attack_table[obj->value[3]].damage,  true ) == false )
+    if ( damage( ch, victim, dam, skill_resolve_gsn("throw") , attack_table[WEAPON(obj)->damage_type].damage,  true ) == false )
     {
         victim = NULL;
     }
@@ -1022,7 +1022,7 @@ int get_ranged_skill(CHAR_DATA *ch)
 
     // @@@NIB : 20070128 ----------
     if ( ( bow = ch->projectile_weapon) ) {
-    switch(bow->value[0]) {
+    switch(WEAPON(bow)->weapon_class) {
     default:
     case RANGED_WEAPON_EXOTIC:	sn = skill_resolve_gsn("exotic"); break;
     case RANGED_WEAPON_BOW:		sn = skill_resolve_gsn("bow"); break;

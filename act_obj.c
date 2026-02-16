@@ -260,8 +260,8 @@ void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container)
             if (!can_get_obj(ch, obj, container, NULL, false))
                 continue;
 
-            silver += obj->value[0];
-            gold += obj->value[1];
+            silver += MONEY(obj)->silver;
+            gold += MONEY(obj)->gold;
 
             extract_obj(obj);
         }
@@ -497,8 +497,9 @@ void do_get(CHAR_DATA *ch, char *argument)
         if (container->item_type == ITEM_MONEY) {
             char buffer[MIL];
             int ret;
+            int *coin_ptr = gold ? &MONEY(container)->gold : &MONEY(container)->silver;
             if (!str_prefix("all.", arg1))
-                amount = container->value[gold];
+                amount = *coin_ptr;
             else
                 amount = atol(arg1);
 
@@ -507,12 +508,12 @@ void do_get(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if(!container->value[gold]) {
+            if(!*coin_ptr) {
                 act("There is no $T in $p.", ch, NULL, NULL, NULL, NULL, container, gold?"gold":"silver", TO_CHAR, NULL, NULL);
                 return;
             }
 
-            if(amount > container->value[gold]) {
+            if(amount > *coin_ptr) {
                 act("There isn't that much $T in $p.", ch, NULL, NULL, container, NULL, NULL, gold?"gold":"silver", TO_CHAR, NULL, NULL);
                 return;
             }
@@ -527,7 +528,7 @@ void do_get(CHAR_DATA *ch, char *argument)
             if(gold) ch->gold += amount;
             else ch->silver += amount;
 
-            container->value[gold] -= amount;
+            *coin_ptr -= amount;
 
             sprintf(buffer,"%d %s coin%s", amount, gold?"gold":"silver", (amount==1)?"":"s");
 
@@ -536,7 +537,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 
             ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
 
-            if(!container->value[0] && !container->value[1])
+            if(!MONEY(container)->silver && !MONEY(container)->gold)
                 extract_obj(container);
 
             if(ret) return;
@@ -666,8 +667,8 @@ void do_get(CHAR_DATA *ch, char *argument)
                             obj_from_room(obj);
 
                             if( obj->item_type == ITEM_MONEY ) {
-                                new_silver += obj->value[0];
-                                new_gold += obj->value[1];
+                                new_silver += MONEY(obj)->silver;
+                                new_gold += MONEY(obj)->gold;
 
                                 // Keep money until the very end
                                 extract_obj(obj);
@@ -823,8 +824,8 @@ void do_get(CHAR_DATA *ch, char *argument)
                         obj_from_obj(obj);
 
                         if( obj->item_type == ITEM_MONEY ) {
-                            new_silver += obj->value[0];
-                            new_gold += obj->value[1];
+                            new_silver += MONEY(obj)->silver;
+                            new_gold += MONEY(obj)->gold;
 
                             // Keep money until the very end
                             extract_obj(obj);
@@ -907,6 +908,53 @@ void do_get(CHAR_DATA *ch, char *argument)
  *
  * Planned refactor: MOVED comment indicates intended move to object/object.c
  */
+/**
+ * Helper functions for do_put to handle container-like item types uniformly.
+ * ITEM_CONTAINER, ITEM_CART, and ITEM_WEAPON_CONTAINER all support put
+ * but have different type-specific data structs.
+ */
+static int put_container_max_weight(OBJ_DATA *obj)
+{
+    if (obj->item_type == ITEM_CONTAINER && CONTAINER(obj))
+        return CONTAINER(obj)->max_weight;
+    if (obj->item_type == ITEM_CART && CART(obj))
+        return CART(obj)->capacity;
+    if (obj->item_type == ITEM_WEAPON_CONTAINER && WEAPON_CON(obj))
+        return WEAPON_CON(obj)->max_weight;
+    return 0;
+}
+
+static int put_container_max_items(OBJ_DATA *obj)
+{
+    if (obj->item_type == ITEM_CONTAINER && CONTAINER(obj))
+        return CONTAINER(obj)->max_items;
+    if (obj->item_type == ITEM_CART && CART(obj))
+        return CART(obj)->max_items;
+    if (obj->item_type == ITEM_WEAPON_CONTAINER && WEAPON_CON(obj))
+        return WEAPON_CON(obj)->max_items;
+    return 0;
+}
+
+static int put_container_weight_mult(OBJ_DATA *obj)
+{
+    if (obj->item_type == ITEM_CONTAINER && CONTAINER(obj))
+        return CONTAINER(obj)->weight_multiplier;
+    if (obj->item_type == ITEM_CART && CART(obj))
+        return CART(obj)->weight_multiplier;
+    if (obj->item_type == ITEM_WEAPON_CONTAINER && WEAPON_CON(obj))
+        return WEAPON_CON(obj)->weight_multiplier;
+    return 100;
+}
+
+static bool put_container_has_flag(OBJ_DATA *obj, long flag)
+{
+    if (obj->item_type == ITEM_CONTAINER && CONTAINER(obj))
+        return IS_SET(CONTAINER(obj)->flags, flag);
+    if (obj->item_type == ITEM_CART && CART(obj))
+        return IS_SET(CART(obj)->flags, flag);
+    return false;
+}
+
 void do_put(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -1104,13 +1152,13 @@ void do_put(CHAR_DATA *ch, char *argument)
         }
 
         if (((get_obj_weight_container(container) + get_obj_weight(obj)) *
-            WEIGHT_MULT(container)/100) > container->value[0])
+            put_container_weight_mult(container)/100) > put_container_max_weight(container))
         {
             act("$P cannot hold that much weight.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if ((get_obj_number_container(container) + get_obj_number(obj)) > container->value[3])
+        if ((get_obj_number_container(container) + get_obj_number(obj)) > put_container_max_items(container))
         {
             act("$P is too full to hold $p.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
@@ -1119,7 +1167,7 @@ void do_put(CHAR_DATA *ch, char *argument)
         obj_from_char(obj);
         obj_to_obj(obj, container);
 
-        if (IS_SET(container->value[1],CONT_PUT_ON))
+        if (put_container_has_flag(container, CONT_PUT_ON))
         {
             act("$n puts $p on $P.",ch, NULL, NULL,obj,container, NULL, NULL, TO_ROOM, NULL, NULL);
             act("You put $p on $P.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -1174,11 +1222,11 @@ void do_put(CHAR_DATA *ch, char *argument)
                         continue;
 
                     if (((get_obj_weight_container(container) + get_obj_weight(obj)) *
-                        WEIGHT_MULT(container)/100) > container->value[0])
+                        put_container_weight_mult(container)/100) > put_container_max_weight(container))
                     {
                         if (i > 0 && match_obj != NULL)
                         {
-                            if (IS_SET(container->value[1],CONT_PUT_ON))
+                            if (put_container_has_flag(container, CONT_PUT_ON))
                             {
                                 sprintf(buf, "{Y({G%2d{Y) {x$n puts $p on $P.", i);
                                 act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -1201,12 +1249,11 @@ void do_put(CHAR_DATA *ch, char *argument)
                         return;
                     }
 
-                    if ((get_obj_number_container(container) + get_obj_number(obj)) > container->value[3])
+                    if ((get_obj_number_container(container) + get_obj_number(obj)) > put_container_max_items(container))
                     {
                         if (i > 0 && match_obj != NULL)
                         {
-                            if (container->item_type == ITEM_CONTAINER &&
-                                IS_SET(container->value[1],CONT_PUT_ON))
+                            if (put_container_has_flag(container, CONT_PUT_ON))
                             {
                                 sprintf(buf, "{Y({G%2d{Y) {x$n puts $p on $P.", i);
                                 act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -1240,7 +1287,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 
                 if (i > 0 && match_obj != NULL)
                 {
-                    if (IS_SET(container->value[1],CONT_PUT_ON))
+                    if (put_container_has_flag(container, CONT_PUT_ON))
                     {
                         sprintf(buf, "{Y({G%2d{Y) {x$n puts $p on $P.", i);
                         act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -2563,9 +2610,13 @@ void do_envenom(CHAR_DATA *ch, char *argument)
         if(number_range(0,100) > skill)
         act("$n treats $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You treat $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-        if (!obj->value[3])
+        int is_poisoned = (obj->item_type == ITEM_FOOD) ? FOOD(obj)->poison : FLUID_CON(obj)->poison;
+        if (!is_poisoned)
         {
-        obj->value[3] = 1;
+        if (obj->item_type == ITEM_FOOD)
+            FOOD(obj)->poison = 1;
+        else
+            FLUID_CON(obj)->poison = 1;
         check_improve(ch,skill_resolve_gsn("envenom"),true,4);
         }
         WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
@@ -2573,7 +2624,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
     }
 
     act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-    if (!obj->value[3])
+    if (!((obj->item_type == ITEM_FOOD) ? FOOD(obj)->poison : FLUID_CON(obj)->poison))
         check_improve(ch,skill_resolve_gsn("envenom"),false,4);
     WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
     return;
@@ -2598,8 +2649,8 @@ memset(&af,0,sizeof(af));
             return;
         }
 
-    if (obj->value[3] < 0
-    ||  attack_table[obj->value[3]].damage == DAM_BASH)
+    if (WEAPON(obj)->damage_type < 0
+    ||  attack_table[WEAPON(obj)->damage_type].damage == DAM_BASH)
     {
         send_to_char("You can only envenom edged weapons.\n\r",ch);
         return;
@@ -2712,22 +2763,22 @@ void do_fill(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (obj->value[1] != 0 && obj->value[2] != fountain->value[2])
+    if (FLUID_CON(obj)->amount != 0 && FLUID_CON(obj)->liquid != FLUID_CON(fountain)->liquid)
     {
     send_to_char("There is already another liquid in it.\n\r", ch);
     return;
     }
 
-    if (obj->value[1] >= obj->value[0])
+    if (FLUID_CON(obj)->amount >= FLUID_CON(obj)->capacity)
     {
     send_to_char("Your container is full.\n\r", ch);
     return;
     }
 
-    act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[fountain->value[2]].liq_name, NULL, TO_CHAR, NULL, NULL);
-    act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[fountain->value[2]].liq_name, NULL, TO_ROOM, NULL, NULL);
-    obj->value[2] = fountain->value[2];
-    obj->value[1] = obj->value[0];
+    act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[FLUID_CON(fountain)->liquid].liq_name, NULL, TO_CHAR, NULL, NULL);
+    act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[FLUID_CON(fountain)->liquid].liq_name, NULL, TO_ROOM, NULL, NULL);
+    FLUID_CON(obj)->liquid = FLUID_CON(fountain)->liquid;
+    FLUID_CON(obj)->amount = FLUID_CON(obj)->capacity;
 }
 
 
@@ -2779,18 +2830,18 @@ void do_pour(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(argument,"out"))
     {
-    if (out->value[1] == 0)
+    if (FLUID_CON(out)->amount == 0)
     {
         send_to_char("It's already empty.\n\r",ch);
         return;
     }
 
-    out->value[1] = 0;
-    out->value[3] = 0;
-    sprintf(buf,"You invert $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
+    FLUID_CON(out)->amount = 0;
+    FLUID_CON(out)->poison = 0;
+    sprintf(buf,"You invert $p, spilling %s all over the ground.", liq_table[FLUID_CON(out)->liquid].liq_name);
     act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 
-    sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
+    sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liq_table[FLUID_CON(out)->liquid].liq_name);
     act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
     return;
     }
@@ -2826,44 +2877,44 @@ void do_pour(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (in->value[1] != 0 && in->value[2] != out->value[2])
+    if (FLUID_CON(in)->amount != 0 && FLUID_CON(in)->liquid != FLUID_CON(out)->liquid)
     {
     send_to_char("They don't hold the same liquid.\n\r",ch);
     return;
     }
 
-    if (out->value[1] == 0)
+    if (FLUID_CON(out)->amount == 0)
     {
     act("There's nothing in $p to pour.",ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
     return;
     }
 
-    if (in->value[1] >= in->value[0])
+    if (FLUID_CON(in)->amount >= FLUID_CON(in)->capacity)
     {
     act("$p is already filled to the top.",ch, NULL, NULL,in, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
     return;
     }
 
-    amount = UMIN(out->value[1],in->value[0] - in->value[1]);
+    amount = UMIN(FLUID_CON(out)->amount,FLUID_CON(in)->capacity - FLUID_CON(in)->amount);
 
-    in->value[1] += amount;
-    out->value[1] -= amount;
-    in->value[2] = out->value[2];
+    FLUID_CON(in)->amount += amount;
+    FLUID_CON(out)->amount -= amount;
+    FLUID_CON(in)->liquid = FLUID_CON(out)->liquid;
 
     if (vch == NULL)
     {
-        sprintf(buf,"You pour %s from $p into $P.", liq_table[out->value[2]].liq_name);
+        sprintf(buf,"You pour %s from $p into $P.", liq_table[FLUID_CON(out)->liquid].liq_name);
         act(buf,ch, NULL, NULL,out,in, NULL, NULL,TO_CHAR, NULL, NULL);
-        sprintf(buf,"$n pours %s from $p into $P.", liq_table[out->value[2]].liq_name);
+        sprintf(buf,"$n pours %s from $p into $P.", liq_table[FLUID_CON(out)->liquid].liq_name);
         act(buf,ch, NULL, NULL,out,in, NULL, NULL,TO_ROOM, NULL, NULL);
     }
     else
     {
-        sprintf(buf,"You pour some %s for $N.", liq_table[out->value[2]].liq_name);
+        sprintf(buf,"You pour some %s for $N.", liq_table[FLUID_CON(out)->liquid].liq_name);
         act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
-        sprintf(buf,"$n pours you some %s.", liq_table[out->value[2]].liq_name);
+        sprintf(buf,"$n pours you some %s.", liq_table[FLUID_CON(out)->liquid].liq_name);
         act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_VICT, NULL, NULL);
-        sprintf(buf,"$n pours some %s for $N.", liq_table[out->value[2]].liq_name);
+        sprintf(buf,"$n pours some %s for $N.", liq_table[FLUID_CON(out)->liquid].liq_name);
         act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_NOTVICT, NULL, NULL);
     }
 }
@@ -2937,10 +2988,10 @@ void do_drink(CHAR_DATA *ch, char *argument)
         return;
 
     case ITEM_FOUNTAIN:
-        if ((liquid = obj->value[2])  < 0)
+        if ((liquid = FLUID_CON(obj)->liquid)  < 0)
         {
         pbugf(LOG_ERROR, "Bad liquid number %d.", liquid);
-        liquid = obj->value[2] = 0;
+        liquid = FLUID_CON(obj)->liquid = 0;
         }
         if (race_get_trait_bool(ch->race, "blood_feeding"))
            amount = 20;
@@ -2949,27 +3000,27 @@ void do_drink(CHAR_DATA *ch, char *argument)
         break;
 
     case ITEM_DRINK_CON:
-        if (obj->value[1] <= 0)
+        if (FLUID_CON(obj)->amount <= 0)
         {
         send_to_char("It is already empty.\n\r", ch);
         return;
         }
 
-        if ((liquid = obj->value[2])  < 0)
+        if ((liquid = FLUID_CON(obj)->liquid)  < 0)
         {
         pbugf(LOG_ERROR, "Bad liquid number %d.", liquid);
-        liquid = obj->value[2] = 0;
+        liquid = FLUID_CON(obj)->liquid = 0;
         }
 
         amount = liq_table[liquid].liq_affect[4];
-        amount = UMIN(amount, obj->value[1]);
+        amount = UMIN(amount, FLUID_CON(obj)->amount);
         break;
      }
 
     act("$n drinks $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_ROOM, NULL, NULL);
     act("You drink $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_CHAR, NULL, NULL);
 
-    if (race_get_trait_bool(ch->race, "blood_feeding") && obj->value[2] == 14)
+    if (race_get_trait_bool(ch->race, "blood_feeding") && FLUID_CON(obj)->liquid == 14)
     {
         send_to_char("You feel refreshed.\n\r", ch);
       gain_condition(ch, COND_FULL,
@@ -2994,7 +3045,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] > 40)
     send_to_char("Your thirst is quenched.\n\r", ch);
 
-    if (obj->value[3] != 0
+    if (FLUID_CON(obj)->poison != 0
     && check_immune(ch, DAM_POISON) != IS_IMMUNE)
     {
     /* The drink was poisoned ! */
@@ -3016,8 +3067,8 @@ memset(&af,0,sizeof(af));
     affect_join(ch, &af);
     }
 
-    if (obj->value[0] > 0) {
-        obj->value[1] -= amount;
+    if (FLUID_CON(obj)->capacity > 0) {
+        FLUID_CON(obj)->amount -= amount;
     }
 
     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL);
@@ -3106,13 +3157,13 @@ void do_eat(CHAR_DATA *ch, char *argument)
 
         condition = ch->pcdata->condition[COND_HUNGER];
 
-        gain_condition(ch, COND_FULL, obj->value[0]);
-        gain_condition(ch, COND_HUNGER, obj->value[1]);
+        gain_condition(ch, COND_FULL, FOOD(obj)->hunger);
+        gain_condition(ch, COND_HUNGER, FOOD(obj)->full);
         if (condition == 0 && ch->pcdata->condition[COND_HUNGER] > 0)
             send_to_char("You are no longer hungry.\n\r", ch);
         }
 
-        if (obj->value[3] != 0
+        if (FOOD(obj)->poison != 0
         && check_immune(ch, DAM_POISON) != IS_IMMUNE)
         {
         /* The food was poisoned! */
@@ -3125,8 +3176,8 @@ void do_eat(CHAR_DATA *ch, char *argument)
         af.group     = AFFGROUP_BIOLOGICAL;
         af.type      = skill_resolve_gsn("poison");
     af.skill = skill_from_sn(af.type);
-        af.level 	 = number_fuzzy(obj->value[0]);
-        af.duration  = 2 * obj->value[0];
+        af.level 	 = number_fuzzy(FOOD(obj)->hunger);
+        af.duration  = 2 * FOOD(obj)->hunger;
         af.location  = APPLY_NONE;
         af.modifier  = 0;
         af.bitvector = AFF_POISON;
@@ -3138,7 +3189,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 
     case ITEM_PILL:
         for (spell = obj->spells; spell != NULL; spell = spell->next)
-        obj_cast_spell(spell->sn, obj->value[0], ch, ch, NULL);
+        obj_cast_spell(spell->sn, FOOD(obj)->hunger, ch, ch, NULL);
         break;
     }
 
@@ -3673,9 +3724,9 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 
         if (ch->size < SIZE_HUGE &&
             (get_eq_char(ch, WEAR_SECONDARY) != NULL) &&
-                (get_eq_char(ch, WEAR_SECONDARY)->value[0] == WEAPON_POLEARM ||
-                (get_eq_char(ch, WEAR_SECONDARY))->value[0] == WEAPON_SPEAR) &&
-                (obj->value[0] == WEAPON_POLEARM || obj->value[0] == WEAPON_SPEAR))
+                (WEAPON(get_eq_char(ch, WEAR_SECONDARY))->weapon_class == WEAPON_POLEARM ||
+                WEAPON(get_eq_char(ch, WEAR_SECONDARY))->weapon_class == WEAPON_SPEAR) &&
+                (WEAPON(obj)->weapon_class == WEAPON_POLEARM || WEAPON(obj)->weapon_class == WEAPON_SPEAR))
         {
             send_to_char("You can't wield two of those at once.\n\r", ch);
             return;
@@ -4234,12 +4285,12 @@ void do_quaff(CHAR_DATA *ch, char *argument)
     }
 
     /* Currently only alchemists can make multi-quaffable potions */
-    if (obj->value[5] > 0)
+    if (FLUID_CON(obj)->amount > 0)
     {
-    obj->value[5]--;
+    FLUID_CON(obj)->amount--;
     }
 
-    if (obj->value[5] > 0)
+    if (FLUID_CON(obj)->amount > 0)
     {
     act("$n takes a small swig from $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("You take a small swig from $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -4255,7 +4306,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
     for (spell = obj->spells; spell != NULL; spell = spell->next)
     obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
 
-    if (obj->value[5] <= 0)
+    if (FLUID_CON(obj)->amount <= 0)
     extract_obj(obj);
 
     WAIT_STATE(ch, 8);
@@ -4335,9 +4386,11 @@ void do_recite(CHAR_DATA *ch, char *argument)
     }
 
     int beats;
-    if (scroll->value[2] == 0)
+    int spell_count = 0;
+    for (SPELL_DATA *sp = scroll->spells; sp; sp = sp->next) spell_count++;
+    if (spell_count <= 1)
         beats = 10;
-    else if (scroll->value[3] == 0)
+    else if (spell_count <= 2)
         beats = 14;
     else
         beats = 18;
@@ -4519,7 +4572,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 
     WAIT_STATE(ch, 2 * PULSE_VIOLENCE);
 
-    if (staff->value[2] > 0)
+    if (WAND(staff)->charges > 0)
     {
     act("$n brandishes $p.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("You brandish $p.",  ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -4574,7 +4627,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     }
     }
 
-    if (--staff->value[2] <= 0)
+    if (--WAND(staff)->charges <= 0)
     {
     act("$n's $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("Your $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -4654,7 +4707,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 
     WAIT_STATE(ch, 2 * PULSE_VIOLENCE);
 
-    if (wand->value[2] > 0)
+    if (WAND(wand)->charges > 0)
     {
     if (victim != NULL)
     {
@@ -4684,7 +4737,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
     }
     }
 
-    if (--wand->value[2] <= 0)
+    if (--WAND(wand)->charges <= 0)
     {
     act("$n's $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("Your $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -5389,10 +5442,10 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 
     if (obj->item_type == ITEM_STAFF || obj->item_type == ITEM_WAND)
     {
-        if (obj->value[1] == 0)
+        if (WAND(obj)->max_charges == 0)
             cost /= 4;
         else
-            cost = cost * obj->value[2] / obj->value[1];
+            cost = cost * WAND(obj)->charges / WAND(obj)->max_charges;
     }
 
     return cost;
@@ -5522,8 +5575,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
         if ( counter == -1 )
         {
             /* Check if unit will fit in cart */
-            if ( obj_index->weight + get_obj_weight_container( cart ) > (cart->value[0]) ||
-                (get_obj_number_container(cart) >= cart->value[3]))
+            if ( obj_index->weight + get_obj_weight_container( cart ) > (CART(cart)->capacity) ||
+                (get_obj_number_container(cart) >= CART(cart)->max_items))
             {
                 sprintf( buf, "Your cart is fully laden %s, there is no place to put it.", pers( ch, trader ) );
                 do_say( trader, buf );
@@ -5561,8 +5614,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
             int count = 0;
 
             /* Check if unit will fit in cart */
-            if ( counter*(obj_index->weight + get_obj_weight_container( cart )) > (cart->value[0]) ||
-                (get_obj_number_container(cart) + counter >= cart->value[3]))
+            if ( counter*(obj_index->weight + get_obj_weight_container( cart )) > (CART(cart)->capacity) ||
+                (get_obj_number_container(cart) + counter >= CART(cart)->max_items))
             {
                 sprintf( buf, "Your cart can't hold that much, there is no place to put it." );
                 do_say( trader, buf );
@@ -7057,7 +7110,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
         for(temp = ch->in_room->area->trade_list; temp != NULL; temp = temp->next)
         {
             obj_index = get_obj_index(ch->in_room->area, temp->obj_wnum.vnum);
-            if (obj_index->value[0] == pObj->value[0])
+            if (TRADE(obj_index)->trade_type == TRADE(pObj)->trade_type)
             {
                 break;
             }
@@ -7456,11 +7509,11 @@ void do_secondary(CHAR_DATA *ch, char *argument)
     /* you can't dual wield spears/polearms */
     if (weapon != NULL
     && (IS_WEAPON_STAT(weapon,WEAPON_TWO_HANDS)
-         || weapon->value[0] == WEAPON_POLEARM
-     || weapon->value[0] == WEAPON_SPEAR))
+         || WEAPON(weapon)->weapon_class == WEAPON_POLEARM
+     || WEAPON(weapon)->weapon_class == WEAPON_SPEAR))
     {
-    if(obj->value[0] == WEAPON_SPEAR
-    || obj->value[0] == WEAPON_POLEARM)
+    if(WEAPON(obj)->weapon_class == WEAPON_SPEAR
+    || WEAPON(obj)->weapon_class == WEAPON_POLEARM)
     {
         send_to_char("Your hands are tied up with your weapon!\n\r", ch);
         return;
@@ -7531,14 +7584,14 @@ void do_push(CHAR_DATA *ch, char *argument)
     }
 
     /* @@@NIB : 20070126 : for pushopen containers*/
-    if(obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_PUSHOPEN)) {
-     if(IS_SET(obj->value[1], CONT_CLOSED)) {
-         if(IS_SET(obj->value[1], CONT_LOCKED)) {
+    if(obj->item_type == ITEM_CONTAINER && IS_SET(CONTAINER(obj)->flags, CONT_PUSHOPEN)) {
+     if(IS_SET(CONTAINER(obj)->flags, CONT_CLOSED)) {
+         if(IS_SET(CONTAINER(obj)->flags, CONT_LOCKED)) {
          send_to_char("It's locked.\n\r", ch);
          return;
          }
 
-         REMOVE_BIT(obj->value[1], CONT_CLOSED);
+         REMOVE_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
          act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
          act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
          p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_OPEN, NULL);
@@ -7658,7 +7711,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (obj->value[2] > get_curr_stat(ch, STAT_STR) && !MOUNTED(ch))
+    if (CART(obj)->min_strength > get_curr_stat(ch, STAT_STR) && !MOUNTED(ch))
     {
           act("You aren't strong enough to pull $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n attempts to pull $p but is too weak.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -8161,11 +8214,11 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
     {
     if (get_skill(ch, skill_resolve_gsn("brew")) < 75)
-        potion->value[5] = 1;
+        FLUID_CON(potion)->amount = 1;
     else if (get_skill(ch, skill_resolve_gsn("brew")) < 85)
-        potion->value[5] = 2;
+        FLUID_CON(potion)->amount = 2;
     else
-        potion->value[5] = 3;
+        FLUID_CON(potion)->amount = 3;
     }
 
     free_string(potion->name);
@@ -8857,8 +8910,8 @@ memset(&af,0,sizeof(af));
             return;
         }
 
-    if (obj->value[3] < 0
-    ||  attack_table[obj->value[3]].damage == DAM_BASH)
+    if (WEAPON(obj)->damage_type < 0
+    ||  attack_table[WEAPON(obj)->damage_type].damage == DAM_BASH)
     {
         send_to_char("You can only envenom edged weapons.\n\r",ch);
         return;

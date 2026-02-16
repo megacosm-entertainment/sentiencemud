@@ -30,6 +30,7 @@
 #include "../../skill_group.h"
 #include "../../account/unlock.h"
 #include "../../song_data.h"
+#include "json_obj_types.h"
 
 /***************************************************************************
  * External Flag Tables                                                    *
@@ -295,19 +296,12 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
         }
     }
 
-    // Values (only if different from prototype)
-    json_t *values_array = json_array();
-    bool has_custom_values = false;
-    for (i = 0; i < 8; i++) {
-        if (obj->value[i] != obj->pIndexData->value[i]) {
-            has_custom_values = true;
+    // Type-specific data (canonical structured representation) — replaces legacy values[]
+    {
+        json_t *td = obj_type_data_to_json(obj);
+        if (td) {
+            json_object_set_new(json_obj, "type_data", td);
         }
-        json_array_append_new(values_array, json_integer(obj->value[i]));
-    }
-    if (has_custom_values) {
-        json_object_set_new(json_obj, "values", values_array);
-    } else {
-        json_decref(values_array);
     }
 
     // Owner
@@ -2215,6 +2209,12 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         for (i = 0; i < 8 && i < (int)json_array_size(value); i++) {
             obj->value[i] = json_integer_value(json_array_get(value, i));
         }
+    }
+
+    // Type-specific data (canonical structured representation)
+    value = json_object_get(json_obj, "type_data");
+    if (value && json_is_object(value)) {
+        obj_type_data_from_json(obj, value);
     }
 
     // Owner

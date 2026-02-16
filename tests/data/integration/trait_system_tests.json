@@ -1,0 +1,65 @@
+{
+  "type": "test_suite",
+  "test_suite": "trait_system",
+  "description": "Trait definition system validation - definitions, lookups, and defaults",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 20,
+  "tests": [
+    {
+      "name": "trait_definitions_loaded",
+      "description": "Verify trait definitions have been loaded from JSON",
+      "dependencies": [],
+      "test_type": "trait_def_count_test",
+      "input": {
+        "minimum_expected": 1
+      },
+      "expected_output": {
+        "count_positive": true
+      }
+    },
+    {
+      "name": "trait_def_lookup_by_id",
+      "description": "Verify trait definition lookup by ID works",
+      "dependencies": ["trait_definitions_loaded"],
+      "test_type": "trait_def_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "id": "totally_nonexistent_trait_xyz",
+            "should_find": false,
+            "description": "Bogus trait not found"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "trait_def_integrity",
+      "description": "Verify all loaded trait definitions have required fields",
+      "dependencies": ["trait_definitions_loaded"],
+      "test_type": "trait_def_integrity_test",
+      "input": {},
+      "expected_output": {
+        "all_have_id": true,
+        "all_have_name": true,
+        "all_have_valid_type": true,
+        "no_duplicate_ids": true
+      }
+    },
+    {
+      "name": "trait_def_type_coverage",
+      "description": "Verify trait definitions cover all three types: bool, int, string",
+      "dependencies": ["trait_definitions_loaded"],
+      "test_type": "trait_type_coverage_test",
+      "input": {},
+      "expected_output": {
+        "has_boolean_traits": true,
+        "has_integer_traits": true
+      }
+    }
+  ]
+}

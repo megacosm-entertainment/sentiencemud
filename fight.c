@@ -672,14 +672,14 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
     if (dt == TYPE_UNDEFINED) {
         dt = TYPE_HIT;
         if (wield && wield->item_type == ITEM_WEAPON)
-            dt += wield->value[3];
+            dt += WEAPON(wield)->damage_type;
         else
             dt += ch->dam_type;
     }
 
     if (dt < TYPE_HIT)
         if (wield)
-            dam_type = attack_table[wield->value[3]].damage;
+            dam_type = attack_table[WEAPON(wield)->damage_type].damage;
         else
             dam_type = attack_table[ch->dam_type].damage;
     else
@@ -696,12 +696,12 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 
     // If wielding a weapon, find fighting style.
     if (wield) {
-        if (wield->value[0] == WEAPON_SPEAR && (style_chance = get_skill(ch, skill_resolve_gsn("wilderness spear style"))) > 0) {
+        if (WEAPON(wield)->weapon_class == WEAPON_SPEAR && (style_chance = get_skill(ch, skill_resolve_gsn("wilderness spear style"))) > 0) {
             style_num = style_chance / 5;
             check_improve(ch, skill_resolve_gsn("wilderness spear style"), true, 8);
         } else if (wield && wield2 &&
-            (wield->value[0] == WEAPON_SWORD || wield2->value[0] == WEAPON_SWORD) &&
-            (wield->value[0] == WEAPON_DAGGER || wield2->value[0] == WEAPON_DAGGER) &&
+            (WEAPON(wield)->weapon_class == WEAPON_SWORD || WEAPON(wield2)->weapon_class == WEAPON_SWORD) &&
+            (WEAPON(wield)->weapon_class == WEAPON_DAGGER || WEAPON(wield2)->weapon_class == WEAPON_DAGGER) &&
             (style_chance = get_skill(ch, skill_resolve_gsn("sword and dagger style"))) > 0) {
             style_num = style_chance / 5;
             check_improve(ch, skill_resolve_gsn("sword and dagger style"), true, 8);
@@ -782,7 +782,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
         if (!wield)
             dam = dice_roll(&ch->damage);
         else {
-            dam = dice(wield->value[1], wield->value[2]) * skill/100;
+            dam = dice(WEAPON(wield)->damage.number, WEAPON(wield)->damage.size) * skill/100;
 
             // weapon sharpness
             if (IS_WEAPON_STAT(wield,WEAPON_SHARP) && !IS_WEAPON_STAT(wield,WEAPON_DULL)) {
@@ -807,7 +807,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 
         // Weapon damage
         if (wield) {
-            dam = dice(wield->value[1], wield->value[2]) * skill/100;
+            dam = dice(WEAPON(wield)->damage.number, WEAPON(wield)->damage.size) * skill/100;
 
             // weapon sharpness
             if (IS_WEAPON_STAT(wield,WEAPON_SHARP) && !IS_WEAPON_STAT(wield,WEAPON_DULL)) {
@@ -855,7 +855,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
         dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
     // Exotic weapon mastery: 25% extra damage with exotic weapons
-    if (ch_has_trait(ch, "exotic_weapon_mastery") && wield && wield->value[0] == WEAPON_EXOTIC)
+    if (ch_has_trait(ch, "exotic_weapon_mastery") && wield && WEAPON(wield)->weapon_class == WEAPON_EXOTIC)
         dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
     // Extra damage relic
@@ -1094,7 +1094,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
             act("{Y$p{Y explodes into action!{x", victim, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
             for (i = 0; i < 3 ; i++) {
-                dam = dice(wield->value[1], wield->value[2]);
+                dam = dice(WEAPON(wield)->damage.number, WEAPON(wield)->damage.size);
                 damage(ch,victim,dam,0,DAM_VORPAL,false);
             }
         }
@@ -2357,13 +2357,13 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
         chance = (chance * 3)/2;
 
     // cant parry a whip
-    if (weapon && ((!weapon2 && weapon->value[0] == WEAPON_WHIP) ||
-        (weapon2 && weapon->value[0] == WEAPON_WHIP && weapon2->value[0] == WEAPON_WHIP))) {
+    if (weapon && ((!weapon2 && WEAPON(weapon)->weapon_class == WEAPON_WHIP) ||
+        (weapon2 && WEAPON(weapon)->weapon_class == WEAPON_WHIP && WEAPON(weapon2)->weapon_class == WEAPON_WHIP))) {
         return false;
     }
 
     // secondary wielding another weapon gives you half the chance
-    if (weapon && weapon2 && weapon->value[0] == WEAPON_WHIP && weapon2->value[0] != WEAPON_WHIP) {
+    if (weapon && weapon2 && WEAPON(weapon)->weapon_class == WEAPON_WHIP && WEAPON(weapon2)->weapon_class != WEAPON_WHIP) {
         chance = chance / 2;
     }
 
@@ -2371,7 +2371,7 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
     if (ch_has_trait(victim, "sword_dagger_parry")) {
 
         if (weapon && weapon2 &&
-            ((weapon->value[0] == WEAPON_SWORD && weapon2->value[0] == WEAPON_DAGGER) || (weapon->value[0] == WEAPON_DAGGER && weapon2->value[0] == WEAPON_SWORD))) {
+            ((WEAPON(weapon)->weapon_class == WEAPON_SWORD && WEAPON(weapon2)->weapon_class == WEAPON_DAGGER) || (WEAPON(weapon)->weapon_class == WEAPON_DAGGER && WEAPON(weapon2)->weapon_class == WEAPON_SWORD))) {
             skill = get_skill(victim, skill_resolve_gsn("sword and dagger style"));
             if(number_percent() < skill) {
                 chance = (chance * 3)/2;
@@ -2718,11 +2718,11 @@ bool check_spear_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 
     // defender must spear a spear
     spear = get_eq_char(victim, WEAR_WIELD);
-    if (spear == NULL || spear->value[0] != WEAPON_SPEAR)
+    if (spear == NULL || WEAPON(spear)->weapon_class != WEAPON_SPEAR)
     {
     spear = get_eq_char(victim, WEAR_SECONDARY);
 
-    if (spear == NULL || spear->value[0] != WEAPON_SPEAR)
+    if (spear == NULL || WEAPON(spear)->weapon_class != WEAPON_SPEAR)
         return false;
     }
 
@@ -2894,10 +2894,10 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
         int chance;
 
         if ((obj = get_eq_char(victim, WEAR_WIELD)) != NULL &&
-            obj->item_type == ITEM_WEAPON && obj->value[0] == WEAPON_SPEAR)
+            obj->item_type == ITEM_WEAPON && WEAPON(obj)->weapon_class == WEAPON_SPEAR)
             found = true;
         else if ((obj = get_eq_char(victim, WEAR_SECONDARY)) != NULL &&
-            obj->item_type == ITEM_WEAPON && obj->value[0] == WEAPON_SPEAR)
+            obj->item_type == ITEM_WEAPON && WEAPON(obj)->weapon_class == WEAPON_SPEAR)
             found = true;
 
         chance = victim->tot_level - ch->tot_level + get_skill(victim, skill_resolve_gsn("wilderness spear style"));
@@ -3446,17 +3446,17 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
         if( obj->item_type == ITEM_BODY_PART )
         {
-            obj->value[1] = ch->race ? ch->race->uid : 0;
+            BODY_PART(obj)->race_uid = ch->race ? ch->race->uid : 0;
             if( !IS_NPC(ch) || ch->persist )
             {
-                obj->value[2] = ch->id[0];
-                obj->value[3] = ch->id[1];
+                BODY_PART(obj)->char_id[0] = ch->id[0];
+                BODY_PART(obj)->char_id[1] = ch->id[1];
             }
             else
             {
                 // Remove any previously stored ID.
-                obj->value[2] = 0;
-                obj->value[3] = 0;
+                BODY_PART(obj)->char_id[0] = 0;
+                BODY_PART(obj)->char_id[1] = 0;
             }
         }
 
@@ -3480,7 +3480,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
         if (obj->item_type == ITEM_FOOD) {
             if (IS_SET(ch->form,FORM_POISON))
-                obj->value[3] = 1;
+                FOOD(obj)->poison = 1;
             else if (!IS_SET(ch->form, FORM_EDIBLE))
             obj->item_type = ITEM_TRASH;
         }
@@ -4869,13 +4869,13 @@ void do_bash(CHAR_DATA *ch, char *argument)
     {
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_ISDOOR))
+            if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR))
             {
                 send_to_char("You can't do that.\n\r",ch);
                 return;
             }
 
-            if (!IS_SET(obj->value[1],EX_CLOSED))
+            if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 act("$n attempts to bash down the already open $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 send_to_char("It's already open.\n\r", ch);
@@ -4906,14 +4906,14 @@ void do_bash(CHAR_DATA *ch, char *argument)
             damage(ch, ch, dam, skill_resolve_gsn("bash"), DAM_BASH, false);
             deduct_move(ch, 75);
 
-            if (IS_SET(obj->value[1], EX_NOBASH) ||
-                ((!obj->lock || !obj->lock->pick_chance) && IS_SET(obj->value[1], EX_NOPASS)))
+            if (IS_SET(PORTAL(obj)->exit, EX_NOBASH) ||
+                ((!obj->lock || !obj->lock->pick_chance) && IS_SET(PORTAL(obj)->exit, EX_NOPASS)))
             {
                 chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
 
-                if (IS_SET(obj->value[1], EX_BARRED) && number_percent() < chance)
+                if (IS_SET(PORTAL(obj)->exit, EX_BARRED) && number_percent() < chance)
                 {
-                    REMOVE_BIT(obj->value[1], EX_BARRED);
+                    REMOVE_BIT(PORTAL(obj)->exit, EX_BARRED);
                     act("You rebound off $p, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                     act("$n rebounds off $p and flies backwards, breaking the bars on the $p in the process!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 }
@@ -4935,8 +4935,8 @@ void do_bash(CHAR_DATA *ch, char *argument)
                     REMOVE_BIT(obj->lock->flags, LOCK_LOCKED);
                 }
 
-                REMOVE_BIT(obj->value[1], (EX_CLOSED|EX_BARRED));
-                SET_BIT(obj->value[1], EX_BROKEN);
+                REMOVE_BIT(PORTAL(obj)->exit, (EX_CLOSED|EX_BARRED));
+                SET_BIT(PORTAL(obj)->exit, EX_BROKEN);
 
                 act("$p explodes, sending pieces everywhere!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 act("$p explodes, sending pieces everywhere!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -5804,9 +5804,9 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 
     wield = get_eq_char(ch, WEAR_WIELD);
 
-    if (!wield || (wield->value[0] != WEAPON_DAGGER && attack_table[wield->value[3]].damage != DAM_PIERCE)) {
+    if (!wield || (WEAPON(wield)->weapon_class != WEAPON_DAGGER && attack_table[WEAPON(wield)->damage_type].damage != DAM_PIERCE)) {
         wield = get_eq_char(ch, WEAR_SECONDARY);
-        if (!wield || (wield->value[0] != WEAPON_DAGGER && attack_table[wield->value[3]].damage != DAM_PIERCE)) {
+        if (!wield || (WEAPON(wield)->weapon_class != WEAPON_DAGGER && attack_table[WEAPON(wield)->damage_type].damage != DAM_PIERCE)) {
             send_to_char("You can only backstab with a dagger or piercing type weapon.\n\r", ch);
             return;
         }
@@ -5897,7 +5897,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 
         //if (ch->tot_level < victim->tot_level) dam = (dam * ch->tot_level)/(victim->tot_level/2);
 
-        dam += 3 * dice(wield->value[1], wield->value[2]);
+        dam += 3 * dice(WEAPON(wield)->damage.number, WEAPON(wield)->damage.size);
         dam = UMIN(dam, MAX_BACKSTAB_DAMAGE);
 
         victim->hit_damage = dam;
@@ -6043,9 +6043,9 @@ void do_slit(CHAR_DATA *ch, char *argument)
     }
 
     wield = get_eq_char(ch, WEAR_WIELD);
-    if (!wield || (wield->value[0] != WEAPON_DAGGER && wield->value[0] != WEAPON_SWORD && wield->value[0] != WEAPON_AXE)) {
+    if (!wield || (WEAPON(wield)->weapon_class != WEAPON_DAGGER && WEAPON(wield)->weapon_class != WEAPON_SWORD && WEAPON(wield)->weapon_class != WEAPON_AXE)) {
         wield = get_eq_char(ch, WEAR_SECONDARY);
-        if (!wield || (wield->value[0] != WEAPON_DAGGER && wield->value[0] != WEAPON_SWORD && wield->value[0] != WEAPON_AXE)) {
+        if (!wield || (WEAPON(wield)->weapon_class != WEAPON_DAGGER && WEAPON(wield)->weapon_class != WEAPON_SWORD && WEAPON(wield)->weapon_class != WEAPON_AXE)) {
             send_to_char("You must be wielding a bladed weapon.\r", ch);
             return;
         }
@@ -6066,7 +6066,7 @@ void do_slit(CHAR_DATA *ch, char *argument)
         act("$N wakes up before $n can slit $M throat!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
         damage(ch, victim, number_range(ch->max_hit / 10, ch->max_hit /2),
-            TYPE_HIT, attack_table[(!get_eq_char(ch, WEAR_WIELD) ? get_eq_char(ch, WEAR_SECONDARY) : get_eq_char(ch, WEAR_WIELD))->value[3]].damage,
+            TYPE_HIT, attack_table[WEAPON(!get_eq_char(ch, WEAR_WIELD) ? get_eq_char(ch, WEAR_SECONDARY) : get_eq_char(ch, WEAR_WIELD))->damage_type].damage,
             true);
 
         check_improve(ch,skill_resolve_gsn("slit throat"),false,5);
@@ -7348,7 +7348,7 @@ void resurrect_end(CHAR_DATA *ch)
 
         if (in->pIndexData == get_reserved_obj_index("obj_coin_silver_multiple"))
         {
-            victim->silver += in->value[1];
+            victim->silver += MONEY(in)->silver;
             extract_obj(in);
             continue;
         }
@@ -7367,7 +7367,7 @@ void resurrect_end(CHAR_DATA *ch)
 
         if (in->pIndexData == get_reserved_obj_index("obj_coin_gold_multiple"))
         {
-            victim->gold += in->value[1];
+            victim->gold += MONEY(in)->gold;
             extract_obj(in);
             continue;
         }

@@ -385,7 +385,7 @@ SPELL_FUNC(spell_recharge)
         case ITEM_WAND:
         case ITEM_STAFF:
             obj->value[0] = (obj->value[0] * 9)/10;
-            obj->value[2] = obj->value[1];
+            WAND(obj)->charges = WAND(obj)->max_charges;
             break;
 
         case ITEM_POTION:
@@ -406,7 +406,7 @@ SPELL_FUNC(spell_recharge)
                     charges = UMAX(1, charges);
                 }
 
-                obj->value[5] = charges;
+                FLUID_CON(obj)->amount = charges;
             } else {
                 act("Only an alchemist can recharge magical potions.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 return false;

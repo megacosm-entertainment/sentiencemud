@@ -2433,8 +2433,8 @@ OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum)
     for(obj = room->contents; obj; obj = obj->next_content)
     {
         if( (obj->item_type == ITEM_PORTAL) &&
-            IS_SET(obj->value[2], GATE_DUNGEON) &&
-            (obj->value[3] == vnum) )
+            IS_SET(PORTAL(obj)->flags, GATE_DUNGEON) &&
+            (PORTAL(obj)->params[0] == vnum) )
         {
             return obj;
         }

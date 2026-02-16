@@ -54,6 +54,7 @@
 #include "io/cache/redis_cache.h"
 #include "io/json/json_char.h"
 #include "io/json/json_account.h"
+#include "io/json/json_obj_types.h"
 #include "traits.h"
 #include "account/preferences.h"
 #include "skill_data.h"
@@ -3187,17 +3188,18 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         fprintf(fp, "Time %d\n",	obj->timer	    );
     fprintf(fp, "Cost %ld\n",	obj->cost		    );
 
-     if (obj->value[0] != obj->pIndexData->value[0]
-     ||  obj->value[1] != obj->pIndexData->value[1]
-     ||  obj->value[2] != obj->pIndexData->value[2]
-     ||  obj->value[3] != obj->pIndexData->value[3]
-     ||  obj->value[4] != obj->pIndexData->value[4]
-     ||  obj->value[5] != obj->pIndexData->value[5]
-     ||  obj->value[6] != obj->pIndexData->value[6]
-     ||  obj->value[7] != obj->pIndexData->value[7])
-        fprintf(fp, "Val  %ld %ld %ld %ld %ld %ld %ld %ld\n",
-        obj->value[0], obj->value[1], obj->value[2], obj->value[3],
-        obj->value[4], obj->value[5], obj->value[6], obj->value[7] );
+    /* Type-specific data (canonical, as JSON) — replaces legacy value[] */
+    {
+        json_t *td = obj_type_data_to_json(obj);
+        if (td) {
+            char *td_str = json_dumps(td, JSON_COMPACT | JSON_SORT_KEYS);
+            if (td_str) {
+                fprintf(fp, "TypeData %s~\n", td_str);
+                free(td_str);
+            }
+            json_decref(td);
+        }
+    }
 
     if (obj->spells != NULL)
     save_spell(fp, obj->spells);
@@ -4145,6 +4147,21 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
             KEY("TimesAllowedFixed", obj->times_allowed_fixed, fread_number(fp));
             KEY("Timer",	obj->timer,		fread_number(fp));
             KEY("Time",	obj->timer,		fread_number(fp));
+
+            if (!str_cmp(word, "TypeData"))
+            {
+                char *td_str = fread_string(fp);
+                if (td_str && td_str[0]) {
+                    json_error_t err;
+                    json_t *td = json_loads(td_str, 0, &err);
+                    if (td) {
+                        obj_type_data_from_json(obj, td);
+                        json_decref(td);
+                    }
+                }
+                free_string(td_str);
+                fMatch = true;
+            }
             break;
         case 'U':
             KEY("UId",		obj->id[0],		fread_number(fp));
@@ -4738,6 +4755,15 @@ void fix_object(OBJ_DATA *obj)
 
 
         obj->version = VERSION_OBJECT_004;
+    }
+
+    if( obj->version < VERSION_OBJECT_005 )
+    {
+        // Populate type-specific data structs from legacy value[] array.
+        // After this migration, the type structs are the canonical data source.
+        obj_migrate_values_to_types(obj);
+
+        obj->version = VERSION_OBJECT_005;
     }
 
     // Resolve bare portal destination vnums to area UIDs

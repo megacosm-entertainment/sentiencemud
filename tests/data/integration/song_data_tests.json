@@ -1,0 +1,52 @@
+{
+  "type": "test_suite",
+  "test_suite": "song_data",
+  "description": "Song data system validation - lookups and data integrity",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 15,
+  "tests": [
+    {
+      "name": "song_count_positive",
+      "description": "Verify songs have been loaded and count is positive",
+      "dependencies": [],
+      "test_type": "song_count_test",
+      "input": {
+        "minimum_expected": 1
+      },
+      "expected_output": {
+        "count_positive": true
+      }
+    },
+    {
+      "name": "song_lookup_valid",
+      "description": "Verify song_lookup finds songs by name prefix",
+      "dependencies": ["song_count_positive"],
+      "test_type": "song_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "prefix": "totally_nonexistent_song_xyz",
+            "should_find": false,
+            "description": "Bogus song not found"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "song_uid_integrity",
+      "description": "Verify all songs have valid positive UIDs and are unique",
+      "dependencies": ["song_count_positive"],
+      "test_type": "song_uid_integrity_test",
+      "input": {},
+      "expected_output": {
+        "all_uids_positive": true,
+        "all_uids_unique": true
+      }
+    }
+  ]
+}

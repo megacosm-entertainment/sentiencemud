@@ -36,8 +36,8 @@ SPELL_FUNC(spell_create_food)
         area = wnum.pArea;
     if (!area) area = get_system_area_fallback();
     food = create_object(get_obj_index(area, i), 0, true);
-    food->value[0] = level / 2;
-    food->value[1] = level;
+    FOOD(food)->hunger = level / 2;
+    FOOD(food)->full = level;
     obj_to_room(food, ch->in_room);
     act("$p suddenly appears.", ch, NULL, NULL, food, NULL, NULL, NULL, TO_ALL, NULL, NULL);
     return true;

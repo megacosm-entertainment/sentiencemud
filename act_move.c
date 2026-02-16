@@ -1218,7 +1218,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 
         if (mount)
         {
-            if (ch->pulled_cart->value[2] > get_curr_stat(mount, STAT_STR)) {
+            if (CART(ch->pulled_cart)->min_strength > get_curr_stat(mount, STAT_STR)) {
                 act("$N isn't strong enough to pull $p.", ch, mount, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 act("$N struggles to pull $p but $Z too weak.", ch, mount, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_NOTVICT, NULL, get_verb_form(mount, "is", "are"));
                 return false;
@@ -1226,7 +1226,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
         }
         else
         {
-            if (ch->pulled_cart->value[2] > get_curr_stat(ch, STAT_STR)) {
+            if (CART(ch->pulled_cart)->min_strength > get_curr_stat(ch, STAT_STR)) {
                 act("You aren't strong enough to pull $p.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 act("$n attempts to pull $p but $Z too weak.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_ROOM, get_verb_form(ch, "is", "are"), NULL);
                 return false;
@@ -1619,7 +1619,7 @@ void do_open(CHAR_DATA *ch, char *argument)
         /* portal stuff */
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_CLOSED))
+            if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 send_to_char("It's already open.\n\r",ch);
                 return;
@@ -1641,7 +1641,7 @@ void do_open(CHAR_DATA *ch, char *argument)
                 }
             }
 
-            REMOVE_BIT(obj->value[1],EX_CLOSED);
+            REMOVE_BIT(PORTAL(obj)->exit,EX_CLOSED);
             act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n opens $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
             return;
@@ -1653,18 +1653,18 @@ void do_open(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        if (!IS_SET(obj->value[1], CONT_CLOSED))
+        if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
         {
             send_to_char("It's already open.\n\r", ch);
             return;
         }
-        if (!IS_SET(obj->value[1], CONT_CLOSEABLE))
+        if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSEABLE))
         {
             send_to_char("You can't do that.\n\r", ch);
             return;
         }
         /* @@@NIB : 20070126 */
-        if (IS_SET(obj->value[1], CONT_PUSHOPEN))
+        if (IS_SET(CONTAINER(obj)->flags, CONT_PUSHOPEN))
         {
             send_to_char("You need to push it open.\n\r", ch);
             return;
@@ -1685,7 +1685,7 @@ void do_open(CHAR_DATA *ch, char *argument)
             }
         }
 
-        REMOVE_BIT(obj->value[1], CONT_CLOSED);
+        REMOVE_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
         act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL);
@@ -1779,26 +1779,26 @@ void do_close(CHAR_DATA *ch, char *argument)
         /* portal stuff */
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_ISDOOR) ||
-                IS_SET(obj->value[1],EX_NOCLOSE))
+            if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR) ||
+                IS_SET(PORTAL(obj)->exit,EX_NOCLOSE))
             {
                 send_to_char("You can't do that.\n\r",ch);
                 return;
             }
 
-            if (IS_SET(obj->value[1],EX_CLOSED))
+            if (IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 send_to_char("It's already closed.\n\r",ch);
                 return;
             }
 
-            if (IS_SET(obj->value[1],EX_BROKEN))
+            if (IS_SET(PORTAL(obj)->exit,EX_BROKEN))
             {
                 send_to_char("That door has been destroyed. It cannot be closed.\n\r",ch);
                 return;
             }
 
-            SET_BIT(obj->value[1],EX_CLOSED);
+            SET_BIT(PORTAL(obj)->exit,EX_CLOSED);
             act("You close $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n closes $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
             return;
@@ -1810,21 +1810,21 @@ void do_close(CHAR_DATA *ch, char *argument)
             send_to_char("You can't do that.\n\r", ch);
             return;
         }
-        if (IS_SET(obj->value[1], CONT_CLOSED))
+        if (IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
         {
             send_to_char("It's already closed.\n\r", ch);
             return;
         }
-        if (!IS_SET(obj->value[1], CONT_CLOSEABLE))
+        if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSEABLE))
         {
             send_to_char("You can't do that.\n\r", ch);
             return;
         }
 
-        SET_BIT(obj->value[1], CONT_CLOSED);
+        SET_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
         act("You close $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n closes $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        if (obj->lock && IS_SET(obj->value[1], CONT_CLOSELOCK))
+        if (obj->lock && IS_SET(CONTAINER(obj)->flags, CONT_CLOSELOCK))
         {
             act("$p locks once closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
             SET_BIT(obj->lock->flags, LOCK_LOCKED);
@@ -2033,14 +2033,14 @@ void do_lock(CHAR_DATA *ch, char *argument)
         /* portal stuff */
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_ISDOOR) ||
-                IS_SET(obj->value[1],EX_NOCLOSE))
+            if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR) ||
+                IS_SET(PORTAL(obj)->exit,EX_NOCLOSE))
             {
                 send_to_char("You can't do that.\n\r",ch);
                 return;
             }
 
-            if (!IS_SET(obj->value[1],EX_CLOSED))
+            if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 send_to_char("It's not closed.\n\r",ch);
                 return;
@@ -2090,7 +2090,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
             send_to_char("You can't do that.\n\r", ch);
             return;
         }
-        if (!IS_SET(obj->value[1], CONT_CLOSED))
+        if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
         {
             send_to_char("It's not closed.\n\r", ch);
             return;
@@ -2218,13 +2218,13 @@ void do_unlock(CHAR_DATA *ch, char *argument)
     {
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_ISDOOR))
+            if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR))
             {
                 send_to_char("You can't do that.\n\r",ch);
                 return;
             }
 
-            if (!IS_SET(obj->value[1],EX_CLOSED))
+            if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 send_to_char("It's not closed.\n\r",ch);
                 return;
@@ -2273,7 +2273,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
             send_to_char("You can't do that.\n\r", ch);
             return;
         }
-        if (!IS_SET(obj->value[1], CONT_CLOSED))
+        if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
         {
             send_to_char("It's not closed.\n\r", ch);
             return;
@@ -2432,13 +2432,13 @@ void do_pick(CHAR_DATA *ch, char *argument)
         /* portal stuff */
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_ISDOOR))
+            if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR))
             {
                 send_to_char("You can't do that.\n\r",ch);
                 return;
             }
 
-            if (!IS_SET(obj->value[1],EX_CLOSED))
+            if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 send_to_char("It's not closed.\n\r",ch);
                 return;
@@ -2487,7 +2487,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
             send_to_char("That's not a container.\n\r", ch);
             return;
         }
-        if (!IS_SET(obj->value[1], CONT_CLOSED))
+        if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
         {
             send_to_char("It's not closed.\n\r", ch);
             return;
@@ -2611,27 +2611,27 @@ void do_stand(CHAR_DATA *ch, char *argument)
     }
 
     if (obj->item_type != ITEM_FURNITURE
-    ||  (!IS_SET(obj->value[2],STAND_AT)
-    &&   !IS_SET(obj->value[2],STAND_ON)
-    &&   !IS_SET(obj->value[2],STAND_IN)))
+    ||  (!IS_SET(FURNITURE(obj)->flags,STAND_AT)
+    &&   !IS_SET(FURNITURE(obj)->flags,STAND_ON)
+    &&   !IS_SET(FURNITURE(obj)->flags,STAND_IN)))
     {
         send_to_char("You can't seem to find a place to stand.\n\r",ch);
         return;
     }
 
-    if (ch->on != obj && count_users(obj) >= obj->value[0])
+    if (ch->on != obj && count_users(obj) >= FURNITURE(obj)->max_people)
     {
         act_new("There's no room to stand on $p.", ch,NULL,NULL, NULL, NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
         return;
     }
 
      ch->on = obj;
-    if (IS_SET(obj->value[2],STAND_AT))
+    if (IS_SET(FURNITURE(obj)->flags,STAND_AT))
     {
         act("You stand at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n stands at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
-    else if (IS_SET(obj->value[2],STAND_ON))
+    else if (IS_SET(FURNITURE(obj)->flags,STAND_ON))
     {
         act("You stand on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n stands on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -2656,12 +2656,12 @@ void do_stand(CHAR_DATA *ch, char *argument)
         act("$n wakes and stands up.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         ch->on = NULL;
         }
-        else if (IS_SET(obj->value[2],STAND_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,STAND_AT))
         {
            act_new("You wake and stand at $p.",ch, NULL, NULL, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR,POS_DEAD,NULL);
            act("$n wakes and stands at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],STAND_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,STAND_ON))
         {
         act_new("You wake and stand on $p.",ch, NULL, NULL, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR,POS_DEAD,NULL);
         act("$n wakes and stands on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -2684,12 +2684,12 @@ void do_stand(CHAR_DATA *ch, char *argument)
         act("$n stands up.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         ch->on = NULL;
         }
-        else if (IS_SET(obj->value[2],STAND_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,STAND_AT))
         {
         act("You stand at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n stands at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],STAND_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,STAND_ON))
         {
         act("You stand on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n stands on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -2710,12 +2710,12 @@ void do_stand(CHAR_DATA *ch, char *argument)
         send_to_char("You are already standing.\n\r", ch);
         else
         {
-        if (IS_SET(ch->on->value[2],STAND_AT))
+        if (IS_SET(FURNITURE(ch->on)->flags,STAND_AT))
         {
             act("You get off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n gets off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(ch->on->value[2],STAND_ON))
+        else if (IS_SET(FURNITURE(ch->on)->flags,STAND_ON))
         {
             act("You get off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n gets off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -2786,15 +2786,15 @@ void do_rest(CHAR_DATA *ch, char *argument)
     if (obj != NULL)
     {
         if (obj->item_type != ITEM_FURNITURE
-        ||  (!IS_SET(obj->value[2],REST_ON)
-        &&   !IS_SET(obj->value[2],REST_IN)
-        &&   !IS_SET(obj->value[2],REST_AT)))
+        ||  (!IS_SET(FURNITURE(obj)->flags,REST_ON)
+        &&   !IS_SET(FURNITURE(obj)->flags,REST_IN)
+        &&   !IS_SET(FURNITURE(obj)->flags,REST_AT)))
         {
         send_to_char("You can't rest on that.\n\r",ch);
         return;
         }
 
-        if (obj != NULL && ch->on != obj && count_users(obj) >= obj->value[0])
+        if (obj != NULL && ch->on != obj && count_users(obj) >= FURNITURE(obj)->max_people)
         {
         act_new("There's no more room on $p.",ch,NULL,NULL, NULL, NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
         return;
@@ -2818,12 +2818,12 @@ void do_rest(CHAR_DATA *ch, char *argument)
         send_to_char("You wake up and start resting.\n\r", ch);
         act ("$n wakes up and starts resting.",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],REST_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,REST_AT))
         {
         act_new("You wake up and rest at $p.", ch, NULL, NULL, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR,POS_SLEEPING,NULL);
         act("$n wakes up and rests at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],REST_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,REST_ON))
         {
         act_new("You wake up and rest on $p.", ch, NULL, NULL, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR,POS_SLEEPING,NULL);
         act("$n wakes up and rests on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -2846,12 +2846,12 @@ void do_rest(CHAR_DATA *ch, char *argument)
         send_to_char("You rest.\n\r", ch);
         act("$n sits down and rests.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],REST_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,REST_AT))
         {
         act("You sit down at $p and rest.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n sits down at $p and rests.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],REST_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,REST_ON))
         {
         act("You sit on $p and rest.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n sits on $p and rests.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -2870,12 +2870,12 @@ void do_rest(CHAR_DATA *ch, char *argument)
         send_to_char("You rest.\n\r",ch);
         act("$n rests.",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],REST_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,REST_AT))
         {
         act("You rest at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n rests at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],REST_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,REST_ON))
         {
         act("You rest on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n rests on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -2940,15 +2940,15 @@ void do_sit (CHAR_DATA *ch, char *argument)
     if (obj != NULL)
     {
     if (obj->item_type != ITEM_FURNITURE
-    ||  (!IS_SET(obj->value[2],SIT_ON)
-    &&   !IS_SET(obj->value[2],SIT_IN)
-    &&   !IS_SET(obj->value[2],SIT_AT)))
+    ||  (!IS_SET(FURNITURE(obj)->flags,SIT_ON)
+    &&   !IS_SET(FURNITURE(obj)->flags,SIT_IN)
+    &&   !IS_SET(FURNITURE(obj)->flags,SIT_AT)))
     {
         send_to_char("You can't sit on that.\n\r",ch);
         return;
     }
 
-    if (obj != NULL && ch->on != obj && count_users(obj) >= obj->value[0])
+    if (obj != NULL && ch->on != obj && count_users(obj) >= FURNITURE(obj)->max_people)
     {
         act_new("There's no more room on $p.",ch,NULL,NULL, NULL, NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
         return;
@@ -2971,12 +2971,12 @@ void do_sit (CHAR_DATA *ch, char *argument)
                 send_to_char("You wake and sit up.\n\r", ch);
                 act("$n wakes and sits up.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             }
-            else if (IS_SET(obj->value[2],SIT_AT))
+            else if (IS_SET(FURNITURE(obj)->flags,SIT_AT))
             {
                 act_new("You wake and sit at $p.",ch, NULL, NULL, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR,POS_DEAD,NULL);
                 act("$n wakes and sits at $p.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
             }
-            else if (IS_SET(obj->value[2],SIT_ON))
+            else if (IS_SET(FURNITURE(obj)->flags,SIT_ON))
             {
                 act_new("You wake and sit on $p.",ch, NULL, NULL, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR,POS_DEAD,NULL);
                 act("$n wakes and sits at $p.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
@@ -2992,13 +2992,13 @@ void do_sit (CHAR_DATA *ch, char *argument)
     case POS_RESTING:
         if (obj == NULL)
         send_to_char("You stop resting.\n\r",ch);
-        else if (IS_SET(obj->value[2],SIT_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,SIT_AT))
         {
         act("You sit at $p.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
         act("$n sits at $p.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         }
 
-        else if (IS_SET(obj->value[2],SIT_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,SIT_ON))
         {
         act("You sit on $p.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
         act("$n sits on $p.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
@@ -3014,12 +3014,12 @@ void do_sit (CHAR_DATA *ch, char *argument)
         send_to_char("You sit down.\n\r",ch);
                 act("$n sits down on the ground.",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],SIT_AT))
+        else if (IS_SET(FURNITURE(obj)->flags,SIT_AT))
         {
         act("You sit down at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n sits down at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],SIT_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,SIT_ON))
         {
         act("You sit on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n sits on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -3093,15 +3093,15 @@ void do_sleep(CHAR_DATA *ch, char *argument)
             return;
         }
         if (obj->item_type != ITEM_FURNITURE
-        ||  (!IS_SET(obj->value[2],SLEEP_ON)
-        &&   !IS_SET(obj->value[2],SLEEP_IN)
-        &&	 !IS_SET(obj->value[2],SLEEP_AT)))
+        ||  (!IS_SET(FURNITURE(obj)->flags,SLEEP_ON)
+        &&   !IS_SET(FURNITURE(obj)->flags,SLEEP_IN)
+        &&	 !IS_SET(FURNITURE(obj)->flags,SLEEP_AT)))
         {
             send_to_char("You can't sleep on that!\n\r",ch);
             return;
         }
 
-        if (ch->on != obj && count_users(obj) >= obj->value[0])
+        if (ch->on != obj && count_users(obj) >= FURNITURE(obj)->max_people)
         {
             act_new("There is no room on $p for you.", ch,NULL,NULL, NULL, NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
             return;
@@ -3109,12 +3109,12 @@ void do_sleep(CHAR_DATA *ch, char *argument)
 
         ch->on = obj;
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL);
-        if (IS_SET(obj->value[2],SLEEP_AT))
+        if (IS_SET(FURNITURE(obj)->flags,SLEEP_AT))
         {
             act("You go to sleep at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n goes to sleep at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         }
-        else if (IS_SET(obj->value[2],SLEEP_ON))
+        else if (IS_SET(FURNITURE(obj)->flags,SLEEP_ON))
         {
             act("You go to sleep on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n goes to sleep on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
@@ -4028,32 +4028,32 @@ void do_bar(CHAR_DATA *ch, char *argument)
     {
         if (obj->item_type == ITEM_PORTAL)
         {
-            if (!IS_SET(obj->value[1],EX_ISDOOR) ||
-                IS_SET(obj->value[1],EX_NOCLOSE))
+            if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR) ||
+                IS_SET(PORTAL(obj)->exit,EX_NOCLOSE))
             {
                 send_to_char("You can't do that.\n\r",ch);
                 return;
             }
 
-            if (!IS_SET(obj->value[1],EX_CLOSED))
+            if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
             {
                 send_to_char("It's not closed.\n\r",ch);
                 return;
             }
 
-            if (IS_SET(obj->value[1],EX_BARRED))
+            if (IS_SET(PORTAL(obj)->exit,EX_BARRED))
             {
                 send_to_char("It's already barred.\n\r",ch);
                 return;
             }
 
-            if (IS_SET(obj->value[1],EX_NOBAR))
+            if (IS_SET(PORTAL(obj)->exit,EX_NOBAR))
             {
                 act("You can't find a way to bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
                 return;
             }
 
-            SET_BIT(obj->value[1],EX_BARRED);
+            SET_BIT(PORTAL(obj)->exit,EX_BARRED);
             act("You bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n bars up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
             check_improve(ch, skill_resolve_gsn("bar"), true, 1);

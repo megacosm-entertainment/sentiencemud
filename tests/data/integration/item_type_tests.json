@@ -1,0 +1,87 @@
+{
+  "type": "test_suite",
+  "test_suite": "item_type_system",
+  "description": "Item type system validation - compatibility matrix, metadata, and bitset ops",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "item_type_info_populated",
+      "description": "Verify item_type_info table is populated with names for all types",
+      "dependencies": [],
+      "test_type": "item_type_info_test",
+      "input": {},
+      "expected_output": {
+        "all_types_have_names": true,
+        "no_null_names": true
+      }
+    },
+    {
+      "name": "item_type_compatibility_valid",
+      "description": "Verify specific item type compatibility rules are correct",
+      "dependencies": ["item_type_info_populated"],
+      "test_type": "item_type_compat_test",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Container should be compatible with many types",
+            "primary_type": "container",
+            "add_type": "light",
+            "expected_compatible": true
+          },
+          {
+            "description": "Weapon primary should not also be armor",
+            "primary_type": "weapon",
+            "add_type": "armor",
+            "expected_compatible": false
+          },
+          {
+            "description": "Furniture should accept container",
+            "primary_type": "furniture",
+            "add_type": "container",
+            "expected_compatible": true
+          }
+        ]
+      },
+      "expected_output": {
+        "all_checks_correct": true
+      }
+    },
+    {
+      "name": "item_type_flags_lookup",
+      "description": "Verify type_flags table lookups work for known item types",
+      "dependencies": [],
+      "test_type": "item_type_flags_test",
+      "input": {
+        "test_cases": [
+          {"name": "weapon", "should_exist": true},
+          {"name": "armor", "should_exist": true},
+          {"name": "container", "should_exist": true},
+          {"name": "scroll", "should_exist": true},
+          {"name": "light", "should_exist": true},
+          {"name": "food", "should_exist": true},
+          {"name": "portal", "should_exist": true},
+          {"name": "notarealtype", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "item_type_loaded_objects",
+      "description": "Verify that loaded objects have valid primary item types",
+      "dependencies": ["item_type_info_populated"],
+      "test_type": "item_type_loaded_objs_test",
+      "input": {
+        "max_areas_to_check": 5
+      },
+      "expected_output": {
+        "all_objects_have_valid_type": true,
+        "checked_count_positive": true
+      }
+    }
+  ]
+}

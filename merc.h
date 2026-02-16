@@ -292,6 +292,9 @@ struct script_type {
 #define VERSION_OBJECT_004	0x01000003
 //	Change #1: lock states
 
+#define VERSION_OBJECT_005	0x01000004
+//	Change #1: populate type-specific data structs from value[]
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -303,7 +306,7 @@ struct script_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		VERSION_MOBILE_001
-#define VERSION_OBJECT		VERSION_OBJECT_004
+#define VERSION_OBJECT		VERSION_OBJECT_005
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_012
 #define VERSION_TOKEN		0x01000000
@@ -5458,6 +5461,8 @@ typedef struct lock_state_data {
     LLIST *special_keys;	// Handled by other entities, not owned by lock state
 } LOCK_STATE;
 
+#include "item_types.h"
+
 
 /*
  * Prototype for an object.
@@ -5517,6 +5522,40 @@ struct	obj_index_data
     LOCK_STATE *lock;
 
     LLIST *waypoints;
+
+    /* Type-specific data (multi-typing system) */
+    TYPE_BITSET      type_flags;
+    ARMOR_DATA *     _armor;
+    BODY_PART_DATA * _body_part;
+    BOOK_DATA *      _book;
+    CART_DATA *      _cart;
+    COMPASS_DATA *   _compass;
+    CONTAINER_DATA * _container;
+    CORPSE_DATA *    _corpse;
+    FLUID_CONTAINER_DATA * _fluid_container;
+    FOOD_DATA *      _food;
+    FURNITURE_DATA * _furniture;
+    HERB_DATA *      _herb;
+    INK_DATA *       _ink;
+    INSTRUMENT_DATA *_instrument;
+    ITEM_SHIP_DATA * _item_ship;
+    JEWELRY_DATA *   _jewelry;
+    LIGHT_DATA *     _light;
+    MAP_DATA *       _map;
+    MIST_DATA *      _mist;
+    MONEY_DATA *     _money;
+    PAGE_DATA *      _page;
+    PORTAL_DATA *    _portal;
+    SCROLL_DATA *    _scroll;
+    SEED_DATA *      _seed;
+    SEXTANT_DATA *   _sextant;
+    TATTOO_DATA *    _tattoo;
+    TELESCOPE_DATA * _telescope;
+    TOOL_DATA *      _tool;
+    TRADE_DATA *     _trade;
+    WAND_DATA *      _wand;
+    WEAPON_CONTAINER_DATA * _weapon_container;
+    WEAPON_DATA *    _weapon;
 };
 
 
@@ -5647,6 +5686,40 @@ struct	obj_data
     long weapon_flags_perm;	// Used by weapon objects for use with TO_WEAPON
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
+
+    /* Type-specific data (multi-typing system) */
+    TYPE_BITSET      type_flags;
+    ARMOR_DATA *     _armor;
+    BODY_PART_DATA * _body_part;
+    BOOK_DATA *      _book;
+    CART_DATA *      _cart;
+    COMPASS_DATA *   _compass;
+    CONTAINER_DATA * _container;
+    CORPSE_DATA *    _corpse;
+    FLUID_CONTAINER_DATA * _fluid_container;
+    FOOD_DATA *      _food;
+    FURNITURE_DATA * _furniture;
+    HERB_DATA *      _herb;
+    INK_DATA *       _ink;
+    INSTRUMENT_DATA *_instrument;
+    ITEM_SHIP_DATA * _item_ship;
+    JEWELRY_DATA *   _jewelry;
+    LIGHT_DATA *     _light;
+    MAP_DATA *       _map;
+    MIST_DATA *      _mist;
+    MONEY_DATA *     _money;
+    PAGE_DATA *      _page;
+    PORTAL_DATA *    _portal;
+    SCROLL_DATA *    _scroll;
+    SEED_DATA *      _seed;
+    SEXTANT_DATA *   _sextant;
+    TATTOO_DATA *    _tattoo;
+    TELESCOPE_DATA * _telescope;
+    TOOL_DATA *      _tool;
+    TRADE_DATA *     _trade;
+    WAND_DATA *      _wand;
+    WEAPON_CONTAINER_DATA * _weapon_container;
+    WEAPON_DATA *    _weapon;
 
 };
 

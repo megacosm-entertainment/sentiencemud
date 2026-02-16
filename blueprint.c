@@ -1915,16 +1915,16 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
         iterator_start(&mit, section->rooms);
         while ((mroom = (ROOM_INDEX_DATA *)iterator_nextdata(&mit))) {
             for (OBJ_DATA *obj = mroom->contents; obj; obj = obj->next_content) {
-                if (obj->item_type == ITEM_PORTAL && !IS_SET(obj->value[2], GATE_DUNGEON)) {
+                if (obj->item_type == ITEM_PORTAL && !IS_SET(PORTAL(obj)->flags, GATE_DUNGEON)) {
                     ROOM_INDEX_DATA *dest;
-                    long pvnum = obj->value[3];
-                    if (pvnum > 0 && obj->value[5] <= 0) {
+                    long pvnum = PORTAL(obj)->params[0];
+                    if (pvnum > 0 && PORTAL(obj)->params[1] <= 0) {
                         if ((dest = instance_section_get_room_byvnum(section, pvnum))) {
-                            obj->value[6] = dest->id[0];
-                            obj->value[7] = dest->id[1];
+                            PORTAL(obj)->params[2] = dest->id[0];
+                            PORTAL(obj)->params[3] = dest->id[1];
                         } else {
-                            obj->value[6] = 0;
-                            obj->value[7] = 0;
+                            PORTAL(obj)->params[2] = 0;
+                            PORTAL(obj)->params[3] = 0;
                         }
                     }
                 }
@@ -1998,18 +1998,18 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
             // Make sure portals that lead anywhere within the section uses the correct room id
             if( obj->item_type == ITEM_PORTAL )
             {
-                if( !IS_SET(obj->value[2], GATE_DUNGEON) )
+                if( !IS_SET(PORTAL(obj)->flags, GATE_DUNGEON) )
                 {
                     ROOM_INDEX_DATA *dest;
-                    long vnum = obj->value[3];	// Destination vnum
+                    long vnum = PORTAL(obj)->params[0];	// Destination vnum
 
                     // Must point to a non-wilderness room
-                    if( vnum > 0 && obj->value[5] <= 0 )
+                    if( vnum > 0 && PORTAL(obj)->params[1] <= 0 )
                     {
                         if( (dest = instance_section_get_room_byvnum(section, vnum)) )
                         {
-                            obj->value[6] = dest->id[0];
-                            obj->value[7] = dest->id[1];
+                            PORTAL(obj)->params[2] = dest->id[0];
+                            PORTAL(obj)->params[3] = dest->id[1];
                         }
                         else
                         {
@@ -2021,12 +2021,12 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
                                 IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
                             {
                                 // Nullify destination
-                                obj->value[3] = 0;
+                                PORTAL(obj)->params[0] = 0;
                             }
 
                             // Force it to be static
-                            obj->value[6] = 0;
-                            obj->value[7] = 0;
+                            PORTAL(obj)->params[2] = 0;
+                            PORTAL(obj)->params[3] = 0;
                         }
                     }
                 }

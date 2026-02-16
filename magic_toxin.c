@@ -165,7 +165,10 @@ SPELL_FUNC(spell_poison)
                 act("Your spell fails to corrupt $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
                 return false;
             }
-            obj->value[3] = 1;
+            if (obj->item_type == ITEM_FOOD)
+                FOOD(obj)->poison = 1;
+            else
+                FLUID_CON(obj)->poison = 1;
             act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
             return true;
         }

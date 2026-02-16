@@ -430,10 +430,10 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
     }
 
     /* Show trade class if a commodity */
-    if (obj->item_type == ITEM_TRADE_TYPE && obj->value[0] != -1)
+    if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
     {
         strcat(buf, "{Y(");
-        strcat(buf, trade_table[ obj->value[0] ].name);
+        strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
         strcat(buf, "){x");
     }
     }
@@ -684,7 +684,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     /* Figure out if there is a mist-type item in the room, which blocks objects from view. */
     if (list != NULL && list->carried_by == NULL && list->in_room != NULL) {
     for (mobj = list->in_room->contents; mobj != NULL; mobj = mobj->next_content) {
-        if (mobj->item_type == ITEM_MIST && mobj->value[0] > max)
+        if (mobj->item_type == ITEM_MIST && MIST(mobj)->obscure_objs > max)
             mist = mobj;
     }
     }
@@ -700,7 +700,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
         continue;
 
     /* Mist type blocks random objs from view. */
-    if (mist != NULL && number_percent() < mist->value[0] && obj->item_type != ITEM_MIST)
+    if (mist != NULL && number_percent() < MIST(mist)->obscure_objs && obj->item_type != ITEM_MIST)
         continue;
 
     if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
@@ -735,7 +735,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     /* Do feign. */
     for (victim = ch->in_room->people; victim != NULL; victim = victim->next_in_room)
     {
-    if (mist && number_percent() < mist->value[0])
+    if (mist && number_percent() < MIST(mist)->obscure_objs)
         continue;
 
     if ((victim->position == POS_FEIGN) && (victim != ch) && !fShort)
@@ -974,13 +974,13 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     case POS_SLEEPING:
         if (victim->on != NULL)
         {
-        if (IS_SET(victim->on->value[2], SLEEP_AT))
+        if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_AT))
         {
             sprintf(message, " is sleeping at %s.",
                 victim->on->short_descr);
             strcat(buf, message);
         }
-        else if (IS_SET(victim->on->value[2], SLEEP_ON))
+        else if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_ON))
         {
             sprintf(message, " is sleeping on %s.",
                 victim->on->short_descr);
@@ -1003,13 +1003,13 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     case POS_RESTING:
         if (victim->on != NULL)
         {
-        if (IS_SET(victim->on->value[2], REST_AT))
+        if (IS_SET(FURNITURE(victim->on)->flags, REST_AT))
         {
             sprintf(message, " is resting at %s.",
                 victim->on->short_descr);
             strcat(buf, message);
         }
-        else if (IS_SET(victim->on->value[2], REST_ON))
+        else if (IS_SET(FURNITURE(victim->on)->flags, REST_ON))
         {
             sprintf(message, " is resting on %s.",
                 victim->on->short_descr);
@@ -1035,13 +1035,13 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     case POS_SITTING:
         if (victim->on != NULL)
         {
-        if (IS_SET(victim->on->value[2], SIT_AT))
+        if (IS_SET(FURNITURE(victim->on)->flags, SIT_AT))
         {
             sprintf(message, " is sitting at %s.",
                 victim->on->short_descr);
             strcat(buf, message);
         }
-        else if (IS_SET(victim->on->value[2], SIT_ON))
+        else if (IS_SET(FURNITURE(victim->on)->flags, SIT_ON))
         {
             sprintf(message, " is sitting on %s.",
                 victim->on->short_descr);
@@ -1067,13 +1067,13 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     case POS_STANDING:
         if (victim->on != NULL)
         {
-        if (IS_SET(victim->on->value[2], STAND_AT))
+        if (IS_SET(FURNITURE(victim->on)->flags, STAND_AT))
         {
             sprintf(message, " is standing at %s.",
                 victim->on->short_descr);
             strcat(buf, message);
         }
-        else if (IS_SET(victim->on->value[2], STAND_ON))
+        else if (IS_SET(FURNITURE(victim->on)->flags, STAND_ON))
         {
             sprintf(message, " is standing on %s.",
                 victim->on->short_descr);
@@ -1402,7 +1402,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
         if (!can_see(rch, victim))
         continue;
 
-        if (mist && number_percent() < mist->value[1])
+        if (mist && number_percent() < MIST(mist)->obscure_mobs)
         continue;
 
          if (!IS_IMMORTAL(ch)
@@ -1439,7 +1439,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
         if (get_staff_rank(ch) < rch->invis_level && !can_see_imm(ch,rch))
         continue;
 
-        if (mist && number_percent() < mist->value[1])
+        if (mist && number_percent() < MIST(mist)->obscure_mobs)
         continue;
 
             if (IS_AFFECTED(rch, AFF_HIDE)
@@ -2552,16 +2552,16 @@ void do_look(CHAR_DATA * ch, char *argument)
             break;
 
         case ITEM_DRINK_CON:
-            if (obj->value[1] <= 0)
+            if (FLUID_CON(obj)->amount <= 0)
             {
                 send_to_char("It is empty.\n\r", ch);
                 break;
             }
 
             sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
-                obj->value[1] < obj->value[0] / 4 ? "less than half-" :
-                    obj->value[1] < 3 * obj->value[0] / 4 ? "about half-" : "more than half-",
-                liq_table[obj->value[2]].liq_colour);
+                FLUID_CON(obj)->amount < FLUID_CON(obj)->capacity / 4 ? "less than half-" :
+                    FLUID_CON(obj)->amount < 3 * FLUID_CON(obj)->capacity / 4 ? "about half-" : "more than half-",
+                liq_table[FLUID_CON(obj)->liquid].liq_colour);
             send_to_char(buf, ch);
             break;
 
@@ -2570,7 +2570,7 @@ void do_look(CHAR_DATA * ch, char *argument)
         case ITEM_CORPSE_NPC:
         case ITEM_WEAPON_CONTAINER:
         case ITEM_CORPSE_PC:
-            if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED))
+            if (obj->item_type == ITEM_CONTAINER && IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
             {
                 act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 break;
@@ -7117,7 +7117,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
             obj->item_type == ITEM_LIGHT) {
                       int distance = 0;
             int visible_radius = 0;
-            int light = (obj->value[2] == -1) ? 100 : obj->value[2];
+            int light = (LIGHT(obj)->duration == -1) ? 100 : LIGHT(obj)->duration;
 
             if (weather_info.sunlight == SUN_SET) {
                 visible_radius = URANGE(6, light, 10);
@@ -8110,12 +8110,12 @@ void do_expand(CHAR_DATA *ch, char *argument)
     if( is_number(argument) )
     {
         distance = atoi(argument);
-        if( distance < telescope->value[1] ||
-            distance > telescope->value[2] )
+        if( distance < TELESCOPE(telescope)->min_distance ||
+            distance > TELESCOPE(telescope)->max_distance )
         {
             char buf[MSL];
-            sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %ld to %ld.",
-                telescope->value[1], telescope->value[2]);
+            sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %d to %d.",
+                TELESCOPE(telescope)->min_distance, TELESCOPE(telescope)->max_distance);
 
             act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
@@ -8123,15 +8123,15 @@ void do_expand(CHAR_DATA *ch, char *argument)
 
     }
     else
-        distance = telescope->value[2];
+        distance = TELESCOPE(telescope)->max_distance;
 
-    if( distance > telescope->value[0] )
+    if( distance > TELESCOPE(telescope)->distance )
     {
-        telescope->value[0] = distance;
+        TELESCOPE(telescope)->distance = distance;
         act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
-    else if( distance < telescope->value[0] )
+    else if( distance < TELESCOPE(telescope)->distance )
     {
         act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
@@ -8172,12 +8172,12 @@ void do_collapse(CHAR_DATA *ch, char *argument)
     if( is_number(argument) )
     {
         distance = atoi(argument);
-        if( distance < telescope->value[1] ||
-            distance > telescope->value[2] )
+        if( distance < TELESCOPE(telescope)->min_distance ||
+            distance > TELESCOPE(telescope)->max_distance )
         {
             char buf[MSL];
-            sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %ld to %ld.",
-                telescope->value[1], telescope->value[2]);
+            sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %d to %d.",
+                TELESCOPE(telescope)->min_distance, TELESCOPE(telescope)->max_distance);
 
             act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
@@ -8187,16 +8187,16 @@ void do_collapse(CHAR_DATA *ch, char *argument)
     else
         distance = 0;
 
-    if( distance > telescope->value[0] )
+    if( distance > TELESCOPE(telescope)->distance )
     {
-        if( telescope->value[0] > 0 )
+        if( TELESCOPE(telescope)->distance > 0 )
             act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         else
             act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
-    else if( distance < telescope->value[0] )
+    else if( distance < TELESCOPE(telescope)->distance )
     {
-        telescope->value[0] = distance;
+        TELESCOPE(telescope)->distance = distance;
         act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
@@ -8255,7 +8255,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
             }
 
             success = (number_percent() < skill);
-            if (!success || number_percent() >= sextant->value[0])
+            if (!success || number_percent() >= SEXTANT(sextant)->accuracy)
             {
                 x = x + number_range(-30, 30);
                 y = y + number_range(-30, 30);
@@ -8297,7 +8297,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
             }
 
             success = (number_percent() < skill);
-            if (!success || number_percent() >= sextant->value[0])
+            if (!success || number_percent() >= SEXTANT(sextant)->accuracy)
             {
                 x = x + number_range(-30, 30);
                 y = y + number_range(-30, 30);
@@ -8347,7 +8347,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
         return;
     }
 
-    if( telescope->value[0] <= 0 )
+    if( TELESCOPE(telescope)->distance <= 0 )
     {
         send_to_char("{DThe telescope is fully collapsed.\n\r", ch);
         return;
@@ -8357,13 +8357,13 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
     bool can_fudge = true;
     if( argument[0] == '\0' )
     {
-        if( CAN_WEAR(telescope, ITEM_TAKE) || telescope->value[4] < 0 )
+        if( CAN_WEAR(telescope, ITEM_TAKE) || TELESCOPE(telescope)->heading < 0 )
         {
             send_to_char("{RThe telescope is pointing nowhere.\n\r", ch);
             return;
         }
 
-        heading = telescope->value[4];
+        heading = TELESCOPE(telescope)->heading;
         can_fudge = false;
     }
     else if( is_number(argument) )
@@ -8453,11 +8453,11 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
         if( wilds )
         {
             // Telescope position
-            int tx = x + (int)(telescope->value[0] * sin(3.14159 * heading / 180));
-            int ty = y - (int)(telescope->value[0] * cos(3.14159 * heading / 180));
+            int tx = x + (int)(TELESCOPE(telescope)->distance * sin(3.14159 * heading / 180));
+            int ty = y - (int)(TELESCOPE(telescope)->distance * cos(3.14159 * heading / 180));
 
             // Bonusview size
-            int bvx = telescope->value[3];
+            int bvx = TELESCOPE(telescope)->bonus_view;
             int bvy = 2 * bvx / 3;
 
             act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -8473,7 +8473,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 
     // Stationary telescopes can save their heading
     if( !CAN_WEAR(telescope, ITEM_TAKE) )
-        telescope->value[4] = heading;
+        TELESCOPE(telescope)->heading = heading;
 }
 
 /**
@@ -8533,7 +8533,7 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
     if( skill < 1 )
         return;
 
-    if( compass->value[1] > 0 )
+    if( COMPASS(compass)->wuid > 0 )
     {
         if( IS_VALID(ship) )
         {
@@ -8545,10 +8545,10 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
             return;
         }
 
-        if( here->wilds->uid == compass->value[1] )
+        if( here->wilds->uid == COMPASS(compass)->wuid )
         {
-            int dx = compass->value[2] - here->x;
-            int dy = here->y - compass->value[3];
+            int dx = COMPASS(compass)->x - here->x;
+            int dy = here->y - COMPASS(compass)->y;
 
             if( dx != 0 || dy != 0 )
             {
@@ -8571,7 +8571,7 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
         return;
     }
 
-    if( number_percent() >= compass->value[0] )
+    if( number_percent() >= COMPASS(compass)->accuracy )
     {
         heading += number_range(-30, 30);
         if( heading < 0 ) heading += 360;

@@ -2722,7 +2722,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         ++ch->in_wilds->loaded_mobs;
 
     if ((obj = get_eq_char (ch, WEAR_LIGHT)) != NULL
-        && obj->item_type == ITEM_LIGHT && obj->value[2] != 0)
+        && obj->item_type == ITEM_LIGHT && LIGHT(obj)->duration != 0)
         ++ch->in_room->light;
 
     if (IS_AFFECTED (ch, AFF_PLAGUE))

@@ -26,6 +26,7 @@
 #include "../../traits.h"
 #include "../cache/redis_cache.h"
 #include "../../skill_data.h"
+#include "json_obj_types.h"
 
 /***************************************************************************
  * External References                                                     *
@@ -776,12 +777,13 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
         json_object_set_new(json, "weapon_flags_perm", json_integer(obj->weapon_flags_perm));
     }
 
-    /* Values */
-    array = json_array();
-    for (i = 0; i < 8; i++) {
-        json_array_append_new(array, json_integer(obj->value[i]));
+    /* Type-specific data (canonical, replaces legacy values[]) */
+    {
+        json_t *td = obj_type_data_to_json(obj);
+        if (td) {
+            json_object_set_new(json, "type_data", td);
+        }
     }
-    json_object_set_new(json, "values", array);
 
     /* Location - use widevnum format for room references */
     if (obj->in_room) {
@@ -1108,6 +1110,12 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
         for (i = 0; i < 8 && i < (int)json_array_size(array); i++) {
             obj->value[i] = json_integer_value(json_array_get(array, i));
         }
+    }
+
+    /* Type-specific data (canonical structured representation) */
+    value = json_object_get(json, "type_data");
+    if (value && json_is_object(value)) {
+        obj_type_data_from_json(obj, value);
     }
 
     /* Location - stored for later resolution */

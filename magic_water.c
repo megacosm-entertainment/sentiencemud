@@ -41,14 +41,14 @@ SPELL_FUNC(spell_create_water)
         return false;
     }
 
-    if (obj->value[2] != LIQ_WATER && obj->value[1]) {
+    if (FLUID_CON(obj)->liquid != LIQ_WATER && FLUID_CON(obj)->amount) {
         send_to_char("It contains some other liquid.\n\r", ch);
         return false;
     }
 
-    water = obj->value[0] - obj->value[1];
-    obj->value[2] = LIQ_WATER;
-    obj->value[1] += water;
+    water = FLUID_CON(obj)->capacity - FLUID_CON(obj)->amount;
+    FLUID_CON(obj)->liquid = LIQ_WATER;
+    FLUID_CON(obj)->amount += water;
     if (!is_name("water", obj->name)) {
         char buf[MAX_STRING_LENGTH];
 

@@ -14,6 +14,13 @@ test_result_t run_shop_stock_test_case(test_case_t *test);
 test_result_t run_church_test_case(test_case_t *test);
 test_result_t run_instance_test_case(test_case_t *test);
 test_result_t run_chat_room_test_case(test_case_t *test);
+test_result_t run_skill_data_test_case(test_case_t *test);
+test_result_t run_class_data_test_case(test_case_t *test);
+test_result_t run_item_type_test_case(test_case_t *test);
+test_result_t run_lookup_table_test_case(test_case_t *test);
+test_result_t run_song_data_test_case(test_case_t *test);
+test_result_t run_skill_group_test_case(test_case_t *test);
+test_result_t run_trait_system_test_case(test_case_t *test);
 
 static test_result_t test_wnum_parsing(test_case_t *test);
 static test_result_t test_area_name_parsing(test_case_t *test);
@@ -267,6 +274,29 @@ test_result_t run_test_case(test_case_t *test) {
         } else if (strstr(test->test_type, "chat_room_") != NULL) {
             // Chat room tests
             result = run_chat_room_test_case(test);
+        } else if (strstr(test->test_type, "skill_group_") != NULL) {
+            // Skill group tests (check before skill_ to avoid prefix collision)
+            result = run_skill_group_test_case(test);
+        } else if (strstr(test->test_type, "skill_") != NULL ||
+                   strstr(test->test_type, "spell_fun_") != NULL) {
+            // Skill data tests
+            result = run_skill_data_test_case(test);
+        } else if (strstr(test->test_type, "class_") != NULL) {
+            // Class data tests
+            result = run_class_data_test_case(test);
+        } else if (strstr(test->test_type, "item_type_") != NULL) {
+            // Item type tests
+            result = run_item_type_test_case(test);
+        } else if (strstr(test->test_type, "song_") != NULL) {
+            // Song data tests
+            result = run_song_data_test_case(test);
+        } else if (strstr(test->test_type, "trait_") != NULL) {
+            // Trait system tests
+            result = run_trait_system_test_case(test);
+        } else if (strstr(test->test_type, "_lookup_test") != NULL ||
+                   strstr(test->test_type, "flag_table_") != NULL) {
+            // Lookup table tests
+            result = run_lookup_table_test_case(test);
         } else {
             // Fallback to name-based dispatch for backwards compatibility
             if (strstr(test->name, "vnum_parsing")) {

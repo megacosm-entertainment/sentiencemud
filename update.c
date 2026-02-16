@@ -588,8 +588,8 @@ int hit_gain(CHAR_DATA *ch)
 
     if (ch->on &&
         ch->on->item_type == ITEM_FURNITURE &&
-        ch->on->value[3] > 0)
-        gain = gain * ch->on->value[3] / 100;
+        FURNITURE(ch->on)->heal_rate > 0)
+        gain = gain * FURNITURE(ch->on)->heal_rate / 100;
 
     if (IS_AFFECTED(ch, AFF_POISON))
         gain /= 4;
@@ -679,8 +679,8 @@ int mana_gain(CHAR_DATA *ch)
 
     if (ch->on != NULL &&
         ch->on->item_type == ITEM_FURNITURE &&
-        ch->on->value[4] > 0)
-        gain = gain * ch->on->value[4] / 100;
+        FURNITURE(ch->on)->mana_rate > 0)
+        gain = gain * FURNITURE(ch->on)->mana_rate / 100;
 
     if (IS_AFFECTED(ch, AFF_POISON))
         gain /= 4;
@@ -764,8 +764,8 @@ int move_gain(CHAR_DATA *ch)
 
     if (ch->on != NULL &&
         ch->on->item_type == ITEM_FURNITURE &&
-        ch->on->value[5] > 0)
-        gain = gain * ch->on->value[5] / 100;
+        FURNITURE(ch->on)->move_rate > 0)
+        gain = gain * FURNITURE(ch->on)->move_rate / 100;
 
     if (IS_AFFECTED(ch, AFF_POISON))
         gain /= 4;
@@ -1875,8 +1875,8 @@ void char_update(void)
             if (ch->lworn) {
                 iterator_start(&oit, ch->lworn);
                 while ((obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-                    if (obj->item_type == ITEM_LIGHT && obj->wear_loc == WEAR_LIGHT && obj->value[2] > 0) {
-                        if (--obj->value[2] <= 0 && ch->in_room != NULL) {
+                    if (obj->item_type == ITEM_LIGHT && obj->wear_loc == WEAR_LIGHT && LIGHT(obj)->duration > 0) {
+                        if (--LIGHT(obj)->duration <= 0 && ch->in_room != NULL) {
                             --ch->in_room->light;
                             act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                             act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -1884,7 +1884,7 @@ void char_update(void)
                             list_remlink(ch->lworn, obj, false);
                             extract_obj(obj);
                             break;
-                        } else if (obj->value[2] <= 5 && ch->in_room != NULL) {
+                        } else if (LIGHT(obj)->duration <= 5 && ch->in_room != NULL) {
                             act("$p flickers.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         }
                     }
@@ -2527,19 +2527,19 @@ void obj_update(void)
 
         // Make seeds grow.
         if (obj->item_type == ITEM_SEED && obj->in_room != NULL && IS_OBJ_STAT(obj, ITEM_PLANTED)) {
-            obj->value[0]--;
-            if (obj->value[0] <= 0) {
+            SEED(obj)->growth_time--;
+            if (SEED(obj)->growth_time <= 0) {
 
                 // Force this object to prevent its own destruction as it will be destroyed by default
                 SET_BIT(obj->progs->entity_flags,PROG_NODESTRUCT);
 
                 if( !p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_GROW, NULL) )
                 {
-                    if (obj->value[1] == 0)
+                    if (SEED(obj)->object_vnum == 0)
                         pbugf(LOG_ERROR, "Seed has 0 vnum.", obj->pIndexData->vnum);
                     else {
                         OBJ_DATA *new_obj;
-                        long seed_vnum = obj->value[1];
+                        long seed_vnum = SEED(obj)->object_vnum;
                         AREA_DATA *seed_area = NULL;
                         WNUM seed_wnum;
                         if (resolve_widevnum(seed_vnum, NULL, &seed_wnum))

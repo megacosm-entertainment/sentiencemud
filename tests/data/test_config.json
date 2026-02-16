@@ -5,16 +5,32 @@
     "description": "Default test execution configuration for Sentience MUD",
     "default_test_suites": [
       "area_loading",
-      "database_integrity"
+      "database_integrity",
+      "skill_data_tests",
+      "class_data_tests",
+      "item_type_tests",
+      "lookup_table_tests",
+      "song_data_tests",
+      "skill_group_tests",
+      "trait_system_tests"
     ],
     "quick_test_suites": [
-      "area_loading"
+      "area_loading",
+      "skill_data_tests",
+      "class_data_tests"
     ],
     "full_test_suites": [
       "area_loading",
       "database_integrity", 
       "wnum_parsing",
-      "wnum_parsing_unit_tests"
+      "wnum_parsing_unit_tests",
+      "skill_data_tests",
+      "class_data_tests",
+      "item_type_tests",
+      "lookup_table_tests",
+      "song_data_tests",
+      "skill_group_tests",
+      "trait_system_tests"
     ],
     "unit_only_suites": [
       "wnum_parsing_unit_tests"
@@ -22,7 +38,14 @@
     "integration_only_suites": [
       "area_loading",
       "database_integrity",
-      "wnum_parsing"
+      "wnum_parsing",
+      "skill_data_tests",
+      "class_data_tests",
+      "item_type_tests",
+      "lookup_table_tests",
+      "song_data_tests",
+      "skill_group_tests",
+      "trait_system_tests"
     ],
     "exclude_patterns": [],
     "settings": {
@@ -39,18 +62,18 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "wnum_parsing_unit_tests"],
+        "suites": ["area_loading", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "lookup_table_tests"],
         "stop_on_first_failure": true
       },
       "ci": {
         "description": "Complete test suite for CI/CD",
-        "suites": ["area_loading", "database_integrity", "wnum_parsing", "wnum_parsing_unit_tests"],
+        "suites": ["area_loading", "database_integrity", "wnum_parsing", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "item_type_tests", "lookup_table_tests", "song_data_tests", "skill_group_tests", "trait_system_tests"],
         "stop_on_first_failure": false,
         "require_coverage": true
       },
       "regression": {
         "description": "Core regression tests",
-        "suites": ["area_loading", "database_integrity"],
+        "suites": ["area_loading", "database_integrity", "skill_data_tests", "class_data_tests", "item_type_tests", "lookup_table_tests"],
         "stop_on_first_failure": false
       }
     }

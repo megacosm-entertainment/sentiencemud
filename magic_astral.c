@@ -208,19 +208,19 @@ SPELL_FUNC(spell_nexus)
 
     if( to_room->wilds && IS_SET(to_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
     {
-        portal->value[3] = 0;
-        portal->value[4] = 0;
-        portal->value[5] = to_room->wilds->uid;
-        portal->value[6] = to_room->x;
-        portal->value[7] = to_room->y;
+        PORTAL(portal)->params[0] = 0;
+        PORTAL(portal)->params[4] = 0;
+        PORTAL(portal)->params[1] = to_room->wilds->uid;
+        PORTAL(portal)->params[2] = to_room->x;
+        PORTAL(portal)->params[3] = to_room->y;
     }
     else
     {
-        portal->value[3] = to_room->vnum;
-        portal->value[4] = (to_room->area ? to_room->area->uid : 0);
-        portal->value[5] = 0;
-        portal->value[6] = to_room->id[0];	// If this is a clone room, these will be set
-        portal->value[7] = to_room->id[1];	// otherwise, they will be 0,0
+        PORTAL(portal)->params[0] = to_room->vnum;
+        PORTAL(portal)->params[4] = (to_room->area ? to_room->area->uid : 0);
+        PORTAL(portal)->params[1] = 0;
+        PORTAL(portal)->params[2] = to_room->id[0];	// If this is a clone room, these will be set
+        PORTAL(portal)->params[3] = to_room->id[1];	// otherwise, they will be 0,0
     }
 
     obj_to_room(portal,from_room);
@@ -236,19 +236,19 @@ SPELL_FUNC(spell_nexus)
 
         if( from_room->wilds && IS_SET(from_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
         {
-            portal->value[3] = 0;
-            portal->value[4] = 0;
-            portal->value[5] = from_room->wilds->uid;
-            portal->value[6] = from_room->x;
-            portal->value[7] = from_room->y;
+            PORTAL(portal)->params[0] = 0;
+            PORTAL(portal)->params[4] = 0;
+            PORTAL(portal)->params[1] = from_room->wilds->uid;
+            PORTAL(portal)->params[2] = from_room->x;
+            PORTAL(portal)->params[3] = from_room->y;
         }
         else
         {
-            portal->value[3] = from_room->vnum;
-            portal->value[4] = (from_room->area ? from_room->area->uid : 0);
-            portal->value[5] = 0;
-            portal->value[6] = from_room->id[0];
-            portal->value[7] = from_room->id[1];
+            PORTAL(portal)->params[0] = from_room->vnum;
+            PORTAL(portal)->params[4] = (from_room->area ? from_room->area->uid : 0);
+            PORTAL(portal)->params[1] = 0;
+            PORTAL(portal)->params[2] = from_room->id[0];
+            PORTAL(portal)->params[3] = from_room->id[1];
         }
 
         obj_to_room(portal,to_room);

@@ -93,15 +93,15 @@ void do_smite(CHAR_DATA *ch, char *argument)
     WAIT_STATE(ch, skill_table[skill_resolve_gsn("smite")].beats);
 
     if (number_percent() < chance) {
-        act("{GYou smite $N with a powerful $t!", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR, NULL, NULL);
-        act("{Y$n smites $N with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT, NULL, NULL);
-        act("{R$n smites you with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT, NULL, NULL);
+        act("{GYou smite $N with a powerful $t!", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_CHAR, NULL, NULL);
+        act("{Y$n smites $N with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_NOTVICT, NULL, NULL);
+        act("{R$n smites you with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_VICT, NULL, NULL);
 
         victim->set_death_type = DEATHTYPE_SMITE;
         damage(ch, victim, 30000, skill_resolve_gsn("smite"), DAM_NONE, true);
         check_improve(ch, skill_resolve_gsn("smite"), false, 1);
     } else {
-        damage(ch, victim, dice(wield->value[1]*2,wield->value[2]*2), skill_resolve_gsn("smite"), DAM_HOLY, true);
+        damage(ch, victim, dice(WEAPON(wield)->damage.number*2,WEAPON(wield)->damage.size*2), skill_resolve_gsn("smite"), DAM_HOLY, true);
         check_improve(ch, skill_resolve_gsn("smite"), false, 1);
     }
 }
@@ -139,7 +139,7 @@ void do_stake(CHAR_DATA *ch, char *argument)
     if (ch->lcarrying) {
         iterator_start(&it, ch->lcarrying);
         while ((stake = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (stake->item_type == ITEM_WEAPON && stake->value[0] == WEAPON_STAKE
+            if (stake->item_type == ITEM_WEAPON && WEAPON(stake)->weapon_class == WEAPON_STAKE
                 && (!str_cmp(stake->material, "wood") || !str_cmp(stake->material, "silver")))
                 break;
         }
@@ -690,7 +690,7 @@ void do_behead(CHAR_DATA *ch, char *argument)
     if(!wield)
         wield = get_eq_char(ch, WEAR_SECONDARY);
 
-    if(!wield || attack_table[wield->value[3]].damage != DAM_SLASH) {
+    if(!wield || attack_table[WEAPON(wield)->damage_type].damage != DAM_SLASH) {
         send_to_char("You need a slashing weapon to behead.\n\r", ch);
         return;
     }
@@ -715,9 +715,9 @@ void do_behead(CHAR_DATA *ch, char *argument)
 
     WAIT_STATE(ch, skill_table[skill_resolve_gsn("behead")].beats);
 
-    act("{RWith a mighty $t, $n brings $s weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT, NULL, NULL);
-    act("{RWith a mighty $t, you bring your weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR, NULL, NULL);
-    act("{RWith a mighty $t, $n brings $s weight upon you...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT, NULL, NULL);
+    act("{RWith a mighty $t, $n brings $s weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_NOTVICT, NULL, NULL);
+    act("{RWith a mighty $t, you bring your weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_CHAR, NULL, NULL);
+    act("{RWith a mighty $t, $n brings $s weight upon you...{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_VICT, NULL, NULL);
     if(number_percent() < chance) {
         if(!check_acro(ch, victim, wield) &&
             !check_catch(ch, victim, wield) &&
@@ -746,9 +746,9 @@ void do_behead(CHAR_DATA *ch, char *argument)
         } else
             check_improve(ch, skill_resolve_gsn("behead"), false, 6);
     } else {
-        act("{Y$N quickly ducks under your decapitating $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR, NULL, NULL);
-        act("{GYou quickly duck under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT, NULL, NULL);
-        act("{Y$N quickly ducks under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT, NULL, NULL);
+        act("{Y$N quickly ducks under your decapitating $t!{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_CHAR, NULL, NULL);
+        act("{GYou quickly duck under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_VICT, NULL, NULL);
+        act("{Y$N quickly ducks under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_NOTVICT, NULL, NULL);
         check_improve(ch, skill_resolve_gsn("behead"), false, 6);
     }
 }

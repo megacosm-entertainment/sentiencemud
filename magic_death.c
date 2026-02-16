@@ -536,7 +536,7 @@ SPELL_FUNC(spell_raise_dead)
             }
 
             if (in->pIndexData == get_reserved_obj_index("obj_coin_silver_multiple")) {
-                victim->silver += in->value[1];
+                victim->silver += MONEY(in)->silver;
                 extract_obj(in);
                 continue;
             }
@@ -548,7 +548,7 @@ SPELL_FUNC(spell_raise_dead)
             }
 
             if (in->pIndexData == get_reserved_obj_index("obj_coin_gold_multiple")) {
-                victim->gold += in->value[1];
+                victim->gold += MONEY(in)->gold;
                 extract_obj(in);
                 continue;
             }

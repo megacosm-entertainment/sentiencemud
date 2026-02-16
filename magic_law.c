@@ -246,7 +246,7 @@ SPELL_FUNC(spell_identify)
     case ITEM_RANGED_WEAPON:
         add_buf(buffer, "{MRanged weapon type is {x");
 
-        switch (obj->value[0]) {
+        switch (WEAPON(obj)->weapon_class) {
         case(RANGED_WEAPON_EXOTIC): 	add_buf(buffer, "exotic{M.{x\n\r");	break;
         case(RANGED_WEAPON_BOW):	add_buf(buffer, "bow{M.{x\n\r");	break;
         case(RANGED_WEAPON_CROSSBOW): 	add_buf(buffer, "crossbow{M.{x\n\r");	break;
@@ -255,12 +255,12 @@ SPELL_FUNC(spell_identify)
         default: 			add_buf(buffer, "unknown{M.{x\n\r");	break;
         }
 
-        sprintf(buf,"{MDamage is {x%ldd%ld {M(average {Y%ld{M).\n\r{x",
-            obj->value[1],obj->value[2],
-            (1 + obj->value[2]) * obj->value[1] / 2);
+        sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+            WEAPON(obj)->damage.number,WEAPON(obj)->damage.size,
+            (1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2);
         add_buf(buffer, buf);
 
-        sprintf(buf, "{MRange is {x%ld{M rooms.\n\r", obj->value[3]);
+        sprintf(buf, "{MRange is {x%d{M rooms.\n\r", WEAPON(obj)->range);
         add_buf(buffer, buf);
         break;
 
@@ -281,83 +281,83 @@ SPELL_FUNC(spell_identify)
         break;
 
     case ITEM_POTION:
-        if (obj->value[5] > 0) {
-            sprintf(buf, "{MThis potion has {x%ld{M remaining charge%s.{x\n\r",
-                obj->value[5], obj->value[5] == 1 ? "" : "s");
+        if (FLUID_CON(obj)->amount > 0) {
+            sprintf(buf, "{MThis potion has {x%d{M remaining charge%s.{x\n\r",
+                FLUID_CON(obj)->amount, FLUID_CON(obj)->amount == 1 ? "" : "s");
             add_buf(buffer, buf);
         }
         break;
 
     case ITEM_TATTOO:
-        if (obj->value[0] > 0) {
-            sprintf(buf, "{MThis tattoo has {x%ld{M remaining charge%s.{x\n\r",
-                obj->value[0], obj->value[0] == 1 ? "" : "s");
+        if (TATTOO(obj)->touches > 0) {
+            sprintf(buf, "{MThis tattoo has {x%d{M remaining charge%s.{x\n\r",
+                TATTOO(obj)->touches, TATTOO(obj)->touches == 1 ? "" : "s");
             add_buf(buffer, buf);
         }
 
-        if ((IS_SAGE(ch) || IS_IMMORTAL(ch)) && obj->value[1] > 0) {
-            sprintf(buf, "{MThere is a %ld%% chance that the tattoo will fade with each touch{x\n\r", obj->value[1]);
+        if ((IS_SAGE(ch) || IS_IMMORTAL(ch)) && TATTOO(obj)->fading_chance > 0) {
+            sprintf(buf, "{MThere is a %d%% chance that the tattoo will fade with each touch{x\n\r", TATTOO(obj)->fading_chance);
             add_buf(buffer, buf);
         }
         break;
 
     case ITEM_INK:
-        if (obj->value[0] > 0) {
-            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[obj->value[0]]);
+        if (INK(obj)->types[0] > 0) {
+            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[INK(obj)->types[0]]);
             add_buf(buffer, buf);
         }
-        if (obj->value[1] > 0) {
-            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[obj->value[1]]);
+        if (INK(obj)->types[1] > 0) {
+            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[INK(obj)->types[1]]);
             add_buf(buffer, buf);
         }
-        if (obj->value[2] > 0) {
-            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[obj->value[2]]);
+        if (INK(obj)->types[2] > 0) {
+            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[INK(obj)->types[2]]);
             add_buf(buffer, buf);
         }
         break;
 
     case ITEM_WAND:
     case ITEM_STAFF:
-        sprintf(buf, "{MHas {x%ld{M/{x%ld {Mcharges.{x\n\r",
-            obj->value[2], obj->value[1]);
+        sprintf(buf, "{MHas {x%d{M/{x%d {Mcharges.{x\n\r",
+            WAND(obj)->charges, WAND(obj)->max_charges);
         add_buf(buffer, buf);
         break;
 
     case ITEM_DRINK_CON:
         sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
-            liq_table[obj->value[2]].liq_colour,
-            liq_table[obj->value[2]].liq_name);
+            liq_table[FLUID_CON(obj)->liquid].liq_colour,
+            liq_table[FLUID_CON(obj)->liquid].liq_name);
         add_buf(buffer,buf);
         break;
 
     case ITEM_WEAPON_CONTAINER:
-        sprintf(buf,"{MHolds {x%d{M/{x%ld {M%ss and {x%d{M/{x%ld{M weight\n\r",
-            get_number_in_container(obj), obj->value[3],
-            weapon_name(obj->value[1]),
+        sprintf(buf,"{MHolds {x%d{M/{x%d {M%ss and {x%d{M/{x%d{M weight\n\r",
+            get_number_in_container(obj), WEAPON_CON(obj)->max_items,
+            weapon_name(WEAPON_CON(obj)->weapon_type),
             get_obj_weight_container(obj),
-            obj->value[0]);
+            WEAPON_CON(obj)->max_weight);
         add_buf(buffer,buf);
-        if (obj->value[3] != 100) {
-            sprintf(buf,"{MWeight multiplier: {x%ld{M%%\n\r", obj->value[4]);
+        if (WEAPON_CON(obj)->max_items != 100) {
+            sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", WEAPON_CON(obj)->weight_multiplier);
             add_buf(buffer,buf);
         }
         break;
 
     case ITEM_CONTAINER:
-        sprintf(buf,"{MItems: {x%d{M/{x%ld{M  Weight: {x%ld/%ld{M  flags: {x%s{M\n\r",
-            get_number_in_container(obj), obj->value[3],
+        sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%ld/%d{M  flags: {x%s{M\n\r",
+            get_number_in_container(obj), CONTAINER(obj)->max_items,
             (get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100,
-            obj->value[0], cont_bit_name(obj->value[1]));
+            CONTAINER(obj)->max_weight, cont_bit_name(CONTAINER(obj)->flags));
         add_buf(buffer,buf);
-        if (obj->value[4] != 100) {
-            sprintf(buf,"{MWeight multiplier: {x%ld{M%%\n\r", obj->value[4]);
+        if (CONTAINER(obj)->weight_multiplier != 100) {
+            sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", CONTAINER(obj)->weight_multiplier);
             add_buf(buffer,buf);
         }
         break;
 
     case ITEM_WEAPON:
         add_buf(buffer, "{MWeapon type is {x");
-        switch (obj->value[0]) {
+        switch (WEAPON(obj)->weapon_class) {
         case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
         case(WEAPON_SWORD): 		add_buf(buffer, "sword{M");		break;
         case(WEAPON_DAGGER): 		add_buf(buffer, "dagger{M");		break;
@@ -377,21 +377,21 @@ SPELL_FUNC(spell_identify)
         default:			add_buf(buffer, "unknown{M");		break;
         }
 
-        sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[obj->value[3]].noun);
+        sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[WEAPON(obj)->damage_type].noun);
         add_buf(buffer, buf);
 
-        sprintf(buf,"{MDamage is {x%ldd%ld {M(average {Y%ld{M).\n\r{x",
-            obj->value[1],obj->value[2], (1 + obj->value[2]) * obj->value[1] / 2);
+        sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+            WEAPON(obj)->damage.number,WEAPON(obj)->damage.size, (1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2);
         add_buf(buffer, buf);
-        if (obj->value[4]) {
-            sprintf(buf,"{MWeapons flags: {x%s\n\r",weapon_bit_name(obj->value[4]));
+        if (WEAPON(obj)->flags) {
+            sprintf(buf,"{MWeapons flags: {x%s\n\r",weapon_bit_name(WEAPON(obj)->flags));
             add_buf(buffer,buf);
         }
         break;
 
     case ITEM_ARMOUR:
-        sprintf(buf, "{MArmour class is {x%ld {Mpierce, {x%ld {Mbash, {x%ld {Mslash, and {x%ld {Mvs. magic.\n\r",
-            obj->value[0], obj->value[1], obj->value[2], obj->value[3]);
+        sprintf(buf, "{MArmour class is {x%d {Mpierce, {x%d {Mbash, {x%d {Mslash, and {x%d {Mvs. magic.\n\r",
+            ARMOR(obj)->protection[0], ARMOR(obj)->protection[1], ARMOR(obj)->protection[2], ARMOR(obj)->protection[3]);
         add_buf(buffer, buf);
         break;
     }

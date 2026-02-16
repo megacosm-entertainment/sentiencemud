@@ -20,6 +20,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "io/json/json_area.h"
+#include "io/json/json_obj_types.h"
 
 /* Forward declarations for trainer data */
 void save_trainer_new(FILE *fp, TRAINER_DATA *trainer);
@@ -984,9 +985,25 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
     fprintf(fp, "Extra4Flags %ld\n", obj->extra[3]);
     fprintf(fp, "WearFlags %ld\n", obj->wear_flags);
 
-    fprintf(fp, "Values");
-    for (i = 0; i < 8; i++) fprintf(fp, " %ld", obj->value[i]);
-    fprintf(fp, "\n");
+    /* Legacy Values line — retained as transitional backup until Phase 5 is complete.
+     * This allows .are files to remain a recovery source for objects that
+     * lost their data during the premature Phase 4 value[] removal. */
+    fprintf(fp, "Values %ld %ld %ld %ld %ld %ld %ld %ld\n",
+        obj->value[0], obj->value[1], obj->value[2], obj->value[3],
+        obj->value[4], obj->value[5], obj->value[6], obj->value[7]);
+
+    /* Type-specific data (canonical, as JSON) */
+    {
+        json_t *td = obj_index_type_data_to_json(obj);
+        if (td) {
+            char *td_str = json_dumps(td, JSON_COMPACT | JSON_SORT_KEYS);
+            if (td_str) {
+                fprintf(fp, "TypeData %s~\n", td_str);
+                free(td_str);
+            }
+            json_decref(td);
+        }
+    }
 
     fprintf(fp, "Level %d\n", obj->level);
     fprintf(fp, "Weight %d\n", obj->weight);
@@ -3011,9 +3028,19 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
             case 'T':
             KEY("TimesAllowedFixed",	obj->times_allowed_fixed,	fread_number(fp));
         KEY("Timer",			obj->timer,			fread_number(fp));
-        break;
-
-        case 'U':
+	if (!str_cmp(word, "TypeData")) {
+	    char *td_str = fread_string(fp);
+	    if (td_str && td_str[0]) {
+	        json_error_t error;
+	        json_t *td = json_loads(td_str, 0, &error);
+	        if (td) {
+	            obj_index_type_data_from_json(obj, td);
+	            json_decref(td);
+	        }
+	    }
+	    free_string(td_str);
+	    fMatch = true;
+	}
             KEY("Update",	obj->update,	fread_number(fp));
             break;
 
@@ -3178,6 +3205,12 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
         }
 
         // Portal destination area UID (value[4]) resolved post-boot by fix_portal_destinations()
+    }
+
+    if (area && area->version_object < VERSION_OBJECT_005)
+    {
+        // Populate type-specific data structs from legacy value[] array.
+        obj_index_migrate_values_to_types(obj);
     }
 
     return obj;

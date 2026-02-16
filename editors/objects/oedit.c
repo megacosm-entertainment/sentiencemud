@@ -2271,7 +2271,6 @@ OEDIT(oedit_type)
 {
     OBJ_INDEX_DATA *pObj;
     int value;
-    int i;
 
     if (argument[0] != '\0')
     {
@@ -2297,21 +2296,12 @@ OEDIT(oedit_type)
                 return false;
             }
 
-            pObj->item_type = value;
+            /* Free all existing type data and allocate new primary type */
+            obj_index_set_primary_type(pObj, value);
 
-            send_to_char("Type set.\n\r", ch);
-
-            // Clear the values.
-            for (i = 0; i < 8; i++)
-            {
-                pObj->value[i] = 0;
-            }
-
-            // Defaults
-            if( pObj->item_type == ITEM_TELESCOPE )
-            {
-                pObj->value[4] = -1;
-            }
+            /* Type-specific defaults */
+            if (value == ITEM_TELESCOPE && IS_TELESCOPE(pObj))
+                TELESCOPE(pObj)->heading = -1;
 
             if( pObj->lock )
             {
@@ -2325,6 +2315,7 @@ OEDIT(oedit_type)
                 pObj->waypoints = NULL;
             }
 
+            send_to_char("Type set.\n\r", ch);
             return true;
         }
     }
@@ -2332,6 +2323,82 @@ OEDIT(oedit_type)
     send_to_char("Syntax:  type [flag]\n\r"
                 "Type '? type' for a list of flags.\n\r", ch);
     return false;
+}
+
+
+OEDIT(oedit_addtype)
+{
+    OBJ_INDEX_DATA *pObj;
+    int value;
+
+    EDIT_OBJ(ch, pObj);
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  addtype <type>\n\r"
+                     "Adds a secondary type to this object.\n\r"
+                     "Type '? type' for a list of types.\n\r", ch);
+        return false;
+    }
+
+    if ((value = flag_value(type_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Invalid type. Type '? type' for a list.\n\r", ch);
+        return false;
+    }
+
+    if (value == pObj->item_type)
+    {
+        send_to_char("That is already the primary type.\n\r", ch);
+        return false;
+    }
+
+    if (!obj_index_can_add_item_type(pObj, value))
+    {
+        send_to_char("That type is not compatible with this object's current types.\n\r", ch);
+        return false;
+    }
+
+    if (!obj_index_alloc_type_data(pObj, value))
+    {
+        send_to_char("That type is already present on this object.\n\r", ch);
+        return false;
+    }
+
+    send_to_char("Secondary type added.\n\r", ch);
+    return true;
+}
+
+
+OEDIT(oedit_removetype)
+{
+    OBJ_INDEX_DATA *pObj;
+    int value;
+
+    EDIT_OBJ(ch, pObj);
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  removetype <type>\n\r"
+                     "Removes a secondary type from this object.\n\r"
+                     "Type '? type' for a list of types.\n\r", ch);
+        return false;
+    }
+
+    if ((value = flag_value(type_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Invalid type. Type '? type' for a list.\n\r", ch);
+        return false;
+    }
+
+    if (!obj_index_remove_type(pObj, value))
+    {
+        send_to_char("Cannot remove that type (either it's the primary type or not present).\n\r", ch);
+        return false;
+    }
+
+    send_to_char("Secondary type removed.\n\r", ch);
+    return true;
 }
 
 

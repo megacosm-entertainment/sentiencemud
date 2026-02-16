@@ -129,6 +129,8 @@ C_FILES = \
     hunt.c \
     interp.c \
     invasion.c \
+    item_types.c \
+    item_type_mem.c \
     io/common.c \
     log.c \
     lookup.c \
@@ -189,6 +191,7 @@ C_FILES = \
     io/json/json_instance.c \
     io/json/json_mail.c \
     io/json/json_note.c \
+    io/json/json_obj_types.c \
     io/json/json_persist.c \
     io/json/json_race.c \
     io/json/json_reserved.c \
@@ -241,7 +244,14 @@ ifdef BUILD_TESTS
                tests/integration/shop_stock_tests.c \
                tests/integration/church_tests.c \
                tests/integration/instance_tests.c \
-               tests/integration/chat_rooms_tests.c
+               tests/integration/chat_rooms_tests.c \
+               tests/integration/skill_data_tests.c \
+               tests/integration/class_data_tests.c \
+               tests/integration/item_type_tests.c \
+               tests/integration/lookup_table_tests.c \
+               tests/integration/song_data_tests.c \
+               tests/integration/skill_group_tests.c \
+               tests/integration/trait_system_tests.c
 endif
 
 O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))

@@ -293,7 +293,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
     }
 
     if (portal->item_type != ITEM_PORTAL
-        || IS_SET(portal->value[1],EX_CLOSED))
+        || IS_SET(PORTAL(portal)->exit,EX_CLOSED))
     {
         send_to_char("You can't seem to find a way in.\n\r",ch);
         return;
@@ -302,7 +302,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
      /* @@@NIB : 20070126 : Changed the polarity of nocurse
          It had a NOT.  But that's backwards to the name of
          the flag.*/
-     if (IS_SET(portal->value[2],GATE_NOCURSE)
+     if (IS_SET(PORTAL(portal)->flags,GATE_NOCURSE)
           &&  (IS_AFFECTED(ch,AFF_CURSE)))
         /*
            ||   IS_SET(old_room->room_flag[0],ROOM_NO_RECALL)))
@@ -315,16 +315,16 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
     DUNGEON *in_dungeon = get_room_dungeon(old_room);
     INSTANCE *in_instance = get_room_instance(old_room);
 
-    if (IS_SET(portal->value[2],GATE_DUNGEON) ) {
-        if( IS_VALID(in_dungeon) && in_dungeon->index->vnum == portal->value[3])
+    if (IS_SET(PORTAL(portal)->flags,GATE_DUNGEON) ) {
+        if( IS_VALID(in_dungeon) && in_dungeon->index->vnum == PORTAL(portal)->params[0])
         {
-            int floor = portal->value[5];
+            int floor = PORTAL(portal)->params[1];
 
             if( floor < 1 )
             {
-                if( IS_SET(portal->value[1], EX_PREVFLOOR) )
+                if( IS_SET(PORTAL(portal)->exit, EX_PREVFLOOR) )
                     floor = in_instance->floor - 1;
-                else if( IS_SET(portal->value[1], EX_NEXTFLOOR) )
+                else if( IS_SET(PORTAL(portal)->exit, EX_NEXTFLOOR) )
                     floor = in_instance->floor + 1;
                 else
                     floor = 0;
@@ -341,10 +341,10 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
         else
         {
             /* Use portal's area as context for dungeon lookup */
-            WNUM wnum = { portal->pIndexData ? portal->pIndexData->area : NULL, portal->value[3] };
-            location = spawn_dungeon_player(ch, wnum, portal->value[4]);
+            WNUM wnum = { portal->pIndexData ? portal->pIndexData->area : NULL, PORTAL(portal)->params[0] };
+            location = spawn_dungeon_player(ch, wnum, PORTAL(portal)->params[4]);
         }
-    } else if (IS_SET(portal->value[2],GATE_DUNGEONRANDOM)) {
+    } else if (IS_SET(PORTAL(portal)->flags,GATE_DUNGEONRANDOM)) {
         if( IS_VALID(old_room->instance_section) )
         {
             if( IS_VALID(old_room->instance_section->instance) )
@@ -363,7 +363,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
                 location = section_random_room(ch, old_room->instance_section );
             }
         }
-    } else if (IS_SET(portal->value[2],GATE_INSTANCERANDOM)) {
+    } else if (IS_SET(PORTAL(portal)->flags,GATE_INSTANCERANDOM)) {
         if( IS_VALID(old_room->instance_section) )
         {
             if( IS_VALID(old_room->instance_section->instance) )
@@ -375,19 +375,19 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
                 location = section_random_room(ch, old_room->instance_section );
             }
         }
-    } else if (IS_SET(portal->value[2],GATE_SECTIONRANDOM)) {
+    } else if (IS_SET(PORTAL(portal)->flags,GATE_SECTIONRANDOM)) {
         if( IS_VALID(old_room->instance_section) )
         {
             location = section_random_room(ch, old_room->instance_section );
         }
-    } else if (IS_SET(portal->value[1],EX_ENVIRONMENT) && old_room && old_room->source) {
+    } else if (IS_SET(PORTAL(portal)->exit,EX_ENVIRONMENT) && old_room && old_room->source) {
         location = get_environment(old_room);
     }
-    else if (IS_SET(portal->value[2],GATE_RANDOM) || (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5)))
+    else if (IS_SET(PORTAL(portal)->flags,GATE_RANDOM) || (IS_SET(PORTAL(portal)->flags,GATE_BUGGY) && (number_percent() < 5)))
     {
         location = get_random_room( ch, 0 );
     }
-    else if (IS_SET(portal->value[2],GATE_AREARANDOM) || portal->value[3] == -1) {
+    else if (IS_SET(PORTAL(portal)->flags,GATE_AREARANDOM) || PORTAL(portal)->params[0] == -1) {
         ROOM_INDEX_DATA *here;
 
         here = obj_room(portal);
@@ -402,35 +402,35 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
                 if(!location)
                     location = create_wilds_vroom(here->wilds,x,y);
             }
-            else if(portal->value[5] > 0)
+            else if(PORTAL(portal)->params[1] > 0)
             {
-                location = get_random_room_area(ch, get_area_from_uid(portal->value[5]));
+                location = get_random_room_area(ch, get_area_from_uid(PORTAL(portal)->params[1]));
             }
             else
                 location = get_random_room_area(ch, here->area);
         } else
             location = get_random_room_area(ch, find_area("Plith"));
-    } else if (portal->value[5] > 0) {
-        WILDS_DATA *wilds = get_wilds_from_uid(NULL,portal->value[5]);
-        location = get_wilds_vroom(wilds,portal->value[6],portal->value[7]);
+    } else if (PORTAL(portal)->params[1] > 0) {
+        WILDS_DATA *wilds = get_wilds_from_uid(NULL,PORTAL(portal)->params[1]);
+        location = get_wilds_vroom(wilds,PORTAL(portal)->params[2],PORTAL(portal)->params[3]);
         if(!location)
-            location = create_wilds_vroom(wilds,portal->value[6],portal->value[7]);
+            location = create_wilds_vroom(wilds,PORTAL(portal)->params[2],PORTAL(portal)->params[3]);
     }
     else
     {
-        // value[4] contains area UID, value[3] contains vnum
-        AREA_DATA *dest_area = portal->value[4] > 0 ? get_area_index(portal->value[4]) : NULL;
+        // params[4] contains area UID, params[0] contains vnum
+        AREA_DATA *dest_area = PORTAL(portal)->params[4] > 0 ? get_area_index(PORTAL(portal)->params[4]) : NULL;
         if (!dest_area) dest_area = get_system_area_fallback();
-        location = get_room_index(dest_area, portal->value[3]);
+        location = get_room_index(dest_area, PORTAL(portal)->params[0]);
         // Check if this portal points to a clone room, if so, find it
-        if( location != NULL && (portal->value[6] > 0 || portal->value[7] > 0)) {
+        if( location != NULL && (PORTAL(portal)->params[2] > 0 || PORTAL(portal)->params[3] > 0)) {
             //plogf(LOG_DEBUG, "get_clone_room: portal");
-            location = get_clone_room(location, (unsigned long)portal->value[6], (unsigned long)portal->value[7]);
+            location = get_clone_room(location, (unsigned long)PORTAL(portal)->params[2], (unsigned long)PORTAL(portal)->params[3]);
         }
     }
 
       if (!location || location == old_room || !can_see_room(ch,location) ||
-          (!IS_SET(portal->value[2],GATE_NOPRIVACY) && room_is_private(location, ch))) {
+          (!IS_SET(PORTAL(portal)->flags,GATE_NOPRIVACY) && room_is_private(location, ch))) {
         act("$p doesn't seem to go anywhere.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
         return;
     }
@@ -456,22 +456,22 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
     if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL))
         return;
 
-    if( !IS_SET(portal->value[2], GATE_DUNGEON) )
+    if( !IS_SET(PORTAL(portal)->flags, GATE_DUNGEON) )
     {
-        portal->value[3] = location->vnum;
-        portal->value[4] = location->area->uid;
-        portal->value[5] = location->wilds ? location->wilds->uid : 0;
-        portal->value[6] = location->wilds ? location->x : 0;
-        portal->value[7] = location->wilds ? location->y : 0;
+        PORTAL(portal)->params[0] = location->vnum;
+        PORTAL(portal)->params[4] = location->area->uid;
+        PORTAL(portal)->params[1] = location->wilds ? location->wilds->uid : 0;
+        PORTAL(portal)->params[2] = location->wilds ? location->x : 0;
+        PORTAL(portal)->params[3] = location->wilds ? location->y : 0;
     }
 
      /* @@@NIB : 20070126 : added the check */
-     if(!IS_SET(portal->value[2],GATE_SILENTENTRY))
+     if(!IS_SET(PORTAL(portal)->flags,GATE_SILENTENTRY))
           act("$n steps into $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 
-    if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
+    if (IS_SET(PORTAL(portal)->flags,GATE_NORMAL_EXIT))
         act("{YYou enter $p.{x",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
-    else if (!IS_SET(portal->value[2], GATE_RANDOM))
+    else if (!IS_SET(PORTAL(portal)->flags, GATE_RANDOM))
         act("{YYou walk through $p and find yourself in $T.{x",
             ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR, NULL, NULL);
     else
@@ -494,7 +494,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
             obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
     }
 
-    if (IS_SET(portal->value[2],GATE_GOWITH)) /* take the gate along */
+    if (IS_SET(PORTAL(portal)->flags,GATE_GOWITH)) /* take the gate along */
     {
         obj_from_room(portal);
         obj_to_room(portal,location);
@@ -504,7 +504,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
             Right now, it does not mix with "sneak". */
     SKILL_DATA *sk_sneak = skill_find("sneak");
     int16_t sn_sneak = skill_sn(sk_sneak);
-    if(IS_SET(portal->value[2],GATE_NOSNEAK)) {
+    if(IS_SET(PORTAL(portal)->flags,GATE_NOSNEAK)) {
         affect_strip(ch, sn_sneak);
         REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
 
@@ -514,7 +514,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
             apply.  If they are already sneaking, that's a different story.
             Improvement is not done here and if you fail, it doesn't say
             anything. */
-    } else if(IS_SET(portal->value[2],GATE_SNEAK)) {
+    } else if(IS_SET(PORTAL(portal)->flags,GATE_SNEAK)) {
         if(!MOUNTED(ch) && !ch->fighting && !IS_AFFECTED(ch,AFF_SNEAK) &&
             (number_percent() < get_skill(ch,sn_sneak))) {
             AFFECT_DATA af;
@@ -536,7 +536,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
     }
 
     /* @@@NIB : 20070126 : added the check */
-    if(!IS_SET(portal->value[2],GATE_SILENTEXIT)) {
+    if(!IS_SET(PORTAL(portal)->flags,GATE_SILENTEXIT)) {
 
         if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
         {
@@ -569,13 +569,13 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
                     act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             }
         }
-        else if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
+        else if (IS_SET(PORTAL(portal)->flags,GATE_NORMAL_EXIT))
               act("$n has arrived.",ch, NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
           else
               act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
     }
 
-    if(!IS_NPC(ch) && IS_SET(portal->value[2],GATE_FORCE_BRIEF)) {
+    if(!IS_NPC(ch) && IS_SET(PORTAL(portal)->flags,GATE_FORCE_BRIEF)) {
         bool was_brief = IS_SET(ch->comm, COMM_BRIEF) && true;
 
         SET_BIT(ch->comm, COMM_BRIEF);
@@ -589,11 +589,11 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 
     /* charges */
-    if (portal->value[0] > 0)
+    if (PORTAL(portal)->charges > 0)
     {
-        portal->value[0]--;
-        if (portal->value[0] == 0)
-        portal->value[0] = -1;
+        PORTAL(portal)->charges--;
+        if (PORTAL(portal)->charges == 0)
+        PORTAL(portal)->charges = -1;
     }
 
     if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_ENTRY, NULL))
@@ -607,7 +607,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
     {
         fch_next = fch->next_in_room;
 
-        if (portal == NULL || portal->value[0] == -1)
+        if (portal == NULL || PORTAL(portal)->charges == -1)
         /* no following through dead portals */
         continue;
 
@@ -622,7 +622,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
         }
     }
 
-    if (portal != NULL && portal->value[0] == -1)
+    if (portal != NULL && PORTAL(portal)->charges == -1)
     {
         act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
         if (ch->in_room == old_room)

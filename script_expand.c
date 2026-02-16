@@ -2464,6 +2464,132 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.num = arg->d.obj ? arg->d.obj->level : 0;
         break;
 
+    // Typed data sub-entity accessors
+    case ENTITY_OBJ_WEAPON_DATA:
+        arg->type = ENT_OBJ_WEAPON;
+        arg->d.obj_weapon = self ? WEAPON(self) : NULL;
+        break;
+    case ENTITY_OBJ_ARMOR_DATA:
+        arg->type = ENT_OBJ_ARMOR;
+        arg->d.obj_armor = self ? ARMOR(self) : NULL;
+        break;
+    case ENTITY_OBJ_CONTAINER_DATA:
+        arg->type = ENT_OBJ_CONTAINER;
+        arg->d.obj_container = self ? CONTAINER(self) : NULL;
+        break;
+    case ENTITY_OBJ_FLUID_CON_DATA:
+        arg->type = ENT_OBJ_FLUID_CON;
+        arg->d.obj_fluid_con = self ? FLUID_CON(self) : NULL;
+        break;
+    case ENTITY_OBJ_FOOD_DATA:
+        arg->type = ENT_OBJ_FOOD;
+        arg->d.obj_food = self ? FOOD(self) : NULL;
+        break;
+    case ENTITY_OBJ_FURNITURE_DATA:
+        arg->type = ENT_OBJ_FURNITURE;
+        arg->d.obj_furniture = self ? FURNITURE(self) : NULL;
+        break;
+    case ENTITY_OBJ_PORTAL_DATA:
+        arg->type = ENT_OBJ_PORTAL;
+        arg->d.obj_portal = self ? PORTAL(self) : NULL;
+        break;
+    case ENTITY_OBJ_LIGHT_DATA:
+        arg->type = ENT_OBJ_LIGHT;
+        arg->d.obj_light = self ? LIGHT(self) : NULL;
+        break;
+    case ENTITY_OBJ_MONEY_DATA:
+        arg->type = ENT_OBJ_MONEY;
+        arg->d.obj_money = self ? MONEY(self) : NULL;
+        break;
+    case ENTITY_OBJ_WAND_DATA:
+        arg->type = ENT_OBJ_WAND;
+        arg->d.obj_wand = self ? WAND(self) : NULL;
+        break;
+    case ENTITY_OBJ_CORPSE_DATA:
+        arg->type = ENT_OBJ_CORPSE;
+        arg->d.obj_corpse = self ? CORPSE(self) : NULL;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_DATA:
+        arg->type = ENT_OBJ_INSTRUMENT;
+        arg->d.obj_instrument = self ? INSTRUMENT(self) : NULL;
+        break;
+    case ENTITY_OBJ_SEED_DATA:
+        arg->type = ENT_OBJ_SEED;
+        arg->d.obj_seed = self ? SEED(self) : NULL;
+        break;
+    case ENTITY_OBJ_CART_DATA:
+        arg->type = ENT_OBJ_CART;
+        arg->d.obj_cart = self ? CART(self) : NULL;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_DATA:
+        arg->type = ENT_OBJ_ITEM_SHIP;
+        arg->d.obj_item_ship = self ? SHIP_TYPE(self) : NULL;
+        break;
+    case ENTITY_OBJ_SEXTANT_DATA:
+        arg->type = ENT_OBJ_SEXTANT;
+        arg->d.obj_sextant = self ? SEXTANT(self) : NULL;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_DATA:
+        arg->type = ENT_OBJ_WEAPON_CON;
+        arg->d.obj_weapon_con = self ? WEAPON_CON(self) : NULL;
+        break;
+    case ENTITY_OBJ_BOOK_DATA:
+        arg->type = ENT_OBJ_BOOK;
+        arg->d.obj_book = self ? BOOK(self) : NULL;
+        break;
+    case ENTITY_OBJ_HERB_DATA:
+        arg->type = ENT_OBJ_HERB;
+        arg->d.obj_herb = self ? HERB(self) : NULL;
+        break;
+    case ENTITY_OBJ_MIST_DATA:
+        arg->type = ENT_OBJ_MIST;
+        arg->d.obj_mist = self ? MIST(self) : NULL;
+        break;
+    case ENTITY_OBJ_TRADE_DATA:
+        arg->type = ENT_OBJ_TRADE;
+        arg->d.obj_trade = self ? TRADE(self) : NULL;
+        break;
+    case ENTITY_OBJ_TATTOO_DATA:
+        arg->type = ENT_OBJ_TATTOO;
+        arg->d.obj_tattoo = self ? TATTOO(self) : NULL;
+        break;
+    case ENTITY_OBJ_INK_DATA:
+        arg->type = ENT_OBJ_INK;
+        arg->d.obj_ink = self ? INK(self) : NULL;
+        break;
+    case ENTITY_OBJ_TELESCOPE_DATA:
+        arg->type = ENT_OBJ_TELESCOPE;
+        arg->d.obj_telescope = self ? TELESCOPE(self) : NULL;
+        break;
+    case ENTITY_OBJ_COMPASS_DATA:
+        arg->type = ENT_OBJ_COMPASS;
+        arg->d.obj_compass = self ? COMPASS(self) : NULL;
+        break;
+    case ENTITY_OBJ_BODY_PART_DATA:
+        arg->type = ENT_OBJ_BODY_PART;
+        arg->d.obj_body_part = self ? BODY_PART(self) : NULL;
+        break;
+    case ENTITY_OBJ_SCROLL_DATA:
+        arg->type = ENT_OBJ_SCROLL;
+        arg->d.obj_scroll = self ? SCROLL(self) : NULL;
+        break;
+    case ENTITY_OBJ_TOOL_DATA:
+        arg->type = ENT_OBJ_TOOL;
+        arg->d.obj_tool = self ? TOOL(self) : NULL;
+        break;
+    case ENTITY_OBJ_JEWELRY_DATA:
+        arg->type = ENT_OBJ_JEWELRY;
+        arg->d.obj_jewelry = self ? JEWELRY(self) : NULL;
+        break;
+    case ENTITY_OBJ_MAP_DATA:
+        arg->type = ENT_OBJ_MAP;
+        arg->d.obj_map = self ? MAP(self) : NULL;
+        break;
+    case ENTITY_OBJ_PAGE_DATA:
+        arg->type = ENT_OBJ_PAGE;
+        arg->d.obj_page = self ? PAGE(self) : NULL;
+        break;
+
     // SPELLS?
     default: return NULL;
     }
@@ -5430,6 +5556,891 @@ char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+// Object typed data sub-entity expand functions
+///////////////////////////////////////////////////////////////////////////////
+
+char *expand_entity_obj_weapon(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WEAPON_DATA *w = arg->d.obj_weapon;
+
+    switch(*str) {
+    case ENTITY_OBJ_WEAPON_CLASS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->weapon_class : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_DAMAGE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->damage_type : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = w ? w->flags : 0;
+        arg->d.bv.table = weapon_type2;
+        break;
+    case ENTITY_OBJ_WEAPON_DICE:
+        arg->type = ENT_DICE;
+        arg->d.dice = w ? &w->damage : NULL;
+        break;
+    case ENTITY_OBJ_WEAPON_RANGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->range : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_mana : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->charges : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_MAX_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_charges : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_COOLDOWN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->cooldown : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_RECHARGE_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->recharge_time : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_armor(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    ARMOR_DATA *a = arg->d.obj_armor;
+
+    switch(*str) {
+    case ENTITY_OBJ_ARMOR_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->armor_type : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_STRENGTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->armor_strength : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_PIERCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[0] : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_BASH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[1] : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_SLASH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[2] : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_EXOTIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[3] : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_container(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CONTAINER_DATA *c = arg->d.obj_container;
+
+    switch(*str) {
+    case ENTITY_OBJ_CONTAINER_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = c ? c->flags : 0;
+        arg->d.bv.table = container_flags;
+        break;
+    case ENTITY_OBJ_CONTAINER_MAX_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_weight : 0;
+        break;
+    case ENTITY_OBJ_CONTAINER_WEIGHT_MULT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->weight_multiplier : 0;
+        break;
+    case ENTITY_OBJ_CONTAINER_MAX_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_items : 0;
+        break;
+    case ENTITY_OBJ_CONTAINER_MAX_VOLUME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_volume : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_fluid_con(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FLUID_CONTAINER_DATA *f = arg->d.obj_fluid_con;
+
+    switch(*str) {
+    case ENTITY_OBJ_FLUID_CON_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->capacity : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_AMOUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->amount : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_LIQUID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->liquid : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_POISON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->poison : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = f ? f->flags : 0;
+        arg->d.bv.table = container_flags;
+        break;
+    case ENTITY_OBJ_FLUID_CON_REFILL_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->refill_rate : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_food(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FOOD_DATA *f = arg->d.obj_food;
+
+    switch(*str) {
+    case ENTITY_OBJ_FOOD_HUNGER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->hunger : 0;
+        break;
+    case ENTITY_OBJ_FOOD_FULL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->full : 0;
+        break;
+    case ENTITY_OBJ_FOOD_POISON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->poison : 0;
+        break;
+    case ENTITY_OBJ_FOOD_TIMER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->timer : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_furniture(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FURNITURE_DATA *f = arg->d.obj_furniture;
+
+    switch(*str) {
+    case ENTITY_OBJ_FURNITURE_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = f ? f->flags : 0;
+        arg->d.bv.table = furniture_flags;
+        break;
+    case ENTITY_OBJ_FURNITURE_MAX_PEOPLE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->max_people : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_MAX_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->max_weight : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_HEAL_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->heal_rate : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_MANA_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->mana_rate : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_MOVE_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->move_rate : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_portal(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    PORTAL_DATA *p = arg->d.obj_portal;
+
+    switch(*str) {
+    case ENTITY_OBJ_PORTAL_EXIT:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = p ? p->exit : 0;
+        arg->d.bv.table = portal_exit_flags;
+        break;
+    case ENTITY_OBJ_PORTAL_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = p ? p->flags : 0;
+        arg->d.bv.table = portal_flags;
+        break;
+    case ENTITY_OBJ_PORTAL_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->charges : 0;
+        break;
+    case ENTITY_OBJ_PORTAL_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->type : 0;
+        break;
+    case ENTITY_OBJ_PORTAL_DESTINATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->params[0] : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_light(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    LIGHT_DATA *l = arg->d.obj_light;
+
+    switch(*str) {
+    case ENTITY_OBJ_LIGHT_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = l ? l->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    case ENTITY_OBJ_LIGHT_DURATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = l ? l->duration : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_money(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    MONEY_DATA *m = arg->d.obj_money;
+
+    switch(*str) {
+    case ENTITY_OBJ_MONEY_SILVER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->silver : 0;
+        break;
+    case ENTITY_OBJ_MONEY_GOLD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->gold : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_wand(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WAND_DATA *w = arg->d.obj_wand;
+
+    switch(*str) {
+    case ENTITY_OBJ_WAND_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_mana : 0;
+        break;
+    case ENTITY_OBJ_WAND_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->charges : 0;
+        break;
+    case ENTITY_OBJ_WAND_MAX_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_charges : 0;
+        break;
+    case ENTITY_OBJ_WAND_COOLDOWN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->cooldown : 0;
+        break;
+    case ENTITY_OBJ_WAND_RECHARGE_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->recharge_time : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_corpse(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CORPSE_DATA *c = arg->d.obj_corpse;
+
+    switch(*str) {
+    case ENTITY_OBJ_CORPSE_CORPSE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->corpse_type : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_RESURRECTION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->resurrection : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_ANIMATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->animation : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_BODY_PARTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->body_parts : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_MOBILE_VNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->mobile_vnum : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_instrument(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    INSTRUMENT_DATA *i = arg->d.obj_instrument;
+
+    switch(*str) {
+    case ENTITY_OBJ_INSTRUMENT_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->type : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = i ? i->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_BEATS_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->beats_min : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_BEATS_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->beats_max : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_MANA_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->mana_min : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_MANA_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->mana_max : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_seed(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SEED_DATA *s = arg->d.obj_seed;
+
+    switch(*str) {
+    case ENTITY_OBJ_SEED_GROWTH_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->growth_time : 0;
+        break;
+    case ENTITY_OBJ_SEED_OBJECT_VNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->object_vnum : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_cart(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CART_DATA *c = arg->d.obj_cart;
+
+    switch(*str) {
+    case ENTITY_OBJ_CART_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = c ? c->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    case ENTITY_OBJ_CART_MIN_STRENGTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->min_strength : 0;
+        break;
+    case ENTITY_OBJ_CART_MOVE_DELAY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->move_delay : 0;
+        break;
+    case ENTITY_OBJ_CART_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->capacity : 0;
+        break;
+    case ENTITY_OBJ_CART_MAX_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_items : 0;
+        break;
+    case ENTITY_OBJ_CART_WEIGHT_MULT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->weight_multiplier : 0;
+        break;
+    case ENTITY_OBJ_CART_VANISH_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->vanish_time : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_item_ship(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    ITEM_SHIP_DATA *s = arg->d.obj_item_ship;
+
+    switch(*str) {
+    case ENTITY_OBJ_ITEM_SHIP_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->weight : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MOVE_DELAY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->move_delay : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MIN_CREW:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->min_crew : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->capacity : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MAX_CREW:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->max_crew : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_FIRST_ROOM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->first_room : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_HIT_POINTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->hit_points : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MAX_GUNS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->max_guns : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_sextant(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SEXTANT_DATA *s = arg->d.obj_sextant;
+
+    switch(*str) {
+    case ENTITY_OBJ_SEXTANT_ACCURACY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->accuracy : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_weapon_con(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WEAPON_CONTAINER_DATA *w = arg->d.obj_weapon_con;
+
+    switch(*str) {
+    case ENTITY_OBJ_WEAPON_CON_MAX_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_weight : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_WEAPON_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->weapon_type : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_MAX_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_items : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_WEIGHT_MULT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->weight_multiplier : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_book(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    BOOK_DATA *b = arg->d.obj_book;
+
+    switch(*str) {
+    case ENTITY_OBJ_BOOK_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = b ? b->flags : 0;
+        arg->d.bv.table = container_flags;
+        break;
+    case ENTITY_OBJ_BOOK_CURRENT_PAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->current_page : 0;
+        break;
+    case ENTITY_OBJ_BOOK_OPEN_PAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->open_page : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_herb(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    HERB_DATA *h = arg->d.obj_herb;
+
+    switch(*str) {
+    case ENTITY_OBJ_HERB_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->type : 0;
+        break;
+    case ENTITY_OBJ_HERB_HEALING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->healing : 0;
+        break;
+    case ENTITY_OBJ_HERB_REGENERATIVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->regenerative : 0;
+        break;
+    case ENTITY_OBJ_HERB_REFRESHING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->refreshing : 0;
+        break;
+    case ENTITY_OBJ_HERB_IMMUNITY:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = h ? h->immunity : 0;
+        arg->d.bv.table = imm_flags;
+        break;
+    case ENTITY_OBJ_HERB_RESISTANCE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = h ? h->resistance : 0;
+        arg->d.bv.table = res_flags;
+        break;
+    case ENTITY_OBJ_HERB_VULNERABILITY:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = h ? h->vulnerability : 0;
+        arg->d.bv.table = vuln_flags;
+        break;
+    case ENTITY_OBJ_HERB_SPELL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->spell : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_mist(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    MIST_DATA *m = arg->d.obj_mist;
+
+    switch(*str) {
+    case ENTITY_OBJ_MIST_OBSCURE_MOBS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->obscure_mobs : 0;
+        break;
+    case ENTITY_OBJ_MIST_OBSCURE_OBJS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->obscure_objs : 0;
+        break;
+    case ENTITY_OBJ_MIST_OBSCURE_ROOM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->obscure_room : 0;
+        break;
+    case ENTITY_OBJ_MIST_ICY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->icy : 0;
+        break;
+    case ENTITY_OBJ_MIST_FIERY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->fiery : 0;
+        break;
+    case ENTITY_OBJ_MIST_ACIDIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->acidic : 0;
+        break;
+    case ENTITY_OBJ_MIST_STINK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->stink : 0;
+        break;
+    case ENTITY_OBJ_MIST_WITHER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->wither : 0;
+        break;
+    case ENTITY_OBJ_MIST_TOXIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->toxic : 0;
+        break;
+    case ENTITY_OBJ_MIST_SHOCK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->shock : 0;
+        break;
+    case ENTITY_OBJ_MIST_FOG:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->fog : 0;
+        break;
+    case ENTITY_OBJ_MIST_SLEEP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->sleep : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_trade(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TRADE_DATA *t = arg->d.obj_trade;
+
+    switch(*str) {
+    case ENTITY_OBJ_TRADE_TRADE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->trade_type : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_tattoo(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TATTOO_DATA *t = arg->d.obj_tattoo;
+
+    switch(*str) {
+    case ENTITY_OBJ_TATTOO_TOUCHES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->touches : 0;
+        break;
+    case ENTITY_OBJ_TATTOO_FADING_CHANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->fading_chance : 0;
+        break;
+    case ENTITY_OBJ_TATTOO_FADING_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->fading_rate : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_ink(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    INK_DATA *i = arg->d.obj_ink;
+
+    switch(*str) {
+    case ENTITY_OBJ_INK_TYPE0:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->types[0] : 0;
+        break;
+    case ENTITY_OBJ_INK_TYPE1:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->types[1] : 0;
+        break;
+    case ENTITY_OBJ_INK_TYPE2:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->types[2] : 0;
+        break;
+    case ENTITY_OBJ_INK_AMOUNT0:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->amounts[0] : 0;
+        break;
+    case ENTITY_OBJ_INK_AMOUNT1:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->amounts[1] : 0;
+        break;
+    case ENTITY_OBJ_INK_AMOUNT2:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->amounts[2] : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_telescope(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TELESCOPE_DATA *t = arg->d.obj_telescope;
+
+    switch(*str) {
+    case ENTITY_OBJ_TELESCOPE_DISTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->distance : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_MIN_DISTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->min_distance : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_MAX_DISTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->max_distance : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_BONUS_VIEW:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->bonus_view : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_HEADING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->heading : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_compass(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    COMPASS_DATA *c = arg->d.obj_compass;
+
+    switch(*str) {
+    case ENTITY_OBJ_COMPASS_ACCURACY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->accuracy : 0;
+        break;
+    case ENTITY_OBJ_COMPASS_WUID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->wuid : 0;
+        break;
+    case ENTITY_OBJ_COMPASS_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->x : 0;
+        break;
+    case ENTITY_OBJ_COMPASS_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->y : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_body_part(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    BODY_PART_DATA *b = arg->d.obj_body_part;
+
+    switch(*str) {
+    case ENTITY_OBJ_BODY_PART_PARTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->parts : 0;
+        break;
+    case ENTITY_OBJ_BODY_PART_RACE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->race_uid : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_scroll(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SCROLL_DATA *s = arg->d.obj_scroll;
+
+    switch(*str) {
+    case ENTITY_OBJ_SCROLL_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->max_mana : 0;
+        break;
+    case ENTITY_OBJ_SCROLL_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = s ? s->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_tool(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TOOL_DATA *t = arg->d.obj_tool;
+
+    switch(*str) {
+    case ENTITY_OBJ_TOOL_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->type : 0;
+        break;
+    case ENTITY_OBJ_TOOL_TIER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->tier : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_jewelry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    JEWELRY_DATA *j = arg->d.obj_jewelry;
+
+    switch(*str) {
+    case ENTITY_OBJ_JEWELRY_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = j ? j->max_mana : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_map(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    MAP_DATA *m = arg->d.obj_map;
+
+    switch(*str) {
+    case ENTITY_OBJ_MAP_WUID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->wuid : 0;
+        break;
+    case ENTITY_OBJ_MAP_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->x : 0;
+        break;
+    case ENTITY_OBJ_MAP_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->y : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_page(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    PAGE_DATA *p = arg->d.obj_page;
+
+    switch(*str) {
+    case ENTITY_OBJ_PAGE_PAGE_NO:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->page_no : 0;
+        break;
+    case ENTITY_OBJ_PAGE_TITLE:
+        arg->type = ENT_STRING;
+        arg->d.str = (p && p->title) ? p->title : (char*)&str_empty[0];
+        break;
+    case ENTITY_OBJ_PAGE_TEXT:
+        arg->type = ENT_STRING;
+        arg->d.str = (p && p->text) ? p->text : (char*)&str_empty[0];
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+
 char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 //	EXTRA_DESCR_DATA *ed;
@@ -6099,6 +7110,38 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
         case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
 
+        case ENT_OBJ_WEAPON:		next = expand_entity_obj_weapon(info,str,arg); break;
+        case ENT_OBJ_ARMOR:		next = expand_entity_obj_armor(info,str,arg); break;
+        case ENT_OBJ_CONTAINER:		next = expand_entity_obj_container(info,str,arg); break;
+        case ENT_OBJ_FLUID_CON:		next = expand_entity_obj_fluid_con(info,str,arg); break;
+        case ENT_OBJ_FOOD:		next = expand_entity_obj_food(info,str,arg); break;
+        case ENT_OBJ_FURNITURE:		next = expand_entity_obj_furniture(info,str,arg); break;
+        case ENT_OBJ_PORTAL:		next = expand_entity_obj_portal(info,str,arg); break;
+        case ENT_OBJ_LIGHT:		next = expand_entity_obj_light(info,str,arg); break;
+        case ENT_OBJ_MONEY:		next = expand_entity_obj_money(info,str,arg); break;
+        case ENT_OBJ_WAND:		next = expand_entity_obj_wand(info,str,arg); break;
+        case ENT_OBJ_CORPSE:		next = expand_entity_obj_corpse(info,str,arg); break;
+        case ENT_OBJ_INSTRUMENT:	next = expand_entity_obj_instrument(info,str,arg); break;
+        case ENT_OBJ_SEED:		next = expand_entity_obj_seed(info,str,arg); break;
+        case ENT_OBJ_CART:		next = expand_entity_obj_cart(info,str,arg); break;
+        case ENT_OBJ_ITEM_SHIP:		next = expand_entity_obj_item_ship(info,str,arg); break;
+        case ENT_OBJ_SEXTANT:		next = expand_entity_obj_sextant(info,str,arg); break;
+        case ENT_OBJ_WEAPON_CON:	next = expand_entity_obj_weapon_con(info,str,arg); break;
+        case ENT_OBJ_BOOK:		next = expand_entity_obj_book(info,str,arg); break;
+        case ENT_OBJ_HERB:		next = expand_entity_obj_herb(info,str,arg); break;
+        case ENT_OBJ_MIST:		next = expand_entity_obj_mist(info,str,arg); break;
+        case ENT_OBJ_TRADE:		next = expand_entity_obj_trade(info,str,arg); break;
+        case ENT_OBJ_TATTOO:		next = expand_entity_obj_tattoo(info,str,arg); break;
+        case ENT_OBJ_INK:		next = expand_entity_obj_ink(info,str,arg); break;
+        case ENT_OBJ_TELESCOPE:		next = expand_entity_obj_telescope(info,str,arg); break;
+        case ENT_OBJ_COMPASS:		next = expand_entity_obj_compass(info,str,arg); break;
+        case ENT_OBJ_BODY_PART:		next = expand_entity_obj_body_part(info,str,arg); break;
+        case ENT_OBJ_SCROLL:		next = expand_entity_obj_scroll(info,str,arg); break;
+        case ENT_OBJ_TOOL:		next = expand_entity_obj_tool(info,str,arg); break;
+        case ENT_OBJ_JEWELRY:		next = expand_entity_obj_jewelry(info,str,arg); break;
+        case ENT_OBJ_MAP:		next = expand_entity_obj_map(info,str,arg); break;
+        case ENT_OBJ_PAGE:		next = expand_entity_obj_page(info,str,arg); break;
+
         case ENT_EQUIPMENT:		next = expand_entity_equipment(info,str,arg); break;
 
         case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
@@ -6742,7 +7785,7 @@ char *one_argument_escape( char *argument, char *arg_first )
 
 char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    char *buf = malloc(strlen(str) + 1);
+    char buf[MSL*2+1];
 
     str = skip_whitespace(str);
     arg->type = ENT_NONE;		// ENT_PRIMARY
@@ -6785,8 +7828,6 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             }
         }
     }
-
-    free(buf);
 
     return skip_whitespace(str);
 }

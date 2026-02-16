@@ -276,14 +276,14 @@ void do_play(CHAR_DATA *ch, char *argument)
             */
 
             // Only do it if both are set
-            if( instrument->value[2] > 0 && instrument->value[3] > 0)
+            if( INSTRUMENT(instrument)->beats_min > 0 && INSTRUMENT(instrument)->beats_max > 0)
             {
                 int scale;
 
-                if( instrument->value[2] < instrument->value[3] )
-                    scale = number_range(instrument->value[2], instrument->value[3]);
+                if( INSTRUMENT(instrument)->beats_min < INSTRUMENT(instrument)->beats_max )
+                    scale = number_range(INSTRUMENT(instrument)->beats_min, INSTRUMENT(instrument)->beats_max);
                 else
-                    scale = number_range(instrument->value[3], instrument->value[2]);
+                    scale = number_range(INSTRUMENT(instrument)->beats_max, INSTRUMENT(instrument)->beats_min);
 
                 if( scale != 100 )
                 {

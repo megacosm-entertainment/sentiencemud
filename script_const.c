@@ -327,6 +327,42 @@ ENT_FIELD entity_object[] = {
     {"extra",		ENTITY_OBJ_EXTRA,			ENT_BITMATRIX },
     {"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
     {"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
+
+    // Typed data sub-entities
+    {"armor",		ENTITY_OBJ_ARMOR_DATA,		ENT_OBJ_ARMOR		},
+    {"armour",		ENTITY_OBJ_ARMOR_DATA,		ENT_OBJ_ARMOR		},
+    {"body_part",	ENTITY_OBJ_BODY_PART_DATA,	ENT_OBJ_BODY_PART	},
+    {"book",		ENTITY_OBJ_BOOK_DATA,		ENT_OBJ_BOOK		},
+    {"cart",		ENTITY_OBJ_CART_DATA,		ENT_OBJ_CART		},
+    {"compass",		ENTITY_OBJ_COMPASS_DATA,	ENT_OBJ_COMPASS		},
+    {"container_data", ENTITY_OBJ_CONTAINER_DATA,	ENT_OBJ_CONTAINER	},
+    {"corpse",		ENTITY_OBJ_CORPSE_DATA,		ENT_OBJ_CORPSE		},
+    {"fluid",		ENTITY_OBJ_FLUID_CON_DATA,	ENT_OBJ_FLUID_CON	},
+    {"drink",		ENTITY_OBJ_FLUID_CON_DATA,	ENT_OBJ_FLUID_CON	},
+    {"food",		ENTITY_OBJ_FOOD_DATA,		ENT_OBJ_FOOD		},
+    {"furniture",	ENTITY_OBJ_FURNITURE_DATA,	ENT_OBJ_FURNITURE	},
+    {"herb",		ENTITY_OBJ_HERB_DATA,		ENT_OBJ_HERB		},
+    {"ink",			ENTITY_OBJ_INK_DATA,		ENT_OBJ_INK			},
+    {"instrument",	ENTITY_OBJ_INSTRUMENT_DATA,	ENT_OBJ_INSTRUMENT	},
+    {"item_ship",	ENTITY_OBJ_ITEM_SHIP_DATA,	ENT_OBJ_ITEM_SHIP	},
+    {"jewelry",		ENTITY_OBJ_JEWELRY_DATA,	ENT_OBJ_JEWELRY		},
+    {"light",		ENTITY_OBJ_LIGHT_DATA,		ENT_OBJ_LIGHT		},
+    {"map",			ENTITY_OBJ_MAP_DATA,		ENT_OBJ_MAP			},
+    {"mist",		ENTITY_OBJ_MIST_DATA,		ENT_OBJ_MIST		},
+    {"money",		ENTITY_OBJ_MONEY_DATA,		ENT_OBJ_MONEY		},
+    {"page",		ENTITY_OBJ_PAGE_DATA,		ENT_OBJ_PAGE		},
+    {"portal",		ENTITY_OBJ_PORTAL_DATA,		ENT_OBJ_PORTAL		},
+    {"scroll",		ENTITY_OBJ_SCROLL_DATA,		ENT_OBJ_SCROLL		},
+    {"seed",		ENTITY_OBJ_SEED_DATA,		ENT_OBJ_SEED		},
+    {"sextant",		ENTITY_OBJ_SEXTANT_DATA,	ENT_OBJ_SEXTANT		},
+    {"tattoo",		ENTITY_OBJ_TATTOO_DATA,		ENT_OBJ_TATTOO		},
+    {"telescope",	ENTITY_OBJ_TELESCOPE_DATA,	ENT_OBJ_TELESCOPE	},
+    {"tool",		ENTITY_OBJ_TOOL_DATA,		ENT_OBJ_TOOL		},
+    {"trade",		ENTITY_OBJ_TRADE_DATA,		ENT_OBJ_TRADE		},
+    {"wand",		ENTITY_OBJ_WAND_DATA,		ENT_OBJ_WAND		},
+    {"staff",		ENTITY_OBJ_WAND_DATA,		ENT_OBJ_WAND		},
+    {"weapon",		ENTITY_OBJ_WEAPON_DATA,		ENT_OBJ_WEAPON		},
+    {"weapon_con",	ENTITY_OBJ_WEAPON_CON_DATA,	ENT_OBJ_WEAPON_CON	},
     {NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -714,6 +750,278 @@ ENT_FIELD entity_quest[] = {
     {NULL,				0,								ENT_UNKNOWN			}
 };
 
+///////////////////////////////////////////////////////////////////////////////
+// Object typed data sub-entity field tables
+///////////////////////////////////////////////////////////////////////////////
+
+ENT_FIELD entity_obj_weapon[] = {
+    {"class",			ENTITY_OBJ_WEAPON_CLASS,		ENT_NUMBER	},
+    {"weapon_class",	ENTITY_OBJ_WEAPON_CLASS,		ENT_NUMBER	},
+    {"damage_type",		ENTITY_OBJ_WEAPON_DAMAGE_TYPE,	ENT_NUMBER	},
+    {"flags",			ENTITY_OBJ_WEAPON_FLAGS,		ENT_BITVECTOR	},
+    {"dice",			ENTITY_OBJ_WEAPON_DICE,			ENT_DICE	},
+    {"damage",			ENTITY_OBJ_WEAPON_DICE,			ENT_DICE	},
+    {"range",			ENTITY_OBJ_WEAPON_RANGE,		ENT_NUMBER	},
+    {"max_mana",		ENTITY_OBJ_WEAPON_MAX_MANA,		ENT_NUMBER	},
+    {"charges",			ENTITY_OBJ_WEAPON_CHARGES,		ENT_NUMBER	},
+    {"max_charges",		ENTITY_OBJ_WEAPON_MAX_CHARGES,	ENT_NUMBER	},
+    {"cooldown",		ENTITY_OBJ_WEAPON_COOLDOWN,		ENT_NUMBER	},
+    {"recharge_time",	ENTITY_OBJ_WEAPON_RECHARGE_TIME, ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_armor[] = {
+    {"type",			ENTITY_OBJ_ARMOR_TYPE,			ENT_NUMBER	},
+    {"armor_type",		ENTITY_OBJ_ARMOR_TYPE,			ENT_NUMBER	},
+    {"strength",		ENTITY_OBJ_ARMOR_STRENGTH,		ENT_NUMBER	},
+    {"armor_strength",	ENTITY_OBJ_ARMOR_STRENGTH,		ENT_NUMBER	},
+    {"pierce",			ENTITY_OBJ_ARMOR_PROT_PIERCE,	ENT_NUMBER	},
+    {"bash",			ENTITY_OBJ_ARMOR_PROT_BASH,		ENT_NUMBER	},
+    {"slash",			ENTITY_OBJ_ARMOR_PROT_SLASH,	ENT_NUMBER	},
+    {"exotic",			ENTITY_OBJ_ARMOR_PROT_EXOTIC,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_container[] = {
+    {"flags",			ENTITY_OBJ_CONTAINER_FLAGS,		ENT_BITVECTOR	},
+    {"max_weight",		ENTITY_OBJ_CONTAINER_MAX_WEIGHT, ENT_NUMBER	},
+    {"weight_mult",		ENTITY_OBJ_CONTAINER_WEIGHT_MULT, ENT_NUMBER},
+    {"max_items",		ENTITY_OBJ_CONTAINER_MAX_ITEMS,	ENT_NUMBER	},
+    {"max_volume",		ENTITY_OBJ_CONTAINER_MAX_VOLUME, ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_fluid_con[] = {
+    {"capacity",		ENTITY_OBJ_FLUID_CON_CAPACITY,	ENT_NUMBER	},
+    {"amount",			ENTITY_OBJ_FLUID_CON_AMOUNT,	ENT_NUMBER	},
+    {"liquid",			ENTITY_OBJ_FLUID_CON_LIQUID,	ENT_NUMBER	},
+    {"poison",			ENTITY_OBJ_FLUID_CON_POISON,	ENT_NUMBER	},
+    {"flags",			ENTITY_OBJ_FLUID_CON_FLAGS,		ENT_BITVECTOR	},
+    {"refill_rate",		ENTITY_OBJ_FLUID_CON_REFILL_RATE, ENT_NUMBER},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_food[] = {
+    {"hunger",			ENTITY_OBJ_FOOD_HUNGER,			ENT_NUMBER	},
+    {"full",			ENTITY_OBJ_FOOD_FULL,			ENT_NUMBER	},
+    {"poison",			ENTITY_OBJ_FOOD_POISON,			ENT_NUMBER	},
+    {"timer",			ENTITY_OBJ_FOOD_TIMER,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_furniture[] = {
+    {"flags",			ENTITY_OBJ_FURNITURE_FLAGS,		ENT_BITVECTOR	},
+    {"max_people",		ENTITY_OBJ_FURNITURE_MAX_PEOPLE, ENT_NUMBER	},
+    {"max_weight",		ENTITY_OBJ_FURNITURE_MAX_WEIGHT, ENT_NUMBER	},
+    {"heal_rate",		ENTITY_OBJ_FURNITURE_HEAL_RATE,	ENT_NUMBER	},
+    {"mana_rate",		ENTITY_OBJ_FURNITURE_MANA_RATE,	ENT_NUMBER	},
+    {"move_rate",		ENTITY_OBJ_FURNITURE_MOVE_RATE,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_portal[] = {
+    {"exit",			ENTITY_OBJ_PORTAL_EXIT,			ENT_BITVECTOR	},
+    {"flags",			ENTITY_OBJ_PORTAL_FLAGS,		ENT_BITVECTOR	},
+    {"charges",			ENTITY_OBJ_PORTAL_CHARGES,		ENT_NUMBER	},
+    {"type",			ENTITY_OBJ_PORTAL_TYPE,			ENT_NUMBER	},
+    {"destination",		ENTITY_OBJ_PORTAL_DESTINATION,	ENT_NUMBER	},
+    {"dest",			ENTITY_OBJ_PORTAL_DESTINATION,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_light[] = {
+    {"flags",			ENTITY_OBJ_LIGHT_FLAGS,			ENT_BITVECTOR	},
+    {"duration",		ENTITY_OBJ_LIGHT_DURATION,		ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_money[] = {
+    {"silver",			ENTITY_OBJ_MONEY_SILVER,		ENT_NUMBER	},
+    {"gold",			ENTITY_OBJ_MONEY_GOLD,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_wand[] = {
+    {"max_mana",		ENTITY_OBJ_WAND_MAX_MANA,		ENT_NUMBER	},
+    {"charges",			ENTITY_OBJ_WAND_CHARGES,		ENT_NUMBER	},
+    {"max_charges",		ENTITY_OBJ_WAND_MAX_CHARGES,	ENT_NUMBER	},
+    {"cooldown",		ENTITY_OBJ_WAND_COOLDOWN,		ENT_NUMBER	},
+    {"recharge_time",	ENTITY_OBJ_WAND_RECHARGE_TIME,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_corpse[] = {
+    {"corpse_type",		ENTITY_OBJ_CORPSE_CORPSE_TYPE,	ENT_NUMBER	},
+    {"resurrection",	ENTITY_OBJ_CORPSE_RESURRECTION,	ENT_NUMBER	},
+    {"animation",		ENTITY_OBJ_CORPSE_ANIMATION,	ENT_NUMBER	},
+    {"body_parts",		ENTITY_OBJ_CORPSE_BODY_PARTS,	ENT_NUMBER	},
+    {"mobile_vnum",		ENTITY_OBJ_CORPSE_MOBILE_VNUM,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_instrument[] = {
+    {"type",			ENTITY_OBJ_INSTRUMENT_TYPE,		ENT_NUMBER	},
+    {"flags",			ENTITY_OBJ_INSTRUMENT_FLAGS,	ENT_BITVECTOR	},
+    {"beats_min",		ENTITY_OBJ_INSTRUMENT_BEATS_MIN, ENT_NUMBER	},
+    {"beats_max",		ENTITY_OBJ_INSTRUMENT_BEATS_MAX, ENT_NUMBER	},
+    {"mana_min",		ENTITY_OBJ_INSTRUMENT_MANA_MIN,	ENT_NUMBER	},
+    {"mana_max",		ENTITY_OBJ_INSTRUMENT_MANA_MAX,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_seed[] = {
+    {"growth_time",		ENTITY_OBJ_SEED_GROWTH_TIME,	ENT_NUMBER	},
+    {"object_vnum",		ENTITY_OBJ_SEED_OBJECT_VNUM,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_cart[] = {
+    {"flags",			ENTITY_OBJ_CART_FLAGS,			ENT_BITVECTOR	},
+    {"min_strength",	ENTITY_OBJ_CART_MIN_STRENGTH,	ENT_NUMBER	},
+    {"move_delay",		ENTITY_OBJ_CART_MOVE_DELAY,		ENT_NUMBER	},
+    {"capacity",		ENTITY_OBJ_CART_CAPACITY,		ENT_NUMBER	},
+    {"max_items",		ENTITY_OBJ_CART_MAX_ITEMS,		ENT_NUMBER	},
+    {"weight_mult",		ENTITY_OBJ_CART_WEIGHT_MULT,	ENT_NUMBER	},
+    {"vanish_time",		ENTITY_OBJ_CART_VANISH_TIME,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_item_ship[] = {
+    {"weight",			ENTITY_OBJ_ITEM_SHIP_WEIGHT,	ENT_NUMBER	},
+    {"move_delay",		ENTITY_OBJ_ITEM_SHIP_MOVE_DELAY, ENT_NUMBER	},
+    {"min_crew",		ENTITY_OBJ_ITEM_SHIP_MIN_CREW,	ENT_NUMBER	},
+    {"capacity",		ENTITY_OBJ_ITEM_SHIP_CAPACITY,	ENT_NUMBER	},
+    {"max_crew",		ENTITY_OBJ_ITEM_SHIP_MAX_CREW,	ENT_NUMBER	},
+    {"first_room",		ENTITY_OBJ_ITEM_SHIP_FIRST_ROOM, ENT_NUMBER	},
+    {"hit_points",		ENTITY_OBJ_ITEM_SHIP_HIT_POINTS, ENT_NUMBER	},
+    {"max_guns",		ENTITY_OBJ_ITEM_SHIP_MAX_GUNS,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_sextant[] = {
+    {"accuracy",		ENTITY_OBJ_SEXTANT_ACCURACY,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_weapon_con[] = {
+    {"max_weight",		ENTITY_OBJ_WEAPON_CON_MAX_WEIGHT, ENT_NUMBER},
+    {"weapon_type",		ENTITY_OBJ_WEAPON_CON_WEAPON_TYPE, ENT_NUMBER},
+    {"max_items",		ENTITY_OBJ_WEAPON_CON_MAX_ITEMS, ENT_NUMBER	},
+    {"weight_mult",		ENTITY_OBJ_WEAPON_CON_WEIGHT_MULT, ENT_NUMBER},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_book[] = {
+    {"flags",			ENTITY_OBJ_BOOK_FLAGS,			ENT_BITVECTOR	},
+    {"current_page",	ENTITY_OBJ_BOOK_CURRENT_PAGE,	ENT_NUMBER	},
+    {"open_page",		ENTITY_OBJ_BOOK_OPEN_PAGE,		ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_herb[] = {
+    {"type",			ENTITY_OBJ_HERB_TYPE,			ENT_NUMBER	},
+    {"healing",			ENTITY_OBJ_HERB_HEALING,		ENT_NUMBER	},
+    {"regenerative",	ENTITY_OBJ_HERB_REGENERATIVE,	ENT_NUMBER	},
+    {"refreshing",		ENTITY_OBJ_HERB_REFRESHING,		ENT_NUMBER	},
+    {"immunity",		ENTITY_OBJ_HERB_IMMUNITY,		ENT_BITVECTOR	},
+    {"resistance",		ENTITY_OBJ_HERB_RESISTANCE,		ENT_BITVECTOR	},
+    {"vulnerability",	ENTITY_OBJ_HERB_VULNERABILITY,	ENT_BITVECTOR	},
+    {"spell",			ENTITY_OBJ_HERB_SPELL,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_mist[] = {
+    {"obscure_mobs",	ENTITY_OBJ_MIST_OBSCURE_MOBS,	ENT_NUMBER	},
+    {"obscure_objs",	ENTITY_OBJ_MIST_OBSCURE_OBJS,	ENT_NUMBER	},
+    {"obscure_room",	ENTITY_OBJ_MIST_OBSCURE_ROOM,	ENT_NUMBER	},
+    {"icy",				ENTITY_OBJ_MIST_ICY,			ENT_NUMBER	},
+    {"fiery",			ENTITY_OBJ_MIST_FIERY,			ENT_NUMBER	},
+    {"acidic",			ENTITY_OBJ_MIST_ACIDIC,			ENT_NUMBER	},
+    {"stink",			ENTITY_OBJ_MIST_STINK,			ENT_NUMBER	},
+    {"wither",			ENTITY_OBJ_MIST_WITHER,			ENT_NUMBER	},
+    {"toxic",			ENTITY_OBJ_MIST_TOXIC,			ENT_NUMBER	},
+    {"shock",			ENTITY_OBJ_MIST_SHOCK,			ENT_NUMBER	},
+    {"fog",				ENTITY_OBJ_MIST_FOG,			ENT_NUMBER	},
+    {"sleep",			ENTITY_OBJ_MIST_SLEEP,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_trade[] = {
+    {"trade_type",		ENTITY_OBJ_TRADE_TRADE_TYPE,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_tattoo[] = {
+    {"touches",			ENTITY_OBJ_TATTOO_TOUCHES,		ENT_NUMBER	},
+    {"fading_chance",	ENTITY_OBJ_TATTOO_FADING_CHANCE, ENT_NUMBER	},
+    {"fading_rate",		ENTITY_OBJ_TATTOO_FADING_RATE,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_ink[] = {
+    {"type0",			ENTITY_OBJ_INK_TYPE0,			ENT_NUMBER	},
+    {"type1",			ENTITY_OBJ_INK_TYPE1,			ENT_NUMBER	},
+    {"type2",			ENTITY_OBJ_INK_TYPE2,			ENT_NUMBER	},
+    {"amount0",			ENTITY_OBJ_INK_AMOUNT0,			ENT_NUMBER	},
+    {"amount1",			ENTITY_OBJ_INK_AMOUNT1,			ENT_NUMBER	},
+    {"amount2",			ENTITY_OBJ_INK_AMOUNT2,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_telescope[] = {
+    {"distance",		ENTITY_OBJ_TELESCOPE_DISTANCE,	ENT_NUMBER	},
+    {"min_distance",	ENTITY_OBJ_TELESCOPE_MIN_DISTANCE, ENT_NUMBER},
+    {"max_distance",	ENTITY_OBJ_TELESCOPE_MAX_DISTANCE, ENT_NUMBER},
+    {"bonus_view",		ENTITY_OBJ_TELESCOPE_BONUS_VIEW, ENT_NUMBER	},
+    {"heading",			ENTITY_OBJ_TELESCOPE_HEADING,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_compass[] = {
+    {"accuracy",		ENTITY_OBJ_COMPASS_ACCURACY,	ENT_NUMBER	},
+    {"wuid",			ENTITY_OBJ_COMPASS_WUID,		ENT_NUMBER	},
+    {"x",				ENTITY_OBJ_COMPASS_X,			ENT_NUMBER	},
+    {"y",				ENTITY_OBJ_COMPASS_Y,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_body_part[] = {
+    {"parts",			ENTITY_OBJ_BODY_PART_PARTS,		ENT_NUMBER	},
+    {"race_uid",		ENTITY_OBJ_BODY_PART_RACE_UID,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_scroll[] = {
+    {"max_mana",		ENTITY_OBJ_SCROLL_MAX_MANA,		ENT_NUMBER	},
+    {"flags",			ENTITY_OBJ_SCROLL_FLAGS,		ENT_BITVECTOR	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_tool[] = {
+    {"type",			ENTITY_OBJ_TOOL_TYPE,			ENT_NUMBER	},
+    {"tier",			ENTITY_OBJ_TOOL_TIER,			ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_jewelry[] = {
+    {"max_mana",		ENTITY_OBJ_JEWELRY_MAX_MANA,	ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_map[] = {
+    {"wuid",			ENTITY_OBJ_MAP_WUID,			ENT_NUMBER	},
+    {"x",				ENTITY_OBJ_MAP_X,				ENT_NUMBER	},
+    {"y",				ENTITY_OBJ_MAP_Y,				ENT_NUMBER	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_obj_page[] = {
+    {"page_no",			ENTITY_OBJ_PAGE_PAGE_NO,		ENT_NUMBER	},
+    {"title",			ENTITY_OBJ_PAGE_TITLE,			ENT_STRING	},
+    {"text",			ENTITY_OBJ_PAGE_TEXT,			ENT_STRING	},
+    {NULL,				0,								ENT_UNKNOWN	}
+};
+
 struct _entity_type_info entity_type_info[] = {
     { ENT_PRIMARY,		ENT_PRIMARY,		entity_primary,				true	},
     { ENT_BOOLEAN,		ENT_BOOLEAN,		entity_boolean,				false	},
@@ -775,6 +1083,39 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_GAME_SETTING,     ENT_GAME_SETTING,     NULL,                    false },
     { ENT_TOKEN_INDEX,      ENT_TOKEN_INDEX,      NULL,                    false },
     { ENT_SCRIPT_DATA,        ENT_SCRIPT_DATA,        NULL,                    false },
+
+    // Object typed data sub-entities
+    { ENT_OBJ_WEAPON,      ENT_OBJ_WEAPON,     entity_obj_weapon,          false },
+    { ENT_OBJ_ARMOR,       ENT_OBJ_ARMOR,      entity_obj_armor,           false },
+    { ENT_OBJ_CONTAINER,   ENT_OBJ_CONTAINER,  entity_obj_container,       false },
+    { ENT_OBJ_FLUID_CON,   ENT_OBJ_FLUID_CON,  entity_obj_fluid_con,      false },
+    { ENT_OBJ_FOOD,        ENT_OBJ_FOOD,       entity_obj_food,            false },
+    { ENT_OBJ_FURNITURE,   ENT_OBJ_FURNITURE,  entity_obj_furniture,       false },
+    { ENT_OBJ_PORTAL,      ENT_OBJ_PORTAL,     entity_obj_portal,          false },
+    { ENT_OBJ_LIGHT,       ENT_OBJ_LIGHT,      entity_obj_light,           false },
+    { ENT_OBJ_MONEY,       ENT_OBJ_MONEY,      entity_obj_money,           false },
+    { ENT_OBJ_WAND,        ENT_OBJ_WAND,       entity_obj_wand,            false },
+    { ENT_OBJ_CORPSE,      ENT_OBJ_CORPSE,     entity_obj_corpse,          false },
+    { ENT_OBJ_INSTRUMENT,  ENT_OBJ_INSTRUMENT, entity_obj_instrument,      false },
+    { ENT_OBJ_SEED,        ENT_OBJ_SEED,       entity_obj_seed,            false },
+    { ENT_OBJ_CART,         ENT_OBJ_CART,       entity_obj_cart,            false },
+    { ENT_OBJ_ITEM_SHIP,   ENT_OBJ_ITEM_SHIP,  entity_obj_item_ship,      false },
+    { ENT_OBJ_SEXTANT,     ENT_OBJ_SEXTANT,    entity_obj_sextant,         false },
+    { ENT_OBJ_WEAPON_CON,  ENT_OBJ_WEAPON_CON, entity_obj_weapon_con,      false },
+    { ENT_OBJ_BOOK,        ENT_OBJ_BOOK,       entity_obj_book,            false },
+    { ENT_OBJ_HERB,        ENT_OBJ_HERB,       entity_obj_herb,            false },
+    { ENT_OBJ_MIST,        ENT_OBJ_MIST,       entity_obj_mist,            false },
+    { ENT_OBJ_TRADE,       ENT_OBJ_TRADE,      entity_obj_trade,           false },
+    { ENT_OBJ_TATTOO,      ENT_OBJ_TATTOO,     entity_obj_tattoo,          false },
+    { ENT_OBJ_INK,         ENT_OBJ_INK,        entity_obj_ink,             false },
+    { ENT_OBJ_TELESCOPE,   ENT_OBJ_TELESCOPE,  entity_obj_telescope,       false },
+    { ENT_OBJ_COMPASS,     ENT_OBJ_COMPASS,    entity_obj_compass,         false },
+    { ENT_OBJ_BODY_PART,   ENT_OBJ_BODY_PART,  entity_obj_body_part,       false },
+    { ENT_OBJ_SCROLL,      ENT_OBJ_SCROLL,     entity_obj_scroll,          false },
+    { ENT_OBJ_TOOL,        ENT_OBJ_TOOL,       entity_obj_tool,            false },
+    { ENT_OBJ_JEWELRY,     ENT_OBJ_JEWELRY,    entity_obj_jewelry,         false },
+    { ENT_OBJ_MAP,         ENT_OBJ_MAP,        entity_obj_map,             false },
+    { ENT_OBJ_PAGE,        ENT_OBJ_PAGE,       entity_obj_page,            false },
 
     { ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						false	},
 };

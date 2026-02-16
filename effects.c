@@ -574,7 +574,7 @@ void poison_effect(void *vo, int level, int dam, int target)
         case ITEM_FOOD:
         break;
         case ITEM_DRINK_CON:
-        if (obj->value[0] == obj->value[1])
+        if (FLUID_CON(obj)->capacity == FLUID_CON(obj)->amount)
             return;
         break;
     }
@@ -584,7 +584,10 @@ void poison_effect(void *vo, int level, int dam, int target)
     if (number_percent() > chance)
         return;
 
-    obj->value[3] = 1;
+    if (obj->item_type == ITEM_FOOD)
+        FOOD(obj)->poison = 1;
+    else
+        FLUID_CON(obj)->poison = 1;
     return;
     }
 }

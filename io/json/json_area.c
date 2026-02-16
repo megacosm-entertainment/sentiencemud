@@ -15,6 +15,7 @@
 #include "../../recycle.h"
 #include "../../scripts.h"
 #include "json_area.h"
+#include "json_obj_types.h"
 #include "../cache/redis_cache.h"
 #include "../../editors/common.h"
 
@@ -3084,12 +3085,24 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
     json_object_set_new(json, "extra4_flags", flags_to_json_array(obj->extra[3], extra4_flags));
     json_object_set_new(json, "wear_flags", flags_to_json_array(obj->wear_flags, wear_flags));
     
-    // Values array
-    json_t *values = json_array();
-    for (int i = 0; i < 8; i++)
-        json_array_append_new(values, json_integer(obj->value[i]));
-    json_object_set_new(json, "values", values);
-    
+    // Legacy values[] — retained as transitional backup until Phase 5 is complete.
+    // Allows recovery from .are files for objects that lost data during
+    // premature Phase 4 value[] removal.
+    {
+        json_t *vals = json_array();
+        for (int i = 0; i < 8; i++)
+            json_array_append_new(vals, json_integer(obj->value[i]));
+        json_object_set_new(json, "values", vals);
+    }
+
+    // Type-specific data (canonical structured representation)
+    {
+        json_t *td = obj_index_type_data_to_json(obj);
+        if (td) {
+            json_object_set_new(json, "type_data", td);
+        }
+    }
+
     // Misc stats
     json_object_set_new(json, "level", json_integer(obj->level));
     json_object_set_new(json, "weight", json_integer(obj->weight));
@@ -3270,6 +3283,17 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         }
     }
     // Portal destination area UID (value[4]) resolved post-boot by fix_portal_destinations()
+
+    // Type-specific data (canonical structured representation)
+    {
+        json_t *td = json_object_get(json, "type_data");
+        if (td && json_is_object(td)) {
+            obj_index_type_data_from_json(obj, td);
+        } else if (values && json_is_array(values)) {
+            // No type_data in JSON — migrate from legacy values[]
+            obj_index_migrate_values_to_types(obj);
+        }
+    }
 
     // Numeric fields
     obj->level = json_get_int_default(json, "level", 0);

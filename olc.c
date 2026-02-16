@@ -235,6 +235,7 @@ const struct olc_cmd_type oedit_table[] =
     { "addoprog",		oedit_addoprog			},
     { "addskill",		oedit_addskill			},
     { "addspell",		oedit_addspell			},
+    { "addtype",		oedit_addtype			},
     { "allowedfixed",	oedit_allowed_fixed		},
     { "commands",		show_commands			},
     { "comments",		oedit_comments			},
@@ -262,6 +263,7 @@ const struct olc_cmd_type oedit_table[] =
     //{ "oupdate",		oedit_update			},
     { "persist",		oedit_persist			},
     { "prev",			oedit_prev				},
+    { "removetype",		oedit_removetype		},
     { "scriptkwd",		oedit_skeywds			},
     { "short",			oedit_short				},
     { "show",			oedit_show				},
@@ -3902,7 +3904,7 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
     int type;
     char buf[MAX_STRING_LENGTH];
 
-    if (objIndex->item_type != ITEM_WEAPON)
+    if (objIndex->item_type != ITEM_WEAPON || !IS_WEAPON(objIndex))
     {
     sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
         "obj, %s, vnum %ld", objIndex->short_descr,
@@ -3928,10 +3930,10 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
     num = (objIndex->level + 20) / 10;
     type = (objIndex->level + 20) / 4;
 
-    if (IS_SET(objIndex->value[4], WEAPON_TWO_HANDS))
+    if (IS_SET(WEAPON(objIndex)->flags, WEAPON_TWO_HANDS))
     type = (type * 7)/5 - 1;
 
-    switch(objIndex->value[0])
+    switch(WEAPON(objIndex)->weapon_class)
     {
     case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
     case WEAPON_SWORD:		type += 1;	num += 1; 	break;
@@ -3958,8 +3960,8 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
     num = UMAX(1, num);
     type = UMAX(8, type);
 
-    objIndex->value[1] = num;
-    objIndex->value[2] = type;
+    WEAPON(objIndex)->damage.number = num;
+    WEAPON(objIndex)->damage.size = type;
 }
 
 
@@ -3970,7 +3972,7 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
     int type;
     char buf[MAX_STRING_LENGTH];
 
-    if (obj->item_type != ITEM_WEAPON)
+    if (obj->item_type != ITEM_WEAPON || !IS_WEAPON(obj))
     {
     sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
         "obj, %s, vnum %ld", obj->short_descr,
@@ -3996,10 +3998,10 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
     num = (obj->level + 20) / 10;
     type = (obj->level + 20) / 4;
 
-    if (IS_SET(obj->value[4], WEAPON_TWO_HANDS))
+    if (IS_SET(WEAPON(obj)->flags, WEAPON_TWO_HANDS))
     type = type * 7/5 - 1;
 
-    switch(obj->value[0])
+    switch(WEAPON(obj)->weapon_class)
     {
     case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
     case WEAPON_SWORD:		type += 1;	num += 1; 	break;
@@ -4026,8 +4028,8 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
     num = UMAX(1, num);
     type = UMAX(8, type);
 
-    obj->value[1] = num;
-    obj->value[2] = type;
+    WEAPON(obj)->damage.number = num;
+    WEAPON(obj)->damage.size = type;
 }
 
 
@@ -4037,13 +4039,15 @@ void set_armour(OBJ_INDEX_DATA *objIndex)
     int armour;
     int armour_exotic;
 
-    armour = calc_obj_armour(objIndex->level, objIndex->value[4]) ;
+    if (!IS_ARMOR(objIndex)) return;
+
+    armour = calc_obj_armour(objIndex->level, ARMOR(objIndex)->armor_strength);
     armour_exotic = armour * 9/10;
 
-    objIndex->value[0] = armour;
-    objIndex->value[1] = armour;
-    objIndex->value[2] = armour;
-    objIndex->value[3] = armour_exotic;
+    ARMOR(objIndex)->protection[0] = armour;
+    ARMOR(objIndex)->protection[1] = armour;
+    ARMOR(objIndex)->protection[2] = armour;
+    ARMOR(objIndex)->protection[3] = armour_exotic;
 }
 
 
@@ -4053,13 +4057,15 @@ void set_armour_obj(OBJ_DATA *obj)
     int armour;
     int armour_exotic;
 
-    armour = calc_obj_armour(obj->level, obj->value[4]) ;
+    if (!IS_ARMOR(obj)) return;
+
+    armour = calc_obj_armour(obj->level, ARMOR(obj)->armor_strength);
     armour_exotic = armour * 9/10;
 
-    obj->value[0] = armour;
-    obj->value[1] = armour;
-    obj->value[2] = armour;
-    obj->value[3] = armour_exotic;
+    ARMOR(obj)->protection[0] = armour;
+    ARMOR(obj)->protection[1] = armour;
+    ARMOR(obj)->protection[2] = armour;
+    ARMOR(obj)->protection[3] = armour_exotic;
 }
 
 

@@ -56,6 +56,7 @@
 #include "wilds.h"
 #include "io/json/json_persist.h"
 #include "io/json/json_area.h"
+#include "io/json/json_obj_types.h"
 #include "io/cache/redis_cache.h"
 #include "traits.h"
 #include "skill_data.h"
@@ -438,6 +439,7 @@ void load_bans(void);
 void fix_rooms(void);
 void fix_object_locks(void);
 void fix_portal_destinations(void);
+void fix_object_type_data(void);
 void fix_area_fields(void);
 void fix_mobprogs(void);
 void reset_area(AREA_DATA * pArea);
@@ -855,6 +857,8 @@ void boot_db(void)
     fix_object_locks();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving portal destination areas");
     fix_portal_destinations();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Ensuring object type data structs");
+    fix_object_type_data();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
     fix_area_fields();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
@@ -1130,6 +1134,83 @@ void fix_portal_destinations(void)
                 }
             }
         }
+    }
+}
+
+
+/*
+ * fix_object_type_data - Ensure all object indexes have their type structs
+ *
+ * After all areas are loaded, iterates every object index. For any object
+ * whose primary item_type supports typed data (has_typed_data == true) but
+ * is missing its type struct, attempts to:
+ *   1. Migrate from legacy value[] array (if any non-zero values exist)
+ *   2. Otherwise, allocate a default (zeroed) struct
+ *
+ * This handles JSON areas that were saved after value[] was removed from
+ * the save path but before type_data was populated — the data was never
+ * migrated, leaving objects with neither values nor type structs.
+ */
+void fix_object_type_data(void)
+{
+    AREA_DATA *pArea;
+    OBJ_INDEX_DATA *obj;
+    int iHash;
+    int migrated = 0;
+    int allocated = 0;
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
+            {
+                int type = obj->item_type;
+
+                /* Skip invalid/unknown types */
+                if (type <= 0 || type >= ITEM__MAX)
+                    continue;
+
+                /* Only care about types that should have typed data */
+                if (!item_type_info[type].has_typed_data)
+                    continue;
+
+                /* Check if the type struct is already present via type_flags */
+                if (TBIT_TST(obj->type_flags, type))
+                    continue;
+
+                /* Type struct is missing — check if value[] has any data to migrate */
+                bool has_values = false;
+                for (int i = 0; i < 8; i++)
+                {
+                    if (obj->value[i] != 0)
+                    {
+                        has_values = true;
+                        break;
+                    }
+                }
+
+                if (has_values)
+                {
+                    /* Migrate from value[] array */
+                    obj_index_migrate_values_to_types(obj);
+                    migrated++;
+                }
+                else
+                {
+                    /* No values to migrate — allocate a default struct */
+                    obj_index_alloc_type_data(obj, type);
+                    allocated++;
+                }
+            }
+        }
+    }
+
+    if (migrated > 0 || allocated > 0)
+    {
+        log_message_f(LOG_LEVEL_INFO, LOG_INIT,
+            "fix_object_type_data: migrated %d objects from value[], "
+            "allocated %d default type structs", migrated, allocated);
     }
 }
 
@@ -3875,6 +3956,14 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->version = VERSION_OBJECT_000;
     obj->locker = false;
 
+    // Copy type-specific data structs from the template (canonical source).
+    // Falls back to migrating from value[] if the template has no type data.
+    if (!TBIT_EMPTY(pObjIndex->type_flags)) {
+        obj_copy_type_data_from_index(obj, pObjIndex);
+    } else {
+        obj_migrate_values_to_types(obj);
+    }
+
     if (add_to_loaded_objs)
     {
         list_appendlink(loaded_objects, obj);
@@ -3997,6 +4086,10 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 
     for (i = 0;  i < 8; i ++)
         clone->value[i]	= parent->value[i];
+
+    /* Type-specific data */
+    obj_free_type_data(clone);
+    obj_copy_type_data(clone, parent);
 
     /* affects */
     for (paf = parent->affected; paf != NULL; paf = paf->next)
@@ -6611,7 +6704,6 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 {
     EXTRA_DESCR_DATA *ed;
     AFFECT_DATA *paf;
-    int i;
 
     if (multiple && obj->next_content)
         persist_save_object(fp, obj->next_content, multiple);
@@ -6675,8 +6767,18 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
     fprintf(fp, "Timer %d\n", obj->timer);					// **
     fprintf(fp, "Cost %ld\n", obj->cost);					// **
 
-    for(i = 0; i < 8; i++)
-        fprintf(fp, "Value %d %ld\n", i, obj->value[i]);			// **
+    /* Type-specific data (canonical, as JSON) — replaces legacy value[] */
+    {
+        json_t *td = obj_type_data_to_json(obj);
+        if (td) {
+            char *td_str = json_dumps(td, JSON_COMPACT | JSON_SORT_KEYS);
+            if (td_str) {
+                fprintf(fp, "TypeData %s~\n", td_str);
+                free(td_str);
+            }
+            json_decref(td);
+        }
+    }
 
     if( obj->lock )
     {
@@ -7910,6 +8012,19 @@ OBJ_DATA *persist_load_object(FILE *fp)
             case 'T':
                 KEY("Timer",		obj->timer,			fread_number(fp));
                 KEY("TimesAllowedFixed",obj->times_allowed_fixed,	fread_number(fp));
+                if (!str_cmp(word, "TypeData")) {
+                    char *td_str = fread_string(fp);
+                    if (td_str && td_str[0]) {
+                        json_error_t error;
+                        json_t *td = json_loads(td_str, 0, &error);
+                        if (td) {
+                            obj_type_data_from_json(obj, td);
+                            json_decref(td);
+                        }
+                    }
+                    free_string(td_str);
+                    fMatch = true;
+                }
                 break;
             case 'U':
                 KEY("UID",		obj->id[0],		fread_number(fp));

@@ -154,6 +154,8 @@ set(SOURCE_FILES
     hunt.c
     interp.c
     invasion.c
+    item_types.c
+    item_type_mem.c
     io/common.c
     io/json/json_chat.c
     io/json/json_church.c
@@ -216,6 +218,7 @@ set(SOURCE_FILES
     io/json/json_instance.c
     io/json/json_mail.c
     io/json/json_note.c
+    io/json/json_obj_types.c
     io/json/json_persist.c
     io/json/json_projects.c
     io/json/json_ban.c
@@ -268,6 +271,13 @@ if(BUILD_TESTS)
         tests/integration/church_tests.c
         tests/integration/instance_tests.c
         tests/integration/chat_rooms_tests.c
+        tests/integration/skill_data_tests.c
+        tests/integration/class_data_tests.c
+        tests/integration/item_type_tests.c
+        tests/integration/lookup_table_tests.c
+        tests/integration/song_data_tests.c
+        tests/integration/skill_group_tests.c
+        tests/integration/trait_system_tests.c
     )
 endif()
 

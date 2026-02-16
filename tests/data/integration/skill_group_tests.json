@@ -1,0 +1,52 @@
+{
+  "type": "test_suite",
+  "test_suite": "skill_group_data",
+  "description": "Skill group system validation - lookups and data integrity",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading", "skill_data"],
+  "timeout_seconds": 15,
+  "tests": [
+    {
+      "name": "skill_group_count_positive",
+      "description": "Verify skill groups have been loaded",
+      "dependencies": [],
+      "test_type": "skill_group_count_test",
+      "input": {
+        "minimum_expected": 1
+      },
+      "expected_output": {
+        "count_positive": true
+      }
+    },
+    {
+      "name": "skill_group_lookup_valid",
+      "description": "Verify skill_group_find and search work correctly",
+      "dependencies": ["skill_group_count_positive"],
+      "test_type": "skill_group_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "name": "totally_nonexistent_group_xyz",
+            "should_find": false,
+            "description": "Bogus group not found"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "skill_group_iteration",
+      "description": "Verify iteration over all skill groups via skill_group_first",
+      "dependencies": ["skill_group_count_positive"],
+      "test_type": "skill_group_iteration_test",
+      "input": {},
+      "expected_output": {
+        "iteration_count_matches": true,
+        "all_groups_have_names": true
+      }
+    }
+  ]
+}

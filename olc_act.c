@@ -1634,130 +1634,125 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
     default:	// No values
         break;
     case ITEM_LIGHT:
+        if (!IS_LIGHT(obj)) break;
 
-            if (obj->value[2] == -1)
+            if (LIGHT(obj)->duration == -1)
         sprintf(buf, "{B[  {Wv2{B]{G Light:{x  Infinite[-1]\n\r");
             else
-        sprintf(buf, "{B[  {Wv2{B]{G Light:{x  [%ld]\n\r", obj->value[2]);
+        sprintf(buf, "{B[  {Wv2{B]{G Light:{x  [%d]\n\r", LIGHT(obj)->duration);
 
         add_buf(buffer, buf);
         break;
 
     case ITEM_WAND:
     case ITEM_STAFF:
+        if (!IS_WAND(obj)) break;
             sprintf(buf,
-        "{B[  {Wv0{B]{G Level:{x          [%ld]\n\r"
-        "{B[  {Wv1{B]{G Charges Total:{x  [%ld]\n\r"
-        "{B[  {Wv2{B]{G Charges Left:{x   [%ld]\n\r",
-        obj->value[0],
-        obj->value[1],
-        obj->value[2]);
+        "{B[  {Wv1{B]{G Charges Total:{x  [%d]\n\r"
+        "{B[  {Wv2{B]{G Charges Left:{x   [%d]\n\r",
+        WAND(obj)->max_charges,
+        WAND(obj)->charges);
         add_buf(buffer, buf);
         break;
 
     case ITEM_PORTAL:
-        if( IS_SET(obj->value[2], GATE_DUNGEON) )
+        if (!IS_PORTAL(obj)) break;
+        if( IS_SET(PORTAL(obj)->flags, GATE_DUNGEON) )
         {
             // DUNGEON portal
             sprintf(buf,
-                "{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
+                "{B[  {Wv0{B]{G Charges:{x           [%d]\n\r"
                 "{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
                 "{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
                 "{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r"
-                "{B[  {Wv4{B]{G Key:{x               [%ld] %s\n\r"
                 "{B[  {Wv5{B]{G Goes to (floor):  {x [%ld]\n\r",
-                obj->value[0],
-                flag_string(portal_exit_flags, obj->value[1]),
-                flag_string(portal_flags, obj->value[2]),
-                obj->value[3],
-                obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none",
-                obj->value[5]);
+                PORTAL(obj)->charges,
+                flag_string(portal_exit_flags, PORTAL(obj)->exit),
+                flag_string(portal_flags, PORTAL(obj)->flags),
+                PORTAL(obj)->params[0],
+                PORTAL(obj)->params[1]);
         }
-        else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
+        else if( IS_SET(PORTAL(obj)->flags, GATE_AREARANDOM) || PORTAL(obj)->params[0] == -1 )
         {
             // AREARANDOM portal
             sprintf(buf,
-                "{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
+                "{B[  {Wv0{B]{G Charges:{x        [%d]\n\r"
                 "{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
                 "{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-                "{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
                 "{B[  {Wv5{B]{G Goes to (area id):{x [%ld]\n\r",
-                obj->value[0],
-                flag_string(portal_exit_flags, obj->value[1]),
-                flag_string(portal_flags, obj->value[2]),
-                obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none",
-                obj->value[5]);
+                PORTAL(obj)->charges,
+                flag_string(portal_exit_flags, PORTAL(obj)->exit),
+                flag_string(portal_flags, PORTAL(obj)->flags),
+                PORTAL(obj)->params[1]);
         }
-        else if(obj->value[3] > 0)
+        else if(PORTAL(obj)->params[0] > 0)
         {
             // STATIC portal
             sprintf(buf,
-                "{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
+                "{B[  {Wv0{B]{G Charges:{x        [%d]\n\r"
                 "{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
                 "{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-                "{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r"
-                "{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r",
-                obj->value[0],
-                flag_string(portal_exit_flags, obj->value[1]),
-                flag_string(portal_flags, obj->value[2]),
-                obj->value[3],
-                obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none");
+                "{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r",
+                PORTAL(obj)->charges,
+                flag_string(portal_exit_flags, PORTAL(obj)->exit),
+                flag_string(portal_flags, PORTAL(obj)->flags),
+                PORTAL(obj)->params[0]);
         }
         else
         {
             // WILDERNESS portal
             sprintf(buf,
-                "{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
+                "{B[  {Wv0{B]{G Charges:{x        [%d]\n\r"
                 "{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
                 "{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-                "{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
                 "{B[  {Wv5{B]{G Goes to (map):{x  [%ld]\n\r"
                 "{B[  {Wv6{B]{G Goes to (mapx):{x [%ld]\n\r"
                 "{B[  {Wv7{B]{G Goes to (mapy):{x [%ld]\n\r",
-                obj->value[0],
-                flag_string(portal_exit_flags, obj->value[1]),
-                flag_string(portal_flags, obj->value[2]),
-                obj->value[4], get_obj_index_global(obj->value[4]) ? get_obj_index_global(obj->value[4])->short_descr : "none",
-                obj->value[5], obj->value[6],obj->value[7]);
+                PORTAL(obj)->charges,
+                flag_string(portal_exit_flags, PORTAL(obj)->exit),
+                flag_string(portal_flags, PORTAL(obj)->flags),
+                PORTAL(obj)->params[1], PORTAL(obj)->params[2], PORTAL(obj)->params[3]);
         }
         add_buf(buffer, buf);
         break;
 
     case ITEM_FURNITURE:
+        if (!IS_FURNITURE(obj)) break;
         sprintf(buf,
-            "{B[  {Wv0{B]{G Max people:{x      [%ld]\n\r"
-            "{B[  {Wv1{B]{G Max weight:{x      [%ld]\n\r"
+            "{B[  {Wv0{B]{G Max people:{x      [%d]\n\r"
+            "{B[  {Wv1{B]{G Max weight:{x      [%d]\n\r"
             "{B[  {Wv2{B]{G Furniture Flags:{x %s\n\r"
-            "{B[  {Wv3{B]{G Heal bonus:{x      [%ld]\n\r"
-            "{B[  {Wv4{B]{G Mana bonus:{x      [%ld]\n\r"
-        "{B[  {Wv5{B]{G Move bonus:{x      [%ld]\n\r",
-            obj->value[0],
-            obj->value[1],
-            flag_string(furniture_flags, obj->value[2]),
-            obj->value[3],
-            obj->value[4],
-        obj->value[5]);
+            "{B[  {Wv3{B]{G Heal bonus:{x      [%d]\n\r"
+            "{B[  {Wv4{B]{G Mana bonus:{x      [%d]\n\r"
+        "{B[  {Wv5{B]{G Move bonus:{x      [%d]\n\r",
+            FURNITURE(obj)->max_people,
+            FURNITURE(obj)->max_weight,
+            flag_string(furniture_flags, FURNITURE(obj)->flags),
+            FURNITURE(obj)->heal_rate,
+            FURNITURE(obj)->mana_rate,
+        FURNITURE(obj)->move_rate);
         add_buf(buffer, buf);
         break;
 
     case ITEM_HERB:
+        if (!IS_HERB(obj)) break;
         sprintf(buf,
             "{B[  {Wv0{B]{G Type:{x            [%s]\n\r"
-        "{B[  {Wv1{B]{G Healing:{x         [%ld%%]\n\r"
-        "{B[  {Wv2{B]{G Regenerative:{x    [%ld%%]\n\r"
-        "{B[  {Wv3{B]{G Refreshing:{x      [%ld%%]\n\r"
+        "{B[  {Wv1{B]{G Healing:{x         [%d%%]\n\r"
+        "{B[  {Wv2{B]{G Regenerative:{x    [%d%%]\n\r"
+        "{B[  {Wv3{B]{G Refreshing:{x      [%d%%]\n\r"
         "{B[  {Wv4{B]{G Immunity:{x        [%s]\n\r"
         "{B[  {Wv5{B]{G Resistance:{x      [%s]\n\r"
         "{B[  {Wv6{B]{G Vulnerability:{x   [%s]\n\r"
         "{B[  {Wv7{B]{G Spell:{x           [%s]\n\r",
-        herb_table[obj->value[0]].name,
-        obj->value[1],
-        obj->value[2],
-        obj->value[3],
-        flag_string(imm_flags, obj->value[4]),
-        flag_string(res_flags, obj->value[5]),
-        flag_string(vuln_flags, obj->value[6]),
-        skill_table[obj->value[7]].name);
+        herb_table[HERB(obj)->type].name,
+        HERB(obj)->healing,
+        HERB(obj)->regenerative,
+        HERB(obj)->refreshing,
+        flag_string(imm_flags, HERB(obj)->immunity),
+        flag_string(res_flags, HERB(obj)->resistance),
+        flag_string(vuln_flags, HERB(obj)->vulnerability),
+        skill_table[HERB(obj)->spell].name);
 
         add_buf(buffer, buf);
         break;
@@ -1767,57 +1762,63 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
         break;
 
     case ITEM_POTION:
+        if (!IS_FLUID_CON(obj)) break;
         sprintf(buf,
-                "{B[  {Wv5{B]{G Charges:{x                [%ld]\n\r",
-                obj->value[5]);
+                "{B[  {Wv5{B]{G Charges:{x                [%d]\n\r",
+                FLUID_CON(obj)->capacity);
         add_buf(buffer, buf);
         break;
 
     case ITEM_TATTOO:
+        if (!IS_TATTOO(obj)) break;
             sprintf(buf,
-                    "{B[  {Wv0{B]{G Touches:{x                [%ld]\n\r"
-                    "{B[  {Wv1{B]{G Chance of Fading:{x       [%ld]\n\r",
-                    obj->value[0],obj->value[1]);
+                    "{B[  {Wv0{B]{G Touches:{x                [%d]\n\r"
+                    "{B[  {Wv1{B]{G Chance of Fading:{x       [%d]\n\r",
+                    TATTOO(obj)->touches, TATTOO(obj)->fading_chance);
         add_buf(buffer, buf);
         break;
 
     case ITEM_INK:
-            sprintf(buf, "{B[  {Wv0{B]{G Type 1:{x                 [%s]\n\r", flag_string(catalyst_types, obj->value[0]));
+        if (!IS_INK(obj)) break;
+            sprintf(buf, "{B[  {Wv0{B]{G Type 1:{x                 [%s]\n\r", flag_string(catalyst_types, INK(obj)->types[0]));
         add_buf(buffer, buf);
-            sprintf(buf, "{B[  {Wv1{B]{G Type 2:{x                 [%s]\n\r", flag_string(catalyst_types, obj->value[1]));
+            sprintf(buf, "{B[  {Wv1{B]{G Type 2:{x                 [%s]\n\r", flag_string(catalyst_types, INK(obj)->types[1]));
         add_buf(buffer, buf);
-            sprintf(buf, "{B[  {Wv2{B]{G Type 3:{x                 [%s]\n\r", flag_string(catalyst_types, obj->value[2]));
+            sprintf(buf, "{B[  {Wv2{B]{G Type 3:{x                 [%s]\n\r", flag_string(catalyst_types, INK(obj)->types[2]));
         add_buf(buffer, buf);
         break;
 
     case ITEM_SEXTANT:
+        if (!IS_SEXTANT(obj)) break;
             sprintf(buf,
-        "{B[  {Wv0{B]{G Percentage of working:{x  [%ld]\n\r",
-        obj->value[0]);
+        "{B[  {Wv0{B]{G Percentage of working:{x  [%d]\n\r",
+        SEXTANT(obj)->accuracy);
         add_buf(buffer, buf);
         break;
 
     case ITEM_SEED:
+        if (!IS_SEED(obj)) break;
             sprintf(buf,
-        "{B[  {Wv0{B]{G Time before growth:{x     [%ld]\n\r"
+        "{B[  {Wv0{B]{G Time before growth:{x     [%d]\n\r"
         "{B[  {Wv1{B]{G Turns into object vnum:{x [%ld]\n\r",
-        obj->value[0],
-        obj->value[1]);
+        SEED(obj)->growth_time,
+        SEED(obj)->object_vnum);
         add_buf(buffer, buf);
         break;
 
     case ITEM_ARMOUR:
+        if (!IS_ARMOR(obj)) break;
         sprintf(buf,
-        "{B[  {Wv0{B] {GAc pierce       {x[%ld]\n\r"
-        "{B[  {Wv1{B] {GAc bash         {x[%ld]\n\r"
-        "{B[  {Wv2{B] {GAc slash        {x[%ld]\n\r"
-        "{B[  {Wv3{B] {GAc exotic       {x[%ld]\n\r"
+        "{B[  {Wv0{B] {GAc pierce       {x[%d]\n\r"
+        "{B[  {Wv1{B] {GAc bash         {x[%d]\n\r"
+        "{B[  {Wv2{B] {GAc slash        {x[%d]\n\r"
+        "{B[  {Wv3{B] {GAc exotic       {x[%d]\n\r"
         "{B[  {Wv4{B] {GArmour strength  {x%s\n\r",
-        obj->value[0],
-        obj->value[1],
-        obj->value[2],
-        obj->value[3],
-        armour_strength_table[obj->value[4]].name);
+        ARMOR(obj)->protection[0],
+        ARMOR(obj)->protection[1],
+        ARMOR(obj)->protection[2],
+        ARMOR(obj)->protection[3],
+        armour_strength_table[ARMOR(obj)->armor_strength].name);
         add_buf(buffer, buf);
         break;
 
@@ -1825,257 +1826,265 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
         break;
 
     case ITEM_RANGED_WEAPON:
+        if (!IS_WEAPON(obj)) break;
             sprintf(buf, "{B[  {Wv0{B]{G Ranged Weapon class:{x   %s\n\r",
-             flag_string(ranged_weapon_class, obj->value[0]));
+             flag_string(ranged_weapon_class, WEAPON(obj)->weapon_class));
         add_buf(buffer, buf);
 
-        sprintf(buf, "{B[  {Wv1{B]{G Number of dice:{x [%ld]\n\r", obj->value[1]);
+        sprintf(buf, "{B[  {Wv1{B]{G Number of dice:{x [%d]\n\r", WEAPON(obj)->damage.number);
         add_buf(buffer, buf);
-        sprintf(buf, "{B[  {Wv2{B]{G Type of dice:{x   [%ld]\n\r", obj->value[2]);
+        sprintf(buf, "{B[  {Wv2{B]{G Type of dice:{x   [%d]\n\r", WEAPON(obj)->damage.size);
         add_buf(buffer, buf);
 
-        sprintf(buf, "{B[  {Wv3{B]{G Projectile Distance:{x [%ld]\n\r", obj->value[3]);
+        sprintf(buf, "{B[  {Wv3{B]{G Projectile Distance:{x [%d]\n\r", WEAPON(obj)->range);
         add_buf(buffer, buf);
         break;
 
     case ITEM_WEAPON:
+        if (!IS_WEAPON(obj)) break;
             sprintf(buf, "{B[  {Wv0{B]{G Weapon class:{x   %s\n\r",
-             flag_string(weapon_class, obj->value[0]));
+             flag_string(weapon_class, WEAPON(obj)->weapon_class));
         add_buf(buffer, buf);
-        sprintf(buf, "{B[  {Wv1{B]{G Number of dice:{x [%ld]\n\r", obj->value[1]);
+        sprintf(buf, "{B[  {Wv1{B]{G Number of dice:{x [%d]\n\r", WEAPON(obj)->damage.number);
         add_buf(buffer, buf);
-        sprintf(buf, "{B[  {Wv2{B]{G Type of dice:{x   [%ld]\n\r", obj->value[2]);
+        sprintf(buf, "{B[  {Wv2{B]{G Type of dice:{x   [%d]\n\r", WEAPON(obj)->damage.size);
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv3{B]{G Type:{x           %s\n\r",
-            attack_table[obj->value[3]].name);
+            attack_table[WEAPON(obj)->damage_type].name);
         add_buf(buffer, buf);
          sprintf(buf, "{B[  {Wv4{B]{G Special type:{x   %s\n\r",
-             flag_string(weapon_type2,  obj->value[4]));
+             flag_string(weapon_type2, WEAPON(obj)->flags));
         add_buf(buffer, buf);
         break;
 
     case ITEM_SHIP:
+        if (!IS_SHIP_TYPE(obj)) break;
         sprintf(buf,
-        "{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
-        "{B[  {Wv1{B]{G Move delay:{x [%ld]\n\r"
-        "{B[  {Wv2{B]{G Min Crew:{x   [%ld]\n\r"
-        "{B[  {Wv3{B]{G Capacity:{x   [%ld]\n\r"
-        "{B[  {Wv4{B]{G Max Crew:{x   [%ld]\n\r"
+        "{B[  {Wv0{B]{G Weight:{x     [%d kg]\n\r"
+        "{B[  {Wv1{B]{G Move delay:{x [%d]\n\r"
+        "{B[  {Wv2{B]{G Min Crew:{x   [%d]\n\r"
+        "{B[  {Wv3{B]{G Capacity:{x   [%d]\n\r"
+        "{B[  {Wv4{B]{G Max Crew:{x   [%d]\n\r"
         "{B[  {Wv5{B]{G First Room:{x [%ld]\n\r"
-        "{B[  {Wv6{B]{G Hit Points:{x [%ld]\n\r"
-        "{B[  {Wv7{B]{G Max Guns:{x   [%ld]\n\r",
-        obj->value[0],
-        obj->value[1],
-        obj->value[2],
-                obj->value[3],
-                obj->value[4],
-                obj->value[5],
-                obj->value[6],
-                obj->value[7]);
+        "{B[  {Wv6{B]{G Hit Points:{x [%d]\n\r"
+        "{B[  {Wv7{B]{G Max Guns:{x   [%d]\n\r",
+        SHIP_TYPE(obj)->weight,
+        SHIP_TYPE(obj)->move_delay,
+        SHIP_TYPE(obj)->min_crew,
+        SHIP_TYPE(obj)->capacity,
+        SHIP_TYPE(obj)->max_crew,
+        SHIP_TYPE(obj)->first_room,
+        SHIP_TYPE(obj)->hit_points,
+        SHIP_TYPE(obj)->max_guns);
         add_buf(buffer, buf);
         break;
 
     case ITEM_CART:
+        if (!IS_CART(obj)) break;
         sprintf(buf,
-        "{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
-        "{B[  {Wv1{B]{G Move delay:{x [%ld]\n\r"
-        "{B[  {Wv2{B]{G Strength:{x   [%ld]\n\r"
-        "{B[  {Wv3{B]{G Capacity:{x    [%ld]\n\r"
-        "{B[  {Wv4{B]{G Weight Mult:{x [%ld]\n\r",
-        obj->value[0],
-        obj->value[1],
-        obj->value[2],
-                obj->value[3],
-                obj->value[4]);
+        "{B[  {Wv0{B]{G Weight:{x     [%d kg]\n\r"
+        "{B[  {Wv1{B]{G Move delay:{x [%d]\n\r"
+        "{B[  {Wv2{B]{G Strength:{x   [%d]\n\r"
+        "{B[  {Wv3{B]{G Capacity:{x    [%d]\n\r"
+        "{B[  {Wv4{B]{G Weight Mult:{x [%d]\n\r",
+        CART(obj)->capacity,
+        CART(obj)->move_delay,
+        CART(obj)->min_strength,
+        CART(obj)->max_items,
+        CART(obj)->weight_multiplier);
         add_buf(buffer, buf);
         break;
 
     case ITEM_TRADE_TYPE:
+        if (!IS_TRADE(obj)) break;
         sprintf(buf,
         "{B[  {Wv0{B]{G Trade Type:{x     [%s]\n\r",
-        trade_table[ obj->value[0] ].name);
+        trade_table[ TRADE(obj)->trade_type ].name);
         add_buf(buffer, buf);
         break;
 
     case ITEM_CONTAINER:
+        if (!IS_CONTAINER(obj)) break;
         sprintf(buf,
-        "{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
+        "{B[  {Wv0{B]{G Weight:{x     [%d kg]\n\r"
         "{B[  {Wv1{B]{G Flags:{x      [%s]\n\r"
-        "{B[  {Wv2{B]{G Key:{x     %s [%ld]\n\r"
-        "{B[  {Wv3{B]{G Capacity:{x    [%ld]\n\r"
-        "{B[  {Wv4{B]{G Weight Mult:{x [%ld]\n\r",
-        obj->value[0],
-        flag_string(container_flags, obj->value[1]),
-                get_obj_index_global(obj->value[2])
-                    ? get_obj_index_global(obj->value[2])->short_descr
-                    : "none",
-                obj->value[2],
-                obj->value[3],
-                obj->value[4]);
+        "{B[  {Wv3{B]{G Capacity:{x    [%d]\n\r"
+        "{B[  {Wv4{B]{G Weight Mult:{x [%d]\n\r",
+        CONTAINER(obj)->max_weight,
+        flag_string(container_flags, CONTAINER(obj)->flags),
+                CONTAINER(obj)->max_items,
+                CONTAINER(obj)->weight_multiplier);
         add_buf(buffer, buf);
         break;
 
     case ITEM_WEAPON_CONTAINER:
+        if (!IS_WEAPON_CON(obj)) break;
         sprintf(buf,
-        "{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
+        "{B[  {Wv0{B]{G Weight:{x     [%d kg]\n\r"
         "{B[  {Wv1{B]{G Weapon Type:{x [%s]\n\r"
-        "{B[  {Wv3{B]{G Capacity:{x   [%ld]\n\r"
-        "{B[  {Wv4{B]{G Weight Mult:{x[%ld]\n\r",
-        obj->value[0],
-        flag_string(weapon_class, obj->value[1]),
-                obj->value[3],
-                obj->value[4]);
+        "{B[  {Wv3{B]{G Capacity:{x   [%d]\n\r"
+        "{B[  {Wv4{B]{G Weight Mult:{x[%d]\n\r",
+        WEAPON_CON(obj)->max_weight,
+        flag_string(weapon_class, WEAPON_CON(obj)->weapon_type),
+                WEAPON_CON(obj)->max_items,
+                WEAPON_CON(obj)->weight_multiplier);
         add_buf(buffer, buf);
         break;
 
     case ITEM_DRINK_CON:
+        if (!IS_FLUID_CON(obj)) break;
         sprintf(buf,
-            "{B[  {Wv0{B]{G Liquid Total:{x [%ld]\n\r"
-            "{B[  {Wv1{B]{G Liquid Left:{x  [%ld]\n\r"
+            "{B[  {Wv0{B]{G Liquid Total:{x [%d]\n\r"
+            "{B[  {Wv1{B]{G Liquid Left:{x  [%d]\n\r"
             "{B[  {Wv2{B]{G Liquid:{x       %s\n\r"
             "{B[  {Wv3{B]{G Poisoned:{x     %s\n\r",
-            obj->value[0],
-            obj->value[1],
-            liq_table[obj->value[2]].liq_name,
-            obj->value[3] != 0 ? "Yes" : "No");
+            FLUID_CON(obj)->capacity,
+            FLUID_CON(obj)->amount,
+            liq_table[FLUID_CON(obj)->liquid].liq_name,
+            FLUID_CON(obj)->poison != 0 ? "Yes" : "No");
         add_buf(buffer, buf);
         break;
 
     case ITEM_FOUNTAIN:
+        if (!IS_FLUID_CON(obj)) break;
         sprintf(buf,
-            "{B[  {Wv0{B]{G Liquid Total:{x [%ld]\n\r"
-            "{B[  {Wv1{B]{G Liquid Left:{x  [%ld]\n\r"
+            "{B[  {Wv0{B]{G Liquid Total:{x [%d]\n\r"
+            "{B[  {Wv1{B]{G Liquid Left:{x  [%d]\n\r"
             "{B[  {Wv2{B]{G Liquid:{x     %s\n\r",
-            obj->value[0],
-            obj->value[1],
-            liq_table[obj->value[2]].liq_name);
+            FLUID_CON(obj)->capacity,
+            FLUID_CON(obj)->amount,
+            liq_table[FLUID_CON(obj)->liquid].liq_name);
         add_buf(buffer, buf);
         break;
 
     case ITEM_FOOD:
+        if (!IS_FOOD(obj)) break;
         sprintf(buf,
-        "{B[  {Wv0{B]{G Food hours:{x [%ld]\n\r"
-        "{B[  {Wv1{B]{G Full hours:{x [%ld]\n\r"
+        "{B[  {Wv0{B]{G Food hours:{x [%d]\n\r"
+        "{B[  {Wv1{B]{G Full hours:{x [%d]\n\r"
         "{B[  {Wv3{B]{G Poisoned  :{x  %s\n\r"
-        "{B[  {Wv4{B]{G Timer     :{x [%ld]\n\r",
-        obj->value[0],
-        obj->value[1],
-        obj->value[3] != 0 ? "Yes" : "No",
-        obj->value[4]);
+        "{B[  {Wv4{B]{G Timer     :{x [%d]\n\r",
+        FOOD(obj)->hunger,
+        FOOD(obj)->full,
+        FOOD(obj)->poison != 0 ? "Yes" : "No",
+        FOOD(obj)->timer);
         add_buf(buffer, buf);
         break;
 
     case ITEM_MONEY:
-            sprintf(buf, "{B[  {Wv0{B]{G Silver:{x [%ld]\n\r", obj->value[0]);
+        if (!IS_MONEY(obj)) break;
+            sprintf(buf, "{B[  {Wv0{B]{G Silver:{x [%d]\n\r", MONEY(obj)->silver);
         add_buf(buffer, buf);
-        sprintf(buf, "{B[  {Wv1{B]{G Gold:{x   [%ld]\n\r", obj->value[1]);
+        sprintf(buf, "{B[  {Wv1{B]{G Gold:{x   [%d]\n\r", MONEY(obj)->gold);
         add_buf(buffer, buf);
         break;
 
         case ITEM_MIST:
-        sprintf(buf, "{B[  {Wv0{B]{G %%HideObjects:{x    [%ld]\n\r", obj->value[0]);
+        if (!IS_MIST(obj)) break;
+        sprintf(buf, "{B[  {Wv0{B]{G %%HideObjects:{x    [%d]\n\r", MIST(obj)->obscure_objs);
         add_buf(buffer, buf);
-        sprintf(buf, "{B[  {Wv1{B]{G %%HideCharacters:{x [%ld]\n\r", obj->value[1]);
+        sprintf(buf, "{B[  {Wv1{B]{G %%HideCharacters:{x [%d]\n\r", MIST(obj)->obscure_mobs);
         add_buf(buffer, buf);
         break;
 
     case ITEM_CORPSE_NPC:
+        if (!IS_CORPSE(obj)) break;
         sprintf(buf,
             "{B[  {Wv0{B]{G Type:{x           %s\n\r"
             "{B[  {Wv1{B]{G Resurrection:{x   %d%%\n\r"
             "{B[  {Wv2{B]{G Animation:{x      %d%%\n\r"
             "{B[  {Wv3{B]{G Body Parts:{x     %s\n\r"
-            "{B[  {Wv5{B]{G Mobile (vnum):{x  %d\n\r",
-            flag_string(corpse_types,obj->value[0]),
-            (int)obj->value[1],(int)obj->value[2],
-            flag_string(part_flags, obj->value[3]),
-            (int)obj->value[5]);
+            "{B[  {Wv5{B]{G Mobile (vnum):{x  %ld\n\r",
+            flag_string(corpse_types, CORPSE(obj)->corpse_type),
+            CORPSE(obj)->resurrection, CORPSE(obj)->animation,
+            flag_string(part_flags, CORPSE(obj)->body_parts),
+            CORPSE(obj)->mobile_vnum);
         add_buf(buffer, buf);
         break;
 
     case ITEM_INSTRUMENT:
+        if (!IS_INSTRUMENT(obj)) break;
         sprintf(buf,
             "{B[  {Wv0{B]{G Type:{x            %s\n\r"
             "{B[  {Wv1{B]{G Flags:{x           %s\n\r"
-            "{B[  {Wv2{B]{G Min Time Factor:{x %ld%%\n\r"
-            "{B[  {Wv3{B]{G Max Time Factor:{x %ld%%\n\r",
-            flag_string(instrument_types, obj->value[0]),
-            flag_string(instrument_flags, obj->value[1]),
-            obj->value[2],obj->value[3]);
+            "{B[  {Wv2{B]{G Min Time Factor:{x %d%%\n\r"
+            "{B[  {Wv3{B]{G Max Time Factor:{x %d%%\n\r",
+            flag_string(instrument_types, INSTRUMENT(obj)->type),
+            flag_string(instrument_flags, INSTRUMENT(obj)->flags),
+            INSTRUMENT(obj)->beats_min, INSTRUMENT(obj)->beats_max);
         add_buf(buffer, buf);
         break;
 
     case ITEM_BOOK:
+        if (!IS_BOOK(obj)) break;
         sprintf(buf,
-        "{B[  {Wv1{B]{G Flags:{x      [%s]\n\r"
-        "{B[  {Wv2{B]{G Key:{x     %s [%ld]\n\r",
-        flag_string(container_flags, obj->value[1]),
-                get_obj_index_global(obj->value[2])
-                    ? get_obj_index_global(obj->value[2])->short_descr
-                    : "none",
-                obj->value[2]);
+        "{B[  {Wv1{B]{G Flags:{x      [%s]\n\r",
+        flag_string(container_flags, BOOK(obj)->flags));
         add_buf(buffer, buf);
         break;
 
     case ITEM_TELESCOPE:
-        if( obj->value[4] < 0 )
+        if (!IS_TELESCOPE(obj)) break;
+        if( TELESCOPE(obj)->heading < 0 )
             sprintf(buf,
-                "{B[  {Wv0{B]{G Current Distance:{x  [%ld]\n\r"
-                "{B[  {Wv1{B]{G Minimum Distance:{x  [%ld]\n\r"
-                "{B[  {Wv2{B]{G Maximum Distance:{x  [%ld]\n\r"
-                "{B[  {Wv3{B]{G Bonusview Size:{x    [%ld]\n\r"
+                "{B[  {Wv0{B]{G Current Distance:{x  [%d]\n\r"
+                "{B[  {Wv1{B]{G Minimum Distance:{x  [%d]\n\r"
+                "{B[  {Wv2{B]{G Maximum Distance:{x  [%d]\n\r"
+                "{B[  {Wv3{B]{G Bonusview Size:{x    [%d]\n\r"
                 "{B[  {Wv4{B]{G Current Heading:{x   [none]\n\r",
-                    obj->value[0],
-                    obj->value[1],
-                    obj->value[2],
-                    obj->value[3]);
+                    TELESCOPE(obj)->distance,
+                    TELESCOPE(obj)->min_distance,
+                    TELESCOPE(obj)->max_distance,
+                    TELESCOPE(obj)->bonus_view);
         else
             sprintf(buf,
-                "{B[  {Wv0{B]{G Current Distance:{x  [%ld]\n\r"
-                "{B[  {Wv1{B]{G Minimum Distance:{x  [%ld]\n\r"
-                "{B[  {Wv2{B]{G Maximum Distance:{x  [%ld]\n\r"
-                "{B[  {Wv3{B]{G Bonusview Size:{x    [%ld]\n\r"
-                "{B[  {Wv4{B]{G Current Heading:{x   [%ld]\n\r",
-                    obj->value[0],
-                    obj->value[1],
-                    obj->value[2],
-                    obj->value[3],
-                    obj->value[4]);
+                "{B[  {Wv0{B]{G Current Distance:{x  [%d]\n\r"
+                "{B[  {Wv1{B]{G Minimum Distance:{x  [%d]\n\r"
+                "{B[  {Wv2{B]{G Maximum Distance:{x  [%d]\n\r"
+                "{B[  {Wv3{B]{G Bonusview Size:{x    [%d]\n\r"
+                "{B[  {Wv4{B]{G Current Heading:{x   [%d]\n\r",
+                    TELESCOPE(obj)->distance,
+                    TELESCOPE(obj)->min_distance,
+                    TELESCOPE(obj)->max_distance,
+                    TELESCOPE(obj)->bonus_view,
+                    TELESCOPE(obj)->heading);
         add_buf(buffer, buf);
         break;
 
     case ITEM_COMPASS:
-        if( obj->value[1] > 0 )
+        if (!IS_COMPASS(obj)) break;
+        if( COMPASS(obj)->wuid > 0 )
         {
-            WILDS_DATA *pWilds = get_wilds_from_uid(NULL,obj->value[1]);
+            WILDS_DATA *pWilds = get_wilds_from_uid(NULL, COMPASS(obj)->wuid);
 
             sprintf(buf,
-                "{B[  {Wv0{B]{G Accuracy:{x      [%ld]\n\r"
+                "{B[  {Wv0{B]{G Accuracy:{x      [%d]\n\r"
                 "{B[  {Wv1{B]{G Wilderness:{x    [%ld] %s\n\r"
                 "{B[  {Wv2{B]{G X Coordinate:{x  [%ld]\n\r"
                 "{B[  {Wv3{B]{G Y Coordinate:{x  [%ld]\n\r",
-                    obj->value[0],
-                    obj->value[1], (pWilds?pWilds->name:"???"),
-                    obj->value[2],
-                    obj->value[3]);
+                    COMPASS(obj)->accuracy,
+                    COMPASS(obj)->wuid, (pWilds?pWilds->name:"???"),
+                    COMPASS(obj)->x,
+                    COMPASS(obj)->y);
         }
         else
         {
             sprintf(buf,
-                "{B[  {Wv0{B]{G Accuracy:{x      [%ld]\n\r"
+                "{B[  {Wv0{B]{G Accuracy:{x      [%d]\n\r"
                 "{B[  {Wv1{B]{G Wilderness:{x    [none]\n\r",
-                    obj->value[0]);
+                    COMPASS(obj)->accuracy);
         }
         add_buf(buffer, buf);
         break;
 
     case ITEM_BODY_PART:
+        if (!IS_BODY_PART(obj)) break;
         {
-            RACE_DATA *part_race = race_lookup_uid((int16_t)obj->value[1]);
+            RACE_DATA *part_race = race_lookup_uid((int16_t)BODY_PART(obj)->race_uid);
             sprintf(buf,
                 "{B[  {Wv0{B]{G Body Parts:{x    %s\n\r"
                 "{B[  {Wv1{B]{G Race:{x          %s\n\r",
-                flag_string(part_flags, obj->value[0]),
+                flag_string(part_flags, BODY_PART(obj)->parts),
                 part_race ? part_race->name : "unknown");
         }
 
@@ -2097,6 +2106,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         break;
 
     case ITEM_LIGHT:
+        if (!IS_LIGHT(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2104,45 +2114,26 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 2:
             send_to_char("HOURS OF LIGHT SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
-            break;
-        case 3:
-            send_to_char("Spell level set.\n\r\n\r", ch);
-            pObj->value[3] = atoi(argument);
-            break;
-        case 4:
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[4] = skill_lookup(argument);
-            break;
-        case 5:
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[5] = skill_lookup(argument);
+            LIGHT(pObj)->duration = atoi(argument);
             break;
         }
         break;
 
     case ITEM_WAND:
     case ITEM_STAFF:
+        if (!IS_WAND(pObj)) return false;
         switch (value_num)
         {
         default:
             do_help(ch, "ITEM_STAFF_WAND");
             return false;
-        case 0:
-            send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
-            break;
         case 1:
             send_to_char("TOTAL NUMBER OF CHARGES SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            WAND(pObj)->max_charges = atoi(argument);
             break;
         case 2:
             send_to_char("CURRENT NUMBER OF CHARGES SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
-            break;
-        case 3:
-            send_to_char("SPELL TYPE SET.\n\r", ch);
-            pObj->value[3] = skill_lookup(argument);
+            WAND(pObj)->charges = atoi(argument);
             break;
         }
         break;
@@ -2152,6 +2143,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         break;
 
     case ITEM_POTION:
+    if (!IS_FLUID_CON(pObj)) return false;
     switch (value_num)
     {
         default:
@@ -2159,12 +2151,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 5:
             send_to_char("TOTAL CHARGES SET\n\r\n\r", ch);
-            pObj->value[5] = atoi(argument);
+            FLUID_CON(pObj)->capacity = atoi(argument);
             break;
     }
     break;
 
     case ITEM_TATTOO:
+        if (!IS_TATTOO(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2172,16 +2165,17 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("TOUCHES SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            TATTOO(pObj)->touches = atoi(argument);
             break;
         case 1:
             send_to_char("FADING CHANCE SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            TATTOO(pObj)->fading_chance = atoi(argument);
             break;
         }
         break;
 
     case ITEM_INK:
+        if (!IS_INK(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2189,20 +2183,21 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("TYPE 1 SET.\n\r\n\r", ch);
-            pObj->value[0] = flag_lookup(argument,catalyst_types);
+            INK(pObj)->types[0] = flag_lookup(argument,catalyst_types);
             break;
         case 1:
             send_to_char("TYPE 2 SET.\n\r\n\r", ch);
-            pObj->value[1] = flag_lookup(argument,catalyst_types);
+            INK(pObj)->types[1] = flag_lookup(argument,catalyst_types);
             break;
         case 2:
             send_to_char("TYPE 3 SET.\n\r\n\r", ch);
-            pObj->value[2] = flag_lookup(argument,catalyst_types);
+            INK(pObj)->types[2] = flag_lookup(argument,catalyst_types);
             break;
         }
         break;
 
     case ITEM_SEXTANT:
+        if (!IS_SEXTANT(pObj)) return false;
         switch(value_num)
         {
         default:
@@ -2210,12 +2205,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("Accuracy set.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            SEXTANT(pObj)->accuracy = atoi(argument);
             break;
         }
         break;
 
     case ITEM_SEED:
+        if (!IS_SEED(pObj)) return false;
         switch(value_num)
         {
         default:
@@ -2223,7 +2219,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("Time set.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            SEED(pObj)->growth_time = atoi(argument);
             break;
         case 1:
             if (atoi(argument) != 0)
@@ -2237,10 +2233,10 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                     send_to_char("No such object exists.\n\r\n\r", ch);
                     return false;
                 }
-                pObj->value[1] = key_wnum.vnum;
+                SEED(pObj)->object_vnum = key_wnum.vnum;
             }
             else
-                pObj->value[1] = 0;
+                SEED(pObj)->object_vnum = 0;
             send_to_char("Vnum set.\n\r\n\r", ch);
             break;
         }
@@ -2288,6 +2284,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         break;*/
 
     case ITEM_ARMOUR:
+        if (!IS_ARMOR(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2295,66 +2292,34 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("AC PIERCE SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            ARMOR(pObj)->protection[0] = atoi(argument);
             break;
         case 1:
             send_to_char("AC BASH SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            ARMOR(pObj)->protection[1] = atoi(argument);
             break;
         case 2:
             send_to_char("AC SLASH SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
+            ARMOR(pObj)->protection[2] = atoi(argument);
             break;
         case 3:
             send_to_char("AC EXOTIC SET.\n\r\n\r", ch);
-            pObj->value[3] = atoi(argument);
+            ARMOR(pObj)->protection[3] = atoi(argument);
             break;
         case 4:
             send_to_char("ARMOUR STRENGTH SET.\n\r", ch);
             send_to_char("ARMOUR CLASS SET.\n\r\n\r", ch);
 
-            pObj->value[4] = get_armour_strength(argument);
+            ARMOR(pObj)->armor_strength = get_armour_strength(argument);
 
             set_armour(pObj);
 
-            break;
-        case 5:
-            // TODO: UNUSED?
-            if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-
-            send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-            pObj->value[5] = atoi(argument);
-            break;
-        case 6:
-            // TODO: UNUSED?
-            if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[6] = skill_lookup(argument);
-            use_imp_sig(NULL, pObj);
-            break;
-        case 7:
-            // TODO: UNUSED?
-            if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[7] = skill_lookup(argument);
-            use_imp_sig(NULL, pObj);
             break;
         }
         break;
 
     case ITEM_RANGED_WEAPON:
+        if (!IS_WEAPON(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2362,39 +2327,25 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("RANGED WEAPON CLASS SET.\n\r\n\r", ch);
-            pObj->value[0] = flag_value(ranged_weapon_class, argument);
+            WEAPON(pObj)->weapon_class = flag_value(ranged_weapon_class, argument);
             break;
         case 1:
             send_to_char("NUMBER OF DICE SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            WEAPON(pObj)->damage.number = atoi(argument);
             break;
         case 2:
             send_to_char("TYPE OF DICE SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
+            WEAPON(pObj)->damage.size = atoi(argument);
             break;
         case 3:
             send_to_char("PROJECTILE DISTANCE SET.\n\r\n\r", ch);
-            pObj->value[3] = atoi(argument);
-            break;
-        case 5:
-            // TODO: UNUSED?
-            send_to_char("Spell level set.\n\r\n\r", ch);
-            pObj->value[5] = atoi(argument);
-            break;
-        case 6:
-            // TODO: UNUSED?
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[6] = skill_lookup(argument);
-            break;
-        case 7:
-            // TODO: UNUSED?
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[7] = skill_lookup(argument);
+            WEAPON(pObj)->range = atoi(argument);
             break;
         }
         break;
 
     case ITEM_HERB:
+        if (!IS_HERB(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2409,7 +2360,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 
             if (i < MAX_HERB)
             {
-                pObj->value[0] = i;
+                HERB(pObj)->type = i;
                 send_to_char("HERB TYPE SET.\n\r", ch);
             }
             else
@@ -2417,20 +2368,20 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             break;
         case 1:
             send_to_char("HEALING RATE SET.\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            HERB(pObj)->healing = atoi(argument);
             break;
         case 2:
             send_to_char("REGENERATIVE RATE SET.\n\r", ch);
-            pObj->value[2] = atoi(argument);
+            HERB(pObj)->regenerative = atoi(argument);
             break;
         case 3:
             send_to_char("REFRESHING RATE SET.\n\r", ch);
-            pObj->value[3] = atoi(argument);
+            HERB(pObj)->refreshing = atoi(argument);
             break;
         case 4:
             if ((i = flag_value(imm_flags, argument)) != NO_FLAG)
             {
-                pObj->value[4] ^= i;
+                HERB(pObj)->immunity ^= i;
                 send_to_char("IMMUNITY SET.\n\r", ch);
             }
             else
@@ -2439,7 +2390,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 5:
             if ((i = flag_value(res_flags, argument)) != NO_FLAG)
             {
-                pObj->value[5] ^= i;
+                HERB(pObj)->resistance ^= i;
                 send_to_char("RESISTANCE SET.\n\r", ch);
             }
             else
@@ -2448,23 +2399,22 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 6:
             if ((i = flag_value(vuln_flags, argument)) != NO_FLAG)
             {
-                pObj->value[6] ^= i;
+                HERB(pObj)->vulnerability ^= i;
                 send_to_char("VULNERABILITY SET.\n\r", ch);
             }
             else
                 send_to_char("Invalid vulnerability.\n\r", ch);
             break;
         case 7:
-            // TODO: UNUSED?
             if ((i = skill_lookup(argument)) > 0 && skill_table[i].spell_fun != spell_null)
             {
                 send_to_char("SPELL SET.\n\r", ch);
-                pObj->value[7] = i;
+                HERB(pObj)->spell = i;
             }
             else if (i == 0)
             {
                 send_to_char("SPELL RESET.\n\r", ch);
-                pObj->value[7] = 0;
+                HERB(pObj)->spell = 0;
             }
             else
                 send_to_char("INVALID ARGUMENT.\n\r", ch);
@@ -2475,6 +2425,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         break;
 
     case ITEM_WEAPON:
+        if (!IS_WEAPON(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2482,60 +2433,29 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("WEAPON CLASS SET.\n\r\n\r", ch);
-            pObj->value[0] = flag_value(weapon_class, argument);
+            WEAPON(pObj)->weapon_class = flag_value(weapon_class, argument);
             break;
         case 1:
             send_to_char("NUMBER OF DICE SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            WEAPON(pObj)->damage.number = atoi(argument);
             break;
         case 2:
             send_to_char("TYPE OF DICE SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
+            WEAPON(pObj)->damage.size = atoi(argument);
             break;
         case 3:
             send_to_char("WEAPON TYPE SET.\n\r\n\r", ch);
-            pObj->value[3] = attack_lookup(argument);
+            WEAPON(pObj)->damage_type = attack_lookup(argument);
             break;
         case 4:
             send_to_char("SPECIAL WEAPON TYPE TOGGLED.\n\r\n\r", ch);
-            pObj->value[4] ^= (flag_value(weapon_type2, argument) != NO_FLAG ? flag_value(weapon_type2, argument) : 0);
-            break;
-        case 5:
-            // TODO: UNUSED?
-            if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-            send_to_char("Spell level set.\n\r\n\r", ch);
-            pObj->value[5] = atoi(argument);
-            break;
-        case 6:
-            // TODO: UNUSED?
-            if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[6] = skill_lookup(argument);
-            use_imp_sig(NULL, pObj);
-            break;
-        case 7:
-            // TODO: UNUSED?
-            if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[7] = skill_lookup(argument);
-            use_imp_sig(NULL, pObj);
+            WEAPON(pObj)->flags ^= (flag_value(weapon_type2, argument) != NO_FLAG ? flag_value(weapon_type2, argument) : 0);
             break;
         }
         break;
 
     case ITEM_PORTAL:
+        if (!IS_PORTAL(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2543,11 +2463,11 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("CHARGES SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi (argument);
+            PORTAL(pObj)->charges = atoi(argument);
             break;
         case 1:
             send_to_char("EXIT (PORTAL) FLAGS SET.\n\r\n\r", ch);
-            pObj->value[1] ^= (flag_value(portal_exit_flags, argument) != NO_FLAG ? flag_value(portal_exit_flags, argument) : 0);
+            PORTAL(pObj)->exit ^= (flag_value(portal_exit_flags, argument) != NO_FLAG ? flag_value(portal_exit_flags, argument) : 0);
             break;
         case 2:
             {
@@ -2556,30 +2476,25 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 
                 if( flags != NO_FLAG )
                 {
-                    pObj->value[2] ^= flags;
+                    PORTAL(pObj)->flags ^= flags;
 
-                    if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+                    if( IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )
                     {
-                        REMOVE_BIT(pObj->value[2], GATE_AREARANDOM);
+                        REMOVE_BIT(PORTAL(pObj)->flags, GATE_AREARANDOM);
                     }
 
-                    if( IS_SET(flags, GATE_DUNGEON) && IS_SET(pObj->value[2], GATE_DUNGEON) )
+                    if( IS_SET(flags, GATE_DUNGEON) && IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )
                     {
-                        pObj->value[3] = 0;
-                        pObj->value[4] = 0;
-                        pObj->value[5] = 0;
-                        pObj->value[6] = 0;
-                        pObj->value[7] = 0;
+                        PORTAL(pObj)->params[0] = 0;
+                        PORTAL(pObj)->params[1] = 0;
+                        PORTAL(pObj)->params[2] = 0;
+                        PORTAL(pObj)->params[3] = 0;
                     }
-                    else if( IS_SET(flags, GATE_AREARANDOM) && IS_SET(pObj->value[2], GATE_AREARANDOM) )
-                    {
-                    }
-
                 }
             }
             break;
         case 3:
-            if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+            if( IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )
             {
                 if( !get_dungeon_index(atoi(argument)) )
                 {
@@ -2590,65 +2505,42 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             }
             else
                 send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
-            pObj->value[3] = atoi (argument);
-            break;
-        case 4:
-            if (atoi(argument) != 0)
-            {
-                WNUM key_wnum = { NULL, 0 };
-                OBJ_INDEX_DATA *key_obj;
-                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
-                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
-                if (!key_obj)
-                {
-                    send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
-                    return false;
-                }
-
-                if (key_obj->item_type != ITEM_KEY)
-                {
-                    send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-                    return false;
-                }
-                pObj->value[4] = key_wnum.vnum;
-            }
-            else
-                pObj->value[4] = 0;
-            send_to_char("PORTAL KEY SET.\n\r\n\r", ch);
+            PORTAL(pObj)->params[0] = atoi(argument);
             break;
         case 5:
-            if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+            if( IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )
             {
                 send_to_char("DUNGEON FLOOR SET.\n\r\n\r", ch);
             }
-            else if( IS_SET(pObj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
+            else if( IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) || PORTAL(pObj)->params[0] == -1 )
             {
                 send_to_char("AREA ID SET.\n\r\n\r", ch);
             }
-            else if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
+            else if( !IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )
             {
                 send_to_char("WILDERNESS MAP UID SET.\n\r\n\r", ch);
             }
-            pObj->value[5] = atoi (argument);
+            PORTAL(pObj)->params[1] = atoi(argument);
             break;
         case 6:
-            if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(pObj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
+            if( !IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) && !IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) && !PORTAL(pObj)->params[0] )
             {
                 send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
-                pObj->value[6] = atoi (argument);
+                PORTAL(pObj)->params[2] = atoi(argument);
             }
             break;
         case 7:
-            if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(pObj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
+            if( !IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) && !IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) && !PORTAL(pObj)->params[0] )
             {
                 send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
-                pObj->value[7] = atoi (argument);
+                PORTAL(pObj)->params[3] = atoi(argument);
             }
             break;
         }
         break;
 
     case ITEM_FURNITURE:
+        if (!IS_FURNITURE(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2656,27 +2548,27 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("NUMBER OF PEOPLE SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi (argument);
+            FURNITURE(pObj)->max_people = atoi(argument);
             break;
         case 1:
             send_to_char("MAX WEIGHT SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi (argument);
+            FURNITURE(pObj)->max_weight = atoi(argument);
             break;
         case 2:
             send_to_char("FURNITURE FLAGS TOGGLED.\n\r\n\r", ch);
-            pObj->value[2] ^= (flag_value(furniture_flags, argument) != NO_FLAG ? flag_value(furniture_flags, argument) : 0);
+            FURNITURE(pObj)->flags ^= (flag_value(furniture_flags, argument) != NO_FLAG ? flag_value(furniture_flags, argument) : 0);
             break;
         case 3:
             send_to_char("HEAL BONUS SET.\n\r\n\r", ch);
-            pObj->value[3] = atoi (argument);
+            FURNITURE(pObj)->heal_rate = atoi(argument);
             break;
         case 4:
             send_to_char("MANA BONUS SET.\n\r\n\r", ch);
-            pObj->value[4] = atoi (argument);
+            FURNITURE(pObj)->mana_rate = atoi(argument);
             break;
         case 5:
             send_to_char("MOVE BONUS SET.\n\r\n\r", ch);
-            pObj->value[5] = atoi (argument);
+            FURNITURE(pObj)->move_rate = atoi(argument);
             break;
         }
         break;
@@ -2731,6 +2623,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         break;*/
 
     case ITEM_CART:
+        if (!IS_CART(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2738,32 +2631,29 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-            pObj->value[0] = atol(argument);
+            CART(pObj)->capacity = atoi(argument);
             break;
         case 1:
             send_to_char("DELAY SET.\n\r\n\r", ch);
-            pObj->value[1] = atol(argument);
+            CART(pObj)->move_delay = atoi(argument);
             break;
         case 2:
             send_to_char("STRENGTH SET.\n\r\n\r", ch);
-            pObj->value[2] = atol(argument);
+            CART(pObj)->min_strength = atoi(argument);
             break;
         case 3:
             send_to_char("CART MAX WEIGHT SET.\n\r", ch);
-            pObj->value[3] = atol(argument);
+            CART(pObj)->max_items = atoi(argument);
             break;
         case 4:
             send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
-            pObj->value[4] = atol (argument);
-            break;
-        case 5:
-            send_to_char("VANISH TIME SET.\n\r\n\r", ch);
-            pObj->value[5] = atol (argument);
+            CART(pObj)->weight_multiplier = atoi(argument);
             break;
         }
         break;
 
     case ITEM_TRADE_TYPE:
+        if (!IS_TRADE(pObj)) return false;
         switch(value_num)
         {
         default:
@@ -2784,13 +2674,14 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 break;
             }
 
-            pObj->value[0] = i;
+            TRADE(pObj)->trade_type = i;
             send_to_char("Trade type set.\n\r", ch);
             break;
         }
         break;
 
     case ITEM_WEAPON_CONTAINER:
+        if (!IS_WEAPON_CON(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2798,24 +2689,25 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            WEAPON_CON(pObj)->max_weight = atoi(argument);
             break;
         case 1:
-            pObj->value[1] = flag_value(weapon_class, argument);
+            WEAPON_CON(pObj)->weapon_type = flag_value(weapon_class, argument);
             send_to_char("WEAPON TYPE SET.\n\r\n\r", ch);
             break;
         case 3:
             send_to_char("CONTAINER MAX ITEMS SET.\n\r", ch);
-            pObj->value[3] = atoi(argument);
+            WEAPON_CON(pObj)->max_items = atoi(argument);
             break;
         case 4:
             send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
-            pObj->value[4] = atoi (argument);
+            WEAPON_CON(pObj)->weight_multiplier = atoi(argument);
             break;
         }
         break;
 
     case ITEM_CONTAINER:
+        if (!IS_CONTAINER(pObj)) return false;
         switch (value_num)
         {
         int value;
@@ -2825,41 +2717,17 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            CONTAINER(pObj)->max_weight = atoi(argument);
             break;
         case 1:
             if ((value = flag_value(container_flags, argument)) != NO_FLAG)
-                TOGGLE_BIT(pObj->value[1], value);
+                TOGGLE_BIT(CONTAINER(pObj)->flags, value);
             else
             {
                 do_help (ch, "ITEM_CONTAINER");
                 return false;
             }
             send_to_char("CONTAINER TYPE SET.\n\r\n\r", ch);
-            break;
-        case 2:
-            if (atoi(argument) != 0)
-            {
-                WNUM key_wnum = { NULL, 0 };
-                OBJ_INDEX_DATA *key_obj;
-                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
-                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
-                if (!key_obj)
-                {
-                    send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
-                    return false;
-                }
-
-                if (key_obj->item_type != ITEM_KEY)
-                {
-                    send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-                    return false;
-                }
-                pObj->value[2] = key_wnum.vnum;
-            }
-            else
-                pObj->value[2] = 0;
-            send_to_char("CONTAINER KEY SET.\n\r\n\r", ch);
             break;
         case 3:
             if (atoi (argument) > 225 && ch->tot_level < MAX_LEVEL)
@@ -2869,7 +2737,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             }
 
             send_to_char("CONTAINER MAX ITEMS SET.\n\r", ch);
-            pObj->value[3] = atoi(argument);
+            CONTAINER(pObj)->max_items = atoi(argument);
             break;
 
         case 4:
@@ -2888,12 +2756,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 use_imp_sig(NULL, pObj);
 
             send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
-            pObj->value[4] = atoi (argument);
+            CONTAINER(pObj)->weight_multiplier = atoi(argument);
             break;
         }
         break;
 
     case ITEM_DRINK_CON:
+        if (!IS_FLUID_CON(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2901,24 +2770,25 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("MAXIMUM AMOUT OF LIQUID HOURS SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            FLUID_CON(pObj)->capacity = atoi(argument);
             break;
         case 1:
             send_to_char("CURRENT AMOUNT OF LIQUID HOURS SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            FLUID_CON(pObj)->amount = atoi(argument);
             break;
         case 2:
             send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
-            pObj->value[2] = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
+            FLUID_CON(pObj)->liquid = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
             break;
         case 3:
             send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
-            pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
+            FLUID_CON(pObj)->poison = (FLUID_CON(pObj)->poison == 0) ? 1 : 0;
             break;
         }
         break;
 
     case ITEM_FOUNTAIN:
+        if (!IS_FLUID_CON(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2926,20 +2796,21 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("MAXIMUM AMOUT OF LIQUID HOURS SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            FLUID_CON(pObj)->capacity = atoi(argument);
             break;
         case 1:
             send_to_char("CURRENT AMOUNT OF LIQUID HOURS SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            FLUID_CON(pObj)->amount = atoi(argument);
             break;
         case 2:
             send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
-            pObj->value[2] = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
+            FLUID_CON(pObj)->liquid = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
             break;
         }
         break;
 
     case ITEM_FOOD:
+        if (!IS_FOOD(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2947,24 +2818,25 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("HOURS OF FOOD SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            FOOD(pObj)->hunger = atoi(argument);
             break;
         case 1:
             send_to_char("HOURS OF FULL SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            FOOD(pObj)->full = atoi(argument);
             break;
         case 3:
             send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
-            pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
+            FOOD(pObj)->poison = (FOOD(pObj)->poison == 0) ? 1 : 0;
             break;
         case 4:
             send_to_char("TIMER TO DISAPPEAR SET.\n\r\n\r", ch);
-            pObj->value[4] = atoi(argument);
+            FOOD(pObj)->timer = atoi(argument);
             break;
         }
         break;
 
     case ITEM_MONEY:
+        if (!IS_MONEY(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2972,16 +2844,17 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("SILVER AMOUNT SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            MONEY(pObj)->silver = atoi(argument);
             break;
         case 1:
             send_to_char("GOLD AMOUNT SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            MONEY(pObj)->gold = atoi(argument);
             break;
         }
         break;
 
     case ITEM_MIST:
+        if (!IS_MIST(pObj)) return false;
         switch (value_num)
         {
         default:
@@ -2989,16 +2862,17 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("PERCENTAGE TO HIDE OBJECTS SET.\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            MIST(pObj)->obscure_objs = atoi(argument);
             break;
         case 1:
             send_to_char("PERCENTAGE TO HIDE CHARACTERS SET.\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            MIST(pObj)->obscure_mobs = atoi(argument);
             break;
         }
         break;
 
     case ITEM_CORPSE_NPC:
+        if (!IS_CORPSE(pObj)) return false;
         switch (value_num)
         {
         int value;
@@ -3009,30 +2883,31 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             if ((value = flag_value(corpse_types, argument)) == NO_FLAG)
                 return false;
             send_to_char("CORPSE TYPE SET.\n\r", ch);
-            pObj->value[0] = value;
+            CORPSE(pObj)->corpse_type = value;
             break;
         case 1:
             send_to_char("RESURRECTION CHANCE SET.\n\r", ch);
-            pObj->value[1] = atoi(argument);
+            CORPSE(pObj)->resurrection = atoi(argument);
             break;
         case 2:
             send_to_char("ANIMATION CHANCE SET.\n\r", ch);
-            pObj->value[2] = atoi(argument);
+            CORPSE(pObj)->animation = atoi(argument);
             break;
         case 3:
             if ((value = flag_value(part_flags, argument)) == NO_FLAG)
                 return false;
             send_to_char("BODY PARTS SET.\n\r", ch);
-            pObj->value[3] = value;
+            CORPSE(pObj)->body_parts = value;
             break;
         case 5:
             send_to_char("MOBILE INDEX VNUM SET.\n\r", ch);
-            pObj->value[5] = atoi(argument);
+            CORPSE(pObj)->mobile_vnum = atoi(argument);
             break;
         }
         break;
 
     case ITEM_INSTRUMENT:
+        if (!IS_INSTRUMENT(pObj)) return false;
         switch (value_num)
         {
         int value;
@@ -3043,13 +2918,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             if ((value = flag_value(instrument_types, argument)) == NO_FLAG)
                 return false;
             send_to_char("INSTRUMENT TYPE SET.\n\r", ch);
-            pObj->value[0] = value;
+            INSTRUMENT(pObj)->type = value;
             break;
         case 1:
             if ((value = flag_value(instrument_flags, argument)) == NO_FLAG)
                 return false;
             send_to_char("INSTRUMENT FLAGS TOGGLED.\n\r", ch);
-            pObj->value[1] ^= value;
+            INSTRUMENT(pObj)->flags ^= value;
             break;
         case 2:
             value = atoi(argument);
@@ -3059,7 +2934,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 return false;
             }
             send_to_char("MINIMUM PLAYTIME SCALE FACTOR SET.\n\r", ch);
-            pObj->value[2] = value;
+            INSTRUMENT(pObj)->beats_min = value;
             break;
         case 3:
             value = atoi(argument);
@@ -3069,12 +2944,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 return false;
             }
             send_to_char("MAXIMUM PLAYTIME SCALE FACTOR SET.\n\r", ch);
-            pObj->value[3] = value;
+            INSTRUMENT(pObj)->beats_max = value;
             break;
         }
         break;
 
     case ITEM_BOOK:
+        if (!IS_BOOK(pObj)) return false;
         switch (value_num)
         {
         int value;
@@ -3084,7 +2960,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 1:
             if ((value = flag_value(container_flags, argument)) != NO_FLAG)
-                TOGGLE_BIT(pObj->value[1], value);
+                TOGGLE_BIT(BOOK(pObj)->flags, value);
             else
             {
                 do_help (ch, "ITEM_BOOK");
@@ -3092,34 +2968,11 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             }
             send_to_char("BOOK (CONTAINER) FLAGS SET.\n\r\n\r", ch);
             break;
-        case 2:
-            if (atoi(argument) != 0)
-            {
-                WNUM key_wnum = { NULL, 0 };
-                OBJ_INDEX_DATA *key_obj;
-                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
-                key_obj = key_wnum.pArea ? get_obj_index(key_wnum.pArea, key_wnum.vnum) : get_obj_index_global(key_wnum.vnum);
-                if (!key_obj)
-                {
-                    send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
-                    return false;
-                }
-
-                if (key_obj->item_type != ITEM_KEY)
-                {
-                    send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-                    return false;
-                }
-                pObj->value[2] = key_wnum.vnum;
-            }
-            else
-                pObj->value[2] = 0;
-            send_to_char("BOOK KEY SET.\n\r\n\r", ch);
-            break;
         }
         break;
 
     case ITEM_TELESCOPE:
+        if (!IS_TELESCOPE(pObj)) return false;
         switch (value_num)
         {
         int value;
@@ -3129,13 +2982,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             value = atoi(argument);
-            if( value < 0 || (value > 0 && value < pObj->value[1]) || value > pObj->value[2] )
+            if( value < 0 || (value > 0 && value < TELESCOPE(pObj)->min_distance) || value > TELESCOPE(pObj)->max_distance )
             {
-                sprintf(buf, "TELESCOPE DISTANCE must be 0(for collapsed), or from %ld to %ld.\n\r", pObj->value[1], pObj->value[2]);
+                sprintf(buf, "TELESCOPE DISTANCE must be 0(for collapsed), or from %d to %d.\n\r", TELESCOPE(pObj)->min_distance, TELESCOPE(pObj)->max_distance);
                 send_to_char(buf, ch);
                 return false;
             }
-            pObj->value[0] = value;
+            TELESCOPE(pObj)->distance = value;
             send_to_char("TELESCOPE DISTANCE SET\n\r", ch);
             break;
         case 1:
@@ -3145,13 +2998,13 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 send_to_char("TELESCOPE MINIMUM DISTANCE must be greater than zero.\n\r", ch);
                 return false;
             }
-            if( value > pObj->value[2] )
+            if( value > TELESCOPE(pObj)->max_distance )
             {
-                sprintf(buf, "TELESCOPE MINIMUM DISTANCE must be less than or equal to %ld.\n\r", pObj->value[2]);
+                sprintf(buf, "TELESCOPE MINIMUM DISTANCE must be less than or equal to %d.\n\r", TELESCOPE(pObj)->max_distance);
                 send_to_char(buf, ch);
                 return false;
             }
-            pObj->value[1] = value;
+            TELESCOPE(pObj)->min_distance = value;
             send_to_char("TELESCOPE MINIMUM DISTANCE SET\n\r", ch);
             break;
         case 2:
@@ -3161,9 +3014,9 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 send_to_char("TELESCOPE MAXIMUM DISTANCE must be greater than zero.\n\r", ch);
                 return false;
             }
-            if( value < pObj->value[1] )
+            if( value < TELESCOPE(pObj)->min_distance )
             {
-                sprintf(buf, "TELESCOPE MAXIMUM DISTANCE must be greater than or equal to %ld.\n\r", pObj->value[1]);
+                sprintf(buf, "TELESCOPE MAXIMUM DISTANCE must be greater than or equal to %d.\n\r", TELESCOPE(pObj)->min_distance);
                 send_to_char(buf, ch);
                 return false;
             }
@@ -3178,7 +3031,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 if (has_imp_sig(NULL, pObj))
                     use_imp_sig(NULL, pObj);
             }
-            pObj->value[2] = value;
+            TELESCOPE(pObj)->max_distance = value;
             send_to_char("TELESCOPE MAXIMUM DISTANCE SET\n\r", ch);
             break;
         case 3:
@@ -3199,7 +3052,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 if (has_imp_sig(NULL, pObj))
                     use_imp_sig(NULL, pObj);
             }
-            pObj->value[3] = value;
+            TELESCOPE(pObj)->bonus_view = value;
             send_to_char("TELESCOPE BONUSVIEW SET\n\r", ch);
             break;
         case 4:
@@ -3212,18 +3065,19 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                     return false;
                 }
 
-                pObj->value[4] = value;
+                TELESCOPE(pObj)->heading = value;
                 send_to_char("TELESCOPE HEADING SET\n\r", ch);
             }
             else if( !str_cmp(argument, "none") || !str_cmp(argument, "clear") )
             {
-                pObj->value[4] = -1;
+                TELESCOPE(pObj)->heading = -1;
                 send_to_char("TELESCOPE HEADING CLEARED\n\r", ch);
             }
             break;
         }
         break;
     case ITEM_COMPASS:
+        if (!IS_COMPASS(pObj)) return false;
         switch (value_num)
         {
         int value;
@@ -3235,7 +3089,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             return false;
         case 0:
             send_to_char("Accuracy set.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
+            COMPASS(pObj)->accuracy = atoi(argument);
             break;
         case 1:
             wuid = atoi(argument);
@@ -3248,28 +3102,28 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                     return false;
                 }
 
-                pObj->value[1] = wuid;
-                pObj->value[2] = pWilds->map_size_x / 2;
-                pObj->value[3] = pWilds->map_size_y / 2;
+                COMPASS(pObj)->wuid = wuid;
+                COMPASS(pObj)->x = pWilds->map_size_x / 2;
+                COMPASS(pObj)->y = pWilds->map_size_y / 2;
 
                 send_to_char("WILDS set.\n\r", ch);
             }
             else
             {
-                pObj->value[1] = 0;
-                pObj->value[2] = -1;
-                pObj->value[3] = -1;
+                COMPASS(pObj)->wuid = 0;
+                COMPASS(pObj)->x = -1;
+                COMPASS(pObj)->y = -1;
                 send_to_char("WILDS cleared.\n\r", ch);
             }
             break;
         case 2:
-            if( !pObj->value[1] )
+            if( !COMPASS(pObj)->wuid )
             {
                 send_to_char("Please set the WILDS({Wv1{x) before assigning coordinates.\n\r", ch);
                 return false;
             }
 
-            pWilds = get_wilds_from_uid(NULL,pObj->value[1]);
+            pWilds = get_wilds_from_uid(NULL, COMPASS(pObj)->wuid);
             if( !pWilds )
             {
                 send_to_char("Please set the WILDS({Wv1{x) to a valid wilderness before assigning coordinates.\n\r", ch);
@@ -3284,17 +3138,17 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 return false;
             }
 
-            pObj->value[2] = value;
+            COMPASS(pObj)->x = value;
             send_to_char("X COORDINATE set.\n\r", ch);
             break;
         case 3:
-            if( !pObj->value[1] )
+            if( !COMPASS(pObj)->wuid )
             {
                 send_to_char("Please set the WILDS({Wv1{x) before assigning coordinates.\n\r", ch);
                 return false;
             }
 
-            pWilds = get_wilds_from_uid(NULL,pObj->value[1]);
+            pWilds = get_wilds_from_uid(NULL, COMPASS(pObj)->wuid);
             if( !pWilds )
             {
                 send_to_char("Please set the WILDS({Wv1{x) to a valid wilderness before assigning coordinates.\n\r", ch);
@@ -3309,13 +3163,14 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 return false;
             }
 
-            pObj->value[3] = value;
+            COMPASS(pObj)->y = value;
             send_to_char("Y COORDINATE set.\n\r", ch);
             break;
         }
         break;
 
     case ITEM_BODY_PART:
+        if (!IS_BODY_PART(pObj)) return false;
         switch(value_num)
         {
         int value;
@@ -3327,14 +3182,14 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             if ((value = flag_value(part_flags, argument)) == NO_FLAG)
                 return false;
             send_to_char("BODY PARTS TOGGLED.\n\r", ch);
-            pObj->value[0] ^= value;
+            BODY_PART(pObj)->parts ^= value;
             break;
 
         case 1:
             {
                 RACE_DATA *race = race_lookup(argument);
                 send_to_char("RACE SET\n\r", ch);
-                pObj->value[1] = race ? race->uid : 0;
+                BODY_PART(pObj)->race_uid = race ? race->uid : 0;
             }
             break;
 

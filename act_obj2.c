@@ -213,7 +213,7 @@ void do_besteq(CHAR_DATA *ch, char *argument)
         if (obj->item_type != ITEM_WEAPON)
         continue;
 
-        if (obj->value[0] == WEAPON_DAGGER)
+        if (WEAPON(obj)->weapon_class == WEAPON_DAGGER)
         {
         if (best_dagger == NULL)
         {
@@ -221,11 +221,11 @@ void do_besteq(CHAR_DATA *ch, char *argument)
             continue;
         }
 
-        if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_dagger->value[2]) * best_dagger->value[1] / 2))
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_dagger)->damage.size) * WEAPON(best_dagger)->damage.number / 2))
             best_dagger = obj;
         }
 
-        if (obj->value[0] == WEAPON_AXE)
+        if (WEAPON(obj)->weapon_class == WEAPON_AXE)
         {
         if (best_axe == NULL)
         {
@@ -233,13 +233,13 @@ void do_besteq(CHAR_DATA *ch, char *argument)
             continue;
         }
 
-        if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_axe->value[2]) * best_axe->value[1] / 2))
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_axe)->damage.size) * WEAPON(best_axe)->damage.number / 2))
         {
             best_axe = obj;
         }
         }
 
-        if (obj->value[0] == WEAPON_POLEARM)
+        if (WEAPON(obj)->weapon_class == WEAPON_POLEARM)
         {
         if (best_polearm == NULL)
         {
@@ -247,13 +247,13 @@ void do_besteq(CHAR_DATA *ch, char *argument)
             continue;
         }
 
-        if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_polearm->value[2]) * best_polearm->value[1] / 2))
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_polearm)->damage.size) * WEAPON(best_polearm)->damage.number / 2))
         {
             best_polearm = obj;
         }
         }
 
-        if (obj->value[0] == WEAPON_SWORD)
+        if (WEAPON(obj)->weapon_class == WEAPON_SWORD)
         {
         if (best_sword == NULL)
         {
@@ -261,13 +261,13 @@ void do_besteq(CHAR_DATA *ch, char *argument)
             continue;
         }
 
-        if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_sword->value[2]) * best_sword->value[1] / 2))
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_sword)->damage.size) * WEAPON(best_sword)->damage.number / 2))
         {
             best_sword = obj;
         }
         }
 
-        if (obj->value[0] == WEAPON_EXOTIC)
+        if (WEAPON(obj)->weapon_class == WEAPON_EXOTIC)
         {
         if (best_exotic == NULL)
         {
@@ -275,7 +275,7 @@ void do_besteq(CHAR_DATA *ch, char *argument)
             continue;
         }
 
-        if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_exotic->value[2]) * best_exotic->value[1] / 2))
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_exotic)->damage.size) * WEAPON(best_exotic)->damage.number / 2))
         {
             best_exotic = obj;
         }
@@ -287,46 +287,46 @@ void do_besteq(CHAR_DATA *ch, char *argument)
 
     if (best_dagger != NULL)
     {
-    sprintf(buf,"{WDAGGER {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
+    sprintf(buf,"{WDAGGER {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
         best_dagger->short_descr, best_dagger->vnum,
-        best_dagger->value[1],best_dagger->value[2],
-        (1 + best_dagger->value[2]) * best_dagger->value[1] / 2);
+        WEAPON(best_dagger)->damage.number,WEAPON(best_dagger)->damage.size,
+        (1 + WEAPON(best_dagger)->damage.size) * WEAPON(best_dagger)->damage.number / 2);
     send_to_char(buf, ch);
     }
 
     if (best_sword != NULL)
     {
-    sprintf(buf,"{WSWORD {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
+    sprintf(buf,"{WSWORD {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
         best_sword->short_descr, best_sword->vnum,
-        best_sword->value[1],best_sword->value[2],
-        (1 + best_sword->value[2]) * best_sword->value[1] / 2);
+        WEAPON(best_sword)->damage.number,WEAPON(best_sword)->damage.size,
+        (1 + WEAPON(best_sword)->damage.size) * WEAPON(best_sword)->damage.number / 2);
     send_to_char(buf, ch);
     }
 
     if (best_axe != NULL)
     {
-    sprintf(buf,"{WAXE   {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
+    sprintf(buf,"{WAXE   {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
         best_axe->short_descr, best_axe->vnum,
-        best_axe->value[1],best_axe->value[2],
-        (1 + best_axe->value[2]) * best_axe->value[1] / 2);
+        WEAPON(best_axe)->damage.number,WEAPON(best_axe)->damage.size,
+        (1 + WEAPON(best_axe)->damage.size) * WEAPON(best_axe)->damage.number / 2);
     send_to_char(buf, ch);
     }
 
     if (best_polearm != NULL)
     {
-    sprintf(buf,"{WPOLEARM {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
+    sprintf(buf,"{WPOLEARM {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
         best_polearm->short_descr, best_polearm->vnum,
-        best_polearm->value[1],best_polearm->value[2],
-        (1 + best_polearm->value[2]) * best_polearm->value[1] / 2);
+        WEAPON(best_polearm)->damage.number,WEAPON(best_polearm)->damage.size,
+        (1 + WEAPON(best_polearm)->damage.size) * WEAPON(best_polearm)->damage.number / 2);
     send_to_char(buf, ch);
     }
 
     if (best_exotic != NULL)
     {
-    sprintf(buf,"{WEXOTIC {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
+    sprintf(buf,"{WEXOTIC {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
         best_exotic->short_descr, best_exotic->vnum,
-        best_exotic->value[1],best_exotic->value[2],
-        (1 + best_exotic->value[2]) * best_exotic->value[1] / 2);
+        WEAPON(best_exotic)->damage.number,WEAPON(best_exotic)->damage.size,
+        (1 + WEAPON(best_exotic)->damage.size) * WEAPON(best_exotic)->damage.number / 2);
     send_to_char(buf, ch);
     }
 }
@@ -584,10 +584,10 @@ void do_lore(CHAR_DATA *ch, char *argument)
                      && !IS_SET(objIndex->wear_flags, flag_value(wear_flags, arg4)))
                 || (arg4[0] != '\0'
                      && type == ITEM_RANGED_WEAPON
-                     && str_cmp(ranged_weapon_name(objIndex->value[0]), arg4))
+                     && str_cmp(ranged_weapon_name(WEAPON(objIndex)->weapon_class), arg4))
                 || (arg4[0] != '\0'
                      && type == ITEM_WEAPON
-                     && str_cmp(weapon_name(objIndex->value[0]), arg4))
+                     && str_cmp(weapon_name(WEAPON(objIndex)->weapon_class), arg4))
                 || number_percent() < 33)
                     continue;
 
@@ -889,10 +889,10 @@ void do_combine(CHAR_DATA *ch, char *argument)
     charges = 2;
     if (potions)
     {
-        charges += obj1->value[5];
-        charges += obj2->value[5];
+        charges += FLUID_CON(obj1)->amount;
+        charges += FLUID_CON(obj2)->amount;
         charges = UMIN(charges, 3);
-        obj1->value[5] = charges;
+        FLUID_CON(obj1)->amount = charges;
     }
 
     if (destroy)
@@ -1110,7 +1110,7 @@ void do_touch(CHAR_DATA *ch, char *argument)
     if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOUCH, argument))
         return;
 
-    if (!obj->value[0])
+    if (!TATTOO(obj)->touches)
     {
     send_to_char("Nothing happens.", ch);
     }
@@ -1122,9 +1122,9 @@ void do_touch(CHAR_DATA *ch, char *argument)
     for (spell = obj->spells; spell != NULL; spell = spell->next)
         obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
 
-    if(obj->value[0] > 0) --obj->value[0];
+    if(TATTOO(obj)->touches > 0) --TATTOO(obj)->touches;
 
-    if(number_percent() < obj->value[1]) {
+    if(number_percent() < TATTOO(obj)->fading_chance) {
         act("$p fades away as the ink dries.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
         extract_obj(obj);
     }
@@ -1239,9 +1239,9 @@ void do_ink(CHAR_DATA *ch, char *argument)
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
         if (obj->item_type == ITEM_INK) {
-            if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
-            if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
-            if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
+            if(INK(obj)->types[0] > CATALYST_NONE && INK(obj)->types[0] < CATALYST_MAX) have[INK(obj)->types[0]]++;
+            if(INK(obj)->types[1] > CATALYST_NONE && INK(obj)->types[1] < CATALYST_MAX) have[INK(obj)->types[1]]++;
+            if(INK(obj)->types[2] > CATALYST_NONE && INK(obj)->types[2] < CATALYST_MAX) have[INK(obj)->types[2]]++;
         }
     }
     iterator_stop(&it);
@@ -1327,9 +1327,9 @@ void do_ink(CHAR_DATA *ch, char *argument)
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
         found = false;
         if (obj->item_type == ITEM_INK) {
-            if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = true; }
-            if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = true; }
-            if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = true; }
+            if(INK(obj)->types[0] > CATALYST_NONE && INK(obj)->types[0] < CATALYST_MAX && need[INK(obj)->types[0]]) { need[INK(obj)->types[0]]--; found = true; }
+            if(INK(obj)->types[1] > CATALYST_NONE && INK(obj)->types[1] < CATALYST_MAX && need[INK(obj)->types[1]]) { need[INK(obj)->types[1]]--; found = true; }
+            if(INK(obj)->types[2] > CATALYST_NONE && INK(obj)->types[2] < CATALYST_MAX && need[INK(obj)->types[2]]) { need[INK(obj)->types[2]]--; found = true; }
         }
         if (found) {
             // Need to stop the iterator before extracting the object
@@ -1444,11 +1444,11 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     free_string(tattoo->full_description);
     tattoo->full_description = str_dup(buf);
 
-    tattoo->value[0] = number_range(1,UMAX(2,(ch->tot_level / 20)));
+    TATTOO(tattoo)->touches = number_range(1,UMAX(2,(ch->tot_level / 20)));
     if(chance < 50)
-        tattoo->value[1] = 100 - chance * chance / 100;
+        TATTOO(tattoo)->fading_chance = 100 - chance * chance / 100;
     else
-        tattoo->value[1] = (100 - chance) * (100 - chance) / 100;
+        TATTOO(tattoo)->fading_chance = (100 - chance) * (100 - chance) / 100;
 
     level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
 

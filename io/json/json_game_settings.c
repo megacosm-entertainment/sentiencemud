@@ -504,6 +504,7 @@ static void init_game_settings_defaults(void)
     /* Timers */
     game_settings.idle_time = 0;
     game_settings.idle_disconnect_time = 0;
+    game_settings.save_cooldown_seconds =  0;
 
     /* Misc Maximums */
     game_settings.max_alias = 0;

@@ -190,7 +190,7 @@ int material_lookup (register const char *name)
 
 char *get_weapon_class(OBJ_INDEX_DATA *obj)
 {
-    char *name = flag_name(weapon_class, obj->value[0]);
+    char *name = flag_name(weapon_class, WEAPON(obj)->weapon_class);
 
     return name ? name : "unknown";
 }

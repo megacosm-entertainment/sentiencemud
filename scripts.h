@@ -560,6 +560,38 @@ ENT_GAME_SETTING,
 ENT_TOKEN_INDEX,
 ENT_SCRIPT_DATA,
 
+    // Object typed data sub-entities
+    ENT_OBJ_WEAPON,
+    ENT_OBJ_ARMOR,
+    ENT_OBJ_CONTAINER,
+    ENT_OBJ_FLUID_CON,
+    ENT_OBJ_FOOD,
+    ENT_OBJ_FURNITURE,
+    ENT_OBJ_PORTAL,
+    ENT_OBJ_LIGHT,
+    ENT_OBJ_MONEY,
+    ENT_OBJ_WAND,
+    ENT_OBJ_CORPSE,
+    ENT_OBJ_INSTRUMENT,
+    ENT_OBJ_SEED,
+    ENT_OBJ_CART,
+    ENT_OBJ_ITEM_SHIP,
+    ENT_OBJ_SEXTANT,
+    ENT_OBJ_WEAPON_CON,
+    ENT_OBJ_BOOK,
+    ENT_OBJ_HERB,
+    ENT_OBJ_MIST,
+    ENT_OBJ_TRADE,
+    ENT_OBJ_TATTOO,
+    ENT_OBJ_INK,
+    ENT_OBJ_TELESCOPE,
+    ENT_OBJ_COMPASS,
+    ENT_OBJ_BODY_PART,
+    ENT_OBJ_SCROLL,
+    ENT_OBJ_TOOL,
+    ENT_OBJ_JEWELRY,
+    ENT_OBJ_MAP,
+    ENT_OBJ_PAGE,
 
     ENT_MAX,
     ENT_UNKNOWN = ENT_MAX+1,
@@ -782,6 +814,39 @@ enum entity_object_enum {
     ENTITY_OBJ_WEAR,
     ENTITY_OBJ_SHIP,
     ENTITY_OBJ_LEVEL,
+
+    // Typed data sub-entity accessors
+    ENTITY_OBJ_WEAPON_DATA,
+    ENTITY_OBJ_ARMOR_DATA,
+    ENTITY_OBJ_CONTAINER_DATA,
+    ENTITY_OBJ_FLUID_CON_DATA,
+    ENTITY_OBJ_FOOD_DATA,
+    ENTITY_OBJ_FURNITURE_DATA,
+    ENTITY_OBJ_PORTAL_DATA,
+    ENTITY_OBJ_LIGHT_DATA,
+    ENTITY_OBJ_MONEY_DATA,
+    ENTITY_OBJ_WAND_DATA,
+    ENTITY_OBJ_CORPSE_DATA,
+    ENTITY_OBJ_INSTRUMENT_DATA,
+    ENTITY_OBJ_SEED_DATA,
+    ENTITY_OBJ_CART_DATA,
+    ENTITY_OBJ_ITEM_SHIP_DATA,
+    ENTITY_OBJ_SEXTANT_DATA,
+    ENTITY_OBJ_WEAPON_CON_DATA,
+    ENTITY_OBJ_BOOK_DATA,
+    ENTITY_OBJ_HERB_DATA,
+    ENTITY_OBJ_MIST_DATA,
+    ENTITY_OBJ_TRADE_DATA,
+    ENTITY_OBJ_TATTOO_DATA,
+    ENTITY_OBJ_INK_DATA,
+    ENTITY_OBJ_TELESCOPE_DATA,
+    ENTITY_OBJ_COMPASS_DATA,
+    ENTITY_OBJ_BODY_PART_DATA,
+    ENTITY_OBJ_SCROLL_DATA,
+    ENTITY_OBJ_TOOL_DATA,
+    ENTITY_OBJ_JEWELRY_DATA,
+    ENTITY_OBJ_MAP_DATA,
+    ENTITY_OBJ_PAGE_DATA,
 };
 
 enum entity_room_enum {
@@ -1170,6 +1235,242 @@ enum entity_ship_enum {
     ENTITY_SHIP_OBJECT,
 };
 
+///////////////////////////////////////////////////////////////////////////////
+// Object typed data sub-entity field enums
+///////////////////////////////////////////////////////////////////////////////
+
+enum entity_obj_weapon_enum {
+    ENTITY_OBJ_WEAPON_CLASS = ESCAPE_EXTRA,
+    ENTITY_OBJ_WEAPON_DAMAGE_TYPE,
+    ENTITY_OBJ_WEAPON_FLAGS,
+    ENTITY_OBJ_WEAPON_DICE,
+    ENTITY_OBJ_WEAPON_RANGE,
+    ENTITY_OBJ_WEAPON_MAX_MANA,
+    ENTITY_OBJ_WEAPON_CHARGES,
+    ENTITY_OBJ_WEAPON_MAX_CHARGES,
+    ENTITY_OBJ_WEAPON_COOLDOWN,
+    ENTITY_OBJ_WEAPON_RECHARGE_TIME,
+};
+
+enum entity_obj_armor_enum {
+    ENTITY_OBJ_ARMOR_TYPE = ESCAPE_EXTRA,
+    ENTITY_OBJ_ARMOR_STRENGTH,
+    ENTITY_OBJ_ARMOR_PROT_PIERCE,
+    ENTITY_OBJ_ARMOR_PROT_BASH,
+    ENTITY_OBJ_ARMOR_PROT_SLASH,
+    ENTITY_OBJ_ARMOR_PROT_EXOTIC,
+};
+
+enum entity_obj_container_enum {
+    ENTITY_OBJ_CONTAINER_FLAGS = ESCAPE_EXTRA,
+    ENTITY_OBJ_CONTAINER_MAX_WEIGHT,
+    ENTITY_OBJ_CONTAINER_WEIGHT_MULT,
+    ENTITY_OBJ_CONTAINER_MAX_ITEMS,
+    ENTITY_OBJ_CONTAINER_MAX_VOLUME,
+};
+
+enum entity_obj_fluid_con_enum {
+    ENTITY_OBJ_FLUID_CON_CAPACITY = ESCAPE_EXTRA,
+    ENTITY_OBJ_FLUID_CON_AMOUNT,
+    ENTITY_OBJ_FLUID_CON_LIQUID,
+    ENTITY_OBJ_FLUID_CON_POISON,
+    ENTITY_OBJ_FLUID_CON_FLAGS,
+    ENTITY_OBJ_FLUID_CON_REFILL_RATE,
+};
+
+enum entity_obj_food_enum {
+    ENTITY_OBJ_FOOD_HUNGER = ESCAPE_EXTRA,
+    ENTITY_OBJ_FOOD_FULL,
+    ENTITY_OBJ_FOOD_POISON,
+    ENTITY_OBJ_FOOD_TIMER,
+};
+
+enum entity_obj_furniture_enum {
+    ENTITY_OBJ_FURNITURE_FLAGS = ESCAPE_EXTRA,
+    ENTITY_OBJ_FURNITURE_MAX_PEOPLE,
+    ENTITY_OBJ_FURNITURE_MAX_WEIGHT,
+    ENTITY_OBJ_FURNITURE_HEAL_RATE,
+    ENTITY_OBJ_FURNITURE_MANA_RATE,
+    ENTITY_OBJ_FURNITURE_MOVE_RATE,
+};
+
+enum entity_obj_portal_enum {
+    ENTITY_OBJ_PORTAL_EXIT = ESCAPE_EXTRA,
+    ENTITY_OBJ_PORTAL_FLAGS,
+    ENTITY_OBJ_PORTAL_CHARGES,
+    ENTITY_OBJ_PORTAL_TYPE,
+    ENTITY_OBJ_PORTAL_DESTINATION,
+};
+
+enum entity_obj_light_enum {
+    ENTITY_OBJ_LIGHT_FLAGS = ESCAPE_EXTRA,
+    ENTITY_OBJ_LIGHT_DURATION,
+};
+
+enum entity_obj_money_enum {
+    ENTITY_OBJ_MONEY_SILVER = ESCAPE_EXTRA,
+    ENTITY_OBJ_MONEY_GOLD,
+};
+
+enum entity_obj_wand_enum {
+    ENTITY_OBJ_WAND_MAX_MANA = ESCAPE_EXTRA,
+    ENTITY_OBJ_WAND_CHARGES,
+    ENTITY_OBJ_WAND_MAX_CHARGES,
+    ENTITY_OBJ_WAND_COOLDOWN,
+    ENTITY_OBJ_WAND_RECHARGE_TIME,
+};
+
+enum entity_obj_corpse_enum {
+    ENTITY_OBJ_CORPSE_CORPSE_TYPE = ESCAPE_EXTRA,
+    ENTITY_OBJ_CORPSE_RESURRECTION,
+    ENTITY_OBJ_CORPSE_ANIMATION,
+    ENTITY_OBJ_CORPSE_BODY_PARTS,
+    ENTITY_OBJ_CORPSE_MOBILE_VNUM,
+};
+
+enum entity_obj_instrument_enum {
+    ENTITY_OBJ_INSTRUMENT_TYPE = ESCAPE_EXTRA,
+    ENTITY_OBJ_INSTRUMENT_FLAGS,
+    ENTITY_OBJ_INSTRUMENT_BEATS_MIN,
+    ENTITY_OBJ_INSTRUMENT_BEATS_MAX,
+    ENTITY_OBJ_INSTRUMENT_MANA_MIN,
+    ENTITY_OBJ_INSTRUMENT_MANA_MAX,
+};
+
+enum entity_obj_seed_enum {
+    ENTITY_OBJ_SEED_GROWTH_TIME = ESCAPE_EXTRA,
+    ENTITY_OBJ_SEED_OBJECT_VNUM,
+};
+
+enum entity_obj_cart_enum {
+    ENTITY_OBJ_CART_FLAGS = ESCAPE_EXTRA,
+    ENTITY_OBJ_CART_MIN_STRENGTH,
+    ENTITY_OBJ_CART_MOVE_DELAY,
+    ENTITY_OBJ_CART_CAPACITY,
+    ENTITY_OBJ_CART_MAX_ITEMS,
+    ENTITY_OBJ_CART_WEIGHT_MULT,
+    ENTITY_OBJ_CART_VANISH_TIME,
+};
+
+enum entity_obj_item_ship_enum {
+    ENTITY_OBJ_ITEM_SHIP_WEIGHT = ESCAPE_EXTRA,
+    ENTITY_OBJ_ITEM_SHIP_MOVE_DELAY,
+    ENTITY_OBJ_ITEM_SHIP_MIN_CREW,
+    ENTITY_OBJ_ITEM_SHIP_CAPACITY,
+    ENTITY_OBJ_ITEM_SHIP_MAX_CREW,
+    ENTITY_OBJ_ITEM_SHIP_FIRST_ROOM,
+    ENTITY_OBJ_ITEM_SHIP_HIT_POINTS,
+    ENTITY_OBJ_ITEM_SHIP_MAX_GUNS,
+};
+
+enum entity_obj_sextant_enum {
+    ENTITY_OBJ_SEXTANT_ACCURACY = ESCAPE_EXTRA,
+};
+
+enum entity_obj_weapon_con_enum {
+    ENTITY_OBJ_WEAPON_CON_MAX_WEIGHT = ESCAPE_EXTRA,
+    ENTITY_OBJ_WEAPON_CON_WEAPON_TYPE,
+    ENTITY_OBJ_WEAPON_CON_MAX_ITEMS,
+    ENTITY_OBJ_WEAPON_CON_WEIGHT_MULT,
+};
+
+enum entity_obj_book_enum {
+    ENTITY_OBJ_BOOK_FLAGS = ESCAPE_EXTRA,
+    ENTITY_OBJ_BOOK_CURRENT_PAGE,
+    ENTITY_OBJ_BOOK_OPEN_PAGE,
+};
+
+enum entity_obj_herb_enum {
+    ENTITY_OBJ_HERB_TYPE = ESCAPE_EXTRA,
+    ENTITY_OBJ_HERB_HEALING,
+    ENTITY_OBJ_HERB_REGENERATIVE,
+    ENTITY_OBJ_HERB_REFRESHING,
+    ENTITY_OBJ_HERB_IMMUNITY,
+    ENTITY_OBJ_HERB_RESISTANCE,
+    ENTITY_OBJ_HERB_VULNERABILITY,
+    ENTITY_OBJ_HERB_SPELL,
+};
+
+enum entity_obj_mist_enum {
+    ENTITY_OBJ_MIST_OBSCURE_MOBS = ESCAPE_EXTRA,
+    ENTITY_OBJ_MIST_OBSCURE_OBJS,
+    ENTITY_OBJ_MIST_OBSCURE_ROOM,
+    ENTITY_OBJ_MIST_ICY,
+    ENTITY_OBJ_MIST_FIERY,
+    ENTITY_OBJ_MIST_ACIDIC,
+    ENTITY_OBJ_MIST_STINK,
+    ENTITY_OBJ_MIST_WITHER,
+    ENTITY_OBJ_MIST_TOXIC,
+    ENTITY_OBJ_MIST_SHOCK,
+    ENTITY_OBJ_MIST_FOG,
+    ENTITY_OBJ_MIST_SLEEP,
+};
+
+enum entity_obj_trade_enum {
+    ENTITY_OBJ_TRADE_TRADE_TYPE = ESCAPE_EXTRA,
+};
+
+enum entity_obj_tattoo_enum {
+    ENTITY_OBJ_TATTOO_TOUCHES = ESCAPE_EXTRA,
+    ENTITY_OBJ_TATTOO_FADING_CHANCE,
+    ENTITY_OBJ_TATTOO_FADING_RATE,
+};
+
+enum entity_obj_ink_enum {
+    ENTITY_OBJ_INK_TYPE0 = ESCAPE_EXTRA,
+    ENTITY_OBJ_INK_TYPE1,
+    ENTITY_OBJ_INK_TYPE2,
+    ENTITY_OBJ_INK_AMOUNT0,
+    ENTITY_OBJ_INK_AMOUNT1,
+    ENTITY_OBJ_INK_AMOUNT2,
+};
+
+enum entity_obj_telescope_enum {
+    ENTITY_OBJ_TELESCOPE_DISTANCE = ESCAPE_EXTRA,
+    ENTITY_OBJ_TELESCOPE_MIN_DISTANCE,
+    ENTITY_OBJ_TELESCOPE_MAX_DISTANCE,
+    ENTITY_OBJ_TELESCOPE_BONUS_VIEW,
+    ENTITY_OBJ_TELESCOPE_HEADING,
+};
+
+enum entity_obj_compass_enum {
+    ENTITY_OBJ_COMPASS_ACCURACY = ESCAPE_EXTRA,
+    ENTITY_OBJ_COMPASS_WUID,
+    ENTITY_OBJ_COMPASS_X,
+    ENTITY_OBJ_COMPASS_Y,
+};
+
+enum entity_obj_body_part_enum {
+    ENTITY_OBJ_BODY_PART_PARTS = ESCAPE_EXTRA,
+    ENTITY_OBJ_BODY_PART_RACE_UID,
+};
+
+enum entity_obj_scroll_enum {
+    ENTITY_OBJ_SCROLL_MAX_MANA = ESCAPE_EXTRA,
+    ENTITY_OBJ_SCROLL_FLAGS,
+};
+
+enum entity_obj_tool_enum {
+    ENTITY_OBJ_TOOL_TYPE = ESCAPE_EXTRA,
+    ENTITY_OBJ_TOOL_TIER,
+};
+
+enum entity_obj_jewelry_enum {
+    ENTITY_OBJ_JEWELRY_MAX_MANA = ESCAPE_EXTRA,
+};
+
+enum entity_obj_map_enum {
+    ENTITY_OBJ_MAP_WUID = ESCAPE_EXTRA,
+    ENTITY_OBJ_MAP_X,
+    ENTITY_OBJ_MAP_Y,
+};
+
+enum entity_obj_page_enum {
+    ENTITY_OBJ_PAGE_PAGE_NO = ESCAPE_EXTRA,
+    ENTITY_OBJ_PAGE_TITLE,
+    ENTITY_OBJ_PAGE_TEXT,
+};
+
 /* Single letter $* codes ($i, $n) */
 #define ESCAPE_UA		0x80
 #define ESCAPE_UB		0x81
@@ -1489,6 +1790,39 @@ struct script_parameter {
         TOKEN_INDEX_DATA *token_index;
         SCRIPT_DATA *script;
         PROG_CODE *prog_code;
+
+        // Object typed data struct pointers
+        WEAPON_DATA *obj_weapon;
+        ARMOR_DATA *obj_armor;
+        CONTAINER_DATA *obj_container;
+        FLUID_CONTAINER_DATA *obj_fluid_con;
+        FOOD_DATA *obj_food;
+        FURNITURE_DATA *obj_furniture;
+        PORTAL_DATA *obj_portal;
+        LIGHT_DATA *obj_light;
+        MONEY_DATA *obj_money;
+        WAND_DATA *obj_wand;
+        CORPSE_DATA *obj_corpse;
+        INSTRUMENT_DATA *obj_instrument;
+        SEED_DATA *obj_seed;
+        CART_DATA *obj_cart;
+        ITEM_SHIP_DATA *obj_item_ship;
+        SEXTANT_DATA *obj_sextant;
+        WEAPON_CONTAINER_DATA *obj_weapon_con;
+        BOOK_DATA *obj_book;
+        HERB_DATA *obj_herb;
+        MIST_DATA *obj_mist;
+        TRADE_DATA *obj_trade;
+        TATTOO_DATA *obj_tattoo;
+        INK_DATA *obj_ink;
+        TELESCOPE_DATA *obj_telescope;
+        COMPASS_DATA *obj_compass;
+        BODY_PART_DATA *obj_body_part;
+        SCROLL_DATA *obj_scroll;
+        TOOL_DATA *obj_tool;
+        JEWELRY_DATA *obj_jewelry;
+        MAP_DATA *obj_map;
+        PAGE_DATA *obj_page;
         
 
         int sn;
@@ -1560,6 +1894,7 @@ struct script_parameter {
         SCRIPT_VARINFO *info;
     } d;
     BUFFER *buffer;
+    SCRIPT_PARAM *next; // Free-list chain for pooling
 };
 
 struct script_cmd_type {
@@ -1627,6 +1962,37 @@ extern ENT_FIELD entity_instance_section[];
 extern ENT_FIELD entity_instance[];
 extern ENT_FIELD entity_dungeon[];
 extern ENT_FIELD entity_ship[];
+extern ENT_FIELD entity_obj_weapon[];
+extern ENT_FIELD entity_obj_armor[];
+extern ENT_FIELD entity_obj_container[];
+extern ENT_FIELD entity_obj_fluid_con[];
+extern ENT_FIELD entity_obj_food[];
+extern ENT_FIELD entity_obj_furniture[];
+extern ENT_FIELD entity_obj_portal[];
+extern ENT_FIELD entity_obj_light[];
+extern ENT_FIELD entity_obj_money[];
+extern ENT_FIELD entity_obj_wand[];
+extern ENT_FIELD entity_obj_corpse[];
+extern ENT_FIELD entity_obj_instrument[];
+extern ENT_FIELD entity_obj_seed[];
+extern ENT_FIELD entity_obj_cart[];
+extern ENT_FIELD entity_obj_item_ship[];
+extern ENT_FIELD entity_obj_sextant[];
+extern ENT_FIELD entity_obj_weapon_con[];
+extern ENT_FIELD entity_obj_book[];
+extern ENT_FIELD entity_obj_herb[];
+extern ENT_FIELD entity_obj_mist[];
+extern ENT_FIELD entity_obj_trade[];
+extern ENT_FIELD entity_obj_tattoo[];
+extern ENT_FIELD entity_obj_ink[];
+extern ENT_FIELD entity_obj_telescope[];
+extern ENT_FIELD entity_obj_compass[];
+extern ENT_FIELD entity_obj_body_part[];
+extern ENT_FIELD entity_obj_scroll[];
+extern ENT_FIELD entity_obj_tool[];
+extern ENT_FIELD entity_obj_jewelry[];
+extern ENT_FIELD entity_obj_map[];
+extern ENT_FIELD entity_obj_page[];
 extern bool entity_allow_vars[];
 extern bool forced_command;
 extern int trigger_table_size;

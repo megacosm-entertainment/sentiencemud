@@ -1,0 +1,160 @@
+{
+  "type": "test_suite",
+  "test_suite": "lookup_tables",
+  "description": "Flag and stat lookup functions validation",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "position_lookup_valid",
+      "description": "Verify position_lookup returns correct values for known positions",
+      "dependencies": [],
+      "test_type": "position_lookup_test",
+      "input": {
+        "test_cases": [
+          {"name": "standing", "should_exist": true},
+          {"name": "fighting", "should_exist": true},
+          {"name": "sleeping", "should_exist": true},
+          {"name": "resting", "should_exist": true},
+          {"name": "bogusposition", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "sex_lookup_valid",
+      "description": "Verify sex_lookup returns correct values",
+      "dependencies": [],
+      "test_type": "sex_lookup_test",
+      "input": {
+        "test_cases": [
+          {"name": "male", "should_exist": true},
+          {"name": "female", "should_exist": true},
+          {"name": "neutral", "should_exist": true},
+          {"name": "bogussex", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "size_lookup_valid",
+      "description": "Verify size_lookup returns correct values",
+      "dependencies": [],
+      "test_type": "size_lookup_test",
+      "input": {
+        "test_cases": [
+          {"name": "tiny", "should_exist": true},
+          {"name": "small", "should_exist": true},
+          {"name": "medium", "should_exist": true},
+          {"name": "large", "should_exist": true},
+          {"name": "huge", "should_exist": true},
+          {"name": "giant", "should_exist": true},
+          {"name": "bogussize", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "flag_lookup_act_flags",
+      "description": "Verify flag_lookup finds entries in act_flags table",
+      "dependencies": [],
+      "test_type": "flag_table_lookup_test",
+      "input": {
+        "table": "act_flags",
+        "test_cases": [
+          {"name": "sentinel", "should_exist": true},
+          {"name": "aggressive", "should_exist": true},
+          {"name": "pet", "should_exist": true},
+          {"name": "bogusactflag", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "flag_lookup_affect_flags",
+      "description": "Verify flag_lookup works for affect_flags",
+      "dependencies": [],
+      "test_type": "flag_table_lookup_test",
+      "input": {
+        "table": "affect_flags",
+        "test_cases": [
+          {"name": "invisible", "should_exist": true},
+          {"name": "detect_evil", "should_exist": true},
+          {"name": "sanctuary", "should_exist": true},
+          {"name": "bogusaffect", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "sector_flags_lookup",
+      "description": "Verify sector flag lookups work for common sectors",
+      "dependencies": [],
+      "test_type": "flag_table_lookup_test",
+      "input": {
+        "table": "sector_flags",
+        "test_cases": [
+          {"name": "city", "should_exist": true},
+          {"name": "forest", "should_exist": true},
+          {"name": "water_swim", "should_exist": true},
+          {"name": "bogussector", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "damage_class_lookup_valid",
+      "description": "Verify damage class lookups for known damage types",
+      "dependencies": [],
+      "test_type": "damage_class_lookup_test",
+      "input": {
+        "test_cases": [
+          {"name": "fire", "should_exist": true},
+          {"name": "cold", "should_exist": true},
+          {"name": "acid", "should_exist": true},
+          {"name": "holy", "should_exist": true},
+          {"name": "bogus_damage", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "flag_table_no_empty_names",
+      "description": "Verify key flag tables have no NULL or empty name entries",
+      "dependencies": [],
+      "test_type": "flag_table_integrity_test",
+      "input": {
+        "tables_to_check": [
+          "act_flags",
+          "affect_flags",
+          "room_flags",
+          "exit_flags",
+          "wear_flags",
+          "extra_flags",
+          "weapon_class",
+          "sector_flags"
+        ]
+      },
+      "expected_output": {
+        "all_tables_valid": true,
+        "no_null_names": true
+      }
+    }
+  ]
+}

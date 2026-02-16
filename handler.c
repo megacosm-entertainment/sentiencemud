@@ -706,7 +706,7 @@ int get_weapon_sn(CHAR_DATA *ch)
     if (wield == NULL || wield->item_type != ITEM_WEAPON)
         sn = skill_resolve_gsn("hand to hand");
 
-    else switch (wield->value[0])
+    else switch (WEAPON(wield)->weapon_class)
     {
         default :                  sn = -1; 	       		break;
         case(WEAPON_SWORD):        sn = skill_resolve_gsn("sword");         	break;
@@ -732,7 +732,7 @@ int get_objweapon_sn(OBJ_DATA *obj)
     if (!obj || obj->item_type != ITEM_WEAPON)
         sn = skill_resolve_gsn("hand to hand");
 
-    else switch (obj->value[0])
+    else switch (WEAPON(obj)->weapon_class)
     {
         default :                  sn = -1; 	       		break;
         case(WEAPON_SWORD):        sn = skill_resolve_gsn("sword");         	break;
@@ -1491,7 +1491,7 @@ void affect_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
             break;
         case TO_WEAPON:
             if (obj->item_type == ITEM_WEAPON)
-                SET_BIT(obj->value[4],paf->bitvector);
+                SET_BIT(WEAPON(obj)->flags,paf->bitvector);
         break;
         }
     }
@@ -1594,7 +1594,7 @@ bool affect_removeall_obj(OBJ_DATA *obj)
                 break;
             case TO_WEAPON:
                 if (obj->item_type == ITEM_WEAPON)
-                    MERGE_BIT(obj->value[4],obj->weapon_flags_perm,paf->bitvector);
+                    MERGE_BIT(WEAPON(obj)->flags,obj->weapon_flags_perm,paf->bitvector);
                 break;
             }
 
@@ -1648,7 +1648,7 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
             break;
         case TO_WEAPON:
             if (obj->item_type == ITEM_WEAPON)
-                MERGE_BIT(obj->value[4],obj->weapon_flags_perm,paf->bitvector);
+                MERGE_BIT(WEAPON(obj)->flags,obj->weapon_flags_perm,paf->bitvector);
             break;
         }
     }
@@ -2045,7 +2045,7 @@ void char_from_room(CHAR_DATA *ch)
 
     if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL
     &&   obj->item_type == ITEM_LIGHT
-    &&   obj->value[2] != 0
+    &&   LIGHT(obj)->duration != 0
     &&   ch->in_room->light > 0)
     --ch->in_room->light;
 
@@ -2224,7 +2224,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
     if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL
     &&   obj->item_type == ITEM_LIGHT
-    &&   obj->value[2] != 0)
+    &&   LIGHT(obj)->duration != 0)
     ++ch->in_room->light;
 
     // Spread plague
@@ -2337,8 +2337,8 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
     // Convert money obj into gold/silver
     if (obj->item_type == ITEM_MONEY)
     {
-        ch->silver += obj->value[0];
-        ch->gold += obj->value[1];
+        ch->silver += MONEY(obj)->silver;
+        ch->gold += MONEY(obj)->gold;
 
         // AUTOSPLIT
         if (IS_SET(ch->act[0], PLR_AUTOSPLIT))
@@ -2354,9 +2354,9 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
                     members++;
             }
 
-            if (members > 1 && (obj->value[0] > 1 || obj->value[1]))
+            if (members > 1 && (MONEY(obj)->silver > 1 || MONEY(obj)->gold))
             {
-                sprintf(buffer, "%ld %ld", obj->value[0], obj->value[1]);
+                sprintf(buffer, "%d %d", MONEY(obj)->silver, MONEY(obj)->gold);
                 do_function(ch, &do_split, buffer);
             }
         }
@@ -2489,22 +2489,22 @@ int apply_ac(OBJ_DATA *obj, int iWear, int type)
 
     switch (iWear)
     {
-    case WEAR_BODY:		return 3 * obj->value[type];
-    case WEAR_HEAD:		return 3 * obj->value[type];
-    case WEAR_LEGS:		return 2 * obj->value[type];
-    case WEAR_FEET:		return obj->value[type];
-    case WEAR_HANDS: 	return 2 * obj->value[type];
-    case WEAR_ARMS:		return 2 * obj->value[type];
-    case WEAR_SHIELD: 	return 3 * obj->value[type];
-    case WEAR_NECK_1: 	return 3 * obj->value[type];
-    case WEAR_NECK_2: 	return 3 * obj->value[type];
-    case WEAR_ABOUT: 	return obj->value[type];
-    case WEAR_WAIST: 	return obj->value[type];
-    case WEAR_FINGER_R: 	return obj->value[type];
-    case WEAR_FINGER_L: 	return obj->value[type];
-    case WEAR_WRIST_L: 	return obj->value[type];
-    case WEAR_WRIST_R: 	return obj->value[type];
-    case WEAR_HOLD:		return 2 * obj->value[type];
+    case WEAR_BODY:		return 3 * ARMOR(obj)->protection[type];
+    case WEAR_HEAD:		return 3 * ARMOR(obj)->protection[type];
+    case WEAR_LEGS:		return 2 * ARMOR(obj)->protection[type];
+    case WEAR_FEET:		return ARMOR(obj)->protection[type];
+    case WEAR_HANDS: 	return 2 * ARMOR(obj)->protection[type];
+    case WEAR_ARMS:		return 2 * ARMOR(obj)->protection[type];
+    case WEAR_SHIELD: 	return 3 * ARMOR(obj)->protection[type];
+    case WEAR_NECK_1: 	return 3 * ARMOR(obj)->protection[type];
+    case WEAR_NECK_2: 	return 3 * ARMOR(obj)->protection[type];
+    case WEAR_ABOUT: 	return ARMOR(obj)->protection[type];
+    case WEAR_WAIST: 	return ARMOR(obj)->protection[type];
+    case WEAR_FINGER_R: 	return ARMOR(obj)->protection[type];
+    case WEAR_FINGER_L: 	return ARMOR(obj)->protection[type];
+    case WEAR_WRIST_L: 	return ARMOR(obj)->protection[type];
+    case WEAR_WRIST_R: 	return ARMOR(obj)->protection[type];
+    case WEAR_HOLD:		return 2 * ARMOR(obj)->protection[type];
     }
 
     return 0;
@@ -2606,8 +2606,8 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
         &&   ch->in_room != NULL)
         {
         // hack to fix current lights with 0 light remaining
-        if (obj->value[2] == 0)
-            obj->value[2] = 10;
+        if (LIGHT(obj)->duration == 0)
+            LIGHT(obj)->duration = 10;
 
         ++ch->in_room->light;
         }
@@ -2667,7 +2667,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
         }
 
         if (obj->item_type == ITEM_LIGHT &&
-            obj->value[2] != 0 && ch->in_room != NULL &&
+            LIGHT(obj)->duration != 0 && ch->in_room != NULL &&
             ch->in_room->light > 0)
             --ch->in_room->light;
 
@@ -4210,7 +4210,7 @@ OBJ_DATA *create_money(int gold, int silver)
         sprintf(buf, obj->short_descr, gold);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
-        obj->value[1]           = gold;
+        MONEY(obj)->gold        = gold;
         obj->cost               = gold;
     obj->weight		= get_weight_coins(silver, gold);
     }
@@ -4220,7 +4220,7 @@ OBJ_DATA *create_money(int gold, int silver)
         sprintf(buf, obj->short_descr, silver);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
-        obj->value[0]           = silver;
+        MONEY(obj)->silver      = silver;
         obj->cost               = silver;
     obj->weight		= get_weight_coins(silver, gold);
     }
@@ -4231,8 +4231,8 @@ OBJ_DATA *create_money(int gold, int silver)
     sprintf(buf, obj->short_descr, silver, gold);
     free_string(obj->short_descr);
     obj->short_descr	= str_dup(buf);
-    obj->value[0]		= silver;
-    obj->value[1]		= gold;
+    MONEY(obj)->silver	= silver;
+    MONEY(obj)->gold	= gold;
     obj->cost		= 100 * gold + silver;
     obj->weight		= get_weight_coins(silver, gold);
     }
@@ -4278,7 +4278,7 @@ int get_obj_weight(OBJ_DATA *obj)
     int weight;
 
     if (obj->item_type == ITEM_MONEY)
-        return get_weight_coins(obj->value[0], obj->value[1]);
+        return get_weight_coins(MONEY(obj)->silver, MONEY(obj)->gold);
 
     weight = obj->weight;
 
@@ -4645,7 +4645,7 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
     if (IS_AFFECTED(ch, AFF_BLIND))
     return false;
 
-    if (obj->item_type == ITEM_LIGHT && obj->value[2] != 0)
+    if (obj->item_type == ITEM_LIGHT && LIGHT(obj)->duration != 0)
     return true;
 
     if (IS_SET(obj->extra[0], ITEM_INVIS)
@@ -5394,13 +5394,13 @@ bool wields_item_type(CHAR_DATA *ch, int weapon_type)
 
     if ((wield = get_eq_char(ch, WEAR_WIELD)) != NULL)
     {
-    if (wield->value[0] == weapon_type)
+    if (WEAPON(wield)->weapon_class == weapon_type)
         return true;
     }
 
     if ((wield2 = get_eq_char(ch, WEAR_SECONDARY)) != NULL)
     {
-        if (wield2->value[0] == weapon_type)
+        if (WEAPON(wield2)->weapon_class == weapon_type)
         return true;
     }
 
@@ -5700,8 +5700,8 @@ long get_dp_value(OBJ_DATA *obj)
 
     if (obj->item_type == ITEM_MONEY)
     {
-    deitypoints = obj->value[0] / 100;
-    deitypoints += obj->value[1];
+    deitypoints = MONEY(obj)->silver / 100;
+    deitypoints += MONEY(obj)->gold;
     }
 
     for (objnest = obj->contains; objnest != NULL; objnest = objnest->next_content)
@@ -6775,7 +6775,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     }
 
     if (container->item_type == ITEM_CONTAINER
-    &&  IS_SET(container->value[1], CONT_CLOSED))
+    &&  IS_SET(CONTAINER(container)->flags, CONT_CLOSED))
     {
         if (!silent)
         act("The $d is closed.", ch, NULL, NULL, NULL, NULL, NULL, container->name, TO_CHAR, NULL, NULL);
@@ -6895,7 +6895,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
     if (container->item_type != ITEM_CART
     &&  container->item_type != ITEM_WEAPON_CONTAINER
-    &&  IS_SET(container->value[1], CONT_CLOSED))
+    &&  IS_SET(CONTAINER(container)->flags, CONT_CLOSED))
     {
         if (!silent)
         act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -6942,12 +6942,12 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     */
 
     if (container->item_type == ITEM_WEAPON_CONTAINER
-    &&  container->value[1] != obj->value[0])
+    &&  WEAPON_CON(container)->weapon_type != WEAPON(obj)->weapon_class)
     {
         if (!silent)
         {
         sprintf(buf, "This container will only take %ss.\n\r",
-            weapon_name(container->value[1]));
+            weapon_name(WEAPON_CON(container)->weapon_type));
         send_to_char(buf, ch);
         }
 
@@ -8108,7 +8108,7 @@ void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay)
         if(delay) {
             int wait_amount;
 
-            wait_amount = PULLING_CART(ch)->value[1];
+            wait_amount = CART(PULLING_CART(ch))->move_delay;
 
             if (MOUNTED(ch))
                 WAIT_STATE(ch, wait_amount/2);

@@ -4178,13 +4178,28 @@ void free_trainer_data(TRAINER_DATA *t)
 }
 
 
+static SCRIPT_PARAM *param_free = NULL;
+
 SCRIPT_PARAM *new_script_param()
 {
-    SCRIPT_PARAM *arg = alloc_mem(sizeof(SCRIPT_PARAM));
+    SCRIPT_PARAM *arg;
 
-    if( arg )
+    if( param_free != NULL )
     {
-        arg->buffer = new_buf();
+        arg = param_free;
+        param_free = param_free->next;
+        arg->next = NULL;
+        arg->type = 0;
+        memset(&arg->d, 0, sizeof(arg->d));
+        clear_buf(arg->buffer);
+    }
+    else
+    {
+        arg = alloc_mem(sizeof(SCRIPT_PARAM));
+        if( arg )
+        {
+            arg->buffer = new_buf();
+        }
     }
 
     return arg;
@@ -4194,8 +4209,8 @@ void free_script_param(SCRIPT_PARAM *arg)
 {
     if( arg != NULL )
     {
-        free_buf(arg->buffer);
-        free_mem(arg, sizeof(SCRIPT_PARAM));
+        arg->next = param_free;
+        param_free = arg;
     }
 }
 
