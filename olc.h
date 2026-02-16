@@ -384,6 +384,39 @@ DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
 
+/* Type-specific subcommands (oedit_types.c) */
+DECLARE_OLC_FUN( oedit_armor		);
+DECLARE_OLC_FUN( oedit_bodypart		);
+DECLARE_OLC_FUN( oedit_book		);
+DECLARE_OLC_FUN( oedit_cart		);
+DECLARE_OLC_FUN( oedit_compass		);
+DECLARE_OLC_FUN( oedit_container	);
+DECLARE_OLC_FUN( oedit_corpse		);
+DECLARE_OLC_FUN( oedit_drink		);
+DECLARE_OLC_FUN( oedit_food		);
+DECLARE_OLC_FUN( oedit_furniture	);
+DECLARE_OLC_FUN( oedit_herb		);
+DECLARE_OLC_FUN( oedit_ink		);
+DECLARE_OLC_FUN( oedit_instrument	);
+DECLARE_OLC_FUN( oedit_jewelry		);
+DECLARE_OLC_FUN( oedit_light		);
+DECLARE_OLC_FUN( oedit_map		);
+DECLARE_OLC_FUN( oedit_mist		);
+DECLARE_OLC_FUN( oedit_money		);
+DECLARE_OLC_FUN( oedit_page		);
+DECLARE_OLC_FUN( oedit_portal		);
+DECLARE_OLC_FUN( oedit_scroll		);
+DECLARE_OLC_FUN( oedit_seed		);
+DECLARE_OLC_FUN( oedit_sextant		);
+DECLARE_OLC_FUN( oedit_ship		);
+DECLARE_OLC_FUN( oedit_tattoo		);
+DECLARE_OLC_FUN( oedit_telescope	);
+DECLARE_OLC_FUN( oedit_tool		);
+DECLARE_OLC_FUN( oedit_trade		);
+DECLARE_OLC_FUN( oedit_wand		);
+DECLARE_OLC_FUN( oedit_weapon		);
+DECLARE_OLC_FUN( oedit_weaponcon	);
+
 /*
  * Mobile Editor Prototypes
  */

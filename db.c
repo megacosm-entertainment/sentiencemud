@@ -741,6 +741,9 @@ void boot_db(void)
     loaded_ships = list_create(false);
     loaded_special_keys = list_create(false);
 
+    // Initialize item type metadata and compatibility rules
+    item_types_init();
+
     if (!load_commands()) exit(1);
     log_message(LOG_LEVEL_INFO, LOG_INIT, "commands loaded.");
 
