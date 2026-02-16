@@ -660,7 +660,6 @@ static void init_game_settings_defaults(void)
 int json_game_settings_read(void)
 {
     json_t *root;
-    json_error_t error;
 
     log_string("Loading game settings from JSON...");
 
@@ -668,18 +667,17 @@ int json_game_settings_read(void)
     init_game_settings_defaults();
 
     // Try to load JSON file
-    root = json_load_file(GAME_SETTINGS_JSON_FILE, 0, &error);
+    root = json_file_load(GAME_SETTINGS_JSON_FILE, NULL, NULL, "json_game_settings_read");
     if (!root) {
-        log_stringf("Warning: Could not load %s: %s",
-                       GAME_SETTINGS_JSON_FILE, error.text);
+        log_stringf("Warning: Could not load %s", GAME_SETTINGS_JSON_FILE);
         log_string("  Will try to migrate from .dat format...");
 
         // Try migration
         if (json_game_settings_migrate() == 0) {
             log_string("  Migration successful, retrying load...");
-            root = json_load_file(GAME_SETTINGS_JSON_FILE, 0, &error);
+            root = json_file_load(GAME_SETTINGS_JSON_FILE, NULL, NULL, "json_game_settings_read");
             if (!root) {
-                log_stringf("Error: Could not load migrated settings: %s", error.text);
+                log_string("Error: Could not load migrated settings");
                 return 1;
             }
         } else {
@@ -717,7 +715,6 @@ int json_game_settings_read(void)
 int json_game_settings_write(void)
 {
     json_t *root;
-    int result;
 
     log_string("Saving game settings to JSON...");
 
@@ -727,14 +724,9 @@ int json_game_settings_write(void)
         return 1;
     }
 
-    // Write with pretty printing for human readability
-    result = json_dump_file(root, GAME_SETTINGS_JSON_FILE, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(root);
-
-    if (result != 0) {
-        log_stringf("Error: Failed to write %s", GAME_SETTINGS_JSON_FILE);
+    if (!json_file_save(root, GAME_SETTINGS_JSON_FILE, "json_game_settings_write",
+                        JSON_INDENT(2) | JSON_PRESERVE_ORDER))
         return 1;
-    }
 
     log_string("Game settings saved successfully.");
     return 0;

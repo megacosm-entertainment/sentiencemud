@@ -516,7 +516,7 @@ json_t *ship_to_json(SHIP_DATA *ship)
     if (ship->owner && !IS_NPC(ship->owner)) {
         json_object_set_new(json, "owner_name", json_string(ship->owner->name));
     }
-    json_object_set_new(json, "flag", json_string(ship->flag ? ship->flag : ""));
+    json_object_set_new(json, "flag", json_string_safe(ship->flag));
     json_object_set_new(json, "ship_power", json_integer(ship->ship_power));
     json_object_set_new(json, "hit", json_integer(ship->hit));
     json_object_set_new(json, "armor", json_integer(ship->armor));
@@ -870,7 +870,6 @@ bool json_persist_save_ship(SHIP_DATA *ship)
 {
     char path[512];
     json_t *json;
-    int ret;
     
     if (!ship || !IS_VALID(ship)) {
         return false;
@@ -893,11 +892,7 @@ bool json_persist_save_ship(SHIP_DATA *ship)
     /* Add metadata flag for loading on boot */
     json_object_set_new(json, "load_on_boot", json_boolean(true));
     
-    ret = json_dump_file(json, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(json);
-    
-    if (ret != 0) {
-        log_stringf("json_persist_save_ship: Failed to write %s", path);
+    if (!json_file_save(json, path, "json_persist_save_ship", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
         return false;
     }
     
@@ -911,15 +906,13 @@ SHIP_DATA *json_persist_load_ship(const char *filename)
 {
     char path[512];
     json_t *root;
-    json_error_t error;
     SHIP_DATA *ship;
     bool load_on_boot;
     
     snprintf(path, sizeof(path), "%s%s", PERSIST_SHIPS_DIR, filename);
     
-    root = json_load_file(path, 0, &error);
+    root = json_file_load(path, NULL, NULL, "json_persist_load_ship");
     if (!root) {
-        log_stringf("json_persist_load_ship: Failed to load %s: %s", path, error.text);
         return NULL;
     }
     
@@ -945,7 +938,6 @@ bool json_persist_save_dungeon(DUNGEON *dungeon)
 {
     char path[512];
     json_t *json;
-    int ret;
     
     if (!dungeon || !IS_VALID(dungeon)) {
         return false;
@@ -972,11 +964,7 @@ bool json_persist_save_dungeon(DUNGEON *dungeon)
     /* Add metadata flag for loading on boot */
     json_object_set_new(json, "load_on_boot", json_boolean(true));
     
-    ret = json_dump_file(json, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(json);
-    
-    if (ret != 0) {
-        log_stringf("json_persist_save_dungeon: Failed to write %s", path);
+    if (!json_file_save(json, path, "json_persist_save_dungeon", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
         return false;
     }
     
@@ -990,15 +978,13 @@ DUNGEON *json_persist_load_dungeon(const char *filename)
 {
     char path[512];
     json_t *root;
-    json_error_t error;
     DUNGEON *dungeon;
     bool load_on_boot;
     
     snprintf(path, sizeof(path), "%s%s", PERSIST_DUNGEONS_DIR, filename);
     
-    root = json_load_file(path, 0, &error);
+    root = json_file_load(path, NULL, NULL, "json_persist_load_dungeon");
     if (!root) {
-        log_stringf("json_persist_load_dungeon: Failed to load %s: %s", path, error.text);
         return NULL;
     }
     
@@ -1024,7 +1010,6 @@ bool json_persist_save_instance(INSTANCE *instance)
 {
     char path[512];
     json_t *json;
-    int ret;
     
     if (!instance || !IS_VALID(instance)) {
         return false;
@@ -1076,11 +1061,7 @@ bool json_persist_save_instance(INSTANCE *instance)
     /* Add metadata flag for loading on boot */
     json_object_set_new(json, "load_on_boot", json_boolean(true));
     
-    ret = json_dump_file(json, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(json);
-    
-    if (ret != 0) {
-        log_stringf("json_persist_save_instance: Failed to write %s", path);
+    if (!json_file_save(json, path, "json_persist_save_instance", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
         return false;
     }
     
@@ -1094,15 +1075,13 @@ INSTANCE *json_persist_load_instance(const char *filename)
 {
     char path[512];
     json_t *root;
-    json_error_t error;
     INSTANCE *instance;
     bool load_on_boot;
     
     snprintf(path, sizeof(path), "%s%s", PERSIST_INSTANCES_DIR, filename);
     
-    root = json_load_file(path, 0, &error);
+    root = json_file_load(path, NULL, NULL, "json_persist_load_instance");
     if (!root) {
-        log_stringf("json_persist_load_instance: Failed to load %s: %s", path, error.text);
         return NULL;
     }
     
@@ -1291,15 +1270,13 @@ int json_load_instances(void)
 
 bool json_load_instances_file(const char *path)
 {
-    json_error_t error;
     json_t *root;
     json_t *array;
     size_t i;
     int dungeons_loaded = 0, ships_loaded = 0, instances_loaded = 0;
 
-    root = json_load_file(path, 0, &error);
+    root = json_file_load(path, NULL, NULL, "json_load_instances_file");
     if (!root) {
-        log_stringf("json_load_instances_file: Failed to load %s: %s", path, error.text);
         return false;
     }
 

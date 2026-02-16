@@ -53,7 +53,7 @@ json_t *json_church_rank_serialize(CHURCH_RANK_DATA *rank)
         return NULL;
     
     json_object_set_new(obj, "uid", json_integer(rank->uid));
-    json_object_set_new(obj, "name", json_string(rank->rank_name ? rank->rank_name : ""));
+    json_object_set_new(obj, "name", json_string_safe(rank->rank_name));
     json_object_set_new(obj, "permissions", flags_to_json_array(rank->permissions, church_permission_flags));
     
     return obj;
@@ -127,7 +127,7 @@ json_t *json_church_member_serialize(CHURCH_PLAYER_DATA *member)
     if (!obj)
         return NULL;
     
-    json_object_set_new(obj, "name", json_string(member->name ? member->name : ""));
+    json_object_set_new(obj, "name", json_string_safe(member->name));
     json_object_set_new(obj, "rank_uid", json_integer(member->rank_uid));
     json_object_set_new(obj, "donated_gold", json_integer(member->dep_gold));
     json_object_set_new(obj, "donated_pneuma", json_integer(member->dep_pneuma));
@@ -367,13 +367,13 @@ json_t *json_church_serialize(CHURCH_DATA *church)
     json_object_set_new(root, "version", json_integer(JSON_CHURCH_VERSION));
     json_object_set_new(root, "church_version", json_integer(church->version));
     json_object_set_new(root, "uid", json_integer(church->uid));
-    json_object_set_new(root, "name", json_string(church->name ? church->name : ""));
-    json_object_set_new(root, "flag", json_string(church->flag ? church->flag : ""));
+    json_object_set_new(root, "name", json_string_safe(church->name));
+    json_object_set_new(root, "flag", json_string_safe(church->flag));
     json_object_set_new(root, "deleted", json_boolean(church->deleted));
     
     /* People */
-    json_object_set_new(root, "founder", json_string(church->founder ? church->founder : ""));
-    json_object_set_new(root, "owner", json_string(church->owner ? church->owner : ""));
+    json_object_set_new(root, "founder", json_string_safe(church->founder));
+    json_object_set_new(root, "owner", json_string_safe(church->owner));
     
     /* Resources */
     json_object_set_new(root, "pneuma", json_integer(church->pneuma));
@@ -431,13 +431,13 @@ json_t *json_church_serialize(CHURCH_DATA *church)
     json_object_set_new(root, "leader_last_login", json_integer((long)church->leader_last_login));
     
     /* Colors */
-    json_object_set_new(root, "colour1", json_string(church->colour1 ? church->colour1 : ""));
-    json_object_set_new(root, "colour2", json_string(church->colour2 ? church->colour2 : ""));
+    json_object_set_new(root, "colour1", json_string_safe(church->colour1));
+    json_object_set_new(root, "colour2", json_string_safe(church->colour2));
     
     /* Descriptions */
-    json_object_set_new(root, "motd", json_string(church->motd ? church->motd : ""));
-    json_object_set_new(root, "rules", json_string(church->rules ? church->rules : ""));
-    json_object_set_new(root, "info", json_string(church->info ? church->info : ""));
+    json_object_set_new(root, "motd", json_string_safe(church->motd));
+    json_object_set_new(root, "rules", json_string_safe(church->rules));
+    json_object_set_new(root, "info", json_string_safe(church->info));
     
     /* Coffer */
     json_object_set_new(root, "coffer_rent", json_integer((long)church->coffer_rent));
@@ -770,14 +770,7 @@ CHURCH_DATA *json_church_deserialize(json_t *root)
         json_array_foreach(array, index, item) {
             rank = json_church_rank_deserialize(item);
             if (rank) {
-                rank->next = NULL;
-                
-                if (!church->ranks) {
-                    church->ranks = rank;
-                } else {
-                    last_rank->next = rank;
-                }
-                last_rank = rank;
+                JSON_APPEND_LINK(church->ranks, last_rank, rank);
                 
                 /* Set default rank pointer */
                 if (default_rank_uid > 0 && rank->uid == default_rank_uid)
@@ -793,7 +786,6 @@ CHURCH_DATA *json_church_deserialize(json_t *root)
             member = json_church_member_deserialize(item);
             if (member) {
                 member->church = church;
-                member->next = NULL;
                 
                 /* Resolve rank pointer from UID */
                 for (rank = church->ranks; rank; rank = rank->next) {
@@ -803,12 +795,7 @@ CHURCH_DATA *json_church_deserialize(json_t *root)
                     }
                 }
                 
-                if (!church->people) {
-                    church->people = member;
-                } else {
-                    last_member->next = member;
-                }
-                last_member = member;
+                JSON_APPEND_LINK(church->people, last_member, member);
                 
                 /* Add to roster */
                 list_appendlink(church->roster, member->name);

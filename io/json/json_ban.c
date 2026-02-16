@@ -29,6 +29,7 @@
 #include "../../recycle.h"
 #include "../../log.h"
 #include "json_ban.h"
+#include "json_common.h"
 
 extern BAN_DATA *ban_list;
 
@@ -59,7 +60,7 @@ bool json_save_bans(const char *path)
             json_t *ban_obj = json_object();
 
             json_object_set_new(ban_obj, "name",
-                json_string(pban->name ? pban->name : ""));
+                json_string_safe(pban->name));
             json_object_set_new(ban_obj, "level",
                 json_integer(pban->level));
             json_object_set_new(ban_obj, "ban_flags",
@@ -74,13 +75,8 @@ bool json_save_bans(const char *path)
 
     json_object_set_new(root, "bans", bans_array);
 
-    if (json_dump_file(root, path, JSON_INDENT(2)) != 0) {
-        log_stringf("json_save_bans: Failed to write to %s", path);
-        json_decref(root);
+    if (!json_file_save(root, path, "json_save_bans", JSON_INDENT(2)))
         return false;
-    }
-
-    json_decref(root);
 
     log_stringf("Saved %d permanent ban%s to %s",
         count, count == 1 ? "" : "s", path);
@@ -101,23 +97,14 @@ bool json_load_bans(const char *path)
 {
     json_t *root;
     json_t *bans_array;
-    json_error_t error;
     size_t index;
     json_t *value;
     BAN_DATA *ban_last = NULL;
     int loaded_count = 0;
 
-    root = json_load_file(path, 0, &error);
-    if (!root) {
+    root = json_file_load(path, "bans", &bans_array, "json_load_bans");
+    if (!root)
         return false;
-    }
-
-    bans_array = json_object_get(root, "bans");
-    if (!json_is_array(bans_array)) {
-        log_stringf("json_load_bans: Invalid format in %s", path);
-        json_decref(root);
-        return false;
-    }
 
     json_array_foreach(bans_array, index, value) {
         BAN_DATA *pban;
@@ -137,13 +124,7 @@ bool json_load_bans(const char *path)
         pban->rank = (int16_t)json_integer_value(
             json_object_get(value, "rank"));
 
-        pban->next = NULL;
-
-        if (ban_list == NULL)
-            ban_list = pban;
-        else
-            ban_last->next = pban;
-        ban_last = pban;
+        JSON_APPEND_LINK(ban_list, ban_last, pban);
 
         loaded_count++;
     }

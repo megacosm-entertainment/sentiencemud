@@ -32,9 +32,9 @@ static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
     if (!terrain) return NULL;
     json_t *json = json_object();
     json_object_set_new(json, "mapchar", json_integer(terrain->mapchar));
-    json_object_set_new(json, "showchar", json_string(terrain->showchar ? terrain->showchar : ""));
-    json_object_set_new(json, "showname", json_string(terrain->showname ? terrain->showname : ""));
-    json_object_set_new(json, "briefdesc", json_string(terrain->briefdesc ? terrain->briefdesc : ""));
+    json_object_set_new(json, "showchar", json_string_safe(terrain->showchar));
+    json_object_set_new(json, "showname", json_string_safe(terrain->showname));
+    json_object_set_new(json, "briefdesc", json_string_safe(terrain->briefdesc));
     json_object_set_new(json, "nonroom", terrain->nonroom ? json_true() : json_false());
     if (terrain->template) {
         json_object_set_new(json, "template", json_area_serialize_room(terrain->template));
@@ -65,7 +65,7 @@ static json_t *wilds_vlink_to_json(WILDS_VLINK *vlink) {
     json_object_set_new(json, "wildsorigin_x", json_integer(vlink->wildsorigin_x));
     json_object_set_new(json, "wildsorigin_y", json_integer(vlink->wildsorigin_y));
     json_object_set_new(json, "door", json_integer(vlink->door));
-    json_object_set_new(json, "map_tile", json_string(vlink->map_tile ? vlink->map_tile : ""));
+    json_object_set_new(json, "map_tile", json_string_safe(vlink->map_tile));
     /* Use widevnum format for destination room */
     if (vlink->pDestRoom) {
         json_object_set_new(json, "destvnum", json_string(widevnum_string_room(vlink->pDestRoom, NULL)));
@@ -80,14 +80,14 @@ static json_t *wilds_vlink_to_json(WILDS_VLINK *vlink) {
     }
     json_object_set_new(json, "default_linkage", json_integer(vlink->default_linkage));
     json_object_set_new(json, "current_linkage", json_integer(vlink->current_linkage));
-    json_object_set_new(json, "orig_description", json_string(vlink->orig_description ? vlink->orig_description : ""));
-    json_object_set_new(json, "orig_keyword", json_string(vlink->orig_keyword ? vlink->orig_keyword : ""));
+    json_object_set_new(json, "orig_description", json_string_safe(vlink->orig_description));
+    json_object_set_new(json, "orig_keyword", json_string_safe(vlink->orig_keyword));
     json_object_set_new(json, "orig_rs_flags", json_integer(vlink->orig_rs_flags));
     json_object_set_new(json, "orig_key", json_integer(vlink->orig_key));
     json_object_set_new(json, "orig_lock", json_integer(vlink->orig_lock));
     json_object_set_new(json, "orig_pick", json_integer(vlink->orig_pick));
-    json_object_set_new(json, "rev_description", json_string(vlink->rev_description ? vlink->rev_description : ""));
-    json_object_set_new(json, "rev_keyword", json_string(vlink->rev_keyword ? vlink->rev_keyword : ""));
+    json_object_set_new(json, "rev_description", json_string_safe(vlink->rev_description));
+    json_object_set_new(json, "rev_keyword", json_string_safe(vlink->rev_keyword));
     json_object_set_new(json, "rev_rs_flags", json_integer(vlink->rev_rs_flags));
     json_object_set_new(json, "rev_key", json_integer(vlink->rev_key));
     json_object_set_new(json, "rev_lock", json_integer(vlink->rev_lock));
@@ -141,9 +141,9 @@ static json_t *wilds_to_json(WILDS_DATA *wilds) {
     if (!wilds) return NULL;
     json_t *json = json_object();
     json_object_set_new(json, "uid", json_integer(wilds->uid));
-    json_object_set_new(json, "name", json_string(wilds->name ? wilds->name : ""));
+    json_object_set_new(json, "name", json_string_safe(wilds->name));
     json_object_set_new(json, "wilds_format", json_integer(wilds->wilds_format));
-    json_object_set_new(json, "staticmap", json_string(wilds->staticmap ? wilds->staticmap : ""));
+    json_object_set_new(json, "staticmap", json_string_safe(wilds->staticmap));
     json_object_set_new(json, "map_size_x", json_integer(wilds->map_size_x));
     json_object_set_new(json, "map_size_y", json_integer(wilds->map_size_y));
     json_object_set_new(json, "startx", json_integer(wilds->startx));
@@ -277,8 +277,8 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     
     /* Basic info */
     json_object_set_new(root, "uid", json_integer(area->uid));
-    json_object_set_new(root, "name", json_string(area->name ? area->name : ""));
-    json_object_set_new(root, "filename", json_string(area->file_name ? area->file_name : ""));
+    json_object_set_new(root, "name", json_string_safe(area->name));
+    json_object_set_new(root, "filename", json_string_safe(area->file_name));
     
     /* Vnum range */
     json_object_set_new(vnums, "min", json_integer(area->min_vnum));
@@ -287,7 +287,7 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     
     /* Metadata */
     json_object_set_new(metadata, "builders", json_string(area->builders ? area->builders : "None"));
-    json_object_set_new(metadata, "credits", json_string(area->credits ? area->credits : ""));
+    json_object_set_new(metadata, "credits", json_string_safe(area->credits));
     json_object_set_new(metadata, "security", json_integer(area->security));
     json_object_set_new(metadata, "area_who", json_integer(area->area_who));
     
@@ -343,9 +343,9 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(root, "airship_land", json_integer(area->airship_land_load.vnum));
     
     /* Descriptions */
-    json_object_set_new(root, "description", json_string(area->description ? area->description : ""));
-    json_object_set_new(root, "comments", json_string(area->comments ? area->comments : ""));
-    json_object_set_new(root, "notes", json_string(area->notes ? area->notes : ""));
+    json_object_set_new(root, "description", json_string_safe(area->description));
+    json_object_set_new(root, "comments", json_string_safe(area->comments));
+    json_object_set_new(root, "notes", json_string_safe(area->notes));
     
     /* OLC Point Boosts */
     if (area->points) {
@@ -533,13 +533,7 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
                 boost->usage = json_get_int_default(belem, "usage", 0);
                 boost->imp = json_get_int_default(belem, "imp", 0);
                 boost->area = json_get_int_default(belem, "area", 0);
-                boost->next = NULL;
-                if (!area->points) {
-                    area->points = boost;
-                } else {
-                    last->next = boost;
-                }
-                last = boost;
+                JSON_APPEND_LINK(area->points, last, boost);
             }
         }
     }
@@ -1721,7 +1715,6 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
 {
     char path[512];
     json_t *root;
-    int ret;
     
     if (!area || !filename) {
         log_string("json_area_save_to: Invalid area or filename");
@@ -1828,11 +1821,7 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
     }
     
     /* Write to file with pretty printing */
-    ret = json_dump_file(root, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(root);
-    
-    if (ret != 0) {
-        log_stringf("json_area_save_to: Failed to write file %s", path);
+    if (!json_file_save(root, path, "json_area_save_to", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
         return false;
     }
     
@@ -1845,7 +1834,6 @@ bool json_area_save(AREA_DATA *area)
 {
     char path[512];
     json_t *root;
-    int ret;
     
     if (!area || !area->file_name) {
         log_string("json_area_save: Invalid area or filename");
@@ -2106,11 +2094,7 @@ bool json_area_save(AREA_DATA *area)
     }
 
     /* Write to file with pretty printing */
-    ret = json_dump_file(root, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(root);
-
-    if (ret != 0) {
-        log_stringf("json_area_save: Failed to write %s", path);
+    if (!json_file_save(root, path, "json_area_save", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
         return false;
     }
 
@@ -2933,12 +2917,7 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
                     const char *script = json_get_string_default(jentry, "check_script", NULL);
                     if (script)
                         entry->check_script = str_dup(script);
-                    entry->next = NULL;
-                    if (last)
-                        last->next = entry;
-                    else
-                        mob->pTrainer->entries = entry;
-                    last = entry;
+                    JSON_APPEND_LINK(mob->pTrainer->entries, last, entry);
                 }
             }
         }
@@ -3274,14 +3253,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
             EXTRA_DESCR_DATA *ed = alloc_perm(sizeof(*ed));
             ed->keyword = str_dup(json_get_string_default(ed_json, "keyword", ""));
             ed->description = str_dup(json_get_string_default(ed_json, "description", ""));
-            ed->next = NULL;
-            
-            if (!obj->extra_descr) {
-                obj->extra_descr = ed;
-            } else {
-                ed_last->next = ed;
-            }
-            ed_last = ed;
+            JSON_APPEND_LINK(obj->extra_descr, ed_last, ed);
         }
     }
     
@@ -3340,13 +3312,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
                 spell->sn = sn;
                 spell->level = json_get_int_default(selem, "level", 0);
                 spell->repop = json_get_int_default(selem, "repop", 0);
-                spell->next = NULL;
-                if (!obj->spells) {
-                    obj->spells = spell;
-                } else {
-                    last_spell->next = spell;
-                }
-                last_spell = spell;
+                JSON_APPEND_LINK(obj->spells, last_spell, spell);
             }
         }
     }

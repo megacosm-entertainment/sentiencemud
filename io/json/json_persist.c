@@ -27,6 +27,7 @@
 #include "../cache/redis_cache.h"
 #include "../../skill_data.h"
 #include "json_obj_types.h"
+#include "json_common.h"
 
 /***************************************************************************
  * External References                                                     *
@@ -333,7 +334,7 @@ static json_t *variable_to_json(pVARIABLE var)
         break;
     case VAR_STRING:
     case VAR_STRING_S:
-        json_object_set_new(json, "value", json_string(var->_.s ? var->_.s : ""));
+        json_object_set_new(json, "value", json_string_safe(var->_.s));
         break;
     case VAR_ROOM:
         if (var->_.r) {
@@ -723,9 +724,9 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
     json_object_set_new(json, "version", json_integer(obj->version));
 
     /* Descriptions */
-    json_object_set_new(json, "name", json_string(obj->name ? obj->name : ""));
-    json_object_set_new(json, "short_descr", json_string(obj->short_descr ? obj->short_descr : ""));
-    json_object_set_new(json, "description", json_string(obj->description ? obj->description : ""));
+    json_object_set_new(json, "name", json_string_safe(obj->name));
+    json_object_set_new(json, "short_descr", json_string_safe(obj->short_descr));
+    json_object_set_new(json, "description", json_string_safe(obj->description));
     if (obj->full_description) {
         json_object_set_new(json, "full_description", json_string(obj->full_description));
     }
@@ -887,8 +888,8 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
         array = json_array();
         for (ed = obj->extra_descr; ed; ed = ed->next) {
             json_t *ed_json = json_object();
-            json_object_set_new(ed_json, "keyword", json_string(ed->keyword ? ed->keyword : ""));
-            json_object_set_new(ed_json, "description", json_string(ed->description ? ed->description : ""));
+            json_object_set_new(ed_json, "keyword", json_string_safe(ed->keyword));
+            json_object_set_new(ed_json, "description", json_string_safe(ed->description));
             json_array_append_new(array, ed_json);
         }
         if (json_array_size(array) > 0) {
@@ -1277,7 +1278,6 @@ bool json_persist_save_object(OBJ_DATA *obj)
 {
     char path[256];
     json_t *json;
-    int ret;
 
     if (!obj || !obj->id[0]) return false;
 
@@ -1290,11 +1290,7 @@ bool json_persist_save_object(OBJ_DATA *obj)
         return false;
     }
 
-    ret = json_dump_file(json, path, JSON_INDENT(2));
-    json_decref(json);
-
-    if (ret != 0) {
-        log_stringf("json_persist_save_object: failed to write %s", path);
+    if (!json_file_save(json, path, "json_persist_save_object", JSON_INDENT(2))) {
         return false;
     }
 
@@ -1365,11 +1361,11 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
     }
 
     /* Basic info */
-    json_object_set_new(json, "name", json_string(ch->name ? ch->name : ""));
-    json_object_set_new(json, "owner", json_string(ch->owner ? ch->owner : ""));
-    json_object_set_new(json, "short_descr", json_string(ch->short_descr ? ch->short_descr : ""));
-    json_object_set_new(json, "long_descr", json_string(ch->long_descr ? ch->long_descr : ""));
-    json_object_set_new(json, "description", json_string(ch->description ? ch->description : ""));
+    json_object_set_new(json, "name", json_string_safe(ch->name));
+    json_object_set_new(json, "owner", json_string_safe(ch->owner));
+    json_object_set_new(json, "short_descr", json_string_safe(ch->short_descr));
+    json_object_set_new(json, "long_descr", json_string_safe(ch->long_descr));
+    json_object_set_new(json, "description", json_string_safe(ch->description));
 
     /* Race and basic stats */
     if (ch->race) {
@@ -1986,7 +1982,6 @@ bool json_persist_save_mobile(CHAR_DATA *ch)
 {
     char path[256];
     json_t *json;
-    int ret;
 
     if (!ch || !ch->id[0]) return false;
     if (!IS_NPC(ch)) return false;  /* Only mobiles, not players */
@@ -2000,11 +1995,7 @@ bool json_persist_save_mobile(CHAR_DATA *ch)
         return false;
     }
 
-    ret = json_dump_file(json, path, JSON_INDENT(2));
-    json_decref(json);
-
-    if (ret != 0) {
-        log_stringf("json_persist_save_mobile: failed to write %s", path);
+    if (!json_file_save(json, path, "json_persist_save_mobile", JSON_INDENT(2))) {
         return false;
     }
 
@@ -2149,8 +2140,8 @@ json_t *json_persist_room_to_json(ROOM_INDEX_DATA *room)
     }
 
     /* Basic info */
-    json_object_set_new(json, "name", json_string(room->name ? room->name : ""));
-    json_object_set_new(json, "description", json_string(room->description ? room->description : ""));
+    json_object_set_new(json, "name", json_string_safe(room->name));
+    json_object_set_new(json, "description", json_string_safe(room->description));
     if (room->owner && room->owner[0]) {
         json_object_set_new(json, "owner", json_string(room->owner));
     }
@@ -2455,7 +2446,6 @@ bool json_persist_save_room(ROOM_INDEX_DATA *room)
 {
     char path[256];
     json_t *json;
-    int ret;
 
     if (!room) return false;
 
@@ -2469,11 +2459,7 @@ bool json_persist_save_room(ROOM_INDEX_DATA *room)
         return false;
     }
 
-    ret = json_dump_file(json, path, JSON_INDENT(2));
-    json_decref(json);
-
-    if (ret != 0) {
-        log_stringf("json_persist_save_room: failed to write %s", path);
+    if (!json_file_save(json, path, "json_persist_save_room", JSON_INDENT(2))) {
         return false;
     }
 

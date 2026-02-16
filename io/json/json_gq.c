@@ -263,7 +263,6 @@ bool save_gq_json(void)
     json_t *root, *mob_array, *obj_array;
     GQ_MOB_DATA *gq_mob;
     GQ_OBJ_DATA *gq_obj;
-    int ret;
     
     root = json_object();
     
@@ -290,13 +289,8 @@ bool save_gq_json(void)
     json_object_set_new(root, "version", json_integer(1));
     
     /* Write to file */
-    ret = json_dump_file(root, GQ_JSON_FILE, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(root);
-    
-    if (ret != 0) {
-        log_string("save_gq_json: Failed to write gq.json");
+    if (!json_file_save(root, GQ_JSON_FILE, "save_gq_json", JSON_INDENT(2) | JSON_PRESERVE_ORDER))
         return false;
-    }
     
     log_string("GQ data saved to gq.json");
     return true;
@@ -308,7 +302,6 @@ bool save_gq_json(void)
 bool load_gq_json(void)
 {
     json_t *root, *mob_array, *obj_array;
-    json_error_t error;
     size_t idx;
     json_t *elem;
     GQ_MOB_DATA *gq_mob, *last_mob = NULL;
@@ -321,9 +314,9 @@ bool load_gq_json(void)
     }
     
     /* Load JSON file */
-    root = json_load_file(GQ_JSON_FILE, 0, &error);
+    root = json_file_load(GQ_JSON_FILE, NULL, NULL, "load_gq_json");
     if (!root) {
-        log_stringf("load_gq_json: JSON parse error on line %d: %s", error.line, error.text);
+        log_stringf("load_gq_json: Failed to load %s", GQ_JSON_FILE);
         return false;
     }
     
@@ -333,13 +326,7 @@ bool load_gq_json(void)
         json_array_foreach(mob_array, idx, elem) {
             gq_mob = json_to_gq_mob(elem);
             if (gq_mob) {
-                gq_mob->next = NULL;
-                if (global_quest.mobs == NULL) {
-                    global_quest.mobs = gq_mob;
-                } else {
-                    last_mob->next = gq_mob;
-                }
-                last_mob = gq_mob;
+                JSON_APPEND_LINK(global_quest.mobs, last_mob, gq_mob);
             }
         }
     }
@@ -350,13 +337,7 @@ bool load_gq_json(void)
         json_array_foreach(obj_array, idx, elem) {
             gq_obj = json_to_gq_obj(elem);
             if (gq_obj) {
-                gq_obj->next = NULL;
-                if (global_quest.objects == NULL) {
-                    global_quest.objects = gq_obj;
-                } else {
-                    last_obj->next = gq_obj;
-                }
-                last_obj = gq_obj;
+                JSON_APPEND_LINK(global_quest.objects, last_obj, gq_obj);
             }
         }
     }

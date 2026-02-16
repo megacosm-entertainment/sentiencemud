@@ -262,7 +262,6 @@ bool save_mail_json(void)
 {
     json_t *root, *array;
     MAIL_DATA *mail;
-    int ret;
     
     root = json_object();
     array = json_array();
@@ -279,13 +278,8 @@ bool save_mail_json(void)
     json_object_set_new(root, "version", json_integer(1));
     
     /* Write to file */
-    ret = json_dump_file(root, MAIL_JSON_FILE, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(root);
-    
-    if (ret != 0) {
-        log_string("save_mail_json: Failed to write mail.json");
+    if (!json_file_save(root, MAIL_JSON_FILE, "save_mail_json", JSON_INDENT(2) | JSON_PRESERVE_ORDER))
         return false;
-    }
     
     log_string("Mail saved to mail.json");
     return true;
@@ -297,7 +291,6 @@ bool save_mail_json(void)
 bool load_mail_json(void)
 {
     json_t *root, *array;
-    json_error_t error;
     size_t idx;
     json_t *elem;
     MAIL_DATA *mail, *mail_last = NULL;
@@ -314,17 +307,9 @@ bool load_mail_json(void)
     }
     
     /* Load JSON file */
-    root = json_load_file(MAIL_JSON_FILE, 0, &error);
+    root = json_file_load(MAIL_JSON_FILE, "mail", &array, "load_mail_json");
     if (!root) {
-        log_stringf("load_mail_json: JSON parse error on line %d: %s", error.line, error.text);
-        return false;
-    }
-    
-    /* Parse mail array */
-    array = json_object_get(root, "mail");
-    if (!array || !json_is_array(array)) {
-        log_string("load_mail_json: 'mail' array not found in JSON");
-        json_decref(root);
+        log_string("load_mail_json: Failed to load mail.json");
         return false;
     }
     
@@ -333,13 +318,7 @@ bool load_mail_json(void)
         mail = json_to_mail(elem);
         if (mail) {
             /* Add to mail list */
-            mail->next = NULL;
-            if (mail_list == NULL) {
-                mail_list = mail;
-            } else {
-                mail_last->next = mail;
-            }
-            mail_last = mail;
+            JSON_APPEND_LINK(mail_list, mail_last, mail);
         }
     }
     

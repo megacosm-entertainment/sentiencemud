@@ -28,6 +28,7 @@
 #include <jansson.h>
 #include "../../merc.h"
 #include "json_note.h"
+#include "json_common.h"
 #include "../../recycle.h"
 
 /***************************************************************************
@@ -144,12 +145,12 @@ json_t *json_note_serialize(NOTE_DATA *note)
 
     json_t *json = json_object();
 
-    json_object_set_new(json, "sender", json_string(note->sender ? note->sender : ""));
-    json_object_set_new(json, "date", json_string(note->date ? note->date : ""));
+    json_object_set_new(json, "sender", json_string_safe(note->sender));
+    json_object_set_new(json, "date", json_string_safe(note->date));
     json_object_set_new(json, "date_stamp", json_integer((json_int_t)note->date_stamp));
-    json_object_set_new(json, "subject", json_string(note->subject ? note->subject : ""));
-    json_object_set_new(json, "text", json_string(note->text ? note->text : ""));
-    json_object_set_new(json, "to_list", json_string(note->to_list ? note->to_list : ""));
+    json_object_set_new(json, "subject", json_string_safe(note->subject));
+    json_object_set_new(json, "text", json_string_safe(note->text));
+    json_object_set_new(json, "to_list", json_string_safe(note->to_list));
     json_object_set_new(json, "recipient_type", json_string(recipient_type_to_string(note->recipient_type)));
 
     if (note->to_characters && note->to_characters[0])
@@ -263,13 +264,8 @@ bool json_save_notes(int type)
 
     json_object_set_new(root, "notes", notes_array);
 
-    int ret = json_dump_file(root, json_path, JSON_INDENT(2));
-    json_decref(root);
-
-    if (ret != 0) {
-        log_stringf("json_save_notes: Failed to write %s", json_path);
+    if (!json_file_save(root, json_path, "json_save_notes", JSON_INDENT(2)))
         return false;
-    }
 
     log_stringf("Saved %s to %s", label, json_path);
     return true;
@@ -302,20 +298,10 @@ bool json_load_notes(int type)
         return true;
     }
 
-    json_error_t error;
-    json_t *root = json_load_file(json_path, 0, &error);
-    if (!root) {
-        log_stringf("json_load_notes: JSON parse error in %s on line %d: %s",
-            json_path, error.line, error.text);
+    json_t *notes_array;
+    json_t *root = json_file_load(json_path, "notes", &notes_array, "json_load_notes");
+    if (!root)
         return false;
-    }
-
-    json_t *notes_array = json_object_get(root, "notes");
-    if (!notes_array || !json_is_array(notes_array)) {
-        log_stringf("json_load_notes: 'notes' array not found in %s", json_path);
-        json_decref(root);
-        return false;
-    }
 
     NOTE_DATA *last = NULL;
     size_t idx;
@@ -325,13 +311,7 @@ bool json_load_notes(int type)
         NOTE_DATA *note = json_note_deserialize(elem);
         if (note) {
             note->type = type;
-            note->next = NULL;
-            if (*list == NULL) {
-                *list = note;
-            } else {
-                last->next = note;
-            }
-            last = note;
+            JSON_APPEND_LINK(*list, last, note);
         }
     }
 

@@ -1128,8 +1128,8 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "locker_tier", json_integer(ch->locker_tier));
 
     if (ch->pcdata) {
-        json_object_set_new(basic, "title", json_string(ch->pcdata->title ? ch->pcdata->title : ""));
-        json_object_set_new(basic, "description", json_string(ch->description ? ch->description : ""));
+        json_object_set_new(basic, "title", json_string_safe(ch->pcdata->title));
+        json_object_set_new(basic, "description", json_string_safe(ch->description));
         // Save playtime in seconds (raw value, not divided by 3600)
         json_object_set_new(basic, "played", json_integer(ch->played + (int)(current_time - ch->logon)));
         json_object_set_new(basic, "last_login", json_integer(ch->pcdata->last_login));
@@ -1180,7 +1180,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
         // *** USER PREFERENCES ***
         json_object_set_new(basic, "scroll_lines", json_integer(ch->lines)); // Page length
-        json_object_set_new(basic, "prompt", json_string(ch->prompt ? ch->prompt : ""));
+        json_object_set_new(basic, "prompt", json_string_safe(ch->prompt));
         json_object_set_new(basic, "verb_preference", json_integer(ch->verb_preference));
 
         // Character preference overrides
@@ -1854,15 +1854,13 @@ bool json_write_char(CHAR_DATA *ch, const char *filename)
 CHAR_INFO_CACHE *json_read_char_info_lightweight(const char *filename)
 {
     json_t *root, *character, *metadata;
-    json_error_t error;
     CHAR_INFO_CACHE *info;
     const char *str;
     json_t *value;
 
     // Load JSON file
-    root = json_load_file(filename, 0, &error);
+    root = json_file_load(filename, NULL, NULL, "json_read_char_info_lightweight");
     if (!root) {
-        log_stringf("json_read_char_info_lightweight: Failed to parse %s: %s", filename, error.text);
         return NULL;
     }
 
@@ -2399,13 +2397,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool load_heavy)
 {
     json_t *root;
-    json_error_t error;
     bool result;
 
     // Load JSON file
-    root = json_load_file(filename, 0, &error);
+    root = json_file_load(filename, NULL, NULL, "json_read_char");
     if (!root) {
-        log_stringf("json_read_char: Failed to parse %s: %s", filename, error.text);
         return false;
     }
 
@@ -4473,7 +4469,6 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
 bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
 {
     json_t *root;
-    json_error_t error;
     bool result;
 
     if (!ch || !ch->pcdata) {
@@ -4486,9 +4481,8 @@ bool json_read_char_remaining(CHAR_DATA *ch, const char *filename)
     }
 
     // Load JSON file
-    root = json_load_file(filename, 0, &error);
+    root = json_file_load(filename, NULL, NULL, "json_read_char_remaining");
     if (!root) {
-        log_stringf("json_read_char_remaining: Failed to parse %s: %s", filename, error.text);
         return false;
     }
 

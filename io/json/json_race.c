@@ -135,17 +135,13 @@ void free_race_data(RACE_DATA *race)
 static RACE_DATA *race_load_json(const char *filename)
 {
     json_t *root, *obj, *arr, *val;
-    json_error_t error;
     RACE_DATA *race;
     const char *str;
     size_t index;
 
-    root = json_load_file(filename, 0, &error);
-    if (!root) {
-        pbugf(LOG_INIT, "Error loading race file: %s", filename);
-        pbugf(LOG_INIT, "Error details: %s", error.text);
+    root = json_file_load(filename, NULL, NULL, "race_load_json");
+    if (!root)
         return NULL;
-    }
 
     /* Validate format */
     str = json_string_value(json_object_get(root, "_format"));
@@ -751,11 +747,11 @@ bool save_race_json(RACE_DATA *race)
     /* Core identification */
     json_object_set_new(root, "id", json_string(race->id));
     json_object_set_new(root, "uid", json_integer(race->uid));
-    json_object_set_new(root, "name", json_string(race->name ? race->name : ""));
-    json_object_set_new(root, "description", json_string(race->description ? race->description : ""));
+    json_object_set_new(root, "name", json_string_safe(race->name));
+    json_object_set_new(root, "description", json_string_safe(race->description));
     if (!IS_NULLSTR(race->summary))
         json_object_set_new(root, "summary", json_string(race->summary));
-    json_object_set_new(root, "comments", json_string(race->comments ? race->comments : ""));
+    json_object_set_new(root, "comments", json_string_safe(race->comments));
 
     /* Playability */
     json_object_set_new(root, "playable", json_boolean(race->playable));
@@ -765,7 +761,7 @@ bool save_race_json(RACE_DATA *race)
 
     /* Display */
     obj = json_object();
-    json_object_set_new(obj, "who_name", json_string(race->who_name ? race->who_name : ""));
+    json_object_set_new(obj, "who_name", json_string_safe(race->who_name));
     json_object_set_new(root, "display", obj);
 
     /* Physical */

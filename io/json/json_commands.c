@@ -33,7 +33,7 @@ static json_t *json_command_serialize(CMD_DATA *cmd)
 
     json_t *obj = json_object();
 
-    json_object_set_new(obj, "name", json_string(cmd->name ? cmd->name : ""));
+    json_object_set_new(obj, "name", json_string_safe(cmd->name));
     json_object_set_new(obj, "enabled", cmd->enabled ? json_true() : json_false());
     json_object_set_new(obj, "function", json_string(cmd->function ? do_func_name(cmd->function) : ""));
     json_object_set_new(obj, "rank", json_integer(cmd->rank));
@@ -42,16 +42,16 @@ static json_t *json_command_serialize(CMD_DATA *cmd)
     json_object_set_new(obj, "type", json_integer(cmd->type));
     json_object_set_new(obj, "addl_types", json_integer(cmd->addl_types));
     json_object_set_new(obj, "command_flags", json_integer(cmd->command_flags));
-    json_object_set_new(obj, "comments", json_string(!IS_NULLSTR(cmd->comments) ? cmd->comments : ""));
-    json_object_set_new(obj, "description", json_string(!IS_NULLSTR(cmd->description) ? cmd->description : ""));
+    json_object_set_new(obj, "comments", json_string_safe(cmd->comments));
+    json_object_set_new(obj, "description", json_string_safe(cmd->description));
 
     if (cmd->help_keywords != NULL && !IS_NULLSTR(cmd->help_keywords->string))
         json_object_set_new(obj, "help_keywords", json_string(cmd->help_keywords->string));
     else
         json_object_set_new(obj, "help_keywords", json_string(""));
 
-    json_object_set_new(obj, "reason", json_string(!IS_NULLSTR(cmd->reason) ? cmd->reason : ""));
-    json_object_set_new(obj, "summary", json_string(!IS_NULLSTR(cmd->summary) ? cmd->summary : ""));
+    json_object_set_new(obj, "reason", json_string_safe(cmd->reason));
+    json_object_set_new(obj, "summary", json_string_safe(cmd->summary));
 
     return obj;
 }
@@ -126,13 +126,8 @@ bool json_save_commands(const char *path)
 
     json_object_set_new(root, "commands", arr);
 
-    int result = json_dump_file(root, path, JSON_INDENT(2) | JSON_SORT_KEYS);
-    json_decref(root);
-
-    if (result != 0) {
-        pbugf(LOG_ERROR, "json_save_commands: failed to write %s", path);
+    if (!json_file_save(root, path, "json_save_commands", JSON_INDENT(2) | JSON_SORT_KEYS))
         return false;
-    }
 
     plogf(LOG_OLC, "json_save_commands: saved %ld commands to %s", commands_list->size, path);
     return true;
@@ -148,20 +143,10 @@ bool json_save_commands(const char *path)
  */
 bool json_load_commands(const char *path)
 {
-    json_error_t error;
-    json_t *root = json_load_file(path, 0, &error);
-    if (!root) {
-        pbugf(LOG_ERROR, "json_load_commands: failed to parse %s: %s (line %d)",
-            path, error.text, error.line);
+    json_t *arr;
+    json_t *root = json_file_load(path, "commands", &arr, "json_load_commands");
+    if (!root)
         return false;
-    }
-
-    json_t *arr = json_object_get(root, "commands");
-    if (!arr || !json_is_array(arr)) {
-        pbugf(LOG_ERROR, "json_load_commands: missing or invalid 'commands' array in %s", path);
-        json_decref(root);
-        return false;
-    }
 
     size_t index;
     json_t *value;

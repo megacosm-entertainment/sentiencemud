@@ -15,6 +15,7 @@
 #include <jansson.h>
 #include "../../merc.h"
 #include "json_projects.h"
+#include "json_common.h"
 #include "../../recycle.h"
 
 extern PROJECT_DATA *project_list;
@@ -36,7 +37,7 @@ static json_t *builder_to_json(PROJECT_BUILDER_DATA *pb)
 {
     json_t *obj = json_object();
 
-    json_object_set_new(obj, "name", json_string(pb->name ? pb->name : ""));
+    json_object_set_new(obj, "name", json_string_safe(pb->name));
     json_object_set_new(obj, "minutes", json_integer(pb->minutes));
     json_object_set_new(obj, "assigned", json_integer((long)pb->assigned));
 
@@ -49,9 +50,9 @@ static json_t *inquiry_to_json(PROJECT_INQUIRY_DATA *pinq)
     json_t *replies_arr = json_array();
     PROJECT_INQUIRY_DATA *reply;
 
-    json_object_set_new(obj, "sender", json_string(pinq->sender ? pinq->sender : ""));
-    json_object_set_new(obj, "subject", json_string(pinq->subject ? pinq->subject : ""));
-    json_object_set_new(obj, "text", json_string(pinq->text ? pinq->text : ""));
+    json_object_set_new(obj, "sender", json_string_safe(pinq->sender));
+    json_object_set_new(obj, "subject", json_string_safe(pinq->subject));
+    json_object_set_new(obj, "text", json_string_safe(pinq->text));
     json_object_set_new(obj, "date", json_integer((long)pinq->date));
     json_object_set_new(obj, "closed", json_integer((long)pinq->closed));
 
@@ -78,17 +79,17 @@ static json_t *project_to_json(PROJECT_DATA *project)
     PROJECT_BUILDER_DATA *pb;
     PROJECT_INQUIRY_DATA *pinq;
 
-    json_object_set_new(obj, "name", json_string(project->name ? project->name : ""));
-    json_object_set_new(obj, "leader", json_string(project->leader ? project->leader : ""));
-    json_object_set_new(obj, "description", json_string(project->description ? project->description : ""));
-    json_object_set_new(obj, "summary", json_string(project->summary ? project->summary : ""));
+    json_object_set_new(obj, "name", json_string_safe(project->name));
+    json_object_set_new(obj, "leader", json_string_safe(project->leader));
+    json_object_set_new(obj, "description", json_string_safe(project->description));
+    json_object_set_new(obj, "summary", json_string_safe(project->summary));
     json_object_set_new(obj, "security", json_integer(project->security));
     json_object_set_new(obj, "project_flags", json_integer(project->project_flags));
     json_object_set_new(obj, "created", json_integer((long)project->created));
     json_object_set_new(obj, "completed", json_integer(project->completed));
 
     for (str = project->areas; str != NULL; str = str->next)
-        json_array_append_new(areas_arr, json_string(str->string ? str->string : ""));
+        json_array_append_new(areas_arr, json_string_safe(str->string));
     json_object_set_new(obj, "areas", areas_arr);
 
     for (pb = project->builders; pb != NULL; pb = pb->next)
@@ -111,7 +112,6 @@ bool json_save_projects(const char *path)
     json_t *root = json_object();
     json_t *projects_arr = json_array();
     PROJECT_DATA *project;
-    int ret;
 
     json_object_set_new(root, "version", json_integer(1));
 
@@ -120,13 +120,8 @@ bool json_save_projects(const char *path)
 
     json_object_set_new(root, "projects", projects_arr);
 
-    ret = json_dump_file(root, path, JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-    json_decref(root);
-
-    if (ret != 0) {
-        log_string("json_save_projects: failed to write projects.json");
+    if (!json_file_save(root, path, "json_save_projects", JSON_INDENT(2) | JSON_PRESERVE_ORDER))
         return false;
-    }
 
     log_string("project.c, save_projects - projects saved to JSON");
     return true;
@@ -206,13 +201,7 @@ static PROJECT_INQUIRY_DATA *json_to_inquiry(json_t *json, PROJECT_DATA *project
     if (replies_arr && json_is_array(replies_arr)) {
         json_array_foreach(replies_arr, idx, elem) {
             reply = json_to_inquiry(elem, project, pinq);
-            reply->next = NULL;
-            if (pinq->replies == NULL) {
-                pinq->replies = reply;
-            } else {
-                last_reply->next = reply;
-            }
-            last_reply = reply;
+            JSON_APPEND_LINK(pinq->replies, last_reply, reply);
         }
     }
 
@@ -226,24 +215,14 @@ static PROJECT_INQUIRY_DATA *json_to_inquiry(json_t *json, PROJECT_DATA *project
 bool json_load_projects(const char *path)
 {
     json_t *root, *projects_arr, *elem;
-    json_error_t error;
     size_t idx;
 
     if (access(path, F_OK) != 0)
         return false;
 
-    root = json_load_file(path, 0, &error);
-    if (!root) {
-        log_stringf("json_load_projects: JSON parse error on line %d: %s",
-                     error.line, error.text);
+    root = json_file_load(path, "projects", &projects_arr, "json_load_projects");
+    if (!root)
         return false;
-    }
-
-    projects_arr = json_object_get(root, "projects");
-    if (!projects_arr || !json_is_array(projects_arr)) {
-        json_decref(root);
-        return false;
-    }
 
     json_array_foreach(projects_arr, idx, elem) {
         PROJECT_DATA *project = new_project();
@@ -299,12 +278,7 @@ bool json_load_projects(const char *path)
         if (arr && json_is_array(arr)) {
             json_array_foreach(arr, i, sub) {
                 pb = json_to_builder(sub, project);
-                pb->next = NULL;
-                if (project->builders == NULL)
-                    project->builders = pb;
-                else
-                    last_pb->next = pb;
-                last_pb = pb;
+                JSON_APPEND_LINK(project->builders, last_pb, pb);
             }
         }
 
@@ -312,12 +286,7 @@ bool json_load_projects(const char *path)
         if (arr && json_is_array(arr)) {
             json_array_foreach(arr, i, sub) {
                 pinq = json_to_inquiry(sub, project, NULL);
-                pinq->next = NULL;
-                if (project->inquiries == NULL)
-                    project->inquiries = pinq;
-                else
-                    last_pinq->next = pinq;
-                last_pinq = pinq;
+                JSON_APPEND_LINK(project->inquiries, last_pinq, pinq);
             }
         }
 

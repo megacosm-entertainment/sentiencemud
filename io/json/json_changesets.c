@@ -9,6 +9,7 @@
 #include "../../merc.h"
 #include "../../tables.h"
 #include "json_changesets.h"
+#include "json_common.h"
 
 #define JSON_CHANGESETS_VERSION 1
 
@@ -48,9 +49,9 @@ bool json_save_changesets(const char *path)
 
         cs_obj = json_object();
         json_object_set_new(cs_obj, "id", json_integer(cs->id));
-        json_object_set_new(cs_obj, "author", json_string(cs->author ? cs->author : ""));
+        json_object_set_new(cs_obj, "author", json_string_safe(cs->author));
         json_object_set_new(cs_obj, "timestamp", json_integer((json_int_t)cs->timestamp));
-        json_object_set_new(cs_obj, "comment", json_string(cs->comment ? cs->comment : ""));
+        json_object_set_new(cs_obj, "comment", json_string_safe(cs->comment));
 
         changes_arr = json_array();
 
@@ -58,8 +59,8 @@ bool json_save_changesets(const char *path)
         while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
             json_t *ch_obj = json_object();
             json_object_set_new(ch_obj, "setting", json_string(history->setting->name));
-            json_object_set_new(ch_obj, "old_value", json_string(history->old_value ? history->old_value : ""));
-            json_object_set_new(ch_obj, "new_value", json_string(history->new_value ? history->new_value : ""));
+            json_object_set_new(ch_obj, "old_value", json_string_safe(history->old_value));
+            json_object_set_new(ch_obj, "new_value", json_string_safe(history->new_value));
             json_array_append_new(changes_arr, ch_obj);
         }
         iterator_stop(&it);
@@ -70,13 +71,9 @@ bool json_save_changesets(const char *path)
 
     json_object_set_new(root, "changesets", arr);
 
-    if (json_dump_file(root, path, JSON_INDENT(2) | JSON_SORT_KEYS) != 0) {
-        pbugf(LOG_ERROR, "Cannot write changeset JSON file '%s'", path);
-        json_decref(root);
+    if (!json_file_save(root, path, "json_save_changesets", JSON_INDENT(2) | JSON_SORT_KEYS))
         return false;
-    }
 
-    json_decref(root);
     plogf(LOG_INIT, "Game setting changeset history saved (for rollback/audit).");
     return true;
 }
@@ -97,23 +94,13 @@ bool json_load_changesets(const char *path)
     json_t *root;
     json_t *arr;
     json_t *cs_json;
-    json_error_t error;
     size_t i;
 
-    root = json_load_file(path, 0, &error);
-    if (!root) {
-        pbugf(LOG_ERROR, "Cannot parse changeset JSON '%s': %s (line %d)", path, error.text, error.line);
+    root = json_file_load(path, "changesets", &arr, "json_load_changesets");
+    if (!root)
         return false;
-    }
 
     next_changeset_id = (int)json_integer_value(json_object_get(root, "next_changeset_id"));
-
-    arr = json_object_get(root, "changesets");
-    if (!json_is_array(arr)) {
-        pbugf(LOG_ERROR, "Changeset JSON missing 'changesets' array");
-        json_decref(root);
-        return false;
-    }
 
     changeset_count = 0;
 

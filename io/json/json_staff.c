@@ -28,6 +28,7 @@
 #include "../../merc.h"
 #include "../../log.h"
 #include "json_staff.h"
+#include "json_common.h"
 
 extern IMMORTAL_DATA *immortal_list;
 
@@ -43,10 +44,10 @@ json_t *json_immortal_serialize(IMMORTAL_DATA *immortal)
 
     json_t *json = json_object();
 
-    json_object_set_new(json, "name", json_string(immortal->name ? immortal->name : ""));
+    json_object_set_new(json, "name", json_string_safe(immortal->name));
     json_object_set_new(json, "duties", json_integer(immortal->duties));
     json_object_set_new(json, "created", json_integer((json_int_t)immortal->created));
-    json_object_set_new(json, "imm_flag", json_string(immortal->imm_flag ? immortal->imm_flag : ""));
+    json_object_set_new(json, "imm_flag", json_string_safe(immortal->imm_flag));
     json_object_set_new(json, "last_olc_command", json_integer((json_int_t)immortal->last_olc_command));
 
     if (immortal->leader != NULL && str_cmp(immortal->leader, "None"))
@@ -54,8 +55,8 @@ json_t *json_immortal_serialize(IMMORTAL_DATA *immortal)
     else
         json_object_set_new(json, "leader", json_null());
 
-    json_object_set_new(json, "bamfin", json_string(immortal->bamfin ? immortal->bamfin : ""));
-    json_object_set_new(json, "bamfout", json_string(immortal->bamfout ? immortal->bamfout : ""));
+    json_object_set_new(json, "bamfin", json_string_safe(immortal->bamfin));
+    json_object_set_new(json, "bamfout", json_string_safe(immortal->bamfout));
 
     return json;
 }
@@ -139,13 +140,8 @@ bool json_save_staff(const char *path)
 
     json_object_set_new(root, "immortals", immortals_array);
 
-    if (json_dump_file(root, path, JSON_INDENT(2)) != 0) {
-        pbugf(LOG_ERROR, "json_save_staff: Failed to write to %s", path);
-        json_decref(root);
+    if (!json_file_save(root, path, "json_save_staff", JSON_INDENT(2)))
         return false;
-    }
-
-    json_decref(root);
 
     plogf(LOG_INFO, "Saved staff data to %s", path);
 
@@ -163,19 +159,11 @@ bool json_save_staff(const char *path)
  */
 bool json_load_staff(const char *path)
 {
-    json_error_t error;
+    json_t *immortals_array;
 
-    json_t *root = json_load_file(path, 0, &error);
-    if (!root) {
+    json_t *root = json_file_load(path, "immortals", &immortals_array, "json_load_staff");
+    if (!root)
         return false;
-    }
-
-    json_t *immortals_array = json_object_get(root, "immortals");
-    if (!json_is_array(immortals_array)) {
-        pbugf(LOG_ERROR, "json_load_staff: Invalid format in %s", path);
-        json_decref(root);
-        return false;
-    }
 
     size_t index;
     json_t *value;

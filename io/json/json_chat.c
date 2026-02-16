@@ -28,6 +28,7 @@
 #include "../../merc.h"
 #include "../../db.h"
 #include "json_chat.h"
+#include "json_common.h"
 #include "../../log.h"
 
 extern CHAT_ROOM_DATA *chat_room_list;
@@ -44,7 +45,7 @@ json_t *json_chat_op_serialize(CHAT_OP_DATA *op)
     
     json_t *json = json_object();
     
-    json_object_set_new(json, "name", json_string(op->name ? op->name : ""));
+    json_object_set_new(json, "name", json_string_safe(op->name));
     
     return json;
 }
@@ -79,8 +80,8 @@ json_t *json_chat_ban_serialize(CHAT_BAN_DATA *ban)
     
     json_t *json = json_object();
     
-    json_object_set_new(json, "name", json_string(ban->name ? ban->name : ""));
-    json_object_set_new(json, "banned_by", json_string(ban->banned_by ? ban->banned_by : ""));
+    json_object_set_new(json, "name", json_string_safe(ban->name));
+    json_object_set_new(json, "banned_by", json_string_safe(ban->banned_by));
     
     return json;
 }
@@ -119,10 +120,10 @@ json_t *json_chat_room_serialize(CHAT_ROOM_DATA *chat)
     json_t *json = json_object();
     
     // Basic fields
-    json_object_set_new(json, "name", json_string(chat->name ? chat->name : ""));
+    json_object_set_new(json, "name", json_string_safe(chat->name));
     json_object_set_new(json, "topic", json_string(chat->topic ? chat->topic : "<not set>"));
     json_object_set_new(json, "password", json_string(chat->password ? chat->password : "none"));
-    json_object_set_new(json, "created_by", json_string(chat->created_by ? chat->created_by : ""));
+    json_object_set_new(json, "created_by", json_string_safe(chat->created_by));
     json_object_set_new(json, "max_people", json_integer(chat->max_people));
     json_object_set_new(json, "permanent", json_boolean(chat->permanent));
     
@@ -208,14 +209,7 @@ CHAT_ROOM_DATA *json_chat_room_deserialize(json_t *json)
             CHAT_OP_DATA *op = json_chat_op_deserialize(value);
             if (op) {
                 op->chat_room = chat;
-                op->next = NULL;
-                
-                if (last_op) {
-                    last_op->next = op;
-                } else {
-                    chat->ops = op;
-                }
-                last_op = op;
+                JSON_APPEND_LINK(chat->ops, last_op, op);
             }
         }
     }
@@ -231,14 +225,7 @@ CHAT_ROOM_DATA *json_chat_room_deserialize(json_t *json)
             CHAT_BAN_DATA *ban = json_chat_ban_deserialize(value);
             if (ban) {
                 ban->chat_room = chat;
-                ban->next = NULL;
-                
-                if (last_ban) {
-                    last_ban->next = ban;
-                } else {
-                    chat->bans = ban;
-                }
-                last_ban = ban;
+                JSON_APPEND_LINK(chat->bans, last_ban, ban);
             }
         }
     }
@@ -288,13 +275,8 @@ bool save_chat_rooms_json(void)
     json_object_set_new(root, "chat_rooms", rooms_array);
     
     // Write to file
-    if (json_dump_file(root, filename, JSON_INDENT(2)) != 0) {
-        log_stringf("save_chat_rooms_json: Failed to write to %s", filename);
-        json_decref(root);
+    if (!json_file_save(root, filename, "save_chat_rooms_json", JSON_INDENT(2)))
         return false;
-    }
-    
-    json_decref(root);
     
     log_stringf("Saved %d permanent chat room%s to %s", 
         count, count == 1 ? "" : "s", filename);
@@ -313,22 +295,14 @@ bool save_chat_rooms_json(void)
 bool load_chat_rooms_json(void)
 {
     char filename[MSL];
-    json_error_t error;
     
     sprintf(filename, "%s/chat_rooms.json", SYSTEM_DIR);
     
     // Load JSON file
-    json_t *root = json_load_file(filename, 0, &error);
+    json_t *rooms_array;
+    json_t *root = json_file_load(filename, "chat_rooms", &rooms_array, "load_chat_rooms_json");
     if (!root) {
         // File doesn't exist or is invalid - not an error, just means no rooms
-        return false;
-    }
-    
-    // Get chat rooms array
-    json_t *rooms_array = json_object_get(root, "chat_rooms");
-    if (!json_is_array(rooms_array)) {
-        log_stringf("load_chat_rooms_json: Invalid format in %s", filename);
-        json_decref(root);
         return false;
     }
     
