@@ -359,4 +359,8 @@ extern const CHURCH_LOG_META_CATEGORY church_log_meta_categories[];
 extern const struct flag_type staff_ranks[];
 extern const struct flag_type body_types[];
 extern const struct flag_type reward_types[];
+extern const struct flag_type armor_types[];
+extern const struct flag_type cart_flags[];
+extern const struct flag_type light_flags[];
+extern const struct flag_type scroll_flags[];
 #endif

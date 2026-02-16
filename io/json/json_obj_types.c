@@ -9,7 +9,9 @@
 
 #include "../../merc.h"
 #include "../../item_types.h"
+#include "../../tables.h"
 #include "json_obj_types.h"
+#include "json_area.h"
 #include <jansson.h>
 #include <string.h>
 
@@ -38,6 +40,165 @@ static inline const char *jget_str(json_t *j, const char *key) {
     return v && json_is_string(v) ? json_string_value(v) : NULL;
 }
 
+/*
+ * ============================================================================
+ *  FLAG / ENUM HELPERS  (backward-compatible read & human-readable write)
+ * ============================================================================
+ */
+
+/* Write a bitfield as a JSON array of flag-name strings. */
+static void jset_flags(json_t *j, const char *key, long val,
+                       const struct flag_type *table)
+{
+    json_object_set_new(j, key, flags_to_json_array(val, table));
+}
+
+/* Read a bitfield — accepts both string-array (new) and integer (legacy). */
+static long jget_flags(json_t *j, const char *key,
+                       const struct flag_type *table)
+{
+    json_t *v = json_object_get(j, key);
+    if (!v) return 0;
+    if (json_is_array(v))   return json_array_to_flags(v, table);
+    if (json_is_integer(v)) return (long)json_integer_value(v);
+    return 0;
+}
+
+/*
+ * Write an enum value as its string name from a flag_type table.
+ * Falls back to integer if no matching entry found.
+ */
+static void jset_enum(json_t *j, const char *key, long val,
+                      const struct flag_type *table)
+{
+    for (int i = 0; table[i].name != NULL; i++) {
+        if (table[i].bit == val) {
+            json_object_set_new(j, key, json_string(table[i].name));
+            return;
+        }
+    }
+    json_object_set_new(j, key, json_integer((json_int_t)val));
+}
+
+/*
+ * Read an enum — accepts both string (new) and integer (legacy).
+ */
+static long jget_enum(json_t *j, const char *key,
+                      const struct flag_type *table)
+{
+    json_t *v = json_object_get(j, key);
+    if (!v) return 0;
+    if (json_is_string(v)) {
+        const char *name = json_string_value(v);
+        for (int i = 0; table[i].name != NULL; i++) {
+            if (!str_cmp(table[i].name, name))
+                return table[i].bit;
+        }
+        return 0;
+    }
+    if (json_is_integer(v)) return (long)json_integer_value(v);
+    return 0;
+}
+
+/* Write attack_table damage type as its string name. */
+static void jset_attack_type(json_t *j, const char *key, int val)
+{
+    if (val >= 0 && val < MAX_DAMAGE_MESSAGE && attack_table[val].name)
+        json_object_set_new(j, key, json_string(attack_table[val].name));
+    else
+        json_object_set_new(j, key, json_integer((json_int_t)val));
+}
+
+/* Read attack_table damage type — string name or integer. */
+static int jget_attack_type(json_t *j, const char *key)
+{
+    json_t *v = json_object_get(j, key);
+    if (!v) return 0;
+    if (json_is_string(v)) {
+        const char *name = json_string_value(v);
+        for (int i = 0; i < MAX_DAMAGE_MESSAGE; i++) {
+            if (attack_table[i].name && !str_cmp(attack_table[i].name, name))
+                return i;
+        }
+        return 0;
+    }
+    return (int)json_integer_value(v);
+}
+
+/* Write liquid type as its string name from liq_table. */
+static void jset_liquid(json_t *j, const char *key, int val)
+{
+    if (val >= 0 && liq_table[val].liq_name != NULL)
+        json_object_set_new(j, key, json_string(liq_table[val].liq_name));
+    else
+        json_object_set_new(j, key, json_integer((json_int_t)val));
+}
+
+/* Read liquid type — string name or integer. */
+static int jget_liquid(json_t *j, const char *key)
+{
+    json_t *v = json_object_get(j, key);
+    if (!v) return 0;
+    if (json_is_string(v)) {
+        int liq = liq_lookup(json_string_value(v));
+        return (liq >= 0) ? liq : 0;
+    }
+    return (int)json_integer_value(v);
+}
+
+/* Write trade type as its string name from trade_table. */
+static void jset_trade_type(json_t *j, const char *key, int val)
+{
+    for (int i = 0; trade_table[i].trade_type != -1; i++) {
+        if (trade_table[i].trade_type == val && trade_table[i].name[0]) {
+            json_object_set_new(j, key, json_string(trade_table[i].name));
+            return;
+        }
+    }
+    json_object_set_new(j, key, json_integer((json_int_t)val));
+}
+
+/* Read trade type — string name or integer. */
+static int jget_trade_type(json_t *j, const char *key)
+{
+    json_t *v = json_object_get(j, key);
+    if (!v) return 0;
+    if (json_is_string(v)) {
+        const char *name = json_string_value(v);
+        for (int i = 0; trade_table[i].trade_type != -1; i++) {
+            if (!str_cmp(trade_table[i].name, name))
+                return trade_table[i].trade_type;
+        }
+        return 0;
+    }
+    return (int)json_integer_value(v);
+}
+
+/* Write herb type as its string name from herb_table. */
+static void jset_herb_type(json_t *j, const char *key, int val)
+{
+    if (val >= 0 && val < MAX_HERB && herb_table[val].name)
+        json_object_set_new(j, key, json_string(herb_table[val].name));
+    else
+        json_object_set_new(j, key, json_integer((json_int_t)val));
+}
+
+/* Read herb type — string name or integer. */
+static int jget_herb_type(json_t *j, const char *key)
+{
+    json_t *v = json_object_get(j, key);
+    if (!v) return 0;
+    if (json_is_string(v)) {
+        const char *name = json_string_value(v);
+        for (int i = 0; i < MAX_HERB; i++) {
+            if (herb_table[i].name && !str_cmp(herb_table[i].name, name))
+                return i;
+        }
+        return 0;
+    }
+    return (int)json_integer_value(v);
+}
+
 
 /*
  * ============================================================================
@@ -50,7 +211,7 @@ static inline const char *jget_str(json_t *j, const char *key) {
 static json_t *armor_to_json(ARMOR_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "armor_type", d->armor_type);
+    jset_enum(j, "armor_type", d->armor_type, armor_types);
     JSET_INT(j, "armor_strength", d->armor_strength);
 
     json_t *prot = json_array();
@@ -64,7 +225,7 @@ static json_t *armor_to_json(ARMOR_DATA *d)
 static ARMOR_DATA *armor_from_json(json_t *j)
 {
     ARMOR_DATA *d = new_armor_data();
-    d->armor_type     = JGET_INT16(j, "armor_type");
+    d->armor_type     = (int16_t)jget_enum(j, "armor_type", armor_types);
     d->armor_strength = JGET_INT16(j, "armor_strength");
 
     json_t *prot = json_object_get(j, "protection");
@@ -80,7 +241,7 @@ static ARMOR_DATA *armor_from_json(json_t *j)
 static json_t *body_part_to_json(BODY_PART_DATA *d)
 {
     json_t *j = json_object();
-    JSET_LONG(j, "parts", d->parts);
+    jset_flags(j, "parts", d->parts, part_flags);
     JSET_INT(j, "race_uid", d->race_uid);
     if (d->char_id[0] || d->char_id[1]) {
         json_t *id = json_array();
@@ -94,7 +255,7 @@ static json_t *body_part_to_json(BODY_PART_DATA *d)
 static BODY_PART_DATA *body_part_from_json(json_t *j)
 {
     BODY_PART_DATA *d = new_body_part_data();
-    d->parts    = JGET_LONG(j, "parts", 0);
+    d->parts    = jget_flags(j, "parts", part_flags);
     d->race_uid = JGET_INT(j, "race_uid", 0);
     json_t *id = json_object_get(j, "char_id");
     if (json_is_array(id) && json_array_size(id) >= 2) {
@@ -135,7 +296,7 @@ static BOOK_DATA *book_from_json(json_t *j)
 static json_t *cart_to_json(CART_DATA *d)
 {
     json_t *j = json_object();
-    JSET_LONG(j, "flags", d->flags);
+    jset_flags(j, "flags", d->flags, cart_flags);
     JSET_INT(j, "min_strength", d->min_strength);
     JSET_INT(j, "move_delay", d->move_delay);
     JSET_INT(j, "capacity", d->capacity);
@@ -148,7 +309,7 @@ static json_t *cart_to_json(CART_DATA *d)
 static CART_DATA *cart_from_json(json_t *j)
 {
     CART_DATA *d = new_cart_data();
-    d->flags             = JGET_LONG(j, "flags", 0);
+    d->flags             = jget_flags(j, "flags", cart_flags);
     d->min_strength      = JGET_INT16(j, "min_strength");
     d->move_delay        = JGET_INT16(j, "move_delay");
     d->capacity          = JGET_INT(j, "capacity", 0);
@@ -187,7 +348,7 @@ static json_t *container_to_json(CONTAINER_DATA *d)
     json_t *j = json_object();
     JSET_STR(j, "name", d->name);
     JSET_STR(j, "short_descr", d->short_descr);
-    JSET_LONG(j, "flags", d->flags);
+    jset_flags(j, "flags", d->flags, container_flags);
     JSET_INT(j, "max_weight", d->max_weight);
     JSET_INT(j, "weight_multiplier", d->weight_multiplier);
     JSET_INT(j, "max_volume", d->max_volume);
@@ -202,7 +363,7 @@ static CONTAINER_DATA *container_from_json(json_t *j)
     const char *s;
     if ((s = jget_str(j, "name")))          { free_string(d->name); d->name = str_dup(s); }
     if ((s = jget_str(j, "short_descr")))   { free_string(d->short_descr); d->short_descr = str_dup(s); }
-    d->flags             = JGET_LONG(j, "flags", 0);
+    d->flags             = jget_flags(j, "flags", container_flags);
     d->max_weight        = JGET_INT(j, "max_weight", 0);
     d->weight_multiplier = JGET_INT(j, "weight_multiplier", 0);
     d->max_volume        = JGET_INT(j, "max_volume", 0);
@@ -215,10 +376,10 @@ static CONTAINER_DATA *container_from_json(json_t *j)
 static json_t *corpse_to_json(CORPSE_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "corpse_type", d->corpse_type);
+    jset_enum(j, "corpse_type", d->corpse_type, corpse_types);
     JSET_INT(j, "resurrection", d->resurrection);
     JSET_INT(j, "animation", d->animation);
-    JSET_LONG(j, "body_parts", d->body_parts);
+    jset_flags(j, "body_parts", d->body_parts, part_flags);
     JSET_LONG(j, "mobile_vnum", d->mobile_vnum);
     return j;
 }
@@ -226,10 +387,10 @@ static json_t *corpse_to_json(CORPSE_DATA *d)
 static CORPSE_DATA *corpse_from_json(json_t *j)
 {
     CORPSE_DATA *d = new_corpse_data();
-    d->corpse_type  = JGET_INT(j, "corpse_type", 0);
+    d->corpse_type  = (int)jget_enum(j, "corpse_type", corpse_types);
     d->resurrection = JGET_INT(j, "resurrection", 0);
     d->animation    = JGET_INT(j, "animation", 0);
-    d->body_parts   = JGET_LONG(j, "body_parts", 0);
+    d->body_parts   = jget_flags(j, "body_parts", part_flags);
     d->mobile_vnum  = JGET_LONG(j, "mobile_vnum", 0);
     return d;
 }
@@ -242,7 +403,7 @@ static json_t *fluid_container_to_json(FLUID_CONTAINER_DATA *d)
     JSET_STR(j, "name", d->name);
     JSET_STR(j, "short_descr", d->short_descr);
     JSET_LONG(j, "flags", d->flags);
-    JSET_INT(j, "liquid", d->liquid);
+    jset_liquid(j, "liquid", d->liquid);
     JSET_INT(j, "capacity", d->capacity);
     JSET_INT(j, "amount", d->amount);
     JSET_INT(j, "refill_rate", d->refill_rate);
@@ -258,7 +419,7 @@ static FLUID_CONTAINER_DATA *fluid_container_from_json(json_t *j)
     if ((s = jget_str(j, "name")))          { free_string(d->name); d->name = str_dup(s); }
     if ((s = jget_str(j, "short_descr")))   { free_string(d->short_descr); d->short_descr = str_dup(s); }
     d->flags       = JGET_LONG(j, "flags", 0);
-    d->liquid      = JGET_INT(j, "liquid", 0);
+    d->liquid      = (int16_t)jget_liquid(j, "liquid");
     d->capacity    = JGET_INT16(j, "capacity");
     d->amount      = JGET_INT16(j, "amount");
     d->refill_rate = JGET_INT16(j, "refill_rate");
@@ -293,32 +454,32 @@ static FOOD_DATA *food_from_json(json_t *j)
 static json_t *furniture_to_json(FURNITURE_DATA *d)
 {
     json_t *j = json_object();
-    JSET_LONG(j, "flags", d->flags);
+    jset_flags(j, "flags", d->flags, furniture_flags);
     JSET_INT(j, "max_people", d->max_people);
     JSET_INT(j, "max_weight", d->max_weight);
     JSET_INT(j, "heal_rate", d->heal_rate);
     JSET_INT(j, "mana_rate", d->mana_rate);
     JSET_INT(j, "move_rate", d->move_rate);
-    JSET_LONG(j, "standing", d->standing);
-    JSET_LONG(j, "sitting", d->sitting);
-    JSET_LONG(j, "resting", d->resting);
-    JSET_LONG(j, "sleeping", d->sleeping);
+    jset_enum(j, "standing", d->standing, position_flags);
+    jset_enum(j, "sitting", d->sitting, position_flags);
+    jset_enum(j, "resting", d->resting, position_flags);
+    jset_enum(j, "sleeping", d->sleeping, position_flags);
     return j;
 }
 
 static FURNITURE_DATA *furniture_from_json(json_t *j)
 {
     FURNITURE_DATA *d = new_furniture_data();
-    d->flags      = JGET_LONG(j, "flags", 0);
+    d->flags      = jget_flags(j, "flags", furniture_flags);
     d->max_people = JGET_INT(j, "max_people", 0);
     d->max_weight = JGET_INT(j, "max_weight", 0);
     d->heal_rate  = JGET_INT(j, "heal_rate", 0);
     d->mana_rate  = JGET_INT(j, "mana_rate", 0);
     d->move_rate  = JGET_INT(j, "move_rate", 0);
-    d->standing   = JGET_LONG(j, "standing", 0);
-    d->sitting    = JGET_LONG(j, "sitting", 0);
-    d->resting    = JGET_LONG(j, "resting", 0);
-    d->sleeping   = JGET_LONG(j, "sleeping", 0);
+    d->standing   = jget_enum(j, "standing", position_flags);
+    d->sitting    = jget_enum(j, "sitting", position_flags);
+    d->resting    = jget_enum(j, "resting", position_flags);
+    d->sleeping   = jget_enum(j, "sleeping", position_flags);
     return d;
 }
 
@@ -327,13 +488,13 @@ static FURNITURE_DATA *furniture_from_json(json_t *j)
 static json_t *herb_to_json(HERB_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "type", d->type);
+    jset_herb_type(j, "type", d->type);
     JSET_INT(j, "healing", d->healing);
     JSET_INT(j, "regenerative", d->regenerative);
     JSET_INT(j, "refreshing", d->refreshing);
-    JSET_LONG(j, "immunity", d->immunity);
-    JSET_LONG(j, "resistance", d->resistance);
-    JSET_LONG(j, "vulnerability", d->vulnerability);
+    jset_flags(j, "immunity", d->immunity, imm_flags);
+    jset_flags(j, "resistance", d->resistance, res_flags);
+    jset_flags(j, "vulnerability", d->vulnerability, vuln_flags);
     JSET_INT(j, "spell", d->spell);
     return j;
 }
@@ -341,13 +502,13 @@ static json_t *herb_to_json(HERB_DATA *d)
 static HERB_DATA *herb_from_json(json_t *j)
 {
     HERB_DATA *d = new_herb_data();
-    d->type          = JGET_INT(j, "type", 0);
+    d->type          = jget_herb_type(j, "type");
     d->healing       = JGET_INT(j, "healing", 0);
     d->regenerative  = JGET_INT(j, "regenerative", 0);
     d->refreshing    = JGET_INT(j, "refreshing", 0);
-    d->immunity      = JGET_LONG(j, "immunity", 0);
-    d->resistance    = JGET_LONG(j, "resistance", 0);
-    d->vulnerability = JGET_LONG(j, "vulnerability", 0);
+    d->immunity      = jget_flags(j, "immunity", imm_flags);
+    d->resistance    = jget_flags(j, "resistance", res_flags);
+    d->vulnerability = jget_flags(j, "vulnerability", vuln_flags);
     d->spell         = JGET_INT(j, "spell", 0);
     return d;
 }
@@ -390,8 +551,8 @@ static INK_DATA *ink_from_json(json_t *j)
 static json_t *instrument_to_json(INSTRUMENT_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "type", d->type);
-    JSET_LONG(j, "flags", d->flags);
+    jset_enum(j, "type", d->type, instrument_types);
+    jset_flags(j, "flags", d->flags, instrument_flags);
     JSET_INT(j, "mana_min", d->mana_min);
     JSET_INT(j, "mana_max", d->mana_max);
     JSET_INT(j, "beats_min", d->beats_min);
@@ -400,7 +561,7 @@ static json_t *instrument_to_json(INSTRUMENT_DATA *d)
     json_t *reservoirs = json_array();
     for (int i = 0; i < INSTRUMENT_MAX_CATALYSTS; i++) {
         json_t *r = json_object();
-        JSET_INT(r, "type", d->reservoirs[i].type);
+        jset_enum(r, "type", d->reservoirs[i].type, catalyst_types);
         JSET_INT(r, "amount", d->reservoirs[i].amount);
         JSET_INT(r, "capacity", d->reservoirs[i].capacity);
         json_array_append_new(reservoirs, r);
@@ -412,8 +573,8 @@ static json_t *instrument_to_json(INSTRUMENT_DATA *d)
 static INSTRUMENT_DATA *instrument_from_json(json_t *j)
 {
     INSTRUMENT_DATA *d = new_instrument_data();
-    d->type      = JGET_INT(j, "type", 0);
-    d->flags     = JGET_LONG(j, "flags", 0);
+    d->type      = (int)jget_enum(j, "type", instrument_types);
+    d->flags     = jget_flags(j, "flags", instrument_flags);
     d->mana_min  = JGET_INT(j, "mana_min", 0);
     d->mana_max  = JGET_INT(j, "mana_max", 0);
     d->beats_min = JGET_INT(j, "beats_min", 0);
@@ -423,7 +584,7 @@ static INSTRUMENT_DATA *instrument_from_json(json_t *j)
     if (json_is_array(reservoirs)) {
         for (int i = 0; i < INSTRUMENT_MAX_CATALYSTS && i < (int)json_array_size(reservoirs); i++) {
             json_t *r = json_array_get(reservoirs, i);
-            d->reservoirs[i].type     = JGET_INT16(r, "type");
+            d->reservoirs[i].type     = (int16_t)jget_enum(r, "type", catalyst_types);
             d->reservoirs[i].amount   = JGET_INT16(r, "amount");
             d->reservoirs[i].capacity = JGET_INT16(r, "capacity");
         }
@@ -483,7 +644,7 @@ static JEWELRY_DATA *jewelry_from_json(json_t *j)
 static json_t *light_to_json(LIGHT_DATA *d)
 {
     json_t *j = json_object();
-    JSET_LONG(j, "flags", d->flags);
+    jset_flags(j, "flags", d->flags, light_flags);
     JSET_INT(j, "duration", d->duration);
     return j;
 }
@@ -491,7 +652,7 @@ static json_t *light_to_json(LIGHT_DATA *d)
 static LIGHT_DATA *light_from_json(json_t *j)
 {
     LIGHT_DATA *d = new_light_data();
-    d->flags    = JGET_LONG(j, "flags", 0);
+    d->flags    = jget_flags(j, "flags", light_flags);
     d->duration = JGET_INT(j, "duration", 0);
     return d;
 }
@@ -601,8 +762,8 @@ static json_t *portal_to_json(PORTAL_DATA *d)
     json_t *j = json_object();
     JSET_STR(j, "name", d->name);
     JSET_STR(j, "short_descr", d->short_descr);
-    JSET_LONG(j, "exit", d->exit);
-    JSET_LONG(j, "flags", d->flags);
+    jset_flags(j, "exit", d->exit, portal_exit_flags);
+    jset_flags(j, "flags", d->flags, portal_flags);
     JSET_INT(j, "charges", d->charges);
     JSET_INT(j, "type", d->type);
 
@@ -620,8 +781,8 @@ static PORTAL_DATA *portal_from_json(json_t *j)
     const char *s;
     if ((s = jget_str(j, "name")))          { free_string(d->name); d->name = str_dup(s); }
     if ((s = jget_str(j, "short_descr")))   { free_string(d->short_descr); d->short_descr = str_dup(s); }
-    d->exit    = JGET_LONG(j, "exit", 0);
-    d->flags   = JGET_LONG(j, "flags", 0);
+    d->exit    = jget_flags(j, "exit", portal_exit_flags);
+    d->flags   = jget_flags(j, "flags", portal_flags);
     d->charges = JGET_INT(j, "charges", 0);
     d->type    = JGET_INT(j, "type", 0);
 
@@ -639,7 +800,7 @@ static json_t *scroll_to_json(SCROLL_DATA *d)
 {
     json_t *j = json_object();
     JSET_INT(j, "max_mana", d->max_mana);
-    JSET_LONG(j, "flags", d->flags);
+    jset_flags(j, "flags", d->flags, scroll_flags);
     /* spells handled separately */
     return j;
 }
@@ -648,7 +809,7 @@ static SCROLL_DATA *scroll_from_json(json_t *j)
 {
     SCROLL_DATA *d = new_scroll_data();
     d->max_mana = JGET_INT(j, "max_mana", 0);
-    d->flags    = JGET_LONG(j, "flags", 0);
+    d->flags    = jget_flags(j, "flags", scroll_flags);
     return d;
 }
 
@@ -736,7 +897,7 @@ static TELESCOPE_DATA *telescope_from_json(json_t *j)
 static json_t *tool_to_json(TOOL_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "type", d->type);
+    jset_enum(j, "type", d->type, tool_types);
     JSET_INT(j, "tier", d->tier);
     return j;
 }
@@ -744,7 +905,7 @@ static json_t *tool_to_json(TOOL_DATA *d)
 static TOOL_DATA *tool_from_json(json_t *j)
 {
     TOOL_DATA *d = new_tool_data();
-    d->type = JGET_INT16(j, "type");
+    d->type = (int16_t)jget_enum(j, "type", tool_types);
     d->tier = JGET_INT16(j, "tier");
     return d;
 }
@@ -754,14 +915,14 @@ static TOOL_DATA *tool_from_json(json_t *j)
 static json_t *trade_to_json(TRADE_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "trade_type", d->trade_type);
+    jset_trade_type(j, "trade_type", d->trade_type);
     return j;
 }
 
 static TRADE_DATA *trade_from_json(json_t *j)
 {
     TRADE_DATA *d = new_trade_data();
-    d->trade_type = JGET_INT(j, "trade_type", 0);
+    d->trade_type = jget_trade_type(j, "trade_type");
     return d;
 }
 
@@ -795,9 +956,9 @@ static WAND_DATA *wand_from_json(json_t *j)
 static json_t *weapon_to_json(WEAPON_DATA *d)
 {
     json_t *j = json_object();
-    JSET_INT(j, "weapon_class", d->weapon_class);
-    JSET_INT(j, "damage_type", d->damage_type);
-    JSET_LONG(j, "flags", d->flags);
+    jset_enum(j, "weapon_class", d->weapon_class, weapon_class);
+    jset_attack_type(j, "damage_type", d->damage_type);
+    jset_flags(j, "flags", d->flags, weapon_type2);
     JSET_INT(j, "damage_number", d->damage.number);
     JSET_INT(j, "damage_size", d->damage.size);
     JSET_INT(j, "damage_bonus", d->damage.bonus);
@@ -814,9 +975,9 @@ static json_t *weapon_to_json(WEAPON_DATA *d)
 static WEAPON_DATA *weapon_from_json(json_t *j)
 {
     WEAPON_DATA *d = new_weapon_data();
-    d->weapon_class   = JGET_INT16(j, "weapon_class");
-    d->damage_type    = JGET_INT(j, "damage_type", 0);
-    d->flags          = JGET_LONG(j, "flags", 0);
+    d->weapon_class   = (int16_t)jget_enum(j, "weapon_class", weapon_class);
+    d->damage_type    = jget_attack_type(j, "damage_type");
+    d->flags          = jget_flags(j, "flags", weapon_type2);
     d->damage.number  = JGET_INT(j, "damage_number", 0);
     d->damage.size    = JGET_INT(j, "damage_size", 0);
     d->damage.bonus   = JGET_INT(j, "damage_bonus", 0);
@@ -835,7 +996,7 @@ static json_t *weapon_container_to_json(WEAPON_CONTAINER_DATA *d)
 {
     json_t *j = json_object();
     JSET_INT(j, "max_weight", d->max_weight);
-    JSET_INT(j, "weapon_type", d->weapon_type);
+    jset_enum(j, "weapon_type", d->weapon_type, weapon_class);
     JSET_INT(j, "max_items", d->max_items);
     JSET_INT(j, "weight_multiplier", d->weight_multiplier);
     return j;
@@ -845,7 +1006,7 @@ static WEAPON_CONTAINER_DATA *weapon_container_from_json(json_t *j)
 {
     WEAPON_CONTAINER_DATA *d = new_weapon_container_data();
     d->max_weight        = JGET_INT(j, "max_weight", 0);
-    d->weapon_type       = JGET_INT(j, "weapon_type", 0);
+    d->weapon_type       = (int)jget_enum(j, "weapon_type", weapon_class);
     d->max_items         = JGET_INT(j, "max_items", 0);
     d->weight_multiplier = JGET_INT(j, "weight_multiplier", 0);
     return d;

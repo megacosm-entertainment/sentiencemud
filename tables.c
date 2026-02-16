@@ -3919,3 +3919,34 @@ const struct flag_type body_types[] =
     {NULL, 0, false}
 
 };
+
+const struct flag_type armor_types[] =
+{
+    {"none",      ARMOR_TYPE_NONE,    true},
+    {"cloth",     ARMOR_TYPE_CLOTH,   true},
+    {"leather",   ARMOR_TYPE_LEATHER, true},
+    {"mail",      ARMOR_TYPE_MAIL,    true},
+    {"plate",     ARMOR_TYPE_PLATE,   true},
+    {NULL,        0,                  false}
+};
+
+const struct flag_type cart_flags[] =
+{
+    {"mount_only",       CART_MOUNT_ONLY,       true},
+    {"team_animal_only", CART_TEAM_ANIMAL_ONLY,  true},
+    {NULL,               0,                     false}
+};
+
+const struct flag_type light_flags[] =
+{
+    {"is_active",            LIGHT_IS_ACTIVE,            true},
+    {"remove_on_extinguish", LIGHT_REMOVE_ON_EXTINGUISH, true},
+    {"no_extinguish",        LIGHT_NO_EXTINGUISH,        true},
+    {NULL,                   0,                          false}
+};
+
+const struct flag_type scroll_flags[] =
+{
+    {"destroy_on_recite",  SCROLL_DESTROY_ON_RECITE,  true},
+    {NULL,                 0,                         false}
+};
