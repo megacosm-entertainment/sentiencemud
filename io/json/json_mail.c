@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <jansson.h>
 #include "../../merc.h"
+#include "json_common.h"
 #include "json_mail.h"
 #include "../../recycle.h"
 
@@ -39,52 +40,7 @@ extern OBJ_DATA *json_persist_json_to_object(json_t *json);
  * Helper Functions                                                        *
  ***************************************************************************/
 
-/**
- * Create a WNUM reference as a JSON string
- * Format: "area_uid#vnum" or bare "vnum"
- */
-static json_t *wnum_to_json_str(long area_uid, long vnum)
-{
-    char buf[256];
-    
-    if (area_uid > 0) {
-        snprintf(buf, sizeof(buf), "%ld#%ld", area_uid, vnum);
-    } else {
-        snprintf(buf, sizeof(buf), "%ld", vnum);
-    }
-    
-    return json_string(buf);
-}
-
-/**
- * Parse a WNUM from JSON string
- * Supports both "area_uid#vnum" and bare "vnum"
- * Returns area_uid (0 if not specified) and vnum
- */
-static void parse_wnum_from_json(json_t *json, long *area_uid, long *vnum)
-{
-    const char *str;
-    
-    *area_uid = 0;
-    *vnum = 0;
-    
-    if (!json || !json_is_string(json)) {
-        return;
-    }
-    
-    str = json_string_value(json);
-    if (!str) {
-        return;
-    }
-    
-    /* Check for area_uid#vnum format */
-    if (strchr(str, '#')) {
-        sscanf(str, "%ld#%ld", area_uid, vnum);
-    } else {
-        /* Bare vnum */
-        *vnum = atol(str);
-    }
-}
+/* WNUM helpers now provided by json_common.h */
 
 /***************************************************************************
  * Mail Serialization                                                      *
@@ -151,14 +107,14 @@ json_t *mail_to_json(MAIL_DATA *mail)
         long from_auid = mail->from_location_load.auid;
         if (from_auid == 0 && mail->from_location_wnum.pArea)
             from_auid = mail->from_location_wnum.pArea->uid;
-        json_object_set_new(json, "from_location", wnum_to_json_str(from_auid, mail->from_location_load.vnum));
+        json_object_set_new(json, "from_location", json_wnum_serialize(from_auid, mail->from_location_load.vnum));
     }
 
     if (mail->to_location_load.vnum > 0) {
         long to_auid = mail->to_location_load.auid;
         if (to_auid == 0 && mail->to_location_wnum.pArea)
             to_auid = mail->to_location_wnum.pArea->uid;
-        json_object_set_new(json, "to_location", wnum_to_json_str(to_auid, mail->to_location_load.vnum));
+        json_object_set_new(json, "to_location", json_wnum_serialize(to_auid, mail->to_location_load.vnum));
     }
     
     /* Objects in package */
@@ -245,7 +201,7 @@ MAIL_DATA *json_to_mail(json_t *json)
     /* Location references */
     value = json_object_get(json, "from_location");
     if (value) {
-        parse_wnum_from_json(value, &area_uid, &vnum);
+        json_wnum_deserialize(value, &area_uid, &vnum);
         mail->from_location_load.auid = area_uid;
         mail->from_location_load.vnum = vnum;
         AREA_DATA *from_area = NULL;
@@ -264,7 +220,7 @@ MAIL_DATA *json_to_mail(json_t *json)
 
     value = json_object_get(json, "to_location");
     if (value) {
-        parse_wnum_from_json(value, &area_uid, &vnum);
+        json_wnum_deserialize(value, &area_uid, &vnum);
         mail->to_location_load.auid = area_uid;
         mail->to_location_load.vnum = vnum;
         AREA_DATA *to_area = NULL;

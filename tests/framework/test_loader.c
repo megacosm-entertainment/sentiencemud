@@ -133,11 +133,11 @@ static test_suite_t *create_test_suite_from_json(json_t *suite_json) {
         return NULL;
     }
     
-    const char *suite_name = json_get_string(suite_json, "test_suite");
-    const char *description = json_get_string(suite_json, "description");
-    const char *version = json_get_string(suite_json, "version");
-    bool requires_mud = json_get_bool(suite_json, "requires_mud_environment");
-    int timeout = json_get_int(suite_json, "timeout_seconds");
+    const char *suite_name = test_json_get_string(suite_json, "test_suite");
+    const char *description = test_json_get_string(suite_json, "description");
+    const char *version = test_json_get_string(suite_json, "version");
+    bool requires_mud = test_json_get_bool(suite_json, "requires_mud_environment");
+    int timeout = test_json_get_int(suite_json, "timeout_seconds");
     json_t *dependencies_array = json_object_get(suite_json, "dependencies");
     json_t *tests_array = json_object_get(suite_json, "tests");
     
@@ -198,9 +198,9 @@ static test_case_t *create_test_case_from_json(json_t *test_json) {
         return NULL;
     }
     
-    const char *test_name = json_get_string(test_json, "name");
-    const char *description = json_get_string(test_json, "description");
-    const char *test_type = json_get_string(test_json, "test_type");
+    const char *test_name = test_json_get_string(test_json, "name");
+    const char *description = test_json_get_string(test_json, "description");
+    const char *test_type = test_json_get_string(test_json, "test_type");
     json_t *dependencies_array = json_object_get(test_json, "dependencies");
     
     if (!test_name) {
@@ -222,8 +222,8 @@ static test_case_t *create_test_case_from_json(json_t *test_json) {
     test_case->next = NULL;
     
     // Load per-test verbose and timeout settings
-    test_case->verbose_output = json_get_bool(test_json, "verbose_output");
-    test_case->timeout_seconds = json_get_int(test_json, "timeout_seconds");
+    test_case->verbose_output = test_json_get_bool(test_json, "verbose_output");
+    test_case->timeout_seconds = test_json_get_int(test_json, "timeout_seconds");
     
     // Apply defaults if not specified
     test_config_t *config = get_test_config();

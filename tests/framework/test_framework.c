@@ -75,29 +75,7 @@ json_t *load_json_file(const char *filepath) {
     return root;
 }
 
-const char *json_get_string(json_t *obj, const char *key) {
-    json_t *value = json_object_get(obj, key);
-    if (!json_is_string(value)) {
-        return NULL;
-    }
-    return json_string_value(value);
-}
-
-int json_get_int(json_t *obj, const char *key) {
-    json_t *value = json_object_get(obj, key);
-    if (!json_is_integer(value)) {
-        return 0;
-    }
-    return (int)json_integer_value(value);
-}
-
-bool json_get_bool(json_t *obj, const char *key) {
-    json_t *value = json_object_get(obj, key);
-    if (!json_is_boolean(value)) {
-        return false;
-    }
-    return json_boolean_value(value);
-}
+/* json_get_string/int/bool now provided by json_common.h */
 
 const char *test_result_to_string(test_result_t result) {
     switch (result) {
@@ -581,7 +559,7 @@ bool load_test_config(const char *config_file) {
     json_t *test_config_obj = json_object_get(root, "test_configuration");
     if (!test_config_obj) {
         // Check if this is the new format with type field
-        const char *file_type = json_get_string(root, "type");
+        const char *file_type = test_json_get_string(root, "type");
         if (file_type && strcmp(file_type, "test_configuration") == 0) {
             test_config_obj = json_object_get(root, "test_configuration");
         }
@@ -606,24 +584,24 @@ bool load_test_config(const char *config_file) {
     }
     
     // Load basic config values
-    const char *version = json_get_string(test_config_obj, "version");
+    const char *version = test_json_get_string(test_config_obj, "version");
     if (version) global_test_config->version = strdup(version);
     
-    const char *description = json_get_string(test_config_obj, "description");
+    const char *description = test_json_get_string(test_config_obj, "description");
     if (description) global_test_config->description = strdup(description);
     
     // Load settings
     json_t *settings = json_object_get(test_config_obj, "settings");
     if (settings) {
-        global_test_config->default_timeout_seconds = json_get_int(settings, "default_timeout_seconds");
-        global_test_config->stop_on_first_failure = json_get_bool(settings, "stop_on_first_failure");
-        global_test_config->run_unit_tests_first = json_get_bool(settings, "run_unit_tests_first");
-        global_test_config->require_mud_environment_for_integration = json_get_bool(settings, "require_mud_environment_for_integration");
-        global_test_config->verbose_output = json_get_bool(settings, "verbose_output");
-        global_test_config->verbose_test_names = json_get_bool(settings, "verbose_test_names");
-        global_test_config->verbose_test_details = json_get_bool(settings, "verbose_test_details");
-        global_test_config->show_test_config = json_get_bool(settings, "show_test_config");
-        global_test_config->show_execution_time = json_get_bool(settings, "show_execution_time");
+        global_test_config->default_timeout_seconds = test_json_get_int(settings, "default_timeout_seconds");
+        global_test_config->stop_on_first_failure = test_json_get_bool(settings, "stop_on_first_failure");
+        global_test_config->run_unit_tests_first = test_json_get_bool(settings, "run_unit_tests_first");
+        global_test_config->require_mud_environment_for_integration = test_json_get_bool(settings, "require_mud_environment_for_integration");
+        global_test_config->verbose_output = test_json_get_bool(settings, "verbose_output");
+        global_test_config->verbose_test_names = test_json_get_bool(settings, "verbose_test_names");
+        global_test_config->verbose_test_details = test_json_get_bool(settings, "verbose_test_details");
+        global_test_config->show_test_config = test_json_get_bool(settings, "show_test_config");
+        global_test_config->show_execution_time = test_json_get_bool(settings, "show_execution_time");
     }
     
     // Helper function to load string arrays
@@ -667,11 +645,11 @@ bool load_test_config(const char *config_file) {
             test_profile_t *profile = &global_test_config->profiles[profile_idx];
             profile->name = strdup(profile_name);
             
-            const char *desc = json_get_string(profile_data, "description");
+            const char *desc = test_json_get_string(profile_data, "description");
             if (desc) profile->description = strdup(desc);
             
-            profile->stop_on_first_failure = json_get_bool(profile_data, "stop_on_first_failure");
-            profile->require_coverage = json_get_bool(profile_data, "require_coverage");
+            profile->stop_on_first_failure = test_json_get_bool(profile_data, "stop_on_first_failure");
+            profile->require_coverage = test_json_get_bool(profile_data, "require_coverage");
             
             load_string_array(profile_data, "suites", &profile->test_suites, &profile->suite_count);
             profile_idx++;

@@ -712,6 +712,7 @@ struct obj_corpse_data
     int  animation;      /* Animation chance (0-100%) */
     long body_parts;     /* part_flags */
     long mobile_vnum;    /* Source mobile vnum */
+    long mobile_area_uid;/* Source mobile area UID (0 = resolve globally) */
 };
 
 /* ==================== HERB ==================== */
@@ -745,7 +746,8 @@ struct obj_item_ship_data
     int  min_crew;
     int  capacity;
     int  max_crew;
-    long first_room;     /* Room vnum */
+    long first_room;          /* Room vnum */
+    long first_room_area_uid; /* Room area UID (0 = resolve globally) */
     int  hit_points;
     int  max_guns;
 };
@@ -757,8 +759,9 @@ struct obj_seed_data
     struct obj_seed_data *next;
     bool valid;
 
-    int  growth_time;    /* Ticks before growth */
-    long object_vnum;    /* Vnum of object it turns into */
+    int  growth_time;         /* Ticks before growth */
+    long object_vnum;         /* Vnum of object it turns into */
+    long object_area_uid;     /* Area UID of object (0 = resolve globally) */
 };
 
 /* ==================== TRADE ==================== */

@@ -110,10 +110,10 @@ static test_result_t test_item_type_compat(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *primary_name = json_get_string(tc, "primary_type");
-        const char *add_name = json_get_string(tc, "add_type");
-        bool expected = json_get_bool(tc, "expected_compatible");
-        const char *desc = json_get_string(tc, "description");
+        const char *primary_name = test_json_get_string(tc, "primary_type");
+        const char *add_name = test_json_get_string(tc, "add_type");
+        bool expected = test_json_get_bool(tc, "expected_compatible");
+        const char *desc = test_json_get_string(tc, "description");
 
         if (!primary_name || !add_name) continue;
 
@@ -167,8 +167,8 @@ static test_result_t test_item_type_flags(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -203,7 +203,7 @@ static test_result_t test_item_type_loaded_objs(test_case_t *test)
     if (test && test->config) {
         json_t *input = json_object_get(test->config, "input");
         if (input) {
-            int cfg = json_get_int(input, "max_areas_to_check");
+            int cfg = test_json_get_int(input, "max_areas_to_check");
             if (cfg > 0) max_areas = cfg;
         }
     }

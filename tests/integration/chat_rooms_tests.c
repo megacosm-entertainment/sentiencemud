@@ -75,10 +75,10 @@ static test_result_t test_chat_room_serialize(test_case_t *test)
         return TEST_ERROR;
     }
 
-    const char *room_name = json_get_string(input, "test_room_name");
-    const char *topic = json_get_string(input, "test_topic");
-    int max_people = json_get_int(input, "test_max_people");
-    bool permanent = json_get_bool(input, "test_permanent");
+    const char *room_name = test_json_get_string(input, "test_room_name");
+    const char *topic = test_json_get_string(input, "test_topic");
+    int max_people = test_json_get_int(input, "test_max_people");
+    bool permanent = test_json_get_bool(input, "test_permanent");
 
     /* Create test chat room */
     CHAT_ROOM_DATA test_room;
@@ -104,7 +104,7 @@ static test_result_t test_chat_room_serialize(test_case_t *test)
     json_t *expected = json_object_get(test->config, "expected_output");
     bool success = true;
 
-    if (json_get_bool(expected, "has_name")) {
+    if (test_json_get_bool(expected, "has_name")) {
         if (!json_object_get(room_json, "name")) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                        "Serialized chat room missing 'name' field");
@@ -112,7 +112,7 @@ static test_result_t test_chat_room_serialize(test_case_t *test)
         }
     }
 
-    if (json_get_bool(expected, "has_topic")) {
+    if (test_json_get_bool(expected, "has_topic")) {
         if (!json_object_get(room_json, "topic")) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                        "Serialized chat room missing 'topic' field");
@@ -120,7 +120,7 @@ static test_result_t test_chat_room_serialize(test_case_t *test)
         }
     }
 
-    if (json_get_bool(expected, "has_max_people")) {
+    if (test_json_get_bool(expected, "has_max_people")) {
         if (!json_object_get(room_json, "max_people")) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                        "Serialized chat room missing 'max_people' field");
@@ -242,9 +242,9 @@ static test_result_t test_chat_room_deserialize(test_case_t *test)
     }
 
     /* Verify expected fields exist in JSON */
-    const char *name = json_get_string(json_data, "name");
-    unsigned long area_uid = json_get_int(json_data, "area_uid");
-    long vnum = json_get_int(json_data, "vnum");
+    const char *name = test_json_get_string(json_data, "name");
+    unsigned long area_uid = test_json_get_int(json_data, "area_uid");
+    long vnum = test_json_get_int(json_data, "vnum");
 
     bool success = true;
     if (!name || strcmp(name, "Deserialize Test") != 0) {

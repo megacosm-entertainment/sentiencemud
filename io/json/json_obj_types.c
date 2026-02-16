@@ -11,7 +11,7 @@
 #include "../../item_types.h"
 #include "../../tables.h"
 #include "json_obj_types.h"
-#include "json_area.h"
+#include "json_common.h"
 #include <jansson.h>
 #include <string.h>
 
@@ -50,7 +50,7 @@ static inline const char *jget_str(json_t *j, const char *key) {
 static void jset_flags(json_t *j, const char *key, long val,
                        const struct flag_type *table)
 {
-    json_object_set_new(j, key, flags_to_json_array(val, table));
+    json_object_set_new(j, key, json_flags_serialize(val, table));
 }
 
 /* Read a bitfield — accepts both string-array (new) and integer (legacy). */
@@ -59,45 +59,23 @@ static long jget_flags(json_t *j, const char *key,
 {
     json_t *v = json_object_get(j, key);
     if (!v) return 0;
-    if (json_is_array(v))   return json_array_to_flags(v, table);
+    if (json_is_array(v))   return json_flags_deserialize(v, table);
     if (json_is_integer(v)) return (long)json_integer_value(v);
     return 0;
 }
 
-/*
- * Write an enum value as its string name from a flag_type table.
- * Falls back to integer if no matching entry found.
- */
+/* Write an enum — delegates to json_common. */
 static void jset_enum(json_t *j, const char *key, long val,
                       const struct flag_type *table)
 {
-    for (int i = 0; table[i].name != NULL; i++) {
-        if (table[i].bit == val) {
-            json_object_set_new(j, key, json_string(table[i].name));
-            return;
-        }
-    }
-    json_object_set_new(j, key, json_integer((json_int_t)val));
+    json_enum_serialize(j, key, val, table);
 }
 
-/*
- * Read an enum — accepts both string (new) and integer (legacy).
- */
+/* Read an enum — delegates to json_common. */
 static long jget_enum(json_t *j, const char *key,
                       const struct flag_type *table)
 {
-    json_t *v = json_object_get(j, key);
-    if (!v) return 0;
-    if (json_is_string(v)) {
-        const char *name = json_string_value(v);
-        for (int i = 0; table[i].name != NULL; i++) {
-            if (!str_cmp(table[i].name, name))
-                return table[i].bit;
-        }
-        return 0;
-    }
-    if (json_is_integer(v)) return (long)json_integer_value(v);
-    return 0;
+    return json_enum_deserialize(j, key, table);
 }
 
 /* Write attack_table damage type as its string name. */
@@ -381,6 +359,7 @@ static json_t *corpse_to_json(CORPSE_DATA *d)
     JSET_INT(j, "animation", d->animation);
     jset_flags(j, "body_parts", d->body_parts, part_flags);
     JSET_LONG(j, "mobile_vnum", d->mobile_vnum);
+    JSET_LONG(j, "mobile_area_uid", d->mobile_area_uid);
     return j;
 }
 
@@ -392,6 +371,7 @@ static CORPSE_DATA *corpse_from_json(json_t *j)
     d->animation    = JGET_INT(j, "animation", 0);
     d->body_parts   = jget_flags(j, "body_parts", part_flags);
     d->mobile_vnum  = JGET_LONG(j, "mobile_vnum", 0);
+    d->mobile_area_uid = JGET_LONG(j, "mobile_area_uid", 0);
     return d;
 }
 
@@ -603,6 +583,7 @@ static json_t *item_ship_to_json(ITEM_SHIP_DATA *d)
     JSET_INT(j, "capacity", d->capacity);
     JSET_INT(j, "max_crew", d->max_crew);
     JSET_LONG(j, "first_room", d->first_room);
+    JSET_LONG(j, "first_room_area_uid", d->first_room_area_uid);
     JSET_INT(j, "hit_points", d->hit_points);
     JSET_INT(j, "max_guns", d->max_guns);
     return j;
@@ -617,6 +598,7 @@ static ITEM_SHIP_DATA *item_ship_from_json(json_t *j)
     d->capacity   = JGET_INT(j, "capacity", 0);
     d->max_crew   = JGET_INT(j, "max_crew", 0);
     d->first_room = JGET_LONG(j, "first_room", 0);
+    d->first_room_area_uid = JGET_LONG(j, "first_room_area_uid", 0);
     d->hit_points = JGET_INT(j, "hit_points", 0);
     d->max_guns   = JGET_INT(j, "max_guns", 0);
     return d;
@@ -820,6 +802,7 @@ static json_t *seed_to_json(SEED_DATA *d)
     json_t *j = json_object();
     JSET_INT(j, "growth_time", d->growth_time);
     JSET_LONG(j, "object_vnum", d->object_vnum);
+    JSET_LONG(j, "object_area_uid", d->object_area_uid);
     return j;
 }
 
@@ -828,6 +811,7 @@ static SEED_DATA *seed_from_json(json_t *j)
     SEED_DATA *d = new_seed_data();
     d->growth_time = JGET_INT(j, "growth_time", 0);
     d->object_vnum = JGET_LONG(j, "object_vnum", 0);
+    d->object_area_uid = JGET_LONG(j, "object_area_uid", 0);
     return d;
 }
 

@@ -9,6 +9,7 @@
 #include <jansson.h>
 #include "../../merc.h"
 #include "../../tables.h"
+#include "json_common.h"
 #include "json_game_settings.h"
 #include "../../secret.h"
 #include "../../account/preferences.h"
@@ -30,15 +31,7 @@ void json_get_game_settings_path(char *path_buf, size_t buf_size)
 
 bool json_is_game_settings_json(void)
 {
-    FILE *fp = fopen(GAME_SETTINGS_JSON_FILE, "r");
-    if (!fp) {
-        return false;
-    }
-
-    char first_char = fgetc(fp);
-    fclose(fp);
-
-    return (first_char == '{');
+    return json_file_is_json(GAME_SETTINGS_JSON_FILE);
 }
 
 /***************************************************************************

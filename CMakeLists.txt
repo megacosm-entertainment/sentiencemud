@@ -211,6 +211,7 @@ set(SOURCE_FILES
     quest.c
     io/cache/redis_cache.c
     io/cache/async_cache.c
+    io/json/json_common.c
     io/json/json_char.c
     io/json/json_account.c
     io/json/json_area.c

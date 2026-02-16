@@ -72,7 +72,7 @@ static test_result_t test_skill_count(test_case_t *test)
     if (test && test->config) {
         json_t *input = json_object_get(test->config, "input");
         if (input) {
-            int cfg_min = json_get_int(input, "minimum_expected");
+            int cfg_min = test_json_get_int(input, "minimum_expected");
             if (cfg_min > 0) min_expected = cfg_min;
         }
     }
@@ -114,8 +114,8 @@ static test_result_t test_skill_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -165,8 +165,8 @@ static test_result_t test_skill_search(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *prefix = json_get_string(tc, "prefix");
-        bool should_find = json_get_bool(tc, "should_find");
+        const char *prefix = test_json_get_string(tc, "prefix");
+        bool should_find = test_json_get_bool(tc, "should_find");
 
         if (!prefix) continue;
 
@@ -307,8 +307,8 @@ static test_result_t test_spell_fun_lookup_test(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 

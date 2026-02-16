@@ -19,6 +19,7 @@
 #include "../../merc.h"
 #include "../../tables.h"
 #include "../../recycle.h"
+#include "json_common.h"
 #include "json_char.h"
 #include "json_persist.h"
 #include "../../account/preferences.h"
@@ -77,33 +78,12 @@ void json_get_backup_path(const char *char_name, char *path_buf, size_t buf_size
 
 bool json_ensure_char_dir(const char *char_name)
 {
-    char dir_path[256];
-
-    snprintf(dir_path, sizeof(dir_path), "%s%c",
-             PLAYER_DIR, tolower(char_name[0]));
-
-    // Try to create directory (will fail if exists, which is fine)
-    mkdir(dir_path, 0755);
-    return true;
+    return json_ensure_dir(PLAYER_DIR, char_name);
 }
 
 bool json_is_json_file(const char *filename)
 {
-    FILE *fp;
-    char first_char;
-    bool is_json;
-
-    fp = fopen(filename, "r");
-    if (!fp) {
-        return false;  // File doesn't exist
-    }
-
-    // JSON files start with '{'
-    first_char = fgetc(fp);
-    is_json = (first_char == '{');
-    fclose(fp);
-
-    return is_json;
+    return json_file_is_json(filename);
 }
 
 /***************************************************************************
@@ -610,61 +590,7 @@ static json_t *locker_to_json(CHAR_DATA *ch)
     return locker;
 }
 
-/***************************************************************************
- * Flag Serialization Helpers - Convert flags to/from human-readable names *
- ***************************************************************************/
-
-static json_t *flags_to_json_array(const struct flag_type *flag_table, long bits)
-{
-    json_t *flags_array;
-    int i;
-
-    if (!flag_table) {
-        return json_array();
-    }
-
-    flags_array = json_array();
-
-    // Convert each set bit to its flag name
-    for (i = 0; flag_table[i].name != NULL; i++) {
-        if (!is_stat(flag_table) && IS_SET(bits, flag_table[i].bit)) {
-            json_array_append_new(flags_array, json_string(flag_table[i].name));
-        } else if (flag_table[i].bit == bits) {
-            json_array_append_new(flags_array, json_string(flag_table[i].name));
-            break;
-        }
-    }
-
-    return flags_array;
-}
-
-static long flags_from_json_array(const struct flag_type *flag_table, json_t *flags_array)
-{
-    long bits = 0;
-    size_t index;
-    json_t *value;
-    const char *flag_name;
-
-    if (!flag_table || !flags_array || !json_is_array(flags_array)) {
-        return 0;
-    }
-
-    // Convert each flag name to its bit value
-    json_array_foreach(flags_array, index, value) {
-        flag_name = json_string_value(value);
-        if (!flag_name) continue;
-
-        // Look up flag by name
-        for (int i = 0; flag_table[i].name != NULL; i++) {
-            if (!str_cmp(flag_table[i].name, flag_name)) {
-                SET_BIT(bits, flag_table[i].bit);
-                break;
-            }
-        }
-    }
-
-    return bits;
-}
+/* Flag helpers now provided by json_common.h */
 
 /***************************************************************************
  * Skills Serialization - WITH HUMAN-READABLE NAMES                       *
@@ -1013,15 +939,15 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
     // Save act/plr flags as human-readable arrays using the correct table
     if (ch->pcdata) {
-        json_object_set_new(basic, "plr_flags", flags_to_json_array(plr_flags, ch->act[0]));
-        json_object_set_new(basic, "plr2_flags", flags_to_json_array(plr2_flags, ch->act[1]));
+        json_object_set_new(basic, "plr_flags", json_flags_serialize(ch->act[0], plr_flags));
+        json_object_set_new(basic, "plr2_flags", json_flags_serialize(ch->act[1], plr2_flags));
     } else {
-        json_object_set_new(basic, "act_flags", flags_to_json_array(act_flags, ch->act[0]));
-        json_object_set_new(basic, "act2_flags", flags_to_json_array(act2_flags, ch->act[1]));
+        json_object_set_new(basic, "act_flags", json_flags_serialize(ch->act[0], act_flags));
+        json_object_set_new(basic, "act2_flags", json_flags_serialize(ch->act[1], act2_flags));
     }
-    json_object_set_new(basic, "comm_flags", flags_to_json_array(comm_flags, ch->comm));
+    json_object_set_new(basic, "comm_flags", json_flags_serialize(ch->comm, comm_flags));
     if (ch->pcdata) {
-        json_object_set_new(basic, "channel_flags", flags_to_json_array(channel_flags, ch->pcdata->channel_flags));
+        json_object_set_new(basic, "channel_flags", json_flags_serialize(ch->pcdata->channel_flags, channel_flags));
     }
 
     // Also save numeric for backward compatibility during transition
@@ -1148,10 +1074,10 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "position_state", json_integer(ch->position == POS_FIGHTING ? POS_STANDING : ch->position));
 
     // *** AFFECT FLAGS - Both current and permanent (human-readable) ***
-    json_object_set_new(basic, "affected_by_flags", flags_to_json_array(affect_flags, ch->affected_by[0]));
-    json_object_set_new(basic, "affected_by2_flags", flags_to_json_array(affect2_flags, ch->affected_by[1]));
-    json_object_set_new(basic, "affected_by_perm_flags", flags_to_json_array(affect_flags, ch->affected_by_perm[0]));
-    json_object_set_new(basic, "affected_by_perm2_flags", flags_to_json_array(affect2_flags, ch->affected_by_perm[1]));
+    json_object_set_new(basic, "affected_by_flags", json_flags_serialize(ch->affected_by[0], affect_flags));
+    json_object_set_new(basic, "affected_by2_flags", json_flags_serialize(ch->affected_by[1], affect2_flags));
+    json_object_set_new(basic, "affected_by_perm_flags", json_flags_serialize(ch->affected_by_perm[0], affect_flags));
+    json_object_set_new(basic, "affected_by_perm2_flags", json_flags_serialize(ch->affected_by_perm[1], affect2_flags));
 
     // Also save numeric for backward compatibility
     json_object_set_new(basic, "affected_by", json_integer(ch->affected_by[0]));
@@ -1160,12 +1086,12 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "affected_by_perm2", json_integer(ch->affected_by_perm[1]));
 
     // *** RESISTANCE/IMMUNITY/VULNERABILITY FLAGS (human-readable) ***
-    json_object_set_new(basic, "imm_flags_names", flags_to_json_array(imm_flags, ch->imm_flags));
-    json_object_set_new(basic, "imm_flags_perm_names", flags_to_json_array(imm_flags, ch->imm_flags_perm));
-    json_object_set_new(basic, "res_flags_names", flags_to_json_array(res_flags, ch->res_flags));
-    json_object_set_new(basic, "res_flags_perm_names", flags_to_json_array(res_flags, ch->res_flags_perm));
-    json_object_set_new(basic, "vuln_flags_names", flags_to_json_array(vuln_flags, ch->vuln_flags));
-    json_object_set_new(basic, "vuln_flags_perm_names", flags_to_json_array(vuln_flags, ch->vuln_flags_perm));
+    json_object_set_new(basic, "imm_flags_names", json_flags_serialize(ch->imm_flags, imm_flags));
+    json_object_set_new(basic, "imm_flags_perm_names", json_flags_serialize(ch->imm_flags_perm, imm_flags));
+    json_object_set_new(basic, "res_flags_names", json_flags_serialize(ch->res_flags, res_flags));
+    json_object_set_new(basic, "res_flags_perm_names", json_flags_serialize(ch->res_flags_perm, res_flags));
+    json_object_set_new(basic, "vuln_flags_names", json_flags_serialize(ch->vuln_flags, vuln_flags));
+    json_object_set_new(basic, "vuln_flags_perm_names", json_flags_serialize(ch->vuln_flags_perm, vuln_flags));
 
     // Also save numeric for backward compatibility
     json_object_set_new(basic, "imm_flags", json_integer(ch->imm_flags));
@@ -1177,7 +1103,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
     // Lost body parts (human-readable)
     if (ch->lostparts != 0) {
-        json_object_set_new(basic, "lostparts_names", flags_to_json_array(part_flags, ch->lostparts));
+        json_object_set_new(basic, "lostparts_names", json_flags_serialize(ch->lostparts, part_flags));
         json_object_set_new(basic, "lostparts", json_integer(ch->lostparts)); // numeric for backward compatibility
     }
 
@@ -2605,7 +2531,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         // PC: prefer plr_flags/plr2_flags arrays, fall back to numeric
         value = json_object_get(character, "plr_flags");
         if (value && json_is_array(value)) {
-            ch->act[0] = flags_from_json_array(plr_flags, value);
+            ch->act[0] = json_flags_deserialize(value, plr_flags);
         } else {
             // Fall back to numeric (handles legacy files and old act_flags arrays)
             value = json_object_get(character, "act");
@@ -2614,7 +2540,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
         value = json_object_get(character, "plr2_flags");
         if (value && json_is_array(value)) {
-            ch->act[1] = flags_from_json_array(plr2_flags, value);
+            ch->act[1] = json_flags_deserialize(value, plr2_flags);
         } else {
             value = json_object_get(character, "act2");
             if (value) ch->act[1] = json_integer_value(value);
@@ -2623,7 +2549,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         // NPC: use act_flags/act2_flags arrays, fall back to numeric
         value = json_object_get(character, "act_flags");
         if (value && json_is_array(value)) {
-            ch->act[0] = flags_from_json_array(act_flags, value);
+            ch->act[0] = json_flags_deserialize(value, act_flags);
         } else {
             value = json_object_get(character, "act");
             if (value) ch->act[0] = json_integer_value(value);
@@ -2631,7 +2557,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
         value = json_object_get(character, "act2_flags");
         if (value && json_is_array(value)) {
-            ch->act[1] = flags_from_json_array(act2_flags, value);
+            ch->act[1] = json_flags_deserialize(value, act2_flags);
         } else {
             value = json_object_get(character, "act2");
             if (value) ch->act[1] = json_integer_value(value);
@@ -2640,7 +2566,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "comm_flags");
     if (value && json_is_array(value)) {
-        ch->comm = flags_from_json_array(comm_flags, value);
+        ch->comm = json_flags_deserialize(value, comm_flags);
     } else {
         value = json_object_get(character, "comm");
         if (value) ch->comm = json_integer_value(value);
@@ -2649,7 +2575,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     if (ch->pcdata) {
         value = json_object_get(character, "channel_flags");
         if (value && json_is_array(value)) {
-            ch->pcdata->channel_flags = flags_from_json_array(channel_flags, value);
+            ch->pcdata->channel_flags = json_flags_deserialize(value, channel_flags);
         } else {
             // Try numeric format (named "channel_flags_numeric" in new format, or just "channel_flags" in old numeric format)
             value = json_object_get(character, "channel_flags_numeric");
@@ -2814,7 +2740,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     // *** AFFECT FLAGS - Both current and permanent (prefer arrays, fall back to numeric) ***
     value = json_object_get(character, "affected_by_flags");
     if (value && json_is_array(value)) {
-        ch->affected_by[0] = flags_from_json_array(affect_flags, value);
+        ch->affected_by[0] = json_flags_deserialize(value, affect_flags);
     } else {
         value = json_object_get(character, "affected_by");
         if (value) ch->affected_by[0] = json_integer_value(value);
@@ -2822,7 +2748,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "affected_by2_flags");
     if (value && json_is_array(value)) {
-        ch->affected_by[1] = flags_from_json_array(affect2_flags, value);
+        ch->affected_by[1] = json_flags_deserialize(value, affect2_flags);
     } else {
         value = json_object_get(character, "affected_by2");
         if (value) ch->affected_by[1] = json_integer_value(value);
@@ -2830,7 +2756,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "affected_by_perm_flags");
     if (value && json_is_array(value)) {
-        ch->affected_by_perm[0] = flags_from_json_array(affect_flags, value);
+        ch->affected_by_perm[0] = json_flags_deserialize(value, affect_flags);
     } else {
         value = json_object_get(character, "affected_by_perm");
         if (value) ch->affected_by_perm[0] = json_integer_value(value);
@@ -2838,7 +2764,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "affected_by_perm2_flags");
     if (value && json_is_array(value)) {
-        ch->affected_by_perm[1] = flags_from_json_array(affect2_flags, value);
+        ch->affected_by_perm[1] = json_flags_deserialize(value, affect2_flags);
     } else {
         value = json_object_get(character, "affected_by_perm2");
         if (value) ch->affected_by_perm[1] = json_integer_value(value);
@@ -2847,7 +2773,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     // *** RESISTANCE/IMMUNITY/VULNERABILITY FLAGS (prefer arrays, fall back to numeric) ***
     value = json_object_get(character, "imm_flags_names");
     if (value && json_is_array(value)) {
-        ch->imm_flags = flags_from_json_array(imm_flags, value);
+        ch->imm_flags = json_flags_deserialize(value, imm_flags);
     } else {
         value = json_object_get(character, "imm_flags");
         if (value) ch->imm_flags = json_integer_value(value);
@@ -2855,7 +2781,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "imm_flags_perm_names");
     if (value && json_is_array(value)) {
-        ch->imm_flags_perm = flags_from_json_array(imm_flags, value);
+        ch->imm_flags_perm = json_flags_deserialize(value, imm_flags);
     } else {
         value = json_object_get(character, "imm_flags_perm");
         if (value) ch->imm_flags_perm = json_integer_value(value);
@@ -2863,7 +2789,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "res_flags_names");
     if (value && json_is_array(value)) {
-        ch->res_flags = flags_from_json_array(res_flags, value);
+        ch->res_flags = json_flags_deserialize(value, res_flags);
     } else {
         value = json_object_get(character, "res_flags");
         if (value) ch->res_flags = json_integer_value(value);
@@ -2871,7 +2797,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "res_flags_perm_names");
     if (value && json_is_array(value)) {
-        ch->res_flags_perm = flags_from_json_array(res_flags, value);
+        ch->res_flags_perm = json_flags_deserialize(value, res_flags);
     } else {
         value = json_object_get(character, "res_flags_perm");
         if (value) ch->res_flags_perm = json_integer_value(value);
@@ -2879,7 +2805,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "vuln_flags_names");
     if (value && json_is_array(value)) {
-        ch->vuln_flags = flags_from_json_array(vuln_flags, value);
+        ch->vuln_flags = json_flags_deserialize(value, vuln_flags);
     } else {
         value = json_object_get(character, "vuln_flags");
         if (value) ch->vuln_flags = json_integer_value(value);
@@ -2887,7 +2813,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     value = json_object_get(character, "vuln_flags_perm_names");
     if (value && json_is_array(value)) {
-        ch->vuln_flags_perm = flags_from_json_array(vuln_flags, value);
+        ch->vuln_flags_perm = json_flags_deserialize(value, vuln_flags);
     } else {
         value = json_object_get(character, "vuln_flags_perm");
         if (value) ch->vuln_flags_perm = json_integer_value(value);
@@ -2896,7 +2822,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     // Lost body parts (prefer array, fall back to numeric)
     value = json_object_get(character, "lostparts_names");
     if (value && json_is_array(value)) {
-        ch->lostparts = flags_from_json_array(part_flags, value);
+        ch->lostparts = json_flags_deserialize(value, part_flags);
     } else {
         value = json_object_get(character, "lostparts");
         if (value) ch->lostparts = json_integer_value(value);

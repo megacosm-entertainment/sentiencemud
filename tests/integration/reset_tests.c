@@ -54,10 +54,10 @@ static test_result_t test_reset_cross_area_creation(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
-    long source_room_vnum = json_get_int(input, "source_room_vnum");
-    long target_area_uid = json_get_int(input, "target_area_uid");
-    long target_entity_vnum = json_get_int(input, "target_entity_vnum");
-    const char *reset_type = json_get_string(input, "reset_type");
+    long source_room_vnum = test_json_get_int(input, "source_room_vnum");
+    long target_area_uid = test_json_get_int(input, "target_area_uid");
+    long target_entity_vnum = test_json_get_int(input, "target_entity_vnum");
+    const char *reset_type = test_json_get_string(input, "reset_type");
     
     /* Find source room */
     AREA_DATA *source_area = find_area_by_vnum(source_room_vnum, NULL);
@@ -122,8 +122,8 @@ static test_result_t test_reset_serialization(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
-    long area_uid = json_get_int(input, "area_uid");
-    long room_vnum = json_get_int(input, "room_vnum");
+    long area_uid = test_json_get_int(input, "area_uid");
+    long room_vnum = test_json_get_int(input, "room_vnum");
     
     /* Find area and room */
     AREA_DATA *area = get_area_index(area_uid);
@@ -217,9 +217,9 @@ static test_result_t test_reset_legacy_vnum(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
-    long room_vnum = json_get_int(input, "room_vnum");
-    long entity_vnum = json_get_int(input, "entity_vnum");
-    const char *reset_type = json_get_string(input, "reset_type");
+    long room_vnum = test_json_get_int(input, "room_vnum");
+    long entity_vnum = test_json_get_int(input, "entity_vnum");
+    const char *reset_type = test_json_get_string(input, "reset_type");
     
     /* Find room */
     AREA_DATA *area = find_area_by_vnum(room_vnum, NULL);

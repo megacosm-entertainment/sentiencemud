@@ -12,6 +12,7 @@
 #include "../../tables.h"
 #include "../../recycle.h"
 #include "../../traits.h"
+#include "json_common.h"
 
 #define RACES_DIR	DATA_DIR "races/"
 
@@ -125,36 +126,7 @@ void free_race_data(RACE_DATA *race)
     race->valid = false;
 }
 
-/***************************************************************************
- * Flag Parsing Utilities                                                  *
- ***************************************************************************/
-
-static long flags_from_json_array(const struct flag_type *flag_table, json_t *flags_array)
-{
-    long bits = 0;
-    size_t index;
-    json_t *value;
-    const char *flag_name;
-
-    if (!flag_table || !flags_array || !json_is_array(flags_array)) {
-        return 0;
-    }
-
-    json_array_foreach(flags_array, index, value) {
-        flag_name = json_string_value(value);
-        if (!flag_name) continue;
-
-        /* Look up flag by name */
-        for (int i = 0; flag_table[i].name != NULL; i++) {
-            if (!str_cmp(flag_table[i].name, flag_name)) {
-                SET_BIT(bits, flag_table[i].bit);
-                break;
-            }
-        }
-    }
-
-    return bits;
-}
+/* Flag deserialization now provided by json_common.h */
 
 /***************************************************************************
  * JSON Race Loading                                                       *
@@ -236,21 +208,21 @@ static RACE_DATA *race_load_json(const char *filename)
         else if (race->default_alignment == 1)
             race->default_alignment = 750;
 
-        race->form = flags_from_json_array(form_flags, json_object_get(obj, "form"));
-        race->parts = flags_from_json_array(part_flags, json_object_get(obj, "parts"));
+        race->form = json_flags_deserialize(json_object_get(obj, "form"), form_flags);
+        race->parts = json_flags_deserialize(json_object_get(obj, "parts"), part_flags);
     }
 
     /* Combat section */
     obj = json_object_get(root, "combat");
     if (obj && json_is_object(obj)) {
-        race->act[0] = flags_from_json_array(act_flags, json_object_get(obj, "act"));
-        race->act[1] = flags_from_json_array(act2_flags, json_object_get(obj, "act2"));
-        race->aff[0] = flags_from_json_array(affect_flags, json_object_get(obj, "affects"));
-        race->aff[1] = flags_from_json_array(affect2_flags, json_object_get(obj, "affects2"));
-        race->off = flags_from_json_array(off_flags, json_object_get(obj, "offensive"));
-        race->imm = flags_from_json_array(imm_flags, json_object_get(obj, "immunities"));
-        race->res = flags_from_json_array(res_flags, json_object_get(obj, "resistances"));
-        race->vuln = flags_from_json_array(vuln_flags, json_object_get(obj, "vulnerabilities"));
+        race->act[0] = json_flags_deserialize(json_object_get(obj, "act"), act_flags);
+        race->act[1] = json_flags_deserialize(json_object_get(obj, "act2"), act2_flags);
+        race->aff[0] = json_flags_deserialize(json_object_get(obj, "affects"), affect_flags);
+        race->aff[1] = json_flags_deserialize(json_object_get(obj, "affects2"), affect2_flags);
+        race->off = json_flags_deserialize(json_object_get(obj, "offensive"), off_flags);
+        race->imm = json_flags_deserialize(json_object_get(obj, "immunities"), imm_flags);
+        race->res = json_flags_deserialize(json_object_get(obj, "resistances"), res_flags);
+        race->vuln = json_flags_deserialize(json_object_get(obj, "vulnerabilities"), vuln_flags);
     }
 
     /* Attributes section */
@@ -746,30 +718,7 @@ bool race_has_skill(RACE_DATA *race, const char *skill_name)
  * JSON Race Saving                                                        *
  ***************************************************************************/
 
-/**
- * flags_to_json_array - Convert a bitmask to a JSON array of flag name strings
- *
- * Inverse of flags_from_json_array. Iterates the flag table and adds
- * the name of each flag whose bit is set.
- *
- * @param flag_table  The flag_type table to use for name lookup
- * @param bits        The bitmask to convert
- * @return            A json_t array of strings (caller must decref)
- */
-static json_t *flags_to_json_array(const struct flag_type *flag_table, long bits)
-{
-    json_t *arr = json_array();
-
-    if (!flag_table || bits == 0)
-        return arr;
-
-    for (int i = 0; flag_table[i].name != NULL; i++) {
-        if (flag_table[i].bit != 0 && IS_SET(bits, flag_table[i].bit))
-            json_array_append_new(arr, json_string(flag_table[i].name));
-    }
-
-    return arr;
-}
+/* Flag serialization now provided by json_common.h */
 
 
 /**
@@ -824,20 +773,20 @@ bool save_race_json(RACE_DATA *race)
     json_object_set_new(obj, "min_size", json_integer(race->min_size));
     json_object_set_new(obj, "max_size", json_integer(race->max_size));
     json_object_set_new(obj, "default_alignment", json_integer(race->default_alignment));
-    json_object_set_new(obj, "form", flags_to_json_array(form_flags, race->form));
-    json_object_set_new(obj, "parts", flags_to_json_array(part_flags, race->parts));
+    json_object_set_new(obj, "form", json_flags_serialize(race->form, form_flags));
+    json_object_set_new(obj, "parts", json_flags_serialize(race->parts, part_flags));
     json_object_set_new(root, "physical", obj);
 
     /* Combat */
     obj = json_object();
-    json_object_set_new(obj, "act", flags_to_json_array(act_flags, race->act[0]));
-    json_object_set_new(obj, "act2", flags_to_json_array(act2_flags, race->act[1]));
-    json_object_set_new(obj, "affects", flags_to_json_array(affect_flags, race->aff[0]));
-    json_object_set_new(obj, "affects2", flags_to_json_array(affect2_flags, race->aff[1]));
-    json_object_set_new(obj, "offensive", flags_to_json_array(off_flags, race->off));
-    json_object_set_new(obj, "immunities", flags_to_json_array(imm_flags, race->imm));
-    json_object_set_new(obj, "resistances", flags_to_json_array(res_flags, race->res));
-    json_object_set_new(obj, "vulnerabilities", flags_to_json_array(vuln_flags, race->vuln));
+    json_object_set_new(obj, "act", json_flags_serialize(race->act[0], act_flags));
+    json_object_set_new(obj, "act2", json_flags_serialize(race->act[1], act2_flags));
+    json_object_set_new(obj, "affects", json_flags_serialize(race->aff[0], affect_flags));
+    json_object_set_new(obj, "affects2", json_flags_serialize(race->aff[1], affect2_flags));
+    json_object_set_new(obj, "offensive", json_flags_serialize(race->off, off_flags));
+    json_object_set_new(obj, "immunities", json_flags_serialize(race->imm, imm_flags));
+    json_object_set_new(obj, "resistances", json_flags_serialize(race->res, res_flags));
+    json_object_set_new(obj, "vulnerabilities", json_flags_serialize(race->vuln, vuln_flags));
     json_object_set_new(root, "combat", obj);
 
     /* Attributes */

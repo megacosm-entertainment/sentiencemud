@@ -27,6 +27,7 @@
 #include "../../tables.h"
 #include "../../recycle.h"
 #include "../../scripts.h"
+#include "json_common.h"
 #include "json_instance.h"
 #include "../../wilds.h"
 #include "../cache/redis_cache.h"
@@ -68,16 +69,7 @@ extern CHAR_DATA *persist_load_mobile(FILE *fp);
  */
 static json_t *wnum_to_json(AREA_DATA *area, long vnum)
 {
-    char buf[256];
-    long area_uid = area ? area->uid : 0;
-    
-    if (area_uid > 0) {
-        snprintf(buf, sizeof(buf), "%ld#%ld", area_uid, vnum);
-    } else {
-        snprintf(buf, sizeof(buf), "%ld", vnum);
-    }
-    
-    return json_string(buf);
+    return json_wnum_serialize(area ? area->uid : 0, vnum);
 }
 
 /**

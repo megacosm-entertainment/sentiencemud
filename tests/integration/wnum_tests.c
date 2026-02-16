@@ -77,10 +77,10 @@ static test_result_t test_wnum_parsing(test_case_t *test) {
     size_t index;
     json_t *test_case;
     json_array_foreach(test_cases, index, test_case) {
-        const char *input = json_get_string(test_case, "input");
-        const char *context_area_name = json_get_string(test_case, "context_area");
-        int expected_vnum = json_get_int(test_case, "expected_vnum");
-        const char *expected_area_name = json_get_string(test_case, "expected_area");
+        const char *input = test_json_get_string(test_case, "input");
+        const char *context_area_name = test_json_get_string(test_case, "context_area");
+        int expected_vnum = test_json_get_int(test_case, "expected_vnum");
+        const char *expected_area_name = test_json_get_string(test_case, "expected_area");
         
         if (!input || expected_vnum == 0) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid test case in WNUM test");
@@ -131,9 +131,9 @@ static test_result_t test_area_name_parsing(test_case_t *test) {
     size_t index;
     json_t *test_case;
     json_array_foreach(test_cases, index, test_case) {
-        const char *input = json_get_string(test_case, "input");
-        int expected_vnum = json_get_int(test_case, "expected_vnum");
-        const char *expected_area_name = json_get_string(test_case, "expected_area");
+        const char *input = test_json_get_string(test_case, "input");
+        int expected_vnum = test_json_get_int(test_case, "expected_vnum");
+        const char *expected_area_name = test_json_get_string(test_case, "expected_area");
         
         if (!input || expected_vnum == 0 || !expected_area_name) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Invalid test case in area name test");
@@ -383,8 +383,8 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
     size_t index;
     json_t *test_case;
     json_array_foreach(test_cases, index, test_case) {
-        const char *vnum_string = json_get_string(test_case, "vnum_string");
-        const char *context_area_name = json_get_string(test_case, "context_area");
+        const char *vnum_string = test_json_get_string(test_case, "vnum_string");
+        const char *context_area_name = test_json_get_string(test_case, "context_area");
         
         if (!vnum_string) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid test case: missing vnum_string");
@@ -430,8 +430,8 @@ static test_result_t test_area_existence_check(test_case_t *test) {
     size_t index;
     json_t *area_spec;
     json_array_foreach(required_areas, index, area_spec) {
-        const char *area_name = json_get_string(area_spec, "name");
-        int expected_uid = json_get_int(area_spec, "expected_uid");
+        const char *area_name = test_json_get_string(area_spec, "name");
+        int expected_uid = test_json_get_int(area_spec, "expected_uid");
         
         if (!area_name) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid area spec: missing name");
@@ -531,10 +531,10 @@ static test_result_t test_pure_function(test_case_t *test) {
         size_t index;
         json_t *test_case;
         json_array_foreach(test_cases, index, test_case) {
-            const char *input_str = json_get_string(test_case, "input");
-            const char *expected_area = json_get_string(test_case, "expected_area");
-            long expected_vnum = json_get_int(test_case, "expected_vnum");
-            const char *context_area_name = json_get_string(test_case, "context_area");
+            const char *input_str = test_json_get_string(test_case, "input");
+            const char *expected_area = test_json_get_string(test_case, "expected_area");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            const char *context_area_name = test_json_get_string(test_case, "context_area");
             
             if (!input_str) continue;
             
@@ -615,8 +615,8 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *reserved_name = json_get_string(input, "reserved_name");
-    bool should_exist = json_get_bool(input, "should_exist");
+    const char *reserved_name = test_json_get_string(input, "reserved_name");
+    bool should_exist = test_json_get_bool(input, "should_exist");
     
     if (!reserved_name) {
         return TEST_ERROR;
@@ -636,7 +636,7 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
         return TEST_FAILURE;
     }
     
-    if (reserved && json_get_bool(expected, "has_area")) {
+    if (reserved && test_json_get_bool(expected, "has_area")) {
         AREA_DATA *area = get_area_index(reserved->wnum.auid);
         if (!area && reserved->wnum.auid > 0) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
@@ -646,7 +646,7 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
         }
     }
     
-    if (reserved && json_get_bool(expected, "has_vnum")) {
+    if (reserved && test_json_get_bool(expected, "has_vnum")) {
         if (reserved->type != RESERVED_AREA && reserved->wnum.vnum <= 0) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Reserved item '%s' has invalid vnum %ld",
@@ -670,7 +670,7 @@ static test_result_t test_reserved_wnum_format(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *reserved_name = json_get_string(input, "reserved_name");
+    const char *reserved_name = test_json_get_string(input, "reserved_name");
     if (!reserved_name) {
         return TEST_ERROR;
     }
@@ -689,7 +689,7 @@ static test_result_t test_reserved_wnum_format(test_case_t *test) {
         return TEST_FAILURE;
     }
     
-    if (json_get_bool(expected, "has_hash_separator")) {
+    if (test_json_get_bool(expected, "has_hash_separator")) {
         if (!strchr(wnum_str, '#')) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "WNUM string '%s' missing # separator", wnum_str);
@@ -697,7 +697,7 @@ static test_result_t test_reserved_wnum_format(test_case_t *test) {
         }
     }
     
-    if (json_get_bool(expected, "parseable")) {
+    if (test_json_get_bool(expected, "parseable")) {
         WNUM parsed;
         if (!parse_widevnum((char*)wnum_str, NULL, &parsed)) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
@@ -720,7 +720,7 @@ static test_result_t test_reserved_compat(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *reserved_name = json_get_string(input, "reserved_name");
+    const char *reserved_name = test_json_get_string(input, "reserved_name");
     if (!reserved_name) {
         return TEST_ERROR;
     }
@@ -753,21 +753,21 @@ static test_result_t test_game_setting_exists(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *setting_name = json_get_string(input, "setting_name");
+    const char *setting_name = test_json_get_string(input, "setting_name");
     if (!setting_name) {
         return TEST_ERROR;
     }
     
     const struct game_setting_type *setting = get_game_setting(setting_name);
     
-    if (!setting && json_get_bool(expected, "setting_found")) {
+    if (!setting && test_json_get_bool(expected, "setting_found")) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                      "Game setting '%s' not found", setting_name);
         return TEST_FAILURE;
     }
     
     if (setting) {
-        const char *expected_type = json_get_string(input, "expected_type");
+        const char *expected_type = test_json_get_string(input, "expected_type");
         if (expected_type && strcmp(expected_type, "string") == 0) {
             if (setting->type != SETTING_TYPE_STRING && 
                 setting->type != SETTING_TYPE_EXTSTR) {
@@ -777,7 +777,7 @@ static test_result_t test_game_setting_exists(test_case_t *test) {
             }
         }
         
-        const char *expected_category = json_get_string(input, "expected_category");
+        const char *expected_category = test_json_get_string(input, "expected_category");
         if (expected_category && strcmp(expected_category, "global") == 0) {
             if (setting->category != SETTING_CAT_GLOBAL) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
@@ -802,7 +802,7 @@ static test_result_t test_system_area_resolve(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *test_mode = json_get_string(input, "test_mode");
+    const char *test_mode = test_json_get_string(input, "test_mode");
     
     if (strcmp(test_mode, "numeric") == 0) {
         // Find any area and test with its UID
@@ -815,21 +815,21 @@ static test_result_t test_system_area_resolve(test_case_t *test) {
                 resolved = get_area_index(atol(uid_str));
             }
             
-            if (!resolved && json_get_bool(expected, "area_resolved")) {
+            if (!resolved && test_json_get_bool(expected, "area_resolved")) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                              "Failed to resolve area by UID %s", uid_str);
                 return TEST_FAILURE;
             }
         }
     } else if (strcmp(test_mode, "name") == 0) {
-        const char *area_name = json_get_string(input, "area_name");
+        const char *area_name = test_json_get_string(input, "area_name");
         if (area_name) {
             AREA_DATA *resolved = find_area((char*)area_name);
-            if (!resolved && json_get_bool(input, "fallback_to_first")) {
+            if (!resolved && test_json_get_bool(input, "fallback_to_first")) {
                 resolved = area_first;
             }
             
-            if (!resolved && json_get_bool(expected, "area_resolved")) {
+            if (!resolved && test_json_get_bool(expected, "area_resolved")) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                              "Failed to resolve area by name '%s'", area_name);
                 return TEST_FAILURE;
@@ -854,7 +854,7 @@ static test_result_t test_system_area_fallback(test_case_t *test) {
     // Test that invalid system_area falls back to area_first
     AREA_DATA *fallback = area_first;
     
-    if (!fallback && json_get_bool(expected, "fallback_area_valid")) {
+    if (!fallback && test_json_get_bool(expected, "fallback_area_valid")) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                    "No fallback area available (area_first is NULL)");
         return TEST_FAILURE;
@@ -875,7 +875,7 @@ static test_result_t test_widevnum_parse_fallback(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *wnum_str = json_get_string(input, "widevnum_string");
+    const char *wnum_str = test_json_get_string(input, "widevnum_string");
     if (!wnum_str) {
         return TEST_ERROR;
     }
@@ -883,13 +883,13 @@ static test_result_t test_widevnum_parse_fallback(test_case_t *test) {
     WNUM result;
     bool parsed = parse_widevnum((char*)wnum_str, NULL, &result);
     
-    if (!parsed && json_get_bool(expected, "parsed")) {
+    if (!parsed && test_json_get_bool(expected, "parsed")) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                      "Failed to parse widevnum '%s' without current area", wnum_str);
         return TEST_FAILURE;
     }
     
-    if (parsed && json_get_bool(expected, "used_system_area")) {
+    if (parsed && test_json_get_bool(expected, "used_system_area")) {
         // Verify the area used matches system_area or fallback
         if (!result.pArea) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
@@ -913,7 +913,7 @@ static test_result_t test_widevnum_parse_explicit(test_case_t *test) {
         return TEST_ERROR;
     }
     
-    const char *wnum_str = json_get_string(input, "widevnum_string");
+    const char *wnum_str = test_json_get_string(input, "widevnum_string");
     if (!wnum_str) {
         return TEST_ERROR;
     }
@@ -921,13 +921,13 @@ static test_result_t test_widevnum_parse_explicit(test_case_t *test) {
     WNUM result;
     bool parsed = parse_widevnum((char*)wnum_str, NULL, &result);
     
-    if (!parsed && json_get_bool(expected, "parsed")) {
+    if (!parsed && test_json_get_bool(expected, "parsed")) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                      "Failed to parse explicit widevnum '%s'", wnum_str);
         return TEST_FAILURE;
     }
     
-    if (parsed && json_get_bool(expected, "used_explicit_area")) {
+    if (parsed && test_json_get_bool(expected, "used_explicit_area")) {
         // Verify explicit area was used (format: UID#vnum)
         if (!strchr(wnum_str, '#')) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
@@ -959,7 +959,7 @@ static test_result_t test_json_area_serialize(test_case_t *test) {
         return TEST_ERROR;
     }
 
-    const char *area_name = json_get_string(input, "area_name");
+    const char *area_name = test_json_get_string(input, "area_name");
     if (!area_name) {
         return TEST_ERROR;
     }
@@ -1032,7 +1032,7 @@ static test_result_t test_json_area_rooms(test_case_t *test) {
         return TEST_ERROR;
     }
 
-    const char *area_name = json_get_string(input, "area_name");
+    const char *area_name = test_json_get_string(input, "area_name");
     if (!area_name) {
         return TEST_ERROR;
     }
@@ -1065,7 +1065,7 @@ static test_result_t test_json_area_rooms(test_case_t *test) {
     }
 
     // Check that exits have to_area field
-    bool check_exit_fields = json_get_bool(input, "check_exit_fields");
+    bool check_exit_fields = test_json_get_bool(input, "check_exit_fields");
     if (check_exit_fields) {
         size_t index;
         json_t *room;
@@ -1148,7 +1148,7 @@ static test_result_t test_json_area_roundtrip(test_case_t *test) {
         return TEST_ERROR;
     }
 
-    const char *area_name = json_get_string(input, "area_name");
+    const char *area_name = test_json_get_string(input, "area_name");
     if (!area_name) {
         return TEST_ERROR;
     }
@@ -1244,7 +1244,7 @@ static test_result_t test_redis_area_cached(test_case_t *test) {
     int checked = 0, found = 0;
 
     json_array_foreach(areas_to_check, index, area_spec) {
-        const char *area_name = json_get_string(area_spec, "name");
+        const char *area_name = test_json_get_string(area_spec, "name");
         if (!area_name) continue;
 
         AREA_DATA *area = find_area((char*)area_name);
@@ -1282,7 +1282,7 @@ static test_result_t test_redis_area_cache_format(test_case_t *test) {
         return TEST_ERROR;
     }
 
-    const char *area_name = json_get_string(input, "area_name");
+    const char *area_name = test_json_get_string(input, "area_name");
     if (!area_name) {
         return TEST_ERROR;
     }

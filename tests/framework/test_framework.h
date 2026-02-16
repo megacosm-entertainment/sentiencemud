@@ -142,9 +142,17 @@ bool test_environment_ready(void);
 
 // JSON parsing helpers
 json_t *load_json_file(const char *filepath);
-const char *json_get_string(json_t *obj, const char *key);
-int json_get_int(json_t *obj, const char *key);
-bool json_get_bool(json_t *obj, const char *key);
+
+// Use json_common.h for JSON value getters:
+//   json_get_string(obj, key, default_val)
+//   json_get_int(obj, key, default_val)
+//   json_get_bool(obj, key, default_val)
+#include "../../io/json/json_common.h"
+
+// Convenience macros for test code (2-arg calls with sensible defaults)
+#define test_json_get_string(obj, key) json_get_string((obj), (key), NULL)
+#define test_json_get_int(obj, key)    ((int)json_get_int((obj), (key), 0))
+#define test_json_get_bool(obj, key)   json_get_bool((obj), (key), false)
 
 #endif // BUILD_TESTS
 

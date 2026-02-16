@@ -58,7 +58,7 @@ static test_result_t test_trait_def_count(test_case_t *test)
     if (test && test->config) {
         json_t *input = json_object_get(test->config, "input");
         if (input) {
-            int cfg_min = json_get_int(input, "minimum_expected");
+            int cfg_min = test_json_get_int(input, "minimum_expected");
             if (cfg_min > 0) min_expected = cfg_min;
         }
     }
@@ -95,8 +95,8 @@ static test_result_t test_trait_def_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *id = json_get_string(tc, "id");
-        bool should_find = json_get_bool(tc, "should_find");
+        const char *id = test_json_get_string(tc, "id");
+        bool should_find = test_json_get_bool(tc, "should_find");
 
         if (!id) continue;
 

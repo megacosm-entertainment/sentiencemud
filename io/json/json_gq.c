@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <jansson.h>
 #include "../../merc.h"
+#include "json_common.h"
 #include "json_gq.h"
 #include "../../recycle.h"
 
@@ -34,22 +35,7 @@ extern GQ_DATA global_quest;
  * Helper Functions                                                        *
  ***************************************************************************/
 
-/**
- * Create a WNUM reference as a JSON string
- * Format: "area_uid#vnum" or bare "vnum"
- */
-static json_t *wnum_to_json_str(long area_uid, long vnum)
-{
-    char buf[256];
-    
-    if (area_uid > 0) {
-        snprintf(buf, sizeof(buf), "%ld#%ld", area_uid, vnum);
-    } else {
-        snprintf(buf, sizeof(buf), "%ld", vnum);
-    }
-    
-    return json_string(buf);
-}
+/* WNUM helpers now provided by json_common.h */
 
 static void gq_set_load_from_wnum(const WNUM *wnum, WNUM_LOAD *load)
 {
@@ -77,35 +63,7 @@ static void gq_resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum)
     resolve_wnum_load(load, wnum, fallback);
 }
 
-/**
- * Parse a WNUM from JSON string
- * Supports both "area_uid#vnum" and bare "vnum"
- * Returns area_uid (0 if not specified) and vnum
- */
-static void parse_wnum_from_json(json_t *json, long *area_uid, long *vnum)
-{
-    const char *str;
-    
-    *area_uid = 0;
-    *vnum = 0;
-    
-    if (!json || !json_is_string(json)) {
-        return;
-    }
-    
-    str = json_string_value(json);
-    if (!str) {
-        return;
-    }
-    
-    /* Check for area_uid#vnum format */
-    if (strchr(str, '#')) {
-        sscanf(str, "%ld#%ld", area_uid, vnum);
-    } else {
-        /* Bare vnum */
-        *vnum = atol(str);
-    }
-}
+/* WNUM parse now provided by json_common.h */
 
 /***************************************************************************
  * GQ Mob Serialization                                                    *
@@ -131,7 +89,7 @@ json_t *gq_mob_to_json(GQ_MOB_DATA *gq_mob)
     if (mob_load.vnum == 0) {
         gq_set_load_from_wnum(&gq_mob->vnum_wnum, &mob_load);
     }
-    json_object_set_new(json, "mob_vnum", wnum_to_json_str(mob_load.auid, mob_load.vnum));
+    json_object_set_new(json, "mob_vnum", json_wnum_serialize(mob_load.auid, mob_load.vnum));
     
     /* Object vnum as WNUM (object carried by mob) */
     obj_load = gq_mob->obj_load;
@@ -139,7 +97,7 @@ json_t *gq_mob_to_json(GQ_MOB_DATA *gq_mob)
         gq_set_load_from_wnum(&gq_mob->obj_wnum, &obj_load);
     }
     if (obj_load.vnum != 0) {
-        json_object_set_new(json, "obj_vnum", wnum_to_json_str(obj_load.auid, obj_load.vnum));
+        json_object_set_new(json, "obj_vnum", json_wnum_serialize(obj_load.auid, obj_load.vnum));
     }
     
     /* Properties */
@@ -169,7 +127,7 @@ GQ_MOB_DATA *json_to_gq_mob(json_t *json)
     /* Mob vnum */
     value = json_object_get(json, "mob_vnum");
     if (value) {
-        parse_wnum_from_json(value, &area_uid, &vnum);
+        json_wnum_deserialize(value, &area_uid, &vnum);
         gq_mob->vnum_load.auid = area_uid;
         gq_mob->vnum_load.vnum = vnum;
         gq_resolve_wnum_load(&gq_mob->vnum_load, &gq_mob->vnum_wnum);
@@ -178,7 +136,7 @@ GQ_MOB_DATA *json_to_gq_mob(json_t *json)
     /* Object vnum */
     value = json_object_get(json, "obj_vnum");
     if (value) {
-        parse_wnum_from_json(value, &area_uid, &vnum);
+        json_wnum_deserialize(value, &area_uid, &vnum);
         gq_mob->obj_load.auid = area_uid;
         gq_mob->obj_load.vnum = vnum;
         gq_resolve_wnum_load(&gq_mob->obj_load, &gq_mob->obj_wnum);
@@ -223,7 +181,7 @@ json_t *gq_obj_to_json(GQ_OBJ_DATA *gq_obj)
     if (obj_load.vnum == 0) {
         gq_set_load_from_wnum(&gq_obj->vnum_wnum, &obj_load);
     }
-    json_object_set_new(json, "obj_vnum", wnum_to_json_str(obj_load.auid, obj_load.vnum));
+    json_object_set_new(json, "obj_vnum", json_wnum_serialize(obj_load.auid, obj_load.vnum));
     
     /* Rewards */
     json_object_set_new(json, "qp_reward", json_integer(gq_obj->qp_reward));
@@ -258,7 +216,7 @@ GQ_OBJ_DATA *json_to_gq_obj(json_t *json)
     /* Object vnum */
     value = json_object_get(json, "obj_vnum");
     if (value) {
-        parse_wnum_from_json(value, &area_uid, &vnum);
+        json_wnum_deserialize(value, &area_uid, &vnum);
         gq_obj->vnum_load.auid = area_uid;
         gq_obj->vnum_load.vnum = vnum;
         gq_resolve_wnum_load(&gq_obj->vnum_load, &gq_obj->vnum_wnum);

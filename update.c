@@ -2541,9 +2541,13 @@ void obj_update(void)
                         OBJ_DATA *new_obj;
                         long seed_vnum = SEED(obj)->object_vnum;
                         AREA_DATA *seed_area = NULL;
-                        WNUM seed_wnum;
-                        if (resolve_widevnum(seed_vnum, NULL, &seed_wnum))
-                            seed_area = seed_wnum.pArea;
+                        if (SEED(obj)->object_area_uid > 0)
+                            seed_area = get_area_index(SEED(obj)->object_area_uid);
+                        if (!seed_area) {
+                            WNUM seed_wnum;
+                            if (resolve_widevnum(seed_vnum, NULL, &seed_wnum))
+                                seed_area = seed_wnum.pArea;
+                        }
                         if (!seed_area) seed_area = get_system_area_fallback();
                         if (get_obj_index(seed_area, seed_vnum) == NULL) {
                             pbugf(LOG_ERROR, "Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);

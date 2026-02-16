@@ -105,8 +105,8 @@ static test_result_t test_position_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -149,8 +149,8 @@ static test_result_t test_sex_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -193,8 +193,8 @@ static test_result_t test_size_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -228,7 +228,7 @@ static test_result_t test_flag_table_lookup(test_case_t *test)
     }
 
     json_t *input = json_object_get(test->config, "input");
-    const char *table_name = json_get_string(input, "table");
+    const char *table_name = test_json_get_string(input, "table");
     json_t *test_cases = json_object_get(input, "test_cases");
 
     if (!table_name || !test_cases || !json_is_array(test_cases)) {
@@ -245,8 +245,8 @@ static test_result_t test_flag_table_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -289,8 +289,8 @@ static test_result_t test_damage_class_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 

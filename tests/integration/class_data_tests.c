@@ -78,7 +78,7 @@ static test_result_t test_class_count(test_case_t *test)
     if (test && test->config) {
         json_t *input = json_object_get(test->config, "input");
         if (input) {
-            int cfg_min = json_get_int(input, "minimum_expected");
+            int cfg_min = test_json_get_int(input, "minimum_expected");
             if (cfg_min > 0) min_expected = cfg_min;
         }
     }
@@ -120,8 +120,8 @@ static test_result_t test_class_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
-        const char *name = json_get_string(tc, "name");
-        bool should_exist = json_get_bool(tc, "should_exist");
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
 
         if (!name) continue;
 
@@ -285,7 +285,7 @@ static test_result_t test_class_type_valid(test_case_t *test)
     if (test && test->config) {
         json_t *input = json_object_get(test->config, "input");
         if (input) {
-            int cfg_max = json_get_int(input, "max_class_type");
+            int cfg_max = test_json_get_int(input, "max_class_type");
             if (cfg_max > 0) max_type = cfg_max;
         }
     }

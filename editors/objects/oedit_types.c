@@ -433,9 +433,23 @@ OEDIT(oedit_corpse)
             return true;
         }
         if (!str_prefix(field, "mobile")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: corpse mobile <vnum>\n\r", ch); return false; }
-            CORPSE(pObj)->mobile_vnum = atol(argument);
-            send_to_char("Mobile vnum set.\n\r", ch);
+            if (argument[0] == '\0') { send_to_char("Syntax: corpse mobile <vnum|0>\n\r", ch); return false; }
+            if (atol(argument) != 0) {
+                WNUM key_wnum = { NULL, 0 };
+                MOB_INDEX_DATA *key_mob;
+                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
+                key_mob = key_wnum.pArea ? get_mob_index(key_wnum.pArea, key_wnum.vnum) : get_mob_index_global(key_wnum.vnum);
+                if (!key_mob) {
+                    send_to_char("No such mobile exists.\n\r", ch);
+                    return false;
+                }
+                CORPSE(pObj)->mobile_vnum = key_wnum.vnum;
+                CORPSE(pObj)->mobile_area_uid = key_mob->area ? key_mob->area->uid : 0;
+            } else {
+                CORPSE(pObj)->mobile_vnum = 0;
+                CORPSE(pObj)->mobile_area_uid = 0;
+            }
+            send_to_char("Mobile set.\n\r", ch);
             return true;
         }
         send_to_char("Valid fields: type, resurrection, animation, parts, mobile\n\r", ch);
@@ -448,12 +462,14 @@ OEDIT(oedit_corpse)
         "  {Gresurrection  {x %d%%\n\r"
         "  {Ganimation     {x %d%%\n\r"
         "  {Gparts         {x %s\n\r"
-        "  {Gmobile        {x [%ld]\n\r",
+        "  {Gmobile        {x %s\n\r",
         flag_string(corpse_types, CORPSE(pObj)->corpse_type),
         CORPSE(pObj)->resurrection,
         CORPSE(pObj)->animation,
         flag_string(part_flags, CORPSE(pObj)->body_parts),
-        CORPSE(pObj)->mobile_vnum);
+        widevnum_string(CORPSE(pObj)->mobile_area_uid > 0
+            ? get_area_index(CORPSE(pObj)->mobile_area_uid) : NULL,
+            CORPSE(pObj)->mobile_vnum, pObj->area));
     send_to_char(buf, ch);
     return false;
 }
@@ -1434,10 +1450,12 @@ OEDIT(oedit_seed)
                     return false;
                 }
                 SEED(pObj)->object_vnum = key_wnum.vnum;
+                SEED(pObj)->object_area_uid = key_obj->area ? key_obj->area->uid : 0;
             } else {
                 SEED(pObj)->object_vnum = 0;
+                SEED(pObj)->object_area_uid = 0;
             }
-            send_to_char("Seed object vnum set.\n\r", ch);
+            send_to_char("Seed object set.\n\r", ch);
             return true;
         }
         send_to_char("Valid fields: time, object\n\r", ch);
@@ -1447,9 +1465,11 @@ OEDIT(oedit_seed)
     sprintf(buf,
         "{WSeed:{x\n\r"
         "  {Gtime          {x [%d]\n\r"
-        "  {Gobject        {x [%ld]\n\r",
+        "  {Gobject        {x %s\n\r",
         SEED(pObj)->growth_time,
-        SEED(pObj)->object_vnum);
+        widevnum_string(SEED(pObj)->object_area_uid > 0
+            ? get_area_index(SEED(pObj)->object_area_uid) : NULL,
+            SEED(pObj)->object_vnum, pObj->area));
     send_to_char(buf, ch);
     return false;
 }
@@ -1541,8 +1561,22 @@ OEDIT(oedit_ship)
             return true;
         }
         if (!str_prefix(field, "room")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: ship room <first_room_vnum>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->first_room = atol(argument);
+            if (argument[0] == '\0') { send_to_char("Syntax: ship room <room_vnum|0>\n\r", ch); return false; }
+            if (atol(argument) != 0) {
+                WNUM key_wnum = { NULL, 0 };
+                ROOM_INDEX_DATA *key_room;
+                parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &key_wnum);
+                key_room = key_wnum.pArea ? get_room_index(key_wnum.pArea, key_wnum.vnum) : get_room_index_global(key_wnum.vnum);
+                if (!key_room) {
+                    send_to_char("No such room exists.\n\r", ch);
+                    return false;
+                }
+                SHIP_TYPE(pObj)->first_room = key_wnum.vnum;
+                SHIP_TYPE(pObj)->first_room_area_uid = key_room->area ? key_room->area->uid : 0;
+            } else {
+                SHIP_TYPE(pObj)->first_room = 0;
+                SHIP_TYPE(pObj)->first_room_area_uid = 0;
+            }
             send_to_char("Ship first room set.\n\r", ch);
             return true;
         }
@@ -1569,7 +1603,7 @@ OEDIT(oedit_ship)
         "  {Gmincrew       {x [%d]\n\r"
         "  {Gcapacity      {x [%d]\n\r"
         "  {Gmaxcrew       {x [%d]\n\r"
-        "  {Groom          {x [%ld]\n\r"
+        "  {Groom          {x %s\n\r"
         "  {Ghitpoints     {x [%d]\n\r"
         "  {Gguns          {x [%d]\n\r",
         SHIP_TYPE(pObj)->weight,
@@ -1577,7 +1611,9 @@ OEDIT(oedit_ship)
         SHIP_TYPE(pObj)->min_crew,
         SHIP_TYPE(pObj)->capacity,
         SHIP_TYPE(pObj)->max_crew,
-        SHIP_TYPE(pObj)->first_room,
+        widevnum_string(SHIP_TYPE(pObj)->first_room_area_uid > 0
+            ? get_area_index(SHIP_TYPE(pObj)->first_room_area_uid) : NULL,
+            SHIP_TYPE(pObj)->first_room, pObj->area),
         SHIP_TYPE(pObj)->hit_points,
         SHIP_TYPE(pObj)->max_guns);
     send_to_char(buf, ch);
@@ -2181,12 +2217,14 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
             "  {Gresurrection  {x %d%%\n\r"
             "  {Ganimation     {x %d%%\n\r"
             "  {Gparts         {x %s\n\r"
-            "  {Gmobile        {x [%ld]\n\r",
+            "  {Gmobile        {x [%s]\n\r",
             flag_string(corpse_types, CORPSE(pObj)->corpse_type),
             CORPSE(pObj)->resurrection,
             CORPSE(pObj)->animation,
             flag_string(part_flags, CORPSE(pObj)->body_parts),
-            CORPSE(pObj)->mobile_vnum);
+            widevnum_string(
+                CORPSE(pObj)->mobile_area_uid > 0 ? get_area_index(CORPSE(pObj)->mobile_area_uid) : NULL,
+                CORPSE(pObj)->mobile_vnum, pObj->area));
         add_buf(buffer, buf);
     }
 
@@ -2425,9 +2463,11 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
         sprintf(buf,
             "\n\r{WSeed:{x\n\r"
             "  {Gtime          {x [%d]\n\r"
-            "  {Gobject        {x [%ld]\n\r",
+            "  {Gobject        {x [%s]\n\r",
             SEED(pObj)->growth_time,
-            SEED(pObj)->object_vnum);
+            widevnum_string(
+                SEED(pObj)->object_area_uid > 0 ? get_area_index(SEED(pObj)->object_area_uid) : NULL,
+                SEED(pObj)->object_vnum, pObj->area));
         add_buf(buffer, buf);
     }
 
@@ -2447,7 +2487,7 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
             "  {Gmincrew       {x [%d]\n\r"
             "  {Gcapacity      {x [%d]\n\r"
             "  {Gmaxcrew       {x [%d]\n\r"
-            "  {Groom          {x [%ld]\n\r"
+            "  {Groom          {x [%s]\n\r"
             "  {Ghitpoints     {x [%d]\n\r"
             "  {Gguns          {x [%d]\n\r",
             SHIP_TYPE(pObj)->weight,
@@ -2455,7 +2495,9 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
             SHIP_TYPE(pObj)->min_crew,
             SHIP_TYPE(pObj)->capacity,
             SHIP_TYPE(pObj)->max_crew,
-            SHIP_TYPE(pObj)->first_room,
+            widevnum_string(
+                SHIP_TYPE(pObj)->first_room_area_uid > 0 ? get_area_index(SHIP_TYPE(pObj)->first_room_area_uid) : NULL,
+                SHIP_TYPE(pObj)->first_room, pObj->area),
             SHIP_TYPE(pObj)->hit_points,
             SHIP_TYPE(pObj)->max_guns);
         add_buf(buffer, buf);

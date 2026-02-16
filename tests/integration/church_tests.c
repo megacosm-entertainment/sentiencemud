@@ -80,9 +80,9 @@ static test_result_t test_church_serialize(test_case_t *test)
         return TEST_ERROR;
     }
 
-    const char *church_name = json_get_string(input, "test_church_name");
-    const char *motd = json_get_string(input, "test_motto");
-    const char *founder = json_get_string(input, "test_founder");
+    const char *church_name = test_json_get_string(input, "test_church_name");
+    const char *motd = test_json_get_string(input, "test_motto");
+    const char *founder = test_json_get_string(input, "test_founder");
 
     /* Create a test church structure */
     CHURCH_DATA test_church;
@@ -108,7 +108,7 @@ static test_result_t test_church_serialize(test_case_t *test)
     json_t *expected = json_object_get(test->config, "expected_output");
     bool success = true;
 
-    if (json_get_bool(expected, "has_name")) {
+    if (test_json_get_bool(expected, "has_name")) {
         if (!json_object_get(church_json, "name")) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                        "Serialized church missing 'name' field");
@@ -116,7 +116,7 @@ static test_result_t test_church_serialize(test_case_t *test)
         }
     }
 
-    if (json_get_bool(expected, "has_motto")) {
+    if (test_json_get_bool(expected, "has_motto")) {
         if (!json_object_get(church_json, "motd")) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                        "Serialized church missing 'motd' field");
@@ -124,7 +124,7 @@ static test_result_t test_church_serialize(test_case_t *test)
         }
     }
 
-    if (json_get_bool(expected, "has_founder")) {
+    if (test_json_get_bool(expected, "has_founder")) {
         if (!json_object_get(church_json, "founder")) {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                        "Serialized church missing 'founder' field");
@@ -174,7 +174,7 @@ static test_result_t test_church_treasury(test_case_t *test)
         return TEST_ERROR;
     }
 
-    int test_gold = json_get_int(input, "test_gold");
+    int test_gold = test_json_get_int(input, "test_gold");
 
     /* Create test church with treasury */
     CHURCH_DATA test_church;
@@ -262,8 +262,8 @@ static test_result_t test_church_deserialize(test_case_t *test)
     }
 
     /* Verify expected fields */
-    const char *name = json_get_string(parsed, "name");
-    const char *motd = json_get_string(parsed, "motd");
+    const char *name = test_json_get_string(parsed, "name");
+    const char *motd = test_json_get_string(parsed, "motd");
 
     bool success = true;
     if (!name || strcmp(name, "Test Church Load") != 0) {

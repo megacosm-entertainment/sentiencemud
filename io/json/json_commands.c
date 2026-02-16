@@ -13,7 +13,7 @@
 #include "../../recycle.h"
 #include "../../log.h"
 #include "json_commands.h"
-#include "json_area.h"
+#include "json_common.h"
 
 #define JSON_COMMANDS_VERSION 1
 

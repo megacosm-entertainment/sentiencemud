@@ -54,10 +54,10 @@ static test_result_t test_shop_stock_cross_area_creation(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
-    long shopkeeper_vnum = json_get_int(input, "shopkeeper_vnum");
-    long target_area_uid = json_get_int(input, "target_area_uid");
-    long target_entity_vnum = json_get_int(input, "target_entity_vnum");
-    const char *stock_type_str = json_get_string(input, "stock_type");
+    long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
+    long target_area_uid = test_json_get_int(input, "target_area_uid");
+    long target_entity_vnum = test_json_get_int(input, "target_entity_vnum");
+    const char *stock_type_str = test_json_get_string(input, "stock_type");
     
     /* Find shopkeeper */
     AREA_DATA *shop_area = find_area_by_vnum(shopkeeper_vnum, NULL);
@@ -137,7 +137,7 @@ static test_result_t test_shop_stock_serialization(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
-    long shopkeeper_vnum = json_get_int(input, "shopkeeper_vnum");
+    long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
     
     /* Find shopkeeper */
     AREA_DATA *area = find_area_by_vnum(shopkeeper_vnum, NULL);
@@ -225,9 +225,9 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
-    long shopkeeper_vnum = json_get_int(input, "shopkeeper_vnum");
-    long entity_vnum = json_get_int(input, "entity_vnum");
-    const char *stock_type_str = json_get_string(input, "stock_type");
+    long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
+    long entity_vnum = test_json_get_int(input, "entity_vnum");
+    const char *stock_type_str = test_json_get_string(input, "stock_type");
     
     /* Find shopkeeper */
     AREA_DATA *area = find_area_by_vnum(shopkeeper_vnum, NULL);

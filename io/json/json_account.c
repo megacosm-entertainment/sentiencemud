@@ -21,6 +21,7 @@
 #include "../../account/penalty.h"
 #include "../../account/preferences.h"
 #include "../../account/unlock.h"
+#include "json_common.h"
 #include "json_account.h"
 #include "json_char.h"  // For obj_to_json() reuse
 
@@ -30,61 +31,7 @@
 
 extern const struct flag_type acct_flags[];
 
-/***************************************************************************
- * Flag Serialization Helpers                                              *
- ***************************************************************************/
-
-static json_t *flags_to_json_array(const struct flag_type *flag_table, long bits)
-{
-    json_t *flags_array;
-    int i;
-
-    if (!flag_table) {
-        return json_array();
-    }
-
-    flags_array = json_array();
-
-    // Convert each set bit to its flag name
-    for (i = 0; flag_table[i].name != NULL; i++) {
-        if (!is_stat(flag_table) && IS_SET(bits, flag_table[i].bit)) {
-            json_array_append_new(flags_array, json_string(flag_table[i].name));
-        } else if (flag_table[i].bit == bits) {
-            json_array_append_new(flags_array, json_string(flag_table[i].name));
-            break;
-        }
-    }
-
-    return flags_array;
-}
-
-static long flags_from_json_array(const struct flag_type *flag_table, json_t *flags_array)
-{
-    long bits = 0;
-    size_t index;
-    json_t *value;
-    const char *flag_name;
-
-    if (!flag_table || !flags_array || !json_is_array(flags_array)) {
-        return 0;
-    }
-
-    // Convert each flag name to its bit value
-    json_array_foreach(flags_array, index, value) {
-        flag_name = json_string_value(value);
-        if (!flag_name) continue;
-
-        // Look up flag by name
-        for (int i = 0; flag_table[i].name != NULL; i++) {
-            if (!str_cmp(flag_table[i].name, flag_name)) {
-                SET_BIT(bits, flag_table[i].bit);
-                break;
-            }
-        }
-    }
-
-    return bits;
-}
+/* Flag helpers now provided by json_common.h */
 
 /***************************************************************************
  * Utility Functions                                                       *
@@ -107,33 +54,12 @@ void json_get_account_backup_path(const char *username, char *path_buf, size_t b
 
 bool json_ensure_account_dir(const char *username)
 {
-    char dir_path[256];
-
-    snprintf(dir_path, sizeof(dir_path), "%s%c",
-             ACCOUNT_DIR, tolower(username[0]));
-
-    // Try to create directory (will fail if exists, which is fine)
-    mkdir(dir_path, 0755);
-    return true;
+    return json_ensure_dir(ACCOUNT_DIR, username);
 }
 
 bool json_is_account_json(const char *filename)
 {
-    FILE *fp;
-    char first_char;
-    bool is_json;
-
-    fp = fopen(filename, "r");
-    if (!fp) {
-        return false;  // File doesn't exist
-    }
-
-    // JSON files start with '{'
-    first_char = fgetc(fp);
-    is_json = (first_char == '{');
-    fclose(fp);
-
-    return is_json;
+    return json_file_is_json(filename);
 }
 
 /***************************************************************************
@@ -231,7 +157,7 @@ static json_t *account_basic_to_json(ACCOUNT_DATA *account)
     }
 
     // Account flags (human-readable + numeric for backward compatibility)
-    json_object_set_new(basic, "account_flags", flags_to_json_array(acct_flags, account->acct_flags));
+    json_object_set_new(basic, "account_flags", json_flags_serialize(account->acct_flags, acct_flags));
     json_object_set_new(basic, "acct_flags_numeric", json_integer(account->acct_flags));
 
     // Account limits and status
@@ -771,7 +697,7 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
     // Account flags (prefer human-readable array, fall back to numeric)
     value = json_object_get(account_obj, "account_flags");
     if (value && json_is_array(value)) {
-        account->acct_flags = flags_from_json_array(acct_flags, value);
+        account->acct_flags = json_flags_deserialize(value, acct_flags);
     } else {
         value = json_object_get(account_obj, "acct_flags_numeric");
         if (value) account->acct_flags = json_integer_value(value);

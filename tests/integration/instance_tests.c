@@ -192,9 +192,9 @@ static test_result_t test_wnum_json_format(test_case_t *test)
         return TEST_ERROR;
     }
 
-    unsigned long test_area_uid = json_get_int(input, "test_area_uid");
-    long test_vnum = json_get_int(input, "test_vnum");
-    const char *expected_format = json_get_string(input, "expected_format");
+    unsigned long test_area_uid = test_json_get_int(input, "test_area_uid");
+    long test_vnum = test_json_get_int(input, "test_vnum");
+    const char *expected_format = test_json_get_string(input, "expected_format");
 
     if (!expected_format) {
         return TEST_ERROR;
@@ -231,9 +231,9 @@ static test_result_t test_wnum_json_parse(test_case_t *test)
         return TEST_ERROR;
     }
 
-    const char *wnum_string = json_get_string(input, "wnum_string");
-    unsigned long expected_area_uid = json_get_int(input, "expected_area_uid");
-    long expected_vnum = json_get_int(input, "expected_vnum");
+    const char *wnum_string = test_json_get_string(input, "wnum_string");
+    unsigned long expected_area_uid = test_json_get_int(input, "expected_area_uid");
+    long expected_vnum = test_json_get_int(input, "expected_vnum");
 
     if (!wnum_string) {
         return TEST_ERROR;
@@ -348,9 +348,9 @@ static test_result_t test_persist_directory(test_case_t *test)
         return TEST_ERROR;
     }
 
-    const char *ships_dir = json_get_string(input, "check_ships_dir");
-    const char *dungeons_dir = json_get_string(input, "check_dungeons_dir");
-    const char *instances_dir = json_get_string(input, "check_instances_dir");
+    const char *ships_dir = test_json_get_string(input, "check_ships_dir");
+    const char *dungeons_dir = test_json_get_string(input, "check_dungeons_dir");
+    const char *instances_dir = test_json_get_string(input, "check_instances_dir");
 
     struct stat st;
 

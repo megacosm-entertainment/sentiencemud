@@ -1468,6 +1468,7 @@ CORPSE_DATA *copy_corpse_data(CORPSE_DATA *src)
     data->animation    = src->animation;
     data->body_parts   = src->body_parts;
     data->mobile_vnum  = src->mobile_vnum;
+    data->mobile_area_uid = src->mobile_area_uid;
     return data;
 }
 
@@ -1564,6 +1565,7 @@ ITEM_SHIP_DATA *copy_item_ship_data(ITEM_SHIP_DATA *src)
     data->capacity   = src->capacity;
     data->max_crew   = src->max_crew;
     data->first_room = src->first_room;
+    data->first_room_area_uid = src->first_room_area_uid;
     data->hit_points = src->hit_points;
     data->max_guns   = src->max_guns;
     return data;
@@ -1609,6 +1611,7 @@ SEED_DATA *copy_seed_data(SEED_DATA *src)
     SEED_DATA *data = new_seed_data();
     data->growth_time  = src->growth_time;
     data->object_vnum  = src->object_vnum;
+    data->object_area_uid = src->object_area_uid;
     return data;
 }
 

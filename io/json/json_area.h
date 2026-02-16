@@ -13,6 +13,7 @@
 
 #include <jansson.h>
 #include "../../merc.h"
+#include "json_common.h"
 
 /***************************************************************************
  * Constants                                                               *
@@ -80,21 +81,6 @@ json_t *json_area_serialize_progs(LLIST **progs, AREA_DATA *area);
 /***************************************************************************
  * Utility Functions                                                       *
  ***************************************************************************/
-
-/* Convert flag array to JSON string array */
-json_t *flags_to_json_array(long flags, const struct flag_type *flag_table);
-
-/* Convert JSON string array to flag bitfield */
-long json_array_to_flags(json_t *array, const struct flag_type *flag_table);
-
-/* Get string value from JSON with default */
-const char *json_get_string_default(json_t *obj, const char *key, const char *default_val);
-
-/* Get integer value from JSON with default */
-long json_get_int_default(json_t *obj, const char *key, long default_val);
-
-/* Get boolean value from JSON with default */
-bool json_get_bool_default(json_t *obj, const char *key, bool default_val);
 
 /* Index variables serialization */
 json_t *json_area_serialize_index_vars(pVARIABLE index_vars, AREA_DATA *area);
