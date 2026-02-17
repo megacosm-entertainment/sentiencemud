@@ -325,8 +325,8 @@ SPELL_FUNC(spell_identify)
 
     case ITEM_DRINK_CON:
         sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
-            liq_table[FLUID_CON(obj)->liquid].liq_colour,
-            liq_table[FLUID_CON(obj)->liquid].liq_name);
+            liquid_color(FLUID_CON(obj)->liquid),
+            liquid_name(FLUID_CON(obj)->liquid));
         add_buf(buffer,buf);
         break;
 

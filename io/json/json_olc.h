@@ -29,7 +29,8 @@
 #define OLC_HIST_CLASS      4
 #define OLC_HIST_TRAIT      5
 #define OLC_HIST_AREA_EDITOR 6
-#define OLC_HIST_MAX        7
+#define OLC_HIST_RSG        7
+#define OLC_HIST_MAX        8
 
 /***************************************************************************
  * Per-Entry Serialization                                                 *

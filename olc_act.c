@@ -162,7 +162,7 @@ const struct olc_help_type help_table[] =
     {	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
     {	"instruments",			STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
     {	"iprog",				STRUCT_TRIGGERS,	trigger_table,				"InstanceProgram types."	},
-    {	"liquid",				STRUCT_LIQUID,		liq_table,					"Liquid types."	},
+    {	"liquid",				STRUCT_LIQUID,		NULL,						"Liquid types."	},
     {   "log",					STRUCT_FLAGS,		log_flags,					"Log levels (CMDEdit)"},
     {	"lock",					STRUCT_FLAGS,		lock_flags,					"Lock state types."	},
     {	"material",				STRUCT_MATERIAL,	material_table,				"Object materials."	},
@@ -1942,7 +1942,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
             "{B[  {Wv3{B]{G Poisoned:{x     %s\n\r",
             FLUID_CON(obj)->capacity,
             FLUID_CON(obj)->amount,
-            liq_table[FLUID_CON(obj)->liquid].liq_name,
+            liquid_name(FLUID_CON(obj)->liquid),
             FLUID_CON(obj)->poison != 0 ? "Yes" : "No");
         add_buf(buffer, buf);
         break;
@@ -1955,7 +1955,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
             "{B[  {Wv2{B]{G Liquid:{x     %s\n\r",
             FLUID_CON(obj)->capacity,
             FLUID_CON(obj)->amount,
-            liq_table[FLUID_CON(obj)->liquid].liq_name);
+            liquid_name(FLUID_CON(obj)->liquid));
         add_buf(buffer, buf);
         break;
 
@@ -3238,21 +3238,23 @@ int get_armour_strength(char *argument)
 void show_liqlist(CHAR_DATA *ch)
 {
     int liq;
+    int count;
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
 
     buffer = new_buf();
+    count = liquid_count();
 
-    for (liq = 0; liq_table[liq].liq_name != NULL; liq++)
+    for (liq = 0; liq < count; liq++)
     {
     if ((liq % 21) == 0)
         add_buf(buffer,"Name                 Colour          Proof Full Thirst Food Ssize\n\r");
 
     sprintf(buf, "%-20s %-14s %5d %4d %6d %4d %5d\n\r",
-        liq_table[liq].liq_name,liq_table[liq].liq_colour,
-        liq_table[liq].liq_affect[0],liq_table[liq].liq_affect[1],
-        liq_table[liq].liq_affect[2],liq_table[liq].liq_affect[3],
-        liq_table[liq].liq_affect[4]);
+        liquid_name(liq), liquid_color(liq),
+        liquid_affect(liq, LIQ_AFF_PROOF), liquid_affect(liq, LIQ_AFF_FULL),
+        liquid_affect(liq, LIQ_AFF_THIRST), liquid_affect(liq, LIQ_AFF_HUNGER),
+        liquid_affect(liq, LIQ_AFF_SSIZE));
     add_buf(buffer,buf);
     }
 

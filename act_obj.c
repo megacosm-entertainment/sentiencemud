@@ -2775,8 +2775,8 @@ void do_fill(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[FLUID_CON(fountain)->liquid].liq_name, NULL, TO_CHAR, NULL, NULL);
-    act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[FLUID_CON(fountain)->liquid].liq_name, NULL, TO_ROOM, NULL, NULL);
+    act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, liquid_name(FLUID_CON(fountain)->liquid), NULL, TO_CHAR, NULL, NULL);
+    act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, liquid_name(FLUID_CON(fountain)->liquid), NULL, TO_ROOM, NULL, NULL);
     FLUID_CON(obj)->liquid = FLUID_CON(fountain)->liquid;
     FLUID_CON(obj)->amount = FLUID_CON(obj)->capacity;
 }
@@ -2838,10 +2838,10 @@ void do_pour(CHAR_DATA *ch, char *argument)
 
     FLUID_CON(out)->amount = 0;
     FLUID_CON(out)->poison = 0;
-    sprintf(buf,"You invert $p, spilling %s all over the ground.", liq_table[FLUID_CON(out)->liquid].liq_name);
+    sprintf(buf,"You invert $p, spilling %s all over the ground.", liquid_name(FLUID_CON(out)->liquid));
     act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 
-    sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liq_table[FLUID_CON(out)->liquid].liq_name);
+    sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liquid_name(FLUID_CON(out)->liquid));
     act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
     return;
     }
@@ -2903,18 +2903,18 @@ void do_pour(CHAR_DATA *ch, char *argument)
 
     if (vch == NULL)
     {
-        sprintf(buf,"You pour %s from $p into $P.", liq_table[FLUID_CON(out)->liquid].liq_name);
+        sprintf(buf,"You pour %s from $p into $P.", liquid_name(FLUID_CON(out)->liquid));
         act(buf,ch, NULL, NULL,out,in, NULL, NULL,TO_CHAR, NULL, NULL);
-        sprintf(buf,"$n pours %s from $p into $P.", liq_table[FLUID_CON(out)->liquid].liq_name);
+        sprintf(buf,"$n pours %s from $p into $P.", liquid_name(FLUID_CON(out)->liquid));
         act(buf,ch, NULL, NULL,out,in, NULL, NULL,TO_ROOM, NULL, NULL);
     }
     else
     {
-        sprintf(buf,"You pour some %s for $N.", liq_table[FLUID_CON(out)->liquid].liq_name);
+        sprintf(buf,"You pour some %s for $N.", liquid_name(FLUID_CON(out)->liquid));
         act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
-        sprintf(buf,"$n pours you some %s.", liq_table[FLUID_CON(out)->liquid].liq_name);
+        sprintf(buf,"$n pours you some %s.", liquid_name(FLUID_CON(out)->liquid));
         act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_VICT, NULL, NULL);
-        sprintf(buf,"$n pours some %s for $N.", liq_table[FLUID_CON(out)->liquid].liq_name);
+        sprintf(buf,"$n pours some %s for $N.", liquid_name(FLUID_CON(out)->liquid));
         act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_NOTVICT, NULL, NULL);
     }
 }
@@ -2996,7 +2996,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
         if (race_get_trait_bool(ch->race, "blood_feeding"))
            amount = 20;
         else
-           amount = liq_table[liquid].liq_affect[COND_FULL] * 10;
+           amount = liquid_affect(liquid, COND_FULL) * 10;
         break;
 
     case ITEM_DRINK_CON:
@@ -3012,13 +3012,13 @@ void do_drink(CHAR_DATA *ch, char *argument)
         liquid = FLUID_CON(obj)->liquid = 0;
         }
 
-        amount = liq_table[liquid].liq_affect[4];
+        amount = liquid_affect(liquid, LIQ_AFF_SSIZE);
         amount = UMIN(amount, FLUID_CON(obj)->amount);
         break;
      }
 
-    act("$n drinks $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_ROOM, NULL, NULL);
-    act("You drink $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_CHAR, NULL, NULL);
+    act("$n drinks $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liquid_name(liquid), TO_ROOM, NULL, NULL);
+    act("You drink $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liquid_name(liquid), TO_CHAR, NULL, NULL);
 
     if (race_get_trait_bool(ch->race, "blood_feeding") && FLUID_CON(obj)->liquid == 14)
     {
@@ -3032,10 +3032,10 @@ void do_drink(CHAR_DATA *ch, char *argument)
     }
     else
     {
-      gain_condition(ch, COND_DRUNK, amount * liq_table[liquid].liq_affect[COND_DRUNK] / 36);
-      gain_condition(ch, COND_FULL, amount * liq_table[liquid].liq_affect[COND_FULL] / 4);
-      gain_condition(ch, COND_THIRST, amount * liq_table[liquid].liq_affect[COND_THIRST] / 2);
-      gain_condition(ch, COND_HUNGER, amount * liq_table[liquid].liq_affect[COND_HUNGER] / 2);
+    gain_condition(ch, COND_DRUNK, amount * liquid_affect(liquid, COND_DRUNK) / 36);
+    gain_condition(ch, COND_FULL, amount * liquid_affect(liquid, COND_FULL) / 4);
+    gain_condition(ch, COND_THIRST, amount * liquid_affect(liquid, COND_THIRST) / 2);
+    gain_condition(ch, COND_HUNGER, amount * liquid_affect(liquid, COND_HUNGER) / 2);
     }
 
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK]  > 10)

@@ -1505,6 +1505,35 @@ The following editors have full working implementations in `src_20_dev`. Each
 subsection documents the existing commands, data structures, persistence format,
 and what needs to change in `src` before the editor can be ported.
 
+### 8.0 Phase 8 Kickoff Status (2026-02-17)
+
+Started implementation with **RSGEDIT** as the lowest-risk editor (minimal
+external dependencies). Current status in `src`:
+
+- `rsgedit` command is now wired into interpreter and OLC editor routing.
+- `editors/random_strings/rsgedit.c` now uses the OLC framework (`OLC_EDITOR_DEF`).
+- Working initial commands: `list`, `create`, `show`, `generate`.
+- `pattern` and `class` sub-editors are scaffolded with placeholders for next slice.
+
+This deliberately establishes a repeatable editor-delivery pattern before
+starting higher-blast-radius backports.
+
+#### Cross-System Dependency Map (for sequencing)
+
+Recommended implementation order based on coupling:
+
+1. **RSGEDIT** (low coupling): editor + persistence + generation logic
+2. **LIQEDIT / MATEDIT** (medium coupling): dynamic data model replacement for
+    hardcoded tables in `const.c`
+3. **CORPSEDIT** (high coupling): mob death pipeline + `MOB_INDEX_DATA` integration
+4. **SECTOREDIT** (very high coupling): room sector representation refactor (`int` → pointer)
+5. **REPEDIT** (subsystem backport): reputation runtime + area save/load + player state
+6. **QEDIT / EVTEDIT / MSNEDIT**: large gameplay systems, implemented after
+    data/editor infrastructure stabilizes
+
+For each high-coupling editor, plan and land enabling data/runtime changes first,
+then the editor UI layer.
+
 ### 8.1 Liquid Editor (liqedit)
 
 **src_20_dev location**: `olc.c` (table, entry, interpreter), `olc_act.c` (all commands)

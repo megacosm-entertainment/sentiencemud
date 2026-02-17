@@ -2561,7 +2561,7 @@ void do_look(CHAR_DATA * ch, char *argument)
             sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
                 FLUID_CON(obj)->amount < FLUID_CON(obj)->capacity / 4 ? "less than half-" :
                     FLUID_CON(obj)->amount < 3 * FLUID_CON(obj)->capacity / 4 ? "about half-" : "more than half-",
-                liq_table[FLUID_CON(obj)->liquid].liq_colour);
+                liquid_color(FLUID_CON(obj)->liquid));
             send_to_char(buf, ch);
             break;
 

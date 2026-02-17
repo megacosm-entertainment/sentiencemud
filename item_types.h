@@ -381,7 +381,7 @@ struct obj_fluid_container_data
     char *short_descr;
 
     long    flags;       /* Container flags */
-    int     liquid;      /* Index into liq_table */
+    int     liquid;      /* Index into runtime liquid list */
     int16_t capacity;
     int16_t amount;
     int16_t refill_rate; /* Positive = fountain behavior */

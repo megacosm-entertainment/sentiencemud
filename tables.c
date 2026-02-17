@@ -3493,6 +3493,8 @@ const struct do_func_type do_func_table[] =
         { "do_classes", do_classes },
         { "do_classinfo", do_classinfo },
         { "do_freelevel", do_freelevel },
+        { "do_rsgedit", do_rsgedit },
+        { "do_liqedit", do_liqedit },
         { NULL, NULL }
 };
 

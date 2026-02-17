@@ -735,6 +735,13 @@ void boot_db(void)
     // On first run, bootstraps from legacy sub_class_table[] and saves JSON files.
     load_class_data();
 
+    // Load random string generators from JSON (rsgedit cache/persistence)
+    load_rsg_data();
+
+    // Load liquids from JSON (liqedit cache/persistence)
+    // On first run, bootstraps from liqedit defaults and saves liquids.json.
+    load_liquid_data();
+
     // Initialize certain lists
     loaded_instances = list_create(false);
     loaded_dungeons = list_create(false);

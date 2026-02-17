@@ -103,11 +103,11 @@ static int jget_attack_type(json_t *j, const char *key)
     return (int)json_integer_value(v);
 }
 
-/* Write liquid type as its string name from liq_table. */
+/* Write liquid type as its runtime string name. */
 static void jset_liquid(json_t *j, const char *key, int val)
 {
-    if (val >= 0 && liq_table[val].liq_name != NULL)
-        json_object_set_new(j, key, json_string(liq_table[val].liq_name));
+    if (val >= 0 && val < liquid_count())
+        json_object_set_new(j, key, json_string(liquid_name(val)));
     else
         json_object_set_new(j, key, json_integer((json_int_t)val));
 }
@@ -380,9 +380,11 @@ static CORPSE_DATA *corpse_from_json(json_t *j)
 static json_t *fluid_container_to_json(FLUID_CONTAINER_DATA *d)
 {
     json_t *j = json_object();
+    long uid = liquid_uid(d->liquid);
     JSET_STR(j, "name", d->name);
     JSET_STR(j, "short_descr", d->short_descr);
     JSET_LONG(j, "flags", d->flags);
+    JSET_LONG(j, "liquid_uid", uid);
     jset_liquid(j, "liquid", d->liquid);
     JSET_INT(j, "capacity", d->capacity);
     JSET_INT(j, "amount", d->amount);
@@ -396,10 +398,20 @@ static FLUID_CONTAINER_DATA *fluid_container_from_json(json_t *j)
 {
     FLUID_CONTAINER_DATA *d = new_fluid_container_data();
     const char *s;
+    long uid;
+    int index;
+
     if ((s = jget_str(j, "name")))          { free_string(d->name); d->name = str_dup(s); }
     if ((s = jget_str(j, "short_descr")))   { free_string(d->short_descr); d->short_descr = str_dup(s); }
     d->flags       = JGET_LONG(j, "flags", 0);
-    d->liquid      = (int16_t)jget_liquid(j, "liquid");
+
+    uid = JGET_LONG(j, "liquid_uid", 0);
+    index = (uid > 0) ? liquid_index_from_uid(uid) : -1;
+    if (index >= 0)
+        d->liquid = (int16_t)index;
+    else
+        d->liquid = (int16_t)jget_liquid(j, "liquid");
+
     d->capacity    = JGET_INT16(j, "capacity");
     d->amount      = JGET_INT16(j, "amount");
     d->refill_rate = JGET_INT16(j, "refill_rate");

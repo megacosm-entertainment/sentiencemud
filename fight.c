@@ -5347,7 +5347,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
                 }
 
                 liquid = liq_lookup("blood"); // Value for blood
-                amount = liq_table[liquid].liq_affect[4] * 3;
+                amount = liquid_affect(liquid, LIQ_AFF_SSIZE) * 3;
                 gain_condition(ch, COND_FULL, amount * 8 / 4);
                 gain_condition(ch, COND_THIRST, amount * 8 / 10);
                 gain_condition(ch, COND_HUNGER, amount * 8 / 2);

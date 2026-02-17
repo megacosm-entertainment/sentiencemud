@@ -41,10 +41,11 @@ static const char *hist_files[OLC_HIST_MAX] = {
     HISTORY_DIR "/classes.json",    /* OLC_HIST_CLASS */
     HISTORY_DIR "/traits.json",     /* OLC_HIST_TRAIT */
     HISTORY_DIR "/area_editors.json", /* OLC_HIST_AREA_EDITOR */
+    HISTORY_DIR "/rsg.json",        /* OLC_HIST_RSG */
 };
 
 static const char *hist_type_names[OLC_HIST_MAX] = {
-    "skills", "groups", "songs", "races", "classes", "traits", "area_editors"
+    "skills", "groups", "songs", "races", "classes", "traits", "area_editors", "rsg"
 };
 
 /* Redis write-behind key for complete history file JSON by type */

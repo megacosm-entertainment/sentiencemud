@@ -68,6 +68,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_GROUP          32
 #define ED_SONG           33
 #define ED_CLASS          34
+#define ED_LIQUID         35
 
 
 
@@ -95,6 +96,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define GREDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
 #define SOEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
 #define CLSEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define LIQEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -183,6 +185,7 @@ DECLARE_DO_FUN( do_shedit       );
 DECLARE_DO_FUN( do_tedit       );
 DECLARE_DO_FUN( do_tpedit       );
 DECLARE_DO_FUN( do_pedit       );
+DECLARE_DO_FUN( do_rsgedit     );
 /* VIZZWILDS */
 DECLARE_DO_FUN( do_wedit        );
 DECLARE_DO_FUN( do_bsedit       );
@@ -194,6 +197,7 @@ DECLARE_DO_FUN( do_skedit       );
 DECLARE_DO_FUN( do_gredit       );
 DECLARE_DO_FUN( do_soedit       );
 DECLARE_DO_FUN( do_clsedit      );
+DECLARE_DO_FUN( do_liqedit      );
 
 
 /*
@@ -526,6 +530,27 @@ DECLARE_OLC_FUN( pedit_security		);
 DECLARE_OLC_FUN( pedit_pflag		);
 DECLARE_OLC_FUN( pedit_builder		);
 DECLARE_OLC_FUN( pedit_completed	);
+
+/* Random String Generator editor */
+DECLARE_OLC_FUN( rsgedit_list            );
+DECLARE_OLC_FUN( rsgedit_create          );
+DECLARE_OLC_FUN( rsgedit_show            );
+DECLARE_OLC_FUN( rsgedit_pattern         );
+DECLARE_OLC_FUN( rsgedit_class           );
+DECLARE_OLC_FUN( rsgedit_generate        );
+DECLARE_OLC_FUN( rsgedit_pattern_list    );
+DECLARE_OLC_FUN( rsgedit_pattern_create  );
+DECLARE_OLC_FUN( rsgedit_pattern_show    );
+DECLARE_OLC_FUN( rsgedit_pattern_delete  );
+DECLARE_OLC_FUN( rsgedit_pattern_help    );
+DECLARE_OLC_FUN( rsgedit_class_list      );
+DECLARE_OLC_FUN( rsgedit_class_create    );
+DECLARE_OLC_FUN( rsgedit_class_show      );
+DECLARE_OLC_FUN( rsgedit_class_delete    );
+DECLARE_OLC_FUN( rsgedit_class_add       );
+DECLARE_OLC_FUN( rsgedit_class_edit      );
+DECLARE_OLC_FUN( rsgedit_class_remove    );
+DECLARE_OLC_FUN( rsgedit_class_help      );
 
 /* VIZZWILDS */
 /* Wilds Editor */

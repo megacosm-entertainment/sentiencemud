@@ -27,6 +27,15 @@ Strategic testing evolution plan:
 - Memory testing and CI/CD integration
 - Resource planning and success metrics
 
+## RSG Documentation
+
+### [RSGEdit Usage and Integration Guide](RSGEDIT_USAGE.md)
+Complete guide for random string generators:
+- Step-by-step generator creation workflow
+- Pattern/class commands and escaping rules
+- Masculine/feminine naming strategies
+- Cross-editor and scripting integration plan
+
 ## Test Framework Overview
 
 The Sentience MUD test framework provides:

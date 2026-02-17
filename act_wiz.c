@@ -11980,7 +11980,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
             "{B[  {Wv3{B]{%s Poisoned:{x     %s\n\r",
             (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
             (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liq_table[obj->value[2]].liq_name,
+            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liquid_name(obj->value[2]),
             (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3] != 0 ? "Yes" : "No");
         add_buf(buffer, buf);
         break;
@@ -11992,7 +11992,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
             "{B[  {Wv2{B]{%s Liquid:{x     %s\n\r",
             (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
             (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liq_table[obj->value[2]].liq_name);
+            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liquid_name(obj->value[2]));
         add_buf(buffer, buf);
         break;
 

@@ -66,6 +66,7 @@ char *editor_name_table[] = {
     "GrEdit",       // 32 ED_GROUP
     "SoEdit",       // 33 ED_SONG
     "ClsEdit",      // 34 ED_CLASS
+    "LiqEdit",      // 35 ED_LIQUID
 };
 
 int editor_max_tabs_table[] = {
@@ -104,6 +105,7 @@ int editor_max_tabs_table[] = {
     0,		// GrEdit
     0,		// SoEdit
     0,		// ClsEdit
+    0,		// LiqEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -120,6 +122,7 @@ const struct editor_cmd_type editor_table[] =
     { "token",		do_tedit	},
     { "tprog",		do_tpedit	},
     { "project",	do_pedit	},
+    { "rsg",         do_rsgedit   },
     { "bpsect",		do_bsedit	},
     { "blueprint",	do_bpedit	},
     { "dungeon",	do_dngedit	},
@@ -134,6 +137,7 @@ const struct editor_cmd_type editor_table[] =
     { "group",      do_gredit    },
     { "song",       do_soedit    },
     { "class",      do_clsedit   },
+    { "liquid",     do_liqedit   },
     { NULL,			0,			}
 };
 
@@ -308,6 +312,16 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         else
         sprintf(buf, "None");
 
+        break;
+
+    case ED_RSG:
+        {
+            RANDOM_STRING *rsg = (RANDOM_STRING *)ch->desc->pEdit;
+            if (rsg)
+                sprintf(buf, "%ld:%s", rsg->uid, rsg->name ? rsg->name : "");
+            else
+                sprintf(buf, "--");
+        }
         break;
 
     case ED_SHIP:
@@ -660,6 +674,9 @@ void display_resets(CHAR_DATA *ch)
          * Check for pet shop.
          * -------------------
          */
+            case ED_LIQUID:
+                sprintf(buf, "--");
+                break;
         {
             ROOM_INDEX_DATA *pRoomIndexPrev;
 

@@ -536,7 +536,7 @@ OEDIT(oedit_drink)
         "  {Grefill        {x [%d]\n\r",
         FLUID_CON(pObj)->capacity,
         FLUID_CON(pObj)->amount,
-        liq_table[FLUID_CON(pObj)->liquid].liq_name,
+        liquid_name(FLUID_CON(pObj)->liquid),
         FLUID_CON(pObj)->poison != 0 ? "Yes" : "No",
         FLUID_CON(pObj)->refill_rate);
     send_to_char(buf, ch);
@@ -2238,7 +2238,7 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
             "  {Grefill        {x [%d]\n\r",
             FLUID_CON(pObj)->capacity,
             FLUID_CON(pObj)->amount,
-            liq_table[FLUID_CON(pObj)->liquid].liq_name,
+            liquid_name(FLUID_CON(pObj)->liquid),
             FLUID_CON(pObj)->poison != 0 ? "Yes" : "No",
             FLUID_CON(pObj)->refill_rate);
         add_buf(buffer, buf);

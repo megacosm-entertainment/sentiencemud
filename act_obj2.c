@@ -1053,8 +1053,10 @@ void do_consume(CHAR_DATA *ch, char *argument)
     ch->hit = URANGE(1, ch->hit + (ch->max_hit - ch->hit)/4, ch->max_hit);
 
     WAIT_STATE(ch, 24);
-    liquid = 13; /* Value for blood*/
-    amount = liq_table[liquid].liq_affect[4] * 3;
+    liquid = liq_lookup("blood");
+    if (liquid < 0)
+        liquid = LIQ_WATER;
+    amount = liquid_affect(liquid, LIQ_AFF_SSIZE) * 3;
     gain_condition(ch, COND_FULL,
         amount * 8 / 4);
     gain_condition(ch, COND_THIRST,

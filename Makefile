@@ -99,6 +99,7 @@ C_FILES = \
     editors/dungeons/dngedit.c \
     editors/game_settings/gameedit.c \
     editors/help/hedit.c \
+    editors/liquids/liqedit.c \
     editors/mobiles/medit.c \
     editors/objects/oedit.c \
     editors/objects/oedit_types.c \
@@ -203,6 +204,7 @@ C_FILES = \
     io/json/json_ban.c \
     io/json/json_changesets.c \
     io/json/json_olc.c \
+    io/json/json_rsg.c \
     io/json/json_commands.c \
     io/json/json_projects.c \
     io/json/json_socials.c \

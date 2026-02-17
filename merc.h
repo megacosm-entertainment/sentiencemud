@@ -762,6 +762,9 @@ struct random_string_class {
 
     long		uid;	/* ID of the class in the RSG */
     char *		name;	/* Display name of generator */
+    long        entries;
+    RANDOM_STRING_ENTRY *e_head;
+    RANDOM_STRING_ENTRY *e_tail;
 
 };
 
@@ -785,6 +788,8 @@ struct random_string_data {
     long		classes;
     RANDOM_CLASS	*c_head;
     RANDOM_CLASS	*c_tail;
+
+    void        *olc_history;
 };
 
 struct list_link_type {
@@ -8382,7 +8387,6 @@ extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
 //extern  const   struct  cmd_type    cmd_table   [];
 extern  const	struct	spec_type	spec_table	[];
-extern	const	struct	liq_type	liq_table	[];
 extern	const	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
@@ -9959,6 +9963,20 @@ bool can_edit_project(CHAR_DATA *ch, PROJECT_DATA *project);
 void show_project_inquiry(PROJECT_INQUIRY_DATA *pinq, CHAR_DATA *ch);
 void show_project_inquiries(PROJECT_DATA *project, CHAR_DATA *ch);
 long get_total_minutes(PROJECT_DATA *project);
+
+/* rsgedit.c */
+void load_rsg_data(void);
+bool save_rsg_data(void);
+
+/* liqedit.c */
+void load_liquid_data(void);
+int liquid_count(void);
+char *liquid_name(int index);
+char *liquid_color(int index);
+int liquid_affect(int index, int affect_index);
+int liquid_lookup(const char *name);
+long liquid_uid(int index);
+int liquid_index_from_uid(long uid);
 
 
 /* staff.c */
