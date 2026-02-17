@@ -2191,7 +2191,8 @@ void char_update(void)
             }
 
             // The enchanted forest saps hit,mana, and move.
-            if (room_in_sector(ch->in_room, SECT_ENCHANTED_FOREST) && ch->position == POS_SLEEPING)
+            if ((room_sector_has_flag(ch->in_room, SECTOR_SLEEP_DRAIN) ||
+                room_in_sector(ch->in_room, SECT_ENCHANTED_FOREST)) && ch->position == POS_SLEEPING)
             {
                 ch->hit = ch->hit - ch->max_hit/3;
 
@@ -2807,10 +2808,12 @@ void aggr_update(void)
                 // is the mobile in a Toxic Bog?
                 if(wch->in_room &&
                     (IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
+                    room_sector_has_flag(wch->in_room, SECTOR_TOXIC) ||
                     room_in_sector(wch->in_room, SECT_TOXIC_BOG))) {
                     bool dec;
 
                     if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
+                    if(room_sector_has_flag(wch->in_room, SECTOR_TOXIC)) chance += 10;
                     if(room_in_sector(wch->in_room, SECT_TOXIC_BOG)) chance += 10;
 
                     dec = (number_percent() < chance);
@@ -2861,6 +2864,7 @@ void aggr_update(void)
                 }
             } else {
                 if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
+                if(room_sector_has_flag(wch->in_room, SECTOR_TOXIC)) chance += 50;
                 if(room_in_sector(wch->in_room, SECT_TOXIC_BOG)) chance += 50;
 
                 if(chance > 0 && number_percent() < chance)
@@ -2869,13 +2873,16 @@ void aggr_update(void)
         }
         chance = 0;
         if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 16;
+        if (room_sector_has_flag(wch->in_room, SECTOR_DRAIN_MANA)) chance += 16;
         if (room_in_sector(wch->in_room, SECT_CURSED_SANCTUM)) chance += 16;
 
         if (chance > 0 && number_percent() < chance) {
 
-            if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
+            if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA) ||
+                room_sector_has_flag(wch->in_room, SECTOR_DRAIN_MANA)) {
                 wch->mana -= number_range(5,15);
-                if(room_in_sector(wch->in_room, SECT_CURSED_SANCTUM))
+                if(room_sector_has_flag(wch->in_room, SECTOR_DRAIN_MANA) ||
+                    room_in_sector(wch->in_room, SECT_CURSED_SANCTUM))
                     wch->mana -= number_range(5,15);
                 if(wch->mana < 0) wch->mana = 0;
                 if(number_percent() < 10)
@@ -2885,6 +2892,7 @@ void aggr_update(void)
 
         chance = 0;
         if(IS_SET(wch->in_room->room_flag[1], ROOM_BRIARS)) chance += 5;
+        if(room_sector_has_flag(wch->in_room, SECTOR_BRIARS)) chance += 5;
         if(room_in_sector(wch->in_room, SECT_BRAMBLE)) chance += 5;
 
         if(chance > 0 && number_percent() < chance) {

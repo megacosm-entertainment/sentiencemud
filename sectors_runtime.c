@@ -34,29 +34,6 @@ enum {
     SRCLASS_WATER
 };
 
-#define SRTF_AERIAL         (A)
-#define SRTF_BRIARS         (B)
-#define SRTF_CITY_LIGHTS    (C)
-#define SRTF_CRUMBLES       (D)
-#define SRTF_DEEP_WATER     (E)
-#define SRTF_DRAIN_MANA     (F)
-#define SRTF_FLAME          (G)
-#define SRTF_FROZEN         (H)
-#define SRTF_HARD_MAGIC     (I)
-#define SRTF_INDOORS        (J)
-#define SRTF_MELTS          (K)
-#define SRTF_NATURE         (L)
-#define SRTF_NO_FADE        (M)
-#define SRTF_NO_GATE        (N)
-#define SRTF_NO_GOHALL      (O)
-#define SRTF_NO_HIDE_OBJ    (P)
-#define SRTF_NO_MAGIC       (Q)
-#define SRTF_NO_SOIL        (R)
-#define SRTF_SLEEP_DRAIN    (S)
-#define SRTF_SLOW_MAGIC     (T)
-#define SRTF_TOXIC          (U)
-#define SRTF_UNDERWATER     (V)
-
 static const struct flag_type sector_runtime_classes[] = {
     { "none",         SRCLASS_NONE,        true },
     { "abyss",        SRCLASS_ABYSS,       true },
@@ -82,28 +59,28 @@ static const struct flag_type sector_runtime_classes[] = {
 };
 
 static const struct flag_type sector_runtime_flagbank[] = {
-    { "aerial",       SRTF_AERIAL,      true },
-    { "briars",       SRTF_BRIARS,      true },
-    { "city_lights",  SRTF_CITY_LIGHTS, true },
-    { "crumbles",     SRTF_CRUMBLES,    true },
-    { "deep_water",   SRTF_DEEP_WATER,  true },
-    { "drain_mana",   SRTF_DRAIN_MANA,  true },
-    { "flame",        SRTF_FLAME,       true },
-    { "frozen",       SRTF_FROZEN,      true },
-    { "hard_magic",   SRTF_HARD_MAGIC,  true },
-    { "indoors",      SRTF_INDOORS,     true },
-    { "melts",        SRTF_MELTS,       true },
-    { "nature",       SRTF_NATURE,      true },
-    { "no_fade",      SRTF_NO_FADE,     true },
-    { "no_gate",      SRTF_NO_GATE,     true },
-    { "no_gohall",    SRTF_NO_GOHALL,   true },
-    { "no_hide_obj",  SRTF_NO_HIDE_OBJ, true },
-    { "no_magic",     SRTF_NO_MAGIC,    true },
-    { "no_soil",      SRTF_NO_SOIL,     true },
-    { "sleep_drain",  SRTF_SLEEP_DRAIN, true },
-    { "slow_magic",   SRTF_SLOW_MAGIC,  true },
-    { "toxic",        SRTF_TOXIC,       true },
-    { "underwater",   SRTF_UNDERWATER,  true },
+    { "aerial",       SECTOR_AERIAL,      true },
+    { "briars",       SECTOR_BRIARS,      true },
+    { "city_lights",  SECTOR_CITY_LIGHTS, true },
+    { "crumbles",     SECTOR_CRUMBLES,    true },
+    { "deep_water",   SECTOR_DEEP_WATER,  true },
+    { "drain_mana",   SECTOR_DRAIN_MANA,  true },
+    { "flame",        SECTOR_FLAME,       true },
+    { "frozen",       SECTOR_FROZEN,      true },
+    { "hard_magic",   SECTOR_HARD_MAGIC,  true },
+    { "indoors",      SECTOR_INDOORS,     true },
+    { "melts",        SECTOR_MELTS,       true },
+    { "nature",       SECTOR_NATURE,      true },
+    { "no_fade",      SECTOR_NO_FADE,     true },
+    { "no_gate",      SECTOR_NO_GATE,     true },
+    { "no_gohall",    SECTOR_NO_GOHALL,   true },
+    { "no_hide_obj",  SECTOR_NO_HIDE_OBJ, true },
+    { "no_magic",     SECTOR_NO_MAGIC,    true },
+    { "no_soil",      SECTOR_NO_SOIL,     true },
+    { "sleep_drain",  SECTOR_SLEEP_DRAIN, true },
+    { "slow_magic",   SECTOR_SLOW_MAGIC,  true },
+    { "toxic",        SECTOR_TOXIC,       true },
+    { "underwater",   SECTOR_UNDERWATER,  true },
     { NULL,             0,                false }
 };
 
@@ -137,36 +114,36 @@ static void sector_set_default_features(int id, SECTOR_RUNTIME_DATA *sector)
     switch (id) {
     case SECT_INSIDE:
         sector->sector_class = SRCLASS_CITY;
-        SET_BIT(sector->flags, SRTF_CITY_LIGHTS);
-        SET_BIT(sector->flags, SRTF_INDOORS);
+        SET_BIT(sector->flags, SECTOR_CITY_LIGHTS);
+        SET_BIT(sector->flags, SECTOR_INDOORS);
         sector->soil = -20;
         break;
 
     case SECT_CITY:
         sector->sector_class = SRCLASS_CITY;
-        SET_BIT(sector->flags, SRTF_CITY_LIGHTS);
+        SET_BIT(sector->flags, SECTOR_CITY_LIGHTS);
         sector->soil = -10;
         break;
 
     case SECT_FIELD:
         sector->sector_class = SRCLASS_PLAINS;
-        SET_BIT(sector->flags, SRTF_NATURE);
+        SET_BIT(sector->flags, SECTOR_NATURE);
         sector->soil = 5;
         break;
 
     case SECT_FOREST:
         sector->sector_class = SRCLASS_FOREST;
-        SET_BIT(sector->flags, SRTF_NATURE);
+        SET_BIT(sector->flags, SECTOR_NATURE);
         break;
 
     case SECT_HILLS:
         sector->sector_class = SRCLASS_HILLS;
-        SET_BIT(sector->flags, SRTF_NATURE);
+        SET_BIT(sector->flags, SECTOR_NATURE);
         break;
 
     case SECT_MOUNTAIN:
         sector->sector_class = SRCLASS_MOUNTAINS;
-        SET_BIT(sector->flags, SRTF_NATURE);
+        SET_BIT(sector->flags, SECTOR_NATURE);
         sector->soil = -10;
         break;
 
@@ -175,17 +152,17 @@ static void sector_set_default_features(int id, SECTOR_RUNTIME_DATA *sector)
     case SECT_UNDERWATER:
     case SECT_DEEP_UNDERWATER:
         sector->sector_class = SRCLASS_WATER;
-        SET_BIT(sector->flags, SRTF_NO_SOIL);
+        SET_BIT(sector->flags, SECTOR_NO_SOIL);
         if (id == SECT_WATER_NOSWIM || id == SECT_DEEP_UNDERWATER)
-            SET_BIT(sector->flags, SRTF_DEEP_WATER);
+            SET_BIT(sector->flags, SECTOR_DEEP_WATER);
         if (id == SECT_UNDERWATER || id == SECT_DEEP_UNDERWATER)
-            SET_BIT(sector->flags, SRTF_UNDERWATER);
+            SET_BIT(sector->flags, SECTOR_UNDERWATER);
         break;
 
     case SECT_AIR:
         sector->sector_class = SRCLASS_AIR;
-        SET_BIT(sector->flags, SRTF_AERIAL);
-        SET_BIT(sector->flags, SRTF_NO_SOIL);
+        SET_BIT(sector->flags, SECTOR_AERIAL);
+        SET_BIT(sector->flags, SECTOR_NO_SOIL);
         break;
 
     case SECT_DESERT:
@@ -207,26 +184,38 @@ static void sector_set_default_features(int id, SECTOR_RUNTIME_DATA *sector)
 
     case SECT_NETHERWORLD:
         sector->sector_class = SRCLASS_NETHER;
-        SET_BIT(sector->flags, SRTF_NO_SOIL);
+        SET_BIT(sector->flags, SECTOR_NO_SOIL);
         break;
 
     case SECT_BRAMBLE:
         sector->sector_class = SRCLASS_HAZARDOUS;
-        SET_BIT(sector->flags, SRTF_BRIARS);
+        SET_BIT(sector->flags, SECTOR_BRIARS);
+        break;
+
+    case SECT_TOXIC_BOG:
+        sector->sector_class = SRCLASS_HAZARDOUS;
+        SET_BIT(sector->flags, SECTOR_TOXIC);
+        break;
+
+    case SECT_ENCHANTED_FOREST:
+        sector->sector_class = SRCLASS_FOREST;
+        SET_BIT(sector->flags, SECTOR_NATURE);
+        SET_BIT(sector->flags, SECTOR_CRUMBLES);
+        SET_BIT(sector->flags, SECTOR_SLEEP_DRAIN);
         break;
 
     case SECT_CURSED_SANCTUM:
         sector->sector_class = SRCLASS_HAZARDOUS;
-        SET_BIT(sector->flags, SRTF_HARD_MAGIC);
-        SET_BIT(sector->flags, SRTF_SLOW_MAGIC);
-        SET_BIT(sector->flags, SRTF_DRAIN_MANA);
+        SET_BIT(sector->flags, SECTOR_HARD_MAGIC);
+        SET_BIT(sector->flags, SECTOR_SLOW_MAGIC);
+        SET_BIT(sector->flags, SECTOR_DRAIN_MANA);
         break;
 
     case SECT_LAVA:
         sector->sector_class = SRCLASS_VULCAN;
-        SET_BIT(sector->flags, SRTF_FLAME);
-        SET_BIT(sector->flags, SRTF_MELTS);
-        SET_BIT(sector->flags, SRTF_NO_SOIL);
+        SET_BIT(sector->flags, SECTOR_FLAME);
+        SET_BIT(sector->flags, SECTOR_MELTS);
+        SET_BIT(sector->flags, SECTOR_NO_SOIL);
         break;
     }
 }
@@ -365,6 +354,14 @@ bool room_in_sector(const ROOM_INDEX_DATA *room, int sector_type)
     return room_sector_type(room) == sector_type_sanitize(sector_type);
 }
 
+bool room_sector_has_flag(const ROOM_INDEX_DATA *room, long flag)
+{
+    if (!room)
+        return false;
+
+    return sector_has_flag(room_sector_type(room), flag);
+}
+
 int room_rs_sector_type(const ROOM_INDEX_DATA *room)
 {
     load_sector_data();
@@ -389,6 +386,16 @@ int room_set_rs_sector_type(ROOM_INDEX_DATA *room, int sector_type)
 
     room->rs_sector = &sector_runtime[normalized];
     return normalized;
+}
+
+bool sector_has_flag(int index, long flag)
+{
+    load_sector_data();
+
+    if (index < 0 || index >= SECT_MAX)
+        return false;
+
+    return IS_SET(sector_runtime[index].flags, flag);
 }
 
 const char *sector_name(int index)

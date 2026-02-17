@@ -655,8 +655,8 @@ void do_cast(CHAR_DATA *ch, char *argument)
         ch->cast_successful = MAGICCAST_SUCCESS;
         if(!IS_SET(ch->cast_token->pIndexData->flags,TOKEN_NOSKILLTEST)) {
             chance = 0;
-            if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
-            if (room_in_sector(ch->in_room, SECT_CURSED_SANCTUM)) chance += 2;
+            if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC) ||
+                room_sector_has_flag(ch->in_room, SECTOR_HARD_MAGIC)) chance += 2;
             if (!IS_NPC(ch) && chance > 0 && number_range(1,chance) > 1) {
                 ch->cast_successful = MAGICCAST_ROOMBLOCK;
             } else {
@@ -707,8 +707,8 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
         ch->cast_successful = MAGICCAST_SUCCESS;
         chance = 0;
-        if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
-        if (room_in_sector(ch->in_room, SECT_CURSED_SANCTUM)) chance += 2;
+        if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC) ||
+            room_sector_has_flag(ch->in_room, SECTOR_HARD_MAGIC)) chance += 2;
         if (!IS_NPC(ch) && chance > 0 && number_range(1,chance) > 1)
             ch->cast_successful = MAGICCAST_ROOMBLOCK;
         else if (number_percent() > get_skill(ch,spell->sn))
@@ -748,8 +748,8 @@ void do_cast(CHAR_DATA *ch, char *argument)
         ch->tempstore[0] = 1000;
         p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"beats");
         i = ch->tempstore[0];
-        if(IS_SET(ch->in_room->room_flag[1],ROOM_SLOW_MAGIC)) i += number_range(500,1000);
-        if(room_in_sector(ch->in_room, SECT_CURSED_SANCTUM)) i += number_range(500,1000);
+        if (IS_SET(ch->in_room->room_flag[1], ROOM_SLOW_MAGIC) ||
+            room_sector_has_flag(ch->in_room, SECTOR_SLOW_MAGIC)) i += number_range(500,1000);
     } else
         i = 1000;
 
@@ -1441,7 +1441,8 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 
     /* take care of the wilderness case */
     if (IN_WILDERNESS(ch)) {
-        if (room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
+        if (room_sector_has_flag(ch->in_room, SECTOR_NO_GATE) ||
+            room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
             send_to_char("The deep ocean waters cancel out your magic.\n\r", ch);
             return false;
         }

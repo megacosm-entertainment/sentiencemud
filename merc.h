@@ -64,6 +64,7 @@
 #include <openssl/err.h>
 #include <libpng/png.h>
 #include <qrencode.h>
+#include "sectors_runtime.h"
 #include "protocol.h"
 #include "connection.h"
 #include "protocol_layer.h"
@@ -413,7 +414,6 @@ typedef struct	trade_area_data		TRADE_AREA_DATA;
 typedef struct	storm_data		STORM_DATA;
 typedef struct	trade_item		TRADE_ITEM;
 typedef struct	trade_type		TRADE_TYPE;
-typedef struct sector_runtime_data SECTOR_RUNTIME_DATA;
 typedef struct	waypoint_data		WAYPOINT_DATA;
 typedef struct	ship_route_data SHIP_ROUTE;
 typedef struct 	buf_type	 	BUFFER;
@@ -9540,8 +9540,10 @@ const struct flag_type *sector_runtime_flag_table(void);
 int room_sector_type(const ROOM_INDEX_DATA *room);
 int room_set_sector_type(ROOM_INDEX_DATA *room, int sector_type);
 bool room_in_sector(const ROOM_INDEX_DATA *room, int sector_type);
+bool room_sector_has_flag(const ROOM_INDEX_DATA *room, long flag);
 int room_rs_sector_type(const ROOM_INDEX_DATA *room);
 int room_set_rs_sector_type(ROOM_INDEX_DATA *room, int sector_type);
+bool sector_has_flag(int index, long flag);
 bool reload_sector_data(void);
 bool sector_set_name(int index, const char *name);
 bool sector_set_move_cost(int index, int move_cost);

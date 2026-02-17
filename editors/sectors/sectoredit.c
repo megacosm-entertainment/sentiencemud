@@ -31,6 +31,10 @@ SECTOREDIT(sectoredit_reload);
 
 static int sectoredit_resolve_sector(char *argument);
 static int sectoredit_current_index(CHAR_DATA *ch);
+static void sectoredit_show_basic_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void sectoredit_show_details_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void sectoredit_show_hidemsgs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void sectoredit_show_affinity_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
 static const struct olc_cmd_type sectoredit_table[] = {
     { "?",         show_help },
@@ -62,9 +66,12 @@ static const OLC_EDITOR_DEF sectoredit_def = {
     .cmd_table      = sectoredit_table,
     .show_fn        = sectoredit_show,
     .tabs           = {
-        .count      = 1,
+        .count      = 4,
         .tabs       = {
             { "Basic", "Bas", NULL },
+            { "Details", "Det", NULL },
+            { "HideMsgs", "Hide", NULL },
+            { "Affinity", "Aff", NULL },
         },
     },
     .theme          = &olc_theme_data,
@@ -188,6 +195,7 @@ SECTOREDIT(sectoredit_show)
     OLC_LAYOUT_CTX *ctx;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
     int index = sectoredit_current_index(ch);
+    int tab;
 
     if (index < 0)
         return false;
@@ -196,42 +204,20 @@ SECTOREDIT(sectoredit_show)
 
     olc_display_header(ctx, "SectorEdit", sector_name(index), formatf("Sector %d", index), &sectoredit_def);
 
-    olc_display_section(ctx, theme, "Basics");
-    olc_display_string(ctx, theme, "Name:", "name", sector_name(index));
-    olc_display_string(ctx, theme, "Class:", "class", flag_string(sector_class_table(), sector_class(index)));
-    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(sector_runtime_flag_table(), sector_runtime_flags_value(index)));
-    olc_display_number(ctx, theme, "Move Cost:", "movecost", sector_move_cost(index));
-    olc_display_number(ctx, theme, "Health Rate:", "health", sector_heal_rate(index));
-    olc_display_number(ctx, theme, "Mana Rate:", "mana", sector_mana_rate(index));
-    olc_display_number(ctx, theme, "Move Rate:", "move", sector_move_rate(index));
-    olc_display_number(ctx, theme, "Soil:", "soil", sector_soil(index));
-
-    olc_display_section(ctx, theme, "Details");
-    olc_display_text(ctx, theme, "Description:", "description", sector_description(index));
-    olc_display_text(ctx, theme, "Comments:", "comments", sector_comments(index));
-
-    {
-        BUFFER *meta = new_buf();
-        int i;
-
-        add_buf(meta, "Hide Messages:\n\r");
-        for (i = 0; i < SECTOR_MAX_HIDE_MSGS; i++)
-            add_buf(meta, formatf("  %d) %s\n\r", i + 1,
-                IS_NULLSTR(sector_hide_msg(index, i)) ? "{D(empty){X" : sector_hide_msg(index, i)));
-
-        add_buf(meta, "Affinities:\n\r");
-        for (i = 0; i < SECTOR_MAX_AFFINITIES; i++) {
-            int catalyst = sector_affinity_catalyst(index, i);
-            if (catalyst <= CATALYST_NONE || catalyst >= CATALYST_MAX)
-                add_buf(meta, formatf("  %d) {D(empty){X\n\r", i + 1));
-            else
-                add_buf(meta, formatf("  %d) %s = %d\n\r", i + 1,
-                    flag_string(catalyst_types, catalyst),
-                    sector_affinity_value(index, i)));
-        }
-
-        olc_display_text(ctx, theme, "Metadata:", NULL, buf_string(meta));
-        free_buf(meta);
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    switch (tab) {
+    case 1:
+        sectoredit_show_details_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+        break;
+    case 2:
+        sectoredit_show_hidemsgs_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+        break;
+    case 3:
+        sectoredit_show_affinity_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+        break;
+    default:
+        sectoredit_show_basic_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+        break;
     }
 
     olc_display_footer(ctx, theme);
@@ -240,6 +226,108 @@ SECTOREDIT(sectoredit_show)
     olc_layout_free(ctx);
 
     return false;
+}
+
+static void sectoredit_show_basic_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    int index;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
+    const char *class_name;
+    const char *flags;
+
+    (void)ch;
+
+    index = (int)((intptr_t)pEdit) - 1;
+    if (index < 0 || index >= sector_count())
+        return;
+
+    class_name = flag_name(sector_class_table(), sector_class(index));
+    if (IS_NULLSTR(class_name))
+        class_name = "none";
+
+    flags = flag_string(sector_runtime_flag_table(), sector_runtime_flags_value(index));
+    if (IS_NULLSTR(flags))
+        flags = "(none)";
+
+    olc_display_section(ctx, theme, "Basics");
+    olc_display_string(ctx, theme, "Name:", "name", sector_name(index));
+    olc_display_string(ctx, theme, "Class:", "class", class_name);
+    olc_display_string(ctx, theme, "Flags:", "flags", flags);
+    olc_display_number(ctx, theme, "Move Cost:", "movecost", sector_move_cost(index));
+    olc_display_number(ctx, theme, "Health Rate:", "health", sector_heal_rate(index));
+    olc_display_number(ctx, theme, "Mana Rate:", "mana", sector_mana_rate(index));
+    olc_display_number(ctx, theme, "Move Rate:", "move", sector_move_rate(index));
+    olc_display_number(ctx, theme, "Soil:", "soil", sector_soil(index));
+}
+
+static void sectoredit_show_details_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    int index;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
+
+    (void)ch;
+
+    index = (int)((intptr_t)pEdit) - 1;
+    if (index < 0 || index >= sector_count())
+        return;
+
+    olc_display_section(ctx, theme, "Details");
+    olc_display_text(ctx, theme, "Description:", "description", sector_description(index));
+    olc_display_text(ctx, theme, "Comments:", "comments", sector_comments(index));
+}
+
+static void sectoredit_show_hidemsgs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    int index;
+    int i;
+    BUFFER *meta;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
+
+    (void)ch;
+
+    index = (int)((intptr_t)pEdit) - 1;
+    if (index < 0 || index >= sector_count())
+        return;
+
+    meta = new_buf();
+    for (i = 0; i < SECTOR_MAX_HIDE_MSGS; i++) {
+        add_buf(meta, formatf("%2d) %s\n\r", i + 1,
+            IS_NULLSTR(sector_hide_msg(index, i)) ? "{D(empty){X" : sector_hide_msg(index, i)));
+    }
+
+    olc_display_section(ctx, theme, "Hide Messages");
+    olc_display_text(ctx, theme, "Messages:", "hidemsgs", buf_string(meta));
+    free_buf(meta);
+}
+
+static void sectoredit_show_affinity_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    int index;
+    int i;
+    BUFFER *meta;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
+
+    (void)ch;
+
+    index = (int)((intptr_t)pEdit) - 1;
+    if (index < 0 || index >= sector_count())
+        return;
+
+    meta = new_buf();
+    for (i = 0; i < SECTOR_MAX_AFFINITIES; i++) {
+        int catalyst = sector_affinity_catalyst(index, i);
+        if (catalyst <= CATALYST_NONE || catalyst >= CATALYST_MAX) {
+            add_buf(meta, formatf("%2d) {D(empty){X\n\r", i + 1));
+        } else {
+            add_buf(meta, formatf("%2d) %-14s %d\n\r", i + 1,
+                flag_string(catalyst_types, catalyst),
+                sector_affinity_value(index, i)));
+        }
+    }
+
+    olc_display_section(ctx, theme, "Affinities");
+    olc_display_text(ctx, theme, "Entries:", "affinity", buf_string(meta));
+    free_buf(meta);
 }
 
 SECTOREDIT(sectoredit_name)

@@ -3681,8 +3681,8 @@ DECL_IFC_FUN(ifc_testhardmagic)
     if(!mob || !mob->in_room) return false;
 
     chance = 0;
-    if (IS_SET(mob->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
-    if (room_in_sector(mob->in_room, SECT_CURSED_SANCTUM)) chance += 2;
+    if (IS_SET(mob->in_room->room_flag[1], ROOM_HARD_MAGIC) ||
+        room_sector_has_flag(mob->in_room, SECTOR_HARD_MAGIC)) chance += 2;
     if(!IS_NPC(mob) && chance > 0 && number_range(1,chance) > 1) {
         *ret = true;
     } else
@@ -3697,7 +3697,8 @@ DECL_IFC_FUN(ifc_testslowmagic)
 
     if(!mob || !mob->in_room) return false;
 
-    *ret = IS_SET(mob->in_room->room_flag[1],ROOM_SLOW_MAGIC) || room_in_sector(mob->in_room, SECT_CURSED_SANCTUM);
+    *ret = IS_SET(mob->in_room->room_flag[1], ROOM_SLOW_MAGIC) ||
+        room_sector_has_flag(mob->in_room, SECTOR_SLOW_MAGIC);
 
     return true;
 }
