@@ -3415,7 +3415,6 @@ const struct do_func_type do_func_table[] =
         { "do_tplist",                  do_tplist },
         { "do_tpstat",                  do_tpstat },
         { "do_wedit",                   do_wedit },
-        { "do_vledit",                  do_vledit },
         { "do_wlist",                   do_wlist },
         { "do_slist",                   do_slist },
         { "do_sadd",                    do_sadd },

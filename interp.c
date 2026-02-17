@@ -534,7 +534,6 @@ const	struct	cmd_type	cmd_table	[] =
     { "traitedit",	do_traitedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
 /* VIZZWILDS */
     { "wedit",		do_wedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
-    { "vledit",		do_vledit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "wlist",		do_wlist,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
 
     /* Staff management commands */

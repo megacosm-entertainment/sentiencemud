@@ -83,7 +83,6 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define PEDIT(fun)		bool fun( CHAR_DATA *ch, char *argument )
 /* VIZZWILDS */
 #define WEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
-#define VLEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 // Blueprints
 #define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -115,7 +114,6 @@ void	tpedit	( CHAR_DATA *ch, char *argument );
 void	pedit	( CHAR_DATA *ch, char *argument );
 /* VIZZWILDS */
 void    wedit   ( CHAR_DATA *ch, char *argument );
-void    vledit  ( CHAR_DATA *ch, char *argument );
 // Blueprints
 void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
 void    bpedit 	( CHAR_DATA *ch, char *argument );	// Blueprints
@@ -202,7 +200,6 @@ extern const struct olc_cmd_type        tpedit_table[];
 extern const struct olc_cmd_type        pedit_table[];
 /* VIZZWILDS */
 extern const struct olc_cmd_type        wedit_table[];
-extern const struct olc_cmd_type	vledit_table[];
 // Blueprints
 extern const struct olc_cmd_type	bsedit_table[];
 extern const struct olc_cmd_type	bpedit_table[];
@@ -237,7 +234,6 @@ DECLARE_DO_FUN( do_tpedit       );
 DECLARE_DO_FUN( do_pedit       );
 /* VIZZWILDS */
 DECLARE_DO_FUN( do_wedit        );
-DECLARE_DO_FUN( do_vledit       );
 DECLARE_DO_FUN( do_bsedit       );
 DECLARE_DO_FUN( do_dngedit       );
 DECLARE_DO_FUN( do_cmdedit      );
@@ -588,10 +584,6 @@ DECLARE_OLC_FUN( wedit_show             );
 DECLARE_OLC_FUN( wedit_name             );
 DECLARE_OLC_FUN( wedit_terrain          );
 DECLARE_OLC_FUN( wedit_vlink            );
-
-/* VLink Editor */
-DECLARE_OLC_FUN( vledit_show            );
-
 
 /* Blueprint Section Editor */
 DECLARE_OLC_FUN( bsedit_list			);

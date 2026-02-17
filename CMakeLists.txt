@@ -134,7 +134,6 @@ set(SOURCE_FILES
     editors/ships/shedit.c
     editors/socials/socialedit.c
     editors/tokens/tedit.c
-    editors/wilderness/vledit.c
     editors/wilderness/wedit.c
     editors/races/racedit.c
     editors/traits/traitedit.c

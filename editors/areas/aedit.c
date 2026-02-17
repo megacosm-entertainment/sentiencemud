@@ -1,22 +1,8 @@
 /***************************************************************************
- *  File: olc_act.c                                                        *
+ *  aedit.c - OLC Area Editor                                              *
  *                                                                         *
- *  Much time and thought has gone into this software and you are          *
- *  benefitting.  We hope that you share your changes too.  What goes      *
- *  around, comes around.                                                  *
- *                                                                         *
- *  This code was freely distributed with the The Isles 1.1 source code,   *
- *  and has been used here for OLC - OLC would not be what it is without   *
- *  all the previous coders who released their source code.                *
- *                                                                         *
+ *  Migrated to the unified OLC Editor Framework (Phase 3).                *
  ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -33,211 +19,318 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+
+/***************************************************************************
+ * Framework Helpers                                                       *
+ ***************************************************************************/
+
+static AREA_DATA *aedit_get_area(void *pEdit)
+{
+    return (AREA_DATA *)pEdit;
+}
+
+/***************************************************************************
+ * Area Editor Command Table (moved from olc.c)                            *
+ ***************************************************************************/
+
+const struct olc_cmd_type aedit_table[] =
+{
+    {   "?",            show_help           },
+    {   "addaprog",     aedit_addaprog      },
+    {   "addtrade",     aedit_add_trade     },
+    {   "age",          aedit_age           },
+    {   "airshipland",  aedit_airshipland   },
+    {   "areawho",      aedit_areawho       },
+    {   "builder",      aedit_builder       },
+    {   "commands",     show_commands       },
+    {   "comments",     aedit_comments      },
+    {   "create",       aedit_create        },
+    {   "credits",      aedit_credits       },
+    {   "delaprog",     aedit_delaprog      },
+    {   "description",  aedit_desc          },
+    {   "filename",     aedit_file          },
+    {   "flags",        aedit_flags         },
+    {   "landx",        aedit_land_x        },
+    {   "landy",        aedit_land_y        },
+    {   "levels",       aedit_levels        },
+    {   "name",         aedit_name          },
+    {   "notes",        aedit_notes         },
+    {   "open",         aedit_open          },
+    {   "placetype",    aedit_placetype     },
+    {   "postoffice",   aedit_postoffice    },
+    {   "recall",       aedit_recall        },
+    {   "removetrade",  aedit_remove_trade  },
+    {   "repop",        aedit_repop         },
+    {   "security",     aedit_security      },
+    {   "settrade",     aedit_set_trade     },
+    {   "show",         aedit_show          },
+    {   "varclear",     aedit_varclear      },
+    {   "varset",       aedit_varset        },
+    {   "viewtrade",    aedit_view_trade    },
+    {   "vnum",         aedit_vnum          },
+    {   "wilds",        aedit_wilds         },
+    {   "x",            aedit_x             },
+    {   "y",            aedit_y             },
+    {   NULL,           0                   }
+};
+
+/***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF aedit_def = {
+    .name           = "AEdit",
+    .editor_type    = ED_AREA,
+    .cmd_table      = aedit_table,
+    .show_fn        = aedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_world,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = aedit_get_area,
+    .audit_changes  = true,
+};
+
+/***************************************************************************
+ * Editor Entry Point (moved from olc.c)                                   *
+ ***************************************************************************/
+
+/**
+ * do_aedit - Enter the area editor
+ *
+ * Usage: aedit                - edit current area
+ *        aedit <anum>         - edit area by anum
+ *        aedit <keyword>      - edit area by keyword
+ *        aedit create         - create new area
+ */
+void do_aedit(CHAR_DATA *ch, char *argument)
+{
+    AREA_DATA *pArea;
+    int value;
+    char arg[MAX_STRING_LENGTH];
+
+    if (!olc_editor_check_perm(ch, &aedit_def, NULL)) {
+        send_to_char("AEdit: Insufficient security to edit areas.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(ch))
+        return;
+
+    pArea = ch->in_room->area;
+    argument = one_argument(argument, arg);
+
+    if (is_number(arg))
+    {
+        value = atoi(arg);
+        if (!(pArea = get_area_data(value)))
+        {
+            send_to_char("That area vnum does not exist.\n\r", ch);
+            return;
+        }
+    }
+    else if (arg[0] != '\0' && (pArea = find_area_kwd(arg)) == NULL
+        && str_cmp(arg, "create"))
+    {
+        send_to_char("Area not found.\n\r", ch);
+        return;
+    }
+    else if (!str_cmp(arg, "create"))
+    {
+        if (ch->pcdata->security < 9 || get_staff_rank(ch) < STAFF_CREATOR)
+        {
+            send_to_char("AEdit: Insufficient security to create areas.\n\r", ch);
+            return;
+        }
+
+        aedit_create(ch, "");
+        ch->desc->editor = ED_AREA;
+        return;
+    }
+
+    olc_editor_enter(ch, &aedit_def, (void *)pArea, false);
+}
+
+/***************************************************************************
+ * Editor Interpreter (Framework)                                          *
+ ***************************************************************************/
+
+/**
+ * aedit - Interpreter loop for the area editor
+ */
+void aedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &aedit_def);
+}
+
+/***************************************************************************
+ * Display                                                                 *
+ ***************************************************************************/
 
 AEDIT(aedit_show)
 {
     AREA_DATA *pArea;
-    char buf  [MAX_STRING_LENGTH];
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
+    OLC_LAYOUT_CTX *ctx;
     ROOM_INDEX_DATA *recall;
-//	ITERATOR it;
-//	PROG_LIST *trigger;
-    BUFFER *buffer;
-    buffer = new_buf();
 
     EDIT_AREA(ch, pArea);
-    sprintf(buf, "{X======== {W%s{X ========\n\r", pArea->name);
-    add_buf(buffer, buf);
 
-    sprintf(buf, "{WArea: {R[{X%5ld{R]{X %s {R({WID: {X%ld{R){X\n\r", pArea->anum, pArea->name, pArea->uid);
-    add_buf(buffer, buf);
+    ctx = olc_display_new(ch, theme);
 
-//    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
-//    send_to_char(buf, ch);
+    olc_display_header(ctx, "AEdit", pArea->name,
+        formatf("%ld", pArea->anum), &aedit_def);
 
-    sprintf(buf, "\n\r{WSystem Infomation:{X\n\r");
-    add_buf(buffer, buf);
+    /* --- Identity --- */
+    olc_display_string(ctx, theme, "Name:", "name", pArea->name);
+    olc_display_number(ctx, theme, "Area ID:", NULL, pArea->uid);
 
-    sprintf(buf, "{WFile:        {R[{X%s{R]{X\n\r", pArea->file_name);
-    add_buf(buffer, buf);
+    /* --- System Information --- */
+    olc_display_section(ctx, theme, "System Information");
+    olc_display_string(ctx, theme, "File:", "filename", pArea->file_name);
+    olc_display_pair(ctx, theme,
+        "Age:", NULL, formatf("%d", pArea->age),
+        "Repop:", "repop", formatf("%d minutes", pArea->repop));
+    olc_display_number(ctx, theme, "Players:", NULL, pArea->nplayer);
+    olc_display_string(ctx, theme, "Credits:", "credits", pArea->credits);
+    olc_display_flags(ctx, theme, "Flags:", "flags", area_flags, pArea->area_flags);
+    olc_display_bool(ctx, theme, "Open:", "open", pArea->open);
 
-    sprintf(buf, "{WAge:         {R[{X%d{R]{X\n\r",	pArea->age);
-    add_buf(buffer, buf);
+    /* --- OLC Info --- */
+    olc_display_section(ctx, theme, "OLC Info");
+    olc_display_pair(ctx, theme,
+        "Min Vnum:", NULL, formatf("%ld", pArea->min_vnum),
+        "Max Vnum:", NULL, formatf("%ld", pArea->max_vnum));
+    olc_display_number(ctx, theme, "Security:", "security", pArea->security);
+    olc_display_string(ctx, theme, "Builders:", "builder", pArea->builders);
+    olc_display_pair(ctx, theme,
+        "Min Level:", NULL, formatf("%d", pArea->min_level),
+        "Max Level:", NULL, formatf("%d", pArea->max_level));
 
-    sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
-    add_buf(buffer, buf);
+    /* --- Location Information --- */
+    olc_display_section(ctx, theme, "Location Information");
 
-    sprintf(buf, "{WPlayers:     {R[{X%d{R]{X\n\r", pArea->nplayer);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WCredits:     {R[{X%s{R]{X\n\r", pArea->credits);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WFlags:       {R[{X%s{R]{X\n\r",
-           flag_string(area_flags, pArea->area_flags));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WOpen:        {R[{X%s{R]{X\n\r", pArea->open ? "Yes" : "No");
-    add_buf(buffer, buf);
-
-//
-// OLC Data
-//
-
-    sprintf(buf, "\n\r{WOLC Info:{X\n\r");
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WVnums:       {R[{X%ld-%ld{R]{X\n\r", pArea->min_vnum, pArea->max_vnum);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WSecurity:    {R[{X%d{R]{X\n\r", pArea->security);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WBuilders:    {R[{X%s{R]{X\n\r", pArea->builders);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WSuggested Levels:  {R[{X%d-%d{R]{X\n\r", pArea->min_level, pArea->max_level);
-    add_buf(buffer, buf);
-
-//
-// Room Data
-//
-
-    sprintf(buf, "\n\r{WLocation Information:{X\n\r");
-    add_buf(buffer, buf);
-
-    if(pArea->recall.wuid) {
-        WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
-        if(wilds)
-            sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pArea->recall.wuid,
-                pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
-        else
-            sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pArea->recall.wuid);
-    } else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
-            sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pArea->recall.id[0], recall->name);
-    } else
-            sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pArea->recall.id[0]);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WAreaWho:     {R[{X%s{R] [{X%s{R]{X\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WPlaceType:   {R[{X%s{R]{X\n\r",
-        flag_string(place_flags, pArea->place_flags));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea, pArea->airship_land_load.vnum) == NULL ? "{XNone" :
-        get_room_index(pArea, pArea->airship_land_load.vnum)->name, pArea->airship_land_load.vnum);
-    add_buf(buffer, buf);
-
-
-
-    sprintf(buf, "\n\r{WWilderness Map Locations:{X\n\r");
-    add_buf(buffer, buf);
-
-    if( pArea->wilds_uid > 0 )
+    /* Recall display */
     {
+        char recall_buf[MSL];
+        if (pArea->recall.wuid) {
+            WILDS_DATA *wilds = get_wilds_from_uid(NULL, pArea->recall.wuid);
+            if (wilds)
+                sprintf(recall_buf, "Wilds %s [%lu] at <%lu,%lu,%lu>",
+                    wilds->name, pArea->recall.wuid,
+                    pArea->recall.id[0], pArea->recall.id[1], pArea->recall.id[2]);
+            else
+                sprintf(recall_buf, "Wilds ??? [%lu]", pArea->recall.wuid);
+        } else if (pArea->recall.id[0] > 0
+            && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
+            sprintf(recall_buf, "Room [%ld] %s", pArea->recall.id[0], recall->name);
+        } else {
+            sprintf(recall_buf, "(none)");
+        }
+        olc_display_string(ctx, theme, "Recall:", "recall", recall_buf);
+    }
+
+    olc_display_type(ctx, theme, "AreaWho:", "areawho", area_who_titles, pArea->area_who);
+    olc_display_type(ctx, theme, "PlaceType:", "placetype", place_flags, pArea->place_flags);
+
+    /* Airship landing */
+    {
+        ROOM_INDEX_DATA *landing = get_room_index(pArea, pArea->airship_land_load.vnum);
+        olc_display_vnum(ctx, theme, "AirshipLand:", "airshipland",
+            pArea->airship_land_load.vnum, landing ? landing->name : NULL);
+    }
+
+    /* --- Wilderness Map Locations --- */
+    olc_display_section(ctx, theme, "Wilderness Map Locations");
+
+    if (pArea->wilds_uid > 0) {
         WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-        sprintf(buf, "{WWilderness:     {R[{X%ld{R]{X %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
-        add_buf(buffer, buf);
-    }
-    else
-    {
-        sprintf(buf, "{WWilderness:     {Xnone\n\r");
-        add_buf(buffer, buf);
+        olc_display_string(ctx, theme, "Wilderness:", "wilds",
+            formatf("[%ld] %s", pArea->wilds_uid, pWilds ? pWilds->name : "(null)"));
+    } else {
+        olc_display_string(ctx, theme, "Wilderness:", "wilds", "(none)");
     }
 
-    sprintf(buf, "{WX,Y:            {R[{X%d, %d{R]{X\n\r", pArea->x, pArea->y);
-    add_buf(buffer, buf);
+    olc_display_pair(ctx, theme,
+        "X:", "x", formatf("%d", pArea->x),
+        "Y:", "y", formatf("%d", pArea->y));
+    olc_display_pair(ctx, theme,
+        "LandX:", "landx", formatf("%d", pArea->land_x),
+        "LandY:", "landy", formatf("%d", pArea->land_y));
 
-    sprintf(buf, "{WLandX,LandY:    {R[{X%d, %d{R]{X\n\r", pArea->land_x, pArea->land_y);
-    add_buf(buffer, buf);
-
-
-    // Trade stuff. One trade center per area at most
-    if (pArea->trade_list != NULL)
-    {
+    /* --- Trade Items --- */
+    if (pArea->trade_list != NULL) {
         TRADE_ITEM *temp;
-        sprintf(buf, "{WTrade Items available within this area:{X\n\r");
-        add_buf(buffer, buf);
-         sprintf(buf,"{MName               Obj_Vnum Rep.Time Rep.Amount  Max_Qty Min_Price Max_Price{x\n\r");
-        add_buf(buffer,buf);
-        temp = pArea->trade_list;
+        olc_display_section(ctx, theme, "Trade Items");
 
-        while(temp != NULL)
-    {
-        sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_load.vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
-        add_buf(buffer, buf);
-            temp = temp->next;
+        OLC_TABLE_COL trade_cols[] = {
+            { "Name",       18, false },
+            { "Obj Vnum",    8, true  },
+            { "Rep.Time",    8, true  },
+            { "Rep.Amt",     8, true  },
+            { "Max Qty",     8, true  },
+            { "Min Price",   8, true  },
+            { "Max Price",   8, true  },
+        };
+        olc_display_table_begin(ctx, theme, NULL, trade_cols, 7);
+
+        for (temp = pArea->trade_list; temp != NULL; temp = temp->next) {
+            const char *vals[7] = {
+                trade_table[temp->trade_type].name,
+                formatf("%ld", temp->obj_load.vnum),
+                formatf("%ld", temp->replenish_time),
+                formatf("%ld", temp->replenish_amount),
+                formatf("%ld", temp->max_qty),
+                formatf("%ld", temp->min_price),
+                formatf("%ld", temp->max_price),
+            };
+            olc_display_table_row(ctx, theme, vals, 7, false);
+        }
+        olc_display_table_end(ctx, theme);
     }
 
-    }
+    /* --- Text fields --- */
+    olc_display_text(ctx, theme, "Description:", "description", pArea->description);
+    olc_display_text(ctx, theme, "Player Notes:", "notes", pArea->notes);
+    olc_display_text(ctx, theme, "Builders' Comments:", "comments", pArea->comments);
 
-
-    sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "\n\r{WPlayer Notes:{X\n\r%s\n\r", pArea->notes);
-    add_buf(buffer, buf);
-
-    sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
-    add_buf(buffer, buf);
-
-
+    /* --- Scripts --- */
     if (pArea->progs->progs)
-        olc_show_progs_grouped(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
+        olc_display_scripts(ctx, theme, pArea->progs->progs, PRG_APROG,
+            "AreaProg Vnum", "addaprog", "delaprog");
 
-    if (pArea->index_vars)
-        olc_show_index_vars(buffer, pArea->index_vars);
-    page_to_char(buf_string(buffer), ch);
-    free_buf(buffer);
+    olc_display_vars(ctx, theme, pArea->index_vars, "varset", "varclear");
 
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
 
 AEDIT(aedit_flags)
 {
-    AREA_DATA *area;
-    int value;
-
-    EDIT_AREA(ch, area);
-
-    if ((value = flag_value(area_flags, argument)) != NO_FLAG)
-    {
-    TOGGLE_BIT(area->area_flags, value);
-
-    send_to_char("Flag toggled.\n\r", ch);
-    return true;
-    }
-    else
-    {
-    send_to_char("No such flag.\n\r", ch);
-    return false;
-    }
-
-    return false;
+    AREA_DATA *pArea;
+    EDIT_AREA(ch, pArea);
+    return olc_cmd_flag_toggle(ch, argument, "Area Flags",
+        "Syntax:  flags [flag]\n\rType '? areaflags' for a list of flags.\n\r",
+        &pArea->area_flags, area_flags, NULL, NULL);
 }
 
 
 AEDIT(aedit_x)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (!is_number(argument))
-    {
-    send_to_char("Syntax:  x [#x coord on map]\n\r", ch);
-    return false;
-    }
-
-    pArea->x = atoi(argument);
-    send_to_char("X Coordinate of Area set.\n\r", ch);
-
-    return true;
+    return olc_cmd_number(ch, argument, "X Coordinate",
+        "Syntax:  x [#x coord on map]\n\r",
+        &pArea->x, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 
@@ -245,55 +338,29 @@ AEDIT(aedit_y)
 {
     AREA_DATA *pArea;
     EDIT_AREA(ch, pArea);
-
-    if (!is_number(argument))
-    {
-    send_to_char("Syntax:  y [#y coord on map]\n\r", ch);
-    return false;
-    }
-
-    pArea->y = atoi(argument);
-    send_to_char("Y Coordinate of Area set.\n\r", ch);
-
-    return true;
+    return olc_cmd_number(ch, argument, "Y Coordinate",
+        "Syntax:  y [#y coord on map]\n\r",
+        &pArea->y, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 
 AEDIT(aedit_land_x)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (!is_number(argument))
-    {
-    send_to_char("Syntax:  landx [#x coord on map]\n\r", ch);
-    return false;
-    }
-
-    pArea->land_x = atoi(argument);
-    send_to_char("X Coordinate set.\n\r", ch);
-
-    return true;
+    return olc_cmd_number(ch, argument, "Land X Coordinate",
+        "Syntax:  landx [#x coord on map]\n\r",
+        &pArea->land_x, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 
 AEDIT(aedit_land_y)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (!is_number(argument))
-    {
-    send_to_char("Syntax:  landy [#y coord on map]\n\r", ch);
-    return false;
-    }
-
-    pArea->land_y = atoi(argument);
-    send_to_char("Y Coordinate set.\n\r", ch);
-
-    return true;
+    return olc_cmd_number(ch, argument, "Land Y Coordinate",
+        "Syntax:  landy [#y coord on map]\n\r",
+        &pArea->land_y, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 AEDIT(aedit_wilds)
@@ -529,26 +596,9 @@ AEDIT( aedit_remove_trade)
 AEDIT(aedit_open)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:   open [Yes/No]\n\r", ch);
-    return false;
-    }
-
-    if (!str_prefix(argument, "yes"))
-    {
-    pArea->open = true;
-    }
-    else
-    {
-    pArea->open = false;
-    }
-
-    send_to_char("Open set.\n\r", ch);
-    return true;
+    return olc_cmd_bool(ch, argument, "Open", NULL, &pArea->open,
+        NULL, NULL);
 }
 
 
@@ -572,119 +622,52 @@ AEDIT(aedit_create)
 AEDIT(aedit_name)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:   name [$name]\n\r", ch);
-        return false;
-    }
-
-    free_string(pArea->name);
-    pArea->name = str_dup(argument);
-
-    send_to_char("Name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &pArea->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 AEDIT(aedit_desc)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pArea->description);
-    return true;
-    }
-
-    send_to_char("Syntax:  desc\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &pArea->description, NULL, NULL);
 }
 
 AEDIT(aedit_comments)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pArea->comments);
-    return true;
-    }
-
-    send_to_char("Syntax:  comment\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &pArea->comments, NULL, NULL);
 }
 
 AEDIT(aedit_notes)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pArea->notes);
-    return true;
-    }
-
-    send_to_char("Syntax:  notes\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Notes", NULL,
+        &pArea->notes, NULL, NULL);
 }
 
 
 AEDIT(aedit_repop)
 {
     AREA_DATA *pArea;
-    int value;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax: repop [#mins]\n\r", ch);
-        return false;
-    }
-
-    if (!is_number(argument))
-    {
-    send_to_char("That's not a number!\n\r", ch);
-    return false;
-    }
-
-    if ((value = atoi(argument)) < 5 || value > 120)
-    {
-    send_to_char("Value is out of range. Range is 5-120 minutes.\n\r", ch);
-    return false;
-    }
-
-    pArea->repop = value;
-    send_to_char("Repop time set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Repop Time",
+        "Syntax:  repop [5-120 minutes]\n\r",
+        &pArea->repop, 5, 120, NULL, NULL);
 }
 
 
 AEDIT(aedit_credits)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:   credits [$credits]\n\r", ch);
-    return false;
-    }
-
-    free_string(pArea->credits);
-    pArea->credits = str_dup(argument);
-
-    send_to_char("Credits set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Credits", NULL, &pArea->credits,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 

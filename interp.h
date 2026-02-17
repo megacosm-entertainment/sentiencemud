@@ -534,7 +534,7 @@ DECLARE_DO_FUN( do_showversion	);
 DECLARE_DO_FUN(	do_visible	);
 DECLARE_DO_FUN( do_vislist	);
 /* VIZZWILDS */
-DECLARE_DO_FUN( do_vledit	);
+
 DECLARE_DO_FUN( do_vlinks	);
 
 DECLARE_DO_FUN( do_vnum		);

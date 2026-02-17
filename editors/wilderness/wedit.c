@@ -1,22 +1,8 @@
 /***************************************************************************
- *  File: olc_act.c                                                        *
+ *  wedit.c - OLC Wilderness Editor                                        *
  *                                                                         *
- *  Much time and thought has gone into this software and you are          *
- *  benefitting.  We hope that you share your changes too.  What goes      *
- *  around, comes around.                                                  *
- *                                                                         *
- *  This code was freely distributed with the The Isles 1.1 source code,   *
- *  and has been used here for OLC - OLC would not be what it is without   *
- *  all the previous coders who released their source code.                *
- *                                                                         *
+ *  Migrated to the unified OLC Editor Framework (Phase 3).                *
  ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -32,8 +18,215 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain);
+
+/***************************************************************************
+ * Forward Declarations — Tab Show Functions                               *
+ ***************************************************************************/
+
+static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void wedit_show_map_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void wedit_show_terrain_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void wedit_show_vlinks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
+/***************************************************************************
+ * Framework Helpers                                                       *
+ ***************************************************************************/
+
+static AREA_DATA *wedit_get_area(void *pEdit)
+{
+    return pEdit ? ((WILDS_DATA *)pEdit)->pArea : NULL;
+}
+
+/***************************************************************************
+ * Wilderness Editor Command Table (moved from olc.c)                      *
+ ***************************************************************************/
+
+const struct olc_cmd_type wedit_table[] = {
+    {   "?",            show_help       },
+    {   "commands",     show_commands   },
+    {   "create",       wedit_create    },
+    {   "delete",       wedit_delete    },
+    {   "name",         wedit_name      },
+    {   "show",         wedit_show      },
+    {   "terrain",      wedit_terrain   },
+    {   "vlink",        wedit_vlink     },
+    {   NULL,           0               }
+};
+
+/***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF wedit_def = {
+    .name           = "WEdit",
+    .editor_type    = ED_WILDS,
+    .cmd_table      = wedit_table,
+    .show_fn        = wedit_show,
+    .tabs           = {
+        .count      = 4,
+        .tabs       = {
+            { "General",  "Gen",  wedit_show_general_tab },
+            { "Map",      "Map",  wedit_show_map_tab     },
+            { "Terrain",  "Ter",  wedit_show_terrain_tab },
+            { "VLinks",   "VLnk", wedit_show_vlinks_tab  },
+        },
+    },
+    .theme          = &olc_theme_world,
+    .perm           = {
+        .flags          = OLC_PERM_AREA_SECURITY,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = wedit_get_area,
+    .audit_changes  = true,
+};
+
+/***************************************************************************
+ * Wilderness Editor Interpreter — delegates to framework.                 *
+ ***************************************************************************/
+
+void wedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &wedit_def);
+}
+
+/***************************************************************************
+ * Wilderness Editor Entry Point (moved from olc.c)                        *
+ ***************************************************************************/
+
+void do_wedit(CHAR_DATA *ch, char *argument)
+{
+    AREA_DATA *pArea = NULL;
+    WILDS_DATA *pWilds = NULL,
+               *pLastWilds = NULL;
+    WILDS_TERRAIN *pTerrain = NULL;
+    char arg1[MIL],
+         arg2[MIL],
+         arg3[MIL],
+         *pMap = NULL,
+         *pStaticMap = NULL;
+    long value = 0,
+         lScount = 0,
+         lMapsize = 0;
+    int size_x = 0,
+        size_y = 0;
+
+    if (IS_NPC(ch))
+        return;
+
+    argument = one_argument(argument, arg1);
+
+    pWilds = ch->in_wilds;
+
+    if (IS_NULLSTR(arg1) && pWilds == NULL)
+    {
+        send_to_char("Wedit Usage:\n\r", ch);
+        send_to_char("               wedit                        - defaults to editing the wilds you are in.\n\r", ch);
+        send_to_char("               wedit [wilds uid]            - edit wilds via uid\n\r", ch);
+        send_to_char("               wedit create <sizex> <sizey> - create new wilds of specified dimensions\n\r", ch);
+        return;
+    }
+    else if (is_number(arg1))
+    {
+        value = atol(arg1);
+
+        if ((pWilds = get_wilds_from_uid(NULL, value)) == NULL)
+        {
+            send_to_char("Wedit: That wilds index does not exist.\n\r", ch);
+            return;
+        }
+
+        if (!has_access_area(ch, pWilds->pArea))
+        {
+            send_to_char("Wedit: Insufficient security to edit wilds - action logged.\n\r", ch);
+            return;
+        }
+
+        ch->desc->pEdit = (void *)pWilds;
+        ch->desc->editor = ED_WILDS;
+    }
+    else
+    {
+        if (!str_cmp(arg1, "create"))
+        {
+            if (IS_NULLSTR(argument))
+            {
+                send_to_char("Wedit Usage:\n\r", ch);
+                send_to_char("               wedit create <sizex> <sizey> - create new wilds of specified dimensions\n\r", ch);
+                return;
+            }
+            else
+            {
+                argument = one_argument(argument, arg2);
+                one_argument(argument, arg3);
+
+                if (is_number(arg2) && is_number(arg3))
+                {
+                    size_x = atoi(arg2);
+                    size_y = atoi(arg3);
+                    pArea = ch->in_room->area;
+                }
+
+                if (!has_access_area(ch, pArea))
+                {
+                    send_to_char("Insufficient security to edit area - action logged.\n\r", ch);
+                    return;
+                }
+            }
+
+            pWilds = new_wilds();
+            pWilds->pArea = ch->in_room->area;
+            pWilds->uid = gconfig.next_wilds_uid++;
+            gconfig_write();
+            pWilds->name = str_dup("New Wilds");
+            pWilds->map_size_x = size_x;
+            pWilds->map_size_y = size_y;
+            lMapsize = pWilds->map_size_x * pWilds->map_size_y;
+            pWilds->staticmap = calloc(sizeof(char), lMapsize);
+            pWilds->map = calloc(sizeof(char), lMapsize);
+
+            pMap = pWilds->map;
+            pStaticMap = pWilds->staticmap;
+
+            for (lScount = 0; lScount < lMapsize; lScount++)
+            {
+                *pMap++ = 'S';
+                *pStaticMap++ = 'S';
+            }
+
+            if (pArea->wilds)
+            {
+                pLastWilds = pArea->wilds;
+                while (pLastWilds->next)
+                    pLastWilds = pLastWilds->next;
+
+                perrf(LOG_INFO, "olc.c, do_wedit(): Adding Wilds to existing linked-list.");
+                pLastWilds->next = pWilds;
+            }
+            else
+            {
+                perrf(LOG_INFO, "olc.c, do_wedit(): Adding first Wilds to linked-list.");
+                pArea->wilds = pWilds;
+            }
+
+            send_to_char("Wedit: New wilds region created.\n\r", ch);
+            pTerrain = new_terrain(pWilds);
+            pTerrain->mapchar = 'S';
+            pTerrain->showchar = str_dup("{B~");
+            pWilds->pTerrain = pTerrain;
+            send_to_char("Wedit: Default wilds terrain mapping completed.\n\r", ch);
+        }
+    }
+
+    printf_to_char(ch, "{x[{WWedit{x] Editing Wilds.\n\r");
+    ch->desc->pEdit = (void *)pWilds;
+    ch->desc->editor = ED_WILDS;
+}
 
 WEDIT ( wedit_create )
 {
@@ -130,76 +323,206 @@ WEDIT ( wedit_delete )
     return false;
 }
 
-WEDIT ( wedit_show )
+/***************************************************************************
+ * Tab Show Functions                                                      *
+ ***************************************************************************/
+
+/**
+ * wedit_show_general_tab - General wilderness properties
+ *
+ * Shows name, area, map dimensions, default terrain, and current state.
+ */
+static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
-    WILDS_DATA *pWilds;
+    WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
     WILDS_TERRAIN *pTerrain;
-    char buf[MSL];
-    int col = 0;
+    const OLC_EDITOR_THEME *theme = &olc_theme_world;
 
-    pWilds = (WILDS_DATA *)ch->desc->pEdit;
-    send_to_char("{x[ {Wwedit show{x ]\n\r\n\r", ch);
+    olc_display_section(ctx, theme, "Properties");
+    olc_display_string(ctx, theme, "Name:", "name", pWilds->name);
+    olc_display_infof(ctx, theme, "Area:", "%ld - %s", pWilds->pArea->anum, pWilds->pArea->name);
+    olc_display_infof(ctx, theme, "Map size:", "%d x %d (%ld vrooms)",
+        pWilds->map_size_x, pWilds->map_size_y,
+        (long)(pWilds->map_size_x * pWilds->map_size_y));
 
-    sprintf(buf, "Wilds defined in area {W%ld{x, '{W%s{x'\n\r", pWilds->pArea->anum, pWilds->pArea->name);
-    send_to_char( buf, ch );
-
-    sprintf(buf, "Map size: [ {W%d {xx {W%d{x ] ({W%ld{x vrooms)\n\r",
-                  pWilds->map_size_x, pWilds->map_size_y,
-                  (long)(pWilds->map_size_x * pWilds->map_size_y));
-    send_to_char( buf, ch );
-
-    show_map_to_char(ch, ch, 3, 3, true);
-
-    send_to_char("\n\r{C*Terrain Key*{x\n\r", ch);
-
-    for(pTerrain=pWilds->pTerrain;pTerrain;pTerrain=pTerrain->next)
+    /* Show default terrain if one is set */
+    for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next)
     {
         if (pTerrain->mapchar == pWilds->cDefaultTerrain)
         {
-            /* Vizz - Handle colour code char exception before send_to_char() */
+            char buf[MSL];
             if (pTerrain->mapchar == '{')
-                sprintf(buf, "Default terrain: '{W{%c{x' '%s{x' {W%-12s{x\n\r\n\r",
-                             pTerrain->mapchar, pTerrain->showchar,
-                             pTerrain->showname ? pTerrain->showname : "(Not Set)");
+                sprintf(buf, "'{W{%c{x' '%s{x' %s",
+                    pTerrain->mapchar, pTerrain->showchar,
+                    pTerrain->showname ? pTerrain->showname : "(Not Set)");
             else
-                sprintf(buf, "Default terrain: '{W%c{x' '%s{x' {W%-12s{x\n\r\n\r",
-                             pTerrain->mapchar, pTerrain->showchar,
-                             pTerrain->showname ? pTerrain->showname : "(Not Set)");
-
-            send_to_char(buf, ch);
+                sprintf(buf, "'{W%c{x' '%s{x' %s",
+                    pTerrain->mapchar, pTerrain->showchar,
+                    pTerrain->showname ? pTerrain->showname : "(Not Set)");
+            olc_display_string(ctx, theme, "Default terrain:", NULL, buf);
+            break;
         }
     }
 
-    send_to_char("Tile Ansi Name        Tile Ansi Name        Tile Ansi Name\n\r", ch);
-    for(pTerrain=pWilds->pTerrain;pTerrain;pTerrain=pTerrain->next)
+    olc_display_section(ctx, theme, "Current State");
+    olc_display_number(ctx, theme, "Players:", NULL, pWilds->nplayer);
+    olc_display_number(ctx, theme, "Age:", NULL, pWilds->age);
+}
+
+/**
+ * wedit_show_map_tab - Visual map display
+ *
+ * Renders a header to the buffer, then show_map_to_char is called
+ * directly after buffer flush (sends output directly to character).
+ */
+static void wedit_show_map_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = &olc_theme_world;
+
+    olc_display_infof(ctx, theme, "Map size:", "%d x %d",
+        pWilds->map_size_x, pWilds->map_size_y);
+    add_buf(ctx->buffer, "\n\r  {DMap display follows below.{x\n\r");
+}
+
+/**
+ * wedit_show_terrain_tab - Terrain mappings
+ *
+ * Shows all terrain tokens with their display characters, names,
+ * sectors, and flags.
+ */
+static void wedit_show_terrain_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
+    WILDS_TERRAIN *pTerrain;
+    const OLC_EDITOR_THEME *theme = &olc_theme_world;
+    char buf[MSL];
+    int col = 0;
+
+    olc_display_section(ctx, theme, "Terrain Key");
+
+    /* Show default terrain */
+    for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next)
     {
-        /* Vizz - Handle colour code char exception before send_to_char() */
-        if (pTerrain->mapchar == '{')
-            sprintf(buf, " '{W{%c{x'  '%s{x' {W%-12s{x{x",
-                         pTerrain->mapchar, pTerrain->showchar,
-                         pTerrain->showname ? pTerrain->showname : "(Not Set)");
-        else
-            sprintf(buf, " '{W%c{x'  '%s{x' {W%-12s{x{x",
-                         pTerrain->mapchar, pTerrain->showchar,
-                         pTerrain->showname ? pTerrain->showname : "(Not Set)");
-
-        send_to_char(buf, ch);
-
-        if (col++ % 3 == 2)
-            send_to_char("\n\r", ch);
-
+        if (pTerrain->mapchar == pWilds->cDefaultTerrain)
+        {
+            if (pTerrain->mapchar == '{')
+                sprintf(buf, "'{W{%c{x' '%s{x' {W%-12s{x",
+                    pTerrain->mapchar, pTerrain->showchar,
+                    pTerrain->showname ? pTerrain->showname : "(Not Set)");
+            else
+                sprintf(buf, "'{W%c{x' '%s{x' {W%-12s{x",
+                    pTerrain->mapchar, pTerrain->showchar,
+                    pTerrain->showname ? pTerrain->showname : "(Not Set)");
+            olc_display_string(ctx, theme, "Default:", NULL, buf);
+            break;
+        }
     }
 
-    send_to_char("\n\r\n\r{C*Current State*{x\n\r", ch);
+    add_buf(ctx->buffer, "\n\r");
+    add_buf(ctx->buffer, "  Tile Ansi Name        Tile Ansi Name        Tile Ansi Name\n\r");
+    for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next)
+    {
+        if (pTerrain->mapchar == '{')
+            sprintf(buf, " '{W{%c{x'  '%s{x' {W%-12s{x{x",
+                pTerrain->mapchar, pTerrain->showchar,
+                pTerrain->showname ? pTerrain->showname : "(Not Set)");
+        else
+            sprintf(buf, " '{W%c{x'  '%s{x' {W%-12s{x{x",
+                pTerrain->mapchar, pTerrain->showchar,
+                pTerrain->showname ? pTerrain->showname : "(Not Set)");
 
-    sprintf(buf, "Players: {W%d{x\n\r", pWilds->nplayer);
-    send_to_char( buf, ch );
+        add_buf(ctx->buffer, buf);
 
-    sprintf(buf, "Age: {W%d{x\n\r", pWilds->age);
-    send_to_char( buf, ch );
+        if (col++ % 3 == 2)
+            add_buf(ctx->buffer, "\n\r");
+    }
 
-    if (!IS_SET(ch->comm, COMM_COMPACT))
-        send_to_char("\n\r", ch);
+    if (col % 3 != 0)
+        add_buf(ctx->buffer, "\n\r");
+}
+
+/**
+ * wedit_show_vlinks_tab - Virtual links listing
+ *
+ * Shows all vlinks defined for this wilderness region in a table format.
+ * Currently read-only; write support planned for the wilds refactor.
+ */
+static void wedit_show_vlinks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
+    WILDS_VLINK *pVLink;
+    const OLC_EDITOR_THEME *theme = &olc_theme_world;
+    char buf[MSL];
+    int vlnum = 0;
+    int count = 0;
+
+    /* Count vlinks */
+    for (pVLink = pWilds->pVLink; pVLink; pVLink = pVLink->next)
+        count++;
+
+    olc_display_infof(ctx, theme, "VLinks:", "%d defined", count);
+
+    if (count == 0)
+    {
+        add_buf(ctx->buffer, "  {DNo virtual links defined.{x\n\r");
+        return;
+    }
+
+    add_buf(ctx->buffer, "\n\r");
+    add_buf(ctx->buffer, "  {D[num] [uid]   [x coor] [y coor] [direction] "
+                         "[destvnum] [default] [current] [maptile]{x\n\r");
+
+    for (pVLink = pWilds->pVLink; pVLink; pVLink = pVLink->next)
+    {
+        sprintf(buf, "  %-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-8ld   %10s%10s%s{x\n\r",
+            vlnum++,
+            pVLink->uid,
+            pVLink->wildsorigin_x,
+            pVLink->wildsorigin_y,
+            dir_name[pVLink->door],
+            pVLink->destvnum,
+            vlinkage_bit_name(pVLink->default_linkage),
+            vlinkage_bit_name(pVLink->current_linkage),
+            pVLink->map_tile);
+        add_buf(ctx->buffer, buf);
+    }
+}
+
+/***************************************************************************
+ * Master Show Function — dispatches to active tab.                        *
+ ***************************************************************************/
+
+WEDIT ( wedit_show )
+{
+    WILDS_DATA *pWilds;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&wedit_def);
+    OLC_LAYOUT_CTX *ctx;
+    int tab;
+
+    EDIT_WILDS(ch, pWilds);
+
+    ctx = olc_display_new(ch, theme);
+
+    olc_display_header(ctx, "WEdit", pWilds->name,
+        formatf("UID %ld", pWilds->uid), &wedit_def);
+
+    /* Dispatch to active tab's show function */
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < wedit_def.tabs.count
+        && wedit_def.tabs.tabs[tab].show_fn) {
+        wedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pWilds);
+    } else {
+        wedit_show_general_tab(ch, ctx, (void *)pWilds);
+    }
+
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
+
+    /* Map tab: show_map_to_char sends directly to character */
+    if (tab == 1)
+        show_map_to_char(ch, ch, 3, 3, true);
 
     return false;
 }
@@ -210,17 +533,8 @@ WEDIT (wedit_name)
 
     EDIT_WILDS (ch, pWilds);
 
-    if (argument[0] == '\0')
-    {
-        send_to_char ("Syntax:  name [name]\n\r", ch);
-        return false;
-    }
-
-    free_string (pWilds->name);
-    pWilds->name = str_dup (argument);
-
-    send_to_char ("Wilds name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", "name <string>",
+                          &pWilds->name, OLC_STR_DEFAULT, NULL, NULL);
 }
 
 WEDIT ( wedit_terrain )

@@ -1,22 +1,8 @@
 /***************************************************************************
- *  File: olc_act.c                                                        *
+ *  redit.c - OLC Room Editor                                              *
  *                                                                         *
- *  Much time and thought has gone into this software and you are          *
- *  benefitting.  We hope that you share your changes too.  What goes      *
- *  around, comes around.                                                  *
- *                                                                         *
- *  This code was freely distributed with the The Isles 1.1 source code,   *
- *  and has been used here for OLC - OLC would not be what it is without   *
- *  all the previous coders who released their source code.                *
- *                                                                         *
+ *  Migrated to the unified OLC Editor Framework (Phase 3).                *
  ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -33,296 +19,513 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern bool redit_blueprint_oncreate;
 extern bool change_exit(CHAR_DATA *ch, char *argument, int door);
 extern int wear_bit(int loc);
 
+/* Forward declarations for tab show functions */
+static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void redit_show_resets_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void redit_show_extra_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void redit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
+/***************************************************************************
+ * Framework Helpers                                                       *
+ ***************************************************************************/
+
+static AREA_DATA *redit_get_area(void *pEdit)
+{
+    return pEdit ? ((ROOM_INDEX_DATA *)pEdit)->area : NULL;
+}
+
+/***************************************************************************
+ * Room Editor Command Table (moved from olc.c)                            *
+ ***************************************************************************/
+
+const struct olc_cmd_type redit_table[] =
+{
+    {   "?",            show_help           },
+    {   "addcdesc",     redit_addcdesc      },
+    {   "addrprog",     redit_addrprog      },
+    {   "commands",     show_commands       },
+    {   "comments",     redit_comments      },
+    {   "coords",       redit_coords        },
+    {   "create",       redit_create        },
+    {   "delcdesc",     redit_delcdesc      },
+    {   "delrprog",     redit_delrprog      },
+    {   "description",  redit_desc          },
+    {   "dislink",      redit_dislink       },
+    {   "down",         redit_down          },
+    {   "east",         redit_east          },
+    {   "ed",           redit_ed            },
+    {   "editcdesc",    redit_editcdesc     },
+    {   "heal",         redit_heal          },
+    {   "locale",       redit_locale        },
+    {   "mana",         redit_mana          },
+    {   "move",         redit_move          },
+    {   "mreset",       redit_mreset        },
+    {   "name",         redit_name          },
+    {   "north",        redit_north         },
+    {   "northeast",    redit_northeast     },
+    {   "northwest",    redit_northwest     },
+    {   "oreset",       redit_oreset        },
+    {   "owner",        redit_owner         },
+    {   "persist",      redit_persist       },
+    {   "recall",       redit_recall        },
+    {   "room",         redit_room          },
+    {   "sector",       redit_sector        },
+    {   "show",         redit_show          },
+    {   "south",        redit_south         },
+    {   "southeast",    redit_southeast     },
+    {   "southwest",    redit_southwest     },
+    {   "up",           redit_up            },
+    {   "west",         redit_west          },
+    {   "varset",       redit_varset        },
+    {   "varclear",     redit_varclear      },
+    {   NULL,           0                   }
+};
+
+/***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF redit_def = {
+    .name           = "REdit",
+    .editor_type    = ED_ROOM,
+    .cmd_table      = redit_table,
+    .show_fn        = redit_show,
+    .tabs           = {
+        .count = 5,
+        .tabs = {
+            { "General",  "Gen",  redit_show_general_tab },
+            { "Exits",    "Exit", redit_show_exits_tab },
+            { "Resets",   "Rst",  redit_show_resets_tab },
+            { "Extra",    "Ext",  redit_show_extra_tab },
+            { "Scripts",  "Scr",  redit_show_scripts_tab },
+        }
+    },
+    .theme          = &olc_theme_world,
+    .perm           = {
+        .flags          = OLC_PERM_AREA_SECURITY,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = redit_get_area,
+    .audit_changes  = true,
+};
+
+/***************************************************************************
+ * Room Editor Interpreter — delegates to framework with clone check.      *
+ ***************************************************************************/
+
+void redit(CHAR_DATA *ch, char *argument)
+{
+    ROOM_INDEX_DATA *pRoom = ch->in_room;
+
+    /* Clone rooms cannot be modified — allow 'done' through */
+    if (pRoom && room_is_clone(pRoom)) {
+        smash_tilde(argument);
+        char cmd[MAX_INPUT_LENGTH];
+        one_argument(argument, cmd);
+        if (!str_cmp(cmd, "done"))
+            edit_done(ch);
+        return;
+    }
+
+    olc_editor_interp(ch, argument, &redit_def);
+}
+
+/***************************************************************************
+ * Room Editor Entry Point (moved from olc.c)                              *
+ ***************************************************************************/
+
+void do_redit(CHAR_DATA *ch, char *argument)
+{
+    ROOM_INDEX_DATA *pRoom;
+    char arg1[MAX_STRING_LENGTH];
+
+    if (IS_NPC(ch))
+        return;
+
+    argument = one_argument(argument, arg1);
+
+    pRoom = ch->in_room;
+
+    if (!str_cmp(arg1, "reset"))
+    {
+        if (!has_access_area(ch, pRoom->area))
+        {
+            send_to_char("Insufficient security to reset - action logged.\n\r", ch);
+            return;
+        }
+
+        reset_room(pRoom, true);
+        send_to_char("Room reset.\n\r", ch);
+        return;
+    }
+    else if (!str_cmp(arg1, "create"))
+    {
+        if (redit_create(ch, argument))
+        {
+            ch->desc->editor = ED_ROOM;
+            char_from_room(ch);
+            char_to_room(ch, ch->desc->pEdit);
+            SET_BIT(((ROOM_INDEX_DATA *)ch->desc->pEdit)->area->area_flags, AREA_CHANGED);
+        }
+        return;
+    }
+    else if (!IS_NULLSTR(arg1))
+    {
+        WNUM wnum;
+        if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+            send_to_char("REdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+            return;
+        }
+
+        pRoom = get_room_index(wnum.pArea, wnum.vnum);
+
+        if (!pRoom)
+        {
+            send_to_char("REdit: Room does not exist.\n\r", ch);
+            return;
+        }
+
+        if (!IS_BUILDER(ch, pRoom->area))
+        {
+            send_to_char("REdit: Insufficient security to edit room - action logged.\n\r", ch);
+            return;
+        }
+
+        char_from_room(ch);
+        char_to_room(ch, pRoom);
+    }
+    else if (pRoom && IS_SET(pRoom->room_flag[1], ROOM_VIRTUAL_ROOM))
+    {
+        send_to_char("REdit: Virtual rooms may not be edited.\n\r", ch);
+        return;
+    }
+
+    if (!IS_BUILDER(ch, pRoom->area))
+    {
+        send_to_char("REdit: Insufficient security to edit room - action logged.\n\r", ch);
+        return;
+    }
+
+    ch->pcdata->immortal->last_olc_command = current_time;
+    ch->desc->pEdit = (void *)pRoom;
+    ch->desc->editor = ED_ROOM;
+}
+
+
+/***************************************************************************
+ * Tab Show Functions                                                      *
+ ***************************************************************************/
+
+static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+
+    olc_display_string(ctx, theme, "Name:", "name", pRoom->name);
+    olc_display_string(ctx, theme, "Area:", NULL,
+        formatf("[%5ld] %s", pRoom->area->anum, pRoom->area->name));
+
+    if (IS_SET(pRoom->rs_room_flag[1], ROOM_VIRTUAL_ROOM)) {
+        olc_display_infof(ctx, theme,
+            "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'",
+            pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
+    } else {
+        olc_display_number(ctx, theme, "Vnum:", NULL, pRoom->vnum);
+        olc_display_type(ctx, theme, "Sector:", "sector",
+            sector_flags, pRoom->rs_sector_type);
+        if (pRoom->viewwilds)
+            olc_display_infof(ctx, theme,
+                "Map Coord at ({W%ld{x, {W%ld{x, {W%ld{x), wilds uid ({W%ld{x) '{W%s{x'",
+                pRoom->x, pRoom->y, pRoom->z,
+                pRoom->viewwilds->uid, pRoom->viewwilds->name);
+    }
+
+    olc_display_bool(ctx, theme, "Persist:", "persist", pRoom->persist);
+    olc_display_string(ctx, theme, "Room flags:", "room",
+        bitmatrix_string(room_flagbank, pRoom->rs_room_flag));
+
+    if (pRoom->rs_heal_rate != 100 || pRoom->rs_mana_rate != 100
+        || pRoom->rs_move_rate != 100) {
+        olc_display_section(ctx, theme, "Regeneration Rates");
+        olc_display_number(ctx, theme, "Health rec:", "heal",
+            pRoom->rs_heal_rate);
+        olc_display_number(ctx, theme, "Mana rec:", "mana",
+            pRoom->rs_mana_rate);
+        olc_display_number(ctx, theme, "Move rec:", "move",
+            pRoom->rs_move_rate);
+    }
+
+    /* Recall location */
+    if (rs_location_isset(&pRoom->rs_recall)) {
+        if (pRoom->rs_recall.wuid) {
+            WILDS_DATA *wilds = get_wilds_from_uid(NULL, pRoom->rs_recall.wuid);
+            if (wilds)
+                olc_display_infof(ctx, theme,
+                    "{WRecall:{x      Wilds %s {R[{x%lu{R]{x at {R<{x%lu,%lu,%lu{R>{x",
+                    wilds->name, pRoom->rs_recall.wuid,
+                    pRoom->rs_recall.id[0], pRoom->rs_recall.id[1],
+                    pRoom->rs_recall.id[2]);
+            else
+                olc_display_infof(ctx, theme,
+                    "{WRecall:{x      Wilds ??? {R[{x%lu{R]{x",
+                    pRoom->rs_recall.wuid);
+        } else if (pRoom->rs_recall.id[0] > 0) {
+            ROOM_INDEX_DATA *recall = get_room_index(pRoom->area,
+                pRoom->rs_recall.id[0]);
+            if (recall)
+                olc_display_infof(ctx, theme,
+                    "{WRecall:{x      Room {R[{x%5ld{R]{x %s",
+                    pRoom->rs_recall.id[0], recall->name);
+            else
+                olc_display_infof(ctx, theme,
+                    "{WRecall:{x      {R[{x%lu{R]{x none",
+                    pRoom->rs_recall.id[0]);
+        }
+    }
+
+    if (pRoom->locale)
+        olc_display_number(ctx, theme, "Locale:", "locale", pRoom->locale);
+
+    if (!IS_NULLSTR(pRoom->owner))
+        olc_display_string(ctx, theme, "Owner:", "owner", pRoom->owner);
+
+    if (!IS_NULLSTR(pRoom->home_owner))
+        olc_display_string(ctx, theme, "Home owner:", NULL, pRoom->home_owner);
+
+    olc_display_text(ctx, theme, "Description:", "description",
+        pRoom->description);
+    olc_display_text(ctx, theme, "Builder Comments:", "comments",
+        pRoom->comments);
+}
+
+static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+    char buf[MAX_STRING_LENGTH];
+    bool found = false;
+    int door;
+
+    olc_display_section(ctx, theme, "Exits");
+
+    for (door = 0; door < MAX_DIR; door++) {
+        EXIT_DATA *pexit = pRoom->exit[door];
+        if (!pexit) continue;
+        found = true;
+
+        AREA_DATA *pArea = NULL;
+        WILDS_DATA *pWilds = NULL;
+
+        if (pRoom->wilds) {
+            if (IS_SET(pexit->exit_info, EX_VLINK))
+                sprintf(buf, "-{W%-9s{x to {W%6ld{x, Area Uid ({W%ld{x), '{W%s{x'\n\r",
+                    capitalize(dir_name[door]),
+                    pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
+                    pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
+                    pexit->u1.to_room ? pexit->u1.to_room->area->name : "{RERROR");
+            else
+                sprintf(buf, "-{W%-9s{x to ({W%d{x,{W%d{x).\n\r",
+                    capitalize(dir_name[door]),
+                    pexit->wilds.x, pexit->wilds.y);
+        } else {
+            if (IS_SET(pexit->exit_info, EX_VLINK)) {
+                pArea = get_area_from_uid(pexit->wilds.area_uid);
+                pWilds = get_wilds_from_uid(pArea, pexit->wilds.wilds_uid);
+                sprintf(buf, "-{W%-9s{x to ({W%d{x,{W%d{x), Wilds Uid ({W%ld{x), '{W%s{x'.\n\r",
+                    capitalize(dir_name[door]),
+                    pexit->wilds.x, pexit->wilds.y,
+                    pWilds ? pWilds->uid : 0,
+                    pWilds ? pWilds->name : "(null)");
+                add_buf(ctx->buffer, buf);
+                sprintf(buf, "                         Area Uid ({W%ld{x), '{W%s{x'.\n\r",
+                    pArea ? pArea->uid : 0,
+                    pArea ? pArea->name : "(null)");
+            } else {
+                sprintf(buf, "-{W%-9s{x to {W%6ld{x\n\r",
+                    capitalize(dir_name[door]),
+                    pexit->u1.to_room ? pexit->u1.to_room->vnum : 0);
+            }
+        }
+        add_buf(ctx->buffer, buf);
+
+        /* Format exit flags — capitalize any not in the reset state */
+        {
+            char word[MAX_INPUT_LENGTH];
+            char reset_state[MAX_STRING_LENGTH];
+            char *state;
+            int i, length;
+            bool ffound = false;
+
+            strcpy(reset_state, flag_string(exit_flags, pexit->rs_flags));
+            state = flag_string(exit_flags, pexit->exit_info);
+            add_buf(ctx->buffer, "    Exit flags: [{W");
+
+            for (;;) {
+                state = one_argument(state, word);
+                if (word[0] == '\0') {
+                    add_buf(ctx->buffer, "{x]\n\r");
+                    break;
+                }
+                if (str_infix(word, reset_state)) {
+                    length = strlen(word);
+                    for (i = 0; i < length; i++)
+                        word[i] = UPPER(word[i]);
+                }
+                if (ffound)
+                    add_buf(ctx->buffer, " ");
+                add_buf(ctx->buffer, word);
+                ffound = true;
+            }
+        }
+
+        if (pexit->long_desc && pexit->long_desc[0] != '\0') {
+            sprintf(buf, "    Exit Description:\n\r    {W%s{x\n\r",
+                pexit->long_desc);
+            add_buf(ctx->buffer, buf);
+        }
+
+        sprintf(buf, "    Keywords: [{W%s{x]\n\r"
+                     "    Short Description: '{W%s{x'\n\r",
+            pexit->keyword && pexit->keyword[0] != '\0'
+                ? pexit->keyword : "(Not set)",
+            pexit->short_desc && pexit->short_desc[0] != '\0'
+                ? pexit->short_desc : "(Not set)");
+        add_buf(ctx->buffer, buf);
+
+        if (IS_SET(pexit->rs_flags, EX_ISDOOR)) {
+            sprintf(buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]"
+                         "  Lock Flags: [{W%s{x]  Key vnum: [{W%ld{x]"
+                         " Pick chance: [{W%d%%{x]\n\r",
+                pexit->door.material,
+                pexit->door.strength,
+                flag_string(lock_flags, pexit->door.lock.flags),
+                pexit->door.lock.key_wnum.vnum,
+                pexit->door.lock.pick_chance);
+            add_buf(ctx->buffer, buf);
+        } else {
+            add_buf(ctx->buffer, "\n\r");
+        }
+    }
+
+    if (!found)
+        add_buf(ctx->buffer, "    {W(None set){x\n\r");
+}
+
+static void redit_show_resets_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+
+    olc_display_section(ctx, theme, "Resets");
+    add_buf(ctx->buffer,
+        "M = mobile, R = room, O = object, P = pet, S = shopkeeper\n\r");
+    add_buf(ctx->buffer, "(Resets displayed below footer)\n\r");
+}
+
+static void redit_show_extra_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+    char buf[MAX_STRING_LENGTH];
+    CONDITIONAL_DESCR_DATA *cd;
+    int i;
+
+    /* Extra descriptions */
+    olc_display_section(ctx, theme, "Extra Descriptions");
+
+    if (pRoom->extra_descr) {
+        EXTRA_DESCR_DATA *ed;
+        add_buf(ctx->buffer, "  Keywords: {r[{x");
+        for (ed = pRoom->extra_descr; ed; ed = ed->next) {
+            add_buf(ctx->buffer, ed->keyword);
+            if (ed->next)
+                add_buf(ctx->buffer, " ");
+        }
+        add_buf(ctx->buffer, "{r]{x\n\r");
+    } else {
+        add_buf(ctx->buffer, "  {D(none){x\n\r");
+    }
+
+    /* Conditional descriptions */
+    if (pRoom->conditional_descr) {
+        olc_display_section(ctx, theme, "Conditional Descriptions");
+
+        add_buf(ctx->buffer, "{Y Num  Condition Phrase{x\n\r");
+        add_buf(ctx->buffer, "{Y ---  --------- ------{x\n\r");
+
+        for (i = 0, cd = pRoom->conditional_descr; cd; cd = cd->next, i++) {
+            char phrase[MIL];
+
+            if (cd->condition == CONDITION_HOUR
+                || cd->condition == CONDITION_SCRIPT)
+                sprintf(phrase, "%d", cd->phrase);
+            else {
+                strncpy(phrase,
+                    condition_phrase_to_name(cd->condition, cd->phrase),
+                    MIL - 1);
+                phrase[MIL - 1] = '\0';
+            }
+
+            sprintf(buf, "{r[{x%3d{r]{x %-9s %s\n\r",
+                i, condition_type_to_name(cd->condition), phrase);
+            add_buf(ctx->buffer, buf);
+        }
+    }
+}
+
+static void redit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+
+    olc_display_scripts(ctx, theme, pRoom->progs->progs, PRG_RPROG,
+        "RoomProg Vnum", "addrprog", "delrprog");
+
+    olc_display_vars(ctx, theme, pRoom->index_vars, "varset", "varclear");
+}
+
+/***************************************************************************
+ * Master Show Function — dispatches to active tab.                        *
+ ***************************************************************************/
 
 REDIT(redit_show)
 {
     ROOM_INDEX_DATA *pRoom;
-    char buf[MAX_STRING_LENGTH];
-    BUFFER *buf1;
-    ROOM_INDEX_DATA *recall;
-//    ITERATOR it;
-//    PROG_LIST *trigger;
-    int door;
-    CONDITIONAL_DESCR_DATA *cd;
-    int i;
-    bool found=false;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+    OLC_LAYOUT_CTX *ctx;
+    int tab;
 
     EDIT_ROOM(ch, pRoom);
 
-    buf1 = new_buf();
-    sprintf(buf, "Base Description:\n\r%s\n\r", pRoom->description);
-    add_buf(buf1, buf);
+    ctx = olc_display_new(ch, theme);
 
-    sprintf(buf, "Name:         {r[{x%s{r]{x\n\r"
-                 "Area:         {r[{x%5ld{r]{x %s\n\r",
-        pRoom->name, pRoom->area->anum, pRoom->area->name);
-    add_buf(buf1, buf);
+    olc_display_header(ctx, "REdit", pRoom->name,
+        formatf("%ld", pRoom->vnum), &redit_def);
 
-    if (IS_SET(pRoom->rs_room_flag[1], ROOM_VIRTUAL_ROOM))
-        sprintf (buf, "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
-                 pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
-    else if(pRoom->viewwilds)
-        sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
-                     "Sector:       {r[{x%s{r]{x\n\r"
-                     "Map Coordinate at ({W%ld{x, {W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
-            pRoom->vnum, flag_string(sector_flags, pRoom->rs_sector_type),
-            pRoom->x, pRoom->y, pRoom->z, pRoom->viewwilds->uid, pRoom->viewwilds->name);
-    else
-        sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
-                     "Sector:       {r[{x%s{r]{x\n\r",
-            pRoom->vnum, flag_string(sector_flags, pRoom->rs_sector_type));
-
-    add_buf(buf1, buf);
-
-    sprintf(buf, "Persist:      {r[%s{r]{x\n\r", (pRoom->persist ? "{WON" : "{Doff"));
-    add_buf(buf1, buf);
-
-    sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-        bitmatrix_string(room_flagbank, pRoom->rs_room_flag));
-    add_buf(buf1, buf);
-/*
-    sprintf(buf, "Room2 flags:  {r[{x%s{r]{x\n\r",
-        flag_string(room2_flags, pRoom->room2_flags));
-    add_buf(buf1, buf);
-*/
-    if (pRoom->rs_heal_rate != 100 || pRoom->rs_mana_rate != 100 || pRoom->rs_move_rate != 100)
-    {
-    sprintf(buf,
-             "Health rec:   {r[{x%d{r]{x\n\r"
-         "Mana rec:     {r[{x%d{r]{x\n\r"
-         "Move rec:     {r[{x%d{r]{x\n\r",
-        pRoom->rs_heal_rate , pRoom->rs_mana_rate, pRoom->rs_move_rate);
-        add_buf(buf1, buf);
-    }
-    if (rs_location_isset(&pRoom->rs_recall))
-    {
-        if(pRoom->rs_recall.wuid) {
-            WILDS_DATA *wilds = get_wilds_from_uid(NULL,pRoom->rs_recall.wuid);
-            if(wilds)
-                sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pRoom->rs_recall.wuid,
-                    pRoom->rs_recall.id[0],pRoom->rs_recall.id[1],pRoom->rs_recall.id[2]);
-            else
-                sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pRoom->rs_recall.wuid);
-            } else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(pRoom->area, pRoom->rs_recall.id[0]))) {
-                sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pRoom->rs_recall.id[0], recall->name);
-        } else
-                sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pRoom->rs_recall.id[0]);
-        add_buf(buf1, buf);
+    /* Dispatch to active tab's show function */
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < redit_def.tabs.count
+        && redit_def.tabs.tabs[tab].show_fn) {
+        redit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pRoom);
+    } else {
+        redit_show_general_tab(ch, ctx, (void *)pRoom);
     }
 
-    if (pRoom->locale) {
-    sprintf(buf, "Locale:       {r[{x%ld{r]{x\n\r", pRoom->locale);
-    add_buf(buf1, buf);
-    }
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
 
-    if (!IS_NULLSTR(pRoom->owner))
-    {
-    sprintf(buf,
-             "Owner:        {r[{x%s{r]{x\n\r", pRoom->owner);
-        add_buf(buf1, buf);
-    }
-
-    if (pRoom->home_owner != NULL && pRoom->home_owner[0] != '\0')
-    {
-    sprintf(buf,
-             "Home owner:   {r[{x%s{r]{x\n\r", pRoom->home_owner);
-        add_buf(buf1, buf);
-    }
-
-    sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pRoom->comments);
-    add_buf(buf1, buf);
-
-
-    if (pRoom->extra_descr)
-    {
-    EXTRA_DESCR_DATA *ed;
-
-    add_buf(buf1,
-             "Desc Kwds:    {r[{x");
-
-    for (ed = pRoom->extra_descr; ed; ed = ed->next)
-    {
-        add_buf(buf1, ed->keyword);
-
-        if (ed->next)
-        add_buf(buf1, " ");
-    }
-
-    add_buf(buf1, "{r]{x\n\r");
-    }
-
-    found=0;
-    for (door = 0; door < MAX_DIR; door++)
-    {
-    EXIT_DATA *pexit;
-
-    if ((pexit = pRoom->exit[door]))
-    {
-        AREA_DATA *pArea = NULL;
-        WILDS_DATA *pWilds = NULL;
-        char word[MAX_INPUT_LENGTH];
-        char reset_state[MAX_STRING_LENGTH];
-        char *state;
-        int i, length;
-            bool ffound = false;
-
-
-            if (pRoom->wilds)
-            {
-                if (IS_SET(pexit->exit_info, EX_VLINK))
-        {
-                    sprintf (buf, "-{W%-9s{x to {W%6ld{x, Area Uid ({W%ld{x), '{W%s{x'.\n\r",
-                             capitalize (dir_name[door]),
-                             pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
-                 pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
-                 pexit->u1.to_room ? pexit->u1.to_room->area->name : "{RERROR");
-        }
-                else
-                    sprintf (buf, "-{W%-9s{x to ({W%d{x,{W%d{x).\n\r",
-                             capitalize (dir_name[door]),
-                             pexit->wilds.x, pexit->wilds.y);
-            }
-            else
-            {
-                if (IS_SET(pexit->exit_info, EX_VLINK))
-        {
-            pArea = get_area_from_uid(pexit->wilds.area_uid);
-            pWilds = get_wilds_from_uid(pArea, pexit->wilds.wilds_uid);
-                    sprintf (buf, "-{W%-9s{x to ({W%d{x,{W%d{x), Wilds Uid ({W%ld{x), '{W%s{x'.\n\r",
-                             capitalize (dir_name[door]),
-                             pexit->wilds.x, pexit->wilds.y,
-                 pWilds ? pWilds->uid : 0,
-                 pWilds ? pWilds->name : "(null)");
-                add_buf(buf1, buf);
-
-            sprintf (buf, "                         Area Uid ({W%ld{x), '{W%s{x'.\n\r",
-                 pArea ? pArea->uid : 0,
-                 pArea ? pArea->name : "(null)");
-        }
-                else
-                    sprintf (buf, "-{W%-9s{x to {W%6ld{x\n\r",
-                             capitalize (dir_name[door]),
-                             pexit->u1.to_room ? pexit->u1.to_room->vnum : 0);
-            }
-
-        add_buf(buf1, buf);
-
-            /*
-             * Format up the exit info.
-             * Capitalize all flags that are not part of the reset info.
-             */
-            strcpy (reset_state, flag_string (exit_flags, pexit->rs_flags));
-            state = flag_string (exit_flags, pexit->exit_info);
-            add_buf(buf1, "    Exit flags: [{W");
-            ffound = false;
-            for (;;)
-            {
-                state = one_argument (state, word);
-
-                if (word[0] == '\0')
-                {
-                    add_buf(buf1, "{x]\n\r");
-                    break;
-                }
-
-        if (str_infix(word, reset_state))
-        {
-            length = strlen(word);
-            for (i = 0; i < length; i++)
-            word[i] = UPPER(word[i]);
-        }
-
-                if (ffound == true)
-                    add_buf(buf1, " ");
-
-                add_buf(buf1, word);
-                ffound = true;
-            }
-
-            if (pexit->long_desc && pexit->long_desc[0] != '\0')
-            {
-                sprintf (buf, "    Exit Description:\n\r    {W%s{x\n\r", pexit->long_desc);
-                add_buf(buf1, buf);
-            }
-
-            sprintf (buf, "    Keywords: [{W%s{x]\n\r"
-                          "    Short Description: '{W%s{x'\n\r",
-                     pexit->keyword && pexit->keyword[0] != '\0' ? pexit->keyword : "(Not set)",
-                     pexit->short_desc && pexit->short_desc[0] != '\0' ? pexit->short_desc : "(Not set)");
-            add_buf(buf1, buf);
-
-            if (IS_SET(pexit->rs_flags, EX_ISDOOR))
-            {
-                sprintf (buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]  Lock Flags: [{W%s{x]  Key vnum: [{W%ld{x] Pick chance: [{W%d%%{x]\n\r",
-                         pexit->door.material,
-                         pexit->door.strength,
-                         flag_string(lock_flags, pexit->door.lock.flags),
-                         pexit->door.lock.key_wnum.vnum,
-                         pexit->door.lock.pick_chance);
-                add_buf(buf1, buf);
-            }
-            else
-                add_buf(buf1, "\n\r");
-
-            found = true;
-    }
-    }
-
-    if (found == false)
-        add_buf(buf1, "    {W(None set){x\n\r");
-
-    if (pRoom->progs->progs)
-        olc_show_progs_grouped(buf1, pRoom->progs->progs, PRG_RPROG, "RoomProg Vnum");
-
-    if (pRoom->index_vars)
-        olc_show_index_vars(buf1, pRoom->index_vars);
-
-    if (pRoom->conditional_descr)
-    {
-    char phrase[MIL];
-
-    sprintf(buf, "\n\rConditional Descriptions for {r[{x%5ld{r]{x:\n\r", pRoom->vnum);
-
-    add_buf(buf1, buf);
-
-    for (i = 0, cd = pRoom->conditional_descr; cd != NULL; cd = cd->next)
-    {
-        if (i == 0)
-        {
-        add_buf(buf1, "{Y Num  Condition Phrase{x\n\r");
-        add_buf(buf1, "{Y ---  --------- ------{x\n\r");
-        }
-
-        if (cd->condition == CONDITION_HOUR || cd->condition == CONDITION_SCRIPT)
-            sprintf(phrase, "%d", cd->phrase);
-        else {
-            strncpy(phrase, condition_phrase_to_name(cd->condition, cd->phrase), MIL-1);
-            phrase[MIL-1] = '\0';
-        }
-
-
-        sprintf(buf, "{r[{x%3d{r]{x %-9s %s\n\r", i, condition_type_to_name(cd->condition), phrase );
-
-        add_buf(buf1, buf);
-        i++;
-    }
-    }
-
-    page_to_char (buf_string(buf1), ch);
-    free_buf(buf1);
-
-        if (ch->in_room->reset_first)
-    {
-        send_to_char(
-        "\n\rResets: M = mobile, R = room, O = object, "
-        "P = pet, S = shopkeeper\n\r", ch);
+    /* Resets tab: display_resets sends directly to character */
+    if (tab == 2 && ch->in_room && ch->in_room->reset_first)
         display_resets(ch);
-    }
 
     return false;
 }
@@ -864,33 +1067,17 @@ REDIT(redit_name)
 REDIT(redit_desc)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pRoom->description);
-    return true;
-    }
-
-    send_to_char("Syntax:  desc\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "description",
+        NULL, &pRoom->description, NULL, NULL);
 }
 
 REDIT(redit_comments)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pRoom->comments);
-    return true;
-    }
-
-    send_to_char("Syntax:  comment\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "comments",
+        NULL, &pRoom->comments, NULL, NULL);
 }
 
 REDIT(redit_recall)
@@ -964,54 +1151,27 @@ REDIT(redit_recall)
 REDIT(redit_heal)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
-
-    if (is_number(argument))
-       {
-          pRoom->rs_heal_rate = atoi (argument);
-          send_to_char ("Heal rate set.\n\r", ch);
-          return true;
-       }
-
-    send_to_char ("Syntax : heal <#xnumber>\n\r", ch);
-    return false;
+    return olc_cmd_number(ch, argument, "heal rate",
+        NULL, &pRoom->rs_heal_rate, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 
 REDIT(redit_mana)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
-
-    if (is_number(argument))
-       {
-          pRoom->rs_mana_rate = atoi (argument);
-          send_to_char ("Mana rate set.\n\r", ch);
-          return true;
-       }
-
-    send_to_char ("Syntax : mana <#xnumber>\n\r", ch);
-    return false;
+    return olc_cmd_number(ch, argument, "mana rate",
+        NULL, &pRoom->rs_mana_rate, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 
 REDIT(redit_move)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
-
-    if (is_number(argument))
-    {
-    pRoom->rs_move_rate = atoi (argument);
-    send_to_char ("Movement regen rate set.\n\r", ch);
-    return true;
-    }
-
-    send_to_char ("Syntax: move <#xnumber>\n\r", ch);
-    return false;
+    return olc_cmd_number(ch, argument, "move rate",
+        NULL, &pRoom->rs_move_rate, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 
@@ -1589,22 +1749,17 @@ REDIT(redit_coords)
 
 REDIT(redit_locale)
 {
-    ROOM_INDEX_DATA *room;
-    int locale;
+    ROOM_INDEX_DATA *pRoom;
 
-    EDIT_ROOM(ch, room);
+    EDIT_ROOM(ch, pRoom);
 
-    if(IS_NULLSTR(argument) || !is_number(argument)) {
-        send_to_char("locale <#locale>\n\r",ch);
+    if (IS_NULLSTR(argument) || !is_number(argument)) {
+        send_to_char("Syntax: locale <#locale>\n\r", ch);
         return false;
     }
 
-    locale = atoi(argument);
-
-    room->locale = locale;
-
+    pRoom->locale = atoi(argument);
     send_to_char("Locale set.\n\r", ch);
-
     return true;
 }
 
