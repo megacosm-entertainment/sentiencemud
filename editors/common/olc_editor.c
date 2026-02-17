@@ -327,6 +327,10 @@ void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
 {
     if (!ch || !ch->desc || !def) return;
 
+    /* Auto-register with the editor registry on first use */
+    if (!olc_find_editor_by_type(def->editor_type))
+        olc_register_editor(def);
+
     /* Check permissions */
     if (!olc_editor_check_perm(ch, def, pEdit)) {
         send_to_char("You don't have permission to use this editor.\n\r", ch);
@@ -707,6 +711,10 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
     int cmd_index;
 
     if (!ch || !ch->desc || !def) return;
+
+    /* Auto-register with the editor registry on first use */
+    if (!olc_find_editor_by_type(def->editor_type))
+        olc_register_editor(def);
 
     /* --- Permission check --- */
     if (!olc_editor_check_perm(ch, def, ch->desc->pEdit)) {

@@ -1398,22 +1398,44 @@ tab infrastructure, and display helpers added comparable code)
 **Also fixed**: Added missing `case ED_TPCODE:` to `show_commands()` in `olc.c` (was
 previously absent, meaning TPEDIT's `commands` command silently did nothing).
 
-### 7.9 Phase 7: Command Table Migration
+### 7.9 Phase 7: Command Table Migration ✅
 
-Move remaining command tables from `olc.c` to their respective editor files. This is
-mechanical refactoring — already done for medit, oedit, and tedit during Phase 2:
-1. Cut the table from `olc.c`
-2. Paste into the editor's `.c` file
-3. Remove the `extern` declaration from `olc.h`
-4. Update the `OLC_EDITOR_DEF` to reference it
-5. Repeat for each editor
+All command tables were already in their respective editor files by the end of Phase 6.
+Phase 7 completed the decoupling by activating the framework's editor registry and
+removing the centralized dispatch code from `olc.c`.
 
-Goal: `olc.c` should shrink from ~3,047 lines to ~500 lines (just the shared infrastructure).
-Editor command tables and interpreters moved out so far: medit, oedit, tedit (Phase 2);
-aedit, redit, wedit (Phase 3); bsedit, bpedit, dngedit (Phase 4); pedit, cmdedit,
-socialedit, shedit, hedit (Phase 5). All 7 script editors (Phase 6) already had their
-tables in `olc_mpcode.c` — their interpreters were converted to framework delegates
-in-place. Plus all six Gen 2 editor tables were already self-contained.
+**What changed**:
+
+1. **Auto-registration**: `olc_editor_enter()` and `olc_editor_interp()` now auto-register
+   their `OLC_EDITOR_DEF` with the registry (`olc_register_editor`) on first use. No
+   explicit boot-time init function needed.
+
+2. **`run_olc_editor()` rewritten**: Uses `olc_find_editor_by_type()` registry lookup
+   instead of a 26-case switch statement. Calls `olc_editor_interp()` directly with the
+   registered def. Only fallback: `ED_HELP` (hedit has a custom non-framework interpreter).
+   Switch reduced from 26 cases → 1 case.
+
+3. **`show_commands()` rewritten**: Same registry-based lookup. 26-case switch → 1 case
+   fallback for `ED_HELP`.
+
+4. **`olc.h` cleaned up**:
+   - Removed 28 extern command table declarations (kept only `hedit_table`)
+   - Removed 25 interpreter function declarations (kept only `hedit`, `qedit`, `gameedit`)
+   - Added explanatory comments about the registry-based approach
+
+5. **`olc.c` cleaned up**:
+   - Removed commented-out `npc_shedit_table` (dead code)
+   - Removed 15+ scattered "moved to" comments (leftover from prior phases)
+   - Added `#include "editors/common/olc_editor.h"` for registry access
+
+**Line count reductions**:
+- `olc.c`: 3,047 → ~2,817 (−230 lines, −7.5%)
+- `olc.h`: 848 → ~798 (−50 lines, −5.9%)
+
+**Design note**: The 5 editors with custom `do_*` entry functions that don't use
+`olc_editor_enter()` (redit, wedit, bsedit, bpedit, dngedit) register via
+`olc_editor_interp()` auto-registration on first command. The registry is fully
+populated after each editor type has been used once.
 
 ### 7.10 Phase 8: New Editors (Backport from `src_20_dev`)
 
@@ -1828,24 +1850,24 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 |------|-------|----------|
 | `editors/common.h` | 217 | Legacy display helpers, `OLC_LAYOUT_CTX`, `OLC_EDITOR_TABS` |
 | `editors/common.c` | 976 | Legacy renderers, `process_olc_command`, `olc_render_*` |
-| `olc.c` | ~3,047 | Editor tables, interpreters, shared helpers (reduced from 4,633) |
-| `olc.h` | 620 | ED_* constants, EDIT_* macros, all prototypes |
+| `olc.c` | ~2,817 | Editor registry dispatch, shared helpers (reduced from 4,633) |
+| `olc.h` | ~798 | ED_* constants, EDIT_* macros, non-framework prototypes |
 | `olc_act.c` | 3,312 | Shared editor action functions |
 | `olc_act2.c` | ~200 | Condition phrase helpers |
 | `olc_save.c` | ~2,000 | Area save routines (legacy .are format) |
 
 ### 10.4 Summary Statistics
 
-| Metric | Before | After (Projected) | Current (Phase 6 Done) |
+| Metric | Before | After (Projected) | Current (Phase 7 Done) |
 |--------|--------|-------------------|------------------------|
-| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~366 (21 migrated) |
+| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~14 (26 registry, 1 fallback) |
 | Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 29 editors converted |
 | Permission patterns | 6 different patterns | 1 centralized check | 29 editors converted |
 | Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 explicit save + 3 area flag + 5 custom + 2 custom (bp/dng) |
 | Audit logging (server-side) | None | All editors | 6 editors (Gen 2) |
 | Change history (in-game) | gameedit only | All editors (opt-in per struct) | 6 editors fully wired |
 | History persistence | None (gameedit: json_changesets) | Per-type files, async writes | 6 type files implemented |
-| Lines in `olc.c` | 4,633 | ~500 | ~3,047 (8 editors removed) |
+| Lines in `olc.c` | 4,633 | ~500 | ~2,817 (registry-based dispatch) |
 | Color consistency | None (per-editor ad hoc) | 6 category themes | 29 editors themed |
 | MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 29 editors (labels, flags, tabs, scripts, lists) |
 | `bprintf` usage | Partial | All new display code | All new display code |
@@ -1854,3 +1876,7 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 | Player-accessible editors | 0 | Prepared for housing | Framework ready |
 | Data/display separation | None | Display via renderers (JSON-ready) | 29 editors via renderers |
 | Command helpers converted | 0 | All simple commands | 101 commands (46 Gen 2 + 23 Phase 2 + 21 Phase 3 + 19 Phase 4 + 31 Phase 5 + 1 Phase 6, some overlap with tabbed editors) |
+| Extern table declarations in olc.h | 28 | 0 | 1 (hedit_table only) |
+| Extern interpreter decls in olc.h | 27 | 0 | 3 (hedit, qedit, gameedit) |
+| run_olc_editor switch cases | 26 | 0 | 1 (ED_HELP fallback) |
+| show_commands switch cases | 26 | 0 | 1 (ED_HELP fallback) |

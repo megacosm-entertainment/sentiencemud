@@ -19,6 +19,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "editors/common.h"
+#include "editors/common/olc_editor.h"
 #include "traits.h"
 #include "class_data.h"
 extern const char *medit_tab_names[];
@@ -137,49 +138,10 @@ const struct editor_cmd_type editor_table[] =
 };
 
 
-/* Interpreter Tables */
-
-/* aedit_table moved to editors/areas/aedit.c */
-
-/* redit_table moved to editors/rooms/redit.c */
-
-
-/* wedit_table moved to editors/wilderness/wedit.c */
-
-/* vledit removed — folded into wedit as VLinks tab */
-
-
-/* hedit_table moved to editors/help/hedit.c */
-
-/*
- * NPC Ship editor table - placeholder for future NPC ship editing.
- * Not currently active; retained for reference when implementing NPC ships.
- *
-const struct olc_cmd_type npc_shedit_table[] =
-{
-    {   "addmob",       shedit_addmob    	},
-    {   "addwaypoint",  shedit_addwaypoint    	},
-    {   "captain",      shedit_captain  	},
-    {   "commands",	show_commands		},
-    {   "coord",	shedit_coord  		},
-    {   "create",	shedit_create		},
-    {   "delmob",       shedit_delmob    	},
-    {   "delwaypoint",  shedit_delwaypoint    	},
-    {   "flag",         shedit_flag     	},
-    {   "chance",       shedit_chance     	},
-    {   "initial",      shedit_initial     	},
-    {   "list",	        shedit_list		},
-    {   "name",         shedit_name     	},
-    {   "npc",          shedit_npc     	 	},
-    {   "npcsub",	shedit_npcsub		},
-    {	"show",		shedit_show		},
-    {   "type",         shedit_type     	},
-    {   NULL,		0,			}
-};
-*/
-
-
-/* pedit_table moved to editors/projects/pedit.c */
+/* All editor command tables and interpreter functions have been moved to
+ * their respective editor files.  The framework editor registry
+ * (olc_editor_interp / olc_find_editor_by_type) dispatches commands
+ * without needing centralized switch statements or extern tables here. */
 
 
 /* Executed from comm.c.  Minimizes compiling when changes are made. */
@@ -188,93 +150,21 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
     // No command should have a space, so no need for quoting.
     // No OLC command should start with ' or ".
     if (d->incomm[0] == '\'' || d->incomm[0] == '"') return false;
+
+    /* Try the framework editor registry first.  Editors auto-register
+     * via olc_editor_enter() or olc_editor_interp(), so any editor
+     * that has been opened at least once will be found here. */
+    const OLC_EDITOR_DEF *def = olc_find_editor_by_type(d->editor);
+    if (def) {
+        olc_editor_interp(d->character, d->incomm, def);
+        return true;
+    }
+
+    /* Fallback for non-framework editors */
     switch (d->editor)
     {
-    case ED_AREA:
-        aedit(d->character, d->incomm);
-        break;
-    case ED_ROOM:
-        redit(d->character, d->incomm);
-        break;
-    case ED_OBJECT:
-        oedit(d->character, d->incomm);
-        break;
-    case ED_MOBILE:
-        medit(d->character, d->incomm);
-        break;
-    case ED_MPCODE:
-        mpedit(d->character, d->incomm);
-        break;
-    case ED_OPCODE:
-        opedit(d->character, d->incomm);
-        break;
-    case ED_RPCODE:
-        rpedit(d->character, d->incomm);
-        break;
-    case ED_SHIP:
-        shedit(d->character, d->incomm);
-        break;
     case ED_HELP:
         hedit(d->character, d->incomm);
-        break;
-    case ED_TOKEN:
-        tedit(d->character, d->incomm);
-        break;
-    case ED_TPCODE:
-        tpedit(d->character, d->incomm);
-        break;
-    case ED_PROJECT:
-            pedit(d->character, d->incomm);
-        break;
-/* VIZZWILDS */
-    case ED_WILDS:
-        wedit(d->character, d->incomm);
-        break;
-
-    case ED_BPSECT:
-        bsedit(d->character, d->incomm);
-        break;
-
-    case ED_BLUEPRINT:
-        bpedit(d->character, d->incomm);
-        break;
-
-    case ED_DUNGEON:
-        dngedit(d->character, d->incomm);
-        break;
-
-    case ED_APCODE:
-        apedit(d->character, d->incomm);
-        break;
-    case ED_IPCODE:
-        ipedit(d->character, d->incomm);
-        break;
-    case ED_DPCODE:
-        dpedit(d->character, d->incomm);
-        break;
-    case ED_CMDEDIT:
-        cmdedit(d->character, d->incomm);
-        break;
-    case ED_SOCIAL:
-        socialedit(d->character, d->incomm);
-        break;
-    case ED_RACE:
-        racedit(d->character, d->incomm);
-        break;
-    case ED_TRAIT:
-        traitedit(d->character, d->incomm);
-        break;
-    case ED_SKILL:
-        skedit(d->character, d->incomm);
-        break;
-    case ED_GROUP:
-        gredit(d->character, d->incomm);
-        break;
-    case ED_SONG:
-        soedit(d->character, d->incomm);
-        break;
-    case ED_CLASS:
-        clsedit(d->character, d->incomm);
         break;
 
     default:
@@ -566,111 +456,20 @@ void show_olc_cmds(CHAR_DATA *ch, const struct olc_cmd_type *olc_table)
 /* Display all OLC commands for your current editor */
 bool show_commands(CHAR_DATA *ch, char *argument)
 {
-    switch (ch->desc->editor)
-    {
-    case ED_AREA:
-        show_olc_cmds(ch, aedit_table);
-        break;
-
-    case ED_ROOM:
-        show_olc_cmds(ch, redit_table);
-        break;
-
-    case ED_OBJECT:
-        show_olc_cmds(ch, oedit_table);
-        break;
-
-    case ED_MOBILE:
-        show_olc_cmds(ch, medit_table);
-        break;
-
-    case ED_MPCODE:
-        show_olc_cmds(ch, mpedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_OPCODE:
-        show_olc_cmds(ch, opedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_RPCODE:
-        show_olc_cmds(ch, rpedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_TPCODE:
-        show_olc_cmds(ch, tpedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_HELP:
-        show_olc_cmds(ch, hedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_SHIP:
-        show_olc_cmds(ch, shedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_TOKEN:
-        show_olc_cmds(ch, tedit_table);
-        break;
-
-    case ED_PROJECT:
-        show_olc_cmds(ch, pedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_WILDS:
-        show_olc_cmds (ch, wedit_table);
-        break;
-
-    case ED_BPSECT:
-        show_olc_cmds(ch, bsedit_table);
-        break;
-
-    case ED_BLUEPRINT:
-        show_olc_cmds(ch, bpedit_table);
-        break;
-
-    case ED_DUNGEON:
-        show_olc_cmds(ch, dngedit_table);
-        break;
-
-    case ED_APCODE:
-        show_olc_cmds(ch, apedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_IPCODE:
-        show_olc_cmds(ch, ipedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_DPCODE:
-        show_olc_cmds(ch, dpedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-
-    case ED_CMDEDIT:
-        show_olc_cmds(ch, cmdedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-    case ED_SOCIAL:
-        show_olc_cmds(ch, socialedit_table);
-        break;  /* TODO: framework handles this for migrated editors */
-    case ED_RACE:
-        show_olc_cmds(ch, racedit_table);
-        break;
-    case ED_TRAIT:
-        show_olc_cmds(ch, traitedit_table);
-        break;
-    case ED_SKILL:
-        show_olc_cmds(ch, skedit_table);
-        break;
-    case ED_GROUP:
-        show_olc_cmds(ch, gredit_table);
-        break;
-    case ED_SONG:
-        show_olc_cmds(ch, soedit_table);
-        break;
-    case ED_CLASS:
-        show_olc_cmds(ch, clsedit_table);
-        break;
+    /* Try framework registry — covers all migrated editors */
+    const OLC_EDITOR_DEF *def = olc_find_editor_by_type(ch->desc->editor);
+    if (def && def->cmd_table) {
+        show_olc_cmds(ch, def->cmd_table);
+        return false;
     }
 
-
+    /* Fallback for non-framework editors */
+    switch (ch->desc->editor)
+    {
+    case ED_HELP:
+        show_olc_cmds(ch, hedit_table);
+        break;
+    }
 
     return false;
 }
@@ -758,11 +557,6 @@ bool has_access_area(CHAR_DATA *ch, AREA_DATA *area)
 
 
 // The interpreters are below
-// aedit() moved to editors/areas/aedit.c
-// redit() moved to editors/rooms/redit.c
-
-
-/* pedit() moved to editors/projects/pedit.c */
 
 
 // Entry points for all editors are below
@@ -797,18 +591,6 @@ void do_olc(CHAR_DATA *ch, char *argument)
     /* Invalid command, send help. */
     do_help(ch, "olc");
 }
-
-
-/* do_aedit() moved to editors/areas/aedit.c */
-
-/* do_redit() moved to editors/rooms/redit.c */
-
-
-/* do_pedit() moved to editors/projects/pedit.c */
-
-/* wedit() and do_wedit() moved to editors/wilderness/wedit.c */
-
-/* vledit() and do_vledit() removed — vledit folded into wedit as VLinks tab */
 
 
 void display_resets(CHAR_DATA *ch)
@@ -1429,9 +1211,6 @@ void do_alist(CHAR_DATA *ch, char *argument)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
 }
-
-/* hedit() moved to editors/help/hedit.c */
-/* do_hedit() moved to editors/help/hedit.c */
 
 
 /*
@@ -3037,12 +2816,3 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 
 
 }
-
-/* cmdedit_table moved to editors/commands/cmdedit.c */
-/* do_cmdedit() moved to editors/commands/cmdedit.c */
-/* cmdedit() moved to editors/commands/cmdedit.c */
-/* do_cmdshow() moved to editors/commands/cmdedit.c */
-
-/* socialedit() moved to editors/socials/socialedit.c */
-
-/* socialedit_table moved to editors/socials/socialedit.c */

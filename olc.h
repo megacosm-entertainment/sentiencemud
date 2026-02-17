@@ -98,40 +98,15 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 
 /*
  * Interpreter Prototypes
+ *
+ * Framework-migrated editors are dispatched via the editor registry
+ * (olc_find_editor_by_type + olc_editor_interp) — their interpreter
+ * functions are local to their own .c files.  Only non-framework
+ * editors need extern declarations here.
  */
-void    aedit 	( CHAR_DATA *ch, char *argument );
 void    hedit   ( CHAR_DATA *ch, char *argument );
-void    medit 	( CHAR_DATA *ch, char *argument );
-void	mpedit	( CHAR_DATA *ch, char *argument );
-void    oedit 	( CHAR_DATA *ch, char *argument );
-void    opedit  ( CHAR_DATA *ch, char *argument );
 void    qedit	( CHAR_DATA *ch, char *argument );
-void    redit 	( CHAR_DATA *ch, char *argument );
-void    rpedit  ( CHAR_DATA *ch, char *argument );
-void    shedit  ( CHAR_DATA *ch, char *argument );
-void	tedit	( CHAR_DATA *ch, char *argument );
-void	tpedit	( CHAR_DATA *ch, char *argument );
-void	pedit	( CHAR_DATA *ch, char *argument );
-/* VIZZWILDS */
-void    wedit   ( CHAR_DATA *ch, char *argument );
-// Blueprints
-void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
-void    bpedit 	( CHAR_DATA *ch, char *argument );	// Blueprints
-void	dngedit ( CHAR_DATA *ch, char *argument );	// Dungeons
-
-void	apedit	( CHAR_DATA *ch, char *argument );
-void	ipedit	( CHAR_DATA *ch, char *argument );
-void	dpedit	( CHAR_DATA *ch, char *argument );
-
-void	cmdedit	( CHAR_DATA *ch, char *argument );
 void    gameedit ( CHAR_DATA *ch, char *argument );
-void    socialedit( CHAR_DATA *ch, char *argument );
-void    racedit  ( CHAR_DATA *ch, char *argument );
-void    traitedit( CHAR_DATA *ch, char *argument );
-void    skedit   ( CHAR_DATA *ch, char *argument );
-void    gredit   ( CHAR_DATA *ch, char *argument );
-void    soedit   ( CHAR_DATA *ch, char *argument );
-void    clsedit  ( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -184,37 +159,13 @@ bool edit_deltrigger_specific(LLIST **progs, SCRIPT_DATA *script, int trig_type,
 
 
 /*
- * Interpreter Table Prototypes
+ * Command Table Externs
+ *
+ * Framework-migrated editors store their command tables in OLC_EDITOR_DEF
+ * structs local to their own .c files — no extern needed.  Only tables
+ * referenced directly by olc.c fallback code need externs here.
  */
-extern const struct olc_cmd_type	aedit_table[];
 extern const struct olc_cmd_type	hedit_table[];
-extern const struct olc_cmd_type	medit_table[];
-extern const struct olc_cmd_type	mpedit_table[];
-extern const struct olc_cmd_type	oedit_table[];
-extern const struct olc_cmd_type	redit_table[];
-extern const struct olc_cmd_type        opedit_table[];
-extern const struct olc_cmd_type        rpedit_table[];
-extern const struct olc_cmd_type        shedit_table[];
-extern const struct olc_cmd_type        tedit_table[];
-extern const struct olc_cmd_type        tpedit_table[];
-extern const struct olc_cmd_type        pedit_table[];
-/* VIZZWILDS */
-extern const struct olc_cmd_type        wedit_table[];
-// Blueprints
-extern const struct olc_cmd_type	bsedit_table[];
-extern const struct olc_cmd_type	bpedit_table[];
-extern const struct olc_cmd_type	dngedit_table[];
-extern const struct olc_cmd_type        apedit_table[];
-extern const struct olc_cmd_type        ipedit_table[];
-extern const struct olc_cmd_type        dpedit_table[];
-extern const struct olc_cmd_type        cmdedit_table[];
-extern const struct olc_cmd_type        socialedit_table[];
-extern const struct olc_cmd_type        racedit_table[];
-extern const struct olc_cmd_type        traitedit_table[];
-extern const struct olc_cmd_type        skedit_table[];
-extern const struct olc_cmd_type        gredit_table[];
-extern const struct olc_cmd_type        soedit_table[];
-extern const struct olc_cmd_type        clsedit_table[];
 
 
 /*
