@@ -241,7 +241,7 @@ void do_oedit(CHAR_DATA *ch, char *argument)
         }
 
         if (oedit_create(ch, argument))
-            ch->desc->editor = ED_OBJECT;
+            olc_editor_enter(ch, &oedit_def, ch->desc->pEdit, true);
     }
 }
 
@@ -1187,9 +1187,7 @@ OEDIT(oedit_next)
     }
     else
     {
-    edit_done(ch);
-    ch->desc->pEdit = (void *)nextObj;
-    ch->desc->editor = ED_OBJECT;
+    olc_editor_enter(ch, &oedit_def, (void *)nextObj, false);
     }
     return false;
 }
@@ -1579,9 +1577,7 @@ OEDIT(oedit_prev)
     }
     else
     {
-    edit_done(ch);
-    ch->desc->pEdit = (void *)prevObj;
-    ch->desc->editor = ED_OBJECT;
+    olc_editor_enter(ch, &oedit_def, (void *)prevObj, false);
     }
     return false;
 }

@@ -146,9 +146,6 @@ void do_wedit(CHAR_DATA *ch, char *argument)
             send_to_char("Wedit: Insufficient security to edit wilds - action logged.\n\r", ch);
             return;
         }
-
-        ch->desc->pEdit = (void *)pWilds;
-        ch->desc->editor = ED_WILDS;
     }
     else
     {
@@ -224,8 +221,7 @@ void do_wedit(CHAR_DATA *ch, char *argument)
     }
 
     printf_to_char(ch, "{x[{WWedit{x] Editing Wilds.\n\r");
-    ch->desc->pEdit = (void *)pWilds;
-    ch->desc->editor = ED_WILDS;
+    olc_editor_enter(ch, &wedit_def, (void *)pWilds, false);
 }
 
 WEDIT ( wedit_create )

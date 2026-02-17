@@ -149,8 +149,8 @@ void do_aedit(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        aedit_create(ch, "");
-        ch->desc->editor = ED_AREA;
+        if (aedit_create(ch, ""))
+            olc_editor_enter(ch, &aedit_def, ch->desc->pEdit, false);
         return;
     }
 

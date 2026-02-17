@@ -446,8 +446,7 @@ CLSEDIT(clsedit_create)
     send_to_char(formatf("Class '%s' created (UID %d).\n\r",
                 clazz->name, clazz->uid), ch);
 
-    olc_set_editor(ch, ED_CLASS, clazz);
-    clsedit_show(ch, "");
+    olc_editor_enter(ch, &clsedit_def, clazz, true);
     return true;
 }
 

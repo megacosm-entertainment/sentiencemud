@@ -206,9 +206,7 @@ void do_medit(CHAR_DATA *ch, char *argument)
         }
 
         if (medit_create(ch, argument))
-        {
-            ch->desc->editor = ED_MOBILE;
-        }
+            olc_editor_enter(ch, &medit_def, ch->desc->pEdit, true);
     }
     else
     {
@@ -688,9 +686,7 @@ MEDIT(medit_next)
     }
     else
     {
-    edit_done(ch);
-    ch->desc->pEdit = (void *)nextMob;
-    ch->desc->editor = ED_MOBILE;
+    olc_editor_enter(ch, &medit_def, (void *)nextMob, false);
     }
     return false;
 }
@@ -772,9 +768,7 @@ MEDIT(medit_prev)
     }
     else
     {
-    edit_done(ch);
-    ch->desc->pEdit = (void *)prevMob;
-    ch->desc->editor = ED_MOBILE;
+    olc_editor_enter(ch, &medit_def, (void *)prevMob, false);
     }
     return false;
 }

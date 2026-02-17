@@ -311,6 +311,13 @@ struct olc_editor_def {
     /* --- Audit --- */
     bool                    audit_changes;      /**< Whether to log changes to server audit log */
 
+    /* --- Lifecycle override (optional) --- */
+    /**
+     * Optional custom handler for the built-in `done` command.
+     * If NULL, framework default behavior is `edit_done(ch)`.
+     */
+    void                    (*done_fn)(CHAR_DATA *ch);
+
     /* --- Change history (in-game audit trail) --- */
     /**
      * Callback to retrieve an entity's change history.

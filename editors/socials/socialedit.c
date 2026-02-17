@@ -127,7 +127,8 @@ void do_socialedit(CHAR_DATA *ch, char *argument)
             send_to_char("Syntax: socialedit create <social name>\n\r", ch);
             return;
         }
-        socialedit_create(ch, argument);
+        if (socialedit_create(ch, argument))
+            olc_editor_enter(ch, &socialedit_def, ch->desc->pEdit, true);
         return;
     }
 
@@ -267,7 +268,6 @@ SOCEDIT(socialedit_create)
     
     /* Edit the newly created social */
     ch->desc->pEdit = (void *)&social_table[social_count];
-    ch->desc->editor = ED_SOCIAL;
     
     social_count++;
     

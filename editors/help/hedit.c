@@ -55,6 +55,18 @@ static void hedit_mark_changed(CHAR_DATA *ch, void *pEdit)
     }
 }
 
+static void hedit_done(CHAR_DATA *ch)
+{
+    if (!ch || !ch->desc) return;
+
+    if (ch->desc->pEdit == NULL)
+        edit_done(ch);
+    else {
+        ch->desc->pEdit = NULL;
+        ch->desc->editor = ED_HELP;
+    }
+}
+
 /***************************************************************************
  * Command Table                                                           *
  ***************************************************************************/
@@ -102,6 +114,7 @@ static const OLC_EDITOR_DEF hedit_def = {
     .mark_changed_fn = hedit_mark_changed,
     .audit_changes  = false,
     .get_history_fn = NULL,
+    .done_fn        = hedit_done,
 };
 
 /***************************************************************************
@@ -121,9 +134,9 @@ void do_hedit(CHAR_DATA *ch, char *argument)
         return;
 
     ch->pcdata->immortal->last_olc_command = current_time;
-    ch->desc->editor = ED_HELP;
     ch->desc->pEdit = NULL;
     ch->desc->hCat = topHelpCat;
+    olc_editor_enter(ch, &hedit_def, NULL, true);
 }
 
 /***************************************************************************
@@ -139,47 +152,7 @@ void do_hedit(CHAR_DATA *ch, char *argument)
  */
 void hedit(CHAR_DATA *ch, char *argument)
 {
-    char command[MIL];
-    char arg[MIL];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!IS_IMMORTAL(ch)) {
-        send_to_char("HEdit: Insufficient security.\n\r", ch);
-        edit_done(ch);
-        return;
-    }
-
-    /* Dual-mode done: entry editing → category browser → exit */
-    if (!str_cmp(command, "done")) {
-        if (ch->desc->pEdit == NULL)
-            edit_done(ch);
-        else {
-            ch->desc->pEdit = NULL;
-            ch->desc->editor = ED_HELP;
-        }
-        return;
-    }
-
-    if (command[0] == '\0') {
-        hedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; hedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, hedit_table[cmd].name)) {
-            if ((*hedit_table[cmd].olc_fun)(ch, argument)) {
-                ch->pcdata->immortal->last_olc_command = current_time;
-                olc_mark_changed(ch, &hedit_def);
-            }
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &hedit_def);
 }
 
 /***************************************************************************

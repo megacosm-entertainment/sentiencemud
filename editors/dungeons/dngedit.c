@@ -178,9 +178,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        ch->pcdata->immortal->last_olc_command = current_time;
-        ch->desc->pEdit = (void *)dng;
-        ch->desc->editor = ED_DUNGEON;
+        olc_editor_enter(ch, &dngedit_def, (void *)dng, true);
         return;
     }
     else
@@ -190,8 +188,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
             if (dngedit_create(ch, argument))
             {
                 dungeons_changed = true;
-                ch->pcdata->immortal->last_olc_command = current_time;
-                ch->desc->editor = ED_DUNGEON;
+                olc_editor_enter(ch, &dngedit_def, ch->desc->pEdit, true);
             }
 
             return;

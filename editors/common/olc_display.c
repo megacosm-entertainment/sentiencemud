@@ -304,7 +304,11 @@ void olc_display_text(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
         snprintf(buf, sizeof(buf), "   %s(unset){x\n\r", theme->unset);
         add_buf(ctx->buffer, buf);
     } else {
-        add_buf(ctx->buffer, "   ");
+        /* Only indent single-line values; multi-line code blocks (label=NULL)
+         * manage their own indentation and shouldn't get a leading prefix. */
+        if (label && label[0] != '\0') {
+            add_buf(ctx->buffer, "   ");
+        }
         add_buf(ctx->buffer, text);
         int len = strlen(text);
         if (len > 0 && text[len - 1] != '\n' && text[len - 1] != '\r') {

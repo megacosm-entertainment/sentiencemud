@@ -365,11 +365,9 @@ GREDIT(gredit_create)
     /* Insert into global list (handled by save + reload for now) */
     save_skill_group(group);
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_GROUP, group);
+    olc_editor_enter(ch, &gredit_def, group, true);
 
     send_to_char(formatf("Group '%s' created.\n\r", argument), ch);
-    gredit_show(ch, "");
     return true;
 }
 

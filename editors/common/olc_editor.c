@@ -22,6 +22,7 @@
 #include "../../recycle.h"
 #include "../../interp.h"
 #include "../../mxp_links.h"
+#include "../../io/json/json_olc.h"
 #include "../common.h"
 #include "olc_editor.h"
 
@@ -30,6 +31,77 @@ static bool display_use_mxp(CHAR_DATA *ch)
 {
     if (!ch || !ch->desc) return false;
     return isMXP(ch->desc) && IS_SET(ch->comm, COMM_MXP);
+}
+
+typedef struct olc_area_history_bucket {
+    long area_uid;
+    int editor_type;
+    OLC_CHANGE_HISTORY *history;
+    struct olc_area_history_bucket *next;
+} OLC_AREA_HISTORY_BUCKET;
+
+static OLC_AREA_HISTORY_BUCKET *olc_area_history_buckets = NULL;
+
+static void olc_area_history_key(char *buf, size_t sz,
+                                 long area_uid, int editor_type)
+{
+    if (!buf || sz == 0) return;
+    snprintf(buf, sz, "%ld:%d", area_uid, editor_type);
+}
+
+static OLC_CHANGE_HISTORY *olc_get_area_history(const OLC_EDITOR_DEF *def,
+                                                AREA_DATA *area,
+                                                bool create)
+{
+    OLC_AREA_HISTORY_BUCKET *bucket;
+    long area_uid;
+    char hist_key[64];
+
+    if (!def || !area) return NULL;
+
+    area_uid = area->uid;
+    if (area_uid <= 0) return NULL;
+
+    for (bucket = olc_area_history_buckets; bucket; bucket = bucket->next) {
+        if (bucket->area_uid == area_uid
+            && bucket->editor_type == def->editor_type) {
+            return bucket->history;
+        }
+    }
+
+    if (!create) return NULL;
+
+    bucket = calloc(1, sizeof(*bucket));
+    if (!bucket) return NULL;
+
+    bucket->area_uid = area_uid;
+    bucket->editor_type = def->editor_type;
+    olc_area_history_key(hist_key, sizeof(hist_key), area_uid, def->editor_type);
+    bucket->history = olc_history_load(OLC_HIST_AREA_EDITOR, hist_key);
+    if (!bucket->history)
+        bucket->history = olc_history_new();
+    bucket->next = olc_area_history_buckets;
+    olc_area_history_buckets = bucket;
+
+    return bucket->history;
+}
+
+static OLC_CHANGE_HISTORY *olc_get_history_for_edit(const OLC_EDITOR_DEF *def,
+                                                    void *pEdit,
+                                                    bool create_area_fallback)
+{
+    if (!def) return NULL;
+
+    if (def->get_history_fn) {
+        return def->get_history_fn(pEdit);
+    }
+
+    if (def->get_area_fn && pEdit) {
+        AREA_DATA *area = def->get_area_fn(pEdit);
+        return olc_get_area_history(def, area, create_area_fallback);
+    }
+
+    return NULL;
 }
 
 /* =========================================================================
@@ -733,25 +805,50 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
 
     /* --- "done" command --- */
     if (!str_cmp(command, "done")) {
-        edit_done(ch);
+        if (def->done_fn)
+            def->done_fn(ch);
+        else
+            edit_done(ch);
         return;
     }
 
-    /* --- Built-in "history" command (if editor supports change history) --- */
-    if (!str_cmp(command, "history") && def->get_history_fn) {
-        OLC_CHANGE_HISTORY *hist = def->get_history_fn(ch->desc->pEdit);
+    /* --- Built-in "history" command --- */
+    if (!str_cmp(command, "history")) {
+        OLC_CHANGE_HISTORY *hist = olc_get_history_for_edit(def, ch->desc->pEdit, false);
+        if (!hist) {
+            send_to_char("No change history available for this editor context.\n\r", ch);
+            return;
+        }
         olc_history_show(ch, hist, rest, olc_get_theme(def));
         return;
     }
 
-    /* --- Built-in "view" command (if editor supports change history) --- */
-    if (!str_cmp(command, "view") && def->get_history_fn) {
+    /* --- Built-in "view" command --- */
+    if (!str_cmp(command, "view")) {
+        OLC_CHANGE_HISTORY *hist;
+
         if (IS_NULLSTR(rest) || !is_number(rest)) {
             send_to_char("Syntax: view <change_id>\n\r", ch);
             return;
         }
-        OLC_CHANGE_HISTORY *hist = def->get_history_fn(ch->desc->pEdit);
+
+        hist = olc_get_history_for_edit(def, ch->desc->pEdit, false);
+        if (!hist) {
+            send_to_char("No change history available for this editor context.\n\r", ch);
+            return;
+        }
+
         olc_history_view(ch, hist, atoi(rest), olc_get_theme(def));
+        return;
+    }
+
+    /* --- Built-in "info" command (alias for show) --- */
+    if (!str_cmp(command, "info")) {
+        if (def->show_fn) {
+            (*def->show_fn)(ch, rest);
+        } else {
+            send_to_char("No display function available for this editor.\n\r", ch);
+        }
         return;
     }
 
@@ -792,8 +889,32 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
 
                 /* Execute the command */
                 if ((*def->cmd_table[cmd_index].olc_fun)(ch, rest)) {
+                    OLC_CHANGE_HISTORY *hist;
+                    char hist_key[64];
+
                     /* Command returned true = data was changed */
                     olc_mark_changed(ch, def);
+
+                    /* Record lightweight command-level history entry */
+                    hist = olc_get_history_for_edit(def, ch->desc->pEdit, true);
+                    if (hist) {
+                        char field_buf[64];
+                        snprintf(field_buf, sizeof(field_buf), "cmd:%s",
+                            def->cmd_table[cmd_index].name ? def->cmd_table[cmd_index].name : "unknown");
+                        olc_history_record(hist, ch, field_buf,
+                            "(command executed)",
+                            IS_NULLSTR(rest) ? "(no args)" : rest);
+
+                        if (!def->get_history_fn && def->get_area_fn && ch->desc->pEdit) {
+                            AREA_DATA *area = def->get_area_fn(ch->desc->pEdit);
+                            if (area && area->uid > 0) {
+                                olc_area_history_key(hist_key, sizeof(hist_key),
+                                    area->uid, def->editor_type);
+                                olc_history_mark_dirty(OLC_HIST_AREA_EDITOR,
+                                    hist_key, hist);
+                            }
+                        }
+                    }
 
                     /* Audit log if enabled */
                     if (def->audit_changes) {

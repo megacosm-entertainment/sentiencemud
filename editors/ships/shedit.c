@@ -166,7 +166,7 @@ void do_shedit(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg, "create")) {
         if (shedit_create(ch, argument)) {
             ships_changed = true;
-            ch->desc->editor = ED_SHIP;
+            olc_editor_enter(ch, &shedit_def, ch->desc->pEdit, false);
         }
         return;
     }

@@ -158,9 +158,7 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        ch->pcdata->immortal->last_olc_command = current_time;
-        ch->desc->pEdit = (void *)bs;
-        ch->desc->editor = ED_BPSECT;
+        olc_editor_enter(ch, &bsedit_def, (void *)bs, true);
         return;
     }
     else
@@ -170,8 +168,7 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
             if (bsedit_create(ch, argument))
             {
                 blueprints_changed = true;
-                ch->pcdata->immortal->last_olc_command = current_time;
-                ch->desc->editor = ED_BPSECT;
+                olc_editor_enter(ch, &bsedit_def, ch->desc->pEdit, true);
             }
 
             return;

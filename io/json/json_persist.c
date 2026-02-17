@@ -28,6 +28,9 @@
 #include "../../skill_data.h"
 #include "json_obj_types.h"
 #include "json_common.h"
+#include "json_olc.h"
+
+#define OLC_HISTORY_DIR "data/history"
 
 /***************************************************************************
  * External References                                                     *
@@ -2955,7 +2958,7 @@ static bool persist_worker_shutdown = false;
 /*
  * Parse a dirty key to determine type and extract ID
  * Key format: persist:<type>:<id>
- * Returns: 0=room, 1=mobile, 2=object, -1=error
+ * Returns: 0=room, 1=mobile, 2=object, 3=area, 4=olc_history_file, -1=error
  */
 /*
  * Dirty key types:
@@ -2963,6 +2966,7 @@ static bool persist_worker_shutdown = false;
  *   1 = mobile (persist:mobile:id)
  *   2 = object (persist:object:id)
  *   3 = area (persist:area:uid)
+ *   4 = olc history file (persist:olc_history_file:<hist_type>)
  */
 static int parse_dirty_key(const char *key, char *id_buf, size_t id_size)
 {
@@ -2991,6 +2995,11 @@ static int parse_dirty_key(const char *key, char *id_buf, size_t id_size)
             strncpy(id_buf, id_start, id_size - 1);
             id_buf[id_size - 1] = '\0';
             return 2;
+        } else if (strncmp(type_start, "olc_history_file:", 17) == 0) {
+            id_start = type_start + 17;
+            strncpy(id_buf, id_start, id_size - 1);
+            id_buf[id_size - 1] = '\0';
+            return 4;
         }
     }
     /* Handle area:full:* keys (areas use different namespace) */
@@ -3053,6 +3062,43 @@ static bool write_dirty_key_to_disk(const char *key)
             }
             snprintf(path, sizeof(path), "%s%s", AREA_DIR, filename);
             json_decref(root);
+        }
+        break;
+    case 4: /* OLC history file by hist type */
+        {
+            int hist_type = atoi(id_buf);
+
+            /* Ensure directory exists */
+            mkdir(OLC_HISTORY_DIR, 0755);
+
+            switch (hist_type) {
+            case OLC_HIST_SKILL:
+                snprintf(path, sizeof(path), "%s/skills.json", OLC_HISTORY_DIR);
+                break;
+            case OLC_HIST_GROUP:
+                snprintf(path, sizeof(path), "%s/groups.json", OLC_HISTORY_DIR);
+                break;
+            case OLC_HIST_SONG:
+                snprintf(path, sizeof(path), "%s/songs.json", OLC_HISTORY_DIR);
+                break;
+            case OLC_HIST_RACE:
+                snprintf(path, sizeof(path), "%s/races.json", OLC_HISTORY_DIR);
+                break;
+            case OLC_HIST_CLASS:
+                snprintf(path, sizeof(path), "%s/classes.json", OLC_HISTORY_DIR);
+                break;
+            case OLC_HIST_TRAIT:
+                snprintf(path, sizeof(path), "%s/traits.json", OLC_HISTORY_DIR);
+                break;
+            case OLC_HIST_AREA_EDITOR:
+                snprintf(path, sizeof(path), "%s/area_editors.json", OLC_HISTORY_DIR);
+                break;
+            default:
+                log_stringf("persist_worker: Unknown OLC history type %d for key %s",
+                    hist_type, key);
+                free(json_str);
+                return false;
+            }
         }
         break;
     default:

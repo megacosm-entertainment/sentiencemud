@@ -171,10 +171,10 @@ void do_redit(CHAR_DATA *ch, char *argument)
     {
         if (redit_create(ch, argument))
         {
-            ch->desc->editor = ED_ROOM;
             char_from_room(ch);
             char_to_room(ch, ch->desc->pEdit);
             SET_BIT(((ROOM_INDEX_DATA *)ch->desc->pEdit)->area->area_flags, AREA_CHANGED);
+            olc_editor_enter(ch, &redit_def, ch->desc->pEdit, false);
         }
         return;
     }
@@ -215,9 +215,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    ch->desc->pEdit = (void *)pRoom;
-    ch->desc->editor = ED_ROOM;
+    olc_editor_enter(ch, &redit_def, (void *)pRoom, false);
 }
 
 

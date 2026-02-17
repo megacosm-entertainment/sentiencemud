@@ -145,7 +145,7 @@ void do_cmdedit(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg1, "create")) {
         if (cmdedit_create(ch, argument))
-            ch->desc->editor = ED_CMDEDIT;
+            olc_editor_enter(ch, &cmdedit_def, ch->desc->pEdit, false);
         return;
     }
 
@@ -486,8 +486,7 @@ CMDEDIT( cmdedit_create )
     command->name = str_dup(argument);
     insert_command(command);
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_CMDEDIT, command);
+    ch->desc->pEdit = (void *)command;
 
     send_to_char("Command created.\n\r", ch);
     return true;

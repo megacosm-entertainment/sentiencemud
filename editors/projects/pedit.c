@@ -136,8 +136,8 @@ void do_pedit(CHAR_DATA *ch, char *argument)
             return;
         }
     } else if (!str_cmp(arg, "create")) {
-        pedit_create(ch, "");
-        ch->desc->editor = ED_PROJECT;
+        if (pedit_create(ch, ""))
+            olc_editor_enter(ch, &pedit_def, ch->desc->pEdit, false);
         return;
     } else {
         for (project = project_list; project != NULL; project = project->next) {

@@ -165,9 +165,7 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        ch->pcdata->immortal->last_olc_command = current_time;
-        ch->desc->pEdit = (void *)bp;
-        ch->desc->editor = ED_BLUEPRINT;
+        olc_editor_enter(ch, &bpedit_def, (void *)bp, true);
         return;
     }
     else
@@ -177,8 +175,7 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
             if (bpedit_create(ch, argument))
             {
                 blueprints_changed = true;
-                ch->pcdata->immortal->last_olc_command = current_time;
-                ch->desc->editor = ED_BLUEPRINT;
+                olc_editor_enter(ch, &bpedit_def, ch->desc->pEdit, true);
             }
 
             return;

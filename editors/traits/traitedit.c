@@ -149,7 +149,7 @@ void do_traitedit(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg1, "create")) {
         if (traitedit_create(ch, argument))
-            ch->desc->editor = ED_TRAIT;
+            olc_editor_enter(ch, &traitedit_def, ch->desc->pEdit, true);
         return;
     }
 
@@ -447,8 +447,7 @@ TRAITEDIT(traitedit_create)
     def->next = NULL;
     trait_def_count++;
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_TRAIT, def);
+    ch->desc->pEdit = (void *)def;
 
     send_to_char(formatf("Trait '%s' created.\n\r", argument), ch);
     return true;

@@ -19,6 +19,7 @@
 
 #include "../../merc.h"
 #include "../../log.h"
+#include "../cache/redis_cache.h"
 #include "../../editors/common/olc_editor.h"
 #include "json_olc.h"
 #include "json_common.h"
@@ -39,11 +40,19 @@ static const char *hist_files[OLC_HIST_MAX] = {
     HISTORY_DIR "/races.json",      /* OLC_HIST_RACE  */
     HISTORY_DIR "/classes.json",    /* OLC_HIST_CLASS */
     HISTORY_DIR "/traits.json",     /* OLC_HIST_TRAIT */
+    HISTORY_DIR "/area_editors.json", /* OLC_HIST_AREA_EDITOR */
 };
 
 static const char *hist_type_names[OLC_HIST_MAX] = {
-    "skills", "groups", "songs", "races", "classes", "traits"
+    "skills", "groups", "songs", "races", "classes", "traits", "area_editors"
 };
+
+/* Redis write-behind key for complete history file JSON by type */
+static void hist_redis_file_key(int hist_type, char *buf, size_t sz)
+{
+    if (!buf || sz == 0) return;
+    snprintf(buf, sz, "persist:olc_history_file:%d", hist_type);
+}
 
 /***************************************************************************
  * Dirty Tracking                                                          *
@@ -127,10 +136,24 @@ static void ensure_history_dir(void)
  */
 static json_t *hist_file_open(int hist_type)
 {
+    char redis_key[64];
+    char *cached_json;
     json_error_t error;
 
     if (hist_type < 0 || hist_type >= OLC_HIST_MAX)
         return NULL;
+
+    /* Redis-first read path when cache is available */
+    if (redis_is_available()) {
+        hist_redis_file_key(hist_type, redis_key, sizeof(redis_key));
+        cached_json = redis_get_persist_data(redis_key);
+        if (cached_json) {
+            json_t *root = json_loads(cached_json, 0, &error);
+            free(cached_json);
+            if (root)
+                return root;
+        }
+    }
 
     return json_load_file(hist_files[hist_type], 0, &error);
 }
@@ -170,7 +193,30 @@ static json_t *hist_file_new(void)
  */
 static bool hist_file_write(int hist_type, json_t *root)
 {
+    char redis_key[64];
+    char *json_str = NULL;
+
     ensure_history_dir();
+
+    /* Preferred flow: write to Redis and queue async Redis->disk worker */
+    if (redis_is_available()) {
+        hist_redis_file_key(hist_type, redis_key, sizeof(redis_key));
+        json_str = json_dumps(root, JSON_INDENT(2) | JSON_SORT_KEYS);
+        if (json_str) {
+            bool cached = redis_cache_persist_data(redis_key, json_str);
+            bool queued = cached ? redis_queue_dirty_key(redis_key) : false;
+            free(json_str);
+
+            if (cached && queued) {
+                json_decref(root);
+                return true;
+            }
+
+            log_stringf("olc_history: Redis write-behind failed for type %s, falling back to direct file write",
+                        hist_type_names[hist_type]);
+        }
+    }
+
     return json_file_save(root, hist_files[hist_type],
                           hist_type_names[hist_type],
                           JSON_INDENT(2) | JSON_SORT_KEYS);

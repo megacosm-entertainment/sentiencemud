@@ -318,8 +318,8 @@ static void scriptedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void
     olc_display_string(ctx, theme, "Name:", "name",
         pCode->name ? pCode->name : "");
 
-    olc_display_infof(ctx, theme, "Vnum:         %s%ld{x",
-        theme->value, (long)pCode->vnum);
+    olc_display_infof(ctx, theme, "Widevnum:     %s%s{x",
+        theme->value, widevnum_string_script(pCode, NULL));
 
     olc_display_infof(ctx, theme, "Type:         %s%s{x",
         theme->value, script_type_label(pCode->type));
@@ -415,7 +415,7 @@ static void scriptedit_show_logs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
         }, \
         .change_mode    = OLC_CHANGE_AREA_FLAG, \
         .get_area_fn    = script_get_area, \
-        .audit_changes  = false, \
+        .audit_changes  = true, \
     }
 
 /* We can't use a macro for the names since they need specific casing */
@@ -432,7 +432,7 @@ static const OLC_EDITOR_DEF mpedit_def = {
     },
     .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 static const OLC_EDITOR_DEF opedit_def = {
@@ -447,7 +447,7 @@ static const OLC_EDITOR_DEF opedit_def = {
     },
     .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 static const OLC_EDITOR_DEF rpedit_def = {
@@ -462,7 +462,7 @@ static const OLC_EDITOR_DEF rpedit_def = {
     },
     .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 static const OLC_EDITOR_DEF tpedit_def = {
@@ -477,7 +477,7 @@ static const OLC_EDITOR_DEF tpedit_def = {
     },
     .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 static const OLC_EDITOR_DEF apedit_def = {
@@ -492,7 +492,7 @@ static const OLC_EDITOR_DEF apedit_def = {
     },
     .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 /* Blueprint script editor uses custom permission/change tracking */
@@ -510,7 +510,7 @@ static const OLC_EDITOR_DEF ipedit_def = {
     .change_mode    = OLC_CHANGE_CUSTOM,
     .mark_changed_fn = script_mark_blueprint_changed,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 /* Dungeon script editor uses custom permission/change tracking */
@@ -528,7 +528,7 @@ static const OLC_EDITOR_DEF dpedit_def = {
     .change_mode    = OLC_CHANGE_CUSTOM,
     .mark_changed_fn = script_mark_dungeon_changed,
     .get_area_fn    = script_get_area,
-    .audit_changes  = false,
+    .audit_changes  = true,
 };
 
 /***************************************************************************
@@ -653,7 +653,7 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, ch->in_room->area, &wnum)) {
         if ((pMcode = get_script_index(wnum.pArea, wnum.vnum, PRG_MPROG)) == NULL) {
-            send_to_char("MPEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("MPEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -662,12 +662,13 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        mpedit_create(ch, argument);
+        if (mpedit_create(ch, argument))
+            olc_editor_enter(ch, &mpedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: mpedit [vnum]\n\r", ch);
-    send_to_char("        mpedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: mpedit [widevnum]\n\r", ch);
+    send_to_char("        mpedit create [widevnum]\n\r", ch);
 }
 
 /**
@@ -689,7 +690,7 @@ void do_opedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, ch->in_room->area, &wnum)) {
         if ((pOcode = get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG)) == NULL) {
-            send_to_char("OPEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("OPEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -698,12 +699,13 @@ void do_opedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        opedit_create(ch, argument);
+        if (opedit_create(ch, argument))
+            olc_editor_enter(ch, &opedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: opedit [vnum]\n\r", ch);
-    send_to_char("        opedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: opedit [widevnum]\n\r", ch);
+    send_to_char("        opedit create [widevnum]\n\r", ch);
 }
 
 /**
@@ -725,7 +727,7 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, ch->in_room->area, &wnum)) {
         if ((pRcode = get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG)) == NULL) {
-            send_to_char("RPEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("RPEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -734,12 +736,13 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        rpedit_create(ch, argument);
+        if (rpedit_create(ch, argument))
+            olc_editor_enter(ch, &rpedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: rpedit [vnum]\n\r", ch);
-    send_to_char("        rpedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: rpedit [widevnum]\n\r", ch);
+    send_to_char("        rpedit create [widevnum]\n\r", ch);
 }
 
 /**
@@ -761,7 +764,7 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, ch->in_room->area, &wnum)) {
         if ((pTcode = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG)) == NULL) {
-            send_to_char("TPEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("TPEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -770,12 +773,13 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        tpedit_create(ch, argument);
+        if (tpedit_create(ch, argument))
+            olc_editor_enter(ch, &tpedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: tpedit [vnum]\n\r", ch);
-    send_to_char("        tpedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: tpedit [widevnum]\n\r", ch);
+    send_to_char("        tpedit create [widevnum]\n\r", ch);
 }
 
 /**
@@ -797,7 +801,7 @@ void do_apedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, ch->in_room->area, &wnum)) {
         if ((pAcode = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG)) == NULL) {
-            send_to_char("APEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("APEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -806,12 +810,13 @@ void do_apedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        apedit_create(ch, argument);
+        if (apedit_create(ch, argument))
+            olc_editor_enter(ch, &apedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: apedit [vnum]\n\r", ch);
-    send_to_char("        apedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: apedit [widevnum]\n\r", ch);
+    send_to_char("        apedit create [widevnum]\n\r", ch);
 }
 
 /**
@@ -833,7 +838,7 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, NULL, &wnum)) {
         if ((pIcode = get_script_index(wnum.pArea, wnum.vnum, PRG_IPROG)) == NULL) {
-            send_to_char("IPEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("IPEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -842,12 +847,13 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        ipedit_create(ch, argument);
+        if (ipedit_create(ch, argument))
+            olc_editor_enter(ch, &ipedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: ipedit [vnum]\n\r", ch);
-    send_to_char("        ipedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: ipedit [widevnum]\n\r", ch);
+    send_to_char("        ipedit create [widevnum]\n\r", ch);
 }
 
 /**
@@ -869,7 +875,7 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
 
     if (parse_widevnum(command, NULL, &wnum)) {
         if ((pDcode = get_script_index(wnum.pArea, wnum.vnum, PRG_DPROG)) == NULL) {
-            send_to_char("DPEdit: That vnum does not exist.\n\r", ch);
+            send_to_char("DPEdit: That widevnum does not exist.\n\r", ch);
             return;
         }
 
@@ -878,12 +884,13 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!str_cmp(command, "create")) {
-        dpedit_create(ch, argument);
+        if (dpedit_create(ch, argument))
+            olc_editor_enter(ch, &dpedit_def, ch->desc->pEdit, true);
         return;
     }
 
-    send_to_char("Syntax: dpedit [vnum]\n\r", ch);
-    send_to_char("        dpedit create [vnum]\n\r", ch);
+    send_to_char("Syntax: dpedit [widevnum]\n\r", ch);
+    send_to_char("        dpedit create [widevnum]\n\r", ch);
 }
 
 /***************************************************************************
@@ -1223,7 +1230,7 @@ SCRIPTEDIT(mpedit_create)
     }
 
     if (get_script_index(ad, value, PRG_MPROG)) {
-        send_to_char("MPEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("MPEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1234,7 +1241,6 @@ SCRIPTEDIT(mpedit_create)
     pMcode->area        = ad;
     ad->mprog_list      = pMcode;
     ch->desc->pEdit     = (void *)pMcode;
-    ch->desc->editor    = ED_MPCODE;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("MobProgram Code Created.\n\r", ch);
@@ -1282,7 +1288,7 @@ SCRIPTEDIT(opedit_create)
     }
 
     if (get_script_index(ad, value, PRG_OPROG)) {
-        send_to_char("OPEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("OPEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1293,7 +1299,6 @@ SCRIPTEDIT(opedit_create)
     ad->oprog_list      = pOcode;
     pOcode->type        = PRG_OPROG;
     ch->desc->pEdit     = (void *)pOcode;
-    ch->desc->editor    = ED_OPCODE;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("ObjProgram Code Created.\n\r", ch);
@@ -1341,7 +1346,7 @@ SCRIPTEDIT(rpedit_create)
     }
 
     if (get_script_index(ad, value, PRG_RPROG)) {
-        send_to_char("RPEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("RPEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1352,7 +1357,6 @@ SCRIPTEDIT(rpedit_create)
     ad->rprog_list      = pRcode;
     pRcode->type        = PRG_RPROG;
     ch->desc->pEdit     = (void *)pRcode;
-    ch->desc->editor    = ED_RPCODE;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("RoomProgram Code Created.\n\r", ch);
@@ -1400,7 +1404,7 @@ SCRIPTEDIT(tpedit_create)
     }
 
     if (get_script_index(ad, value, PRG_TPROG)) {
-        send_to_char("TPEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("TPEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1411,7 +1415,6 @@ SCRIPTEDIT(tpedit_create)
     ad->tprog_list      = pTcode;
     pTcode->type        = PRG_TPROG;
     ch->desc->pEdit     = (void *)pTcode;
-    ch->desc->editor    = ED_TPCODE;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("TokenProgram Code Created.\n\r", ch);
@@ -1459,7 +1462,7 @@ SCRIPTEDIT(apedit_create)
     }
 
     if (get_script_index(ad, value, PRG_APROG)) {
-        send_to_char("APEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("APEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1470,7 +1473,6 @@ SCRIPTEDIT(apedit_create)
     ad->aprog_list      = pAcode;
     pAcode->type        = PRG_APROG;
     ch->desc->pEdit     = (void *)pAcode;
-    ch->desc->editor    = ED_APCODE;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
     send_to_char("AreaProgram Code Created.\n\r", ch);
@@ -1518,7 +1520,7 @@ SCRIPTEDIT(ipedit_create)
     }
 
     if (get_script_index(ad, value, PRG_IPROG)) {
-        send_to_char("IPEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("IPEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1529,7 +1531,6 @@ SCRIPTEDIT(ipedit_create)
     ad->iprog_list      = pIcode;
     pIcode->type        = PRG_IPROG;
     ch->desc->pEdit     = (void *)pIcode;
-    ch->desc->editor    = ED_IPCODE;
 
     if (value > top_iprog_index)
         top_iprog_index = value;
@@ -1581,7 +1582,7 @@ SCRIPTEDIT(dpedit_create)
     }
 
     if (get_script_index(ad, value, PRG_DPROG)) {
-        send_to_char("DPEdit: Code vnum already exists.\n\r", ch);
+        send_to_char("DPEdit: Code widevnum already exists.\n\r", ch);
         return false;
     }
 
@@ -1592,7 +1593,6 @@ SCRIPTEDIT(dpedit_create)
     ad->dprog_list      = pDcode;
     pDcode->type        = PRG_DPROG;
     ch->desc->pEdit     = (void *)pDcode;
-    ch->desc->editor    = ED_DPCODE;
 
     if (value > top_dprog_index)
         top_dprog_index = value;
@@ -1611,11 +1611,11 @@ SCRIPTEDIT(dpedit_create)
 /**
  * show_script_list - Display a paginated list of scripts
  *
- * Shows scripts of a given type with their vnum, line count, depth,
- * compilation status, and name. Supports optional vnum range filtering.
+ * Shows scripts of a given type with their widevnum, line count, depth,
+ * compilation status, and name. Supports optional range filtering.
  *
  * @param ch        Character viewing the list
- * @param argument  Optional "min max" vnum range filter
+ * @param argument  Optional "min max" widevnum range filter
  * @param type      PRG_* constant for script type
  */
 void show_script_list(CHAR_DATA *ch, char *argument, int type)
@@ -1639,18 +1639,18 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
         argument = one_argument(argument, arg2);
 
         if (!parse_widevnum(arg1, area, &wnum_min) || !wnum_min.pArea) {
-            send_to_char("Invalid minimum vnum format.\n\r", ch);
+            send_to_char("Invalid minimum widevnum format.\n\r", ch);
             return;
         }
 
         if (!parse_widevnum(arg2, area, &wnum_max) || !wnum_max.pArea) {
-            send_to_char("Invalid maximum vnum format.\n\r", ch);
+            send_to_char("Invalid maximum widevnum format.\n\r", ch);
             return;
         }
 
         if (type != PRG_IPROG && type != PRG_DPROG) {
             if (wnum_min.pArea != wnum_max.pArea) {
-                send_to_char("Vnum range must be within the same area for area-scoped progs.\n\r", ch);
+                send_to_char("Widevnum range must be within the same area for area-scoped progs.\n\r", ch);
                 return;
             }
             area = wnum_min.pArea;
@@ -1695,15 +1695,12 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
         ad = prg->area;
 
         len = sprintf(buf, "{B[{W%-4d{B]  ", count);
-        if (!ad)
-            len += sprintf(buf + len, "  ");
-        else
-            len += sprintf(buf + len, "{W%-2ld", ad->anum);
 
-        len += sprintf(buf + len, "  {W%c%c{B {G%-8d {W%-5d ",
+        len += sprintf(buf + len, "{W%c%c{B {G%-12.12s {W%-5d ",
             ((ad && IS_BUILDER(ch, ad)) ? 'B' : ' '),
             (IS_SET(prg->flags, SCRIPT_WIZNET) ? 'W' : ' '),
-            prg->vnum, (prg->lines > 1) ? (prg->lines - 1) : 0);
+            widevnum_string_script(prg, area),
+            (prg->lines > 1) ? (prg->lines - 1) : 0);
 
         if (prg->depth < 0)
             len += sprintf(buf + len, " {RINF ");
@@ -1741,8 +1738,8 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
     if (count == 1) {
         add_buf(buffer, "No existing scripts in that range.\n\r");
     } else {
-        send_to_char("{BCount  Area BW   Vnum   Lines Depth   Status   Name\n\r", ch);
-        send_to_char("{b-------------------------------------------------------------------------\n\r", ch);
+        send_to_char("{BCount  BW   Widevnum      Lines Depth   Status   Name\n\r", ch);
+        send_to_char("{b----------------------------------------------------------------------------\n\r", ch);
     }
 
     page_to_char(buf_string(buffer), ch);
