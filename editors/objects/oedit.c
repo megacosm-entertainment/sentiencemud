@@ -34,316 +34,506 @@
 #include "../../wilds.h"
 #include "../../item_types.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
 
+/* Forward declarations for tab show functions */
+static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void oedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void oedit_show_type_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
-OEDIT(oedit_show)
+static AREA_DATA *oedit_get_area(void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+    return pObj ? pObj->area : NULL;
+}
+
+/*
+ * Object Editor Command Table
+ */
+const struct olc_cmd_type oedit_table[] =
+{
+    { "?",              show_help           },
+    { "addaffect",      oedit_addaffect     },
+    { "addcatalyst",    oedit_addcatalyst   },
+    { "addimmune",      oedit_addimmune     },
+    { "addoprog",       oedit_addoprog      },
+    { "addskill",       oedit_addskill      },
+    { "addspell",       oedit_addspell      },
+    { "addtype",        oedit_addtype       },
+    { "allowedfixed",   oedit_allowed_fixed },
+    { "commands",       show_commands       },
+    { "comments",       oedit_comments      },
+    { "condition",      oedit_condition     },
+    { "cost",           oedit_cost          },
+    { "create",         oedit_create        },
+    { "delaffect",      oedit_delaffect     },
+    { "delcatalyst",    oedit_delcatalyst   },
+    { "delimmune",      oedit_delimmune     },
+    { "deloprog",       oedit_deloprog      },
+    { "delspell",       oedit_delspell      },
+    { "description",    oedit_desc          },
+    { "ed",             oedit_ed            },
+    { "extra",          oedit_extra         },
+    { "fragility",      oedit_fragility     },
+    { "level",          oedit_level         },
+    { "lock",           oedit_lock          },
+    { "long",           oedit_long          },
+    { "material",       oedit_material      },
+    { "name",           oedit_name          },
+    { "next",           oedit_next          },
+    { "persist",        oedit_persist       },
+    { "prev",           oedit_prev          },
+    { "removetype",     oedit_removetype    },
+    { "scriptkwd",      oedit_skeywds       },
+    { "short",          oedit_short         },
+    { "show",           oedit_show          },
+    { "sign",           oedit_sign          },
+    { "timer",          oedit_timer         },
+    { "type",           oedit_type          },
+    { "v0",             oedit_value0        },
+    { "v1",             oedit_value1        },
+    { "v2",             oedit_value2        },
+    { "v3",             oedit_value3        },
+    { "v4",             oedit_value4        },
+    { "v5",             oedit_value5        },
+    { "v6",             oedit_value6        },
+    { "v7",             oedit_value7        },
+    { "varclear",       oedit_varclear      },
+    { "varset",         oedit_varset        },
+    { "waypoints",      oedit_waypoints     },
+    { "wear",           oedit_wear          },
+    { "weight",         oedit_weight        },
+
+    /* Type-specific subcommands */
+    { "armor",          oedit_armor         },
+    { "bodypart",       oedit_bodypart      },
+    { "book",           oedit_book          },
+    { "cart",           oedit_cart          },
+    { "compass",        oedit_compass       },
+    { "container",      oedit_container     },
+    { "corpse",         oedit_corpse        },
+    { "drink",          oedit_drink         },
+    { "food",           oedit_food          },
+    { "furniture",      oedit_furniture     },
+    { "herb",           oedit_herb          },
+    { "ink",            oedit_ink           },
+    { "instrument",     oedit_instrument    },
+    { "jewelry",        oedit_jewelry       },
+    { "light",          oedit_light         },
+    { "map",            oedit_map           },
+    { "mist",           oedit_mist          },
+    { "money",          oedit_money         },
+    { "page",           oedit_page          },
+    { "portal",         oedit_portal        },
+    { "scroll",         oedit_scroll        },
+    { "seed",           oedit_seed          },
+    { "sextant",        oedit_sextant       },
+    { "ship",           oedit_ship          },
+    { "tattoo",         oedit_tattoo        },
+    { "telescope",      oedit_telescope     },
+    { "tool",           oedit_tool          },
+    { "trade",          oedit_trade         },
+    { "wand",           oedit_wand          },
+    { "weapon",         oedit_weapon        },
+    { "weaponcon",      oedit_weaponcon     },
+    { NULL,             0,                  }
+};
+
+/*
+ * Object Editor Definition
+ */
+static const OLC_EDITOR_DEF oedit_def = {
+    .name           = "OEdit",
+    .editor_type    = ED_OBJECT,
+    .cmd_table      = oedit_table,
+    .show_fn        = oedit_show,
+    .tabs           = {
+        .count = 5,
+        .tabs = {
+            { "General",    "Gen", oedit_show_general_tab },
+            { "Properties", "Prp", oedit_show_properties_tab },
+            { "Affects",    "Aff", oedit_show_affects_tab },
+            { "Scripts",    "Scr", oedit_show_scripts_tab },
+            { "Type",       "Typ", oedit_show_type_tab },
+        }
+    },
+    .theme          = &olc_theme_entity,
+    .perm           = {
+        .flags          = OLC_PERM_AREA_SECURITY,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = oedit_get_area,
+    .audit_changes  = true,
+};
+
+/*
+ * Object Editor Interpreter — delegates to framework.
+ */
+void oedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &oedit_def);
+}
+
+/*
+ * Object Editor Entry Point
+ */
+void do_oedit(CHAR_DATA *ch, char *argument)
 {
     OBJ_INDEX_DATA *pObj;
-    BUFFER *buffer;
+    AREA_DATA *pArea;
+    char arg1[MAX_STRING_LENGTH];
+    long value;
+
+    if (IS_NPC(ch))
+        return;
+
+    argument = one_argument(argument, arg1);
+
+    if (arg1[0] != '\0' && str_cmp(arg1, "create"))
+    {
+        WNUM wnum;
+        AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg1, context, &wnum)) {
+            send_to_char("OEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
+            return;
+        }
+
+        if (!(pObj = get_obj_index(wnum.pArea, wnum.vnum)))
+        {
+            send_to_char("OEdit:  That vnum does not exist.\n\r", ch);
+            return;
+        }
+
+        if (!has_access_area(ch, pObj->area))
+        {
+            send_to_char("Insufficient security to edit object - action logged.\n\r", ch);
+            return;
+        }
+
+        olc_editor_enter(ch, &oedit_def, (void *)pObj, true);
+    }
+    else if (!str_cmp(arg1, "create"))
+    {
+        value = atol(argument);
+
+        if (argument[0] != '\0')
+        {
+            pArea = get_vnum_area(value);
+
+            if (!pArea)
+            {
+                send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
+                return;
+            }
+
+            if (!has_access_area(ch, pArea))
+            {
+                send_to_char("Insufficient security to edit object - action logged.\n\r", ch);
+                return;
+            }
+        }
+
+        if (oedit_create(ch, argument))
+            ch->desc->editor = ED_OBJECT;
+    }
+}
+
+
+/*
+ * ========================================================================
+ * Tab Show Functions
+ * ========================================================================
+ */
+
+static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
     char buf[MAX_STRING_LENGTH];
-    AFFECT_DATA *paf;
-//    ITERATOR it;
-//    PROG_LIST *trigger;
-    SPELL_DATA *spell;
-    int cnt;
 
-    EDIT_OBJ(ch, pObj);
+    olc_display_string(ctx, theme, "Name:", "name", pObj->name);
+    olc_display_infof(ctx, theme, "Area:         %s[%s%7ld%s] %s%s{x",
+        theme->label, theme->value,
+        !pObj->area ? -1L : pObj->area->anum,
+        theme->label,
+        theme->value,
+        !pObj->area ? "No Area" : pObj->area->name);
+    olc_display_number(ctx, theme, "Vnum:", NULL, pObj->vnum);
 
-    buffer = new_buf();
-
-    sprintf(buf, "Name:         {B[{x%s{B]{x\n\rArea:         {B[{x%7ld{B] {x%s\n\r",
-    pObj->name,
-    !pObj->area ? -1        : pObj->area->anum,
-    !pObj->area ? "No Area" : pObj->area->name);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Vnum:         {B[{x%7ld{B]{x\n\rType:         {B[{x%s{B]{x",
-    pObj->vnum,
-    flag_string(type_flags, pObj->item_type));
-    add_buf(buffer, buf);
+    /* Primary type + secondary types */
+    snprintf(buf, sizeof(buf), "%s", flag_string(type_flags, pObj->item_type));
     for (int t = 0; t < ITEM__MAX; t++) {
         if (t == pObj->item_type) continue;
         if (TBIT_TST(pObj->type_flags, t)) {
-            sprintf(buf, " {D+{x {B[{x%s{B]{x", flag_string(type_flags, t));
-            add_buf(buffer, buf);
+            int len = strlen(buf);
+            snprintf(buf + len, sizeof(buf) - len, " {D+{x %s", flag_string(type_flags, t));
         }
     }
-    add_buf(buffer, "\n\r");
+    olc_display_string(ctx, theme, "Type:", "type", buf);
 
-    sprintf(buf, "Persist:      {B[%s{B]{x\n\r", (pObj->persist ? "{WON" : "{Doff"));
-    add_buf(buffer, buf);
+    olc_display_bool(ctx, theme, "Persist:", "persist", pObj->persist);
+    olc_display_number(ctx, theme, "Level:", "level", pObj->level);
+    olc_display_string(ctx, theme, "Imp Sig:", NULL, pObj->imp_sig);
+    olc_display_string(ctx, theme, "Creator Sig:", NULL, pObj->creator_sig);
+    olc_display_string(ctx, theme, "Script Kwds:", "scriptkwd", pObj->skeywds);
 
+    olc_display_hr(ctx, theme);
 
-    sprintf(buf, "Level:        {B[{x%7d{B]{x\n\r", pObj->level);
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Short Desc:", "short", pObj->short_descr);
+    olc_display_text(ctx, theme, "Long Desc:", "long", pObj->description);
+    olc_display_text(ctx, theme, "Description:", "description", pObj->full_description);
+    olc_display_text(ctx, theme, "Comments:", "comments", pObj->comments);
+}
 
-    sprintf(buf, "Wear flags:   {B[{x%s{B]{x\n\r",
-    flag_string(wear_flags, pObj->wear_flags));
-    add_buf(buffer, buf);
+static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
+    char buf[MAX_STRING_LENGTH];
 
-    sprintf(buf, "Imp sig:      {B[{x%s{B]{x\n\r",
-            pObj->imp_sig);
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Extra Flags:", "extra",
+        bitvector_string(4,
+            pObj->extra[0], extra_flags,
+            pObj->extra[1], extra2_flags,
+            pObj->extra[2], extra3_flags,
+            pObj->extra[3], extra4_flags));
 
-    sprintf(buf, "Creator sig:  {B[{x%s{B]{x\n\r",
-            pObj->creator_sig);
-    add_buf(buffer, buf);
+    olc_display_number(ctx, theme, "Timer:", "timer", pObj->timer);
+    olc_display_string(ctx, theme, "Material:", "material", pObj->material);
+    olc_display_number(ctx, theme, "Condition:", "condition", pObj->condition);
+    olc_display_string(ctx, theme, "Fragility:", "fragility", fragile_table[pObj->fragility].name);
+    olc_display_number(ctx, theme, "Allwd Fixed:", "allowedfixed", pObj->times_allowed_fixed);
+    olc_display_number(ctx, theme, "Weight:", "weight", pObj->weight);
+    olc_display_number(ctx, theme, "Cost:", "cost", pObj->cost);
+    olc_display_number(ctx, theme, "Points:", NULL, pObj->points);
 
-    sprintf(buf, "Script Kwds:  {B[{x%s{B]{x\n\r",
-            pObj->skeywds);
-    add_buf(buffer, buf);
+    olc_display_hr(ctx, theme);
 
-    sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r",
-    bitvector_string(4, pObj->extra[0], extra_flags, pObj->extra[1], extra2_flags, pObj->extra[2], extra3_flags, pObj->extra[3], extra4_flags));
-    add_buf(buffer, buf);
-/*
-    sprintf(buf, "Extra2 flags: {B[{x%s{B]{x\n\r",
-            flag_string(extra[1], pObj->extra[1]));
-    add_buf(buffer, buf);
+    olc_display_flags(ctx, theme, "Wear Flags:", "wear", wear_flags, pObj->wear_flags);
 
-    sprintf(buf, "Extra3 flags: {B[{x%s{B]{x\n\r",
-            flag_string(extra[2], pObj->extra[2]));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Extra4 flags: {B[{x%s{B]{x\n\r",
-            flag_string(extra[3], pObj->extra[3]));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "OUpdate:      {B[{x%s{B]{x\n\r",
-        pObj->update == true ? "Yes" : "No");
-    add_buf(buffer, buf);
-*/
-    sprintf(buf, "Timer:        {B[{x%d{B]{x\n\r",
-        pObj->timer);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Material:     {B[{x%s{B]{x\n\r",                /* ROM */
-    pObj->material);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Condition:    {B[{x%7d{B]{x\n\r",               /* ROM */
-    pObj->condition);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Fragility:    {B[{x%7s{B]{x\n\r",               /* ROM */
-    fragile_table[pObj->fragility].name);
-
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Allwd Fixed:  {B[{x%7d{B]{x\n\r",               /* ROM */
-    pObj->times_allowed_fixed);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Weight:       {B[{x%7d{B]{x\n\r"
-         "Cost:         {B[{x%7ld{B]{x\n\r",
-    pObj->weight, pObj->cost);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Points:       {B[{x%7d{B]{x\n\r",
-         pObj->points);
-    add_buf(buffer, buf);
-
-    if( pObj->lock )
-    {
-            OBJ_INDEX_DATA *lock_key = (pObj->lock->key_wnum.pArea && pObj->lock->key_wnum.vnum > 0)
+    if (pObj->lock) {
+        OBJ_INDEX_DATA *lock_key = (pObj->lock->key_wnum.pArea && pObj->lock->key_wnum.vnum > 0)
             ? get_obj_index(pObj->lock->key_wnum.pArea, pObj->lock->key_wnum.vnum) : NULL;
 
-        sprintf(buf,"Lock State:\n\r"
-                    "  Key:         {B[{x%7ld{B]{x %s\n\r"
-                    "  Flags:       {B[{x%s{B]{x\n\r"
-                    "  Pick Chance: {B[{x%d%%{B]{x\n\r",
-                    pObj->lock->key_wnum.vnum,
-                    lock_key ? lock_key->short_descr : "none",
-                    flag_string(lock_flags, pObj->lock->flags),
-                    pObj->lock->pick_chance);
-        add_buf(buffer, buf);
+        olc_display_section(ctx, theme, "Lock State");
+        olc_display_vnum(ctx, theme, "Key:", "lock key",
+            pObj->lock->key_wnum.vnum,
+            lock_key ? lock_key->short_descr : NULL);
+        olc_display_flags(ctx, theme, "Flags:", "lock flags", lock_flags, pObj->lock->flags);
+        olc_display_percent(ctx, theme, "Pick Chance:", "lock pick", pObj->lock->pick_chance, 1);
     }
 
-    if (pObj->extra_descr)
-    {
-    EXTRA_DESCR_DATA *ed;
+    if (pObj->extra_descr) {
+        EXTRA_DESCR_DATA *ed;
 
-    add_buf(buffer, "Ex desc kwd: ");
-
-    for (ed = pObj->extra_descr; ed; ed = ed->next)
-    {
-        add_buf(buffer, "[");
-        sprintf(buf, "%s", ed->keyword);
-        add_buf(buffer, buf);
-        add_buf(buffer, "]");
+        buf[0] = '\0';
+        for (ed = pObj->extra_descr; ed; ed = ed->next) {
+            int len = strlen(buf);
+            snprintf(buf + len, sizeof(buf) - len, "[%s] ", ed->keyword);
+        }
+        olc_display_string(ctx, theme, "Ex Desc Kwd:", "ed", buf);
     }
+}
 
-    add_buf(buffer, "\n\r");
-    }
+static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
+    char buf[MAX_STRING_LENGTH];
+    AFFECT_DATA *paf;
+    SPELL_DATA *spell;
+    int cnt;
 
-    sprintf(buf, "Short desc:{x   %s\n\rLong desc:{x\n\r     %s\n\r",
-    pObj->short_descr, pObj->description);
-    add_buf(buffer, buf);
-
-    add_buf(buffer, "Description:{x\n\r");
-    sprintf(buf, "%s", pObj->full_description);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pObj->comments);
-    add_buf(buffer, buf);
-
-    for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
-    {
-        if( paf->where == TO_OBJECT )
-        {
-            if (cnt == 0)
-            {
-                sprintf(buf, "{Y%-6s %-20s %-10s %-10s{x\n\r", "Number", "Affects", "Modifier", "Random");
-                add_buf(buffer, buf);
-
-                sprintf(buf, "{Y%-6s %-20s %-10s %-10s{x\n\r", "------", "-------", "--------", "------");
-                add_buf(buffer, buf);
+    /* TO_OBJECT affects */
+    cnt = 0;
+    for (paf = pObj->affected; paf; paf = paf->next) {
+        if (paf->where == TO_OBJECT) {
+            if (cnt == 0) {
+                olc_display_section(ctx, theme, "Affects");
+                snprintf(buf, sizeof(buf), "  {Y%-6s %-20s %-10s %-10s{x", "Number", "Affects", "Modifier", "Random");
+                add_buf(ctx->buffer, buf);
+                add_buf(ctx->buffer, "\n\r");
+                snprintf(buf, sizeof(buf), "  {Y%-6s %-20s %-10s %-10s{x", "------", "-------", "--------", "------");
+                add_buf(ctx->buffer, buf);
+                add_buf(ctx->buffer, "\n\r");
             }
-
-            sprintf(buf, "{B[{W%4d{B] {%c%-20s{x %-20d %d%%\n\r",
+            snprintf(buf, sizeof(buf), "  {B[{W%4d{B] {%c%-20s{x %-20d %d%%\n\r",
                 cnt,
-                (paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX)?'Y':'G',
+                (paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) ? 'Y' : 'G',
                 affect_loc_name(paf->location),
                 paf->modifier,
                 paf->random);
-
-            add_buf(buffer, buf);
+            add_buf(ctx->buffer, buf);
             cnt++;
         }
     }
 
-    for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
-    {
-        if( paf->where == TO_IMMUNE || paf->where == TO_RESIST || paf->where == TO_VULN )
-        {
-            char* irv;
-
-            if(paf->where == TO_IMMUNE)
+    /* TO_IMMUNE / TO_RESIST / TO_VULN */
+    cnt = 0;
+    for (paf = pObj->affected; paf; paf = paf->next) {
+        if (paf->where == TO_IMMUNE || paf->where == TO_RESIST || paf->where == TO_VULN) {
+            char *irv;
+            if (paf->where == TO_IMMUNE)
                 irv = "Wimmunity";
-            else if(paf->where == TO_VULN)
+            else if (paf->where == TO_VULN)
                 irv = "Rvulnerability";
             else
                 irv = "Gresistance";
 
-            if (cnt == 0)
-            {
-                sprintf(buf, "{C%-6s %-15s %-15s %-10s{x\n\r", "Number", "Adds", "Modifier", "Random");
-                add_buf(buffer, buf);
-
-                sprintf(buf, "{C%-6s %-15s %-15s %-10s{x\n\r", "------", "-------", "--------", "------");
-                add_buf(buffer, buf);
+            if (cnt == 0) {
+                olc_display_section(ctx, theme, "Immunities / Resistances / Vulnerabilities");
+                snprintf(buf, sizeof(buf), "  {C%-6s %-15s %-15s %-10s{x", "Number", "Adds", "Modifier", "Random");
+                add_buf(ctx->buffer, buf);
+                add_buf(ctx->buffer, "\n\r");
+                snprintf(buf, sizeof(buf), "  {C%-6s %-15s %-15s %-10s{x", "------", "-------", "--------", "------");
+                add_buf(ctx->buffer, buf);
+                add_buf(ctx->buffer, "\n\r");
             }
-
-            sprintf(buf, "{B[{W%4d{B] {%-16s{x %-15s %d%%\n\r",
-                cnt,
-                irv,
-                imm_bit_name(paf->bitvector),
-                paf->random);
-
-            add_buf(buffer, buf);
+            snprintf(buf, sizeof(buf), "  {B[{W%4d{B] {%-16s{x %-15s %d%%\n\r",
+                cnt, irv, imm_bit_name(paf->bitvector), paf->random);
+            add_buf(ctx->buffer, buf);
             cnt++;
         }
     }
 
+    /* Spells */
+    if (pObj->spells) {
+        olc_display_section(ctx, theme, "Spells");
 
-    if (pObj->spells)
-    {
-    cnt = 0;
+        snprintf(buf, sizeof(buf), "  {g%-6s %-20s %-10s %-6s{x", "Number", "Spell", "Level", "Random");
+        add_buf(ctx->buffer, buf);
+        add_buf(ctx->buffer, "\n\r");
+        snprintf(buf, sizeof(buf), "  {g%-6s %-20s %-10s %-6s{x", "------", "-----", "-----", "------");
+        add_buf(ctx->buffer, buf);
+        add_buf(ctx->buffer, "\n\r");
 
-    sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
-    add_buf(buffer, buf);
-
-    for (spell = pObj->spells; spell != NULL; spell = spell->next, cnt++)
-    {
-        sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
-            cnt,
-            skill_table[spell->sn].name, spell->level, spell->repop);
-        buf[0] = UPPER(buf[0]);
-        add_buf(buffer, buf);
-    }
-    }
-
-    if (pObj->catalyst)
-    {
         cnt = 0;
-        char line_colour = 'x';
-
-        sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "Number", "Type", "Strength", "Amount", "Random", "Script Name");
-        add_buf(buffer, buf);
-
-        sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "------", "----", "--------", "------", "------", "-----------");
-        add_buf(buffer, buf);
-
-        for (paf = pObj->catalyst; paf; paf = paf->next, cnt++) {
-            line_colour = ( paf->where == TO_CATALYST_ACTIVE ) ? 'W' : 'x';
-
-            char *name = (IS_NULLSTR(paf->custom_name)) ? "---" : paf->custom_name;
-
-            if(paf->modifier < 0)
-                sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d {Wsource{%c %d%% %s{x\n\r", cnt, line_colour,
-                    flag_string(catalyst_types,paf->type),paf->level,line_colour,paf->random, name);
-            else
-                sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d %-6d %d%% %s{x\n\r", cnt, line_colour,
-                    flag_string(catalyst_types,paf->type),paf->level,paf->modifier,paf->random, name);
-            buf[0] = UPPER(buf[0]);
-            add_buf(buffer, buf);
+        for (spell = pObj->spells; spell; spell = spell->next, cnt++) {
+            snprintf(buf, sizeof(buf), "  {B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+                cnt, skill_table[spell->sn].name, spell->level, spell->repop);
+            buf[2] = UPPER(buf[2]);
+            add_buf(ctx->buffer, buf);
         }
     }
 
-    if (list_size(pObj->waypoints) > 0)
-    {
-        int cnt = 0;
+    /* Catalysts */
+    if (pObj->catalyst) {
+        olc_display_section(ctx, theme, "Catalysts");
+
+        snprintf(buf, sizeof(buf), "  {m%-6s %-20s %-10s %-6s %-6s %-11s{x",
+            "Number", "Type", "Strength", "Amount", "Random", "Script Name");
+        add_buf(ctx->buffer, buf);
+        add_buf(ctx->buffer, "\n\r");
+        snprintf(buf, sizeof(buf), "  {m%-6s %-20s %-10s %-6s %-6s %-11s{x",
+            "------", "----", "--------", "------", "------", "-----------");
+        add_buf(ctx->buffer, buf);
+        add_buf(ctx->buffer, "\n\r");
+
+        cnt = 0;
+        for (paf = pObj->catalyst; paf; paf = paf->next, cnt++) {
+            char line_colour = (paf->where == TO_CATALYST_ACTIVE) ? 'W' : 'x';
+            char *name = (IS_NULLSTR(paf->custom_name)) ? "---" : paf->custom_name;
+
+            if (paf->modifier < 0)
+                snprintf(buf, sizeof(buf), "  {M[{W%4d{M]{%c %-20s %-10d {Wsource{%c %d%% %s{x\n\r",
+                    cnt, line_colour,
+                    flag_string(catalyst_types, paf->type), paf->level,
+                    line_colour, paf->random, name);
+            else
+                snprintf(buf, sizeof(buf), "  {M[{W%4d{M]{%c %-20s %-10d %-6d %d%% %s{x\n\r",
+                    cnt, line_colour,
+                    flag_string(catalyst_types, paf->type), paf->level,
+                    paf->modifier, paf->random, name);
+
+            buf[2] = UPPER(buf[2]);
+            add_buf(ctx->buffer, buf);
+        }
+    }
+
+    /* Waypoints */
+    if (list_size(pObj->waypoints) > 0) {
+        int wcnt = 0;
         ITERATOR wit;
         WAYPOINT_DATA *wp;
         WILDS_DATA *wilds;
 
-        add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
-        add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
-        add_buf(buffer, "{B======================================================================={x\n\r");
+        olc_display_section(ctx, theme, "Cartographer Waypoints");
+
+        add_buf(ctx->buffer, "  {B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+        add_buf(ctx->buffer, "  {B======================================================================={x\n\r");
 
         iterator_start(&wit, pObj->waypoints);
-        while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-        {
+        while ((wp = (WAYPOINT_DATA *)iterator_nextdata(&wit))) {
             wilds = get_wilds_from_uid(NULL, wp->w);
-
             char *wname = wilds ? wilds->name : "{D(null){x";
-
             int wwidth = get_colour_width(wname) + 20;
 
-            sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
-                ++cnt,
-                wwidth, wwidth, wname,
-                wp->y, wp->x, wp->name);
-
-            add_buf(buffer, buf);
+            snprintf(buf, sizeof(buf), "  {B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+                ++wcnt, wwidth, wwidth, wname, wp->y, wp->x, wp->name);
+            add_buf(ctx->buffer, buf);
         }
-
         iterator_stop(&wit);
-
-        add_buf(buffer, "\n\r");
     }
-
-
-    if (pObj->progs)
-        olc_show_progs_grouped(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
-
-    if (pObj->index_vars)
-        olc_show_index_vars(buffer, pObj->index_vars);
-
-
-    oedit_show_type_data(pObj, buffer);
-
-    page_to_char(buf_string(buffer), ch);
-    free_buf(buffer);
-    return false;
 }
 
+static void oedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
+
+    olc_display_scripts(ctx, theme, pObj->progs, PRG_OPROG,
+        "ObjProg Vnum", "addoprog", "deloprog");
+
+    olc_display_vars(ctx, theme, pObj->index_vars, "varset", "varclear");
+}
+
+static void oedit_show_type_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+
+    oedit_show_type_data(pObj, ctx->buffer);
+}
+
+/*
+ * ========================================================================
+ * Main show function — dispatches to active tab
+ * ========================================================================
+ */
+
+OEDIT(oedit_show)
+{
+    OBJ_INDEX_DATA *pObj;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
+    OLC_LAYOUT_CTX *ctx;
+    int tab;
+
+    EDIT_OBJ(ch, pObj);
+
+    ctx = olc_display_new(ch, theme);
+
+    olc_display_header(ctx, "OEdit", pObj->short_descr,
+        formatf("%ld", pObj->vnum), &oedit_def);
+
+    /* Dispatch to active tab's show function */
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < oedit_def.tabs.count && oedit_def.tabs.tabs[tab].show_fn) {
+        oedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pObj);
+    } else {
+        oedit_show_general_tab(ch, ctx, (void *)pObj);
+    }
+
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
+    return false;
+}
 
 OEDIT(oedit_addaffect)
 {
@@ -1520,20 +1710,9 @@ OEDIT(oedit_delimmune)
 OEDIT(oedit_name)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  name [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(pObj->name);
-    pObj->name = str_dup(argument);
-
-    send_to_char("Name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &pObj->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 
@@ -1559,20 +1738,9 @@ OEDIT(oedit_sign)
 OEDIT(oedit_skeywds)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  skwds [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(pObj->skeywds);
-    pObj->skeywds = str_dup(argument);
-
-    send_to_char("Script keywords set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Script Keywords", NULL, &pObj->skeywds,
+        OLC_STR_CLEARABLE, NULL, NULL);
 }
 
 OEDIT(oedit_varset)
@@ -1753,19 +1921,9 @@ OEDIT(oedit_value7)
 OEDIT(oedit_weight)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  weight [number]\n\r", ch);
-    return false;
-    }
-
-    pObj->weight = atoi(argument);
-
-    send_to_char("Weight set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Weight", NULL, &pObj->weight,
+        0, INT_MAX, NULL, NULL);
 }
 
 
@@ -2491,25 +2649,11 @@ OEDIT(oedit_level)
 OEDIT(oedit_condition)
 {
     OBJ_INDEX_DATA *pObj;
-    int value;
-
-    if (argument[0] != '\0'
-    && (value = atoi (argument)) >= 0
-    && (value <= 100))
-    {
-        EDIT_OBJ(ch, pObj);
-
-        pObj->condition = value;
-        send_to_char("Condition set.\n\r", ch);
-
-        return true;
-    }
-
-    send_to_char("Syntax:  condition [number]\n\r"
-                  "Where number can range from 0 (ruined) to 100 (perfect).\n\r"
-,
-                  ch);
-    return false;
+    EDIT_OBJ(ch, pObj);
+    return olc_cmd_number_i16(ch, argument, "Condition",
+        "Syntax:  condition [number]\n\r"
+        "Where number can range from 0 (ruined) to 100 (perfect).\n\r",
+        &pObj->condition, 0, 100, NULL, NULL);
 }
 
 
@@ -2572,24 +2716,11 @@ OEDIT(oedit_fragility)
 OEDIT(oedit_allowed_fixed)
 {
     OBJ_INDEX_DATA *pObj;
-    int value;
-
-    if (argument[0] != '\0'
-    && (value = atoi (argument)) >= 0
-    && (value <= 100))
-    {
     EDIT_OBJ(ch, pObj);
-
-    pObj->times_allowed_fixed = value;
-    send_to_char("Allowed Fixed Set.\n\r", ch);
-
-    return true;
-    }
-
-    send_to_char("Syntax:  Allowed_fixed [number]\n\r"
-          "Number of times a person can fix the object.\n\r",
-          ch);
-    return false;
+    return olc_cmd_number_i16(ch, argument, "Allowed Fixed",
+        "Syntax:  allowedfixed [number]\n\r"
+        "Number of times a person can fix the object.\n\r",
+        &pObj->times_allowed_fixed, 0, 100, NULL, NULL);
 }
 
 OEDIT (oedit_addoprog)
@@ -2773,33 +2904,17 @@ OEDIT (oedit_deloprog)
 OEDIT(oedit_desc)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pObj->full_description);
-    return true;
-    }
-
-    send_to_char("Syntax:  desc\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &pObj->full_description, NULL, NULL);
 }
 
 OEDIT(oedit_comments)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pObj->comments);
-    return true;
-    }
-
-    send_to_char("Syntax:  comments\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &pObj->comments, NULL, NULL);
 }
 /*
 OEDIT(oedit_update)
@@ -2831,31 +2946,8 @@ OEDIT(oedit_update)
 OEDIT(oedit_timer)
 {
     OBJ_INDEX_DATA *pObj;
-    char arg[MSL];
-    int time;
-
     EDIT_OBJ(ch, pObj);
-
-    argument = one_argument(argument, arg);
-    if (arg[0] == '\0')
-    {
-    send_to_char("Syntax: timer <#ticks>\n\r", ch);
-    return false;
-    }
-
-    if (!is_number(arg))
-    {
-    send_to_char("Argument must be numerical.\n\r", ch);
-    return false;
-    }
-
-    if ((time = atoi(arg)) < 0 || time > 10000)
-    {
-    send_to_char("Range is 0 (doesn't decay) to 1000.\n\r", ch);
-    return false;
-    }
-
-    pObj->timer = time;
-    send_to_char("Timer set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Timer",
+        "Syntax: timer <#ticks>  (0 to 10000)\n\r",
+        &pObj->timer, 0, 10000, NULL, NULL);
 }

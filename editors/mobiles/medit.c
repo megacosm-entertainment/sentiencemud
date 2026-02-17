@@ -34,635 +34,633 @@
 #include "../../wilds.h"
 #include "../../strings.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
+/* Forward declarations for tab show functions */
+static void medit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void medit_show_combat_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void medit_show_defense_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void medit_show_economy_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void medit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
-MEDIT(medit_show)
+static AREA_DATA *medit_get_area(void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    return pMob ? pMob->area : NULL;
+}
+
+/*
+ * Mobile Editor Command Table
+ */
+const struct olc_cmd_type medit_table[] =
+{
+    {   "?",            show_help       },
+    {   "act",          medit_act       },
+    {   "addmprog",     medit_addmprog  },
+    {   "affect",       medit_affect    },
+    {   "alignment",    medit_align     },
+    {   "armour",       medit_ac        },
+    {   "attacks",      medit_attacks   },
+    {   "commands",     show_commands   },
+    {   "comments",     medit_comments  },
+    {   "create",       medit_create    },
+    {   "damdice",      medit_damdice   },
+    {   "damtype",      medit_damtype   },
+    {   "delmprog",     medit_delmprog  },
+    {   "description",  medit_desc      },
+    {   "hitdice",      medit_hitdice   },
+    {   "hitroll",      medit_hitroll   },
+    {   "immune",       medit_immune    },
+    {   "level",        medit_level     },
+    {   "long",         medit_long      },
+    {   "manadice",     medit_manadice  },
+    {   "material",     medit_material  },
+    {   "movedice",     medit_movedice  },
+    {   "name",         medit_name      },
+    {   "next",         medit_next      },
+    {   "off",          medit_off       },
+    {   "owner",        medit_owner     },
+    {   "part",         medit_part      },
+    {   "persist",      medit_persist   },
+    {   "position",     medit_position  },
+    {   "prev",         medit_prev      },
+    {   "questor",      medit_questor   },
+    {   "trainer",      medit_trainer   },
+    {   "crew",         medit_crew      },
+    {   "boss",         medit_boss      },
+    {   "race",         medit_race      },
+    {   "res",          medit_res       },
+    {   "sex",          medit_sex       },
+    {   "shop",         medit_shop      },
+    {   "short",        medit_short     },
+    {   "show",         medit_show      },
+    {   "sign",         medit_sign      },
+    {   "size",         medit_size      },
+    {   "spec",         medit_spec      },
+    {   "vuln",         medit_vuln      },
+    {   "wealth",       medit_gold      },
+    {   "scriptkwd",    medit_skeywds   },
+    {   "varset",       medit_varset    },
+    {   "varclear",     medit_varclear  },
+    {   "corpsetype",   medit_corpsetype },
+    {   "corpsevnum",   medit_corpsevnum },
+    {   "zombievnum",   medit_zombievnum },
+    {   NULL,           0,              }
+};
+
+/*
+ * Mobile Editor Definition
+ */
+static const OLC_EDITOR_DEF medit_def = {
+    .name           = "MEdit",
+    .editor_type    = ED_MOBILE,
+    .cmd_table      = medit_table,
+    .show_fn        = medit_show,
+    .tabs           = {
+        .count = 6,
+        .tabs = {
+            { "General",  "Gen", medit_show_general_tab },
+            { "Combat",   "Com", medit_show_combat_tab },
+            { "Defense",  "Def", medit_show_defense_tab },
+            { "Economy",  "Eco", medit_show_economy_tab },
+            { "Scripts",  "Scr", medit_show_scripts_tab },
+            { "Special",  "Spc", medit_show_special_tab },
+        }
+    },
+    .theme          = &olc_theme_entity,
+    .perm           = {
+        .flags          = OLC_PERM_AREA_SECURITY,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = medit_get_area,
+    .audit_changes  = true,
+};
+
+/*
+ * Mobile Editor Interpreter — delegates to framework.
+ */
+void medit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &medit_def);
+}
+
+/*
+ * Mobile Editor Entry Point
+ */
+void do_medit(CHAR_DATA *ch, char *argument)
 {
     MOB_INDEX_DATA *pMob;
-    char buf[MAX_STRING_LENGTH];
-//	ITERATOR it;
-//	PROG_LIST *trigger;
-    BUFFER *buffer;
+    AREA_DATA *pArea;
+    long value;
+    char arg1[MAX_STRING_LENGTH];
 
-    EDIT_MOB(ch, pMob);
+    argument = one_argument(argument, arg1);
 
-    buffer = new_buf();
+    if (IS_NPC(ch))
+        return;
 
-    sprintf(buf, "Name:         {C[{x%s{C]{x\n\rArea:         {C[{x%5ld{C]{x %s\n\r",
-        pMob->player_name,
-        !pMob->area ? -1        : pMob->area->anum,
-        !pMob->area ? "No Area" : pMob->area->name);
-    add_buf(buffer, buf);
-    sprintf(buf, "Loaded:       {C[{x%d{C]{x\n\r", pMob->count);
-    add_buf(buffer, buf);
+    if (arg1[0] != '\0' && str_cmp(arg1, "create"))
+    {
+        WNUM wnum;
+        AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg1, context, &wnum)) {
+            send_to_char("MEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
+            return;
+        }
 
-    sprintf(buf, "Sig:          {C[{x%s{C]{x   Creator: {C[{x%s{C]{x\n\r",
-        pMob->sig, pMob->creator_sig);
-    add_buf(buffer, buf);
+        if (!(pMob = get_mob_index(wnum.pArea, wnum.vnum)))
+        {
+            send_to_char("MEdit:  That vnum does not exist.\n\r", ch);
+            return;
+        }
 
-    sprintf(buf, "Act:          {C[{x%s{C]{x\n\r",
-        bitmatrix_string(act_flagbank, pMob->act));
-    add_buf(buffer, buf);
-/*
-    sprintf(buf, "Act2:         {C[{x%s{C]{x\n\r",
-        flag_string(act2_flags, pMob->act2));
-    add_buf(buffer, buf);
-*/
-    sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Body Type: {C[{x%7d{C]{x  Race: {C[{x%s{C]{x\n\r",
-        pMob->vnum,
-        pMob->body_type,
-        pMob->race ? pMob->race->name : "unknown");
-    add_buf(buffer, buf);
+        if (!has_access_area(ch, pMob->area))
+        {
+            send_to_char("Insufficient security to edit mob - action logged.\n\r", ch);
+            return;
+        }
 
-    sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->persist ? "{RYES" : "{gno"));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Persist:      {C[%s{C]{x\n\r", (pMob->persist ? "{WON" : "{Doff"));
-    add_buf(buffer, buf);
-
-    if(pMob->attacks < 0) {
-        sprintf(buf,
-            "Level:        {C[{x%6d{C]{x  Align: {C[{x%6d{C]{x   Owner: {C[{x%s{C]{x\n\r"
-            "Hitroll:      {C[{x%6d{C]{x  DamType: {C[{x%s{C]{x\n\r"
-            "Movement:     {C[{x%6ld{C]{x  Number of attacks: {C[{Yscripted{C]{x\n\r",
-            pMob->level,	pMob->alignment, pMob->owner,
-            pMob->hitroll,	attack_table[pMob->dam_type].name,
-            pMob->move);
-    } else {
-        sprintf(buf,
-            "Level:        {C[{x%6d{C]{x  Align: {C[{x%6d{C]{x   Owner: {C[{x%s{C]{x\n\r"
-            "Hitroll:      {C[{x%6d{C]{x  DamType: {C[{x%s{C]{x\n\r"
-            "Movement:     {C[{x%6ld{C]{x  Number of attacks: {C[{x%d{C]{x\n\r",
-            pMob->level,	pMob->alignment, pMob->owner,
-            pMob->hitroll,	attack_table[pMob->dam_type].name,
-            pMob->move, pMob->attacks );
+        olc_editor_enter(ch, &medit_def, (void *)pMob, true);
     }
-    add_buf(buffer, buf);
+    else if (!str_cmp(arg1, "create"))
+    {
+        value = atol(argument);
 
-    sprintf(buf, "Hit dice:     {C[{x%2dd%-3d+%4d{C]{x ",
-        pMob->hit.number,
-        pMob->hit.size,
-        pMob->hit.bonus);
-    add_buf(buffer, buf);
+        if (argument[0] != '\0') {
+            pArea = get_vnum_area(value);
 
-    sprintf(buf, "Damage dice:  {C[{x%2dd%-3d+%4d{C]{x ",
-        pMob->damage.number,
-        pMob->damage.size,
-        pMob->damage.bonus);
-    add_buf(buffer, buf);
+            if (!pArea)
+            {
+                send_to_char("MEdit:  That vnum is not assigned an area.\n\r", ch);
+                return;
+            }
 
-    sprintf(buf, "Mana dice:    {C[{x%2dd%-3d+%4d{C]{x\n\r",
-        pMob->mana.number,
-        pMob->mana.size,
-        pMob->mana.bonus);
-    add_buf(buffer, buf);
+            if (!IS_BUILDER(ch, pArea))
+            {
+                send_to_char("Insufficient security to edit mob - action logged.\n\r", ch);
+                return;
+            }
+        }
 
-    sprintf(buf, "Affected by:  {C[{x%s{C]{x\n\r",
-        bitvector_string(2, pMob->affected_by[0], affect_flags, pMob->affected_by[1], affect2_flags));
-    add_buf(buffer, buf);
+        if (medit_create(ch, argument))
+        {
+            ch->desc->editor = ED_MOBILE;
+        }
+    }
+    else
+    {
+        send_to_char("MEdit:  There is no default mobile to edit.\n\r", ch);
+    }
+}
+
+
 /*
-    sprintf(buf, "Affected by2: {C[{x%s{C]{x\n\r",
-        flag_string(affect2_flags, pMob->affected_by2));
-    add_buf(buffer, buf);
-*/
-    sprintf(buf, "Armour:        {C[{xpierce: %d  bash: %d  slash: %d  magic: %d{C]{x\n\r",
+ * ========================================================================
+ * Tab-specific display functions
+ * ========================================================================
+ */
+
+static void medit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
+
+    olc_display_string(ctx, theme, "Name:",       "name",   pMob->player_name);
+    olc_display_string(ctx, theme, "Area:",        NULL,    pMob->area ? pMob->area->name : "No Area");
+    olc_display_number(ctx, theme, "Vnum:",        NULL,    pMob->vnum);
+    olc_display_number(ctx, theme, "Loaded:",      NULL,    pMob->count);
+
+    olc_display_pair(ctx, theme,
+        "Sig:", NULL, pMob->sig,
+        "Creator:", NULL, pMob->creator_sig);
+
+    olc_display_pair(ctx, theme,
+        "Race:", "race", pMob->race ? pMob->race->name : "unknown",
+        "Body Type:", NULL, formatf("%d", pMob->body_type));
+
+    olc_display_number(ctx, theme, "Level:",       "level",     pMob->level);
+    olc_display_number(ctx, theme, "Alignment:",   "alignment", pMob->alignment);
+    olc_display_type(ctx, theme,   "Sex:",         "sex",       sex_flags, pMob->sex);
+    olc_display_type(ctx, theme,   "Size:",        "size",      size_flags, pMob->size);
+    olc_display_string(ctx, theme, "Material:",    "material",  pMob->material);
+    olc_display_string(ctx, theme, "Owner:",       "owner",     pMob->owner);
+
+    olc_display_type(ctx, theme,   "Start Pos:",   "position start", position_flags, pMob->start_pos);
+    olc_display_type(ctx, theme,   "Default Pos:", "position default", position_flags, pMob->default_pos);
+
+    olc_display_bool(ctx, theme,   "Boss:",        "boss",    pMob->boss);
+    olc_display_bool(ctx, theme,   "Persist:",     "persist", pMob->persist);
+
+    olc_display_infof(ctx, theme,
+        "%sAct:%s          %s%s{x",
+        theme->label, theme->value, theme->value,
+        bitmatrix_string(act_flagbank, pMob->act));
+
+    olc_display_section(ctx, theme, "Descriptions");
+
+    olc_display_string(ctx, theme, "Short Descr:", "short", pMob->short_descr);
+    olc_display_text(ctx, theme,   "Long Descr:",  "long",  pMob->long_descr);
+    olc_display_text(ctx, theme,   "Description:", "description", pMob->description);
+    olc_display_text(ctx, theme,   "Comments:",    "comments", pMob->comments);
+}
+
+static void medit_show_combat_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
+    char buf[MIL];
+
+    olc_display_number(ctx, theme, "Hitroll:",     "hitroll", pMob->hitroll);
+    olc_display_string(ctx, theme, "Dam Type:",    "damtype", attack_table[pMob->dam_type].name);
+    olc_display_number(ctx, theme, "Movement:",    "movedice", pMob->move);
+
+    if (pMob->attacks < 0)
+        olc_display_string(ctx, theme, "Attacks:",  "attacks", "{Yscripted{x");
+    else
+        olc_display_number(ctx, theme, "Attacks:",  "attacks", pMob->attacks);
+
+    olc_display_section(ctx, theme, "Dice");
+
+    olc_display_dice(ctx, theme, "Hit Dice:",    "hitdice",  &pMob->hit);
+    olc_display_dice(ctx, theme, "Damage Dice:", "damdice",  &pMob->damage);
+    olc_display_dice(ctx, theme, "Mana Dice:",   "manadice", &pMob->mana);
+
+    olc_display_section(ctx, theme, "Armor Class");
+
+    snprintf(buf, sizeof(buf), "pierce: %d  bash: %d  slash: %d  magic: %d",
         pMob->ac[AC_PIERCE], pMob->ac[AC_BASH],
         pMob->ac[AC_SLASH],  pMob->ac[AC_EXOTIC]);
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Armour:", "armour", buf);
 
-    sprintf(buf, "Parts:        {C[{x%s{C]{x\n\r", flag_string(part_flags, pMob->parts));
-    add_buf(buffer, buf);
+    olc_display_section(ctx, theme, "Offensive");
 
-    sprintf(buf, "Imm:          {C[{x%s{C]{x\n\r", flag_string(imm_flags, pMob->imm_flags));
-    add_buf(buffer, buf);
+    olc_display_flags(ctx, theme,  "Off Flags:",   "off",    off_flags, pMob->off_flags);
 
-    sprintf(buf, "Res:          {C[{x%s{C]{x\n\r", flag_string(res_flags, pMob->res_flags));
-    add_buf(buffer, buf);
+    olc_display_infof(ctx, theme,
+        "%sAffected by:%s  %s%s{x",
+        theme->label, theme->value, theme->value,
+        bitvector_string(2, pMob->affected_by[0], affect_flags,
+                            pMob->affected_by[1], affect2_flags));
+}
 
-    sprintf(buf, "Vuln:         {C[{x%s{C]{x\n\r", flag_string(vuln_flags, pMob->vuln_flags));
-    add_buf(buffer, buf);
+static void medit_show_defense_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
 
-    sprintf(buf, "Off:          {C[{x%s{C]{x\n\r", flag_string(off_flags,  pMob->off_flags));
-    add_buf(buffer, buf);
+    olc_display_flags(ctx, theme, "Immunities:",      "immune", imm_flags,  pMob->imm_flags);
+    olc_display_flags(ctx, theme, "Resistances:",     "res",    res_flags,  pMob->res_flags);
+    olc_display_flags(ctx, theme, "Vulnerabilities:", "vuln",   vuln_flags, pMob->vuln_flags);
 
-    sprintf(buf, "Size:         {C[{x%s{C]{x\n\r", flag_string(size_flags, pMob->size));
-    add_buf(buffer, buf);
+    olc_display_section(ctx, theme, "Body");
 
-    sprintf(buf, "Material:     {C[{x%s{C]{x\n\r", pMob->material);
-    add_buf(buffer, buf);
+    olc_display_flags(ctx, theme, "Parts:",           "part",   part_flags, pMob->parts);
 
-    sprintf(buf, "Start pos:    {C[{x%s{C]{x\n\r", flag_string(position_flags, pMob->start_pos));
-    add_buf(buffer, buf);
+    olc_display_section(ctx, theme, "Corpse");
 
-    sprintf(buf, "Default pos:  {C[{x%s{C]{x\n\r", flag_string(position_flags, pMob->default_pos));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Wealth:       {C[{x%8ld{C]{x\n\r", pMob->wealth);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Script Kwds:  {C[{x%s{C]{x\n\r", pMob->skeywds);
-    add_buf(buffer, buf);
-
-    if (pMob->spec_fun) {
-        sprintf(buf, "Spec fun:     {C[{x%s{C]{x\n\r",  spec_name(pMob->spec_fun));
-        add_buf(buffer, buf);
-    }
-
-    sprintf(buf, "Corpse Type:  {C[{x%s{C]{x\n\r", flag_string(corpse_types, pMob->corpse_type));
-    add_buf(buffer, buf);
+    olc_display_type(ctx, theme,  "Corpse Type:",     "corpsetype", corpse_types, pMob->corpse_type);
 
     if (pMob->corpse_load.vnum) {
         OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->corpse_load.vnum);
-        sprintf(buf, "Corpse Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
-        add_buf(buffer, buf);
+        olc_display_vnum(ctx, theme, "Corpse Obj:",   "corpsevnum",
+            pMob->corpse_load.vnum, obj ? obj->short_descr : NULL);
     }
 
     if (pMob->zombie_load.vnum) {
         OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->zombie_load.vnum);
-        sprintf(buf, "Zombie Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
-        add_buf(buffer, buf);
+        olc_display_vnum(ctx, theme, "Zombie Obj:",   "zombievnum",
+            pMob->zombie_load.vnum, obj ? obj->short_descr : NULL);
     }
+}
 
+static void medit_show_economy_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
+    char buf[MAX_STRING_LENGTH];
 
-    sprintf(buf, "Short descr: %s\n\rLong descr:\n\r     %s", pMob->short_descr, pMob->long_descr);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Description:\n\r%s", pMob->description);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pMob->comments);
-    add_buf(buffer, buf);
-
-
-    /*
-    if (pMob->next_crew_for_sale != NULL)
-    {
-    MOB_INDEX_DATA *temp_mob;
-    sprintf(buf,"Crew for hire:\n\r"
-    "-------------------\n\r");
-    send_to_char(buf, ch);
-
-    for (temp_mob = pMob->next_crew_for_sale; temp_mob != NULL; temp_mob = temp_mob->next_crew_for_sale)
-    {
-    sprintf(buf, "%-16s %ld\n\r", temp_mob->short_descr, temp_mob->vnum);
-    send_to_char(buf, ch);
-    }
-    }
-    */
+    olc_display_number(ctx, theme, "Wealth:", "wealth", pMob->wealth);
 
     if (pMob->pShop) {
-        SHOP_DATA *pShop;
+        SHOP_DATA *pShop = pMob->pShop;
         int iTrade;
 
-        pShop = pMob->pShop;
+        olc_display_section(ctx, theme, "Shop Data");
 
-        sprintf(buf,
-            "Shop data for {C[{x%5ld{C]{x:\n\r"
-            "  Markup for purchaser: %d%%\n\r"
-            "  Markdown for seller:  %d%%\n\r",
-            pShop->keeper, pShop->profit_buy, pShop->profit_sell);
-        add_buf(buffer, buf);
-        sprintf(buf, "  Hours: %d to %d.\n\r", pShop->open_hour, pShop->close_hour);
-        add_buf(buffer, buf);
+        olc_display_number(ctx, theme, "Markup (buy):",    "shop profit", pShop->profit_buy);
+        olc_display_number(ctx, theme, "Markdown (sell):", "shop profit", pShop->profit_sell);
 
-        if( pShop->restock_interval > 0 )
-            sprintf(buf, "  Restocking: %d (minutes)\n\r", pShop->restock_interval);
+        snprintf(buf, sizeof(buf), "%d to %d", pShop->open_hour, pShop->close_hour);
+        olc_display_string(ctx, theme, "Hours:", "shop hours", buf);
+
+        if (pShop->restock_interval > 0)
+            olc_display_number(ctx, theme, "Restock (min):", NULL, pShop->restock_interval);
         else
-            sprintf(buf, "  Restocking: disabled\n\r");
-        add_buf(buffer, buf);
+            olc_display_string(ctx, theme, "Restock:", NULL, "disabled");
 
-        sprintf(buf, "  Discount Rate: %d%%\n\r", pShop->discount);
-        add_buf(buffer, buf);
-
-        sprintf(buf, "  Flags: %s\n\r", flag_string(shop_flags, pShop->flags));
-        add_buf(buffer, buf);
+        olc_display_percent(ctx, theme, "Discount:", NULL, pShop->discount, 1);
+        olc_display_flags(ctx, theme, "Flags:", "shop flag", shop_flags, pShop->flags);
 
         for (iTrade = 0; iTrade < MAX_TRADE; iTrade++) {
             if (pShop->buy_type[iTrade]) {
                 if (!iTrade) {
-                    add_buf(buffer, "  Number Trades Type\n\r");
-                    add_buf(buffer, "  ------ -----------\n\r");
+                    olc_display_section(ctx, theme, "Trade Types");
                 }
-                sprintf(buf, "  {C[{x%4d{C]{x %s\n\r", iTrade, flag_string(type_flags, pShop->buy_type[iTrade]));
-                add_buf(buffer, buf);
+                snprintf(buf, sizeof(buf), "Trade [%d]:", iTrade);
+                olc_display_type(ctx, theme, buf, NULL, type_flags, pShop->buy_type[iTrade]);
             }
         }
 
-        if(pShop->shipyard > 0)
-        {
+        if (pShop->shipyard > 0) {
             WILDS_DATA *wilds = get_wilds_from_uid(NULL, pShop->shipyard);
-
-            sprintf(buf, "  Shipyard: %s (%ld) at (%d,%d) to (%d,%d)\n\r",
-                wilds?wilds->name:"(null)", pShop->shipyard,
+            olc_display_section(ctx, theme, "Shipyard");
+            snprintf(buf, sizeof(buf), "%s (%ld) at (%d,%d) to (%d,%d)",
+                wilds ? wilds->name : "(null)", pShop->shipyard,
                 pShop->shipyard_region[0][0], pShop->shipyard_region[0][1],
                 pShop->shipyard_region[1][0], pShop->shipyard_region[1][1]);
-            add_buf(buffer, buf);
-
-            sprintf(buf, "            %s\n\r", pShop->shipyard_description);
-            add_buf(buffer, buf);
+            olc_display_string(ctx, theme, "Location:", NULL, buf);
+            olc_display_string(ctx, theme, "Shipyard Desc:", NULL, pShop->shipyard_description);
         }
 
-        if(pShop->stock != NULL)
-        {
+        if (pShop->stock != NULL) {
             SHOP_STOCK_DATA *pStock;
             int iStock;
-            char lvl[MIL];
-            char qty[MIL];
-            char pricing[MIL];
-            char typ[MIL];
-            char hours[MIL];
-            char item[MIL];
-            char disc[MIL];
+            char lvl[MIL], qty[MIL], pricing[MIL], typ[MIL];
+            char hours[MIL], item[MIL], disc[MIL];
             int hwidth, lwidth, qwidth, pwidth;
 
-            for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
-            {
-                if(iStock == 1)
-                {
-                    add_buf(buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)    Disc                   Item{x\n\r");
-                    add_buf(buffer, "{G  ------ ----- -------- --- ----- -------------- ---- --------------------------------------{x\n\r");
+            olc_display_section(ctx, theme, "Stock");
+
+            for (iStock = 1, pStock = pShop->stock; pStock; pStock = pStock->next, iStock++) {
+                if (iStock == 1) {
+                    add_buf(ctx->buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)    Disc                   Item{x\n\r");
+                    add_buf(ctx->buffer, "{G  ------ ----- -------- --- ----- -------------- ---- --------------------------------------{x\n\r");
                 }
 
-                if( pStock->level > 0 )
-                {
+                if (pStock->level > 0)
                     sprintf(lvl, "{Y%d{x", pStock->level);
-                }
                 else
-                {
                     strcpy(lvl, "{GAuto{x");
-                }
                 lwidth = get_colour_width(lvl) + 5;
 
-                if( pStock->quantity > 0 )
-                {
-                    if( pStock->restock_rate > 0 )
-                    {
+                if (pStock->quantity > 0) {
+                    if (pStock->restock_rate > 0)
                         sprintf(qty, "{W%d{x / {W%d{x", pStock->quantity, pStock->restock_rate);
-                    }
                     else
-                    {
                         sprintf(qty, "{W%d{x / {D--{x", pStock->quantity);
-                    }
-                }
-                else
-                {
+                } else {
                     strcpy(qty, "   {D--{x   ");
                 }
                 qwidth = get_colour_width(qty) + 8;
 
-                if( pStock->duration > 0 )
-                {
+                if (pStock->duration > 0)
                     sprintf(hours, "{G%d{x", pStock->duration);
-                }
                 else
-                {
                     strcpy(hours, " {D---{x ");
-                }
                 hwidth = get_colour_width(hours) + 5;
 
-                if( !IS_NULLSTR(pStock->custom_price) )
-                {
-                    strncpy(pricing, pStock->custom_price, sizeof(pricing)-3);
+                if (!IS_NULLSTR(pStock->custom_price)) {
+                    strncpy(pricing, pStock->custom_price, sizeof(pricing) - 3);
                     strcat(pricing, "{x");
                     strcpy(disc, " {D--{x ");
-                }
-                else
-                {
+                } else {
                     pricing[0] = '\0';
                     int pj = 0;
 
-                    if( pStock->silver > 0)
-                    {
+                    if (pStock->silver > 0) {
                         long silver = pStock->silver % 100;
                         long gold = pStock->silver / 100;
-
-                        if( gold > 0 )
-                        {
-                            if( silver > 0 )
-                            {
+                        if (gold > 0) {
+                            if (silver > 0)
                                 pj = sprintf(pricing, "{x%ld{Yg{x%ld{Ws{x", gold, silver);
-                            }
                             else
-                            {
                                 pj = sprintf(pricing, "{x%ld{Yg{x", gold);
-                            }
-                        }
-                        else
-                        {
+                        } else {
                             pj = sprintf(pricing, "{x%ld{Ws{x", silver);
                         }
                     }
-
-                    if( pStock->qp > 0 )
-                    {
-                        if( pj > 0 )
-                        {
-                            pricing[pj++] = ',';
-                            pricing[pj++] = ' ';
-                        }
-
-                        pj += sprintf(pricing+pj, "{x%ld{Gqp{x", pStock->qp);
+                    if (pStock->qp > 0) {
+                        if (pj > 0) { pricing[pj++] = ','; pricing[pj++] = ' '; }
+                        pj += sprintf(pricing + pj, "{x%ld{Gqp{x", pStock->qp);
                     }
-
-                    if( pStock->dp > 0 )
-                    {
-                        if( pj > 0 )
-                        {
-                            pricing[pj++] = ',';
-                            pricing[pj++] = ' ';
-                        }
-
-                        pj += sprintf(pricing+pj, "{x%ld{Mdp{x", pStock->dp);
+                    if (pStock->dp > 0) {
+                        if (pj > 0) { pricing[pj++] = ','; pricing[pj++] = ' '; }
+                        pj += sprintf(pricing + pj, "{x%ld{Mdp{x", pStock->dp);
                     }
-
-                    if( pStock->pneuma > 0 )
-                    {
-                        if( pj > 0 )
-                        {
-                            pricing[pj++] = ',';
-                            pricing[pj++] = ' ';
-                        }
-
-                        pj += sprintf(pricing+pj, "{x%ld{Cpn{x", pStock->pneuma);
+                    if (pStock->pneuma > 0) {
+                        if (pj > 0) { pricing[pj++] = ','; pricing[pj++] = ' '; }
+                        pj += sprintf(pricing + pj, "{x%ld{Cpn{x", pStock->pneuma);
                     }
                     pricing[pj] = '\0';
                     sprintf(disc, "%3d%%", pStock->discount);
                 }
                 pwidth = get_colour_width(pricing) + 14;
 
-                switch(pStock->type)
-                {
+                switch (pStock->type) {
                 case STOCK_OBJECT:
-                    strcpy(typ,"{GOBJECT{x  ");
-                    if( pStock->entity.wnum.vnum > 0 ) {
-
-                        OBJ_INDEX_DATA *obj = pStock->entity.wnum.pArea ? 
+                    strcpy(typ, "{GOBJECT{x  ");
+                    if (pStock->entity.wnum.vnum > 0) {
+                        OBJ_INDEX_DATA *obj = pStock->entity.wnum.pArea ?
                             get_obj_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
                             get_obj_index(pMob->area, pStock->entity.wnum.vnum);
-
-                        if( !obj ) {
-                            strcpy(item, "-invalid-");
-                        }
-                        else
-                        {
-                                sprintf(item, "%s (%s)", obj->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
-                        }
-                    }
-                    else
-                        strcpy(item, "-invalid-");
-
+                        if (!obj) strcpy(item, "-invalid-");
+                        else sprintf(item, "%s (%s)", obj->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
+                    } else strcpy(item, "-invalid-");
                     break;
                 case STOCK_PET:
-                    strcpy(typ,"{GPET{x     ");
-                    if( pStock->entity.wnum.vnum > 0 ) {
-
+                    strcpy(typ, "{GPET{x     ");
+                    if (pStock->entity.wnum.vnum > 0) {
                         MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
                             get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
                             get_mob_index(pMob->area, pStock->entity.wnum.vnum);
-
-                        if( !mob ) {
-                            strcpy(item, "-invalid-");
-                        }
-                        else
-                        {
-                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
-                        }
-                    }
-                    else
-                        strcpy(item, "-invalid-");
+                        if (!mob) strcpy(item, "-invalid-");
+                        else sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
+                    } else strcpy(item, "-invalid-");
                     break;
                 case STOCK_MOUNT:
-                    strcpy(typ,"{GMOUNT{x   ");
-                    if( pStock->entity.wnum.vnum > 0 ) {
-
+                    strcpy(typ, "{GMOUNT{x   ");
+                    if (pStock->entity.wnum.vnum > 0) {
                         MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
                             get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
                             get_mob_index(pMob->area, pStock->entity.wnum.vnum);
-
-                        if( !mob ) {
-                            strcpy(item, "-invalid-");
-                        }
-                        else
-                        {
-                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
-                        }
-                    }
-                    else
-                        strcpy(item, "-invalid-");
+                        if (!mob) strcpy(item, "-invalid-");
+                        else sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
+                    } else strcpy(item, "-invalid-");
                     break;
                 case STOCK_GUARD:
-                    strcpy(typ,"{GGUARD{x   ");
-                    if( pStock->entity.wnum.vnum > 0 ) {
-
+                    strcpy(typ, "{GGUARD{x   ");
+                    if (pStock->entity.wnum.vnum > 0) {
                         MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
                             get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
                             get_mob_index(pMob->area, pStock->entity.wnum.vnum);
-
-                        if( !mob ) {
-                            strcpy(item, "-invalid-");
-                        }
-                        else
-                        {
-                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
-                        }
-                    }
-                    else
-                        strcpy(item, "-invalid-");
+                        if (!mob) strcpy(item, "-invalid-");
+                        else sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
+                    } else strcpy(item, "-invalid-");
                     break;
-
                 case STOCK_CREW:
-                    strcpy(typ,"{GCREW{x    ");
-                    if( pStock->entity.wnum.vnum > 0 ) {
-
+                    strcpy(typ, "{GCREW{x    ");
+                    if (pStock->entity.wnum.vnum > 0) {
                         MOB_INDEX_DATA *mob = pStock->entity.wnum.pArea ?
                             get_mob_index(pStock->entity.wnum.pArea, pStock->entity.wnum.vnum) :
                             get_mob_index(pMob->area, pStock->entity.wnum.vnum);
-
-                        if( !mob || !mob->pCrew ) {
-                            strcpy(item, "-invalid-");
-                        }
-                        else
-                        {
-                            sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
-                        }
-                    }
-                    else
-                        strcpy(item, "-invalid-");
+                        if (!mob || !mob->pCrew) strcpy(item, "-invalid-");
+                        else sprintf(item, "%s (%s)", mob->short_descr, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
+                    } else strcpy(item, "-invalid-");
                     break;
-
                 case STOCK_SHIP:
-                    strcpy(typ,"{GSHIP{x    ");
-                    if( pStock->entity.wnum.vnum > 0 )
-                    {
+                    strcpy(typ, "{GSHIP{x    ");
+                    if (pStock->entity.wnum.vnum > 0) {
                         SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->entity.wnum.vnum);
-
-                        if( !ship_index ) {
-                            strcpy(item, "-invalid-");
-                        }
-                        else
-                        {
-                            sprintf(item, "%s (%s)", ship_index->name, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
-                        }
-
-                    }
-                    else
-                        strcpy(item, "-invalid-");
+                        if (!ship_index) strcpy(item, "-invalid-");
+                        else sprintf(item, "%s (%s)", ship_index->name, widevnum_string_wnum(pStock->entity.wnum, pMob->area));
+                    } else strcpy(item, "-invalid-");
                     break;
                 case STOCK_CUSTOM:
-                    strcpy(typ,"{GCUSTOM{x  ");
-                    if(IS_NULLSTR(pStock->custom_keyword))
-                    {
+                    strcpy(typ, "{GCUSTOM{x  ");
+                    if (IS_NULLSTR(pStock->custom_keyword))
                         strcpy(item, "-invalid stock item-");
-                    }
                     else
-                    {
                         strcpy(item, pStock->custom_keyword);
-                    }
                     break;
                 }
 
-                sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, disc, typ, item);
-                add_buf(buffer,buf);
+                snprintf(buf, sizeof(buf), "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s %s%s\n\r",
+                    iStock, lwidth, lvl, qwidth, qty,
+                    (pStock->singular ? "{RY{x" : "{GN{x"),
+                    hwidth, hours, pwidth, pricing, disc, typ, item);
+                add_buf(ctx->buffer, buf);
 
-                if( !IS_NULLSTR(pStock->custom_descr) )
-                {
-                    sprintf(buf, "                                                              - %s\n\r", pStock->custom_descr);
-                    add_buf(buffer, buf);
+                if (!IS_NULLSTR(pStock->custom_descr)) {
+                    snprintf(buf, sizeof(buf), "                                                              - %s\n\r", pStock->custom_descr);
+                    add_buf(ctx->buffer, buf);
                 }
             }
         }
+    } else {
+        olc_display_string(ctx, theme, "Shop:", NULL, "(none)");
     }
+}
 
-    if ( IS_VALID(pMob->pCrew) )
-    {
-        add_buf(buffer, "{CShip Crew Data:{x\n\r");
-        add_buf(buffer, "{C================================{x\n\r");
+static void medit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
 
-        sprintf(buf, "{CMinimum Rank{c:      {WNYI{x\n\r");
-        add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Script Kwds:", "scriptkwd", pMob->skeywds);
 
-        sprintf(buf, "{CScouting Rating{c:   {C[{x%d%%{C]{x\n\r", pMob->pCrew->scouting);
-        add_buf(buffer, buf);
+    if (pMob->spec_fun)
+        olc_display_string(ctx, theme, "Spec Fun:", "spec", spec_name(pMob->spec_fun));
 
-        sprintf(buf, "{CGunning Rating{c:    {C[{x%d%%{C]{x\n\r", pMob->pCrew->gunning);
-        add_buf(buffer, buf);
+    olc_display_scripts(ctx, theme, pMob->progs, PRG_MPROG,
+        "MobProg Vnum", "addmprog", "delmprog");
 
-        sprintf(buf, "{COarring Rating{c:    {C[{x%d%%{C]{x\n\r", pMob->pCrew->oarring);
-        add_buf(buffer, buf);
+    olc_display_vars(ctx, theme, pMob->index_vars, "varset", "varclear");
+}
 
-        sprintf(buf, "{CMechanics Rating{c:  {C[{x%d%%{C]{x\n\r", pMob->pCrew->mechanics);
-        add_buf(buffer, buf);
+static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
+    char buf[MAX_STRING_LENGTH];
 
-        sprintf(buf, "{CNavigation Rating{c: {C[{x%d%%{C]{x\n\r", pMob->pCrew->navigation);
-        add_buf(buffer, buf);
-
-        sprintf(buf, "{CLeadership Rating{c: {C[{x%d%%{C]{x\n\r", pMob->pCrew->leadership);
-        add_buf(buffer, buf);
-
-        add_buf(buffer, "\n\r");
-    }
-
-    if (pMob->pQuestor)
-    {
+    if (pMob->pQuestor) {
         QUESTOR_DATA *questor = pMob->pQuestor;
 
-        add_buf(buffer, "{YQuestor data:\n\r");
+        olc_display_section(ctx, theme, "Questor Data");
 
-        sprintf(buf, "  {YScroll Vnum: %ld\n\r", questor->scroll);
-        add_buf(buffer, buf);
+        olc_display_number(ctx, theme, "Scroll Vnum:", "questor scroll", questor->scroll);
+        olc_display_string(ctx, theme, "Keywords:", "questor keywords", questor->keywords);
+        olc_display_string(ctx, theme, "Short Desc:", "questor short", questor->short_descr);
+        olc_display_string(ctx, theme, "Long Desc:", "questor long", questor->long_descr);
+        olc_display_text(ctx, theme,   "Header:", "questor header", questor->header);
+        olc_display_text(ctx, theme,   "Footer:", "questor footer", questor->footer);
+        olc_display_string(ctx, theme, "Prefix:", "questor prefix", questor->prefix);
+        olc_display_string(ctx, theme, "Suffix:", "questor suffix", questor->suffix);
 
-        if(IS_NULLSTR(questor->keywords))
-            sprintf(buf, "  {YKeywords: (empty){x\n\r");
+        if (questor->line_width > 0)
+            olc_display_number(ctx, theme, "Width:", "questor width", questor->line_width);
         else
-            sprintf(buf, "  {YKeywords: %s{x\n\r", questor->keywords);
-        add_buf(buffer, buf);
-
-        if(IS_NULLSTR(questor->short_descr))
-            sprintf(buf, "  {YShort Description: (empty){x\n\r");
-        else
-            sprintf(buf, "  {YShort Description: %s{x\n\r", questor->short_descr);
-        add_buf(buffer, buf);
-
-        if(IS_NULLSTR(questor->long_descr))
-            sprintf(buf, "  {YDescription: (empty){x\n\r");
-        else
-            sprintf(buf, "  {YDescription: %s{x\n\r", questor->long_descr);
-        add_buf(buffer, buf);
-
-        if(IS_NULLSTR(questor->header))
-            sprintf(buf, "  {YHeader: (empty){x\n\r");
-        else
-            sprintf(buf, "  {YHeader:\n\r%s{x\n\r", questor->header);
-        add_buf(buffer, buf);
-
-        if(IS_NULLSTR(questor->footer))
-            sprintf(buf, "  {YFooter: (empty){x\n\r");
-        else
-            sprintf(buf, "  {YFooter:\n\r%s{x\n\r", questor->footer);
-        add_buf(buffer, buf);
-
-        if(IS_NULLSTR(questor->prefix))
-            sprintf(buf, "  {YPrefix: (empty){x\n\r");
-        else
-            sprintf(buf, "  {YPrefix: %s{x\n\r", questor->prefix);
-        add_buf(buffer, buf);
-
-        if(IS_NULLSTR(questor->suffix))
-            sprintf(buf, "  {YSuffix: (empty){x\n\r");
-        else
-            sprintf(buf, "  {YSuffix: %s{x\n\r", questor->suffix);
-        add_buf(buffer, buf);
-
-        if( questor->line_width > 0 )
-            sprintf(buf, "  {YWidth:  %d{x\n\r", questor->line_width);
-        else
-            sprintf(buf, "  {YWidth:  disabled{x\n\r");
-        add_buf(buffer, buf);
-        add_buf(buffer, "\n\r");
+            olc_display_string(ctx, theme, "Width:", NULL, "disabled");
     }
 
-    if (pMob->pTrainer)
-    {
+    if (pMob->pTrainer) {
         TRAINER_DATA *trainer = pMob->pTrainer;
         TRAINER_ENTRY *entry;
 
-        add_buf(buffer, "{GTrainer data:\n\r");
+        olc_display_section(ctx, theme, "Trainer Data");
 
-        if (trainer->greeting && trainer->greeting[0])
-        {
-            sprintf(buf, "  {GGreeting: %s{x\n\r", trainer->greeting);
-            add_buf(buffer, buf);
-        }
+        olc_display_string(ctx, theme, "Greeting:", "trainer greeting", trainer->greeting);
 
-        if (trainer->entries)
-        {
-            add_buf(buffer, formatf("  {G%-25s %-6s %-6s %-8s %-15s{x\n\r",
+        if (trainer->entries) {
+            add_buf(ctx->buffer, formatf("  %s%-25s %-6s %-6s %-8s %-15s{x\n\r",
+                theme->label,
                 "Skill/Spell/Song", "MaxRat", "Gold", "Trains", "Script"));
-            for (entry = trainer->entries; entry; entry = entry->next)
-            {
+            for (entry = trainer->entries; entry; entry = entry->next) {
                 if (!IS_VALID(entry)) continue;
-                add_buf(buffer, formatf("  %-25s %-6d %-6d %-8d %-15s\n\r",
+                add_buf(ctx->buffer, formatf("  %-25s %-6d %-6d %-8d %-15s\n\r",
                     entry->skill_name ? entry->skill_name : "?",
                     entry->max_rating,
                     entry->cost_gold,
                     entry->cost_trains,
                     entry->check_script ? entry->check_script : "(none)"));
             }
+        } else {
+            olc_display_string(ctx, theme, "Entries:", NULL, "(none)");
         }
-        else
-            add_buf(buffer, "  {G(no entries){x\n\r");
-
-        add_buf(buffer, "\n\r");
     }
 
-    if (pMob->progs)
-        olc_show_progs_grouped(buffer, pMob->progs, PRG_MPROG, "MobProg Vnum");
+    if (IS_VALID(pMob->pCrew)) {
+        olc_display_section(ctx, theme, "Ship Crew Data");
 
-    if (pMob->index_vars)
-        olc_show_index_vars(buffer, pMob->index_vars);
+        olc_display_string(ctx, theme, "Minimum Rank:", NULL, "NYI");
+        olc_display_percent(ctx, theme, "Scouting:",    NULL, pMob->pCrew->scouting, 1);
+        olc_display_percent(ctx, theme, "Gunning:",     NULL, pMob->pCrew->gunning, 1);
+        olc_display_percent(ctx, theme, "Oarring:",     NULL, pMob->pCrew->oarring, 1);
+        olc_display_percent(ctx, theme, "Mechanics:",   NULL, pMob->pCrew->mechanics, 1);
+        olc_display_percent(ctx, theme, "Navigation:",  NULL, pMob->pCrew->navigation, 1);
+        olc_display_percent(ctx, theme, "Leadership:",  NULL, pMob->pCrew->leadership, 1);
+    }
 
-    page_to_char(buf_string(buffer), ch);
-    free_buf(buffer);
+    if (!pMob->pQuestor && !pMob->pTrainer && !IS_VALID(pMob->pCrew)) {
+        snprintf(buf, sizeof(buf), "  %s(No questor, trainer, or crew data){x\n\r", theme->unset);
+        add_buf(ctx->buffer, buf);
+    }
+}
+
+/*
+ * ========================================================================
+ * Main show function — dispatches to active tab
+ * ========================================================================
+ */
+
+MEDIT(medit_show)
+{
+    MOB_INDEX_DATA *pMob;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
+    OLC_LAYOUT_CTX *ctx;
+    int tab;
+
+    EDIT_MOB(ch, pMob);
+
+    ctx = olc_display_new(ch, theme);
+
+    olc_display_header(ctx, "MEdit", pMob->short_descr,
+        formatf("%ld", pMob->vnum), &medit_def);
+
+    /* Dispatch to active tab's show function */
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < medit_def.tabs.count && medit_def.tabs.tabs[tab].show_fn) {
+        medit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pMob);
+    } else {
+        medit_show_general_tab(ch, ctx, (void *)pMob);
+    }
+
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -804,20 +802,9 @@ MEDIT(medit_attacks)
 MEDIT(medit_owner)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  owner [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(pMob->owner);
-    pMob->owner = str_dup(argument);
-
-    send_to_char("Owner set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Owner", NULL, &pMob->owner,
+        OLC_STR_CLEARABLE, NULL, NULL);
 }
 
 MEDIT(medit_create)
@@ -968,19 +955,9 @@ MEDIT(medit_damtype)
 MEDIT(medit_align)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  alignment [number]\n\r", ch);
-    return false;
-    }
-
-    pMob->alignment = atoi(argument);
-
-    send_to_char("Alignment set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Alignment", NULL,
+        &pMob->alignment, -1000, 1000, NULL, NULL);
 }
 
 MEDIT(medit_level)
@@ -1031,33 +1008,17 @@ MEDIT(medit_level)
 MEDIT(medit_desc)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pMob->description);
-    return true;
-    }
-
-    send_to_char("Syntax:  desc    - line edit\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &pMob->description, NULL, NULL);
 }
 
 MEDIT(medit_comments)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0')
-    {
-    string_append(ch, &pMob->comments);
-    return true;
-    }
-
-    send_to_char("Syntax:  desc    - line edit\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &pMob->comments, NULL, NULL);
 }
 
 
@@ -2357,31 +2318,10 @@ MEDIT(medit_shop)
 MEDIT(medit_sex)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(sex_flags, argument)) != NO_FLAG)
-    {
-        pMob->sex = value;
-
-        send_to_char("Sex set.\n\r", ch);
-        return true;
-    }
-    else
-    if (!str_cmp(argument, "neutral")) // hack
-    {
-        pMob->sex = SEX_NEUTRAL;
-        send_to_char("Sex set.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: sex [sex]\n\r"
-          "Type '? sex' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_type_set_i16(ch, argument, "Sex",
+        "Syntax: sex [sex]\n\rType '? sex' for a list of flags.\n\r",
+        &pMob->sex, sex_flags, NULL, NULL);
 }
 
 
@@ -2497,92 +2437,40 @@ MEDIT(medit_ac)
 MEDIT(medit_form)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(form_flags, argument)) != NO_FLAG)
-    {
-        pMob->form ^= value;
-        send_to_char("Form toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: form [flags]\n\r"
-          "Type '? form' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Form",
+        "Syntax: form [flags]\n\rType '? form' for a list of flags.\n\r",
+        &pMob->form, form_flags, NULL, NULL);
 }
 
 
 MEDIT(medit_part)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(part_flags, argument)) != NO_FLAG)
-    {
-        pMob->parts ^= value;
-        send_to_char("Parts toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: part [flags]\n\r"
-          "Type '? part' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Parts",
+        "Syntax: part [flags]\n\rType '? part' for a list of flags.\n\r",
+        &pMob->parts, part_flags, NULL, NULL);
 }
 
 
 MEDIT(medit_immune)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(imm_flags, argument)) != NO_FLAG)
-    {
-        pMob->imm_flags ^= value;
-        send_to_char("Immunity toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: imm [flags]\n\r"
-          "Type '? imm' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Immunity",
+        "Syntax: imm [flags]\n\rType '? imm' for a list of flags.\n\r",
+        &pMob->imm_flags, imm_flags, NULL, NULL);
 }
 
 
 MEDIT(medit_res)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(res_flags, argument)) != NO_FLAG)
-    {
-        pMob->res_flags ^= value;
-        send_to_char("Resistance toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: res [flags]\n\r"
-          "Type '? res' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Resistance",
+        "Syntax: res [flags]\n\rType '? res' for a list of flags.\n\r",
+        &pMob->res_flags, res_flags, NULL, NULL);
 }
 
 
@@ -2612,66 +2500,29 @@ MEDIT(medit_vuln)
 MEDIT(medit_material)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  material [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(pMob->material);
-    pMob->material = str_dup(argument);
-
-    send_to_char("Material set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Material", NULL, &pMob->material,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 
 MEDIT(medit_off)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(off_flags, argument)) != NO_FLAG)
-    {
-        pMob->off_flags ^= value;
-        send_to_char("Offensive behaviour toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: off [flags]\n\r"
-          "Type '? off' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Offensive",
+        "Syntax: off [flags]\n\rType '? off' for a list of flags.\n\r",
+        &pMob->off_flags, off_flags, NULL, NULL);
 }
 
 
 MEDIT(medit_size)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(size_flags, argument)) != NO_FLAG)
-    {
-        pMob->size = value;
-        send_to_char("Size set.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: size [size]\n\r"
-          "Type '? size' for a list of sizes.\n\r", ch);
-    return false;
+    return olc_cmd_type_set_i16(ch, argument, "Size",
+        "Syntax: size [size]\n\rType '? size' for a list of sizes.\n\r",
+        &pMob->size, size_flags, NULL, NULL);
 }
 
 
@@ -2981,19 +2832,9 @@ MEDIT(medit_gold)
 MEDIT(medit_hitroll)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  hitroll [number]\n\r", ch);
-    return false;
-    }
-
-    pMob->hitroll = atoi(argument);
-
-    send_to_char("Hitroll set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Hitroll", NULL,
+        &pMob->hitroll, INT_MIN, INT_MAX, NULL, NULL);
 }
 
 MEDIT (medit_addmprog)

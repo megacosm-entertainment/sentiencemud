@@ -33,24 +33,121 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+
+/* Forward declarations */
+static void tedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void tedit_show_values_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void tedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
+static AREA_DATA *tedit_get_area(void *pEdit)
+{
+    TOKEN_INDEX_DATA *token = (TOKEN_INDEX_DATA *)pEdit;
+    return token ? token->area : NULL;
+}
 
 /*
- * Token Editor Tab Definitions
+ * Token Editor Command Table
  */
-const OLC_EDITOR_TABS tedit_tabs = {
-    10, {
-        { "General",  "Gen" },
-        { "Values",   "Val" },
-        { "Scripts",  "Scr" },
-        { "Another", "Ano" },
-        { "More", "Mre" },
-        { "Even More" "EMre" },
-        { "7th", "T7"},
-        { "8th", "T8"},
-        { "9th", "T9"},
-        { "A Really Long Tab Name", "Rly"}
-    }
+const struct olc_cmd_type tedit_table[] =
+{
+    {   "commands",   show_commands      },
+    {   "?",          show_help           },
+    {   "comments",   tedit_comments      },
+    {   "create",     tedit_create        },
+    {   "show",       tedit_show          },
+    {   "name",       tedit_name          },
+    {   "type",       tedit_type          },
+    {   "flags",      tedit_flags         },
+    {   "timer",      tedit_timer         },
+    {   "ed",         tedit_ed            },
+    {   "desc",       tedit_description   },
+    {   "value",      tedit_value         },
+    {   "valuename",  tedit_valuename     },
+    {   "addtprog",   tedit_addtprog      },
+    {   "deltprog",   tedit_deltprog      },
+    {   "varset",     tedit_varset        },
+    {   "varclear",   tedit_varclear      },
+    {   NULL,         0                   }
 };
+
+/*
+ * Token Editor Definition
+ */
+static const OLC_EDITOR_DEF tedit_def = {
+    .name           = "TEdit",
+    .editor_type    = ED_TOKEN,
+    .cmd_table      = tedit_table,
+    .show_fn        = tedit_show,
+    .tabs           = {
+        .count = 3,
+        .tabs = {
+            { "General",  "Gen", tedit_show_general_tab },
+            { "Values",   "Val", tedit_show_values_tab },
+            { "Scripts",  "Scr", tedit_show_scripts_tab },
+        }
+    },
+    .theme          = &olc_theme_entity,
+    .perm           = {
+        .flags          = OLC_PERM_AREA_SECURITY,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = tedit_get_area,
+    .audit_changes  = true,
+};
+
+/*
+ * Token Editor Interpreter — delegates to framework.
+ */
+void tedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &tedit_def);
+}
+
+/*
+ * Token Editor Entry Point
+ */
+void do_tedit(CHAR_DATA *ch, char *argument)
+{
+    TOKEN_INDEX_DATA *token_index = NULL;
+    char arg[MAX_STRING_LENGTH];
+
+    if (IS_NPC(ch))
+        return;
+
+    argument = one_argument(argument, arg);
+
+    if (arg[0] != '\0' && str_cmp(arg, "create"))
+    {
+        WNUM wnum;
+        AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+        if (!parse_widevnum(arg, context, &wnum)) {
+            send_to_char("Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
+            return;
+        }
+
+        if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL)
+        {
+            send_to_char("That token vnum does not exist.\n\r", ch);
+            return;
+        }
+
+        olc_editor_enter(ch, &tedit_def, (void *)token_index, true);
+    }
+    else if (!str_cmp(arg, "create"))
+    {
+        if (tedit_create(ch, argument))
+            olc_editor_enter(ch, &tedit_def, ch->desc->pEdit, false);
+    }
+    else
+    {
+        send_to_char(
+            "Syntax: tedit <vnum>\n\r"
+            "        tedit create <vnum>\n\r", ch);
+    }
+}
 
 
 TEDIT(tedit_create)
@@ -121,35 +218,34 @@ TEDIT(tedit_create)
  * Tab-specific display functions for token editor
  */
 
-static void tedit_show_general(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index)
+static void tedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
-    olc_render_string(ctx, "Name:",  "name",  token_index->name);
-    olc_render_string(ctx, "Area:",  NULL,    token_index->area->name);
-    olc_render_number(ctx, "Vnum:",  NULL,    token_index->vnum);
-    // token_table uses item_type struct, not flag_type - render as string
-    olc_render_string(ctx, "Type:",  "type",  token_table[token_index->type].name);
-    olc_render_flags(ctx,  "Flags:", "flags", token_flags, token_index->flags);
-    olc_render_number(ctx, "Timer:", "timer", token_index->timer);
+    TOKEN_INDEX_DATA *token_index = (TOKEN_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&tedit_def);
 
-    olc_render_section(ctx, "Description");
-    olc_render_text(ctx, NULL, "desc", token_index->description);
+    olc_display_string(ctx, theme, "Name:",  "name",  token_index->name);
+    olc_display_string(ctx, theme, "Area:",  NULL,    token_index->area->name);
+    olc_display_number(ctx, theme, "Vnum:",  NULL,    token_index->vnum);
+    olc_display_string(ctx, theme, "Type:",  "type",  token_table[token_index->type].name);
+    olc_display_flags(ctx, theme,  "Flags:", "flags", token_flags, token_index->flags);
+    olc_display_number(ctx, theme, "Timer:", "timer", token_index->timer);
 
-    olc_render_section(ctx, "Builder Comments");
-    olc_render_text(ctx, NULL, "comments", token_index->comments);
+    olc_display_text(ctx, theme, "Description:", "desc", token_index->description);
+    olc_display_text(ctx, theme, "Builder Comments:", "comments", token_index->comments);
 }
 
-static void tedit_show_values(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index)
+static void tedit_show_values_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
+    TOKEN_INDEX_DATA *token_index = (TOKEN_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&tedit_def);
     char label[MIL];
     char cmd[MIL];
-    int i;
 
-    add_buf(ctx->buffer, "{YDefault Values:{x\n\r\n\r");
+    olc_display_section(ctx, theme, "Default Values");
 
-    for (i = 0; i < MAX_TOKEN_VALUES; i++) {
+    for (int i = 0; i < MAX_TOKEN_VALUES; i++) {
         const char *value_name = token_index_getvaluename(token_index, i);
 
-        // Build label like "Value [0]: Rating"
         if (value_name && value_name[0] != '\0') {
             sprintf(label, "Value [%d]: %s", i, value_name);
         } else {
@@ -157,71 +253,45 @@ static void tedit_show_values(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index
         }
 
         sprintf(cmd, "value %d", i);
-        olc_render_number(ctx, label, cmd, token_index->value[i]);
+        olc_display_number(ctx, theme, label, cmd, token_index->value[i]);
     }
 
-    // Show index variables if any
-    if (token_index->index_vars) {
-        olc_render_section(ctx, "Index Variables");
-        olc_show_index_vars(ctx->buffer, token_index->index_vars);
-    }
+    olc_display_vars(ctx, theme, token_index->index_vars, "varset", "varclear");
 }
 
-static void tedit_show_scripts(OLC_LAYOUT_CTX *ctx, TOKEN_INDEX_DATA *token_index)
+static void tedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
-    add_buf(ctx->buffer, "{YAttached Token Programs:{x\n\r\n\r");
+    TOKEN_INDEX_DATA *token_index = (TOKEN_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&tedit_def);
 
-    if (token_index->progs) {
-        olc_show_progs_grouped(ctx->buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
-    } else {
-        add_buf(ctx->buffer, "   {D(none){x\n\r");
-    }
-
-    add_buf(ctx->buffer, "\n\r{DSyntax: addtprog <vnum> <trigger> <phrase>{x\n\r");
-    add_buf(ctx->buffer, "{D        deltprog <number>{x\n\r");
+    olc_display_scripts(ctx, theme, token_index->progs, PRG_TPROG,
+        "TokProg Vnum", "addtprog", "deltprog");
 }
 
 TEDIT(tedit_show)
 {
     TOKEN_INDEX_DATA *token_index;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&tedit_def);
     OLC_LAYOUT_CTX *ctx;
-    char buf[MSL];
+    int tab;
 
     EDIT_TOKEN(ch, token_index);
 
-    ctx = olc_layout_new(ch);
+    ctx = olc_display_new(ch, theme);
 
-    // Header with token name and vnum
-    sprintf(buf, "{WToken: {C%s{W [{x%ld{W]{x\n\r\n\r",
-        token_index->name, token_index->vnum);
-    add_buf(ctx->buffer, buf);
+    olc_display_header(ctx, "TEdit", token_index->name,
+        formatf("%ld", token_index->vnum), &tedit_def);
 
-    // Render tab bar
-    olc_render_tabs(ctx, &tedit_tabs);
-
-    // Dispatch to tab-specific display
-    switch (ctx->current_tab) {
-        case 0:
-            tedit_show_general(ctx, token_index);
-            break;
-        case 1:
-            tedit_show_values(ctx, token_index);
-            break;
-        case 2:
-            tedit_show_scripts(ctx, token_index);
-            break;
-        default:
-            tedit_show_general(ctx, token_index);
-            break;
-    }
-
-    // Output to character
-    if (!ch->lines && strlen(ctx->buffer->string) > MAX_STRING_LENGTH) {
-        send_to_char("Too much to display. Please enable scrolling.\n\r", ch);
+    /* Dispatch to active tab's show function */
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < tedit_def.tabs.count && tedit_def.tabs.tabs[tab].show_fn) {
+        tedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)token_index);
     } else {
-        page_to_char(ctx->buffer->string, ch);
+        tedit_show_general_tab(ch, ctx, (void *)token_index);
     }
 
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
     olc_layout_free(ctx);
     return false;
 }
@@ -230,19 +300,9 @@ TEDIT(tedit_show)
 TEDIT(tedit_name)
 {
     TOKEN_INDEX_DATA *token_index;
-
     EDIT_TOKEN(ch, token_index);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  name [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(token_index->name);
-    token_index->name = str_dup(argument);
-    send_to_char("Name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &token_index->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 
@@ -289,18 +349,9 @@ TEDIT(tedit_flags)
 {
     TOKEN_INDEX_DATA *token_index;
     EDIT_TOKEN(ch, token_index);
-    int value;
-
-    if (argument[0] == '\0'
-    || ((value = flag_value(token_flags, argument)) == NO_FLAG))
-    {
-    send_to_char("Syntax:  flags [token flag]\n\rType '? tokenflags' for a list of flags.\n\r", ch);
-    return false;
-    }
-
-    TOGGLE_BIT(token_index->flags, value);
-    send_to_char("Token flag toggled.\n\r", ch);
-    return true;
+    return olc_cmd_flag_toggle(ch, argument, "Token Flags",
+        "Syntax:  flags [token flag]\n\rType '? tokenflags' for a list of flags.\n\r",
+        &token_index->flags, token_flags, NULL, NULL);
 }
 
 
@@ -308,23 +359,9 @@ TEDIT(tedit_timer)
 {
     TOKEN_INDEX_DATA *token_index;
     EDIT_TOKEN(ch, token_index);
-    int value;
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  timer [number of ticks]\n\r", ch);
-    return false;
-    }
-
-    if ((value = atoi(argument)) < 0 || value > 65000)
-    {
-    send_to_char("Invalid value. Must be a number of ticks between 0 and 65,000.\n\r", ch);
-    return false;
-    }
-
-    token_index->timer = value;
-    send_to_char("Timer set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Timer",
+        "Syntax:  timer [number of ticks]  (0 to 65000)\n\r",
+        &token_index->timer, 0, 65000, NULL, NULL);
 }
 
 
@@ -568,33 +605,17 @@ TEDIT(tedit_ed)
 TEDIT(tedit_description)
 {
     TOKEN_INDEX_DATA *token_index;
-
     EDIT_TOKEN(ch, token_index);
-
-    if (argument[0] != '\0')
-    {
-    send_to_char("Syntax:  desc\n\r", ch);
-    return false;
-    }
-
-    string_append(ch, &token_index->description);
-    return true;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &token_index->description, NULL, NULL);
 }
 
 TEDIT(tedit_comments)
 {
     TOKEN_INDEX_DATA *token_index;
-
     EDIT_TOKEN(ch, token_index);
-
-    if (argument[0] != '\0')
-    {
-    send_to_char("Syntax:  comment\n\r", ch);
-    return false;
-    }
-
-    string_append(ch, &token_index->comments);
-    return true;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &token_index->comments, NULL, NULL);
 }
 
 TEDIT(tedit_value)
