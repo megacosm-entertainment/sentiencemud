@@ -586,15 +586,19 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
     case ED_MPCODE:
         show_olc_cmds(ch, mpedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_OPCODE:
         show_olc_cmds(ch, opedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_RPCODE:
         show_olc_cmds(ch, rpedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
+
+    case ED_TPCODE:
+        show_olc_cmds(ch, tpedit_table);
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_HELP:
         show_olc_cmds(ch, hedit_table);
@@ -630,15 +634,15 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
     case ED_APCODE:
         show_olc_cmds(ch, apedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_IPCODE:
         show_olc_cmds(ch, ipedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_DPCODE:
         show_olc_cmds(ch, dpedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_CMDEDIT:
         show_olc_cmds(ch, cmdedit_table);

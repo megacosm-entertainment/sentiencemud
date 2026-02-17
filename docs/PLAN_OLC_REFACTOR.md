@@ -68,13 +68,13 @@ This plan covers:
 | SOEDIT    | Songs      | ED_SONG        | `editors/skills/soedit.c`            | ~420   | 2→FW | No   | Explicit save        |
 | CLSEDIT   | Classes    | ED_CLASS       | `editors/classes/clsedit.c`          | ~1,385 | 2→FW | No   | Explicit save        |
 | RSGEDIT   | Rand Str   | ED_RSG         | `editors/random_strings/rsgedit.c`   | 42     | 1     | No   | Area flag            |
-| MPEDIT    | MobScript  | ED_MPCODE      | `editors/scripting/olc_mpcode.c`     | 1,808  | 1     | No   | Area flag            |
-| OPEDIT    | ObjScript  | ED_OPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1     | No   | Area flag            |
-| RPEDIT    | RoomScript | ED_RPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1     | No   | Area flag            |
-| TPEDIT    | TokScript  | ED_TPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1     | No   | Area flag            |
-| IPEDIT    | InstScript | ED_IPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1     | No   | Custom               |
-| APEDIT    | AreaScript | ED_APCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1     | No   | Area flag            |
-| DPEDIT    | DngScript  | ED_DPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1     | No   | Custom               |
+| MPEDIT    | MobScript  | ED_MPCODE      | `editors/scripting/olc_mpcode.c`     | ~1,830 | 1→FW  | Yes  | Area flag            |
+| OPEDIT    | ObjScript  | ED_OPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
+| RPEDIT    | RoomScript | ED_RPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
+| TPEDIT    | TokScript  | ED_TPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
+| IPEDIT    | InstScript | ED_IPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Custom (blueprint)   |
+| APEDIT    | AreaScript | ED_APCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
+| DPEDIT    | DngScript  | ED_DPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Custom (dungeon)     |
 | GAMEEDIT  | Settings   | ED_GAMESETTING | `editors/game_settings/gameedit.c`   | 1,921  | Special | No | Changeset+Confirm  |
 |           |            |                |                                       |        |       |      |                      |
 | *Planned — backport from `src_20_dev`:* | | | | | | | |
@@ -1360,13 +1360,43 @@ functions, and `olc_cmd_*()` command helpers where applicable. Command tables mo
 - **hedit dual-mode complexity**: hedit operates in two modes (help entry vs category), with most commands having different behavior per mode. Only `text` (help-entry-only, no dual-mode branching) was converted to a helper. The structural/tree commands and dual-mode field handlers involve too much custom logic for helper conversion.
 - **No tabs**: None of the Phase 5 editors use tabs. Their content is compact enough for single-page display (or in hedit's case, mode-switched).
 
-### 7.8 Phase 6: Script Editors
+### 7.8 Phase 6: Script Editors ✅
 
-All script editors share the same infrastructure via `scriptedit_*` functions.
-They already have a common command table pattern. Migration involves:
-- Defining one `OLC_EDITOR_DEF` per script type (MP, OP, RP, TP, IP, DP)
-- Using `olc_theme_scripting` for all
-- Script-specific `create` and `list` commands while sharing `show`, `code`, `compile`, etc.
+All 7 script editors (MPEDIT, OPEDIT, RPEDIT, TPEDIT, APEDIT, IPEDIT, DPEDIT) migrated
+to the unified framework. They share one file (`editors/scripting/olc_mpcode.c`) with
+common `scriptedit_*` command handlers.
+
+**Scope**: 7 editors, 1 shared file, 7 `OLC_EDITOR_DEF` structs. APEDIT was originally
+not planned for Phase 6 but was included since it shares the same infrastructure.
+
+**What changed**:
+- 7 `OLC_EDITOR_DEF` structs added (one per script type), all using `olc_theme_scripting`
+- 7 interpreter functions reduced to one-liner `olc_editor_interp()` delegates
+- 7 `do_XXedit()` entry points converted to `olc_editor_enter()` (preserving widevnum
+  parsing and create subcommand logic)
+- Show function rewritten with `olc_display_*` helpers and tab dispatch
+- 2 tabs: **General** (full property/code/comments display) and **Logs** (placeholder
+  for future script error logging)
+- 1 command helper conversion: `scriptedit_name` → `olc_cmd_string`
+- Manual handlers preserved: `code` (SECURED flag logic), `comments`, `compile`,
+  `flags` (SECURED/SYSTEM guards via `script_imp_check`), `depth` (infinite/default
+  semantics), `security` (IMP-only)
+
+**Permission models** (3 variants across 7 editors):
+- MP/OP/RP/TP/AP: `OLC_PERM_AREA_SECURITY` + `OLC_CHANGE_AREA_FLAG` with `script_get_area()` callback
+- IP: `OLC_PERM_CUSTOM` (`script_perm_blueprint`) + `OLC_CHANGE_CUSTOM` (`script_mark_blueprint_changed`)
+- DP: `OLC_PERM_CUSTOM` (`script_perm_dungeon`) + `OLC_CHANGE_CUSTOM` (`script_mark_dungeon_changed`)
+
+**Framework callbacks added** (5 static functions):
+- `script_get_area()` — returns containing area for area-based script types
+- `script_perm_blueprint()` / `script_perm_dungeon()` — custom permission checks
+- `script_mark_blueprint_changed()` / `script_mark_dungeon_changed()` — custom change tracking
+
+**Line count**: 1,808 → ~1,830 (net similar; boilerplate reduced but framework structs,
+tab infrastructure, and display helpers added comparable code)
+
+**Also fixed**: Added missing `case ED_TPCODE:` to `show_commands()` in `olc.c` (was
+previously absent, meaning TPEDIT's `commands` command silently did nothing).
 
 ### 7.9 Phase 7: Command Table Migration
 
@@ -1378,11 +1408,12 @@ mechanical refactoring — already done for medit, oedit, and tedit during Phase
 4. Update the `OLC_EDITOR_DEF` to reference it
 5. Repeat for each editor
 
-Goal: `olc.c` should shrink from ~3,034 lines to ~500 lines (just the shared infrastructure).
-Eight editor command tables and interpreters have already been moved out (medit, oedit, tedit
-during Phase 2; aedit, redit, wedit during Phase 3; bsedit, bpedit, dngedit during Phase 4;
-pedit, cmdedit, socialedit, shedit, hedit during Phase 5), plus all six Gen 2 editor tables
-were already self-contained.
+Goal: `olc.c` should shrink from ~3,047 lines to ~500 lines (just the shared infrastructure).
+Editor command tables and interpreters moved out so far: medit, oedit, tedit (Phase 2);
+aedit, redit, wedit (Phase 3); bsedit, bpedit, dngedit (Phase 4); pedit, cmdedit,
+socialedit, shedit, hedit (Phase 5). All 7 script editors (Phase 6) already had their
+tables in `olc_mpcode.c` — their interpreters were converted to framework delegates
+in-place. Plus all six Gen 2 editor tables were already self-contained.
 
 ### 7.10 Phase 8: New Editors (Backport from `src_20_dev`)
 
@@ -1797,7 +1828,7 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 |------|-------|----------|
 | `editors/common.h` | 217 | Legacy display helpers, `OLC_LAYOUT_CTX`, `OLC_EDITOR_TABS` |
 | `editors/common.c` | 976 | Legacy renderers, `process_olc_command`, `olc_render_*` |
-| `olc.c` | ~3,034 | Editor tables, interpreters, shared helpers (reduced from 4,633) |
+| `olc.c` | ~3,047 | Editor tables, interpreters, shared helpers (reduced from 4,633) |
 | `olc.h` | 620 | ED_* constants, EDIT_* macros, all prototypes |
 | `olc_act.c` | 3,312 | Shared editor action functions |
 | `olc_act2.c` | ~200 | Condition phrase helpers |
@@ -1805,21 +1836,21 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 
 ### 10.4 Summary Statistics
 
-| Metric | Before | After (Projected) | Current (Phase 5 Done) |
+| Metric | Before | After (Projected) | Current (Phase 6 Done) |
 |--------|--------|-------------------|------------------------|
-| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~380 (14 migrated) |
-| Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 22 editors converted |
-| Permission patterns | 6 different patterns | 1 centralized check | 22 editors converted |
-| Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 explicit save + 3 area flag + 5 custom |
+| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~366 (21 migrated) |
+| Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 29 editors converted |
+| Permission patterns | 6 different patterns | 1 centralized check | 29 editors converted |
+| Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 explicit save + 3 area flag + 5 custom + 2 custom (bp/dng) |
 | Audit logging (server-side) | None | All editors | 6 editors (Gen 2) |
 | Change history (in-game) | gameedit only | All editors (opt-in per struct) | 6 editors fully wired |
 | History persistence | None (gameedit: json_changesets) | Per-type files, async writes | 6 type files implemented |
-| Lines in `olc.c` | 4,633 | ~500 | ~3,034 (8 editors removed) |
-| Color consistency | None (per-editor ad hoc) | 6 category themes | 22 editors themed |
-| MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 22 editors (labels, flags, tabs, scripts, lists) |
+| Lines in `olc.c` | 4,633 | ~500 | ~3,047 (8 editors removed) |
+| Color consistency | None (per-editor ad hoc) | 6 category themes | 29 editors themed |
+| MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 29 editors (labels, flags, tabs, scripts, lists) |
 | `bprintf` usage | Partial | All new display code | All new display code |
-| NAWS screen-width support | 1 editor (tedit) | All editors | 22 editors |
-| Tab UI support | 1 editor (tedit) | All editors that benefit | 8 tabbed editors (medit 6, oedit 5, tedit 3, aedit 3, redit 5, wedit 4, bsedit 4, bpedit 6, dngedit 8) |
+| NAWS screen-width support | 1 editor (tedit) | All editors | 29 editors |
+| Tab UI support | 1 editor (tedit) | All editors that benefit | 15 tabbed editors (medit 6, oedit 5, tedit 3, aedit 3, redit 5, wedit 4, bsedit 4, bpedit 6, dngedit 8, + 7 script editors × 2 tabs) |
 | Player-accessible editors | 0 | Prepared for housing | Framework ready |
-| Data/display separation | None | Display via renderers (JSON-ready) | 22 editors via renderers |
-| Command helpers converted | 0 | All simple commands | 100 commands (46 Gen 2 + 23 Phase 2 + 21 Phase 3 + 19 Phase 4 + 31 Phase 5, some overlap with tabbed editors) |
+| Data/display separation | None | Display via renderers (JSON-ready) | 29 editors via renderers |
+| Command helpers converted | 0 | All simple commands | 101 commands (46 Gen 2 + 23 Phase 2 + 21 Phase 3 + 19 Phase 4 + 31 Phase 5 + 1 Phase 6, some overlap with tabbed editors) |
