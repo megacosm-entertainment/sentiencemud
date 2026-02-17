@@ -570,6 +570,7 @@ void olc_display_scripts(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 {
     if (!ctx || !ctx->buffer) return;
     if (!theme) theme = &olc_theme_default;
+    if (!progs) return;
 
     /* Use the existing grouped display function which writes to a buffer */
     olc_show_progs_grouped(ctx->buffer, progs, type, title);
