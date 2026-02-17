@@ -224,7 +224,14 @@ SPELL_FUNC(spell_identify)
         add_buf(buffer, objtimer);
     }
 
-    sprintf(buf, "{MIt is made out of {x%s{M.\n\r", obj->material);
+    {
+        bool used_legacy_fallback = false;
+        const char *resolved_material = material_resolve_name(obj->material, &used_legacy_fallback);
+
+        sprintf(buf, "{MIt is made out of {x%s{M.\n\r", resolved_material);
+        if (used_legacy_fallback && IS_IMMORTAL(ch))
+            strcat(buf, "{R[Legacy material fallback active]{x\n\r");
+    }
     add_buf(buffer, buf);
 
     // Sages know where items come from, if from the mortal world

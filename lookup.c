@@ -169,13 +169,32 @@ int liq_lookup (const char *name)
 
 int material_lookup (register const char *name)
 {
-    register int i;
+    return material_index_lookup(name);
+}
 
-    for(i = 0; material_table[i].name; i++)
-        if (!str_prefix(name,material_table[i].name))
-            return i;
 
-    return -1;
+const char *material_resolve_name(const char *name, bool *used_legacy_fallback)
+{
+    int material_index;
+
+    if (used_legacy_fallback)
+        *used_legacy_fallback = false;
+
+    if (IS_NULLSTR(name))
+    {
+        if (used_legacy_fallback)
+            *used_legacy_fallback = true;
+        return "unknown";
+    }
+
+    material_index = material_lookup(name);
+    if (material_index >= 0)
+        return material_name(material_index);
+
+    if (used_legacy_fallback)
+        *used_legacy_fallback = true;
+
+    return name;
 }
 
 

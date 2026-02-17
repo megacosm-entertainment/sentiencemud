@@ -742,6 +742,10 @@ void boot_db(void)
     // On first run, bootstraps from liqedit defaults and saves liquids.json.
     load_liquid_data();
 
+    // Load materials from JSON (matedit cache/persistence)
+    // On first run, bootstraps from legacy material_table[] and saves materials.json.
+    load_material_data();
+
     // Initialize certain lists
     loaded_instances = list_create(false);
     loaded_dungeons = list_create(false);

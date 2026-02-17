@@ -100,6 +100,7 @@ C_FILES = \
     editors/game_settings/gameedit.c \
     editors/help/hedit.c \
     editors/liquids/liqedit.c \
+    editors/materials/matedit.c \
     editors/mobiles/medit.c \
     editors/objects/oedit.c \
     editors/objects/oedit_types.c \

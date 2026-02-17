@@ -3470,7 +3470,7 @@ SCRIPT_CMD(do_tpstringobj)
             }
 
             // Force material to the full name
-            strcpy(buf,material_table[mat].name);
+            strcpy(buf, material_name(mat));
 
             str = (char**)&obj->material;
         } else {

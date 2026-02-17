@@ -4319,7 +4319,7 @@ SCRIPT_CMD(do_mpstringobj)
 
         // Force material to the full name
         clear_buf(buffer);
-        add_buf(buffer,material_table[mat].name);
+        add_buf(buffer, material_name(mat));
 
         str = (char**)&obj->material;
     }

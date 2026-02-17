@@ -913,7 +913,11 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     fprintf(fp, "BodyType %d\n", mob->body_type);
     fprintf(fp, "Parts %ld Size %d\n",
     mob->parts, mob->size);
-    fprintf(fp, "Material %s~\n", mob->material[0] == '\0' ? "Unknown" : mob->material);
+    {
+        bool used_legacy_fallback = false;
+        const char *resolved_material = material_resolve_name(mob->material, &used_legacy_fallback);
+        fprintf(fp, "Material %s~\n", resolved_material);
+    }
     if (mob->corpse_type)
     fprintf(fp, "CorpseType %ld\n", (long int)mob->corpse_type);
     if (mob->corpse_load.vnum)
@@ -979,7 +983,11 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
     fprintf(fp, "ShortDesc %s~\n", obj->short_descr);
     fprintf(fp, "LongDesc %s~\n", obj->description);
     fprintf(fp, "Description %s~\n", fix_string(obj->full_description));
-    fprintf(fp, "Material %s~\n", obj->material);
+    {
+        bool used_legacy_fallback = false;
+        const char *resolved_material = material_resolve_name(obj->material, &used_legacy_fallback);
+        fprintf(fp, "Material %s~\n", resolved_material);
+    }
     fprintf(fp, "ImpSig %s~\n", obj->imp_sig);
     if(obj->persist)
         fprintf(fp, "Persist\n");
@@ -2588,7 +2596,28 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
         break;
 
         case 'M':
-            KEYS("Material",	mob->material,	fread_string(fp));
+            if (!str_cmp(word, "Material")) {
+                char *loaded_material = fread_string(fp);
+                bool used_legacy_fallback = false;
+                const char *resolved_material = material_resolve_name(loaded_material, &used_legacy_fallback);
+
+                free_string(mob->material);
+                mob->material = str_dup(resolved_material);
+
+                if (used_legacy_fallback &&
+                    !IS_NULLSTR(loaded_material) &&
+                    str_cmp(loaded_material, "unknown"))
+                {
+                    pbugf(LOG_ERROR,
+                          "read_mob_new: mobile %ld uses legacy unresolved material '%s'",
+                          mob->vnum,
+                          loaded_material);
+                }
+
+                free_string(loaded_material);
+                fMatch = true;
+                break;
+            }
         KEY("Movement",	mob->move,	fread_number(fp));
 
         if (!str_cmp(word, "Mana")) {
@@ -2889,7 +2918,28 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                 break;
             }
 
-            KEYS("Material",	obj->material,	fread_string(fp));
+            if (!str_cmp(word, "Material")) {
+                char *loaded_material = fread_string(fp);
+                bool used_legacy_fallback = false;
+                const char *resolved_material = material_resolve_name(loaded_material, &used_legacy_fallback);
+
+                free_string(obj->material);
+                obj->material = str_dup(resolved_material);
+
+                if (used_legacy_fallback &&
+                    !IS_NULLSTR(loaded_material) &&
+                    str_cmp(loaded_material, "unknown"))
+                {
+                    pbugf(LOG_ERROR,
+                          "read_obj_new: object %ld uses legacy unresolved material '%s'",
+                          obj->vnum,
+                          loaded_material);
+                }
+
+                free_string(loaded_material);
+                fMatch = true;
+                break;
+            }
         break;
 
         case 'N':

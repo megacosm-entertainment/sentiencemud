@@ -295,6 +295,7 @@ DECLARE_DO_FUN(	do_look		);
 DECLARE_DO_FUN( do_lore		);
 DECLARE_DO_FUN( do_lyc		);
 DECLARE_DO_FUN( do_liqedit	);
+DECLARE_DO_FUN( do_matedit	);
 DECLARE_DO_FUN( do_mail		);
 DECLARE_DO_FUN( do_mapgoto	);
 DECLARE_DO_FUN( do_memory	);

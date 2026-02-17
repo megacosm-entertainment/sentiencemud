@@ -488,6 +488,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "hedit",		do_hedit,	POS_DEAD,    L4,  LOG_ALWAYS, 1, true },
     { "ifchecks",       do_ifchecks,    POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "liqedit",		do_liqedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
+    { "matedit",		do_matedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "mcopy",		do_mcopy,	POS_DEAD,    L5,  LOG_ALWAYS, 1, true },
     { "medit",		do_medit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "mlist",		do_mlist,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },

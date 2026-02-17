@@ -297,6 +297,8 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
     char buf[MAX_STRING_LENGTH];
+    bool legacy_material = false;
+    const char *material_name_display = material_resolve_name(pObj->material, &legacy_material);
 
     olc_display_string(ctx, theme, "Extra Flags:", "extra",
         bitvector_string(4,
@@ -306,7 +308,9 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
             pObj->extra[3], extra4_flags));
 
     olc_display_number(ctx, theme, "Timer:", "timer", pObj->timer);
-    olc_display_string(ctx, theme, "Material:", "material", pObj->material);
+    olc_display_string(ctx, theme, "Material:", "material", material_name_display);
+    if (legacy_material && IS_IMMORTAL(ch))
+        olc_display_infof(ctx, theme, "{R[Legacy] Material '%s' is not in materials.json; fallback string is active.{x", pObj->material);
     olc_display_number(ctx, theme, "Condition:", "condition", pObj->condition);
     olc_display_string(ctx, theme, "Fragility:", "fragility", fragile_table[pObj->fragility].name);
     olc_display_number(ctx, theme, "Allwd Fixed:", "allowedfixed", pObj->times_allowed_fixed);
@@ -2569,6 +2573,7 @@ OEDIT(oedit_material)
 {
     OBJ_INDEX_DATA *pObj;
     int num;
+    char *name;
 
     EDIT_OBJ(ch, pObj);
 
@@ -2584,8 +2589,15 @@ OEDIT(oedit_material)
     return false;
     }
 
+    name = material_name(num);
+    if (IS_NULLSTR(name))
+    {
+    send_to_char("Material exists but has no name; please fix it in matedit.\n\r", ch);
+    return false;
+    }
+
     free_string(pObj->material);
-    pObj->material = str_dup(material_table[num].name);
+    pObj->material = str_dup(name);
 
     send_to_char("Material set.\n\r", ch);
     return true;

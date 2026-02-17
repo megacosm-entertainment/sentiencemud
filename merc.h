@@ -8379,7 +8379,6 @@ extern	const	struct	item_type	npc_boat_table	[];
 extern  const  	struct	item_type	npc_sub_type_boat_table [];
 extern  const struct  item_type ship_state_table  [];
 extern	const	struct	music_type	music_table	[];
-extern  const   struct  material_type 	material_table  [];
 extern  const   struct  item_type	item_table	[];
 extern  const   struct  item_type       token_table     [];
 extern	const	struct	player_setting_type	pc_set_table	[];
@@ -9171,6 +9170,7 @@ void 	deduct_cost	args( (CHAR_DATA *ch, int cost) );
 void	affect_enchant	args( (OBJ_DATA *obj) );
 int 	check_immune	args( (CHAR_DATA *ch, int16_t dam_type) );
 int 	material_lookup args( ( const char *name) );
+const char *material_resolve_name args((const char *name, bool *used_legacy_fallback));
 int	weapon_lookup	args( ( const char *name) );
 int	weapon_type	args( ( const char *name) );
 int	ranged_weapon_type	args( ( const char *name) );
@@ -9977,6 +9977,14 @@ int liquid_affect(int index, int affect_index);
 int liquid_lookup(const char *name);
 long liquid_uid(int index);
 int liquid_index_from_uid(long uid);
+
+/* matedit.c */
+void load_material_data(void);
+int material_count(void);
+char *material_name(int index);
+int material_strength(int index);
+int material_value(int index);
+int material_index_lookup(const char *name);
 
 
 /* staff.c */

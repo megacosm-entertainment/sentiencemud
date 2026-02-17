@@ -108,7 +108,7 @@ const struct olc_help_type help_table[] =
     {	"apptype",	apply_types,	 "Apply types."			 },
     {	"weapon",	attack_table,	 "Weapon types."		 },
     {   "ranged",       ranged_weapon_class, "Ranged weapon types."      },
-    {   "material",	material_table,  "Object materials."		 },
+    {   "material",	NULL,            "Object materials."		 },
     {	"mprog",	trigger_table,	 "MobProgram types."		 },
     {	"oprog",	trigger_table,	 "ObjProgram types."		 },
     {	"rprog",	trigger_table,	 "RoomProgram types."		 },
@@ -165,7 +165,7 @@ const struct olc_help_type help_table[] =
     {	"liquid",				STRUCT_LIQUID,		NULL,						"Liquid types."	},
     {   "log",					STRUCT_FLAGS,		log_flags,					"Log levels (CMDEdit)"},
     {	"lock",					STRUCT_FLAGS,		lock_flags,					"Lock state types."	},
-    {	"material",				STRUCT_MATERIAL,	material_table,				"Object materials."	},
+    {	"material",				STRUCT_MATERIAL,	NULL,					"Object materials."	},
     {	"mprog",				STRUCT_TRIGGERS,	trigger_table,				"MobProgram types."	},
     {	"off",					STRUCT_FLAGS,		off_flags,					"Mobile offensive behaviour."	},
     {	"oprog",				STRUCT_TRIGGERS,	trigger_table,				"ObjProgram types."	},
@@ -410,7 +410,7 @@ bool show_help(CHAR_DATA *ch, char *argument)
             return false;
         }
         else
-        if (help_table[cnt].structure == material_table)
+        if (!str_cmp(help_table[cnt].command, "material"))
         {
         show_material_list(ch);
         return false;
@@ -788,13 +788,15 @@ void show_material_list(CHAR_DATA *ch)
     char buf[MAX_STRING_LENGTH ];
     char buf1[MAX_STRING_LENGTH ];
     int i;
+    int count;
     int col;
 
     buf1[0] = '\0';
     col = 0;
-    for (i = 0; material_table[i].name != NULL; i++)
+    count = material_count();
+    for (i = 0; i < count; i++)
     {
-    sprintf(buf, "%-19.18s", material_table[i].name);
+    sprintf(buf, "%-19.18s", material_name(i));
     strcat(buf1, buf);
     if (++col % 4 == 0)
         strcat(buf1, "\n\r");

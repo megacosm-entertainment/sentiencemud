@@ -3495,6 +3495,7 @@ const struct do_func_type do_func_table[] =
         { "do_freelevel", do_freelevel },
         { "do_rsgedit", do_rsgedit },
         { "do_liqedit", do_liqedit },
+        { "do_matedit", do_matedit },
         { NULL, NULL }
 };
 
