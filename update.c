@@ -2616,7 +2616,10 @@ void obj_update(void)
         // Corpse decaying
         case ITEM_CORPSE_NPC:
         case ITEM_CORPSE_PC:
-            message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
+        {
+            const struct corpse_info *corpse_info = corpse_info_by_type(CORPSE_TYPE(obj));
+
+            message = corpse_info->decay_message;
 
             if (obj->carried_by)
                 act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -2624,14 +2627,15 @@ void obj_update(void)
                 act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
             message = NULL;
 
-            if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
-                spill_contents = corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
-                set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
-                spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
+            if(corpse_info->decay_type != RAWKILL_NOCORPSE) {
+                spill_contents = corpse_info->decay_spill_chance;
+                set_corpse_data(obj, corpse_info->decay_type);
+                spill_contents += corpse_info->decay_spill_chance;
                 spill_contents /= 2;	// Split the difference
                 nuke_obj = false;
             }
             break;
+        }
 
         case ITEM_CONTAINER:
             if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {

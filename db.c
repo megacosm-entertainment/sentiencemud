@@ -746,6 +746,14 @@ void boot_db(void)
     // On first run, bootstraps from legacy material_table[] and saves materials.json.
     load_material_data();
 
+    // Load sector settings from JSON (sectoredit cache/persistence)
+    // On first run, bootstraps from built-in movement_loss defaults and saves sectors.json.
+    load_sector_data();
+
+    // Load corpse definitions from JSON (corpsedit cache/persistence)
+    // On first run, bootstraps from built-in corpse_info_table defaults and saves corpses.json.
+    load_corpse_data();
+
     // Initialize certain lists
     loaded_instances = list_create(false);
     loaded_dungeons = list_create(false);

@@ -747,6 +747,11 @@ struct body_type_info_type
 };
 
 const struct body_type_info_type body_type_info[BODY_TYPE_MAX];
+
+int corpse_type_count(void);
+int corpse_type_lookup(const char *name);
+const char *corpse_type_name(int corpse_type);
+
 struct random_string_pattern {
     RANDOM_PATTERN	*next;
 
@@ -9509,6 +9514,13 @@ void    mob_cast        args( ( CHAR_DATA *ch, int sn, int level, char *argument
 void    mob_cast_end    args( ( CHAR_DATA *ch) );
 int	find_spell	args( ( CHAR_DATA *ch, const char *name) );
 int 	mana_cost 	(CHAR_DATA *ch, int min_mana, int level);
+
+/* sectoredit.c */
+void load_sector_data(void);
+int sector_count(void);
+const char *sector_name(int index);
+int sector_move_cost(int index);
+int sector_lookup(const char *name);
 int	skill_lookup	args( ( const char *name ) );
 OD*	get_warp_stone	args( ( CHAR_DATA *ch ) );
 bool	saves_spell	args( ( int level, CHAR_DATA *victim, int16_t dam_type ) );
@@ -9985,6 +9997,19 @@ char *material_name(int index);
 int material_strength(int index);
 int material_value(int index);
 int material_index_lookup(const char *name);
+
+/* sectoredit.c */
+void load_sector_data(void);
+bool save_sector_data(void);
+
+/* corpsedit.c */
+void load_corpse_data(void);
+bool save_corpse_data(void);
+const struct corpse_info *corpse_info_by_type(int corpse_type);
+int corpse_type_sanitize(int corpse_type);
+
+/* act_move.c */
+extern int16_t movement_loss[SECT_MAX];
 
 
 /* staff.c */

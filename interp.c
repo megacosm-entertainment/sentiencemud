@@ -482,6 +482,8 @@ const	struct	cmd_type	cmd_table	[] =
     { "asearch",	do_asearch,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "clsedit",	do_clsedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "clslist",	do_clslist,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
+    { "corpsedit",    do_corpsedit,   POS_DEAD,    L5,  LOG_NORMAL, 1, true },
+    { "sectoredit",   do_sectoredit,  POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "dislink",	do_dislink,	POS_DEAD,    L5,  LOG_ALWAYS, 1, true },
     { "edit",		do_olc,		POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "gredit",		do_gredit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },

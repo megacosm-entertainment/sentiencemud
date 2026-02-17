@@ -2229,7 +2229,7 @@ const struct flag_type corpse_types[] = {
     {NULL, 0, 0},
 };
 
-const struct corpse_info corpse_info_table[] = {
+struct corpse_info corpse_info_table[] = {
     {	// RAWKILL_NORMAL
         "corpse %s",
         "the corpse of %s",
@@ -3496,6 +3496,7 @@ const struct do_func_type do_func_table[] =
         { "do_rsgedit", do_rsgedit },
         { "do_liqedit", do_liqedit },
         { "do_matedit", do_matedit },
+        { "do_corpsedit", do_corpsedit },
         { NULL, NULL }
 };
 

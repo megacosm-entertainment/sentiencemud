@@ -2966,6 +2966,10 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
     char *name;
     char *short_desc;
     int min,max;
+    const struct corpse_info *corpse_info;
+
+    corpse_type = corpse_type_sanitize(corpse_type);
+    corpse_info = corpse_info_by_type(corpse_type);
 
     if(corpse->item_type == ITEM_CORPSE_NPC) {
         AREA_DATA *mob_area = corpse->orig_wnum.pArea;
@@ -2987,16 +2991,16 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
             short_desc = name;
         else
             short_desc = corpse->owner_short;
-        min = corpse_info_table[corpse_type].decay_npctimer_min;
-        max = corpse_info_table[corpse_type].decay_npctimer_max;
+        min = corpse_info->decay_npctimer_min;
+        max = corpse_info->decay_npctimer_max;
     } else if(corpse->item_type == ITEM_CORPSE_PC) {
         name = corpse->owner;
         short_desc = corpse->owner;
-        min = corpse_info_table[corpse_type].decay_pctimer_min;
-        max = corpse_info_table[corpse_type].decay_pctimer_max;
+        min = corpse_info->decay_pctimer_min;
+        max = corpse_info->decay_pctimer_max;
     } else return;
 
-    sprintf(buf, corpse_info_table[corpse_type].name, name);
+    sprintf(buf, corpse_info->name, name);
     free_string(corpse->name);
     corpse->name = str_dup(buf);
 
@@ -3004,10 +3008,10 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
     if(max < 0) max *= -corpse->level;
     corpse->timer = number_range(min, max);
     corpse->timer = UMAX(corpse->timer, 1);	// Must have some decay time on it.
-    CORPSE_RESURRECT(corpse) = corpse_info_table[corpse_type].resurrect_chance;
-    CORPSE_ANIMATE(corpse) = corpse_info_table[corpse_type].animation_chance;
+    CORPSE_RESURRECT(corpse) = corpse_info->resurrect_chance;
+    CORPSE_ANIMATE(corpse) = corpse_info->animation_chance;
 
-    if(corpse_info_table[corpse_type].headless) {
+    if(corpse_info->headless) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
         REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
         REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
@@ -3020,31 +3024,31 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
         REMOVE_BIT(CORPSE_PARTS(corpse),PART_TUSKS);
     }
 
-    if(corpse_info_table[corpse_type].lost_bodyparts)
-        REMOVE_BIT(CORPSE_PARTS(corpse),corpse_info_table[corpse_type].lost_bodyparts);
+    if(corpse_info->lost_bodyparts)
+        REMOVE_BIT(CORPSE_PARTS(corpse),corpse_info->lost_bodyparts);
 
     if (IS_SET(CORPSE_PARTS(corpse),PART_HEAD)) {
-        sprintf(buf, corpse_info_table[corpse_type].short_descr, short_desc);
+        sprintf(buf, corpse_info->short_descr, short_desc);
         free_string(corpse->short_descr);
         corpse->short_descr = str_dup(buf);
 
-        sprintf(buf, corpse_info_table[corpse_type].long_descr, short_desc);
+        sprintf(buf, corpse_info->long_descr, short_desc);
         free_string(corpse->description);
         corpse->description = str_dup(buf);
 
-        sprintf(buf, corpse_info_table[corpse_type].full_descr, short_desc);
+        sprintf(buf, corpse_info->full_descr, short_desc);
         free_string(corpse->full_description);
         corpse->full_description = str_dup(buf);
     } else {
-        sprintf(buf, corpse_info_table[corpse_type].short_headless, short_desc);
+        sprintf(buf, corpse_info->short_headless, short_desc);
         free_string(corpse->short_descr);
         corpse->short_descr = str_dup(buf);
 
-        sprintf(buf, corpse_info_table[corpse_type].long_headless, short_desc);
+        sprintf(buf, corpse_info->long_headless, short_desc);
         free_string(corpse->description);
         corpse->description = str_dup(buf);
 
-        sprintf(buf, corpse_info_table[corpse_type].full_headless, short_desc);
+        sprintf(buf, corpse_info->full_headless, short_desc);
         free_string(corpse->full_description);
         corpse->full_description = str_dup(buf);
     }
@@ -3191,7 +3195,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
     CORPSE_TYPE(corpse) = corpse_type;
 
-    if(corpse_info_table[corpse_type].headless || !IS_SET(ch->parts,PART_HEAD)) {
+    if(corpse_info_by_type(corpse_type)->headless || !IS_SET(ch->parts,PART_HEAD)) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
         REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
         REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
@@ -3299,11 +3303,12 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
     obj_to_room(corpse, ch->in_room);
 
     if(messages) {
+    const struct corpse_info *corpse_info = corpse_info_by_type(corpse_type);
     MOBtrigger = false;
-    if(corpse_info_table[corpse_type].victim_message)
-        act(corpse_info_table[corpse_type].victim_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    if(corpse_info_table[corpse_type].room_message)
-        act(corpse_info_table[corpse_type].room_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    if(corpse_info->victim_message)
+        act(corpse_info->victim_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    if(corpse_info->room_message)
+        act(corpse_info->room_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     MOBtrigger = true;
     }
 

@@ -96,6 +96,7 @@ C_FILES = \
     editors/blueprints/bpedit.c \
     editors/blueprints/bsedit.c \
     editors/commands/cmdedit.c \
+    editors/corpses/corpsedit.c \
     editors/dungeons/dngedit.c \
     editors/game_settings/gameedit.c \
     editors/help/hedit.c \
@@ -108,6 +109,7 @@ C_FILES = \
     editors/random_strings/rsgedit.c \
     editors/reserved_vnums/reserved.c \
     editors/rooms/redit.c \
+    editors/sectors/sectoredit.c \
     editors/scripting/olc_mpcode.c \
     editors/ships/shedit.c \
     editors/socials/socialedit.c \
@@ -204,6 +206,7 @@ C_FILES = \
     traits.c \
     io/json/json_ban.c \
     io/json/json_changesets.c \
+    io/json/json_corpse.c \
     io/json/json_olc.c \
     io/json/json_rsg.c \
     io/json/json_commands.c \

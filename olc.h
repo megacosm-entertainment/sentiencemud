@@ -70,6 +70,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_CLASS          34
 #define ED_LIQUID         35
 #define ED_MATERIAL       36
+#define ED_CORPSE        37
+#define ED_SECTOR        38
 
 
 
@@ -99,6 +101,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define CLSEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 #define LIQEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 #define MATEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define CORPSEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
+#define SECTOREDIT( fun )     bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -201,6 +205,8 @@ DECLARE_DO_FUN( do_soedit       );
 DECLARE_DO_FUN( do_clsedit      );
 DECLARE_DO_FUN( do_liqedit      );
 DECLARE_DO_FUN( do_matedit      );
+DECLARE_DO_FUN( do_corpsedit    );
+DECLARE_DO_FUN( do_sectoredit   );
 
 
 /*

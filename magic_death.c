@@ -51,8 +51,9 @@ SPELL_FUNC(spell_animate_dead)
         }
 
         corpse = CORPSE_TYPE(obj);
+        const struct corpse_info *corpse_info = corpse_info_by_type(corpse);
 
-        if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD) && !corpse_info_table[corpse].animate_headless) {
+        if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD) && !corpse_info->animate_headless) {
             act("Your magic is not powerful enough.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return false;
         }
@@ -141,21 +142,21 @@ SPELL_FUNC(spell_animate_dead)
 
         if( restring_mob )
         {
-            if(corpse_info_table[corpse].animate_name) {
-                sprintf(buf, corpse_info_table[corpse].animate_name, victim->name);
+            if(corpse_info->animate_name) {
+                sprintf(buf, corpse_info->animate_name, victim->name);
                 free_string(victim->name);
                 victim->name = str_dup(buf);
             }
 
-            if(corpse_info_table[corpse].animate_long) {
-                sprintf(buf, corpse_info_table[corpse].animate_long, victim->short_descr);
+            if(corpse_info->animate_long) {
+                sprintf(buf, corpse_info->animate_long, victim->short_descr);
                 free_string(victim->long_descr);
                 victim->long_descr = str_dup(buf);
             }
 
-            if(corpse_info_table[corpse].animate_descr) {
+            if(corpse_info->animate_descr) {
                 free_string(victim->description);
-                victim->description = str_dup(corpse_info_table[corpse].animate_descr);
+                victim->description = str_dup(corpse_info->animate_descr);
             }
         }
 

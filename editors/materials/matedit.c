@@ -13,6 +13,7 @@
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern const struct material_type material_table[];
 
@@ -529,101 +530,93 @@ static void matedit_show_basic_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, vo
 MATEDIT(matedit_name)
 {
     MATEDIT_DATA *mat = (MATEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!mat)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        send_to_char("Syntax: name <new name>\n\r", ch);
-        return false;
-    }
-
-    if (matedit_find_name(argument) && str_cmp(mat->name, argument)) {
+    if (!IS_NULLSTR(argument)
+        && matedit_find_name(argument)
+        && str_cmp(mat->name, argument)) {
         send_to_char("A material with that name already exists.\n\r", ch);
         return false;
     }
 
-    free_string(mat->name);
-    mat->name = str_dup(argument);
+    changed = olc_cmd_string(ch, argument, "name", "name <new name>",
+        &mat->name, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed)
+        return false;
 
     if (!matedit_save_to_json()) {
         send_to_char("Name updated, but failed to save materials.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Name updated.\n\r", ch);
     return true;
 }
 
 MATEDIT(matedit_strength)
 {
-    int value;
     MATEDIT_DATA *mat = (MATEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!mat)
         return false;
 
-    if (!is_number(argument) || (value = atoi(argument)) < 1) {
-        send_to_char("Syntax: strength <positive number>\n\r", ch);
+    changed = olc_cmd_number_i16(ch, argument, "strength",
+        "Syntax: strength <positive number>\n\r",
+        &mat->strength, 1, 32767, NULL, NULL);
+    if (!changed)
         return false;
-    }
-
-    mat->strength = (int16_t)value;
 
     if (!matedit_save_to_json()) {
         send_to_char("Strength updated, but failed to save materials.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Strength updated.\n\r", ch);
     return true;
 }
 
 MATEDIT(matedit_value)
 {
-    int value;
     MATEDIT_DATA *mat = (MATEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!mat)
         return false;
 
-    if (!is_number(argument) || (value = atoi(argument)) < 0) {
-        send_to_char("Syntax: value <non-negative number>\n\r", ch);
+    changed = olc_cmd_number_i16(ch, argument, "value",
+        "Syntax: value <non-negative number>\n\r",
+        &mat->value, 0, 32767, NULL, NULL);
+    if (!changed)
         return false;
-    }
-
-    mat->value = (int16_t)value;
 
     if (!matedit_save_to_json()) {
         send_to_char("Value updated, but failed to save materials.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Value updated.\n\r", ch);
     return true;
 }
 
 MATEDIT(matedit_comments)
 {
     MATEDIT_DATA *mat = (MATEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!mat)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        send_to_char("Syntax: comments <text>\n\r", ch);
+    changed = olc_cmd_string(ch, argument, "comments", "comments <text>",
+        &mat->comments, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed)
         return false;
-    }
-
-    free_string(mat->comments);
-    mat->comments = str_dup(argument);
 
     if (!matedit_save_to_json()) {
         send_to_char("Comments updated, but failed to save materials.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Comments updated.\n\r", ch);
     return true;
 }
 

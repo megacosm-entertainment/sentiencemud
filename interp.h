@@ -93,6 +93,8 @@ extern	const	struct	cmd_type	cmd_table	[];
 DECLARE_DO_FUN( do_addcommand	);
 DECLARE_DO_FUN(	do_advance	);
 DECLARE_DO_FUN(	do_alevel	);
+DECLARE_DO_FUN( do_corpsedit    );
+DECLARE_DO_FUN( do_sectoredit   );
 DECLARE_DO_FUN( do_aload	);
 DECLARE_DO_FUN( do_aedit	);
 DECLARE_DO_FUN( do_affects	);

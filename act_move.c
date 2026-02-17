@@ -111,7 +111,7 @@ const	int16_t	rev_dir		[]		=
  *   15-17 = Difficult (swimming, swamp, toxic bog)
  *   50   = Very difficult (deep water, lava, underwater)
  */
-const	int16_t	movement_loss	[SECT_MAX]	=
+int16_t	movement_loss	[SECT_MAX]	=
 {
     1,		/* SECT_INSIDE */
     2,		/* SECT_CITY */

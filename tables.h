@@ -300,7 +300,7 @@ extern  const	struct	flag_type	damage_classes[];
 extern	const	struct	flag_type	script_flags[];
 extern	const	struct	flag_type	interrupt_action_types[];
 extern	const struct flag_type corpse_types[];
-extern	const struct corpse_info corpse_info_table[];
+extern	struct corpse_info corpse_info_table[];
 extern	const struct flag_type time_of_day_flags[];
 extern	const struct flag_type death_types[];
 extern	const struct flag_type tool_types[];

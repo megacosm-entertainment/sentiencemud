@@ -68,6 +68,8 @@ char *editor_name_table[] = {
     "ClsEdit",      // 34 ED_CLASS
     "LiqEdit",      // 35 ED_LIQUID
     "MatEdit",      // 36 ED_MATERIAL
+    "CorpsEdit",    // 37 ED_CORPSE
+    "SectorEdit",   // 38 ED_SECTOR
 };
 
 int editor_max_tabs_table[] = {
@@ -108,6 +110,8 @@ int editor_max_tabs_table[] = {
     0,		// ClsEdit
     0,		// LiqEdit
     0,		// MatEdit
+    0,		// CorpsEdit
+    0,		// SectorEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -141,6 +145,8 @@ const struct editor_cmd_type editor_table[] =
     { "class",      do_clsedit   },
     { "liquid",     do_liqedit   },
     { "material",   do_matedit   },
+    { "corpse",     do_corpsedit },
+    { "sector",     do_sectoredit },
     { NULL,			0,			}
 };
 
@@ -677,9 +683,6 @@ void display_resets(CHAR_DATA *ch)
          * Check for pet shop.
          * -------------------
          */
-            case ED_LIQUID:
-                sprintf(buf, "--");
-                break;
         {
             ROOM_INDEX_DATA *pRoomIndexPrev;
 

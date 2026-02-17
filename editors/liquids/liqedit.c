@@ -13,6 +13,7 @@
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 typedef struct liqedit_data LIQEDIT_DATA;
 
@@ -306,22 +307,18 @@ static LIQEDIT_DATA *liqedit_new(const char *name, const char *color)
 static bool liqedit_set_affect(CHAR_DATA *ch, LIQEDIT_DATA *liq, int index,
     char *argument, const char *label)
 {
-    int value;
+    bool changed;
 
-    if (IS_NULLSTR(argument) || !is_number(argument)) {
-        printf_to_char(ch, "Syntax: %s <number>\n\r", label);
+    changed = olc_cmd_number_i16(ch, argument, label, NULL, &liq->affect[index],
+        -32768, 32767, NULL, NULL);
+    if (!changed)
         return false;
-    }
-
-    value = atoi(argument);
-    liq->affect[index] = (int16_t)value;
 
     if (!liqedit_save_to_json()) {
         send_to_char("Failed to save liquids.json after update.\n\r", ch);
         return true;
     }
 
-    printf_to_char(ch, "%s set to %d.\n\r", label, value);
     return true;
 }
 
@@ -684,77 +681,70 @@ static void liqedit_show_affects_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, 
 LIQEDIT(liqedit_name)
 {
     LIQEDIT_DATA *liq = (LIQEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!liq)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        send_to_char("Syntax: name <new name>\n\r", ch);
-        return false;
-    }
-
-    if (liqedit_find_name(argument) && str_cmp(liq->name, argument)) {
+    if (!IS_NULLSTR(argument)
+        && liqedit_find_name(argument)
+        && str_cmp(liq->name, argument)) {
         send_to_char("A liquid with that name already exists.\n\r", ch);
         return false;
     }
 
-    free_string(liq->name);
-    liq->name = str_dup(argument);
+    changed = olc_cmd_string(ch, argument, "name", "name <new name>",
+        &liq->name, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed)
+        return false;
 
     if (!liqedit_save_to_json()) {
         send_to_char("Name updated, but failed to save liquids.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Name updated.\n\r", ch);
     return true;
 }
 
 LIQEDIT(liqedit_color)
 {
     LIQEDIT_DATA *liq = (LIQEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!liq)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        send_to_char("Syntax: color <new color>\n\r", ch);
+    changed = olc_cmd_string(ch, argument, "color", "color <new color>",
+        &liq->color, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed)
         return false;
-    }
-
-    free_string(liq->color);
-    liq->color = str_dup(argument);
 
     if (!liqedit_save_to_json()) {
         send_to_char("Color updated, but failed to save liquids.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Color updated.\n\r", ch);
     return true;
 }
 
 LIQEDIT(liqedit_comments)
 {
     LIQEDIT_DATA *liq = (LIQEDIT_DATA *)ch->desc->pEdit;
+    bool changed;
 
     if (!liq)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        send_to_char("Syntax: comments <text>\n\r", ch);
+    changed = olc_cmd_string(ch, argument, "comments", "comments <text>",
+        &liq->comments, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed)
         return false;
-    }
-
-    free_string(liq->comments);
-    liq->comments = str_dup(argument);
 
     if (!liqedit_save_to_json()) {
         send_to_char("Comments updated, but failed to save liquids.json.\n\r", ch);
         return true;
     }
 
-    send_to_char("Comments updated.\n\r", ch);
     return true;
 }
 

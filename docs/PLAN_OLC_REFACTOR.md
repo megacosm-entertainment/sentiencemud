@@ -33,7 +33,7 @@ This plan covers:
   but lightweight — no rollback)
 - **MXP clickable link support** throughout all editors via `mxp_links.h` helpers and `bprintf`
 - **Preparing for player-accessible editors** (housing)
-- **Backporting editors** from `src_20_dev` (liqedit, matedit, sectoredit, corpsedit, repedit) and adding new ones (evtedit)
+- **Backporting editors** from `src_20_dev` (liqedit, matedit complete; sectoredit, corpsedit, repedit pending) and adding new ones (evtedit)
 - **Future: data/display separation** — structuring the framework so display logic can be
   decoupled from data access, enabling alternative rendering targets (web client)
 
@@ -50,6 +50,8 @@ This plan covers:
 | OEDIT     | Objects    | ED_OBJECT      | `editors/objects/oedit.c`             | ~3,010 | 1→FW  | Yes  | Area flag            |
 |           |            |                | `editors/objects/oedit_types.c`       | 1,955  |       |      |                      |
 | MEDIT     | Mobiles    | ED_MOBILE      | `editors/mobiles/medit.c`             | ~3,715 | 1→FW  | Yes  | Area flag            |
+| LIQEDIT   | Liquids    | ED_LIQEDIT     | `editors/liquids/liqedit.c`           | ~1,100 | FW    | No   | Immediate save       |
+| MATEDIT   | Materials  | ED_MATEDIT     | `editors/materials/matedit.c`         | ~1,200 | FW    | No   | Immediate save       |
 | TEDIT     | Tokens     | ED_TOKEN       | `editors/tokens/tedit.c`             | ~1,082 | 1→FW  | Yes  | Area flag (callback) |
 | HEDIT     | Help       | ED_HELP        | `editors/help/hedit.c`               | ~1,228 | 1→FW  | No   | Custom (area flag)   |
 | SHEDIT    | Ships      | ED_SHIP        | `editors/ships/shedit.c`             | ~910   | 1→FW  | No   | Custom (area flag)   |
@@ -67,7 +69,7 @@ This plan covers:
 | GREDIT    | Groups     | ED_GROUP       | `editors/skills/gredit.c`            | ~380   | 2→FW | No   | Explicit save        |
 | SOEDIT    | Songs      | ED_SONG        | `editors/skills/soedit.c`            | ~420   | 2→FW | No   | Explicit save        |
 | CLSEDIT   | Classes    | ED_CLASS       | `editors/classes/clsedit.c`          | ~1,385 | 2→FW | No   | Explicit save        |
-| RSGEDIT   | Rand Str   | ED_RSG         | `editors/random_strings/rsgedit.c`   | 42     | 1     | No   | Area flag            |
+| RSGEDIT   | Rand Str   | ED_RSG         | `editors/random_strings/rsgedit.c`   | ~1,693 | FW    | Yes  | Explicit save        |
 | MPEDIT    | MobScript  | ED_MPCODE      | `editors/scripting/olc_mpcode.c`     | ~1,830 | 1→FW  | Yes  | Area flag            |
 | OPEDIT    | ObjScript  | ED_OPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
 | RPEDIT    | RoomScript | ED_RPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
@@ -77,15 +79,12 @@ This plan covers:
 | DPEDIT    | DngScript  | ED_DPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Custom (dungeon)     |
 | GAMEEDIT  | Settings   | ED_GAMESETTING | `editors/game_settings/gameedit.c`   | 1,921  | Special | No | Changeset+Confirm  |
 |           |            |                |                                       |        |       |      |                      |
-| *Planned — backport from `src_20_dev`:* | | | | | | | |
-| LIQEDIT   | Liquids    | ED_LIQEDIT     | `editors/liquids/liqedit.c`          | —      | —     | No   | Immediate save       |
-| MATEDIT   | Materials  | ED_MATEDIT     | `editors/materials/matedit.c`        | —      | —     | No   | Immediate save       |
+| *Planned — backport from `src_20_dev` (remaining):* | | | | | | | |
 | SECTEDIT  | Sectors    | ED_SECTOREDIT  | `editors/sectors/sectoredit.c`       | —      | —     | No   | Immediate save       |
 | CORPSEDIT | Corpse Types| ED_CORPSEDIT  | `editors/corpses/corpsedit.c`        | —      | —     | No   | Immediate save       |
 | REPEDIT   | Reputation | ED_REPEDIT     | `editors/reputation/repedit.c`       | —      | —     | No   | Area flag            |
 |           |            |                |                                       |        |       |      |                      |
 | *Planned — new design / major rework:* | | | | | | | |
-| RSGEDIT   | Rand Strings| ED_RSG        | `editors/random_strings/rsgedit.c`   | 42     | Stub  | No   | Area flag            |
 | QEDIT     | Quests     | ED_QUEST       | `editors/quests/qedit.c`             | —      | —     | No   | Area flag            |
 | MSNEDIT   | Missions   | ED_MISSION     | `editors/missions/msnedit.c`         | —      | —     | No   | Explicit save        |
 | EVTEDIT   | Events     | ED_EVENT       | `editors/events/evtedit.c`           | —      | —     | No   | Explicit save        |
@@ -101,7 +100,7 @@ entering a modal editor state. It uses a changeset/confirm workflow for safety.
 #### Generation 1: Manual Dispatch (Oldest — lives partly in `olc.c`)
 
 Used by: ~~aedit~~, ~~redit~~, oedit, medit, ~~hedit~~, ~~shedit~~, ~~pedit~~, ~~wedit~~, ~~bsedit~~, ~~bpedit~~,
-~~dngedit~~, ~~cmdedit~~, ~~socialedit~~, rsgedit, and all script editors.
+~~dngedit~~, ~~cmdedit~~, ~~socialedit~~, and all script editors.
 
 **Pattern** (repeated ~20 times with minor variations):
 ```c
@@ -993,7 +992,7 @@ new code.
 | **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Done |
 | **6** | Script editors | mpedit, opedit, rpedit, tpedit, ipedit, dpedit, apedit | Medium |
 | **7** | Command table migration | Move tables from olc.c to editor files | Mechanical |
-| **8** | Backport + new editors | liqedit, matedit, sectoredit, corpsedit, repedit, qedit, msnedit, rsgedit, evtedit | Med–Large |
+| **8** | Backport + new editors | ✅ liqedit, ✅ matedit, ✅ rsgedit, ⏳ sectoredit, corpsedit, repedit, qedit, msnedit, evtedit | Med–Large |
 | **9** | Player housing | Restricted REDIT/OEDIT subset | Large |
 
 ### 7.2 Phase 0: Framework Foundation (DONE)
@@ -1439,14 +1438,15 @@ populated after each editor type has been used once.
 
 ### 7.10 Phase 8: New Editors (Backport from `src_20_dev`)
 
-Five editors exist in `src_20_dev` with full implementations that need to be
-backported to `src`. These are **not** new designs — they have working code,
-command tables, interpreters, and persistence already written.
+**Status**: In progress.
+
+Phase 8 is actively underway. LIQEDIT and MATEDIT are now backported and wired
+into `src`; the remaining backport editors are still pending.
 
 | Editor | Cmds | Data Struct | src_20_dev Location | Current src Status | Effort |
 |--------|------|-------------|--------------------|--------------------|--------|
-| liqedit | 14 | `LIQUID` | `olc.c` + `olc_act.c` | Hardcoded `liq_type` in `const.c` | Medium |
-| matedit | 10 | `MATERIAL` | `olc.c` + `olc_act.c` | Hardcoded `material_type` in `const.c` | Medium |
+| liqedit | 14 | `LIQUID` | `olc.c` + `olc_act.c` | ✅ Backported to `editors/liquids/liqedit.c`; runtime + JSON-backed data | Medium |
+| matedit | 10 | `MATERIAL` | `olc.c` + `olc_act.c` | ✅ Backported to `editors/materials/matedit.c`; runtime + JSON-backed data | Medium |
 | sectoredit | 15 | `SECTOR_DATA` | `olc.c` + `sectors.c` | Hardcoded `SECT_*` #defines | Large |
 | corpsedit | 18 | `CORPSE_TYPE` | `act_wiz.c` | Just a `CORPSE_TYPE(obj)` macro | Large |
 | repedit | 9 | `REPUTATION_INDEX_DATA` | `olc.c` + `reputation.c` | Nothing (has separate plan doc) | Large |
@@ -1458,7 +1458,7 @@ Additional editors to design from scratch or complete:
 | EVTEDIT | ED_EVENT | Events (replaces gq system) | Nothing | Large |
 | QEDIT | ED_QUEST | Builder quest chains | Struct exists, no editor | Large |
 | MSNEDIT | ED_MISSION | Repeatable auto-missions | `missions.c` in src_20_dev | Large |
-| RSGEDIT | ED_RSG | Random string generation | Stub editor, struct exists, no persistence | Medium |
+| RSGEDIT | ED_RSG | Random string generation | ✅ Framework editor implemented with JSON persistence + history | Medium |
 
 The backported editors should be rebuilt using the new framework rather than
 porting the Gen 1 boilerplate verbatim. The `src_20_dev` code serves as a
@@ -1505,15 +1505,27 @@ The following editors have full working implementations in `src_20_dev`. Each
 subsection documents the existing commands, data structures, persistence format,
 and what needs to change in `src` before the editor can be ported.
 
-### 8.0 Phase 8 Kickoff Status (2026-02-17)
+### 8.0 Phase 8 Status (2026-02-17)
 
-Started implementation with **RSGEDIT** as the lowest-risk editor (minimal
-external dependencies). Current status in `src`:
+Phase 8 work is active. Current status in `src`:
+
+- ✅ **LIQEDIT** backported under `editors/liquids/liqedit.c` and integrated with
+    dynamic runtime data/persistence.
+- ✅ **MATEDIT** backported under `editors/materials/matedit.c` and integrated with
+    dynamic runtime data/persistence.
+- ✅ **RSGEDIT** implemented as the first completed "new" editor under
+    `editors/random_strings/rsgedit.c` with tabs, generation commands,
+    JSON persistence, and OLC history.
+- ⚠️ Material consumer migration is partially complete and still being finalized in
+    some call paths (legacy fallback behavior retained intentionally during transition).
+- 🟡 **SECTOREDIT / CORPSEDIT / REPEDIT** remain pending.
+
+Initial kickoff notes (now complete for RSGEDIT):
 
 - `rsgedit` command is now wired into interpreter and OLC editor routing.
 - `editors/random_strings/rsgedit.c` now uses the OLC framework (`OLC_EDITOR_DEF`).
-- Working initial commands: `list`, `create`, `show`, `generate`.
-- `pattern` and `class` sub-editors are scaffolded with placeholders for next slice.
+- Core and sub-editor commands are implemented (`list/create/show/generate`,
+  `pattern` subcommands, and `class` subcommands).
 
 This deliberately establishes a repeatable editor-delivery pattern before
 starting higher-blast-radius backports.
@@ -1522,9 +1534,9 @@ starting higher-blast-radius backports.
 
 Recommended implementation order based on coupling:
 
-1. **RSGEDIT** (low coupling): editor + persistence + generation logic
-2. **LIQEDIT / MATEDIT** (medium coupling): dynamic data model replacement for
+1. ✅ **LIQEDIT / MATEDIT** (completed): dynamic data model replacement for
     hardcoded tables in `const.c`
+2. ✅ **RSGEDIT** (completed): editor + persistence + generation logic
 3. **CORPSEDIT** (high coupling): mob death pipeline + `MOB_INDEX_DATA` integration
 4. **SECTOREDIT** (very high coupling): room sector representation refactor (`int` → pointer)
 5. **REPEDIT** (subsystem backport): reputation runtime + area save/load + player state
@@ -1549,17 +1561,19 @@ maxmana, name, proof, show, thirst
 - max_mana (mana recovery from drinking)
 - Stored as a dynamic linked list (`liquid_list`), persisted to `liquids.dat`
 
-**Current src**: Only has a simple hardcoded `liq_type` struct in `const.c`
-(name, colour, affects array). No dynamic loading, no editor.
+**Current src**: ✅ Backported. Dynamic liquid runtime/editor path exists in
+`editors/liquids/liqedit.c` with data persistence integration.
 
-**Prerequisites to port**:
-1. Backport full `LIQUID` struct to `merc.h`
-2. Add `liquid_list` (LLIST), `liquid_lookup()`, `liquid_water`/`liquid_blood`/`liquid_potion` globals
-3. Create `io/legacy/liquids.c` or `io/json/json_liquids.c` for persistence
-4. Update all `liq_table[]` references to use dynamic `liquid_lookup()`
-5. Build editor as `editors/liquids/liqedit.c` using framework
+**Completion notes**:
+1. Framework-based LIQEDIT command/editor wiring is in place.
+2. Legacy hardcoded-only behavior has been replaced by runtime-backed liquid data.
+3. Persistence path is implemented for editor-managed liquid definitions.
 
-**Effort**: Medium — small editor, but underlying data model needs replacing.
+**Remaining follow-up**:
+- Continue opportunistic cleanup of any residual legacy direct-table consumers as
+    they are discovered in adjacent systems.
+
+**Effort**: Medium — completed.
 
 ### 8.2 Material Editor (matedit)
 
@@ -1577,17 +1591,19 @@ strength, value
 - strength, value (1-10 scale)
 - Stored as dynamic linked list (`material_list`), persisted to `materials.dat`
 
-**Current src**: Only has a simple hardcoded `material_type` in `const.c`
-(name, strength, value). No dynamic loading, no editor.
+**Current src**: ✅ Backported. Dynamic material runtime/editor path exists in
+`editors/materials/matedit.c` with data persistence integration.
 
-**Prerequisites to port**:
-1. Backport full `MATERIAL` struct to `merc.h`
-2. Add `material_list` (LLIST), `material_lookup()` and global pointers
-3. Create persistence (legacy `.dat` or JSON)
-4. Update all `material_table[]` references to use dynamic `material_lookup()`
-5. Build editor as `editors/materials/matedit.c` using framework
+**Completion notes**:
+1. Framework-based MATEDIT command/editor wiring is in place.
+2. Runtime material APIs are available and used by major editor/gameplay consumers.
+3. Save/load canonicalization paths are wired for legacy-name compatibility.
 
-**Effort**: Medium — same pattern as liqedit. Small, simple editor.
+**Remaining follow-up**:
+- Finish migrating any remaining edge-case consumers from direct legacy material
+    assumptions to runtime lookup/name APIs.
+
+**Effort**: Medium — completed.
 
 ### 8.3 Sector Editor (sectoredit)
 
@@ -1619,6 +1635,13 @@ Rooms use `int sector_type`. No `SECTOR_DATA` struct, no `sectors.c`, no editor.
 4. Update all `SECT_*` comparisons to use sector pointer/lookup
 5. Bootstrap default sectors from current `SECT_*` defines
 6. Build editor as `editors/sectors/sectoredit.c` using framework
+
+**Integration constraint (current branch)**:
+- Avoid introducing global sector pointer singletons (the legacy `gsct_*` pattern from
+    `src_20_dev`) in the active code path.
+- Prefer explicit lookup by stable sector id/key through a runtime registry API.
+- Keep compatibility with legacy `SECT_*` ids during migration, but route new editor/runtime
+    behavior through registry functions rather than global sector pointers.
 
 **Effort**: Large — the editor itself is medium complexity, but the underlying
 room system refactor (int→pointer) touches many files.
@@ -1773,27 +1796,40 @@ procedural missions.
 **Effort**: Large — requires backporting the entire mission runtime first,
 then designing the template/editing layer on top.
 
-### 8.9 Random String Generator Editor (RSGEDIT) — Complete Stub
+### 8.9 Random String Generator Editor (RSGEDIT) — Implemented
 
 The RSG system generates random strings (primarily names) from weighted patterns
 and character classes. It is consumed by other systems (mob name generation,
 item naming, etc.).
 
-**Current src**: The editor shell exists but is nearly empty:
-- `olc_edit_rsg.c` (112 lines): interpreter, 3 command tables (main, pattern, class)
-  with 21 function references — but only `rsgedit_create` has a body (and it's a stub
-  that returns false)
-- `editors/random_strings/rsgedit.c` (42 lines): just includes and a stub `rsgedit_create`
-- `RANDOM_STRING` struct exists in `merc.h` with: uid, name, description,
+**Current src**: The editor is fully implemented in
+`editors/random_strings/rsgedit.c` and integrated with the OLC framework.
+
+- Framework wiring: `OLC_EDITOR_DEF`, `olc_editor_enter()`, `olc_editor_interp()`,
+    and tabbed display via `olc_display_*`.
+- Tabs: Patterns, Classes, Templates.
+- Main commands: `list`, `create`, `show`, `name`, `description`, `generate`,
+    `pattern`, `class`, `save`, `reload`.
+- Pattern sub-editor commands: `list`, `create`, `show`, `delete`, `?`.
+- Class sub-editor commands: `list`, `create`, `show`, `delete`, `add`, `edit`,
+    `remove`, `?`.
+- Persistence: JSON load/save implemented via `json_rsg.*`.
+- History/audit: OLC history integration via `OLC_HIST_RSG`, plus framework audit logging.
+- Data model: `RANDOM_STRING` / `RANDOM_PATTERN` / `RANDOM_CLASS` /
+    `RANDOM_STRING_ENTRY` in active use.
+
+Legacy note:
+- `olc_edit_rsg.c` remains in-tree as legacy code and is no longer the active
+    implementation path.
+
+`RANDOM_STRING` struct in `merc.h` includes: uid, name, description,
   patterns (linked list of `RANDOM_PATTERN` with weight, name, class references),
   classes (linked list of `RANDOM_CLASS` with uid, name)
-- `RANDOM_STRING_ENTRY` struct: weight + string (for entries within a class)
-- `ED_RSG` (13) constant defined in `olc.h`
-- **No persistence** — no load/save functions exist in either codebase
-- **No implementations** — `src_20_dev` is identical (same stub)
 
-**Command tables already defined** (need implementations):
-- Main: list, create, show, pattern, class, generate
+`RANDOM_STRING_ENTRY` struct stores weighted class entries used by the generator.
+
+**Implemented command tables**:
+- Main: list, create, show, name, description, pattern, class, generate, save, reload
 - Pattern sub-editor: list, create, show, delete
 - Class sub-editor: list, create, show, delete, add, edit, remove
 
@@ -1805,18 +1841,13 @@ item naming, etc.).
 - Output should be consumable by other editors (medit for mob names, oedit for item names)
 - Persistence: JSON in `data/system/rsg/` or per-area in `.are` files
 
-**Prerequisites to build**:
-1. Design persistence format (JSON recommended)
-2. Implement load/save functions
-3. Implement all 21 stub functions across the 3 command tables
-4. Add dictionary support (word lists loadable from files)
-5. Add rule/constraint system
-6. Consolidate the two source files (`olc_edit_rsg.c` → `editors/random_strings/rsgedit.c`)
-7. Migrate to framework (currently Gen 1 boilerplate in `olc_edit_rsg.c`)
+**Follow-up opportunities**:
+1. Remove or archive `olc_edit_rsg.c` to eliminate legacy confusion.
+2. Extend generator constraints/rules (optional quality improvements).
+3. Add optional dictionary/syllable sources if higher-fidelity generation is desired.
 
-**Effort**: Medium — struct exists, tables exist, sub-editor pattern already
-designed. Needs implementations and persistence, but no external system
-dependencies.
+**Effort**: Medium — core editor/persistence/generation implementation is complete;
+remaining work is polish and optional enhancements.
 
 ---
 

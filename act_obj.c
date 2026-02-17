@@ -7903,9 +7903,10 @@ void do_skull(CHAR_DATA *ch, char *argument)
     }
 
     corpse = CORPSE_TYPE(obj);
+    const struct corpse_info *corpse_info = corpse_info_by_type(corpse);
 
     /* Used for corpse types that are impossible to skull even if there is a head...*/
-    if (corpse_info_table[corpse].skulling_chance < 0) {
+    if (corpse_info->skulling_chance < 0) {
         send_to_char("You can't seem to remove its skull.  It doesn't want to budge.\n\r", ch);
         return;
     }
@@ -7915,12 +7916,12 @@ void do_skull(CHAR_DATA *ch, char *argument)
     else
         chance = get_skill(ch, skill_resolve_gsn("skull")) - 3;
 
-    chance *= corpse_info_table[corpse].skulling_chance;
+    chance *= corpse_info->skulling_chance;
 
     if (number_range(1,10000) > chance)
     {
-        act(corpse_info_table[corpse].skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        act(corpse_info_table[corpse].skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act(corpse_info->skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act(corpse_info->skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         check_improve(ch, skill_resolve_gsn("skull"), false, 1);
 //	    SET_BIT(obj->extra[0], ITEM_NOSKULL);
         REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
@@ -7933,15 +7934,15 @@ void do_skull(CHAR_DATA *ch, char *argument)
         REMOVE_BIT(CORPSE_PARTS(obj),PART_HORNS);
         REMOVE_BIT(CORPSE_PARTS(obj),PART_TUSKS);
 
-        sprintf(buf, corpse_info_table[corpse].short_headless, obj->owner);
+        sprintf(buf, corpse_info->short_headless, obj->owner);
         free_string(obj->short_descr);
         obj->short_descr = str_dup(buf);
 
-        sprintf(buf, corpse_info_table[corpse].long_headless, obj->owner);
+        sprintf(buf, corpse_info->long_headless, obj->owner);
         free_string(obj->description);
         obj->description = str_dup(buf);
 
-        sprintf(buf, corpse_info_table[corpse].full_headless, obj->owner);
+        sprintf(buf, corpse_info->full_headless, obj->owner);
         free_string(obj->full_description);
         obj->full_description = str_dup(buf);
         return;
@@ -7990,21 +7991,21 @@ void do_skull(CHAR_DATA *ch, char *argument)
 
     skull->owner = str_dup(obj->owner);
 
-    sprintf(buf, corpse_info_table[corpse].short_headless, obj->owner);
+    sprintf(buf, corpse_info->short_headless, obj->owner);
     free_string(obj->short_descr);
     obj->short_descr = str_dup(buf);
 
-    sprintf(buf, corpse_info_table[corpse].long_headless, obj->owner);
+    sprintf(buf, corpse_info->long_headless, obj->owner);
     free_string(obj->description);
     obj->description = str_dup(buf);
 
-    sprintf(buf, corpse_info_table[corpse].full_headless, obj->owner);
+    sprintf(buf, corpse_info->full_headless, obj->owner);
     free_string(obj->full_description);
     obj->full_description = str_dup(buf);
 
-    sprintf(buf, corpse_info_table[corpse].skull_success, obj->owner);
+    sprintf(buf, corpse_info->skull_success, obj->owner);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    sprintf(buf, corpse_info_table[corpse].skull_success_other, obj->owner);
+    sprintf(buf, corpse_info->skull_success_other, obj->owner);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     obj_to_char(skull, ch);
     check_improve(ch, skill_resolve_gsn("skull"), true, 1);
