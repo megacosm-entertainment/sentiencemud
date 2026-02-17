@@ -43,12 +43,7 @@ extern NOTE_DATA *changes_list;
  * Constants                                                               *
  ***************************************************************************/
 
-#define NOTE_JSON_FILE    "data/notes/notes.json"
-#define NEWS_JSON_FILE    "data/notes/news.json"
-#define CHANGES_JSON_FILE "data/notes/changes.json"
-#define NOTE_NOT_FILE     "data/notes/notes.not"
-#define NEWS_NOT_FILE     "data/notes/news.not"
-#define CHANGES_NOT_FILE  "data/notes/chang.not"
+
 
 /***************************************************************************
  * Helper Functions                                                        *

@@ -56,6 +56,7 @@
 #include "log.h"
 #include "traits.h"
 #include "class_data.h"
+#include "io/json/json_olc.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -5108,6 +5109,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     }
     iterator_stop(&cit);
 
+    olc_history_flush_all();
     merc_down = true;
     for (d = descriptor_list; d != NULL; d = d_next) {
         d_next = d->next;

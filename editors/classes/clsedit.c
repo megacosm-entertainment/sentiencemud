@@ -19,6 +19,11 @@
 #include "../../skill_data.h"
 #include "../../skill_group.h"
 #include "../../traits.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+#include "../../io/json/json_olc.h"
 
 /***************************************************************************
  * Forward Declarations                                                    *
@@ -94,6 +99,62 @@ static int clsedit_stat_lookup(const char *name)
 }
 
 /***************************************************************************
+ * History Helpers                                                         *
+ ***************************************************************************/
+
+static OLC_CHANGE_HISTORY *clsedit_get_history(void *pEdit)
+{
+    CLASS_DATA *clazz = (CLASS_DATA *)pEdit;
+    return clazz ? (OLC_CHANGE_HISTORY *)clazz->olc_history : NULL;
+}
+
+static OLC_CHANGE_HISTORY *clsedit_ensure_history(CLASS_DATA *clazz)
+{
+    if (!clazz) return NULL;
+    if (!clazz->olc_history)
+        clazz->olc_history = olc_history_load(OLC_HIST_CLASS, clazz->name);
+    if (!clazz->olc_history)
+        clazz->olc_history = olc_history_new();
+    return (OLC_CHANGE_HISTORY *)clazz->olc_history;
+}
+
+static void clsedit_record(CLASS_DATA *clazz, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    olc_history_record(clsedit_ensure_history(clazz), ch,
+        field, old_val, new_val);
+    olc_history_mark_dirty(OLC_HIST_CLASS, clazz->name,
+        (OLC_CHANGE_HISTORY *)clazz->olc_history);
+}
+
+/** Generic callback wrapper for olc_cmd_* helpers. */
+static void clsedit_record_cb(void *ctx, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    clsedit_record((CLASS_DATA *)ctx, ch, field, old_val, new_val);
+}
+
+/***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF clsedit_def = {
+    .name           = "ClsEdit",
+    .editor_type    = ED_CLASS,
+    .cmd_table      = clsedit_table,
+    .show_fn        = clsedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = true,
+    .get_history_fn = clsedit_get_history,
+};
+
+/***************************************************************************
  * Entry Point                                                             *
  ***************************************************************************/
 
@@ -112,6 +173,11 @@ void do_clsedit(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch))
         return;
+
+    if (!olc_editor_check_perm(ch, &clsedit_def, NULL)) {
+        send_to_char("You don't have permission to edit classes.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, arg1);
 
@@ -139,9 +205,7 @@ void do_clsedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_CLASS, clazz);
-    clsedit_show(ch, "");
+    olc_editor_enter(ch, &clsedit_def, clazz, true);
 }
 
 /***************************************************************************
@@ -153,34 +217,7 @@ void do_clsedit(CHAR_DATA *ch, char *argument)
  */
 void clsedit(CHAR_DATA *ch, char *argument)
 {
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0') {
-        clsedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; clsedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, clsedit_table[cmd].name)) {
-            (*clsedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &clsedit_def);
 }
 
 /***************************************************************************
@@ -190,54 +227,59 @@ void clsedit(CHAR_DATA *ch, char *argument)
 CLSEDIT(clsedit_show)
 {
     CLASS_DATA *clazz;
-    BUFFER *buf;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&clsedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_CLASS(ch, clazz);
 
-    buf = new_buf();
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buf, formatf("{Y=== Class Editor ==={x\n\r"));
-    add_buf(buf, formatf("{cUID:{x  %-6d {cName:{x %s\n\r",
-            clazz->uid, clazz->name));
+    olc_display_header(ctx, "ClsEdit", clazz->name,
+        formatf("UID %d", clazz->uid), &clsedit_def);
 
+    olc_display_string(ctx, theme, "Name:", "name", clazz->name);
     if (clazz->description && clazz->description[0])
-        add_buf(buf, formatf("{cDescription:{x %s\n\r", clazz->description));
+        olc_display_string(ctx, theme, "Description:", "description", clazz->description);
     if (clazz->comments && clazz->comments[0])
-        add_buf(buf, formatf("{CComments:{x\n\r  %s\n\r", clazz->comments));
+        olc_display_text(ctx, theme, "Comments:", "comments", clazz->comments);
 
     /* Type & flags */
-    add_buf(buf, formatf("{cType:{x %s    {cFlags:{x %s\n\r",
-            flag_name(class_types, clazz->type),
-            clazz->flags ? flag_string(class_flags, clazz->flags) : "none"));
+    olc_display_pair(ctx, theme,
+        "Type:", "type", flag_name(class_types, clazz->type),
+        "Flags:", "flags", clazz->flags ? flag_string(class_flags, clazz->flags) : "none");
 
     /* Display / Who names */
-    add_buf(buf, formatf("{cDisplay:{x %s  {cWho:{x %s\n\r",
-            clazz->display[0] ? clazz->display[0] : "(none)",
-            clazz->who[0] ? clazz->who[0] : "(none)"));
+    olc_display_pair(ctx, theme,
+        "Display:", "display", clazz->display[0] ? clazz->display[0] : "(none)",
+        "Who:", "who", clazz->who[0] ? clazz->who[0] : "(none)");
 
     /* Stats */
-    add_buf(buf, formatf("{cMax Level:{x %-5d  {cPrimary Stat:{x %s\n\r",
-            clazz->max_level,
-            (clazz->primary_stat >= 0 && clazz->primary_stat < MAX_STATS)
-                ? stat_names[clazz->primary_stat] : "none"));
-    add_buf(buf, formatf("{cHP Min:{x %-5d  {cHP Max:{x %-5d  {cGains Mana:{x %s\n\r",
-            clazz->hp_min, clazz->hp_max,
-            clazz->gains_mana ? "{GYes{x" : "{DNo{x"));
+    olc_display_pair(ctx, theme,
+        "Max Level:", "maxlevel", formatf("%d", clazz->max_level),
+        "Primary Stat:", "primary",
+        (clazz->primary_stat >= 0 && clazz->primary_stat < MAX_STATS)
+            ? stat_names[clazz->primary_stat] : "none");
+    olc_display_pair(ctx, theme,
+        "HP Min:", "hpmin", formatf("%d", clazz->hp_min),
+        "HP Max:", "hpmax", formatf("%d", clazz->hp_max));
+    olc_display_bool(ctx, theme, "Gains Mana:", "mana", clazz->gains_mana);
 
     /* Titles */
     if (clazz->titles && list_size(clazz->titles) > 0) {
         ITERATOR it;
         CLASS_TITLE *title;
-        add_buf(buf, "\n\r{cTitles:{x\n\r");
-        add_buf(buf, formatf("  {Y%-15s %-20s %-15s %-7s{x\n\r",
-                "Keyword", "Display", "Who", "Default"));
+        olc_display_section(ctx, theme, "Titles");
+        olc_display_infof(ctx, theme, "  %s%-15s %-20s %-15s %-7s{x",
+            theme->label, "Keyword", "Display", "Who", "Default");
         iterator_start(&it, clazz->titles);
         while ((title = (CLASS_TITLE *)iterator_nextdata(&it))) {
-            add_buf(buf, formatf("  %-15s %-20s %-15s %s\n\r",
-                    title->keyword ? title->keyword : "?",
-                    title->display ? title->display : "?",
-                    title->who_name ? title->who_name : "?",
-                    title->is_default ? "{GYes{x" : "{DNo{x"));
+            olc_display_infof(ctx, theme, "  %s%-15s%s %-20s %-15s %s",
+                theme->value,
+                title->keyword ? title->keyword : "?",
+                "{x",
+                title->display ? title->display : "?",
+                title->who_name ? title->who_name : "?",
+                title->is_default ? "{GYes{x" : "{DNo{x");
         }
         iterator_stop(&it);
     }
@@ -246,18 +288,18 @@ CLSEDIT(clsedit_show)
     if (clazz->rewards && list_size(clazz->rewards) > 0) {
         ITERATOR it;
         CLASS_REWARD *reward;
-        add_buf(buf, "\n\r{cRewards:{x\n\r");
-        add_buf(buf, formatf("  {Y%-5s %-10s %-25s %-6s %-8s %-12s{x\n\r",
-                "Lvl", "Type", "Name", "Value", "Scope", "Flags"));
+        olc_display_section(ctx, theme, "Rewards");
+        olc_display_infof(ctx, theme, "  %s%-5s %-10s %-25s %-6s %-8s %-12s{x",
+            theme->label, "Lvl", "Type", "Name", "Value", "Scope", "Flags");
         iterator_start(&it, clazz->rewards);
         while ((reward = (CLASS_REWARD *)iterator_nextdata(&it))) {
-            add_buf(buf, formatf("  %-5d %-10s %-25s %-6d %-8s %s\n\r",
-                    reward->level,
-                    flag_name(reward_types, reward->type),
-                    reward->name ? reward->name : "",
-                    reward->value,
-                    flag_name(reward_scopes, reward->scope),
-                    reward->flags ? flag_string(reward_flags, reward->flags) : "none"));
+            olc_display_infof(ctx, theme, "  %s%-5d%s %-10s %-25s %-6d %-8s %s",
+                theme->value, reward->level, "{x",
+                flag_name(reward_types, reward->type),
+                reward->name ? reward->name : "",
+                reward->value,
+                flag_name(reward_scopes, reward->scope),
+                reward->flags ? flag_string(reward_flags, reward->flags) : "none");
         }
         iterator_stop(&it);
     }
@@ -276,28 +318,27 @@ CLSEDIT(clsedit_show)
 
         if (has_traits) {
             TRAIT_DEF *def;
-            add_buf(buf, "\n\r{cTraits:{x\n\r");
+            olc_display_section(ctx, theme, "Traits");
             for (def = trait_def_list; def; def = def->next) {
                 int idx = def->index;
                 if (idx >= 0 && idx < tc && clazz->trait_values[idx].set) {
                     switch (def->type) {
                         case TRAIT_BOOLEAN:
-                            add_buf(buf, formatf("  %-25s %s\n\r",
-                                    def->id,
-                                    clazz->trait_values[idx].bool_val
-                                        ? "{Gtrue{x" : "{Dfalse{x"));
+                            olc_display_bool(ctx, theme,
+                                formatf("  %s:", def->id), NULL,
+                                clazz->trait_values[idx].bool_val);
                             break;
                         case TRAIT_INTEGER:
-                            add_buf(buf, formatf("  %-25s %d\n\r",
-                                    def->id,
-                                    clazz->trait_values[idx].int_val));
+                            olc_display_number(ctx, theme,
+                                formatf("  %s:", def->id), NULL,
+                                clazz->trait_values[idx].int_val);
                             break;
                         case TRAIT_STRING:
-                            add_buf(buf, formatf("  %-25s %s\n\r",
-                                    def->id,
-                                    clazz->trait_values[idx].string_val
-                                        ? clazz->trait_values[idx].string_val
-                                        : "(null)"));
+                            olc_display_string(ctx, theme,
+                                formatf("  %s:", def->id), NULL,
+                                clazz->trait_values[idx].string_val
+                                    ? clazz->trait_values[idx].string_val
+                                    : "(null)");
                             break;
                     }
                 }
@@ -308,15 +349,17 @@ CLSEDIT(clsedit_show)
     /* Enter/Leave callbacks */
     if ((clazz->enter_fun_name && clazz->enter_fun_name[0])
         || (clazz->leave_fun_name && clazz->leave_fun_name[0])) {
-        add_buf(buf, "\n\r{cCallbacks:{x\n\r");
-        add_buf(buf, formatf("  Enter: %s\n\r",
-                clazz->enter_fun_name ? clazz->enter_fun_name : "(none)"));
-        add_buf(buf, formatf("  Leave: %s\n\r",
-                clazz->leave_fun_name ? clazz->leave_fun_name : "(none)"));
+        olc_display_section(ctx, theme, "Callbacks");
+        olc_display_string(ctx, theme, "  Enter:", NULL,
+            clazz->enter_fun_name ? clazz->enter_fun_name : "(none)");
+        olc_display_string(ctx, theme, "  Leave:", NULL,
+            clazz->leave_fun_name ? clazz->leave_fun_name : "(none)");
     }
 
-    page_to_char(buf_string(buf), ch);
-    free_buf(buf);
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -423,6 +466,7 @@ CLSEDIT(clsedit_name)
         return false;
     }
 
+    clsedit_record(clazz, ch, "name", clazz->name, argument);
     free_string(clazz->name);
     clazz->name = str_dup(argument);
     send_to_char("Name set.\n\r", ch);
@@ -433,39 +477,16 @@ CLSEDIT(clsedit_description)
 {
     CLASS_DATA *clazz;
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: description <text>\n\r", ch);
-        send_to_char("        description clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(clazz->description);
-        clazz->description = &str_empty[0];
-        send_to_char("Description cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(clazz->description);
-    clazz->description = str_dup(argument);
-    send_to_char("Description set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Description", NULL, &clazz->description,
+        OLC_STR_CLEARABLE, clazz, clsedit_record_cb);
 }
 
 CLSEDIT(clsedit_comments)
 {
     CLASS_DATA *clazz;
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &clazz->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &clazz->comments, clazz, clsedit_record_cb);
 }
 
 /**
@@ -492,6 +513,8 @@ CLSEDIT(clsedit_display)
     }
 
     if (!str_cmp(arg1, "all")) {
+        clsedit_record(clazz, ch, "display_all",
+            clazz->display[0] ? clazz->display[0] : "(none)", argument);
         for (int i = 0; i < BODY_TYPE_MAX; i++) {
             free_string(clazz->display[i]);
             clazz->display[i] = str_dup(argument);
@@ -511,6 +534,8 @@ CLSEDIT(clsedit_display)
         return false;
     }
 
+    clsedit_record(clazz, ch, formatf("display_%s", arg1),
+        clazz->display[bt] ? clazz->display[bt] : "(none)", argument);
     free_string(clazz->display[bt]);
     clazz->display[bt] = str_dup(argument);
     send_to_char("Display name set.\n\r", ch);
@@ -541,6 +566,8 @@ CLSEDIT(clsedit_who)
     }
 
     if (!str_cmp(arg1, "all")) {
+        clsedit_record(clazz, ch, "who_all",
+            clazz->who[0] ? clazz->who[0] : "(none)", argument);
         for (int i = 0; i < BODY_TYPE_MAX; i++) {
             free_string(clazz->who[i]);
             clazz->who[i] = str_dup(argument);
@@ -560,6 +587,8 @@ CLSEDIT(clsedit_who)
         return false;
     }
 
+    clsedit_record(clazz, ch, formatf("who_%s", arg1),
+        clazz->who[bt] ? clazz->who[bt] : "(none)", argument);
     free_string(clazz->who[bt]);
     clazz->who[bt] = str_dup(argument);
     send_to_char("Who name set.\n\r", ch);
@@ -569,74 +598,29 @@ CLSEDIT(clsedit_who)
 CLSEDIT(clsedit_type)
 {
     CLASS_DATA *clazz;
-    int value;
-
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: type <class type>\n\r", ch);
-        send_to_char("Types: mage cleric thief warrior crafting gathering explorer\n\r", ch);
-        return false;
-    }
-
-    value = flag_value(class_types, argument);
-    if (value == NO_FLAG) {
-        send_to_char("Invalid class type.\n\r", ch);
-        return false;
-    }
-
-    clazz->type = value;
-    send_to_char(formatf("Class type set to: %s\n\r",
-            flag_name(class_types, clazz->type)), ch);
-    return true;
+    return olc_cmd_type_set_i16(ch, argument, "Type",
+        "Syntax: type <class type>\n\r"
+        "Types: mage cleric thief warrior crafting gathering explorer\n\r",
+        &clazz->type, class_types, clazz, clsedit_record_cb);
 }
 
 CLSEDIT(clsedit_flags)
 {
     CLASS_DATA *clazz;
-    long value;
-
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: flags <flag list>\n\r", ch);
-        send_to_char("Flags: combative no_level caster hidden remort_only default\n\r", ch);
-        return false;
-    }
-
-    value = flag_value(class_flags, argument);
-    if (value == NO_FLAG) {
-        send_to_char("Invalid flag.\n\r", ch);
-        return false;
-    }
-
-    clazz->flags ^= value;
-    send_to_char(formatf("Flags toggled. Current: %s\n\r",
-            flag_string(class_flags, clazz->flags)), ch);
-    return true;
+    return olc_cmd_flag_toggle(ch, argument, "Flags",
+        "Syntax: flags <flag list>\n\r"
+        "Flags: combative no_level caster hidden remort_only default\n\r",
+        &clazz->flags, class_flags, clazz, clsedit_record_cb);
 }
 
 CLSEDIT(clsedit_maxlevel)
 {
     CLASS_DATA *clazz;
-    int value;
-
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: maxlevel <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 1 || value > MAX_LEVEL) {
-        send_to_char(formatf("Max level must be between 1 and %d.\n\r", MAX_LEVEL), ch);
-        return false;
-    }
-
-    clazz->max_level = value;
-    send_to_char("Max level set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Max Level", NULL,
+        &clazz->max_level, 1, MAX_LEVEL, clazz, clsedit_record_cb);
 }
 
 CLSEDIT(clsedit_primary)
@@ -658,6 +642,10 @@ CLSEDIT(clsedit_primary)
         return false;
     }
 
+    clsedit_record(clazz, ch, "primary",
+        (clazz->primary_stat >= 0 && clazz->primary_stat < MAX_STATS)
+            ? stat_names[clazz->primary_stat] : "none",
+        stat_names[value]);
     clazz->primary_stat = value;
     send_to_char(formatf("Primary stat set to: %s\n\r",
             stat_names[value]), ch);
@@ -667,75 +655,25 @@ CLSEDIT(clsedit_primary)
 CLSEDIT(clsedit_hpmin)
 {
     CLASS_DATA *clazz;
-    int value;
-
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: hpmin <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 1 || value > 100) {
-        send_to_char("HP min must be between 1 and 100.\n\r", ch);
-        return false;
-    }
-
-    clazz->hp_min = value;
-    send_to_char("HP min set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "HP Min", NULL,
+        &clazz->hp_min, 1, 100, clazz, clsedit_record_cb);
 }
 
 CLSEDIT(clsedit_hpmax)
 {
     CLASS_DATA *clazz;
-    int value;
-
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: hpmax <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 1 || value > 100) {
-        send_to_char("HP max must be between 1 and 100.\n\r", ch);
-        return false;
-    }
-
-    clazz->hp_max = value;
-    send_to_char("HP max set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "HP Max", NULL,
+        &clazz->hp_max, 1, 100, clazz, clsedit_record_cb);
 }
 
 CLSEDIT(clsedit_mana)
 {
     CLASS_DATA *clazz;
     EDIT_CLASS(ch, clazz);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: mana <yes|no>\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "yes") || !str_cmp(argument, "true")
-        || !str_cmp(argument, "on")) {
-        clazz->gains_mana = true;
-        send_to_char("Class now gains mana.\n\r", ch);
-        return true;
-    }
-
-    if (!str_cmp(argument, "no") || !str_cmp(argument, "false")
-        || !str_cmp(argument, "off")) {
-        clazz->gains_mana = false;
-        send_to_char("Class no longer gains mana.\n\r", ch);
-        return true;
-    }
-
-    send_to_char("Syntax: mana <yes|no>\n\r", ch);
-    return false;
+    return olc_cmd_bool(ch, argument, "Gains Mana", NULL,
+        &clazz->gains_mana, clazz, clsedit_record_cb);
 }
 
 /**
@@ -805,6 +743,11 @@ CLSEDIT(clsedit_reward)
                     continue;
 
                 iterator_remcurrent(&it);
+                clsedit_record(clazz, ch, "reward",
+                    formatf("L%d %s %s", reward->level,
+                        flag_name(reward_types, reward->type),
+                        reward->name ? reward->name : ""),
+                    "(removed)");
                 free_class_reward(reward);
                 iterator_stop(&it);
                 send_to_char("Reward removed.\n\r", ch);
@@ -904,6 +847,9 @@ CLSEDIT(clsedit_reward)
     if (!inserted)
         list_appendlink(clazz->rewards, reward);
 
+    clsedit_record(clazz, ch, "reward", "(added)",
+        formatf("L%d %s %s (val %d)", level,
+            flag_name(reward_types, type_val), arg_name, reward->value));
     send_to_char(formatf("Reward added: level %d %s '%s' (value %d).\n\r",
                 level, flag_name(reward_types, type_val),
                 arg_name, reward->value), ch);
@@ -1005,6 +951,9 @@ CLSEDIT(clsedit_rewardflags)
     iterator_start(&it, clazz->rewards);
     while ((reward = (CLASS_REWARD *)iterator_nextdata(&it))) {
         if (reward->level == level && reward->type == type_val) {
+            clsedit_record(clazz, ch, "rewardflags",
+                reward->flags ? flag_string(reward_flags, reward->flags) : "none",
+                flag_string(reward_flags, reward->flags ^ flag_val));
             reward->flags ^= flag_val;
             iterator_stop(&it);
             send_to_char(formatf("Reward flags toggled. Current: %s\n\r",
@@ -1074,6 +1023,8 @@ CLSEDIT(clsedit_title)
             title->is_default = true;
 
         list_appendlink(clazz->titles, title);
+        clsedit_record(clazz, ch, "title", "(added)",
+            formatf("%s %s %s", arg2, arg3, argument));
         send_to_char(formatf("Title '%s' added.\n\r", arg2), ch);
         return true;
     }
@@ -1096,6 +1047,10 @@ CLSEDIT(clsedit_title)
         while ((title = (CLASS_TITLE *)iterator_nextdata(&it))) {
             if (!str_cmp(title->keyword, arg2)) {
                 iterator_remcurrent(&it);
+                clsedit_record(clazz, ch, "title",
+                    formatf("%s %s", title->keyword,
+                        title->display ? title->display : ""),
+                    "(removed)");
                 free_class_title(title);
                 iterator_stop(&it);
                 send_to_char(formatf("Title '%s' removed.\n\r", arg2), ch);
@@ -1140,6 +1095,7 @@ CLSEDIT(clsedit_title)
             return false;
         }
 
+        clsedit_record(clazz, ch, "title_default", "(changed)", arg2);
         send_to_char(formatf("Title '%s' set as default.\n\r", arg2), ch);
         return true;
     }
@@ -1254,6 +1210,8 @@ CLSEDIT(clsedit_trait)
                 break;
         }
 
+        clsedit_record(clazz, ch, formatf("trait_%s", def->id),
+            "(unset)", argument[0] ? argument : "true");
         send_to_char(formatf("Trait '%s' set.\n\r", def->id), ch);
         return true;
     }
@@ -1278,6 +1236,8 @@ CLSEDIT(clsedit_trait)
         }
 
         int idx = def->index;
+        clsedit_record(clazz, ch, formatf("trait_%s", def->id),
+            "(set)", "(cleared)");
         clazz->trait_values[idx].set = false;
         send_to_char(formatf("Trait '%s' cleared.\n\r", def->id), ch);
         return true;
@@ -1295,6 +1255,8 @@ CLSEDIT(clsedit_save)
     EDIT_CLASS(ch, clazz);
 
     save_class_data(clazz);
+    olc_history_flush(OLC_HIST_CLASS, clazz->name,
+        (OLC_CHANGE_HISTORY *)clazz->olc_history);
     send_to_char("Class saved to JSON file.\n\r", ch);
     return false;
 }

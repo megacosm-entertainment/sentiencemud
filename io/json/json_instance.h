@@ -26,13 +26,7 @@
  * File Paths                                                              *
  ***************************************************************************/
 
-#define INSTANCES_FILE_JSON     "data/world/instances.json"
-#define INSTANCES_FILE_DAT      "data/world/instances.dat"
 
-/* Individual persist directories */
-#define PERSIST_SHIPS_DIR       "persist/ships/"
-#define PERSIST_DUNGEONS_DIR    "persist/dungeons/"
-#define PERSIST_INSTANCES_DIR   "persist/instances/"
 
 /***************************************************************************
  * Instance Section Serialization                                          *

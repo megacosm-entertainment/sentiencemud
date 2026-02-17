@@ -17,6 +17,59 @@
 #include "../../interp.h"
 #include "../../recycle.h"
 #include "../../skill_data.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+#include "../../io/json/json_olc.h"
+
+/***************************************************************************
+ * History Helpers                                                         *
+ ***************************************************************************/
+
+/**
+ * Return the OLC_CHANGE_HISTORY for a SKILL_DATA, or NULL if none exists.
+ */
+static OLC_CHANGE_HISTORY *skedit_get_history(void *pEdit)
+{
+    SKILL_DATA *skill = (SKILL_DATA *)pEdit;
+    return skill ? (OLC_CHANGE_HISTORY *)skill->olc_history : NULL;
+}
+
+/**
+ * Ensure a skill has an allocated change history, creating one if needed.
+ * Tries to load persisted history from disk first.
+ */
+static OLC_CHANGE_HISTORY *skedit_ensure_history(SKILL_DATA *skill)
+{
+    if (!skill) return NULL;
+    if (!skill->olc_history) {
+        skill->olc_history = olc_history_load(OLC_HIST_SKILL, skill->name);
+        if (!skill->olc_history)
+            skill->olc_history = olc_history_new();
+    }
+    return (OLC_CHANGE_HISTORY *)skill->olc_history;
+}
+
+/**
+ * Convenience: record a change and mark the skill dirty for persistence.
+ */
+static void skedit_record(SKILL_DATA *skill, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    olc_history_record(skedit_ensure_history(skill), ch,
+        field, old_val, new_val);
+    olc_history_mark_dirty(OLC_HIST_SKILL, skill->name, skill->olc_history);
+}
+
+/**
+ * Generic callback wrapper for olc_cmd_* helpers.
+ */
+static void skedit_record_cb(void *ctx, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    skedit_record((SKILL_DATA *)ctx, ch, field, old_val, new_val);
+}
 
 /***************************************************************************
  * Command Table                                                           *
@@ -49,6 +102,26 @@ const struct olc_cmd_type skedit_table[] =
 };
 
 /***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF skedit_def = {
+    .name           = "SkEdit",
+    .editor_type    = ED_SKILL,
+    .cmd_table      = skedit_table,
+    .show_fn        = skedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = true,
+    .get_history_fn = skedit_get_history,
+};
+
+/***************************************************************************
  * Entry Point                                                             *
  ***************************************************************************/
 
@@ -66,6 +139,11 @@ void do_skedit(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch))
         return;
+
+    if (!olc_editor_check_perm(ch, &skedit_def, NULL)) {
+        send_to_char("You don't have permission to edit skills.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, arg1);
 
@@ -89,9 +167,7 @@ void do_skedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_SKILL, skill);
-    skedit_show(ch, "");
+    olc_editor_enter(ch, &skedit_def, skill, true);
 }
 
 /***************************************************************************
@@ -103,34 +179,7 @@ void do_skedit(CHAR_DATA *ch, char *argument)
  */
 void skedit(CHAR_DATA *ch, char *argument)
 {
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0') {
-        skedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; skedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, skedit_table[cmd].name)) {
-            (*skedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &skedit_def);
 }
 
 /***************************************************************************
@@ -140,75 +189,78 @@ void skedit(CHAR_DATA *ch, char *argument)
 SKEDIT(skedit_show)
 {
     SKILL_DATA *skill;
-    BUFFER *buf;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&skedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_SKILL(ch, skill);
 
-    buf = new_buf();
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buf, formatf("{Y=== Skill Editor ==={x\n\r"));
-    add_buf(buf, formatf("{cUID:{x  %-6d {cType:{x %s\n\r",
-            skill->uid, skill->isspell ? "{GSpell{x" : "{WSkill{x"));
-    add_buf(buf, formatf("{cName:{x %s\n\r", skill->name));
-    if (skill->display && skill->display[0])
-        add_buf(buf, formatf("{cDisplay:{x %s\n\r", skill->display));
+    olc_display_header(ctx, "SkEdit", skill->name,
+        formatf("UID %d", skill->uid), &skedit_def);
 
-    add_buf(buf, formatf("{cSummary:{x %s\n\r",
-            skill->summary ? skill->summary : "(none)"));
-    add_buf(buf, formatf("{cHelp Keyword:{x %s\n\r",
-            skill->help_keyword ? skill->help_keyword : "(none)"));
-    if (skill->description && skill->description[0])
-        add_buf(buf, formatf("{cDescription:{x\n\r  %s\n\r", skill->description));
-    if (skill->comments && skill->comments[0])
-        add_buf(buf, formatf("{CComments:{x\n\r  %s\n\r", skill->comments));
+    olc_display_pair(ctx, theme,
+        "Name:", "name", skill->name,
+        "Type:", NULL, skill->isspell ? "Spell" : "Skill");
 
-    add_buf(buf, formatf("{cFlags:{x %s\n\r",
-            skill->flags ? flag_string(skill_flags, skill->flags) : "none"));
+    olc_display_string(ctx, theme, "Display:", "display",
+        (skill->display && skill->display[0]) ? skill->display : NULL);
+    olc_display_string(ctx, theme, "Summary:", "summary", skill->summary);
+    olc_display_string(ctx, theme, "Help Keyword:", "helpkeyword", skill->help_keyword);
 
-    add_buf(buf, formatf("{cDifficulty:{x %d\n\r",
-            skill->difficulty));
-    add_buf(buf, formatf("{cMana:{x %-5d  {cBeats:{x %-5d  {cPosition:{x %s\n\r",
-            skill->min_mana, skill->beats,
-            position_table[UMAX(0, skill->minimum_position)].name));
-    add_buf(buf, formatf("{cTarget:{x %s\n\r",
-            flag_string(spell_target_types, skill->target)));
+    olc_display_text(ctx, theme, "Description:", "description", skill->description);
+
+    if (!IS_NULLSTR(skill->comments))
+        olc_display_text(ctx, theme, "Comments:", "comments", skill->comments);
+
+    olc_display_section(ctx, theme, "Properties");
+
+    olc_display_flags(ctx, theme, "Flags:", "flags", skill_flags, skill->flags);
+    olc_display_number(ctx, theme, "Difficulty:", "difficulty", skill->difficulty);
+    olc_display_pair(ctx, theme,
+        "Mana:", "mana", formatf("%d", skill->min_mana),
+        "Beats:", "beats", formatf("%d", skill->beats));
+    olc_display_string(ctx, theme, "Position:", "position",
+        position_table[UMAX(0, skill->minimum_position)].name);
+    olc_display_type(ctx, theme, "Target:", "target",
+        spell_target_types, skill->target);
 
     if (skill->isspell) {
-        add_buf(buf, formatf("{cSpell Fun:{x %s\n\r",
-                skill->spell_fun_name ? skill->spell_fun_name : "spell_null"));
+        olc_display_string(ctx, theme, "Spell Fun:", "spellfun",
+            skill->spell_fun_name ? skill->spell_fun_name : "spell_null");
     }
 
-    add_buf(buf, formatf("{cDamage Noun:{x %s\n\r",
-            skill->noun_damage ? skill->noun_damage : "(none)"));
-    add_buf(buf, formatf("{cMsg Off:{x %s\n\r",
-            skill->msg_off ? skill->msg_off : "(none)"));
-    add_buf(buf, formatf("{cMsg Obj:{x %s\n\r",
-            skill->msg_obj ? skill->msg_obj : "(none)"));
+    olc_display_section(ctx, theme, "Messages");
+
+    olc_display_string(ctx, theme, "Damage Noun:", "damtype", skill->noun_damage);
+    olc_display_string(ctx, theme, "Msg Off:", "msgoff", skill->msg_off);
+    olc_display_string(ctx, theme, "Msg Obj:", "msgobj", skill->msg_obj);
 
     /* Legacy class levels */
-    bool has_legacy = false;
-    for (int i = 0; i < MAX_CLASS; i++) {
-        if (skill->skill_level[i] < LEVEL_HERO) {
-            has_legacy = true;
-            break;
-        }
-    }
-    if (has_legacy) {
-        add_buf(buf, "\n\r{cLegacy Class Levels:{x ");
+    {
+        bool has_legacy = false;
         for (int i = 0; i < MAX_CLASS; i++) {
             if (skill->skill_level[i] < LEVEL_HERO) {
-                const char *cls_name = class_table[i].name;
-                add_buf(buf, formatf("%s=%d/%d ",
-                        cls_name,
-                        skill->skill_level[i],
-                        skill->rating[i]));
+                has_legacy = true;
+                break;
             }
         }
-        add_buf(buf, "\n\r");
+        if (has_legacy) {
+            olc_display_section(ctx, theme, "Legacy Class Levels");
+            for (int i = 0; i < MAX_CLASS; i++) {
+                if (skill->skill_level[i] < LEVEL_HERO) {
+                    olc_display_string(ctx, theme,
+                        formatf("  %s:", class_table[i].name), NULL,
+                        formatf("%d/%d", skill->skill_level[i], skill->rating[i]));
+                }
+            }
+        }
     }
 
-    page_to_char(buf_string(buf), ch);
-    free_buf(buf);
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -263,309 +315,118 @@ SKEDIT(skedit_name)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: name <new name>\n\r", ch);
-        return false;
-    }
-
-    free_string(skill->name);
-    skill->name = str_dup(argument);
-    send_to_char("Name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &skill->name,
+        OLC_STR_DEFAULT, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_display)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: display <display name>\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->display);
-        skill->display = &str_empty[0];
-        send_to_char("Display name cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->display);
-    skill->display = str_dup(argument);
-    send_to_char("Display name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Display", NULL, &skill->display,
+        OLC_STR_CLEARABLE, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_summary)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: summary <one-line summary>\n\r"
-                     "        summary clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->summary);
-        skill->summary = NULL;
-        send_to_char("Summary cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->summary);
-    skill->summary = str_dup(argument);
-    send_to_char("Summary set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Summary", NULL, &skill->summary,
+        OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_description)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: description <text>\n\r"
-                     "        description clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->description);
-        skill->description = NULL;
-        send_to_char("Description cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->description);
-    skill->description = str_dup(argument);
-    send_to_char("Description set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Description", NULL, &skill->description,
+        OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_comments)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &skill->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL, &skill->comments,
+        skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_helpkeyword)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: helpkeyword <keyword>\n\r"
-                     "        helpkeyword clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->help_keyword);
-        skill->help_keyword = NULL;
-        send_to_char("Help keyword cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->help_keyword);
-    skill->help_keyword = str_dup(argument);
-    send_to_char("Help keyword set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Help Keyword", NULL, &skill->help_keyword,
+        OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_difficulty)
 {
     SKILL_DATA *skill;
-    int value;
-
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: difficulty <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    skill->difficulty = value;
-    send_to_char("Difficulty set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Difficulty", NULL, &skill->difficulty,
+        INT_MIN, INT_MAX, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_mana)
 {
     SKILL_DATA *skill;
-    int value;
-
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: mana <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 0 || value > 9999) {
-        send_to_char("Mana must be between 0 and 9999.\n\r", ch);
-        return false;
-    }
-
-    skill->min_mana = value;
-    send_to_char("Mana cost set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Mana", NULL, &skill->min_mana,
+        0, 9999, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_beats)
 {
     SKILL_DATA *skill;
-    int value;
-
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: beats <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 0 || value > 999) {
-        send_to_char("Beats must be between 0 and 999.\n\r", ch);
-        return false;
-    }
-
-    skill->beats = value;
-    send_to_char("Beats set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Beats", NULL, &skill->beats,
+        0, 999, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_target)
 {
     SKILL_DATA *skill;
-    int value;
-
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: target <target type>\n\r", ch);
-        show_help(ch, "target");
-        return false;
-    }
-
-    value = flag_value(spell_target_types, argument);
-    if (value == NO_FLAG) {
-        send_to_char("Invalid target type.\n\r", ch);
-        return false;
-    }
-
-    skill->target = value;
-    send_to_char("Target set.\n\r", ch);
-    return true;
+    return olc_cmd_type_set_i16(ch, argument, "Target", NULL, &skill->target,
+        spell_target_types, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_position)
 {
     SKILL_DATA *skill;
-    int value;
-
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: position <position>\n\r", ch);
-        return false;
-    }
-
-    value = flag_value(position_flags, argument);
-    if (value == NO_FLAG) {
-        send_to_char("Invalid position.\n\r", ch);
-        return false;
-    }
-
-    skill->minimum_position = value;
-    send_to_char("Minimum position set.\n\r", ch);
-    return true;
+    return olc_cmd_type_set_i16(ch, argument, "Position", NULL, &skill->minimum_position,
+        position_flags, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_damtype)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: damtype <damage noun>\n\r", ch);
-        send_to_char("        damtype clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->noun_damage);
-        skill->noun_damage = &str_empty[0];
-        send_to_char("Damage noun cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->noun_damage);
-    skill->noun_damage = str_dup(argument);
-    send_to_char("Damage noun set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Damage Noun",
+        "Syntax: damtype <damage noun>\n\r"
+        "        damtype clear\n\r",
+        &skill->noun_damage, OLC_STR_CLEARABLE, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_msgoff)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: msgoff <wear-off message>\n\r", ch);
-        send_to_char("        msgoff clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->msg_off);
-        skill->msg_off = &str_empty[0];
-        send_to_char("Wear-off message cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->msg_off);
-    skill->msg_off = str_dup(argument);
-    send_to_char("Wear-off message set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Msg Off",
+        "Syntax: msgoff <wear-off message>\n\r"
+        "        msgoff clear\n\r",
+        &skill->msg_off, OLC_STR_CLEARABLE, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_msgobj)
 {
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: msgobj <object wear-off message>\n\r", ch);
-        send_to_char("        msgobj clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(skill->msg_obj);
-        skill->msg_obj = &str_empty[0];
-        send_to_char("Object wear-off message cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(skill->msg_obj);
-    skill->msg_obj = str_dup(argument);
-    send_to_char("Object wear-off message set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Msg Obj",
+        "Syntax: msgobj <object wear-off message>\n\r"
+        "        msgobj clear\n\r",
+        &skill->msg_obj, OLC_STR_CLEARABLE, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_spellfun)
@@ -580,6 +441,8 @@ SKEDIT(skedit_spellfun)
     }
 
     if (!str_cmp(argument, "none") || !str_cmp(argument, "spell_null")) {
+        skedit_record(skill, ch,
+            "spellfun", skill->spell_fun_name, "spell_null");
         skill->spell_fun = spell_null;
         free_string(skill->spell_fun_name);
         skill->spell_fun_name = str_dup("spell_null");
@@ -594,6 +457,8 @@ SKEDIT(skedit_spellfun)
         return false;
     }
 
+    skedit_record(skill, ch,
+        "spellfun", skill->spell_fun_name, argument);
     skill->spell_fun = fun;
     free_string(skill->spell_fun_name);
     skill->spell_fun_name = str_dup(argument);
@@ -605,26 +470,9 @@ SKEDIT(skedit_spellfun)
 SKEDIT(skedit_flags)
 {
     SKILL_DATA *skill;
-    long value;
-
     EDIT_SKILL(ch, skill);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: flags <flag list>\n\r", ch);
-        send_to_char("Available flags: racial remort no_practice no_improve passive token_driven\n\r", ch);
-        return false;
-    }
-
-    value = flag_value(skill_flags, argument);
-    if (value == NO_FLAG) {
-        send_to_char("Invalid flag.\n\r", ch);
-        return false;
-    }
-
-    skill->flags ^= value;
-    send_to_char(formatf("Flags toggled. Current: %s\n\r",
-            flag_string(skill_flags, skill->flags)), ch);
-    return true;
+    return olc_cmd_flag_toggle(ch, argument, "Flags", NULL, &skill->flags,
+        skill_flags, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_save)
@@ -633,6 +481,7 @@ SKEDIT(skedit_save)
     EDIT_SKILL(ch, skill);
 
     save_skill_data(skill);
+    olc_history_flush(OLC_HIST_SKILL, skill->name, skill->olc_history);
     send_to_char("Skill saved to JSON file.\n\r", ch);
     return false;
 }

@@ -13,7 +13,7 @@
 #include "merc.h"
 #include "traits.h"
 
-#define TRAITS_FILE	DATA_DIR "traits/traits.json"
+
 
 /***************************************************************************
  * Globals                                                                 *

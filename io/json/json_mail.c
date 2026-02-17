@@ -33,8 +33,7 @@ extern OBJ_DATA *json_persist_json_to_object(json_t *json);
  * Constants                                                               *
  ***************************************************************************/
 
-#define MAIL_JSON_FILE "data/mail.json"
-#define MAIL_DAT_FILE  "data/system/mail.dat"
+
 
 /***************************************************************************
  * Helper Functions                                                        *

@@ -2308,6 +2308,9 @@ struct race_data
 
     /* Trait values (indexed array, allocated by race_init_traits) */
     struct trait_value *	trait_values;
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *			olc_history;	/* OLC_CHANGE_HISTORY * — lazy-allocated by racedit */
 };
 
 /* Race hash table entry for O(1) lookup */
@@ -7281,6 +7284,9 @@ struct skill_data
     /* Generic values for extensibility */
     int                 values[MAX_SKILL_VALUES];
     char *              value_names[MAX_SKILL_VALUES];
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *              olc_history;        /* OLC_CHANGE_HISTORY * — lazy-allocated by skedit */
 };
 
 /*
@@ -7390,6 +7396,9 @@ struct class_data
 
     /* Global cached pointer (replaces gcl_* globals from src_20_dev) */
     CLASS_DATA **       gcl;                /* Pointer-to-pointer for fast lookup caching */
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *              olc_history;        /* OLC_CHANGE_HISTORY * — lazy-allocated by clsedit */
 };
 
 /*
@@ -7487,6 +7496,9 @@ struct song_data
     char *	spell2;			/* Second spell cast		*/
     char *	spell3;			/* Third spell cast		*/
     long	flags;			/* Song flags (reserved)	*/
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *	olc_history;		/* OLC_CHANGE_HISTORY * — lazy-allocated by soedit */
 };
 
 struct  group_type
@@ -7511,6 +7523,9 @@ struct skill_group_data
 
     char *              name;               /* Group name ("warrior basics", etc.) */
     LLIST *             contents;           /* LLIST of char * — skill name strings */
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *              olc_history;        /* OLC_CHANGE_HISTORY * — lazy-allocated by gredit */
 };
 
 #define RPROG_VNUM_PLAYER_INIT 1	// Called when a player/immortal logs in, to give them various tokens and whatnot that are needed from the start
@@ -8453,76 +8468,106 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
  * so players can go ahead and telnet to all the other descriptors.
  * Then we close it whenever we need to open a file (e.g. a save file).
  */
-#define GAME_DIR        "/sentience/"
-#define PLAYER_DIR      GAME_DIR "characters/"        	/* Player files */
-#define ACCOUNT_DIR GAME_DIR "accounts/"
-#define OLD_PLAYER_DIR	GAME_DIR "characters.old/"
-#define GOD_DIR         GAME_DIR "characters/staff/"  		/* Staff Pfiles */
-#define TEMP_FILE	PLAYER_DIR "romtmp"
-#define NULL_FILE	"/dev/null"		/* To reserve one stream */
-#define DATA_DIR		GAME_DIR "data/"
-#define WORLD_DIR		DATA_DIR "world/"
-#define BOAT_DIR		WORLD_DIR "boats/"
-#define SYSTEM_DIR		DATA_DIR "system/"
-#define NOTE_DIR		DATA_DIR "notes/"
-#define ORG_DIR			DATA_DIR "orgs/"
-#define DUMP_DIR		DATA_DIR "dump/"
-#define STATS_DIR		DATA_DIR "stats/"
-#define HELP_DIR		DATA_DIR "help/"
-#define AREA_DIR        GAME_DIR "area/"
-#define LOG_DIR         GAME_DIR "logs/"
-#define PLAYER_LIST     SYSTEM_DIR "discord_who.txt"
+
+#define GAME_DIR                "/sentience/"
+#define NULL_FILE               "/dev/null"		/* To reserve one stream */
+#define PLAYER_DIR              GAME_DIR "characters/"        	/* Player files */
+#define ACCOUNT_DIR             GAME_DIR "accounts/"
+#define OLD_PLAYER_DIR          GAME_DIR "characters.old/"
+#define GOD_DIR                 GAME_DIR "characters/staff/"  		/* Staff Pfiles */
+#define TEMP_FILE               PLAYER_DIR "romtmp"
+#define DATA_DIR		        GAME_DIR "data/"
+#define WORLD_DIR		        DATA_DIR "world/"
+#define BOAT_DIR		        WORLD_DIR "boats/"
+#define SYSTEM_DIR		        DATA_DIR "system/"
+#define NOTE_DIR		        DATA_DIR "notes/"
+#define ORG_DIR			        DATA_DIR "orgs/"
+#define DUMP_DIR		        DATA_DIR "dump/"
+#define STATS_DIR		        DATA_DIR "stats/"
+#define HELP_DIR		        DATA_DIR "help/"
+#define AREA_DIR                GAME_DIR "area/"
+#define LOG_DIR                 GAME_DIR "logs/"
+#define PLAYER_LIST             SYSTEM_DIR "discord_who.txt"
 
 /*World files - Regarding things specifically for the game world. */
-#define PROJECTS_FILE	WORLD_DIR "projects.dat"
-#define PROJECTS_JSON_FILE	WORLD_DIR "projects.json"
-#define STAFF_FILE		WORLD_DIR "staff.dat"
-#define STAFF_JSON_FILE		WORLD_DIR "staff.json"
-#define PERM_OBJS_FILE	WORLD_DIR "perm_objs.dat"
-#define PERSIST_FILE	WORLD_DIR "persist.dat"
-#define GQ_FILE			WORLD_DIR "gq.dat"
-#define AREA_LIST       WORLD_DIR "area.lst"  		/* List of areas*/
-#define HELP_FILE		WORLD_DIR "help.dat"
-/*Boat data */
-#define SAILING_FILE	BOAT_DIR "sailing.dat"
-#define NPC_SHIPS_FILE	BOAT_DIR "npc_ships.dat"
-/*System Data
-#define BUG_FILE        SYSTEM_DIR "bugs.txt" 		/ For 'bug' and bug() Unused
-#define TYPO_FILE       SYSTEM_DIR "typos.txt" 		/ For 'typo' Unused */
-#define SHUTDOWN_FILE   SYSTEM_DIR "shutdown.txt"		/* For 'shutdown'*/
-#define MAINTENANCE_FILE   SYSTEM_DIR "shutdown_history.txt"		/* For 'shutdown'*/
-#define BAN_FILE		SYSTEM_DIR "ban.txt"
-#define BAN_JSON_FILE		SYSTEM_DIR "ban.json"
-/*#define MUSIC_FILE	SYSTEM_DIR	"music.txt"		Unused */
-#define CHAT_FILE		SYSTEM_DIR "chat_rooms.dat"
-#define MAIL_FILE		SYSTEM_DIR "mail.dat"
-#define CONFIG_FILE		SYSTEM_DIR "gconfig.rc"
-/*Notes of all kinds */
-#define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
-/*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
-#define NEWS_FILE		NOTE_DIR "news.not"
-#define CHANGES_FILE	NOTE_DIR "chang.not"
-/*Orgs (more to come here) */
-#define CHURCHES_FILE	ORG_DIR "churches.dat"
-/*Dump commands, the obj/skill/help db's */
-#define OBJ_DB_FILE		DUMP_DIR "object_db.txt"
-#define SKILLS_DB_FILE	DUMP_DIR "skills_db.txt"
-#define HELP_DB_FILE	DUMP_DIR "help_db.txt"
+/* Projects and staff. */
+#define PROJECTS_FILE   	    WORLD_DIR "projects.dat"
+#define PROJECTS_JSON_FILE  	WORLD_DIR "projects.json"
 
-#define BLUEPRINTS_FILE		WORLD_DIR "blueprints.dat"
-#define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
-#define INSTANCES_FILE		WORLD_DIR "instances.dat"
-#define SHIPS_FILE			WORLD_DIR "ships.dat"
-#define COMMANDS_JSON_FILE  SYSTEM_DIR "commands.json"
-#define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
-#define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
-#define CHANGESETS_JSON_FILE SYSTEM_DIR "changesets.json"
-#define SOCIALS_FILE  SYSTEM_DIR "socials.dat"
-#define SOCIALS_JSON_FILE SYSTEM_DIR "socials.json"
-#define OLD_SOCIALS_FILE AREA_DIR "social.are"
-#define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
-#define RESERVED_FILE     SYSTEM_DIR "reserved.dat"
-#define ZLOG_CONF           SYSTEM_DIR "zlog.conf"
+#define STAFF_FILE		        WORLD_DIR "staff.dat"
+#define STAFF_JSON_FILE		    WORLD_DIR "staff.json"
+
+
+#define PERM_OBJS_FILE	        WORLD_DIR "perm_objs.dat"
+#define PERSIST_FILE	        WORLD_DIR "persist.dat"
+#define GQ_FILE			        WORLD_DIR "gq.dat"
+#define AREA_LIST               WORLD_DIR "area.lst"  		/* List of areas*/
+#define HELP_FILE		        WORLD_DIR "help.dat"
+/*Boat data */
+#define SAILING_FILE	        BOAT_DIR "sailing.dat"
+#define NPC_SHIPS_FILE	        BOAT_DIR "npc_ships.dat"
+/*System Data
+#define BUG_FILE                SYSTEM_DIR "bugs.txt" 		/ For 'bug' and bug() Unused
+#define TYPO_FILE               SYSTEM_DIR "typos.txt" 		/ For 'typo' Unused */
+#define SHUTDOWN_FILE           SYSTEM_DIR "shutdown.txt"		/* For 'shutdown'*/
+#define MAINTENANCE_FILE        SYSTEM_DIR "shutdown_history.txt"		/* For 'shutdown'*/
+#define BAN_FILE		        SYSTEM_DIR "ban.txt"
+#define BAN_JSON_FILE		    SYSTEM_DIR "ban.json"
+/*#define MUSIC_FILE	        SYSTEM_DIR	"music.txt"		Unused */
+#define CHAT_FILE		        SYSTEM_DIR "chat_rooms.dat"
+#define MAIL_FILE		        SYSTEM_DIR "mail.dat"
+#define CONFIG_FILE		        SYSTEM_DIR "gconfig.rc"
+/*Notes of all kinds */
+#define NOTE_FILE               NOTE_DIR "notes.not"		/* For 'notes'*/
+/*#define PENALTY_FILE	        NOTE_DIR "penal.not"		Unused */
+#define NEWS_FILE		        NOTE_DIR "news.not"
+#define CHANGES_FILE		    NOTE_DIR "chang.not"
+/*Orgs (more to come here) */
+#define CHURCHES_FILE		    ORG_DIR "churches.dat"
+/*Dump commands, the obj/skill/help db's */
+#define OBJ_DB_FILE		        DUMP_DIR "object_db.txt"
+#define SKILLS_DB_FILE	        DUMP_DIR "skills_db.txt"
+#define HELP_DB_FILE	        DUMP_DIR "help_db.txt"
+
+#define BLUEPRINTS_FILE 		WORLD_DIR "blueprints.dat"
+#define DUNGEONS_FILE   		WORLD_DIR "dungeons.dat"
+#define INSTANCES_FILE  		WORLD_DIR "instances.dat"
+#define SHIPS_FILE  			WORLD_DIR "ships.dat"
+#define COMMANDS_JSON_FILE      SYSTEM_DIR "commands.json"
+#define GAME_SETTINGS_FILE      SYSTEM_DIR "game_settings.dat"
+#define CHANGESET_FILE          SYSTEM_DIR "changesets.dat"
+#define CHANGESETS_JSON_FILE    SYSTEM_DIR "changesets.json"
+#define SOCIALS_FILE            SYSTEM_DIR "socials.dat"
+#define SOCIALS_JSON_FILE       SYSTEM_DIR "socials.json"
+#define OLD_SOCIALS_FILE        AREA_DIR "social.are"
+#define MFA_ENC_KEY             SYSTEM_DIR "mfa.key"
+#define RESERVED_FILE           SYSTEM_DIR "reserved.dat"
+#define ZLOG_CONF               SYSTEM_DIR "zlog.conf"
+#define TRAITS_FILE	DATA_DIR "traits/traits.json"
+#define SONGS_DIR               DATA_DIR "songs/"
+#define SONGS_FILE              SONGS_DIR "songs.json"
+#define LEADERBOARD_JSON_FILE   SYSTEM_DIR "leaderboards.json"
+#define GAME_SETTINGS_JSON_FILE DATA_DIR "system/game_settings.json"
+#define GAME_SETTINGS_DAT_BACKUP DATA_DIR "system/game_settings.dat.backup"
+#define GQ_JSON_FILE "data/gq.json"
+#define INSTANCES_FILE_JSON     "data/world/instances.json"
+#define INSTANCES_FILE_DAT      "data/world/instances.dat"
+
+/* Individual persist directories */
+#define PERSIST_SHIPS_DIR       "persist/ships/"
+#define PERSIST_DUNGEONS_DIR    "persist/dungeons/"
+#define PERSIST_INSTANCES_DIR   "persist/instances/"
+
+#define MAIL_JSON_FILE "data/mail.json"
+#define MAIL_DAT_FILE  "data/system/mail.dat"
+
+#define NOTE_JSON_FILE    "data/notes/notes.json"
+#define NEWS_JSON_FILE    "data/notes/news.json"
+#define CHANGES_JSON_FILE "data/notes/changes.json"
+#define NOTE_NOT_FILE     "data/notes/notes.not"
+#define NEWS_NOT_FILE     "data/notes/news.not"
+#define CHANGES_NOT_FILE  "data/notes/chang.not"
+
 
 /* POST msg queue */
 #define MSGQUEUE	1111

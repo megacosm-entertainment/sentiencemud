@@ -17,6 +17,52 @@
 #include "../../recycle.h"
 #include "../../skill_data.h"
 #include "../../skill_group.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+#include "../../io/json/json_olc.h"
+
+/***************************************************************************
+ * History Helpers                                                         *
+ ***************************************************************************/
+
+static OLC_CHANGE_HISTORY *gredit_get_history(void *pEdit)
+{
+    SKILL_GROUP *group = (SKILL_GROUP *)pEdit;
+    return group ? (OLC_CHANGE_HISTORY *)group->olc_history : NULL;
+}
+
+static OLC_CHANGE_HISTORY *gredit_ensure_history(SKILL_GROUP *group)
+{
+    if (!group) return NULL;
+    if (!group->olc_history)
+        group->olc_history = olc_history_load(OLC_HIST_GROUP, group->name);
+    if (!group->olc_history)
+        group->olc_history = olc_history_new();
+    return (OLC_CHANGE_HISTORY *)group->olc_history;
+}
+
+/**
+ * Convenience: record a change and mark the group dirty for persistence.
+ */
+static void gredit_record(SKILL_GROUP *group, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    olc_history_record(gredit_ensure_history(group), ch,
+        field, old_val, new_val);
+    olc_history_mark_dirty(OLC_HIST_GROUP, group->name,
+        (OLC_CHANGE_HISTORY *)group->olc_history);
+}
+
+/**
+ * Generic callback wrapper for olc_cmd_* helpers.
+ */
+static void gredit_record_cb(void *ctx, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    gredit_record((SKILL_GROUP *)ctx, ch, field, old_val, new_val);
+}
 
 /***************************************************************************
  * Command Table                                                           *
@@ -38,6 +84,26 @@ const struct olc_cmd_type gredit_table[] =
 };
 
 /***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF gredit_def = {
+    .name           = "GrEdit",
+    .editor_type    = ED_GROUP,
+    .cmd_table      = gredit_table,
+    .show_fn        = gredit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = true,
+    .get_history_fn = gredit_get_history,
+};
+
+/***************************************************************************
  * Entry Point                                                             *
  ***************************************************************************/
 
@@ -56,6 +122,11 @@ void do_gredit(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch))
         return;
+
+    if (!olc_editor_check_perm(ch, &gredit_def, NULL)) {
+        send_to_char("You don't have permission to edit skill groups.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, arg1);
 
@@ -85,9 +156,7 @@ void do_gredit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_GROUP, group);
-    gredit_show(ch, "");
+    olc_editor_enter(ch, &gredit_def, group, true);
 }
 
 /***************************************************************************
@@ -99,34 +168,7 @@ void do_gredit(CHAR_DATA *ch, char *argument)
  */
 void gredit(CHAR_DATA *ch, char *argument)
 {
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0') {
-        gredit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; gredit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, gredit_table[cmd].name)) {
-            (*gredit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &gredit_def);
 }
 
 /***************************************************************************
@@ -136,38 +178,43 @@ void gredit(CHAR_DATA *ch, char *argument)
 GREDIT(gredit_show)
 {
     SKILL_GROUP *group;
-    BUFFER *buf;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&gredit_def);
+    OLC_LAYOUT_CTX *ctx;
     ITERATOR it;
     char *skill_name;
     int count = 0;
 
     EDIT_GROUP(ch, group);
 
-    buf = new_buf();
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buf, formatf("{Y=== Skill Group Editor ==={x\n\r"));
-    add_buf(buf, formatf("{cName:{x %s\n\r", group->name));
+    olc_display_header(ctx, "GrEdit", group->name, NULL, &gredit_def);
 
-    add_buf(buf, formatf("\n\r{cSkills:{x (%d total)\n\r",
-            group->contents ? list_size(group->contents) : 0));
+    olc_display_string(ctx, theme, "Name:", "name", group->name);
+
+    olc_display_section(ctx, theme, formatf("Skills (%d total)",
+        group->contents ? list_size(group->contents) : 0));
 
     if (group->contents) {
         iterator_start(&it, group->contents);
         while ((skill_name = (char *)iterator_nextdata(&it))) {
             SKILL_DATA *sk = skill_find(skill_name);
-            add_buf(buf, formatf("  %2d. %-30s %s\n\r",
-                    ++count,
-                    skill_name,
-                    sk ? (sk->isspell ? "{G[spell]{x" : "{W[skill]{x") : "{R[unknown]{x"));
+            olc_display_infof(ctx, theme,
+                "  %s%2d. %s%-30s %s{x",
+                theme->label, ++count,
+                theme->value, skill_name,
+                sk ? (sk->isspell ? "{G[spell]{x" : "{W[skill]{x") : "{R[unknown]{x");
         }
         iterator_stop(&it);
     }
 
     if (count == 0)
-        add_buf(buf, "  (empty)\n\r");
+        olc_display_infof(ctx, theme, "  %s(empty){x", theme->unset);
 
-    page_to_char(buf_string(buf), ch);
-    free_buf(buf);
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -207,16 +254,8 @@ GREDIT(gredit_name)
 {
     SKILL_GROUP *group;
     EDIT_GROUP(ch, group);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: name <new name>\n\r", ch);
-        return false;
-    }
-
-    free_string(group->name);
-    group->name = str_dup(argument);
-    send_to_char("Group name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &group->name,
+        OLC_STR_DEFAULT, group, gredit_record_cb);
 }
 
 GREDIT(gredit_add)
@@ -259,6 +298,10 @@ GREDIT(gredit_add)
         group->contents = list_create(false);
 
     list_appendlink(group->contents, str_dup(skill->name));
+    olc_history_record(gredit_ensure_history(group), ch,
+        "skills", "", skill->name);
+    olc_history_mark_dirty(OLC_HIST_GROUP, group->name,
+        (OLC_CHANGE_HISTORY *)group->olc_history);
     send_to_char(formatf("Added '%s' to the group.\n\r", skill->name), ch);
     return true;
 }
@@ -286,6 +329,10 @@ GREDIT(gredit_remove)
         if (!str_prefix(argument, name)) {
             iterator_remcurrent(&it);
             iterator_stop(&it);
+            olc_history_record(gredit_ensure_history(group), ch,
+                "skills", name, "");
+            olc_history_mark_dirty(OLC_HIST_GROUP, group->name,
+                (OLC_CHANGE_HISTORY *)group->olc_history);
             send_to_char(formatf("Removed '%s' from the group.\n\r", name), ch);
             free_string(name);
             return true;
@@ -338,6 +385,8 @@ GREDIT(gredit_save)
     EDIT_GROUP(ch, group);
 
     save_skill_group(group);
+    olc_history_flush(OLC_HIST_GROUP, group->name,
+        (OLC_CHANGE_HISTORY *)group->olc_history);
     send_to_char("Group saved to JSON file.\n\r", ch);
     return false;
 }

@@ -16,11 +16,53 @@
 #include "../../interp.h"
 #include "../../recycle.h"
 #include "../../traits.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+#include "../../io/json/json_olc.h"
 
 /* Forward declarations for save function (in json_race.c) */
 extern bool save_race_json(RACE_DATA *race);
 
 static const char *stat_names[] = { "str", "int", "wis", "dex", "con" };
+
+/***************************************************************************
+ * History Helpers                                                         *
+ ***************************************************************************/
+
+static OLC_CHANGE_HISTORY *racedit_get_history(void *pEdit)
+{
+    RACE_DATA *race = (RACE_DATA *)pEdit;
+    return race ? (OLC_CHANGE_HISTORY *)race->olc_history : NULL;
+}
+
+static OLC_CHANGE_HISTORY *racedit_ensure_history(RACE_DATA *race)
+{
+    if (!race) return NULL;
+    if (!race->olc_history)
+        race->olc_history = olc_history_load(OLC_HIST_RACE, race->id);
+    if (!race->olc_history)
+        race->olc_history = olc_history_new();
+    return (OLC_CHANGE_HISTORY *)race->olc_history;
+}
+
+/** Record a change and mark dirty in one step. */
+static void racedit_record(RACE_DATA *race, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    olc_history_record(racedit_ensure_history(race), ch,
+        field, old_val, new_val);
+    olc_history_mark_dirty(OLC_HIST_RACE, race->id,
+        (OLC_CHANGE_HISTORY *)race->olc_history);
+}
+
+/** Generic callback wrapper for olc_cmd_* helpers. */
+static void racedit_record_cb(void *ctx, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    racedit_record((RACE_DATA *)ctx, ch, field, old_val, new_val);
+}
 
 /***************************************************************************
  * Race Editor Command Table                                               *
@@ -63,6 +105,27 @@ const struct olc_cmd_type racedit_table[] =
 
 
 /***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF racedit_def = {
+    .name           = "RacEdit",
+    .editor_type    = ED_RACE,
+    .cmd_table      = racedit_table,
+    .show_fn        = racedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = true,
+    .get_history_fn = racedit_get_history,
+};
+
+
+/***************************************************************************
  * Editor Entry Point                                                      *
  ***************************************************************************/
 
@@ -82,6 +145,11 @@ void do_racedit(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch))
         return;
+
+    if (!olc_editor_check_perm(ch, &racedit_def, NULL)) {
+        send_to_char("You don't have permission to edit races.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, arg1);
 
@@ -107,9 +175,7 @@ void do_racedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_RACE, race);
-    racedit_show(ch, "");
+    olc_editor_enter(ch, &racedit_def, race, true);
 }
 
 
@@ -127,34 +193,7 @@ void do_racedit(CHAR_DATA *ch, char *argument)
  */
 void racedit(CHAR_DATA *ch, char *argument)
 {
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0') {
-        racedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; racedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, racedit_table[cmd].name)) {
-            (*racedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &racedit_def);
 }
 
 
@@ -174,141 +213,144 @@ void racedit(CHAR_DATA *ch, char *argument)
 RACEDIT(racedit_show)
 {
     RACE_DATA *race;
-    BUFFER *buffer;
-    char buf[MAX_STRING_LENGTH];
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&racedit_def);
+    OLC_LAYOUT_CTX *ctx;
     ITERATOR it;
     char *skill;
     int i;
     TRAIT_DEF *def;
 
     EDIT_RACE(ch, race);
-    buffer = new_buf();
 
-    add_buf(buffer, formatf("{R=== Race Editor: %s ==={x\n\r\n\r", race->id));
+    ctx = olc_display_new(ch, theme);
+
+    olc_display_header(ctx, "RacEdit", race->name,
+        formatf("UID %d", race->uid), &racedit_def);
 
     /* Identity */
-    add_buf(buffer, formatf("{CID:           {x%s\n\r", race->id));
-    add_buf(buffer, formatf("{CUID:          {x%d\n\r", race->uid));
-    add_buf(buffer, formatf("{CName:         {W%s{x\n\r", race->name));
-    add_buf(buffer, formatf("{CSummary:      {x%s\n\r",
-        IS_NULLSTR(race->summary) ? "(none)" : race->summary));
-    add_buf(buffer, formatf("{CWho Name:     {W%s{x\n\r", race->who_name));
-    add_buf(buffer, formatf("{CPlayable:     {x%s\n\r", race->playable ? "{GYes{x" : "{DNo{x"));
-    add_buf(buffer, formatf("{CStarting:     {x%s\n\r", race->starting ? "{GYes{x" : "{DNo{x"));
-    add_buf(buffer, formatf("{CPath Race:    {x%s\n\r", race->path_race ? "{YYes{x" : "{DNo{x"));
+    olc_display_string(ctx, theme, "ID:", NULL, race->id);
+    olc_display_string(ctx, theme, "Name:", "name", race->name);
+    olc_display_string(ctx, theme, "Summary:", "summary", race->summary);
+    olc_display_string(ctx, theme, "Who Name:", "who", race->who_name);
+    olc_display_pair(ctx, theme,
+        "Playable:", "playable", race->playable ? "Yes" : "No",
+        "Starting:", "starting", race->starting ? "Yes" : "No");
+    olc_display_bool(ctx, theme, "Path Race:", "pathrace", race->path_race);
 
-    /* Description */
-    add_buf(buffer, formatf("{CDescription:{x\n\r%s\n\r",
-        IS_NULLSTR(race->description) ? "   (none)" : race->description));
-
-    /* Comments */
-    if (!IS_NULLSTR(race->comments)) {
-        add_buf(buffer, formatf("{CComments:{x\n\r%s\n\r", race->comments));
-    }
+    olc_display_text(ctx, theme, "Description:", "description", race->description);
+    if (!IS_NULLSTR(race->comments))
+        olc_display_text(ctx, theme, "Comments:", "comments", race->comments);
 
     /* Physical */
-    add_buf(buffer, "\n\r{R--- Physical ---{x\n\r");
-    add_buf(buffer, formatf("{CMin Size:      {x%s\n\r", flag_string(size_flags, race->min_size)));
-    add_buf(buffer, formatf("{CMax Size:      {x%s\n\r", flag_string(size_flags, race->max_size)));
-    add_buf(buffer, formatf("{CAlignment:     {x%d\n\r", race->default_alignment));
-    add_buf(buffer, formatf("{CForm:          {x%s\n\r", flag_string(form_flags, race->form)));
-    add_buf(buffer, formatf("{CParts:         {x%s\n\r", flag_string(part_flags, race->parts)));
+    olc_display_section(ctx, theme, "Physical");
+    olc_display_pair(ctx, theme,
+        "Min Size:", "minsize", flag_string(size_flags, race->min_size),
+        "Max Size:", "maxsize", flag_string(size_flags, race->max_size));
+    olc_display_number(ctx, theme, "Alignment:", "alignment", race->default_alignment);
+    olc_display_flags(ctx, theme, "Form:", "form", form_flags, race->form);
+    olc_display_flags(ctx, theme, "Parts:", "parts", part_flags, race->parts);
 
     /* Combat */
-    add_buf(buffer, "\n\r{R--- Combat ---{x\n\r");
-    add_buf(buffer, formatf("{CAct:           {x%s\n\r",
-        bitmatrix_string(act_flagbank, race->act)));
-    add_buf(buffer, formatf("{CAffects:       {x%s\n\r",
-        bitvector_string(2, race->aff[0], affect_flags, race->aff[1], affect2_flags)));
-    add_buf(buffer, formatf("{COffensive:     {x%s\n\r", flag_string(off_flags, race->off)));
-    add_buf(buffer, formatf("{CImmunities:    {x%s\n\r", flag_string(imm_flags, race->imm)));
-    add_buf(buffer, formatf("{CResistances:   {x%s\n\r", flag_string(res_flags, race->res)));
-    add_buf(buffer, formatf("{CVulnerabilities:{x %s\n\r", flag_string(vuln_flags, race->vuln)));
+    olc_display_section(ctx, theme, "Combat");
+    olc_display_string(ctx, theme, "Act:", "act",
+        bitmatrix_string(act_flagbank, race->act));
+    olc_display_string(ctx, theme, "Affects:", "affect",
+        bitvector_string(2, race->aff[0], affect_flags, race->aff[1], affect2_flags));
+    olc_display_flags(ctx, theme, "Offensive:", "off", off_flags, race->off);
+    olc_display_flags(ctx, theme, "Immunities:", "imm", imm_flags, race->imm);
+    olc_display_flags(ctx, theme, "Resistances:", "res", res_flags, race->res);
+    olc_display_flags(ctx, theme, "Vulnerabilities:", "vuln", vuln_flags, race->vuln);
 
     /* Attributes */
-    add_buf(buffer, "\n\r{R--- Attributes ---{x\n\r");
-    sprintf(buf, "{CStats:         {x");
-    for (i = 0; i < MAX_STATS; i++) {
-        char tmp[32];
-        sprintf(tmp, "%s:%d ", stat_names[i], race->stats[i]);
-        strcat(buf, tmp);
+    olc_display_section(ctx, theme, "Attributes");
+    {
+        char stats_buf[MSL];
+        char max_stats_buf[MSL];
+        stats_buf[0] = '\0';
+        max_stats_buf[0] = '\0';
+        for (i = 0; i < MAX_STATS; i++) {
+            strcat(stats_buf, formatf("%s:%d ", stat_names[i], race->stats[i]));
+            strcat(max_stats_buf, formatf("%s:%d ", stat_names[i], race->max_stats[i]));
+        }
+        olc_display_string(ctx, theme, "Stats:", "stats", stats_buf);
+        olc_display_string(ctx, theme, "Max Stats:", "maxstats", max_stats_buf);
     }
-    strcat(buf, "\n\r");
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{CMax Stats:     {x");
-    for (i = 0; i < MAX_STATS; i++) {
-        char tmp[32];
-        sprintf(tmp, "%s:%d ", stat_names[i], race->max_stats[i]);
-        strcat(buf, tmp);
-    }
-    strcat(buf, "\n\r");
-    add_buf(buffer, buf);
-
-    add_buf(buffer, formatf("{CMax Vitals:    {xhp:%d mana:%d move:%d\n\r",
-        race->max_vitals[0], race->max_vitals[1], race->max_vitals[2]));
+    olc_display_string(ctx, theme, "Max Vitals:", "maxvitals",
+        formatf("hp:%d mana:%d move:%d",
+            race->max_vitals[0], race->max_vitals[1], race->max_vitals[2]));
 
     /* Skills */
-    add_buf(buffer, "\n\r{R--- Skills ---{x\n\r");
+    olc_display_section(ctx, theme, "Skills");
     if (list_size(race->skills) == 0) {
-        add_buf(buffer, "   (none)\n\r");
+        olc_display_infof(ctx, theme, "   %s(none){x", theme->unset);
     } else {
         i = 1;
         iterator_start(&it, race->skills);
         while ((skill = (char *)iterator_nextdata(&it))) {
-            add_buf(buffer, formatf("   {C[{W%2d{C]{x %s\n\r", i++, skill));
+            olc_display_infof(ctx, theme, "   %s[%s%2d%s]{x %s%s{x",
+                theme->border, theme->label, i++, theme->border,
+                theme->value, skill);
         }
         iterator_stop(&it);
     }
 
     /* Starting Equipment */
-    add_buf(buffer, "\n\r{R--- Starting Equipment ---{x\n\r");
+    olc_display_section(ctx, theme, "Starting Equipment");
     {
         bool has_eq = false;
         for (i = 0; i < MAX_RACE_STARTING_EQ; i++) {
             if (race->starting_eq[i] > 0) {
-                add_buf(buffer, formatf("   {C[{W%d{C]{x Vnum %ld\n\r", i + 1, race->starting_eq[i]));
+                olc_display_infof(ctx, theme, "   %s[%s%d%s]{x Vnum %s%ld{x",
+                    theme->border, theme->label, i + 1, theme->border,
+                    theme->value, race->starting_eq[i]);
                 has_eq = true;
             }
         }
         if (!has_eq)
-            add_buf(buffer, "   (none)\n\r");
+            olc_display_infof(ctx, theme, "   %s(none){x", theme->unset);
     }
 
     /* Remort */
-    add_buf(buffer, "\n\r{R--- Remort ---{x\n\r");
-    add_buf(buffer, formatf("{CPrerequisite:  {x%s\n\r",
-        IS_NULLSTR(race->remort_race_id) ? "(none)" : race->remort_race_id));
-    add_buf(buffer, formatf("{CRemort Into:   {x%s\n\r",
-        IS_NULLSTR(race->remort_into_id) ? "(none)" : race->remort_into_id));
+    olc_display_section(ctx, theme, "Remort");
+    olc_display_string(ctx, theme, "Prerequisite:", "prereq", race->remort_race_id);
+    olc_display_string(ctx, theme, "Remort Into:", "remortinto", race->remort_into_id);
 
     /* Traits */
     if (race->trait_values && trait_def_count > 0) {
-        add_buf(buffer, "\n\r{R--- Traits ---{x\n\r");
+        bool has_traits = false;
         for (def = trait_def_list; def; def = def->next) {
-            TRAIT_VALUE *tv = &race->trait_values[def->index];
-            if (!tv->set)
-                continue;
-
-            switch (def->type) {
-                case TRAIT_BOOLEAN:
-                    add_buf(buffer, formatf("   {C%-30s{x %s\n\r",
-                        def->name, tv->bool_val ? "{GTrue{x" : "{DFalse{x"));
-                    break;
-                case TRAIT_INTEGER:
-                    add_buf(buffer, formatf("   {C%-30s{x %d\n\r",
-                        def->name, tv->int_val));
-                    break;
-                case TRAIT_STRING:
-                    add_buf(buffer, formatf("   {C%-30s{x %s\n\r",
-                        def->name, tv->string_val ? tv->string_val : "(null)"));
-                    break;
+            if (race->trait_values[def->index].set) {
+                has_traits = true;
+                break;
+            }
+        }
+        if (has_traits) {
+            olc_display_section(ctx, theme, "Traits");
+            for (def = trait_def_list; def; def = def->next) {
+                TRAIT_VALUE *tv = &race->trait_values[def->index];
+                if (!tv->set) continue;
+                switch (def->type) {
+                    case TRAIT_BOOLEAN:
+                        olc_display_bool(ctx, theme,
+                            formatf("  %s:", def->name), NULL, tv->bool_val);
+                        break;
+                    case TRAIT_INTEGER:
+                        olc_display_number(ctx, theme,
+                            formatf("  %s:", def->name), NULL, tv->int_val);
+                        break;
+                    case TRAIT_STRING:
+                        olc_display_string(ctx, theme,
+                            formatf("  %s:", def->name), NULL, tv->string_val);
+                        break;
+                }
             }
         }
     }
 
-    page_to_char(buffer->string, ch);
-    free_buf(buffer);
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -328,16 +370,8 @@ RACEDIT(racedit_name)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax:  name <name>\n\r", ch);
-        return false;
-    }
-
-    free_string(race->name);
-    race->name = str_dup(argument);
-    send_to_char("Race name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &race->name,
+        OLC_STR_DEFAULT, race, racedit_record_cb);
 }
 
 
@@ -352,24 +386,8 @@ RACEDIT(racedit_summary)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax:  summary <text>\n\r", ch);
-        send_to_char("         summary clear\n\r", ch);
-        return false;
-    }
-
-    if (!str_cmp(argument, "clear")) {
-        free_string(race->summary);
-        race->summary = str_dup("");
-        send_to_char("Summary cleared.\n\r", ch);
-        return true;
-    }
-
-    free_string(race->summary);
-    race->summary = str_dup(argument);
-    send_to_char("Summary set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Summary", NULL, &race->summary,
+        OLC_STR_CLEARABLE, race, racedit_record_cb);
 }
 
 
@@ -384,16 +402,8 @@ RACEDIT(racedit_whoname)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax:  whoname <string>\n\r", ch);
-        return false;
-    }
-
-    free_string(race->who_name);
-    race->who_name = str_dup(argument);
-    send_to_char("Who name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Who Name", NULL, &race->who_name,
+        OLC_STR_DEFAULT, race, racedit_record_cb);
 }
 
 
@@ -408,14 +418,8 @@ RACEDIT(racedit_description)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    if (argument[0] == '\0') {
-        string_append(ch, &race->description);
-        return true;
-    }
-
-    send_to_char("Syntax:  description    (opens string editor)\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &race->description, race, racedit_record_cb);
 }
 
 
@@ -430,14 +434,8 @@ RACEDIT(racedit_comments)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    if (argument[0] == '\0') {
-        string_append(ch, &race->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments    (opens string editor)\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &race->comments, race, racedit_record_cb);
 }
 
 
@@ -452,10 +450,8 @@ RACEDIT(racedit_playable)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    race->playable = !race->playable;
-    send_to_char(formatf("Playable set to %s.\n\r", race->playable ? "Yes" : "No"), ch);
-    return true;
+    return olc_cmd_bool(ch, argument, "Playable", NULL, &race->playable,
+        race, racedit_record_cb);
 }
 
 
@@ -470,10 +466,8 @@ RACEDIT(racedit_starting)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    race->starting = !race->starting;
-    send_to_char(formatf("Starting set to %s.\n\r", race->starting ? "Yes" : "No"), ch);
-    return true;
+    return olc_cmd_bool(ch, argument, "Starting", NULL, &race->starting,
+        race, racedit_record_cb);
 }
 
 
@@ -492,10 +486,8 @@ RACEDIT(racedit_pathrace)
 {
     RACE_DATA *race;
     EDIT_RACE(ch, race);
-
-    race->path_race = !race->path_race;
-    send_to_char(formatf("Path race set to %s.\n\r", race->path_race ? "Yes" : "No"), ch);
-    return true;
+    return olc_cmd_bool(ch, argument, "Path Race", NULL, &race->path_race,
+        race, racedit_record_cb);
 }
 
 
@@ -509,24 +501,11 @@ RACEDIT(racedit_pathrace)
 RACEDIT(racedit_alignment)
 {
     RACE_DATA *race;
-    int val;
     EDIT_RACE(ch, race);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax:  alignment <-1000 to 1000>\n\r", ch);
-        send_to_char("  e.g. -750 = evil, 0 = neutral, 750 = good\n\r", ch);
-        return false;
-    }
-
-    val = atoi(argument);
-    if (val < -1000 || val > 1000) {
-        send_to_char("Alignment must be between -1000 and 1000.\n\r", ch);
-        return false;
-    }
-
-    race->default_alignment = val;
-    send_to_char("Default alignment set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Alignment",
+        "Syntax: alignment <-1000 to 1000>\n\r"
+        "  e.g. -750 = evil, 0 = neutral, 750 = good\n\r",
+        &race->default_alignment, -1000, 1000, race, racedit_record_cb);
 }
 
 
@@ -558,6 +537,8 @@ RACEDIT(racedit_size)
             send_to_char("Invalid size. Type '? size' for list.\n\r", ch);
             return false;
         }
+        racedit_record(race, ch, "min_size",
+            flag_string(size_flags, race->min_size), flag_string(size_flags, value));
         race->min_size = value;
         send_to_char("Minimum size set.\n\r", ch);
         return true;
@@ -568,6 +549,8 @@ RACEDIT(racedit_size)
             send_to_char("Invalid size. Type '? size' for list.\n\r", ch);
             return false;
         }
+        racedit_record(race, ch, "max_size",
+            flag_string(size_flags, race->max_size), flag_string(size_flags, value));
         race->max_size = value;
         send_to_char("Maximum size set.\n\r", ch);
         return true;
@@ -575,6 +558,10 @@ RACEDIT(racedit_size)
 
     /* Try setting both min and max to the same value */
     if ((value = flag_value(size_flags, arg1)) != NO_FLAG) {
+        racedit_record(race, ch, "size",
+            formatf("%s/%s", flag_string(size_flags, race->min_size),
+                flag_string(size_flags, race->max_size)),
+            flag_string(size_flags, value));
         race->min_size = value;
         race->max_size = value;
         send_to_char("Size set (min and max).\n\r", ch);
@@ -614,6 +601,8 @@ RACEDIT(racedit_stats)
                 send_to_char("Stat value must be between 1 and 25.\n\r", ch);
                 return false;
             }
+            racedit_record(race, ch, formatf("stat_%s", stat_names[i]),
+                formatf("%d", race->stats[i]), formatf("%d", val));
             race->stats[i] = val;
             send_to_char(formatf("Base %s set to %d.\n\r", stat_names[i], val), ch);
             return true;
@@ -653,6 +642,8 @@ RACEDIT(racedit_maxstats)
                 send_to_char("Max stat value must be between 1 and 30.\n\r", ch);
                 return false;
             }
+            racedit_record(race, ch, formatf("maxstat_%s", stat_names[i]),
+                formatf("%d", race->max_stats[i]), formatf("%d", val));
             race->max_stats[i] = val;
             send_to_char(formatf("Max %s set to %d.\n\r", stat_names[i], val), ch);
             return true;
@@ -692,16 +683,22 @@ RACEDIT(racedit_maxvitals)
     }
 
     if (!str_cmp(arg1, "hp")) {
+        racedit_record(race, ch, "max_hp",
+            formatf("%d", race->max_vitals[0]), formatf("%d", val));
         race->max_vitals[0] = val;
         send_to_char(formatf("Max HP set to %d.\n\r", val), ch);
         return true;
     }
     if (!str_cmp(arg1, "mana")) {
+        racedit_record(race, ch, "max_mana",
+            formatf("%d", race->max_vitals[1]), formatf("%d", val));
         race->max_vitals[1] = val;
         send_to_char(formatf("Max mana set to %d.\n\r", val), ch);
         return true;
     }
     if (!str_cmp(arg1, "move")) {
+        racedit_record(race, ch, "max_move",
+            formatf("%d", race->max_vitals[2]), formatf("%d", val));
         race->max_vitals[2] = val;
         send_to_char(formatf("Max move set to %d.\n\r", val), ch);
         return true;
@@ -722,19 +719,9 @@ RACEDIT(racedit_maxvitals)
 RACEDIT(racedit_form)
 {
     RACE_DATA *race;
-    long value;
     EDIT_RACE(ch, race);
-
-    if (argument[0] != '\0') {
-        if ((value = flag_value(form_flags, argument)) != NO_FLAG) {
-            race->form ^= value;
-            send_to_char("Form flags toggled.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: form [flags]\n\rType '? form' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Form", NULL, &race->form,
+        form_flags, race, racedit_record_cb);
 }
 
 
@@ -748,19 +735,9 @@ RACEDIT(racedit_form)
 RACEDIT(racedit_parts)
 {
     RACE_DATA *race;
-    long value;
     EDIT_RACE(ch, race);
-
-    if (argument[0] != '\0') {
-        if ((value = flag_value(part_flags, argument)) != NO_FLAG) {
-            race->parts ^= value;
-            send_to_char("Parts flags toggled.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: parts [flags]\n\rType '? part' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Parts", NULL, &race->parts,
+        part_flags, race, racedit_record_cb);
 }
 
 
@@ -779,11 +756,15 @@ RACEDIT(racedit_act)
 
     if (argument[0] != '\0') {
         if ((value = flag_value(act_flags, argument)) != NO_FLAG) {
+            racedit_record(race, ch, "act", argument,
+                (race->act[0] & value) ? "removed" : "added");
             race->act[0] ^= value;
             send_to_char("Act flags toggled.\n\r", ch);
             return true;
         }
         if ((value = flag_value(act2_flags, argument)) != NO_FLAG) {
+            racedit_record(race, ch, "act2", argument,
+                (race->act[1] & value) ? "removed" : "added");
             race->act[1] ^= value;
             send_to_char("Act2 flags toggled.\n\r", ch);
             return true;
@@ -810,11 +791,15 @@ RACEDIT(racedit_affects)
 
     if (argument[0] != '\0') {
         if ((value = flag_value(affect_flags, argument)) != NO_FLAG) {
+            racedit_record(race, ch, "affects", argument,
+                (race->aff[0] & value) ? "removed" : "added");
             race->aff[0] ^= value;
             send_to_char("Affect flags toggled.\n\r", ch);
             return true;
         }
         if ((value = flag_value(affect2_flags, argument)) != NO_FLAG) {
+            racedit_record(race, ch, "affects2", argument,
+                (race->aff[1] & value) ? "removed" : "added");
             race->aff[1] ^= value;
             send_to_char("Affect2 flags toggled.\n\r", ch);
             return true;
@@ -836,19 +821,9 @@ RACEDIT(racedit_affects)
 RACEDIT(racedit_offensive)
 {
     RACE_DATA *race;
-    long value;
     EDIT_RACE(ch, race);
-
-    if (argument[0] != '\0') {
-        if ((value = flag_value(off_flags, argument)) != NO_FLAG) {
-            race->off ^= value;
-            send_to_char("Offensive flags toggled.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: offensive [flags]\n\rType '? off' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Offensive", NULL, &race->off,
+        off_flags, race, racedit_record_cb);
 }
 
 
@@ -862,19 +837,9 @@ RACEDIT(racedit_offensive)
 RACEDIT(racedit_immunities)
 {
     RACE_DATA *race;
-    long value;
     EDIT_RACE(ch, race);
-
-    if (argument[0] != '\0') {
-        if ((value = flag_value(imm_flags, argument)) != NO_FLAG) {
-            race->imm ^= value;
-            send_to_char("Immunity flags toggled.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: immunities [flags]\n\rType '? imm' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Immunities", NULL, &race->imm,
+        imm_flags, race, racedit_record_cb);
 }
 
 
@@ -888,19 +853,9 @@ RACEDIT(racedit_immunities)
 RACEDIT(racedit_resistances)
 {
     RACE_DATA *race;
-    long value;
     EDIT_RACE(ch, race);
-
-    if (argument[0] != '\0') {
-        if ((value = flag_value(res_flags, argument)) != NO_FLAG) {
-            race->res ^= value;
-            send_to_char("Resistance flags toggled.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: resistances [flags]\n\rType '? res' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Resistances", NULL, &race->res,
+        res_flags, race, racedit_record_cb);
 }
 
 
@@ -914,19 +869,9 @@ RACEDIT(racedit_resistances)
 RACEDIT(racedit_vulnerabilities)
 {
     RACE_DATA *race;
-    long value;
     EDIT_RACE(ch, race);
-
-    if (argument[0] != '\0') {
-        if ((value = flag_value(vuln_flags, argument)) != NO_FLAG) {
-            race->vuln ^= value;
-            send_to_char("Vulnerability flags toggled.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: vulnerabilities [flags]\n\rType '? vuln' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Vulnerabilities", NULL, &race->vuln,
+        vuln_flags, race, racedit_record_cb);
 }
 
 
@@ -957,6 +902,7 @@ RACEDIT(racedit_skills)
             return false;
         }
         list_appendlink(race->skills, str_dup(argument));
+        racedit_record(race, ch, "skills", "", argument);
         send_to_char(formatf("Skill '%s' added.\n\r", argument), ch);
         return true;
     }
@@ -981,6 +927,7 @@ RACEDIT(racedit_skills)
                 if (i == num) {
                     iterator_stop(&it);
                     list_remlink(race->skills, skill, false);
+                    racedit_record(race, ch, "skills", skill, "");
                     free_string(skill);
                     send_to_char("Skill removed.\n\r", ch);
                     return true;
@@ -1017,6 +964,8 @@ RACEDIT(racedit_prerequisite)
     }
 
     if (!str_cmp(argument, "none")) {
+        racedit_record(race, ch, "prerequisite",
+            race->remort_race_id ? race->remort_race_id : "(none)", "(none)");
         free_string(race->remort_race_id);
         race->remort_race_id = NULL;
         send_to_char("Prerequisite race cleared.\n\r", ch);
@@ -1031,6 +980,8 @@ RACEDIT(racedit_prerequisite)
             send_to_char("No race by that ID or name.\n\r", ch);
             return false;
         }
+        racedit_record(race, ch, "prerequisite",
+            race->remort_race_id ? race->remort_race_id : "(none)", target->id);
         free_string(race->remort_race_id);
         race->remort_race_id = str_dup(target->id);
         send_to_char(formatf("Prerequisite race set to '%s' (%s).\n\r", target->name, target->id), ch);
@@ -1057,6 +1008,8 @@ RACEDIT(racedit_remortinto)
     }
 
     if (!str_cmp(argument, "none")) {
+        racedit_record(race, ch, "remortinto",
+            race->remort_into_id ? race->remort_into_id : "(none)", "(none)");
         free_string(race->remort_into_id);
         race->remort_into_id = NULL;
         send_to_char("Remort-into race cleared.\n\r", ch);
@@ -1071,6 +1024,8 @@ RACEDIT(racedit_remortinto)
             send_to_char("No race by that ID or name.\n\r", ch);
             return false;
         }
+        racedit_record(race, ch, "remortinto",
+            race->remort_into_id ? race->remort_into_id : "(none)", target->id);
         free_string(race->remort_into_id);
         race->remort_into_id = str_dup(target->id);
         send_to_char(formatf("Remort-into race set to '%s' (%s).\n\r", target->name, target->id), ch);
@@ -1136,6 +1091,7 @@ RACEDIT(racedit_trait)
     tv = &race->trait_values[def->index];
 
     if (!str_cmp(argument, "unset")) {
+        racedit_record(race, ch, formatf("trait_%s", def->id), "(set)", "(unset)");
         tv->set = false;
         switch (def->type) {
             case TRAIT_BOOLEAN: tv->bool_val = def->default_bool; break;
@@ -1154,6 +1110,7 @@ RACEDIT(racedit_trait)
         return false;
     }
 
+    racedit_record(race, ch, formatf("trait_%s", def->id), "(unset)", argument);
     tv->set = true;
     switch (def->type) {
         case TRAIT_BOOLEAN:
@@ -1197,6 +1154,8 @@ RACEDIT(racedit_save)
     EDIT_RACE(ch, race);
 
     if (save_race_json(race)) {
+        olc_history_flush(OLC_HIST_RACE, race->id,
+            (OLC_CHANGE_HISTORY *)race->olc_history);
         send_to_char(formatf("Race '%s' saved to file.\n\r", race->id), ch);
         return true;
     } else {

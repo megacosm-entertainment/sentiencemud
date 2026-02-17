@@ -15,8 +15,7 @@ typedef struct song_data SONG_DATA;
  * Constants                                                               *
  ***************************************************************************/
 
-#define SONGS_DIR               DATA_DIR "songs/"
-#define SONGS_FILE              SONGS_DIR "songs.json"
+
 
 /* Song flags (bitfield, reserved for future expansion) */
 #define SONG_NONE               0

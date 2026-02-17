@@ -57,6 +57,9 @@ struct trait_def {
     bool		default_bool;
     int		default_int;
     char *		default_string;
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *		olc_history;	/* OLC_CHANGE_HISTORY * — lazy-allocated by traitedit */
 };
 
 /***************************************************************************

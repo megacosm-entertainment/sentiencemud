@@ -22,7 +22,6 @@
 #include "interp.h"
 #include "io/cache/redis_cache.h"
 
-#define LEADERBOARD_JSON_FILE   SYSTEM_DIR "leaderboards.json"
 
 /* Global leaderboard data */
 LEADERBOARD_DATA leaderboards[MAX_LEADERBOARDS];

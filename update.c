@@ -20,6 +20,7 @@
 #include "traits.h"
 #include "skill_data.h"
 #include "class_data.h"
+#include "io/json/json_olc.h"
 
 extern void persist_save(void);
 
@@ -102,6 +103,7 @@ void update_handler(void)
     save_immstaff();
     save_instances();
     generate_discord_who();
+    olc_history_flush_all();
 
     // SSL/TLS Circuit Breaker - auto-recover from SSL context corruption
     if (ssl_errors_since_reset > 5 && current_time - last_ssl_error < 300) {

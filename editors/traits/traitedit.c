@@ -3,6 +3,8 @@
  *                                                                         *
  *  Allows in-game editing of trait definitions stored in                   *
  *  data/traits/traits.json. Follows the cmdedit pattern.                  *
+ *                                                                         *
+ *  Migrated to the unified OLC Editor Framework.                          *
  ***************************************************************************/
 
 #include <stdio.h>
@@ -15,9 +17,50 @@
 #include "../../interp.h"
 #include "../../recycle.h"
 #include "../../traits.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+#include "../../io/json/json_olc.h"
 
 /* Forward declarations for save function (in traits.c) */
 extern bool save_trait_definitions(void);
+
+/***************************************************************************
+ * History Helpers                                                         *
+ ***************************************************************************/
+
+static OLC_CHANGE_HISTORY *traitedit_get_history(void *pEdit)
+{
+    TRAIT_DEF *def = (TRAIT_DEF *)pEdit;
+    return def ? (OLC_CHANGE_HISTORY *)def->olc_history : NULL;
+}
+
+static OLC_CHANGE_HISTORY *traitedit_ensure_history(TRAIT_DEF *def)
+{
+    if (!def) return NULL;
+    if (!def->olc_history)
+        def->olc_history = olc_history_load(OLC_HIST_TRAIT, def->id);
+    if (!def->olc_history)
+        def->olc_history = olc_history_new();
+    return (OLC_CHANGE_HISTORY *)def->olc_history;
+}
+
+static void traitedit_record(TRAIT_DEF *def, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    olc_history_record(traitedit_ensure_history(def), ch,
+        field, old_val, new_val);
+    olc_history_mark_dirty(OLC_HIST_TRAIT, def->id,
+        (OLC_CHANGE_HISTORY *)def->olc_history);
+}
+
+/** Generic callback wrapper for olc_cmd_* helpers. */
+static void traitedit_record_cb(void *ctx, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    traitedit_record((TRAIT_DEF *)ctx, ch, field, old_val, new_val);
+}
 
 /***************************************************************************
  * Trait Editor Command Table                                              *
@@ -42,6 +85,27 @@ const struct olc_cmd_type traitedit_table[] =
 
 
 /***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF traitedit_def = {
+    .name           = "TraitEdit",
+    .editor_type    = ED_TRAIT,
+    .cmd_table      = traitedit_table,
+    .show_fn        = traitedit_show,
+    .tabs           = { .count = 0 },           /* No tabs for trait editor */
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = true,
+    .get_history_fn = traitedit_get_history,
+};
+
+
+/***************************************************************************
  * Editor Entry Point                                                      *
  ***************************************************************************/
 
@@ -62,6 +126,12 @@ void do_traitedit(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch))
         return;
+
+    /* Permission check at entry */
+    if (!olc_editor_check_perm(ch, &traitedit_def, NULL)) {
+        send_to_char("You don't have permission to edit traits.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, arg1);
 
@@ -89,54 +159,26 @@ void do_traitedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_TRAIT, def);
-    traitedit_show(ch, "");
+    olc_editor_enter(ch, &traitedit_def, def, true);
 }
 
 
 /***************************************************************************
- * Editor Interpreter                                                      *
+ * Editor Interpreter (Framework)                                          *
  ***************************************************************************/
 
 /**
  * traitedit - Interpreter loop for the trait definition editor
  *
- * Dispatches typed commands to the trait editor command table.
+ * All boilerplate (done, show, command dispatch, interpret fallback)
+ * is handled by the framework.
  *
  * @param ch        Character in the editor
  * @param argument  Command typed by the character
  */
 void traitedit(CHAR_DATA *ch, char *argument)
 {
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0') {
-        traitedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; traitedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, traitedit_table[cmd].name)) {
-            (*traitedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &traitedit_def);
 }
 
 
@@ -154,18 +196,20 @@ void traitedit(CHAR_DATA *ch, char *argument)
 TRAITEDIT(traitedit_show)
 {
     TRAIT_DEF *def;
-    BUFFER *buffer;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&traitedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_TRAIT(ch, def);
-    buffer = new_buf();
 
-    add_buf(buffer, formatf("{R=== Trait Editor: %s ==={x\n\r\n\r", def->id));
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buffer, formatf("{CID:           {x%s\n\r", def->id));
-    add_buf(buffer, formatf("{CIndex:        {x%d\n\r", def->index));
-    add_buf(buffer, formatf("{CName:         {W%s{x\n\r", def->name));
-    add_buf(buffer, formatf("{CCategory:     {x%s\n\r",
-        IS_NULLSTR(def->category) ? "(none)" : def->category));
+    olc_display_header(ctx, "TraitEdit", def->name,
+        formatf("#%d", def->index), &traitedit_def);
+
+    olc_display_string(ctx, theme, "ID:", NULL, def->id);
+    olc_display_number(ctx, theme, "Index:", NULL, def->index);
+    olc_display_string(ctx, theme, "Name:", "name", def->name);
+    olc_display_string(ctx, theme, "Category:", "category", def->category);
 
     {
         const char *type_str = "???";
@@ -174,28 +218,27 @@ TRAITEDIT(traitedit_show)
             case TRAIT_INTEGER: type_str = "integer"; break;
             case TRAIT_STRING:  type_str = "string";  break;
         }
-        add_buf(buffer, formatf("{CType:         {x%s\n\r", type_str));
+        olc_display_string(ctx, theme, "Type:", "type", type_str);
     }
 
     switch (def->type) {
         case TRAIT_BOOLEAN:
-            add_buf(buffer, formatf("{CDefault:      {x%s\n\r",
-                def->default_bool ? "true" : "false"));
+            olc_display_bool(ctx, theme, "Default:", "default", def->default_bool);
             break;
         case TRAIT_INTEGER:
-            add_buf(buffer, formatf("{CDefault:      {x%d\n\r", def->default_int));
+            olc_display_number(ctx, theme, "Default:", "default", def->default_int);
             break;
         case TRAIT_STRING:
-            add_buf(buffer, formatf("{CDefault:      {x%s\n\r",
-                def->default_string ? def->default_string : "(null)"));
+            olc_display_string(ctx, theme, "Default:", "default", def->default_string);
             break;
     }
 
-    add_buf(buffer, formatf("\n\r{CDescription:{x\n\r%s\n\r",
-        IS_NULLSTR(def->description) ? "   (none)" : def->description));
+    olc_display_text(ctx, theme, "Description:", "description", def->description);
 
-    page_to_char(buffer->string, ch);
-    free_buf(buffer);
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -215,16 +258,8 @@ TRAITEDIT(traitedit_name)
 {
     TRAIT_DEF *def;
     EDIT_TRAIT(ch, def);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax:  name <name>\n\r", ch);
-        return false;
-    }
-
-    free_string(def->name);
-    def->name = str_dup(argument);
-    send_to_char("Trait name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &def->name,
+        OLC_STR_DEFAULT, def, traitedit_record_cb);
 }
 
 
@@ -239,16 +274,8 @@ TRAITEDIT(traitedit_category)
 {
     TRAIT_DEF *def;
     EDIT_TRAIT(ch, def);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax:  category <category>\n\r", ch);
-        return false;
-    }
-
-    free_string(def->category);
-    def->category = str_dup(argument);
-    send_to_char("Category set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Category", NULL, &def->category,
+        OLC_STR_DEFAULT, def, traitedit_record_cb);
 }
 
 
@@ -263,14 +290,8 @@ TRAITEDIT(traitedit_description)
 {
     TRAIT_DEF *def;
     EDIT_TRAIT(ch, def);
-
-    if (argument[0] == '\0') {
-        string_append(ch, &def->description);
-        return true;
-    }
-
-    send_to_char("Syntax:  description    (opens string editor)\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &def->description, def, traitedit_record_cb);
 }
 
 
@@ -294,18 +315,21 @@ TRAITEDIT(traitedit_type)
     }
 
     if (!str_cmp(argument, "boolean") || !str_cmp(argument, "bool")) {
+        traitedit_record(def, ch, "type", "(changed)", "boolean");
         def->type = TRAIT_BOOLEAN;
         def->default_bool = false;
         def->default_int = 0;
         free_string(def->default_string);
         def->default_string = NULL;
     } else if (!str_cmp(argument, "integer") || !str_cmp(argument, "int")) {
+        traitedit_record(def, ch, "type", "(changed)", "integer");
         def->type = TRAIT_INTEGER;
         def->default_bool = false;
         def->default_int = 0;
         free_string(def->default_string);
         def->default_string = NULL;
     } else if (!str_cmp(argument, "string") || !str_cmp(argument, "str")) {
+        traitedit_record(def, ch, "type", "(changed)", "string");
         def->type = TRAIT_STRING;
         def->default_bool = false;
         def->default_int = 0;
@@ -340,11 +364,13 @@ TRAITEDIT(traitedit_default)
 
     switch (def->type) {
         case TRAIT_BOOLEAN:
-            if (!str_cmp(argument, "true") || !str_cmp(argument, "yes") || !str_cmp(argument, "1"))
+            if (!str_cmp(argument, "true") || !str_cmp(argument, "yes") || !str_cmp(argument, "1")) {
+                traitedit_record(def, ch, "default", def->default_bool ? "true" : "false", "true");
                 def->default_bool = true;
-            else if (!str_cmp(argument, "false") || !str_cmp(argument, "no") || !str_cmp(argument, "0"))
+            } else if (!str_cmp(argument, "false") || !str_cmp(argument, "no") || !str_cmp(argument, "0")) {
+                traitedit_record(def, ch, "default", def->default_bool ? "true" : "false", "false");
                 def->default_bool = false;
-            else {
+            } else {
                 send_to_char("Boolean default: use true/false, yes/no, or 1/0.\n\r", ch);
                 return false;
             }
@@ -354,9 +380,11 @@ TRAITEDIT(traitedit_default)
                 send_to_char("Integer default: provide a numeric value.\n\r", ch);
                 return false;
             }
+            traitedit_record(def, ch, "default", formatf("%d", def->default_int), argument);
             def->default_int = atoi(argument);
             break;
         case TRAIT_STRING:
+            traitedit_record(def, ch, "default", def->default_string ? def->default_string : "", argument);
             free_string(def->default_string);
             def->default_string = str_dup(argument);
             break;
@@ -481,7 +509,11 @@ TRAITEDIT(traitedit_delete)
  */
 TRAITEDIT(traitedit_save)
 {
+    TRAIT_DEF *def;
+    EDIT_TRAIT(ch, def);
+
     if (save_trait_definitions()) {
+        olc_history_flush(OLC_HIST_TRAIT, def->id, def->olc_history);
         send_to_char("Trait definitions saved.\n\r", ch);
         return true;
     } else {

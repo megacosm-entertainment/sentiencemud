@@ -14,8 +14,7 @@
 #include "../../secret.h"
 #include "../../account/preferences.h"
 
-#define GAME_SETTINGS_JSON_FILE DATA_DIR "system/game_settings.json"
-#define GAME_SETTINGS_DAT_BACKUP DATA_DIR "system/game_settings.dat.backup"
+
 
 // Environment variable prefix
 

@@ -143,6 +143,9 @@ set(SOURCE_FILES
     editors/skills/soedit.c
     editors/classes/clsedit.c
     editors/common.c
+    editors/common/olc_editor.c
+    editors/common/olc_commands.c
+    editors/common/olc_display.c
     effects.c
     events.c
     fight.c
@@ -226,6 +229,7 @@ set(SOURCE_FILES
     io/json/json_ban.c
     io/json/json_changesets.c
     io/json/json_commands.c
+    io/json/json_olc.c
     io/json/json_socials.c
     io/json/json_staff.c
     save.c

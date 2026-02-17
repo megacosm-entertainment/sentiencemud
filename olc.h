@@ -144,11 +144,17 @@ void    clsedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * Structure for an OLC editor command.
+ *
+ * The min_staff_rank field is optional. When 0 (default), the command
+ * inherits the editor's own permission check. When set to a STAFF_*
+ * value, only characters with that rank or higher may use the command.
+ * C99 designated initializers ensure existing tables default to 0.
  */
 struct olc_cmd_type
 {
     char * const	name;
     OLC_FUN *		olc_fun;
+    int			min_staff_rank;     /**< STAFF_* minimum, 0 = inherit editor perm */
 };
 
 

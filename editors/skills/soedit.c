@@ -17,6 +17,52 @@
 #include "../../recycle.h"
 #include "../../song_data.h"
 #include "../../skill_data.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+#include "../../io/json/json_olc.h"
+
+/***************************************************************************
+ * History Helpers                                                         *
+ ***************************************************************************/
+
+static OLC_CHANGE_HISTORY *soedit_get_history(void *pEdit)
+{
+    SONG_DATA *song = (SONG_DATA *)pEdit;
+    return song ? (OLC_CHANGE_HISTORY *)song->olc_history : NULL;
+}
+
+static OLC_CHANGE_HISTORY *soedit_ensure_history(SONG_DATA *song)
+{
+    if (!song) return NULL;
+    if (!song->olc_history)
+        song->olc_history = olc_history_load(OLC_HIST_SONG, song->name);
+    if (!song->olc_history)
+        song->olc_history = olc_history_new();
+    return (OLC_CHANGE_HISTORY *)song->olc_history;
+}
+
+/**
+ * Convenience: record a change and mark the song dirty for persistence.
+ */
+static void soedit_record(SONG_DATA *song, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    olc_history_record(soedit_ensure_history(song), ch,
+        field, old_val, new_val);
+    olc_history_mark_dirty(OLC_HIST_SONG, song->name,
+        (OLC_CHANGE_HISTORY *)song->olc_history);
+}
+
+/**
+ * Generic callback wrapper for olc_cmd_* helpers.
+ */
+static void soedit_record_cb(void *ctx, CHAR_DATA *ch,
+    const char *field, const char *old_val, const char *new_val)
+{
+    soedit_record((SONG_DATA *)ctx, ch, field, old_val, new_val);
+}
 
 /***************************************************************************
  * Command Table                                                           *
@@ -39,6 +85,26 @@ const struct olc_cmd_type soedit_table[] =
 };
 
 /***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF soedit_def = {
+    .name           = "SoEdit",
+    .editor_type    = ED_SONG,
+    .cmd_table      = soedit_table,
+    .show_fn        = soedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_CREATOR
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = true,
+    .get_history_fn = soedit_get_history,
+};
+
+/***************************************************************************
  * Entry Point                                                             *
  ***************************************************************************/
 
@@ -56,6 +122,11 @@ void do_soedit(CHAR_DATA *ch, char *argument)
 
     if (IS_NPC(ch))
         return;
+
+    if (!olc_editor_check_perm(ch, &soedit_def, NULL)) {
+        send_to_char("You don't have permission to edit songs.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, arg1);
 
@@ -77,9 +148,7 @@ void do_soedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    ch->pcdata->immortal->last_olc_command = current_time;
-    olc_set_editor(ch, ED_SONG, song);
-    soedit_show(ch, "");
+    olc_editor_enter(ch, &soedit_def, song, true);
 }
 
 /***************************************************************************
@@ -91,34 +160,7 @@ void do_soedit(CHAR_DATA *ch, char *argument)
  */
 void soedit(CHAR_DATA *ch, char *argument)
 {
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0') {
-        soedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; soedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, soedit_table[cmd].name)) {
-            (*soedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    interpret(ch, arg);
+    olc_editor_interp(ch, argument, &soedit_def);
 }
 
 /***************************************************************************
@@ -128,30 +170,34 @@ void soedit(CHAR_DATA *ch, char *argument)
 SOEDIT(soedit_show)
 {
     SONG_DATA *song;
-    BUFFER *buf;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&soedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_SONG(ch, song);
 
-    buf = new_buf();
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buf, formatf("{Y=== Song Editor ==={x\n\r"));
-    add_buf(buf, formatf("{cUID:{x   %d\n\r", song->uid));
-    add_buf(buf, formatf("{cName:{x  %s\n\r", song->name));
-    add_buf(buf, formatf("{cLevel:{x %d\n\r", song->level));
-    add_buf(buf, formatf("{cMana:{x  %-5d  {cBeats:{x %-5d\n\r",
-            song->mana, song->beats));
-    add_buf(buf, formatf("{cTarget:{x %s\n\r",
-            flag_string(song_target_types, song->target)));
+    olc_display_header(ctx, "SoEdit", song->name,
+        formatf("UID %d", song->uid), &soedit_def);
 
-    add_buf(buf, formatf("{cSpell 1:{x %s\n\r",
-            song->spell1 ? song->spell1 : "(none)"));
-    add_buf(buf, formatf("{cSpell 2:{x %s\n\r",
-            song->spell2 ? song->spell2 : "(none)"));
-    add_buf(buf, formatf("{cSpell 3:{x %s\n\r",
-            song->spell3 ? song->spell3 : "(none)"));
+    olc_display_string(ctx, theme, "Name:", "name", song->name);
+    olc_display_number(ctx, theme, "Level:", "level", song->level);
+    olc_display_pair(ctx, theme,
+        "Mana:", "mana", formatf("%d", song->mana),
+        "Beats:", "beats", formatf("%d", song->beats));
+    olc_display_type(ctx, theme, "Target:", "target",
+        song_target_types, song->target);
 
-    page_to_char(buf_string(buf), ch);
-    free_buf(buf);
+    olc_display_section(ctx, theme, "Spells");
+
+    olc_display_string(ctx, theme, "Spell 1:", "spell1", song->spell1);
+    olc_display_string(ctx, theme, "Spell 2:", "spell2", song->spell2);
+    olc_display_string(ctx, theme, "Spell 3:", "spell3", song->spell3);
+
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -203,109 +249,40 @@ SOEDIT(soedit_name)
 {
     SONG_DATA *song;
     EDIT_SONG(ch, song);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: name <new name>\n\r", ch);
-        return false;
-    }
-
-    free_string(song->name);
-    song->name = str_dup(argument);
-    send_to_char("Song name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &song->name,
+        OLC_STR_DEFAULT, song, soedit_record_cb);
 }
 
 SOEDIT(soedit_level)
 {
     SONG_DATA *song;
-    int value;
-
     EDIT_SONG(ch, song);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: level <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 1 || value > MAX_LEVEL) {
-        send_to_char(formatf("Level must be between 1 and %d.\n\r", MAX_LEVEL), ch);
-        return false;
-    }
-
-    song->level = value;
-    send_to_char("Level set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Level", NULL, &song->level,
+        1, MAX_LEVEL, song, soedit_record_cb);
 }
 
 SOEDIT(soedit_mana)
 {
     SONG_DATA *song;
-    int value;
-
     EDIT_SONG(ch, song);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: mana <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 0 || value > 9999) {
-        send_to_char("Mana must be between 0 and 9999.\n\r", ch);
-        return false;
-    }
-
-    song->mana = value;
-    send_to_char("Mana cost set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Mana", NULL, &song->mana,
+        0, 9999, song, soedit_record_cb);
 }
 
 SOEDIT(soedit_beats)
 {
     SONG_DATA *song;
-    int value;
-
     EDIT_SONG(ch, song);
-
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax: beats <number>\n\r", ch);
-        return false;
-    }
-
-    value = atoi(argument);
-    if (value < 0 || value > 999) {
-        send_to_char("Beats must be between 0 and 999.\n\r", ch);
-        return false;
-    }
-
-    song->beats = value;
-    send_to_char("Beats set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Beats", NULL, &song->beats,
+        0, 999, song, soedit_record_cb);
 }
 
 SOEDIT(soedit_target)
 {
     SONG_DATA *song;
-    int value;
-
     EDIT_SONG(ch, song);
-
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: target <target type>\n\r", ch);
-        show_help(ch, "target");
-        return false;
-    }
-
-    value = flag_value(song_target_types, argument);
-    if (value == NO_FLAG) {
-        send_to_char("Invalid target type.\n\r", ch);
-        return false;
-    }
-
-    song->target = value;
-    send_to_char("Target set.\n\r", ch);
-    return true;
+    return olc_cmd_type_set_i16(ch, argument, "Target", NULL, &song->target,
+        song_target_types, song, soedit_record_cb);
 }
 
 /**
@@ -343,6 +320,10 @@ SOEDIT(soedit_spell)
     }
 
     if (!str_cmp(argument, "none") || !str_cmp(argument, "clear")) {
+        olc_history_record(soedit_ensure_history(song), ch,
+            formatf("spell%s", arg), *slot, "(none)");
+        olc_history_mark_dirty(OLC_HIST_SONG, song->name,
+            (OLC_CHANGE_HISTORY *)song->olc_history);
         free_string(*slot);
         *slot = &str_empty[0];
         send_to_char(formatf("Spell %s cleared.\n\r", arg), ch);
@@ -359,6 +340,10 @@ SOEDIT(soedit_spell)
         return false;
     }
 
+    olc_history_record(soedit_ensure_history(song), ch,
+        formatf("spell%s", arg), *slot, sk->name);
+    olc_history_mark_dirty(OLC_HIST_SONG, song->name,
+        (OLC_CHANGE_HISTORY *)song->olc_history);
     free_string(*slot);
     *slot = str_dup(sk->name);
     send_to_char(formatf("Spell %s set to '%s'.\n\r", arg, sk->name), ch);
@@ -367,7 +352,12 @@ SOEDIT(soedit_spell)
 
 SOEDIT(soedit_save)
 {
+    SONG_DATA *song;
+    EDIT_SONG(ch, song);
+
     save_songs();
+    olc_history_flush(OLC_HIST_SONG, song->name,
+        (OLC_CHANGE_HISTORY *)song->olc_history);
     send_to_char("Songs saved to JSON file.\n\r", ch);
     return false;
 }
