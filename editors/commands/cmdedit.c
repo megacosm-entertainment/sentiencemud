@@ -42,6 +42,64 @@ void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 bool commands_changed = false;
 
+static long cmdedit_addl_types_mask(void)
+{
+    long mask = 0;
+
+    for (int i = 0; command_addl_types[i].name != NULL; i++) {
+        if (command_addl_types[i].settable)
+            mask |= command_addl_types[i].bit;
+    }
+
+    return mask;
+}
+
+static long cmdedit_type_to_addl_flag(long cmd_type)
+{
+    const char *type_name;
+    long addl_flag;
+
+    type_name = flag_name(command_types, cmd_type);
+    if (IS_NULLSTR(type_name))
+        return CMD_TYPE_NONE;
+
+    addl_flag = flag_value(command_addl_types, (char *)type_name);
+    if (addl_flag == NO_FLAG)
+        return CMD_TYPE_NONE;
+
+    return addl_flag;
+}
+
+static bool cmdedit_normalize_command(CMD_DATA *command)
+{
+    long mask;
+    long normalized;
+
+    if (!command)
+        return false;
+
+    mask = cmdedit_addl_types_mask();
+    normalized = command->addl_types;
+
+    if (normalized < 0)
+        normalized = 0;
+
+    normalized &= mask;
+
+    if (normalized == 0)
+        normalized = cmdedit_type_to_addl_flag(command->type) & mask;
+
+    if (normalized == 0)
+        normalized = CMD_TYPE_NONE & mask;
+
+    if (normalized != command->addl_types) {
+        command->addl_types = normalized;
+        return true;
+    }
+
+    return false;
+}
+
 /***************************************************************************
  * Change Tracking                                                         *
  ***************************************************************************/
@@ -336,7 +394,17 @@ bool load_commands()
     }
 
     if (json_load_commands(COMMANDS_JSON_FILE))
+    {
+        ITERATOR it;
+        CMD_DATA *command;
+
+        iterator_start(&it, commands_list);
+        while ((command = (CMD_DATA *)iterator_nextdata(&it)))
+            cmdedit_normalize_command(command);
+        iterator_stop(&it);
+
         return true;
+    }
 
     log_string("commands.json not found, generating from cmd_table[]...");
 
@@ -484,6 +552,8 @@ CMDEDIT( cmdedit_create )
 
     CMD_DATA *command = new_cmd();
     command->name = str_dup(argument);
+    command->type = CMDTYPE_NONE;
+    command->addl_types = CMD_TYPE_NONE;
     insert_command(command);
 
     ch->desc->pEdit = (void *)command;
@@ -508,6 +578,7 @@ CMDEDIT (cmdedit_show)
     OLC_LAYOUT_CTX *ctx;
 
     EDIT_CMD(ch, command);
+    cmdedit_normalize_command(command);
 
     ctx = olc_display_new(ch, theme);
 
@@ -655,8 +726,7 @@ CMDEDIT( cmdedit_type )
 
     command->type = type;
 
-    if (!IS_SET(command->addl_types, flag_value(command_addl_types, flag_name(command_types, command->type))))
-        TOGGLE_BIT(command->addl_types, flag_value(command_addl_types, flag_name(command_types, command->type)));
+    cmdedit_normalize_command(command);
 
     sprintf(buf, "Type set to %s.\n\r", command_types[type].name);
     send_to_char(buf,ch);
@@ -1056,8 +1126,18 @@ CMDEDIT ( cmdedit_order )
 CMDEDIT( cmdedit_additional )
 {
     CMD_DATA *command;
+    bool changed;
+
     EDIT_CMD(ch, command);
-    return olc_cmd_flag_toggle(ch, argument, "Add'l Types",
+    cmdedit_normalize_command(command);
+
+    changed = olc_cmd_flag_toggle(ch, argument, "Add'l Types",
         "Syntax: additional <type>\n\rType '? cmd_types' for valid list.",
         &command->addl_types, command_addl_types, NULL, NULL);
+
+    if (!changed)
+        return false;
+
+    cmdedit_normalize_command(command);
+    return true;
 }

@@ -8,6 +8,8 @@
 #include "../../recycle.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 REPEDIT(repedit_list);
 REPEDIT(repedit_show);
@@ -24,6 +26,8 @@ static REPUTATION_INDEX_DATA *repedit_current(CHAR_DATA *ch);
 static bool repedit_mark_changed(REPUTATION_INDEX_DATA *rep);
 static void repedit_reorder_ranks(REPUTATION_INDEX_DATA *rep);
 static REPUTATION_INDEX_RANK_DATA *repedit_new_rank(const char *name);
+static void repedit_show_basic_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void repedit_show_ranks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
 static const struct flag_type reputation_flags_local[] = {
     { "hidden", REPUTATION_HIDDEN, true, NULL },
@@ -81,9 +85,10 @@ static const OLC_EDITOR_DEF repedit_def = {
     .cmd_table      = repedit_table,
     .show_fn        = repedit_show,
     .tabs           = {
-        .count      = 1,
+        .count      = 2,
         .tabs       = {
-            { "Basic", "Bas", NULL },
+            { "Basic", "Bas", repedit_show_basic_tab },
+            { "Ranks", "Rnk", repedit_show_ranks_tab },
         },
     },
     .theme          = &olc_theme_data,
@@ -227,51 +232,100 @@ REPEDIT(repedit_list)
 REPEDIT(repedit_show)
 {
     REPUTATION_INDEX_DATA *rep = repedit_current(ch);
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&repedit_def);
+    OLC_LAYOUT_CTX *ctx;
+    int tab;
+
     if (!rep)
         return false;
 
-    BUFFER *buffer = new_buf();
-    if (!buffer)
-        return false;
+    ctx = olc_display_new(ch, theme);
 
-    bprintf(buffer, "Reputation: {W%s{x\n\r", widevnum_string(rep->area, rep->vnum, NULL));
-    bprintf(buffer, "Name: {W%s{x\n\r", rep->name ? rep->name : "");
-    bprintf(buffer, "Area: {W%s{x\n\r", rep->area && rep->area->name ? rep->area->name : "");
-    bprintf(buffer, "Created By: {W%s{x\n\r", rep->created_by ? rep->created_by : "");
-    bprintf(buffer, "Flags: {W%s{x\n\r", flag_string(reputation_flags_local, rep->flags));
-    bprintf(buffer, "Initial Rank: {W%d{x\n\r", rep->initial_rank);
-    bprintf(buffer, "Initial Reputation: {W%ld{x\n\r", rep->initial_reputation);
+    olc_display_header(ctx,
+        "RepEdit",
+        rep->name ? rep->name : "(unnamed)",
+        widevnum_string(rep->area, rep->vnum, NULL),
+        &repedit_def);
 
-    if (rep->token)
-        bprintf(buffer, "Token: {W%s{x\n\r", widevnum_string_token(rep->token, rep->area));
-    else if (rep->token_load.vnum > 0)
-        bprintf(buffer, "Token: {W%ld#%ld{x\n\r", rep->token_load.auid, rep->token_load.vnum);
-
-    bprintf(buffer, "Description:\n\r%s\n\r", rep->description ? rep->description : "");
-    bprintf(buffer, "Comments:\n\r%s\n\r", rep->comments ? rep->comments : "");
-
-    bprintf(buffer, "\n\rRanks:\n\r");
-    if (rep->ranks && list_size(rep->ranks) > 0) {
-        ITERATOR it;
-        REPUTATION_INDEX_RANK_DATA *rank;
-        iterator_start(&it, rep->ranks);
-        while ((rank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&it))) {
-            bprintf(buffer, "  {W%2d{x) %-20.20s {%c%c{x cap=%ld flags=%s\n\r",
-                rank->ordinal,
-                rank->name ? rank->name : "",
-                rank->color ? rank->color : 'Y',
-                rank->color ? rank->color : 'Y',
-                rank->capacity,
-                flag_string(reputation_rank_flags_local, rank->flags));
-        }
-        iterator_stop(&it);
-    } else {
-        bprintf(buffer, "  (none)\n\r");
+    tab = ch->desc ? ch->desc->nEditTab : 0;
+    switch (tab) {
+    case 1:
+        repedit_show_ranks_tab(ch, ctx, rep);
+        break;
+    default:
+        repedit_show_basic_tab(ch, ctx, rep);
+        break;
     }
 
-    page_to_char(buf_string(buffer), ch);
-    free_buf(buffer);
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
+}
+
+static void repedit_show_basic_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    REPUTATION_INDEX_DATA *rep = (REPUTATION_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&repedit_def);
+    char initial_pair[MIL];
+
+    if (!rep)
+        return;
+
+    snprintf(initial_pair, sizeof(initial_pair), "rank=%d points=%ld",
+        rep->initial_rank, rep->initial_reputation);
+
+    olc_display_section(ctx, theme, "Identity");
+    olc_display_string(ctx, theme, "Name:", "name", rep->name);
+    olc_display_string(ctx, theme, "Area:", NULL,
+        (rep->area && rep->area->name) ? rep->area->name : "");
+    olc_display_string(ctx, theme, "Created By:", NULL, rep->created_by);
+
+    olc_display_blank(ctx);
+    olc_display_section(ctx, theme, "Configuration");
+    olc_display_flags(ctx, theme, "Flags:", "flags", reputation_flags_local, rep->flags);
+    olc_display_string(ctx, theme, "Initial:", "initial", initial_pair);
+    if (rep->token)
+        olc_display_string(ctx, theme, "Token:", "token", widevnum_string_token(rep->token, rep->area));
+    else if (rep->token_load.vnum > 0)
+        olc_display_string(ctx, theme, "Token:", "token", formatf("%ld#%ld", rep->token_load.auid, rep->token_load.vnum));
+    else
+        olc_display_string(ctx, theme, "Token:", "token", "(none)");
+
+    olc_display_blank(ctx);
+    olc_display_text(ctx, theme, "Description:", "description", rep->description);
+    olc_display_text(ctx, theme, "Comments:", "comments", rep->comments);
+}
+
+static void repedit_show_ranks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    REPUTATION_INDEX_DATA *rep = (REPUTATION_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&repedit_def);
+    ITERATOR it;
+    REPUTATION_INDEX_RANK_DATA *rank;
+
+    if (!rep)
+        return;
+
+    olc_display_section(ctx, theme, "Ranks");
+    if (!rep->ranks || list_size(rep->ranks) < 1) {
+        olc_display_infof(ctx, theme, "{D(none){x");
+        return;
+    }
+
+    iterator_start(&it, rep->ranks);
+    while ((rank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&it))) {
+        olc_display_infof(ctx, theme,
+            "{W%2d{x) {W%-20.20s{x {%c%c{x cap={W%ld{x flags={W%s{x",
+            rank->ordinal,
+            rank->name ? rank->name : "",
+            rank->color ? rank->color : 'Y',
+            rank->color ? rank->color : 'Y',
+            rank->capacity,
+            flag_string(reputation_rank_flags_local, rank->flags));
+    }
+    iterator_stop(&it);
 }
 
 REPEDIT(repedit_create)
@@ -322,71 +376,68 @@ REPEDIT(repedit_create)
 REPEDIT(repedit_name)
 {
     REPUTATION_INDEX_DATA *rep = repedit_current(ch);
+    bool changed;
+
     if (!rep)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        send_to_char("Syntax: name <text>\n\r", ch);
+    changed = olc_cmd_string(ch, argument, "name", "name <text>",
+        &rep->name, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed)
         return false;
-    }
 
-    smash_tilde(argument);
-    free_string(rep->name);
-    rep->name = str_dup(argument);
     repedit_mark_changed(rep);
-    send_to_char("Name set.\n\r", ch);
     return true;
 }
 
 REPEDIT(repedit_description)
 {
     REPUTATION_INDEX_DATA *rep = repedit_current(ch);
+    bool changed;
+
     if (!rep)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        string_append(ch, &rep->description);
-        repedit_mark_changed(rep);
-        return true;
-    }
+    changed = olc_cmd_string_append(ch, argument, "description", "description",
+        &rep->description, NULL, NULL);
+    if (!changed)
+        return false;
 
-    send_to_char("Syntax: description\n\r", ch);
-    return false;
+    repedit_mark_changed(rep);
+    return true;
 }
 
 REPEDIT(repedit_comments)
 {
     REPUTATION_INDEX_DATA *rep = repedit_current(ch);
+    bool changed;
+
     if (!rep)
         return false;
 
-    if (IS_NULLSTR(argument)) {
-        string_append(ch, &rep->comments);
-        repedit_mark_changed(rep);
-        return true;
-    }
+    changed = olc_cmd_string_append(ch, argument, "comments", "comments",
+        &rep->comments, NULL, NULL);
+    if (!changed)
+        return false;
 
-    send_to_char("Syntax: comments\n\r", ch);
-    return false;
+    repedit_mark_changed(rep);
+    return true;
 }
 
 REPEDIT(repedit_flags)
 {
     REPUTATION_INDEX_DATA *rep = repedit_current(ch);
-    long value;
+    bool changed;
 
     if (!rep)
         return false;
 
-    if (IS_NULLSTR(argument) || (value = flag_value(reputation_flags_local, argument)) == NO_FLAG) {
-        send_to_char("Syntax: flags <flag>\n\r", ch);
-        send_to_char("Valid flags: hidden peaceful on_update on_encounter\n\r", ch);
+    changed = olc_cmd_flag_toggle(ch, argument, "flags", "flags <flag>",
+        &rep->flags, reputation_flags_local, NULL, NULL);
+    if (!changed)
         return false;
-    }
 
-    TOGGLE_BIT(rep->flags, value);
     repedit_mark_changed(rep);
-    send_to_char("Flags updated.\n\r", ch);
     return true;
 }
 
@@ -548,14 +599,12 @@ REPEDIT(repedit_rank)
     }
 
     if (!str_prefix(arg2, "name")) {
-        if (IS_NULLSTR(argument)) {
-            send_to_char("Syntax: rank <#> name <text>\n\r", ch);
+        bool changed = olc_cmd_string(ch, argument, "Rank Name",
+            "rank <#> name <text>", &rank->name, OLC_STR_DEFAULT, NULL, NULL);
+        if (!changed)
             return false;
-        }
-        free_string(rank->name);
-        rank->name = str_dup(argument);
+
         repedit_mark_changed(rep);
-        send_to_char("Rank name set.\n\r", ch);
         return true;
     }
 
@@ -586,25 +635,31 @@ REPEDIT(repedit_rank)
     }
 
     if (!str_prefix(arg2, "flags")) {
-        long value = flag_value(reputation_rank_flags_local, argument);
-        if (value == NO_FLAG) {
-            send_to_char("Valid flags: norankup paragon reset_paragon peaceful hostile\n\r", ch);
+        bool changed = olc_cmd_flag_toggle(ch, argument, "Rank Flags",
+            "rank <#> flags <flag>", &rank->flags, reputation_rank_flags_local, NULL, NULL);
+        if (!changed)
             return false;
-        }
-        TOGGLE_BIT(rank->flags, value);
+
         repedit_mark_changed(rep);
-        send_to_char("Rank flags updated.\n\r", ch);
         return true;
     }
 
     if (!str_prefix(arg2, "description")) {
-        string_append(ch, &rank->description);
+        bool changed = olc_cmd_string_append(ch, argument, "Rank Description",
+            "rank <#> description", &rank->description, NULL, NULL);
+        if (!changed)
+            return false;
+
         repedit_mark_changed(rep);
         return true;
     }
 
     if (!str_prefix(arg2, "comments")) {
-        string_append(ch, &rank->comments);
+        bool changed = olc_cmd_string_append(ch, argument, "Rank Comments",
+            "rank <#> comments", &rank->comments, NULL, NULL);
+        if (!changed)
+            return false;
+
         repedit_mark_changed(rep);
         return true;
     }
