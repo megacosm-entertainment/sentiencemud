@@ -47,7 +47,7 @@ The OLC system has been reorganized into a modular structure:
 - **Ships**: `shedit` - Ship editing
 - **Socials**: `socialedit` - Social editing
 - **Tokens**: `tedit` - Token editing
-- **Wilderness**: `wedit`, `vledit` - Wilderness editing
+- **Wilderness**: `wedit` - Wilderness editing (vlink editor folded into wedit as a tab)
 
 A common editor framework now provides consistent behavior across all editors.
 

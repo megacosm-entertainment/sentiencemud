@@ -45,8 +45,8 @@ This plan covers:
 
 | Editor    | Type       | ED_ Constant   | Location                              | Lines  | Gen   | Tabs | Change Model         |
 |-----------|------------|----------------|---------------------------------------|--------|-------|------|----------------------|
-| AEDIT     | Areas      | ED_AREA        | `editors/areas/aedit.c`               | 1,302  | 1     | No   | Area flag            |
-| REDIT     | Rooms      | ED_ROOM        | `editors/rooms/redit.c`               | 1,971  | 1     | No   | Area flag            |
+| AEDIT     | Areas      | ED_AREA        | `editors/areas/aedit.c`               | 1,302  | 1→FW  | Yes  | Area flag            |
+| REDIT     | Rooms      | ED_ROOM        | `editors/rooms/redit.c`               | 1,971  | 1→FW  | Yes  | Area flag            |
 | OEDIT     | Objects    | ED_OBJECT      | `editors/objects/oedit.c`             | ~3,010 | 1→FW  | Yes  | Area flag            |
 |           |            |                | `editors/objects/oedit_types.c`       | 1,955  |       |      |                      |
 | MEDIT     | Mobiles    | ED_MOBILE      | `editors/mobiles/medit.c`             | ~3,715 | 1→FW  | Yes  | Area flag            |
@@ -54,8 +54,8 @@ This plan covers:
 | HEDIT     | Help       | ED_HELP        | `editors/help/hedit.c`               | 1,106  | 1     | No   | Area flag            |
 | SHEDIT    | Ships      | ED_SHIP        | `editors/ships/shedit.c`             | 903    | 1     | No   | Area flag            |
 | PEDIT     | Projects   | ED_PROJECT     | `editors/projects/pedit.c`           | 445    | 1     | No   | Global bool          |
-| WEDIT     | Wilderness | ED_WILDS       | `editors/wilderness/wedit.c`         | ~650   | 1     | No   | Area flag            |
-| VLEDIT    | Vlinks     | ED_VLINK       | `editors/wilderness/vledit.c`        | ~250   | 1     | No   | Area flag            |
+| WEDIT     | Wilderness | ED_WILDS       | `editors/wilderness/wedit.c`         | ~1,050 | 1→FW  | Yes  | Area flag            |
+| ~~VLEDIT~~| ~~Vlinks~~ | ~~ED_VLINK~~   | *(folded into WEDIT as VLinks tab)*  | —      | —     | —    | —                    |
 | BSEDIT    | BP Sections| ED_BPSECT      | `editors/blueprints/bsedit.c`        | ~1,500 | 1     | No   | Area flag            |
 | BPEDIT    | Blueprints | ED_BLUEPRINT   | `editors/blueprints/bpedit.c`        | ~1,450 | 1     | No   | Area flag            |
 | DNGEDIT   | Dungeons   | ED_DUNGEON     | `editors/dungeons/dngedit.c`         | 5,825  | 1     | No   | Area flag            |
@@ -100,7 +100,7 @@ entering a modal editor state. It uses a changeset/confirm workflow for safety.
 
 #### Generation 1: Manual Dispatch (Oldest — lives partly in `olc.c`)
 
-Used by: aedit, redit, oedit, medit, hedit, shedit, pedit, wedit, vledit, bsedit, bpedit,
+Used by: ~~aedit~~, ~~redit~~, oedit, medit, hedit, shedit, pedit, ~~wedit~~, bsedit, bpedit,
 dngedit, cmdedit, socialedit, rsgedit, and all script editors.
 
 **Pattern** (repeated ~20 times with minor variations):
@@ -282,8 +282,7 @@ editors/
 ├── projects/
 │   └── pedit.c
 ├── wilderness/
-│   ├── wedit.c
-│   └── vledit.c
+│   └── wedit.c            # vledit folded in as VLinks tab
 ├── random_strings/
 │   └── rsgedit.c
 └── reserved_vnums/
@@ -989,7 +988,7 @@ new code.
 | **0** | Framework foundation | — | Done |
 | **1** | Gen 2 quick wins | clsedit, racedit, traitedit, gredit, soedit, skedit | Done |
 | **2** | Tabbed pioneers | medit, oedit, tedit | Done |
-| **3** | World editors | aedit, redit, wedit, vledit | Medium |
+| **3** | World editors | aedit, redit, wedit *(vledit folded in)* | Done |
 | **4** | Blueprint/dungeon | bsedit, bpedit, dngedit | Medium |
 | **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Small-Med |
 | **6** | Script editors | mpedit, opedit, rpedit, tpedit, ipedit, dpedit, apedit | Medium |
@@ -1214,16 +1213,26 @@ and the helper API.
   (2) splitting the `case '<' / case MXP_BEGIN_TAG` in `ProtocolOutput()` so each
   scans for its own terminator (`>` vs `MXP_END_TAG`).
 
-### 7.5 Phase 3: World Editors (aedit, redit, wedit, vledit)
+### 7.5 Phase 3: World Editors (aedit, redit, wedit) — DONE
 
-These editors are interrelated (areas contain rooms, rooms may be in wilderness).
+**Status**: Complete.
 
-Special considerations:
-- **redit** uses `EDIT_ROOM` macro that checks for virtual rooms (not `pEdit`)
-- **redit** will be the foundation for player housing (Phase 9)
-- **aedit** needs area-level permission checks (`IS_BUILDER`)
+All four world editors migrated to the framework:
 
-Suggested redit tabs:
+- **aedit** — Migrated with 3 tabs (General, Regions, Scripts). Area-level `IS_BUILDER` permission checks preserved.
+- **redit** — Migrated with 5 tabs (General, Exits, Resets, Extra, Scripts). Uses `EDIT_ROOM` macro for virtual room support. Foundation for Phase 9 player housing.
+- **wedit** — Migrated with 4 tabs (General, Map, Terrain, VLinks). Map tab uses direct-send `show_map_to_char()` after buffer flush.
+- **vledit** — Folded into wedit as the VLinks tab rather than remaining a separate editor. The `ED_VLINK` editor type, `vledit` command, and `vledit.c` compilation unit were all removed. VLinks are currently displayed read-only; full read/write support planned for the wilderness refactor.
+
+wedit tabs:
+| Tab | Contents |
+|-----|----------|
+| General | Name, area, map size, default terrain, edit state |
+| Map | Rendered wilderness map via `show_map_to_char()` |
+| Terrain | Default terrain + 3-column terrain key listing |
+| VLinks | Count + tabular listing of all vlinks (read-only) |
+
+redit tabs:
 | Tab | Contents |
 |-----|----------|
 | General | Name, description, sector, room flags, heal rate, mana rate |

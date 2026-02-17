@@ -203,7 +203,7 @@ Go through all .c and .h files in /sentience/src and subdirectories, documenting
 - [ ] ships/shedit.c
 - [ ] socials/socialedit.c
 - [ ] tokens/tedit.c
-- [ ] wilderness/vledit.c
+- [x] wilderness/vledit.c *(removed — folded into wedit.c as VLinks tab)*
 - [ ] wilderness/wedit.c
 
 ---

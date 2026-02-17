@@ -64,7 +64,7 @@ editors/
 ├── ships/shedit.c
 ├── socials/socialedit.c
 ├── tokens/tedit.c
-└── wilderness/wedit.c, vledit.c
+└── wilderness/wedit.c  (vledit folded in as VLinks tab)
 ```
 
 ### Nanny System Refactoring

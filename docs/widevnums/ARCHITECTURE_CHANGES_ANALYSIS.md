@@ -198,8 +198,7 @@ src/editors/
 ├── socials/socialedit.c      # Social editor
 ├── tokens/tedit.c            # Token editor
 └── wilderness/
-    ├── wedit.c               # Wilderness editor
-    └── vledit.c              # Wilderness locale editor
+    └── wedit.c               # Wilderness editor (vledit folded in as VLinks tab)
 ```
 
 **Characteristics:**
