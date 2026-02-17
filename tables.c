@@ -3497,6 +3497,7 @@ const struct do_func_type do_func_table[] =
         { "do_liqedit", do_liqedit },
         { "do_matedit", do_matedit },
         { "do_corpsedit", do_corpsedit },
+        { "do_sectoredit", do_sectoredit },
         { NULL, NULL }
 };
 
