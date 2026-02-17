@@ -2122,6 +2122,10 @@ struct	shop_data
     int		shipyard_region[2][2];
     char	*shipyard_description;	// Used when purchasing a ship to tell the buyer where the ship is located.
 
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
+
     SHOP_STOCK_DATA *stock;
 };
 
@@ -2171,6 +2175,13 @@ struct shop_stock_data
     char *custom_descr;
 
     bool singular;				// Can only buy one unit at a time
+
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
+    int max_reputation_rank;
+    int min_show_rank;
+    int max_show_rank;
 };
 
 struct shop_request_data
@@ -4136,6 +4147,7 @@ struct	mob_index_data
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
+    MOB_REPUTATION_DATA *mob_reputations;
     bool	persist;
 
     AREA_DATA *		area;
@@ -4287,6 +4299,10 @@ struct trainer_entry
     TRAINER_ENTRY *next;
     bool valid;
     char *skill_name;           /* Name of skill/spell/song */
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
+    int max_reputation_rank;
     int max_rating;             /* Maximum rating this trainer can train to (0 = default cap) */
     int cost_gold;              /* Gold cost per session (0 = default) */
     int cost_trains;            /* Train point cost per session (0 = default) */

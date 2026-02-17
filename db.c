@@ -1316,6 +1316,26 @@ void fix_area_fields(void)
                         ? get_area_from_uid(mob->zombie_load.auid) : pArea;
                     mob->zombie_wnum.vnum = mob->zombie_load.vnum;
                 }
+
+                for (MOB_REPUTATION_DATA *rep = mob->mob_reputations; rep != NULL; rep = rep->next)
+                {
+                    if (rep->reputation_load.vnum > 0)
+                    {
+                        rep->reputation = get_reputation_index_auid(rep->reputation_load.auid, rep->reputation_load.vnum);
+                        if (!IS_VALID(rep->reputation))
+                        {
+                            pbugf(LOG_ERROR,
+                                  "fix_area_fields: mob %s has invalid reputation %ld#%ld",
+                                  widevnum_string(mob->area, mob->vnum, NULL),
+                                  rep->reputation_load.auid,
+                                  rep->reputation_load.vnum);
+                        }
+                    }
+                    else
+                    {
+                        rep->reputation = NULL;
+                    }
+                }
             }
         }
 
@@ -1327,6 +1347,58 @@ void fix_area_fields(void)
                 trade->obj_wnum.pArea = trade->obj_load.auid > 0
                     ? get_area_from_uid(trade->obj_load.auid) : pArea;
                 trade->obj_wnum.vnum = trade->obj_load.vnum;
+            }
+        }
+
+        /* Shop and stock reputation references */
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
+            {
+                if (mob->pShop)
+                {
+                    if (mob->pShop->reputation_load.vnum > 0)
+                    {
+                        mob->pShop->reputation = get_reputation_index_auid(
+                            mob->pShop->reputation_load.auid,
+                            mob->pShop->reputation_load.vnum);
+                    }
+                    else
+                    {
+                        mob->pShop->reputation = NULL;
+                    }
+
+                    for (SHOP_STOCK_DATA *stock = mob->pShop->stock; stock != NULL; stock = stock->next)
+                    {
+                        if (stock->reputation_load.vnum > 0)
+                        {
+                            stock->reputation = get_reputation_index_auid(
+                                stock->reputation_load.auid,
+                                stock->reputation_load.vnum);
+                        }
+                        else
+                        {
+                            stock->reputation = NULL;
+                        }
+                    }
+                }
+
+                if (mob->pTrainer)
+                {
+                    for (TRAINER_ENTRY *entry = mob->pTrainer->entries; entry != NULL; entry = entry->next)
+                    {
+                        if (entry->reputation_load.vnum > 0)
+                        {
+                            entry->reputation = get_reputation_index_auid(
+                                entry->reputation_load.auid,
+                                entry->reputation_load.vnum);
+                        }
+                        else
+                        {
+                            entry->reputation = NULL;
+                        }
+                    }
+                }
             }
         }
     }
@@ -3040,6 +3112,12 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
     to_stock->discount = URANGE(0,from_stock->discount,100);
     to_stock->level = from_stock->level;
     to_stock->entity.wnum = from_stock->entity.wnum;
+    to_stock->reputation = from_stock->reputation;
+    to_stock->reputation_load = from_stock->reputation_load;
+    to_stock->min_reputation_rank = from_stock->min_reputation_rank;
+    to_stock->max_reputation_rank = from_stock->max_reputation_rank;
+    to_stock->min_show_rank = from_stock->min_show_rank;
+    to_stock->max_show_rank = from_stock->max_show_rank;
     switch(to_stock->type)
     {
     case STOCK_OBJECT:
@@ -3108,6 +3186,9 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
     }
 
     to_shop->discount = URANGE(0,from_shop->discount,100);
+    to_shop->reputation = from_shop->reputation;
+    to_shop->reputation_load = from_shop->reputation_load;
+    to_shop->min_reputation_rank = from_shop->min_reputation_rank;
 
     if( from_shop->stock )
         copy_shop_stock(to_shop, from_shop->stock);
@@ -3688,6 +3769,25 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
     // make sure nothing has 0 hp
     mob->max_hit = UMAX(1, mob->max_hit);
+
+    // Copy reputation rewards from index to instance so scripts can mutate safely.
+    {
+        MOB_REPUTATION_DATA *prev = NULL;
+        MOB_REPUTATION_DATA *rep;
+
+        for (rep = pMobIndex->mob_reputations; rep; rep = rep->next)
+        {
+            MOB_REPUTATION_DATA *new_rep = copy_mob_reputation_data(rep);
+            new_rep->next = NULL;
+
+            if (prev)
+                prev->next = new_rep;
+            else
+                mob->mob_reputations = new_rep;
+
+            prev = new_rep;
+        }
+    }
 
     return mob;
 }

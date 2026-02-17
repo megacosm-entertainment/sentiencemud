@@ -485,6 +485,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "clslist",	do_clslist,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "corpsedit",    do_corpsedit,   POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "sectoredit",   do_sectoredit,  POS_DEAD,    L5,  LOG_NORMAL, 1, true },
+    { "repedit",      do_repedit,     POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "dislink",	do_dislink,	POS_DEAD,    L5,  LOG_ALWAYS, 1, true },
     { "edit",		do_olc,		POS_DEAD,    L5,  LOG_NORMAL, 1, true },
     { "gredit",		do_gredit,	POS_DEAD,    L5,  LOG_NORMAL, 1, true },

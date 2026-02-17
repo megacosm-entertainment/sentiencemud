@@ -60,6 +60,7 @@ const struct olc_cmd_type medit_table[] =
     {   "?",            show_help       },
     {   "act",          medit_act       },
     {   "addmprog",     medit_addmprog  },
+    {   "addreputation",medit_addreputation },
     {   "affect",       medit_affect    },
     {   "alignment",    medit_align     },
     {   "armour",       medit_ac        },
@@ -70,6 +71,7 @@ const struct olc_cmd_type medit_table[] =
     {   "damdice",      medit_damdice   },
     {   "damtype",      medit_damtype   },
     {   "delmprog",     medit_delmprog  },
+    {   "delreputation",medit_delreputation },
     {   "description",  medit_desc      },
     {   "hitdice",      medit_hitdice   },
     {   "hitroll",      medit_hitroll   },
@@ -563,9 +565,60 @@ static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
     char buf[MAX_STRING_LENGTH];
+    bool has_special_data = false;
+
+    if (pMob->mob_reputations) {
+        MOB_REPUTATION_DATA *rep;
+        int index = 0;
+
+        has_special_data = true;
+        olc_display_section(ctx, theme, "Reputation Rewards");
+        add_buf(ctx->buffer, formatf("  %s#   Reputation                       Min  Max  Points{x\n\r", theme->label));
+        add_buf(ctx->buffer, formatf("  %s--- ------------------------------- ---- ---- -------{x\n\r", theme->label));
+
+        for (rep = pMob->mob_reputations; rep; rep = rep->next) {
+            const char *name = "(invalid)";
+            char wnum[MIL];
+            char min_rank_buf[16];
+            char max_rank_buf[16];
+
+            if (IS_VALID(rep->reputation)) {
+                name = rep->reputation->name ? rep->reputation->name : "(unnamed)";
+                strncpy(wnum, widevnum_string(rep->reputation->area, rep->reputation->vnum, pMob->area), sizeof(wnum) - 1);
+                wnum[sizeof(wnum) - 1] = '\0';
+            } else {
+                snprintf(wnum, sizeof(wnum), "%ld#%ld", rep->reputation_load.auid, rep->reputation_load.vnum);
+            }
+
+            if (rep->minimum_rank > 0)
+                snprintf(min_rank_buf, sizeof(min_rank_buf), "%d", rep->minimum_rank);
+            else
+                strcpy(min_rank_buf, "-");
+
+            if (rep->maximum_rank > 0)
+                snprintf(max_rank_buf, sizeof(max_rank_buf), "%d", rep->maximum_rank);
+            else
+                strcpy(max_rank_buf, "-");
+
+            add_buf(ctx->buffer, formatf("  %-3d %-31.31s %-4s %-4s %7ld  %s\n\r",
+                index,
+                name,
+                min_rank_buf,
+                max_rank_buf,
+                rep->points,
+                wnum));
+            index++;
+        }
+
+        olc_display_string(ctx, theme, "Add:", NULL,
+            "addreputation <widevnum> <min rank|none> <max rank|none> <points>");
+        olc_display_string(ctx, theme, "Delete:", NULL,
+            "delreputation <index>");
+    }
 
     if (pMob->pQuestor) {
         QUESTOR_DATA *questor = pMob->pQuestor;
+        has_special_data = true;
 
         olc_display_section(ctx, theme, "Questor Data");
 
@@ -587,6 +640,8 @@ static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     if (pMob->pTrainer) {
         TRAINER_DATA *trainer = pMob->pTrainer;
         TRAINER_ENTRY *entry;
+
+        has_special_data = true;
 
         olc_display_section(ctx, theme, "Trainer Data");
 
@@ -611,6 +666,7 @@ static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     }
 
     if (IS_VALID(pMob->pCrew)) {
+        has_special_data = true;
         olc_display_section(ctx, theme, "Ship Crew Data");
 
         olc_display_string(ctx, theme, "Minimum Rank:", NULL, "NYI");
@@ -622,7 +678,7 @@ static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         olc_display_percent(ctx, theme, "Leadership:",  NULL, pMob->pCrew->leadership, 1);
     }
 
-    if (!pMob->pQuestor && !pMob->pTrainer && !IS_VALID(pMob->pCrew)) {
+    if (!has_special_data) {
         snprintf(buf, sizeof(buf), "  %s(No questor, trainer, or crew data){x\n\r", theme->unset);
         add_buf(ctx->buffer, buf);
     }
@@ -3030,6 +3086,153 @@ MEDIT(medit_addquest)
 }
 
 
+MEDIT(medit_addreputation)
+{
+    char arg[MIL];
+    MOB_INDEX_DATA *pMob;
+    WNUM wnum;
+
+    EDIT_MOB(ch, pMob);
+
+    argument = one_argument(argument, arg);
+    if (!parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum) || !wnum.pArea || wnum.vnum < 1)
+    {
+        send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+        send_to_char("Please specify a valid reputation widevnum.\n\r", ch);
+        return false;
+    }
+
+    REPUTATION_INDEX_DATA *repIndex = get_reputation_index(wnum.pArea, wnum.vnum);
+    if (!IS_VALID(repIndex))
+    {
+        send_to_char("No reputation with that widevnum.\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+    int min_rank;
+    if (is_number(arg))
+    {
+        min_rank = atoi(arg);
+        if (min_rank < 1 || min_rank > list_size(repIndex->ranks))
+        {
+            send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+            send_to_char(formatf("Invalid minimum rank. Use 1..%d or none.\n\r", list_size(repIndex->ranks)), ch);
+            return false;
+        }
+    }
+    else if (!str_prefix(arg, "none"))
+    {
+        min_rank = 0;
+    }
+    else
+    {
+        send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+    int max_rank;
+    if (is_number(arg))
+    {
+        max_rank = atoi(arg);
+        if (max_rank < 1 || max_rank > list_size(repIndex->ranks))
+        {
+            send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+            send_to_char(formatf("Invalid maximum rank. Use 1..%d or none.\n\r", list_size(repIndex->ranks)), ch);
+            return false;
+        }
+    }
+    else if (!str_prefix(arg, "none"))
+    {
+        max_rank = 0;
+    }
+    else
+    {
+        send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+        return false;
+    }
+
+    if (min_rank && max_rank && min_rank > max_rank)
+    {
+        send_to_char("Minimum rank cannot be greater than maximum rank.\n\r", ch);
+        return false;
+    }
+
+    long points;
+    if (!is_number(argument) || !(points = atol(argument)))
+    {
+        send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+        send_to_char("Please specify a non-zero points value.\n\r", ch);
+        return false;
+    }
+
+    MOB_REPUTATION_DATA *rep, *new_rep;
+    new_rep = new_mob_reputation_data();
+    new_rep->reputation = repIndex;
+    new_rep->reputation_load.auid = repIndex->area ? repIndex->area->uid : 0;
+    new_rep->reputation_load.vnum = repIndex->vnum;
+    new_rep->minimum_rank = min_rank;
+    new_rep->maximum_rank = max_rank;
+    new_rep->points = points;
+
+    for (rep = pMob->mob_reputations; rep && rep->next; rep = rep->next)
+    ;
+
+    if (rep)
+        rep->next = new_rep;
+    else
+        pMob->mob_reputations = new_rep;
+
+    send_to_char("Reputation reward added.\n\r", ch);
+    return true;
+}
+
+
+MEDIT(medit_delreputation)
+{
+    MOB_INDEX_DATA *pMob;
+    char arg[MAX_STRING_LENGTH];
+    int index;
+    MOB_REPUTATION_DATA *prev, *rep;
+
+    EDIT_MOB(ch, pMob);
+
+    one_argument(argument, arg);
+    if (!is_number(arg) || arg[0] == '\0')
+    {
+       send_to_char("Syntax:  delreputation <index>\n\r", ch);
+       return false;
+    }
+
+    index = atoi(arg);
+    if (index < 0)
+    {
+        send_to_char("Please specify a non-negative index.\n\r", ch);
+        return false;
+    }
+
+    for (prev = NULL, rep = pMob->mob_reputations; rep && index--; prev = rep, rep = rep->next)
+    ;
+
+    if (!rep)
+    {
+        send_to_char("No such reputation entry.\n\r", ch);
+        return false;
+    }
+
+    if (prev)
+        prev->next = rep->next;
+    else
+        pMob->mob_reputations = rep->next;
+
+    free_mob_reputation_data(rep);
+
+    send_to_char("Reputation reward removed.\n\r", ch);
+    return true;
+}
+
+
 MEDIT(medit_delquest)
 {
     MOB_INDEX_DATA *pMob;
@@ -3274,6 +3477,7 @@ MEDIT(medit_trainer)
         send_to_char("        GREETING [text]               Sets custom greeting.\n\r", ch);
         send_to_char("        SKILL ADD <name> [max] [gold] [trains] [script]\n\r", ch);
         send_to_char("        SKILL REMOVE <name>           Removes a trainable skill.\n\r", ch);
+        send_to_char("        SKILL REP <name> <rep|none> [min|none] [max|none]\n\r", ch);
         send_to_char("        SKILL LIST                    Lists trainable skills.\n\r", ch);
         return false;
     }
@@ -3420,6 +3624,101 @@ MEDIT(medit_trainer)
             send_to_char("No trainer entry with that name.\n\r", ch);
             return false;
 
+        } else if (!str_prefix(sub, "rep")) {
+            char name[MIL], rep_arg[MIL], min_arg[MIL], max_arg[MIL];
+            TRAINER_ENTRY *entry;
+
+            argument = one_argument(argument, name);
+            argument = one_argument(argument, rep_arg);
+            argument = one_argument(argument, min_arg);
+            argument = one_argument(argument, max_arg);
+
+            if (IS_NULLSTR(name) || IS_NULLSTR(rep_arg)) {
+                send_to_char("Syntax: trainer skill rep <name> <reputation widevnum|none> [min rank|none] [max rank|none]\n\r", ch);
+                return false;
+            }
+
+            for (entry = pMob->pTrainer->entries; entry; entry = entry->next) {
+                if (IS_VALID(entry) && !str_cmp(entry->skill_name, name))
+                    break;
+            }
+
+            if (!IS_VALID(entry)) {
+                send_to_char("No trainer entry with that name.\n\r", ch);
+                return false;
+            }
+
+            if (!str_prefix(rep_arg, "none")) {
+                entry->reputation = NULL;
+                entry->reputation_load.auid = 0;
+                entry->reputation_load.vnum = 0;
+                entry->min_reputation_rank = 0;
+                entry->max_reputation_rank = 0;
+                send_to_char("Trainer entry reputation requirement cleared.\n\r", ch);
+                return true;
+            }
+
+            WNUM wnum;
+            REPUTATION_INDEX_DATA *repIndex;
+            int min_rank = 0;
+            int max_rank = 0;
+
+            if (!parse_widevnum(rep_arg, pMob->area, &wnum) || !wnum.pArea) {
+                send_to_char("Please specify a valid reputation widevnum (or 'none').\n\r", ch);
+                return false;
+            }
+
+            repIndex = get_reputation_index(wnum.pArea, wnum.vnum);
+            if (!IS_VALID(repIndex)) {
+                send_to_char("No reputation with that widevnum.\n\r", ch);
+                return false;
+            }
+
+            if (!IS_NULLSTR(min_arg) && str_cmp(min_arg, "none")) {
+                if (!is_number(min_arg)) {
+                    send_to_char("Minimum rank must be a number or 'none'.\n\r", ch);
+                    return false;
+                }
+                min_rank = atoi(min_arg);
+            }
+
+            if (!IS_NULLSTR(max_arg) && str_cmp(max_arg, "none")) {
+                if (!is_number(max_arg)) {
+                    send_to_char("Maximum rank must be a number or 'none'.\n\r", ch);
+                    return false;
+                }
+                max_rank = atoi(max_arg);
+            }
+
+            if (min_rank < 0 || max_rank < 0) {
+                send_to_char("Rank bounds cannot be negative.\n\r", ch);
+                return false;
+            }
+
+            if (min_rank > 0 && min_rank > list_size(repIndex->ranks)) {
+                send_to_char(formatf("Minimum rank is out of range (1..%d).\n\r", list_size(repIndex->ranks)), ch);
+                return false;
+            }
+
+            if (max_rank > 0 && max_rank > list_size(repIndex->ranks)) {
+                send_to_char(formatf("Maximum rank is out of range (1..%d).\n\r", list_size(repIndex->ranks)), ch);
+                return false;
+            }
+
+            if (min_rank > 0 && max_rank > 0 && min_rank > max_rank) {
+                send_to_char("Minimum rank cannot be greater than maximum rank.\n\r", ch);
+                return false;
+            }
+
+            entry->reputation = repIndex;
+            entry->reputation_load.auid = repIndex->area ? repIndex->area->uid : 0;
+            entry->reputation_load.vnum = repIndex->vnum;
+            entry->min_reputation_rank = min_rank;
+            entry->max_reputation_rank = max_rank;
+
+            send_to_char("Trainer entry reputation requirement set.\n\r", ch);
+            return true;
+
         } else if (!str_prefix(sub, "list")) {
             TRAINER_ENTRY *entry;
             int count = 0;
@@ -3429,17 +3728,29 @@ MEDIT(medit_trainer)
                 return false;
             }
 
-            send_to_char(formatf("{G%-25s %-6s %-6s %-8s %-15s{x\n\r",
-                "Skill/Spell/Song", "MaxRat", "Gold", "Trains", "Script"), ch);
+            send_to_char(formatf("{G%-25s %-6s %-6s %-8s %-15s %-26s{x\n\r",
+                "Skill/Spell/Song", "MaxRat", "Gold", "Trains", "Script", "Reputation"), ch);
 
             for (entry = pMob->pTrainer->entries; entry; entry = entry->next) {
+                char rep_buf[MIL];
+
                 if (!IS_VALID(entry)) continue;
-                send_to_char(formatf("%-25s %-6d %-6d %-8d %-15s\n\r",
+
+                if (IS_VALID(entry->reputation))
+                    snprintf(rep_buf, sizeof(rep_buf), "%s [%d,%d]",
+                        widevnum_string(entry->reputation->area, entry->reputation->vnum, pMob->area),
+                        entry->min_reputation_rank,
+                        entry->max_reputation_rank);
+                else
+                    strcpy(rep_buf, "(none)");
+
+                send_to_char(formatf("%-25s %-6d %-6d %-8d %-15s %-26s\n\r",
                     entry->skill_name ? entry->skill_name : "?",
                     entry->max_rating,
                     entry->cost_gold,
                     entry->cost_trains,
-                    entry->check_script ? entry->check_script : "(none)"), ch);
+                    entry->check_script ? entry->check_script : "(none)",
+                    rep_buf), ch);
                 count++;
             }
 

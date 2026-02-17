@@ -72,6 +72,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_MATERIAL       36
 #define ED_CORPSE        37
 #define ED_SECTOR        38
+#define ED_REPUTATION    39
 
 
 
@@ -103,6 +104,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define MATEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 #define CORPSEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
 #define SECTOREDIT( fun )     bool fun( CHAR_DATA *ch, char *argument )
+#define REPEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -207,6 +209,7 @@ DECLARE_DO_FUN( do_liqedit      );
 DECLARE_DO_FUN( do_matedit      );
 DECLARE_DO_FUN( do_corpsedit    );
 DECLARE_DO_FUN( do_sectoredit   );
+DECLARE_DO_FUN( do_repedit      );
 
 
 /*
@@ -390,6 +393,7 @@ DECLARE_OLC_FUN( medit_ac		);
 DECLARE_OLC_FUN( medit_act		);
 DECLARE_OLC_FUN( medit_act2		);
 DECLARE_OLC_FUN( medit_addmprog		);
+DECLARE_OLC_FUN( medit_addreputation	);
 DECLARE_OLC_FUN( medit_addquest		);
 DECLARE_OLC_FUN( medit_affect		);
 DECLARE_OLC_FUN( medit_affect2	        );
@@ -400,6 +404,7 @@ DECLARE_OLC_FUN( medit_create		);
 DECLARE_OLC_FUN( medit_damdice		);
 DECLARE_OLC_FUN( medit_damtype		);
 DECLARE_OLC_FUN( medit_delmprog		);
+DECLARE_OLC_FUN( medit_delreputation	);
 DECLARE_OLC_FUN( medit_delquest		);
 DECLARE_OLC_FUN( medit_desc		);
 DECLARE_OLC_FUN( medit_form		);

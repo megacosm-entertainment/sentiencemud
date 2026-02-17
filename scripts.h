@@ -2111,6 +2111,7 @@ DECL_IFC_FUN(ifc_hasclass);
 DECL_IFC_FUN(ifc_hasenvironment);
 DECL_IFC_FUN(ifc_hasprompt);
 DECL_IFC_FUN(ifc_hasqueue);
+DECL_IFC_FUN(ifc_hasreputation);
 DECL_IFC_FUN(ifc_hasship);
 DECL_IFC_FUN(ifc_hasskill);
 DECL_IFC_FUN(ifc_hassong);

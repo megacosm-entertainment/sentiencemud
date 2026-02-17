@@ -106,6 +106,7 @@ C_FILES = \
     editors/objects/oedit.c \
     editors/objects/oedit_types.c \
     editors/projects/pedit.c \
+    editors/reputation/repedit.c \
     editors/random_strings/rsgedit.c \
     editors/reserved_vnums/reserved.c \
     editors/rooms/redit.c \

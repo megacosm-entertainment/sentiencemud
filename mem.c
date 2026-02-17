@@ -81,6 +81,7 @@ QUEST_DATA *quest_free;
 QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
+MOB_REPUTATION_DATA *mob_reputation_free;
 QUEST_PART_DATA *quest_part_free;
 RESET_DATA *reset_free;
 ROOM_INDEX_DATA *room_index_free;
@@ -2176,6 +2177,14 @@ SHOP_STOCK_DATA *new_shop_stock()
     pStock->custom_keyword = &str_empty[0];
     pStock->custom_descr = &str_empty[0];
 
+    pStock->reputation = NULL;
+    pStock->reputation_load.auid = 0;
+    pStock->reputation_load.vnum = 0;
+    pStock->min_reputation_rank = 0;
+    pStock->max_reputation_rank = 0;
+    pStock->min_show_rank = 0;
+    pStock->max_show_rank = 0;
+
     return pStock;
 }
 
@@ -2223,6 +2232,10 @@ SHOP_DATA *new_shop( void )
     pShop->next_restock = 0;
     pShop->discount		= 50;
     pShop->shipyard_description = &str_empty[0];
+    pShop->reputation = NULL;
+    pShop->reputation_load.auid = 0;
+    pShop->reputation_load.vnum = 0;
+    pShop->min_reputation_rank = 0;
 
     pShop->stock = NULL;
 
@@ -2407,6 +2420,7 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->skeywds		=	str_dup( "none" );
     pMob->attacks	=   0;
     pMob->quests =  NULL;
+    pMob->mob_reputations = NULL;
 
     return pMob;
 }
@@ -2416,6 +2430,8 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 {
     QUEST_LIST *quest_list;
     QUEST_LIST *quest_list_next;
+    MOB_REPUTATION_DATA *rep;
+    MOB_REPUTATION_DATA *rep_next;
 
     free_string( pMob->player_name );
     free_string( pMob->short_descr );
@@ -2435,6 +2451,13 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 
     free_quest_list( quest_list );
     }
+
+    for (rep = pMob->mob_reputations; rep != NULL; rep = rep_next)
+    {
+    rep_next = rep->next;
+    free_mob_reputation_data(rep);
+    }
+    pMob->mob_reputations = NULL;
 
     free_questor_data( pMob->pQuestor );
     free_trainer_data( pMob->pTrainer );
@@ -3301,6 +3324,59 @@ void free_quest_list( QUEST_LIST *quest_list )
 }
 
 
+MOB_REPUTATION_DATA *new_mob_reputation_data()
+{
+    MOB_REPUTATION_DATA *data;
+
+    if (!mob_reputation_free)
+    {
+    data = alloc_perm(sizeof(*data));
+    }
+    else
+    {
+    data = mob_reputation_free;
+    mob_reputation_free = mob_reputation_free->next;
+    }
+
+    memset(data, 0, sizeof(*data));
+    VALIDATE(data);
+    return data;
+}
+
+
+MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src)
+{
+    MOB_REPUTATION_DATA *data;
+
+    if (!IS_VALID(src))
+    return NULL;
+
+    data = new_mob_reputation_data();
+    if (!data)
+    return NULL;
+
+    data->reputation = src->reputation;
+    data->reputation_load = src->reputation_load;
+    data->minimum_rank = src->minimum_rank;
+    data->maximum_rank = src->maximum_rank;
+    data->points = src->points;
+    data->next = NULL;
+
+    return data;
+}
+
+
+void free_mob_reputation_data(MOB_REPUTATION_DATA *data)
+{
+    if (!IS_VALID(data))
+    return;
+
+    INVALIDATE(data);
+    data->next = mob_reputation_free;
+    mob_reputation_free = data;
+}
+
+
 MAIL_DATA *new_mail( void )
 {
     MAIL_DATA *mail;
@@ -4118,6 +4194,11 @@ TRAINER_ENTRY *new_trainer_entry()
     VALIDATE(entry);
     entry->next = NULL;
     entry->skill_name = &str_empty[0];
+    entry->reputation = NULL;
+    entry->reputation_load.auid = 0;
+    entry->reputation_load.vnum = 0;
+    entry->min_reputation_rank = 0;
+    entry->max_reputation_rank = 0;
     entry->max_rating = 0;
     entry->cost_gold = 0;
     entry->cost_trains = 0;

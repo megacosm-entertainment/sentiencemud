@@ -857,6 +857,7 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     ITERATOR it;
     PROG_LIST *trigger;
 //    pVARIABLE var;
+    MOB_REPUTATION_DATA *rep;
     RACE_DATA *race;
     int i;
 
@@ -927,6 +928,18 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
         fprintf(fp, "CorpseZombie %ld\n", mob->zombie_load.vnum);
     if(mob->comments)
         fprintf(fp, "Comments %s~\n", fix_string(mob->comments));
+
+    for (rep = mob->mob_reputations; rep; rep = rep->next)
+    {
+        if (!IS_VALID(rep->reputation))
+            continue;
+
+        fprintf(fp, "Reputation %s %d %d %ld\n",
+            widevnum_string(rep->reputation->area, rep->reputation->vnum, mob->area),
+            rep->minimum_rank,
+            rep->maximum_rank,
+            rep->points);
+    }
 
     if(mob->boss)
         fprintf(fp, "Boss\n");
@@ -1307,6 +1320,11 @@ void save_trainer_new(FILE *fp, TRAINER_DATA *trainer)
         if (!IS_VALID(entry)) continue;
         fprintf(fp, "#TENTRY\n");
         fprintf(fp, "Skill %s~\n", entry->skill_name);
+        if (IS_VALID(entry->reputation))
+            fprintf(fp, "Reputation %s %d %d\n",
+                widevnum_string(entry->reputation->area, entry->reputation->vnum, NULL),
+                entry->min_reputation_rank,
+                entry->max_reputation_rank);
         if (entry->max_rating)
             fprintf(fp, "MaxRating %d\n", entry->max_rating);
         if (entry->cost_gold)
@@ -1372,6 +1390,21 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 
     fprintf(fp, "Duration %d\n", stock->duration);
 
+    if (IS_VALID(stock->reputation)) {
+        if (stock->min_show_rank > 0 || stock->max_show_rank > 0)
+            fprintf(fp, "ReputationShow %s %d %d %d %d\n",
+                widevnum_string(stock->reputation->area, stock->reputation->vnum, NULL),
+                stock->min_reputation_rank,
+                stock->max_reputation_rank,
+                stock->min_show_rank,
+                stock->max_show_rank);
+        else
+            fprintf(fp, "Reputation %s %d %d\n",
+                widevnum_string(stock->reputation->area, stock->reputation->vnum, NULL),
+                stock->min_reputation_rank,
+                stock->max_reputation_rank);
+    }
+
     fprintf(fp, "Description %s~\n", fix_string(stock->custom_descr));
 
     fprintf(fp, "#-STOCK\n");
@@ -1409,6 +1442,13 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
             shop->shipyard_region[1][0],
             shop->shipyard_region[1][1],
             shop->shipyard_description);
+    }
+
+    if (IS_VALID(shop->reputation))
+    {
+        fprintf(fp, "Reputation %s %d\n",
+            widevnum_string(shop->reputation->area, shop->reputation->vnum, NULL),
+            shop->min_reputation_rank);
     }
 
     if( shop->stock )
@@ -2715,6 +2755,35 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
         case 'R':
         KEY("ResFlags", 	mob->res_flags, fread_number(fp));
 
+        if (!str_cmp(word, "Reputation")) {
+            const char *wnum_word = fread_word(fp);
+            WNUM_LOAD wnum_load = { area ? area->uid : 0, 0 };
+            int16_t min_rank = fread_number(fp);
+            int16_t max_rank = fread_number(fp);
+            long points = fread_number(fp);
+
+            parse_widevnum_load(wnum_word, &wnum_load);
+
+            MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();
+            new_rep->reputation_load = wnum_load;
+            new_rep->minimum_rank = min_rank;
+            new_rep->maximum_rank = max_rank;
+            new_rep->points = points;
+            new_rep->next = NULL;
+
+            MOB_REPUTATION_DATA *rep;
+            for (rep = mob->mob_reputations; rep && rep->next; rep = rep->next)
+                ;
+
+            if (rep)
+                rep->next = new_rep;
+            else
+                mob->mob_reputations = new_rep;
+
+            fMatch = true;
+            break;
+        }
+
         if (!str_cmp(word, "Race")) {
             char *race_string = fread_string(fp);
 
@@ -3742,6 +3811,17 @@ TRAINER_ENTRY *read_trainer_entry_new(FILE *fp)
         case 'M':
             KEY("MaxRating", entry->max_rating, fread_number(fp));
             break;
+        case 'R':
+            if (!str_cmp(word, "Reputation")) {
+                const char *wnum_word = fread_word(fp);
+                WNUM_LOAD wnum_load = { 0, 0 };
+                parse_widevnum_load(wnum_word, &wnum_load);
+                entry->reputation_load = wnum_load;
+                entry->min_reputation_rank = fread_number(fp);
+                entry->max_reputation_rank = fread_number(fp);
+                fMatch = true;
+            }
+            break;
         case 'S':
             KEYS("Skill", entry->skill_name, fread_string(fp));
             break;
@@ -3879,6 +3959,32 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
             KEY("QuestPnts", stock->qp, fread_number(fp));
             break;
         case 'R':
+            if (!str_cmp(word, "Reputation"))
+            {
+                const char *wnum_word = fread_word(fp);
+                WNUM_LOAD wnum_load = { 0, 0 };
+                parse_widevnum_load(wnum_word, &wnum_load);
+                stock->reputation_load = wnum_load;
+                stock->min_reputation_rank = fread_number(fp);
+                stock->max_reputation_rank = fread_number(fp);
+                fMatch = true;
+                break;
+            }
+
+            if (!str_cmp(word, "ReputationShow"))
+            {
+                const char *wnum_word = fread_word(fp);
+                WNUM_LOAD wnum_load = { 0, 0 };
+                parse_widevnum_load(wnum_word, &wnum_load);
+                stock->reputation_load = wnum_load;
+                stock->min_reputation_rank = fread_number(fp);
+                stock->max_reputation_rank = fread_number(fp);
+                stock->min_show_rank = fread_number(fp);
+                stock->max_show_rank = fread_number(fp);
+                fMatch = true;
+                break;
+            }
+
             KEY("RestockRate", stock->restock_rate, fread_number(fp));
             break;
         case 'S':
@@ -3992,6 +4098,17 @@ SHOP_DATA *read_shop_new(FILE *fp)
             KEY("ProfitSell",	shop->profit_sell,	fread_number(fp));
             break;
         case 'R':
+            if (!str_cmp(word, "Reputation"))
+            {
+                const char *wnum_word = fread_word(fp);
+                WNUM_LOAD wnum_load = { 0, 0 };
+                parse_widevnum_load(wnum_word, &wnum_load);
+                shop->reputation_load = wnum_load;
+                shop->min_reputation_rank = fread_number(fp);
+                fMatch = true;
+                break;
+            }
+
             KEY("RestockInterval", shop->restock_interval, fread_number(fp));
             break;
 

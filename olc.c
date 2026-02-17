@@ -70,6 +70,7 @@ char *editor_name_table[] = {
     "MatEdit",      // 36 ED_MATERIAL
     "CorpsEdit",    // 37 ED_CORPSE
     "SectorEdit",   // 38 ED_SECTOR
+    "RepEdit",      // 39 ED_REPUTATION
 };
 
 int editor_max_tabs_table[] = {
@@ -112,6 +113,7 @@ int editor_max_tabs_table[] = {
     0,		// MatEdit
     0,		// CorpsEdit
     0,		// SectorEdit
+    0,		// RepEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -147,6 +149,7 @@ const struct editor_cmd_type editor_table[] =
     { "material",   do_matedit   },
     { "corpse",     do_corpsedit },
     { "sector",     do_sectoredit },
+    { "reputation", do_repedit   },
     { NULL,			0,			}
 };
 
@@ -447,6 +450,16 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             int sector_index = (int)((intptr_t)ch->desc->pEdit) - 1;
             if (sector_index >= 0 && sector_index < sector_count())
                 snprintf(buf, sizeof(buf), "%d:%s", sector_index, sector_name(sector_index));
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
+    case ED_REPUTATION:
+        {
+            REPUTATION_INDEX_DATA *rep_ed = (REPUTATION_INDEX_DATA *)ch->desc->pEdit;
+            if (rep_ed)
+                snprintf(buf, sizeof(buf), "%s", rep_ed->name ? rep_ed->name : "(unnamed)");
             else
                 sprintf(buf, "--");
         }

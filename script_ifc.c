@@ -665,6 +665,41 @@ DECL_IFC_FUN(ifc_hasqueue)
     return true;
 }
 
+// HASREPUTATION $MOBILE <vnum|widevnum>
+DECL_IFC_FUN(ifc_hasreputation)
+{
+    REPUTATION_INDEX_DATA *repIndex = NULL;
+
+    *ret = false;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+
+    if (ISARG_NUM(1))
+    {
+        AREA_DATA *context = ARG_MOB(0)->in_room ? ARG_MOB(0)->in_room->area : NULL;
+        if (context)
+            repIndex = get_reputation_index(context, ARG_NUM(1));
+    }
+    else if (ISARG_STR(1))
+    {
+        AREA_DATA *context = ARG_MOB(0)->in_room ? ARG_MOB(0)->in_room->area : NULL;
+        WNUM wnum;
+        char arg[MIL];
+
+        strncpy(arg, ARG_STR(1), sizeof(arg) - 1);
+        arg[sizeof(arg) - 1] = '\0';
+
+        if (parse_widevnum(arg, context, &wnum) && wnum.pArea)
+            repIndex = get_reputation_index(wnum.pArea, wnum.vnum);
+    }
+
+    if (IS_VALID(repIndex))
+        *ret = has_reputation(ARG_MOB(0), repIndex);
+
+    return true;
+}
+
 DECL_IFC_FUN(ifc_hasship)
 {
     return false;

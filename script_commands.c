@@ -1158,8 +1158,9 @@ SCRIPT_CMD(scriptcmd_attach)
 }
 
 
-// AWARD mobile string(type) number(amount)
-// Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, experience/xp
+// AWARD mobile string(type)[ subtype] number(amount)
+// Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, experience/xp, reputation, paragon
+// Subtype is only used by reputation or paragon and should be a widevnum.
 //
 // AWARD church string(type) number(amount)
 // Types: gold, pneuma, deity/dp
@@ -1167,10 +1168,13 @@ SCRIPT_CMD(scriptcmd_attach)
 SCRIPT_CMD(scriptcmd_award)
 {
     char buf[MSL], *rest;
+    char rep_name[3 * MIL];
     char field[MIL];
     char *field_name;
     CHAR_DATA *victim = NULL;
     CHURCH_DATA *church = NULL;
+    REPUTATION_INDEX_DATA *repIndex = NULL;
+    bool paragon = false;
     int amount = 0;
 
 
@@ -1194,6 +1198,52 @@ SCRIPT_CMD(scriptcmd_award)
     if( arg->type != ENT_STRING ) return;
     strncpy(field,arg->d.str,MIL-1);
 
+    if (!church)
+    {
+        if(!str_prefix(field, "reputation") || !str_prefix(field, "paragon"))
+        {
+            if (!str_prefix(field, "paragon"))
+            {
+                if (script_security < 7)
+                    return;
+                paragon = true;
+            }
+
+            if (!(rest = expand_argument(info,rest,arg)))
+                return;
+
+            switch(arg->type)
+            {
+            case ENT_WIDEVNUM:
+                repIndex = get_reputation_index_wnum(arg->d.wnum);
+                break;
+
+            case ENT_STRING:
+            {
+                WNUM wnum;
+                AREA_DATA *context = info->mob ? info->mob->pIndexData->area : NULL;
+                if (parse_widevnum(arg->d.str, context, &wnum))
+                    repIndex = get_reputation_index_wnum(wnum);
+                break;
+            }
+
+            case ENT_NUMBER:
+            {
+                AREA_DATA *context = info->mob ? info->mob->pIndexData->area : NULL;
+                if (context)
+                    repIndex = get_reputation_index(context, arg->d.num);
+                break;
+            }
+
+            default:
+                break;
+            }
+
+            if (!IS_VALID(repIndex))
+                return;
+        }
+    }
+
     if (!(rest = expand_argument(info,rest,arg)))
         return;
 
@@ -1204,6 +1254,8 @@ SCRIPT_CMD(scriptcmd_award)
     }
 
     if(amount < 1) return;
+
+    int ret = amount;
 
     if( church ) {
         if( !str_prefix(field, "gold") ) {
@@ -1227,7 +1279,35 @@ SCRIPT_CMD(scriptcmd_award)
 
     } else {
 
-        if( !str_prefix(field, "silver") ) {
+        if (IS_VALID(repIndex)) {
+            if (paragon) {
+                REPUTATION_DATA *rep = find_reputation_char(victim, repIndex);
+                if (!IS_VALID(rep)) return;
+
+                if (rep->current_rank < list_size(repIndex->ranks))
+                    return;
+
+                REPUTATION_INDEX_RANK_DATA *rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rep->current_rank);
+                if (!IS_VALID(rank) || !IS_SET(rank->flags, REPUTATION_RANK_PARAGON))
+                    return;
+
+                for (int i = 0; i < amount; i++)
+                    paragon_reputation(victim, rep, false);
+
+                sprintf(rep_name, "%s (%ld#%ld) paragon levels", repIndex->name, repIndex->area->uid, repIndex->vnum);
+                field_name = rep_name;
+                ret = amount;
+            } else {
+                long total_given = 0;
+                if (!gain_reputation(victim, repIndex, amount, NULL, &total_given, false))
+                    return;
+
+                sprintf(rep_name, "%s (%ld#%ld) reputation points", repIndex->name, repIndex->area->uid, repIndex->vnum);
+                field_name = rep_name;
+                ret = total_given;
+            }
+
+        } else if( !str_prefix(field, "silver") ) {
             victim->silver += amount;
             field_name = "silver";
 
@@ -1264,12 +1344,12 @@ SCRIPT_CMD(scriptcmd_award)
 
 
         if(!IS_NPC(victim)) {
-            sprintf(buf, "Award logged: %s was awarded %d %s", victim->name, amount, field_name);
+            sprintf(buf, "Award logged: %s was awarded %d %s", victim->name, ret, field_name);
             log_string(buf);
         }
     }
 
-    info->progs->lastreturn = 1;
+    info->progs->lastreturn = ret;
 }
 
 //////////////////////////////////////
@@ -1621,8 +1701,9 @@ SCRIPT_CMD(scriptcmd_damage)
 }
 
 
-// DEDUCT mobile string(type) number(amount)
-// Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp
+// DEDUCT mobile string(type)[ subtype] number(amount)
+// Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, reputation, paragon
+// Subtype is only used by reputation or paragon and should be a widevnum.
 // Returns actual amount deducted
 //
 // DEDUCT church string(type) number(amount)
@@ -1632,10 +1713,13 @@ SCRIPT_CMD(scriptcmd_damage)
 SCRIPT_CMD(scriptcmd_deduct)
 {
     char buf[MSL], *rest;
+    char rep_name[3 * MIL];
     char field[MIL];
     char *field_name;
     CHAR_DATA *victim = NULL;
     CHURCH_DATA *church = NULL;
+    REPUTATION_INDEX_DATA *repIndex = NULL;
+    bool paragon = false;
     int amount = 0;
 
 
@@ -1658,6 +1742,52 @@ SCRIPT_CMD(scriptcmd_deduct)
 
     if( arg->type != ENT_STRING ) return;
     strncpy(field,arg->d.str,MIL-1);
+
+    if (!church)
+    {
+        if(!str_prefix(field, "reputation") || !str_prefix(field, "paragon"))
+        {
+            if (!str_prefix(field, "paragon"))
+            {
+                if (script_security < 7)
+                    return;
+                paragon = true;
+            }
+
+            if (!(rest = expand_argument(info,rest,arg)))
+                return;
+
+            switch(arg->type)
+            {
+            case ENT_WIDEVNUM:
+                repIndex = get_reputation_index_wnum(arg->d.wnum);
+                break;
+
+            case ENT_STRING:
+            {
+                WNUM wnum;
+                AREA_DATA *context = info->mob ? info->mob->pIndexData->area : NULL;
+                if (parse_widevnum(arg->d.str, context, &wnum))
+                    repIndex = get_reputation_index_wnum(wnum);
+                break;
+            }
+
+            case ENT_NUMBER:
+            {
+                AREA_DATA *context = info->mob ? info->mob->pIndexData->area : NULL;
+                if (context)
+                    repIndex = get_reputation_index(context, arg->d.num);
+                break;
+            }
+
+            default:
+                break;
+            }
+
+            if (!IS_VALID(repIndex))
+                return;
+        }
+    }
 
     if(!(rest = expand_argument(info,rest,arg)))
         return;
@@ -1692,7 +1822,34 @@ SCRIPT_CMD(scriptcmd_deduct)
         sprintf(buf, "Deduct logged: Church %s was deducted %d %s", church->name, amount, field_name);
         log_string(buf);
     } else {
-        if( !str_prefix(field, "silver") ) {
+        if (IS_VALID(repIndex)) {
+            if (paragon) {
+                REPUTATION_DATA *rep = find_reputation_char(victim, repIndex);
+                if (!IS_VALID(rep)) return;
+
+                if (rep->current_rank < list_size(repIndex->ranks))
+                    return;
+
+                REPUTATION_INDEX_RANK_DATA *rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rep->current_rank);
+                if (!IS_VALID(rank) || !IS_SET(rank->flags, REPUTATION_RANK_PARAGON))
+                    return;
+
+                info->progs->lastreturn = UMIN(rep->paragon_level, amount);
+                rep->paragon_level -= info->progs->lastreturn;
+
+                sprintf(rep_name, "%s (%ld#%ld) paragon levels", repIndex->name, repIndex->area->uid, repIndex->vnum);
+                field_name = rep_name;
+            } else {
+                long total_given = 0;
+                if (!gain_reputation(victim, repIndex, -amount, NULL, &total_given, false))
+                    return;
+
+                sprintf(rep_name, "%s (%ld#%ld) reputation points", repIndex->name, repIndex->area->uid, repIndex->vnum);
+                field_name = rep_name;
+                info->progs->lastreturn = -total_given;
+            }
+
+        } else if( !str_prefix(field, "silver") ) {
             info->progs->lastreturn = UMIN(victim->silver, amount);
             victim->silver -= info->progs->lastreturn;
             field_name = "silver";

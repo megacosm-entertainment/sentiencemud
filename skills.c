@@ -53,6 +53,93 @@
 
 void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned, bool show_learn_amount);
 
+static TRAINER_ENTRY *find_trainer_entry_for_practice(TRAINER_DATA *trainer, SKILL_ENTRY *skill_entry, const char *typed_name)
+{
+    TRAINER_ENTRY *entry;
+    const char *actual_name;
+
+    if (!IS_VALID(trainer) || !trainer->entries || skill_entry == NULL)
+        return NULL;
+
+    actual_name = skill_entry_name(skill_entry);
+
+    for (entry = trainer->entries; entry; entry = entry->next)
+    {
+        if (!IS_VALID(entry) || IS_NULLSTR(entry->skill_name))
+            continue;
+
+        if (!IS_NULLSTR(typed_name) && !str_cmp(entry->skill_name, typed_name))
+            return entry;
+
+        if (!IS_NULLSTR(actual_name) && !str_cmp(entry->skill_name, actual_name))
+            return entry;
+    }
+
+    return NULL;
+}
+
+static bool can_practice_trainer_entry(CHAR_DATA *ch, TRAINER_ENTRY *entry)
+{
+    REPUTATION_DATA *rep;
+    int rank;
+
+    if (!ch || !IS_VALID(entry))
+        return false;
+
+    if (!IS_VALID(entry->reputation))
+        return true;
+
+    rep = find_reputation_char(ch, entry->reputation);
+    rank = IS_VALID(rep) ? rep->current_rank : entry->reputation->initial_rank;
+
+    if (entry->min_reputation_rank > 0 && rank < entry->min_reputation_rank)
+        return false;
+    if (entry->max_reputation_rank > 0 && rank > entry->max_reputation_rank)
+        return false;
+
+    return true;
+}
+
+static int practice_trainer_cap(TRAINER_ENTRY *entry)
+{
+    if (IS_VALID(entry) && entry->max_rating > 0)
+        return UMIN(MAX_SKILL_LEARNABLE, entry->max_rating);
+
+    return MAX_SKILL_LEARNABLE;
+}
+
+static bool pay_practice_trainer_cost(CHAR_DATA *ch, CHAR_DATA *trainer, TRAINER_ENTRY *entry)
+{
+    if (!IS_VALID(ch) || !IS_VALID(entry))
+        return false;
+
+    if (entry->cost_gold > 0 && ch->gold < entry->cost_gold)
+    {
+        act("{R$N tells you 'You need more gold to learn that from me.'{x",
+            ch, trainer, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
+
+    if (entry->cost_trains > 0 && ch->train < entry->cost_trains)
+    {
+        act("{R$N tells you 'You do not have enough training sessions for that lesson.'{x",
+            ch, trainer, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
+
+    if (entry->cost_gold > 0)
+    {
+        ch->gold -= entry->cost_gold;
+        if (IS_VALID(trainer))
+            trainer->gold += entry->cost_gold;
+    }
+
+    if (entry->cost_trains > 0)
+        ch->train -= entry->cost_trains;
+
+    return true;
+}
+
 void do_multi(CHAR_DATA *ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1477,6 +1564,8 @@ void do_practice( CHAR_DATA *ch, char *argument )
     int learn;
     CHAR_DATA *mob;
     SKILL_ENTRY *entry;
+    TRAINER_ENTRY *trainer_entry = NULL;
+    int rating_cap = MAX_SKILL_LEARNABLE;
 
     if (IS_NPC(ch))
         return;
@@ -1513,6 +1602,36 @@ void do_practice( CHAR_DATA *ch, char *argument )
         return;
     }
 
+    if (mob->pIndexData != NULL && IS_VALID(mob->pIndexData->pTrainer) && mob->pIndexData->pTrainer->entries)
+    {
+        trainer_entry = find_trainer_entry_for_practice(mob->pIndexData->pTrainer, entry, arg);
+        if (!IS_VALID(trainer_entry))
+        {
+            send_to_char("You can't practice that here.\n\r", ch);
+            return;
+        }
+
+        if (!can_practice_trainer_entry(ch, trainer_entry))
+        {
+            act("{R$N tells you 'You have not earned the standing to learn that from me.'{x",
+                ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
+
+        if (!IS_NULLSTR(trainer_entry->check_script)
+        && p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, trainer_entry->check_script))
+        {
+            send_to_char("You can't practice that here.\n\r", ch);
+            return;
+        }
+
+        rating_cap = practice_trainer_cap(trainer_entry);
+    }
+    else
+    {
+        rating_cap = MAX_SKILL_LEARNABLE;
+    }
+
     if (ch->practice <= 0) {
         send_to_char("You have no practice sessions left.\n\r", ch);
         return;
@@ -1537,13 +1656,16 @@ void do_practice( CHAR_DATA *ch, char *argument )
         }
 
         amount = token_skill_rating(entry->token);
-        if( amount >= MAX_SKILL_LEARNABLE )
+        if( amount >= rating_cap )
         {
             sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", entry->token->name);
             send_to_char(buf, ch);
         }
         else
         {
+            if (IS_VALID(trainer_entry) && !pay_practice_trainer_cost(ch, mob, trainer_entry))
+                return;
+
             --ch->practice;
             ch->tempstore[0] = learn;
             p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRACTICETOKEN, NULL);
@@ -1551,7 +1673,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
             if( learn < 1 ) learn = 1;	// At this point, it should be a minimum of 1 skill rating
 
             amount += learn;
-            if( amount > MAX_SKILL_LEARNABLE) amount = MAX_SKILL_LEARNABLE;
+            if( amount > rating_cap) amount = rating_cap;
 
             if( entry->token->pIndexData->value[TOKVAL_SPELL_RATING] > 0 )
                 entry->token->value[TOKVAL_SPELL_RATING] = amount * entry->token->pIndexData->value[TOKVAL_SPELL_RATING];
@@ -1559,7 +1681,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
                 entry->token->value[TOKVAL_SPELL_RATING] = amount;
 
 
-            if (amount < MAX_SKILL_LEARNABLE) {
+            if (amount < rating_cap) {
                 act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_CHAR, NULL, NULL);
                 act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_ROOM, NULL, NULL);
             } else {
@@ -1584,10 +1706,13 @@ void do_practice( CHAR_DATA *ch, char *argument )
             return;
         }
 
-        if (ch->pcdata->learned[sn] >= MAX_SKILL_LEARNABLE) {
+        if (ch->pcdata->learned[sn] >= rating_cap) {
             sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", skill_table[sn].name);
             send_to_char(buf, ch);
         } else {
+            if (IS_VALID(trainer_entry) && !pay_practice_trainer_cost(ch, mob, trainer_entry))
+                return;
+
             --ch->practice;
             ch->tempstore[0] = learn;
             p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, skill_table[sn].name);
@@ -1596,11 +1721,11 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
             ch->pcdata->learned[sn] += learn;
 
-            if (ch->pcdata->learned[sn] < MAX_SKILL_LEARNABLE) {
+            if (ch->pcdata->learned[sn] < rating_cap) {
                 act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
                 act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
             } else {
-                ch->pcdata->learned[sn] = MAX_SKILL_LEARNABLE;
+                ch->pcdata->learned[sn] = rating_cap;
                 act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
                 act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
             }

@@ -2795,6 +2795,34 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
     
     if (mob->boss)
         json_object_set_new(json, "boss", json_true());
+
+    if (mob->mob_reputations)
+    {
+        json_t *reputation_rewards = json_array();
+        MOB_REPUTATION_DATA *rep;
+
+        for (rep = mob->mob_reputations; rep; rep = rep->next)
+        {
+            if (!IS_VALID(rep->reputation))
+                continue;
+
+            json_t *entry = json_object();
+            json_object_set_new(entry,
+                                "reputation",
+                                json_string(widevnum_string(rep->reputation->area,
+                                                            rep->reputation->vnum,
+                                                            mob->area)));
+            json_object_set_new(entry, "minimum_rank", json_integer(rep->minimum_rank));
+            json_object_set_new(entry, "maximum_rank", json_integer(rep->maximum_rank));
+            json_object_set_new(entry, "points", json_integer(rep->points));
+            json_array_append_new(reputation_rewards, entry);
+        }
+
+        if (json_array_size(reputation_rewards) > 0)
+            json_object_set_new(json, "reputation_rewards", reputation_rewards);
+        else
+            json_decref(reputation_rewards);
+    }
     
     // Pronouns
     if (mob->pronoun_he_she && mob->pronoun_he_she[0] != '\0')
@@ -2870,6 +2898,16 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
             if (!IS_VALID(entry)) continue;
             json_t *jentry = json_object();
             json_object_set_new(jentry, "skill", json_string(entry->skill_name));
+            if (IS_VALID(entry->reputation))
+                json_object_set_new(jentry,
+                                    "reputation",
+                                    json_string(widevnum_string(entry->reputation->area,
+                                                                entry->reputation->vnum,
+                                                                mob->area)));
+            if (entry->min_reputation_rank > 0)
+                json_object_set_new(jentry, "min_reputation_rank", json_integer(entry->min_reputation_rank));
+            if (entry->max_reputation_rank > 0)
+                json_object_set_new(jentry, "max_reputation_rank", json_integer(entry->max_reputation_rank));
             if (entry->max_rating)
                 json_object_set_new(jentry, "max_rating", json_integer(entry->max_rating));
             if (entry->cost_gold)
@@ -3015,6 +3053,44 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
     mob->corpse_load.vnum = json_get_int_default(json, "corpse_vnum", 0);
     mob->zombie_load.vnum = json_get_int_default(json, "zombie_vnum", 0);
     mob->boss = json_get_bool_default(json, "boss", false);
+
+    {
+        json_t *reputation_rewards = json_object_get(json, "reputation_rewards");
+        if (reputation_rewards && json_is_array(reputation_rewards))
+        {
+            MOB_REPUTATION_DATA *last = NULL;
+            size_t idx;
+            json_t *entry;
+
+            json_array_foreach(reputation_rewards, idx, entry)
+            {
+                if (!json_is_object(entry))
+                    continue;
+
+                const char *rep_ref = json_get_string_default(entry, "reputation", NULL);
+                if (!rep_ref || rep_ref[0] == '\0')
+                    continue;
+
+                WNUM_LOAD rep_load;
+                if (!parse_widevnum_load(rep_ref, &rep_load))
+                    continue;
+
+                MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();
+                new_rep->reputation_load = rep_load;
+                new_rep->minimum_rank = json_get_int_default(entry, "minimum_rank", 0);
+                new_rep->maximum_rank = json_get_int_default(entry, "maximum_rank", 0);
+                new_rep->points = json_get_int_default(entry, "points", 0);
+                new_rep->next = NULL;
+
+                if (last)
+                    last->next = new_rep;
+                else
+                    mob->mob_reputations = new_rep;
+
+                last = new_rep;
+            }
+        }
+    }
     
     // Pronouns
     const char *he_she = json_get_string_default(json, "pronoun_he_she", "");
@@ -3105,6 +3181,13 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
                     entry->max_rating = json_get_int_default(jentry, "max_rating", 0);
                     entry->cost_gold = json_get_int_default(jentry, "cost_gold", 0);
                     entry->cost_trains = json_get_int_default(jentry, "cost_trains", 0);
+                    {
+                        const char *rep_ref = json_get_string_default(jentry, "reputation", "");
+                        if (rep_ref && rep_ref[0] != '\0')
+                            parse_widevnum_load(rep_ref, &entry->reputation_load);
+                        entry->min_reputation_rank = json_get_int_default(jentry, "min_reputation_rank", 0);
+                        entry->max_reputation_rank = json_get_int_default(jentry, "max_reputation_rank", 0);
+                    }
                     const char *script = json_get_string_default(jentry, "check_script", NULL);
                     if (script)
                         entry->check_script = str_dup(script);
@@ -4059,6 +4142,23 @@ json_t *json_area_serialize_shop_stock(SHOP_STOCK_DATA *stock, AREA_DATA *area)
     /* Singular flag */
     if (stock->singular)
         json_object_set_new(json, "singular", json_true());
+
+    if (IS_VALID(stock->reputation))
+    {
+        json_object_set_new(json,
+                            "reputation",
+                            json_string(widevnum_string(stock->reputation->area,
+                                                        stock->reputation->vnum,
+                                                        area)));
+        if (stock->min_reputation_rank > 0)
+            json_object_set_new(json, "min_reputation_rank", json_integer(stock->min_reputation_rank));
+        if (stock->max_reputation_rank > 0)
+            json_object_set_new(json, "max_reputation_rank", json_integer(stock->max_reputation_rank));
+        if (stock->min_show_rank > 0)
+            json_object_set_new(json, "min_show_rank", json_integer(stock->min_show_rank));
+        if (stock->max_show_rank > 0)
+            json_object_set_new(json, "max_show_rank", json_integer(stock->max_show_rank));
+    }
     
     return json;
 }
@@ -4145,6 +4245,16 @@ SHOP_STOCK_DATA *json_area_deserialize_shop_stock(json_t *json, AREA_DATA *area)
     
     /* Singular flag */
     stock->singular = json_get_bool_default(json, "singular", false);
+
+    {
+        const char *rep_ref = json_get_string_default(json, "reputation", "");
+        if (rep_ref && rep_ref[0] != '\0')
+            parse_widevnum_load(rep_ref, &stock->reputation_load);
+        stock->min_reputation_rank = json_get_int_default(json, "min_reputation_rank", 0);
+        stock->max_reputation_rank = json_get_int_default(json, "max_reputation_rank", 0);
+        stock->min_show_rank = json_get_int_default(json, "min_show_rank", 0);
+        stock->max_show_rank = json_get_int_default(json, "max_show_rank", 0);
+    }
     
     return stock;
 }
@@ -4202,6 +4312,17 @@ json_t *json_area_serialize_shop(SHOP_DATA *shop, AREA_DATA *ref_area)
         if (shop->shipyard_description && shop->shipyard_description[0] != '\0')
             json_object_set_new(shipyard, "description", json_string(shop->shipyard_description));
         json_object_set_new(json, "shipyard", shipyard);
+    }
+
+    if (IS_VALID(shop->reputation))
+    {
+        json_object_set_new(json,
+                            "reputation",
+                            json_string(widevnum_string(shop->reputation->area,
+                                                        shop->reputation->vnum,
+                                                        ref_area)));
+        if (shop->min_reputation_rank > 0)
+            json_object_set_new(json, "min_reputation_rank", json_integer(shop->min_reputation_rank));
     }
     
     /* Stock items */
@@ -4268,6 +4389,13 @@ SHOP_DATA *json_area_deserialize_shop(json_t *json, AREA_DATA *area)
         const char *desc = json_get_string_default(shipyard, "description", "");
         if (desc && desc[0] != '\0')
             shop->shipyard_description = str_dup(desc);
+    }
+
+    {
+        const char *rep_ref = json_get_string_default(json, "reputation", "");
+        if (rep_ref && rep_ref[0] != '\0')
+            parse_widevnum_load(rep_ref, &shop->reputation_load);
+        shop->min_reputation_rank = json_get_int_default(json, "min_reputation_rank", 0);
     }
     
     /* Stock items */

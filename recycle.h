@@ -236,5 +236,9 @@ void free_ship_route(SHIP_ROUTE *route);
 SHIP_CREW_INDEX_DATA *new_ship_crew_index();
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 
+MOB_REPUTATION_DATA *new_mob_reputation_data();
+MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
+void free_mob_reputation_data(MOB_REPUTATION_DATA *data);
+
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);

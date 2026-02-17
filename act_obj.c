@@ -4976,6 +4976,44 @@ void do_steal(CHAR_DATA *ch, char *argument)
     send_to_char("{WGot it!{x\n\r", ch);
 }
 
+bool has_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
+{
+    if (!stock)
+        return false;
+
+    if (!IS_VALID(stock->reputation))
+        return true;
+
+    REPUTATION_DATA *rep = find_reputation_char(ch, stock->reputation);
+    int rank = IS_VALID(rep) ? rep->current_rank : stock->reputation->initial_rank;
+
+    if (stock->min_reputation_rank > 0 && rank < stock->min_reputation_rank)
+        return false;
+    if (stock->max_reputation_rank > 0 && rank > stock->max_reputation_rank)
+        return false;
+
+    return true;
+}
+
+bool can_see_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
+{
+    if (!stock)
+        return false;
+
+    if (!IS_VALID(stock->reputation))
+        return true;
+
+    REPUTATION_DATA *rep = find_reputation_char(ch, stock->reputation);
+    int rank = IS_VALID(rep) ? rep->current_rank : stock->reputation->initial_rank;
+
+    if (stock->min_show_rank > 0 && rank < stock->min_show_rank)
+        return false;
+    if (stock->max_show_rank > 0 && rank > stock->max_show_rank)
+        return false;
+
+    return true;
+}
+
 /**
  * find_keeper - Locate a shopkeeper by name in the room
  *
@@ -5006,7 +5044,21 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
     for (keeper = ch->in_room->people; keeper; keeper = keeper->next_in_room)
     {
     if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL && (is_name(arg,keeper->name)))
+    {
+        if (IS_VALID(pShop->reputation))
+        {
+            REPUTATION_DATA *rep = find_reputation_char(ch, pShop->reputation);
+            int repRank = IS_VALID(rep) ? rep->current_rank : pShop->reputation->initial_rank;
+
+            if (repRank < pShop->min_reputation_rank)
+            {
+                pShop = NULL;
+                continue;
+            }
+        }
+
         break;
+    }
     }
 
     if (pShop == NULL || keeper == NULL)
@@ -6011,6 +6063,14 @@ void do_buy(CHAR_DATA *ch, char *argument)
             SHOP_STOCK_DATA *stock = request.stock;
             char pricestr[MIL+1];
 
+            if (!has_stock_reputation(ch, stock))
+            {
+                act("{R$n tells you 'You do not have the standing to purchase that.'{x",
+                    keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                ch->reply = keeper;
+                return;
+            }
+
             // Attempting to buy from stock
             keeper->tempstore[0] = number;
             keeper->tempstore[1] = stock->type;
@@ -6678,6 +6738,7 @@ void do_list(CHAR_DATA *ch, char *argument)
         {
             // Hide it if it's out of stock
             if( stock->max_quantity > 0 && stock->quantity < 1) continue;
+            if( !can_see_stock_reputation(ch, stock) ) continue;
 
             switch(stock->type)
             {
