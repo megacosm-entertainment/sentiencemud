@@ -4148,7 +4148,7 @@ struct	mob_index_data
     long		off_flags;
     long		imm_flags;
     long		res_flags;
-    int 		vuln_flags;
+    long 		vuln_flags;
     int16_t		start_pos;
     int16_t		default_pos;
 
@@ -9293,7 +9293,7 @@ bool can_scare( CHAR_DATA *ch );
 int get_obj_number_container( OBJ_DATA *obj );
 bool is_relic( OBJ_INDEX_DATA *obj );
 char *res_bit_name(int res_flags);
-char *vuln_bit_name(int vuln_flags);
+char *vuln_bit_name(long vuln_flags);
 bool is_on_continent_1( CHAR_DATA *ch );
 bool is_on_continent_2( CHAR_DATA *ch );
 bool is_dislinked( ROOM_INDEX_DATA *pRoom );

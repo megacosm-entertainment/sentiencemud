@@ -821,7 +821,7 @@ char *res_bit_name(int res_flags)
  * @param vuln_flags  VULN_ flags bitmask (ch->vuln_flags)
  * @return            Space-separated string of vulnerability names, or "none"
  */
-char *vuln_bit_name(int vuln_flags)
+char *vuln_bit_name(long vuln_flags)
 {
     static char buf[512];
 

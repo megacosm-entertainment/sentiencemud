@@ -1177,28 +1177,10 @@ MEDIT(medit_varclear)
 MEDIT(medit_corpsetype)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
-        EDIT_MOB(ch, pMob);
-
-        if (!str_cmp(argument, "normal") || !str_cmp(argument, "none")) {
-            pMob->corpse_type = RAWKILL_NORMAL;
-
-             send_to_char("Corpse type set.\n\r", ch);
-            return true;
-        } else if ((value = flag_value(corpse_types, argument)) != NO_FLAG) {
-            pMob->corpse_type = value;
-
-             send_to_char("Corpse type set.\n\r", ch);
-            return true;
-        }
-    }
-
-    send_to_char("Syntax: corpsetype [type]\n\r"
-          "Type '? corpsetypes' for a list of flags.\n\r", ch);
-    return false;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_type_set(ch, argument, "Corpse Type",
+        "Syntax: corpsetype [type]\n\rType '? corpsetypes' for a list of types.\n\r",
+        &pMob->corpse_type, corpse_types, NULL, NULL);
 }
 
 MEDIT(medit_corpsevnum)
@@ -2477,23 +2459,10 @@ MEDIT(medit_res)
 MEDIT(medit_vuln)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
     EDIT_MOB(ch, pMob);
-
-    if ((value = flag_value(vuln_flags, argument)) != NO_FLAG)
-    {
-        pMob->vuln_flags ^= value;
-        send_to_char("Vulnerability toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax: vuln [flags]\n\r"
-          "Type '? vuln' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Vulnerability",
+        "Syntax: vuln [flags]\n\rType '? vuln' for a list of flags.\n\r",
+        &pMob->vuln_flags, vuln_flags, NULL, NULL);
 }
 
 

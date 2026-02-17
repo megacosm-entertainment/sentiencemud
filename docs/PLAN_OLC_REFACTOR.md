@@ -47,10 +47,10 @@ This plan covers:
 |-----------|------------|----------------|---------------------------------------|--------|-------|------|----------------------|
 | AEDIT     | Areas      | ED_AREA        | `editors/areas/aedit.c`               | 1,302  | 1     | No   | Area flag            |
 | REDIT     | Rooms      | ED_ROOM        | `editors/rooms/redit.c`               | 1,971  | 1     | No   | Area flag            |
-| OEDIT     | Objects    | ED_OBJECT      | `editors/objects/oedit.c`             | 3,516  | 1     | No   | Area flag            |
+| OEDIT     | Objects    | ED_OBJECT      | `editors/objects/oedit.c`             | ~3,010 | 1→FW  | Yes  | Area flag            |
 |           |            |                | `editors/objects/oedit_types.c`       | 1,955  |       |      |                      |
-| MEDIT     | Mobiles    | ED_MOBILE      | `editors/mobiles/medit.c`             | 3,874  | 1     | No*  | Area flag            |
-| TEDIT     | Tokens     | ED_TOKEN       | `editors/tokens/tedit.c`             | 1,060  | 3     | Yes  | Area flag (callback) |
+| MEDIT     | Mobiles    | ED_MOBILE      | `editors/mobiles/medit.c`             | ~3,715 | 1→FW  | Yes  | Area flag            |
+| TEDIT     | Tokens     | ED_TOKEN       | `editors/tokens/tedit.c`             | ~1,082 | 1→FW  | Yes  | Area flag (callback) |
 | HEDIT     | Help       | ED_HELP        | `editors/help/hedit.c`               | 1,106  | 1     | No   | Area flag            |
 | SHEDIT    | Ships      | ED_SHIP        | `editors/ships/shedit.c`             | 903    | 1     | No   | Area flag            |
 | PEDIT     | Projects   | ED_PROJECT     | `editors/projects/pedit.c`           | 445    | 1     | No   | Global bool          |
@@ -90,10 +90,8 @@ This plan covers:
 | MSNEDIT   | Missions   | ED_MISSION     | `editors/missions/msnedit.c`         | —      | —     | No   | Explicit save        |
 | EVTEDIT   | Events     | ED_EVENT       | `editors/events/evtedit.c`           | —      | —     | No   | Explicit save        |
 
-**Gen column key**: 1 = Gen 1 (manual dispatch), 2→FW = Gen 2 migrated to framework,
-3 = Gen 3 (prototype framework), Special = non-modal
-
-**\* medit has an extern declaration for `medit_tab_names` but no actual tab implementation**
+**Gen column key**: 1 = Gen 1 (manual dispatch), 1→FW = Gen 1 migrated to framework,
+2→FW = Gen 2 migrated to framework, Special = non-modal
 
 **Non-modal editors**: GAMEEDIT operates as a direct command (`gameedit set ...`) rather than
 entering a modal editor state. It uses a changeset/confirm workflow for safety.
@@ -169,12 +167,13 @@ wasn't generalized enough for full adoption.
 
 | Style | Used By | Characteristics | Lines per Show |
 |-------|---------|-----------------|----------------|
-| Raw `sprintf` | aedit, medit, redit, oedit, shedit, etc. | Manual formatting, no MXP, inconsistent colors | 100-629 |
+| Raw `sprintf` | aedit, redit, shedit, etc. | Manual formatting, no MXP, inconsistent colors | 100-629 |
 | `formatf` | clsedit, racedit, skedit, traitedit | Slightly cleaner, still manual, no MXP | 50-135 |
-| `olc_render_*` | tedit only | Framework renderers, MXP, NAWS-aware, consistent | 30-50 |
-| `olc_buffer_show_*` | Available but unused | Helper functions in common.c, no current callers | N/A |
+| `olc_display_*` | medit, oedit, tedit + all Gen 2 | Framework renderers, MXP, NAWS-aware, themed, consistent | 30-80 per tab |
+| `olc_buffer_show_*` | medit (stock display) | Legacy helper in common.c, used for complex table layouts | N/A |
 
-The `medit_show` function alone is **629 lines** of `sprintf` + `add_buf` calls.
+The old `medit_show` was 629 lines; it is now split into 6 tab functions using `olc_display_*()`
+renderers, with the stock table being the only section still using manual `sprintf` formatting.
 
 ### 2.4 Permission Checking Patterns (6 Variants Found)
 
@@ -988,8 +987,8 @@ new code.
 | Phase | Focus | Editors | Est. Effort |
 |-------|-------|---------|-------------|
 | **0** | Framework foundation | — | Done |
-| **1** | Gen 2 quick wins | clsedit, racedit, traitedit, gredit, soedit, skedit | Small |
-| **2** | Tabbed pioneers | medit, oedit | Medium |
+| **1** | Gen 2 quick wins | clsedit, racedit, traitedit, gredit, soedit, skedit | Done |
+| **2** | Tabbed pioneers | medit, oedit, tedit | Done |
 | **3** | World editors | aedit, redit, wedit, vledit | Medium |
 | **4** | Blueprint/dungeon | bsedit, bpedit, dngedit | Medium |
 | **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Small-Med |
@@ -1129,35 +1128,91 @@ additional helper coverage in Phase 2+ as needed.
 6. **Wire history** — add `olc_history` field to struct, recording in commands, persistence
 7. **Test**: Verify all commands work, tabs switch, permissions check
 
-### 7.4 Phase 2: Tabbed Pioneers (medit, oedit)
+### 7.4 Phase 2: Tabbed Pioneers (medit, oedit, tedit)
 
-These are the largest, most complex editors and will benefit most from tabs:
+**Status**: Complete.
 
-**medit** (629-line show function → split into tabs):
-| Tab | Contents |
-|-----|----------|
-| General | Name, area, vnum, level, alignment, sex, size, race, act flags |
-| Combat | HP/mana/move dice, damage, hitroll, AC, attacks, offensive |
-| Defense | Immunities, resistances, vulnerabilities, form, parts |
-| Economy | Gold, shop data, loot |
-| Scripts | Script programs |
-| Special | Questor, trainer, boss, crew, persist |
+These are the largest, most complex Gen 1 editors. All three have been fully migrated
+to the `OLC_EDITOR_DEF` framework with tabbed show functions, themed display renderers,
+command tables moved from `olc.c` into their editor files, and framework-based
+interpreters. The tedit migration was done first as a smaller proof-of-concept
+before tackling medit and oedit.
 
-**oedit** (split across oedit.c and oedit_types.c):
-| Tab | Contents |
-|-----|----------|
-| General | Name, short, long, area, vnum, level, type, material |
-| Properties | Weight, cost, condition, fragility, extra flags, wear flags |
-| Values | Type-specific value fields (v0-v7) |
-| Affects | Affects, applies, immunities, catalysts |
-| Scripts | Script programs |
-| Type | Type-specific subeditor (weapon, armor, container, etc.) |
+#### Phase 2 Status
 
-Migration requires:
-- Moving command tables from `olc.c` to the editor files
-- Moving interpreter functions from `olc.c` to the editor files
-- Splitting monolithic show functions into per-tab functions
-- Keeping all existing commands working
+| Editor | OLC_EDITOR_DEF | olc_editor_interp | Tabbed show | cmd helpers | Notes |
+|--------|:-:|:-:|:-:|:-:|-------|
+| **tedit** | Done | Done | Done (3 tabs) | 5 of ~15 | Gen 3 prototype → framework |
+| **medit** | Done | Done | Done (6 tabs) | 13 of ~45 | Largest editor, 629→6 tab fns |
+| **oedit** | Done | Done | Done (5 tabs) | 8 of ~40 | Split with oedit_types.c |
+
+#### Tab Layouts (Final)
+
+**medit** — 6 tabs:
+| Tab | Short | Contents |
+|-----|-------|----------|
+| General | Gen | Name, area, vnum, level, alignment, sex, size, race, material, owner, act/act2 flags |
+| Combat | Com | HP/mana/damage dice, hitroll, dam type, attacks, AC, move dice, positions, start/default pos |
+| Defense | Def | Immunities, resistances, vulnerabilities, form, parts, offensive flags, affected_by |
+| Economy | Eco | Wealth, shop data (markup/markdown, hours, restock, discount, flags, trades, shipyard, stock) |
+| Scripts | Scr | Script keywords, spec fun, mob programs, index variables |
+| Special | Spc | Questor, trainer, crew, boss, persist, corpse type/vnum, zombie vnum |
+
+**oedit** — 5 tabs:
+| Tab | Short | Contents |
+|-----|-------|----------|
+| General | Gen | Name, short/long desc, area, vnum, level, type, material, comments |
+| Properties | Prp | Weight, cost, condition, fragility, persist, extra flags, wear flags, allowed flags |
+| Affects | Aff | Catalyst list, affect list |
+| Scripts | Scr | Script keywords, object programs, index variables |
+| Type | Typ | Type-specific value fields (delegated to oedit_types.c) |
+
+**tedit** — 3 tabs:
+| Tab | Short | Contents |
+|-----|-------|----------|
+| General | Gen | Name, area, vnum, type, flags, timer, description, comments |
+| Values | Val | Type-specific token values (v0-v7) |
+| Scripts | Scr | Token programs, index variables |
+
+#### Command Helper Conversions
+
+23 command functions across the 3 editors were converted to `olc_cmd_*()` helpers:
+
+| Editor | Converted | Manual | Notes |
+|--------|-----------|--------|-------|
+| oedit | 8 | ~32 | name, skeywds, desc, comments, weight, timer, condition, allowed_fixed |
+| medit | 13 | ~32 | desc, comments, owner, material, form, part, immune, res, off, sex, size, align, hitroll |
+| tedit | 5 | ~10 | name, flags, timer, description, comments |
+
+Functions remain manual when they have: side effects (auto-calculations on level set,
+auto dice recomputation), IMP signature checks (`persist`, `boss`, `fragility`), bitvector
+multi-table toggles (`act[2]`, `affected_by[2]`, `extra[4]`), player file existence checks
+(`medit_name`, `medit_skeywds`), or type mismatches between `int`/`long`/`int16_t` fields
+and the helper API.
+
+#### Migration Steps Completed
+
+1. Command tables moved from `olc.c` to each editor's `.c` file
+2. Interpreter functions replaced with single-line `olc_editor_interp()` calls
+3. Entry point `do_*edit()` functions moved to editor files, using `olc_editor_enter()`
+4. Monolithic show functions split into per-tab functions using `olc_display_*()` renderers
+5. `olc_theme_entity` applied to all three editors
+6. `OLC_PERM_AREA_SECURITY` with `get_area_fn` callback for permissions
+7. All existing commands verified working
+
+#### Bugs Found and Fixed During Testing
+
+- **NULL progs segfault**: `olc_display_scripts()` crashed when passed NULL `progs`
+  (e.g., a token with no scripts). Fixed by adding a NULL guard in `olc_display.c`.
+- **MXP tag stripping bug** (`protocol.c`): When a client negotiated MXP but the user
+  had `COMM_MXP` off, `MXPBuildTag()` still wrapped text in `\t\x12...\x13` control
+  sequences. `ProtocolOutput()` then tried to strip them by scanning for `>` instead
+  of `MXP_END_TAG` (`\x13`), causing the strip loop to consume all subsequent output
+  until a literal `>` or end-of-string. This made the shop stock section (and any
+  content after an `olc_display_flags()` call) invisible on clients with negotiated
+  but disabled MXP. Fixed by: (1) adding `COMM_MXP` check to `MXPBuildTag()`, and
+  (2) splitting the `case '<' / case MXP_BEGIN_TAG` in `ProtocolOutput()` so each
+  scans for its own terminator (`>` vs `MXP_END_TAG`).
 
 ### 7.5 Phase 3: World Editors (aedit, redit, wedit, vledit)
 
@@ -1208,14 +1263,16 @@ They already have a common command table pattern. Migration involves:
 ### 7.9 Phase 7: Command Table Migration
 
 Move remaining command tables from `olc.c` to their respective editor files. This is
-mechanical refactoring:
+mechanical refactoring — already done for medit, oedit, and tedit during Phase 2:
 1. Cut the table from `olc.c`
 2. Paste into the editor's `.c` file
 3. Remove the `extern` declaration from `olc.h`
 4. Update the `OLC_EDITOR_DEF` to reference it
 5. Repeat for each editor
 
-Goal: `olc.c` should shrink from 4,633 lines to ~500 lines (just the shared infrastructure).
+Goal: `olc.c` should shrink from ~4,108 lines to ~500 lines (just the shared infrastructure).
+Three editor tables have already been moved (medit, oedit, tedit), plus all six Gen 2
+editor tables were already self-contained.
 
 ### 7.10 Phase 8: New Editors (Backport from `src_20_dev`)
 
@@ -1630,7 +1687,7 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 |------|-------|----------|
 | `editors/common.h` | 217 | Legacy display helpers, `OLC_LAYOUT_CTX`, `OLC_EDITOR_TABS` |
 | `editors/common.c` | 976 | Legacy renderers, `process_olc_command`, `olc_render_*` |
-| `olc.c` | 4,633 | Editor tables, interpreters, shared helpers |
+| `olc.c` | ~4,108 | Editor tables, interpreters, shared helpers (reduced from 4,633) |
 | `olc.h` | 620 | ED_* constants, EDIT_* macros, all prototypes |
 | `olc_act.c` | 3,312 | Shared editor action functions |
 | `olc_act2.c` | ~200 | Condition phrase helpers |
@@ -1638,20 +1695,21 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 
 ### 10.4 Summary Statistics
 
-| Metric | Before | After (Projected) | Current (Phase 1 Done) |
+| Metric | Before | After (Projected) | Current (Phase 2 Done) |
 |--------|--------|-------------------|------------------------|
-| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~510 (6 migrated) |
-| Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 6 editors converted |
-| Permission patterns | 6 different patterns | 1 centralized check | 6 editors converted |
-| Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 editors use explicit save |
-| Audit logging (server-side) | None | All editors | 6 editors |
+| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~490 (9 migrated) |
+| Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 9 editors converted |
+| Permission patterns | 6 different patterns | 1 centralized check | 9 editors converted |
+| Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 explicit save + 3 area flag |
+| Audit logging (server-side) | None | All editors | 6 editors (Gen 2) |
 | Change history (in-game) | gameedit only | All editors (opt-in per struct) | 6 editors fully wired |
 | History persistence | None (gameedit: json_changesets) | Per-type files, async writes | 6 type files implemented |
-| Lines in `olc.c` | 4,633 | ~500 | 4,633 (not yet reduced) |
-| Color consistency | None (per-editor ad hoc) | 6 category themes | 6 editors themed |
-| MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 6 editors (history IDs) |
+| Lines in `olc.c` | 4,633 | ~500 | ~4,108 (3 editors removed) |
+| Color consistency | None (per-editor ad hoc) | 6 category themes | 9 editors themed |
+| MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 9 editors (labels, flags, tabs, scripts, lists) |
 | `bprintf` usage | Partial | All new display code | All new display code |
-| NAWS screen-width support | 1 editor (tedit) | All editors | 6 editors |
-| Tab UI support | 1 editor (tedit) | All editors that benefit | Framework ready, tabs planned |
+| NAWS screen-width support | 1 editor (tedit) | All editors | 9 editors |
+| Tab UI support | 1 editor (tedit) | All editors that benefit | 3 tabbed editors (medit 6, oedit 5, tedit 3) |
 | Player-accessible editors | 0 | Prepared for housing | Framework ready |
-| Data/display separation | None | Display via renderers (JSON-ready) | 6 editors via renderers |
+| Data/display separation | None | Display via renderers (JSON-ready) | 9 editors via renderers |
+| Command helpers converted | 0 | All simple commands | 69 commands (46 Gen 2 + 23 Gen 1) |

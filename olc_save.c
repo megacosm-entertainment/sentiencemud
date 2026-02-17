@@ -895,7 +895,7 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     mob->damage.number, mob->damage.size, mob->damage.bonus, mob->move);
     fprintf(fp, "AttackType %d\n", mob->dam_type);
     fprintf(fp, "Attacks %d\n", mob->attacks);
-    fprintf(fp, "OffFlags %ld ImmFlags %ld ResFlags %ld VulnFlags %d\n",
+    fprintf(fp, "OffFlags %ld ImmFlags %ld ResFlags %ld VulnFlags %ld\n",
         mob->off_flags,
     mob->imm_flags,
     mob->res_flags,
