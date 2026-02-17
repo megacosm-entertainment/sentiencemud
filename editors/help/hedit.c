@@ -1,22 +1,13 @@
 /***************************************************************************
- *  File: olc_act.c                                                        *
+ *  hedit.c — OLC Help File & Category Editor                             *
  *                                                                         *
- *  Much time and thought has gone into this software and you are          *
- *  benefitting.  We hope that you share your changes too.  What goes      *
- *  around, comes around.                                                  *
+ *  Dual-mode in-game editor for help files and help categories.           *
+ *  When pEdit is NULL, operates in category browser mode.                 *
+ *  When pEdit is set, operates in help entry editing mode.                *
+ *  The "done" command toggles between modes (entry → category → exit).   *
  *                                                                         *
- *  This code was freely distributed with the The Isles 1.1 source code,   *
- *  and has been used here for OLC - OLC would not be what it is without   *
- *  all the previous coders who released their source code.                *
- *                                                                         *
+ *  Migrated to the unified OLC Editor Framework.                          *
  ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -32,136 +23,271 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
-/* Help Editor */
+/***************************************************************************
+ * Change Tracking                                                         *
+ ***************************************************************************/
+
+/**
+ * hedit_mark_changed - Update modification timestamps
+ *
+ * Sets the modified_by and modified timestamp on either the
+ * help entry (if editing one) or the current category.
+ *
+ * @param ch     Character who made the change
+ * @param pEdit  HELP_DATA being edited (may be NULL for category mode)
+ */
+static void hedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    if (pEdit != NULL) {
+        HELP_DATA *help = (HELP_DATA *)pEdit;
+        free_string(help->modified_by);
+        help->modified_by = str_dup(ch->name);
+        help->modified = current_time;
+    } else if (ch->desc && ch->desc->hCat) {
+        free_string(ch->desc->hCat->modified_by);
+        ch->desc->hCat->modified_by = str_dup(ch->name);
+        ch->desc->hCat->modified = current_time;
+    }
+}
+
+/***************************************************************************
+ * Command Table                                                           *
+ ***************************************************************************/
+
+const struct olc_cmd_type hedit_table[] =
+{
+    { "addcategory",  hedit_addcat      },
+    { "addtopic",     hedit_addtopic    },
+    { "builder",      hedit_builder     },
+    { "commands",     show_commands     },
+    { "delete",       hedit_delete      },
+    { "description",  hedit_description },
+    { "edit",         hedit_edit        },
+    { "keyword",      hedit_keywords    },
+    { "level",        hedit_level       },
+    { "make",         hedit_make        },
+    { "move",         hedit_move        },
+    { "name",         hedit_name        },
+    { "opencategory", hedit_opencat     },
+    { "remcategory",  hedit_remcat      },
+    { "remtopic",     hedit_remtopic    },
+    { "security",     hedit_security    },
+    { "shiftcategory",hedit_shiftcat    },
+    { "show",         hedit_show        },
+    { "text",         hedit_text        },
+    { "upcategory",   hedit_upcat       },
+    { NULL,           0                 }
+};
+
+/***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF hedit_def = {
+    .name           = "HEdit",
+    .editor_type    = ED_HELP,
+    .cmd_table      = hedit_table,
+    .show_fn        = hedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_system,
+    .perm           = {
+        .flags          = OLC_PERM_NONE
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = hedit_mark_changed,
+    .audit_changes  = false,
+    .get_history_fn = NULL,
+};
+
+/***************************************************************************
+ * Entry Point                                                             *
+ ***************************************************************************/
+
+/**
+ * do_hedit - Enter the help file editor
+ *
+ * Opens in category browser mode at the root help category.
+ *
+ * Syntax: hedit
+ */
+void do_hedit(CHAR_DATA *ch, char *argument)
+{
+    if (IS_NPC(ch))
+        return;
+
+    ch->pcdata->immortal->last_olc_command = current_time;
+    ch->desc->editor = ED_HELP;
+    ch->desc->pEdit = NULL;
+    ch->desc->hCat = topHelpCat;
+}
+
+/***************************************************************************
+ * Interpreter                                                             *
+ ***************************************************************************/
+
+/**
+ * hedit - Command interpreter for the help editor
+ *
+ * Custom interpreter required because hedit has dual-mode "done"
+ * behavior: when editing a help entry, "done" returns to category
+ * browser mode; when browsing categories, "done" exits the editor.
+ */
+void hedit(CHAR_DATA *ch, char *argument)
+{
+    char command[MIL];
+    char arg[MIL];
+    int cmd;
+
+    smash_tilde(argument);
+    strcpy(arg, argument);
+    argument = one_argument(argument, command);
+
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("HEdit: Insufficient security.\n\r", ch);
+        edit_done(ch);
+        return;
+    }
+
+    /* Dual-mode done: entry editing → category browser → exit */
+    if (!str_cmp(command, "done")) {
+        if (ch->desc->pEdit == NULL)
+            edit_done(ch);
+        else {
+            ch->desc->pEdit = NULL;
+            ch->desc->editor = ED_HELP;
+        }
+        return;
+    }
+
+    if (command[0] == '\0') {
+        hedit_show(ch, argument);
+        return;
+    }
+
+    for (cmd = 0; hedit_table[cmd].name != NULL; cmd++) {
+        if (!str_prefix(command, hedit_table[cmd].name)) {
+            if ((*hedit_table[cmd].olc_fun)(ch, argument)) {
+                ch->pcdata->immortal->last_olc_command = current_time;
+                olc_mark_changed(ch, &hedit_def);
+            }
+            return;
+        }
+    }
+
+    interpret(ch, arg);
+}
+
+/***************************************************************************
+ * Command Handlers                                                        *
+ ***************************************************************************/
+/**
+ * hedit_show - Display current help entry or category data
+ *
+ * Dual-mode show function. When pEdit is set, shows the help entry.
+ * When pEdit is NULL, shows the current category browser view.
+ *
+ * @param ch        Character viewing
+ * @param argument  Unused
+ * @return          false (no data changed)
+ */
 HEDIT (hedit_show)
 {
-    HELP_CATEGORY *hcat;
-    HELP_DATA *help;
-    STRING_DATA *topic;
-    char buf[2*MSL], buf2[MSL];
-    BUFFER *buffer;
-    int i;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&hedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
-    buffer = new_buf();
+    ctx = olc_display_new(ch, theme);
 
     if (ch->desc->pEdit != NULL)
     {
-    help = (HELP_DATA *) ch->desc->pEdit;
+        HELP_DATA *help = (HELP_DATA *)ch->desc->pEdit;
+        STRING_DATA *topic;
+        int i;
 
-    sprintf(buf, "{YKeywords:              {W%s{x\n\r", help->keyword);
-    add_buf(buffer, buf);
+        olc_display_header(ctx, "HEdit", help->keyword,
+            formatf("#%d", help->index), &hedit_def);
 
-        sprintf(buf, "{YSecurity:              {x%d\n\r", help->security);
-    add_buf(buffer, buf);
+        olc_display_string(ctx, theme, "Keywords:", "keyword", help->keyword);
+        olc_display_number(ctx, theme, "Security:", "security", help->security);
+        olc_display_string(ctx, theme, "Builders:", "builder", help->builders);
+        olc_display_string(ctx, theme, "Created by:", NULL, help->creator);
+        olc_display_string(ctx, theme, "Created on:", NULL,
+            help->created == 0 ? "Unknown" : (char *)ctime(&help->created));
+        olc_display_string(ctx, theme, "Modified by:", NULL, help->modified_by);
+        olc_display_string(ctx, theme, "Modified on:", NULL,
+            help->modified == 0 ? "Unknown" : (char *)ctime(&help->modified));
+        olc_display_string(ctx, theme, "Category:", NULL,
+            help->hCat == topHelpCat ? "Root Category" : help->hCat->name);
+        olc_display_number(ctx, theme, "Level:", "level", help->min_level);
 
-    sprintf(buf, "{YBuilders:              {x%s\n\r", help->builders);
-    add_buf(buffer, buf);
+        olc_display_text(ctx, theme, NULL, "text", help->text);
 
-    sprintf(buf, "{YCreated by:            {x%-20s\n\r", help->creator);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YCreated on:            {x%s", help->created == 0 ? "Unknown\n\r" : (char *) ctime(&help->created));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YLast modified by:      {x%-20s\n\r", help->modified_by);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YLast modified on:      {x%s", help->modified == 0 ? "Unknown\n\r" : (char *) ctime(&help->modified));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YCategory:              {x%-20s\n\r", help->hCat == topHelpCat ? "Root Category" : help->hCat->name);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YMinimum level:         {x%-20d\n\r", help->min_level);
-    add_buf(buffer, buf);
-
-    add_buf(buffer, "{Y-------------------------------------------------------------------------------------------------------------{x\n\r");
-
-    add_buf(buffer, help->text);
-    add_buf(buffer, "{Y-------------------------------------------------------------------------------------------------------------{x\n\r");
-    add_buf(buffer, "{YRelated topics:{x\n\r");
-    if (help->related_topics == NULL)
-        add_buf(buffer, "None\n\r");
-    else
-    {
-        i = 0;
-        for (topic = help->related_topics; topic != NULL; topic = topic->next)
-        {
-        sprintf(buf, "{b[{B%-2d{b]{x %s\n\r", i, topic->string);
-        add_buf(buffer, buf);
-        i++;
+        olc_display_section(ctx, theme, "Related Topics");
+        if (help->related_topics == NULL) {
+            olc_display_infof(ctx, theme, "  None");
+        } else {
+            i = 0;
+            for (topic = help->related_topics; topic != NULL; topic = topic->next, i++) {
+                olc_display_infof(ctx, theme, "{b[{B%-2d{b]{x %s", i, topic->string);
+            }
         }
     }
-    }
     else
     {
-    sprintf(buf, "{YCategory name:         {W%s{x\n\r", ch->desc->hCat == topHelpCat ? "Root Category" : ch->desc->hCat->name);
-    add_buf(buffer, buf);
+        HELP_CATEGORY *hcat;
+        HELP_DATA *help;
+        int i;
 
-    sprintf(buf, "{YSecurity:              {x%d{x\n\r", ch->desc->hCat->security);
-    add_buf(buffer, buf);
+        olc_display_header(ctx, "HEdit",
+            ch->desc->hCat == topHelpCat ? "Root Category" : ch->desc->hCat->name,
+            NULL, &hedit_def);
 
-    sprintf(buf, "{YBuilders:              {x%s\n\r", ch->desc->hCat->builders);
-    add_buf(buffer, buf);
+        olc_display_string(ctx, theme, "Category:", "name",
+            ch->desc->hCat == topHelpCat ? "Root Category" : ch->desc->hCat->name);
+        olc_display_number(ctx, theme, "Security:", "security",
+            ch->desc->hCat->security);
+        olc_display_string(ctx, theme, "Builders:", "builder",
+            ch->desc->hCat->builders);
+        olc_display_string(ctx, theme, "Created by:", NULL,
+            ch->desc->hCat->creator);
+        olc_display_string(ctx, theme, "Created on:", NULL,
+            ch->desc->hCat->created == 0 ? "Unknown"
+            : (char *)ctime(&ch->desc->hCat->created));
+        olc_display_string(ctx, theme, "Modified by:", NULL,
+            ch->desc->hCat->modified_by);
+        olc_display_string(ctx, theme, "Modified on:", NULL,
+            ch->desc->hCat->modified == 0 ? "Unknown"
+            : (char *)ctime(&ch->desc->hCat->modified));
+        olc_display_number(ctx, theme, "Level:", "level",
+            ch->desc->hCat->min_level);
+        olc_display_text(ctx, theme, "Description:", "description",
+            ch->desc->hCat->description);
 
-    sprintf(buf, "{YCreated by:            {x%s\n\r", ch->desc->hCat->creator);
-    add_buf(buffer, buf);
+        olc_display_section(ctx, theme, "Contents");
 
-    sprintf(buf, "{YCreated on:            {x%s", ch->desc->hCat->created == 0 ? "Unknown\n\r" : (char *) ctime(&ch->desc->hCat->created));
-    add_buf(buffer, buf);
+        i = 0;
+        for (hcat = ch->desc->hCat->inside_cats; hcat != NULL; hcat = hcat->next) {
+            olc_display_infof(ctx, theme, "{b[{BC{b]{x  {W%.18s{B/{x%s",
+                hcat->name, ((i + 1) % 4 == 0) ? "" : " ");
+            i++;
+        }
 
-    sprintf(buf, "{YLast modified by:      {x%-20s\n\r", ch->desc->hCat->modified_by);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YLast modified on:      {x%s", ch->desc->hCat->modified == 0 ? "Unknown\n\r" : (char *) ctime(&ch->desc->hCat->modified));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YMinimum level:         {x%-20d\n\r", ch->desc->hCat->min_level);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{YDescription:           {x\n\r%s", ch->desc->hCat->description);
-    add_buf(buffer, buf);
-
-    add_buf(buffer, "{Y-------------------------------------------------------------------------------------------------------------{x\n\r");
-
-    i = 0;
-    for (hcat = ch->desc->hCat->inside_cats; hcat != NULL; hcat = hcat->next)
-    {
-        sprintf(buf2, "{W%.18s{B/{x", hcat->name);
-        sprintf(buf, "{b[{BC{b]{x  %-30s", buf2);
-        add_buf(buffer, buf);
-
-        i++;
-        if (i % 4 == 0)
-        add_buf(buffer, "\n\r");
-        else
-        add_buf(buffer, " ");
+        for (help = ch->desc->hCat->inside_helps; help != NULL; help = help->next) {
+            olc_display_infof(ctx, theme, "{b%-4d{x %-24.24s%s",
+                help->index, help->keyword,
+                ((i + 1) % 4 == 0) ? "" : " ");
+            i++;
+        }
     }
 
-    for (help = ch->desc->hCat->inside_helps; help != NULL; help = help->next)
-    {
-        //one_argument(help->keyword, buf2);
-        sprintf(buf2, "%.18s", help->keyword);
-        sprintf(buf, "{b%-4d{x %-24s", /*i + 1*/ help->index, buf2);
-        add_buf(buffer, buf);
+    olc_display_footer(ctx, theme);
 
-        i++;
-        if (i % 4 == 0)
-        add_buf(buffer, "\n\r");
-        else
-        add_buf(buffer, " ");
-    }
-
-    if (i % 4 != 0)
-        add_buf(buffer, "\n\r");
-
-    add_buf(buffer, "{Y-------------------------------------------------------------------------------------------------------------{x\n\r");
-
-    }
-
-    page_to_char(buf_string(buffer), ch);
-    free_buf(buffer);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
 
     return false;
 }
@@ -620,6 +746,9 @@ HEDIT(hedit_shiftcat)
 }
 
 
+/**
+ * hedit_text - Edit the help entry text (opens string editor)
+ */
 HEDIT(hedit_text)
 {
     HELP_DATA *pHelp;
@@ -630,15 +759,8 @@ HEDIT(hedit_text)
     }
 
     EDIT_HELP(ch, pHelp);
-
-    if (argument[0] =='\0')
-    {
-       string_append(ch, &pHelp->text);
-       return true;
-    }
-
-    send_to_char(" Syntax: text\n\r",ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Text", NULL,
+        &pHelp->text, NULL, NULL);
 }
 
 

@@ -150,6 +150,13 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
             send_to_char("Ships saved.\n\r", ch);
         }
 
+        if (commands_changed)
+        {
+            save_commands();
+            commands_changed = false;
+            send_to_char("Commands saved.\n\r", ch);
+        }
+
         log_string("olc_save.c, do_asave: changed, saving area list");
         save_area_list();
 
@@ -312,6 +319,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
         else
         {
             save_commands();
+            commands_changed = false;
             send_to_char("Commands saved.\n\r", ch);
             return;
         }

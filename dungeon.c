@@ -1644,38 +1644,7 @@ void dungeon_update()
 // DUNGEON EDITOR
 //
 
-const struct olc_cmd_type dngedit_table[] =
-{
-    { "?",				show_help			},
-    { "adddprog",		dngedit_adddprog	},
-    { "areawho",		dngedit_areawho		},
-    { "commands",		show_commands		},
-    { "comments",		dngedit_comments	},
-    { "create",			dngedit_create		},
-    { "deathrelease",	dngedit_deathrelease	},
-    { "deldprog",		dngedit_deldprog	},
-    { "description",	dngedit_description	},
-    { "entry",			dngedit_entry		},
-    { "exit",			dngedit_exit		},
-    { "flags",			dngedit_flags		},
-    { "floors",			dngedit_floors		},
-    { "idletimeout",	dngedit_idletimeout	},
-    { "levels",			dngedit_levels		},
-    { "list",			dngedit_list		},
-    { "maxgroup",		dngedit_maxgroup		},
-    { "maxplayers",		dngedit_maxplayers	},
-    { "mingroup",		dngedit_mingroup		},
-    { "mountout",		dngedit_mountout	},
-    { "name",			dngedit_name		},
-    { "portalout",		dngedit_portalout	},
-    { "show",			dngedit_show		},
-    { "special",		dngedit_special		},
-    { "varclear",		dngedit_varclear	},
-    { "varset",			dngedit_varset		},
-    { "zoneout",		dngedit_zoneout		},
-    { NULL,				NULL				}
-
-};
+/* dngedit_table moved to editors/dungeons/dngedit.c */
 
 void list_dungeons(CHAR_DATA *ch, char *argument)
 {
@@ -1761,106 +1730,10 @@ void do_dnglist(CHAR_DATA *ch, char *argument)
     list_dungeons(ch, argument);
 }
 
-void do_dngedit(CHAR_DATA *ch, char *argument)
-{
-    DUNGEON_INDEX_DATA *dng;
-    char arg1[MAX_STRING_LENGTH];
-    WNUM wnum;
+/* do_dngedit() moved to editors/dungeons/dngedit.c */
 
-    argument = one_argument(argument, arg1);
+/* dngedit() interpreter moved to editors/dungeons/dngedit.c */
 
-    if (IS_NPC(ch))
-        return;
-
-    if (!can_edit_dungeons(ch))
-    {
-        send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
-        return;
-    }
-
-    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
-    {
-        if (!(dng = get_dungeon_index_for_area(wnum.pArea, wnum.vnum)))
-        {
-            send_to_char("DNGEdit:  That dungeon does not exist.\n\r", ch);
-            return;
-        }
-
-        ch->pcdata->immortal->last_olc_command = current_time;
-        ch->desc->pEdit = (void *)dng;
-        ch->desc->editor = ED_DUNGEON;
-        return;
-    }
-    else
-    {
-        if (!str_cmp(arg1, "create"))
-        {
-            if (dngedit_create(ch, argument))
-            {
-                dungeons_changed = true;
-                ch->pcdata->immortal->last_olc_command = current_time;
-                ch->desc->editor = ED_DUNGEON;
-            }
-
-            return;
-        }
-
-    }
-
-    send_to_char("Syntax: dngedit <#vnum|area_uid#vnum>\n\r"
-                 "        dngedit create <vnum>\n\r", ch);
-}
-
-void dngedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int  cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!can_edit_dungeons(ch))
-    {
-        send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
-        edit_done(ch);
-        return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0')
-    {
-        dngedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; dngedit_table[cmd].name != NULL; cmd++)
-    {
-        if (!str_prefix(command, dngedit_table[cmd].name))
-        {
-            if ((*dngedit_table[cmd].olc_fun) (ch, argument))
-            {
-                DUNGEON_INDEX_DATA *dng;
-                EDIT_DUNGEON(ch, dng);
-                if (dng && dng->area)
-                    SET_BIT(dng->area->area_flags, AREA_CHANGED);
-                dungeons_changed = true;
-            }
-
-            return;
-        }
-    }
-
-    interpret(ch, arg);
-}
 
 
 

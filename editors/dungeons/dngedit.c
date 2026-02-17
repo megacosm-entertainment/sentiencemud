@@ -1,9 +1,8 @@
 /***************************************************************************
+ *  dngedit.c - OLC Dungeon Editor                                         *
  *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
+ *  Migrated to the unified OLC Editor Framework (Phase 4).                *
+ ***************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -20,10 +19,192 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern bool dungeons_changed;
 extern long top_dungeon_vnum;
 extern void list_dungeons(CHAR_DATA *ch, char *argument);
+extern bool can_edit_dungeons(CHAR_DATA *ch);
+
+/***************************************************************************
+ * Forward Declarations — Tab Show Functions                               *
+ ***************************************************************************/
+
+static void dngedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_entryexit_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_floors_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_levels_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_programs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void dngedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
+/***************************************************************************
+ * Framework Helpers                                                       *
+ ***************************************************************************/
+
+static AREA_DATA *dngedit_get_area(void *pEdit)
+{
+    return pEdit ? ((DUNGEON_INDEX_DATA *)pEdit)->area : NULL;
+}
+
+static bool dngedit_perm_check(CHAR_DATA *ch, void *pEdit)
+{
+    return can_edit_dungeons(ch);
+}
+
+static void dngedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    if (dng && dng->area)
+        SET_BIT(dng->area->area_flags, AREA_CHANGED);
+    dungeons_changed = true;
+}
+
+/***************************************************************************
+ * Dungeon Editor Command Table (moved from dungeon.c)                     *
+ ***************************************************************************/
+
+const struct olc_cmd_type dngedit_table[] = {
+    { "?",              show_help           },
+    { "adddprog",       dngedit_adddprog    },
+    { "areawho",        dngedit_areawho     },
+    { "commands",       show_commands       },
+    { "comments",       dngedit_comments    },
+    { "create",         dngedit_create      },
+    { "deathrelease",   dngedit_deathrelease },
+    { "deldprog",       dngedit_deldprog    },
+    { "description",    dngedit_description },
+    { "entry",          dngedit_entry       },
+    { "exit",           dngedit_exit        },
+    { "flags",          dngedit_flags       },
+    { "floors",         dngedit_floors      },
+    { "idletimeout",    dngedit_idletimeout },
+    { "levels",         dngedit_levels      },
+    { "list",           dngedit_list        },
+    { "maxgroup",       dngedit_maxgroup    },
+    { "maxplayers",     dngedit_maxplayers  },
+    { "mingroup",       dngedit_mingroup    },
+    { "mountout",       dngedit_mountout    },
+    { "name",           dngedit_name        },
+    { "portalout",      dngedit_portalout   },
+    { "show",           dngedit_show        },
+    { "special",        dngedit_special     },
+    { "varclear",       dngedit_varclear    },
+    { "varset",         dngedit_varset      },
+    { "zoneout",        dngedit_zoneout     },
+    { NULL,             NULL                }
+};
+
+/***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF dngedit_def = {
+    .name           = "DNGEdit",
+    .editor_type    = ED_DUNGEON,
+    .cmd_table      = dngedit_table,
+    .show_fn        = dngedit_show,
+    .tabs           = {
+        .count      = 8,
+        .tabs       = {
+            { "General",    "Gen",  dngedit_show_general_tab    },
+            { "Entry/Exit", "E-X",  dngedit_show_entryexit_tab  },
+            { "Floors",     "Flr",  dngedit_show_floors_tab     },
+            { "Levels",     "Lvl",  dngedit_show_levels_tab     },
+            { "Special",    "Spc",  dngedit_show_special_tab    },
+            { "Programs",   "Prg",  dngedit_show_programs_tab   },
+            { "Variables",  "Var",  dngedit_show_variables_tab  },
+            { "Notes",      "Nts",  dngedit_show_notes_tab      },
+        },
+    },
+    .theme          = &olc_theme_building,
+    .perm           = {
+        .flags      = OLC_PERM_CUSTOM,
+        .check_fn   = dngedit_perm_check,
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = dngedit_mark_changed,
+    .get_area_fn    = dngedit_get_area,
+    .audit_changes  = true,
+};
+
+/***************************************************************************
+ * Dungeon Editor Interpreter — delegates to framework.                    *
+ ***************************************************************************/
+
+void dngedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &dngedit_def);
+}
+
+/***************************************************************************
+ * Dungeon Editor Entry Point (moved from dungeon.c)                       *
+ ***************************************************************************/
+
+/**
+ * do_dngedit - Staff command to edit or create dungeons
+ *
+ * Syntax: dngedit <vnum> - Edit existing dungeon
+ *         dngedit create <vnum> - Create new dungeon
+ *
+ * @param ch        Staff character
+ * @param argument  Dungeon vnum or "create <vnum>"
+ */
+void do_dngedit(CHAR_DATA *ch, char *argument)
+{
+    DUNGEON_INDEX_DATA *dng;
+    char arg1[MAX_STRING_LENGTH];
+    WNUM wnum;
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!can_edit_dungeons(ch))
+    {
+        send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
+        return;
+    }
+
+    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
+    {
+        if (!(dng = get_dungeon_index_for_area(wnum.pArea, wnum.vnum)))
+        {
+            send_to_char("DNGEdit:  That dungeon does not exist.\n\r", ch);
+            return;
+        }
+
+        ch->pcdata->immortal->last_olc_command = current_time;
+        ch->desc->pEdit = (void *)dng;
+        ch->desc->editor = ED_DUNGEON;
+        return;
+    }
+    else
+    {
+        if (!str_cmp(arg1, "create"))
+        {
+            if (dngedit_create(ch, argument))
+            {
+                dungeons_changed = true;
+                ch->pcdata->immortal->last_olc_command = current_time;
+                ch->desc->editor = ED_DUNGEON;
+            }
+
+            return;
+        }
+    }
+
+    send_to_char("Syntax: dngedit <#vnum|area_uid#vnum>\n\r"
+                 "        dngedit create <vnum>\n\r", ch);
+}
+
+/***************************************************************************
+ * Commands                                                                *
+ ***************************************************************************/
 
 
 
@@ -463,181 +644,265 @@ void dngedit_buffer_special_exits(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
 
 }
 
+/***************************************************************************
+ * Master Show — dispatches to active tab                                  *
+ ***************************************************************************/
+
 DNGEDIT( dngedit_show )
 {
     DUNGEON_INDEX_DATA *dng;
-    ROOM_INDEX_DATA *room;
-    BUFFER *buffer;
-    char buf[MSL];
-
     EDIT_DUNGEON(ch, dng);
 
-    buffer = new_buf();
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
+    OLC_LAYOUT_CTX *ctx = olc_display_new(ch, theme);
 
-    sprintf(buf, "Name:        [%5ld] %s\n\r", dng->vnum, dng->name);
-    add_buf(buffer, buf);
+    char id_buf[64];
+    sprintf(id_buf, "%ld", dng->vnum);
+    olc_display_header(ctx, "DNGEdit", dng->name, id_buf, &dngedit_def);
 
-    sprintf(buf, "Flags:       %s\n\r", flag_string(dungeon_flags, dng->flags));
-    add_buf(buffer, buf);
+    /* Dispatch to active tab's show function */
+    int tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < dngedit_def.tabs.count
+        && dngedit_def.tabs.tabs[tab].show_fn) {
+        dngedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)dng);
+    } else {
+        dngedit_show_general_tab(ch, ctx, (void *)dng);
+    }
 
-    sprintf(buf, "AreaWho:     %s\n\r", flag_string(area_who_titles, dng->area_who));
-    add_buf(buffer, buf);
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
+    return false;
+}
 
-    if( dng->repop > 0)
-        sprintf(buf, "Repop:       %d minutes\n\r", dng->repop);
+/***************************************************************************
+ * Tab 1: General                                                          *
+ ***************************************************************************/
+
+static void dngedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
+    char buf[MSL];
+
+    sprintf(buf, "[%5ld] %s", dng->vnum, dng->name);
+    olc_display_string(ctx, theme, "Name:", "name", buf);
+
+    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(dungeon_flags, dng->flags));
+    olc_display_string(ctx, theme, "AreaWho:", "areawho", flag_string(area_who_titles, dng->area_who));
+
+    if (dng->repop > 0)
+        sprintf(buf, "%d minutes", dng->repop);
     else
-        sprintf(buf, "Repop:       {Dnever{X\n\r");
-    add_buf(buffer, buf);
+        sprintf(buf, "{Dnever{x");
+    olc_display_string(ctx, theme, "Repop:", "repop", buf);
 
     if (dng->idle_timeout > 0)
-        sprintf(buf, "IdleTimeout: %d minutes\n\r", dng->idle_timeout);
+        sprintf(buf, "%d minutes", dng->idle_timeout);
     else
-        sprintf(buf, "IdleTimeout: %d minutes {D(default){x\n\r", DUNGEON_IDLE_TIMEOUT);
-    add_buf(buffer, buf);
+        sprintf(buf, "%d minutes {D(default){x", DUNGEON_IDLE_TIMEOUT);
+    olc_display_string(ctx, theme, "IdleTimeout:", "idletimeout", buf);
 
-    sprintf(buf, "MinGroup:    %d%s\n\r", dng->min_group, dng->min_group == 0 ? " (no minimum)" : "");
-    add_buf(buffer, buf);
+    sprintf(buf, "%d%s", dng->min_group, dng->min_group == 0 ? " (no minimum)" : "");
+    olc_display_string(ctx, theme, "MinGroup:", "mingroup", buf);
 
-    sprintf(buf, "MaxGroup:    %d%s\n\r", dng->max_group, dng->max_group == 0 ? " (unlimited)" : "");
-    add_buf(buffer, buf);
+    sprintf(buf, "%d%s", dng->max_group, dng->max_group == 0 ? " (unlimited)" : "");
+    olc_display_string(ctx, theme, "MaxGroup:", "maxgroup", buf);
 
-    sprintf(buf, "MaxPlayers:  %d%s\n\r", dng->max_players, dng->max_players == 0 ? " (unlimited)" : "");
-    add_buf(buffer, buf);
+    sprintf(buf, "%d%s", dng->max_players, dng->max_players == 0 ? " (unlimited)" : "");
+    olc_display_string(ctx, theme, "MaxPlayers:", "maxplayers", buf);
 
-    sprintf(buf, "DeathRelease: %s\n\r", flag_string(death_release_types, dng->death_release));
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "DeathRelease:", "deathrelease", flag_string(death_release_types, dng->death_release));
 
-    /* Entry room - use the resolved pointer */
+    olc_display_section(ctx, theme, "Description");
+    add_buf(ctx->buffer, dng->description);
+}
+
+/***************************************************************************
+ * Tab 2: Entry/Exit                                                       *
+ ***************************************************************************/
+
+static void dngedit_show_entryexit_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
+    ROOM_INDEX_DATA *room;
+    char buf[MSL];
+
+    /* Entry room */
     room = dng->entry_room;
-    if( room )
+    if (room)
     {
-        sprintf(buf, "Entry:       [%s] %-.30s\n\r", widevnum_string_room(room, dng->area), room->name);
-        add_buf(buffer, buf);
+        sprintf(buf, "[%s] %-.30s", widevnum_string_room(room, dng->area), room->name);
+        olc_display_string(ctx, theme, "Entry:", "entry", buf);
     }
     else
-        add_buf(buffer, "Entry:       {Dinvalid{x\n\r");
+        olc_display_string(ctx, theme, "Entry:", "entry", "{Dinvalid{x");
 
-    /* Exit room - use the resolved pointer */
+    /* Exit room */
     room = dng->exit_room;
-    if( room )
+    if (room)
     {
-        sprintf(buf, "Exit:        [%s] %-.30s\n\r", widevnum_string_room(room, dng->area), room->name);
-        add_buf(buffer, buf);
+        sprintf(buf, "[%s] %-.30s", widevnum_string_room(room, dng->area), room->name);
+        olc_display_string(ctx, theme, "Exit:", "exit", buf);
     }
     else
-        add_buf(buffer, "Exit:        {Dinvalid{x\n\r");
+        olc_display_string(ctx, theme, "Exit:", "exit", "{Dinvalid{x");
 
-    add_buf(buffer, "ZoneOut:     ");
-    add_buf(buffer, dng->zone_out);
-    add_buf(buffer, "{x\n\r");
+    olc_display_string(ctx, theme, "ZoneOut:", "zoneout", dng->zone_out);
+    olc_display_string(ctx, theme, "PortalOut:", "portalout", dng->zone_out_portal);
+    olc_display_string(ctx, theme, "MountOut:", "mountout", dng->zone_out_mount);
+}
 
-    add_buf(buffer, "PortalOut:     ");
-    add_buf(buffer, dng->zone_out_portal);
-    add_buf(buffer, "{x\n\r");
+/***************************************************************************
+ * Tab 3: Floors                                                           *
+ ***************************************************************************/
 
-    add_buf(buffer, "MountOut:     ");
-    add_buf(buffer, dng->zone_out_mount);
-    add_buf(buffer, "{x\n\r");
+static void dngedit_show_floors_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    dngedit_buffer_floors(ctx->buffer, dng);
+}
 
-    add_buf(buffer, "Description:\n\r");
-    add_buf(buffer, dng->description);
-    add_buf(buffer, "\n\r");
+/***************************************************************************
+ * Tab 4: Levels                                                           *
+ ***************************************************************************/
 
-    dngedit_buffer_floors(buffer, dng);
+static void dngedit_show_levels_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    dngedit_buffer_levels(ctx->buffer, dng);
+}
 
-    dngedit_buffer_levels(buffer, dng);
+/***************************************************************************
+ * Tab 5: Special (Special Rooms + Special Exits)                          *
+ ***************************************************************************/
 
-    // TODO: Update to changes
-    add_buf(buffer, "Special Rooms:\n\r");
+static void dngedit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
+    char buf[MSL];
+
+    /* Special Rooms */
+    olc_display_section(ctx, theme, "Special Rooms");
     if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
     {
-        add_buf(buffer, "   {WSCRIPTED{x\n\r");
+        add_buf(ctx->buffer, "   {WSCRIPTED{x\n\r");
     }
-    else if( list_size(dng->special_rooms) > 0 )
+    else if (list_size(dng->special_rooms) > 0)
     {
         DUNGEON_INDEX_SPECIAL_ROOM *special;
-
-        char buf[MSL];
+        ITERATOR sit;
         int line = 0;
 
-        ITERATOR sit;
-
-        add_buf(buffer, "     [             Name             ] [ Level ] [ Room ]\n\r");
-        add_buf(buffer, "---------------------------------------------------------\n\r");
+        add_buf(ctx->buffer, "     [             Name             ] [ Level ] [ Room ]\n\r");
+        add_buf(ctx->buffer, "---------------------------------------------------------\n\r");
 
         iterator_start(&sit, dng->special_rooms);
-        while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+        while ((special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)))
         {
             sprintf(buf, "{W%4d  %-30.30s   {G%7d{x     %4d\n\r", ++line, special->name, special->level, special->room);
-            add_buf(buffer, buf);
+            add_buf(ctx->buffer, buf);
         }
-
         iterator_stop(&sit);
-        add_buf(buffer, "---------------------------------------------------------\n\r");
+        add_buf(ctx->buffer, "---------------------------------------------------------\n\r");
     }
     else
     {
-        add_buf(buffer, "   None\n\r");
+        add_buf(ctx->buffer, "   None\n\r");
     }
-    add_buf(buffer, "\n\r");
+    add_buf(ctx->buffer, "\n\r");
 
-    dngedit_buffer_special_exits(buffer, dng);
+    /* Special Exits */
+    dngedit_buffer_special_exits(ctx->buffer, dng);
+}
 
-    add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
-    add_buf(buffer, dng->comments);
-    add_buf(buffer, "\n\r-----\n\r");
+/***************************************************************************
+ * Tab 6: Programs                                                         *
+ ***************************************************************************/
 
+static void dngedit_show_programs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
 
     if (dng->progs)
-        olc_show_progs_grouped(buffer, dng->progs, PRG_DPROG, "Dungeon Programs");
+        olc_show_progs_grouped(ctx->buffer, dng->progs, PRG_DPROG, "Dungeon Programs");
+    else
+        olc_display_string(ctx, theme, "Programs:", NULL, "None");
+}
 
-    if (dng->index_vars) {
+/***************************************************************************
+ * Tab 7: Variables                                                        *
+ ***************************************************************************/
+
+static void dngedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
+    char buf[MSL];
+
+    if (dng->index_vars)
+    {
         pVARIABLE var;
         int cnt;
 
         for (cnt = 0, var = dng->index_vars; var; var = var->next) ++cnt;
 
-        if (cnt > 0) {
+        if (cnt > 0)
+        {
+            olc_display_section(ctx, theme, "Index Variables");
+
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-            add_buf(buffer, buf);
-
+            add_buf(ctx->buffer, buf);
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-            add_buf(buffer, buf);
+            add_buf(ctx->buffer, buf);
 
-            for (var = dng->index_vars; var; var = var->next) {
-                switch(var->type) {
+            for (var = dng->index_vars; var; var = var->next)
+            {
+                switch (var->type) {
                 case VAR_INTEGER:
-                    sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+                    sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name, var->save?'Y':'N', var->_.i);
                     break;
                 case VAR_STRING:
                 case VAR_STRING_S:
-                    sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+                    sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name, var->save?'Y':'N', var->_.s?var->_.s:"(empty)");
                     break;
                 case VAR_ROOM:
-                    if(var->_.r && var->_.r->vnum > 0)
-                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+                    if (var->_.r && var->_.r->vnum > 0)
+                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name, var->save?'Y':'N', var->_.r->name, (int)var->_.r->vnum);
                     else
-                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r", var->name, var->save?'Y':'N');
                     break;
                 default:
                     continue;
                 }
-                add_buf(buffer, buf);
+                add_buf(ctx->buffer, buf);
             }
         }
-    }
-
-    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-    {
-        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+        else
+        {
+            olc_display_string(ctx, theme, "Variables:", NULL, "None");
+        }
     }
     else
     {
-        page_to_char(buffer->string, ch);
+        olc_display_string(ctx, theme, "Variables:", NULL, "None");
     }
+}
 
-    free_buf(buffer);
-    return false;
+/***************************************************************************
+ * Tab 8: Notes (Builder Comments)                                         *
+ ***************************************************************************/
+
+static void dngedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = dngedit_def.theme;
+
+    olc_display_section(ctx, theme, "Builders' Comments");
+    add_buf(ctx->buffer, dng->comments ? dng->comments : "(none)\n\r");
 }
 
 DNGEDIT( dngedit_create )
@@ -718,72 +983,38 @@ DNGEDIT( dngedit_create )
 DNGEDIT( dngedit_name )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    smash_tilde(argument);
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  name [string]\n\r", ch);
-        return false;
-    }
-
-    free_string(dng->name);
-    dng->name = str_dup(argument);
-    send_to_char("Name changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &dng->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 DNGEDIT( dngedit_repop )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    if( !is_number(argument) )
-    {
-        send_to_char("Syntax:  repop [age]\n\r", ch);
-        return false;
-    }
-
-    int repop = atoi(argument);
-    dng->repop = UMAX(0, repop);
-    send_to_char("Repop changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Repop", NULL, &dng->repop,
+        0, INT_MAX, NULL, NULL);
 }
 
 
 DNGEDIT( dngedit_description )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &dng->description);
-        return true;
-    }
-
-    send_to_char("Syntax:  description - line edit\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &dng->description, NULL, NULL);
 }
 
 DNGEDIT( dngedit_comments )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &dng->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments - line edit\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &dng->comments, NULL, NULL);
 }
 
 DNGEDIT( dngedit_areawho )
@@ -2111,61 +2342,28 @@ DNGEDIT( dngedit_flags )
 DNGEDIT( dngedit_zoneout )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    smash_tilde(argument);
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  zoneout [string]\n\r", ch);
-        return false;
-    }
-
-    free_string(dng->zone_out);
-    dng->zone_out = str_dup(argument);
-    send_to_char("ZoneOut changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "ZoneOut", NULL, &dng->zone_out,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 DNGEDIT( dngedit_portalout )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    smash_tilde(argument);
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  portalout [string]\n\r", ch);
-        return false;
-    }
-
-    free_string(dng->zone_out_portal);
-    dng->zone_out_portal = str_dup(argument);
-    send_to_char("PortalOut changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "PortalOut", NULL,
+        &dng->zone_out_portal, OLC_STR_DEFAULT, NULL, NULL);
 }
 
 DNGEDIT( dngedit_mountout )
 {
     DUNGEON_INDEX_DATA *dng;
-
     EDIT_DUNGEON(ch, dng);
 
-    smash_tilde(argument);
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  mountout [string]\n\r", ch);
-        return false;
-    }
-
-    free_string(dng->zone_out_mount);
-    dng->zone_out_mount = str_dup(argument);
-    send_to_char("MountOut changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "MountOut", NULL,
+        &dng->zone_out_mount, OLC_STR_DEFAULT, NULL, NULL);
 }
 
 static int get_blueprint_entrance_count(BLUEPRINT *bp)
@@ -5734,16 +5932,9 @@ DNGEDIT(dngedit_mingroup)
     DUNGEON_INDEX_DATA *dng;
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax:  mingroup <number>  (0 = no minimum)\n\r", ch);
-        return false;
-    }
-
-    dng->min_group = atoi(argument);
-    char buf[MSL];
-    sprintf(buf, "Minimum group size set to %d.\n\r", dng->min_group);
-    send_to_char(buf, ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Min Group",
+        "Syntax:  mingroup <number>  (0 = no minimum)\n\r",
+        &dng->min_group, 0, INT_MAX, NULL, NULL);
 }
 
 DNGEDIT(dngedit_maxgroup)
@@ -5751,16 +5942,9 @@ DNGEDIT(dngedit_maxgroup)
     DUNGEON_INDEX_DATA *dng;
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax:  maxgroup <number>  (0 = unlimited)\n\r", ch);
-        return false;
-    }
-
-    dng->max_group = atoi(argument);
-    char buf[MSL];
-    sprintf(buf, "Maximum group size set to %d.\n\r", dng->max_group);
-    send_to_char(buf, ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Max Group",
+        "Syntax:  maxgroup <number>  (0 = unlimited)\n\r",
+        &dng->max_group, 0, INT_MAX, NULL, NULL);
 }
 
 DNGEDIT(dngedit_maxplayers)
@@ -5768,41 +5952,18 @@ DNGEDIT(dngedit_maxplayers)
     DUNGEON_INDEX_DATA *dng;
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax:  maxplayers <number>  (0 = unlimited)\n\r", ch);
-        return false;
-    }
-
-    dng->max_players = atoi(argument);
-    char buf[MSL];
-    sprintf(buf, "Maximum players set to %d.\n\r", dng->max_players);
-    send_to_char(buf, ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Max Players",
+        "Syntax:  maxplayers <number>  (0 = unlimited)\n\r",
+        &dng->max_players, 0, INT_MAX, NULL, NULL);
 }
 
 DNGEDIT(dngedit_deathrelease)
 {
     DUNGEON_INDEX_DATA *dng;
-    int value;
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0') {
-        send_to_char("Syntax:  deathrelease <type>\n\r", ch);
-        send_to_char("Types: normal, start, floor, checkpoint, failure\n\r", ch);
-        return false;
-    }
-
-    if ((value = flag_value(death_release_types, argument)) == NO_FLAG) {
-        send_to_char("Invalid death release type.\n\r", ch);
-        send_to_char("Types: normal, start, floor, checkpoint, failure\n\r", ch);
-        return false;
-    }
-
-    dng->death_release = value;
-    char buf[MSL];
-    sprintf(buf, "Death release set to %s.\n\r", flag_string(death_release_types, value));
-    send_to_char(buf, ch);
-    return true;
+    return olc_cmd_type_set(ch, argument, "Death Release", NULL,
+        &dng->death_release, death_release_types, NULL, NULL);
 }
 
 DNGEDIT(dngedit_idletimeout)
@@ -5810,17 +5971,7 @@ DNGEDIT(dngedit_idletimeout)
     DUNGEON_INDEX_DATA *dng;
     EDIT_DUNGEON(ch, dng);
 
-    if (argument[0] == '\0' || !is_number(argument)) {
-        send_to_char("Syntax:  idletimeout <minutes>  (0 = default 15 minutes)\n\r", ch);
-        return false;
-    }
-
-    dng->idle_timeout = atoi(argument);
-    char buf[MSL];
-    if (dng->idle_timeout > 0)
-        sprintf(buf, "Idle timeout set to %d minutes.\n\r", dng->idle_timeout);
-    else
-        sprintf(buf, "Idle timeout set to default (%d minutes).\n\r", DUNGEON_IDLE_TIMEOUT);
-    send_to_char(buf, ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Idle Timeout",
+        "Syntax:  idletimeout <minutes>  (0 = default 15 minutes)\n\r",
+        &dng->idle_timeout, 0, INT_MAX, NULL, NULL);
 }

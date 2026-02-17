@@ -149,37 +149,13 @@ const struct editor_cmd_type editor_table[] =
 /* vledit removed — folded into wedit as VLinks tab */
 
 
-const struct olc_cmd_type hedit_table[] =
-{
-    {   "commands",	show_commands		},
-    {	"show",		hedit_show		},
-    {	"builder",	hedit_builder		},
-
-    // Categories
-    {	"addcategory",	hedit_addcat		},
-    {   "description",	hedit_description 	},
-    {   "name",		hedit_name		},
-    {	"remcategory",	hedit_remcat		},
-    {	"opencategory",	hedit_opencat		},
-    {	"upcategory",	hedit_upcat		},
-    {	"shiftcategory",hedit_shiftcat		},
-
-    // Helpfiles
-    {	"delete",	hedit_delete		},
-    {   "edit",		hedit_edit		},
-    {	"keyword",	hedit_keywords		},
-    {   "level",	hedit_level		},
-    {	"make",		hedit_make		},
-    {	"move",		hedit_move		},
-    {   "security",	hedit_security		},
-    {   "text",		hedit_text		},
-    {   "addtopic",	hedit_addtopic		},
-    {   "remtopic",	hedit_remtopic		},
-    {   NULL,		0,			}
-};
+/* hedit_table moved to editors/help/hedit.c */
 
 /*
-const struct olc_cmd_type shedit_table[] =
+ * NPC Ship editor table - placeholder for future NPC ship editing.
+ * Not currently active; retained for reference when implementing NPC ships.
+ *
+const struct olc_cmd_type npc_shedit_table[] =
 {
     {   "addmob",       shedit_addmob    	},
     {   "addwaypoint",  shedit_addwaypoint    	},
@@ -203,22 +179,7 @@ const struct olc_cmd_type shedit_table[] =
 */
 
 
-const struct olc_cmd_type pedit_table[] =
-{
-    {	"?",		show_help		},
-    {	"create",	pedit_create		},
-    {	"show",		pedit_show		},
-    {	"name",		pedit_name		},
-    {	"leader",	pedit_leader		},
-    {	"area",		pedit_area		},
-    {	"security",	pedit_security		},
-    {   "summary",	pedit_summary		},
-    {   "description",	pedit_description	},
-    {	"pflag",	pedit_pflag		},
-    {	"builder",	pedit_builder		},
-    {	"completed",	pedit_completed		},
-    {	NULL,		0			}
-};
+/* pedit_table moved to editors/projects/pedit.c */
 
 
 /* Executed from comm.c.  Minimizes compiling when changes are made. */
@@ -375,7 +336,6 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     SHIP_INDEX_DATA *pShip;
     TOKEN_INDEX_DATA *pTokenIndex;
     WILDS_DATA *pWilds;
-    WILDS_VLINK *pVLink;
     BLUEPRINT_SECTION *bpsect;
     BLUEPRINT *blueprint;
     DUNGEON_INDEX_DATA *dungeon;
@@ -497,6 +457,16 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             sprintf(buf, "%s", command->name);
         else
             sprintf(buf, "--");
+        break;
+
+    case ED_SOCIAL:
+        {
+            struct social_type *social_ed = (struct social_type *)ch->desc->pEdit;
+            if (social_ed && social_ed->name[0] != '\0')
+                sprintf(buf, "%s", social_ed->name);
+            else
+                sprintf(buf, "--");
+        }
         break;
 
     case ED_RACE:
@@ -628,11 +598,11 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
     case ED_HELP:
         show_olc_cmds(ch, hedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_SHIP:
         show_olc_cmds(ch, shedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_TOKEN:
         show_olc_cmds(ch, tedit_table);
@@ -640,7 +610,7 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
     case ED_PROJECT:
         show_olc_cmds(ch, pedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
 
     case ED_WILDS:
         show_olc_cmds (ch, wedit_table);
@@ -672,10 +642,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
     case ED_CMDEDIT:
         show_olc_cmds(ch, cmdedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
     case ED_SOCIAL:
         show_olc_cmds(ch, socialedit_table);
-        break;
+        break;  /* TODO: framework handles this for migrated editors */
     case ED_RACE:
         show_olc_cmds(ch, racedit_table);
         break;
@@ -788,53 +758,7 @@ bool has_access_area(CHAR_DATA *ch, AREA_DATA *area)
 // redit() moved to editors/rooms/redit.c
 
 
-void pedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int  cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
-    {
-    send_to_char("PEdit:  Insufficient security to edit projects - action logged.\n\r", ch);
-    edit_done(ch);
-    return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-    edit_done(ch);
-    return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0')
-    {
-    pedit_show(ch, argument);
-    return;
-    }
-
-    for (cmd = 0; pedit_table[cmd].name != NULL; cmd++)
-    {
-    if (!str_prefix(command, pedit_table[cmd].name))
-    {
-        if ((*pedit_table[cmd].olc_fun) (ch, argument))
-        {
-        projects_changed = true;
-        return;
-        }
-        else
-        return;
-    }
-    }
-
-    interpret(ch, arg);
-}
+/* pedit() moved to editors/projects/pedit.c */
 
 
 // Entry points for all editors are below
@@ -876,76 +800,7 @@ void do_olc(CHAR_DATA *ch, char *argument)
 /* do_redit() moved to editors/rooms/redit.c */
 
 
-void do_pedit(CHAR_DATA *ch, char *argument)
-{
-    PROJECT_DATA *project;
-    int value;
-    int i;
-    char arg[MAX_STRING_LENGTH];
-
-    if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
-    {
-    send_to_char("PEdit: Insufficient security to edit projects - action logged.\n\r", ch);
-    return;
-    }
-
-    if (IS_NPC(ch))
-        return;
-
-    argument = one_argument(argument,arg);
-    if (arg[0] == '\0') {
-    send_to_char("Syntax: pedit <project #|project name>\n\r",  ch);
-    return;
-    }
-
-    if (is_number(arg))
-    {
-    value = atoi(arg);
-    for (project = project_list, i = 0; project != NULL; project = project->next, i++) {
-        if (i == value)
-        break;
-    }
-
-    if (project == NULL) {
-        send_to_char("Project number not found.\n\r", ch);
-        return;
-    }
-    }
-    else
-    if (arg[0] != '\0' && str_cmp(arg, "create"))
-    {
-    for (project = project_list; project != NULL; project = project->next) {
-        if (!str_infix(arg, project->name))
-        break;
-    }
-
-    if (project == NULL) {
-        send_to_char("Project not found.\n\r", ch);
-        return;
-    }
-    }
-    else
-    if (!str_cmp(arg, "create"))
-    {
-    if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
-    {
-        send_to_char("PEdit: Insufficient security to create project - action logged.\n\r", ch);
-        return;
-    }
-
-    pedit_create(ch, "");
-    ch->desc->editor = ED_PROJECT;
-    return;
-    }
-    else {
-    send_to_char("Syntax: pedit <project #|project name>\n\r",  ch);
-    return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-    ch->desc->pEdit = (void *)project;
-    ch->desc->editor = ED_PROJECT;
-}
+/* do_pedit() moved to editors/projects/pedit.c */
 
 /* wedit() and do_wedit() moved to editors/wilderness/wedit.c */
 
@@ -1571,84 +1426,8 @@ void do_alist(CHAR_DATA *ch, char *argument)
     free_buf(buffer);
 }
 
-
-void hedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MIL];
-    char arg[MIL];
-    int cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!IS_IMMORTAL(ch))
-    {
-    send_to_char("HEdit: Insufficient security.\n\r",ch);
-    edit_done(ch);
-    return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-    if (ch->desc->pEdit == NULL) 	// We aren't editing a helpfile
-        edit_done(ch);
-    else {
-        ch->desc->pEdit = NULL; 	// We're editing a helpfile.
-        ch->desc->editor = ED_HELP;
-    }
-
-    return;
-    }
-
-    if (command[0] == '\0')
-    {
-        hedit_show(ch, argument);
-    return;
-    }
-
-    for (cmd = 0; hedit_table[cmd].name != NULL; cmd++)
-    {
-    if (!str_prefix(command, hedit_table[cmd].name))
-    {
-            if ((*hedit_table[cmd].olc_fun) (ch, argument ))
-        {
-        ch->pcdata->immortal->last_olc_command = current_time;
-        if (ch->desc->pEdit != NULL) {
-            HELP_DATA *help = (HELP_DATA *) ch->desc->pEdit;
-
-            free_string(help->modified_by);
-            help->modified_by = str_dup(ch->name);
-            help->modified = current_time;
-        } else {
-            free_string(ch->desc->hCat->modified_by);
-            ch->desc->hCat->modified_by = str_dup(ch->name);
-            ch->desc->hCat->modified = current_time;
-        }
-        }
-
-        return;
-    }
-    }
-
-    interpret(ch, arg);
-}
-
-
-void do_hedit(CHAR_DATA *ch, char *argument)
-{
-    /* 2006-07-21 Removed as per Areo's suggestion (Syn)
-    if (get_mob_level(ch) < MAX_LEVEL - 4) {
-    send_to_char("Insufficient security to edit helpfiles. Action logged.\n\r", ch);
-    return;
-    }
-    */
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-    ch->desc->editor= ED_HELP;
-    ch->desc->pEdit = NULL;
-    ch->desc->hCat = topHelpCat;
-}
+/* hedit() moved to editors/help/hedit.c */
+/* do_hedit() moved to editors/help/hedit.c */
 
 
 /*
@@ -3255,188 +3034,11 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 
 }
 
+/* cmdedit_table moved to editors/commands/cmdedit.c */
+/* do_cmdedit() moved to editors/commands/cmdedit.c */
+/* cmdedit() moved to editors/commands/cmdedit.c */
+/* do_cmdshow() moved to editors/commands/cmdedit.c */
 
-/* Used for handling projects. */
+/* socialedit() moved to editors/socials/socialedit.c */
 
-const struct olc_cmd_type cmdedit_table[] =
-{
-    { "?",      show_help           },
-    { "additional", cmdedit_additional },
-    { "commands", show_commands },
-    { "comments",   cmdedit_comments },
-    { "create",     cmdedit_create  },
-    { "description",    cmdedit_description },
-    { "delete",			cmdedit_delete },
-    { "enabled",        cmdedit_enabled },
-    { "flags",			cmdedit_flags	},
-    { "function",       cmdedit_function },
-    { "rank",          cmdedit_rank},
-    { "log",            cmdedit_log },
-    { "name",           cmdedit_name },
-    { "order",          cmdedit_order },
-    { "position",    cmdedit_position },
-    { "reason",		cmdedit_reason },
-    { "sethelp",           cmdedit_help },
-    { "show",      cmdedit_show },
-    { "summary",	cmdedit_summary },
-    { "type",		cmdedit_type },
-};
-
-void do_cmdedit(CHAR_DATA *ch, char *argument)
-{
-    CMD_DATA *command;
-    char arg1[MSL];
-
-//    ch->desc->editor = ED_CMDEDIT;
-
-    argument = one_argument(argument, arg1);
-
-    if (IS_NPC(ch))
-        return;
-
-    if (arg1[0] != '\0')
-    {
-        if (!str_cmp(arg1, "create"))
-        {
-            if (cmdedit_create(ch, argument))
-                ch->desc->editor = ED_CMDEDIT;
-
-            return;
-        }
-
-        command = get_cmd_data(arg1);
-        if (!command)
-        {
-            send_to_char("No command by that name.\n\r", ch);
-            return;
-        }
-
-        ch->pcdata->immortal->last_olc_command = current_time;
-        olc_set_editor(ch, ED_CMDEDIT, command);
-        return;
-    }
-
-    send_to_char("CMDEdit:  There is no default command to edit.\n\r", ch);
-}
-
-void cmdedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int  cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!str_cmp(command, "done"))
-    {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-    if (command[0] == '\0')
-    {
-        cmdedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; cmdedit_table[cmd].name != NULL; cmd++)
-    {
-        if (!str_prefix(command, cmdedit_table[cmd].name))
-        {
-            if ((*cmdedit_table[cmd].olc_fun) (ch, argument))
-            {
-                save_commands();
-            }
-            return;
-        }
-    }
-
-    interpret(ch, arg);
-}
-
-void do_cmdshow(CHAR_DATA *ch, char *argument)
-{
-    CMD_DATA *command;
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
-        return;
-    }
-
-    if (!(command = get_cmd_data(argument)))
-    {
-        send_to_char("That command does not exist.\n\r", ch);
-        return;
-    }
-
-    olc_show_item(ch, command, cmdedit_show, argument);
-    return;
-}
-
-void socialedit(CHAR_DATA *ch, char *argument)
-{
-    char arg[MAX_INPUT_LENGTH];
-    char command[MAX_INPUT_LENGTH];
-    int cmd;
-    struct social_type *social;
-    (void)social;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (ch->pcdata->security < 9) {
-        send_to_char("SocialEdit: Insufficient security.\n\r", ch);
-        edit_done(ch);
-        return;
-    }
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    social = (struct social_type *)ch->desc->pEdit;
-
-    if (command[0] == '\0') {
-        socialedit_show(ch, argument);
-        return;
-    }
-
-    /* Search table and dispatch command. */
-    for (cmd = 0; socialedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, socialedit_table[cmd].name)) {
-            (*socialedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    /* Default to showing editor commands. */
-    show_help(ch, "socialedit");
-    return;
-}
-
-const struct olc_cmd_type socialedit_table[] =
-{
-    { "show",          socialedit_show          },
-    { "commands",      show_commands },
-    { "create",        socialedit_create        },
-    { "name",          socialedit_name          },
-    { "charnoarg",     socialedit_char_no_arg   },
-    { "othersnoarg",   socialedit_others_no_arg },
-    { "charfound",     socialedit_char_found    },
-    { "othersfound",   socialedit_others_found  },
-    { "victfound",     socialedit_vict_found    },
-    { "charnotfound",  socialedit_char_not_found},
-    { "charauto",      socialedit_char_auto     },
-    { "othersauto",    socialedit_others_auto   },
-    { "delete",        socialedit_delete        },
-    { "list",          socialedit_list          },
-    { "save",          socialedit_save          },
-    { "?",             show_help                },
-    { NULL,            0                        }
-};
+/* socialedit_table moved to editors/socials/socialedit.c */

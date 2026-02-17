@@ -51,16 +51,16 @@ This plan covers:
 |           |            |                | `editors/objects/oedit_types.c`       | 1,955  |       |      |                      |
 | MEDIT     | Mobiles    | ED_MOBILE      | `editors/mobiles/medit.c`             | ~3,715 | 1→FW  | Yes  | Area flag            |
 | TEDIT     | Tokens     | ED_TOKEN       | `editors/tokens/tedit.c`             | ~1,082 | 1→FW  | Yes  | Area flag (callback) |
-| HEDIT     | Help       | ED_HELP        | `editors/help/hedit.c`               | 1,106  | 1     | No   | Area flag            |
-| SHEDIT    | Ships      | ED_SHIP        | `editors/ships/shedit.c`             | 903    | 1     | No   | Area flag            |
-| PEDIT     | Projects   | ED_PROJECT     | `editors/projects/pedit.c`           | 445    | 1     | No   | Global bool          |
+| HEDIT     | Help       | ED_HELP        | `editors/help/hedit.c`               | ~1,228 | 1→FW  | No   | Custom (area flag)   |
+| SHEDIT    | Ships      | ED_SHIP        | `editors/ships/shedit.c`             | ~910   | 1→FW  | No   | Custom (area flag)   |
+| PEDIT     | Projects   | ED_PROJECT     | `editors/projects/pedit.c`           | ~575   | 1→FW  | No   | Custom (global bool) |
 | WEDIT     | Wilderness | ED_WILDS       | `editors/wilderness/wedit.c`         | ~1,050 | 1→FW  | Yes  | Area flag            |
 | ~~VLEDIT~~| ~~Vlinks~~ | ~~ED_VLINK~~   | *(folded into WEDIT as VLinks tab)*  | —      | —     | —    | —                    |
 | BSEDIT    | BP Sections| ED_BPSECT      | `editors/blueprints/bsedit.c`        | ~1,500 | 1     | No   | Area flag            |
 | BPEDIT    | Blueprints | ED_BLUEPRINT   | `editors/blueprints/bpedit.c`        | ~1,450 | 1     | No   | Area flag            |
 | DNGEDIT   | Dungeons   | ED_DUNGEON     | `editors/dungeons/dngedit.c`         | 5,825  | 1     | No   | Area flag            |
-| CMDEDIT   | Commands   | ED_CMDEDIT     | `editors/commands/cmdedit.c`         | 968    | 1     | No   | Immediate save       |
-| SOCEDIT   | Socials    | ED_SOCIAL      | `editors/socials/socialedit.c`       | 526    | 1     | No   | Explicit save        |
+| CMDEDIT   | Commands   | ED_CMDEDIT     | `editors/commands/cmdedit.c`         | ~1,064 | 1→FW  | No   | Custom (deferred)    |
+| SOCEDIT   | Socials    | ED_SOCIAL      | `editors/socials/socialedit.c`       | ~479   | 1→FW  | No   | Explicit save        |
 | RACEDIT   | Races      | ED_RACE        | `editors/races/racedit.c`            | ~1,340 | 2→FW | No   | Explicit save        |
 | TRAITEDIT | Traits     | ED_TRAIT       | `editors/traits/traitedit.c`         | ~600   | 2→FW | No   | Explicit save        |
 | SKEDIT    | Skills     | ED_SKILL       | `editors/skills/skedit.c`            | ~740   | 2→FW | No   | Explicit save        |
@@ -100,8 +100,8 @@ entering a modal editor state. It uses a changeset/confirm workflow for safety.
 
 #### Generation 1: Manual Dispatch (Oldest — lives partly in `olc.c`)
 
-Used by: ~~aedit~~, ~~redit~~, oedit, medit, hedit, shedit, pedit, ~~wedit~~, bsedit, bpedit,
-dngedit, cmdedit, socialedit, rsgedit, and all script editors.
+Used by: ~~aedit~~, ~~redit~~, oedit, medit, ~~hedit~~, ~~shedit~~, ~~pedit~~, ~~wedit~~, ~~bsedit~~, ~~bpedit~~,
+~~dngedit~~, ~~cmdedit~~, ~~socialedit~~, rsgedit, and all script editors.
 
 **Pattern** (repeated ~20 times with minor variations):
 ```c
@@ -169,7 +169,7 @@ wasn't generalized enough for full adoption.
 |-------|---------|-----------------|----------------|
 | Raw `sprintf` | aedit, redit, shedit, etc. | Manual formatting, no MXP, inconsistent colors | 100-629 |
 | `formatf` | clsedit, racedit, skedit, traitedit | Slightly cleaner, still manual, no MXP | 50-135 |
-| `olc_display_*` | medit, oedit, tedit + all Gen 2 | Framework renderers, MXP, NAWS-aware, themed, consistent | 30-80 per tab |
+| `olc_display_*` | medit, oedit, tedit, all Gen 2, + Phase 3-5 editors | Framework renderers, MXP, NAWS-aware, themed, consistent | 30-80 per tab |
 | `olc_buffer_show_*` | medit (stock display) | Legacy helper in common.c, used for complex table layouts | N/A |
 
 The old `medit_show` was 629 lines; it is now split into 6 tab functions using `olc_display_*()`
@@ -192,7 +192,7 @@ renderers, with the stock table being the only section still using manual `sprin
 |---------|---------|-----------|
 | `SET_BIT(area->area_flags, AREA_CHANGED)` | aedit, redit, oedit, medit, shedit, tedit | Area dirty flag, auto-saved on area save |
 | `projects_changed = true` | pedit | Global bool |
-| `save_commands()` | cmdedit | Immediate save on every change |
+| `commands_changed = true` | cmdedit | Deferred save via global bool |
 | Nothing (return value ignored) | clsedit, racedit, skedit, gredit, soedit, traitedit | Explicit `save` command |
 | Changeset + confirm | gameedit | Pending changes list, requires confirmation |
 
@@ -989,8 +989,8 @@ new code.
 | **1** | Gen 2 quick wins | clsedit, racedit, traitedit, gredit, soedit, skedit | Done |
 | **2** | Tabbed pioneers | medit, oedit, tedit | Done |
 | **3** | World editors | aedit, redit, wedit *(vledit folded in)* | Done |
-| **4** | Blueprint/dungeon | bsedit, bpedit, dngedit | Medium |
-| **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Small-Med |
+| **4** | Blueprint/dungeon | bsedit, bpedit, dngedit | Done |
+| **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Done |
 | **6** | Script editors | mpedit, opedit, rpedit, tpedit, ipedit, dpedit, apedit | Medium |
 | **7** | Command table migration | Move tables from olc.c to editor files | Mechanical |
 | **8** | Backport + new editors | liqedit, matedit, sectoredit, corpsedit, repedit, qedit, msnedit, rsgedit, evtedit | Med–Large |
@@ -1219,10 +1219,23 @@ and the helper API.
 
 All four world editors migrated to the framework:
 
-- **aedit** — Migrated with 3 tabs (General, Regions, Scripts). Area-level `IS_BUILDER` permission checks preserved.
-- **redit** — Migrated with 5 tabs (General, Exits, Resets, Extra, Scripts). Uses `EDIT_ROOM` macro for virtual room support. Foundation for Phase 9 player housing.
-- **wedit** — Migrated with 4 tabs (General, Map, Terrain, VLinks). Map tab uses direct-send `show_map_to_char()` after buffer flush.
+- **aedit** — Migrated with 3 tabs (General, Regions, Scripts). Area-level `IS_BUILDER` permission checks preserved. Command helpers applied to 13 commands (flags, x, y, land_x, land_y, open, name, desc, comments, notes, repop, credits, age).
+- **redit** — Migrated with 5 tabs (General, Exits, Resets, Extra, Scripts). Uses `EDIT_ROOM` macro for virtual room support. Foundation for Phase 9 player housing. Command helpers applied to 7 commands (desc, comments, heal, mana, move, name, owner).
+- **wedit** — Migrated with 4 tabs (General, Map, Terrain, VLinks). Map tab uses direct-send `show_map_to_char()` after buffer flush. Command helper applied to 1 command (name). Remaining commands (terrain, vlink) are multi-subcommand dispatchers and not candidates for helpers.
 - **vledit** — Folded into wedit as the VLinks tab rather than remaining a separate editor. The `ED_VLINK` editor type, `vledit` command, and `vledit.c` compilation unit were all removed. VLinks are currently displayed read-only; full read/write support planned for the wilderness refactor.
+
+#### Phase 3 Command Helper Conversions
+
+| Editor | Converted | Manual | Notes |
+|--------|-----------|--------|-------|
+| aedit | 13 | 21 | flags, x/y/land_x/land_y, open, name, desc, comments, notes, repop, credits, age |
+| redit | 7 | 20 | desc, comments, heal, mana, move, name, owner |
+| wedit | 1 | 3 | name. Remaining: terrain/vlink are multi-subcommand dispatchers |
+
+Functions remain manual when they have: widevnum parsing (recall, coords, airshipland),
+multi-argument sub-commands (ed add/edit/delete, exits, resets), table lookups with
+special zero-handling (sector), dynamic security limits, linked-list manipulation
+(programs, extra/conditional descs), or bitvector multi-bank fields (room flags `long[2]`).
 
 wedit tabs:
 | Tab | Contents |
@@ -1241,25 +1254,111 @@ redit tabs:
 | Extra | Extra descriptions, conditional descriptions |
 | Scripts | Room programs |
 
-### 7.6 Phase 4: Blueprint / Dungeon Editors
+### 7.6 Phase 4: Blueprint / Dungeon Editors ✅ DONE
 
-These are large editors (dngedit is 5,825 lines) with complex data models.
+Migrated bsedit, bpedit, and dngedit to the unified OLC editor framework.
 
-Suggested dngedit tabs:
-| Tab | Contents |
-|-----|----------|
-| General | Name, description, area-who, levels, flags |
-| Structure | Floors, entry/exit points, zone/portal/mount outs |
-| Groups | Min/max group, max players, idle timeout |
-| Scripts | Dungeon programs |
+**Tab layouts implemented:**
 
-### 7.7 Phase 5: Remaining Editors
+**bsedit** (4 tabs): General, Links, Maze, Notes
+**bpedit** (6 tabs): General, Sections, Layout, Programs, Variables, Notes
+**dngedit** (8 tabs): General, Entry/Exit, Floors, Levels, Special, Programs, Variables, Notes
 
-- **shedit** — Ship editor, relatively simple
-- **hedit** — Help editor, has category navigation (may need special tab handling)
-- **pedit** — Project editor, small, uses global dirty flag
-- **cmdedit** — Command editor, uses immediate save
-- **socialedit** — Social editor, simple
+**Migration details:**
+- OLC_EDITOR_DEF with tabs, OLC_PERM_CUSTOM, OLC_CHANGE_CUSTOM (area flag + global bool)
+- olc_editor_interp() replaces manual interpreter functions
+- Command tables moved from blueprint.c/dungeon.c to editor files
+- Show functions split into tab callbacks using olc_display_* themed API
+- Buffer helpers (dngedit_buffer_floors/levels/special_exits) reused in tab functions
+- olc_theme_building used for all three editors
+
+**Command helper migration:**
+- **bsedit** — 4 commands converted: name (`olc_cmd_string`), description/comments (`olc_cmd_string_append`), type (`olc_cmd_type_set`). `flags` not converted due to `int` vs `long *` type mismatch in `olc_cmd_flag_toggle`.
+- **bpedit** — 4 commands converted: name (`olc_cmd_string`), repop (`olc_cmd_number`), description/comments (`olc_cmd_string_append`). `flags` not converted (same `int`/`long` mismatch). `varset`/`varclear` already use `olc_varset`/`olc_varclear` helpers.
+- **dngedit** — 11 commands converted: name/zoneout/portalout/mountout (`olc_cmd_string`), description/comments (`olc_cmd_string_append`), repop/mingroup/maxgroup/maxplayers/idletimeout (`olc_cmd_number`), deathrelease (`olc_cmd_type_set`). `flags` not converted (`int`/`long` mismatch). `varset`/`varclear` already use helpers.
+- Remaining complex commands (create, recall, rooms, link, maze, section, static, entry, exit, floors, levels, special, areawho, mode, prog handlers) involve multi-subcommand dispatch, widevnum parsing, multi-field assignment, or linked-list manipulation — not candidates for `olc_cmd_*` helpers.
+- **Note**: `flags` fields in all three editors are `int` but `olc_cmd_flag_toggle` requires `long *`. Converting would require either widening the struct fields or adding an `olc_cmd_flag_toggle_int()` variant.
+
+#### Phase 4 Command Helper Conversions
+
+| Editor | Converted | Manual | Notes |
+|--------|-----------|--------|-------|
+| bsedit | 4 | 6 | name, description, comments, type. Manual: create, recall, rooms, link, maze, flags (type mismatch) |
+| bpedit | 4 | 8 | name, repop, description, comments. Manual: create, flags, areawho, mode, section, static, progs. varset/varclear use olc_var helpers |
+| dngedit | 11 | 13 | name, repop, description, comments, zoneout, portalout, mountout, mingroup, maxgroup, maxplayers, deathrelease, idletimeout. Manual: create, flags, areawho, entry, exit, floors, levels, special, progs. varset/varclear use olc_var helpers |
+
+### 7.7 Phase 5: Remaining Editors ✅ DONE
+
+**Status**: Complete.
+
+All five remaining Gen 1 editors migrated to the unified OLC editor framework with
+`OLC_EDITOR_DEF` definitions, `olc_editor_interp()` interpreters, `olc_display_*()` show
+functions, and `olc_cmd_*()` command helpers where applicable. Command tables moved from
+`olc.c` to their respective editor files.
+
+#### Phase 5 Status
+
+| Editor | OLC_EDITOR_DEF | olc_editor_interp | olc_display_* show | cmd helpers | Change Model |
+|--------|:-:|:-:|:-:|:-:|------|
+| **pedit** | Done | Done | Done | 5 of 11 | Custom (global bool) |
+| **socialedit** | Done | Done | Done (4 sections) | 8 of 13 | Explicit save |
+| **cmdedit** | Done | Done | Done | 7 of 18 | Custom (deferred save) |
+| **shedit** | Done | Done | Done (5 sections) | 10 of 18 | Custom (area flag) |
+| **hedit** | Done | Done | Done (dual-mode) | 1 of 14 | Custom (area flag) |
+
+#### Show Function Details
+
+**pedit** — Single-page display with:
+- Header, string fields (name, summary, leader), number (security), flags (project flags)
+- Section "Progress" with completion bar via `formatf`, section "Builders" with builder list
+- Text block for description
+
+**socialedit** — Single-page display with 4 sections:
+| Section | Fields |
+|---------|--------|
+| No Target | char_no_arg, others_no_arg |
+| With Target | char_found, others_found, vict_found |
+| Target Not Found | char_not_found |
+| Self Target | char_auto, others_auto |
+
+**cmdedit** — Single-page display with:
+- Name, summary, type (with help keyword link for associated help topic)
+- Position, rank, log, flags, additional types, enabled status
+- Reason (if disabled), text for description, section "Coders' Comments" for comments
+
+**shedit** — Single-page display with 5 sections:
+| Section | Fields |
+|---------|--------|
+| (header) | Name, description |
+| References | Blueprint vnum, object vnum |
+| Combat | HP, turning, guns, flags, armor |
+| Crew & Movement | Crew min/max (pair), oars, move delay/steps (pair) |
+| Cargo | Weight, capacity |
+| Special Keys | Key list |
+
+**hedit** — Dual-mode display:
+- **Help entry mode**: Keywords, category, security, builders, timestamps, level, text body, related topics
+- **Category mode**: Name, security, builders, timestamps, level, description, contents listing (categories marked `[C]`, help entries by index)
+
+#### Command Helper Conversions
+
+31 command functions across all 5 editors converted to `olc_cmd_*()` helpers:
+
+| Editor | Converted | Manual | Notes |
+|--------|-----------|--------|-------|
+| pedit | 5 | 6 | name, summary → `olc_cmd_string`; description → `olc_cmd_string_append`; security → `olc_cmd_number(0,9)`; pflag → `olc_cmd_flag_toggle`. Manual: builder/area (linked-list toggle), completed (leader permission guard), leader (player_exists check), create, show |
+| socialedit | 8 | 5 | All 8 message strings (char_no_arg, others_no_arg, char_found, others_found, vict_found, char_not_found, char_auto, others_auto) → `olc_cmd_string` with `OLC_STR_CLEARABLE \| OLC_STR_CLEAR_NULL`. Old `$` clear syntax replaced by framework `clear` command. Manual: name (char[20] fixed array), create, delete, save, list |
+| cmdedit | 7 | 11 | description/comments → `olc_cmd_string_append`; position/log → `olc_cmd_type_set_i16` (int16_t fields); flags/additional → `olc_cmd_flag_toggle`; summary → `olc_cmd_string`. Manual: name (dup check + list reorder), type (addl_types side effect), rank (rank-above-own guard), enabled (function guard), reason (sub-command syntax), function, help, order, create, delete |
+| shedit | 10 | 8 | name → `olc_cmd_string`; desc → `olc_cmd_string_append`; class → `olc_cmd_type_set`; hit(1-100000), turning(1-60), guns(0-20), oars(0-INT_MAX), weight(0-10000), capacity(0-100), armor(0-1000) → `olc_cmd_number`. Manual: flags (int vs long* type mismatch), crew/move (multi-value), blueprint/object (widevnum + validation), keys (list sub-commands), create, list |
+| hedit | 1 | 13 | text → `olc_cmd_string_append`. Manual: All 12+ tree/structural handlers (make, edit, move, addcat, opencat, upcat, remcat, shiftcat, addtopic, remtopic, delete, builder) and dual-mode field handlers (keywords with UPPER conversion, level, security, name, description) |
+
+#### Design Decisions
+
+- **cmdedit change model**: Changed from immediate `save_commands()` on every edit to deferred save via `commands_changed` global bool (same pattern as pedit's `projects_changed`). Saves are flushed on area save tick.
+- **socialedit string clearing**: Old code used `$` as a special clear token. Converted to framework's `OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL` which uses the standard `clear` command instead.
+- **shedit flags type mismatch**: `ship->flags` is `int` but `olc_cmd_flag_toggle()` requires `long *`. Left manual. Could be resolved by widening the struct field to `long` or adding an `olc_cmd_flag_toggle_int()` variant.
+- **hedit dual-mode complexity**: hedit operates in two modes (help entry vs category), with most commands having different behavior per mode. Only `text` (help-entry-only, no dual-mode branching) was converted to a helper. The structural/tree commands and dual-mode field handlers involve too much custom logic for helper conversion.
+- **No tabs**: None of the Phase 5 editors use tabs. Their content is compact enough for single-page display (or in hedit's case, mode-switched).
 
 ### 7.8 Phase 6: Script Editors
 
@@ -1279,9 +1378,11 @@ mechanical refactoring — already done for medit, oedit, and tedit during Phase
 4. Update the `OLC_EDITOR_DEF` to reference it
 5. Repeat for each editor
 
-Goal: `olc.c` should shrink from ~4,108 lines to ~500 lines (just the shared infrastructure).
-Three editor tables have already been moved (medit, oedit, tedit), plus all six Gen 2
-editor tables were already self-contained.
+Goal: `olc.c` should shrink from ~3,034 lines to ~500 lines (just the shared infrastructure).
+Eight editor command tables and interpreters have already been moved out (medit, oedit, tedit
+during Phase 2; aedit, redit, wedit during Phase 3; bsedit, bpedit, dngedit during Phase 4;
+pedit, cmdedit, socialedit, shedit, hedit during Phase 5), plus all six Gen 2 editor tables
+were already self-contained.
 
 ### 7.10 Phase 8: New Editors (Backport from `src_20_dev`)
 
@@ -1696,7 +1797,7 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 |------|-------|----------|
 | `editors/common.h` | 217 | Legacy display helpers, `OLC_LAYOUT_CTX`, `OLC_EDITOR_TABS` |
 | `editors/common.c` | 976 | Legacy renderers, `process_olc_command`, `olc_render_*` |
-| `olc.c` | ~4,108 | Editor tables, interpreters, shared helpers (reduced from 4,633) |
+| `olc.c` | ~3,034 | Editor tables, interpreters, shared helpers (reduced from 4,633) |
 | `olc.h` | 620 | ED_* constants, EDIT_* macros, all prototypes |
 | `olc_act.c` | 3,312 | Shared editor action functions |
 | `olc_act2.c` | ~200 | Condition phrase helpers |
@@ -1704,21 +1805,21 @@ The `OLC_PERM_PLAYER` flag combined with `OLC_PERM_CUSTOM` callbacks means:
 
 ### 10.4 Summary Statistics
 
-| Metric | Before | After (Projected) | Current (Phase 2 Done) |
+| Metric | Before | After (Projected) | Current (Phase 5 Done) |
 |--------|--------|-------------------|------------------------|
-| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~490 (9 migrated) |
-| Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 9 editors converted |
-| Permission patterns | 6 different patterns | 1 centralized check | 9 editors converted |
-| Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 explicit save + 3 area flag |
+| Lines of interpreter boilerplate | ~550 (25 × 22 editors) | ~44 (2 × 22 editors) | ~380 (14 migrated) |
+| Show function patterns | 4 different styles | 1 unified style via `olc_display_*()` | 22 editors converted |
+| Permission patterns | 6 different patterns | 1 centralized check | 22 editors converted |
+| Change tracking patterns | 5 different patterns | 4 well-defined modes | 6 explicit save + 3 area flag + 5 custom |
 | Audit logging (server-side) | None | All editors | 6 editors (Gen 2) |
 | Change history (in-game) | gameedit only | All editors (opt-in per struct) | 6 editors fully wired |
 | History persistence | None (gameedit: json_changesets) | Per-type files, async writes | 6 type files implemented |
-| Lines in `olc.c` | 4,633 | ~500 | ~4,108 (3 editors removed) |
-| Color consistency | None (per-editor ad hoc) | 6 category themes | 9 editors themed |
-| MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 9 editors (labels, flags, tabs, scripts, lists) |
+| Lines in `olc.c` | 4,633 | ~500 | ~3,034 (8 editors removed) |
+| Color consistency | None (per-editor ad hoc) | 6 category themes | 22 editors themed |
+| MXP support in show | 1 editor (tedit) | All editors (labels, vnums, tabs, lists) | 22 editors (labels, flags, tabs, scripts, lists) |
 | `bprintf` usage | Partial | All new display code | All new display code |
-| NAWS screen-width support | 1 editor (tedit) | All editors | 9 editors |
-| Tab UI support | 1 editor (tedit) | All editors that benefit | 3 tabbed editors (medit 6, oedit 5, tedit 3) |
+| NAWS screen-width support | 1 editor (tedit) | All editors | 22 editors |
+| Tab UI support | 1 editor (tedit) | All editors that benefit | 8 tabbed editors (medit 6, oedit 5, tedit 3, aedit 3, redit 5, wedit 4, bsedit 4, bpedit 6, dngedit 8) |
 | Player-accessible editors | 0 | Prepared for housing | Framework ready |
-| Data/display separation | None | Display via renderers (JSON-ready) | 9 editors via renderers |
-| Command helpers converted | 0 | All simple commands | 69 commands (46 Gen 2 + 23 Gen 1) |
+| Data/display separation | None | Display via renderers (JSON-ready) | 22 editors via renderers |
+| Command helpers converted | 0 | All simple commands | 100 commands (46 Gen 2 + 23 Phase 2 + 21 Phase 3 + 19 Phase 4 + 31 Phase 5, some overlap with tabbed editors) |

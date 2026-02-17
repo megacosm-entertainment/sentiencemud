@@ -786,22 +786,11 @@ AEDIT(aedit_file)
 AEDIT(aedit_age)
 {
     AREA_DATA *pArea;
-    char age[MAX_STRING_LENGTH];
-
     EDIT_AREA(ch, pArea);
 
-    one_argument(argument, age);
-
-    if (!is_number(age) || age[0] == '\0')
-    {
-    send_to_char("Syntax:  age [#xage]\n\r", ch);
-    return false;
-    }
-
-    pArea->age = atoi(age);
-
-    send_to_char("Age set.\n\r", ch);
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Age",
+        "Syntax:  age [#xage]\n\r",
+        &pArea->age, 0, INT16_MAX, NULL, NULL);
 }
 
 

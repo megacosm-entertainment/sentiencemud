@@ -1,9 +1,8 @@
 /***************************************************************************
+ *  bsedit.c - OLC Blueprint Section Editor                                *
  *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
+ *  Migrated to the unified OLC Editor Framework (Phase 4).                *
+ ***************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -19,12 +18,173 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern void list_blueprint_sections(CHAR_DATA *ch, char *argument);
 extern bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, AREA_DATA *rooms_area, long lower, long upper);
-
+extern bool can_edit_blueprints(CHAR_DATA *ch);
+extern bool blueprints_changed;
 extern long top_blueprint_section_vnum;
 
+/***************************************************************************
+ * Forward Declarations — Tab Show Functions                               *
+ ***************************************************************************/
+
+static void bsedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bsedit_show_links_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bsedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
+/***************************************************************************
+ * Framework Helpers                                                       *
+ ***************************************************************************/
+
+static AREA_DATA *bsedit_get_area(void *pEdit)
+{
+    return pEdit ? ((BLUEPRINT_SECTION *)pEdit)->area : NULL;
+}
+
+static bool bsedit_perm_check(CHAR_DATA *ch, void *pEdit)
+{
+    return can_edit_blueprints(ch);
+}
+
+static void bsedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)pEdit;
+    if (bs && bs->area)
+        SET_BIT(bs->area->area_flags, AREA_CHANGED);
+    blueprints_changed = true;
+}
+
+/***************************************************************************
+ * Blueprint Section Editor Command Table (moved from blueprint.c)         *
+ ***************************************************************************/
+
+const struct olc_cmd_type bsedit_table[] = {
+    { "?",              show_help           },
+    { "commands",       show_commands       },
+    { "list",           bsedit_list         },
+    { "show",           bsedit_show         },
+    { "create",         bsedit_create       },
+    { "name",           bsedit_name         },
+    { "description",    bsedit_description  },
+    { "comments",       bsedit_comments     },
+    { "type",           bsedit_type         },
+    { "flags",          bsedit_flags        },
+    { "recall",         bsedit_recall       },
+    { "rooms",          bsedit_rooms        },
+    { "link",           bsedit_link         },
+    { "maze",           bsedit_maze         },
+    { NULL,             NULL                }
+};
+
+/***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF bsedit_def = {
+    .name           = "BSEdit",
+    .editor_type    = ED_BPSECT,
+    .cmd_table      = bsedit_table,
+    .show_fn        = bsedit_show,
+    .tabs           = {
+        .count      = 4,
+        .tabs       = {
+            { "General",  "Gen",  bsedit_show_general_tab },
+            { "Links",    "Lnk",  bsedit_show_links_tab   },
+            { "Maze",     "Mze",  bsedit_show_maze_tab    },
+            { "Notes",    "Nts",  bsedit_show_notes_tab   },
+        },
+    },
+    .theme          = &olc_theme_building,
+    .perm           = {
+        .flags      = OLC_PERM_CUSTOM,
+        .check_fn   = bsedit_perm_check,
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = bsedit_mark_changed,
+    .get_area_fn    = bsedit_get_area,
+    .audit_changes  = true,
+};
+
+/***************************************************************************
+ * Blueprint Section Editor Interpreter — delegates to framework.          *
+ ***************************************************************************/
+
+void bsedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &bsedit_def);
+}
+
+/***************************************************************************
+ * Blueprint Section Editor Entry Point (moved from blueprint.c)           *
+ ***************************************************************************/
+
+/**
+ * do_bsedit - Staff command to edit or create blueprint sections
+ *
+ * Syntax: bsedit <vnum> - Edit existing blueprint section
+ *         bsedit create <vnum> - Create new blueprint section
+ *
+ * @param ch        Staff character
+ * @param argument  Section vnum or "create <vnum>"
+ */
+void do_bsedit(CHAR_DATA *ch, char *argument)
+{
+    BLUEPRINT_SECTION *bs;
+    char arg1[MAX_STRING_LENGTH];
+    WNUM wnum;
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!can_edit_blueprints(ch))
+    {
+        send_to_char("BSEdit:  Insufficient security to edit blueprints.\n\r", ch);
+        return;
+    }
+
+    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
+    {
+        if (!(bs = get_blueprint_section_for_area(wnum.pArea, wnum.vnum)))
+        {
+            send_to_char("BSEdit:  That blueprint section does not exist.\n\r", ch);
+            return;
+        }
+
+        ch->pcdata->immortal->last_olc_command = current_time;
+        ch->desc->pEdit = (void *)bs;
+        ch->desc->editor = ED_BPSECT;
+        return;
+    }
+    else
+    {
+        if (!str_cmp(arg1, "create"))
+        {
+            if (bsedit_create(ch, argument))
+            {
+                blueprints_changed = true;
+                ch->pcdata->immortal->last_olc_command = current_time;
+                ch->desc->editor = ED_BPSECT;
+            }
+
+            return;
+        }
+    }
+
+    send_to_char("Syntax: bsedit <#vnum|area_uid#vnum>\n\r"
+                 "        bsedit create <vnum>\n\r", ch);
+}
+
+/***************************************************************************
+ * Commands                                                                *
+ ***************************************************************************/
 
 BSEDIT( bsedit_list )
 {
@@ -32,183 +192,257 @@ BSEDIT( bsedit_list )
     return false;
 }
 
+/***************************************************************************
+ * Master Show — dispatches to active tab                                  *
+ ***************************************************************************/
+
 BSEDIT( bsedit_show )
 {
     BLUEPRINT_SECTION *bs;
-    BUFFER *buffer;
-    char buf[MSL];
-
     EDIT_BPSECT(ch, bs);
 
-    buffer = new_buf();
+    const OLC_EDITOR_THEME *theme = bsedit_def.theme;
+    OLC_LAYOUT_CTX *ctx = olc_display_new(ch, theme);
 
-    sprintf(buf, "Name:        [%5ld] %s\n\r", bs->vnum, bs->name);
-    add_buf(buffer, buf);
+    char id_buf[64];
+    sprintf(id_buf, "%ld", bs->vnum);
+    olc_display_header(ctx, "BSEdit", bs->name, id_buf, &bsedit_def);
 
-    sprintf(buf, "Type:        %s\n\r", flag_string(blueprint_section_types, bs->type));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Flags:       %s\n\r", flag_string(blueprint_section_flags, bs->flags));
-    add_buf(buffer, buf);
-
-    if( bs->recall_room )
-    {
-        sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall_room->vnum, bs->recall_room->name);
+    /* Dispatch to active tab's show function */
+    int tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < bsedit_def.tabs.count
+        && bsedit_def.tabs.tabs[tab].show_fn) {
+        bsedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)bs);
+    } else {
+        bsedit_show_general_tab(ch, ctx, (void *)bs);
     }
-    else if( bs->recall_ref.load.vnum > 0 )
+
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
+    return false;
+}
+
+/***************************************************************************
+ * Tab 1: General                                                          *
+ ***************************************************************************/
+
+static void bsedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)pEdit;
+    const OLC_EDITOR_THEME *theme = bsedit_def.theme;
+    char buf[MSL];
+
+    sprintf(buf, "[%5ld] %s", bs->vnum, bs->name);
+    olc_display_string(ctx, theme, "Name:", "name", buf);
+
+    olc_display_string(ctx, theme, "Type:", "type", flag_string(blueprint_section_types, bs->type));
+    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(blueprint_section_flags, bs->flags));
+
+    if (bs->recall_room)
     {
-        sprintf(buf, "Recall:      [%5ld] (unresolved)\n\r", bs->recall_ref.load.vnum);
+        sprintf(buf, "[%5ld] %s", bs->recall_room->vnum, bs->recall_room->name);
+        olc_display_string(ctx, theme, "Recall:", "recall", buf);
+    }
+    else if (bs->recall_ref.load.vnum > 0)
+    {
+        sprintf(buf, "[%5ld] (unresolved)", bs->recall_ref.load.vnum);
+        olc_display_string(ctx, theme, "Recall:", "recall", buf);
     }
     else
     {
-        sprintf(buf, "Recall:      no recall defined\n\r");
+        olc_display_string(ctx, theme, "Recall:", "recall", "no recall defined");
     }
-    add_buf(buffer, buf);
 
-    sprintf(buf, "Room Range:  %s - %s\n\r",
+    sprintf(buf, "%s - %s",
         bs->rooms_area ? widevnum_string(bs->rooms_area, bs->lower_vnum, bs->area) : "(not set)",
         bs->rooms_area ? widevnum_string(bs->rooms_area, bs->upper_vnum, bs->area) : "(not set)");
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Room Range:", "rooms", buf);
 
-    add_buf(buffer, "Description:\n\r");
-    add_buf(buffer, bs->description ? bs->description : "(none)\n\r");
-    add_buf(buffer, "\n\r");
+    olc_display_section(ctx, theme, "Description");
+    add_buf(ctx->buffer, bs->description ? bs->description : "(none)\n\r");
+}
 
-    // Show maze data if type is BSTYPE_MAZE
-    if (bs->type == BSTYPE_MAZE) {
-        sprintf(buf, "Maze Size:   %ld x %ld\n\r", bs->maze_x, bs->maze_y);
-        add_buf(buffer, buf);
+/***************************************************************************
+ * Tab 2: Links                                                            *
+ ***************************************************************************/
 
-        if (bs->maze_templates && list_size(bs->maze_templates) > 0) {
-            ITERATOR it;
-            MAZE_WEIGHTED_ROOM *mwr;
-            int idx = 0;
-            add_buf(buffer, "{YMaze Templates:{x\n\r");
-            iterator_start(&it, bs->maze_templates);
-            while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it))) {
-                ++idx;
-                sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Exits: {W%s{x  Room: {W%ld{x %s\n\r",
-                    idx, mwr->weight,
-                    mwr->exit_count == 0 ? "Any" :
-                    mwr->exit_count == 1 ? " 1 " :
-                    mwr->exit_count == 2 ? " 2 " :
-                    mwr->exit_count == 3 ? " 3 " : " 4 ",
-                    mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
-                    mwr->room ? mwr->room->name : "(unresolved)");
-                add_buf(buffer, buf);
-                if (mwr->exit_template.flags & EX_ISDOOR) {
-                    sprintf(buf, "         {cExit Template:{x flags={W%s{x keyword={W%s{x",
-                        flag_string(exit_flags, mwr->exit_template.flags),
-                        mwr->exit_template.keyword ? mwr->exit_template.keyword : "door");
-                    add_buf(buffer, buf);
-                    if (mwr->exit_template.strength > 0) {
-                        sprintf(buf, " str={W%d{x", mwr->exit_template.strength);
-                        add_buf(buffer, buf);
-                    }
-                    if (mwr->exit_template.material) {
-                        sprintf(buf, " mat={W%s{x", mwr->exit_template.material);
-                        add_buf(buffer, buf);
-                    }
-                    if (mwr->exit_template.lock.key_wnum.vnum > 0) {
-                        sprintf(buf, " key={W%ld{x", mwr->exit_template.lock.key_wnum.vnum);
-                        add_buf(buffer, buf);
-                    }
-                    if (mwr->exit_template.lock.pick_chance > 0) {
-                        sprintf(buf, " pick={W%d%%{x", mwr->exit_template.lock.pick_chance);
-                        add_buf(buffer, buf);
-                    }
-                    if (mwr->exit_template.lock.flags) {
-                        sprintf(buf, " lock={W%s{x", flag_string(lock_flags, mwr->exit_template.lock.flags));
-                        add_buf(buffer, buf);
-                    }
-                    add_buf(buffer, "\n\r");
-                }
-            }
-            iterator_stop(&it);
-            sprintf(buf, "  Total Weight: {W%d{x\n\r", bs->total_maze_weight);
-            add_buf(buffer, buf);
-        } else {
-            add_buf(buffer, "{YMaze Templates:{x (none)\n\r");
-        }
+static void bsedit_show_links_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)pEdit;
+    const OLC_EDITOR_THEME *theme = bsedit_def.theme;
+    char buf[MSL];
 
-        if (bs->maze_fixed_rooms && list_size(bs->maze_fixed_rooms) > 0) {
-            ITERATOR it;
-            MAZE_FIXED_ROOM *mfr;
-            int idx = 0;
-            add_buf(buffer, "{YMaze Fixed Rooms:{x\n\r");
-            iterator_start(&it, bs->maze_fixed_rooms);
-            while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it))) {
-                ++idx;
-                sprintf(buf, "  {Y[{W%3d{Y]{x Pos: ({W%d{x,{W%d{x)  Room: {W%ld{x %s  Connected: %s\n\r",
-                    idx, mfr->x, mfr->y,
-                    mfr->room ? mfr->room->vnum : mfr->room_ref.load.vnum,
-                    mfr->room ? mfr->room->name : "(unresolved)",
-                    mfr->connected ? "{GYes{x" : "{RNo{x");
-                add_buf(buffer, buf);
-            }
-            iterator_stop(&it);
-        } else {
-            add_buf(buffer, "{YMaze Fixed Rooms:{x (none)\n\r");
-        }
-
-        // Show map data
-        if (bs->map_data) {
-            MAZE_MAP_DATA *mmd = bs->map_data;
-            add_buf(buffer, "{YMaze Map:{x\n\r");
-
-            if (mmd->obj) {
-                sprintf(buf, "  Object:  {W[%ld]{x %s\n\r", mmd->obj->vnum, mmd->obj->short_descr);
-            } else if (mmd->obj_ref.load.vnum > 0) {
-                sprintf(buf, "  Object:  {W[%ld]{x (unresolved)\n\r", mmd->obj_ref.load.vnum);
-            } else {
-                sprintf(buf, "  Object:  {Dnone{x\n\r");
-            }
-            add_buf(buffer, buf);
-
-            if (mmd->mob) {
-                sprintf(buf, "  Carrier: {W[%ld]{x %s\n\r", mmd->mob->vnum, mmd->mob->short_descr);
-            } else if (mmd->mob_ref.load.vnum > 0) {
-                sprintf(buf, "  Carrier: {W[%ld]{x (unresolved)\n\r", mmd->mob_ref.load.vnum);
-            } else {
-                sprintf(buf, "  Carrier: {Dnone (map placed in first room){x\n\r");
-            }
-            add_buf(buffer, buf);
-
-            sprintf(buf, "  Solve:   %s\n\r", mmd->solve ? "{GYes{x" : "{RNo{x");
-            add_buf(buffer, buf);
-        } else {
-            add_buf(buffer, "{YMaze Map:{x (not configured)\n\r");
-        }
-
-        add_buf(buffer, "\n\r");
-    }
-
-    add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
-    add_buf(buffer, bs->comments ? bs->comments : "(none)\n\r");
-    add_buf(buffer, "\n\r-----\n\r");
-
-    if( bs->links )
+    if (bs->links)
     {
         int bli = 0;
-        // List links
-        add_buf(buffer, "{YSection Links:{x\n\r");
-        for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
+        olc_display_section(ctx, theme, "Section Links");
+        for (BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
         {
             ++bli;
             ROOM_INDEX_DATA *room = bl->room;
-
             char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
             char excolor = bl->ex ? 'W' : 'D';
 
-            sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->room ? bl->room->vnum : bl->room_ref.load.vnum, room ? room->name : "nowhere");
-            add_buf(buffer, buf);
+            sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r",
+                bli, bl->name, excolor, door,
+                bl->room ? bl->room->vnum : bl->room_ref.load.vnum,
+                room ? room->name : "nowhere");
+            add_buf(ctx->buffer, buf);
         }
     }
+    else
+    {
+        olc_display_string(ctx, theme, "Links:", NULL, "None");
+    }
+}
 
-    page_to_char(buffer->string, ch);
+/***************************************************************************
+ * Tab 3: Maze (only meaningful when type == BSTYPE_MAZE)                  *
+ ***************************************************************************/
 
-    free_buf(buffer);
-    return false;
+static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)pEdit;
+    const OLC_EDITOR_THEME *theme = bsedit_def.theme;
+    char buf[MSL];
+
+    if (bs->type != BSTYPE_MAZE)
+    {
+        olc_display_infof(ctx, theme, "Section type is {W%s{x, not MAZE. Set type first.",
+            flag_string(blueprint_section_types, bs->type));
+        return;
+    }
+
+    sprintf(buf, "%ld x %ld", bs->maze_x, bs->maze_y);
+    olc_display_string(ctx, theme, "Maze Size:", "maze", buf);
+
+    /* Maze Templates */
+    if (bs->maze_templates && list_size(bs->maze_templates) > 0)
+    {
+        ITERATOR it;
+        MAZE_WEIGHTED_ROOM *mwr;
+        int idx = 0;
+        olc_display_section(ctx, theme, "Maze Templates");
+        iterator_start(&it, bs->maze_templates);
+        while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+        {
+            ++idx;
+            sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Exits: {W%s{x  Room: {W%ld{x %s\n\r",
+                idx, mwr->weight,
+                mwr->exit_count == 0 ? "Any" :
+                mwr->exit_count == 1 ? " 1 " :
+                mwr->exit_count == 2 ? " 2 " :
+                mwr->exit_count == 3 ? " 3 " : " 4 ",
+                mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
+                mwr->room ? mwr->room->name : "(unresolved)");
+            add_buf(ctx->buffer, buf);
+            if (mwr->exit_template.flags & EX_ISDOOR)
+            {
+                sprintf(buf, "         {cExit Template:{x flags={W%s{x keyword={W%s{x",
+                    flag_string(exit_flags, mwr->exit_template.flags),
+                    mwr->exit_template.keyword ? mwr->exit_template.keyword : "door");
+                add_buf(ctx->buffer, buf);
+                if (mwr->exit_template.strength > 0) {
+                    sprintf(buf, " str={W%d{x", mwr->exit_template.strength);
+                    add_buf(ctx->buffer, buf);
+                }
+                if (mwr->exit_template.material) {
+                    sprintf(buf, " mat={W%s{x", mwr->exit_template.material);
+                    add_buf(ctx->buffer, buf);
+                }
+                if (mwr->exit_template.lock.key_wnum.vnum > 0) {
+                    sprintf(buf, " key={W%ld{x", mwr->exit_template.lock.key_wnum.vnum);
+                    add_buf(ctx->buffer, buf);
+                }
+                if (mwr->exit_template.lock.pick_chance > 0) {
+                    sprintf(buf, " pick={W%d%%{x", mwr->exit_template.lock.pick_chance);
+                    add_buf(ctx->buffer, buf);
+                }
+                if (mwr->exit_template.lock.flags) {
+                    sprintf(buf, " lock={W%s{x", flag_string(lock_flags, mwr->exit_template.lock.flags));
+                    add_buf(ctx->buffer, buf);
+                }
+                add_buf(ctx->buffer, "\n\r");
+            }
+        }
+        iterator_stop(&it);
+        sprintf(buf, "  Total Weight: {W%d{x\n\r", bs->total_maze_weight);
+        add_buf(ctx->buffer, buf);
+    }
+    else
+    {
+        olc_display_string(ctx, theme, "Maze Templates:", NULL, "(none)");
+    }
+
+    /* Maze Fixed Rooms */
+    if (bs->maze_fixed_rooms && list_size(bs->maze_fixed_rooms) > 0)
+    {
+        ITERATOR it;
+        MAZE_FIXED_ROOM *mfr;
+        int idx = 0;
+        olc_display_section(ctx, theme, "Maze Fixed Rooms");
+        iterator_start(&it, bs->maze_fixed_rooms);
+        while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+        {
+            ++idx;
+            sprintf(buf, "  {Y[{W%3d{Y]{x Pos: ({W%d{x,{W%d{x)  Room: {W%ld{x %s  Connected: %s\n\r",
+                idx, mfr->x, mfr->y,
+                mfr->room ? mfr->room->vnum : mfr->room_ref.load.vnum,
+                mfr->room ? mfr->room->name : "(unresolved)",
+                mfr->connected ? "{GYes{x" : "{RNo{x");
+            add_buf(ctx->buffer, buf);
+        }
+        iterator_stop(&it);
+    }
+    else
+    {
+        olc_display_string(ctx, theme, "Maze Fixed Rooms:", NULL, "(none)");
+    }
+
+    /* Maze Map Data */
+    if (bs->map_data)
+    {
+        MAZE_MAP_DATA *mmd = bs->map_data;
+        olc_display_section(ctx, theme, "Maze Map");
+
+        if (mmd->obj) {
+            sprintf(buf, "{W[%ld]{x %s", mmd->obj->vnum, mmd->obj->short_descr);
+        } else if (mmd->obj_ref.load.vnum > 0) {
+            sprintf(buf, "{W[%ld]{x (unresolved)", mmd->obj_ref.load.vnum);
+        } else {
+            sprintf(buf, "{Dnone{x");
+        }
+        olc_display_string(ctx, theme, "  Object:", NULL, buf);
+
+        if (mmd->mob) {
+            sprintf(buf, "{W[%ld]{x %s", mmd->mob->vnum, mmd->mob->short_descr);
+        } else if (mmd->mob_ref.load.vnum > 0) {
+            sprintf(buf, "{W[%ld]{x (unresolved)", mmd->mob_ref.load.vnum);
+        } else {
+            sprintf(buf, "{Dnone (map placed in first room){x");
+        }
+        olc_display_string(ctx, theme, "  Carrier:", NULL, buf);
+
+        olc_display_string(ctx, theme, "  Solve:", NULL, mmd->solve ? "{GYes{x" : "{RNo{x");
+    }
+    else
+    {
+        olc_display_string(ctx, theme, "Maze Map:", NULL, "(not configured)");
+    }
+}
+
+/***************************************************************************
+ * Tab 4: Notes (Builder Comments)                                         *
+ ***************************************************************************/
+
+static void bsedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)pEdit;
+    const OLC_EDITOR_THEME *theme = bsedit_def.theme;
+
+    olc_display_section(ctx, theme, "Builders' Comments");
+    add_buf(ctx->buffer, bs->comments ? bs->comments : "(none)\n\r");
 }
 
 BSEDIT( bsedit_create )
@@ -289,77 +523,37 @@ BSEDIT( bsedit_create )
 BSEDIT( bsedit_name )
 {
     BLUEPRINT_SECTION *bs;
-
     EDIT_BPSECT(ch, bs);
 
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  name [string]\n\r", ch);
-        return false;
-    }
-
-    free_string(bs->name);
-    bs->name = str_dup(argument);
-    send_to_char("Name changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &bs->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 BSEDIT( bsedit_description )
 {
     BLUEPRINT_SECTION *bs;
-
     EDIT_BPSECT(ch, bs);
 
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &bs->description);
-        return true;
-    }
-
-    send_to_char("Syntax:  description - line edit\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &bs->description, NULL, NULL);
 }
 
 BSEDIT( bsedit_comments )
 {
     BLUEPRINT_SECTION *bs;
-
     EDIT_BPSECT(ch, bs);
 
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &bs->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments - line edit\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &bs->comments, NULL, NULL);
 }
 
 BSEDIT( bsedit_type )
 {
     BLUEPRINT_SECTION *bs;
-    int value;
-
     EDIT_BPSECT(ch, bs);
 
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  type <type>\n\r", ch);
-        send_to_char("'? section_types' for list of types.\n\r", ch);
-        return false;
-    }
-
-    if( (value = flag_value(blueprint_section_types, argument)) == NO_FLAG )
-    {
-        send_to_char("That is not a valid type.\n\r", ch);
-        send_to_char("'? section_types' for list of types.\n\r", ch);
-        return false;
-    }
-
-    bs->type = value;
-    send_to_char("Section type changed.\n\r", ch);
-    return true;
+    return olc_cmd_type_set(ch, argument, "Type", NULL, &bs->type,
+        blueprint_section_types, NULL, NULL);
 }
 
 BSEDIT( bsedit_flags )

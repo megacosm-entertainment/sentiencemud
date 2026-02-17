@@ -1,9 +1,8 @@
 /***************************************************************************
+ *  bpedit.c - OLC Blueprint Editor                                        *
  *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
+ *  Migrated to the unified OLC Editor Framework (Phase 4).                *
+ ***************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -20,11 +19,179 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 #include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern void list_blueprints(CHAR_DATA *ch, char *argument);
-
+extern bool can_edit_blueprints(CHAR_DATA *ch);
 extern bool blueprints_changed;
 extern long top_blueprint_vnum;
+
+/***************************************************************************
+ * Forward Declarations — Tab Show Functions                               *
+ ***************************************************************************/
+
+static void bpedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bpedit_show_sections_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bpedit_show_programs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bpedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void bpedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
+/***************************************************************************
+ * Framework Helpers                                                       *
+ ***************************************************************************/
+
+static AREA_DATA *bpedit_get_area(void *pEdit)
+{
+    return pEdit ? ((BLUEPRINT *)pEdit)->area : NULL;
+}
+
+static bool bpedit_perm_check(CHAR_DATA *ch, void *pEdit)
+{
+    return can_edit_blueprints(ch);
+}
+
+static void bpedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    if (bp && bp->area)
+        SET_BIT(bp->area->area_flags, AREA_CHANGED);
+    blueprints_changed = true;
+}
+
+/***************************************************************************
+ * Blueprint Editor Command Table (moved from blueprint.c)                 *
+ ***************************************************************************/
+
+const struct olc_cmd_type bpedit_table[] = {
+    { "?",              show_help           },
+    { "addiprog",       bpedit_addiprog     },
+    { "areawho",        bpedit_areawho      },
+    { "commands",       show_commands       },
+    { "comments",       bpedit_comments     },
+    { "create",         bpedit_create       },
+    { "deliprog",       bpedit_deliprog     },
+    { "description",    bpedit_description  },
+    { "flags",          bpedit_flags        },
+    { "list",           bpedit_list         },
+    { "mode",           bpedit_mode         },
+    { "name",           bpedit_name         },
+    { "repop",          bpedit_repop        },
+    { "section",        bpedit_section      },
+    { "show",           bpedit_show         },
+    { "static",         bpedit_static       },
+    { "varclear",       bpedit_varclear     },
+    { "varset",         bpedit_varset       },
+    { NULL,             NULL                }
+};
+
+/***************************************************************************
+ * Editor Definition (Unified Framework)                                   *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF bpedit_def = {
+    .name           = "BPEdit",
+    .editor_type    = ED_BLUEPRINT,
+    .cmd_table      = bpedit_table,
+    .show_fn        = bpedit_show,
+    .tabs           = {
+        .count      = 6,
+        .tabs       = {
+            { "General",   "Gen",  bpedit_show_general_tab   },
+            { "Sections",  "Sec",  bpedit_show_sections_tab  },
+            { "Layout",    "Lay",  bpedit_show_layout_tab    },
+            { "Programs",  "Prg",  bpedit_show_programs_tab  },
+            { "Variables", "Var",  bpedit_show_variables_tab },
+            { "Notes",     "Nts",  bpedit_show_notes_tab     },
+        },
+    },
+    .theme          = &olc_theme_building,
+    .perm           = {
+        .flags      = OLC_PERM_CUSTOM,
+        .check_fn   = bpedit_perm_check,
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = bpedit_mark_changed,
+    .get_area_fn    = bpedit_get_area,
+    .audit_changes  = true,
+};
+
+/***************************************************************************
+ * Blueprint Editor Interpreter — delegates to framework.                  *
+ ***************************************************************************/
+
+void bpedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &bpedit_def);
+}
+
+/***************************************************************************
+ * Blueprint Editor Entry Point (moved from blueprint.c)                   *
+ ***************************************************************************/
+
+/**
+ * do_bpedit - Staff command to edit or create blueprints
+ *
+ * Syntax: bpedit <vnum> - Edit existing blueprint
+ *         bpedit create <vnum> - Create new blueprint
+ *
+ * @param ch        Staff character
+ * @param argument  Blueprint vnum or "create <vnum>"
+ */
+void do_bpedit(CHAR_DATA *ch, char *argument)
+{
+    BLUEPRINT *bp;
+    char arg1[MAX_STRING_LENGTH];
+    WNUM wnum;
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!can_edit_blueprints(ch))
+    {
+        send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
+        return;
+    }
+
+    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
+    {
+        if (!(bp = get_blueprint_for_area(wnum.pArea, wnum.vnum)))
+        {
+            send_to_char("BPEdit:  That blueprint does not exist.\n\r", ch);
+            return;
+        }
+
+        ch->pcdata->immortal->last_olc_command = current_time;
+        ch->desc->pEdit = (void *)bp;
+        ch->desc->editor = ED_BLUEPRINT;
+        return;
+    }
+    else
+    {
+        if (!str_cmp(arg1, "create"))
+        {
+            if (bpedit_create(ch, argument))
+            {
+                blueprints_changed = true;
+                ch->pcdata->immortal->last_olc_command = current_time;
+                ch->desc->editor = ED_BLUEPRINT;
+            }
+
+            return;
+        }
+    }
+
+    send_to_char("Syntax: bpedit <#vnum|area_uid#vnum>\n\r"
+                 "        bpedit create <vnum>\n\r", ch);
+}
+
+/***************************************************************************
+ * Commands                                                                *
+ ***************************************************************************/
 
 
 BPEDIT( bpedit_list )
@@ -33,97 +200,139 @@ BPEDIT( bpedit_list )
     return false;
 }
 
+/***************************************************************************
+ * Master Show — dispatches to active tab                                  *
+ ***************************************************************************/
+
 BPEDIT( bpedit_show )
 {
     BLUEPRINT *bp;
-    BUFFER *buffer;
-    char buf[MSL];
-
     EDIT_BLUEPRINT(ch, bp);
 
-    buffer = new_buf();
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+    OLC_LAYOUT_CTX *ctx = olc_display_new(ch, theme);
 
-    sprintf(buf, "{xName:        [%5ld] %s{x\n\r", bp->vnum, bp->name);
-    add_buf(buffer, buf);
+    char id_buf[64];
+    sprintf(id_buf, "%ld", bp->vnum);
+    olc_display_header(ctx, "BPEdit", bp->name, id_buf, &bpedit_def);
 
-    if( bp->repop > 0)
-        sprintf(buf, "Repop:       %d minutes\n\r", bp->repop);
+    /* Dispatch to active tab's show function */
+    int tab = ch->desc ? ch->desc->nEditTab : 0;
+    if (tab >= 0 && tab < bpedit_def.tabs.count
+        && bpedit_def.tabs.tabs[tab].show_fn) {
+        bpedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)bp);
+    } else {
+        bpedit_show_general_tab(ch, ctx, (void *)bp);
+    }
+
+    olc_display_footer(ctx, theme);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
+    return false;
+}
+
+/***************************************************************************
+ * Tab 1: General                                                          *
+ ***************************************************************************/
+
+static void bpedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+    char buf[MSL];
+
+    sprintf(buf, "[%5ld] %s", bp->vnum, bp->name);
+    olc_display_string(ctx, theme, "Name:", "name", buf);
+
+    if (bp->repop > 0)
+        sprintf(buf, "%d minutes", bp->repop);
     else
-        sprintf(buf, "Repop:       {Dnever{x\n\r");
-    add_buf(buffer, buf);
+        sprintf(buf, "{Dnever{x");
+    olc_display_string(ctx, theme, "Repop:", "repop", buf);
 
-    sprintf(buf, "{xAreaWho:     [%s] [%s]{x\n\r", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
-    add_buf(buffer, buf);
+    sprintf(buf, "[%s] [%s]", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
+    olc_display_string(ctx, theme, "AreaWho:", "areawho", buf);
 
-    sprintf(buf, "{xFlags:       %s{x\n\r", flag_string(instance_flags, bp->flags));
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(instance_flags, bp->flags));
 
-    add_buf(buffer, "Description:\n\r");
-    add_buf(buffer, bp->description ? bp->description : "(none)\n\r");
-    add_buf(buffer, "\n\r");
-
-    add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
-    add_buf(buffer, bp->comments ? bp->comments : "(none)\n\r");
-    add_buf(buffer, "\n\r-----\n\r");
-
-    switch(bp->mode)
+    switch (bp->mode)
     {
     case BLUEPRINT_MODE_STATIC:
-        add_buf(buffer, "{xMode:        [{WStatic{x]\n\r");
+        olc_display_string(ctx, theme, "Mode:", NULL, "{WStatic{x");
         break;
-
     default:
-        add_buf(buffer, "{xMode:        [Unknown]\n\r");
+        olc_display_string(ctx, theme, "Mode:", NULL, "Unknown");
         break;
     }
 
-    if( list_size(bp->sections) > 0 )
+    olc_display_section(ctx, theme, "Description");
+    add_buf(ctx->buffer, bp->description ? bp->description : "(none)\n\r");
+}
+
+/***************************************************************************
+ * Tab 2: Sections                                                         *
+ ***************************************************************************/
+
+static void bpedit_show_sections_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+    char buf[MSL];
+
+    if (list_size(bp->sections) > 0)
     {
         int line = 0;
         BLUEPRINT_SECTION_REF *section_ref;
         ITERATOR sit;
 
-        add_buf(buffer, "{YSections:{x\n\r");
-        add_buf(buffer, "     [  Vnum  ] [             Name             ]\n\r");
-        add_buf(buffer, "------------------------------------------------\n\r");
+        olc_display_section(ctx, theme, "Sections");
+        add_buf(ctx->buffer, "     [  Vnum  ] [             Name             ]\n\r");
+        add_buf(ctx->buffer, "------------------------------------------------\n\r");
 
         iterator_start(&sit, bp->sections);
-        while( (section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&sit)) )
+        while ((section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&sit)))
         {
             if (section_ref->section) {
-                sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, section_ref->section->vnum, 
+                sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, section_ref->section->vnum,
                     section_ref->section->name ? section_ref->section->name : "(unnamed)");
-                add_buf(buffer, buf);
             } else {
-                sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line, 
+                sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line,
                     section_ref->section_ref.load.auid, section_ref->section_ref.load.vnum);
-                add_buf(buffer, buf);
             }
+            add_buf(ctx->buffer, buf);
         }
-
         iterator_stop(&sit);
-        add_buf(buffer, "------------------------------------------------\n\r\n\r");
+        add_buf(ctx->buffer, "------------------------------------------------\n\r");
     }
     else
     {
-        add_buf(buffer, "{YSections:{x\n\r   None\n\r\n\r");
+        olc_display_string(ctx, theme, "Sections:", NULL, "None");
     }
+}
 
-    add_buf(buffer, "Special Rooms:\n\r");
-    if( list_size(bp->special_rooms) > 0 )
+/***************************************************************************
+ * Tab 3: Layout (Static mode: links, recall, entries, exits, specials)    *
+ ***************************************************************************/
+
+static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+    char buf[MSL];
+
+    /* Special Rooms (shown for all modes) */
+    olc_display_section(ctx, theme, "Special Rooms");
+    if (list_size(bp->special_rooms) > 0)
     {
         BLUEPRINT_SPECIAL_ROOM *special;
-
-        char buf[MSL];
+        ITERATOR sit;
         int line = 0;
 
-        ITERATOR sit;
-
-        add_buf(buffer, "     [             Name             ] [             Room             ]\n\r");
-        add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+        add_buf(ctx->buffer, "     [             Name             ] [             Room             ]\n\r");
+        add_buf(ctx->buffer, "---------------------------------------------------------------------------------\n\r");
 
         iterator_start(&sit, bp->special_rooms);
-        while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+        while ((special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)))
         {
             BLUEPRINT_SECTION_REF *section_ref = list_nthdata(bp->sections, special->section);
             BLUEPRINT_SECTION *section = section_ref ? section_ref->section : NULL;
@@ -131,7 +340,7 @@ BPEDIT( bpedit_show )
             if (!area) area = get_system_area_fallback();
             ROOM_INDEX_DATA *room = get_room_index(area, special->room ? special->room->vnum : special->room_ref.load.vnum);
 
-            if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+            if (!IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
             {
                 snprintf(buf, MSL-1, "{W%4d  %-30.30s   {D-{Winvalid{D-{x\n\r", ++line, special->name);
             }
@@ -139,211 +348,243 @@ BPEDIT( bpedit_show )
             {
                 snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%s) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, widevnum_string_room(room, bp->area), room->name, section->vnum, section->name);
             }
-            add_buf(buffer, buf);
+            add_buf(ctx->buffer, buf);
         }
         iterator_stop(&sit);
-        add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+        add_buf(ctx->buffer, "---------------------------------------------------------------------------------\n\r");
     }
     else
     {
-        add_buf(buffer, "   None\n\r");
+        add_buf(ctx->buffer, "   None\n\r");
     }
-    add_buf(buffer, "\n\r");
+    add_buf(ctx->buffer, "\n\r");
 
-
-
-    if( bp->mode == BLUEPRINT_MODE_STATIC )
+    /* Static mode layout details */
+    if (bp->mode != BLUEPRINT_MODE_STATIC)
     {
-        if( bp->_static.layout )
+        olc_display_infof(ctx, theme, "Blueprint mode is not Static. Layout commands require Static mode.");
+        return;
+    }
+
+    /* Links */
+    if (bp->_static.layout)
+    {
+        int linkno = 0;
+        olc_display_section(ctx, theme, "Links");
+        add_buf(ctx->buffer, "     [ Section 1 ] [ Link 1 ] [ Section 2 ] [ Link 2 ]\n\r");
+        add_buf(ctx->buffer, "-------------------------------------------------------\n\r");
+
+        STATIC_BLUEPRINT_LINK *sbl;
+        for (sbl = bp->_static.layout; sbl; sbl = sbl->next)
         {
-            int linkno = 0;
-            add_buf(buffer, "{CLinks:{x\n\r");
-
-            add_buf(buffer, "     [ Section 1 ] [ Link 1 ] [ Section 2 ] [ Link 2 ]\n\r");
-            add_buf(buffer, "-------------------------------------------------------\n\r");
-
-            STATIC_BLUEPRINT_LINK *sbl;
-            for(sbl = bp->_static.layout; sbl; sbl = sbl->next)
-            {
-                sprintf(buf, "{W%4d   {G%9d     {Y%6d     {G%9d     {Y%6d{x\n\r",
-                    ++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
-                add_buf(buffer, buf);
-            }
-
-            add_buf(buffer, "-------------------------------------------------------\n\r\n\r");
+            sprintf(buf, "{W%4d   {G%9d     {Y%6d     {G%9d     {Y%6d{x\n\r",
+                ++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
+            add_buf(ctx->buffer, buf);
         }
+        add_buf(ctx->buffer, "-------------------------------------------------------\n\r\n\r");
+    }
+    else
+    {
+        olc_display_string(ctx, theme, "Links:", NULL, "None");
+    }
+
+    /* Recall */
+    if (bp->_static.recall > 0)
+    {
+        BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bp->_static.recall);
+        BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
+
+        if (bs)
+            sprintf(buf, "%d [%ld] %-.30s", bp->_static.recall, bs->vnum, bs->name);
         else
-        {
-            add_buf(buffer, "{CLinks:{x\n\r   None\n\r\n\r");
-        }
+            sprintf(buf, "%d [---] {Dinvalid{x", bp->_static.recall);
+        olc_display_string(ctx, theme, "Recall:", "recall", buf);
+    }
+    else
+    {
+        olc_display_string(ctx, theme, "Recall:", "recall", "None");
+    }
 
-        if( bp->_static.recall > 0 )
-        {
-            BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bp->_static.recall);
-            BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
-
-            if( bs )
-            {
-                sprintf(buf, "{xRecall:     %d [%ld] %-.30s\n\r", bp->_static.recall, bs->vnum, bs->name);
-            }
-            else
-            {
-                sprintf(buf, "{xRecall:     %d [---] {Dinvalid{x\n\r", bp->_static.recall);
-            }
-
-            add_buf(buffer, buf);
-        }
-        else
-        {
-            add_buf(buffer, "{xRecall:     None\n\r");
-        }
-
+    /* Entries */
+    {
         BLUEPRINT_EXIT_DATA *bex;
         ITERATOR bxit;
         int bxindex = 1;
         if (list_size(bp->_static.entries) > 0)
         {
             iterator_start(&bxit, bp->_static.entries);
-            while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
+            while ((bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)))
             {
                 BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bex->section);
                 BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
-                if( bs )
+                if (bs)
                 {
                     BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
-
                     char section_name[31];
-
                     strncpy(section_name, bs->name, 30);
                     section_name[30] = '\0';
 
-                    if( bl && (bl->room || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR)) )
+                    if (bl && (bl->room || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR)))
                     {
                         const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
                         if (room_str)
-                            sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%s:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
+                            sprintf(buf, "[%d] %d [%ld] %s (%s:%s)", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
                         else
-                            sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
+                            sprintf(buf, "[%d] %d [%ld] %s (%ld:%s)", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
-                        sprintf(buf, "{xEntry:      [%d] %d [%ld] %s ({Dinvalid{x)\n\r", bxindex++, bex->section, bs->vnum, section_name);
+                        sprintf(buf, "[%d] %d [%ld] %s ({Dinvalid{x)", bxindex++, bex->section, bs->vnum, section_name);
                     }
                 }
                 else
                 {
-                    sprintf(buf, "{xEntry:      [%d] %d [---] {Dinvalid{x\n\r", bxindex++, bex->section);
+                    sprintf(buf, "[%d] %d [---] {Dinvalid{x", bxindex++, bex->section);
                 }
-
-                add_buf(buffer, buf);
+                olc_display_string(ctx, theme, "Entry:", "entry", buf);
             }
             iterator_stop(&bxit);
         }
         else
         {
-            add_buf(buffer, "{xEntry:      None\n\r");
+            olc_display_string(ctx, theme, "Entry:", "entry", "None");
         }
-
-
-        bxindex = 1;
-        if( list_size(bp->_static.exits) > 0 )
-        {
-            iterator_start(&bxit, bp->_static.exits);
-            while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
-            {
-                BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bex->section);
-                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
-
-                if( bs )
-                {
-                    BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
-
-                    char section_name[31];
-
-                    strncpy(section_name, bs->name, 30);
-                    section_name[30] = '\0';
-
-                    if( bl && (bl->room || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR)) )
-                    {
-                        const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
-                        if (room_str)
-                            sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%s:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
-                        else
-                            sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
-                    }
-                    else
-                    {
-                        sprintf(buf, "{xExit:       [%d] %d [%ld] %s ({Dinvalid{x)\n\r", bxindex++, bex->section, bs->vnum, section_name);
-                    }
-                }
-                else
-                {
-                    sprintf(buf, "{xExit:       [%d] %d [---] {Dinvalid{x\n\r", bxindex++, bex->section);
-                }
-
-                add_buf(buffer, buf);
-            }
-            iterator_stop(&bxit);
-        }
-        else
-        {
-            add_buf(buffer, "{xExit:       None\n\r");
-        }
-
     }
 
-    if (bp->progs)
-        olc_show_progs_grouped(buffer, bp->progs, PRG_IPROG, "Blueprint Programs");
+    /* Exits */
+    {
+        BLUEPRINT_EXIT_DATA *bex;
+        ITERATOR bxit;
+        int bxindex = 1;
+        if (list_size(bp->_static.exits) > 0)
+        {
+            iterator_start(&bxit, bp->_static.exits);
+            while ((bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)))
+            {
+                BLUEPRINT_SECTION_REF *bs_ref = (BLUEPRINT_SECTION_REF *)list_nthdata(bp->sections, bex->section);
+                BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
-    if (bp->index_vars) {
+                if (bs)
+                {
+                    BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
+                    char section_name[31];
+                    strncpy(section_name, bs->name, 30);
+                    section_name[30] = '\0';
+
+                    if (bl && (bl->room || (bl->room_ref.load.vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR)))
+                    {
+                        const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
+                        if (room_str)
+                            sprintf(buf, "[%d] %d [%ld] %s (%s:%s)", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
+                        else
+                            sprintf(buf, "[%d] %d [%ld] %s (%ld:%s)", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
+                    }
+                    else
+                    {
+                        sprintf(buf, "[%d] %d [%ld] %s ({Dinvalid{x)", bxindex++, bex->section, bs->vnum, section_name);
+                    }
+                }
+                else
+                {
+                    sprintf(buf, "[%d] %d [---] {Dinvalid{x", bxindex++, bex->section);
+                }
+                olc_display_string(ctx, theme, "Exit:", "exit", buf);
+            }
+            iterator_stop(&bxit);
+        }
+        else
+        {
+            olc_display_string(ctx, theme, "Exit:", "exit", "None");
+        }
+    }
+}
+
+/***************************************************************************
+ * Tab 4: Programs                                                         *
+ ***************************************************************************/
+
+static void bpedit_show_programs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+
+    if (bp->progs)
+        olc_show_progs_grouped(ctx->buffer, bp->progs, PRG_IPROG, "Blueprint Programs");
+    else
+        olc_display_string(ctx, theme, "Programs:", NULL, "None");
+}
+
+/***************************************************************************
+ * Tab 5: Variables                                                        *
+ ***************************************************************************/
+
+static void bpedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+    char buf[MSL];
+
+    if (bp->index_vars)
+    {
         pVARIABLE var;
         int cnt;
 
         for (cnt = 0, var = bp->index_vars; var; var = var->next) ++cnt;
 
-        if (cnt > 0) {
+        if (cnt > 0)
+        {
+            olc_display_section(ctx, theme, "Index Variables");
+
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-            add_buf(buffer, buf);
-
+            add_buf(ctx->buffer, buf);
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-            add_buf(buffer, buf);
+            add_buf(ctx->buffer, buf);
 
-            for (var = bp->index_vars; var; var = var->next) {
-                switch(var->type) {
+            for (var = bp->index_vars; var; var = var->next)
+            {
+                switch (var->type) {
                 case VAR_INTEGER:
-                    sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+                    sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name, var->save?'Y':'N', var->_.i);
                     break;
                 case VAR_STRING:
                 case VAR_STRING_S:
-                    sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+                    sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name, var->save?'Y':'N', var->_.s?var->_.s:"(empty)");
                     break;
                 case VAR_ROOM:
-                    if(var->_.r && var->_.r->vnum > 0)
-                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%s{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,widevnum_string_room(var->_.r, bp->area));
+                    if (var->_.r && var->_.r->vnum > 0)
+                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%s{R){x\n\r", var->name, var->save?'Y':'N', var->_.r->name, widevnum_string_room(var->_.r, bp->area));
                     else
-                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r", var->name, var->save?'Y':'N');
                     break;
                 default:
                     continue;
                 }
-                add_buf(buffer, buf);
+                add_buf(ctx->buffer, buf);
             }
         }
-    }
-
-
-    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-    {
-        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+        else
+        {
+            olc_display_string(ctx, theme, "Variables:", NULL, "None");
+        }
     }
     else
     {
-        page_to_char(buffer->string, ch);
+        olc_display_string(ctx, theme, "Variables:", NULL, "None");
     }
+}
 
-    free_buf(buffer);
-    return false;
+/***************************************************************************
+ * Tab 6: Notes (Builder Comments)                                         *
+ ***************************************************************************/
+
+static void bpedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    BLUEPRINT *bp = (BLUEPRINT *)pEdit;
+    const OLC_EDITOR_THEME *theme = bpedit_def.theme;
+
+    olc_display_section(ctx, theme, "Builders' Comments");
+    add_buf(ctx->buffer, bp->comments ? bp->comments : "(none)\n\r");
 }
 
 BPEDIT( bpedit_create )
@@ -426,37 +667,19 @@ BPEDIT( bpedit_create )
 BPEDIT( bpedit_name )
 {
     BLUEPRINT *bp;
-
     EDIT_BLUEPRINT(ch, bp);
 
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  name [string]\n\r", ch);
-        return false;
-    }
-
-    free_string(bp->name);
-    bp->name = str_dup(argument);
-    send_to_char("Name changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &bp->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 BPEDIT( bpedit_repop )
 {
     BLUEPRINT *bp;
-
     EDIT_BLUEPRINT(ch, bp);
 
-    if( !is_number(argument) )
-    {
-        send_to_char("Syntax:  repop [age]\n\r", ch);
-        return false;
-    }
-
-    int repop = atoi(argument);
-    bp->repop = UMAX(0, repop);
-    send_to_char("Repop changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Repop", NULL, &bp->repop,
+        0, INT_MAX, NULL, NULL);
 }
 
 BPEDIT( bpedit_flags )
@@ -489,33 +712,19 @@ BPEDIT( bpedit_flags )
 BPEDIT( bpedit_description )
 {
     BLUEPRINT *bp;
-
     EDIT_BLUEPRINT(ch, bp);
 
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &bp->description);
-        return true;
-    }
-
-    send_to_char("Syntax:  description\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &bp->description, NULL, NULL);
 }
 
 BPEDIT( bpedit_comments )
 {
     BLUEPRINT *bp;
-
     EDIT_BLUEPRINT(ch, bp);
 
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &bp->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &bp->comments, NULL, NULL);
 }
 
 BPEDIT( bpedit_areawho )

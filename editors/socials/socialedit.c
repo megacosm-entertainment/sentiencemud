@@ -1,8 +1,11 @@
 /***************************************************************************
+ *  socialedit.c — OLC Social Command Editor                              *
  *                                                                         *
- *    Social editor - allows in-game editing of social commands            *
+ *  In-game editor for social commands. Allows immortals to create,       *
+ *  modify, and delete social emotes with their various message strings.  *
  *                                                                         *
- **************************************************************************/
+ *  Migrated to the unified OLC Editor Framework.                          *
+ ***************************************************************************/
 
 #include <stdio.h>
 #include <string.h>
@@ -24,14 +27,80 @@
 #include "../../olc_save.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
+/***************************************************************************
+ * Command Table                                                           *
+ ***************************************************************************/
 
+const struct olc_cmd_type socialedit_table[] =
+{
+    { "?",             show_help                },
+    { "charauto",      socialedit_char_auto     },
+    { "charfound",     socialedit_char_found    },
+    { "charnoarg",     socialedit_char_no_arg   },
+    { "charnotfound",  socialedit_char_not_found},
+    { "commands",      show_commands            },
+    { "create",        socialedit_create        },
+    { "delete",        socialedit_delete        },
+    { "list",          socialedit_list          },
+    { "name",          socialedit_name          },
+    { "othersauto",    socialedit_others_auto   },
+    { "othersfound",   socialedit_others_found  },
+    { "othersnoarg",   socialedit_others_no_arg },
+    { "save",          socialedit_save          },
+    { "show",          socialedit_show          },
+    { "victfound",     socialedit_vict_found    },
+    { NULL,            0                        }
+};
 
-/* Entry point for editing social table. */
+/***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF socialedit_def = {
+    .name           = "SocialEdit",
+    .editor_type    = ED_SOCIAL,
+    .cmd_table      = socialedit_table,
+    .show_fn        = socialedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_system,
+    .perm           = {
+        .flags          = OLC_PERM_SECURITY_LEVEL,
+        .min_security   = 9
+    },
+    .change_mode    = OLC_CHANGE_EXPLICIT_SAVE,
+    .audit_changes  = false,
+    .get_history_fn = NULL,
+};
+
+/***************************************************************************
+ * Entry Point                                                             *
+ ***************************************************************************/
+
+/**
+ * do_socialedit - Enter the social editor
+ *
+ * Syntax:
+ *   socialedit <social name>    - Edit an existing social
+ *   socialedit create <name>    - Create a new social
+ *   socialedit list             - List all socials
+ *   socialedit save             - Save social table to disk
+ */
 void do_socialedit(CHAR_DATA *ch, char *argument)
 {
-    //struct social_type *social;
     char command[MAX_INPUT_LENGTH];
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!olc_editor_check_perm(ch, &socialedit_def, NULL)) {
+        send_to_char("SocialEdit: Insufficient security.\n\r", ch);
+        return;
+    }
 
     argument = one_argument(argument, command);
 
@@ -58,7 +127,6 @@ void do_socialedit(CHAR_DATA *ch, char *argument)
             send_to_char("Syntax: socialedit create <social name>\n\r", ch);
             return;
         }
-
         socialedit_create(ch, argument);
         return;
     }
@@ -66,61 +134,74 @@ void do_socialedit(CHAR_DATA *ch, char *argument)
     /* Find the social */
     for (int i = 0; i < social_count; i++) {
         if (!str_prefix(command, social_table[i].name)) {
-            ch->desc->pEdit = (void *)&social_table[i];
-            ch->desc->editor = ED_SOCIAL;
-            send_to_char("Social found. Beginning edit mode.\n\r", ch);
-            socialedit_show(ch, "");
+            olc_editor_enter(ch, &socialedit_def, &social_table[i], true);
             return;
         }
     }
 
     send_to_char("That social doesn't exist. Use 'socialedit create' to create a new one.\n\r", ch);
-    return;
 }
 
+/***************************************************************************
+ * Interpreter                                                             *
+ ***************************************************************************/
+
+/**
+ * socialedit - Command interpreter for the social editor
+ */
+void socialedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &socialedit_def);
+}
+
+/***************************************************************************
+ * Commands                                                                *
+ ***************************************************************************/
+
+/**
+ * socialedit_show - Display current social data
+ *
+ * Uses the unified OLC display framework for consistent formatting.
+ *
+ * @param ch        Character viewing
+ * @param argument  Unused
+ * @return          false (no data changed)
+ */
 SOCEDIT(socialedit_show)
 {
     struct social_type *social;
-    char buf[MAX_STRING_LENGTH];
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&socialedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_SOCIAL(ch, social);
 
-    sprintf(buf, "Name:               [%s]\n\r", social->name);
-    send_to_char(buf, ch);
+    ctx = olc_display_new(ch, theme);
 
-    sprintf(buf, "Char no argument:   [%s]\n\r", 
-            social->char_no_arg ? social->char_no_arg : "NULL");
-    send_to_char(buf, ch);
+    olc_display_header(ctx, "SocialEdit", social->name, NULL, &socialedit_def);
 
-    sprintf(buf, "Others no argument: [%s]\n\r", 
-            social->others_no_arg ? social->others_no_arg : "NULL");
-    send_to_char(buf, ch);
+    olc_display_string(ctx, theme, "Name:", "name", social->name);
 
-    sprintf(buf, "Char found:         [%s]\n\r", 
-            social->char_found ? social->char_found : "NULL");
-    send_to_char(buf, ch);
+    olc_display_section(ctx, theme, "No Target");
+    olc_display_string(ctx, theme, "Char:", "charnoarg", social->char_no_arg);
+    olc_display_string(ctx, theme, "Others:", "othersnoarg", social->others_no_arg);
 
-    sprintf(buf, "Others found:       [%s]\n\r", 
-            social->others_found ? social->others_found : "NULL");
-    send_to_char(buf, ch);
+    olc_display_section(ctx, theme, "With Target");
+    olc_display_string(ctx, theme, "Char:", "charfound", social->char_found);
+    olc_display_string(ctx, theme, "Others:", "othersfound", social->others_found);
+    olc_display_string(ctx, theme, "Victim:", "victfound", social->vict_found);
 
-    sprintf(buf, "Victim found:       [%s]\n\r", 
-            social->vict_found ? social->vict_found : "NULL");
-    send_to_char(buf, ch);
+    olc_display_section(ctx, theme, "Target Not Found");
+    olc_display_string(ctx, theme, "Char:", "charnotfound", social->char_not_found);
 
-    sprintf(buf, "Char not found:     [%s]\n\r", 
-            social->char_not_found ? social->char_not_found : "NULL");
-    send_to_char(buf, ch);
+    olc_display_section(ctx, theme, "Self Target");
+    olc_display_string(ctx, theme, "Char:", "charauto", social->char_auto);
+    olc_display_string(ctx, theme, "Others:", "othersauto", social->others_auto);
 
-    sprintf(buf, "Char auto:          [%s]\n\r", 
-            social->char_auto ? social->char_auto : "NULL");
-    send_to_char(buf, ch);
+    olc_display_footer(ctx, theme);
 
-    sprintf(buf, "Others auto:        [%s]\n\r", 
-            social->others_auto ? social->others_auto : "NULL");
-    send_to_char(buf, ch);
-
-    return true;
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
+    return false;
 }
 
 SOCEDIT(socialedit_list)
@@ -222,193 +303,65 @@ SOCEDIT(socialedit_name)
 SOCEDIT(socialedit_char_no_arg)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: charnoarg <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->char_no_arg)
-        free_string(social->char_no_arg);
-    
-    if (!str_cmp(argument, "$"))
-        social->char_no_arg = NULL;
-    else
-        social->char_no_arg = str_dup(argument);
-    
-    send_to_char("Character no argument string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Char No Arg", NULL,
+        &social->char_no_arg, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_others_no_arg)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: othersnoarg <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->others_no_arg)
-        free_string(social->others_no_arg);
-    
-    if (!str_cmp(argument, "$"))
-        social->others_no_arg = NULL;
-    else
-        social->others_no_arg = str_dup(argument);
-    
-    send_to_char("Others no argument string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Others No Arg", NULL,
+        &social->others_no_arg, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_char_found)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: charfound <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->char_found)
-        free_string(social->char_found);
-    
-    if (!str_cmp(argument, "$"))
-        social->char_found = NULL;
-    else
-        social->char_found = str_dup(argument);
-    
-    send_to_char("Character found string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Char Found", NULL,
+        &social->char_found, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_others_found)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: othersfound <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->others_found)
-        free_string(social->others_found);
-    
-    if (!str_cmp(argument, "$"))
-        social->others_found = NULL;
-    else
-        social->others_found = str_dup(argument);
-    
-    send_to_char("Others found string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Others Found", NULL,
+        &social->others_found, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_vict_found)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: victfound <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->vict_found)
-        free_string(social->vict_found);
-    
-    if (!str_cmp(argument, "$"))
-        social->vict_found = NULL;
-    else
-        social->vict_found = str_dup(argument);
-    
-    send_to_char("Victim found string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Victim Found", NULL,
+        &social->vict_found, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_char_not_found)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: charnotfound <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->char_not_found)
-        free_string(social->char_not_found);
-    
-    if (!str_cmp(argument, "$"))
-        social->char_not_found = NULL;
-    else
-        social->char_not_found = str_dup(argument);
-    
-    send_to_char("Character not found string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Char Not Found", NULL,
+        &social->char_not_found, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_char_auto)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: charauto <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->char_auto)
-        free_string(social->char_auto);
-    
-    if (!str_cmp(argument, "$"))
-        social->char_auto = NULL;
-    else
-        social->char_auto = str_dup(argument);
-    
-    send_to_char("Character auto string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Char Auto", NULL,
+        &social->char_auto, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_others_auto)
 {
     struct social_type *social;
-    
     EDIT_SOCIAL(ch, social);
-    
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: othersauto <string>\n\r", ch);
-        send_to_char("Use $ to clear the string.\n\r", ch);
-        return false;
-    }
-    
-    if (social->others_auto)
-        free_string(social->others_auto);
-    
-    if (!str_cmp(argument, "$"))
-        social->others_auto = NULL;
-    else
-        social->others_auto = str_dup(argument);
-    
-    send_to_char("Others auto string changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Others Auto", NULL,
+        &social->others_auto, OLC_STR_CLEARABLE | OLC_STR_CLEAR_NULL, NULL, NULL);
 }
 
 SOCEDIT(socialedit_delete)

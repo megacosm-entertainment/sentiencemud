@@ -1045,22 +1045,10 @@ REDIT(redit_create)
 REDIT(redit_name)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  name [name]\n\r", ch);
-    return false;
-    }
-
-    argument[0] = UPPER(argument[0]);
-
-    free_string(pRoom->name);
-    pRoom->name = str_dup(argument);
-
-    send_to_char("Name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &pRoom->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 
@@ -1491,24 +1479,10 @@ REDIT(redit_persist)
 REDIT(redit_owner)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  owner [owner]\n\r", ch);
-    send_to_char("         owner none\n\r", ch);
-    return false;
-    }
-
-    free_string(pRoom->owner);
-    if (!str_cmp(argument, "none"))
-        pRoom->owner = str_dup("");
-    else
-    pRoom->owner = str_dup(argument);
-
-    send_to_char("Owner set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Owner", NULL, &pRoom->owner,
+        OLC_STR_CLEARABLE, NULL, NULL);
 }
 
 

@@ -1,9 +1,12 @@
 /***************************************************************************
+ *  pedit.c — OLC Project Editor                                          *
  *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
+ *  In-game editor for PROJECT_DATA definitions. Allows implementors to   *
+ *  create and manage building projects including assigned areas, builders,*
+ *  completion tracking, and project metadata.                             *
  *                                                                         *
- **************************************************************************/
+ *  Migrated to the unified OLC Editor Framework.                          *
+ ***************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -19,6 +22,153 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
+
+/***************************************************************************
+ * Change Tracking                                                         *
+ ***************************************************************************/
+
+/**
+ * pedit_mark_changed - Mark projects as needing save
+ *
+ * Sets the global projects_changed flag so the project list
+ * is saved on the next area save cycle.
+ *
+ * @param ch     Character who made the change
+ * @param pEdit  PROJECT_DATA being edited
+ */
+static void pedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    (void)ch;
+    (void)pEdit;
+    projects_changed = true;
+}
+
+/***************************************************************************
+ * Command Table                                                           *
+ ***************************************************************************/
+
+const struct olc_cmd_type pedit_table[] =
+{
+    { "?",          show_help       },
+    { "area",       pedit_area      },
+    { "builder",    pedit_builder   },
+    { "commands",   show_commands   },
+    { "completed",  pedit_completed },
+    { "create",     pedit_create    },
+    { "description",pedit_description },
+    { "leader",     pedit_leader    },
+    { "name",       pedit_name      },
+    { "pflag",      pedit_pflag     },
+    { "security",   pedit_security  },
+    { "show",       pedit_show      },
+    { "summary",    pedit_summary   },
+    { NULL,         0               }
+};
+
+/***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF pedit_def = {
+    .name           = "PEdit",
+    .editor_type    = ED_PROJECT,
+    .cmd_table      = pedit_table,
+    .show_fn        = pedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_data,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_IMPLEMENTOR
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = pedit_mark_changed,
+    .audit_changes  = false,
+    .get_history_fn = NULL,
+};
+
+/***************************************************************************
+ * Entry Point                                                             *
+ ***************************************************************************/
+
+/**
+ * do_pedit - Enter the project editor
+ *
+ * Syntax:
+ *   pedit <project #>      - Edit project by number
+ *   pedit <project name>   - Edit project by name
+ *   pedit create            - Create a new project
+ */
+void do_pedit(CHAR_DATA *ch, char *argument)
+{
+    PROJECT_DATA *project;
+    int value;
+    int i;
+    char arg[MAX_STRING_LENGTH];
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!olc_editor_check_perm(ch, &pedit_def, NULL)) {
+        send_to_char("PEdit: Insufficient security to edit projects.\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: pedit <project #|project name>\n\r", ch);
+        return;
+    }
+
+    if (is_number(arg)) {
+        value = atoi(arg);
+        for (project = project_list, i = 0; project != NULL; project = project->next, i++) {
+            if (i == value)
+                break;
+        }
+
+        if (project == NULL) {
+            send_to_char("Project number not found.\n\r", ch);
+            return;
+        }
+    } else if (!str_cmp(arg, "create")) {
+        pedit_create(ch, "");
+        ch->desc->editor = ED_PROJECT;
+        return;
+    } else {
+        for (project = project_list; project != NULL; project = project->next) {
+            if (!str_infix(arg, project->name))
+                break;
+        }
+
+        if (project == NULL) {
+            send_to_char("Project not found.\n\r", ch);
+            return;
+        }
+    }
+
+    olc_editor_enter(ch, &pedit_def, project, false);
+}
+
+/***************************************************************************
+ * Interpreter                                                             *
+ ***************************************************************************/
+
+/**
+ * pedit - Command interpreter for the project editor
+ */
+void pedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &pedit_def);
+}
+
+/***************************************************************************
+ * Commands                                                                *
+ ***************************************************************************/
 
 PEDIT(pedit_create)
 {
@@ -50,169 +200,158 @@ PEDIT(pedit_create)
 }
 
 
-/* Show one project - this is called not only within the OLC editor but also from do_project
-   with argument "show [project]" */
+/**
+ * pedit_show - Display current project data
+ *
+ * Uses the unified OLC display framework for consistent formatting.
+ * Called both from within the editor and from "project show <name>".
+ *
+ * @param ch        Character viewing
+ * @param argument  Unused
+ * @return          false (no data changed)
+ */
 PEDIT(pedit_show)
 {
     PROJECT_DATA *project;
     PROJECT_BUILDER_DATA *pb;
     STRING_DATA *string;
-    char buf[2*MSL], areas[MSL], buf2[MSL], completed[MSL], time[MSL];
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&pedit_def);
+    OLC_LAYOUT_CTX *ctx;
+    char areas[MSL], time_str[MSL];
     int i;
     long total_time;
 
     EDIT_PROJECT(ch, project);
 
-    sprintf(buf, "Name:                {g[{x%-30.30s{g]{x\n\r", project->name);
-    send_to_char(buf, ch);
+    ctx = olc_display_new(ch, theme);
 
-    sprintf(areas, "No areas");
-    for (i = 0, string = project->areas; string != NULL; string = string->next, i++) {
-        if (i == 0)
-            sprintf(areas, "%s", string->string);
-        else {
-            sprintf(buf2, ", %s", string->string);
-            strcat(areas, buf2);
+    /* Count project number for ID */
+    i = 0;
+    {
+        PROJECT_DATA *p;
+        for (p = project_list; p != NULL; p = p->next, i++) {
+            if (p == project)
+                break;
         }
     }
 
-    sprintf(buf, "Area(s):             {g[{x%-30.30s{g]{x\n\r", areas);
-    send_to_char(buf, ch);
+    olc_display_header(ctx, "PEdit", project->name,
+        formatf("#%d", i), &pedit_def);
 
-    sprintf(buf, "Project leader:      {g[{x%-30.30s{g]{x\n\r", project->leader);
-    send_to_char(buf, ch);
+    olc_display_string(ctx, theme, "Name:", "name", project->name);
 
-    sprintf(buf, "Security:            {g[{x%-30d{g]{x\n\r", project->security);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Project flags:       {g[{x%-30s{g]{x\n\r", flag_string(project_flags, project->project_flags));
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Created:             {x%s", (char *) ctime(&project->created));
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Summary:             %s\n\r", project->summary);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Description:         \n\r%s\n\r", project->description);
-    send_to_char(buf, ch);
-
-    completed[0] = '\0';
-    for (i = 0; i < project->completed; i += 4) {
-    if (i > 80)
-        strcat(completed, "{G=");
-    else if (i > 60)
-        strcat(completed, "{g=");
-    else if (i > 40)
-        strcat(completed, "{Y=");
-    else if (i > 20)
-        strcat(completed, "{r=");
-    else
-        strcat(completed, "{R=");
+    /* Build area list string */
+    areas[0] = '\0';
+    for (i = 0, string = project->areas; string != NULL; string = string->next, i++) {
+        if (i > 0)
+            strcat(areas, ", ");
+        strncat(areas, string->string, sizeof(areas) - strlen(areas) - 1);
     }
+    olc_display_string(ctx, theme, "Area(s):", "area",
+        areas[0] ? areas : NULL);
 
-    strcat(completed, "{x");
+    olc_display_string(ctx, theme, "Leader:", "leader", project->leader);
+    olc_display_number(ctx, theme, "Security:", "security", project->security);
+    olc_display_flags(ctx, theme, "Flags:", "pflag",
+        project_flags, project->project_flags);
+    olc_display_string(ctx, theme, "Created:", NULL,
+        (char *)ctime(&project->created));
+    olc_display_string(ctx, theme, "Summary:", "summary", project->summary);
 
+    olc_display_section(ctx, theme, "Progress");
+
+    /* Build completion bar */
+    {
+        char completed[MSL];
+        completed[0] = '\0';
+        for (i = 0; i < project->completed; i += 4) {
+            if (i > 80)
+                strcat(completed, "{G=");
+            else if (i > 60)
+                strcat(completed, "{g=");
+            else if (i > 40)
+                strcat(completed, "{Y=");
+            else if (i > 20)
+                strcat(completed, "{r=");
+            else
+                strcat(completed, "{R=");
+        }
+        strcat(completed, "{x");
+
+        olc_display_string(ctx, theme, "Completed:", "completed",
+            formatf("{W%3d%%{x %s", project->completed, completed));
+    }
 
     total_time = get_total_minutes(project);
     if (total_time % 60 == 0)
-    sprintf(time, "%ld hrs", total_time/60);
+        snprintf(time_str, sizeof(time_str), "%ld hrs", total_time / 60);
     else
-    sprintf(time, "%ld hrs %ld min", total_time/60, total_time % 60);
-    sprintf(buf, "Total building time: {g[{x%-30s{g]{x\n\r", time);
-    send_to_char(buf, ch);
+        snprintf(time_str, sizeof(time_str), "%ld hrs %ld min",
+            total_time / 60, total_time % 60);
+    olc_display_string(ctx, theme, "Build Time:", NULL, time_str);
 
-    sprintf(buf, "Completion status:   {g[{W%3d%%{g]{x %-30s\n\r", project->completed, completed);
-    send_to_char(buf, ch);
+    olc_display_section(ctx, theme, "Builders");
 
-    sprintf(buf, "\n\r{G%-5s %-15s %-15s %s{x\n\r", "#", "Builder", "Time", "Date started" );
-    send_to_char(buf, ch);
-
-
-    sprintf(buf, "{g------------------------------------------------------------------------------------------------------{x\n\r");
-    send_to_char(buf, ch);
     for (i = 0, pb = project->builders; pb != NULL; pb = pb->next, i++) {
-    // Figure out time string
-    if (pb->minutes % 60 == 0)
-        sprintf(time, "%ld hrs", pb->minutes/60);
-    else
-        sprintf(time, "%ld hrs %ld min", pb->minutes/60, pb->minutes % 60);
+        if (pb->minutes % 60 == 0)
+            snprintf(time_str, sizeof(time_str), "%ld hrs", pb->minutes / 60);
+        else
+            snprintf(time_str, sizeof(time_str), "%ld hrs %ld min",
+                pb->minutes / 60, pb->minutes % 60);
 
-    sprintf(buf, "{g[{G%3d{g] {x%-15s %-15s %s", i, pb->name, time, (char *) ctime(&pb->assigned));
-    send_to_char(buf, ch);
+        olc_display_infof(ctx, theme,
+            "{g[{G%3d{g]{x %-15s %-15s %s",
+            i, pb->name, time_str, (char *)ctime(&pb->assigned));
     }
 
-    if (project->builders == NULL) {
-    sprintf(buf, "No builders.\n\r");
-    send_to_char(buf, ch);
-    }
+    if (project->builders == NULL)
+        olc_display_infof(ctx, theme, "  No builders.");
+
+    olc_display_text(ctx, theme, "Description:", "description",
+        project->description);
+
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
 
     show_project_inquiries(project, ch);
 
-
     return false;
 }
-/* Change the name of a project. */
+/**
+ * pedit_name - Set the project name
+ */
 PEDIT(pedit_name)
 {
     PROJECT_DATA *project;
-
     EDIT_PROJECT(ch, project);
-
-    if (argument[0] == '\0') {
-    send_to_char("Syntax:  name [name]\n\r", ch);
-    return false;
-    }
-
-    free_string(project->name);
-    project->name = str_dup(argument);
-    send_to_char("Project name set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &project->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 
-/* Change security of a project. */
+/**
+ * pedit_security - Set the project security level (0-9)
+ */
 PEDIT(pedit_security)
 {
     PROJECT_DATA *project;
-    int sec;
-
     EDIT_PROJECT(ch, project);
-
-    sec = atoi(argument);
-    if (!is_number(argument) || argument[0] == '\0' || sec < 0 || sec > 9) {
-    send_to_char("Syntax:  security [0-9]\n\r", ch);
-    return false;
-    }
-
-    project->security = sec;
-    send_to_char("Project security set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Security", NULL,
+        &project->security, 0, 9, NULL, NULL);
 }
 
 
-/* Toggle various project flags. */
+/**
+ * pedit_pflag - Toggle project flags
+ */
 PEDIT(pedit_pflag)
 {
     PROJECT_DATA *project;
-    int value;
-
     EDIT_PROJECT(ch, project);
-
-    if (argument[0] != '\0')
-    {
-    if ((value = flag_value(project_flags, argument)) != NO_FLAG)
-    {
-        TOGGLE_BIT(project->project_flags, value);
-
-        send_to_char("Project flag toggled.\n\r", ch);
-        return true;
-    }
-    }
-
-    send_to_char("Syntax:  pflag [flag]\n\r"
-        "Type '? projectflags' for a list of flags.\n\r", ch);
-    return false;
+    return olc_cmd_flag_toggle(ch, argument, "Flags", NULL,
+        &project->project_flags, project_flags, NULL, NULL);
 }
 
 
@@ -344,36 +483,27 @@ PEDIT(pedit_leader)
 }
 
 
-/* Change the description (in-depth description) of a project. */
+/**
+ * pedit_description - Edit the project description (opens string editor)
+ */
 PEDIT(pedit_description)
 {
     PROJECT_DATA *project;
-
     EDIT_PROJECT(ch, project);
-
-    string_append(ch, &project->description);
-
-    return true;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &project->description, NULL, NULL);
 }
 
 
-/* Change the brief, one-line summary of a project - this is displayed with "project list". */
+/**
+ * pedit_summary - Set the project summary line
+ */
 PEDIT(pedit_summary)
 {
     PROJECT_DATA *project;
-
     EDIT_PROJECT(ch, project);
-
-    if (argument[0] == '\0') {
-    send_to_char("Syntax:  summary [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(project->summary);
-    project->summary = str_dup(argument);
-
-    send_to_char("Project summary set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Summary", NULL, &project->summary,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 

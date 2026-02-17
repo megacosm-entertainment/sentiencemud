@@ -10526,6 +10526,7 @@ extern GLOBAL_DATA gconfig;
 extern GAME_SETTINGS_DATA game_settings;
 
 extern LLIST *commands_list;
+extern bool commands_changed;
 CMD_DATA *get_cmd_data(char *name);
 bool load_commands();
 void save_commands();

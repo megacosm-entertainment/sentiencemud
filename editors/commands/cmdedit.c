@@ -1,36 +1,15 @@
 /***************************************************************************
- *  Original Diku Mud copyright (C) 1990, 1991 by Sebastian Hammer,        *
- *  Michael Seifert, Hans Henrik St{rfeldt, Tom Madsen, and Katja Nyboe.   *
+ *  cmdedit.c — OLC Command Editor                                        *
  *                                                                         *
- *  Merc Diku Mud improvments copyright (C) 1992, 1993 by Michael          *
- *  Chastain, Michael Quan, and Mitchell Tse.                              *
+ *  In-game editor for CMD_DATA definitions. Allows immortals to create,  *
+ *  modify, and manage game command properties including function binding, *
+ *  permissions, logging, and metadata.                                    *
  *                                                                         *
- *  In order to use any part of this Merc Diku Mud, you must comply with   *
- *  both the original Diku license in 'license.doc' as well the Merc       *
- *  license in 'license.txt'.  In particular, you may not remove either of *
- *  these copyright notices.                                               *
+ *  Also contains non-editor utility functions: get_cmd_data,              *
+ *  load_commands, save_commands, do_cmdlist.                              *
  *                                                                         *
- *  Much time and thought has gone into this software and you are          *
- *  benefitting.  We hope that you share your changes too.  What goes      *
- *  around, comes around.                                                  *
+ *  Migrated to the unified OLC Editor Framework.                          *
  ***************************************************************************/
-
-/***************************************************************************
-*       ROM 2.4 is copyright 1993-1998 Russ Taylor                         *
-*       ROM has been brought to you by the ROM consortium                  *
-*           Russ Taylor (rtaylor@hypercube.org)                            *
-*           Gabrielle Taylor (gtaylor@hypercube.org)                       *
-*           Brian Moore (zump@rom.org)                                     *
-*       By using this code, you have agreed to follow the terms of the     *
-*       ROM license, in the file Rom24/doc/rom.license                     *
-***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
 
 #include <stdio.h>
 #include <string.h>
@@ -54,9 +33,167 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 #include "../../io/json/json_commands.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
+bool commands_changed = false;
+
+/***************************************************************************
+ * Change Tracking                                                         *
+ ***************************************************************************/
+
+/**
+ * cmdedit_mark_changed - Mark commands as needing save
+ *
+ * Sets the global commands_changed flag so the command list
+ * is saved on the next area save cycle (asave changed).
+ *
+ * @param ch     Character who made the change
+ * @param pEdit  CMD_DATA being edited
+ */
+static void cmdedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    (void)ch;
+    (void)pEdit;
+    commands_changed = true;
+}
+
+/***************************************************************************
+ * Command Table                                                           *
+ ***************************************************************************/
+
+const struct olc_cmd_type cmdedit_table[] =
+{
+    { "?",           show_help           },
+    { "additional",  cmdedit_additional  },
+    { "commands",    show_commands       },
+    { "comments",    cmdedit_comments    },
+    { "create",      cmdedit_create      },
+    { "delete",      cmdedit_delete      },
+    { "description", cmdedit_description },
+    { "enabled",     cmdedit_enabled     },
+    { "flags",       cmdedit_flags       },
+    { "function",    cmdedit_function    },
+    { "log",         cmdedit_log         },
+    { "name",        cmdedit_name        },
+    { "order",       cmdedit_order       },
+    { "position",    cmdedit_position    },
+    { "rank",        cmdedit_rank        },
+    { "reason",      cmdedit_reason      },
+    { "sethelp",     cmdedit_help        },
+    { "show",        cmdedit_show        },
+    { "summary",     cmdedit_summary     },
+    { "type",        cmdedit_type        },
+    { NULL,          0                   }
+};
+
+/***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF cmdedit_def = {
+    .name           = "CMDEdit",
+    .editor_type    = ED_CMDEDIT,
+    .cmd_table      = cmdedit_table,
+    .show_fn        = cmdedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_system,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_IMPLEMENTOR
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = cmdedit_mark_changed,
+    .audit_changes  = false,
+    .get_history_fn = NULL,
+};
+
+/***************************************************************************
+ * Entry Point                                                             *
+ ***************************************************************************/
+
+/**
+ * do_cmdedit - Enter the command editor
+ *
+ * Syntax:
+ *   cmdedit <command name>  - Edit an existing command
+ *   cmdedit create <name>   - Create a new command
+ */
+void do_cmdedit(CHAR_DATA *ch, char *argument)
+{
+    CMD_DATA *command;
+    char arg1[MSL];
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!olc_editor_check_perm(ch, &cmdedit_def, NULL)) {
+        send_to_char("CMDEdit: Insufficient security to edit commands.\n\r", ch);
+        return;
+    }
+
+    if (arg1[0] == '\0') {
+        send_to_char("CMDEdit: There is no default command to edit.\n\r", ch);
+        return;
+    }
+
+    if (!str_cmp(arg1, "create")) {
+        if (cmdedit_create(ch, argument))
+            ch->desc->editor = ED_CMDEDIT;
+        return;
+    }
+
+    command = get_cmd_data(arg1);
+    if (!command) {
+        send_to_char("No command by that name.\n\r", ch);
+        return;
+    }
+
+    olc_editor_enter(ch, &cmdedit_def, command, false);
+}
+
+/***************************************************************************
+ * Interpreter                                                             *
+ ***************************************************************************/
+
+/**
+ * cmdedit - Command interpreter for the command editor
+ */
+void cmdedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &cmdedit_def);
+}
+
+/**
+ * do_cmdshow - Show a command's details without entering the editor
+ */
+void do_cmdshow(CHAR_DATA *ch, char *argument)
+{
+    CMD_DATA *command;
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
+        return;
+    }
+
+    if (!(command = get_cmd_data(argument))) {
+        send_to_char("That command does not exist.\n\r", ch);
+        return;
+    }
+
+    olc_show_item(ch, command, cmdedit_show, argument);
+    return;
+}
+
+/***************************************************************************
+ * Non-Editor Utility Functions                                            *
+ ***************************************************************************/
 
 CMD_DATA *get_cmd_data(char *name)
 {
@@ -356,52 +493,81 @@ CMDEDIT( cmdedit_create )
     return true;
 }
 
+/**
+ * cmdedit_show - Display current command data
+ *
+ * Uses the unified OLC display framework for consistent formatting.
+ *
+ * @param ch        Character viewing
+ * @param argument  Unused
+ * @return          false (no data changed)
+ */
 CMDEDIT (cmdedit_show)
 {
     CMD_DATA *command;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&cmdedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_CMD(ch, command);
 
-    BUFFER *buffer = new_buf();
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buffer, formatf("Name:          %s\n\r", command->name));
-    add_buf(buffer, formatf("Type:          {+%s\n\r", command_types[command->type].name));
-    add_buf(buffer, formatf("Add'l Types    %s\n\r", flag_string(command_addl_types, command->addl_types)));
-    add_buf(buffer, formatf("Rank:          {+%s\n\r", flag_string(staff_ranks, command->rank)));
-    add_buf(buffer, formatf("Position:      {+%s\n\r", position_table[command->position].name));
-    add_buf(buffer, formatf("Log:           {+%s\n\r", log_flags[command->log].name));
-    add_buf(buffer, formatf("Order:         %d\n\r", list_getindex(commands_list, command)));
-    add_buf(buffer, formatf("Enabled:       %s\n\r", command->enabled ? "Yes" : "No"));
-    if (!command->enabled || !IS_NULLSTR(command->reason)) 
-        add_buf(buffer, formatf("{rDisabled Reason{X: %s\n\r", !IS_NULLSTR(command->reason) ? command->reason : "(none)"));
+    olc_display_header(ctx, "CMDEdit", command->name,
+        formatf("#%d", list_getindex(commands_list, command)), &cmdedit_def);
 
-    add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
-    if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL)
-        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>' ({W#%d{X)\n\r", lookup_help_exact(command->help_keywords->string, get_staff_rank(ch), topHelpCat)->index, command->help_keywords->string, lookup_help_exact(command->help_keywords->string, get_staff_rank(ch), topHelpCat)->index));
-    else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL)
-        add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", command->help_keywords->string));
-    else
-        add_buf(buffer, formatf("Help Keywords: %s\n\r", "(none set)"));
-    
-    add_buf(buffer, formatf("Summary:       %s\n\r", command->summary ? command->summary : "(none)"));
-    add_buf(buffer, formatf("Command Flags: %s\n\r", flag_string(command_flags, command->command_flags)));
+    olc_display_string(ctx, theme, "Name:", "name", command->name);
+    olc_display_string(ctx, theme, "Type:", "type",
+        command_types[command->type].name);
+    olc_display_flags(ctx, theme, "Add'l Types:", "additional",
+        command_addl_types, command->addl_types);
+    olc_display_string(ctx, theme, "Rank:", "rank",
+        flag_string(staff_ranks, command->rank));
+    olc_display_string(ctx, theme, "Position:", "position",
+        position_table[command->position].name);
+    olc_display_string(ctx, theme, "Log:", "log",
+        log_flags[command->log].name);
+    olc_display_number(ctx, theme, "Order:", "order",
+        list_getindex(commands_list, command));
+    olc_display_bool(ctx, theme, "Enabled:", "enabled", command->enabled);
 
-    add_buf(buffer, formatf("\n\rDescription:\n\r   %s\n\r", string_indent(command->description,3)));
+    if (!command->enabled || !IS_NULLSTR(command->reason))
+        olc_display_string(ctx, theme, "{rReason:{x", "reason",
+            !IS_NULLSTR(command->reason) ? command->reason : "(none)");
 
-    add_buf(buffer, "\n\r-----\n\r{WCoders' Comments:{X\n\r");
-    add_buf(buffer, command->comments);
-    add_buf(buffer, "\n\r-----\n\r");
+    olc_display_string(ctx, theme, "Function:", "function",
+        command->function ? do_func_name(command->function) : "None");
 
-    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-    {
-        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    /* Help keywords with link */
+    if (command->help_keywords != NULL
+        && lookup_help_exact(command->help_keywords->string,
+            get_staff_rank(ch), topHelpCat) != NULL) {
+        HELP_DATA *pHelp = lookup_help_exact(
+            command->help_keywords->string, get_staff_rank(ch), topHelpCat);
+        olc_display_string(ctx, theme, "Help:", "sethelp",
+            formatf("'\t<send href=\"help #%d\">{W%s{x\t</send>' ({W#%d{x)",
+                pHelp->index, command->help_keywords->string, pHelp->index));
+    } else if (command->help_keywords != NULL) {
+        olc_display_string(ctx, theme, "Help:", "sethelp",
+            formatf("{R%s{x", command->help_keywords->string));
+    } else {
+        olc_display_string(ctx, theme, "Help:", "sethelp", "(none set)");
     }
-    else
-    {
-        page_to_char(buffer->string, ch);
-    }
 
-    free_buf(buffer);
+    olc_display_string(ctx, theme, "Summary:", "summary",
+        command->summary);
+    olc_display_flags(ctx, theme, "Flags:", "flags",
+        command_flags, command->command_flags);
+
+    olc_display_text(ctx, theme, "Description:", "description",
+        command->description);
+
+    olc_display_section(ctx, theme, "Coders' Comments");
+    olc_display_text(ctx, theme, NULL, "comments", command->comments);
+
+    olc_display_footer(ctx, theme);
+
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -440,36 +606,26 @@ CMDEDIT( cmdedit_name )
     return true;
 }
 
+/**
+ * cmdedit_description - Edit the command description (opens string editor)
+ */
 CMDEDIT( cmdedit_description )
 {
     CMD_DATA *command;
-
     EDIT_CMD(ch, command);
-
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &command->description);
-        return true;
-    }
-
-    send_to_char("Syntax:  description\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &command->description, NULL, NULL);
 }
 
+/**
+ * cmdedit_comments - Edit the coders' comments (opens string editor)
+ */
 CMDEDIT( cmdedit_comments )
 {
     CMD_DATA *command;
-
     EDIT_CMD(ch, command);
-
-    if (argument[0] == '\0')
-    {
-        string_append(ch, &command->comments);
-        return true;
-    }
-
-    send_to_char("Syntax:  comments\n\r", ch);
-    return false;
+    return olc_cmd_string_append(ch, argument, "Comments", NULL,
+        &command->comments, NULL, NULL);
 }
 
 CMDEDIT( cmdedit_type )
@@ -547,61 +703,27 @@ CMDEDIT (cmdedit_rank )
 
 }
 
+/**
+ * cmdedit_position - Set the minimum position to use this command
+ */
 CMDEDIT (cmdedit_position )
 {
     CMD_DATA *command;
-    char arg[MAX_INPUT_LENGTH];
-    int value;
-
     EDIT_CMD(ch, command);
-    argument = one_argument(argument, arg);
-    if (arg[0] == '\0')
-    {
-        send_to_char("Syntax:  position [position]\n\r", ch);
-        send_to_char("Type '\t<send href=\"? position\">? position\t</send>' for a list of positions.\n\r", ch);
-        return false;
-    }
-
-    if (argument[0] == '\0')
-    {
-        if ((value = flag_value(position_flags, arg)) == NO_FLAG)
-            return false;
-
-        command->position = value;
-        send_to_char("Minimum command position set.\n\r", ch);
-        return true;
-    }
-    return false;
+    return olc_cmd_type_set_i16(ch, argument, "Position",
+        "Syntax: position <position>\n\rType '? position' for a list of positions.",
+        &command->position, position_flags, NULL, NULL);
 }
 
+/**
+ * cmdedit_log - Set the command log level
+ */
 CMDEDIT (cmdedit_log )
 {
-
     CMD_DATA *command;
-    EDIT_CMD( ch, command );
-
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax:  log <level>\n\r", ch);
-        send_to_char("Please select one of the following:\n\r", ch);
-        for(int i = 0; log_flags[i].name; i++)
-        {
-            send_to_char(formatf(" %s\n\r", log_flags[i].name), ch);
-        }
-        return false;
-    }
-
-    int log;
-    if ((log = flag_value(log_flags, argument)) == NO_FLAG)
-    {
-        send_to_char("Invalid log level.\n\r", ch);
-        return false;
-    }
-
-    command->log = log;
-    send_to_char("Log level set.\n\r", ch);
-    return true;
-
+    EDIT_CMD(ch, command);
+    return olc_cmd_type_set_i16(ch, argument, "Log", NULL,
+        &command->log, log_flags, NULL, NULL);
 }
 
 CMDEDIT( cmdedit_enabled )
@@ -677,24 +799,16 @@ CMDEDIT ( cmdedit_reason )
     return false;
 }
 
+/**
+ * cmdedit_flags - Toggle command flags
+ */
 CMDEDIT( cmdedit_flags )
 {
     CMD_DATA *command;
-
     EDIT_CMD(ch, command);
-
-    long value;
-    if ((value = flag_value(command_flags, argument)) == NO_FLAG)
-    {
-        send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd\">? cmd\t</send>' for valid list.\n\r", ch);
-        show_flag_cmds(ch, command_flags);
-        return false;
-    }
-
-    TOGGLE_BIT(command->command_flags, value);
-
-    send_to_char("Command Flags toggled.\n\r", ch);
-    return true;
+    return olc_cmd_flag_toggle(ch, argument, "Flags",
+        "Syntax: flags <flag>\n\rType '? cmd' for valid list.",
+        &command->command_flags, command_flags, NULL, NULL);
 }
 
 CMDEDIT (cmdedit_function )
@@ -821,25 +935,15 @@ CMDEDIT (cmdedit_help )
     return true;
 }
 
+/**
+ * cmdedit_summary - Set the command summary line
+ */
 CMDEDIT ( cmdedit_summary )
 {
     CMD_DATA *command;
-
     EDIT_CMD(ch, command);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  summary [string]\n\r", ch);
-    return false;
-    }
-
-    free_string(command->summary);
-
-    command->summary = str_dup(argument);
-    command->summary[0] = UPPER(command->summary[0] );
-
-    send_to_char("Command summary set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Summary", NULL, &command->summary,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
 CMDEDIT ( cmdedit_order )
@@ -947,22 +1051,14 @@ CMDEDIT ( cmdedit_order )
     return true;
 }
 
+/**
+ * cmdedit_additional - Toggle additional command type flags
+ */
 CMDEDIT( cmdedit_additional )
 {
     CMD_DATA *command;
-
     EDIT_CMD(ch, command);
-
-    long value;
-    if ((value = flag_value(command_addl_types, argument)) == NO_FLAG)
-    {
-        send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd_types\">? cmd_types\t</send>' for valid list.\n\r", ch);
-        show_flag_cmds(ch, command_types);
-        return false;
-    }
-
-    TOGGLE_BIT(command->addl_types, value);
-
-    send_to_char("Additional command types toggled.\n\r", ch);
-    return true;
+    return olc_cmd_flag_toggle(ch, argument, "Add'l Types",
+        "Syntax: additional <type>\n\rType '? cmd_types' for valid list.",
+        &command->addl_types, command_addl_types, NULL, NULL);
 }

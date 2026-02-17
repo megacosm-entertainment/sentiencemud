@@ -1,22 +1,14 @@
 /***************************************************************************
- *  File: olc_act.c                                                        *
+ *  shedit.c — OLC Ship Template Editor                                   *
  *                                                                         *
- *  Much time and thought has gone into this software and you are          *
- *  benefitting.  We hope that you share your changes too.  What goes      *
- *  around, comes around.                                                  *
+ *  In-game editor for SHIP_INDEX_DATA definitions. Allows immortals to   *
+ *  create, modify, and manage ship template properties including class,  *
+ *  capacity, weapons, crew, and blueprints.                               *
  *                                                                         *
- *  This code was freely distributed with the The Isles 1.1 source code,   *
- *  and has been used here for OLC - OLC would not be what it is without   *
- *  all the previous coders who released their source code.                *
+ *  Also contains non-editor functions: do_shshow (show without editing). *
  *                                                                         *
+ *  Migrated to the unified OLC Editor Framework.                          *
  ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
- *    Used with permission.                                                *
- *                                                                         *
- **************************************************************************/
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -24,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 #include "../strings.h"
 #include "../../merc.h"
 #include "../../tables.h"
@@ -32,10 +25,206 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../common.h"
+#include "../common/olc_editor.h"
+#include "../common/olc_display.h"
+#include "../common/olc_commands.h"
 
 extern bool ships_changed;
 extern long top_ship_index_vnum;
 extern void list_ship_indexes(CHAR_DATA *ch, char *argument);
+extern bool can_edit_ships(CHAR_DATA *ch);
+
+/***************************************************************************
+ * Permission & Change Tracking                                            *
+ ***************************************************************************/
+
+/**
+ * shedit_check_perm - Custom permission check wrapper for can_edit_ships
+ *
+ * @param ch     Character to check
+ * @param pEdit  Ship being edited (unused)
+ * @return       true if character can edit ships
+ */
+static bool shedit_check_perm(CHAR_DATA *ch, void *pEdit)
+{
+    (void)pEdit;
+    return can_edit_ships(ch);
+}
+
+/**
+ * shedit_mark_changed - Mark ship data as needing save
+ *
+ * Sets both the ship's area AREA_CHANGED flag and the global
+ * ships_changed flag for the deferred save cycle.
+ *
+ * @param ch     Character who made the change
+ * @param pEdit  SHIP_INDEX_DATA being edited
+ */
+static void shedit_mark_changed(CHAR_DATA *ch, void *pEdit)
+{
+    (void)ch;
+    SHIP_INDEX_DATA *ship = (SHIP_INDEX_DATA *)pEdit;
+    if (ship && ship->area)
+        SET_BIT(ship->area->area_flags, AREA_CHANGED);
+    ships_changed = true;
+}
+
+/***************************************************************************
+ * Command Table                                                           *
+ ***************************************************************************/
+
+const struct olc_cmd_type shedit_table[] =
+{
+    { "?",          show_help       },
+    { "armor",      shedit_armor    },
+    { "blueprint",  shedit_blueprint},
+    { "capacity",   shedit_capacity },
+    { "class",      shedit_class    },
+    { "commands",   show_commands   },
+    { "create",     shedit_create   },
+    { "crew",       shedit_crew     },
+    { "desc",       shedit_desc     },
+    { "flags",      shedit_flags    },
+    { "guns",       shedit_guns     },
+    { "hit",        shedit_hit      },
+    { "keys",       shedit_keys     },
+    { "list",       shedit_list     },
+    { "move",       shedit_move     },
+    { "name",       shedit_name     },
+    { "oars",       shedit_oars     },
+    { "object",     shedit_object   },
+    { "show",       shedit_show     },
+    { "turning",    shedit_turning  },
+    { "weight",     shedit_weight   },
+    { NULL,         0               }
+};
+
+/***************************************************************************
+ * Editor Definition                                                       *
+ ***************************************************************************/
+
+static const OLC_EDITOR_DEF shedit_def = {
+    .name           = "SHEdit",
+    .editor_type    = ED_SHIP,
+    .cmd_table      = shedit_table,
+    .show_fn        = shedit_show,
+    .tabs           = { .count = 0 },
+    .theme          = &olc_theme_building,
+    .perm           = {
+        .flags          = OLC_PERM_CUSTOM,
+        .check_fn       = shedit_check_perm
+    },
+    .change_mode    = OLC_CHANGE_CUSTOM,
+    .mark_changed_fn = shedit_mark_changed,
+    .audit_changes  = false,
+    .get_history_fn = NULL,
+};
+
+/***************************************************************************
+ * Entry Point                                                             *
+ ***************************************************************************/
+
+/**
+ * do_shedit - Enter ship template OLC editor
+ *
+ * Opens a ship template for editing by VNUM. Creates new template
+ * if 'create' is specified.
+ *
+ * Syntax: shedit <vnum>
+ *         shedit create <vnum>
+ *
+ * @param ch        Staff member
+ * @param argument  Ship VNUM or 'create'
+ */
+void do_shedit(CHAR_DATA *ch, char *argument)
+{
+    SHIP_INDEX_DATA *ship = NULL;
+    char arg[MAX_STRING_LENGTH];
+    WNUM wnum;
+
+    if (IS_NPC(ch))
+        return;
+
+    if (!olc_editor_check_perm(ch, &shedit_def, NULL)) {
+        send_to_char("SHEdit: Insufficient security to edit ships.\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg);
+
+    if (parse_widevnum(arg, ch->in_room->area, &wnum)) {
+        if (!(ship = get_ship_index_for_area(wnum.pArea, wnum.vnum))) {
+            send_to_char("SHEdit: That ship does not exist.\n\r", ch);
+            return;
+        }
+
+        olc_editor_enter(ch, &shedit_def, ship, false);
+        return;
+    }
+
+    if (!str_cmp(arg, "create")) {
+        if (shedit_create(ch, argument)) {
+            ships_changed = true;
+            ch->desc->editor = ED_SHIP;
+        }
+        return;
+    }
+
+    send_to_char("Syntax: shedit <#vnum|area_uid#vnum>\n\r"
+                 "        shedit create <vnum>\n\r", ch);
+}
+
+/***************************************************************************
+ * Interpreter                                                             *
+ ***************************************************************************/
+
+/**
+ * shedit - Command interpreter for the ship template editor
+ */
+void shedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &shedit_def);
+}
+
+/**
+ * do_shshow - Display ship template details without entering editor
+ *
+ * @param ch        Staff member
+ * @param argument  Ship template VNUM
+ */
+void do_shshow(CHAR_DATA *ch, char *argument)
+{
+    SHIP_INDEX_DATA *ship;
+    void *old_edit;
+    WNUM wnum;
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  shshow <vnum>\n\r", ch);
+        return;
+    }
+
+    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    if (!(ship = get_ship_index_for_area(wnum.pArea, wnum.vnum))) {
+        send_to_char("That ship does not exist.\n\r", ch);
+        return;
+    }
+
+    old_edit = ch->desc->pEdit;
+    ch->desc->pEdit = (void *)ship;
+
+    shedit_show(ch, argument);
+    ch->desc->pEdit = old_edit;
+    return;
+}
+
+/***************************************************************************
+ * Command Handlers                                                        *
+ ***************************************************************************/
 
 SHEDIT( shedit_list )
 {
@@ -43,121 +232,95 @@ SHEDIT( shedit_list )
     return false;
 }
 
+/**
+ * shedit_show - Display current ship template data
+ *
+ * Uses the unified OLC display framework for consistent formatting.
+ *
+ * @param ch        Character viewing
+ * @param argument  Unused
+ * @return          false (no data changed)
+ */
 SHEDIT( shedit_show )
 {
     SHIP_INDEX_DATA *ship;
-    BUFFER *buffer;
-    char buf[MSL];
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&shedit_def);
+    OLC_LAYOUT_CTX *ctx;
 
     EDIT_SHIP(ch, ship);
 
-    buffer = new_buf();
+    ctx = olc_display_new(ch, theme);
 
-    add_buf(buffer, "{x");
+    olc_display_header(ctx, "SHEdit", ship->name,
+        formatf("#%ld", ship->vnum), &shedit_def);
 
-    sprintf(buf, "Name:        [%5ld] %s{x\n\r", ship->vnum, ship->name);
-    add_buf(buffer, buf);
+    olc_display_string(ctx, theme, "Name:", "name", ship->name);
+    olc_display_type(ctx, theme, "Class:", "class",
+        ship_class_types, ship->ship_class);
+    olc_display_flags(ctx, theme, "Flags:", "flags",
+        ship_flags, (long)ship->flags);
 
-    sprintf(buf, "Ship Class:  %s{x\n\r", flag_string(ship_class_types, ship->ship_class));
-    add_buf(buffer, buf);
+    olc_display_section(ctx, theme, "References");
 
-    sprintf(buf, "Flags:       [%s]\n\r", flag_string(ship_flags, ship->flags));
-    add_buf(buffer, buf);
-
-    if( IS_VALID(ship->blueprint) )
-        sprintf(buf, "Blueprint:   [%5ld] %s{x\n\r", ship->blueprint->vnum, ship->blueprint->name);
+    if (IS_VALID(ship->blueprint))
+        olc_display_vnum(ctx, theme, "Blueprint:", "blueprint",
+            ship->blueprint->vnum, ship->blueprint->name);
     else
-        sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
-    add_buf(buffer, buf);
+        olc_display_string(ctx, theme, "Blueprint:", "blueprint", NULL);
 
-    OBJ_INDEX_DATA *obj = ship->ship_object;
-    if( obj )
-        sprintf(buf, "Ship Object: [%5ld] %s{x\n\r", obj->vnum, obj->short_descr);
-    else
-        sprintf(buf, "Ship Object: {Dunassigned{x\n\r");
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Hit Points:  [%5d]{x\n\r", ship->hit);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Max Guns:    [%5d]{x\n\r", ship->guns);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Min Crew:    [%5d]{x\n\r", ship->min_crew);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Max Crew:    [%5d]{x\n\r", ship->max_crew);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Oars:        [%5d]{x\n\r", ship->oars);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Move Delay:  [%5d]{x\n\r", ship->move_delay);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Move Steps:  [%5d]{x\n\r", ship->move_steps);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Max Turning: %d degrees{x\n\r", ship->turning);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Max Weight:  [%5d]{x\n\r", ship->weight);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Capacity:    [%5d]{x\n\r", ship->capacity);
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Base Armor:  [%5d]{x\n\r", ship->armor);
-    add_buf(buffer, buf);
-
-    add_buf(buffer, "Description:\n\r");
-    add_buf(buffer, fix_string(ship->description));
-    add_buf(buffer, "\n\r\n\r");
-
-    add_buf(buffer, "Special Keys:\n\r");
-    if( list_size(ship->special_keys) > 0 )
     {
+        OBJ_INDEX_DATA *obj = ship->ship_object;
+        if (obj)
+            olc_display_vnum(ctx, theme, "Ship Object:", "object",
+                obj->vnum, obj->short_descr);
+        else
+            olc_display_string(ctx, theme, "Ship Object:", "object", NULL);
+    }
+
+    olc_display_section(ctx, theme, "Combat");
+    olc_display_number(ctx, theme, "Hit Points:", "hit", ship->hit);
+    olc_display_number(ctx, theme, "Max Guns:", "guns", ship->guns);
+    olc_display_number(ctx, theme, "Base Armor:", "armor", ship->armor);
+
+    olc_display_section(ctx, theme, "Crew & Movement");
+    olc_display_pair(ctx, theme,
+        "Min Crew:", "crew", formatf("%d", ship->min_crew),
+        "Max Crew:", "crew", formatf("%d", ship->max_crew));
+    olc_display_number(ctx, theme, "Oars:", "oars", ship->oars);
+    olc_display_pair(ctx, theme,
+        "Move Delay:", "move", formatf("%d", ship->move_delay),
+        "Move Steps:", "move", formatf("%d", ship->move_steps));
+    olc_display_number(ctx, theme, "Max Turning:", "turning", ship->turning);
+
+    olc_display_section(ctx, theme, "Cargo");
+    olc_display_number(ctx, theme, "Max Weight:", "weight", ship->weight);
+    olc_display_number(ctx, theme, "Capacity:", "capacity", ship->capacity);
+
+    olc_display_text(ctx, theme, "Description:", "desc", ship->description);
+
+    /* Special Keys */
+    olc_display_section(ctx, theme, "Special Keys");
+    if (list_size(ship->special_keys) > 0) {
         ITERATOR it;
         OBJ_INDEX_DATA *key;
         int count = 0;
 
-        add_buf(buffer, "    [  Vnum  ]  Name\n\r");
-        add_buf(buffer, "==============================================\n\r");
-
         iterator_start(&it, ship->special_keys);
-        while( (key = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
-        {
-            char key_color = 'Y';
-
-            if( key->item_type != ITEM_KEY )
-            {
-                key_color = 'R';
-            }
-
-
-            sprintf(buf, "{W%3d  {G%8ld  {%c%s{x\n\r", ++count, key->vnum, key_color, key->short_descr);
-            add_buf(buffer, buf);
+        while ((key = (OBJ_INDEX_DATA *)iterator_nextdata(&it))) {
+            olc_display_infof(ctx, theme, "{W%3d  {G%8ld  %s%s{x",
+                ++count, key->vnum,
+                key->item_type != ITEM_KEY ? "{R" : "{Y",
+                key->short_descr);
         }
         iterator_stop(&it);
-
-        add_buf(buffer, "==============================================\n\r");
-        add_buf(buffer, "{RRED{x = not a key.\n\r");
-    }
-    else
-    {
-        add_buf(buffer, "  None\n\r");
+    } else {
+        olc_display_infof(ctx, theme, "  None");
     }
 
-    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-    {
-        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-    }
-    else
-    {
-        page_to_char(buffer->string, ch);
-    }
+    olc_display_footer(ctx, theme);
 
-    free_buf(buffer);
+    page_to_char(buf_string(ctx->buffer), ch);
+    olc_layout_free(ctx);
     return false;
 }
 
@@ -236,61 +399,38 @@ SHEDIT( shedit_create )
     return true;
 }
 
+/**
+ * shedit_name - Set the ship template name
+ */
 SHEDIT( shedit_name )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    smash_tilde(argument);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  name [name]\n\r", ch);
-        return false;
-    }
-
-    free_string(ship->name);
-    ship->name = str_dup(argument);
-    send_to_char("Name changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL, &ship->name,
+        OLC_STR_DEFAULT, NULL, NULL);
 }
 
+/**
+ * shedit_desc - Edit the ship description (opens string editor)
+ */
 SHEDIT( shedit_desc )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] != '\0' )
-    {
-        send_to_char("Syntax:  desc\n\r", ch);
-        return false;
-    }
-
-    string_append(ch, &ship->description);
-    return true;
+    return olc_cmd_string_append(ch, argument, "Description", NULL,
+        &ship->description, NULL, NULL);
 }
 
+/**
+ * shedit_class - Set the ship class
+ */
 SHEDIT( shedit_class )
 {
     SHIP_INDEX_DATA *ship;
-    int value;
-
     EDIT_SHIP(ch, ship);
-
-    value = flag_value(ship_class_types, argument);
-    if( value == NO_FLAG )
-    {
-        send_to_char("Syntax:  class [ship class]\n\r", ch);
-        send_to_char("See '? shipclass' for list of classes.\n\r\n\r", ch);
-        show_help(ch, "shipclass");
-        return false;
-    }
-
-    ship->ship_class = value;
-    send_to_char("Ship Class changed.\n\r", ch);
-    return true;
+    return olc_cmd_type_set(ch, argument, "Class",
+        "Syntax: class <ship class>\n\rType '? shipclass' for a list.",
+        &ship->ship_class, ship_class_types, NULL, NULL);
 }
 
 SHEDIT( shedit_flags)
@@ -473,125 +613,49 @@ SHEDIT( shedit_object )
     return true;
 }
 
+/**
+ * shedit_hit - Set the ship's maximum hit points
+ */
 SHEDIT( shedit_hit )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  hit [points]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 1 || value > SHIP_MAX_HIT )
-    {
-        send_to_char("Hit points must be in the range of 1 to " __STR(SHIP_MAX_HIT) ".\n\r", ch);
-        return false;
-    }
-
-    ship->hit = value;
-    send_to_char("Ship hit points changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Hit Points", NULL,
+        &ship->hit, 1, SHIP_MAX_HIT, NULL, NULL);
 }
 
+/**
+ * shedit_turning - Set the ship's maximum turning power in degrees
+ */
 SHEDIT( shedit_turning )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  turning [degrees]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 1 || value > 60 )
-    {
-        send_to_char("Turning power must be in the range of 1 to 60 degrees.\n\r", ch);
-        return false;
-    }
-
-    ship->turning = value;
-    send_to_char("Turning power changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Turning", NULL,
+        &ship->turning, 1, 60, NULL, NULL);
 }
 
+/**
+ * shedit_guns - Set the ship's maximum gun allowance
+ */
 SHEDIT( shedit_guns )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  guns [count]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 0 || value > SHIP_MAX_GUNS )
-    {
-        send_to_char("Gun allowance must be in the range of 0 to " __STR(SHIP_MAX_GUNS) ".\n\r", ch);
-        return false;
-    }
-
-    ship->guns = value;
-    send_to_char("Ship gun allowance changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Guns", NULL,
+        &ship->guns, 0, SHIP_MAX_GUNS, NULL, NULL);
 }
 
 
+/**
+ * shedit_oars - Set the number of oar positions
+ */
 SHEDIT( shedit_oars )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  oars [number]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 0 )
-    {
-        send_to_char("Number of Oar positions must be non-negative.\n\r", ch);
-        return false;
-    }
-
-    ship->oars = value;
-    send_to_char("Oar positions changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Oars", NULL,
+        &ship->oars, 0, INT_MAX, NULL, NULL);
 }
 
 
@@ -686,94 +750,37 @@ SHEDIT( shedit_move )
     return true;
 }
 
+/**
+ * shedit_weight - Set the ship's maximum weight limit
+ */
 SHEDIT( shedit_weight )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  weight [weight]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 0 || value > SHIP_MAX_WEIGHT )
-    {
-        send_to_char("Weight allowance must be in the range of 0 to " __STR(SHIP_MAX_WEIGHT) ".\n\r", ch);
-        return false;
-    }
-
-    ship->weight = value;
-    send_to_char("Ship weight allowance changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Weight", NULL,
+        &ship->weight, 0, SHIP_MAX_WEIGHT, NULL, NULL);
 }
 
+/**
+ * shedit_capacity - Set the ship's item capacity
+ */
 SHEDIT( shedit_capacity )
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  capacity [count]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 0 || value > SHIP_MAX_CAPACITY )
-    {
-        send_to_char("Ship capacity must be in the range of 0 to " __STR(SHIP_MAX_CAPACITY) ".\n\r", ch);
-        return false;
-    }
-
-    ship->capacity = value;
-    send_to_char("Ship capacity changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Capacity", NULL,
+        &ship->capacity, 0, SHIP_MAX_CAPACITY, NULL, NULL);
 }
 
+/**
+ * shedit_armor - Set the ship's base armor rating
+ */
 SHEDIT( shedit_armor)
 {
     SHIP_INDEX_DATA *ship;
-
     EDIT_SHIP(ch, ship);
-
-    if( argument[0] == '\0' )
-    {
-        send_to_char("Syntax:  armor [rating]\n\r", ch);
-        return false;
-    }
-
-    if( !is_number(argument) )
-    {
-        send_to_char("That is not a number.\n\r", ch);
-        return false;
-    }
-
-    int value = atoi(argument);
-    if( value < 0 || value > SHIP_MAX_ARMOR )
-    {
-        send_to_char("Ship base armor must be in the range of 0 to " __STR(SHIP_MAX_ARMOR) ".\n\r", ch);
-        return false;
-    }
-
-    ship->armor = value;
-    send_to_char("Ship base armor changed.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, argument, "Armor", NULL,
+        &ship->armor, 0, SHIP_MAX_ARMOR, NULL, NULL);
 }
 
 

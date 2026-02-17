@@ -2698,26 +2698,7 @@ CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned 
  */
 
 
-/** OLC command table for blueprint section editor */
-const struct olc_cmd_type bsedit_table[] =
-{
-    { "?",				show_help			},
-    { "commands",		show_commands		},
-    { "list",			bsedit_list			},
-    { "show",			bsedit_show			},
-    { "create",			bsedit_create		},
-    { "name",			bsedit_name			},
-    { "description",	bsedit_description	},
-    { "comments",		bsedit_comments		},
-    { "type",			bsedit_type			},
-    { "flags",			bsedit_flags		},
-    { "recall",			bsedit_recall		},
-    { "rooms",			bsedit_rooms		},
-    { "link",			bsedit_link			},
-    { "maze",			bsedit_maze			},
-    { NULL,				NULL				}
-
-};
+/* bsedit_table moved to editors/blueprints/bsedit.c */
 
 /**
  * can_edit_blueprints - Check if character has blueprint editing permission
@@ -2832,125 +2813,9 @@ void do_bslist(CHAR_DATA *ch, char *argument)
     list_blueprint_sections(ch, argument);
 }
 
-/**
- * do_bsedit - Staff command to edit or create blueprint sections
- *
- * Syntax: bsedit <vnum> - Edit existing section
- *         bsedit create <vnum> - Create new section
- *
- * @param ch        Staff character
- * @param argument  Section vnum or "create <vnum>"
- */
-void do_bsedit(CHAR_DATA *ch, char *argument)
-{
-    BLUEPRINT_SECTION *bs;
-    char arg1[MAX_STRING_LENGTH];
-    WNUM wnum;
+/* do_bsedit() moved to editors/blueprints/bsedit.c */
 
-    argument = one_argument(argument, arg1);
-
-    if (IS_NPC(ch))
-        return;
-
-
-    if (!can_edit_blueprints(ch))
-    {
-        send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
-        return;
-    }
-
-    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
-    {
-        if (!(bs = get_blueprint_section_for_area(wnum.pArea, wnum.vnum)))
-        {
-            send_to_char("BSEdit:  That blueprint section does not exist.\n\r", ch);
-            return;
-        }
-
-        ch->pcdata->immortal->last_olc_command = current_time;
-        ch->desc->pEdit = (void *)bs;
-        ch->desc->editor = ED_BPSECT;
-        return;
-    }
-    else
-    {
-        if (!str_cmp(arg1, "create"))
-        {
-            if (bsedit_create(ch, argument))
-            {
-                blueprints_changed = true;
-                ch->pcdata->immortal->last_olc_command = current_time;
-                ch->desc->editor = ED_BPSECT;
-            }
-
-            return;
-        }
-
-    }
-
-    send_to_char("Syntax: bsedit <#vnum|area_uid#vnum>\n\r"
-                 "        bsedit create <vnum>\n\r", ch);
-}
-
-
-/**
- * bsedit - OLC interpreter for blueprint section editor
- *
- * Handles command dispatch for the blueprint section editor mode.
- *
- * @param ch        Character in editor mode
- * @param argument  Command and arguments
- */
-void bsedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int  cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!can_edit_blueprints(ch))
-    {
-        send_to_char("BSEdit:  Insufficient security to edit blueprint sections.\n\r", ch);
-        edit_done(ch);
-        return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0')
-    {
-        bsedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; bsedit_table[cmd].name != NULL; cmd++)
-    {
-        if (!str_prefix(command, bsedit_table[cmd].name))
-        {
-            if ((*bsedit_table[cmd].olc_fun) (ch, argument))
-            {
-                BLUEPRINT_SECTION *bs;
-                EDIT_BPSECT(ch, bs);
-                if (bs && bs->area)
-                    SET_BIT(bs->area->area_flags, AREA_CHANGED);
-                blueprints_changed = true;
-            }
-
-            return;
-        }
-    }
-
-    interpret(ch, arg);
-}
+/* bsedit() interpreter moved to editors/blueprints/bsedit.c */
 
 
 
@@ -3128,28 +2993,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, AREA_DATA *r
 // Blueprint Edit
 //
 
-const struct olc_cmd_type bpedit_table[] =
-{
-    { "?",				show_help			},
-    { "addiprog",		bpedit_addiprog		},
-    { "areawho",		bpedit_areawho		},
-    { "commands",		show_commands		},
-    { "comments",		bpedit_comments		},
-    { "create",			bpedit_create		},
-    { "deliprog",		bpedit_deliprog		},
-    { "description",	bpedit_description	},
-    { "flags",			bpedit_flags		},
-    { "list",			bpedit_list			},
-    { "mode",			bpedit_mode			},
-    { "name",			bpedit_name			},
-    { "repop",			bpedit_repop		},
-    { "section",		bpedit_section		},
-    { "show",			bpedit_show			},
-    { "static",			bpedit_static		},
-    { "varclear",		bpedit_varclear		},
-    { "varset",			bpedit_varset		},
-    { NULL,				NULL				}
-};
+/* bpedit_table moved to editors/blueprints/bpedit.c */
 
 /**
  * list_blueprints - Display all blueprints
@@ -3256,123 +3100,10 @@ void do_bplist(CHAR_DATA *ch, char *argument)
     list_blueprints(ch, argument);
 }
 
-/**
- * do_bpedit - Staff command to edit or create blueprints
- *
- * Syntax: bpedit <vnum> - Edit existing blueprint
- *         bpedit create <vnum> - Create new blueprint
- *
- * @param ch        Staff character
- * @param argument  Blueprint vnum or "create <vnum>"
- */
-void do_bpedit(CHAR_DATA *ch, char *argument)
-{
-    BLUEPRINT *bp;
-    char arg1[MAX_STRING_LENGTH];
-    WNUM wnum;
+/* do_bpedit() moved to editors/blueprints/bpedit.c */
 
-    argument = one_argument(argument, arg1);
+/* bpedit() interpreter moved to editors/blueprints/bpedit.c */
 
-    if (IS_NPC(ch))
-        return;
-
-    if (!can_edit_blueprints(ch))
-    {
-        send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
-        return;
-    }
-
-    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
-    {
-        if (!(bp = get_blueprint_for_area(wnum.pArea, wnum.vnum)))
-        {
-            send_to_char("BPEdit:  That blueprint does not exist.\n\r", ch);
-            return;
-        }
-
-        ch->pcdata->immortal->last_olc_command = current_time;
-        ch->desc->pEdit = (void *)bp;
-        ch->desc->editor = ED_BLUEPRINT;
-        return;
-    }
-    else
-    {
-        if (!str_cmp(arg1, "create"))
-        {
-            if (bpedit_create(ch, argument))
-            {
-                blueprints_changed = true;
-                ch->pcdata->immortal->last_olc_command = current_time;
-                ch->desc->editor = ED_BLUEPRINT;
-            }
-
-            return;
-        }
-    }
-
-    send_to_char("Syntax: bpedit <#vnum|area_uid#vnum>\n\r"
-                 "        bpedit create <vnum>\n\r", ch);
-}
-
-
-/**
- * bpedit - OLC interpreter for blueprint editor
- *
- * Handles command dispatch for the blueprint editor mode.
- *
- * @param ch        Character in editor mode
- * @param argument  Command and arguments
- */
-void bpedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int  cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (!can_edit_blueprints(ch))
-    {
-        send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
-        edit_done(ch);
-        return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-        edit_done(ch);
-        return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-
-    if (command[0] == '\0')
-    {
-        bpedit_show(ch, argument);
-        return;
-    }
-
-    for (cmd = 0; bpedit_table[cmd].name != NULL; cmd++)
-    {
-        if (!str_prefix(command, bpedit_table[cmd].name))
-        {
-            if ((*bpedit_table[cmd].olc_fun) (ch, argument))
-            {
-                BLUEPRINT *bp;
-                EDIT_BLUEPRINT(ch, bp);
-                if (bp && bp->area)
-                    SET_BIT(bp->area->area_flags, AREA_CHANGED);
-                blueprints_changed = true;
-            }
-
-            return;
-        }
-    }
-
-    interpret(ch, arg);
-}
 
 
 
