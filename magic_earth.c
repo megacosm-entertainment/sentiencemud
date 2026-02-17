@@ -69,8 +69,8 @@ SPELL_FUNC(spell_earth_walk)
     return;
 #endif
 
-    t1 = ch->in_room->sector_type;
-    t2 = victim->in_room->sector_type;
+    t1 = room_sector_type(ch->in_room);
+    t2 = room_sector_type(victim->in_room);
 
 #if 0
     sprintf(buf,"t1: %d\n\r", t1);
@@ -337,10 +337,10 @@ SPELL_FUNC(spell_stone_spikes)
     int door;
     ROOM_INDEX_DATA *to_room;
 
-    if (ch->in_room->sector_type == SECT_AIR ||
-        ch->in_room->sector_type == SECT_NETHERWORLD ||
-        ch->in_room->sector_type == SECT_WATER_SWIM ||
-        ch->in_room->sector_type == SECT_WATER_NOSWIM) {
+    if (room_in_sector(ch->in_room, SECT_AIR) ||
+        room_in_sector(ch->in_room, SECT_NETHERWORLD) ||
+        room_in_sector(ch->in_room, SECT_WATER_SWIM) ||
+        room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
         send_to_char("You fail to invoke your elemental magic here.\n\r", ch);
         return false;
     }
@@ -365,10 +365,10 @@ SPELL_FUNC(spell_stone_spikes)
     for (door=0; door < MAX_DIR; door++) {
         if ((pExit = ch->in_room->exit[door]) &&
             (to_room = pExit->u1.to_room) &&
-            !(to_room->sector_type == SECT_AIR ||
-            to_room->sector_type == SECT_NETHERWORLD ||
-            to_room->sector_type == SECT_WATER_SWIM ||
-            to_room->sector_type == SECT_WATER_NOSWIM)) {
+            !(room_in_sector(to_room, SECT_AIR) ||
+            room_in_sector(to_room, SECT_NETHERWORLD) ||
+            room_in_sector(to_room, SECT_WATER_SWIM) ||
+            room_in_sector(to_room, SECT_WATER_NOSWIM))) {
             room_echo(to_room,"Three huge stone spikes jut up from the ground!\n\r");
             for (victim = to_room->people; victim; victim = victim_next) {
                 victim_next = victim->next_in_room;

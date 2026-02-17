@@ -413,6 +413,7 @@ typedef struct	trade_area_data		TRADE_AREA_DATA;
 typedef struct	storm_data		STORM_DATA;
 typedef struct	trade_item		TRADE_ITEM;
 typedef struct	trade_type		TRADE_TYPE;
+typedef struct sector_runtime_data SECTOR_RUNTIME_DATA;
 typedef struct	waypoint_data		WAYPOINT_DATA;
 typedef struct	ship_route_data SHIP_ROUTE;
 typedef struct 	buf_type	 	BUFFER;
@@ -6528,7 +6529,7 @@ struct	room_index_data
 
     // OLC Reset data
     long        rs_room_flag[2];
-    int         rs_sector_type;
+    SECTOR_RUNTIME_DATA *rs_sector;
     int			rs_heal_rate;
     int 		rs_mana_rate;
     int			rs_move_rate;
@@ -6539,7 +6540,7 @@ struct	room_index_data
     long		room_flag[2];
     //long		room2_flags;
     int			light;
-    int			sector_type;
+    SECTOR_RUNTIME_DATA *sector;
     int			heal_rate;
     int 		mana_rate;
     int			move_rate;
@@ -8122,7 +8123,7 @@ struct log_entry_data
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
         (!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
-            (ch)->in_room->sector_type != SECT_INSIDE && (ch)->in_room->sector_type != SECT_NETHERWORLD ) )
+            !room_in_sector((ch)->in_room, SECT_INSIDE) && !room_in_sector((ch)->in_room, SECT_NETHERWORLD) ) )
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->in_room->area->area_flags, AREA_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
@@ -9519,8 +9520,42 @@ int 	mana_cost 	(CHAR_DATA *ch, int min_mana, int level);
 void load_sector_data(void);
 int sector_count(void);
 const char *sector_name(int index);
+int sector_type_sanitize(int index);
 int sector_move_cost(int index);
+int sector_heal_rate(int index);
+int sector_mana_rate(int index);
+int sector_move_rate(int index);
+int sector_class(int index);
+long sector_runtime_flags_value(int index);
+int sector_soil(int index);
+const char *sector_comments(int index);
+const char *sector_description(int index);
+int sector_hide_msg_count(int index);
+const char *sector_hide_msg(int index, int slot);
+int sector_affinity_catalyst(int index, int slot);
+int sector_affinity_value(int index, int slot);
 int sector_lookup(const char *name);
+const struct flag_type *sector_class_table(void);
+const struct flag_type *sector_runtime_flag_table(void);
+int room_sector_type(const ROOM_INDEX_DATA *room);
+int room_set_sector_type(ROOM_INDEX_DATA *room, int sector_type);
+bool room_in_sector(const ROOM_INDEX_DATA *room, int sector_type);
+int room_rs_sector_type(const ROOM_INDEX_DATA *room);
+int room_set_rs_sector_type(ROOM_INDEX_DATA *room, int sector_type);
+bool reload_sector_data(void);
+bool sector_set_name(int index, const char *name);
+bool sector_set_move_cost(int index, int move_cost);
+bool sector_set_heal_rate(int index, int heal_rate);
+bool sector_set_mana_rate(int index, int mana_rate);
+bool sector_set_move_rate(int index, int move_rate);
+bool sector_set_comments(int index, const char *comments);
+bool sector_set_description(int index, const char *description);
+bool sector_set_class(int index, int sector_class);
+bool sector_set_runtime_flags(int index, long flags);
+bool sector_set_soil(int index, int soil);
+bool sector_set_hide_msg(int index, int slot, const char *msg);
+bool sector_set_affinity(int index, int slot, int catalyst, int value);
+bool sector_clear_affinity(int index, int slot);
 int	skill_lookup	args( ( const char *name ) );
 OD*	get_warp_stone	args( ( CHAR_DATA *ch ) );
 bool	saves_spell	args( ( int level, CHAR_DATA *victim, int16_t dam_type ) );

@@ -167,6 +167,7 @@ set(SOURCE_FILES
     io/json/json_chat.c
     io/json/json_church.c
     io/json/json_reserved.c
+    io/json/json_sectors.c
     io/json/json_race.c
     traits.c
     lookup.c
@@ -251,6 +252,7 @@ set(SOURCE_FILES
     script_tpcmds.c
     script_vars.c
     scripts.c
+    sectors_runtime.c
     secret.c
     shoot.c
     skill_data.c

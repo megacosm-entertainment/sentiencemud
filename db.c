@@ -2596,8 +2596,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
     pRoom->heal_rate = pRoom->rs_heal_rate;
     pRoom->mana_rate = pRoom->rs_mana_rate;
     pRoom->move_rate = pRoom->rs_move_rate;
-    pRoom->sector_type = pRoom->rs_sector_type;
-    if (!pRoom->sector_type) pRoom->sector_type = SECT_INSIDE;
+    room_set_sector_type(pRoom, room_rs_sector_type(pRoom));
     if (location_isset(&pRoom->recall))
     {
         location_clear(&pRoom->recall);
@@ -6129,7 +6128,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
     vroom->room_flag[0] = source->room_flag[0];
     vroom->room_flag[1] = source->room_flag[1] | ROOM_VIRTUAL_ROOM;
     REMOVE_BIT(vroom->room_flag[1], ROOM_BLUEPRINT);					// Clones can never be "blueprint" rooms
-    vroom->sector_type = source->sector_type;
+    room_set_sector_type(vroom, room_sector_type(source));
     vroom->viewwilds = source->viewwilds;
     vroom->w = source->w;
     vroom->x = source->x;
@@ -7297,7 +7296,7 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
     fprintf(fp, "Locale %ld\n", room->locale);
     fprintf(fp, "room_flags %s~\n", print_flags(room->room_flag[0]));
     fprintf(fp, "room_flags2 %s~\n", print_flags(room->room_flag[1]));
-    fprintf(fp, "Sector %s~\n", print_flags(room->sector_type));
+    fprintf(fp, "Sector %s~\n", print_flags(room_sector_type(room)));
 
     if (room->heal_rate != 100) fprintf(fp, "HealRate %d\n", room->heal_rate);
     if (room->mana_rate != 100) fprintf(fp, "ManaRate %d\n", room->mana_rate);
@@ -9113,7 +9112,10 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
                 }
                 break;
             case 'S':
-                KEY("Sector", room->sector_type, fread_flag(fp)/*, sector_flags, NO_FLAG, SECT_INSIDE*/);
+                if( !str_cmp(word, "Sector") ) {
+                    room_set_sector_type(room, fread_flag(fp));
+                    fMatch = true;
+                }
                 break;
             case 'T':
                 break;

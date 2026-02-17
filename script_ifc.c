@@ -1911,6 +1911,8 @@ DECL_IFC_FUN(ifc_roomweight)
 
 DECL_IFC_FUN(ifc_sector)
 {
+    int sector;
+
     // Wilderness format
     if(ISARG_NUM(0) && ISARG_NUM(1) && ISARG_NUM(2)) {
         WILDS_DATA *pWilds;
@@ -1918,24 +1920,36 @@ DECL_IFC_FUN(ifc_sector)
 
         if(!ISARG_STR(3)) return false;
 
+        sector = sector_lookup(ARG_STR(3));
+        if (sector == NO_FLAG) {
+            *ret = false;
+            return true;
+        }
+
         if(!(pWilds = get_wilds_from_uid(NULL,ARG_NUM(0))))
             *ret = false;
         else if((room = get_wilds_vroom(pWilds, ARG_NUM(1), ARG_NUM(2))))
-            *ret = (room->sector_type == flag_value_ifcheck( sector_flags,ARG_STR(3)));
+            *ret = room_in_sector(room, sector);
         else if(!(pTerrain = get_terrain_by_coors (pWilds, ARG_NUM(1), ARG_NUM(2))))
             *ret = false;
         else
-            *ret = (pTerrain->template->sector_type == flag_value( sector_flags,ARG_STR(3)));
+            *ret = room_in_sector(pTerrain->template, sector);
 
     } else {
         if(!ISARG_STR(1)) return false;
+        sector = sector_lookup(ARG_STR(1));
+        if (sector == NO_FLAG) {
+            *ret = false;
+            return true;
+        }
+
         if(ISARG_MOB(0)) room = ARG_MOB(0)->in_room;
         else if(ISARG_OBJ(0)) room = obj_room(ARG_OBJ(0));
         else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
         else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
         else return false;
 
-        *ret = (room && room->sector_type == flag_value( sector_flags,ARG_STR(1)));
+        *ret = (room && room_in_sector(room, sector));
     }
     return true;
 }
@@ -2796,7 +2810,12 @@ DECL_IFC_FUN(ifc_value_relic)
 
 DECL_IFC_FUN(ifc_value_sector)
 {
-    *ret = ISARG_STR(0) ? flag_value_ifcheck(sector_flags,ARG_STR(0)) : 0;
+    if (ISARG_STR(0)) {
+        int sector = sector_lookup(ARG_STR(0));
+        *ret = (sector == NO_FLAG) ? 0 : sector;
+    } else {
+        *ret = 0;
+    }
     return true;
 }
 
@@ -3663,7 +3682,7 @@ DECL_IFC_FUN(ifc_testhardmagic)
 
     chance = 0;
     if (IS_SET(mob->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
-    if (mob->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
+    if (room_in_sector(mob->in_room, SECT_CURSED_SANCTUM)) chance += 2;
     if(!IS_NPC(mob) && chance > 0 && number_range(1,chance) > 1) {
         *ret = true;
     } else
@@ -3678,7 +3697,7 @@ DECL_IFC_FUN(ifc_testslowmagic)
 
     if(!mob || !mob->in_room) return false;
 
-    *ret = IS_SET(mob->in_room->room_flag[1],ROOM_SLOW_MAGIC) || (mob->in_room->sector_type == SECT_CURSED_SANCTUM);
+    *ret = IS_SET(mob->in_room->room_flag[1],ROOM_SLOW_MAGIC) || room_in_sector(mob->in_room, SECT_CURSED_SANCTUM);
 
     return true;
 }
@@ -4175,7 +4194,7 @@ DECL_IFC_FUN(ifc_sunlight)
         else if(token) room = token_room(token);
     }
 
-    if (room && (room->wilds || (room->sector_type != SECT_INSIDE && room->sector_type != SECT_NETHERWORLD && !IS_SET(room->room_flag[0], ROOM_INDOORS)))) {
+    if (room && (room->wilds || (!room_in_sector(room, SECT_INSIDE) && !room_in_sector(room, SECT_NETHERWORLD) && !IS_SET(room->room_flag[0], ROOM_INDOORS)))) {
         *ret = (int)(-1000 * cos(3.1415926 * time_info.hour / 12));
         if(*ret < 0) *ret = 0;
     } else

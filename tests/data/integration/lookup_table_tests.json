@@ -155,6 +155,26 @@
         "all_tables_valid": true,
         "no_null_names": true
       }
+    },
+    {
+      "name": "sector_runtime_lookup",
+      "description": "Verify sector runtime hide-message APIs and name lookup roundtrip",
+      "dependencies": [],
+      "test_type": "sector_runtime_lookup_test",
+      "sector_id": 2,
+      "expected_output": {
+        "runtime_lookup_ok": true
+      }
+    },
+    {
+      "name": "sector_affinity_lookup",
+      "description": "Verify sector affinity set/get/clear APIs",
+      "dependencies": [],
+      "test_type": "sector_affinity_lookup_test",
+      "sector_id": 2,
+      "expected_output": {
+        "affinity_lookup_ok": true
+      }
     }
   ]
 }

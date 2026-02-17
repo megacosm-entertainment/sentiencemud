@@ -66,6 +66,54 @@ bool is_char_stillvalid(CHAR_DATA *ch, long *id)
     return IS_VALID(ch) && (ch->id[0] == id[0]) && (ch->id[1] == id[1]);
 }
 
+static int catalyst_from_damage_type(int dam_type)
+{
+    switch (dam_type) {
+    case DAM_ACID:      return CATALYST_ACID;
+    case DAM_AIR:       return CATALYST_AIR;
+    case DAM_COLD:      return CATALYST_ICE;
+    case DAM_DISEASE:
+    case DAM_POISON:    return CATALYST_TOXIN;
+    case DAM_ENERGY:
+    case DAM_MAGIC:     return CATALYST_ENERGY;
+    case DAM_EARTH:     return CATALYST_EARTH;
+    case DAM_FIRE:      return CATALYST_FIRE;
+    case DAM_HOLY:      return CATALYST_HOLY;
+    case DAM_LIGHT:     return CATALYST_LIGHT;
+    case DAM_LIGHTNING: return CATALYST_SHOCK;
+    case DAM_MENTAL:
+    case DAM_CHARM:     return CATALYST_MIND;
+    case DAM_NEGATIVE:  return CATALYST_DEATH;
+    case DAM_PLANT:     return CATALYST_NATURE;
+    case DAM_SOUND:     return CATALYST_SOUND;
+    case DAM_WATER:     return CATALYST_WATER;
+    default:            return CATALYST_NONE;
+    }
+}
+
+static int sector_affinity_modifier_for_damage(const ROOM_INDEX_DATA *room, int dam_type)
+{
+    int sector_index;
+    int catalyst;
+    int modifier = 0;
+
+    if (room == NULL)
+        return 0;
+
+    catalyst = catalyst_from_damage_type(dam_type);
+    if (catalyst == CATALYST_NONE)
+        return 0;
+
+    sector_index = room_sector_type(room);
+
+    for (int i = 0; i < 3; i++) {
+        if (sector_affinity_catalyst(sector_index, i) == catalyst)
+            modifier += sector_affinity_value(sector_index, i);
+    }
+
+    return modifier;
+}
+
 /*
  * Control the fights going on.
  * Called periodically by update_handler.
@@ -1365,6 +1413,18 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
     }
 
     // Damage modifiers
+
+    // Sector affinity modifiers (percentage from sector affinity table)
+    if (dam > 1 && victim->in_room != NULL) {
+        int affinity_modifier = sector_affinity_modifier_for_damage(victim->in_room, dam_type);
+        if (affinity_modifier != 0) {
+            int percent = 100 + affinity_modifier;
+            if (percent <= 0)
+                dam = 0;
+            else
+                dam = dam * percent / 100;
+        }
+    }
 
     // Sanctuary
     if (dam > 1 && IS_AFFECTED(victim, AFF_SANCTUARY))
@@ -5568,7 +5628,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
     if (!(chance % 5)) ++chance;
 
     // the right terrain helps
-    switch(ch->in_room->sector_type) {
+    switch(room_sector_type(ch->in_room)) {
     case SECT_INSIDE:		chance -= 20;	break;
     case SECT_CITY:			chance -= 10;	break;
     case SECT_FIELD:		chance += 5;	break;

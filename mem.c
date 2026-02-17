@@ -2027,7 +2027,7 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->room_flag[0]       =   0;
     pRoom->room_flag[1]      =   0;
     pRoom->light            =   0;
-    pRoom->sector_type      =   0;
+    room_set_sector_type(pRoom, 0);
     pRoom->heal_rate	    =   100;
     pRoom->mana_rate	    =   100;
     pRoom->visited = 0;

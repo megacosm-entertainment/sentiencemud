@@ -5674,6 +5674,11 @@ SCRIPT_CMD(scriptcmd_alterroom)
     bool allowarith = true;
     bool allowbitwise = true;
     bool allow_static = true;
+    bool sector_field = false;
+    bool rs_sector_field = false;
+    bool typed_sector_field = false;
+    int sector_value = 0;
+    int rs_sector_value = 0;
     bool hasmin = false, hasmax = false;
     int min = 0, max = 0;
     const struct flag_type *flags = NULL;
@@ -5825,14 +5830,14 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
     if(!str_cmp(field,"flags"))				{ lptr = room->room_flag; bank = room_flagbank; }
     else if(!str_cmp(field,"light"))		{ ptr = (int*)&room->light; hasmin = true; min = 0; allowbitwise = false; }
-    else if(!str_cmp(field,"sector"))		{ ptr = (int*)&room->sector_type; flags = sector_flags; }
+    else if(!str_cmp(field,"sector"))		{ sector_value = room_sector_type(room); ptr = &sector_value; sector_field = true; typed_sector_field = true; }
     else if(!str_cmp(field,"heal"))			{ ptr = (int*)&room->heal_rate; min_sec = 1; }
     else if(!str_cmp(field,"mana"))			{ ptr = (int*)&room->mana_rate; min_sec = 1; }
     else if(!str_cmp(field,"move"))			{ ptr = (int*)&room->move_rate; min_sec = 1; }
     else if(!str_cmp(field,"mapx"))			{ ptr = (int*)&room->x; min_sec = 5; allow_static = false; }
     else if(!str_cmp(field,"mapy"))			{ ptr = (int*)&room->y; min_sec = 5; allow_static = false; }
     else if(!str_cmp(field,"rsflags"))		{ lptr = room->rs_room_flag; bank = room_flagbank; allow_static = false; }
-    else if(!str_cmp(field,"rssector"))		{ ptr = (int*)&room->rs_sector_type; allow_static = false; }
+    else if(!str_cmp(field,"rssector"))		{ rs_sector_value = room_rs_sector_type(room); ptr = &rs_sector_value; allow_static = false; rs_sector_field = true; typed_sector_field = true; }
     else if(!str_cmp(field,"rsheal"))		{ ptr = (int*)&room->rs_heal_rate; min_sec = 9; allow_static = false; }
     else if(!str_cmp(field,"rsmana"))		{ ptr = (int*)&room->rs_mana_rate; min_sec = 9; allow_static = false; }
     else if(!str_cmp(field,"rsmove"))		{ ptr = (int*)&room->rs_move_rate; min_sec = 1; allow_static = false; }
@@ -5855,7 +5860,26 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
     memset(temp_flags, 0, sizeof(temp_flags));
 
-    if( bank != NULL )
+    if (typed_sector_field)
+    {
+        allowarith = false;
+
+        switch (arg->type) {
+        case ENT_STRING:
+            value = sector_lookup(arg->d.str);
+            if (value == NO_FLAG)
+                return;
+            break;
+
+        case ENT_NUMBER:
+            value = sector_type_sanitize(arg->d.num);
+            break;
+
+        default:
+            return;
+        }
+    }
+    else if( bank != NULL )
     {
         if( arg->type != ENT_STRING ) return;
 
@@ -5883,7 +5907,6 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         allowarith = false;	// This is a bit vector, no arithmetic operators.
         value = script_flag_value(flags, arg->d.str);
-
         if( value == NO_FLAG ) value = 0;
 
         // No special filtering
@@ -6034,6 +6057,9 @@ SCRIPT_CMD(scriptcmd_alterroom)
             *lptr = max;
 
     } else if(ptr) {
+        if (typed_sector_field && op != OPR_ASSIGN)
+            return;
+
         switch (op) {
         case OPR_ADD:
             *ptr += value; break;
@@ -6124,6 +6150,11 @@ SCRIPT_CMD(scriptcmd_alterroom)
             *ptr = (int)min;
         if(hasmax && *ptr > max)
             *ptr = (int)max;
+
+        if (sector_field)
+            room_set_sector_type(room, *ptr);
+        else if (rs_sector_field)
+            room_set_rs_sector_type(room, *ptr);
     } else if (sptr) {
         switch (op) {
         case OPR_ADD: *sptr += value; break;

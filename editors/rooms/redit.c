@@ -238,8 +238,8 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     } else {
         olc_display_number(ctx, theme, "Vnum:", NULL, pRoom->vnum);
-        olc_display_type(ctx, theme, "Sector:", "sector",
-            sector_flags, pRoom->rs_sector_type);
+        olc_display_string(ctx, theme, "Sector:", "sector",
+            sector_name(room_rs_sector_type(pRoom)));
         if (pRoom->viewwilds)
             olc_display_infof(ctx, theme,
                 "Map Coord at ({W%ld{x, {W%ld{x, {W%ld{x), wilds uid ({W%ld{x) '{W%s{x'",
@@ -1630,6 +1630,7 @@ REDIT(redit_sector)
 {
     ROOM_INDEX_DATA *room;
     int value;
+    char row[MSL];
 
     EDIT_ROOM(ch, room);
 
@@ -1637,13 +1638,19 @@ REDIT(redit_sector)
     if (!str_cmp(argument, "inside"))
     value = 0;
     else
-    if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
+    if ((value = sector_lookup(argument)) == NO_FLAG)
     {
     send_to_char("Syntax: sector [type]\n\r", ch);
+    send_to_char("Available sectors:\n\r", ch);
+    for (int i = 0; i < sector_count(); i++)
+    {
+        snprintf(row, sizeof(row), "  %-3d %s\n\r", i, sector_name(i));
+        send_to_char(row, ch);
+    }
     return false;
     }
 
-    room->rs_sector_type = value;
+    room_set_rs_sector_type(room, value);
     send_to_char("Sector type set.\n\r", ch);
 
     return true;

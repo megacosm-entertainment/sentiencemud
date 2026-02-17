@@ -2755,7 +2755,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     sprintf(buf,
     "{BVnum:{x %s  {BSector:{x %d  {BLight:{x %d  {BHealing:{x %d  {BMana:{x %d\n\r",
     widevnum_string_room(location, NULL),
-    location->sector_type,
+    room_sector_type(location),
                 location->light,
                 location->heal_rate,
                 location->mana_rate);
@@ -2768,7 +2768,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                 location->wilds->name,
                 location->x,
                 location->y,
-                location->sector_type,
+                room_sector_type(location),
                 location->light,
                 location->heal_rate,
                 location->mana_rate);
@@ -8810,7 +8810,7 @@ void do_rset(CHAR_DATA *ch, char *argument)
 
     if (!str_prefix(arg2, "sector"))
     {
-    location->sector_type	= value;
+    room_set_sector_type(location, value);
     return;
     }
 

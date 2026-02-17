@@ -544,7 +544,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
   ROOM_INDEX_DATA *pRoom;
   long index = 0;
   AREA_DATA *pArea;
-  int sector_type = ch->in_room->sector_type;
+        int room_sector = room_sector_type(ch->in_room);
   AFFECT_DATA af;
   memset(&af,0,sizeof(af));
 
@@ -574,7 +574,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                         send_to_char("{CRain falls from above splashing as it hits the ground.{x\n\r", ch);
                         break;
         default:
-                    switch(sector_type) {
+                    switch(room_sector) {
                         case SECT_CITY:
                             send_to_char("{CRain makes a melodic drumbeat as it falls on the rooftops.{x\r\n", ch);
                             break;
@@ -631,7 +631,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
             cold_effect(ch, 1, dice(4,8), TARGET_CHAR);
           break;
         default:
-                    switch(sector_type) {
+                    switch(room_sector) {
                         case SECT_CITY:
                             send_to_char("{WBig fluffy flakes of snow collect in the city streets.{x\r\n", ch);
                             break;
@@ -675,8 +675,8 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                             send_to_char("{YFlashes of lightning streak across the sky.{x\n\r", ch);
                         break;
                 case 2:
-            if (ch->in_room->sector_type != SECT_WATER_SWIM &&
-                ch->in_room->sector_type != SECT_WATER_NOSWIM) {
+            if (!room_in_sector(ch->in_room, SECT_WATER_SWIM) &&
+                !room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
                             send_to_char("The low rumble of thunder shakes the ground.\n\r", ch);
             }
                         break;
@@ -684,8 +684,8 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                         send_to_char("{YBrilliant flashes light up the clouds above.{x\n\r", ch);
                         break;
                 case 4:
-            if (ch->in_room->sector_type != SECT_WATER_SWIM &&
-                ch->in_room->sector_type != SECT_WATER_NOSWIM) {
+            if (!room_in_sector(ch->in_room, SECT_WATER_SWIM) &&
+                !room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
                             send_to_char("{YLightning crashes to the ground next to you!{x\n\r", ch);
             }
                         break;
@@ -697,7 +697,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                         }
                         break;
         default:
-                    switch(sector_type) {
+                    switch(room_sector) {
                         case SECT_CITY:
                             send_to_char("{BThunder echos off the building walls.\r\n{x", ch);
                             break;
@@ -765,7 +765,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                       damage(ch, ch, 30000, 0, DAM_NONE, false);
                         break;
         default:
-                    switch(sector_type) {
+                switch(room_sector) {
                         case SECT_CITY:
               if (number_percent() < 50)
                             send_to_char("A begger is caught by the wind and carried off!\r\n", ch);
@@ -826,7 +826,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
       // Show that there is a tornado
             switch(number_range(0, 8)) {
         default:
-                    switch(sector_type) {
+                switch(room_sector) {
                         case SECT_CITY:
               if (number_percent() < 20)
                             send_to_char("An old man is caught by the wind and consumed by the tornado!\r\n", ch);
@@ -886,8 +886,8 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                         send_to_char("The monstrous swirling storm brings devestation as it rips all that stand in front!\n\r", ch);
                         break;
                 case 1:
-            if (ch->in_room->sector_type != SECT_WATER_SWIM &&
-                ch->in_room->sector_type != SECT_WATER_NOSWIM) {
+            if (!room_in_sector(ch->in_room, SECT_WATER_SWIM) &&
+                !room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
                             send_to_char("The ground beneath you groans as the tornado tugs at its core.\n\r", ch);
                         }
                         break;
@@ -895,8 +895,8 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                         send_to_char("You struggle to save yourself from the tornado!\n\r", ch);
                         break;
                 case 3:
-            if (ch->in_room->sector_type != SECT_WATER_SWIM &&
-                ch->in_room->sector_type != SECT_WATER_NOSWIM) {
+            if (!room_in_sector(ch->in_room, SECT_WATER_SWIM) &&
+                !room_in_sector(ch->in_room, SECT_WATER_NOSWIM)) {
                         send_to_char("Objects around you are torn from the earth and fed to the mighty tornado!\n\r", ch);
                         }
                         break;

@@ -535,11 +535,11 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     // For trackless step skill
     if (get_skill( victim, skill_resolve_gsn("trackless step") ) > 0
     //&& victim->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER
-    && ( victim->in_room->sector_type == SECT_FIELD
-         || victim->in_room->sector_type == SECT_FOREST
-         || victim->in_room->sector_type == SECT_HILLS
-         || victim->in_room->sector_type == SECT_MOUNTAIN
-         || victim->in_room->sector_type == SECT_TUNDRA ) )
+        && ( room_in_sector(victim->in_room, SECT_FIELD)
+            || room_in_sector(victim->in_room, SECT_FOREST)
+            || room_in_sector(victim->in_room, SECT_HILLS)
+            || room_in_sector(victim->in_room, SECT_MOUNTAIN)
+            || room_in_sector(victim->in_room, SECT_TUNDRA) ) )
     {
     if ( number_percent() < get_skill( victim, skill_resolve_gsn("trackless step") ) )
     {

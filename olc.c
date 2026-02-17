@@ -442,6 +442,16 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         }
         break;
 
+    case ED_SECTOR:
+        {
+            int sector_index = (int)((intptr_t)ch->desc->pEdit) - 1;
+            if (sector_index >= 0 && sector_index < sector_count())
+                snprintf(buf, sizeof(buf), "%d:%s", sector_index, sector_name(sector_index));
+            else
+                sprintf(buf, "--");
+        }
+        break;
+
     default:
         sprintf(buf, " ");
         break;
@@ -1336,7 +1346,7 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     new_room->owner = str_dup(old_room->owner);
     new_room->room_flag[0] = old_room->room_flag[0];
     new_room->room_flag[1] = old_room->room_flag[1];
-    new_room->sector_type = old_room->sector_type;
+    room_set_sector_type(new_room, room_sector_type(old_room));
     new_room->heal_rate = old_room->heal_rate;
     new_room->mana_rate = old_room->mana_rate;
     new_room->move_rate = old_room->move_rate;

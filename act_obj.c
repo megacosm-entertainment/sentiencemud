@@ -1536,7 +1536,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
             act("$p dissolves into smoke.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             extract_obj(obj);
         }
-        else if (obj && ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
+        else if (obj && room_in_sector(ch->in_room, SECT_ENCHANTED_FOREST))
         {
             act("$p crumbles into dust.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             act("$p crumbles into dust.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -1615,7 +1615,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
                     if (IS_SET(obj->extra[0], ITEM_MELT_DROP))
                         extract_obj(obj);
 
-                    else if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
+                    else if (room_in_sector(ch->in_room, SECT_ENCHANTED_FOREST))
                         extract_obj(obj);
                 }
                 iterator_stop(&it);
@@ -1635,7 +1635,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
                         act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     }
-                    else if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
+                    else if (room_in_sector(ch->in_room, SECT_ENCHANTED_FOREST))
                     {
                         short_descr[0] = UPPER(short_descr[0]);
                         sprintf(buf, "{Y({G%2d{Y) {x%s crumbles into dust.", i, short_descr);

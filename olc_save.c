@@ -758,7 +758,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 
     fprintf(fp, "Room_flags %ld\n", room->rs_room_flag[0]);
     fprintf(fp, "Room2_flags %ld\n", room->rs_room_flag[1]);
-    fprintf(fp, "Sector_type %d\n", room->rs_sector_type);
+    fprintf(fp, "Sector_type %d\n", room_rs_sector_type(room));
 
     if (room->rs_heal_rate != 100)
         fprintf(fp, "HealRate %d\n", room->rs_heal_rate);
@@ -2165,7 +2165,7 @@ void create_virtual_room_new(AREA_DATA *area, long vnum, int x, int y,
     pRoomIndex->name		= str_dup(pParent->name);
     pRoomIndex->description	= NULL;
     pRoomIndex->room_flag[0]	= pParent->room_flag[0];
-    pRoomIndex->sector_type	= pParent->sector_type;
+    room_set_sector_type(pRoomIndex, room_sector_type(pParent));
     pRoomIndex->light		= 0;//get_room_index(parent)->light;
     pRoomIndex->x = x;
     pRoomIndex->y = y;
@@ -2375,7 +2375,10 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
         break;
 
         case 'S':
-            KEY("Sector_type",	room->rs_sector_type,	fread_number(fp));
+            if (!str_cmp(word, "Sector_type")) {
+                room_set_rs_sector_type(room, fread_number(fp));
+                fMatch = true;
+            }
         break;
 
         case 'V':
@@ -2410,8 +2413,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
         room->heal_rate = room->rs_heal_rate;
         room->mana_rate = room->rs_mana_rate;
         room->move_rate = room->rs_move_rate;
-        room->sector_type = room->rs_sector_type;
-        if (!room->sector_type) room->sector_type = SECT_INSIDE;
+        room_set_sector_type(room, room_rs_sector_type(room));
         if (rs_location_isset(&room->rs_recall))
         {			
             room->recall.wuid = room->rs_recall.wuid;

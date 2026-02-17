@@ -575,7 +575,7 @@ WEDIT ( wedit_terrain )
             sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s%s{x\n\r",
                      pTerrain->mapchar, pTerrain->showchar,
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
-                     flag_string(sector_flags, pTerrain->template->sector_type),
+                     sector_name(room_sector_type(pTerrain->template)),
                      pTerrain->nonroom ? "  Yes    " : "  No     ",
                      bitmatrix_string(room_flagbank, pTerrain->template->room_flag));
                      //flag_string(room2_flags, pTerrain->template->room_flag[1]));
@@ -751,13 +751,21 @@ WEDIT ( wedit_terrain )
     }
     if (!str_cmp(arg2, "sector"))
     {
-    if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
+    char row[MSL];
+
+    if ((value = sector_lookup(argument)) == NO_FLAG)
     {
         send_to_char("Syntax: terrain <token> sector <sector>\n\r", ch);
+        send_to_char("Available sectors:\n\r", ch);
+        for (int i = 0; i < sector_count(); i++)
+        {
+            snprintf(row, sizeof(row), "  %-3d %s\n\r", i, sector_name(i));
+            send_to_char(row, ch);
+        }
         return false;
     }
 
-    pTerrain->template->sector_type =  value;
+    room_set_sector_type(pTerrain->template, value);
     correct_vrooms(pWilds, pTerrain);
     send_to_char("Sector set.\n\r", ch);
         return true;

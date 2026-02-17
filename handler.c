@@ -4387,8 +4387,8 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
     if (IS_SET(pRoomIndex->room_flag[0], ROOM_DARK))
         return true;
 
-    if (pRoomIndex->sector_type == SECT_INSIDE ||
-        pRoomIndex->sector_type == SECT_CITY)
+    if (room_in_sector(pRoomIndex, SECT_INSIDE) ||
+        room_in_sector(pRoomIndex, SECT_CITY))
         return false;
 
     if (weather_info.sunlight == SUN_DARK)
@@ -6217,7 +6217,7 @@ bool is_in_nature(CHAR_DATA *ch)
     return false;
     }
 
-    switch(ch->in_room->sector_type)
+    switch(room_sector_type(ch->in_room))
     {
     case SECT_FIELD:
     case SECT_FOREST:

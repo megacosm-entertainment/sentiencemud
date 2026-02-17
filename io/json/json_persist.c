@@ -2155,7 +2155,7 @@ json_t *json_persist_room_to_json(ROOM_INDEX_DATA *room)
     /* Flags */
     json_object_set_new(json, "room_flags", json_integer(room->room_flag[0]));
     json_object_set_new(json, "room_flags2", json_integer(room->room_flag[1]));
-    json_object_set_new(json, "sector_type", json_integer(room->sector_type));
+    json_object_set_new(json, "sector_type", json_integer(room_sector_type(room)));
 
     /* Regeneration rates */
     if (room->heal_rate != 100) {
@@ -2367,7 +2367,7 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
     value = json_object_get(json, "room_flags2");
     if (value) room->room_flag[1] = json_integer_value(value);
     value = json_object_get(json, "sector_type");
-    if (value) room->sector_type = json_integer_value(value);
+    if (value) room_set_sector_type(room, json_integer_value(value));
 
     /* Regeneration rates */
     value = json_object_get(json, "heal_rate");

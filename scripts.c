@@ -3930,7 +3930,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
                         act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 }
             }
-            else if (in_room->sector_type == SECT_WATER_NOSWIM)
+            else if (room_in_sector(in_room, SECT_WATER_NOSWIM))
                 act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             else if (PULLING_CART(ch))
                 act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM, NULL, NULL);

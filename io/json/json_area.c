@@ -2221,7 +2221,7 @@ json_t *json_area_serialize_room(ROOM_INDEX_DATA *room)
     // Flags and sector
     json_object_set_new(json, "flags", flags_to_json_array(room->rs_room_flag[0], room_flags));
     json_object_set_new(json, "flags2", flags_to_json_array(room->rs_room_flag[1], room2_flags));
-    json_object_set_new(json, "sector", json_integer(room->rs_sector_type));
+    json_object_set_new(json, "sector", json_integer(room_rs_sector_type(room)));
     
     // Rates
     if (room->rs_heal_rate != 100)
@@ -2375,7 +2375,7 @@ ROOM_INDEX_DATA *json_area_deserialize_room(json_t *json, AREA_DATA *area)
     json_t *flags2 = json_object_get(json, "flags2");
     if (flags2) room->rs_room_flag[1] = json_array_to_flags(flags2, room2_flags);
     
-    room->rs_sector_type = json_get_int_default(json, "sector", 0);
+    room_set_rs_sector_type(room, json_get_int_default(json, "sector", 0));
     
     // Rates
     room->rs_heal_rate = json_get_int_default(json, "heal_rate", 100);

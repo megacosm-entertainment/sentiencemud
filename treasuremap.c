@@ -120,8 +120,8 @@ bool valid_area_for_treasure(AREA_DATA *pArea)
             WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->x + x, pArea->y + y);
 
             if( pTerrain != NULL && !pTerrain->nonroom &&
-                pTerrain->template->sector_type != SECT_WATER_SWIM &&
-                pTerrain->template->sector_type != SECT_WATER_NOSWIM)
+                !room_in_sector(pTerrain->template, SECT_WATER_SWIM) &&
+                !room_in_sector(pTerrain->template, SECT_WATER_NOSWIM))
                 return true;
         }
     }
@@ -182,8 +182,8 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
             WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
 
             if( pTerrain != NULL && !pTerrain->nonroom &&
-                pTerrain->template->sector_type != SECT_WATER_SWIM &&
-                pTerrain->template->sector_type != SECT_WATER_NOSWIM)
+                !room_in_sector(pTerrain->template, SECT_WATER_SWIM) &&
+                !room_in_sector(pTerrain->template, SECT_WATER_NOSWIM))
             {
                 break;
             }

@@ -992,7 +992,7 @@ new code.
 | **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Done |
 | **6** | Script editors | mpedit, opedit, rpedit, tpedit, ipedit, dpedit, apedit | Medium |
 | **7** | Command table migration | Move tables from olc.c to editor files | Mechanical |
-| **8** | Backport + new editors | ✅ liqedit, ✅ matedit, ✅ rsgedit, ⏳ sectoredit, corpsedit, repedit, qedit, msnedit, evtedit | Med–Large |
+| **8** | Backport + new editors | ✅ liqedit, ✅ matedit, ✅ rsgedit, ✅ sectoredit (transitional), corpsedit, repedit, qedit, msnedit, evtedit | Med–Large |
 | **9** | Player housing | Restricted REDIT/OEDIT subset | Large |
 
 ### 7.2 Phase 0: Framework Foundation (DONE)
@@ -1518,7 +1518,8 @@ Phase 8 work is active. Current status in `src`:
     JSON persistence, and OLC history.
 - ⚠️ Material consumer migration is partially complete and still being finalized in
     some call paths (legacy fallback behavior retained intentionally during transition).
-- 🟡 **SECTOREDIT / CORPSEDIT / REPEDIT** remain pending.
+- ✅ **SECTOREDIT** transitional runtime/editor integration is complete (see `TODO_SECTOREDIT_GAP_CHECKLIST.md`).
+- 🟡 **CORPSEDIT / REPEDIT** remain pending.
 
 Initial kickoff notes (now complete for RSGEDIT):
 
@@ -1538,7 +1539,7 @@ Recommended implementation order based on coupling:
     hardcoded tables in `const.c`
 2. ✅ **RSGEDIT** (completed): editor + persistence + generation logic
 3. **CORPSEDIT** (high coupling): mob death pipeline + `MOB_INDEX_DATA` integration
-4. **SECTOREDIT** (very high coupling): room sector representation refactor (`int` → pointer)
+4. ✅ **SECTOREDIT (transitional)** completed via runtime registry + accessor shim; structural room model refactor (`int` → pointer/reference) remains a follow-up phase.
 5. **REPEDIT** (subsystem backport): reputation runtime + area save/load + player state
 6. **QEDIT / EVTEDIT / MSNEDIT**: large gameplay systems, implemented after
     data/editor infrastructure stabilizes
@@ -1625,8 +1626,11 @@ health, hidemsgs, mana, move, movecost, name, show, soil
 - Stored as dynamic linked list (`sectors_list`), persisted to `sectors.dat`
 - Rooms reference sectors via `SECTOR_DATA *` pointer instead of `int`
 
-**Current src**: Sectors are hardcoded `#define SECT_*` constants (0–27 in `merc.h`).
-Rooms use `int sector_type`. No `SECTOR_DATA` struct, no `sectors.c`, no editor.
+**Current src**: Transitional sector runtime exists (`sectors_runtime.c`) with JSON persistence,
+framework editor (`editors/sectors/sectoredit.c`), and accessor-based integration across
+active editor/runtime/script paths. Runtime gameplay hooks include sector hide-message behavior
+and sector affinity damage modifiers. Room sector storage is reference-backed in active runtime
+(`SECTOR_RUNTIME_DATA *`), with compatibility shim APIs preserving id-based call semantics.
 
 **Prerequisites to port**:
 1. Backport full `SECTOR_DATA` struct to `merc.h`
@@ -1642,6 +1646,12 @@ Rooms use `int sector_type`. No `SECTOR_DATA` struct, no `sectors.c`, no editor.
 - Prefer explicit lookup by stable sector id/key through a runtime registry API.
 - Keep compatibility with legacy `SECT_*` ids during migration, but route new editor/runtime
     behavior through registry functions rather than global sector pointers.
+
+**Execution checklist**:
+- Track active implementation status in
+    `docs/TODO_SECTOREDIT_GAP_CHECKLIST.md`.
+- Structural room-model migration is completed for active editor/runtime integration; remaining
+    follow-up is broader hardening/full-suite stabilization outside 8.3 editor unblock scope.
 
 **Effort**: Large — the editor itself is medium complexity, but the underlying
 room system refactor (int→pointer) touches many files.

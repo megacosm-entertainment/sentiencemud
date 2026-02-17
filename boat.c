@@ -1342,8 +1342,8 @@ bool move_ship_success(SHIP_DATA *ship)
         EXIT_DATA *pexit = in_room->exit[door];
         bool vlink = (pexit && IS_SET(pexit->exit_info, EX_VLINK));
 
-        if( (pTerrain->template->sector_type != SECT_WATER_NOSWIM &&
-            pTerrain->template->sector_type != SECT_WATER_SWIM) || vlink )
+        if( (!room_in_sector(pTerrain->template, SECT_WATER_NOSWIM) &&
+            !room_in_sector(pTerrain->template, SECT_WATER_SWIM)) || vlink )
         {
             ship_echo(ship, "The vessel has run aground.");
             ship_stop(ship);
@@ -2978,8 +2978,8 @@ void do_ships(CHAR_DATA *ch, char *argument)
                     return;
                 }
 
-                if( ch->in_room->sector_type != SECT_WATER_SWIM &&
-                    ch->in_room->sector_type != SECT_WATER_NOSWIM )
+                if( !room_in_sector(ch->in_room, SECT_WATER_SWIM) &&
+                    !room_in_sector(ch->in_room, SECT_WATER_NOSWIM) )
                 {
                     send_to_char("Must be in the water.\n\r", ch);
                     return;
@@ -5251,7 +5251,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
         if( pTerrain->nonroom )
         {
             // Indicative of the terrain being part of some city region on the wilds
-            if( pTerrain->template->sector_type != SECT_CITY )
+            if( !room_in_sector(pTerrain->template, SECT_CITY) )
             {
                 ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
                 return;
@@ -6003,8 +6003,8 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
         {
             WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, x, y);
             if( !terrain || terrain->nonroom ||
-                (terrain->template->sector_type == SECT_WATER_SWIM &&
-                 terrain->template->sector_type == SECT_WATER_NOSWIM) )
+                (!room_in_sector(terrain->template, SECT_WATER_SWIM) &&
+                 !room_in_sector(terrain->template, SECT_WATER_NOSWIM)) )
             {
                 send_to_char("You can only specify locations over water.\n\r", ch);
                 return;
@@ -6318,8 +6318,8 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
             {
                 WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, wp->x, wp->y);
                 if( !terrain || terrain->nonroom ||
-                    (terrain->template->sector_type == SECT_WATER_SWIM &&
-                     terrain->template->sector_type == SECT_WATER_NOSWIM) )
+                    (!room_in_sector(terrain->template, SECT_WATER_SWIM) &&
+                     !room_in_sector(terrain->template, SECT_WATER_NOSWIM)) )
                 {
                     continue;
                 }
@@ -8055,8 +8055,8 @@ bool _is_terrain_land(WILDS_DATA *wilds, int x, int y)
     WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, x, y);
 
     return ( terrain && !terrain->nonroom &&
-        terrain->template->sector_type != SECT_WATER_NOSWIM &&
-        terrain->template->sector_type != SECT_WATER_SWIM);
+        !room_in_sector(terrain->template, SECT_WATER_NOSWIM) &&
+        !room_in_sector(terrain->template, SECT_WATER_SWIM));
 }
 
 /**
@@ -8090,8 +8090,8 @@ bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
             WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, x, y);
 
             if( terrain && !terrain->nonroom &&
-                (terrain->template->sector_type == SECT_WATER_NOSWIM ||
-                 terrain->template->sector_type == SECT_WATER_SWIM) &&
+                (room_in_sector(terrain->template, SECT_WATER_NOSWIM) ||
+                 room_in_sector(terrain->template, SECT_WATER_SWIM)) &&
                 IS_SET(terrain->template->room_flag[1], ROOM_SAFE_HARBOR) )
             {
 
@@ -8139,8 +8139,8 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
         WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, _x, _y);
 
         if( terrain && !terrain->nonroom &&
-            (terrain->template->sector_type == SECT_WATER_NOSWIM ||
-             terrain->template->sector_type == SECT_WATER_SWIM) &&
+            (room_in_sector(terrain->template, SECT_WATER_NOSWIM) ||
+             room_in_sector(terrain->template, SECT_WATER_SWIM)) &&
             IS_SET(terrain->template->room_flag[1], ROOM_SAFE_HARBOR) )
         {
             if( _is_terrain_land(wilds, _x-1,_y) ||

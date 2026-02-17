@@ -22,6 +22,8 @@ static test_result_t test_size_lookup(test_case_t *test);
 static test_result_t test_flag_table_lookup(test_case_t *test);
 static test_result_t test_damage_class_lookup(test_case_t *test);
 static test_result_t test_flag_table_integrity(test_case_t *test);
+static test_result_t test_sector_runtime_lookup(test_case_t *test);
+static test_result_t test_sector_affinity_lookup(test_case_t *test);
 
 /**
  * Resolve a flag table name to a pointer
@@ -77,6 +79,12 @@ test_result_t run_lookup_table_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "flag_table_integrity_test") == 0) {
         result = test_flag_table_integrity(test);
+    }
+    else if (strcmp(test->test_type, "sector_runtime_lookup_test") == 0) {
+        result = test_sector_runtime_lookup(test);
+    }
+    else if (strcmp(test->test_type, "sector_affinity_lookup_test") == 0) {
+        result = test_sector_affinity_lookup(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -361,6 +369,95 @@ static test_result_t test_flag_table_integrity(test_case_t *test)
                          "Table '%s' has no entries", table_name);
         }
     }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_sector_runtime_lookup(test_case_t *test)
+{
+    int sector_id;
+    int found;
+
+    if (!test || !test->config)
+        return TEST_ERROR;
+
+    load_sector_data();
+
+    sector_id = (int)json_get_int(test->config, "sector_id", SECT_FIELD);
+    sector_id = sector_type_sanitize(sector_id);
+
+    if (!sector_set_hide_msg(sector_id, 0, "among the old stones"))
+        return TEST_FAILURE;
+    if (!sector_set_hide_msg(sector_id, 1, "inside a weathered hollow"))
+        return TEST_FAILURE;
+
+    if (sector_hide_msg_count(sector_id) < 2) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "sector_hide_msg_count(%d) < 2 after setting two messages", sector_id);
+        return TEST_FAILURE;
+    }
+
+    if (strcmp(sector_hide_msg(sector_id, 0), "among the old stones") != 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "sector_hide_msg(%d,0) mismatch", sector_id);
+        return TEST_FAILURE;
+    }
+
+    found = sector_lookup(sector_name(sector_id));
+    if (found != sector_id) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "sector_lookup(sector_name(%d)) returned %d", sector_id, found);
+        return TEST_FAILURE;
+    }
+
+    sector_set_hide_msg(sector_id, 0, "");
+    sector_set_hide_msg(sector_id, 1, "");
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_sector_affinity_lookup(test_case_t *test)
+{
+    int sector_id;
+
+    if (!test || !test->config)
+        return TEST_ERROR;
+
+    load_sector_data();
+
+    sector_id = (int)json_get_int(test->config, "sector_id", SECT_FIELD);
+    sector_id = sector_type_sanitize(sector_id);
+
+    if (!sector_set_affinity(sector_id, 0, CATALYST_FIRE, 25))
+        return TEST_FAILURE;
+    if (!sector_set_affinity(sector_id, 1, CATALYST_ICE, -15))
+        return TEST_FAILURE;
+
+    if (sector_affinity_catalyst(sector_id, 0) != CATALYST_FIRE ||
+        sector_affinity_value(sector_id, 0) != 25) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "sector affinity slot 0 mismatch for sector %d", sector_id);
+        return TEST_FAILURE;
+    }
+
+    if (sector_affinity_catalyst(sector_id, 1) != CATALYST_ICE ||
+        sector_affinity_value(sector_id, 1) != -15) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "sector affinity slot 1 mismatch for sector %d", sector_id);
+        return TEST_FAILURE;
+    }
+
+    if (!sector_clear_affinity(sector_id, 0))
+        return TEST_FAILURE;
+
+    if (sector_affinity_catalyst(sector_id, 0) != CATALYST_NONE ||
+        sector_affinity_value(sector_id, 0) != 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "sector affinity slot 0 not cleared for sector %d", sector_id);
+        return TEST_FAILURE;
+    }
+
+    sector_clear_affinity(sector_id, 1);
 
     return TEST_SUCCESS;
 }

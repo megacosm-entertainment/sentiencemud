@@ -358,6 +358,35 @@ void show_spell_funcs(CHAR_DATA *ch, const struct do_func_type *table)
     return;
 }
 
+static void show_sector_cmds(CHAR_DATA *ch)
+{
+    BUFFER *buffer;
+    char row[MSL];
+
+    buffer = new_buf();
+
+    add_buf(buffer, "{WIdx  Name                 Move Heal Mana{X\n\r");
+    add_buf(buffer, "{D---- -------------------- ---- ---- ----{X\n\r");
+
+    for (int i = 0; i < sector_count(); i++)
+    {
+        snprintf(row, sizeof(row), "{W%-4d %-20s %4d %4d %4d{X\n\r",
+            i,
+            sector_name(i),
+            sector_move_cost(i),
+            sector_heal_rate(i),
+            sector_mana_rate(i));
+        add_buf(buffer, row);
+    }
+
+    if (!ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
+        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    else
+        page_to_char(buffer->string, ch);
+
+    free_buf(buffer);
+}
+
 
 // Displays help for many tables used in OLC.
 bool show_help(CHAR_DATA *ch, char *argument)
@@ -761,7 +790,10 @@ bool show_help(CHAR_DATA *ch, char *argument)
                         break;
 
                 case STRUCT_FLAGS:
-                    show_flag_cmds(ch, help_table[cnt].structure);
+                    if (help_table[cnt].structure == sector_flags)
+                        show_sector_cmds(ch);
+                    else
+                        show_flag_cmds(ch, help_table[cnt].structure);
                     break;
 
                 case STRUCT_FLAGBANK:
@@ -3304,7 +3336,7 @@ void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
             vroom->name = str_dup(pTerrain->template->name);
             vroom->room_flag[0] = pTerrain->template->room_flag[0];
             vroom->room_flag[1] = pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
-                vroom->sector_type = pTerrain->template->sector_type;
+                room_set_sector_type(vroom, room_sector_type(pTerrain->template));
         }
     }
 

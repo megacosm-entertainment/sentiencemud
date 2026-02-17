@@ -1,54 +1,36 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
-#include <jansson.h>
-
 #include "../../merc.h"
-#include "../../tables.h"
 #include "../../olc.h"
 #include "../../interp.h"
 #include "../../recycle.h"
-#include "../../io/json/json_common.h"
+#include "../../sectors_runtime.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 
-typedef struct sector_runtime_data SECTOR_RUNTIME_DATA;
-
-struct sector_runtime_data {
-    int id;
-    char *name;
-    int move_cost;
-    int heal_rate;
-    int mana_rate;
-    char *comments;
-};
-
 SECTOREDIT(sectoredit_list);
 SECTOREDIT(sectoredit_show);
 SECTOREDIT(sectoredit_name);
+SECTOREDIT(sectoredit_description);
+SECTOREDIT(sectoredit_class);
+SECTOREDIT(sectoredit_flags);
 SECTOREDIT(sectoredit_movecost);
 SECTOREDIT(sectoredit_healrate);
 SECTOREDIT(sectoredit_manarate);
+SECTOREDIT(sectoredit_moverate);
+SECTOREDIT(sectoredit_soil);
+SECTOREDIT(sectoredit_hidemsgs);
+SECTOREDIT(sectoredit_affinity);
 SECTOREDIT(sectoredit_comments);
 SECTOREDIT(sectoredit_save);
 SECTOREDIT(sectoredit_reload);
 
-#define SECTOREDIT_JSON_FILE SYSTEM_DIR "sectors.json"
-#define SECTOREDIT_JSON_FORMAT "sectors"
-#define SECTOREDIT_JSON_VERSION 1
-
-static bool sectoredit_booted = false;
-static SECTOR_RUNTIME_DATA sector_runtime[SECT_MAX];
-
-extern int16_t movement_loss[SECT_MAX];
-
 static int sectoredit_resolve_sector(char *argument);
-static SECTOR_RUNTIME_DATA *sectoredit_current(CHAR_DATA *ch, int *out_index);
-static bool sectoredit_save_to_json(void);
-static bool sectoredit_load_from_json(void);
-static void sectoredit_seed_defaults(void);
+static int sectoredit_current_index(CHAR_DATA *ch);
 
 static const struct olc_cmd_type sectoredit_table[] = {
     { "?",         show_help },
@@ -56,9 +38,18 @@ static const struct olc_cmd_type sectoredit_table[] = {
     { "list",      sectoredit_list },
     { "show",      sectoredit_show },
     { "name",      sectoredit_name },
+    { "description", sectoredit_description },
+    { "class",     sectoredit_class },
+    { "flags",     sectoredit_flags },
     { "movecost",  sectoredit_movecost },
+    { "health",    sectoredit_healrate },
     { "healrate",  sectoredit_healrate },
+    { "mana",      sectoredit_manarate },
     { "manarate",  sectoredit_manarate },
+    { "move",      sectoredit_moverate },
+    { "soil",      sectoredit_soil },
+    { "hidemsgs",  sectoredit_hidemsgs },
+    { "affinity",  sectoredit_affinity },
     { "comments",  sectoredit_comments },
     { "save",      sectoredit_save },
     { "reload",    sectoredit_reload },
@@ -85,202 +76,61 @@ static const OLC_EDITOR_DEF sectoredit_def = {
     .audit_changes  = false,
 };
 
-static const char *sectoredit_default_name(int id)
-{
-    int i;
-
-    for (i = 0; sector_flags[i].name != NULL; i++) {
-        if (sector_flags[i].bit == id)
-            return sector_flags[i].name;
-    }
-
-    return "unknown";
-}
-
-int sector_count(void)
-{
-    return SECT_MAX;
-}
-
-const char *sector_name(int index)
-{
-    load_sector_data();
-
-    if (index < 0 || index >= SECT_MAX)
-        return "unknown";
-
-    return sector_runtime[index].name ? sector_runtime[index].name : "unknown";
-}
-
-int sector_move_cost(int index)
-{
-    load_sector_data();
-
-    if (index < 0 || index >= SECT_MAX)
-        return 1;
-
-    return sector_runtime[index].move_cost;
-}
-
-int sector_lookup(const char *name)
-{
-    int i;
-
-    load_sector_data();
-
-    if (IS_NULLSTR(name))
-        return NO_FLAG;
-
-    for (i = 0; i < SECT_MAX; i++) {
-        if (!str_prefix((char *)name, sector_runtime[i].name))
-            return i;
-    }
-
-    return flag_value(sector_flags, (char *)name);
-}
-
-void load_sector_data(void)
-{
-    int i;
-
-    if (sectoredit_booted)
-        return;
-
-    sectoredit_booted = true;
-    sectoredit_seed_defaults();
-
-    if (!sectoredit_load_from_json()) {
-        if (!sectoredit_save_to_json())
-            log_string("load_sector_data: Failed to seed sectors.json from defaults.");
-    }
-
-    for (i = 0; i < SECT_MAX; i++)
-        movement_loss[i] = sector_runtime[i].move_cost;
-}
-
-static void sectoredit_seed_defaults(void)
-{
-    int i;
-
-    for (i = 0; i < SECT_MAX; i++) {
-        sector_runtime[i].id = i;
-
-        if (sector_runtime[i].name)
-            free_string(sector_runtime[i].name);
-        if (sector_runtime[i].comments)
-            free_string(sector_runtime[i].comments);
-
-        sector_runtime[i].name = str_dup(sectoredit_default_name(i));
-        sector_runtime[i].move_cost = movement_loss[i];
-        sector_runtime[i].heal_rate = 100;
-        sector_runtime[i].mana_rate = 100;
-        sector_runtime[i].comments = str_dup("");
-    }
-}
-
-static json_t *sectoredit_sector_to_json(const SECTOR_RUNTIME_DATA *sector)
-{
-    json_t *obj = json_object();
-
-    json_object_set_new(obj, "id", json_integer(sector->id));
-    json_object_set_new(obj, "name", json_string_safe(sector->name));
-    json_object_set_new(obj, "move_cost", json_integer(sector->move_cost));
-    json_object_set_new(obj, "heal_rate", json_integer(sector->heal_rate));
-    json_object_set_new(obj, "mana_rate", json_integer(sector->mana_rate));
-    json_object_set_new(obj, "comments", json_string_safe(sector->comments));
-
-    return obj;
-}
-
-static bool sectoredit_save_to_json(void)
-{
-    json_t *root = json_object();
-    json_t *array = json_array();
-    int i;
-
-    json_object_set_new(root, "_format", json_string(SECTOREDIT_JSON_FORMAT));
-    json_object_set_new(root, "_version", json_integer(SECTOREDIT_JSON_VERSION));
-
-    for (i = 0; i < SECT_MAX; i++)
-        json_array_append_new(array, sectoredit_sector_to_json(&sector_runtime[i]));
-
-    json_object_set_new(root, "sectors", array);
-
-    return json_file_save(root, SECTOREDIT_JSON_FILE, "sectoredit_save_to_json",
-        JSON_INDENT(2) | JSON_PRESERVE_ORDER);
-}
-
-static bool sectoredit_load_from_json(void)
-{
-    json_t *root;
-    json_t *array = NULL;
-    size_t index;
-    json_t *entry;
-
-    root = json_file_load(SECTOREDIT_JSON_FILE, "sectors", &array,
-        "sectoredit_load_from_json");
-    if (!root)
-        return false;
-
-    json_array_foreach(array, index, entry) {
-        int id;
-        const char *name;
-
-        if (!json_is_object(entry))
-            continue;
-
-        id = (int)json_get_int(entry, "id", -1);
-        if (id < 0 || id >= SECT_MAX)
-            continue;
-
-        name = json_get_string(entry, "name", sectoredit_default_name(id));
-
-        free_string(sector_runtime[id].name);
-        sector_runtime[id].name = str_dup(name);
-        sector_runtime[id].move_cost = (int)json_get_int(entry, "move_cost", sector_runtime[id].move_cost);
-        sector_runtime[id].heal_rate = (int)json_get_int(entry, "heal_rate", sector_runtime[id].heal_rate);
-        sector_runtime[id].mana_rate = (int)json_get_int(entry, "mana_rate", sector_runtime[id].mana_rate);
-
-        free_string(sector_runtime[id].comments);
-        sector_runtime[id].comments = str_dup(json_get_string(entry, "comments", ""));
-    }
-
-    json_decref(root);
-    return true;
-}
-
 void do_sectoredit(CHAR_DATA *ch, char *argument)
 {
     int sector;
+    char arg[MAX_INPUT_LENGTH];
 
     if (IS_NPC(ch))
         return;
 
     load_sector_data();
 
+    argument = one_argument(argument, arg);
+
     if (!olc_editor_check_perm(ch, &sectoredit_def, NULL)) {
         send_to_char("You don't have permission to edit sectors.\n\r", ch);
         return;
     }
 
-    if (IS_NULLSTR(argument)) {
+    if (IS_NULLSTR(arg)) {
         send_to_char("Syntax: sectoredit list\n\r", ch);
+        send_to_char("        sectoredit save\n\r", ch);
+        send_to_char("        sectoredit reload\n\r", ch);
         send_to_char("        sectoredit <sector>\n\r", ch);
         return;
     }
 
-    if (!str_cmp(argument, "list")) {
+    if (!str_cmp(arg, "list")) {
         sectoredit_list(ch, "");
         return;
     }
 
-    sector = sectoredit_resolve_sector(argument);
+    if (!str_cmp(arg, "save")) {
+        if (!save_sector_data()) {
+            send_to_char("Failed to save sectors.json.\n\r", ch);
+            return;
+        }
+        send_to_char("Saved sectors.json.\n\r", ch);
+        return;
+    }
+
+    if (!str_cmp(arg, "reload")) {
+        if (!reload_sector_data()) {
+            send_to_char("Failed to load sectors.json (defaults restored).\n\r", ch);
+            return;
+        }
+        send_to_char("Reloaded sectors.json.\n\r", ch);
+        return;
+    }
+
+    sector = sectoredit_resolve_sector(arg);
     if (sector < 0 || sector >= SECT_MAX) {
         send_to_char("No sector found by that name or index.\n\r", ch);
         return;
     }
 
-    olc_editor_enter(ch, &sectoredit_def, &sector_runtime[sector], true);
+    olc_editor_enter(ch, &sectoredit_def, (void *)(intptr_t)(sector + 1), true);
 }
 
 void sectoredit(CHAR_DATA *ch, char *argument)
@@ -300,22 +150,18 @@ static int sectoredit_resolve_sector(char *argument)
     return sector_lookup(argument);
 }
 
-static SECTOR_RUNTIME_DATA *sectoredit_current(CHAR_DATA *ch, int *out_index)
+static int sectoredit_current_index(CHAR_DATA *ch)
 {
-    int i;
+    int index;
 
     if (!ch || !ch->desc || !ch->desc->pEdit)
-        return NULL;
+        return -1;
 
-    for (i = 0; i < SECT_MAX; i++) {
-        if (&sector_runtime[i] == (SECTOR_RUNTIME_DATA *)ch->desc->pEdit) {
-            if (out_index)
-                *out_index = i;
-            return &sector_runtime[i];
-        }
-    }
+    index = (int)((intptr_t)ch->desc->pEdit) - 1;
+    if (index < 0 || index >= sector_count())
+        return -1;
 
-    return NULL;
+    return index;
 }
 
 SECTOREDIT(sectoredit_list)
@@ -325,13 +171,13 @@ SECTOREDIT(sectoredit_list)
     send_to_char("{WIdx  Name                 Move Heal Mana{X\n\r", ch);
     send_to_char("{D---- -------------------- ---- ---- ----{X\n\r", ch);
 
-    for (i = 0; i < SECT_MAX; i++) {
+    for (i = 0; i < sector_count(); i++) {
         printf_to_char(ch, "{W%-4d %-20s %4d %4d %4d{X\n\r",
             i,
-            sector_runtime[i].name,
-            sector_runtime[i].move_cost,
-            sector_runtime[i].heal_rate,
-            sector_runtime[i].mana_rate);
+            sector_name(i),
+            sector_move_cost(i),
+            sector_heal_rate(i),
+            sector_mana_rate(i));
     }
 
     return false;
@@ -339,25 +185,54 @@ SECTOREDIT(sectoredit_list)
 
 SECTOREDIT(sectoredit_show)
 {
-    SECTOR_RUNTIME_DATA *sector;
     OLC_LAYOUT_CTX *ctx;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
-    int index = -1;
+    int index = sectoredit_current_index(ch);
 
-    sector = sectoredit_current(ch, &index);
-    if (!sector)
+    if (index < 0)
         return false;
 
     ctx = olc_display_new(ch, theme);
 
-    olc_display_header(ctx, "SectorEdit", sector->name, formatf("Sector %d", index), &sectoredit_def);
+    olc_display_header(ctx, "SectorEdit", sector_name(index), formatf("Sector %d", index), &sectoredit_def);
 
     olc_display_section(ctx, theme, "Basics");
-    olc_display_string(ctx, theme, "Name:", "name", sector->name);
-    olc_display_number(ctx, theme, "Move Cost:", "movecost", sector->move_cost);
-    olc_display_number(ctx, theme, "Heal Rate:", "healrate", sector->heal_rate);
-    olc_display_number(ctx, theme, "Mana Rate:", "manarate", sector->mana_rate);
-    olc_display_text(ctx, theme, "Comments:", "comments", sector->comments);
+    olc_display_string(ctx, theme, "Name:", "name", sector_name(index));
+    olc_display_string(ctx, theme, "Class:", "class", flag_string(sector_class_table(), sector_class(index)));
+    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(sector_runtime_flag_table(), sector_runtime_flags_value(index)));
+    olc_display_number(ctx, theme, "Move Cost:", "movecost", sector_move_cost(index));
+    olc_display_number(ctx, theme, "Health Rate:", "health", sector_heal_rate(index));
+    olc_display_number(ctx, theme, "Mana Rate:", "mana", sector_mana_rate(index));
+    olc_display_number(ctx, theme, "Move Rate:", "move", sector_move_rate(index));
+    olc_display_number(ctx, theme, "Soil:", "soil", sector_soil(index));
+
+    olc_display_section(ctx, theme, "Details");
+    olc_display_text(ctx, theme, "Description:", "description", sector_description(index));
+    olc_display_text(ctx, theme, "Comments:", "comments", sector_comments(index));
+
+    {
+        BUFFER *meta = new_buf();
+        int i;
+
+        add_buf(meta, "Hide Messages:\n\r");
+        for (i = 0; i < SECTOR_MAX_HIDE_MSGS; i++)
+            add_buf(meta, formatf("  %d) %s\n\r", i + 1,
+                IS_NULLSTR(sector_hide_msg(index, i)) ? "{D(empty){X" : sector_hide_msg(index, i)));
+
+        add_buf(meta, "Affinities:\n\r");
+        for (i = 0; i < SECTOR_MAX_AFFINITIES; i++) {
+            int catalyst = sector_affinity_catalyst(index, i);
+            if (catalyst <= CATALYST_NONE || catalyst >= CATALYST_MAX)
+                add_buf(meta, formatf("  %d) {D(empty){X\n\r", i + 1));
+            else
+                add_buf(meta, formatf("  %d) %s = %d\n\r", i + 1,
+                    flag_string(catalyst_types, catalyst),
+                    sector_affinity_value(index, i)));
+        }
+
+        olc_display_text(ctx, theme, "Metadata:", NULL, buf_string(meta));
+        free_buf(meta);
+    }
 
     olc_display_footer(ctx, theme);
 
@@ -369,42 +244,132 @@ SECTOREDIT(sectoredit_show)
 
 SECTOREDIT(sectoredit_name)
 {
-    SECTOR_RUNTIME_DATA *sector = sectoredit_current(ch, NULL);
+    int index = sectoredit_current_index(ch);
+    char *name;
     bool changed;
 
-    if (!sector)
+    if (index < 0)
         return false;
 
+    name = str_dup(sector_name(index));
     changed = olc_cmd_string(ch, argument, "name", "name <text>",
-        &sector->name, OLC_STR_DEFAULT, NULL, NULL);
+        &name, OLC_STR_DEFAULT, NULL, NULL);
+    if (!changed) {
+        free_string(name);
+        return false;
+    }
+
+    if (!sector_set_name(index, name)) {
+        free_string(name);
+        return false;
+    }
+
+    free_string(name);
+
+    if (!save_sector_data())
+        send_to_char("Name updated, but failed to save sectors.json.\n\r", ch);
+
+    return true;
+}
+
+SECTOREDIT(sectoredit_description)
+{
+    int index = sectoredit_current_index(ch);
+    char *description;
+    bool changed;
+
+    if (index < 0)
+        return false;
+
+    description = str_dup(sector_description(index));
+    changed = olc_cmd_string_append(ch, argument, "description",
+        "description", &description, NULL, NULL);
+    if (!changed) {
+        free_string(description);
+        return false;
+    }
+
+    if (!sector_set_description(index, description)) {
+        free_string(description);
+        return false;
+    }
+
+    free_string(description);
+
+    if (!save_sector_data())
+        send_to_char("Description updated, but failed to save sectors.json.\n\r", ch);
+
+    return true;
+}
+
+SECTOREDIT(sectoredit_class)
+{
+    int index = sectoredit_current_index(ch);
+    int current;
+    bool changed;
+
+    if (index < 0)
+        return false;
+
+    current = sector_class(index);
+    changed = olc_cmd_type_set(ch, argument, "class",
+        "Syntax: class <type>\n\r", &current, sector_class_table(), NULL, NULL);
     if (!changed)
         return false;
 
-    if (!sectoredit_save_to_json())
-        send_to_char("Name updated, but failed to save sectors.json.\n\r", ch);
+    if (!sector_set_class(index, current))
+        return false;
+
+    if (!save_sector_data())
+        send_to_char("Class updated, but failed to save sectors.json.\n\r", ch);
+
+    return true;
+}
+
+SECTOREDIT(sectoredit_flags)
+{
+    int index = sectoredit_current_index(ch);
+    long flags;
+    bool changed;
+
+    if (index < 0)
+        return false;
+
+    flags = sector_runtime_flags_value(index);
+    changed = olc_cmd_flag_toggle(ch, argument, "flags",
+        "Syntax: flags <flag>\n\r", &flags, sector_runtime_flag_table(), NULL, NULL);
+    if (!changed)
+        return false;
+
+    if (!sector_set_runtime_flags(index, flags))
+        return false;
+
+    if (!save_sector_data())
+        send_to_char("Flags updated, but failed to save sectors.json.\n\r", ch);
 
     return true;
 }
 
 SECTOREDIT(sectoredit_movecost)
 {
-    SECTOR_RUNTIME_DATA *sector;
-    int index = -1;
+    int index = sectoredit_current_index(ch);
+    int move_cost;
     bool changed;
 
-    sector = sectoredit_current(ch, &index);
-    if (!sector)
+    if (index < 0)
         return false;
 
+    move_cost = sector_move_cost(index);
     changed = olc_cmd_number(ch, argument, "movecost",
         "Syntax: movecost <1-200>\n\r",
-        &sector->move_cost, 1, 200, NULL, NULL);
+        &move_cost, 1, 200, NULL, NULL);
     if (!changed)
         return false;
 
-    movement_loss[index] = sector->move_cost;
+    if (!sector_set_move_cost(index, move_cost))
+        return false;
 
-    if (!sectoredit_save_to_json())
+    if (!save_sector_data())
         send_to_char("Move cost updated, but failed to save sectors.json.\n\r", ch);
 
     return true;
@@ -412,19 +377,24 @@ SECTOREDIT(sectoredit_movecost)
 
 SECTOREDIT(sectoredit_healrate)
 {
-    SECTOR_RUNTIME_DATA *sector = sectoredit_current(ch, NULL);
+    int index = sectoredit_current_index(ch);
+    int heal_rate;
     bool changed;
 
-    if (!sector)
+    if (index < 0)
         return false;
 
+    heal_rate = sector_heal_rate(index);
     changed = olc_cmd_number(ch, argument, "healrate",
         "Syntax: healrate <1-1000>\n\r",
-        &sector->heal_rate, 1, 1000, NULL, NULL);
+        &heal_rate, 1, 1000, NULL, NULL);
     if (!changed)
         return false;
 
-    if (!sectoredit_save_to_json())
+    if (!sector_set_heal_rate(index, heal_rate))
+        return false;
+
+    if (!save_sector_data())
         send_to_char("Heal rate updated, but failed to save sectors.json.\n\r", ch);
 
     return true;
@@ -432,38 +402,260 @@ SECTOREDIT(sectoredit_healrate)
 
 SECTOREDIT(sectoredit_manarate)
 {
-    SECTOR_RUNTIME_DATA *sector = sectoredit_current(ch, NULL);
+    int index = sectoredit_current_index(ch);
+    int mana_rate;
     bool changed;
 
-    if (!sector)
+    if (index < 0)
         return false;
 
+    mana_rate = sector_mana_rate(index);
     changed = olc_cmd_number(ch, argument, "manarate",
         "Syntax: manarate <1-1000>\n\r",
-        &sector->mana_rate, 1, 1000, NULL, NULL);
+        &mana_rate, 1, 1000, NULL, NULL);
     if (!changed)
         return false;
 
-    if (!sectoredit_save_to_json())
+    if (!sector_set_mana_rate(index, mana_rate))
+        return false;
+
+    if (!save_sector_data())
         send_to_char("Mana rate updated, but failed to save sectors.json.\n\r", ch);
 
     return true;
 }
 
-SECTOREDIT(sectoredit_comments)
+SECTOREDIT(sectoredit_moverate)
 {
-    SECTOR_RUNTIME_DATA *sector = sectoredit_current(ch, NULL);
+    int index = sectoredit_current_index(ch);
+    int move_rate;
     bool changed;
 
-    if (!sector)
+    if (index < 0)
         return false;
 
-    changed = olc_cmd_string_append(ch, argument, "comments",
-        "comments", &sector->comments, NULL, NULL);
+    move_rate = sector_move_rate(index);
+    changed = olc_cmd_number(ch, argument, "move",
+        "Syntax: move <1-1000>\n\r", &move_rate, 1, 1000, NULL, NULL);
     if (!changed)
         return false;
 
-    if (!sectoredit_save_to_json())
+    if (!sector_set_move_rate(index, move_rate))
+        return false;
+
+    if (!save_sector_data())
+        send_to_char("Move rate updated, but failed to save sectors.json.\n\r", ch);
+
+    return true;
+}
+
+SECTOREDIT(sectoredit_soil)
+{
+    int index = sectoredit_current_index(ch);
+    int soil;
+    bool changed;
+
+    if (index < 0)
+        return false;
+
+    soil = sector_soil(index);
+    changed = olc_cmd_number(ch, argument, "soil",
+        "Syntax: soil <-100 to 100>\n\r", &soil, -100, 100, NULL, NULL);
+    if (!changed)
+        return false;
+
+    if (!sector_set_soil(index, soil))
+        return false;
+
+    if (!save_sector_data())
+        send_to_char("Soil updated, but failed to save sectors.json.\n\r", ch);
+
+    return true;
+}
+
+SECTOREDIT(sectoredit_hidemsgs)
+{
+    int index = sectoredit_current_index(ch);
+    char arg1[MIL];
+    char arg2[MIL];
+    char *rest;
+    int slot;
+
+    if (index < 0)
+        return false;
+
+    rest = one_argument(argument, arg1);
+
+    if (IS_NULLSTR(arg1) || !str_cmp(arg1, "list")) {
+        int i;
+        send_to_char("Hide messages:\n\r", ch);
+        for (i = 0; i < SECTOR_MAX_HIDE_MSGS; i++)
+            printf_to_char(ch, "  %d) %s\n\r", i + 1,
+                IS_NULLSTR(sector_hide_msg(index, i)) ? "(empty)" : sector_hide_msg(index, i));
+        return false;
+    }
+
+    if (!str_cmp(arg1, "add")) {
+        int i;
+
+        if (IS_NULLSTR(rest)) {
+            send_to_char("Syntax: hidemsgs add <text>\n\r", ch);
+            return false;
+        }
+
+        for (i = 0; i < SECTOR_MAX_HIDE_MSGS; i++) {
+            if (IS_NULLSTR(sector_hide_msg(index, i))) {
+                sector_set_hide_msg(index, i, rest);
+                save_sector_data();
+                send_to_char("Hide message added.\n\r", ch);
+                return true;
+            }
+        }
+
+        send_to_char("No empty hide-message slots remain; use set/clear.\n\r", ch);
+        return false;
+    }
+
+    rest = one_argument(rest, arg2);
+    if (!is_number(arg2)) {
+        send_to_char("Syntax: hidemsgs set <slot> <text>\n\r", ch);
+        send_to_char("        hidemsgs clear <slot>\n\r", ch);
+        return false;
+    }
+
+    slot = atoi(arg2) - 1;
+    if (slot < 0 || slot >= SECTOR_MAX_HIDE_MSGS) {
+        send_to_char("Hide message slot out of range.\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(arg1, "clear")) {
+        if (!sector_set_hide_msg(index, slot, ""))
+            return false;
+        if (!save_sector_data())
+            send_to_char("Hide message cleared, but failed to save sectors.json.\n\r", ch);
+        return true;
+    }
+
+    if (!str_cmp(arg1, "set")) {
+        if (IS_NULLSTR(rest)) {
+            send_to_char("Syntax: hidemsgs set <slot> <text>\n\r", ch);
+            return false;
+        }
+        if (!sector_set_hide_msg(index, slot, rest))
+            return false;
+        if (!save_sector_data())
+            send_to_char("Hide message updated, but failed to save sectors.json.\n\r", ch);
+        return true;
+    }
+
+    send_to_char("Syntax: hidemsgs list\n\r", ch);
+    send_to_char("        hidemsgs add <text>\n\r", ch);
+    send_to_char("        hidemsgs set <slot> <text>\n\r", ch);
+    send_to_char("        hidemsgs clear <slot>\n\r", ch);
+    return false;
+}
+
+SECTOREDIT(sectoredit_affinity)
+{
+    int index = sectoredit_current_index(ch);
+    char arg1[MIL], arg2[MIL], arg3[MIL], arg4[MIL];
+    int slot;
+    int catalyst;
+    int value;
+
+    if (index < 0)
+        return false;
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NULLSTR(arg1) || !str_cmp(arg1, "list")) {
+        int i;
+        send_to_char("Affinities:\n\r", ch);
+        for (i = 0; i < SECTOR_MAX_AFFINITIES; i++) {
+            int c = sector_affinity_catalyst(index, i);
+            if (c <= CATALYST_NONE || c >= CATALYST_MAX)
+                printf_to_char(ch, "  %d) (empty)\n\r", i + 1);
+            else
+                printf_to_char(ch, "  %d) %s = %d\n\r", i + 1,
+                    flag_string(catalyst_types, c), sector_affinity_value(index, i));
+        }
+        return false;
+    }
+
+    if (!str_cmp(arg1, "clear")) {
+        argument = one_argument(argument, arg2);
+        if (!is_number(arg2)) {
+            send_to_char("Syntax: affinity clear <slot>\n\r", ch);
+            return false;
+        }
+
+        slot = atoi(arg2) - 1;
+        if (!sector_clear_affinity(index, slot)) {
+            send_to_char("Invalid affinity slot.\n\r", ch);
+            return false;
+        }
+
+        if (!save_sector_data())
+            send_to_char("Affinity cleared, but failed to save sectors.json.\n\r", ch);
+        return true;
+    }
+
+    if (!str_cmp(arg1, "set")) {
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
+
+        if (!is_number(arg2) || IS_NULLSTR(arg3) || !is_number(arg4)) {
+            send_to_char("Syntax: affinity set <slot> <type> <value>\n\r", ch);
+            return false;
+        }
+
+        slot = atoi(arg2) - 1;
+        catalyst = flag_value(catalyst_types, arg3);
+        value = atoi(arg4);
+
+        if (!sector_set_affinity(index, slot, catalyst, value)) {
+            send_to_char("Invalid affinity slot/type/value.\n\r", ch);
+            return false;
+        }
+
+        if (!save_sector_data())
+            send_to_char("Affinity updated, but failed to save sectors.json.\n\r", ch);
+        return true;
+    }
+
+    send_to_char("Syntax: affinity list\n\r", ch);
+    send_to_char("        affinity set <slot> <type> <value>\n\r", ch);
+    send_to_char("        affinity clear <slot>\n\r", ch);
+    return false;
+}
+
+SECTOREDIT(sectoredit_comments)
+{
+    int index = sectoredit_current_index(ch);
+    char *comments;
+    bool changed;
+
+    if (index < 0)
+        return false;
+
+    comments = str_dup(sector_comments(index));
+    changed = olc_cmd_string_append(ch, argument, "comments",
+        "comments", &comments, NULL, NULL);
+    if (!changed) {
+        free_string(comments);
+        return false;
+    }
+
+    if (!sector_set_comments(index, comments)) {
+        free_string(comments);
+        return false;
+    }
+
+    free_string(comments);
+
+    if (!save_sector_data())
         send_to_char("Comments updated, but failed to save sectors.json.\n\r", ch);
 
     return true;
@@ -471,7 +663,7 @@ SECTOREDIT(sectoredit_comments)
 
 SECTOREDIT(sectoredit_save)
 {
-    if (!sectoredit_save_to_json()) {
+    if (!save_sector_data()) {
         send_to_char("Failed to save sectors.json.\n\r", ch);
         return false;
     }
@@ -482,15 +674,10 @@ SECTOREDIT(sectoredit_save)
 
 SECTOREDIT(sectoredit_reload)
 {
-    sectoredit_seed_defaults();
-
-    if (!sectoredit_load_from_json()) {
+    if (!reload_sector_data()) {
         send_to_char("Failed to load sectors.json (defaults restored).\n\r", ch);
         return false;
     }
-
-    for (int i = 0; i < SECT_MAX; i++)
-        movement_loss[i] = sector_runtime[i].move_cost;
 
     send_to_char("Reloaded sectors.json.\n\r", ch);
     return true;

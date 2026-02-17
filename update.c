@@ -1559,7 +1559,7 @@ void time_update(void)
     {
         if (d->connected == CON_PLAYING
             &&   (d->character->in_room != NULL &&
-            d->character->in_room->sector_type != SECT_INSIDE)//IS_OUTSIDE(d->character)
+            !room_in_sector(d->character->in_room, SECT_INSIDE))//IS_OUTSIDE(d->character)
             && !IN_EDEN(d->character)
             && !IN_NETHERWORLD(d->character)
             &&   IS_AWAKE(d->character)) {
@@ -1575,7 +1575,7 @@ void time_update(void)
         {
         if (d->connected == CON_PLAYING
         && d->character->in_room != NULL
-        && d->character->in_room->sector_type != SECT_INSIDE
+        && !room_in_sector(d->character->in_room, SECT_INSIDE)
         &&   IS_AWAKE(d->character))
         {
             if (number_percent() < 50)
@@ -1967,7 +1967,7 @@ void char_update(void)
                 }
 
                 if (ch->in_room != NULL &&
-                    ch->in_room->sector_type != SECT_INSIDE &&
+                    !room_in_sector(ch->in_room, SECT_INSIDE) &&
                     !IS_SET(ch->in_room->room_flag[0], ROOM_INDOORS))
                 {
                     switch(num)
@@ -2092,7 +2092,7 @@ void char_update(void)
             }
 
             // No magical flying over the ocean.  Physical flight is ok
-            if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
+            if (room_in_sector(ch->in_room, SECT_WATER_NOSWIM) &&
                 ch->in_room != get_reserved_room_index("room_plith_harbour") &&
                 ch->in_room != get_reserved_room_index("room_northern_harbour") &&
                 ch->in_room != get_reserved_room_index("room_southern_harbour") &&
@@ -2143,10 +2143,10 @@ void char_update(void)
 
                 if(fall) {
                     affect_strip(ch,skill_resolve_gsn("flight"));
-                    if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-                        ch->in_room->sector_type == SECT_WATER_SWIM ||
-                        ch->in_room->sector_type == SECT_UNDERWATER ||
-                        ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+                    if(	room_in_sector(ch->in_room, SECT_WATER_NOSWIM) ||
+                        room_in_sector(ch->in_room, SECT_WATER_SWIM) ||
+                        room_in_sector(ch->in_room, SECT_UNDERWATER) ||
+                        room_in_sector(ch->in_room, SECT_DEEP_UNDERWATER)) {
                         act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR, NULL, NULL);
                         act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM, NULL, NULL);
                         damage(ch, ch, number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
@@ -2162,7 +2162,7 @@ void char_update(void)
 
 
             // Drown them!
-            if (ch->in_room->sector_type == SECT_WATER_NOSWIM && !IS_NPC(ch) &&
+            if (room_in_sector(ch->in_room, SECT_WATER_NOSWIM) && !IS_NPC(ch) &&
                 ch->move <= 50 && !IS_AFFECTED(ch, AFF_FLYING))
             {
                 act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -2191,7 +2191,7 @@ void char_update(void)
             }
 
             // The enchanted forest saps hit,mana, and move.
-            if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST && ch->position == POS_SLEEPING)
+            if (room_in_sector(ch->in_room, SECT_ENCHANTED_FOREST) && ch->position == POS_SLEEPING)
             {
                 ch->hit = ch->hit - ch->max_hit/3;
 
@@ -2807,11 +2807,11 @@ void aggr_update(void)
                 // is the mobile in a Toxic Bog?
                 if(wch->in_room &&
                     (IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
-                    (wch->in_room->sector_type == SECT_TOXIC_BOG))) {
+                    room_in_sector(wch->in_room, SECT_TOXIC_BOG))) {
                     bool dec;
 
                     if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
-                    if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 10;
+                    if(room_in_sector(wch->in_room, SECT_TOXIC_BOG)) chance += 10;
 
                     dec = (number_percent() < chance);
                     for(paf = tox;paf;paf = paf->next)
@@ -2861,7 +2861,7 @@ void aggr_update(void)
                 }
             } else {
                 if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
-                if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 50;
+                if(room_in_sector(wch->in_room, SECT_TOXIC_BOG)) chance += 50;
 
                 if(chance > 0 && number_percent() < chance)
                     toxic_fumes_effect(wch,NULL);
@@ -2869,13 +2869,13 @@ void aggr_update(void)
         }
         chance = 0;
         if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 16;
-        if (wch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 16;
+        if (room_in_sector(wch->in_room, SECT_CURSED_SANCTUM)) chance += 16;
 
         if (chance > 0 && number_percent() < chance) {
 
             if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
                 wch->mana -= number_range(5,15);
-                if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
+                if(room_in_sector(wch->in_room, SECT_CURSED_SANCTUM))
                     wch->mana -= number_range(5,15);
                 if(wch->mana < 0) wch->mana = 0;
                 if(number_percent() < 10)
@@ -2885,7 +2885,7 @@ void aggr_update(void)
 
         chance = 0;
         if(IS_SET(wch->in_room->room_flag[1], ROOM_BRIARS)) chance += 5;
-        if(wch->in_room->sector_type == SECT_BRAMBLE) chance += 5;
+        if(room_in_sector(wch->in_room, SECT_BRAMBLE)) chance += 5;
 
         if(chance > 0 && number_percent() < chance) {
             if(number_percent() < 2)
@@ -4246,7 +4246,7 @@ void msdp_update( void )
                         "VNUM", pRoom->vnum,
                         "NAME", pRoom->name,
                         "AREA", pRoom->area->name,
-                        "TERRAIN", flag_string(sector_flags, pRoom->sector_type));
+                        "TERRAIN", sector_name(room_sector_type(pRoom)));
 
                 MSDPSendTable( d, eMSDP_ROOM, buf );
             }

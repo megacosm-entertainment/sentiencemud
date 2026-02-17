@@ -203,6 +203,7 @@ C_FILES = \
     io/json/json_persist.c \
     io/json/json_race.c \
     io/json/json_reserved.c \
+    io/json/json_sectors.c \
     traits.c \
     io/json/json_ban.c \
     io/json/json_changesets.c \
@@ -227,6 +228,7 @@ C_FILES = \
     script_tpcmds.c \
     script_vars.c \
     scripts.c \
+    sectors_runtime.c \
     secret.c \
     shoot.c \
     skill_data.c \
