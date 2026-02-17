@@ -692,7 +692,6 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                pProtocol->bBlockMXP = false;
                break;
             case '<':
-            case MXP_BEGIN_TAG:
                if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt && IS_SET(apDescriptor->character->comm, COMM_MXP) )
                {
                   pCopyFrom = MXPStart;
@@ -701,6 +700,19 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                else /* No MXP support, so just strip it out */
                {
                   while ( apData[j] != '\0' && apData[j] != '>' )
+                     ++j;
+               }
+               pProtocol->bBlockMXP = false;
+               break;
+            case MXP_BEGIN_TAG:
+               if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt && IS_SET(apDescriptor->character->comm, COMM_MXP) )
+               {
+                  pCopyFrom = MXPStart;
+                  bUseMXP = true;
+               }
+               else /* No MXP support, so just strip it out */
+               {
+                  while ( apData[j] != '\0' && apData[j] != MXP_END_TAG )
                      ++j;
                }
                pProtocol->bBlockMXP = false;
@@ -1801,7 +1813,8 @@ const char *MXPBuildTag(descriptor_t *apDescriptor, const char *tagname, const c
 {
    protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
 
-   if ( pProtocol != NULL && pProtocol->pVariables[eMSDP_MXP]->ValueInt )
+   if ( pProtocol != NULL && pProtocol->pVariables[eMSDP_MXP]->ValueInt
+      && apDescriptor->character && IS_SET(apDescriptor->character->comm, COMM_MXP) )
    {
       const char *apTag = MXPBuildTagCore(tagname, txt);
       if (strlen(apTag) < 1000)
