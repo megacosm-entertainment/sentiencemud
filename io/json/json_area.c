@@ -26,6 +26,8 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
 json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area);
 json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area);
 json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area);
+static json_t *json_area_serialize_reputation(REPUTATION_INDEX_DATA *reputation, AREA_DATA *area);
+static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, AREA_DATA *area);
 
 // --- WILDS_TERRAIN JSON helpers ---
 static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
@@ -683,6 +685,144 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     exit->exit_info = json_array_to_flags(json_object_get(json, "flags"), exit_flags);
 
     return exit;
+}
+
+static json_t *json_area_serialize_reputation(REPUTATION_INDEX_DATA *reputation, AREA_DATA *area)
+{
+    (void)area;
+
+    if (!reputation)
+        return NULL;
+
+    json_t *json = json_object();
+    if (!json)
+        return NULL;
+
+    json_object_set_new(json, "vnum", json_integer(reputation->vnum));
+    json_object_set_new(json, "name", json_string_safe(reputation->name));
+    json_object_set_new(json, "description", json_string_safe(reputation->description));
+    json_object_set_new(json, "comments", json_string_safe(reputation->comments));
+    json_object_set_new(json, "created_by", json_string_safe(reputation->created_by));
+    json_object_set_new(json, "flags", json_integer(reputation->flags));
+    json_object_set_new(json, "initial_rank", json_integer(reputation->initial_rank));
+    json_object_set_new(json, "initial_reputation", json_integer(reputation->initial_reputation));
+
+    if (reputation->token)
+    {
+        json_object_set_new(json, "token", json_string(widevnum_string_token(reputation->token, NULL)));
+    }
+    else if (reputation->token_load.vnum > 0)
+    {
+        if (reputation->token_load.auid > 0)
+            json_object_set_new(json, "token", json_string(formatf("%ld#%ld", reputation->token_load.auid, reputation->token_load.vnum)));
+        else
+            json_object_set_new(json, "token", json_integer(reputation->token_load.vnum));
+    }
+
+    json_t *ranks = json_array();
+    if (reputation->ranks)
+    {
+        ITERATOR it;
+        REPUTATION_INDEX_RANK_DATA *rank;
+        iterator_start(&it, reputation->ranks);
+        while ((rank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&it)))
+        {
+            json_t *rank_json = json_object();
+            json_object_set_new(rank_json, "uid", json_integer(rank->uid));
+            json_object_set_new(rank_json, "ordinal", json_integer(rank->ordinal));
+            json_object_set_new(rank_json, "name", json_string_safe(rank->name));
+            json_object_set_new(rank_json, "description", json_string_safe(rank->description));
+            json_object_set_new(rank_json, "comments", json_string_safe(rank->comments));
+            json_object_set_new(rank_json, "capacity", json_integer(rank->capacity));
+            json_object_set_new(rank_json, "flags", json_integer(rank->flags));
+            json_object_set_new(rank_json, "set", json_integer(rank->set));
+
+            char color[2] = { rank->color ? rank->color : 'Y', '\0' };
+            json_object_set_new(rank_json, "color", json_string(color));
+
+            json_array_append_new(ranks, rank_json);
+        }
+        iterator_stop(&it);
+    }
+    json_object_set_new(json, "ranks", ranks);
+
+    return json;
+}
+
+static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, AREA_DATA *area)
+{
+    if (!json || !area)
+        return NULL;
+
+    REPUTATION_INDEX_DATA *reputation = alloc_perm(sizeof(REPUTATION_INDEX_DATA));
+    if (!reputation)
+        return NULL;
+
+    memset(reputation, 0, sizeof(*reputation));
+    reputation->valid = true;
+    reputation->area = area;
+    reputation->name = str_dup(json_get_string_default(json, "name", ""));
+    reputation->description = str_dup(json_get_string_default(json, "description", ""));
+    reputation->comments = str_dup(json_get_string_default(json, "comments", ""));
+    reputation->created_by = str_dup(json_get_string_default(json, "created_by", ""));
+    reputation->ranks = list_create(false);
+
+    reputation->vnum = json_get_int_default(json, "vnum", 0);
+    reputation->flags = json_get_int_default(json, "flags", 0);
+    reputation->initial_rank = json_get_int_default(json, "initial_rank", 1);
+    reputation->initial_reputation = json_get_int_default(json, "initial_reputation", 0);
+
+    json_t *token = json_object_get(json, "token");
+    if (token)
+    {
+        if (json_is_string(token))
+        {
+            WNUM_LOAD load;
+            if (parse_widevnum_load(json_string_value(token), &load))
+            {
+                reputation->token_load = load;
+            }
+        }
+        else if (json_is_integer(token))
+        {
+            reputation->token_load.auid = area->uid;
+            reputation->token_load.vnum = json_integer_value(token);
+        }
+    }
+
+    json_t *ranks = json_object_get(json, "ranks");
+    if (ranks && json_is_array(ranks))
+    {
+        size_t index;
+        json_t *rank_json;
+        json_array_foreach(ranks, index, rank_json)
+        {
+            REPUTATION_INDEX_RANK_DATA *rank = alloc_perm(sizeof(REPUTATION_INDEX_RANK_DATA));
+            if (!rank)
+                continue;
+
+            memset(rank, 0, sizeof(*rank));
+            rank->valid = true;
+            rank->uid = json_get_int_default(rank_json, "uid", index + 1);
+            rank->ordinal = json_get_int_default(rank_json, "ordinal", list_size(reputation->ranks) + 1);
+            rank->name = str_dup(json_get_string_default(rank_json, "name", ""));
+            rank->description = str_dup(json_get_string_default(rank_json, "description", ""));
+            rank->comments = str_dup(json_get_string_default(rank_json, "comments", ""));
+            rank->capacity = json_get_int_default(rank_json, "capacity", 1);
+            rank->flags = json_get_int_default(rank_json, "flags", 0);
+            rank->set = json_get_int_default(rank_json, "set", 0);
+
+            const char *color = json_get_string_default(rank_json, "color", "Y");
+            rank->color = (color && color[0]) ? color[0] : 'Y';
+
+            if (rank->uid > reputation->top_rank_uid)
+                reputation->top_rank_uid = rank->uid;
+
+            list_appendlink(reputation->ranks, rank);
+        }
+    }
+
+    return reputation;
 }
 
 /*
@@ -1512,6 +1652,21 @@ AREA_DATA *json_area_load(const char *filename)
             }
         }
     }
+
+    /* Deserialize reputations */
+    json_t *reputations = json_object_get(root, "reputations");
+    if (reputations && json_is_array(reputations)) {
+        size_t index;
+        json_t *reputation_json;
+        json_array_foreach(reputations, index, reputation_json) {
+            REPUTATION_INDEX_DATA *reputation = json_area_deserialize_reputation(reputation_json, area);
+            if (reputation && reputation->vnum) {
+                int hash = reputation->vnum % MAX_KEY_HASH;
+                reputation->next = area->reputation_index_hash[hash];
+                area->reputation_index_hash[hash] = reputation;
+            }
+        }
+    }
     
     /* Deserialize dungeons */
     json_t *dungeons = json_object_get(root, "dungeons");
@@ -1819,6 +1974,24 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
     } else {
         json_decref(tokens);
     }
+
+    /* Serialize reputations */
+    json_t *reputations = json_array();
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (REPUTATION_INDEX_DATA *reputation = area->reputation_index_hash[j]; reputation; reputation = reputation->next) {
+            if (reputation->vnum && reputation->area == area) {
+                json_t *reputation_json = json_area_serialize_reputation(reputation, area);
+                if (reputation_json) {
+                    json_array_append_new(reputations, reputation_json);
+                }
+            }
+        }
+    }
+    if (json_array_size(reputations) > 0) {
+        json_object_set_new(root, "reputations", reputations);
+    } else {
+        json_decref(reputations);
+    }
     
     /* Write to file with pretty printing */
     if (!json_file_save(root, path, "json_area_save_to", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
@@ -1913,6 +2086,24 @@ bool json_area_save(AREA_DATA *area)
 
     }
     json_object_set_new(root, "tokens", tokens);
+
+    /* Serialize reputations */
+    json_t *reputations = json_array();
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (REPUTATION_INDEX_DATA *reputation = area->reputation_index_hash[j]; reputation; reputation = reputation->next) {
+            if (reputation->vnum && reputation->area == area) {
+                json_t *reputation_json = json_area_serialize_reputation(reputation, area);
+                if (reputation_json) {
+                    json_array_append_new(reputations, reputation_json);
+                }
+            }
+        }
+
+    }
+    if (json_array_size(reputations) > 0)
+        json_object_set_new(root, "reputations", reputations);
+    else
+        json_decref(reputations);
     
     /* Serialize blueprints */
     json_t *blueprints = json_array();

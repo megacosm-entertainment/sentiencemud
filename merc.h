@@ -448,6 +448,10 @@ typedef struct	log_entry_data		LOG_ENTRY_DATA;
 typedef struct  string_vector_data	STRING_VECTOR;
 typedef struct mob_index_skill_data MOB_INDEX_SKILL_DATA;
 typedef struct mob_skill_data MOB_SKILL_DATA;
+typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
+typedef struct reputation_index_data REPUTATION_INDEX_DATA;
+typedef struct reputation_data REPUTATION_DATA;
+typedef struct mob_reputation_data MOB_REPUTATION_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
 typedef struct list_link_area_data LLIST_AREA_DATA;
@@ -4651,6 +4655,99 @@ struct limb_data {
 #define MAGICCAST_ROOMBLOCK		2
 #define MAGICCAST_SCRIPT		3	// Failure caused by scripting -
 
+#define REPUTATION_RANK_NORANKUP (A)
+#define REPUTATION_RANK_PARAGON (B)
+#define REPUTATION_RANK_RESET_PARAGON (C)
+#define REPUTATION_RANK_PEACEFUL (D)
+#define REPUTATION_RANK_HOSTILE (E)
+
+struct reputation_index_rank_data
+{
+    REPUTATION_INDEX_RANK_DATA *next;
+    bool valid;
+
+    int16_t uid;
+    int16_t ordinal;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    long capacity;
+    long flags;
+
+    long set;
+
+    char color;
+};
+
+#define REPUTATION_HIDDEN (A)
+#define REPUTATION_PEACEFUL (B)
+#define REPUTATION_ON_UPDATE (C)
+#define REPUTATION_ON_ENCOUNTER (D)
+
+#define REPUTATION_IGNORED (dd)
+#define REPUTATION_AT_WAR (ee)
+
+struct reputation_index_data
+{
+    REPUTATION_INDEX_DATA *next;
+    bool valid;
+
+    AREA_DATA *area;
+    long vnum;
+
+    int16_t top_rank_uid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    char *created_by;
+
+    long flags;
+
+    WNUM_LOAD token_load;
+    TOKEN_INDEX_DATA *token;
+
+    LLIST *ranks;
+
+    int16_t initial_rank;
+    long initial_reputation;
+};
+
+struct reputation_data
+{
+    REPUTATION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *pIndexData;
+
+    long flags;
+
+    int16_t current_rank;
+    long reputation;
+
+    int16_t maximum_rank;
+    int paragon_level;
+
+    TOKEN_DATA *token;
+};
+
+struct mob_reputation_data
+{
+    MOB_REPUTATION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+
+    int16_t minimum_rank;
+    int16_t maximum_rank;
+
+    long points;
+};
+
 /*
  * One character (PC or NPC).
  */
@@ -5020,6 +5117,7 @@ struct	char_data
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
     char *		tempstring;
     int			manastore;		/* A storage for "mana" other than the character's mana */
+    REPUTATION_DATA *tempreputation;
 
     MOB_SKILL_DATA *mob_skills;
 
@@ -5040,6 +5138,9 @@ struct	char_data
     LLIST *		laffected;
 
     LLIST *		lgroup;
+    LLIST *		reputations;
+    MOB_REPUTATION_DATA *mob_reputations;
+    LLIST *		factions;
 
 flag_t temp_log_category;
 int temp_log_entry_id;
@@ -5883,6 +5984,7 @@ struct	area_data
     BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
     DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+    REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
 
     // Per-area script indexes
     SCRIPT_DATA *mprog_list;
@@ -8677,6 +8779,7 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *area, OBJ_DATA *tre
 char* get_wilderness_map args((AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int bonus_view_y));
 CHURCH_DATA *find_char_church args( (CHAR_DATA *ch) );
 DECLARE_DO_FUN( do_look );
+DECLARE_DO_FUN( do_reputations );
 char *find_desc_for_room( ROOM_INDEX_DATA *room,CHAR_DATA *viewer);
 char *get_char_where args((CHAR_DATA * ch));
 int find_char_position_in_church(CHAR_DATA * ch);
@@ -10249,6 +10352,7 @@ extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
 extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
 extern DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
 extern SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+extern REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -10398,6 +10502,29 @@ bool list_isvalid(LLIST *lp);
 
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
+
+REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp, AREA_DATA *area);
+void save_reputation_indexes(FILE *fp, AREA_DATA *pArea);
+REPUTATION_INDEX_DATA *get_reputation_index(AREA_DATA *area, long vnum);
+REPUTATION_INDEX_DATA *get_reputation_index_auid(long auid, long vnum);
+REPUTATION_INDEX_DATA *get_reputation_index_wnum(WNUM wnum);
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank(REPUTATION_INDEX_DATA *rep, int ordinal);
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, int16_t uid);
+REPUTATION_DATA *find_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool add, bool show);
+REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool add, bool show);
+REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool add, bool show);
+bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount, int *change, long *total_given, bool show);
+bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, int rank_rep, bool show);
+REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, int startingRank, int startingRep, bool show);
+bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show);
+bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+bool is_reputation_rank_hostile(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim);
+void check_mob_factions(CHAR_DATA *ch, CHAR_DATA *victim);
+bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim);
+bool check_mob_factions_hostile(CHAR_DATA *ch, CHAR_DATA *victim);
 
 void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name);
 void give_money(CHAR_DATA *ch, OBJ_DATA *container, int gold, int silver, bool indent);

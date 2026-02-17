@@ -363,6 +363,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "play",		do_play,	POS_RESTING,	0,  LOG_NORMAL, 1, false },
     { "quit",		do_quit,	POS_DEAD,	0,  LOG_NORMAL, 1, false },
     { "recall",		do_recall,	POS_FIGHTING,	0,  LOG_NORMAL, 1, false },
+    { "reputations",	do_reputations,	POS_DEAD,	0,  LOG_NORMAL, 1, false },
     { "return",         do_return,      POS_DEAD,       0,  LOG_NORMAL, 1, false },
     { "reverie",	do_reverie,	POS_RESTING,	0,  LOG_NORMAL, 1, false },
     { "save",		do_save,	POS_DEAD,	0,  LOG_NORMAL, 1, false },

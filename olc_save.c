@@ -551,6 +551,7 @@ void save_area_new(AREA_DATA *area)
     save_objects_new(fp, area);
     save_scripts_new(fp, area);
     save_tokens(fp, area);
+    save_reputation_indexes(fp, area);
 
 
 
@@ -1436,6 +1437,7 @@ AREA_DATA *read_area_new(FILE *fp)
     ROOM_INDEX_DATA *room;
     MOB_INDEX_DATA *mob;
     OBJ_INDEX_DATA *obj;
+    REPUTATION_INDEX_DATA *reputation;
     SCRIPT_DATA *rpr, *mpr, *opr, *tpr, *apr;
     TOKEN_INDEX_DATA *token;
     long vnum;
@@ -1517,6 +1519,17 @@ AREA_DATA *read_area_new(FILE *fp)
             token->next = area->token_index_hash[iHash];
             area->token_index_hash[iHash] = token;
             token->area = area;
+        }
+        else if (!str_cmp(word, "#REPUTATION"))
+        {
+            reputation = load_reputation_index(fp, area);
+            if (reputation)
+            {
+                vnum = reputation->vnum;
+                iHash = vnum % MAX_KEY_HASH;
+                reputation->next = area->reputation_index_hash[iHash];
+                area->reputation_index_hash[iHash] = reputation;
+            }
         }
         else if (!str_cmp(word, "#ROOMPROG"))
         {

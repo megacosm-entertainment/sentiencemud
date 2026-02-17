@@ -753,6 +753,104 @@ static json_t *tokens_to_json(CHAR_DATA *ch)
     return tokens;
 }
 
+static json_t *reputations_to_json(CHAR_DATA *ch)
+{
+    json_t *reputations = json_array();
+
+    if (!ch->reputations || list_size(ch->reputations) < 1)
+        return reputations;
+
+    ITERATOR it;
+    REPUTATION_DATA *rep;
+    iterator_start(&it, ch->reputations);
+    while ((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+    {
+        if (!rep->pIndexData || !rep->pIndexData->area)
+            continue;
+
+        json_t *rep_obj = json_object();
+        json_object_set_new(rep_obj, "reputation",
+            json_string(widevnum_string(rep->pIndexData->area, rep->pIndexData->vnum, NULL)));
+        json_object_set_new(rep_obj, "flags", json_integer(rep->flags));
+        json_object_set_new(rep_obj, "current_rank", json_integer(rep->current_rank));
+        json_object_set_new(rep_obj, "reputation_points", json_integer(rep->reputation));
+        json_object_set_new(rep_obj, "maximum_rank", json_integer(rep->maximum_rank));
+        json_object_set_new(rep_obj, "paragon_level", json_integer(rep->paragon_level));
+
+        if (rep->token && (rep->token->id[0] || rep->token->id[1]))
+        {
+            json_t *token_id = json_array();
+            json_array_append_new(token_id, json_integer(rep->token->id[0]));
+            json_array_append_new(token_id, json_integer(rep->token->id[1]));
+            json_object_set_new(rep_obj, "token_id", token_id);
+        }
+
+        json_array_append_new(reputations, rep_obj);
+    }
+    iterator_stop(&it);
+
+    return reputations;
+}
+
+static void reputations_from_json(CHAR_DATA *ch, json_t *root)
+{
+    if (!ch || IS_NPC(ch) || !root)
+        return;
+
+    json_t *reputations = json_object_get(root, "reputations");
+    if (!reputations || !json_is_array(reputations))
+        return;
+
+    size_t index;
+    json_t *entry;
+    json_array_foreach(reputations, index, entry)
+    {
+        if (!json_is_object(entry))
+            continue;
+
+        REPUTATION_INDEX_DATA *rep_index = NULL;
+        json_t *rep_ref = json_object_get(entry, "reputation");
+
+        if (json_is_string(rep_ref))
+        {
+            WNUM wnum;
+            if (parse_widevnum((char *)json_string_value(rep_ref), NULL, &wnum) && wnum.pArea)
+                rep_index = get_reputation_index(wnum.pArea, wnum.vnum);
+        }
+        else if (json_is_integer(rep_ref))
+        {
+            long vnum = json_integer_value(rep_ref);
+            WNUM wnum;
+            if (resolve_widevnum(vnum, NULL, &wnum) && wnum.pArea)
+                rep_index = get_reputation_index(wnum.pArea, wnum.vnum);
+        }
+
+        if (!rep_index)
+            continue;
+
+        int current_rank = json_get_int_default(entry, "current_rank", rep_index->initial_rank);
+        int rep_points = json_get_int_default(entry, "reputation_points", rep_index->initial_reputation);
+
+        REPUTATION_DATA *rep = set_reputation_char(ch, rep_index, current_rank, rep_points, false);
+        if (!rep)
+            continue;
+
+        rep->flags = json_get_int_default(entry, "flags", rep->flags);
+        rep->current_rank = json_get_int_default(entry, "current_rank", rep->current_rank);
+        rep->reputation = json_get_int_default(entry, "reputation_points", rep->reputation);
+        rep->maximum_rank = json_get_int_default(entry, "maximum_rank", rep->maximum_rank);
+        rep->paragon_level = json_get_int_default(entry, "paragon_level", rep->paragon_level);
+
+        json_t *token_id = json_object_get(entry, "token_id");
+        if (token_id && json_is_array(token_id) && json_array_size(token_id) >= 2)
+        {
+            unsigned long id0 = json_integer_value(json_array_get(token_id, 0));
+            unsigned long id1 = json_integer_value(json_array_get(token_id, 1));
+            rep->token = idfind_token_char(ch, id0, id1);
+        }
+    }
+}
+
 /***************************************************************************
  * Aliases Serialization                                                   *
  ***************************************************************************/
@@ -1650,6 +1748,14 @@ json_t *char_to_json(CHAR_DATA *ch)
         json_object_set_new(root, "tokens", tokens);
     } else {
         json_decref(tokens);
+    }
+
+    // Reputations section
+    json_t *reputations = reputations_to_json(ch);
+    if (json_array_size(reputations) > 0) {
+        json_object_set_new(root, "reputations", reputations);
+    } else {
+        json_decref(reputations);
     }
 
     // Aliases section
@@ -3865,6 +3971,9 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         }
     }
 
+    // Read reputations section
+    reputations_from_json(ch, root);
+
     // Read aliases section
     json_t *aliases_array = json_object_get(root, "aliases");
     if (aliases_array && json_is_array(aliases_array) && ch->pcdata) {
@@ -4376,6 +4485,9 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             ch->tokens = token;
         }
     }
+
+    // Read reputations section
+    reputations_from_json(ch, root);
 
     // Read aliases section
     json_t *aliases_array = json_object_get(root, "aliases");

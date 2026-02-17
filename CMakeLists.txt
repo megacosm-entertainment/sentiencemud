@@ -216,6 +216,7 @@ set(SOURCE_FILES
     protocol.c
     mxp_links.c
     quest.c
+    reputation.c
     io/cache/redis_cache.c
     io/cache/async_cache.c
     io/json/json_common.c
