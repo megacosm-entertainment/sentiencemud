@@ -123,6 +123,7 @@ const struct script_cmd_type room_cmd_table[] = {
     { "setrecall",			do_rpsetrecall,			false,	true	},
     { "settimer",			do_rpsettimer,			false,	true	},
     { "settrait",			scriptcmd_settrait,		false,	true	},
+    { "showcommand",		scriptcmd_showcommand,		false,	true	},
     { "showroom",			do_rpshowroom,			false,	true	},
     { "skimprove",			do_rpskimprove,			true,	true	},
     { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},

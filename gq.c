@@ -14,6 +14,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "event_types.h"
 #include "io/json/json_gq.h"
 
 static void gq_set_load_from_wnum(const WNUM *wnum, WNUM_LOAD *load)
@@ -57,6 +58,9 @@ static void gq_resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum)
 
 void do_gq(CHAR_DATA *ch, char *argument)
 {
+    event_legacy_gq_command(ch, argument);
+    return;
+
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     char arg3[MAX_STRING_LENGTH];
@@ -72,6 +76,32 @@ void do_gq(CHAR_DATA *ch, char *argument)
     OBJ_INDEX_DATA *obj_index;
     GQ_MOB_DATA *gq_mob;
     GQ_OBJ_DATA *gq_obj;
+
+    argument = one_argument(argument, arg);
+    if (arg[0] == '\0') {
+        send_to_char("The legacy 'gq' system is deprecated.\n\r", ch);
+        send_to_char("Use: event list | event info gq | event start gq | event stop gq\n\r", ch);
+        return;
+    }
+
+    if (!str_cmp(arg, "show") || !str_cmp(arg, "list") || !str_cmp(arg, "info")) {
+        do_function(ch, &do_event, "info gq");
+        return;
+    }
+
+    if (!str_cmp(arg, "on") || !str_cmp(arg, "start")) {
+        do_function(ch, &do_event, "start gq");
+        return;
+    }
+
+    if (!str_cmp(arg, "off") || !str_cmp(arg, "stop")) {
+        do_function(ch, &do_event, "stop gq");
+        return;
+    }
+
+    send_to_char("The legacy 'gq' subcommands are deprecated.\n\r", ch);
+    send_to_char("Use: event list | event info gq | event start gq | event stop gq\n\r", ch);
+    return;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);

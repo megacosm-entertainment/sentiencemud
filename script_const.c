@@ -1298,6 +1298,7 @@ struct trigger_type trigger_table	[] = {
 {	"resurrect",			NULL,		TRIG_RESURRECT,			TRIGSLOT_REPOP,			true,	false,	false,	true,	false,	false,	false	},
 {	"save",					NULL,		TRIG_SAVE,				TRIGSLOT_REPOP,			true,	true,	false,	true,	false,	false,	false	},
 {	"sayto",				NULL,		TRIG_SAYTO,				TRIGSLOT_SPEECH,		true,	true,	false,	true,	false,	false,	false	},
+{	"showcommands",			NULL,		TRIG_SHOWCOMMANDS,		TRIGSLOT_VERB,			true,	true,	true,	true,	false,	false,	false	},
 {	"sit",					NULL,		TRIG_SIT,				TRIGSLOT_GENERAL,		true,	true,	true,	true,	false,	false,	false	},
 {	"skill_berserk",		NULL,		TRIG_SKILL_BERSERK,		TRIGSLOT_GENERAL,		true,	false,	false,	true,	false,	false,	false	},
 {	"skill_sneak",			NULL,		TRIG_SKILL_SNEAK,		TRIGSLOT_GENERAL,		true,	false,	false,	true,	false,	false,	false	},

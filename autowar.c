@@ -14,6 +14,7 @@
 #include "recycle.h"
 #include "db.h"
 #include "tables.h"
+#include "event_types.h"
 
 AUTO_WAR	*auto_war;
 int 		auto_war_timer;
@@ -46,6 +47,9 @@ int 		auto_war_battle_timer;
  */
 void do_war(CHAR_DATA *ch, char *argument)
 {
+    event_legacy_war_command(ch, argument);
+    return;
+
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
 
@@ -69,9 +73,26 @@ void do_war(CHAR_DATA *ch, char *argument)
 
     if (!str_prefix(arg, "join"))
     {
+    send_to_char("The legacy war system is deprecated; joining via event system.\n\r", ch);
+    do_function(ch, &do_event, "join");
+    return;
+    }
+
+    if (!str_prefix(arg, "statistics") || !str_prefix(arg, "status"))
+    {
+    do_function(ch, &do_event, "status");
+    return;
+    }
+
+    send_to_char( "Syntax:  war <join|statistics>\n\r", ch );
+    send_to_char( "        event <status|join|leave>\n\r", ch );
+    return;
+
+    if (!str_prefix(arg, "join"))
+    {
     if ( auto_war == NULL )
     {
-        send_to_char( "There is no war currently active.\n\r", ch );
+        do_function(ch, &do_event, "join");
         return;
     }
 
@@ -127,7 +148,7 @@ void do_war(CHAR_DATA *ch, char *argument)
     {
     if ( auto_war == NULL )
     {
-        send_to_char( "There is no war currently active.\n\r", ch );
+        do_function(ch, &do_event, "status");
         return;
     }
 
@@ -209,6 +230,7 @@ void do_war(CHAR_DATA *ch, char *argument)
     }
 
     send_to_char( "Syntax:  war <join|statistics>\n\r", ch );
+    send_to_char( "        event <status|join|leave>\n\r", ch );
 }
 
 

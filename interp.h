@@ -96,6 +96,8 @@ DECLARE_DO_FUN(	do_alevel	);
 DECLARE_DO_FUN( do_corpsedit    );
 DECLARE_DO_FUN( do_sectoredit   );
 DECLARE_DO_FUN( do_repedit      );
+DECLARE_DO_FUN( do_evtedit      );
+DECLARE_DO_FUN( do_event        );
 DECLARE_DO_FUN( do_aload	);
 DECLARE_DO_FUN( do_aedit	);
 DECLARE_DO_FUN( do_affects	);

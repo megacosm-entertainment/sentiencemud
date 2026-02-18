@@ -67,6 +67,7 @@ void update_invasion_quest();
 void instance_update();
 void dungeon_update();
 void generate_discord_who();
+void event_runtime_update(void);
 
 /*
  * Handle all kinds of updates.
@@ -295,6 +296,7 @@ void update_handler(void)
     if ( --pulse_event        <= 0 )
     {
     pulse_event             = PULSE_EVENT;
+    event_runtime_update();
     event_update();
     }
 

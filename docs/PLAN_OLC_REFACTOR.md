@@ -33,7 +33,7 @@ This plan covers:
   but lightweight — no rollback)
 - **MXP clickable link support** throughout all editors via `mxp_links.h` helpers and `bprintf`
 - **Preparing for player-accessible editors** (housing)
-- **Backporting editors** from `src_20_dev` (liqedit, matedit complete; sectoredit, corpsedit, repedit pending) and adding new ones (evtedit)
+- **Backporting editors** from `src_20_dev` (liqedit, matedit, sectoredit, corpsedit, repedit complete) and adding new ones (evtedit)
 - **Future: data/display separation** — structuring the framework so display logic can be
   decoupled from data access, enabling alternative rendering targets (web client)
 
@@ -50,8 +50,8 @@ This plan covers:
 | OEDIT     | Objects    | ED_OBJECT      | `editors/objects/oedit.c`             | ~3,010 | 1→FW  | Yes  | Area flag            |
 |           |            |                | `editors/objects/oedit_types.c`       | 1,955  |       |      |                      |
 | MEDIT     | Mobiles    | ED_MOBILE      | `editors/mobiles/medit.c`             | ~3,715 | 1→FW  | Yes  | Area flag            |
-| LIQEDIT   | Liquids    | ED_LIQEDIT     | `editors/liquids/liqedit.c`           | ~1,100 | FW    | No   | Immediate save       |
-| MATEDIT   | Materials  | ED_MATEDIT     | `editors/materials/matedit.c`         | ~1,200 | FW    | No   | Immediate save       |
+| LIQEDIT   | Liquids    | ED_LIQUID      | `editors/liquids/liqedit.c`           | ~1,100 | FW    | No   | Immediate save       |
+| MATEDIT   | Materials  | ED_MATERIAL    | `editors/materials/matedit.c`         | ~1,200 | FW    | No   | Immediate save       |
 | TEDIT     | Tokens     | ED_TOKEN       | `editors/tokens/tedit.c`             | ~1,082 | 1→FW  | Yes  | Area flag (callback) |
 | HEDIT     | Help       | ED_HELP        | `editors/help/hedit.c`               | ~1,228 | 1→FW  | No   | Custom (area flag)   |
 | SHEDIT    | Ships      | ED_SHIP        | `editors/ships/shedit.c`             | ~910   | 1→FW  | No   | Custom (area flag)   |
@@ -70,6 +70,9 @@ This plan covers:
 | SOEDIT    | Songs      | ED_SONG        | `editors/skills/soedit.c`            | ~420   | 2→FW | No   | Explicit save        |
 | CLSEDIT   | Classes    | ED_CLASS       | `editors/classes/clsedit.c`          | ~1,385 | 2→FW | No   | Explicit save        |
 | RSGEDIT   | Rand Str   | ED_RSG         | `editors/random_strings/rsgedit.c`   | ~1,693 | FW    | Yes  | Explicit save        |
+| SECTOREDIT| Sectors    | ED_SECTOR      | `editors/sectors/sectoredit.c`        | ~773   | FW    | Yes  | Immediate save       |
+| CORPSEDIT | Corpse Types| ED_CORPSE     | `editors/corpses/corpsedit.c`         | ~629   | FW    | No   | Immediate save       |
+| REPEDIT   | Reputation | ED_REPUTATION  | `editors/reputation/repedit.c`        | ~615   | FW    | Yes  | Area flag            |
 | MPEDIT    | MobScript  | ED_MPCODE      | `editors/scripting/olc_mpcode.c`     | ~1,830 | 1→FW  | Yes  | Area flag            |
 | OPEDIT    | ObjScript  | ED_OPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
 | RPEDIT    | RoomScript | ED_RPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
@@ -78,11 +81,6 @@ This plan covers:
 | APEDIT    | AreaScript | ED_APCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Area flag            |
 | DPEDIT    | DngScript  | ED_DPCODE      | `editors/scripting/olc_mpcode.c`     |(shared)| 1→FW  | Yes  | Custom (dungeon)     |
 | GAMEEDIT  | Settings   | ED_GAMESETTING | `editors/game_settings/gameedit.c`   | 1,921  | Special | No | Changeset+Confirm  |
-|           |            |                |                                       |        |       |      |                      |
-| *Planned — backport from `src_20_dev` (remaining):* | | | | | | | |
-| SECTEDIT  | Sectors    | ED_SECTOREDIT  | `editors/sectors/sectoredit.c`       | —      | —     | No   | Immediate save       |
-| CORPSEDIT | Corpse Types| ED_CORPSEDIT  | `editors/corpses/corpsedit.c`        | —      | —     | No   | Immediate save       |
-| REPEDIT   | Reputation | ED_REPEDIT     | `editors/reputation/repedit.c`       | —      | —     | No   | Area flag            |
 |           |            |                |                                       |        |       |      |                      |
 | *Planned — new design / major rework:* | | | | | | | |
 | QEDIT     | Quests     | ED_QUEST       | `editors/quests/qedit.c`             | —      | —     | No   | Area flag            |
@@ -990,9 +988,9 @@ new code.
 | **3** | World editors | aedit, redit, wedit *(vledit folded in)* | Done |
 | **4** | Blueprint/dungeon | bsedit, bpedit, dngedit | Done |
 | **5** | Remaining editors | shedit, hedit, pedit, cmdedit, socialedit | Done |
-| **6** | Script editors | mpedit, opedit, rpedit, tpedit, ipedit, dpedit, apedit | Medium |
-| **7** | Command table migration | Move tables from olc.c to editor files | Mechanical |
-| **8** | Backport + new editors | ✅ liqedit, ✅ matedit, ✅ rsgedit, ✅ sectoredit (transitional), corpsedit, repedit, qedit, msnedit, evtedit | Med–Large |
+| **6** | Script editors | mpedit, opedit, rpedit, tpedit, ipedit, dpedit, apedit | Done |
+| **7** | Command table migration | Move tables from olc.c to editor files | Done |
+| **8** | Backport + new editors | ✅ liqedit, ✅ matedit, ✅ rsgedit, ✅ sectoredit, ✅ corpsedit, ✅ repedit, qedit, msnedit, evtedit | In progress |
 | **9** | Player housing | Restricted REDIT/OEDIT subset | Large |
 
 ### 7.2 Phase 0: Framework Foundation (DONE)
@@ -1438,18 +1436,19 @@ populated after each editor type has been used once.
 
 ### 7.10 Phase 8: New Editors (Backport from `src_20_dev`)
 
-**Status**: In progress.
+**Status**: In progress (major backports complete).
 
-Phase 8 is actively underway. LIQEDIT and MATEDIT are now backported and wired
-into `src`; the remaining backport editors are still pending.
+Phase 8 is actively underway. LIQEDIT, MATEDIT, SECTOREDIT, CORPSEDIT, and
+REPEDIT are now backported and wired into `src`; remaining Phase 8 scope is
+QEDIT/MSNEDIT/EVTEDIT design and implementation.
 
 | Editor | Cmds | Data Struct | src_20_dev Location | Current src Status | Effort |
 |--------|------|-------------|--------------------|--------------------|--------|
 | liqedit | 14 | `LIQUID` | `olc.c` + `olc_act.c` | ✅ Backported to `editors/liquids/liqedit.c`; runtime + JSON-backed data | Medium |
 | matedit | 10 | `MATERIAL` | `olc.c` + `olc_act.c` | ✅ Backported to `editors/materials/matedit.c`; runtime + JSON-backed data | Medium |
-| sectoredit | 15 | `SECTOR_DATA` | `olc.c` + `sectors.c` | Hardcoded `SECT_*` #defines | Large |
-| corpsedit | 18 | `CORPSE_TYPE` | `act_wiz.c` | Just a `CORPSE_TYPE(obj)` macro | Large |
-| repedit | 9 | `REPUTATION_INDEX_DATA` | `olc.c` + `reputation.c` | Nothing (has separate plan doc) | Large |
+| sectoredit | 15 | `SECTOR_DATA` | `olc.c` + `sectors.c` | ✅ Framework editor in `editors/sectors/sectoredit.c` + runtime registry integration | Completed |
+| corpsedit | 18 | `CORPSE_TYPE` | `act_wiz.c` | ✅ Framework editor in `editors/corpses/corpsedit.c` + JSON runtime persistence | Completed |
+| repedit | 9 | `REPUTATION_INDEX_DATA` | `olc.c` + `reputation.c` | ✅ Framework editor in `editors/reputation/repedit.c` + active runtime integration | Completed |
 
 Additional editors to design from scratch or complete:
 
@@ -1501,9 +1500,10 @@ and some flags, but not sector types, exits to non-owned rooms, or resets.
 
 ## Editors to Add (Backport Detail)
 
-The following editors have full working implementations in `src_20_dev`. Each
-subsection documents the existing commands, data structures, persistence format,
-and what needs to change in `src` before the editor can be ported.
+The following editors have full working implementations in `src_20_dev`. This
+section now tracks both completed backports and remaining/editor-design work,
+including current runtime/editor status in `src` and any follow-up needed for
+full parity.
 
 ### 8.0 Phase 8 Status (2026-02-17)
 
@@ -1519,7 +1519,10 @@ Phase 8 work is active. Current status in `src`:
 - ⚠️ Material consumer migration is partially complete and still being finalized in
     some call paths (legacy fallback behavior retained intentionally during transition).
 - ✅ **SECTOREDIT** transitional runtime/editor integration is complete (see `TODO_SECTOREDIT_GAP_CHECKLIST.md`).
-- 🟡 **CORPSEDIT / REPEDIT** remain pending.
+- ✅ **CORPSEDIT** backported under `editors/corpses/corpsedit.c` and integrated with
+    JSON-backed corpse runtime/editor data.
+- ✅ **REPEDIT** backported under `editors/reputation/repedit.c` and integrated with
+    reputation runtime/editor flows.
 
 Initial kickoff notes (now complete for RSGEDIT):
 
@@ -1538,9 +1541,9 @@ Recommended implementation order based on coupling:
 1. ✅ **LIQEDIT / MATEDIT** (completed): dynamic data model replacement for
     hardcoded tables in `const.c`
 2. ✅ **RSGEDIT** (completed): editor + persistence + generation logic
-3. **CORPSEDIT** (high coupling): mob death pipeline + `MOB_INDEX_DATA` integration
+3. ✅ **CORPSEDIT** (completed): framework editor + corpse runtime persistence integration
 4. ✅ **SECTOREDIT (transitional)** completed via runtime registry + accessor shim; structural room model refactor (`int` → pointer/reference) remains a follow-up phase.
-5. **REPEDIT** (subsystem backport): reputation runtime + area save/load + player state
+5. ✅ **REPEDIT** (completed baseline): framework editor + reputation runtime/area integration
 6. **QEDIT / EVTEDIT / MSNEDIT**: large gameplay systems, implemented after
     data/editor infrastructure stabilizes
 
@@ -1675,18 +1678,18 @@ gcrp, headless, keywords, lost, long, message, name, ownerloot, short, show, sku
 - gcrp (global corpse type pointer — e.g., `gcrp_humanoid`)
 - Stored as dynamic linked list (`corpse_list`), persisted to `corpse.dat`
 
-**Current src**: Only has `CORPSE_TYPE(obj)` as a macro for `obj->value[0]`.
-No `CORPSE_TYPE` struct, no editor.
+**Current src**: ✅ Backported. Framework editor exists in
+`editors/corpses/corpsedit.c` with JSON-backed runtime load/save integration.
 
-**Prerequisites to port**:
-1. Backport full `CORPSE_TYPE` and `CORPSE_DAMAGE` structs to `merc.h`
-2. Create persistence (legacy `.dat` or JSON)
-3. Integrate into mob death / `make_corpse()` — assign corpse types to mobiles
-4. Add `corpse_type` field to `MOB_INDEX_DATA`
-5. Build editor as `editors/corpses/corpsedit.c` using framework
+**Completion notes**:
+1. `do_corpsedit` entry + editor interpreter are framework-based (`OLC_EDITOR_DEF`)
+2. Corpse type runtime is no longer editor-stub-only; data can be viewed/edited/saved
+3. Command/display paths are integrated with common `olc_display_*` and `olc_cmd_*` helpers
 
-**Effort**: Large — medium editor, but integration into death/corpse generation
-and mobile data is substantial.
+**Remaining follow-up**:
+- Continue parity review against `src_20_dev` for any advanced behavior not yet ported.
+
+**Effort**: Completed baseline; further parity work is targeted follow-up.
 
 ### 8.5 Reputation Editor (repedit)
 
@@ -1703,31 +1706,686 @@ show, token
 - Area-bound: saved in `.are` files via `olc_save.c`, uses WNUM for indexing
 - Areas have `factions` (LLIST of `REPUTATION_INDEX_DATA *`)
 
-**Current src**: No reputation system at all — no struct, no editor, no
-`reputation.c`. A separate plan exists: `docs/PLAN_backport_reputation_system.md`
+**Current src**: ✅ Backported baseline. Framework editor exists in
+`editors/reputation/repedit.c` with runtime/editor integration in active code.
+A broader subsystem parity plan remains in `docs/PLAN_backport_reputation_system.md`.
 
-**Prerequisites to port**:
-1. Follow `PLAN_backport_reputation_system.md` for the full subsystem
-2. Backport `REPUTATION_INDEX_DATA`, `REPUTATION_INDEX_RANK_DATA` structs
-3. Create `reputation.c` with load/save
-4. Integrate into area save/load pipeline
-5. Add player reputation tracking (`REPUTATION_DATA` on characters)
-6. Build editor as `editors/reputation/repedit.c` using framework
+**Completion notes**:
+1. `do_repedit` + framework interpreter (`OLC_EDITOR_DEF`) are in place
+2. Reputation index/rank editing is available via framework display/command helpers
+3. Area dirty tracking and editor flows are integrated with current runtime behavior
 
-**Effort**: Large — entire reputation subsystem must be ported first.
+**Remaining follow-up**:
+- Continue subsystem parity work from `PLAN_backport_reputation_system.md`
+    (advanced runtime/script/persistence edge cases and long-tail command parity).
+
+**Effort**: Completed baseline; remaining work is parity hardening.
 
 ### 8.6 Event Editor (EVTEDIT) — New Design
 
-The global quest (gq) system in `gq.c` would be replaced by a more general event
-system. The event editor would manage event definitions:
+**Systems absorbed / replaced:**
+- `gq.c` — Global Quest: manual, world-wide mob/obj spawning, no scheduling, no
+  tracking, no scripting, no level-gating. Entirely staff-driven.
+- `autowar.c` — PvP tournament: staged countdown, three team-modes (FFA,
+  Genocide, Jihad), dedicated battlefield, QP rewards, 10-min time limit.
+  Working but no persistence, no configurability, no scripting.
+- `invasion.c` — Area invasion with boss leader + waves: mostly broken
+  (completion logic bug, auto-trigger commented out), no rewards, no persistence.
 
-- **Event types**: Invasion, collection quest, boss spawn, world event, timed challenge
-- **Scheduling**: Recurring, one-time, triggered, random
-- **Rewards**: Experience, gold, tokens, items, reputation
-- **Requirements**: Level range, class, race, quest prerequisites
+This editor has no `src_20_dev` predecessor — designed from scratch using the
+new OLC framework.
 
-This editor has no `src_20_dev` predecessor — it would be designed from scratch
-using the new framework.
+---
+
+#### Systems Survey: What We Are Replacing
+
+| Feature              | GQ         | Autowar         | Invasion      |
+|----------------------|------------|-----------------|---------------|
+| Scope                | Global     | Battlefield     | Single area   |
+| Trigger              | Manual     | Manual          | Manual/broken |
+| Scheduling           | None       | Countdown timer | None          |
+| Per-player tracking  | None       | `in_war` flag   | None          |
+| Kill reward          | None       | 20 QP           | None          |
+| Win reward           | Questmaster| 50 QP + stat    | Broken        |
+| Time limit           | None       | 10 min battle   | 1-month expiry|
+| Scripting hooks      | None       | None            | None          |
+| Persistence          | JSON       | None            | None          |
+| Functional           | Yes        | Yes             | No            |
+
+---
+
+#### Multiple Concurrent Events
+
+The engine supports **N concurrent event instances** simultaneously. A
+world-state Reckoning can be active while a holiday collection event is also
+running; a goblin invasion in one area does not block a boss event elsewhere.
+A global list `active_events` (linked list of `EVENT_INSTANCE*`) holds all
+running instances.
+
+Player participation is plural. Players can be passively affected by an
+`EVT_WORLDSTATE` event while also actively in an `EVT_COLLECTION` event. War
+events are exclusive per-player (enforced by `EVT_FLAG_EXCLUSIVE_PLAYER`).
+Concurrency constraints are expressed via flags on the definition:
+
+| Flag                       | Meaning |
+|----------------------------|---------|
+| `EVT_FLAG_UNIQUE_GLOBAL`   | Only one instance of this definition may be active at a time. A second `event start` is rejected until the first completes. |
+| `EVT_FLAG_EXCLUSIVE_PLAYER`| A player may be in only one event with this flag simultaneously. Joining another auto-removes them from the previous one (or blocks — configurable). |
+
+`EVT_WORLDSTATE` events are **passive** by default: they affect all players
+without a join action. Players opt out via `PLR_NOEVENT`.
+
+---
+
+#### Data Structures
+
+**`EVENT_DEF`** — the editor-managed definition:
+
+```c
+struct event_def {
+    EVENT_DEF    *next;
+    WNUM          wnum;
+    char         *name;
+    char         *description;
+    char         *announce_msg;      // NULL = auto-generated
+    char         *end_msg;
+    char         *join_msg;
+
+    int           event_type;        // EVT_*
+    int           scope_type;        // SCOPE_*
+    WNUM_LOAD     scope_area;        // area for SCOPE_AREA events
+
+    // --- Scheduling ---
+    int           sched_type;        // SCHED_*
+    int           sched_interval;    // SCHED_RECURRING: base minutes between events
+    int           sched_variance;    // SCHED_RECURRING: ±random variance
+                                     // SCHED_WORLDCONDITION: per-failed-check increment
+    int           sched_duration;    // how long the active event runs (minutes)
+                                     //   ignored when sched_end_expr is set
+    int           sched_cooldown;    // min minutes before re-trigger after completion
+    char         *sched_expr;        // SCHED_CALENDAR: start time/pattern (see below)
+                                     // SCHED_RECURRING: not used (use interval/variance)
+    char         *sched_end_expr;    // SCHED_CALENDAR: end time/pattern (optional)
+                                     //   when set → window event (active entire range)
+                                     //   when NULL → trigger event (runs sched_duration)
+    WNUM_LOAD     sched_cond_script; // SCHED_WORLDCONDITION: room prog condition evaluator
+                                     //   returns 1 (fire) or 0 (skip) via mret
+
+    // --- Announcement phases ---
+    ANNOUNCE_PHASE *phases;
+    int             phase_count;
+
+    // --- Participants ---
+    int           min_level;         // 0 = no restriction
+    int           max_level;
+    int           min_players;       // event cancelled if not met at start
+    int           max_players;       // 0 = unlimited
+    int           team_type;         // TEAM_NONE, TEAM_FFA, TEAM_RACE, TEAM_ALIGNMENT
+
+    // --- Mobs / Boss ---
+    EVENT_MOB    *mobs;
+    WNUM_LOAD     boss_vnum;
+
+    // --- Objects (collection events) ---
+    EVENT_OBJ    *objects;
+
+    // --- Script hooks ---
+    WNUM_LOAD     script_start;
+    WNUM_LOAD     script_end;
+    WNUM_LOAD     script_join;
+    WNUM_LOAD     script_kill;
+    WNUM_LOAD     script_complete;
+
+    // --- Prerequisites ---
+    EVENT_PREREQ *prereqs;
+
+    // --- Completion rewards ---
+    long          reward_exp;
+    int           reward_gold;
+    int           reward_silver;
+    int           reward_qp;
+    int           reward_practices;
+    int           reward_trains;
+    int           reward_mission_pts;
+    WNUM_LOAD     reward_item;
+    WNUM_LOAD     reward_rep_org;
+    int           reward_rep_pts;
+    char         *reward_script;
+
+    // --- Per-kill rewards ---
+    int           kill_reward_qp;
+    long          kill_reward_exp;
+
+    long          flags;             // EVT_FLAG_*
+};
+```
+
+**`EVENT_MOB`** — mob spawn definition (replaces `GQ_MOB_DATA`):
+
+```c
+struct event_mob {
+    EVENT_MOB  *next;
+    WNUM_LOAD   vnum;
+    WNUM_LOAD   carry_obj;   // WNUM_LOAD_NULL if none
+    int         mob_class;   // difficulty class 0–4
+    bool        group;
+    int         max;
+    int         count;       // runtime: current live count (not persisted)
+};
+```
+
+**`EVENT_OBJ`** — object spawn definition (replaces `GQ_OBJ_DATA`):
+
+```c
+struct event_obj {
+    EVENT_OBJ  *next;
+    WNUM_LOAD   vnum;
+    int         max;
+    int         count;       // runtime only
+    int         repop_pct;
+    // per-object reward overrides (0 = use event-level defaults)
+    int         reward_qp;
+    int         reward_practices;
+    long        reward_exp;
+    int         reward_silver;
+    int         reward_gold;
+};
+```
+
+**`ANNOUNCE_PHASE`** — pre-event countdown message:
+
+```c
+struct announce_phase {
+    ANNOUNCE_PHASE *next;
+    int             minutes_before;
+    char           *message;         // tokens: [event_name] [area_name] [time_left]
+};
+```
+
+**`EVENT_PREREQ`**:
+
+```c
+struct event_prereq {
+    EVENT_PREREQ *next;
+    int           prereq_type;   // PREREQ_QUEST, PREREQ_EVENT, PREREQ_REP, PREREQ_LEVEL
+    WNUM_LOAD     ref_wnum;
+    int           ref_value;     // rank (rep), min-times-completed (event)
+};
+```
+
+**`EVENT_INSTANCE`** — runtime state:
+
+```c
+struct event_instance {
+    EVENT_INSTANCE *next;           // in global active_events list
+    uint32_t        instance_id;    // unique ID for Redis keying
+    EVENT_DEF      *def;
+    int             state;          // EVTS_PENDING, EVTS_ANNOUNCING, EVTS_ACTIVE,
+                                    //   EVTS_COMPLETE, EVTS_CANCELLED, EVTS_FAILED
+    time_t          start_time;
+    time_t          end_time;       // computed from sched_end_expr or sched_duration
+    time_t          next_phase_time;
+    int             phase_idx;
+    EVENT_PART     *participants;
+    int             participant_count;
+    CHAR_DATA      *boss;           // live boss pointer (EVT_INVASION / EVT_BOSS)
+    bool            dirty;          // needs Redis + disk flush
+};
+```
+
+**`EVENT_PART`** — per-player participation record (supports plural membership):
+
+```c
+struct event_part {
+    EVENT_PART     *next;           // next event this player is in
+    EVENT_INSTANCE *inst;
+    int             kills;
+    int             items_turned;
+    int             team;           // team assignment for war events
+};
+```
+
+`CHAR_DATA` gains `EVENT_PART *event_list` (replaces `in_war` and the single
+`event_instance` pointer). Exclusive events use `EVT_FLAG_EXCLUSIVE_PLAYER`
+to enforce single-event constraints at join time.
+
+---
+
+#### Event Types (`EVT_*`)
+
+| Constant           | Replaces        | Description |
+|--------------------|-----------------|-------------|
+| `EVT_COLLECTION`   | GQ              | Mobs/objects scatter across scope. Players hunt/collect, turn in to a questmaster NPC. Per-object reward overrides supported. |
+| `EVT_INVASION`     | invasion.c      | Waves of mobs + optional boss in a scope area. Ends when boss is killed or timer expires. |
+| `EVT_BOSS`         | —               | Single world boss spawned at a designated room. First kill or most damage wins. |
+| `EVT_WAR_FFA`      | autowar FFA     | Free-for-all PvP in battlefield area. Last standing wins. |
+| `EVT_WAR_GENOCIDE` | autowar Genocide| Race-faction PvP war. Most survivors of a single race when timer expires wins. |
+| `EVT_WAR_JIHAD`    | autowar Jihad   | Alignment-faction PvP war. Majority-alignment survivors win. |
+| `EVT_WORLDSTATE`   | (new)           | Passive world-condition modifier. Fires `TRIG_EVENT_*` per tick on all players/objects/rooms. No join required. Reckoning-like. |
+| `EVT_CUSTOM`       | —               | Fully script-driven. EVTEDIT handles scheduling, announce phases, lifecycle; all effects are in scripts. |
+
+---
+
+#### Scope Types (`SCOPE_*`)
+
+| Constant            | Description |
+|---------------------|-------------|
+| `SCOPE_GLOBAL`      | World-wide. Mobs scatter anywhere. |
+| `SCOPE_AREA`        | Confined to a single area. Mobs spawn within area vnum range. |
+| `SCOPE_REGION`      | Confined to a region (placeholder — when region editor 8.10 lands). |
+| `SCOPE_ZONES`       | Builder-defined list of area WNUMs. Multi-area events. |
+| `SCOPE_BATTLEFIELD` | Dedicated battlefield cluster for PvP events. Uses named reserved rooms. |
+
+---
+
+#### Schedule Types (`SCHED_*`)
+
+| Constant               | Description |
+|------------------------|-------------|
+| `SCHED_MANUAL`         | Staff triggers with `event start <name>`. No auto-trigger. |
+| `SCHED_RECURRING`      | Auto-triggers every `sched_interval ± sched_variance` minutes. Obeys `sched_cooldown`. |
+| `SCHED_CALENDAR`       | Wall-clock schedule via `sched_expr` / `sched_end_expr`. Handles trigger events (fire once, run N minutes) and window events (active for entire start→end range). |
+| `SCHED_WORLDCONDITION` | Calls `sched_cond_script` once per relevant tick. If it returns 1 *and* a probability roll succeeds, the event fires. `sched_variance` increments the roll each missed tick (escalating-chance mechanic). |
+| `SCHED_TRIGGERED`      | Fired from a script via `do_evttrigger` or chained from another event's `script_complete`. |
+
+**Calendar expressions (`SCHED_CALENDAR`)**:
+
+Two fields: `sched_expr` (start) and `sched_end_expr` (end, optional).
+
+When `sched_end_expr` is set, the event is a **window event** — active for the
+entire start→end range, automatically re-activating each period. `sched_duration`
+is ignored. When only `sched_expr` is set, it is a **trigger event** — fires at
+the start time and runs for `sched_duration` minutes.
+
+Start expression syntax (in `sched_expr`):
+```
+"daily 20:00"               every day at 20:00 server time
+"weekly fri 20:00"          every Friday at 20:00
+"weekly sat,sun 12:00"      weekends at noon
+"monthly 1 18:00"           1st of every month at 18:00
+"monthly last 18:00"        last day of every month
+"yearly oct 25 00:00"       every Oct 25 at midnight
+"yearly dec 24 00:00"       every Dec 24 at midnight
+"2026-06-15 18:00"          one-shot: specific date and time
+```
+
+End expression syntax (in `sched_end_expr`):
+```
+"yearly nov 1 23:59"        absolute end: Nov 1 at 23:59
+"yearly dec 26 23:59"       absolute end: Dec 26 at 23:59
+"+7d"                       relative: 7 days after start
+"+2d"                       relative: 2 days after start
+"+4h"                       relative: 4 hours after start
+```
+
+Examples of window events:
+```
+-- Halloween (Oct 25 – Nov 1)
+sched_expr:     "yearly oct 25 00:00"
+sched_end_expr: "+7d"                    -- or "yearly nov 1 23:59"
+
+-- Winter Holiday (Dec 24 – Dec 26)
+sched_expr:     "yearly dec 24 00:00"
+sched_end_expr: "+2d"
+
+-- Weekly weekend event (Sat noon – Sun midnight)
+sched_expr:     "weekly sat 12:00"
+sched_end_expr: "+36h"
+```
+
+The engine checks `current_time >= computed_start && current_time < computed_end`
+each tick to keep window events active across the full range. On boot, if the
+current time falls within an active window, the instance is restored and the
+event continues.
+
+**World-condition scripts (`SCHED_WORLDCONDITION`)**:
+
+`sched_cond_script` points to a **room prog** on a designated system room (e.g.,
+`get_reserved_room_index("room_event_system")`). The engine fires
+`TRIG_EVENT_CONDITION` on that room once per relevant game tick. The script
+evaluates any game state — moon phase, weather, player count, prior event
+outcomes — and returns `mret 1` (fire event) or `mret 0` (skip). No custom DSL
+parser is needed. When a "system progs" space is added, condition scripts can
+migrate there naturally.
+
+Example condition script (Reckoning equivalent):
+```
+if moon(full) and sunlight(dark)
+  mret 1
+else
+  mret 0
+endif
+```
+
+---
+
+#### Announcement Phases
+
+Replaces both the autowar tick-countdown and the hardcoded `pre_reckoning`
+escalation. Phases are sorted by `minutes_before` descending; the engine fires
+them in order as scheduled start approaches.
+
+```
+phase add 30  "Word spreads of a gathering goblin horde to the east."
+phase add 10  "{CThe sky darkens over [area_name]. An attack is imminent.{x"
+phase add  5  "{RGoblin war-drums echo from [area_name]! Prepare yourselves!{x"
+phase add  1  "{RTHE INVASION BEGINS IN ONE MINUTE!{x"
+```
+
+Tokens expanded at broadcast: `[area_name]`, `[event_name]`, `[time_left]`,
+`[participant_count]`.
+
+---
+
+#### Participant Mechanics
+
+- `CHAR_DATA.event_list` — linked list of `EVENT_PART*`, one per active event
+  the player is participating in. Typically 0–2 entries.
+- `char_to_event(ch, inst)` / `char_from_event(ch, inst)` in `handler.c`.
+- War teams stored in `EVENT_PART.team`. Friendly fire checks in `is_safe()`
+  walk `ch->event_list` for war-type instances (replaces `in_war` checks).
+- `EVT_WORLDSTATE` events do not add entries to `event_list`; they affect
+  players by checking the global `active_events` list each tick.
+- `PLR_NOEVENT` suppresses all event announcements and auto-join (replaces
+  `COMM_NOAUTOWAR`).
+
+---
+
+#### Reward Delivery
+
+Unlike GQ (which punted all rewards to a questmaster NPC), EVTEDIT delivers
+rewards directly from the engine:
+
+1. **Win rewards**: delivered by `event_reward_winner()` at `EVTS_COMPLETE`.
+   Which players receive them is controlled by flags:
+   - `EVT_FLAG_WINNER_ONLY`: last survivor / faction winner(s) only.
+   - `EVT_FLAG_ALL_PARTS`: every player in the `participants` list.
+   - `EVT_FLAG_TOP3`: top 3 by `kills + items_turned`.
+2. **Per-kill rewards**: delivered in `fight.c` when a kill occurs and the
+   killer has a matching event instance in `event_list`.
+3. **Script override**: if `reward_script` is non-NULL, passed to the scripting
+   engine instead of direct delivery.
+4. **Item rewards**: `reward_item` vnum created and given via `obj_to_char()`.
+
+---
+
+#### Script Hooks
+
+| Hook               | When fired                        | Useful for |
+|--------------------|-----------------------------------|------------|
+| `script_start`     | Transition to `EVTS_ACTIVE`       | Extra mob spawn, weather, custom announce |
+| `script_end`       | Any transition to terminal state  | Cleanup, despawn, restore world |
+| `script_join`      | Player joins                      | Custom message, give item, set aura |
+| `script_kill`      | Kill within active event          | Wave spawning, dynamic scaling |
+| `script_complete`  | Completion condition met          | Choose winner, deliver custom reward |
+| `sched_cond_script`| Per tick (SCHED_WORLDCONDITION)   | Return 1/0 to gate event firing |
+
+`EVT_WORLDSTATE` events additionally cause `TRIG_EVENT_ACTIVE` to fire as a
+percent-trigger on all players/objects/rooms each tick, and
+`TRIG_EVENT_ANNOUNCE` during announcement phases. This generalizes the existing
+`TRIG_RECKONING` / `TRIG_PRERECKONING` pattern.
+
+---
+
+#### Prerequisites
+
+```
+prereq add quest   <quest_wnum>         -- must have completed quest
+prereq add event   <event_wnum> [N]     -- must have completed event N times
+prereq add rep     <org_wnum> <rank>    -- must have >= rank in org
+prereq add level   <min> [max]          -- level range
+```
+
+Multiple prereqs are AND'd. Future: OR grouping.
+
+---
+
+#### EVTEDIT Command Table (Tabbed Display)
+
+```
+Tab 1 — Identity
+  name <text>
+  description <text>
+  announce <text>              -- start broadcast (empty = auto-generated)
+  endmsg <text>
+  joinmsg <text>
+  type <collection|invasion|boss|war-ffa|war-genocide|war-jihad|worldstate|custom>
+  flags <+flag|-flag>
+
+Tab 2 — Scope
+  scope <global|area|region|zones|battlefield>
+  area <area_name>
+
+Tab 3 — Schedule
+  schedule <manual|recurring|calendar|worldcondition|triggered>
+  interval <minutes>           -- SCHED_RECURRING: base interval
+  variance <minutes>           -- SCHED_RECURRING: ±variance; SCHED_WORLDCONDITION: chance step
+  duration <minutes>           -- how long the active event runs (ignored for window events)
+  cooldown <minutes>           -- min wait before re-trigger
+  expr <expression>            -- SCHED_CALENDAR: start time/pattern (see above)
+  endexpr <expression>         -- SCHED_CALENDAR: end time/pattern (makes this a window event)
+                               --   use "+Nd"/"+Nh" for relative, or "yearly mmm dd HH:MM"
+  condscript <room_vnum>       -- SCHED_WORLDCONDITION: room prog condition evaluator
+
+Tab 4 — Phases
+  phase add <minutes_before> <message>
+  phase remove <#>
+  phase list
+
+Tab 5 — Participants
+  minlevel <n>
+  maxlevel <n>
+  minplayers <n>
+  maxplayers <n>               -- 0 = unlimited
+
+Tab 6 — Mobs
+  mob add <vnum> <class> <max> [carry_obj_vnum]
+  mob remove <#>
+  mob list
+  boss <vnum>
+
+Tab 7 — Objects
+  obj add <vnum> <max> [repop%]
+  obj remove <#>
+  obj list
+
+Tab 8 — Rewards
+  reward exp <n>
+  reward gold <n>
+  reward silver <n>
+  reward qp <n>
+  reward practices <n>
+  reward trains <n>
+  reward missionpts <n>
+  reward item <vnum>
+  reward rep <org_vnum> <points>
+  reward script <text>
+  killreward qp <n>
+  killreward exp <n>
+
+Tab 9 — Scripts
+  script start <vnum>
+  script end <vnum>
+  script join <vnum>
+  script kill <vnum>
+  script complete <vnum>
+
+Tab 10 — Prerequisites
+  prereq add quest <wnum>
+  prereq add event <wnum> [n]
+  prereq add rep <org_wnum> <rank>
+  prereq remove <#>
+  prereq list
+```
+
+Runtime / staff commands (in `interp.c`):
+```
+event list                   -- all event defs + current instance status
+event info <name>            -- definition + current instance state
+event start <name>           -- manually start (SCHED_MANUAL or override)
+event stop <name>            -- immediately terminate active instance
+event schedule <name> <when> -- schedule a SCHED_CALENDAR trigger
+                             --   when: "2026-06-15 18:00" or relative "+2h"
+event join                   -- player joins current eligible event
+event leave                  -- player leaves active event
+event status                 -- player sees active events + participation
+```
+
+---
+
+#### The Reckoning — Stretch Goal Migration
+
+The Reckoning (`update.c`, `act_wiz.c`) is a passive `EVT_WORLDSTATE` event that
+fires on full-moon dark nights with an escalating probability per missed check.
+
+| Reckoning parameter           | EVTEDIT mapping                                    |
+|-------------------------------|----------------------------------------------------|
+| `reckoning_chance`            | base roll + `sched_variance` step per missed check |
+| `reckoning_duration`          | `sched_duration`                                   |
+| `reckoning_intensity`         | custom field on `EVT_WORLDSTATE` sub-struct        |
+| `reckoning_cooldown`          | `sched_cooldown`                                   |
+| `pre_reckoning` counter       | `ANNOUNCE_PHASE` list (5 phases → 5 game ticks)    |
+| `TRIG_PRERECKONING`           | phases fire `TRIG_EVENT_ANNOUNCE` per tick         |
+| `TRIG_RECKONING`              | active event fires `TRIG_EVENT_ACTIVE` per tick    |
+| `boost_table[BOOST_RECKONING]`| `script_start` sets boost; `script_end` clears    |
+| `PLR_NORECKONING`             | generalized `PLR_NOEVENT`                          |
+| Moon + weather check          | `sched_cond_script`: `if moon(full) and sunlight(dark)` |
+
+**Why not migrate immediately**: The Reckoning's gameplay effects (per-tick
+lightning damage in `update.c`, boost table mutation) are deeply integrated into
+the update loop. Migrating them to scripts requires new scripting engine hooks
+for damage delivery and boost table mutation, or keeping that C code while having
+the EVTEDIT instance own the lifecycle. Neither is trivial during initial build.
+
+**Recommendation**: Design EVTEDIT to support the Reckoning pattern. Keep the
+Reckoning in its current hardcoded form through initial EVTEDIT implementation.
+Migrate it to an `EVT_WORLDSTATE` definition once the engine and `TRIG_EVENT_*`
+hooks are proven. The current system can coexist indefinitely.
+
+---
+
+#### Persistence: Redis → JSON
+
+Event state follows the established three-layer architecture:
+
+```
+Game Memory  ↔  Redis Cache  ↔  JSON Files (disk)
+```
+
+**Event definitions** (`EVENT_DEF`):
+- Loaded from `data/events/events.json` at boot.
+- Cached in Redis as `event:def:{wnum}:full` (TTL: `REDIS_TTL_WORLD_STATE = 7d`).
+- Cache invalidated on EVTEDIT save; async disk write queued via dirty queue.
+
+**Active event instances** (`EVENT_INSTANCE`):
+- All active instances are persisted unconditionally — events are world state
+  and must survive reboots.
+- Redis keys:
+  - `event:active:{instance_id}` — instance state JSON (TTL: 7d, refreshed on
+    each state write)
+  - `event:active:list` — sorted set of active `instance_id` values (score =
+    `start_time` epoch). Used at boot to enumerate instances to restore.
+  - `event:schedule:{wnum}` — next computed `time_t` for SCHED_CALENDAR /
+    SCHED_RECURRING / SCHED_WORLDCONDITION. Survives reboot so the scheduler
+    doesn't lose track of last fire or last failed check.
+
+**Write path**: When `EVENT_INSTANCE.dirty` is set (state transition, phase
+advance, participant join/leave, kill count update), `event_flush_dirty()` writes
+to Redis immediately and queues the key for async disk write via
+`redis_queue_dirty_key()`. The game loop's existing dirty-queue drain handles
+disk writes.
+
+**Boot path**:
+1. Load `data/events/events.json` → populate `EVENT_DEF` list.
+2. Warm Redis cache with event defs (background, non-blocking).
+3. Query `event:active:list` from Redis (or parse `data/events/active.json` if
+   Redis is cold).
+4. For each `instance_id`, fetch `event:active:{instance_id}` and restore
+   `EVENT_INSTANCE` into `active_events`. Re-resolve mob/boss pointers.
+5. Resume timers from persisted `start_time` / `end_time`.
+6. For window events (`sched_end_expr` set): if boot time falls within an active
+   window, restore the instance and continue. If the window has expired, mark
+   `EVTS_COMPLETE` and process end rewards.
+
+**Shutdown path**: Flush remaining dirty event instances from Redis to disk
+synchronously before exit (consistent with area saves on shutdown).
+
+**GQ compatibility**: `load_gq_as_event()` reads `data/gq.json` on first boot
+if `data/events/events.json` doesn't exist, producing a generated
+`EVT_COLLECTION` definition. After first conversion, `gq.json` is no longer
+loaded.
+
+New Redis functions needed in `io/cache/redis_cache.h`:
+```c
+bool   redis_cache_event_state(uint32_t id, const char *json_str);
+char  *redis_get_event_state(uint32_t id);
+bool   redis_add_active_event(uint32_t id, time_t start_time);
+bool   redis_remove_active_event(uint32_t id);
+long   redis_get_active_event_ids(uint32_t *out, int max);
+bool   redis_cache_event_schedule(WNUM wnum, time_t next_fire);
+time_t redis_get_event_schedule(WNUM wnum);
+```
+
+---
+
+#### Event Flags (`EVT_FLAG_*`)
+
+| Flag                       | Meaning |
+|----------------------------|---------|
+| `EVT_FLAG_WINNER_ONLY`     | Rewards to winner(s) only |
+| `EVT_FLAG_ALL_PARTS`       | Rewards to all participants |
+| `EVT_FLAG_TOP3`            | Rewards to top 3 contributors |
+| `EVT_FLAG_NOANNOUNCE`      | Suppress global broadcasts |
+| `EVT_FLAG_JOINLATE`        | Players can join after event goes ACTIVE |
+| `EVT_FLAG_EXCLUSIVE_PLAYER`| Player may be in only one event with this flag at a time |
+| `EVT_FLAG_UNIQUE_GLOBAL`   | Only one instance of this definition active at a time |
+| `EVT_FLAG_SCALING`         | Difficulty scales to participant count (via script_start) |
+| `EVT_FLAG_REPEATABLE`      | Players can participate multiple times |
+| `EVT_FLAG_PASSIVE`         | No join needed; affects all players (EVT_WORLDSTATE default) |
+
+---
+
+#### Prerequisites to Build
+
+1. Define `EVENT_DEF`, `EVENT_MOB`, `EVENT_OBJ`, `EVENT_PREREQ`,
+   `ANNOUNCE_PHASE`, `EVENT_INSTANCE`, `EVENT_PART` in `merc.h`.
+2. Add `ED_EVENT` constant to `olc.h`.
+3. Add `CHAR_DATA.event_list` (linked list of `EVENT_PART*`). Remove `in_war`
+   and `next_in_auto_war` (replaced by `event_list` entries).
+4. Implement `char_to_event()` / `char_from_event()` in `handler.c`.
+5. Add `active_events` global list and `event_tick()` in
+   `editors/events/event_engine.c`. Wire into `update.c`.
+6. Implement calendar expression parser in `editors/events/event_sched.c`
+   (start expressions + end expressions, both absolute and relative `+Nd/+Nh`).
+7. Add `TRIG_EVENT_CONDITION` / `TRIG_EVENT_ACTIVE` / `TRIG_EVENT_ANNOUNCE` to
+   `scripts.h` and `script_ifc.c`.
+8. Designate `get_reserved_room_index("room_event_system")` as the system room
+   for condition scripts (in `db.c` reserved room table).
+9. Add Redis event persistence functions to `io/cache/redis_cache.h` /
+   `redis_cache.c` (see above).
+10. Implement `editors/events/evtedit.c` using framework (tabbed).
+11. Implement JSON persistence: `io/json/json_event.c` / `json_event.h`.
+12. Add runtime staff commands to `interp.c`.
+13. Add player commands (`event join/leave/status`) to `act_info.c` or new file.
+14. Wire friendly-fire checks in `fight.c` via `event_list` walk.
+15. GQ compatibility shim: `load_gq_as_event()` in `gq.c`.
+16. Migrate autowar to use event instances.
+17. Fix invasion completion bug and migrate to event engine.
+18. Update both `Makefile` and `CMakeLists.txt` for all new source files.
+
+**Effort**: Very Large. Suggested implementation order:
+1. Structs + `merc.h`
+2. Engine skeleton + tick wiring (SCHED_MANUAL first, manual trigger only)
+3. EVTEDIT editor + JSON persistence
+4. Redis event state layer
+5. Calendar expression parser + SCHED_CALENDAR (trigger events first, then window events)
+6. SCHED_WORLDCONDITION (condition script + escalating chance)
+7. SCHED_RECURRING
+8. Runtime player commands
+9. Migrate GQ (SCHED_MANUAL EVT_COLLECTION + compat shim)
+10. Migrate autowar (EVT_WAR_* with SCHED_MANUAL)
+11. Fix + migrate invasion (EVT_INVASION)
+12. (Stretch) Reckoning migration to EVT_WORLDSTATE
 
 ### 8.7 Quest Editor (QEDIT) — Complete Existing Design
 

@@ -4367,6 +4367,44 @@ SCRIPT_CMD(scriptcmd_setsubclass)
     /* Deprecated — subclass system removed. Kept as no-op for compatibility. */
 }
 
+static int cmd_cmp(void *a, void *b)
+{
+    return str_cmp((char *)a, (char *)b);
+}
+
+// SHOWCOMMAND $PLAYER [STRING]
+//
+// Function: Appends a command string to the list of extra commands for use in the 'commands' command.
+//
+// Remarks: can only be used in the SHOWCOMMANDS trigger
+SCRIPT_CMD(scriptcmd_showcommand)
+{
+    char *rest = argument;
+    CHAR_DATA *ch;
+
+    SETRETURN(0);
+    if (!IS_TRIGGER(TRIG_SHOWCOMMANDS))
+        return;
+
+    PARSE_ARGTYPE(MOBILE);
+    ch = arg->d.mob;
+
+    if (!IS_VALID(ch) || IS_NPC(ch))
+        return;
+
+    if (!ch->pcdata || !ch->pcdata->extra_commands)
+        return;
+
+    BUFFER *buffer = new_buf();
+    if (PARSE_STR(buffer) && !list_contains(ch->pcdata->extra_commands, buffer->string, cmd_cmp))
+    {
+        list_appendlink(ch->pcdata->extra_commands, str_dup(buffer->string));
+        SETRETURN(1);
+    }
+
+    free_buf(buffer);
+}
+
 
 // SPAWNDUNGEON $PLAYER $DUNGEONID $FLOOR $VARIABLENAME
 // This does not automatically send the player to the dungeon

@@ -3149,6 +3149,7 @@ SCRIPT_CMD(scriptcmd_setclass);
 SCRIPT_CMD(scriptcmd_setrace);
 SCRIPT_CMD(scriptcmd_setsubclass);
 SCRIPT_CMD(scriptcmd_settrait);
+SCRIPT_CMD(scriptcmd_showcommand);
 
 SCRIPT_CMD(scriptcmd_questpartcustom);
 SCRIPT_CMD(scriptcmd_questpartgetitem);

@@ -47,6 +47,7 @@
 #include "mxp_links.h"
 #include "recycle.h"
 #include "tables.h"
+#include "event_types.h"
 #include "olc_save.h"
 #include "wilds.h"
 #include "io/cache/redis_cache.h"
@@ -1894,6 +1895,9 @@ void do_at(CHAR_DATA *ch, char *argument)
  */
 void do_startinvasion(CHAR_DATA *ch, char *argument)
 {
+    event_legacy_startinvasion_command(ch, argument);
+    return;
+
     AREA_DATA *pArea;
     char arg1[MIL];
     char arg2[MIL];
@@ -1903,6 +1907,15 @@ void do_startinvasion(CHAR_DATA *ch, char *argument)
     long leader_vnum = 0;
     long mob_vnum = 0;
     INVASION_QUEST *quest;
+
+    argument = one_argument(argument, arg1);
+    if (arg1[0] == '\0')
+        strcpy(arg1, "invasion");
+
+    send_to_char("The legacy 'startinvasion' system is deprecated.\n\r", ch);
+    send_to_char("Use: event start <name> (default: invasion)\n\r", ch);
+    do_function(ch, &do_event, formatf("start %s", arg1));
+    return;
 
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
@@ -10562,6 +10575,9 @@ void do_autosetname(CHAR_DATA *ch, char *argument)
  */
 void do_autowar(CHAR_DATA *ch, char *argument)
 {
+    event_legacy_autowar_command(ch, argument);
+    return;
+
     char buf[MSL];
     char arg[MSL];
     char arg2[MSL];
@@ -10579,6 +10595,22 @@ void do_autowar(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg3);
     argument = one_argument(argument, arg4);
     argument = one_argument(argument, arg5);
+
+    send_to_char("The legacy 'autowar' system is deprecated.\n\r", ch);
+    send_to_char("Use: event start autowar | event stop autowar | event info autowar\n\r", ch);
+
+    if (!str_cmp(arg, "stop")) {
+        do_function(ch, &do_event, "stop autowar");
+        return;
+    }
+
+    if (arg[0] == '\0' || !str_cmp(arg, "show") || !str_cmp(arg, "status") || !str_cmp(arg, "list")) {
+        do_function(ch, &do_event, "info autowar");
+        return;
+    }
+
+    do_function(ch, &do_event, "start autowar");
+    return;
 
     if (!str_cmp(arg, "stop"))
     {

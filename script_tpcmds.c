@@ -127,6 +127,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "setrecall",			do_tpsetrecall,				false,	true	},
     { "settimer",			do_tpsettimer,				false,	true	},
     { "settrait",			scriptcmd_settrait,			false,	true	},
+    { "showcommand",		scriptcmd_showcommand,		false,	true	},
     { "showroom",			do_tpshowroom,				true,	true	},
     { "skimprove",			do_tpskimprove,				true,	true	},
     { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},

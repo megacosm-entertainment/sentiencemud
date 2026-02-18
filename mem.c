@@ -964,6 +964,7 @@ PC_DATA *new_pcdata(void)
     pcdata->vis_to_people = NULL;
     pcdata->quiet_people = NULL;
     pcdata->commands = NULL;
+    pcdata->extra_commands = NULL;
     pcdata->quests_completed = 0;
     location_clear(&pcdata->room_before_arena);
     //pcdata->quests = NULL;
@@ -1059,6 +1060,11 @@ void free_pcdata(PC_DATA *pcdata)
 
     string_vector_freeall(pcdata->script_prompts);
     pcdata->script_prompts = NULL;
+
+    if (pcdata->extra_commands) {
+        list_destroy(pcdata->extra_commands);
+        pcdata->extra_commands = NULL;
+    }
 
     /* Free class level entries before destroying the list */
     if (pcdata->classes) {

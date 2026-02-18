@@ -122,6 +122,7 @@ set(SOURCE_FILES
     editors/commands/cmdedit.c
     editors/corpses/corpsedit.c
     editors/dungeons/dngedit.c
+    editors/events/evtedit.c
     editors/game_settings/gameedit.c
     editors/help/hedit.c
     editors/liquids/liqedit.c
@@ -151,6 +152,7 @@ set(SOURCE_FILES
     editors/common/olc_commands.c
     editors/common/olc_display.c
     effects.c
+    event_types.c
     events.c
     fight.c
     fight2.c

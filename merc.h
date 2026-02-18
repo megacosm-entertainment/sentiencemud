@@ -5503,6 +5503,8 @@ struct	pc_data
 
     LLIST *ships;
 
+    LLIST *extra_commands;
+
     bool spam_block_navigation;			// Used to prevent spam looking at compasses, sextants and telescopes to get skill improvements.
         char *mfa_pending_key;                    // For unconfirmed MFA setup
     bool mfa_pending;                         // True if setup in progress
@@ -7838,6 +7840,7 @@ enum trigger_index_enum {
     TRIG_RESURRECT,
     TRIG_SAVE,
     TRIG_SAYTO,		/* NIB : 20070121 */
+    TRIG_SHOWCOMMANDS,
     TRIG_SIT,
     TRIG_SKILL_BERSERK,
     TRIG_SKILL_SNEAK,

@@ -73,6 +73,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_CORPSE        37
 #define ED_SECTOR        38
 #define ED_REPUTATION    39
+#define ED_EVENT         40
 
 
 
@@ -105,6 +106,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define CORPSEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
 #define SECTOREDIT( fun )     bool fun( CHAR_DATA *ch, char *argument )
 #define REPEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define EVTEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -210,6 +212,7 @@ DECLARE_DO_FUN( do_matedit      );
 DECLARE_DO_FUN( do_corpsedit    );
 DECLARE_DO_FUN( do_sectoredit   );
 DECLARE_DO_FUN( do_repedit      );
+DECLARE_DO_FUN( do_evtedit      );
 
 
 /*
