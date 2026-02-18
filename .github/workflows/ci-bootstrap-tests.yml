@@ -29,6 +29,8 @@ jobs:
   bootstrap-ci-tests:
     name: Bootstrap-root regression tests
     runs-on: ubuntu-latest
+    outputs:
+      failure_snippet: ${{ steps.ci_tests.outputs.failure_snippet }}
     env:
       SENTIENCE_BOOTSTRAP_DATA_SOURCE: ${{ github.workspace }}/bootstrap/bootstrap_data
       SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
@@ -72,10 +74,35 @@ jobs:
             --bootstrap-password=bootstrap123
 
       - name: Run bootstrap CI profile tests
+        id: ci_tests
         env:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
         run: |
-          ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT"
+          LOG_FILE="$RUNNER_TEMP/bootstrap_ci_profile.log"
+
+          ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT" >"$LOG_FILE" 2>&1
+          TEST_STATUS=$?
+
+          cat "$LOG_FILE"
+
+          if [ "$TEST_STATUS" -ne 0 ]; then
+            echo "failure_snippet<<EOF" >> "$GITHUB_OUTPUT"
+            tail -n 80 "$LOG_FILE" | head -c 1500 >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "failure_snippet=" >> "$GITHUB_OUTPUT"
+          fi
+
+          exit "$TEST_STATUS"
+
+      - name: Upload bootstrap CI log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-ci-profile-log
+          path: ${{ runner.temp }}/bootstrap_ci_profile.log
+          if-no-files-found: ignore
 
   notify-discord:
     name: Notify Discord
@@ -88,6 +115,8 @@ jobs:
       - name: Build notification payload
         id: payload
         uses: actions/github-script@v7
+        env:
+          FAILURE_SNIPPET: ${{ needs.bootstrap-ci-tests.outputs.failure_snippet }}
         with:
           script: |
             const result = '${{ needs.bootstrap-ci-tests.result }}';
@@ -100,6 +129,33 @@ jobs:
             const branch = context.ref.replace('refs/heads/', '');
             const actor = context.actor;
             const runUrl = `${context.serverUrl}/${repo}/actions/runs/${context.runId}`;
+            const failureSnippet = (process.env.FAILURE_SNIPPET || '').trim();
+
+            const fields = [
+              {
+                name: 'Workflow',
+                value: 'CI Bootstrap Tests',
+                inline: true
+              },
+              {
+                name: 'Result',
+                value: result,
+                inline: true
+              },
+              {
+                name: 'Logs',
+                value: `[View run logs & artifacts](${runUrl})`,
+                inline: false
+              }
+            ];
+
+            if (!success && failureSnippet) {
+              fields.push({
+                name: 'Failure Snippet (tail)',
+                value: '```\n' + failureSnippet.slice(0, 900) + '\n```',
+                inline: false
+              });
+            }
 
             const body = {
               content: null,
@@ -115,7 +171,8 @@ jobs:
                   ].join('\n'),
                   url: runUrl,
                   color,
-                  timestamp: new Date().toISOString()
+                  timestamp: new Date().toISOString(),
+                  fields
                 }
               ]
             };
