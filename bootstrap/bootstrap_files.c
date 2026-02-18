@@ -10,8 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <errno.h>
 #include <jansson.h>
 #include "../merc.h"
+#include "../skill_data.h"
+#include "../skill_group.h"
+#include "../song_data.h"
+#include "../class_data.h"
 #include "bootstrap.h"
 #include "bootstrap_internal.h"
 
@@ -69,6 +74,109 @@ static bool ensure_area_in_area_list(const char *filename)
     return true;
 }
 
+static bool directory_exists_local(const char *path)
+{
+    struct stat st;
+    return path && stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+static bool ensure_directory(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) == 0) {
+        return S_ISDIR(st.st_mode);
+    }
+    return mkdir(path, 0755) == 0;
+}
+
+static bool copy_file_contents(const char *src, const char *dst)
+{
+    FILE *in = fopen(src, "rb");
+    if (!in) {
+        return false;
+    }
+
+    FILE *out = fopen(dst, "wb");
+    if (!out) {
+        fclose(in);
+        return false;
+    }
+
+    char buffer[8192];
+    size_t bytes;
+    bool ok = true;
+
+    while ((bytes = fread(buffer, 1, sizeof(buffer), in)) > 0) {
+        if (fwrite(buffer, 1, bytes, out) != bytes) {
+            ok = false;
+            break;
+        }
+    }
+
+    if (ferror(in)) {
+        ok = false;
+    }
+
+    fclose(in);
+    if (fclose(out) != 0) {
+        ok = false;
+    }
+
+    return ok;
+}
+
+static bool copy_directory_recursive(const char *src, const char *dst)
+{
+    DIR *dir = opendir(src);
+    if (!dir) {
+        return false;
+    }
+
+    if (!ensure_directory(dst)) {
+        closedir(dir);
+        return false;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (!str_cmp(entry->d_name, ".") || !str_cmp(entry->d_name, "..")) {
+            continue;
+        }
+
+        char src_path[1024];
+        char dst_path[1024];
+        struct stat st;
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", src, entry->d_name);
+        snprintf(dst_path, sizeof(dst_path), "%s/%s", dst, entry->d_name);
+
+        if (stat(src_path, &st) != 0) {
+            closedir(dir);
+            return false;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            if (!copy_directory_recursive(src_path, dst_path)) {
+                closedir(dir);
+                return false;
+            }
+            continue;
+        }
+
+        if (!S_ISREG(st.st_mode)) {
+            continue;
+        }
+
+        if (!copy_file_contents(src_path, dst_path)) {
+            closedir(dir);
+            return false;
+        }
+    }
+
+    closedir(dir);
+    return true;
+}
+
 /**
  * file_exists - Check if a file exists
  *
@@ -91,6 +199,8 @@ bool ensure_directory_structure(void)
 {
     const char *dirs[] = {
         "data", "data/system", "data/world", "data/races",
+        "data/tests", "data/tests/unit", "data/tests/integration",
+        "data/skills", "data/skill_groups", "data/classes",
         "data/help", "data/notes", "data/orgs", "data/persist",
         "data/stats", "data/traits", "data/dump",
         "area", "accounts", "characters", "logs",
@@ -222,7 +332,7 @@ bool create_limbo_area(void)
     json_array_append_new(room_flags, json_string("no_mob"));
     json_array_append_new(room_flags, json_string("safe"));
     json_object_set_new(room, "flags", room_flags);
-    json_object_set_new(room, "sector", json_integer(0));
+    json_object_set_new(room, "sector", json_string("inside"));
 
     json_array_append_new(rooms, room);
     json_object_set_new(root, "rooms", rooms);
@@ -329,6 +439,107 @@ bool create_human_race(void)
 
     json_decref(root);
     printf("  Created minimal human.json\n");
+    return true;
+}
+
+/**
+ * create_trait_definitions - Create baseline traits.json when missing
+ *
+ * Provides a minimal but valid trait definition set so the trait system
+ * loads cleanly during fresh bootstrap runs.
+ *
+ * @return true on success
+ */
+bool create_trait_definitions(void)
+{
+    json_t *root;
+    json_t *traits;
+
+    if (file_exists("data/traits/traits.json")) {
+        return true;
+    }
+
+    root = json_object();
+    traits = json_array();
+
+    json_object_set_new(root, "_format", json_string("trait_definitions"));
+    json_object_set_new(root, "_version", json_integer(1));
+
+    {
+        json_t *t = json_object();
+        json_object_set_new(t, "id", json_string("sentient"));
+        json_object_set_new(t, "name", json_string("Sentient"));
+        json_object_set_new(t, "description", json_string("Can use player-facing communication and class systems."));
+        json_object_set_new(t, "category", json_string("core"));
+        json_object_set_new(t, "type", json_string("boolean"));
+        json_object_set_new(t, "default", json_boolean(true));
+        json_array_append_new(traits, t);
+    }
+
+    {
+        json_t *t = json_object();
+        json_object_set_new(t, "id", json_string("humanoid"));
+        json_object_set_new(t, "name", json_string("Humanoid"));
+        json_object_set_new(t, "description", json_string("Uses standard humanoid movement and equipment assumptions."));
+        json_object_set_new(t, "category", json_string("body"));
+        json_object_set_new(t, "type", json_string("boolean"));
+        json_object_set_new(t, "default", json_boolean(true));
+        json_array_append_new(traits, t);
+    }
+
+    {
+        json_t *t = json_object();
+        json_object_set_new(t, "id", json_string("size_class"));
+        json_object_set_new(t, "name", json_string("Size Class"));
+        json_object_set_new(t, "description", json_string("Generic size class hint for scripts and content logic."));
+        json_object_set_new(t, "category", json_string("body"));
+        json_object_set_new(t, "type", json_string("integer"));
+        json_object_set_new(t, "default", json_integer(2));
+        json_array_append_new(traits, t);
+    }
+
+    json_object_set_new(root, "traits", traits);
+
+    if (json_dump_file(root, "data/traits/traits.json", JSON_INDENT(2)) != 0) {
+        fprintf(stderr, "Failed to write data/traits/traits.json\n");
+        json_decref(root);
+        return false;
+    }
+
+    json_decref(root);
+    return true;
+}
+
+/**
+ * generate_default_game_data - Generate JSON gameplay datasets from code defaults
+ *
+ * This drives generation during bootstrap so a new install has a runnable
+ * JSON baseline immediately.
+ *
+ * @return true on success
+ */
+bool generate_default_game_data(void)
+{
+    log_string("bootstrap: generating default gameplay data files");
+
+    load_skill_data();
+    load_skill_groups();
+    if (!load_songs()) {
+        fprintf(stderr, "Failed to generate/load songs data\n");
+        return false;
+    }
+    load_class_data();
+
+    load_liquid_data();
+    load_material_data();
+    load_sector_data();
+    load_corpse_data();
+
+    if (!load_commands()) {
+        fprintf(stderr, "Failed to generate/load commands data\n");
+        return false;
+    }
+
     return true;
 }
 
@@ -529,7 +740,7 @@ static bool create_dummy_fixture_area(void)
     json_array_append_new(room_flags, json_string("indoors"));
     json_array_append_new(room_flags, json_string("safe"));
     json_object_set_new(room, "flags", room_flags);
-    json_object_set_new(room, "sector", json_integer(0));
+    json_object_set_new(room, "sector", json_string("inside"));
     json_array_append_new(rooms, room);
 
     json_t *mob = json_object();
@@ -582,6 +793,36 @@ bool create_ci_test_fixture_areas(void)
         return false;
     }
     if (!ensure_area_in_area_list("bootstrap_dummy_fixture.json")) {
+        return false;
+    }
+
+    return true;
+}
+
+bool create_ci_test_data_files(void)
+{
+    const char *source_candidates[] = {
+        "src/tests/data",
+        "/sentience/src/tests/data",
+        NULL
+    };
+
+    const char *source_dir = NULL;
+    for (int i = 0; source_candidates[i] != NULL; i++) {
+        if (directory_exists_local(source_candidates[i])) {
+            source_dir = source_candidates[i];
+            break;
+        }
+    }
+
+    if (!source_dir) {
+        fprintf(stderr, "No source test data directory found for CI fixture copy\n");
+        return false;
+    }
+
+    if (!copy_directory_recursive(source_dir, "data/tests")) {
+        fprintf(stderr, "Failed to copy CI test data from %s to data/tests (%s)\n",
+                source_dir, strerror(errno));
         return false;
     }
 

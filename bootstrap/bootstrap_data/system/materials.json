@@ -1,0 +1,595 @@
+{
+  "_format": "materials",
+  "_version": 1,
+  "next_uid": 85,
+  "materials": [
+    {
+      "uid": 1,
+      "name": "air",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 2,
+      "name": "dirt",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 3,
+      "name": "dust",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 4,
+      "name": "paper",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 5,
+      "name": "organic",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 6,
+      "name": "fruit",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 7,
+      "name": "meat",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 8,
+      "name": "moss",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 9,
+      "name": "leaves",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 10,
+      "name": "skin",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 11,
+      "name": "ink",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 12,
+      "name": "flesh",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 13,
+      "name": "clay",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 14,
+      "name": "mud",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 15,
+      "name": "cloth",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 16,
+      "name": "cotton",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 17,
+      "name": "fur",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 18,
+      "name": "light",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 19,
+      "name": "wool",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 20,
+      "name": "energy",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 21,
+      "name": "fire",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 22,
+      "name": "water",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 23,
+      "name": "glass",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 24,
+      "name": "feathers",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 25,
+      "name": "intestines",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 26,
+      "name": "muscle",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 27,
+      "name": "parchment",
+      "strength": 1,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 28,
+      "name": "rubber",
+      "strength": 1,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 29,
+      "name": "slime",
+      "strength": 1,
+      "value": 3,
+      "comments": ""
+    },
+    {
+      "uid": 30,
+      "name": "bark",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 31,
+      "name": "wicker",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 32,
+      "name": "reed",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 33,
+      "name": "sand",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 34,
+      "name": "salt",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 35,
+      "name": "phosphorus",
+      "strength": 1,
+      "value": 4,
+      "comments": ""
+    },
+    {
+      "uid": 36,
+      "name": "sulfur",
+      "strength": 1,
+      "value": 4,
+      "comments": ""
+    },
+    {
+      "uid": 37,
+      "name": "hemp",
+      "strength": 2,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 38,
+      "name": "leather",
+      "strength": 2,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 39,
+      "name": "porcelain",
+      "strength": 2,
+      "value": 6,
+      "comments": ""
+    },
+    {
+      "uid": 40,
+      "name": "crystal",
+      "strength": 3,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 41,
+      "name": "ceramic",
+      "strength": 3,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 42,
+      "name": "wood",
+      "strength": 4,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 43,
+      "name": "ice",
+      "strength": 4,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 44,
+      "name": "tin",
+      "strength": 4,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 45,
+      "name": "brass",
+      "strength": 4,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 46,
+      "name": "copper",
+      "strength": 4,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 47,
+      "name": "zinc",
+      "strength": 4,
+      "value": 4,
+      "comments": ""
+    },
+    {
+      "uid": 48,
+      "name": "bone",
+      "strength": 4,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 49,
+      "name": "shell",
+      "strength": 4,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 50,
+      "name": "metal",
+      "strength": 5,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 51,
+      "name": "bronze",
+      "strength": 5,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 52,
+      "name": "iron",
+      "strength": 5,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 53,
+      "name": "steel",
+      "strength": 5,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 54,
+      "name": "lead",
+      "strength": 6,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 55,
+      "name": "onyx",
+      "strength": 6,
+      "value": 3,
+      "comments": ""
+    },
+    {
+      "uid": 56,
+      "name": "ivory",
+      "strength": 6,
+      "value": 6,
+      "comments": ""
+    },
+    {
+      "uid": 57,
+      "name": "silk",
+      "strength": 6,
+      "value": 4,
+      "comments": ""
+    },
+    {
+      "uid": 58,
+      "name": "silver",
+      "strength": 6,
+      "value": 6,
+      "comments": ""
+    },
+    {
+      "uid": 59,
+      "name": "nickel",
+      "strength": 6,
+      "value": 3,
+      "comments": ""
+    },
+    {
+      "uid": 60,
+      "name": "quartz",
+      "strength": 6,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 61,
+      "name": "obsidian",
+      "strength": 6,
+      "value": 6,
+      "comments": ""
+    },
+    {
+      "uid": 62,
+      "name": "gemstone",
+      "strength": 6,
+      "value": 6,
+      "comments": ""
+    },
+    {
+      "uid": 63,
+      "name": "spidersilk",
+      "strength": 7,
+      "value": 4,
+      "comments": ""
+    },
+    {
+      "uid": 64,
+      "name": "ceramic",
+      "strength": 7,
+      "value": 2,
+      "comments": ""
+    },
+    {
+      "uid": 65,
+      "name": "ruby",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 66,
+      "name": "sapphire",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 67,
+      "name": "emerald",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 68,
+      "name": "amethyst",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 69,
+      "name": "opal",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 70,
+      "name": "pearl",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 71,
+      "name": "topaz",
+      "strength": 7,
+      "value": 7,
+      "comments": ""
+    },
+    {
+      "uid": 72,
+      "name": "gold",
+      "strength": 8,
+      "value": 8,
+      "comments": ""
+    },
+    {
+      "uid": 73,
+      "name": "granite",
+      "strength": 8,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 74,
+      "name": "concrete",
+      "strength": 8,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 75,
+      "name": "stone",
+      "strength": 8,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 76,
+      "name": "marble",
+      "strength": 8,
+      "value": 6,
+      "comments": ""
+    },
+    {
+      "uid": 77,
+      "name": "platinum",
+      "strength": 8,
+      "value": 9,
+      "comments": ""
+    },
+    {
+      "uid": 78,
+      "name": "moonstone",
+      "strength": 9,
+      "value": 10,
+      "comments": ""
+    },
+    {
+      "uid": 79,
+      "name": "dragonscale",
+      "strength": 10,
+      "value": 9,
+      "comments": ""
+    },
+    {
+      "uid": 80,
+      "name": "diamond",
+      "strength": 10,
+      "value": 10,
+      "comments": ""
+    },
+    {
+      "uid": 81,
+      "name": "mithril",
+      "strength": 10,
+      "value": 10,
+      "comments": ""
+    },
+    {
+      "uid": 82,
+      "name": "papyrus",
+      "strength": 4,
+      "value": 4,
+      "comments": ""
+    },
+    {
+      "uid": 83,
+      "name": "plant",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    },
+    {
+      "uid": 84,
+      "name": "unknown",
+      "strength": 1,
+      "value": 1,
+      "comments": ""
+    }
+  ]
+}

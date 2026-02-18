@@ -196,6 +196,7 @@ if [[ "$do_coverage" == true ]]; then
         '*/.deps/*' \
         '*/tests/*' \
         '/usr/*' \
+        --ignore-errors unused \
         --output-file .build/coverage_filtered.info \
         --quiet
 

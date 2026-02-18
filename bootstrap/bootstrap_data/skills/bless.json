@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 10,
+            "rating": 2
+        },
+        {
+            "class": "cleric",
+            "level": 4,
+            "rating": 2
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 4,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "$p's holy aura fades.",
+    "msg_off": "{CYou feel less righteous.{x",
+    "name": "bless",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_bless",
+    "target": "obj_char_def",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 21
+}

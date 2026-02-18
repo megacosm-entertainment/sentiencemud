@@ -56,6 +56,31 @@ static WAYPOINT_DATA *json_to_waypoint(json_t *json);
 static json_t *variable_to_json(pVARIABLE var);
 static bool json_load_variable(json_t *json, pVARIABLE *vars);
 
+static const char *persist_json_dir_path(char *buf, size_t bufsize)
+{
+    return resolve_game_path(PERSIST_JSON_DIR, buf, bufsize);
+}
+
+static const char *persist_json_rooms_path(char *buf, size_t bufsize)
+{
+    return resolve_game_path(PERSIST_JSON_ROOMS, buf, bufsize);
+}
+
+static const char *persist_json_mobiles_path(char *buf, size_t bufsize)
+{
+    return resolve_game_path(PERSIST_JSON_MOBILES, buf, bufsize);
+}
+
+static const char *persist_json_objects_path(char *buf, size_t bufsize)
+{
+    return resolve_game_path(PERSIST_JSON_OBJECTS, buf, bufsize);
+}
+
+static const char *persist_dat_path(char *buf, size_t bufsize)
+{
+    return resolve_game_path(PERSIST_FILE, buf, bufsize);
+}
+
 /***************************************************************************
  * Initialization                                                          *
  ***************************************************************************/
@@ -63,34 +88,42 @@ static bool json_load_variable(json_t *json, pVARIABLE *vars);
 bool json_persist_init(void)
 {
     int ret;
+    char persist_dir_buf[MAX_INPUT_LENGTH];
+    char rooms_dir_buf[MAX_INPUT_LENGTH];
+    char mobiles_dir_buf[MAX_INPUT_LENGTH];
+    char objects_dir_buf[MAX_INPUT_LENGTH];
+    const char *persist_dir = persist_json_dir_path(persist_dir_buf, sizeof(persist_dir_buf));
+    const char *rooms_dir = persist_json_rooms_path(rooms_dir_buf, sizeof(rooms_dir_buf));
+    const char *mobiles_dir = persist_json_mobiles_path(mobiles_dir_buf, sizeof(mobiles_dir_buf));
+    const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
 
     /* Create main persist directory */
-    ret = mkdir(PERSIST_JSON_DIR, 0755);
+    ret = mkdir(persist_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
         log_stringf("json_persist_init: Failed to create %s: %s",
-                   PERSIST_JSON_DIR, strerror(errno));
+                   persist_dir, strerror(errno));
         return false;
     }
 
     /* Create subdirectories */
-    ret = mkdir(PERSIST_JSON_ROOMS, 0755);
+    ret = mkdir(rooms_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
         log_stringf("json_persist_init: Failed to create %s: %s",
-                   PERSIST_JSON_ROOMS, strerror(errno));
+                   rooms_dir, strerror(errno));
         return false;
     }
 
-    ret = mkdir(PERSIST_JSON_MOBILES, 0755);
+    ret = mkdir(mobiles_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
         log_stringf("json_persist_init: Failed to create %s: %s",
-                   PERSIST_JSON_MOBILES, strerror(errno));
+                   mobiles_dir, strerror(errno));
         return false;
     }
 
-    ret = mkdir(PERSIST_JSON_OBJECTS, 0755);
+    ret = mkdir(objects_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
         log_stringf("json_persist_init: Failed to create %s: %s",
-                   PERSIST_JSON_OBJECTS, strerror(errno));
+                   objects_dir, strerror(errno));
         return false;
     }
 
@@ -104,12 +137,16 @@ bool json_persist_init(void)
 
 void json_persist_object_path(unsigned long id0, unsigned long id1, char *buf, size_t bufsize)
 {
-    snprintf(buf, bufsize, "%s%lu_%lu.json", PERSIST_JSON_OBJECTS, id0, id1);
+    char objects_dir_buf[MAX_INPUT_LENGTH];
+    const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
+    snprintf(buf, bufsize, "%s%lu_%lu.json", objects_dir, id0, id1);
 }
 
 void json_persist_mobile_path(unsigned long id0, unsigned long id1, char *buf, size_t bufsize)
 {
-    snprintf(buf, bufsize, "%s%lu_%lu.json", PERSIST_JSON_MOBILES, id0, id1);
+    char mobiles_dir_buf[MAX_INPUT_LENGTH];
+    const char *mobiles_dir = persist_json_mobiles_path(mobiles_dir_buf, sizeof(mobiles_dir_buf));
+    snprintf(buf, bufsize, "%s%lu_%lu.json", mobiles_dir, id0, id1);
 }
 
 void json_persist_room_id(ROOM_INDEX_DATA *room, char *buf, size_t bufsize)
@@ -135,9 +172,11 @@ void json_persist_room_id(ROOM_INDEX_DATA *room, char *buf, size_t bufsize)
 
 void json_persist_room_path(ROOM_INDEX_DATA *room, char *buf, size_t bufsize)
 {
+    char rooms_dir_buf[MAX_INPUT_LENGTH];
+    const char *rooms_dir = persist_json_rooms_path(rooms_dir_buf, sizeof(rooms_dir_buf));
     char room_id[256];
     json_persist_room_id(room, room_id, sizeof(room_id));
-    snprintf(buf, bufsize, "%s%s.json", PERSIST_JSON_ROOMS, room_id);
+    snprintf(buf, bufsize, "%s%s.json", rooms_dir, room_id);
 }
 
 /***************************************************************************
@@ -2495,6 +2534,8 @@ bool json_persist_save_room(ROOM_INDEX_DATA *room)
 
 ROOM_INDEX_DATA *json_persist_load_room(const char *room_id)
 {
+    char rooms_dir_buf[MAX_INPUT_LENGTH];
+    const char *rooms_dir = persist_json_rooms_path(rooms_dir_buf, sizeof(rooms_dir_buf));
     char path[512];
     json_t *json;
     json_error_t error;
@@ -2502,7 +2543,7 @@ ROOM_INDEX_DATA *json_persist_load_room(const char *room_id)
 
     if (!room_id || !room_id[0]) return NULL;
 
-    snprintf(path, sizeof(path), "%s%s.json", PERSIST_JSON_ROOMS, room_id);
+    snprintf(path, sizeof(path), "%s%s.json", rooms_dir, room_id);
 
     json = json_load_file(path, 0, &error);
     if (!json) {
@@ -2826,6 +2867,12 @@ bool json_persist_load_all(void)
 {
     DIR *dir;
     struct dirent *entry;
+    char rooms_dir_buf[MAX_INPUT_LENGTH];
+    char mobiles_dir_buf[MAX_INPUT_LENGTH];
+    char objects_dir_buf[MAX_INPUT_LENGTH];
+    const char *rooms_dir = persist_json_rooms_path(rooms_dir_buf, sizeof(rooms_dir_buf));
+    const char *mobiles_dir = persist_json_mobiles_path(mobiles_dir_buf, sizeof(mobiles_dir_buf));
+    const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
     int loaded_objs = 0, loaded_mobs = 0, loaded_rooms = 0;
     int failed_objs = 0, failed_mobs = 0, failed_rooms = 0;
 
@@ -2838,7 +2885,7 @@ bool json_persist_load_all(void)
     }
 
     /* Load rooms first */
-    dir = opendir(PERSIST_JSON_ROOMS);
+    dir = opendir(rooms_dir);
     if (dir) {
         while ((entry = readdir(dir)) != NULL) {
             if (entry->d_name[0] == '.') continue;
@@ -2865,7 +2912,7 @@ bool json_persist_load_all(void)
     }
 
     /* Load mobiles */
-    dir = opendir(PERSIST_JSON_MOBILES);
+    dir = opendir(mobiles_dir);
     if (dir) {
         while ((entry = readdir(dir)) != NULL) {
             if (entry->d_name[0] == '.') continue;
@@ -2899,7 +2946,7 @@ bool json_persist_load_all(void)
     }
 
     /* Load objects */
-    dir = opendir(PERSIST_JSON_OBJECTS);
+    dir = opendir(objects_dir);
     if (dir) {
         while ((entry = readdir(dir)) != NULL) {
             if (entry->d_name[0] == '.') continue;
@@ -2940,16 +2987,20 @@ bool json_persist_needs_migration(void)
 {
     FILE *fp;
     DIR *dir;
+    char persist_file_buf[MAX_INPUT_LENGTH];
+    char objects_dir_buf[MAX_INPUT_LENGTH];
+    const char *persist_file = persist_dat_path(persist_file_buf, sizeof(persist_file_buf));
+    const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
 
     /* Check if persist.dat exists */
-    fp = fopen(PERSIST_FILE, "r");
+    fp = fopen(persist_file, "r");
     if (!fp) {
         return false;  /* No old file to migrate */
     }
     fclose(fp);
 
     /* Check if JSON persist directory has content */
-    dir = opendir(PERSIST_JSON_OBJECTS);
+    dir = opendir(objects_dir);
     if (dir) {
         struct dirent *entry;
         while ((entry = readdir(dir)) != NULL) {
@@ -3060,16 +3111,30 @@ static bool write_dirty_key_to_disk(const char *key)
 
     switch (type) {
     case 0: /* Room */
-        snprintf(path, sizeof(path), "%s%s.json", PERSIST_JSON_ROOMS, id_buf);
+        {
+            char rooms_dir_buf[MAX_INPUT_LENGTH];
+            const char *rooms_dir = persist_json_rooms_path(rooms_dir_buf, sizeof(rooms_dir_buf));
+            snprintf(path, sizeof(path), "%s%s.json", rooms_dir, id_buf);
+        }
         break;
     case 1: /* Mobile */
-        snprintf(path, sizeof(path), "%s%s.json", PERSIST_JSON_MOBILES, id_buf);
+        {
+            char mobiles_dir_buf[MAX_INPUT_LENGTH];
+            const char *mobiles_dir = persist_json_mobiles_path(mobiles_dir_buf, sizeof(mobiles_dir_buf));
+            snprintf(path, sizeof(path), "%s%s.json", mobiles_dir, id_buf);
+        }
         break;
     case 2: /* Object */
-        snprintf(path, sizeof(path), "%s%s.json", PERSIST_JSON_OBJECTS, id_buf);
+        {
+            char objects_dir_buf[MAX_INPUT_LENGTH];
+            const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
+            snprintf(path, sizeof(path), "%s%s.json", objects_dir, id_buf);
+        }
         break;
     case 3: /* Area - extract filename from the cached JSON */
         {
+            char area_dir_buf[MAX_INPUT_LENGTH];
+            const char *area_dir = resolve_game_path(AREA_DIR, area_dir_buf, sizeof(area_dir_buf));
             json_t *root = json_loads(json_str, 0, NULL);
             if (!root) {
                 log_stringf("persist_worker: Failed to parse area JSON for %s", id_buf);
@@ -3084,7 +3149,7 @@ static bool write_dirty_key_to_disk(const char *key)
                 free(json_str);
                 return false;
             }
-            snprintf(path, sizeof(path), "%s%s", AREA_DIR, filename);
+            snprintf(path, sizeof(path), "%s%s", area_dir, filename);
             json_decref(root);
         }
         break;

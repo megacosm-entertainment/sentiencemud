@@ -1,0 +1,86 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "mob_vampire",
+  "uid": 28,
+  "name": "mob_vampire",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "mob_vampire"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "sentient",
+      "undead",
+      "biped"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "detect_invis",
+      "detect_hidden",
+      "flying"
+    ],
+    "offensive": [
+      "bash",
+      "dodge"
+    ],
+    "immunities": [
+      "poison"
+    ],
+    "resistances": [
+      "magic"
+    ],
+    "vulnerabilities": [
+      "light",
+      "holy"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

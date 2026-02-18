@@ -1,0 +1,74 @@
+name: CI Bootstrap Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+      - v2_testport
+      - legacy_server
+      - olc_blueprints
+      - feature/widevnum-migration
+  merge_group:
+  push:
+    branches:
+      - master
+      - v2_testport
+      - legacy_server
+      - olc_blueprints
+      - feature/widevnum-migration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-bootstrap-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bootstrap-ci-tests:
+    name: Bootstrap-root regression tests
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
+      options: --user root
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Mark repo as safe for git
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build dependencies
+        run: |
+          cd .deps
+          ./build_deps.sh
+
+      - name: Build tests binary
+        run: |
+          ./build tests
+
+      - name: Bootstrap isolated CI root
+        env:
+          BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
+        run: |
+          rm -rf "$BOOT_ROOT"
+          mkdir -p "$BOOT_ROOT"
+
+          ./.build/Debug/sent \
+            -bootstrap \
+            --bootstrap-auto \
+            --bootstrap-ci-fixtures \
+            --bootstrap-root="$BOOT_ROOT" \
+            --bootstrap-username=bootstrapci \
+            --bootstrap-email=bootstrapci@example.com \
+            --bootstrap-password=bootstrap123
+
+      - name: Run bootstrap CI profile tests
+        env:
+          BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
+        run: |
+          ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT"

@@ -18,16 +18,16 @@
         "function": "parse_widevnum",
         "test_cases": [
           {
-            "input": "3001",
-            "context_area": "Realm of Alendith",
-            "expected_area": "Dungeon Mystica", 
-            "expected_vnum": 3001
+            "input": "1#1",
+            "context_area": "Bootstrap Reserved",
+            "expected_area": "Bootstrap Reserved",
+            "expected_vnum": 1
           },
           {
-            "input": "3000",
+            "input": "2#1",
             "context_area": "Limbo",
-            "expected_area": "Dungeon Mystica",
-            "expected_vnum": 3000
+            "expected_area": "Limbo",
+            "expected_vnum": 1
           }
         ]
       },
@@ -37,7 +37,7 @@
     },
     {
       "name": "basic_vnum_parsing_quiet",
-      "description": "Test WNUM parsing with verbose output disabled", 
+      "description": "Test WNUM parsing with verbose output disabled",
       "test_type": "pure_function_test",
       "verbose_output": false,
       "timeout_seconds": 15,
@@ -46,10 +46,10 @@
         "function": "parse_widevnum",
         "test_cases": [
           {
-            "input": "3000",
+            "input": "2#1",
             "context_area": "Limbo",
-            "expected_area": "Dungeon Mystica",
-            "expected_vnum": 3000
+            "expected_area": "Limbo",
+            "expected_vnum": 1
           }
         ]
       },

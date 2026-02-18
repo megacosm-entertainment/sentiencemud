@@ -1,0 +1,94 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "wraith",
+  "uid": 25,
+  "name": "wraith",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "path_race": true,
+  "remort": {
+    "prerequisite_race": "lich"
+  },
+  "display": {
+    "who_name": "{YWraith"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "sentient",
+      "undead",
+      "biped"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "pass_door"
+    ],
+    "offensive": [],
+    "immunities": [
+      "charm",
+      "cold",
+      "lightning",
+      "kill"
+    ],
+    "resistances": [
+      "pierce",
+      "slash",
+      "poison"
+    ],
+    "vulnerabilities": [
+      "bash",
+      "fire"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 20,
+      "int": 25,
+      "wis": 25,
+      "dex": 18,
+      "con": 25
+    },
+    "max_vitals": {
+      "hp": 2850,
+      "mana": 4600,
+      "move": 3000
+    }
+  },
+  "skills": [
+    "crippling touch",
+    "rending",
+    "scry",
+    "spirit rack",
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": []
+}

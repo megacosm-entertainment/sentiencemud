@@ -1,0 +1,21 @@
+{
+    "name": "druid skills",
+    "skills": [
+        "dispel evil",
+        "dispel good",
+        "brew",
+        "cosmic blast",
+        "enchant armour",
+        "enchant weapon",
+        "underwater breathing",
+        "fireproof",
+        "summon",
+        "scribe",
+        "lore",
+        "earthquake",
+        "call lightning",
+        "bless",
+        "archery",
+        "bow"
+    ]
+}

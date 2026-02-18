@@ -1,0 +1,10 @@
+{
+    "name": "alchemist skills",
+    "skills": [
+        "brew",
+        "scribe",
+        "throw",
+        "recharge",
+        "combine"
+    ]
+}

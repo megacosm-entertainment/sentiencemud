@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 2,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 6,
+            "rating": 3
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 6,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            16,
+            2
+        ],
+        [
+            15,
+            1
+        ],
+        [
+            10,
+            1
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "{CThe detect magic wears off.{x",
+    "name": "detect magic",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_detect_magic",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 77
+}

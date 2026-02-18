@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 12,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 14,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 17,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            5
+        ],
+        [
+            19,
+            2
+        ],
+        [
+            4,
+            1
+        ]
+    ],
+    "min_mana": 10,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "The poison on $p dries up.",
+    "msg_off": "You feel less sick.",
+    "name": "poison",
+    "noun_damage": "poison",
+    "race": null,
+    "spell_function": "spell_poison",
+    "target": "obj_char_off",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 184
+}

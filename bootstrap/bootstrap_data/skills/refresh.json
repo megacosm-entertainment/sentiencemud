@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "cleric",
+            "level": 6,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 5,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            1
+        ],
+        [
+            17,
+            1
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 12,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Refresh!",
+    "name": "refresh",
+    "noun_damage": "refresh",
+    "race": null,
+    "spell_function": "spell_refresh",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 191
+}

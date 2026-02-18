@@ -1,0 +1,56 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 1,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 1,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 1,
+            "rating": 5
+        },
+        {
+            "class": "warrior",
+            "level": 1,
+            "rating": 5
+        }
+    ],
+    "flags": [
+        "racial"
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Breath!",
+    "name": "breath",
+    "noun_damage": "breath",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 26
+}

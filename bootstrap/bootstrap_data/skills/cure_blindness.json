@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "cleric",
+            "level": 6,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 6,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Cure Blindness!",
+    "name": "cure blindness",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cure_blindness",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 58
+}

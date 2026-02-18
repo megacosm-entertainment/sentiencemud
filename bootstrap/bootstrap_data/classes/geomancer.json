@@ -1,0 +1,56 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "geomancer",
+        "male": "geomancer",
+        "neutral": "geomancer",
+        "other": "geomancer"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster",
+        "remort_only"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "mage skills",
+        "geomancer skills"
+    ],
+    "hp_max": 8,
+    "hp_min": 6,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "geomancer",
+    "primary_stat": "intelligence",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "mage skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "geomancer skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "geomancer",
+            "keyword": "default",
+            "who_name": " Geomancer  "
+        }
+    ],
+    "type": "mage",
+    "uid": 17,
+    "weapon": 0,
+    "who": {
+        "female": " Geomancer  ",
+        "male": " Geomancer  ",
+        "neutral": " Geomancer  ",
+        "other": " Geomancer  "
+    }
+}

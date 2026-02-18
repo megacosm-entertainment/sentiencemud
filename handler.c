@@ -11829,6 +11829,8 @@ bool is_llist(const void *ptr)
 static bool load_or_generate_salt(const char *base_path, int version, unsigned char *salt_out)
 {
     char salt_file_path[256];
+    char resolved_base_path[256];
+    const char *base_path_resolved;
     FILE *salt_file;
 
     if (!base_path || !*base_path) {
@@ -11836,8 +11838,10 @@ static bool load_or_generate_salt(const char *base_path, int version, unsigned c
         return false;
     }
 
+    base_path_resolved = resolve_game_path(base_path, resolved_base_path, sizeof(resolved_base_path));
+
     // Construct versioned salt file path: base_path.v1, base_path.v2, etc.
-    snprintf(salt_file_path, sizeof(salt_file_path), "%s.v%d", base_path, version);
+    snprintf(salt_file_path, sizeof(salt_file_path), "%s.v%d", base_path_resolved, version);
 
     // Try to load existing salt
     salt_file = fopen(salt_file_path, "rb");
@@ -11990,8 +11994,10 @@ static bool crypto_init_from_passphrase(void)
 static bool crypto_init_from_file(void)
 {
     FILE *key_file;
+    char key_path_buf[MAX_INPUT_LENGTH];
+    const char *key_path = resolve_game_path(MFA_ENC_KEY, key_path_buf, sizeof(key_path_buf));
 
-    key_file = fopen(MFA_ENC_KEY, "rb");
+    key_file = fopen(key_path, "rb");
     if (key_file) {
         // Read existing key
         if (fread(crypto_key, 1, AES_KEY_SIZE, key_file) != AES_KEY_SIZE) {
@@ -12004,11 +12010,11 @@ static bool crypto_init_from_file(void)
     } else {
         // Generate and save a new key
         RAND_bytes(crypto_key, AES_KEY_SIZE);
-        key_file = fopen(MFA_ENC_KEY, "wb");
+        key_file = fopen(key_path, "wb");
         if (key_file) {
             fwrite(crypto_key, 1, AES_KEY_SIZE, key_file);
             fclose(key_file);
-            chmod(MFA_ENC_KEY, 0600);
+            chmod(key_path, 0600);
             log_message(LOG_LEVEL_INFO, LOG_INIT, "Generated new crypto key file");
         } else {
             log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to create crypto key file");

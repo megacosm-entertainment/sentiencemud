@@ -24,6 +24,7 @@
       "database_integrity", 
       "wnum_parsing",
       "core_string_unit_tests",
+      "string_predicates_unit_tests",
       "wnum_parsing_unit_tests",
       "skill_data_tests",
       "class_data_tests",
@@ -35,6 +36,7 @@
     ],
     "unit_only_suites": [
       "core_string_unit_tests",
+      "string_predicates_unit_tests",
       "wnum_parsing_unit_tests"
     ],
     "integration_only_suites": [
@@ -64,14 +66,29 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "core_string_unit_tests", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "lookup_table_tests"],
+        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "lookup_table_tests"],
         "stop_on_first_failure": true
       },
       "ci": {
         "description": "Complete test suite for CI/CD",
-        "suites": ["area_loading", "database_integrity", "wnum_parsing", "core_string_unit_tests", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "item_type_tests", "lookup_table_tests", "song_data_tests", "skill_group_tests", "trait_system_tests"],
+        "suites": ["area_loading", "database_integrity", "wnum_parsing", "core_string_unit_tests", "string_predicates_unit_tests", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "item_type_tests", "lookup_table_tests", "song_data_tests", "skill_group_tests", "trait_system_tests"],
         "stop_on_first_failure": false,
         "require_coverage": true
+      },
+      "bootstrap_ci": {
+        "description": "Bootstrap-root compatible suite for CI fixture data",
+        "suites": [
+          "core_string_unit_tests",
+          "string_predicates_unit_tests",
+          "trait_system",
+          "skill_group_data",
+          "skill_data",
+          "json_area_serialization",
+          "instance_persist",
+          "reserved_wnum"
+        ],
+        "stop_on_first_failure": false,
+        "require_coverage": false
       },
       "regression": {
         "description": "Core regression tests",

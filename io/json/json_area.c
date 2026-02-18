@@ -1567,13 +1567,15 @@ BLUEPRINT *json_area_deserialize_blueprint(json_t *json, AREA_DATA *area)
 
 AREA_DATA *json_area_load(const char *filename)
 {
+    char area_dir_buf[MAX_INPUT_LENGTH];
+    const char *area_dir = resolve_game_path(AREA_DIR, area_dir_buf, sizeof(area_dir_buf));
     char path[512];
     json_t *root, *area_obj;
     json_error_t error;
     AREA_DATA *area;
     
     /* Build full path */
-    snprintf(path, sizeof(path), "%s%s", AREA_DIR, filename);
+    snprintf(path, sizeof(path), "%s%s", area_dir, filename);
     
     /* Load JSON file */
     root = json_load_file(path, 0, &error);
@@ -2005,6 +2007,8 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
 
 bool json_area_save(AREA_DATA *area)
 {
+    char area_dir_buf[MAX_INPUT_LENGTH];
+    const char *area_dir = resolve_game_path(AREA_DIR, area_dir_buf, sizeof(area_dir_buf));
     char path[512];
     json_t *root;
     
@@ -2014,7 +2018,7 @@ bool json_area_save(AREA_DATA *area)
     }
     
     /* Build full path */
-    snprintf(path, sizeof(path), "%s%s", AREA_DIR, area->file_name);
+    snprintf(path, sizeof(path), "%s%s", area_dir, area->file_name);
     
     /* Create root JSON object */
     root = json_object();
@@ -2412,7 +2416,7 @@ json_t *json_area_serialize_room(ROOM_INDEX_DATA *room)
     // Flags and sector
     json_object_set_new(json, "flags", flags_to_json_array(room->rs_room_flag[0], room_flags));
     json_object_set_new(json, "flags2", flags_to_json_array(room->rs_room_flag[1], room2_flags));
-    json_object_set_new(json, "sector", json_integer(room_rs_sector_type(room)));
+    json_object_set_new(json, "sector", json_string(sector_name(room_rs_sector_type(room))));
     
     // Rates
     if (room->rs_heal_rate != 100)
@@ -2566,7 +2570,21 @@ ROOM_INDEX_DATA *json_area_deserialize_room(json_t *json, AREA_DATA *area)
     json_t *flags2 = json_object_get(json, "flags2");
     if (flags2) room->rs_room_flag[1] = json_array_to_flags(flags2, room2_flags);
     
-    room_set_rs_sector_type(room, json_get_int_default(json, "sector", 0));
+    {
+        json_t *sector_json = json_object_get(json, "sector");
+        int sector_index = SECT_INSIDE;
+
+        if (sector_json && json_is_string(sector_json)) {
+            const char *sector_value = json_string_value(sector_json);
+            int lookup = sector_lookup(sector_value);
+            if (lookup != NO_FLAG)
+                sector_index = lookup;
+        } else {
+            sector_index = json_get_int_default(json, "sector", SECT_INSIDE);
+        }
+
+        room_set_rs_sector_type(room, sector_index);
+    }
     
     // Rates
     room->rs_heal_rate = json_get_int_default(json, "heal_rate", 100);

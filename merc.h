@@ -8661,6 +8661,7 @@ const char *resolve_game_path(const char *path, char *buffer, size_t buffer_size
 #define GQ_FILE			        WORLD_DIR "gq.dat"
 #define AREA_LIST               WORLD_DIR "area.lst"  		/* List of areas*/
 #define HELP_FILE		        WORLD_DIR "help.dat"
+#define HELP_JSON_FILE          WORLD_DIR "help.json"
 /*Boat data */
 #define SAILING_FILE	        BOAT_DIR "sailing.dat"
 #define NPC_SHIPS_FILE	        BOAT_DIR "npc_ships.dat"

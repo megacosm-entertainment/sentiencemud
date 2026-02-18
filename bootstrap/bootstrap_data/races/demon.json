@@ -1,0 +1,88 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "demon",
+  "uid": 13,
+  "name": "demon",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "path_race": true,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "{DDemon "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": -1,
+    "form": [
+      "edible",
+      "poison",
+      "magical",
+      "instant_decay",
+      "other",
+      "animal",
+      "sentient",
+      "undead",
+      "construct",
+      "mist",
+      "crustacean",
+      "mammal",
+      "bird",
+      "reptile"
+    ],
+    "parts": []
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "holy"
+    ],
+    "vulnerabilities": [
+      "magic",
+      "fire",
+      "negative"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 25,
+      "int": 25,
+      "wis": 25,
+      "dex": 25,
+      "con": 25
+    },
+    "max_vitals": {
+      "hp": 3500,
+      "mana": 3500,
+      "move": 3500
+    }
+  },
+  "skills": [
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "death_plane_vnum_min": 200050,
+    "death_plane_vnum_max": 207050,
+    "cosmic_projection": true,
+    "classless_skills": true
+  }
+}

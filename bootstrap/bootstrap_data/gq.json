@@ -1,0 +1,151 @@
+{
+  "mobs": [
+    {
+      "mob_vnum": "964#24297",
+      "class": 1,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24296",
+      "class": 1,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24295",
+      "class": 2,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24294",
+      "class": 2,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24293",
+      "class": 3,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24292",
+      "class": 3,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24291",
+      "class": 4,
+      "group": false,
+      "count": 0,
+      "max": 45
+    },
+    {
+      "mob_vnum": "964#24290",
+      "class": 4,
+      "group": false,
+      "count": 0,
+      "max": 45
+    }
+  ],
+  "objects": [
+    {
+      "obj_vnum": "964#24292",
+      "qp_reward": 100,
+      "prac_reward": 5,
+      "exp_reward": 6000,
+      "silver_reward": 1500,
+      "gold_reward": 30,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    },
+    {
+      "obj_vnum": "964#24298",
+      "qp_reward": 50,
+      "prac_reward": 1,
+      "exp_reward": 2500,
+      "silver_reward": 500,
+      "gold_reward": 10,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    },
+    {
+      "obj_vnum": "964#24297",
+      "qp_reward": 50,
+      "prac_reward": 1,
+      "exp_reward": 2500,
+      "silver_reward": 500,
+      "gold_reward": 10,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    },
+    {
+      "obj_vnum": "964#24296",
+      "qp_reward": 70,
+      "prac_reward": 2,
+      "exp_reward": 3000,
+      "silver_reward": 700,
+      "gold_reward": 15,
+      "repop": -1,
+      "max": -1,
+      "count": 1
+    },
+    {
+      "obj_vnum": "964#24295",
+      "qp_reward": 70,
+      "prac_reward": 2,
+      "exp_reward": 3000,
+      "silver_reward": 700,
+      "gold_reward": 15,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    },
+    {
+      "obj_vnum": "964#24294",
+      "qp_reward": 85,
+      "prac_reward": 3,
+      "exp_reward": 4000,
+      "silver_reward": 750,
+      "gold_reward": 20,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    },
+    {
+      "obj_vnum": "964#24293",
+      "qp_reward": 85,
+      "prac_reward": 3,
+      "exp_reward": 4000,
+      "silver_reward": 750,
+      "gold_reward": 20,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    },
+    {
+      "obj_vnum": "964#24291",
+      "qp_reward": 100,
+      "prac_reward": 3,
+      "exp_reward": 5000,
+      "silver_reward": 1000,
+      "gold_reward": 25,
+      "repop": -1,
+      "max": -1,
+      "count": 0
+    }
+  ],
+  "version": 1
+}

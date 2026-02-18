@@ -1,0 +1,53 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 0,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 7,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 7,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 7,
+            "rating": 6
+        },
+        {
+            "class": "warrior",
+            "level": 7,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Shield!",
+    "name": "shield block",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 211
+}

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "bans": [
+    {
+      "name": "119.17.148.10",
+      "level": 155,
+      "ban_flags": 40,
+      "rank": 0
+    },
+    {
+      "name": "171.101.123.191",
+      "level": 155,
+      "ban_flags": 40,
+      "rank": 0
+    },
+    {
+      "name": "brghtn01.mi.comcast.net",
+      "level": 155,
+      "ban_flags": 36,
+      "rank": 0
+    },
+    {
+      "name": "4.20.225.67.rivnet",
+      "level": 155,
+      "ban_flags": 36,
+      "rank": 0
+    }
+  ]
+}

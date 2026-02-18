@@ -4,7 +4,9 @@
   "description": "Redis area caching layer tests",
   "version": "1.0",
   "requires_mud_environment": true,
-  "dependencies": ["area_loading"],
+  "dependencies": [
+    "area_loading"
+  ],
   "timeout_seconds": 30,
   "tests": [
     {
@@ -21,7 +23,9 @@
     {
       "name": "redis_area_cache_after_boot",
       "description": "Verify areas are cached in Redis after boot warming",
-      "dependencies": ["redis_available"],
+      "dependencies": [
+        "redis_available"
+      ],
       "test_type": "redis_area_cached_test",
       "input": {
         "areas_to_check": [
@@ -30,8 +34,8 @@
             "expected_key_pattern": "area:full:limbo"
           },
           {
-            "name": "Realm of Alendith",
-            "expected_key_pattern": "area:full:alendith"
+            "name": "Bootstrap Reserved",
+            "expected_key_pattern": "area:full:bootstrap"
           }
         ]
       },
@@ -44,7 +48,9 @@
     {
       "name": "redis_area_cache_format",
       "description": "Verify cached area JSON has correct structure",
-      "dependencies": ["redis_area_cache_after_boot"],
+      "dependencies": [
+        "redis_area_cache_after_boot"
+      ],
       "test_type": "redis_area_cache_format_test",
       "input": {
         "area_name": "Limbo",
@@ -63,7 +69,9 @@
     {
       "name": "redis_area_warm_queue_processed",
       "description": "Verify warm queue is processed completely",
-      "dependencies": ["redis_available"],
+      "dependencies": [
+        "redis_available"
+      ],
       "test_type": "redis_warm_queue_test",
       "input": {
         "max_wait_seconds": 120,

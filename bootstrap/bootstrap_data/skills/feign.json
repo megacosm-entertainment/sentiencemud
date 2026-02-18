@@ -1,0 +1,53 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 8,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 8,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 8,
+            "rating": 5
+        },
+        {
+            "class": "warrior",
+            "level": 8,
+            "rating": 5
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Feign!",
+    "name": "feign",
+    "noun_damage": "feign",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 109
+}

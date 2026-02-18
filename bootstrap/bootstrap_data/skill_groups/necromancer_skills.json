@@ -1,0 +1,12 @@
+{
+    "name": "necromancer skills",
+    "skills": [
+        "feign",
+        "animate dead",
+        "raise dead",
+        "energy drain",
+        "kill",
+        "chill touch",
+        "deathsight"
+    ]
+}

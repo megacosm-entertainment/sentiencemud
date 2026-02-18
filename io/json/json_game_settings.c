@@ -263,6 +263,7 @@ void json_apply_env_overrides(void)
 json_t *game_settings_to_json(void)
 {
     json_t *root = json_object();
+    json_t *existing_root = NULL;
     json_t *categories[SETTING_CAT_MAX];  // One for each category
     // NOTE: SETTING_CAT_* values start at 1, not 0, so index 0 is unused
     const char *category_names[] = {
@@ -281,6 +282,12 @@ json_t *game_settings_to_json(void)
     };
     int i;
 
+    /*
+     * Load existing settings file so env/mount-overridden keys can retain
+     * their file-backed values when we save.
+     */
+    existing_root = json_file_load(GAME_SETTINGS_JSON_FILE, NULL, NULL, "game_settings_to_json");
+
     // Create category objects (start at 1 since SETTING_CAT values start at 1)
     for (i = 1; i < SETTING_CAT_MAX; i++) {
         categories[i] = json_object();
@@ -297,10 +304,24 @@ json_t *game_settings_to_json(void)
         json_t *category = categories[setting->category];
         json_t *value = NULL;
 
-        // Skip settings that are overridden by environment variables
-        // (they shouldn't be saved since the override takes precedence)
+        /*
+         * For env/mount-overridden settings, preserve the existing file value
+         * instead of omitting the key or persisting override-injected runtime
+         * values. This keeps configuration complete and file-backed defaults
+         * intact while runtime overrides still take precedence in memory.
+         */
         if (json_setting_is_env_override(setting->name)) {
-            continue;
+            if (existing_root && json_is_object(existing_root)) {
+                json_t *existing_category = json_object_get(existing_root, category_names[setting->category]);
+                if (existing_category && json_is_object(existing_category)) {
+                    json_t *existing_value = json_object_get(existing_category, setting->name);
+                    if (existing_value) {
+                        json_object_set_new(category, setting->name, json_deep_copy(existing_value));
+                        continue;
+                    }
+                }
+            }
+            /* Fallback: if no prior file value exists, serialize current value. */
         }
 
         switch (setting->type) {
@@ -348,6 +369,10 @@ json_t *game_settings_to_json(void)
     // Add preference defaults (stored separately from the table-driven settings)
     if (game_settings.pref_defaults) {
         json_object_set_new(root, "preferences", prefs_to_json(game_settings.pref_defaults));
+    }
+
+    if (existing_root) {
+        json_decref(existing_root);
     }
 
     return root;

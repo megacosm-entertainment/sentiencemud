@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 24,
+            "rating": 8
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "fighting",
+    "msg_disp": "The webs around $n disappear.",
+    "msg_obj": "",
+    "msg_off": "The webs holding you in place disappear.",
+    "name": "web",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_web",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 262
+}

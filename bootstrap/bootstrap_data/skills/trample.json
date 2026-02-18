@@ -1,0 +1,56 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 23
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 22
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 23
+        },
+        {
+            "class": "warrior",
+            "level": 11,
+            "rating": 11
+        }
+    ],
+    "flags": [
+        "racial"
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "",
+    "name": "trample",
+    "noun_damage": "charge",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 252
+}

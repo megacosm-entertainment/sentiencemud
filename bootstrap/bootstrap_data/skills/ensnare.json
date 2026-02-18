@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 7,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 15,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 10
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 11
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 11
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "fighting",
+    "msg_disp": "The vines clutching $n crumble.",
+    "msg_obj": "",
+    "msg_off": "The vines clutching you wither and fall away.",
+    "name": "ensnare",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_ensnare",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 98
+}

@@ -1,0 +1,59 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "ranger",
+        "male": "ranger",
+        "neutral": "ranger",
+        "other": "ranger"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster",
+        "remort_only"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "cleric skills",
+        "ranger skills"
+    ],
+    "hp_max": 10,
+    "hp_min": 7,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "ranger",
+    "primary_stat": "wisdom",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "cleric skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "ranger skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "ranger",
+            "keyword": "default",
+            "who_name": "   Ranger   "
+        }
+    ],
+    "type": "cleric",
+    "traits": {
+        "divine_healer": true
+    },
+    "uid": 20,
+    "weapon": 0,
+    "who": {
+        "female": "   Ranger   ",
+        "male": "   Ranger   ",
+        "neutral": "   Ranger   ",
+        "other": "   Ranger   "
+    }
+}

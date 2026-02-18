@@ -3,16 +3,18 @@
   "description": "Tests for RESET_DATA WNUM migration - cross-area resets",
   "version": "1.0",
   "requires_mud_environment": true,
-  "dependencies": ["area_loading"],
+  "dependencies": [
+    "area_loading"
+  ],
   "tests": [
     {
       "name": "reset_cross_area_mob",
       "description": "Test cross-area mobile reset creation",
       "test_type": "reset_cross_area_creation",
       "input": {
-        "source_room_vnum": 3001,
-        "target_area_uid": 954,
-        "target_entity_vnum": 10500,
+        "source_room_vnum": 1,
+        "target_area_uid": 1,
+        "target_entity_vnum": 1,
         "reset_type": "M"
       }
     },
@@ -21,24 +23,15 @@
       "description": "Test cross-area object reset creation",
       "test_type": "reset_cross_area_creation",
       "input": {
-        "source_room_vnum": 3001,
-        "target_area_uid": 954,
-        "target_entity_vnum": 10500,
+        "source_room_vnum": 1,
+        "target_area_uid": 1,
+        "target_entity_vnum": 1,
         "reset_type": "O"
       }
     },
     {
-      "name": "reset_serialization_plith",
-      "description": "Test reset serialization in Plith area (room 11001)",
-      "test_type": "reset_serialization",
-      "input": {
-        "area_uid": 954,
-        "room_vnum": 11001
-      }
-    },
-    {
-      "name": "reset_serialization_limbo",
-      "description": "Test reset serialization in Limbo area",
+      "name": "reset_serialization_bootstrap",
+      "description": "Test reset serialization in Bootstrap Reserved area (room 2)",
       "test_type": "reset_serialization",
       "input": {
         "area_uid": 1,
@@ -46,12 +39,21 @@
       }
     },
     {
+      "name": "reset_serialization_limbo",
+      "description": "Test reset serialization in Bootstrap Reserved area (room 4)",
+      "test_type": "reset_serialization",
+      "input": {
+        "area_uid": 1,
+        "room_vnum": 4
+      }
+    },
+    {
       "name": "reset_legacy_mob",
       "description": "Test legacy bare vnum reset (NULL pArea)",
       "test_type": "reset_legacy_vnum",
       "input": {
-        "room_vnum": 3001,
-        "entity_vnum": 3005,
+        "room_vnum": 1,
+        "entity_vnum": 1,
         "reset_type": "M"
       }
     },
@@ -60,8 +62,8 @@
       "description": "Test legacy bare vnum object reset",
       "test_type": "reset_legacy_vnum",
       "input": {
-        "room_vnum": 3001,
-        "entity_vnum": 3000,
+        "room_vnum": 1,
+        "entity_vnum": 1,
         "reset_type": "O"
       }
     }

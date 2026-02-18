@@ -1,0 +1,56 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "archmage",
+        "male": "archmage",
+        "neutral": "archmage",
+        "other": "archmage"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster",
+        "remort_only"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "mage skills",
+        "archmage skills"
+    ],
+    "hp_max": 8,
+    "hp_min": 6,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "archmage",
+    "primary_stat": "intelligence",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "mage skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "archmage skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "archmage",
+            "keyword": "default",
+            "who_name": " Arch-Mage  "
+        }
+    ],
+    "type": "mage",
+    "uid": 16,
+    "weapon": 0,
+    "who": {
+        "female": " Arch-Mage  ",
+        "male": " Arch-Mage  ",
+        "neutral": " Arch-Mage  ",
+        "other": " Arch-Mage  "
+    }
+}

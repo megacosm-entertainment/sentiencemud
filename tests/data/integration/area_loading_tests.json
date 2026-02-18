@@ -16,13 +16,27 @@
         "required_areas": [
           {
             "name": "Limbo",
-            "expected_uid": 923,
-            "vnum_range": [1, 30]
+            "expected_uid": 2,
+            "vnum_range": [
+              1,
+              10
+            ]
           },
           {
-            "name": "Realm of Alendith", 
-            "expected_uid": 937,
-            "vnum_range": [3500, 3799]
+            "name": "Bootstrap Reserved",
+            "expected_uid": 1,
+            "vnum_range": [
+              1,
+              100
+            ]
+          },
+          {
+            "name": "Bootstrap Tests",
+            "expected_uid": 3,
+            "vnum_range": [
+              1,
+              200
+            ]
           }
         ]
       },
@@ -35,13 +49,15 @@
     {
       "name": "area_integrity_validation",
       "description": "Validate area data integrity",
-      "dependencies": ["essential_areas_loaded"],
+      "dependencies": [
+        "essential_areas_loaded"
+      ],
       "test_type": "area_integrity_check",
       "input": {
         "checks": [
           "area_exists",
           "valid_uid",
-          "vnum_range_valid", 
+          "vnum_range_valid",
           "area_name_not_empty",
           "no_duplicate_uids"
         ]

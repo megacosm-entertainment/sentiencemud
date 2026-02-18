@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 15,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 18,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            9,
+            2
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 20,
+    "minimum_position": "standing",
+    "msg_disp": "$n no longer looks so mighty.",
+    "msg_obj": "",
+    "msg_off": "{YYou feel weaker.{x",
+    "name": "giant strength",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_giant_strength",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 127
+}

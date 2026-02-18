@@ -3,7 +3,9 @@
   "description": "Tests for system_area game setting and fallback behavior",
   "version": "1.0",
   "requires_mud_environment": true,
-  "dependencies": ["area_loading"],
+  "dependencies": [
+    "area_loading"
+  ],
   "timeout_seconds": 60,
   "tests": [
     {
@@ -71,7 +73,9 @@
     {
       "name": "parse_widevnum_system_area_fallback",
       "description": "Test parse_widevnum uses system_area when no current area provided",
-      "dependencies": ["system_area_name_resolution"],
+      "dependencies": [
+        "system_area_name_resolution"
+      ],
       "test_type": "widevnum_parse_fallback_test",
       "input": {
         "widevnum_string": "1234",
@@ -87,10 +91,12 @@
     {
       "name": "parse_widevnum_explicit_overrides_system",
       "description": "Test explicit area UID in widevnum overrides system_area",
-      "dependencies": ["parse_widevnum_system_area_fallback"],
+      "dependencies": [
+        "parse_widevnum_system_area_fallback"
+      ],
       "test_type": "widevnum_parse_explicit_test",
       "input": {
-        "widevnum_string": "1#5000",
+        "widevnum_string": "1#1",
         "current_area": null,
         "expect_explicit_area": true
       },

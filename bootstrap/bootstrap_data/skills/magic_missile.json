@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 1,
+            "rating": 1
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 15,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Magic Missile!",
+    "name": "magic missile",
+    "noun_damage": "magic missile",
+    "race": null,
+    "spell_function": "spell_magic_missile",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 164
+}

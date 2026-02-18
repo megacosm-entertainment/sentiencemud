@@ -1,0 +1,15 @@
+{
+    "name": "gladiator skills",
+    "skills": [
+        "circle",
+        "dual wield",
+        "rescue",
+        "disarm",
+        "two-handed weapon style",
+        "shield and weapon style",
+        "exotic",
+        "polearm",
+        "shield block",
+        "mace"
+    ]
+}

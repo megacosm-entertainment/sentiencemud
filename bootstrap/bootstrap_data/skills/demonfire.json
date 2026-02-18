@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "cleric",
+            "level": 25,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 20,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Demonfire!",
+    "name": "demonfire",
+    "noun_damage": "torments",
+    "race": null,
+    "spell_function": "spell_demonfire",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 73
+}

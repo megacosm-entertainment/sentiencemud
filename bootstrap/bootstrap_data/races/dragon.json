@@ -1,0 +1,92 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "dragon",
+  "uid": 22,
+  "name": "dragon",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "draconian"
+  },
+  "display": {
+    "who_name": "{GDragon"
+  },
+  "physical": {
+    "min_size": 4,
+    "max_size": 4,
+    "default_alignment": 1,
+    "form": [
+      "edible",
+      "sentient",
+      "dragon"
+    ],
+    "parts": [
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs",
+      "scales",
+      "tail",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "charm",
+      "bash",
+      "fire"
+    ],
+    "vulnerabilities": [
+      "cold"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 23,
+      "int": 20,
+      "wis": 20,
+      "dex": 20,
+      "con": 23
+    },
+    "max_vitals": {
+      "hp": 3650,
+      "mana": 3250,
+      "move": 3500
+    }
+  },
+  "skills": [
+    "breath",
+    "fast healing",
+    "resurrect",
+    "fade",
+    "flight"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "breath_damage_bonus": 25
+  }
+}

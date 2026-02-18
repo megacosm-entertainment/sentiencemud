@@ -1,0 +1,13 @@
+{
+    "name": "rogue skills",
+    "skills": [
+        "circle",
+        "pick lock",
+        "backstab",
+        "detect traps",
+        "blackjack",
+        "hunt",
+        "haggle",
+        "scan"
+    ]
+}

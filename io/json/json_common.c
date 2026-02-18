@@ -173,10 +173,13 @@ void json_wnum_deserialize(json_t *json, long *area_uid, long *vnum)
 bool json_file_is_json(const char *filename)
 {
     FILE *fp;
+    char path_buf[MAX_INPUT_LENGTH];
+    const char *path;
     char first_char;
     bool is_json;
 
-    fp = fopen(filename, "r");
+    path = resolve_game_path(filename, path_buf, sizeof(path_buf));
+    fp = fopen(path, "r");
     if (!fp)
         return false;
 
@@ -190,17 +193,20 @@ bool json_file_is_json(const char *filename)
 bool json_file_save(json_t *root, const char *path, const char *context, int flags)
 {
     int ret;
+    char path_buf[MAX_INPUT_LENGTH];
+    const char *resolved_path;
 
     if (!root || !path) {
         if (root) json_decref(root);
         return false;
     }
 
-    ret = json_dump_file(root, path, flags);
+    resolved_path = resolve_game_path(path, path_buf, sizeof(path_buf));
+    ret = json_dump_file(root, resolved_path, flags);
     json_decref(root);
 
     if (ret != 0) {
-        log_stringf("%s: Failed to write %s", context, path);
+        log_stringf("%s: Failed to write %s", context, resolved_path);
         return false;
     }
 
@@ -212,11 +218,15 @@ json_t *json_file_load(const char *path, const char *array_key,
 {
     json_error_t error;
     json_t *root;
+    char path_buf[MAX_INPUT_LENGTH];
+    const char *resolved_path;
 
-    root = json_load_file(path, 0, &error);
+    resolved_path = resolve_game_path(path, path_buf, sizeof(path_buf));
+
+    root = json_load_file(resolved_path, 0, &error);
     if (!root) {
         log_stringf("%s: parse error in %s on line %d: %s",
-                    context, path, error.line, error.text);
+                    context, resolved_path, error.line, error.text);
         return NULL;
     }
 
@@ -224,7 +234,7 @@ json_t *json_file_load(const char *path, const char *array_key,
         *out_array = json_object_get(root, array_key);
         if (!*out_array || !json_is_array(*out_array)) {
             log_stringf("%s: missing or invalid '%s' array in %s",
-                        context, array_key, path);
+                        context, array_key, resolved_path);
             json_decref(root);
             return NULL;
         }

@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 21,
+            "rating": 8
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 6
+        }
+    ],
+    "inks": [
+        [
+            2,
+            4
+        ],
+        [
+            7,
+            4
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "",
+    "name": "eagle eye",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_eagle_eye",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 88
+}

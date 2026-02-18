@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 12,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 12,
+            "rating": 3
+        },
+        {
+            "class": "thief",
+            "level": 12,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 12,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            16,
+            2
+        ],
+        [
+            15,
+            1
+        ],
+        [
+            9,
+            1
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "{YYou feel less aware of your surroundings.{x",
+    "name": "detect hidden",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_detect_hidden",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 75
+}

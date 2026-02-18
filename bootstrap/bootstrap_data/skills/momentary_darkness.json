@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 15,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 20,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 6
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 500,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Momentary Darkness!",
+    "name": "momentary darkness",
+    "noun_damage": "momentary darkness",
+    "race": null,
+    "spell_function": "spell_momentary_darkness",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 172
+}

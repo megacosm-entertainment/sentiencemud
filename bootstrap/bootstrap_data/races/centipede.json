@@ -1,0 +1,69 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "centipede",
+  "uid": 34,
+  "name": "centipede",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "centipede"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "poison",
+      "sentient",
+      "insect"
+    ],
+    "parts": [
+      "eye",
+      "head",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "pierce",
+      "cold"
+    ],
+    "vulnerabilities": [
+      "bash"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

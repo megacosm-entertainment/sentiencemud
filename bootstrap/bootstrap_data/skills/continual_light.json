@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 6,
+            "rating": 2
+        },
+        {
+            "class": "cleric",
+            "level": 4,
+            "rating": 3
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 6,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 7,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Continual Light!",
+    "name": "continual light",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_continual_light",
+    "target": "obj_inv",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 48
+}

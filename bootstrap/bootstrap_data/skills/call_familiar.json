@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 16,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "",
+    "name": "call familiar",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_call_familiar",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 30
+}

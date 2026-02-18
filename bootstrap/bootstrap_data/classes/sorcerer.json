@@ -1,0 +1,60 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "sorceress",
+        "male": "sorcerer",
+        "neutral": "sorcerer",
+        "other": "sorcerer"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "mage skills",
+        "sorcerer skills"
+    ],
+    "hp_max": 8,
+    "hp_min": 6,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "sorcerer",
+    "primary_stat": "intelligence",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "mage skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "sorcerer skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "sorcerer",
+            "keyword": "default",
+            "who_name": "  Sorcerer  "
+        },
+        {
+            "display": "sorceress",
+            "keyword": "female",
+            "who_name": " Sorceress  "
+        }
+    ],
+    "type": "mage",
+    "uid": 5,
+    "weapon": 0,
+    "who": {
+        "female": " Sorceress  ",
+        "male": "  Sorcerer  ",
+        "neutral": "  Sorcerer  ",
+        "other": "  Sorcerer  "
+    }
+}

@@ -1,0 +1,72 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "shaper",
+  "uid": 26,
+  "name": "shaper",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": true,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "{CShaper"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [],
+    "vulnerabilities": []
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 50,
+      "int": 50,
+      "wis": 50,
+      "dex": 50,
+      "con": 50
+    },
+    "max_vitals": {
+      "hp": 30000,
+      "mana": 30000,
+      "move": 30000
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

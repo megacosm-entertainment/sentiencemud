@@ -1,0 +1,60 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "alchemist",
+        "male": "alchemist",
+        "neutral": "alchemist",
+        "other": "alchemist"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster",
+        "remort_only"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "cleric skills",
+        "alchemist skills"
+    ],
+    "hp_max": 10,
+    "hp_min": 7,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "alchemist",
+    "primary_stat": "wisdom",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "cleric skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "alchemist skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "alchemist",
+            "keyword": "default",
+            "who_name": " Alchemist  "
+        }
+    ],
+    "type": "cleric",
+    "traits": {
+        "potion_recharge": true,
+        "divine_healer": true
+    },
+    "uid": 19,
+    "weapon": 0,
+    "who": {
+        "female": " Alchemist  ",
+        "male": " Alchemist  ",
+        "neutral": " Alchemist  ",
+        "other": " Alchemist  "
+    }
+}

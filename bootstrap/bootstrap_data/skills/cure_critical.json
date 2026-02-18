@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 10,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 10,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 10,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 10,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            5,
+            4
+        ],
+        [
+            4,
+            1
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 35,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Cure Critical!",
+    "name": "cure critical",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cure_critical",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 59
+}

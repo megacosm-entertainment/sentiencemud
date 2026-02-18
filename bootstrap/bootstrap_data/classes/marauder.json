@@ -1,0 +1,54 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "marauder",
+        "male": "marauder",
+        "neutral": "marauder",
+        "other": "marauder"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "warrior skills",
+        "marauder skills"
+    ],
+    "hp_max": 15,
+    "hp_min": 11,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "marauder",
+    "primary_stat": "strength",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "warrior skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "marauder skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "marauder",
+            "keyword": "default",
+            "who_name": "  Marauder  "
+        }
+    ],
+    "type": "warrior",
+    "uid": 1,
+    "weapon": 0,
+    "who": {
+        "female": "  Marauder  ",
+        "male": "  Marauder  ",
+        "neutral": "  Marauder  ",
+        "other": "  Marauder  "
+    }
+}

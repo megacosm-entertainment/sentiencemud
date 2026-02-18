@@ -1,0 +1,87 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "berserker",
+  "uid": 17,
+  "name": "berserker",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "dwarf"
+  },
+  "display": {
+    "who_name": "{YBerskr"
+  },
+  "physical": {
+    "min_size": 1,
+    "max_size": 1,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared",
+      "regeneration"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "fire",
+      "cold",
+      "lightning",
+      "acid"
+    ],
+    "vulnerabilities": [
+      "drowning"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 23,
+      "int": 20,
+      "wis": 20,
+      "dex": 20,
+      "con": 23
+    },
+    "max_vitals": {
+      "hp": 3850,
+      "mana": 3250,
+      "move": 4000
+    }
+  },
+  "skills": [
+    "berserk",
+    "repair",
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": []
+}

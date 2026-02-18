@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 18,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 75,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Chain Lightning!",
+    "name": "chain lightning",
+    "noun_damage": "lightning",
+    "race": null,
+    "spell_function": "spell_chain_lightning",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 38
+}

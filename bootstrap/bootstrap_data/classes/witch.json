@@ -1,0 +1,63 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "witch",
+        "male": "warlock",
+        "neutral": "witch",
+        "other": "witch"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "cleric skills",
+        "witch skills"
+    ],
+    "hp_max": 10,
+    "hp_min": 7,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "witch",
+    "primary_stat": "wisdom",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "cleric skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "witch skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "witch",
+            "keyword": "default",
+            "who_name": "   Witch    "
+        },
+        {
+            "display": "warlock",
+            "keyword": "male",
+            "who_name": "  Warlock   "
+        }
+    ],
+    "type": "cleric",
+    "traits": {
+        "divine_healer": true
+    },
+    "uid": 7,
+    "weapon": 0,
+    "who": {
+        "female": "   Witch    ",
+        "male": "  Warlock   ",
+        "neutral": "   Witch    ",
+        "other": "   Witch    "
+    }
+}

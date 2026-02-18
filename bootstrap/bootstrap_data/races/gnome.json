@@ -1,0 +1,81 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "gnome",
+  "uid": 63,
+  "name": "gnome",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "gnome"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs",
+      "tail"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [
+      "dirt_kick"
+    ],
+    "immunities": [],
+    "resistances": [
+      "cold",
+      "iron"
+    ],
+    "vulnerabilities": [
+      "fire",
+      "light"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

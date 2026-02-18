@@ -1,0 +1,59 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "destroyer",
+        "male": "destroyer",
+        "neutral": "destroyer",
+        "other": "destroyer"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "remort_only"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "warrior skills",
+        "destroyer skills"
+    ],
+    "hp_max": 15,
+    "hp_min": 11,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "destroyer",
+    "primary_stat": "strength",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "warrior skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "destroyer skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "destroyer",
+            "keyword": "default",
+            "who_name": " Destroyer  "
+        }
+    ],
+    "type": "warrior",
+    "traits": {
+        "extra_attack_chance": true,
+        "enhanced_parry": true
+    },
+    "uid": 14,
+    "weapon": 0,
+    "who": {
+        "female": " Destroyer  ",
+        "male": " Destroyer  ",
+        "neutral": " Destroyer  ",
+        "other": " Destroyer  "
+    }
+}

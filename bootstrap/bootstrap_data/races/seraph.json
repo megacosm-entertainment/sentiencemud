@@ -1,0 +1,89 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "seraph",
+  "uid": 16,
+  "name": "seraph",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "elf"
+  },
+  "display": {
+    "who_name": "{GSeraph"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 1,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "haste"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "magic"
+    ],
+    "vulnerabilities": [
+      "iron"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 22,
+      "int": 24,
+      "wis": 22,
+      "dex": 23,
+      "con": 22
+    },
+    "max_vitals": {
+      "hp": 3000,
+      "mana": 4250,
+      "move": 3300
+    }
+  },
+  "skills": [
+    "sneak",
+    "hide",
+    "resurrect",
+    "fade",
+    "flight"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "mana_regen_multiplier": 2,
+    "ranged_accuracy_bonus": 5
+  }
+}

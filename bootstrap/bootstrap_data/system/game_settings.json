@@ -1,0 +1,436 @@
+{
+  "_version": "1.0",
+  "_format": "game_settings",
+  "core": {
+    "env_var_prefix": "SENTIENCE_",
+    "secrets_mount": "/sentience/data/system/.setting_override"
+  },
+  "email": {
+    "email_enable": true,
+    "email_username": "",
+    "email_password": "",
+    "email_host": "",
+    "email_port": 0,
+    "email_from_addr": "",
+    "email_from_name": ""
+  },
+  "missions": {
+    "max_mission_allowance": 0,
+    "inc_missions": 0,
+    "max_missions": 0
+  },
+  "lockers": {
+    "lockers_enabled": true,
+    "locker_rent_enabled": true,
+    "max_locker_weight": -1,
+    "max_locker_items": 30,
+    "locker_rent_cost": 5000,
+    "locker_rent_time": 30,
+    "locker_rent_time_max": 180,
+    "locker_add_cost_tier": 0,
+    "locker_add_slots_tier": 0,
+    "locker_add_weight_tier": 0,
+    "locker_tier_max": 0
+  },
+  "vaults": {
+    "max_vault_weight": 500,
+    "max_vault_items": 15,
+    "vault_enabled": true,
+    "vault_rent": false,
+    "vault_rent_per_char": false,
+    "vault_rent_cost": 0,
+    "vault_rent_time": 0,
+    "vault_rent_time_max": 0,
+    "vault_add_cost_char": 0,
+    "vault_add_slots_char": 0,
+    "vault_add_weight_char": 0,
+    "vault_require_room": true
+  },
+  "coffers": {
+    "coffer_enabled": true,
+    "coffer_rent": false,
+    "max_coffer_weight": -1,
+    "max_coffer_items": 20,
+    "coffer_rent_currency": "",
+    "coffer_rent_time": 0,
+    "coffer_rent_time_max": 0
+  },
+  "global": {
+    "org_max_ranks": 5,
+    "max_orgs": 20,
+    "org_pk_cost": 5000,
+    "system_area": "",
+    "login_string": "What is your name?\n\r",
+    "server_description": "SentienceMUD Server",
+    "testport": false,
+    "logall": false,
+    "allow_mp_acct_all": false,
+    "allow_mp_acct_staff": false,
+    "allow_mp_host_all": false,
+    "allow_mp_host_staff": false,
+    "allow_link_all": true,
+    "allow_unlink_all": false,
+    "alignment_system": false,
+    "restrict_races_align": false,
+    "restrict_classes_align": false,
+    "idle_time": 12,
+    "idle_disconnect_time": 30,
+    "max_alias": 80,
+    "max_characters": 20,
+    "enable_telnet": true,
+    "telnet_port": 9100,
+    "enable_tls": true,
+    "tls_port": 9110,
+    "enable_websocket_tls": true,
+    "websocket_tls_port": 9120,
+    "enable_web": false,
+    "ssl_cert_path": "",
+    "ssl_key_path": "",
+    "enable_insecure_warning": true,
+    "insecure_warning_msg": "{RWARNING: {XAll traffic to and from this port is plaintext.{X",
+    "max_logfile_size": 1000000,
+    "note_boot_errors": false,
+    "character_delete": 60,
+    "game_name": "",
+    "dev_server": false,
+    "save_cooldown_seconds": 10
+  },
+  "security": {
+    "wizlock": true,
+    "wizlock_msg": "",
+    "new_acct_lock": false,
+    "new_acct_lock_msg": "",
+    "new_char_lock": false,
+    "new_char_lock_msg": "",
+    "require_email_verify": true,
+    "require_2fa_all": false,
+    "require_2fa_staff": true,
+    "require_uniq_pass_staff": false,
+    "max_login_attempts": 3,
+    "crypto_key_passphrase": "",
+    "crypto_key_passphrase_previous": "",
+    "crypto_salt_file": "",
+    "crypto_use_passphrase": false,
+    "crypto_key_version": 1,
+    "enable_passwd": true,
+    "enable_mfa": true
+  },
+  "mssp": {
+    "mssp_players": 0,
+    "mssp_uptime": 0,
+    "mssp_crawl_delay": 0,
+    "mssp_hostname": "",
+    "mssp_port": 9100,
+    "mssp_tls_port": 9110,
+    "mssp_codebase": "Modified ROM",
+    "mssp_contact": "",
+    "mssp_created": 2000,
+    "mssp_ip": "",
+    "mssp_language": "English",
+    "mssp_location": "",
+    "mssp_minimum_age": 0,
+    "mssp_website": "",
+    "mssp_family": "Diku",
+    "mssp_genre": "Fantasy",
+    "mssp_status": "Open",
+    "mssp_gamesystem": "",
+    "mssp_intermud": "",
+    "mssp_subgenre": "",
+    "mssp_discord_server": "",
+    "mssp_areas": 0,
+    "mssp_helpfiles": 0,
+    "mssp_mobiles": 0,
+    "mssp_objects": 0,
+    "mssp_rooms": 0,
+    "mssp_classes": 0,
+    "mssp_levels": 0,
+    "mssp_races": 0,
+    "mssp_skills": 0,
+    "mssp_dbsize": 0,
+    "mssp_ansi": true,
+    "mssp_gmcp": true,
+    "mssp_mccp": true,
+    "mssp_mcp": false,
+    "mssp_msdp": false,
+    "mssp_msp": false,
+    "mssp_mxp": true,
+    "mssp_pueb": false,
+    "mssp_utf8": false,
+    "mssp_vt100": false,
+    "mssp_xterm256": true,
+    "mssp_xtermtrue": false,
+    "mssp_atcp": false,
+    "mssp_ssl": true,
+    "mssp_pay2play": false,
+    "mssp_pay4perks": false,
+    "mssp_hiring_builders": true,
+    "mssp_hiring_coders": true,
+    "mssp_adult_material": false,
+    "mssp_multiclass": true,
+    "mssp_newbie_friendly": false,
+    "mssp_player_cities": false,
+    "mssp_player_clans": true,
+    "mssp_player_crafting": false,
+    "mssp_player_guilds": false,
+    "mssp_equipment_system": "",
+    "mssp_multiplaying": "Limited",
+    "mssp_playerkilling": true,
+    "mssp_quest_system": true,
+    "mssp_roleplaying": false,
+    "mssp_training_system": false,
+    "mssp_world_originality": true
+  },
+  "redis": {
+    "redis_enable": true,
+    "redis_host": "127.0.0.1",
+    "redis_port": 6379,
+    "redis_password": "",
+    "redis_timeout_sec": 1,
+    "redis_timeout_usec": 500000
+  },
+  "debug": {
+    "crash_dump_dir": ""
+  },
+  "preferences": [
+    {
+      "key": "timestamps",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "hideidle",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "autoafk",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "autocatalyst",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "compass",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "favskills",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "mobile",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "showdamage",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "sacrifice_all",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "quiet",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "pursuit",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "prompt",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "notify",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "nowake",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "nosummon",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "noresurrect",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "noreckoning",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "nolore",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "nofollow",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "nochallenge",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "mxp",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "map",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "holywarp",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "holylight",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "holyaura",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "formstate",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "compact",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "colour",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "brief",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "battlespam",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "autosurvey",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "autosplit",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "autosetname",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "autosac",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "autoloot",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "autogold",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "autoexit",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "autoeq",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    },
+    {
+      "key": "afk",
+      "category": "toggle",
+      "type": "bool",
+      "value": false
+    },
+    {
+      "key": "color",
+      "category": "toggle",
+      "type": "bool",
+      "value": true
+    }
+  ]
+}

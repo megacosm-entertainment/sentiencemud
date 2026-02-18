@@ -4,7 +4,9 @@
   "description": "Tests for WNUM parsing functionality with different area contexts",
   "version": "1.0",
   "requires_mud_environment": true,
-  "dependencies": ["area_loading"],
+  "dependencies": [
+    "area_loading"
+  ],
   "tests": [
     {
       "name": "basic_wnum_parsing_limbo",
@@ -15,17 +17,17 @@
         "area_context": "Limbo",
         "test_cases": [
           {
-            "vnum_string": "3001",
-            "description": "Simple vnum in Limbo",
+            "vnum_string": "2#1",
+            "description": "Explicit limbo room",
             "should_parse": true,
-            "expected_vnum": 3001,
+            "expected_vnum": 1,
             "expected_area": "Limbo"
           },
           {
-            "vnum_string": "#100",
-            "description": "Relative vnum in Limbo", 
+            "vnum_string": "#1",
+            "description": "Relative vnum in Limbo",
             "should_parse": true,
-            "expected_vnum": 100,
+            "expected_vnum": 1,
             "expected_area": "Limbo"
           },
           {
@@ -41,26 +43,28 @@
       }
     },
     {
-      "name": "advanced_wnum_parsing_alendith",
-      "description": "Test advanced WNUM parsing in Realm of Alendith context",
-      "dependencies": ["basic_wnum_parsing_limbo"],
-      "test_type": "wnum_parser", 
+      "name": "advanced_wnum_parsing_bootstrap",
+      "description": "Test advanced WNUM parsing in Bootstrap Reserved context",
+      "dependencies": [
+        "basic_wnum_parsing_limbo"
+      ],
+      "test_type": "wnum_parser",
       "input": {
-        "area_context": "Realm of Alendith",
+        "area_context": "Bootstrap Reserved",
         "test_cases": [
           {
-            "vnum_string": "3500",
-            "description": "Vnum in Alendith range",
+            "vnum_string": "1#20",
+            "description": "Explicit bootstrap vnum",
             "should_parse": true,
-            "expected_vnum": 3500,
-            "expected_area": "Realm of Alendith"
+            "expected_vnum": 20,
+            "expected_area": "Bootstrap Reserved"
           },
           {
-            "vnum_string": "#200", 
-            "description": "Relative vnum in Alendith",
+            "vnum_string": "#20",
+            "description": "Relative vnum in bootstrap",
             "should_parse": true,
-            "expected_vnum": 200,
-            "expected_area": "Realm of Alendith"
+            "expected_vnum": 20,
+            "expected_area": "Bootstrap Reserved"
           },
           {
             "vnum_string": "999999",
@@ -77,23 +81,25 @@
     {
       "name": "cross_area_wnum_parsing",
       "description": "Test WNUM parsing across different area contexts",
-      "dependencies": ["advanced_wnum_parsing_alendith"],
+      "dependencies": [
+        "advanced_wnum_parsing_alendith"
+      ],
       "test_type": "wnum_parser",
       "input": {
         "area_context": "Limbo",
         "test_cases": [
           {
-            "vnum_string": "3500",
-            "description": "Alendith vnum from Limbo context",
+            "vnum_string": "1#20",
+            "description": "Bootstrap vnum from Limbo context",
             "should_parse": true,
-            "expected_vnum": 3500,
+            "expected_vnum": 20,
             "cross_area_reference": true
           },
           {
-            "vnum_string": "#50",
+            "vnum_string": "#1",
             "description": "Relative vnum stays in current area",
             "should_parse": true,
-            "expected_vnum": 50,
+            "expected_vnum": 1,
             "expected_area": "Limbo"
           }
         ]

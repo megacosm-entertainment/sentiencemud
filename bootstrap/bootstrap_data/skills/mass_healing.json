@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 8
+        },
+        {
+            "class": "cleric",
+            "level": 27,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 300,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Mass Healing!",
+    "name": "mass healing",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_mass_healing",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 166
+}

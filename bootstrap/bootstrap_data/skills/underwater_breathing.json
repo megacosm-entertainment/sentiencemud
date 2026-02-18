@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 10,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 7,
+            "rating": 7
+        },
+        {
+            "class": "cleric",
+            "level": 12,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            20,
+            2
+        ]
+    ],
+    "min_mana": 70,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "The gills behind your ears disappear.",
+    "name": "underwater breathing",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_underwater_breathing",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 255
+}

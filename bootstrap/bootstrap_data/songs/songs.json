@@ -1,0 +1,165 @@
+{
+    "_format": "song_data",
+    "_version": 1,
+    "songs": [
+        {
+            "beats": 12,
+            "level": 3,
+            "mana": 75,
+            "name": "A Dwarven Tale",
+            "spell1": "stone skin",
+            "spell2": "infravision",
+            "target": "defensive",
+            "uid": 2
+        },
+        {
+            "beats": 8,
+            "level": 9,
+            "mana": 50,
+            "name": "Another Gate",
+            "spell1": "dispel magic",
+            "target": "offensive",
+            "uid": 6
+        },
+        {
+            "beats": 12,
+            "level": 8,
+            "mana": 75,
+            "name": "Aquatic Polka",
+            "spell1": "underwater breathing",
+            "target": "defensive",
+            "uid": 5
+        },
+        {
+            "beats": 10,
+            "level": 11,
+            "mana": 100,
+            "name": "Awareness Jig",
+            "spell1": "detect invis",
+            "spell2": "detect magic",
+            "spell3": "detect hidden",
+            "target": "defensive",
+            "uid": 7
+        },
+        {
+            "beats": 24,
+            "level": 22,
+            "mana": 75,
+            "name": "Blessed Be",
+            "spell1": "cure poison",
+            "spell2": "cure disease",
+            "spell3": "cure blindness",
+            "target": "defensive",
+            "uid": 13
+        },
+        {
+            "beats": 13,
+            "level": 28,
+            "mana": 100,
+            "name": "Curse of the Abyss",
+            "spell1": "fireball",
+            "spell2": "energy drain",
+            "spell3": "demonfire",
+            "target": "offensive",
+            "uid": 15
+        },
+        {
+            "beats": 14,
+            "level": 25,
+            "mana": 75,
+            "name": "Dark Cloud",
+            "spell1": "blindness",
+            "target": "offensive",
+            "uid": 14
+        },
+        {
+            "beats": 8,
+            "level": 5,
+            "mana": 75,
+            "name": "Fade to Black",
+            "spell1": "improved invisibility",
+            "target": "defensive",
+            "uid": 3
+        },
+        {
+            "beats": 12,
+            "level": 14,
+            "mana": 70,
+            "name": "Fat Owl Hopping",
+            "spell1": "giant strength",
+            "spell2": "fly",
+            "target": "defensive",
+            "uid": 9
+        },
+        {
+            "beats": 8,
+            "level": 20,
+            "mana": 50,
+            "name": "Firefly Tune",
+            "spell1": "heal",
+            "spell2": "refresh",
+            "target": "formation",
+            "uid": 12
+        },
+        {
+            "beats": 9,
+            "level": 2,
+            "mana": 50,
+            "name": "Fireworks",
+            "spell1": "magic missile",
+            "spell2": "lightning bolt",
+            "target": "offensive",
+            "uid": 1
+        },
+        {
+            "beats": 4,
+            "level": 7,
+            "mana": 75,
+            "name": "Pretty in Pink",
+            "spell1": "faerie fire",
+            "target": "offensive",
+            "uid": 4
+        },
+        {
+            "beats": 12,
+            "level": 1,
+            "mana": 75,
+            "name": "Purple Mist",
+            "spell1": "armour",
+            "spell2": "shield",
+            "target": "defensive",
+            "uid": 0
+        },
+        {
+            "beats": 18,
+            "level": 18,
+            "mana": 125,
+            "name": "Rigor",
+            "spell1": "death grip",
+            "spell2": "frenzy",
+            "target": "defensive",
+            "uid": 11
+        },
+        {
+            "beats": 9,
+            "level": 15,
+            "mana": 50,
+            "name": "Stormy Weather",
+            "spell1": "call lightning",
+            "spell2": "call lightning",
+            "spell3": "call lightning",
+            "target": "ignore",
+            "uid": 10
+        },
+        {
+            "beats": 9,
+            "level": 13,
+            "mana": 65,
+            "name": "Swamp Song",
+            "spell1": "poison",
+            "spell2": "acid blast",
+            "target": "offensive",
+            "uid": 8
+        }
+    ]
+}

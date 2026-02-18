@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 7,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 7,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 7,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 7,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            4,
+            1
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 15,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Cure Serious!",
+    "name": "cure serious",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cure_serious",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 63
+}

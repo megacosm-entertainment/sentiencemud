@@ -1,0 +1,86 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "minotaur",
+  "uid": 10,
+  "name": "minotaur",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "hell baron"
+  },
+  "display": {
+    "who_name": "{R Mino "
+  },
+  "physical": {
+    "min_size": 3,
+    "max_size": 3,
+    "default_alignment": -1,
+    "form": [
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "horns",
+      "legs",
+      "tail"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "regeneration"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "cold"
+    ],
+    "vulnerabilities": [
+      "fire"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 23,
+      "int": 18,
+      "wis": 18,
+      "dex": 19,
+      "con": 22
+    },
+    "max_vitals": {
+      "hp": 3500,
+      "mana": 2350,
+      "move": 2500
+    }
+  },
+  "skills": [
+    "charge",
+    "bash"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "bash_damage_multiplier": 2
+  }
+}

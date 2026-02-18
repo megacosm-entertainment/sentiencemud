@@ -821,6 +821,93 @@ static test_result_t test_pure_function(test_case_t *test) {
 
         return TEST_SUCCESS;
     }
+
+    if (strcmp(func_name, "str_cmp") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *left = test_json_get_string(test_case, "left");
+            const char *right = test_json_get_string(test_case, "right");
+            bool expected_not_equal = test_json_get_bool(test_case, "expected_not_equal");
+
+            if (!left || !right) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "str_cmp test case missing left/right");
+                return TEST_ERROR;
+            }
+
+            bool actual_not_equal = str_cmp(left, right);
+            if (actual_not_equal != expected_not_equal) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "str_cmp('%s','%s') returned %s, expected %s",
+                             left,
+                             right,
+                             actual_not_equal ? "true" : "false",
+                             expected_not_equal ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "str_infix") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *needle = test_json_get_string(test_case, "needle");
+            const char *haystack = test_json_get_string(test_case, "haystack");
+            bool expected_not_infix = test_json_get_bool(test_case, "expected_not_infix");
+
+            if (!needle || !haystack) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "str_infix test case missing needle/haystack");
+                return TEST_ERROR;
+            }
+
+            bool actual_not_infix = str_infix(needle, haystack);
+            if (actual_not_infix != expected_not_infix) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "str_infix('%s','%s') returned %s, expected %s",
+                             needle,
+                             haystack,
+                             actual_not_infix ? "true" : "false",
+                             expected_not_infix ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "str_suffix") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *astr = test_json_get_string(test_case, "astr");
+            const char *bstr = test_json_get_string(test_case, "bstr");
+            bool expected_not_suffix = test_json_get_bool(test_case, "expected_not_suffix");
+
+            if (!astr || !bstr) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "str_suffix test case missing astr/bstr");
+                return TEST_ERROR;
+            }
+
+            bool actual_not_suffix = str_suffix(astr, bstr);
+            if (actual_not_suffix != expected_not_suffix) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "str_suffix('%s','%s') returned %s, expected %s",
+                             astr,
+                             bstr,
+                             actual_not_suffix ? "true" : "false",
+                             expected_not_suffix ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
     
     // Add more pure function handlers as needed
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Unsupported pure function: %s", func_name);

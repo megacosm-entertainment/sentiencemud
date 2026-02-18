@@ -1,0 +1,88 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "elf",
+  "uid": 2,
+  "name": "elf",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "seraph"
+  },
+  "display": {
+    "who_name": "{G Elf  "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 1,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "haste"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "magic"
+    ],
+    "vulnerabilities": [
+      "iron"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 20,
+      "int": 22,
+      "wis": 20,
+      "dex": 21,
+      "con": 20
+    },
+    "max_vitals": {
+      "hp": 2500,
+      "mana": 3750,
+      "move": 2800
+    }
+  },
+  "skills": [
+    "sneak",
+    "hide",
+    "bow",
+    "archery"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "mana_regen_multiplier": 2,
+    "ranged_accuracy_bonus": 5
+  }
+}

@@ -11,22 +11,92 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "merc.h"
 #include "log.h"
 #include "tests/framework/test_framework.h"
 
+static bool directory_exists(const char *path)
+{
+    struct stat st;
+    return path && stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+static bool file_exists_local(const char *path)
+{
+    return path && access(path, F_OK) == 0;
+}
+
+static const char *resolve_test_data_dir(char *buffer, size_t buffer_size)
+{
+    const char *env_dir = getenv("SENTIENCE_TEST_DATA_DIR");
+    if (env_dir && directory_exists(env_dir)) {
+        snprintf(buffer, buffer_size, "%s", env_dir);
+        return buffer;
+    }
+
+    if (directory_exists("data/tests")) {
+        snprintf(buffer, buffer_size, "%s", "data/tests");
+        return buffer;
+    }
+
+    if (directory_exists("src/tests/data")) {
+        snprintf(buffer, buffer_size, "%s", "src/tests/data");
+        return buffer;
+    }
+
+    if (directory_exists("/sentience/src/tests/data")) {
+        snprintf(buffer, buffer_size, "%s", "/sentience/src/tests/data");
+        return buffer;
+    }
+
+    return NULL;
+}
+
+static const char *resolve_test_config_path(const char *test_data_dir, char *buffer, size_t buffer_size)
+{
+    const char *env_cfg = getenv("SENTIENCE_TEST_CONFIG");
+    if (env_cfg && file_exists_local(env_cfg)) {
+        snprintf(buffer, buffer_size, "%s", env_cfg);
+        return buffer;
+    }
+
+    if (test_data_dir && test_data_dir[0]) {
+        snprintf(buffer, buffer_size, "%s/test_config.json", test_data_dir);
+        if (file_exists_local(buffer)) {
+            return buffer;
+        }
+    }
+
+    return NULL;
+}
+
 int run_integration_tests(const char *pattern) {
     init_test_framework();
+
+    char test_data_dir[512];
+    char test_config_path[512];
+    const char *resolved_test_data_dir = resolve_test_data_dir(test_data_dir, sizeof(test_data_dir));
+    const char *resolved_test_config_path = resolve_test_config_path(resolved_test_data_dir, test_config_path, sizeof(test_config_path));
+
+    if (resolved_test_data_dir) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Using test data directory: %s", resolved_test_data_dir);
+    } else {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "No test data directory found (checked SENTIENCE_TEST_DATA_DIR, data/tests, src/tests/data)");
+        cleanup_test_framework();
+        return 1;
+    }
     
     // Load test configuration
-    if (!load_test_config("src/tests/data/test_config.json")) {
+    if (!resolved_test_config_path || !load_test_config(resolved_test_config_path)) {
         log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS, "Failed to load test config, using built-in defaults");
     }
     
-    // Load test suites from JSON files in src/tests/data (version controlled)
+    // Load test suites from resolved JSON test data directory
     set_test_loader_logging(false);
-    if (!load_all_test_suites("src/tests/data")) {
-        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Failed to load test suites from src/tests/data");
+    if (!load_all_test_suites(resolved_test_data_dir)) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Failed to load test suites from %s", resolved_test_data_dir);
         cleanup_test_framework();
         return 1; // Error
     }

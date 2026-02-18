@@ -1,0 +1,65 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "highwaywoman",
+        "male": "highwayman",
+        "neutral": "highwayman",
+        "other": "highwayman"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "remort_only"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "thief skills",
+        "highwayman skills"
+    ],
+    "hp_max": 13,
+    "hp_min": 8,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "highwayman",
+    "primary_stat": "dexterity",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "thief skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "highwayman skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "highwayman",
+            "keyword": "default",
+            "who_name": " Highwayman "
+        },
+        {
+            "display": "highwaywoman",
+            "keyword": "female",
+            "who_name": "Highwaywoman"
+        }
+    ],
+    "type": "thief",
+    "traits": {
+        "backstab_multiplier": 30,
+        "blackjack_mastery": true,
+        "lockpick_mastery": true
+    },
+    "uid": 22,
+    "weapon": 0,
+    "who": {
+        "female": "Highwaywoman",
+        "male": " Highwayman ",
+        "neutral": " Highwayman ",
+        "other": " Highwayman "
+    }
+}

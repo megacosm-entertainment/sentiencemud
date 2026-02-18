@@ -1,0 +1,79 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "bugbear",
+  "uid": 32,
+  "name": "bugbear",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "bugbear"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "guts",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [
+      "berserk",
+      "dodge"
+    ],
+    "immunities": [],
+    "resistances": [
+      "bash",
+      "cold"
+    ],
+    "vulnerabilities": [
+      "fire"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

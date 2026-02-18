@@ -1,0 +1,73 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "water fowl",
+  "uid": 54,
+  "name": "water fowl",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "water fowl"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "bird"
+    ],
+    "parts": [
+      "brains",
+      "eye",
+      "feet",
+      "guts",
+      "head",
+      "heart",
+      "legs",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "flying",
+      "swim"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "drowning"
+    ],
+    "vulnerabilities": []
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

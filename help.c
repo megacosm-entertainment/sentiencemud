@@ -9,8 +9,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <jansson.h>
 #include "merc.h"
 #include "recycle.h"
+#include "io/json/json_common.h"
 
 // Indexes for lookups of special help files.
 int 	motd;
@@ -20,6 +22,9 @@ int 	wizlist;
 
 // For loading and saving area files
 static bool fMatch;
+
+#define HELP_JSON_FORMAT "help_data"
+#define HELP_JSON_VERSION 1
 
 void do_help(CHAR_DATA *ch, char *argument)
 {
@@ -454,14 +459,315 @@ HELP_CATEGORY *find_help_category(char *name, HELP_CATEGORY *list)
 }
 
 
+static void normalize_help_category(HELP_CATEGORY *hcat)
+{
+    if (!hcat)
+        return;
+
+    if (!str_cmp(hcat->modified_by, "(null)")) {
+        free_string(hcat->modified_by);
+        hcat->modified_by = str_dup("Unknown");
+    }
+
+    if (!str_cmp(hcat->creator, "(null)")) {
+        free_string(hcat->creator);
+        hcat->creator = str_dup("Unknown");
+    }
+
+    if (!str_cmp(hcat->description, "(null)")) {
+        free_string(hcat->description);
+        hcat->description = str_dup("None\n\r");
+    }
+
+    if (hcat->min_level == 150)
+        hcat->min_rank = STAFF_IMMORTAL;
+    else if (hcat->min_level == 151 || hcat->min_level == 152)
+        hcat->min_rank = STAFF_ASCENDANT;
+    else if (hcat->min_level == 153)
+        hcat->min_rank = STAFF_SUPREMACY;
+    else if (hcat->min_level == 154)
+        hcat->min_rank = STAFF_CREATOR;
+    else if (hcat->min_level == 155)
+        hcat->min_rank = STAFF_IMPLEMENTOR;
+}
+
+
+static void normalize_help(HELP_DATA *help)
+{
+    if (!help)
+        return;
+
+    if (!str_cmp(help->creator, "(null)")) {
+        free_string(help->creator);
+        help->creator = str_dup("Unknown");
+    }
+
+    if (!str_cmp(help->modified_by, "(null)")) {
+        free_string(help->modified_by);
+        help->modified_by = str_dup("Unknown");
+    }
+
+    if (!str_cmp(help->text, "(null)")) {
+        free_string(help->text);
+        help->text = str_dup("Unknown");
+    }
+
+    if (help->min_level == 150)
+        help->min_rank = STAFF_IMMORTAL;
+    else if (help->min_level == 151 || help->min_level == 152)
+        help->min_rank = STAFF_ASCENDANT;
+    else if (help->min_level == 153)
+        help->min_rank = STAFF_SUPREMACY;
+    else if (help->min_level == 154)
+        help->min_rank = STAFF_CREATOR;
+    else if (help->min_level == 155)
+        help->min_rank = STAFF_IMPLEMENTOR;
+}
+
+
+static json_t *serialize_help_topics_json(STRING_DATA *topics)
+{
+    json_t *array = json_array();
+    STRING_DATA *topic;
+
+    for (topic = topics; topic != NULL; topic = topic->next)
+        json_array_append_new(array, json_string_safe(topic->string));
+
+    return array;
+}
+
+
+static STRING_DATA *deserialize_help_topics_json(json_t *array)
+{
+    STRING_DATA *head = NULL;
+    STRING_DATA *last = NULL;
+    size_t index;
+    json_t *entry;
+
+    if (!array || !json_is_array(array))
+        return NULL;
+
+    json_array_foreach(array, index, entry) {
+        STRING_DATA *topic;
+
+        if (!json_is_string(entry))
+            continue;
+
+        topic = new_string_data();
+        topic->string = str_dup(json_string_value(entry));
+        topic->next = NULL;
+
+        if (!head)
+            head = topic;
+        else
+            last->next = topic;
+
+        last = topic;
+    }
+
+    return head;
+}
+
+
+static json_t *serialize_help_json(HELP_DATA *help)
+{
+    json_t *obj = json_object();
+
+    json_object_set_new(obj, "keyword", json_string_safe(help->keyword));
+    json_object_set_new(obj, "creator", json_string_safe(help->creator));
+    json_object_set_new(obj, "created", json_integer((json_int_t)help->created));
+    json_object_set_new(obj, "modified_by", json_string_safe(help->modified_by));
+    json_object_set_new(obj, "modified", json_integer((json_int_t)help->modified));
+    json_object_set_new(obj, "builders", json_string_safe(help->builders));
+    json_object_set_new(obj, "min_rank", json_integer(help->min_rank));
+    json_object_set_new(obj, "security", json_integer(help->security));
+    json_object_set_new(obj, "text", json_string_safe(help->text));
+    json_object_set_new(obj, "related_topics", serialize_help_topics_json(help->related_topics));
+
+    return obj;
+}
+
+
+static HELP_DATA *deserialize_help_json(json_t *obj)
+{
+    HELP_DATA *help;
+
+    if (!obj || !json_is_object(obj))
+        return NULL;
+
+    help = new_help();
+    help->keyword = str_dup(json_get_string(obj, "keyword", ""));
+    help->creator = str_dup(json_get_string(obj, "creator", "Unknown"));
+    help->created = (time_t)json_get_int(obj, "created", 0);
+    help->modified_by = str_dup(json_get_string(obj, "modified_by", "Unknown"));
+    help->modified = (time_t)json_get_int(obj, "modified", 0);
+    help->builders = str_dup(json_get_string(obj, "builders", "None"));
+    help->min_rank = (int)json_get_int(obj, "min_rank", 0);
+    help->security = (int)json_get_int(obj, "security", 0);
+    help->text = str_dup(json_get_string(obj, "text", "Unknown"));
+    help->min_level = (int)json_get_int(obj, "min_level", 0);
+    help->related_topics = deserialize_help_topics_json(json_object_get(obj, "related_topics"));
+
+    normalize_help(help);
+
+    return help;
+}
+
+
+static json_t *serialize_help_category_json(HELP_CATEGORY *hcat)
+{
+    json_t *obj = json_object();
+    json_t *categories = json_array();
+    json_t *helps = json_array();
+    HELP_CATEGORY *hcat_tmp;
+    HELP_DATA *help;
+
+    json_object_set_new(obj, "name", json_string_safe(hcat->name));
+    json_object_set_new(obj, "description", json_string_safe(hcat->description));
+    json_object_set_new(obj, "min_rank", json_integer(hcat->min_rank));
+    json_object_set_new(obj, "security", json_integer(hcat->security));
+    json_object_set_new(obj, "builders", json_string_safe(hcat->builders));
+    json_object_set_new(obj, "creator", json_string_safe(hcat->creator));
+    json_object_set_new(obj, "created", json_integer((json_int_t)hcat->created));
+    json_object_set_new(obj, "modified_by", json_string_safe(hcat->modified_by));
+    json_object_set_new(obj, "modified", json_integer((json_int_t)hcat->modified));
+
+    for (hcat_tmp = hcat->inside_cats; hcat_tmp != NULL; hcat_tmp = hcat_tmp->next)
+        json_array_append_new(categories, serialize_help_category_json(hcat_tmp));
+
+    for (help = hcat->inside_helps; help != NULL; help = help->next)
+        json_array_append_new(helps, serialize_help_json(help));
+
+    json_object_set_new(obj, "categories", categories);
+    json_object_set_new(obj, "helps", helps);
+
+    return obj;
+}
+
+
+static HELP_CATEGORY *deserialize_help_category_json(json_t *obj)
+{
+    HELP_CATEGORY *hcat;
+    size_t index;
+    json_t *entry;
+
+    if (!obj || !json_is_object(obj))
+        return NULL;
+
+    hcat = new_help_category();
+    hcat->name = str_dup(json_get_string(obj, "name", ""));
+    hcat->description = str_dup(json_get_string(obj, "description", "None\n\r"));
+    hcat->min_rank = (int)json_get_int(obj, "min_rank", 0);
+    hcat->security = (int)json_get_int(obj, "security", 9);
+    hcat->builders = str_dup(json_get_string(obj, "builders", "None"));
+    hcat->creator = str_dup(json_get_string(obj, "creator", "Unknown"));
+    hcat->created = (time_t)json_get_int(obj, "created", 0);
+    hcat->modified_by = str_dup(json_get_string(obj, "modified_by", "Unknown"));
+    hcat->modified = (time_t)json_get_int(obj, "modified", 0);
+    hcat->min_level = (int)json_get_int(obj, "min_level", 0);
+
+    {
+        json_t *categories = json_object_get(obj, "categories");
+
+        if (categories && json_is_array(categories)) {
+        HELP_CATEGORY *tail = NULL;
+
+            json_array_foreach(categories, index, entry) {
+                HELP_CATEGORY *child = deserialize_help_category_json(entry);
+
+                if (!child)
+                    continue;
+
+                child->up = hcat;
+
+                if (!hcat->inside_cats)
+                    hcat->inside_cats = child;
+                else
+                    tail->next = child;
+
+                tail = child;
+            }
+        }
+    }
+
+    {
+        json_t *helps = json_object_get(obj, "helps");
+
+        if (helps && json_is_array(helps)) {
+            json_t *help_entry;
+
+            json_array_foreach(helps, index, help_entry) {
+                HELP_DATA *help = deserialize_help_json(help_entry);
+
+                if (!help)
+                    continue;
+
+                help->hCat = hcat;
+                insert_help(help, &hcat->inside_helps);
+
+                if (!str_cmp(help->keyword, "greeting"))
+                    help_greeting = help->text;
+            }
+        }
+    }
+
+    normalize_help_category(hcat);
+
+    return hcat;
+}
+
+
+static bool save_helpfiles_json(void)
+{
+    json_t *root;
+
+    if (!topHelpCat)
+        return false;
+
+    root = json_object();
+    json_object_set_new(root, "_format", json_string(HELP_JSON_FORMAT));
+    json_object_set_new(root, "_version", json_integer(HELP_JSON_VERSION));
+    json_object_set_new(root, "top_category", serialize_help_category_json(topHelpCat));
+
+    return json_file_save(root, HELP_JSON_FILE, "save_helpfiles_json",
+        JSON_INDENT(2) | JSON_PRESERVE_ORDER);
+}
+
+
+static bool read_helpfiles_json(void)
+{
+    json_t *root;
+    json_t *top;
+
+    root = json_file_load(HELP_JSON_FILE, NULL, NULL, "read_helpfiles_json");
+    if (!root)
+        return false;
+
+    top = json_object_get(root, "top_category");
+    if (!top || !json_is_object(top)) {
+        pbugf(LOG_ERROR, "read_helpfiles_json: missing top_category in %s", HELP_JSON_FILE);
+        json_decref(root);
+        return false;
+    }
+
+    topHelpCat = deserialize_help_category_json(top);
+    json_decref(root);
+
+    return (topHelpCat != NULL);
+}
+
+
 // Save the helpfiles
 void save_helpfiles_new()
 {
     FILE *fp;
 
+    if (save_helpfiles_json())
+        return;
+
     if ((fp = fopen(HELP_FILE, "w")) == NULL) {
-    pbugf(LOG_ERROR, "save_helpfiles_new: couldn't open file for writing");
-    return;
+        pbugf(LOG_ERROR, "save_helpfiles_new: couldn't open file for writing");
+        return;
     }
 
     save_help_category_new(fp, topHelpCat);
@@ -476,31 +782,57 @@ void read_helpfiles_new()
     FILE *fp;
     char *word;
 
+    if (read_helpfiles_json())
+        return;
+
     if ((fp = fopen(HELP_FILE, "r")) == NULL) {
-    pbugf(LOG_ERROR, "read_helpfiles_new: couldn't open file for reading");
+        pbugf(LOG_ERROR, "read_helpfiles_new: couldn't open file for reading");
         fp = fopen(HELP_FILE, "w");
-    fprintf(fp, "#HELPCATEGORY ~\n");
-    fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
-    fprintf(fp, "MinLevel 0\n");
-    fprintf(fp, "Creator System~\n");
+        if (fp != NULL) {
+            fprintf(fp, "#HELPCATEGORY ~\n");
+            fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
+            fprintf(fp, "MinLevel 0\n");
+            fprintf(fp, "Creator System~\n");
         fprintf(fp, "Created %ld\n", (long int)current_time);
-    fprintf(fp, "ModifiedBy Nobody~\n");
-    fprintf(fp, "Modified 0\n");
-    fprintf(fp, "Security 9\n");
-    fprintf(fp, "#-HELPCATEGORY\n");
-    fclose(fp);
+            fprintf(fp, "ModifiedBy Nobody~\n");
+            fprintf(fp, "Modified 0\n");
+            fprintf(fp, "Security 9\n");
+            fprintf(fp, "#-HELPCATEGORY\n");
+            fclose(fp);
+        }
     }
 
     fp = fopen(HELP_FILE, "r");
+    if (fp == NULL) {
+        topHelpCat = new_help_category();
+        free_string(topHelpCat->name);
+        topHelpCat->name = str_dup("");
+        free_string(topHelpCat->description);
+        topHelpCat->description = str_dup("This is the category which holds all of the other categories.\n\r");
+        free_string(topHelpCat->builders);
+        topHelpCat->builders = str_dup("None");
+        free_string(topHelpCat->creator);
+        topHelpCat->creator = str_dup("System");
+        free_string(topHelpCat->modified_by);
+        topHelpCat->modified_by = str_dup("Nobody");
+        topHelpCat->created = current_time;
+        topHelpCat->modified = 0;
+        topHelpCat->security = 9;
+        topHelpCat->min_rank = 0;
+        save_helpfiles_json();
+        return;
+    }
 
     word = fread_word(fp);
 
     if (!str_cmp(word, "#HELPCATEGORY"))  {
-    topHelpCat = read_help_category_new(fp);
-    fclose(fp);
+        topHelpCat = read_help_category_new(fp);
+        fclose(fp);
+        save_helpfiles_json();
     } else {
-    pbugf(LOG_ERROR, "read_helpfiles_new: bad format");
-    exit(1);
+        fclose(fp);
+        pbugf(LOG_ERROR, "read_helpfiles_new: bad format");
+        exit(1);
     }
 }
 
@@ -648,31 +980,7 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
     }
 
 
-    if (!str_cmp(hcat->modified_by, "(null)")) {
-    free_string(hcat->modified_by);
-    hcat->modified_by = str_dup("Unknown");
-    }
-
-    if (!str_cmp(hcat->creator, "(null)")) {
-    free_string(hcat->creator);
-    hcat->creator = str_dup("Unknown");
-    }
-
-    if (!str_cmp(hcat->description, "(null)")) {
-    free_string(hcat->description);
-    hcat->description = str_dup("None\n\r");
-    }
-
-    if (hcat->min_level == 150)
-        hcat->min_rank = STAFF_IMMORTAL;
-    else if (hcat->min_level == 151 || hcat->min_level == 152)
-        hcat->min_rank = STAFF_ASCENDANT;
-    else if (hcat->min_level == 153)
-        hcat->min_rank = STAFF_SUPREMACY;
-    else if (hcat->min_level == 154)
-        hcat->min_rank = STAFF_CREATOR;
-    else if (hcat->min_level == 155)
-        hcat->min_rank = STAFF_IMPLEMENTOR;
+    normalize_help_category(hcat);
 
     return hcat;
 }
@@ -752,31 +1060,7 @@ HELP_DATA *read_help_new(FILE *fp)
     }
 
     // Fix up problems here. Mostly from old helpfiles being converted.
-    if (!str_cmp(help->creator, "(null)")) {
-    free_string(help->creator);
-    help->creator = str_dup("Unknown");
-    }
-
-    if (!str_cmp(help->modified_by, "(null)")) {
-    free_string(help->modified_by);
-    help->modified_by = str_dup("Unknown");
-    }
-
-    if (!str_cmp(help->text, "(null)")) {
-    free_string(help->text);
-    help->text = str_dup("Unknown");
-    }
-
-    if (help->min_level == 150)
-        help->min_rank = STAFF_IMMORTAL;
-    else if (help->min_level == 151 || help->min_level == 152)
-        help->min_rank = STAFF_ASCENDANT;
-    else if (help->min_level == 153)
-        help->min_rank = STAFF_SUPREMACY;
-    else if (help->min_level == 154)
-        help->min_rank = STAFF_CREATOR;
-    else if (help->min_rank == 155)
-        help->min_rank = STAFF_IMPLEMENTOR;
+    normalize_help(help);
 
     return help;
 }

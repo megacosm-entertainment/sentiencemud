@@ -1,0 +1,54 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "rogue",
+        "male": "rogue",
+        "neutral": "rogue",
+        "other": "rogue"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "thief skills",
+        "rogue skills"
+    ],
+    "hp_max": 13,
+    "hp_min": 8,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "rogue",
+    "primary_stat": "dexterity",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "thief skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "rogue skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "rogue",
+            "keyword": "default",
+            "who_name": "   Rogue    "
+        }
+    ],
+    "type": "thief",
+    "uid": 11,
+    "weapon": 0,
+    "who": {
+        "female": "   Rogue    ",
+        "male": "   Rogue    ",
+        "neutral": "   Rogue    ",
+        "other": "   Rogue    "
+    }
+}

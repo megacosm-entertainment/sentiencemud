@@ -26,6 +26,22 @@ char *bootstrap_email = NULL;
 char *bootstrap_password = NULL;
 char *bootstrap_root = NULL;
 
+static void bootstrap_apply_auto_defaults(void)
+{
+    if (!bootstrap_auto)
+        return;
+
+    if (!bootstrap_username || !bootstrap_username[0])
+        bootstrap_username = "implementor";
+
+    if (!bootstrap_email || !bootstrap_email[0])
+        bootstrap_email = "bootstrap@example.invalid";
+
+    if (!bootstrap_password || !bootstrap_password[0])
+        bootstrap_password = "bootstrap123";
+
+}
+
 /**
  * detect_bootstrap_mode - Check command-line args for bootstrap flags
  *
@@ -206,6 +222,13 @@ bool create_minimal_data_files(void)
             return false;
         }
         printf("OK\n");
+
+        printf("  Copying CI test data files... ");
+        if (!create_ci_test_data_files()) {
+            fprintf(stderr, "FAILED\n");
+            return false;
+        }
+        printf("OK\n");
     }
 
     printf("Data files created successfully.\n");
@@ -360,8 +383,14 @@ int run_bootstrap(void)
         return 1;
     }
 
+    bootstrap_apply_auto_defaults();
+
     if (bootstrap_ci_fixtures) {
         printf("CI fixture generation enabled.\n");
+    }
+
+    if (bootstrap_auto) {
+        printf("Bootstrap auto mode enabled for account '%s'.\n", bootstrap_username);
     }
 
     /* Initialize libsodium for password hashing */

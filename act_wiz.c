@@ -97,13 +97,15 @@ static AREA_DATA *relative_widevnum_context(AREA_DATA *context_area, const char 
 int gconfig_read (void)
 {
     FILE *fp;
+    char config_path_buf[MAX_INPUT_LENGTH];
+    const char *config_path = resolve_game_path(CONFIG_FILE, config_path_buf, sizeof(config_path_buf));
     bool fMatch;
     char *word;
     extern GLOBAL_DATA gconfig;
 
     plogf(LOG_INIT,"Loading configuration settings from gconfig.rc...");
 
-    fp = fopen(CONFIG_FILE,"r");
+    fp = fopen(config_path,"r");
     if (!fp)
     {
         pbugf(LOG_INIT, "Unable to open gconfig.rc file for reading.");
@@ -264,13 +266,15 @@ int gconfig_read (void)
 int game_settings_read_dat (void)
 {
     FILE *fp;
+    char settings_path_buf[MAX_INPUT_LENGTH];
+    const char *settings_path = resolve_game_path(GAME_SETTINGS_FILE, settings_path_buf, sizeof(settings_path_buf));
     bool fMatch;
     char *word;
 
 
     plogf(LOG_INIT,"Loading configuration settings from game_settings.dat...");
 
-    fp = fopen(GAME_SETTINGS_FILE,"r");
+    fp = fopen(settings_path,"r");
     if (!fp)
     {
         pbugf(LOG_INIT, "Unable to open game_settings.dat file for reading.");
@@ -731,9 +735,11 @@ int game_settings_read(void)
 int gconfig_write(void)
 {
     FILE *fp;
+    char config_path_buf[MAX_INPUT_LENGTH];
+    const char *config_path = resolve_game_path(CONFIG_FILE, config_path_buf, sizeof(config_path_buf));
     extern GLOBAL_DATA gconfig;
 
-    fp = fopen(CONFIG_FILE,"w");
+    fp = fopen(config_path,"w");
     if (!fp)
     {
         pbugf(LOG_INIT, "Unable to open gconfig.rc file for writing.");

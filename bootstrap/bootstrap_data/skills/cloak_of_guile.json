@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 6,
+            "rating": 5
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 5
+        }
+    ],
+    "inks": [
+        [
+            5,
+            10
+        ],
+        [
+            3,
+            5
+        ],
+        [
+            14,
+            5
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "standing",
+    "msg_disp": "$n is no longer invisible to creatures.",
+    "msg_obj": "",
+    "msg_off": "{YYou are no longer invisible to creatures.{x",
+    "name": "cloak of guile",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cloak_of_guile",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 44
+}

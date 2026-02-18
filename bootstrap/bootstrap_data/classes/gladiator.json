@@ -1,0 +1,54 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "gladiator",
+        "male": "gladiator",
+        "neutral": "gladiator",
+        "other": "gladiator"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "warrior skills",
+        "gladiator skills"
+    ],
+    "hp_max": 15,
+    "hp_min": 11,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "gladiator",
+    "primary_stat": "strength",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "warrior skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "gladiator skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "gladiator",
+            "keyword": "default",
+            "who_name": " Gladiator  "
+        }
+    ],
+    "type": "warrior",
+    "uid": 2,
+    "weapon": 0,
+    "who": {
+        "female": " Gladiator  ",
+        "male": " Gladiator  ",
+        "neutral": " Gladiator  ",
+        "other": " Gladiator  "
+    }
+}

@@ -610,7 +610,11 @@ void boot_db(void)
     log_init(ZLOG_CONF);
 
     // If shutdown.txt exists, nuke it.
-    unlink(SHUTDOWN_FILE);
+    {
+        char shutdown_file_buf[MAX_INPUT_LENGTH];
+        const char *shutdown_file = resolve_game_path(SHUTDOWN_FILE, shutdown_file_buf, sizeof(shutdown_file_buf));
+        unlink(shutdown_file);
+    }
     /*
      * Init some data space stuff.
      */
@@ -793,12 +797,16 @@ void boot_db(void)
      */
     {
         FILE *fpList;
+        char area_list_buf[MAX_INPUT_LENGTH];
+        char area_dir_buf[MAX_INPUT_LENGTH];
+        const char *area_list_path = resolve_game_path(AREA_LIST, area_list_buf, sizeof(area_list_buf));
+        const char *area_dir_path = resolve_game_path(AREA_DIR, area_dir_buf, sizeof(area_dir_buf));
         //char log_buf[MAX_STRING_LENGTH];
 
         log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading areas from area.lst file...");
 
-        if ((fpList = fopen(AREA_LIST, "r")) == NULL) {
-            perror(AREA_LIST);
+        if ((fpList = fopen(area_list_path, "r")) == NULL) {
+            perror(area_list_path);
             exit(1);
         }
 
@@ -834,7 +842,7 @@ void boot_db(void)
             }
 
             snprintf(json_filename, sizeof(json_filename), "%s.json", stem);
-            snprintf(json_fullpath, sizeof(json_fullpath), "%s%s", AREA_DIR, json_filename);
+            snprintf(json_fullpath, sizeof(json_fullpath), "%s%s", area_dir_path, json_filename);
 
             if (access(json_fullpath, F_OK) == 0) {
                 log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading area from JSON: %s", json_fullpath);
@@ -854,17 +862,17 @@ void boot_db(void)
                 char area_path[MAX_STRING_LENGTH * 3];
                 char legacy_filename[MAX_STRING_LENGTH + 10];
                 const char *legacy_target = NULL;
-                size_t prefix_len = strlen(AREA_DIR);
+                size_t prefix_len = strlen(area_dir_path);
                 int max_tail = (prefix_len < sizeof(area_path))
                     ? (int)(sizeof(area_path) - prefix_len - 1)
                     : 0;
 
-                snprintf(area_path, sizeof(area_path), "%s%.*s", AREA_DIR, max_tail, strArea);
+                snprintf(area_path, sizeof(area_path), "%s%.*s", area_dir_path, max_tail, strArea);
                 if (access(area_path, F_OK) == 0) {
                     legacy_target = strArea;
                 } else {
                     snprintf(legacy_filename, sizeof(legacy_filename), "%s.are", stem);
-                    snprintf(area_path, sizeof(area_path), "%s%.*s", AREA_DIR, max_tail, legacy_filename);
+                    snprintf(area_path, sizeof(area_path), "%s%.*s", area_dir_path, max_tail, legacy_filename);
                     if (access(area_path, F_OK) == 0)
                         legacy_target = legacy_filename;
                 }
@@ -876,7 +884,7 @@ void boot_db(void)
                     exit(2);
                 }
 
-                snprintf(area_path, sizeof(area_path), "%s%.*s", AREA_DIR, max_tail, legacy_target);
+                snprintf(area_path, sizeof(area_path), "%s%.*s", area_dir_path, max_tail, legacy_target);
                 if ((fpArea = fopen(area_path, "r")) == NULL) {
                     perror(area_path);
                     exit(2);        // NIBS: changed this so we know it exited because of this
@@ -7558,6 +7566,8 @@ bool check_persist_environment( CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *r
 void persist_save(void)
 {
     FILE *fp;
+    char persist_file_buf[MAX_INPUT_LENGTH];
+    const char *persist_file = resolve_game_path(PERSIST_FILE, persist_file_buf, sizeof(persist_file_buf));
     register CHAR_DATA *ch;
     register OBJ_DATA *obj;
     register ROOM_INDEX_DATA *room;
@@ -7566,7 +7576,7 @@ void persist_save(void)
 //  Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
 //	log_stringf("persist_save: Saving persistance...");
 
-    if (!(fp = fopen(PERSIST_FILE, "w"))) {
+    if (!(fp = fopen(persist_file, "w"))) {
         log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist.save: Couldn't open file.");
     } else {
         // Save objects
@@ -9431,6 +9441,10 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 bool persist_load(void)
 {
     FILE *fp;
+    char persist_file_buf[MAX_INPUT_LENGTH];
+    char persist_json_objects_buf[MAX_INPUT_LENGTH];
+    const char *persist_file = resolve_game_path(PERSIST_FILE, persist_file_buf, sizeof(persist_file_buf));
+    const char *persist_json_objects = resolve_game_path(PERSIST_JSON_OBJECTS, persist_json_objects_buf, sizeof(persist_json_objects_buf));
     char *word;
     CHAR_DATA *ch;
     OBJ_DATA *obj;
@@ -9457,7 +9471,7 @@ bool persist_load(void)
             loaded_from_json = true;
         } else {
             /* Check if there are any JSON files at all - if not, fall through to persist.dat */
-            DIR *dir = opendir(PERSIST_JSON_OBJECTS);
+            DIR *dir = opendir(persist_json_objects);
             if (dir) {
                 struct dirent *entry;
                 bool has_files = false;
@@ -9483,7 +9497,7 @@ bool persist_load(void)
     }
 
     /* Load from persist.dat (old format) */
-    if (!(fp = fopen(PERSIST_FILE, "r"))) {
+    if (!(fp = fopen(persist_file, "r"))) {
         log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist.dat: Couldn't open file.");
         return true;
     } else {
@@ -9586,6 +9600,10 @@ bool save_instances()
 void load_instances()
 {
     FILE *fp;
+    char instances_json_buf[MAX_INPUT_LENGTH];
+    char instances_dat_buf[MAX_INPUT_LENGTH];
+    const char *instances_json = resolve_game_path(INSTANCES_FILE_JSON, instances_json_buf, sizeof(instances_json_buf));
+    const char *instances_dat = resolve_game_path(INSTANCES_FILE, instances_dat_buf, sizeof(instances_dat_buf));
     char *word;
     bool fMatch;
     
@@ -9598,7 +9616,7 @@ void load_instances()
     }
     
     // Tier 2: Try monolithic instances.json
-    if (json_load_instances_file(INSTANCES_FILE_JSON)) {
+    if (json_load_instances_file(instances_json)) {
         log_string("Loaded instances from monolithic JSON file");
         resolve_ships();
         
@@ -9606,14 +9624,14 @@ void load_instances()
         json_save_instances();
         
         char old_path[256];
-        snprintf(old_path, sizeof(old_path), "%s.old", INSTANCES_FILE_JSON);
-        rename(INSTANCES_FILE_JSON, old_path);
+        snprintf(old_path, sizeof(old_path), "%s.old", instances_json);
+        rename(instances_json, old_path);
         log_stringf("Archived old instances.json to %s", old_path);
         return;
     }
     
     // Tier 3: Fall back to legacy .dat format
-    fp = fopen(INSTANCES_FILE, "r");
+    fp = fopen(instances_dat, "r");
     if (fp == NULL)
     {
         log_message(LOG_LEVEL_BUG, LOG_ERROR, "No instances file found (tried persist dirs, .json, and .dat)");
@@ -9678,8 +9696,8 @@ void load_instances()
         log_string("Migration successful - instances saved as JSON");
         
         char old_path[256];
-        snprintf(old_path, sizeof(old_path), "%s.old", INSTANCES_FILE);
-        rename(INSTANCES_FILE, old_path);
+        snprintf(old_path, sizeof(old_path), "%s.old", instances_dat);
+        rename(instances_dat, old_path);
         log_stringf("Archived old instances.dat to %s", old_path);
     } else {
         log_message(LOG_LEVEL_BUG, LOG_ERROR, "Failed to migrate instances to JSON");

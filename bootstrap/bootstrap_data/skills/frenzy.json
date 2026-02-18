@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "cleric",
+            "level": 24,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 28,
+            "rating": 8
+        }
+    ],
+    "inks": [
+        [
+            16,
+            2
+        ],
+        [
+            6,
+            2
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 30,
+    "minimum_position": "standing",
+    "msg_disp": "$n no longer looks so wild.",
+    "msg_obj": "",
+    "msg_off": "{CYour rage ebbs.{x",
+    "name": "frenzy",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_frenzy",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 122
+}
