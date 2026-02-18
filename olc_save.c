@@ -55,6 +55,26 @@ static bool 	fMatch;
 static char 	*word;
 static char 	buf[MSL];
 
+/*
+ * Legacy value[] compatibility helpers.
+ *
+ * Keep old area/object reader slot access centralized so the remaining
+ * migration-read path can be retired cleanly later.
+ */
+static inline int legacy_obj_index_value_get(const OBJ_INDEX_DATA *obj, int slot)
+{
+    if (obj == NULL || slot < 0 || slot > 7)
+        return 0;
+    return obj->value[slot];
+}
+
+static inline void legacy_obj_index_value_set(OBJ_INDEX_DATA *obj, int slot, int value)
+{
+    if (obj == NULL || slot < 0 || slot > 7)
+        return;
+    obj->value[slot] = value;
+}
+
 void do_asave_new(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -375,7 +395,7 @@ void save_area_new(AREA_DATA *area)
     FILE *fp;
     char filename[MSL];
     OLC_POINT_BOOST *boost;
-    bool use_json = true;  // Default to JSON format
+    bool use_json = true;  // Old-format writes are disabled; keep only for legacy read support.
 
 /*
     // 20140521 NIB - allowing these to be saved
@@ -386,32 +406,7 @@ void save_area_new(AREA_DATA *area)
     }
     */
 
-    // There are some areas which should be saved specially (keep .are format for mazes)
-    if (!str_cmp(area->name, "Geldoff's Maze")) {
-    sprintf(filename, "../maze/template.geldmaze");
-    use_json = false;  // Keep old format for mazes
-    }
-    else if (!str_cmp(area->name, "Maze-Level1")) {
-    sprintf(filename, "../maze/template.poa1");
-    use_json = false;
-    }
-    else if (!str_cmp(area->name, "Maze-Level2")) {
-    sprintf(filename, "../maze/template.poa2");
-    use_json = false;
-    }
-    else if (!str_cmp(area->name, "Maze-Level3")) {
-    sprintf(filename, "../maze/template.poa3");
-    use_json = false;
-    }
-    else if (!str_cmp(area->name, "Maze-Level4")) {
-    sprintf(filename, "../maze/template.poa4");
-    use_json = false;
-    }
-    else if (!str_cmp(area->name, "Maze-Level5")) {
-    sprintf(filename, "../maze/template.poa5");
-    use_json = false;
-    }
-    else if (IS_SET(area->area_flags, AREA_TESTPORT) && is_test_port)
+    if (IS_SET(area->area_flags, AREA_TESTPORT) && is_test_port)
     {
     sprintf(filename, "../../backups/%s", area->file_name);
     REMOVE_BIT(area->area_flags, AREA_TESTPORT);
@@ -468,7 +463,8 @@ void save_area_new(AREA_DATA *area)
     return;
     }
 
-    // Old .are format for legacy areas (mazes)
+    // Old .are format writer retained only for migration/read compatibility.
+    // Runtime saves no longer use this path.
     if ((fp = fopen(filename, "w")) == NULL) {
         pbugf(LOG_ERROR, "save_area_new: couldn't open file %s", filename);
         return;
@@ -1015,13 +1011,6 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
     fprintf(fp, "Extra4Flags %ld\n", obj->extra[3]);
     fprintf(fp, "WearFlags %ld\n", obj->wear_flags);
 
-    /* Legacy Values line — retained as transitional backup until Phase 5 is complete.
-     * This allows .are files to remain a recovery source for objects that
-     * lost their data during the premature Phase 4 value[] removal. */
-    fprintf(fp, "Values %ld %ld %ld %ld %ld %ld %ld %ld\n",
-        obj->value[0], obj->value[1], obj->value[2], obj->value[3],
-        obj->value[4], obj->value[5], obj->value[6], obj->value[7]);
-
     /* Type-specific data (canonical, as JSON) */
     {
         json_t *td = obj_index_type_data_to_json(obj);
@@ -1121,116 +1110,6 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
     // Save item spells here.
     if (obj->spells != NULL)
         save_spell(fp, obj->spells);
-
-    // Save objects with old spell format here.
-    if (obj->spells == NULL)
-        switch (obj->item_type) {
-        case ITEM_ARMOUR:
-        case ITEM_WEAPON:
-        case ITEM_RANGED_WEAPON:
-            if (obj->value[5] > 0) {
-                if (obj->value[6] > 0 && obj->value[6] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[6]].name, obj->value[5], 100);
-                }
-
-                if (obj->value[7] > 0 && obj->value[7] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[7]].name, obj->value[5], 100);
-                }
-
-                obj->value[5] = 0;
-                obj->value[6] = 0;
-                obj->value[7] = 0;
-            }
-            break;
-
-        case ITEM_LIGHT:
-            if (obj->value[3] > 0) {
-                if (obj->value[4] > 0 && obj->value[4] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[4]].name, obj->value[3], 100);
-                }
-
-                if (obj->value[5] > 0 && obj->value[5] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[5]].name, obj->value[3], 100);
-                }
-
-                obj->value[3] = 0;
-                obj->value[4] = 0;
-                obj->value[5] = 0;
-            }
-            break;
-
-        case ITEM_ARTIFACT:
-            if (obj->value[0] > 0) {
-                if (obj->value[1] > 0 && obj->value[1] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[1]].name, obj->value[0], 100);
-                }
-
-                if (obj->value[2] > 0 && obj->value[2] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[2]].name, obj->value[0], 100);
-                }
-
-                obj->value[0] = 0;
-                obj->value[1] = 0;
-                obj->value[2] = 0;
-            }
-            break;
-
-        case ITEM_SCROLL:
-        case ITEM_PILL:
-        case ITEM_POTION:
-            if (obj->value[0] > 0) {
-                if (obj->value[1] > 0 && obj->value[1] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[1]].name, obj->value[0], 100);
-                }
-
-                if (obj->value[2] > 0 && obj->value[2] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[2]].name, obj->value[0], 100);
-                }
-
-                if (obj->value[3] > 0 && obj->value[3] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[3]].name, obj->value[0], 100);
-                }
-
-                if (obj->value[4] > 0 && obj->value[4] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[4]].name, obj->value[0], 100);
-                }
-
-                obj->value[0] = 0;
-                obj->value[1] = 0;
-                obj->value[2] = 0;
-                obj->value[3] = 0;
-                obj->value[4] = 0;
-            }
-
-            break;
-
-        case ITEM_WAND:
-        case ITEM_STAFF:
-            if (obj->value[0] > 0) {
-                if (obj->value[3] > 0 && obj->value[3] < MAX_SKILL) {
-                    fprintf(fp, "SpellNew %s~ %ld %d\n",
-                    skill_table[obj->value[3]].name, obj->value[0], 100);
-                }
-
-                obj->value[0] = 0;
-                obj->value[3] = 0;
-            }
-
-            break;
-
-        case ITEM_PORTAL:
-            break;
-    }
 
     fprintf(fp, "#-OBJECT\n");
 }
@@ -3226,9 +3105,12 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
     log_string(buf);
     }
 
-    if (obj->item_type == ITEM_WEAPON && !has_imp_sig(NULL, obj)
-    &&  (obj->value[0] == WEAPON_ARROW || obj->value[0] == WEAPON_BOLT))
-    set_weapon_dice(obj);
+    if (obj->item_type == ITEM_WEAPON && !has_imp_sig(NULL, obj))
+    {
+    int weapon_class = IS_WEAPON(obj) ? WEAPON(obj)->weapon_class : legacy_obj_index_value_get(obj, 0);
+    if (weapon_class == WEAPON_ARROW || weapon_class == WEAPON_BOLT)
+        set_weapon_dice(obj);
+    }
 /*
     if (IS_SET(obj->extra[0], ITEM_ANTI_GOOD)) {
     sprintf(buf, "read_object_new: anti-good flag on item %s(%ld)",
@@ -3270,31 +3152,44 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     // Value[1] == CONT flags
                     // Value[2] == Key
 
-                    if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+                    {
+                    long lock_flags = legacy_obj_index_value_get(obj, 1);
+                    if (obj->item_type == ITEM_CONTAINER && IS_CONTAINER(obj))
+                        lock_flags = CONTAINER(obj)->flags;
+                    else if (obj->item_type == ITEM_BOOK && IS_BOOK(obj))
+                        lock_flags = BOOK(obj)->flags;
+
+                    if( (legacy_obj_index_value_get(obj, 2) > 0) || IS_SET(lock_flags, VO_004_CONT_LOCKED) )
                     {
                         obj->lock = new_lock_state();
-                        obj->lock->key_load.vnum = obj->value[2];
+                        obj->lock->key_load.vnum = legacy_obj_index_value_get(obj, 2);
                         obj->lock->flags = 0;
                         obj->lock->pick_chance = 100;
 
-                        if( IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+                        if( IS_SET(lock_flags, VO_004_CONT_LOCKED) )
                         {
                             SET_BIT(obj->lock->flags, LOCK_LOCKED);
                         }
 
-                        if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
+                        if( IS_SET(lock_flags, VO_004_CONT_PICKPROOF) )
                         {
                             obj->lock->pick_chance = 0;
                         }
 
-                        if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )
+                        if( IS_SET(lock_flags, VO_004_CONT_SNAPKEY) )
                         {
                             SET_BIT(obj->lock->flags, LOCK_SNAPKEY);
                         }
 
                         // Remove the old data
-                        REMOVE_BIT(obj->value[1], (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
-                        obj->value[2] = 0;
+                        REMOVE_BIT(lock_flags, (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
+                        if (obj->item_type == ITEM_CONTAINER && IS_CONTAINER(obj))
+                            CONTAINER(obj)->flags = lock_flags;
+                        else if (obj->item_type == ITEM_BOOK && IS_BOOK(obj))
+                            BOOK(obj)->flags = lock_flags;
+                        legacy_obj_index_value_set(obj, 1, lock_flags);
+                        legacy_obj_index_value_set(obj, 2, 0);
+                    }
                     }
                     break;
 
@@ -3302,38 +3197,45 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     // Value[1] == EXIT flags
                     // Value[4] == Key
 
-                    if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+                    {
+                    long exit_flags = (IS_PORTAL(obj) ? PORTAL(obj)->exit : legacy_obj_index_value_get(obj, 1));
+
+                    if( (legacy_obj_index_value_get(obj, 4) > 0) || IS_SET(exit_flags, VO_004_EX_LOCKED) )
                     {
                         obj->lock = new_lock_state();
-                        obj->lock->key_load.vnum = obj->value[4];
+                        obj->lock->key_load.vnum = legacy_obj_index_value_get(obj, 4);
                         obj->lock->flags = 0;
                         obj->lock->pick_chance = 100;
 
-                        if( IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+                        if( IS_SET(exit_flags, VO_004_EX_LOCKED) )
                         {
                             SET_BIT(obj->lock->flags, LOCK_LOCKED);
                         }
 
-                        if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
+                        if( IS_SET(exit_flags, VO_004_EX_PICKPROOF) )
                         {
                             obj->lock->pick_chance = 0;
                         }
-                        else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
+                        else if( IS_SET(exit_flags, VO_004_EX_INFURIATING) )
                         {
                             obj->lock->pick_chance = 10;
                         }
-                        else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
+                        else if( IS_SET(exit_flags, VO_004_EX_HARD) )
                         {
                             obj->lock->pick_chance = 40;
                         }
-                        else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
+                        else if( IS_SET(exit_flags, VO_004_EX_EASY) )
                         {
                             obj->lock->pick_chance = 80;
                         }
 
 
-                        REMOVE_BIT(obj->value[1], (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
-                        obj->value[4] = 0;
+                        REMOVE_BIT(exit_flags, (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
+                        if (IS_PORTAL(obj))
+                            PORTAL(obj)->exit = exit_flags;
+                        legacy_obj_index_value_set(obj, 1, exit_flags);
+                        legacy_obj_index_value_set(obj, 4, 0);
+                    }
                     }
                     break;
 

@@ -15,6 +15,14 @@
 
 extern bool wiznet_script;
 
+static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, const char *argument)
+{
+    if (!context_area || IS_NULLSTR(argument) || argument[0] != '#')
+        return NULL;
+
+    return context_area;
+}
+
 const struct script_cmd_type obj_cmd_table[] = {
     { "addaffect",			scriptcmd_addaffect,	true,	true	},
     { "addaffectname",		scriptcmd_addaffectname,true,	true	},
@@ -192,7 +200,7 @@ void do_opdump(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    if (!parse_widevnum(argument, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, argument), &wnum))
     {
         send_to_char("Invalid vnum format.\n\r", ch);
         return;
@@ -1802,14 +1810,7 @@ SCRIPT_CMD(do_oplink)
     id1 = id2 = 0;
     switch(arg->type) {
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &link_wnum) && link_wnum.pArea) {
-                vnum = link_wnum.vnum;
-                link_area = link_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"delete") ||
+        if(!str_cmp(arg->d.str,"delete") ||
             !str_cmp(arg->d.str,"remove") ||
             !str_cmp(arg->d.str,"unlink")) {
             vnum = 0;
@@ -1820,6 +1821,9 @@ SCRIPT_CMD(do_oplink)
             !str_cmp(arg->d.str,"outside")) {
             vnum = 0;
             environ = true;
+        } else if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &link_wnum) && link_wnum.pArea) {
+            vnum = link_wnum.vnum;
+            link_area = link_wnum.pArea;
         } else if(!str_cmp(arg->d.str,"vroom")) {
             argument = rest;
             if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
@@ -1966,7 +1970,9 @@ SCRIPT_CMD(do_opoload)
                         fInside = true;
 
                     else if( info->obj->item_type == ITEM_WEAPON_CONTAINER &&
-                        info->obj->value[1] == pObjIndex->value[0] )
+                        pObjIndex->item_type == ITEM_WEAPON &&
+                        IS_WEAPON_CON(info->obj) && IS_WEAPON(pObjIndex) &&
+                        WEAPON_CON(info->obj)->weapon_type == WEAPON(pObjIndex)->weapon_class)
                         fInside = true;
 
                 }
@@ -1988,7 +1994,8 @@ SCRIPT_CMD(do_opoload)
                         to_obj = arg->d.obj;
                     else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
                         pObjIndex->item_type == ITEM_WEAPON &&
-                        pObjIndex->value[0] == arg->d.obj->value[1])
+                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
+                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
                         to_obj = arg->d.obj;
                     else
                         return;	// Trying to put the item into a non-container won't work
@@ -2269,15 +2276,12 @@ SCRIPT_CMD(do_opremove)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
-                vnum = item_wnum.vnum;
-                item_area = item_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"all"))
+        if(!str_cmp(arg->d.str,"all"))
             fAll = true;
+        else if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &item_wnum) && item_wnum.pArea) {
+            vnum = item_wnum.vnum;
+            item_area = item_wnum.pArea;
+        }
         else
             strncpy(name,arg->d.str,MIL-1);
         break;
@@ -2490,13 +2494,9 @@ SCRIPT_CMD(do_opvforce)
 
     switch(arg->type) {
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
-                vnum = target_wnum.vnum;
-                target_area = target_wnum.pArea;
-            }
-        } else {
-            vnum = atoi(arg->d.str);
+        if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &target_wnum) && target_wnum.pArea) {
+            vnum = target_wnum.vnum;
+            target_area = target_wnum.pArea;
         }
         break;
     case ENT_NUMBER: vnum = arg->d.num; break;

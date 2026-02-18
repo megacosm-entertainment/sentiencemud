@@ -8,6 +8,8 @@ project(sent)
 # Build options
 option(BUILD_TESTS "Build unit tests" OFF)
 option(ENABLE_COVERAGE "Enable code coverage instrumentation (gcov/lcov)" OFF)
+option(ENABLE_LEGACY_AREA_READ "Enable legacy .are area reader (needed until legacy maze zones are migrated)" ON)
+option(ENABLE_LEGACY_PFILE_READ "Enable legacy text pfile reader fallback" ON)
 
 # Always generate compile_commands.json for clang-tidy and IDE integration
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -304,6 +306,8 @@ target_compile_definitions(sent PRIVATE
     VERSION="${GIT_VERSION}"
     BUILD_DATE="${CUR_BUILD_DATE}"
     COMMIT="${GIT_URL}"
+    ENABLE_LEGACY_AREA_READ=$<IF:$<BOOL:${ENABLE_LEGACY_AREA_READ}>,1,0>
+    ENABLE_LEGACY_PFILE_READ=$<IF:$<BOOL:${ENABLE_LEGACY_PFILE_READ}>,1,0>
     # MUD_DEBUG enables debug features like stack trace logging
     $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:MUD_DEBUG>
     # BUILD_TESTS enables integration test framework

@@ -318,9 +318,13 @@ DECL_IFC_FUN(ifc_carryleft)
 {
     if (ISARG_OBJ(0) && (obj = ARG_OBJ(0))) {
         if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-            *ret = obj->value[3] - get_obj_number_container(obj);
+            *ret = (obj->item_type == ITEM_CART
+                ? (IS_CART(obj) ? CART(obj)->max_items : 0)
+                : (IS_CONTAINER(obj) ? CONTAINER(obj)->max_items : 0))
+                - get_obj_number_container(obj);
         else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-            *ret = obj->value[2] - get_obj_number_container(obj);
+            *ret = (IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->max_items : 0)
+                - get_obj_number_container(obj);
         else
             *ret = 0;
     } else if(ISARG_MOB(0) && (mob = ARG_MOB(0)))
@@ -407,8 +411,9 @@ DECL_IFC_FUN(ifc_clones)
 
 DECL_IFC_FUN(ifc_container)
 {
-    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_CONTAINER &&
-        IS_SET(ARG_OBJ(0)->value[1], flag_value_ifcheck(container_flags,ARG_STR(1)));
+    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_CONTAINER && IS_CONTAINER(ARG_OBJ(0)) &&
+        IS_SET(CONTAINER(ARG_OBJ(0))->flags,
+            flag_value_ifcheck(container_flags,ARG_STR(1)));
     return true;
 }
 
@@ -475,8 +480,8 @@ DECL_IFC_FUN(ifc_danger)
 DECL_IFC_FUN(ifc_damtype)
 {
     if(ARG_MOB(0)) *ret = (ARG_MOB(0)->dam_type == attack_lookup(ARG_STR(1)));
-    else if(ARG_OBJ(0)) *ret = (ARG_OBJ(0)->item_type == ITEM_WEAPON &&
-            ARG_OBJ(0)->value[3] == attack_lookup(ARG_STR(1)));
+    else if(ARG_OBJ(0)) *ret = (ARG_OBJ(0)->item_type == ITEM_WEAPON && IS_WEAPON(ARG_OBJ(0)) &&
+            WEAPON(ARG_OBJ(0))->damage_type == attack_lookup(ARG_STR(1)));
     else *ret = false;
     return true;
 }
@@ -503,8 +508,9 @@ DECL_IFC_FUN(ifc_deity)
 DECL_IFC_FUN(ifc_dice)
 {
     if(ISARG_OBJ(0)) {
-        if(ARG_OBJ(0)->item_type == ITEM_WEAPON)
-            *ret = dice(ARG_OBJ(0)->value[1], ARG_OBJ(0)->value[2]);
+        if(ARG_OBJ(0)->item_type == ITEM_WEAPON && IS_WEAPON(ARG_OBJ(0)))
+            *ret = dice(WEAPON(ARG_OBJ(0))->damage.number,
+                WEAPON(ARG_OBJ(0))->damage.size);
         else
             *ret = 0;
         if(ISARG_NUM(1)) *ret += ARG_NUM(1);
@@ -732,8 +738,9 @@ DECL_IFC_FUN(ifc_fullness)
 
 DECL_IFC_FUN(ifc_furniture)
 {
-    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_FURNITURE &&
-        IS_SET(ARG_OBJ(0)->value[2], flag_value_ifcheck(furniture_flags,ARG_STR(1)));
+    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_FURNITURE && IS_FURNITURE(ARG_OBJ(0)) &&
+        IS_SET(FURNITURE(ARG_OBJ(0))->flags,
+            flag_value_ifcheck(furniture_flags,ARG_STR(1)));
     return true;
 }
 
@@ -1450,8 +1457,8 @@ DECL_IFC_FUN(ifc_level)
 DECL_IFC_FUN(ifc_liquid)
 {
     *ret = ISARG_OBJ(0) &&
-        (ARG_OBJ(0)->item_type == ITEM_DRINK_CON || ARG_OBJ(0)->item_type == ITEM_FOUNTAIN) &&
-        (ARG_OBJ(0)->value[2] == liq_lookup(ARG_STR(1)));
+        (ARG_OBJ(0)->item_type == ITEM_DRINK_CON || ARG_OBJ(0)->item_type == ITEM_FOUNTAIN) && IS_FLUID_CON(ARG_OBJ(0)) &&
+        (FLUID_CON(ARG_OBJ(0))->liquid == liq_lookup(ARG_STR(1)));
     return true;
 }
 
@@ -1480,17 +1487,18 @@ DECL_IFC_FUN(ifc_maxcarry)
     if (ISARG_OBJ(0)) {
         obj = ARG_OBJ(0);
         if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-            *ret = obj->value[3];
+            *ret = obj->item_type == ITEM_CART
+                ? (IS_CART(obj) ? CART(obj)->max_items : 0)
+                : (IS_CONTAINER(obj) ? CONTAINER(obj)->max_items : 0);
         else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-            *ret = obj->value[2];
+            *ret = IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->max_items : 0;
         else
             return false;
     } else if(ISARG_MOB(0))
         *ret = can_carry_n(ARG_MOB(0));
     else
-        return true;
+        return false;
 
-    *ret = 0;
     return true;
 }
 
@@ -1519,7 +1527,12 @@ DECL_IFC_FUN(ifc_maxweight)
         if(obj->item_type == ITEM_CART ||
             obj->item_type == ITEM_CONTAINER ||
             obj->item_type == ITEM_WEAPON_CONTAINER) {
-            *ret = obj->value[0];
+            if (obj->item_type == ITEM_CART)
+                *ret = IS_CART(obj) ? CART(obj)->capacity : 0;
+            else if (obj->item_type == ITEM_CONTAINER)
+                *ret = IS_CONTAINER(obj) ? CONTAINER(obj)->max_weight : 0;
+            else
+                *ret = IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->max_weight : 0;
             return true;
         }
     } else if(ARG_MOB(0)) {
@@ -1694,13 +1707,19 @@ DECL_IFC_FUN(ifc_objmaxweight)
     if (ISARG_OBJ(0)) {
         obj = ARG_OBJ(0);
         if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-            val = obj->value[4];
+            val = obj->item_type == ITEM_CART
+                ? (IS_CART(obj) ? CART(obj)->weight_multiplier : 0)
+                : (IS_CONTAINER(obj) ? CONTAINER(obj)->weight_multiplier : 0);
         else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-            val = obj->value[3];
+            val = IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->weight_multiplier : 0;
         else
             return false;
         if(val < 1) val = 100;
-        *ret = obj->value[0] * 100 / val;
+        *ret = (obj->item_type == ITEM_CART
+                ? (IS_CART(obj) ? CART(obj)->capacity : 0)
+                : (obj->item_type == ITEM_CONTAINER
+                    ? (IS_CONTAINER(obj) ? CONTAINER(obj)->max_weight : 0)
+                    : (IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->max_weight : 0))) * 100 / val;
         return true;
     }
     return true;
@@ -1790,13 +1809,20 @@ DECL_IFC_FUN(ifc_objweightleft)
     if (ISARG_OBJ(0)) {
         obj = ARG_OBJ(0);
         if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-            val = obj->value[4];
+            val = obj->item_type == ITEM_CART
+                ? (IS_CART(obj) ? CART(obj)->weight_multiplier : 0)
+                : (IS_CONTAINER(obj) ? CONTAINER(obj)->weight_multiplier : 0);
         else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-            val = obj->value[3];
+            val = IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->weight_multiplier : 0;
         else
             return false;
         if(val < 1) val = 100;
-        *ret = (obj->value[0] * 100 / val) - get_obj_weight_container(obj);
+        *ret = ((obj->item_type == ITEM_CART
+                ? (IS_CART(obj) ? CART(obj)->capacity : 0)
+                : (obj->item_type == ITEM_CONTAINER
+                    ? (IS_CONTAINER(obj) ? CONTAINER(obj)->max_weight : 0)
+                    : (IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->max_weight : 0))) * 100 / val)
+                - get_obj_weight_container(obj);
         return true;
     }
     return false;
@@ -1936,15 +1962,17 @@ DECL_IFC_FUN(ifc_pneuma)
 
 DECL_IFC_FUN(ifc_portal)
 {
-    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_PORTAL &&
-        IS_SET(ARG_OBJ(0)->value[2], flag_value_ifcheck(portal_flags,ARG_STR(1)));
+    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_PORTAL && IS_PORTAL(ARG_OBJ(0)) &&
+        IS_SET(PORTAL(ARG_OBJ(0))->flags,
+            flag_value_ifcheck(portal_flags,ARG_STR(1)));
     return true;
 }
 
 DECL_IFC_FUN(ifc_portalexit)
 {
-    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_PORTAL &&
-        IS_SET(ARG_OBJ(0)->value[1], flag_value_ifcheck(portal_exit_flags,ARG_STR(1)));
+    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_PORTAL && IS_PORTAL(ARG_OBJ(0)) &&
+        IS_SET(PORTAL(ARG_OBJ(0))->exit,
+            flag_value_ifcheck(portal_exit_flags,ARG_STR(1)));
     return true;
 }
 
@@ -2671,15 +2699,16 @@ DECL_IFC_FUN(ifc_vuln)
 
 DECL_IFC_FUN(ifc_weapon)
 {
-    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_WEAPON &&
-        IS_SET(ARG_OBJ(0)->value[4], flag_value_ifcheck(weapon_type2,ARG_STR(1)));
+    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_WEAPON && IS_WEAPON(ARG_OBJ(0)) &&
+        IS_SET(WEAPON(ARG_OBJ(0))->flags,
+            flag_value_ifcheck(weapon_type2,ARG_STR(1)));
     return true;
 }
 
 DECL_IFC_FUN(ifc_weapontype)
 {
-    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_WEAPON &&
-        ARG_OBJ(0)->value[0] == weapon_type(ARG_STR(1));
+    *ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_WEAPON && IS_WEAPON(ARG_OBJ(0)) &&
+        WEAPON(ARG_OBJ(0))->weapon_class == weapon_type(ARG_STR(1));
     return true;
 }
 
@@ -2739,7 +2768,12 @@ DECL_IFC_FUN(ifc_weightleft)
         if(obj->item_type == ITEM_CART ||
             obj->item_type == ITEM_CONTAINER ||
             obj->item_type == ITEM_WEAPON_CONTAINER) {
-            *ret = obj->value[0] - get_obj_weight_container(obj);
+            if (obj->item_type == ITEM_CART)
+                *ret = (IS_CART(obj) ? CART(obj)->capacity : 0) - get_obj_weight_container(obj);
+            else if (obj->item_type == ITEM_CONTAINER)
+                *ret = (IS_CONTAINER(obj) ? CONTAINER(obj)->max_weight : 0) - get_obj_weight_container(obj);
+            else
+                *ret = (IS_WEAPON_CON(obj) ? WEAPON_CON(obj)->max_weight : 0) - get_obj_weight_container(obj);
         } else
             *ret = 0;
         return true;
@@ -4779,10 +4813,11 @@ DECL_IFC_FUN(ifc_objweapon)
 {
     *ret = false;
     if(ISARG_OBJ(0) && ISARG_STR(1)) {
+        int expected = flag_value(weapon_class, ARG_STR(1));
         if(ARG_OBJ(0)->item_type == ITEM_WEAPON)
-            *ret = ARG_OBJ(0)->value[0] == flag_value(weapon_class,ARG_STR(1));
+            *ret = IS_WEAPON(ARG_OBJ(0)) && WEAPON(ARG_OBJ(0))->weapon_class == expected;
         else if(ARG_OBJ(0)->item_type == ITEM_WEAPON_CONTAINER)
-            *ret = ARG_OBJ(0)->value[1] == flag_value(weapon_class,ARG_STR(1));
+            *ret = IS_WEAPON_CON(ARG_OBJ(0)) && WEAPON_CON(ARG_OBJ(0))->weapon_type == expected;
     }
 
     return true;
@@ -4791,16 +4826,18 @@ DECL_IFC_FUN(ifc_objweapon)
 DECL_IFC_FUN(ifc_objweaponstat)
 {
     *ret = ISARG_OBJ(0) && ISARG_STR(1) &&
-        (ARG_OBJ(0)->item_type == ITEM_WEAPON) &&
-        IS_SET(ARG_OBJ(0)->value[4],flag_value_ifcheck(weapon_type2,ARG_STR(1)));
+        (ARG_OBJ(0)->item_type == ITEM_WEAPON) && IS_WEAPON(ARG_OBJ(0)) &&
+        IS_SET(WEAPON(ARG_OBJ(0))->flags,
+            flag_value_ifcheck(weapon_type2,ARG_STR(1)));
     return true;
 }
 
 DECL_IFC_FUN(ifc_objranged)
 {
     *ret = ISARG_OBJ(0) && ISARG_STR(1) &&
-        (ARG_OBJ(0)->item_type == ITEM_RANGED_WEAPON) &&
-        (ARG_OBJ(0)->value[0] == flag_value(ranged_weapon_class,ARG_STR(1)));
+        (ARG_OBJ(0)->item_type == ITEM_RANGED_WEAPON) && IS_WEAPON(ARG_OBJ(0)) &&
+        (WEAPON(ARG_OBJ(0))->weapon_class ==
+            flag_value(ranged_weapon_class,ARG_STR(1)));
     return true;
 }
 

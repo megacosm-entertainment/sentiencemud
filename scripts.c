@@ -9175,7 +9175,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
                         to_obj = arg->d.obj;
                     else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
                         pObjIndex->item_type == ITEM_WEAPON &&
-                        pObjIndex->value[0] == arg->d.obj->value[1])
+                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
+                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
                         to_obj = arg->d.obj;
                     else
                         return NULL;	// Trying to put the item into a non-container won't work

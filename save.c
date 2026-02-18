@@ -62,14 +62,12 @@
 #include "skill_group.h"
 #include "song_data.h"
 
-/***************************************************************************
- * JSON Migration Control                                                  *
- ***************************************************************************/
+/* Legacy text pfile writing has been retired.
+ * Character persistence is JSON-only; old formats are read for migration only. */
 
-// Set to 0 to disable old pfile format writing (JSON only)
-// Set to 1 to write both formats during transition period
-// Once JSON is proven stable, change this to 0 to save write overhead
-#define WRITE_OLD_PFILE_FORMAT 0
+#ifndef ENABLE_LEGACY_PFILE_READ
+#define ENABLE_LEGACY_PFILE_READ 1
+#endif
 
 #if defined(KEY)
 #undef KEY
@@ -171,6 +169,34 @@ int 		nest_level;
 void fread_account(ACCOUNT_DATA *account, FILE *fp);
 void fread_account_character(ACCOUNT_DATA *account, FILE *fp);
 
+/*
+ * Legacy value[] compatibility helpers.
+ *
+ * Old pfile/object migration logic still maps through obj->value[] slots.
+ * Keep all direct slot access centralized here to simplify eventual
+ * retirement of legacy pfile/area readers.
+ */
+static inline int legacy_obj_value_get(const OBJ_DATA *obj, int slot)
+{
+    if (obj == NULL || slot < 0 || slot > 7)
+        return 0;
+    return obj->value[slot];
+}
+
+static inline void legacy_obj_value_set(OBJ_DATA *obj, int slot, int value)
+{
+    if (obj == NULL || slot < 0 || slot > 7)
+        return;
+    obj->value[slot] = value;
+}
+
+static inline int legacy_obj_index_value_get(const OBJ_INDEX_DATA *obj, int slot)
+{
+    if (obj == NULL || slot < 0 || slot > 7)
+        return 0;
+    return obj->value[slot];
+}
+
 
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
@@ -206,12 +232,8 @@ char *print_flags(long flag)
 void save_char_obj(CHAR_DATA *ch)
 {
     char strsave[MAX_INPUT_LENGTH];
-#if WRITE_OLD_PFILE_FORMAT
-    FILE *fp;
-#endif
     struct timeval start_time, end_time, dedup_time, write_time, section_start, section_end;
     long dedup_ms, total_ms, section_ms;
-    (void)write_time; // used only in WRITE_OLD_PFILE_FORMAT path
 
     if (IS_NPC(ch))
     return;
@@ -325,125 +347,12 @@ void save_char_obj(CHAR_DATA *ch)
     const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     snprintf(strsave, sizeof(strsave), "%s%c/%s", player_dir, tolower(ch->name[0]), capitalize(ch->name));
 
-#if WRITE_OLD_PFILE_FORMAT
-    // Old pfile format (deprecated - will be removed once JSON is proven stable)
-    // This block writes the legacy text format for backward compatibility
-    gettimeofday(&write_time, NULL);  // Initialize timing even if not used
-    if ((fp = fopen(TEMP_FILE, "w")) == NULL)
-    {
-    pbugf(LOG_ERROR, "Save_char_obj: fopen failed for %s", strsave);
-    save_depth--;
-    return;
-    }
-    else
-    {
-        // Used to do SAVE checks
-        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL);
-
-        fwrite_char(ch, fp);
-
-        // Write equipment section
-        fprintf(fp, "#EQUIPMENT\n");
-        ITERATOR eit;
-        OBJ_DATA *eobj;
-        iterator_start(&eit, ch->lworn);
-        while ((eobj = (OBJ_DATA *)iterator_nextdata(&eit))) {
-            if (!eobj->locker && eobj->in_obj == NULL && list_haslink(loaded_objects, eobj)) {
-                fwrite_obj_new(ch, eobj, fp, 0);
-            }
-        }
-        iterator_stop(&eit);
-        fprintf(fp, "#ENDEQUIPMENT\n");
-
-        // Write inventory section
-        fprintf(fp, "#INVENTORY\n");
-        if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
-            ITERATOR it;
-            OBJ_DATA *obj;
-            int save_count = 0;
-            int list_count = list_size(ch->lcarrying);
-            iterator_start(&it, ch->lcarrying);
-            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                // Only write non-locker, top-level objects
-                if (!obj->locker && obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
-                    fwrite_obj_new(ch, obj, fp, 0);
-                    save_count++;
-                }
-            }
-            iterator_stop(&it);
-
-            // LOG: Report saving activity for large inventories
-            if (list_count > 100) {
-                log_stringf("save_char_obj: %s has %d items in lcarrying, saved %d to disk",
-                           ch->name ? ch->name : "(unknown)", list_count, save_count);
-            }
-        }
-        fprintf(fp, "#ENDINVENTORY\n");
-
-        // Write locker section
-        fprintf(fp, "#LOCKER\n");
-        if (ch->llocker && IS_VALID(ch->llocker)) {
-            ITERATOR it;
-            OBJ_DATA *obj;
-            int locker_list_count = list_size(ch->llocker);
-            int locker_written = 0;
-            iterator_start(&it, ch->llocker);
-            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                // Only write top-level locker objects (not nested in containers)
-                // fwrite_obj_new() will skip next_content for top-level locker objects
-                if (obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
-                    fwrite_obj_new(ch, obj, fp, 0);
-                    locker_written++;
-                }
-            }
-            iterator_stop(&it);
-
-            if (locker_list_count > 10) {
-                log_stringf("save_char_obj: %s locker has %d items in list, wrote %d top-level",
-                           ch->name, locker_list_count, locker_written);
-            }
-        }
-        fprintf(fp, "#ENDLOCKER\n");
-
-        if (ch->tokens != NULL) {
-            TOKEN_DATA *token;
-            for(token = ch->tokens; token; token = token->next)
-                if(!token->skill)
-                    fwrite_token(token, fp);
-        }
-
-        fwrite_skills(ch, fp);
-
-        fprintf(fp, "#END\n");
-        fprintf(fp, "#END\n");
-    }
-
+    // JSON-only mode: initialize timing anchor for parity with performance logging
     gettimeofday(&write_time, NULL);
-    fclose(fp);
-    rename(TEMP_FILE, strsave);
-
-    section_ms = (write_time.tv_sec - dedup_time.tv_sec) * 1000 +
-                (write_time.tv_usec - dedup_time.tv_usec) / 1000;
-    if (section_ms > 50)
-        log_stringf("PERFORMANCE save_char_obj %s: old_pfile_write took %ldms", ch->name, section_ms);
-#else
-    // JSON-only mode: Just initialize timing variables
-    gettimeofday(&write_time, NULL);
-#endif // WRITE_OLD_PFILE_FORMAT
 
     fpReserve = fopen(NULL_FILE, "r");
 
-    // Save to JSON format (Phase 2: JSON migration)
-    // This writes the character in JSON format to the same filename
-    // The file will be auto-detected as JSON on load
-    //
-    // MIGRATION PATH:
-    // 1. During transition: WRITE_OLD_PFILE_FORMAT=1 writes both formats
-    //    - Old pfile written first, then immediately overwritten by JSON
-    //    - Provides safety net if JSON has bugs
-    // 2. After JSON proven stable: Set WRITE_OLD_PFILE_FORMAT=0 at top of file
-    //    - Saves ~50% write overhead by eliminating redundant old format write
-    //    - Old pfiles in .old/ directories remain as emergency backups
+    // Save to JSON format only.
     if (is_top_level_save) {
         char json_path[512];
         json_t *char_json = NULL;
@@ -471,12 +380,7 @@ void save_char_obj(CHAR_DATA *ch)
 
             if (result != 0) {
                 log_stringf("save_char_obj: Failed to write JSON for %s", ch->name);
-#if WRITE_OLD_PFILE_FORMAT
-                // Don't fail the save - old format is already written as backup
-#else
-                // JSON-only mode: This is critical, log error but don't crash
                 pbugf(LOG_ERROR, "save_char_obj: JSON write failed and old pfile format disabled!");
-#endif
             }
 
             // Write-through cache: Update Redis with full character data
@@ -1222,7 +1126,9 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
                 found = false;
             }
         }
-    } else if ((fp = fopen(strsave, "r")) != NULL) {
+    }
+#if ENABLE_LEGACY_PFILE_READ
+    else if ((fp = fopen(strsave, "r")) != NULL) {
         // Old pfile format
         found = true;
         for (;;) {
@@ -1350,7 +1256,17 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
         }
 
         fclose(fp);
+    }
+#else
+    else {
+        FILE *legacy_fp = fopen(strsave, "r");
+        if (legacy_fp != NULL) {
+            fclose(legacy_fp);
+            log_stringf("load_char_obj: Legacy pfile reader disabled for %s", name);
+            found = false;
         }
+    }
+#endif
         fpReserve = fopen(NULL_FILE, "r");
     }  // end if (!loaded_from_cache)
 
@@ -4001,13 +3917,13 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                         int armour;
                         int armour_exotic;
 
-                        armour=(int) calc_obj_armour(obj->level, obj->value[4]);
+                        armour=(int) calc_obj_armour(obj->level, legacy_obj_value_get(obj, 4));
                         armour_exotic=(int) armour * .90;
 
-                        obj->value[0] = armour;
-                        obj->value[1] = armour;
-                        obj->value[2] = armour;
-                        obj->value[3] = armour_exotic;
+                        legacy_obj_value_set(obj, 0, armour);
+                        legacy_obj_value_set(obj, 1, armour);
+                        legacy_obj_value_set(obj, 2, armour);
+                        legacy_obj_value_set(obj, 3, armour_exotic);
                     }
                 }
 
@@ -4135,12 +4051,12 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
                     if (obj->item_type == ITEM_WEAPON || obj->item_type == ITEM_ARMOUR)
                     {
                         if (iValue == 1)
-                            obj->value[6] = sn;
+                            legacy_obj_value_set(obj, 6, sn);
                         else
-                            obj->value[7] = sn;
+                            legacy_obj_value_set(obj, 7, sn);
                     }
                     else
-                        obj->value[iValue] = sn;
+                        legacy_obj_value_set(obj, iValue, sn);
                 }
                 fMatch = true;
                 break;
@@ -4180,32 +4096,28 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
             {
                 fMatch		= true;
 
-                obj->value[0]	= fread_number(fp);
-                obj->value[1]	= fread_number(fp);
-                obj->value[2]	= fread_number(fp);
-                obj->value[3]	= fread_number(fp);
-                obj->value[4]	= fread_number(fp);
-                if (obj->version > 0)
                 {
-                    obj->value[5] = fread_number(fp);
-                    obj->value[6] = fread_number(fp);
-                    obj->value[7] = fread_number(fp);
+                    int value_count = (obj->version > 0) ? 8 : 5;
+                    int vi;
+
+                    for (vi = 0; vi < value_count; vi++)
+                        obj->value[vi] = fread_number(fp);
+
+                    for (; vi < 8; vi++)
+                        obj->value[vi] = 0;
                 }
 
-                if (obj->item_type == ITEM_WEAPON && obj->value[0] == 0)
-                    obj->value[0] = obj->pIndexData->value[0];
+                if (obj->item_type == ITEM_WEAPON && legacy_obj_value_get(obj, 0) == 0)
+                    legacy_obj_value_set(obj, 0, legacy_obj_index_value_get(obj->pIndexData, 0));
 
                 break;
             }
 
             if ((!str_cmp(word, "Val")) && obj->item_type != ITEM_WEAPON && obj->item_type != ITEM_ARMOUR)
             {
-                obj->value[0] 	= fread_number(fp);
-                obj->value[1]	= fread_number(fp);
-                obj->value[2] 	= fread_number(fp);
-                obj->value[3]	= fread_number(fp);
-                obj->value[4]	= fread_number(fp);
-                obj->value[5]	= fread_number(fp);
+                int vi;
+                for (vi = 0; vi <= 5; vi++)
+                    obj->value[vi] = fread_number(fp);
                 fMatch = true;
                 break;
             }
@@ -4512,19 +4424,24 @@ void fix_object(OBJ_DATA *obj)
 
         // Update spells to be done the correct way.
         if (obj->spells == NULL)
+        {
+        int legacy_values[8];
+        for (i = 0; i < 8; i++)
+            legacy_values[i] = obj->value[i];
+
         switch (obj->item_type)
         {
         case ITEM_PILL:
         case ITEM_POTION:
         case ITEM_SCROLL:
-                if (obj->value[0] > 0)
-            level = obj->value[0];
+                if (legacy_values[0] > 0)
+            level = legacy_values[0];
                 else
             level = obj->level;
 
                 for (i = 1; i < 4; i++)
             {
-            if ((sn = obj->value[i]) > 0 && sn < MAX_SKILL
+            if ((sn = legacy_values[i]) > 0 && sn < MAX_SKILL
             &&  skill_table[sn].spell_fun != spell_null)
             {
                 spell_new = new_spell();
@@ -4539,12 +4456,12 @@ void fix_object(OBJ_DATA *obj)
             break;
         case ITEM_WAND:
         case ITEM_STAFF:
-                if (obj->value[0] > 0)
-            level = obj->value[0];
+                if (legacy_values[0] > 0)
+            level = legacy_values[0];
             else
             level = obj->level;
 
-            if ((sn = obj->value[3]) > 0 && sn < MAX_SKILL
+            if ((sn = legacy_values[3]) > 0 && sn < MAX_SKILL
             &&   skill_table[sn].spell_fun != spell_null)
             {
             spell_new = new_spell();
@@ -4569,6 +4486,8 @@ void fix_object(OBJ_DATA *obj)
         }
 
         obj->version = 2;
+    }
+
     }
 
     // Fix magic items that haven't been scribed/brewed
@@ -4631,7 +4550,8 @@ void fix_object(OBJ_DATA *obj)
 
         if( obj->item_type == ITEM_WEAPON )
         {
-            obj->value[4] = obj->weapon_flags_perm = obj->pIndexData->value[4];
+            obj->weapon_flags_perm = legacy_obj_index_value_get(obj->pIndexData, 4);
+            legacy_obj_value_set(obj, 4, obj->weapon_flags_perm);
         }
 
         for(paf = obj->affected; paf; paf = paf->next )
@@ -4654,7 +4574,11 @@ void fix_object(OBJ_DATA *obj)
                     break;
                 case TO_WEAPON:
                     if (obj->item_type == ITEM_WEAPON)
-                        SET_BIT(obj->value[4],paf->bitvector);
+                    {
+                        int weapon_flags = legacy_obj_value_get(obj, 4);
+                        SET_BIT(weapon_flags, paf->bitvector);
+                        legacy_obj_value_set(obj, 4, weapon_flags);
+                    }
                 break;
                 }
             }
@@ -4683,31 +4607,44 @@ void fix_object(OBJ_DATA *obj)
                 // Value[1] == CONT flags
                 // Value[2] == Key
 
-                if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+                {
+                long lock_flags = legacy_obj_value_get(obj, 1);
+                if (obj->item_type == ITEM_CONTAINER && IS_CONTAINER(obj))
+                    lock_flags = CONTAINER(obj)->flags;
+                else if (obj->item_type == ITEM_BOOK && IS_BOOK(obj))
+                    lock_flags = BOOK(obj)->flags;
+
+                if( (legacy_obj_value_get(obj, 2) > 0) || IS_SET(lock_flags, VO_004_CONT_LOCKED) )
                 {
                     obj->lock = new_lock_state();
-                    obj->lock->key_load.vnum = obj->value[2];
+                    obj->lock->key_load.vnum = legacy_obj_value_get(obj, 2);
                     obj->lock->flags = 0;
                     obj->lock->pick_chance = 100;
 
-                    if( IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+                    if( IS_SET(lock_flags, VO_004_CONT_LOCKED) )
                     {
                         SET_BIT(obj->lock->flags, LOCK_LOCKED);
                     }
 
-                    if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
+                    if( IS_SET(lock_flags, VO_004_CONT_PICKPROOF) )
                     {
                         obj->lock->pick_chance = 0;
                     }
 
-                    if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )
+                    if( IS_SET(lock_flags, VO_004_CONT_SNAPKEY) )
                     {
                         SET_BIT(obj->lock->flags, LOCK_SNAPKEY);
                     }
 
                     // Remove the old data
-                    REMOVE_BIT(obj->value[1], (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
-                    obj->value[2] = 0;
+                    REMOVE_BIT(lock_flags, (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
+                    if (obj->item_type == ITEM_CONTAINER && IS_CONTAINER(obj))
+                        CONTAINER(obj)->flags = lock_flags;
+                    else if (obj->item_type == ITEM_BOOK && IS_BOOK(obj))
+                        BOOK(obj)->flags = lock_flags;
+                    legacy_obj_value_set(obj, 1, lock_flags);
+                    legacy_obj_value_set(obj, 2, 0);
+                }
                 }
                 break;
 
@@ -4715,38 +4652,45 @@ void fix_object(OBJ_DATA *obj)
                 // Value[1] == EXIT flags
                 // Value[4] == Key
 
-                if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+                {
+                long exit_flags = (IS_PORTAL(obj) ? PORTAL(obj)->exit : legacy_obj_value_get(obj, 1));
+
+                if( (legacy_obj_value_get(obj, 4) > 0) || IS_SET(exit_flags, VO_004_EX_LOCKED) )
                 {
                     obj->lock = new_lock_state();
-                    obj->lock->key_load.vnum = obj->value[4];
+                    obj->lock->key_load.vnum = legacy_obj_value_get(obj, 4);
                     obj->lock->flags = 0;
                     obj->lock->pick_chance = 100;
 
-                    if( IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+                    if( IS_SET(exit_flags, VO_004_EX_LOCKED) )
                     {
                         SET_BIT(obj->lock->flags, LOCK_LOCKED);
                     }
 
-                    if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
+                    if( IS_SET(exit_flags, VO_004_EX_PICKPROOF) )
                     {
                         obj->lock->pick_chance = 0;
                     }
-                    else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
+                    else if( IS_SET(exit_flags, VO_004_EX_INFURIATING) )
                     {
                         obj->lock->pick_chance = 10;
                     }
-                    else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
+                    else if( IS_SET(exit_flags, VO_004_EX_HARD) )
                     {
                         obj->lock->pick_chance = 40;
                     }
-                    else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
+                    else if( IS_SET(exit_flags, VO_004_EX_EASY) )
                     {
                         obj->lock->pick_chance = 80;
                     }
 
 
-                    REMOVE_BIT(obj->value[1], (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
-                    obj->value[4] = 0;
+                    REMOVE_BIT(exit_flags, (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
+                    if (IS_PORTAL(obj))
+                        PORTAL(obj)->exit = exit_flags;
+                    legacy_obj_value_set(obj, 1, exit_flags);
+                    legacy_obj_value_set(obj, 4, 0);
+                }
                 }
                 break;
 
@@ -4782,18 +4726,19 @@ void fix_object(OBJ_DATA *obj)
             dest_area_uid = PORTAL(obj)->params[4];
             portal_flags = PORTAL(obj)->flags;
         } else {
-            dest_vnum = obj->value[3];
-            dest_area_uid = obj->value[4];
-            portal_flags = obj->value[2];
+            dest_vnum = legacy_obj_value_get(obj, 3);
+            dest_area_uid = legacy_obj_value_get(obj, 4);
+            portal_flags = legacy_obj_value_get(obj, 2);
         }
 
         if (dest_vnum > 0 && dest_area_uid == 0 && !IS_SET(portal_flags, GATE_DUNGEON)) {
             AREA_DATA *dest_area = find_area_by_vnum(dest_vnum,
                 obj->pIndexData ? obj->pIndexData->area : NULL);
             if (dest_area) {
-                obj->value[4] = dest_area->uid;
                 if (IS_PORTAL(obj))
                     PORTAL(obj)->params[4] = dest_area->uid;
+                else
+                    legacy_obj_value_set(obj, 4, dest_area->uid);
             }
         }
     }

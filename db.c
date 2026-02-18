@@ -64,6 +64,12 @@
 #include "skill_group.h"
 #include "song_data.h"
 
+#ifndef ENABLE_LEGACY_AREA_READ
+/* Keep enabled by default until remaining legacy maze .are zones
+ * are rebuilt/migrated into the dungeon system. */
+#define ENABLE_LEGACY_AREA_READ 1
+#endif
+
 /*
 #if !defined(OLD_RAND)
 #if !defined(linux)
@@ -827,6 +833,7 @@ void boot_db(void)
 
             /* Fall back to .are format if JSON didn't work */
             if (!loaded_from_json) {
+#if ENABLE_LEGACY_AREA_READ
                 char area_path[MAX_STRING_LENGTH];
                 sprintf(area_path, "%s%s", AREA_DIR, strArea);
 
@@ -838,6 +845,10 @@ void boot_db(void)
                 log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile from .are format: '%s'", strArea);
                 area = read_area_new(fpArea);
                 fclose(fpArea);
+#else
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                    "Legacy .are reader disabled, cannot load area %s without JSON", strArea);
+#endif
             }
 
             if (!area) {

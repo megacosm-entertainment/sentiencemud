@@ -69,6 +69,14 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 char *reboot_reason = NULL; // global
 void relic_update(void); // forward declaration
 
+static AREA_DATA *relative_widevnum_context(AREA_DATA *context_area, const char *argument)
+{
+    if (!context_area || IS_NULLSTR(argument) || argument[0] != '#')
+        return NULL;
+
+    return context_area;
+}
+
 
 
 
@@ -3910,7 +3918,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
         AREA_DATA *tok_area = NULL;
         WNUM tok_wnum = wnum_zero;
 
-        if (!parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &tok_wnum)
+        if (!parse_widevnum(arg3, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg3), &tok_wnum)
         || !tok_wnum.pArea) {
             send_to_char("That token vnum does not exist.\n\r", ch);
             return;
@@ -5618,7 +5626,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
         // Parse widevnum
         WNUM mob_wnum;
         AREA_DATA *context = ch->in_room->area;
-        if (!parse_widevnum(arg1, context, &mob_wnum)) {
+        if (!parse_widevnum(arg1, relative_widevnum_context(context, arg1), &mob_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum, area#vnum or $reserved_name\n\r", ch);
             return;
         }
@@ -5753,7 +5761,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
         // Parse widevnum
         WNUM obj_wnum;
         AREA_DATA *context = ch->in_room->area;
-        if (!parse_widevnum(arg1, context, &obj_wnum)) {
+        if (!parse_widevnum(arg1, relative_widevnum_context(context, arg1), &obj_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum, area#vnum or $reserved_name\n\r", ch);
             return;
         }
@@ -7013,7 +7021,7 @@ void do_repset(CHAR_DATA *ch, char *argument)
     }
 
     WNUM wnum;
-    if (!parse_widevnum(arg2, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    if (!parse_widevnum(arg2, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg2), &wnum))
     {
         send_to_char("Please specify a reputation widevnum.\n\r", ch);
         return;
@@ -7193,7 +7201,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
     WNUM token_wnum = wnum_zero;
     AREA_DATA *token_area = NULL;
 
-    if (!parse_widevnum(arg2b, ch->in_room ? ch->in_room->area : NULL, &token_wnum)
+    if (!parse_widevnum(arg2b, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg2b), &token_wnum)
     || !token_wnum.pArea) {
         send_to_char("Invalid token vnum.\n\r", ch);
         return;
@@ -7893,7 +7901,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
     WNUM wnum = wnum_zero;
     ROOM_INDEX_DATA *recall_room = NULL;
 
-    if (!parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum)
+    if (!parse_widevnum(arg3, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg3), &wnum)
     || !wnum.pArea)
     {
         send_to_char("That room doesn't exist.\n\r", ch);
@@ -7925,7 +7933,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
     WNUM wnum = wnum_zero;
     OBJ_INDEX_DATA *key_obj = NULL;
 
-    if (!parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum)
+    if (!parse_widevnum(arg3, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg3), &wnum)
     || !wnum.pArea)
     {
         send_to_char("That object doesn't exist.\n\r", ch);
@@ -7989,7 +7997,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
             WNUM wnum = wnum_zero;
             ROOM_INDEX_DATA *room = NULL;
-            if (parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum)
+            if (parse_widevnum(argument, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, argument), &wnum)
             && wnum.pArea)
                 room = get_room_index(wnum.pArea, wnum.vnum);
 
@@ -8025,7 +8033,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
             WNUM wnum = wnum_zero;
             ROOM_INDEX_DATA *room = NULL;
-            if (parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum)
+            if (parse_widevnum(argument, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, argument), &wnum)
             && wnum.pArea)
                 room = get_room_index(wnum.pArea, wnum.vnum);
 
@@ -8053,22 +8061,6 @@ void do_chset(CHAR_DATA *ch, char *argument)
         return;
     }
 
-/*
-    if (!str_cmp(arg2, "treasure"))
-    {
-    if (get_room_index(atol(arg3)) == NULL)
-    {
-        send_to_char("Room number is not valid.\n\r", ch);
-        return;
-    }
-
-    church->treasure_room = atoi(arg3);
-    sprintf(buf, "%s treasure room set to %ld - %s\n\r",
-        church->name, church->treasure_room,
-        get_room_index(church->treasure_room)->name);
-    send_to_char(buf, ch);
-    return;
-    }*/
 }
 
 
@@ -10184,7 +10176,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     }
     }
     /* Room vnum or widevnum provided, so lets go find the area it belongs to */
-    else if (parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &room_wnum)
+    else if (parse_widevnum(arg1, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg1), &room_wnum)
         && room_wnum.pArea)
     {
     vnum = room_wnum.vnum;
@@ -10424,7 +10416,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
     && !str_cmp(argument, "all"))
         fAll = true;
 
-    if (parse_widevnum(arg2, ch->in_room ? ch->in_room->area : NULL, &obj_wnum)
+    if (parse_widevnum(arg2, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg2), &obj_wnum)
     && obj_wnum.pArea) {
         OBJ_INDEX_DATA *obj_ind = NULL;
 
@@ -11393,7 +11385,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         // Parse widevnum for token
         WNUM token_wnum;
         AREA_DATA *context = ch->in_room->area;
-        if (!parse_widevnum(arg4b, context, &token_wnum)) {
+        if (!parse_widevnum(arg4b, relative_widevnum_context(context, arg4b), &token_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return;
         }
@@ -11485,7 +11477,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         // Parse widevnum for token
         WNUM token_wnum;
         AREA_DATA *context = ch->in_room->area;
-        if (!parse_widevnum(arg4b, context, &token_wnum)) {
+        if (!parse_widevnum(arg4b, relative_widevnum_context(context, arg4b), &token_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return;
         }
@@ -11531,7 +11523,7 @@ void do_token(CHAR_DATA *ch, char *argument)
         // Parse widevnum for token
         WNUM token_wnum;
         AREA_DATA *context = ch->in_room->area;
-        if (!parse_widevnum(arg4b, context, &token_wnum)) {
+        if (!parse_widevnum(arg4b, relative_widevnum_context(context, arg4b), &token_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return;
         }

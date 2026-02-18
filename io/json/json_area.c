@@ -3600,127 +3600,134 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
      *   Wand/Staff:           value[0]=level, value[3]=spell
      * After migration, the value slots are zeroed to prevent double-migration. */
     if (obj->spells == NULL) {
+        int legacy_values[8];
+        for (int vi = 0; vi < 8; vi++)
+            legacy_values[vi] = obj->value[vi];
+
         switch (obj->item_type) {
         case ITEM_ARMOUR:
         case ITEM_WEAPON:
         case ITEM_RANGED_WEAPON:
-            if (obj->value[5] > 0) {
-                if (obj->value[6] > 0 && obj->value[6] < MAX_SKILL
-                &&  skill_table[obj->value[6]].spell_fun != spell_null) {
+            if (legacy_values[5] > 0) {
+                if (legacy_values[6] > 0 && legacy_values[6] < MAX_SKILL
+                &&  skill_table[legacy_values[6]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[6];
-                    sp->level = obj->value[5];
+                    sp->sn = legacy_values[6];
+                    sp->level = legacy_values[5];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                if (obj->value[7] > 0 && obj->value[7] < MAX_SKILL
-                &&  skill_table[obj->value[7]].spell_fun != spell_null) {
+                if (legacy_values[7] > 0 && legacy_values[7] < MAX_SKILL
+                &&  skill_table[legacy_values[7]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[7];
-                    sp->level = obj->value[5];
+                    sp->sn = legacy_values[7];
+                    sp->level = legacy_values[5];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                obj->value[5] = 0;
-                obj->value[6] = 0;
-                obj->value[7] = 0;
+                legacy_values[5] = 0;
+                legacy_values[6] = 0;
+                legacy_values[7] = 0;
             }
             break;
 
         case ITEM_LIGHT:
-            if (obj->value[3] > 0) {
-                if (obj->value[4] > 0 && obj->value[4] < MAX_SKILL
-                &&  skill_table[obj->value[4]].spell_fun != spell_null) {
+            if (legacy_values[3] > 0) {
+                if (legacy_values[4] > 0 && legacy_values[4] < MAX_SKILL
+                &&  skill_table[legacy_values[4]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[4];
-                    sp->level = obj->value[3];
+                    sp->sn = legacy_values[4];
+                    sp->level = legacy_values[3];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                if (obj->value[5] > 0 && obj->value[5] < MAX_SKILL
-                &&  skill_table[obj->value[5]].spell_fun != spell_null) {
+                if (legacy_values[5] > 0 && legacy_values[5] < MAX_SKILL
+                &&  skill_table[legacy_values[5]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[5];
-                    sp->level = obj->value[3];
+                    sp->sn = legacy_values[5];
+                    sp->level = legacy_values[3];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                obj->value[3] = 0;
-                obj->value[4] = 0;
-                obj->value[5] = 0;
+                legacy_values[3] = 0;
+                legacy_values[4] = 0;
+                legacy_values[5] = 0;
             }
             break;
 
         case ITEM_ARTIFACT:
-            if (obj->value[0] > 0) {
-                if (obj->value[1] > 0 && obj->value[1] < MAX_SKILL
-                &&  skill_table[obj->value[1]].spell_fun != spell_null) {
+            if (legacy_values[0] > 0) {
+                if (legacy_values[1] > 0 && legacy_values[1] < MAX_SKILL
+                &&  skill_table[legacy_values[1]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[1];
-                    sp->level = obj->value[0];
+                    sp->sn = legacy_values[1];
+                    sp->level = legacy_values[0];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                if (obj->value[2] > 0 && obj->value[2] < MAX_SKILL
-                &&  skill_table[obj->value[2]].spell_fun != spell_null) {
+                if (legacy_values[2] > 0 && legacy_values[2] < MAX_SKILL
+                &&  skill_table[legacy_values[2]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[2];
-                    sp->level = obj->value[0];
+                    sp->sn = legacy_values[2];
+                    sp->level = legacy_values[0];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                obj->value[0] = 0;
-                obj->value[1] = 0;
-                obj->value[2] = 0;
+                legacy_values[0] = 0;
+                legacy_values[1] = 0;
+                legacy_values[2] = 0;
             }
             break;
 
         case ITEM_SCROLL:
         case ITEM_PILL:
         case ITEM_POTION:
-            if (obj->value[0] > 0) {
+            if (legacy_values[0] > 0) {
                 for (int vi = 1; vi <= 4; vi++) {
-                    if (obj->value[vi] > 0 && obj->value[vi] < MAX_SKILL
-                    &&  skill_table[obj->value[vi]].spell_fun != spell_null) {
+                    if (legacy_values[vi] > 0 && legacy_values[vi] < MAX_SKILL
+                    &&  skill_table[legacy_values[vi]].spell_fun != spell_null) {
                         SPELL_DATA *sp = new_spell();
-                        sp->sn = obj->value[vi];
-                        sp->level = obj->value[0];
+                        sp->sn = legacy_values[vi];
+                        sp->level = legacy_values[0];
                         sp->repop = 100;
                         sp->next = obj->spells;
                         obj->spells = sp;
                     }
                 }
                 for (int vi = 0; vi <= 4; vi++)
-                    obj->value[vi] = 0;
+                    legacy_values[vi] = 0;
             }
             break;
 
         case ITEM_WAND:
         case ITEM_STAFF:
-            if (obj->value[0] > 0) {
-                if (obj->value[3] > 0 && obj->value[3] < MAX_SKILL
-                &&  skill_table[obj->value[3]].spell_fun != spell_null) {
+            if (legacy_values[0] > 0) {
+                if (legacy_values[3] > 0 && legacy_values[3] < MAX_SKILL
+                &&  skill_table[legacy_values[3]].spell_fun != spell_null) {
                     SPELL_DATA *sp = new_spell();
-                    sp->sn = obj->value[3];
-                    sp->level = obj->value[0];
+                    sp->sn = legacy_values[3];
+                    sp->level = legacy_values[0];
                     sp->repop = 100;
                     sp->next = obj->spells;
                     obj->spells = sp;
                 }
-                obj->value[0] = 0;
-                obj->value[3] = 0;
+                legacy_values[0] = 0;
+                legacy_values[3] = 0;
             }
             break;
 
         default:
             break;
         }
+
+        for (int vi = 0; vi < 8; vi++)
+            obj->value[vi] = legacy_values[vi];
     }
 
     // Add to area hash table for lookups
@@ -4084,23 +4091,35 @@ json_t *json_area_serialize_shop_stock(SHOP_STOCK_DATA *stock, AREA_DATA *area)
     json_object_set_new(json, "type", json_integer(stock->type));
 
     switch (stock->type) {
-        case STOCK_OBJECT:
-            json_object_set_new(json, "vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
+        case STOCK_OBJECT: {
+            AREA_DATA *stock_area = stock->entity.wnum.pArea;
+            if (!stock_area && stock->obj && stock->obj->area)
+                stock_area = stock->obj->area;
+            json_object_set_new(json, "vnum", json_string(widevnum_string(stock_area, stock->entity.wnum.vnum, NULL)));
             break;
+        }
         case STOCK_PET:
         case STOCK_MOUNT:
         case STOCK_GUARD:
-            json_object_set_new(json, "mob_vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
+        case STOCK_CREW: {
+            AREA_DATA *stock_area = stock->entity.wnum.pArea;
+            if (!stock_area && stock->mob && stock->mob->area)
+                stock_area = stock->mob->area;
+            json_object_set_new(json, "mob_vnum", json_string(widevnum_string(stock_area, stock->entity.wnum.vnum, NULL)));
             break;
-        case STOCK_SHIP:
-            json_object_set_new(json, "ship_vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
+        }
+        case STOCK_SHIP: {
+            AREA_DATA *stock_area = stock->entity.wnum.pArea;
+            if (!stock_area && stock->ship && stock->ship->area)
+                stock_area = stock->ship->area;
+            json_object_set_new(json, "ship_vnum", json_string(widevnum_string(stock_area, stock->entity.wnum.vnum, NULL)));
             break;
-        case STOCK_CREW:
-            json_object_set_new(json, "crew_vnum", json_string(widevnum_string(stock->entity.wnum.pArea, stock->entity.wnum.vnum, NULL)));
-            break;
+        }
         case STOCK_CUSTOM:
             if (stock->custom_keyword && stock->custom_keyword[0] != '\0')
                 json_object_set_new(json, "keyword", json_string(stock->custom_keyword));
+            break;
+        default:
             break;
     }
     
@@ -5725,10 +5744,17 @@ void fix_shops(void)
                                     
                                     /* Resolve pointer - use target area if specified, otherwise global */
                                     stock->obj = target_area ? get_obj_index(target_area, vnum) : get_obj_index_global(vnum);
+
+                                    /* Backfill target area from resolved object if uid was omitted */
+                                    if (!target_area && stock->obj && stock->obj->area)
+                                        target_area = stock->obj->area;
                                     
                                     /* Convert to WNUM format */
                                     stock->entity.wnum.pArea = target_area;
                                     stock->entity.wnum.vnum = vnum;
+
+                                    if (target_area && stock->entity.load.auid == 0)
+                                        stock->entity.load.auid = target_area->uid;
                                     
                                     if (!stock->obj) {
                                         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -5740,6 +5766,7 @@ void fix_shops(void)
                             case STOCK_PET:
                             case STOCK_MOUNT:
                             case STOCK_GUARD:
+                            case STOCK_CREW:
                                 if (stock->entity.load.vnum > 0) {
                                     long auid = stock->entity.load.auid;
                                     long vnum = stock->entity.load.vnum;
@@ -5756,10 +5783,17 @@ void fix_shops(void)
                                     
                                     /* Resolve pointer - use target area if specified, otherwise global */
                                     stock->mob = target_area ? get_mob_index(target_area, vnum) : get_mob_index_global(vnum);
+
+                                    /* Backfill target area from resolved mob if uid was omitted */
+                                    if (!target_area && stock->mob && stock->mob->area)
+                                        target_area = stock->mob->area;
                                     
                                     /* Convert to WNUM format */
                                     stock->entity.wnum.pArea = target_area;
                                     stock->entity.wnum.vnum = vnum;
+
+                                    if (target_area && stock->entity.load.auid == 0)
+                                        stock->entity.load.auid = target_area->uid;
                                     
                                     if (!stock->mob) {
                                         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -5787,10 +5821,17 @@ void fix_shops(void)
                                     stock->ship = target_area ? 
                                         get_ship_index_for_area(target_area, vnum) :
                                         get_ship_index(vnum);
+
+                                    /* Backfill target area from resolved ship if uid was omitted */
+                                    if (!target_area && stock->ship && stock->ship->area)
+                                        target_area = stock->ship->area;
                                     
                                     /* Convert to WNUM format */
                                     stock->entity.wnum.pArea = target_area;
                                     stock->entity.wnum.vnum = vnum;
+
+                                    if (target_area && stock->entity.load.auid == 0)
+                                        stock->entity.load.auid = target_area->uid;
                                     
                                     if (!stock->ship) {
                                         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,

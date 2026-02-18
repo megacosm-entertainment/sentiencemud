@@ -14,6 +14,14 @@
 #include "debug.h"
 #include "skill_data.h"
 
+static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, const char *argument)
+{
+    if (!context_area || IS_NULLSTR(argument) || argument[0] != '#')
+        return NULL;
+
+    return context_area;
+}
+
 // Commands used by token scripts
 const struct script_cmd_type token_cmd_table[] = {
     { "addaffect",			scriptcmd_addaffect,		true,	true	},
@@ -208,7 +216,7 @@ void do_tpdump(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    if (!parse_widevnum(argument, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, argument), &wnum))
     {
         send_to_char("Invalid vnum format.\n\r", ch);
         return;
@@ -296,7 +304,10 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
     if (arg3[0] != '\0' && !id_lookup) {
         WNUM wnum = { NULL, 0 };
         AREA_DATA *token_area = NULL;
-        parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum);
+        if (!parse_widevnum(arg3, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg3), &wnum)) {
+            send_to_char("Invalid token vnum format.\n\r", ch);
+            return;
+        }
         vnum = wnum.vnum;
 
         if (wnum.pArea) {
@@ -637,7 +648,7 @@ SCRIPT_CMD(do_tpadjust)
         switch(arg->type) {
         case ENT_STRING:
             count = number_argument(arg->d.str, arg2);
-            if (parse_widevnum(arg2, context_area, &token_wnum) && token_wnum.pArea) {
+            if (parse_widevnum(arg2, script_relative_widevnum_context(context_area, arg2), &token_wnum) && token_wnum.pArea) {
                 vnum = token_wnum.vnum;
                 token_area = token_wnum.pArea;
             } else {
@@ -647,7 +658,7 @@ SCRIPT_CMD(do_tpadjust)
         case ENT_NUMBER:
             vnum = arg->d.num;
             count = 1;
-            if (resolve_widevnum(vnum, context_area, &token_wnum) && token_wnum.pArea)
+            if (resolve_widevnum(vnum, NULL, &token_wnum) && token_wnum.pArea)
                 token_area = token_wnum.pArea;
             break;
         default: break;
@@ -1342,14 +1353,14 @@ SCRIPT_CMD(do_tpgive)
 
     switch(arg->type) {
     case ENT_STRING:
-        if (parse_widevnum(arg->d.str, context_area, &token_wnum) && token_wnum.pArea) {
+        if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &token_wnum) && token_wnum.pArea) {
             vnum = token_wnum.vnum;
             token_area = token_wnum.pArea;
         }
         break;
     case ENT_NUMBER:
         vnum = arg->d.num;
-        if (resolve_widevnum(vnum, context_area, &token_wnum) && token_wnum.pArea)
+        if (resolve_widevnum(vnum, NULL, &token_wnum) && token_wnum.pArea)
             token_area = token_wnum.pArea;
         break;
     default: break;
@@ -1450,7 +1461,7 @@ SCRIPT_CMD(do_tpjunk)
         switch(arg->type) {
         case ENT_STRING:
             count = number_argument(arg->d.str, arg2);
-            if (parse_widevnum(arg2, context_area, &token_wnum) && token_wnum.pArea) {
+            if (parse_widevnum(arg2, script_relative_widevnum_context(context_area, arg2), &token_wnum) && token_wnum.pArea) {
                 vnum = token_wnum.vnum;
                 token_area = token_wnum.pArea;
             } else {
@@ -1461,7 +1472,7 @@ SCRIPT_CMD(do_tpjunk)
         case ENT_NUMBER:
             vnum = arg->d.num;
             count = 1;
-            if (resolve_widevnum(vnum, context_area, &token_wnum) && token_wnum.pArea)
+            if (resolve_widevnum(vnum, NULL, &token_wnum) && token_wnum.pArea)
                 token_area = token_wnum.pArea;
             break;
         default: break;
@@ -2704,13 +2715,9 @@ SCRIPT_CMD(do_tpvforce)
 
     switch(arg->type) {
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
-                vnum = target_wnum.vnum;
-                target_area = target_wnum.pArea;
-            }
-        } else {
-            vnum = atoi(arg->d.str);
+        if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &target_wnum) && target_wnum.pArea) {
+            vnum = target_wnum.vnum;
+            target_area = target_wnum.pArea;
         }
         break;
     case ENT_NUMBER:
@@ -2935,15 +2942,12 @@ SCRIPT_CMD(do_tpremove)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
-                vnum = item_wnum.vnum;
-                item_area = item_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"all"))
+        if(!str_cmp(arg->d.str,"all"))
             fAll = true;
+        else if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &item_wnum) && item_wnum.pArea) {
+            vnum = item_wnum.vnum;
+            item_area = item_wnum.pArea;
+        }
         else
             strncpy(name,arg->d.str,MIL-1);
         break;
@@ -3145,14 +3149,7 @@ SCRIPT_CMD(do_tplink)
     id1 = id2 = 0;
     switch(arg->type) {
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &link_wnum) && link_wnum.pArea) {
-                vnum = link_wnum.vnum;
-                link_area = link_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"delete") ||
+        if(!str_cmp(arg->d.str,"delete") ||
             !str_cmp(arg->d.str,"remove") ||
             !str_cmp(arg->d.str,"unlink")) {
             vnum = 0;
@@ -3163,6 +3160,9 @@ SCRIPT_CMD(do_tplink)
             !str_cmp(arg->d.str,"outside")) {
             vnum = 0;
             environ = true;
+        } else if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &link_wnum) && link_wnum.pArea) {
+            vnum = link_wnum.vnum;
+            link_area = link_wnum.pArea;
         } else if(!str_cmp(arg->d.str,"vroom")) {
             argument = rest;
             if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
@@ -3315,7 +3315,8 @@ SCRIPT_CMD(do_tpoload)
                         to_obj = arg->d.obj;
                     else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
                         pObjIndex->item_type == ITEM_WEAPON &&
-                        pObjIndex->value[0] == arg->d.obj->value[1])
+                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
+                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
                         to_obj = arg->d.obj;
                     else
                         return;	// Trying to put the item into a non-container won't work

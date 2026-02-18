@@ -16,6 +16,14 @@
 #include "debug.h"
 #include "skill_data.h"
 
+static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, const char *argument)
+{
+    if (!context_area || IS_NULLSTR(argument) || argument[0] != '#')
+        return NULL;
+
+    return context_area;
+}
+
 
 const struct script_cmd_type room_cmd_table[] = {
     { "addaffect",			scriptcmd_addaffect,	true,	true	},
@@ -188,7 +196,7 @@ void do_rpdump(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum))
+    if (!parse_widevnum(argument, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, argument), &wnum))
     {
         send_to_char("Invalid vnum format.\n\r", ch);
         return;
@@ -226,7 +234,11 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 
     {
         WNUM wnum = { NULL, 0 };
-        parse_widevnum(arg, ch->in_room ? ch->in_room->area : NULL, &wnum);
+        if (!parse_widevnum(arg, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg), &wnum)) {
+            send_to_char("Invalid room vnum format.\n\r", ch);
+            free_buf(output);
+            return;
+        }
 
         if (wnum.pArea)
             room = get_room_index(wnum.pArea, wnum.vnum);
@@ -1739,7 +1751,8 @@ SCRIPT_CMD(do_rpoload)
                         to_obj = arg->d.obj;
                     else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
                         pObjIndex->item_type == ITEM_WEAPON &&
-                        pObjIndex->value[0] == arg->d.obj->value[1])
+                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
+                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
                         to_obj = arg->d.obj;
                     else
                         return;	// Trying to put the item into a non-container won't work
