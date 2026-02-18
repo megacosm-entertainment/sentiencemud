@@ -240,12 +240,16 @@ json_t *json_file_load(const char *path, const char *array_key,
 bool json_ensure_dir(const char *base_dir, const char *name)
 {
     char dir_path[256];
+    char base_dir_buf[256];
+    const char *resolved_base;
 
     if (!base_dir || !name || !name[0])
         return false;
 
+    resolved_base = resolve_game_path(base_dir, base_dir_buf, sizeof(base_dir_buf));
+
     snprintf(dir_path, sizeof(dir_path), "%s%c",
-             base_dir, tolower(name[0]));
+             resolved_base, tolower(name[0]));
 
     mkdir(dir_path, 0755);
     return true;

@@ -1124,6 +1124,8 @@ MEDIT(medit_name)
 {
     MOB_INDEX_DATA *pMob;
     char name[MSL];
+    char player_dir_buf[MSL];
+    const char *player_dir;
     FILE *fp;
 
     EDIT_MOB(ch, pMob);
@@ -1134,7 +1136,8 @@ MEDIT(medit_name)
     return false;
     }
 
-    sprintf(name, "%s%c/%s", PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+    player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    snprintf(name, sizeof(name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(name, "r")) == NULL)
     {
     free_string(pMob->player_name);
@@ -1177,6 +1180,8 @@ MEDIT(medit_skeywds)
 {
     MOB_INDEX_DATA *pMob;
     char name[MSL];
+    char player_dir_buf[MSL];
+    const char *player_dir;
     FILE *fp;
 
     EDIT_MOB(ch, pMob);
@@ -1187,7 +1192,8 @@ MEDIT(medit_skeywds)
     return false;
     }
 
-    sprintf(name, "%s%c/%s", PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+    player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    snprintf(name, sizeof(name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(name, "r")) == NULL)
     {
     free_string(pMob->skeywds);

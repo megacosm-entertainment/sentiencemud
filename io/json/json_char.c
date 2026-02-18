@@ -56,24 +56,33 @@ extern const struct flag_type part_flags[];
 
 void json_get_char_path(const char *char_name, char *path_buf, size_t buf_size)
 {
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+
     // No .json extension - same path as old pfile
     // Format is auto-detected on load
     snprintf(path_buf, buf_size, "%s%c/%s",
-             PLAYER_DIR, tolower(char_name[0]), char_name);
+             player_dir, tolower(char_name[0]), char_name);
 }
 
 void json_get_pfile_path(const char *char_name, char *path_buf, size_t buf_size)
 {
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+
     // Same as json_get_char_path - unified filename
     snprintf(path_buf, buf_size, "%s%c/%s",
-             PLAYER_DIR, tolower(char_name[0]), char_name);
+             player_dir, tolower(char_name[0]), char_name);
 }
 
 void json_get_backup_path(const char *char_name, char *path_buf, size_t buf_size)
 {
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+
     // Backup old pfile before migration
     snprintf(path_buf, buf_size, "%s%c.old/%s",
-             PLAYER_DIR, tolower(char_name[0]), char_name);
+             player_dir, tolower(char_name[0]), char_name);
 }
 
 bool json_ensure_char_dir(const char *char_name)
@@ -1870,6 +1879,8 @@ static bool backup_old_pfile(const char *filename, const char *char_name)
 {
     char backup_path[512];
     char backup_dir[256];
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     FILE *src, *dst;
     char buffer[4096];
     size_t bytes;
@@ -1881,7 +1892,7 @@ static bool backup_old_pfile(const char *filename, const char *char_name)
 
         // Create backup directory
         snprintf(backup_dir, sizeof(backup_dir), "%s%c.old",
-                PLAYER_DIR, tolower(char_name[0]));
+            player_dir, tolower(char_name[0]));
         mkdir(backup_dir, 0755);
 
         // Copy file to backup

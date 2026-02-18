@@ -12,7 +12,62 @@
 #include <dirent.h>
 #include <jansson.h>
 #include "../merc.h"
+#include "bootstrap.h"
 #include "bootstrap_internal.h"
+
+static bool ensure_area_in_area_list(const char *filename)
+{
+    FILE *fp = fopen("data/world/area.lst", "r");
+    if (!fp) {
+        return false;
+    }
+
+    char lines[256][256];
+    int line_count = 0;
+    bool exists = false;
+    bool has_end = false;
+
+    while (line_count < 256 && fgets(lines[line_count], sizeof(lines[line_count]), fp)) {
+        size_t len = strlen(lines[line_count]);
+        while (len > 0 && (lines[line_count][len - 1] == '\n' || lines[line_count][len - 1] == '\r')) {
+            lines[line_count][--len] = '\0';
+        }
+
+        if (lines[line_count][0] == '$') {
+            has_end = true;
+        } else if (!str_cmp(lines[line_count], filename)) {
+            exists = true;
+        }
+        line_count++;
+    }
+    fclose(fp);
+
+    if (exists) {
+        return true;
+    }
+
+    fp = fopen("data/world/area.lst", "w");
+    if (!fp) {
+        return false;
+    }
+
+    for (int i = 0; i < line_count; i++) {
+        if (lines[i][0] == '$') {
+            continue;
+        }
+        fprintf(fp, "%s\n", lines[i]);
+    }
+
+    fprintf(fp, "%s\n", filename);
+    fprintf(fp, "$\n");
+    fclose(fp);
+
+    if (!has_end) {
+        return true;
+    }
+
+    return true;
+}
 
 /**
  * file_exists - Check if a file exists
@@ -91,7 +146,7 @@ bool create_gconfig_rc(void)
     fprintf(fp, "NextTokenUID 1 0\n");
     fprintf(fp, "NextVRoomUID 1 0\n");
     fprintf(fp, "NextShipUID 1 0\n");
-    fprintf(fp, "NextAreaUID 2\n");
+    fprintf(fp, "NextAreaUID %d\n", bootstrap_ci_fixtures ? 4 : 2);
     fprintf(fp, "NextWildsUID 0\n");
     fprintf(fp, "NextVlinkUID 0\n");
     fprintf(fp, "NextChurchUID 1\n");
@@ -317,5 +372,218 @@ bool create_game_settings(void)
     }
 
     json_decref(root);
+    return true;
+}
+
+static bool create_reserved_fixture_area(void)
+{
+    json_error_t error;
+    json_t *reserved_root = json_load_file("data/system/reserved.json", 0, &error);
+    if (!reserved_root) {
+        fprintf(stderr, "Failed to load reserved.json for fixture generation: %s\n", error.text);
+        return false;
+    }
+
+    json_t *entities = json_object_get(reserved_root, "entities");
+    if (!json_is_array(entities)) {
+        json_decref(reserved_root);
+        fprintf(stderr, "reserved.json missing entities array\n");
+        return false;
+    }
+
+    json_t *root = json_object();
+    json_t *area = json_object();
+    json_t *vnums = json_object();
+    json_t *metadata = json_object();
+    json_t *levels = json_object();
+    json_t *rooms = json_array();
+    json_t *objects = json_array();
+    json_t *mobiles = json_array();
+
+    json_object_set_new(root, "schema_version", json_string("1.0.0"));
+    json_object_set_new(area, "uid", json_integer(2));
+    json_object_set_new(area, "name", json_string("Bootstrap Reserved Fixture"));
+    json_object_set_new(area, "filename", json_string("bootstrap_reserved_fixture.json"));
+    json_object_set_new(vnums, "min", json_integer(1));
+    json_object_set_new(vnums, "max", json_integer(999));
+    json_object_set_new(area, "vnums", vnums);
+    json_object_set_new(metadata, "builders", json_string("Bootstrap"));
+    json_object_set_new(metadata, "security", json_integer(9));
+    json_object_set_new(levels, "min", json_integer(0));
+    json_object_set_new(levels, "max", json_integer(120));
+    json_object_set_new(metadata, "levels", levels);
+    json_object_set_new(area, "metadata", metadata);
+    json_object_set_new(root, "area", area);
+
+    json_t *room0 = json_object();
+    json_t *room0_flags = json_array();
+    json_object_set_new(room0, "vnum", json_integer(1));
+    json_object_set_new(room0, "name", json_string("Reserved Fixture Staging"));
+    json_object_set_new(room0, "description",
+        json_string("Bootstrap-generated staging room for reserved fixture entities.\n\r"));
+    json_array_append_new(room0_flags, json_string("indoors"));
+    json_array_append_new(room0_flags, json_string("safe"));
+    json_object_set_new(room0, "flags", room0_flags);
+    json_object_set_new(room0, "sector", json_integer(0));
+    json_array_append_new(rooms, room0);
+
+    int obj_vnum = 10;
+    int mob_vnum = 400;
+    int room_vnum = 700;
+
+    size_t i;
+    json_t *entry;
+    json_array_foreach(entities, i, entry) {
+        json_t *name_json = json_object_get(entry, "name");
+        json_t *type_json = json_object_get(entry, "type");
+        const char *name = json_is_string(name_json) ? json_string_value(name_json) : "reserved_entity";
+        const char *type = json_is_string(type_json) ? json_string_value(type_json) : "obj";
+
+        if (!str_cmp(type, "obj")) {
+            json_t *obj = json_object();
+            char short_descr[128];
+            char long_descr[160];
+            snprintf(short_descr, sizeof(short_descr), "%s", name);
+            snprintf(long_descr, sizeof(long_descr), "%s lies here.", name);
+            json_object_set_new(obj, "vnum", json_integer(obj_vnum++));
+            json_object_set_new(obj, "name", json_string(short_descr));
+            json_object_set_new(obj, "short_descr", json_string(short_descr));
+            json_object_set_new(obj, "long_descr", json_string(long_descr));
+            json_object_set_new(obj, "description", json_string("Reserved fixture object."));
+            json_object_set_new(obj, "item_type", json_string("trash"));
+            json_object_set_new(obj, "level", json_integer(1));
+            json_object_set_new(obj, "weight", json_integer(1));
+            json_object_set_new(obj, "cost", json_integer(0));
+            json_array_append_new(objects, obj);
+        } else if (!str_cmp(type, "mob")) {
+            json_t *mob = json_object();
+            char short_descr[128];
+            char long_descr[160];
+            snprintf(short_descr, sizeof(short_descr), "%s", name);
+            snprintf(long_descr, sizeof(long_descr), "%s stands here.", name);
+            json_object_set_new(mob, "vnum", json_integer(mob_vnum++));
+            json_object_set_new(mob, "name", json_string(short_descr));
+            json_object_set_new(mob, "short_descr", json_string(short_descr));
+            json_object_set_new(mob, "long_descr", json_string(long_descr));
+            json_object_set_new(mob, "description", json_string("Reserved fixture mobile."));
+            json_object_set_new(mob, "level", json_integer(1));
+            json_object_set_new(mob, "race", json_string("human"));
+            json_array_append_new(mobiles, mob);
+        } else if (!str_cmp(type, "room")) {
+            json_t *room = json_object();
+            json_t *flags = json_array();
+            char room_name[128];
+            snprintf(room_name, sizeof(room_name), "%s", name);
+            json_object_set_new(room, "vnum", json_integer(room_vnum++));
+            json_object_set_new(room, "name", json_string(room_name));
+            json_object_set_new(room, "description", json_string("Reserved fixture room.\n\r"));
+            json_array_append_new(flags, json_string("indoors"));
+            json_array_append_new(flags, json_string("safe"));
+            json_object_set_new(room, "flags", flags);
+            json_object_set_new(room, "sector", json_integer(0));
+            json_array_append_new(rooms, room);
+        }
+    }
+
+    json_object_set_new(root, "rooms", rooms);
+    json_object_set_new(root, "objects", objects);
+    json_object_set_new(root, "mobiles", mobiles);
+
+    int rc = json_dump_file(root, "area/bootstrap_reserved_fixture.json", JSON_INDENT(2));
+    json_decref(root);
+    json_decref(reserved_root);
+    return rc == 0;
+}
+
+static bool create_dummy_fixture_area(void)
+{
+    json_t *root = json_object();
+    json_t *area = json_object();
+    json_t *vnums = json_object();
+    json_t *metadata = json_object();
+    json_t *levels = json_object();
+    json_t *rooms = json_array();
+    json_t *objects = json_array();
+    json_t *mobiles = json_array();
+
+    json_object_set_new(root, "schema_version", json_string("1.0.0"));
+    json_object_set_new(area, "uid", json_integer(3));
+    json_object_set_new(area, "name", json_string("Bootstrap Dummy Fixture"));
+    json_object_set_new(area, "filename", json_string("bootstrap_dummy_fixture.json"));
+    json_object_set_new(vnums, "min", json_integer(1));
+    json_object_set_new(vnums, "max", json_integer(200));
+    json_object_set_new(area, "vnums", vnums);
+    json_object_set_new(metadata, "builders", json_string("Bootstrap"));
+    json_object_set_new(metadata, "security", json_integer(9));
+    json_object_set_new(levels, "min", json_integer(0));
+    json_object_set_new(levels, "max", json_integer(120));
+    json_object_set_new(metadata, "levels", levels);
+    json_object_set_new(area, "metadata", metadata);
+    json_object_set_new(root, "area", area);
+
+    json_t *room = json_object();
+    json_t *room_flags = json_array();
+    json_object_set_new(room, "vnum", json_integer(1));
+    json_object_set_new(room, "name", json_string("Dummy Fixture Room"));
+    json_object_set_new(room, "description", json_string("Room containing generic dummy entities for tests.\n\r"));
+    json_array_append_new(room_flags, json_string("indoors"));
+    json_array_append_new(room_flags, json_string("safe"));
+    json_object_set_new(room, "flags", room_flags);
+    json_object_set_new(room, "sector", json_integer(0));
+    json_array_append_new(rooms, room);
+
+    json_t *mob = json_object();
+    json_object_set_new(mob, "vnum", json_integer(10));
+    json_object_set_new(mob, "name", json_string("dummy_mobile"));
+    json_object_set_new(mob, "short_descr", json_string("a dummy mobile"));
+    json_object_set_new(mob, "long_descr", json_string("A dummy mobile stands here."));
+    json_object_set_new(mob, "description", json_string("Generic bootstrap dummy mobile."));
+    json_object_set_new(mob, "level", json_integer(1));
+    json_object_set_new(mob, "race", json_string("human"));
+    json_array_append_new(mobiles, mob);
+
+    json_t *obj = json_object();
+    json_object_set_new(obj, "vnum", json_integer(20));
+    json_object_set_new(obj, "name", json_string("dummy_object"));
+    json_object_set_new(obj, "short_descr", json_string("a dummy object"));
+    json_object_set_new(obj, "long_descr", json_string("A dummy object lies here."));
+    json_object_set_new(obj, "description", json_string("Generic bootstrap dummy object."));
+    json_object_set_new(obj, "item_type", json_string("trash"));
+    json_object_set_new(obj, "level", json_integer(1));
+    json_object_set_new(obj, "weight", json_integer(1));
+    json_object_set_new(obj, "cost", json_integer(0));
+    json_array_append_new(objects, obj);
+
+    json_object_set_new(root, "rooms", rooms);
+    json_object_set_new(root, "objects", objects);
+    json_object_set_new(root, "mobiles", mobiles);
+
+    int rc = json_dump_file(root, "area/bootstrap_dummy_fixture.json", JSON_INDENT(2));
+    json_decref(root);
+    return rc == 0;
+}
+
+bool create_ci_test_fixture_areas(void)
+{
+    if (!file_exists("data/system/reserved.json")) {
+        fprintf(stderr, "reserved.json is required before generating CI fixture areas\n");
+        return false;
+    }
+
+    if (!create_reserved_fixture_area()) {
+        return false;
+    }
+
+    if (!create_dummy_fixture_area()) {
+        return false;
+    }
+
+    if (!ensure_area_in_area_list("bootstrap_reserved_fixture.json")) {
+        return false;
+    }
+    if (!ensure_area_in_area_list("bootstrap_dummy_fixture.json")) {
+        return false;
+    }
+
     return true;
 }

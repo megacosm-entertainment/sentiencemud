@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <unistd.h>
 #include "../merc.h"
 #include "../account/auth_sodium.h"
 #include "bootstrap.h"
@@ -17,9 +20,11 @@
 /* Global variables */
 bool bootstrap_mode = false;
 bool bootstrap_auto = false;
+bool bootstrap_ci_fixtures = false;
 char *bootstrap_username = NULL;
 char *bootstrap_email = NULL;
 char *bootstrap_password = NULL;
+char *bootstrap_root = NULL;
 
 /**
  * detect_bootstrap_mode - Check command-line args for bootstrap flags
@@ -41,8 +46,43 @@ void detect_bootstrap_mode(int argc, char **argv)
             bootstrap_email = argv[i] + 18;
         } else if (!strncmp(argv[i], "--bootstrap-password=", 21)) {
             bootstrap_password = argv[i] + 21;
+        } else if (!strcmp(argv[i], "--bootstrap-fixtures=ci") ||
+                   !strcmp(argv[i], "--bootstrap-ci-fixtures")) {
+            bootstrap_ci_fixtures = true;
+        } else if (!strncmp(argv[i], "--bootstrap-root=", 17)) {
+            bootstrap_root = argv[i] + 17;
         }
     }
+}
+
+static bool bootstrap_enter_root(void)
+{
+    if (!bootstrap_root || !bootstrap_root[0]) {
+        return true;
+    }
+
+    set_runtime_game_root(bootstrap_root);
+
+    struct stat st;
+    if (stat(bootstrap_root, &st) != 0) {
+        if (mkdir(bootstrap_root, 0755) != 0) {
+            fprintf(stderr, "Failed to create bootstrap root '%s': %s\n",
+                    bootstrap_root, strerror(errno));
+            return false;
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        fprintf(stderr, "Bootstrap root is not a directory: %s\n", bootstrap_root);
+        return false;
+    }
+
+    if (chdir(bootstrap_root) != 0) {
+        fprintf(stderr, "Failed to enter bootstrap root '%s': %s\n",
+                bootstrap_root, strerror(errno));
+        return false;
+    }
+
+    printf("Using bootstrap root: %s\n", bootstrap_root);
+    return true;
 }
 
 /**
@@ -157,6 +197,15 @@ bool create_minimal_data_files(void)
         printf("OK\n");
     } else {
         printf("  reserved.json already exists... SKIP\n");
+    }
+
+    if (bootstrap_ci_fixtures) {
+        printf("  Creating CI fixture areas... ");
+        if (!create_ci_test_fixture_areas()) {
+            fprintf(stderr, "FAILED\n");
+            return false;
+        }
+        printf("OK\n");
     }
 
     printf("Data files created successfully.\n");
@@ -307,6 +356,14 @@ int run_bootstrap(void)
     printf("  Bootstrap Mode - Sentience MUD\n");
     printf("======================================\n\n");
 
+    if (!bootstrap_enter_root()) {
+        return 1;
+    }
+
+    if (bootstrap_ci_fixtures) {
+        printf("CI fixture generation enabled.\n");
+    }
+
     /* Initialize libsodium for password hashing */
     if (!init_sodium()) {
         fprintf(stderr, "Failed to initialize libsodium\n");
@@ -357,6 +414,10 @@ int run_bootstrap(void)
     printf("======================================\n");
     printf("\nYou can now start the game normally.\n");
     printf("Your implementor account has been created.\n\n");
+
+    if (bootstrap_ci_fixtures) {
+        printf("CI fixture areas were generated and added to data/world/area.lst.\n\n");
+    }
 
     return 0;
 }

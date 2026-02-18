@@ -960,11 +960,13 @@ static int leaderboard_migrate(CHAR_DATA *ch)
     struct dirent *dp, *subdp;
     CHAR_LEADERBOARD_STATS stats;
     char path[512];
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     int count = 0;
     char letter;
 
     /* Scan characters/[a-z]/ subdirectories for old-format pfiles */
-    dirp = opendir(PLAYER_DIR);
+    dirp = opendir(player_dir);
     if (!dirp) {
         send_to_char("Unable to open character directory.\n\r", ch);
         return 0;
@@ -976,7 +978,7 @@ static int leaderboard_migrate(CHAR_DATA *ch)
             continue;
 
         letter = dp->d_name[0];
-        snprintf(path, sizeof(path), "%s%c", PLAYER_DIR, letter);
+        snprintf(path, sizeof(path), "%s%c", player_dir, letter);
 
         subdirp = opendir(path);
         if (!subdirp)
@@ -989,13 +991,13 @@ static int leaderboard_migrate(CHAR_DATA *ch)
             /* Check for .json extension */
             size_t namelen = strlen(subdp->d_name);
             if (namelen > 5 && !strcmp(subdp->d_name + namelen - 5, ".json")) {
-                snprintf(path, sizeof(path), "%s%c/%s", PLAYER_DIR, letter, subdp->d_name);
+                snprintf(path, sizeof(path), "%s%c/%s", player_dir, letter, subdp->d_name);
                 if (read_stats_from_json_pfile(path, &stats)) {
                     leaderboard_process_stats(&stats);
                     count++;
                 }
             } else {
-                snprintf(path, sizeof(path), "%s%c/%s", PLAYER_DIR, letter, subdp->d_name);
+                snprintf(path, sizeof(path), "%s%c/%s", player_dir, letter, subdp->d_name);
                 if (read_stats_from_old_pfile(path, &stats)) {
                     leaderboard_process_stats(&stats);
                     count++;
@@ -1009,12 +1011,12 @@ static int leaderboard_migrate(CHAR_DATA *ch)
     closedir(dirp);
 
     /* Also scan for top-level .json files (e.g., characters/Xev.json) */
-    dirp = opendir(PLAYER_DIR);
+    dirp = opendir(player_dir);
     if (dirp) {
         while ((dp = readdir(dirp)) != NULL) {
             size_t namelen = strlen(dp->d_name);
             if (namelen > 5 && !strcmp(dp->d_name + namelen - 5, ".json")) {
-                snprintf(path, sizeof(path), "%s%s", PLAYER_DIR, dp->d_name);
+                snprintf(path, sizeof(path), "%s%s", player_dir, dp->d_name);
                 if (read_stats_from_json_pfile(path, &stats)) {
                     leaderboard_process_stats(&stats);
                     count++;

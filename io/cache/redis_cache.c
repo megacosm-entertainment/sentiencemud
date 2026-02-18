@@ -547,6 +547,8 @@ void redis_warm_cache(int max_chars)
     DIR *dir;
     struct dirent *entry;
     char path[256];
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     char *name;
     int count = 0;
 
@@ -560,7 +562,7 @@ void redis_warm_cache(int max_chars)
     for (char initial = 'a'; initial <= 'z'; initial++) {
         if (count >= max_chars) break;
 
-        sprintf(path, "%s%c", PLAYER_DIR, initial);
+        snprintf(path, sizeof(path), "%s%c", player_dir, initial);
         dir = opendir(path);
         if (!dir) continue;
 

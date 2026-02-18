@@ -150,6 +150,10 @@ static bool backup_old_pfile(const char *name, bool is_account)
     char old_path[2048];
     char backup_path[4096];
     char backup_dir[2048];
+    char account_dir_buf[256];
+    char player_dir_buf[256];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     FILE *src, *dst;
     char buffer[8192];
     size_t bytes;
@@ -158,16 +162,16 @@ static bool backup_old_pfile(const char *name, bool is_account)
     /* Build paths */
     if (is_account) {
         snprintf(old_path, sizeof(old_path), "%s%c/%s",
-                 ACCOUNT_DIR, tolower(name[0]), name);
+                 account_dir, tolower(name[0]), name);
         snprintf(backup_dir, sizeof(backup_dir), "%s%c.old",
-                 ACCOUNT_DIR, tolower(name[0]));
+                 account_dir, tolower(name[0]));
         snprintf(backup_path, sizeof(backup_path), "%s/%s",
                  backup_dir, name);
     } else {
         snprintf(old_path, sizeof(old_path), "%s%c/%s",
-                 PLAYER_DIR, tolower(name[0]), name);
+                 player_dir, tolower(name[0]), name);
         snprintf(backup_dir, sizeof(backup_dir), "%s%c.old",
-                 PLAYER_DIR, tolower(name[0]));
+                 player_dir, tolower(name[0]));
         snprintf(backup_path, sizeof(backup_path), "%s/%s",
                  backup_dir, name);
     }
@@ -271,6 +275,8 @@ bool migrate_player(char *name, bool backup)
 {
     DESCRIPTOR_DATA d;
     char file_path[2048];
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     bool loaded;
     bool success = false;
 
@@ -281,7 +287,7 @@ bool migrate_player(char *name, bool backup)
     }
 
     snprintf(file_path, sizeof(file_path), "%s%c/%s",
-             PLAYER_DIR, tolower(name[0]), name);
+             player_dir, tolower(name[0]), name);
 
     if (access(file_path, F_OK) != 0) {
         log_message_f(LOG_LEVEL_WARN, LOG_WARN,
@@ -354,6 +360,8 @@ int migrate_all_players(bool backup)
     DIR *dir;
     struct dirent *entry;
     int letter;
+    char player_dir_buf[256];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
 
     init_migration_stats(&stats);
 
@@ -362,7 +370,7 @@ int migrate_all_players(bool backup)
         backup ? "yes" : "no");
 
     for (letter = 'a'; letter <= 'z'; letter++) {
-        snprintf(dir_path, sizeof(dir_path), "%s%c", PLAYER_DIR, letter);
+        snprintf(dir_path, sizeof(dir_path), "%s%c", player_dir, letter);
 
         dir = opendir(dir_path);
         if (!dir) {
@@ -431,6 +439,8 @@ bool migrate_account(char *name, bool backup, void *vstats)
 {
     DESCRIPTOR_DATA d;
     char file_path[2048];
+    char account_dir_buf[256];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
     bool loaded;
     bool success = false;
     MIGRATION_STATS local_stats;
@@ -448,7 +458,7 @@ bool migrate_account(char *name, bool backup, void *vstats)
     }
 
     snprintf(file_path, sizeof(file_path), "%s%c/%s",
-             ACCOUNT_DIR, tolower(name[0]), name);
+             account_dir, tolower(name[0]), name);
 
     if (access(file_path, F_OK) != 0) {
         log_message_f(LOG_LEVEL_WARN, LOG_WARN,
@@ -552,6 +562,8 @@ int migrate_all_accounts(bool backup)
     DIR *dir;
     struct dirent *entry;
     int letter;
+    char account_dir_buf[256];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
 
     init_migration_stats(&stats);
 
@@ -560,7 +572,7 @@ int migrate_all_accounts(bool backup)
         backup ? "yes" : "no");
 
     for (letter = 'a'; letter <= 'z'; letter++) {
-        snprintf(dir_path, sizeof(dir_path), "%s%c", ACCOUNT_DIR, letter);
+        snprintf(dir_path, sizeof(dir_path), "%s%c", account_dir, letter);
 
         dir = opendir(dir_path);
         if (!dir) {

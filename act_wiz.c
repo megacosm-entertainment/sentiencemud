@@ -10743,6 +10743,8 @@ void do_vislist(CHAR_DATA *ch, char *argument)
     char arg[MSL];
     char buf[MSL];
     char player_name[MSL];
+    char player_dir_buf[MSL];
+    const char *player_dir;
     bool found_char;
     FILE *fp;
     STRING_DATA *string;
@@ -10849,7 +10851,8 @@ void do_vislist(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+        player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+        snprintf(player_name, sizeof(player_name), "%s%c/%s", player_dir, tolower(arg[0]), capitalize(arg));
         if ((fp = fopen(player_name, "r")) == NULL)
         {
         found_char = false;
@@ -10879,7 +10882,6 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 /**
  * do_test - Debug command for testing crash handlers
  *
- * Developer debugging command that can intentionally trigger crashes
  * to test error handling and recovery systems. Supports triggering
  * a segmentation fault (SIGSEGV) or abort signal (SIGABRT).
  * WARNING: These will actually crash the server.
@@ -10892,15 +10894,15 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 void do_test(CHAR_DATA *ch, char *argument)
 {
     if (!str_cmp(argument, "crash")) {
+        int *p = NULL;
         send_to_char("Testing crash handler - triggering segfault...\n\r", ch);
-        volatile int *p = NULL;
         *p = 42;  // This will cause SIGSEGV
     } else if (!str_cmp(argument, "abort")) {
         send_to_char("Testing crash handler - triggering abort...\n\r", ch);
         abort();  // This will cause SIGABRT
     } else if (!str_cmp(argument, "relic")) {
         send_to_char("Testing relic system - calling relic_update...\n\r", ch);
-        relic_update();  // Call relic update function for testing
+        relic_update();
     } else {
         send_to_char("Test commands:\n\r", ch);
         send_to_char("  test crash  - Trigger a segfault (SIGSEGV)\n\r", ch);
@@ -13697,10 +13699,13 @@ void do_pwmigrate(CHAR_DATA *ch, char *argument)
     /* Scan all account directories */
     for (char letter = 'a'; letter <= 'z'; letter++) {
         char dir_path[256];
+        char account_dir_buf[256];
+        const char *account_dir;
         DIR *dir;
         struct dirent *ent;
 
-        sprintf(dir_path, "%s%c", ACCOUNT_DIR, letter);
+        account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+        snprintf(dir_path, sizeof(dir_path), "%s%c", account_dir, letter);
         dir = opendir(dir_path);
         if (!dir)
             continue;
@@ -14057,10 +14062,13 @@ void do_cryptorotate(CHAR_DATA *ch, char *argument)
     /* Scan all account directories */
     for (char letter = 'a'; letter <= 'z'; letter++) {
         char dir_path[256];
+        char account_dir_buf[256];
+        const char *account_dir;
         DIR *dir;
         struct dirent *ent;
 
-        sprintf(dir_path, "%s%c", ACCOUNT_DIR, letter);
+        account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+        snprintf(dir_path, sizeof(dir_path), "%s%c", account_dir, letter);
         dir = opendir(dir_path);
         if (!dir)
             continue;

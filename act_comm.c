@@ -100,6 +100,8 @@ void do_delet(CHAR_DATA *ch, char *argument)
 void do_delete(CHAR_DATA *ch, char *argument)
 {
     char strsave[MAX_INPUT_LENGTH];
+    char player_dir_buf[MAX_INPUT_LENGTH];
+    const char *player_dir;
 
     if (IS_NPC(ch)) return;
 
@@ -114,8 +116,8 @@ void do_delete(CHAR_DATA *ch, char *argument)
             send_to_char("Delete status removed.\n\r",ch);
             ch->pcdata->confirm_delete = false;
         } else {
-            sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
-            capitalize( ch->name ) );
+            player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+            snprintf(strsave, sizeof(strsave), "%s%c/%s", player_dir, tolower(ch->name[0]), capitalize(ch->name));
             redis_leaderboard_remove_all(ch->name);
             wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
             stop_fighting(ch,true);
@@ -2946,6 +2948,8 @@ void do_ignore(CHAR_DATA *ch, char *argument)
     CHAR_DATA *victim;
     FILE *fp;
     char player_name[MAX_STRING_LENGTH];
+    char player_dir_buf[MAX_STRING_LENGTH];
+    const char *player_dir;
     bool found_char;
     bool remove = false;
 
@@ -3025,7 +3029,8 @@ void do_ignore(CHAR_DATA *ch, char *argument)
     }
     else
     {
-    sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+    player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    snprintf(player_name, sizeof(player_name), "%s%c/%s", player_dir, tolower(arg[0]), capitalize(arg));
     if ((fp = fopen(player_name, "r")) == NULL)
     {
     found_char = false;
@@ -3238,6 +3243,8 @@ void do_qlist(CHAR_DATA *ch, char *argument)
     char arg[MSL];
     char buf[MSL];
     char player_name[MSL];
+    char player_dir_buf[MSL];
+    const char *player_dir;
     bool found_char;
     FILE *fp;
     STRING_DATA *string;
@@ -3339,7 +3346,8 @@ void do_qlist(CHAR_DATA *ch, char *argument)
     }
     else
     {
-    sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+    player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    snprintf(player_name, sizeof(player_name), "%s%c/%s", player_dir, tolower(arg[0]), capitalize(arg));
     if ((fp = fopen(player_name, "r")) == NULL)
     {
     found_char = false;

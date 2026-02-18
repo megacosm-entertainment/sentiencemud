@@ -321,7 +321,9 @@ void save_char_obj(CHAR_DATA *ch)
         fclose(fpReserve);
         fpReserve = NULL;  // Mark as closed
     }
-    sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
+    char player_dir_buf[MAX_INPUT_LENGTH];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    snprintf(strsave, sizeof(strsave), "%s%c/%s", player_dir, tolower(ch->name[0]), capitalize(ch->name));
 
 #if WRITE_OLD_PFILE_FORMAT
     // Old pfile format (deprecated - will be removed once JSON is proven stable)
@@ -1164,15 +1166,18 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
         fpReserve = NULL;  // Mark as closed so we know to reopen it
     }
 
+    char player_dir_buf[MAX_INPUT_LENGTH];
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+
     /* decompress if .gz file exists */
-    sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
+    snprintf(strsave, sizeof(strsave), "%s%c/%s%s", player_dir, tolower(name[0]), capitalize(name), ".gz");
     if ((fp = fopen(strsave, "r")) != NULL) {
         fclose(fp);
         sprintf(buf,"gzip -dfq %s",strsave);
         system(buf);
     }
 
-    sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
+    snprintf(strsave, sizeof(strsave), "%s%c/%s", player_dir, tolower(name[0]), capitalize(name));
     sprintf(buf, "Trying to load %s", strsave);
     log_string(buf);
 
@@ -6040,8 +6045,11 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
         fpReserve = NULL;  // Mark as closed
     }
 
+    char account_dir_buf[MAX_INPUT_LENGTH];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+
     /* decompress if .gz file exists */
-    sprintf(strsave, "%s%c/%s%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name), ".gz");
+    snprintf(strsave, sizeof(strsave), "%s%c/%s%s", account_dir, tolower(name[0]), capitalize(name), ".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
     {
         fclose(fp);
@@ -6049,7 +6057,7 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
         system(buf);
     }
 
-    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name));
+    snprintf(strsave, sizeof(strsave), "%s%c/%s", account_dir, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
         // Check if file is JSON format
         if (json_is_account_json(strsave)) {
@@ -7366,6 +7374,8 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
     ACCOUNT_DATA *account = NULL;
     bool found = false;
     char c;
+    char account_dir_buf[MAX_INPUT_LENGTH];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
 
     // Check loaded_accounts cache first
     if (loaded_accounts) {
@@ -7383,7 +7393,7 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
 
     // Check each letter directory
     for (c = 'a'; c <= 'z' && !found; c++) {
-        sprintf(dir_path, "%s%c", ACCOUNT_DIR, c);
+        snprintf(dir_path, sizeof(dir_path), "%s%c", account_dir, c);
         dir = opendir(dir_path);
         
         if (!dir) 
@@ -7395,7 +7405,7 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
             if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
                 continue;
                 
-            sprintf(acct_path, "%s/%s", dir_path, entry->d_name);
+            snprintf(acct_path, sizeof(acct_path), "%s/%s", dir_path, entry->d_name);
 
             // Try JSON format first
             if (json_is_account_json(acct_path)) {
@@ -7504,8 +7514,11 @@ ACCOUNT_DATA *find_account_by_name(char *username)
     // Initialize temporary descriptor
     memset(&d, 0, sizeof(d));
 
+    char account_dir_buf[MAX_INPUT_LENGTH];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+
     // Try to load the account directly
-    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(username[0]), capitalize(username));
+    snprintf(strsave, sizeof(strsave), "%s%c/%s", account_dir, tolower(username[0]), capitalize(username));
     
     // First check if file exists 
     if ((fp = fopen(strsave, "r")) == NULL)
@@ -7755,6 +7768,10 @@ void do_migratefiles(CHAR_DATA *ch, char *argument)
     bool do_characters = true;
     int acct_total = 0, acct_converted = 0, acct_skipped = 0, acct_failed = 0;
     int char_total = 0, char_converted = 0, char_skipped = 0, char_failed = 0;
+    char account_dir_buf[MAX_INPUT_LENGTH];
+    char player_dir_buf[MAX_INPUT_LENGTH];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+    const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
 
     if (argument[0] != '\0') {
         if (!str_prefix(argument, "accounts")) {
@@ -7775,7 +7792,7 @@ void do_migratefiles(CHAR_DATA *ch, char *argument)
         send_to_char("\n\r{YMigrating accounts...{x\n\r", ch);
 
         for (letter = 'a'; letter <= 'z'; letter++) {
-            sprintf(dir_path, "%s%c", ACCOUNT_DIR, letter);
+            snprintf(dir_path, sizeof(dir_path), "%s%c", account_dir, letter);
             letter_dir = opendir(dir_path);
             if (!letter_dir)
                 continue;
@@ -7844,7 +7861,7 @@ void do_migratefiles(CHAR_DATA *ch, char *argument)
         send_to_char("\n\r{YMigrating characters...{x\n\r", ch);
 
         for (letter = 'a'; letter <= 'z'; letter++) {
-            sprintf(dir_path, "%s%c", PLAYER_DIR, letter);
+            snprintf(dir_path, sizeof(dir_path), "%s%c", player_dir, letter);
             letter_dir = opendir(dir_path);
             if (!letter_dir)
                 continue;

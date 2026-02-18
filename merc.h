@@ -8625,6 +8625,14 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define LOG_DIR                 GAME_DIR "logs/"
 #define PLAYER_LIST             SYSTEM_DIR "discord_who.txt"
 
+/* Runtime path override helpers.
+ * resolve_game_path() rewrites compile-time /sentience/<subpath> paths when
+ * a runtime root override is configured (e.g., --data-root).
+ */
+extern char runtime_game_root[MAX_INPUT_LENGTH];
+void set_runtime_game_root(const char *root);
+const char *resolve_game_path(const char *path, char *buffer, size_t buffer_size);
+
 /*World files - Regarding things specifically for the game world. */
 /* Projects and staff. */
 #define PROJECTS_FILE   	    WORLD_DIR "projects.dat"

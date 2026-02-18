@@ -67,6 +67,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <time.h>
+#include <unistd.h>
 #include <zlib.h>
 
 #include "log.h"
@@ -137,6 +138,7 @@ extern void init_string_space();
 bool			is_test_port;           /**< True if running on test/dev port */
 bool			test_mode = false;      /**< True to run integration tests and exit */
 char			test_pattern[256];      /**< Test pattern filter (e.g., "unit", "wnum", "all") */
+char            runtime_game_root[MAX_INPUT_LENGTH]; /**< Optional runtime override for /sentience root */
 int 		    telnet_port;            /**< Port for unencrypted telnet connections */
 int				tls_port;               /**< Port for TLS-encrypted connections */
 int				websocket_port;         /**< Port for WebSocket TLS connections */
@@ -390,6 +392,12 @@ bool parse_options(int argc, char **argv)
             // Already handled in detect_bootstrap_mode(), skip here
             continue;
         }
+        else if ( !strncmp(argv[i], "--data-root=", 12) ||
+                  !strncmp(argv[i], "--game-root=", 12) )
+        {
+            // Runtime root overrides are handled before normal initialization.
+            continue;
+        }
         else if ( argv[i][0] == '-' && (strlen(argv[i]) >= 2) )
         {
             switch( argv[i][1] )
@@ -481,6 +489,69 @@ static void detect_test_mode_args(int argc, char **argv)
     }
 }
 
+void set_runtime_game_root(const char *root)
+{
+    runtime_game_root[0] = '\0';
+
+    if (!root || !root[0]) {
+        return;
+    }
+
+    snprintf(runtime_game_root, sizeof(runtime_game_root), "%s", root);
+
+    size_t len = strlen(runtime_game_root);
+    while (len > 1 && runtime_game_root[len - 1] == '/') {
+        runtime_game_root[len - 1] = '\0';
+        len--;
+    }
+}
+
+const char *resolve_game_path(const char *path, char *buffer, size_t buffer_size)
+{
+    static const char *default_root = "/sentience";
+    size_t default_root_len;
+
+    if (!path) {
+        return NULL;
+    }
+
+    if (!runtime_game_root[0] || !buffer || buffer_size == 0) {
+        return path;
+    }
+
+    default_root_len = strlen(default_root);
+    if (strncmp(path, default_root, default_root_len) != 0) {
+        return path;
+    }
+
+    if (path[default_root_len] != '/' && path[default_root_len] != '\0') {
+        return path;
+    }
+
+    snprintf(buffer, buffer_size, "%s%s", runtime_game_root, path + default_root_len);
+    return buffer;
+}
+
+static const char *detect_data_root_override(int argc, char **argv)
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strncmp(argv[i], "--data-root=", 12)) {
+            return argv[i] + 12;
+        }
+        if (!strncmp(argv[i], "--game-root=", 12)) {
+            return argv[i] + 12;
+        }
+    }
+
+    const char *env_root = getenv("SENTIENCE_DATA_ROOT");
+    if (env_root && env_root[0]) {
+        return env_root;
+    }
+
+    return NULL;
+}
+
 
 /**
  * main - Server entry point
@@ -506,6 +577,10 @@ static void detect_test_mode_args(int argc, char **argv)
  */
 int main(int argc, char **argv)
 {
+    const char *data_root_override = detect_data_root_override(argc, argv);
+
+    runtime_game_root[0] = '\0';
+
     int rc = log_init(ZLOG_CONF);
     if (rc) {
         fprintf(stderr, "log_init failed\n");
@@ -515,6 +590,16 @@ int main(int argc, char **argv)
     detect_test_mode_args(argc, argv);
     if (test_mode) {
         log_set_unit_test_only(true);
+    }
+
+    if (data_root_override && data_root_override[0]) {
+        set_runtime_game_root(data_root_override);
+
+        if (chdir(data_root_override) != 0) {
+            fprintf(stderr, "Failed to use data root '%s': %s\n", data_root_override, strerror(errno));
+            return 1;
+        }
+        fprintf(stderr, "Using data root: %s\n", runtime_game_root);
     }
 
     /* Check for bootstrap mode */
@@ -692,7 +777,7 @@ int main(int argc, char **argv)
 
     if( !parse_options(argc, argv) )
     {
-        fprintf(stderr, "Usage: %s [port #] [-NTW] [-test[:pattern]]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [port #] [-NTW] [-test[:pattern]] [--data-root=PATH]\n", argv[0]);
         fprintf(stderr, "\n");
         fprintf(stderr, "\tport #\t\tListening port for the server (>1024).  Default is 9000.\n");
         fprintf(stderr, "\n");
@@ -703,6 +788,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "\t-test:unit\tRun only unit tests.\n");
         fprintf(stderr, "\t-test:wnum\tRun only widevnum tests.\n");
         fprintf(stderr, "\t-test:all\tRun all tests (default).\n");
+        fprintf(stderr, "\t--data-root=PATH\tSet runtime root for relative-path access (experimental).\n");
+        fprintf(stderr, "\t--game-root=PATH\tAlias for --data-root.\n");
+        fprintf(stderr, "\tSENTIENCE_DATA_ROOT\tEnvironment fallback for relative-path root override.\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "\t-?\t\tShow this screen.\n");
         fprintf(stderr, "\n");

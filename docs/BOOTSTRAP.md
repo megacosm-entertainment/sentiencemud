@@ -44,6 +44,18 @@ For non-interactive use:
   --bootstrap-password=changeme123
 ```
 
+For isolated CI roots with fixture areas:
+
+```bash
+./src/sent -bootstrap \
+   --bootstrap-auto \
+   --bootstrap-username=ciadmin \
+   --bootstrap-email=ci@example.com \
+   --bootstrap-password=changeme123 \
+   --bootstrap-root=/tmp/sentience-ci \
+   --bootstrap-fixtures=ci
+```
+
 ## What Bootstrap Creates
 
 ### Critical System Files
@@ -128,6 +140,33 @@ The account and character are saved to:
 | `--bootstrap-username=<name>` | Pre-specify username (3-12 alphanumeric) |
 | `--bootstrap-email=<email>` | Pre-specify email address |
 | `--bootstrap-password=<pwd>` | Pre-specify password (8+ characters) |
+| `--bootstrap-fixtures=ci` / `--bootstrap-ci-fixtures` | Generate CI fixture areas and append them to `data/world/area.lst` |
+| `--bootstrap-root=<path>` | Run bootstrap inside an alternate root directory |
+| `--data-root=<path>` / `--game-root=<path>` | Runtime root override for relative-path access (experimental) |
+| `SENTIENCE_DATA_ROOT` | Environment fallback for runtime root override |
+
+### Current Root Override Limitations
+
+- `--bootstrap-root` now applies to bootstrap-created assets and account/character persistence paths.
+- Runtime `--data-root` / `--game-root` remaps compile-time `/sentience/...` path constants through the runtime root override.
+- The test framework currently expects `src/tests/data` relative to process working directory, so `-test:*` runs may fail when launched directly from an isolated root without test assets.
+
+### Path Compatibility Policy (Current)
+
+- Keep `GAME_DIR` and dependent macros (`DATA_DIR`, `SYSTEM_DIR`, `AREA_DIR`, `LOG_DIR`, etc.) in place during the migration.
+- Use `resolve_game_path()` at runtime to remap compile-time `/sentience/...` paths when `--data-root`, `--game-root`, or `--bootstrap-root` is set.
+- Do **not** remove `GAME_DIR` until high-risk filesystem callsites are migrated and startup validation for critical paths is in place.
+- This preserves backward compatibility and avoids regressions where startup behavior depends on launching from a specific working directory.
+
+## CI Fixture Areas
+
+When `--bootstrap-fixtures=ci` is used, bootstrap also creates:
+- `area/bootstrap_reserved_fixture.json`
+- `area/bootstrap_dummy_fixture.json`
+
+And appends both files to `data/world/area.lst` after `limbo.json`.
+
+Fixture mode also bumps `NextAreaUID` in `data/system/gconfig.rc` from `2` to `4`, reserving UIDs for the generated fixture areas.
 
 ## Interactive Flow
 
@@ -197,7 +236,7 @@ When run interactively, bootstrap will:
 
 ### Password
 - Minimum 8 characters
-- Hashed using crypt() before storage
+- Hashed via libsodium (Argon2id path)
 - Password input is hidden (no echo)
 - Confirmation required
 
@@ -329,9 +368,9 @@ For Docker/container deployments:
 ## Technical Details
 
 ### Implementation
-- **File**: `/sentience/src/bootstrap.c`
-- **Header**: `/sentience/src/bootstrap.h`
-- **Integration**: `/sentience/src/comm.c` (main function)
+- **Files**: `/sentience/src/bootstrap/bootstrap.c` and `/sentience/src/bootstrap/bootstrap_*.c`
+- **Headers**: `/sentience/src/bootstrap/bootstrap.h`, `/sentience/src/bootstrap/bootstrap_internal.h`
+- **Integration**: `/sentience/src/comm.c` (argument parsing + startup)
 
 ### Key Functions
 - `detect_bootstrap_mode()` - Parse command-line flags
@@ -353,7 +392,7 @@ Bootstrap leverages existing game functions:
 
 ### Password Security
 - Input hidden via termios (no echo)
-- Hashed using system crypt()
+- Hashed via libsodium (Argon2id flow)
 - Memory zeroed before free
 - Never logged or displayed
 

@@ -526,7 +526,7 @@ static test_result_t test_pure_function(test_case_t *test) {
         log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Testing pure function: %s", func_name);
     }
     
-    // Currently supporting wnum parsing functions as an example
+    // WNUM parsing unit tests
     if (strcmp(func_name, "parse_widevnum") == 0) {
         size_t index;
         json_t *test_case;
@@ -591,6 +591,217 @@ static test_result_t test_pure_function(test_case_t *test) {
         if (test->verbose_output) {
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Pure function test passed for %s", func_name);
         }
+        return TEST_SUCCESS;
+    }
+
+    // String/argument utility unit tests
+    if (strcmp(func_name, "is_number") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *arg = test_json_get_string(test_case, "arg");
+            bool expected = test_json_get_bool(test_case, "expected");
+
+            if (!arg) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "is_number test case missing 'arg'");
+                return TEST_ERROR;
+            }
+
+            bool actual = is_number(arg);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "is_number('%s') returned %s, expected %s",
+                             arg,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "str_prefix") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *astr = test_json_get_string(test_case, "astr");
+            const char *bstr = test_json_get_string(test_case, "bstr");
+            bool expected_not_prefix = test_json_get_bool(test_case, "expected_not_prefix");
+
+            if (!astr || !bstr) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "str_prefix test case missing astr/bstr");
+                return TEST_ERROR;
+            }
+
+            bool actual_not_prefix = str_prefix(astr, bstr);
+            if (actual_not_prefix != expected_not_prefix) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "str_prefix('%s','%s') returned %s, expected %s",
+                             astr,
+                             bstr,
+                             actual_not_prefix ? "true" : "false",
+                             expected_not_prefix ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "number_argument") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *argument_in = test_json_get_string(test_case, "argument");
+            int expected_number = test_json_get_int(test_case, "expected_number");
+            const char *expected_arg = test_json_get_string(test_case, "expected_arg");
+            char argument_buf[MAX_INPUT_LENGTH];
+            char arg_out[MAX_INPUT_LENGTH];
+
+            if (!argument_in || !expected_arg) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "number_argument test case missing argument/expected_arg");
+                return TEST_ERROR;
+            }
+
+            snprintf(argument_buf, sizeof(argument_buf), "%s", argument_in);
+            int actual_number = number_argument(argument_buf, arg_out);
+
+            if (actual_number != expected_number || str_cmp(arg_out, expected_arg) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "number_argument('%s') returned (%d,'%s'), expected (%d,'%s')",
+                             argument_in,
+                             actual_number,
+                             arg_out,
+                             expected_number,
+                             expected_arg);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "one_argument") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *argument_in = test_json_get_string(test_case, "argument");
+            const char *expected_first = test_json_get_string(test_case, "expected_first");
+            const char *expected_rest = test_json_get_string(test_case, "expected_rest");
+            char argument_buf[MAX_STRING_LENGTH];
+            char first[MAX_INPUT_LENGTH];
+
+            if (!argument_in || !expected_first || !expected_rest) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "one_argument test case missing argument/expected_first/expected_rest");
+                return TEST_ERROR;
+            }
+
+            snprintf(argument_buf, sizeof(argument_buf), "%s", argument_in);
+            char *rest = one_argument(argument_buf, first);
+
+            if (str_cmp(first, expected_first) != 0 || str_cmp(rest, expected_rest) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "one_argument('%s') returned first='%s', rest='%s'; expected first='%s', rest='%s'",
+                             argument_in,
+                             first,
+                             rest,
+                             expected_first,
+                             expected_rest);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "smash_tilde") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            const char *expected_output = test_json_get_string(test_case, "expected_output");
+            char buffer[MAX_STRING_LENGTH];
+
+            if (!input_str || !expected_output) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "smash_tilde test case missing input/expected_output");
+                return TEST_ERROR;
+            }
+
+            snprintf(buffer, sizeof(buffer), "%s", input_str);
+            smash_tilde(buffer);
+
+            if (str_cmp(buffer, expected_output) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "smash_tilde('%s') returned '%s', expected '%s'",
+                             input_str,
+                             buffer,
+                             expected_output);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "is_name") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *needle = test_json_get_string(test_case, "str");
+            const char *namelist = test_json_get_string(test_case, "namelist");
+            bool expected = test_json_get_bool(test_case, "expected");
+
+            if (!needle || !namelist) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "is_name test case missing str/namelist");
+                return TEST_ERROR;
+            }
+
+            bool actual = is_name((char *)needle, (char *)namelist);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "is_name('%s','%s') returned %s, expected %s",
+                             needle,
+                             namelist,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "is_exact_name") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *needle = test_json_get_string(test_case, "str");
+            const char *namelist = test_json_get_string(test_case, "namelist");
+            bool expected = test_json_get_bool(test_case, "expected");
+
+            if (!needle || !namelist) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "is_exact_name test case missing str/namelist");
+                return TEST_ERROR;
+            }
+
+            bool actual = is_exact_name((char *)needle, (char *)namelist);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "is_exact_name('%s','%s') returned %s, expected %s",
+                             needle,
+                             namelist,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
         return TEST_SUCCESS;
     }
     

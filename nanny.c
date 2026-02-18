@@ -4159,7 +4159,9 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
         // Fall back to disk if Redis didn't work
         if (!load_success) {
             char strsave[MAX_INPUT_LENGTH];
-            sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
+            char player_dir_buf[MAX_INPUT_LENGTH];
+            const char *player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+            snprintf(strsave, sizeof(strsave), "%s%c/%s", player_dir, tolower(ch->name[0]), capitalize(ch->name));
             load_success = json_read_char_remaining(ch, strsave);
         }
 

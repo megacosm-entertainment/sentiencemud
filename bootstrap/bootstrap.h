@@ -13,9 +13,11 @@
 /* Bootstrap mode flags (set by detect_bootstrap_mode) */
 extern bool bootstrap_mode;
 extern bool bootstrap_auto;
+extern bool bootstrap_ci_fixtures;
 extern char *bootstrap_username;
 extern char *bootstrap_email;
 extern char *bootstrap_password;
+extern char *bootstrap_root;
 
 /* Core bootstrap functions (called from comm.c) */
 void detect_bootstrap_mode(int argc, char **argv);

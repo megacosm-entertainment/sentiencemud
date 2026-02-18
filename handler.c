@@ -5994,10 +5994,13 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 bool player_exists(char *argument)
 {
     char player_name[MSL];
+    char player_dir_buf[MSL];
+    const char *player_dir;
     bool found_char = false;
     FILE *fp;
 
-    sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+    player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    snprintf(player_name, sizeof(player_name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(player_name, "r")) == NULL)
     found_char = false;
     else
@@ -6013,10 +6016,13 @@ bool player_exists(char *argument)
 bool account_exists(char *argument)
 {
     char account_name[MSL];
+    char account_dir_buf[MSL];
+    const char *account_dir;
     bool found_account = false;
     FILE *fp;
 
-    sprintf(account_name, "%s%c/%s", ACCOUNT_DIR, tolower(argument[0]), capitalize(argument));
+    account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+    snprintf(account_name, sizeof(account_name), "%s%c/%s", account_dir, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(account_name, "r")) == NULL)
         found_account = false;
     else
@@ -11376,6 +11382,10 @@ bool delete_character_by_name(const char *name)
     char old_path[MAX_INPUT_LENGTH];
     char new_path[MAX_INPUT_LENGTH];
     char json_path[MAX_INPUT_LENGTH];
+    char player_dir_buf[MAX_INPUT_LENGTH];
+    char old_player_dir_buf[MAX_INPUT_LENGTH];
+    const char *player_dir;
+    const char *old_player_dir;
     char timestamp[64];
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
@@ -11386,11 +11396,14 @@ bool delete_character_by_name(const char *name)
     // Format timestamp: DAY_MONTH_YEAR_HOURMINSEC
     strftime(timestamp, sizeof(timestamp), "%d_%m_%Y_%H%M%S", tm_info);
 
+    player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
+    old_player_dir = resolve_game_path(OLD_PLAYER_DIR, old_player_dir_buf, sizeof(old_player_dir_buf));
+
     // Build source and destination paths using letter subdirectory
     snprintf(old_path, sizeof(old_path), "%s%c/%s",
-             PLAYER_DIR, tolower(name[0]), capitalize(name));
+             player_dir, tolower(name[0]), capitalize(name));
     snprintf(new_path, sizeof(new_path), "%s%s_%s",
-             OLD_PLAYER_DIR, capitalize(name), timestamp);
+             old_player_dir, capitalize(name), timestamp);
 
     // Invalidate Redis cache
     redis_invalidate_char(name);
@@ -11405,7 +11418,7 @@ bool delete_character_by_name(const char *name)
 
     // Remove the .json summary/index file if it exists
     snprintf(json_path, sizeof(json_path), "%s%c/%s.json",
-             PLAYER_DIR, tolower(name[0]), capitalize(name));
+             player_dir, tolower(name[0]), capitalize(name));
     remove(json_path);  // Ignore errors — file may not exist
 
     log_message_f(LOG_LEVEL_INFO, LOG_INFO,

@@ -1,6 +1,6 @@
 # Sentience MUD Roadmap
 
-**Last Updated:** February 8, 2026
+**Last Updated:** February 18, 2026
 
 This document tracks the project's development trajectory: what's been completed, what's in progress, and what's planned. Each section links to detailed design documents where they exist.
 
@@ -46,7 +46,7 @@ All eight find commands (`mfind`, `ofind`, `tfind`, `rfind`, `bpfind`, `bsfind`,
 
 ### Widevnum Migration
 
-**Status:** Phases 1-6 complete. Phase 7 in progress.
+**Status:** Complete (Phases 1-8 complete; minor polish deferred to Phase 9).
 **Docs:** [widevnums/](widevnums/)
 
 The core project: transitioning from globally-unique vnums to area-scoped widevnums (`area_uid:local_vnum`). This enables collision-free multi-area development and is a prerequisite for many downstream features.
@@ -60,14 +60,30 @@ The core project: transitioning from globally-unique vnums to area-scoped widevn
 - JSON serialization with `WNUM_LOAD`
 - Stat commands (`rstat`, `ostat`, `mstat`), find commands, and navigation commands (`goto`, `transfer`, `at`)
 
-**What remains (Phase 7-8, ~180 changes across ~30 files):**
-- **Critical:** Cross-area comparison bugs in lock/key, quest, global quest, and script systems (~20 comparisons that check bare vnums without area context)
-- Display polish for remaining commands (`mload`, `oload`, `mwhere` confirmation messages)
-- Struct field migration: bare `long vnum` fields in mail, quest, global quest, and other structures need `WNUM`/`WNUM_LOAD`
-- Hardcoded vnum constant migration to the reserved entity system
-- Display consistency pass across ~50 files
+**Deferred polish (Phase 9):**
+- Optional low-visibility display consistency and message polish.
+- Opportunistic cleanup for any newly discovered edge display paths.
 
 **Detailed remaining work:** [widevnums/WIDEVNUM_REMAINING_WORK.md](widevnums/WIDEVNUM_REMAINING_WORK.md)
+
+### Room PK Semantics Refactor (`cpk` → `chaotic` + `player_killing`)
+
+**Status:** Planned, high priority.
+**Docs:** [DOCS_REVIEW_2026-02-18.md](DOCS_REVIEW_2026-02-18.md)
+
+Current room `cpk` behavior couples two separate concerns:
+- PK legality
+- inventory-loss-on-death semantics
+
+Planned model:
+- `player_killing` controls PK permissibility.
+- `chaotic` controls inventory-loss-on-death behavior.
+- Legacy `cpk` behavior is represented by rooms that enable both flags.
+
+Migration notes:
+- Runtime checks must be split so `chaotic` does not enable PK by itself.
+- Builder-facing room editing/help must reflect independent semantics.
+- Existing content that expects old `cpk` behavior should be migrated to dual-flag configuration.
 
 ### Crypto Modernization (Phase 2)
 

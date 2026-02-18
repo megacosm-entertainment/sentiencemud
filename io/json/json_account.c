@@ -39,17 +39,23 @@ extern const struct flag_type acct_flags[];
 
 void json_get_account_path(const char *username, char *path_buf, size_t buf_size)
 {
+    char account_dir_buf[256];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+
     // No .json extension - same path as old pfile
     // Format is auto-detected on load
     snprintf(path_buf, buf_size, "%s%c/%s",
-             ACCOUNT_DIR, tolower(username[0]), username);
+             account_dir, tolower(username[0]), username);
 }
 
 void json_get_account_backup_path(const char *username, char *path_buf, size_t buf_size)
 {
+    char account_dir_buf[256];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
+
     // Backup old pfile before migration
     snprintf(path_buf, buf_size, "%s%c.old/%s",
-             ACCOUNT_DIR, tolower(username[0]), username);
+             account_dir, tolower(username[0]), username);
 }
 
 bool json_ensure_account_dir(const char *username)
@@ -481,6 +487,8 @@ static bool backup_old_pfile(const char *filename, const char *username)
 {
     char backup_path[512];
     char backup_dir[256];
+    char account_dir_buf[256];
+    const char *account_dir = resolve_game_path(ACCOUNT_DIR, account_dir_buf, sizeof(account_dir_buf));
     FILE *src, *dst;
     char buffer[4096];
     size_t bytes;
@@ -492,7 +500,7 @@ static bool backup_old_pfile(const char *filename, const char *username)
 
         // Create backup directory
         snprintf(backup_dir, sizeof(backup_dir), "%s%c.old",
-                ACCOUNT_DIR, tolower(username[0]));
+            account_dir, tolower(username[0]));
         mkdir(backup_dir, 0755);
 
         // Copy file to backup

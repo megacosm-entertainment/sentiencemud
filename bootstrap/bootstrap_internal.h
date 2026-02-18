@@ -20,6 +20,7 @@ bool create_area_lst(void);
 bool create_limbo_area(void);
 bool create_human_race(void);
 bool create_game_settings(void);
+bool create_ci_test_fixture_areas(void);
 
 /* Reserved entities (bootstrap_reserved.c) */
 bool create_reserved_entities(void);
