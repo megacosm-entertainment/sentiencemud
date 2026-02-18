@@ -20,13 +20,13 @@
           {
             "input": "3001",
             "context_area": "Realm of Alendith",
-            "expected_area": "Realm of Alendith", 
+            "expected_area": "Dungeon Mystica", 
             "expected_vnum": 3001
           },
           {
             "input": "3000",
             "context_area": "Limbo",
-            "expected_area": "Limbo",
+            "expected_area": "Dungeon Mystica",
             "expected_vnum": 3000
           }
         ]
@@ -48,7 +48,7 @@
           {
             "input": "3000",
             "context_area": "Limbo",
-            "expected_area": "Limbo",
+            "expected_area": "Dungeon Mystica",
             "expected_vnum": 3000
           }
         ]

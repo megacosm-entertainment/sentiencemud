@@ -1728,11 +1728,13 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
                 "{B[  {Wv0{B]{G Charges:{x        [%d]\n\r"
                 "{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
                 "{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-                "{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r",
+                "{B[  {Wv3{B]{G Goes to (room):{x [%s]\n\r",
                 PORTAL(obj)->charges,
                 flag_string(portal_exit_flags, PORTAL(obj)->exit),
                 flag_string(portal_flags, PORTAL(obj)->flags),
-                PORTAL(obj)->params[0]);
+                widevnum_string(
+                    PORTAL(obj)->params[4] > 0 ? get_area_index(PORTAL(obj)->params[4]) : NULL,
+                    PORTAL(obj)->params[0], obj->area));
         }
         else
         {
@@ -2525,6 +2527,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                         PORTAL(pObj)->params[1] = 0;
                         PORTAL(pObj)->params[2] = 0;
                         PORTAL(pObj)->params[3] = 0;
+                        PORTAL(pObj)->params[4] = 0;
                     }
                 }
             }
@@ -2537,11 +2540,34 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                     send_to_char("THERE IS NO SUCH DUNGEON.\n\r\n\r", ch);
                     return false;
                 }
+                PORTAL(pObj)->params[0] = atol(argument);
+                PORTAL(pObj)->params[4] = 0;
                 send_to_char("DUNGEON VNUM SET.\n\r\n\r", ch);
             }
+            else if( !str_cmp(argument, "-1") )
+            {
+                PORTAL(pObj)->params[0] = -1;
+                PORTAL(pObj)->params[4] = 0;
+                send_to_char("AREA RANDOM DESTINATION SET.\n\r\n\r", ch);
+            }
             else
-                send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
-            PORTAL(pObj)->params[0] = atoi(argument);
+            {
+                AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+                WNUM dest_wnum = { NULL, 0 };
+
+                if( !parse_widevnum(argument, context, &dest_wnum)
+                    || !dest_wnum.pArea
+                    || !get_room_index(dest_wnum.pArea, dest_wnum.vnum) )
+                {
+                    send_to_char("NO SUCH DESTINATION ROOM.\n\r\n\r", ch);
+                    return false;
+                }
+
+                PORTAL(pObj)->params[0] = dest_wnum.vnum;
+                PORTAL(pObj)->params[1] = 0;
+                PORTAL(pObj)->params[4] = dest_wnum.pArea->uid;
+                send_to_char("EXIT DESTINATION SET.\n\r\n\r", ch);
+            }
             break;
         case 5:
             if( IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )

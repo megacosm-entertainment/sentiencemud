@@ -295,6 +295,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 
     if (arg3[0] != '\0' && !id_lookup) {
         WNUM wnum = { NULL, 0 };
+        AREA_DATA *token_area = NULL;
         parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum);
         vnum = wnum.vnum;
 
@@ -303,22 +304,23 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
                 send_to_char("That token vnum does not exist.\n\r", ch);
                 return;
             }
+            token_area = wnum.pArea;
         } else if (get_token_index_global(wnum.vnum) == NULL) {
             send_to_char("That token vnum does not exist.\n\r", ch);
             return;
         }
 
-        if (victim && !(token = get_token_char(victim, vnum, NULL, count))) {
+        if (victim && !(token = get_token_char(victim, vnum, token_area, count))) {
             act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (object && !(token = get_token_obj(object, vnum, NULL, count))) {
+        if (object && !(token = get_token_obj(object, vnum, token_area, count))) {
             act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (room && !(token = get_token_room(room, vnum, NULL, count))) {
+        if (room && !(token = get_token_room(room, vnum, token_area, count))) {
             send_to_char("The room doesn't have that token.", ch);
             return;
         }
@@ -582,9 +584,14 @@ SCRIPT_CMD(do_tpadjust)
     OBJ_DATA *object = NULL;
     ROOM_INDEX_DATA *room = NULL;
     TOKEN_DATA *token = NULL;
+    AREA_DATA *token_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM token_wnum = wnum_zero;
 
 
     if(!info) return;
+
+    context_area = get_area_from_scriptinfo(info);
 
     if(!(rest = expand_argument(info,argument,arg))) {
         pbugf(LOG_SCRIPTS,"TpAdjust - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
@@ -630,23 +637,33 @@ SCRIPT_CMD(do_tpadjust)
         switch(arg->type) {
         case ENT_STRING:
             count = number_argument(arg->d.str, arg2);
-            vnum = is_number(arg2) ? atoi(arg2) : 0;
+            if (parse_widevnum(arg2, context_area, &token_wnum) && token_wnum.pArea) {
+                vnum = token_wnum.vnum;
+                token_area = token_wnum.pArea;
+            } else {
+                vnum = 0;
+            }
             break;
-        case ENT_NUMBER: vnum = arg->d.num; count = 1; break;
+        case ENT_NUMBER:
+            vnum = arg->d.num;
+            count = 1;
+            if (resolve_widevnum(vnum, context_area, &token_wnum) && token_wnum.pArea)
+                token_area = token_wnum.pArea;
+            break;
         default: break;
         }
 
-        if (vnum < 1 || !get_token_index_from_info(info, vnum)) {
+        if (vnum < 1 || !token_area || !get_token_index(token_area, vnum)) {
             pbugf(LOG_SCRIPTS,"TpAdjust - invalid token vnum from vnum %ld.", info->room ? info->room->vnum : 0);
             return;
         }
 
         if(victim)
-            token = get_token_char(victim, vnum, NULL, count);
+            token = get_token_char(victim, vnum, token_area, count);
         else if(object)
-            token = get_token_obj(object, vnum, NULL, count);
+            token = get_token_obj(object, vnum, token_area, count);
         else if(room)
-            token = get_token_room(room, vnum, NULL, count);
+            token = get_token_room(room, vnum, token_area, count);
 
         if (!token) return;
     }
@@ -765,7 +782,8 @@ SCRIPT_CMD(do_tpcall)
     CHAR_DATA *vch, *ch;
     OBJ_DATA *obj1, *obj2;
     SCRIPT_DATA *script;
-    int depth, vnum;
+    int depth;
+    long vnum;
 
     int ret;
 
@@ -797,13 +815,8 @@ SCRIPT_CMD(do_tpcall)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, PRG_TPROG))) {
+    script = get_script_from_arg(info, arg, PRG_TPROG, &vnum);
+    if (vnum < 1 || !script) {
         pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
         return;
     }
@@ -1281,9 +1294,14 @@ SCRIPT_CMD(do_tpgive)
     ROOM_INDEX_DATA *room = NULL;
     TOKEN_INDEX_DATA *token_index;
     TOKEN_DATA *token;
+    AREA_DATA *token_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM token_wnum = wnum_zero;
 
 
     if(!info) return;
+
+    context_area = get_area_from_scriptinfo(info);
 
     if(!(rest = expand_argument(info,argument,arg))) {
         pbugf(LOG_SCRIPTS,"TpGive - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
@@ -1323,26 +1341,35 @@ SCRIPT_CMD(do_tpgive)
     }
 
     switch(arg->type) {
-    case ENT_STRING: vnum = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
+    case ENT_STRING:
+        if (parse_widevnum(arg->d.str, context_area, &token_wnum) && token_wnum.pArea) {
+            vnum = token_wnum.vnum;
+            token_area = token_wnum.pArea;
+        }
+        break;
+    case ENT_NUMBER:
+        vnum = arg->d.num;
+        if (resolve_widevnum(vnum, context_area, &token_wnum) && token_wnum.pArea)
+            token_area = token_wnum.pArea;
+        break;
     default: break;
     }
 
-    if (vnum < 1 || !(token_index = get_token_index_from_info(info, vnum))) {
+    if (vnum < 1 || !token_area || !(token_index = get_token_index(token_area, vnum))) {
         pbugf(LOG_SCRIPTS,"TpGive - invalid token vnum from vnum %ld.", info->room ? info->room->vnum : 0);
         return;
     }
 
     if (is_singular_token(token_index)) {
-        if (victim && get_token_char(victim, vnum, NULL, 1)) {
+        if (victim && get_token_char(victim, vnum, token_area, 1)) {
             pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to char %s",
                 token_index->name, token_index->vnum, HANDLE(victim));
             return;
-        } else if (object && get_token_obj(object, vnum, NULL, 1)) {
+        } else if (object && get_token_obj(object, vnum, token_area, 1)) {
             pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to object %s",
                 token_index->name, token_index->vnum, object->short_descr);
             return;
-        } else if (room && get_token_room(room, vnum, NULL, 1)) {
+        } else if (room && get_token_room(room, vnum, token_area, 1)) {
             pbugf(LOG_SCRIPTS, "TpGive - trying to give a second copy of token %s (%ld) to room %s",
                 token_index->name, token_index->vnum, room->name);
             return;
@@ -1370,9 +1397,14 @@ SCRIPT_CMD(do_tpjunk)
     OBJ_DATA *object = NULL;
     ROOM_INDEX_DATA *room = NULL;
     TOKEN_DATA *token = NULL;
+    AREA_DATA *token_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM token_wnum = wnum_zero;
 
 
     if(!info) return;
+
+    context_area = get_area_from_scriptinfo(info);
 
     if(!(rest = expand_argument(info,argument,arg))) {
         pbugf(LOG_SCRIPTS,"TpJunk - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
@@ -1418,19 +1450,29 @@ SCRIPT_CMD(do_tpjunk)
         switch(arg->type) {
         case ENT_STRING:
             count = number_argument(arg->d.str, arg2);
-            vnum = is_number(arg2) ? atoi(arg2) : 0;
+            if (parse_widevnum(arg2, context_area, &token_wnum) && token_wnum.pArea) {
+                vnum = token_wnum.vnum;
+                token_area = token_wnum.pArea;
+            } else {
+                vnum = 0;
+            }
             break;
 
-        case ENT_NUMBER: vnum = arg->d.num; count = 1; break;
+        case ENT_NUMBER:
+            vnum = arg->d.num;
+            count = 1;
+            if (resolve_widevnum(vnum, context_area, &token_wnum) && token_wnum.pArea)
+                token_area = token_wnum.pArea;
+            break;
         default: break;
         }
 
         if(victim)
-            token = get_token_char(victim, vnum, NULL, count);
+            token = get_token_char(victim, vnum, token_area, count);
         else if(object)
-            token = get_token_obj(object, vnum, NULL, count);
+            token = get_token_obj(object, vnum, token_area, count);
         else if(room)
-            token = get_token_room(room, vnum, NULL, count);
+            token = get_token_room(room, vnum, token_area, count);
 
         if (!token) return;
     }
@@ -2645,6 +2687,9 @@ SCRIPT_CMD(do_tpvforce)
 {
     char *rest;
     int vnum = 0;
+    AREA_DATA *target_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM target_wnum = wnum_zero;
     CHAR_DATA *vch, *next;
 
 
@@ -2655,9 +2700,22 @@ SCRIPT_CMD(do_tpvforce)
         return;
     }
 
+    context_area = get_area_from_scriptinfo(info);
+
     switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
+    case ENT_STRING:
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
+                vnum = target_wnum.vnum;
+                target_area = target_wnum.pArea;
+            }
+        } else {
+            vnum = atoi(arg->d.str);
+        }
+        break;
+    case ENT_NUMBER:
+        vnum = arg->d.num;
+        break;
     default: break;
     }
 
@@ -2673,7 +2731,10 @@ SCRIPT_CMD(do_tpvforce)
     {
         for (vch = token_room(info->token)->people; vch; vch = next) {
             next = vch->next_in_room;
-            if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum && !vch->fighting)
+            if (IS_NPC(vch)
+            &&  vch->pIndexData->vnum == vnum
+            &&  (!target_area || vch->pIndexData->area == target_area)
+            &&  !vch->fighting)
                 interpret(vch, buffer->string);
         }
     }
@@ -2835,11 +2896,16 @@ SCRIPT_CMD(do_tpremove)
     OBJ_DATA *obj = NULL;
     int vnum = 0, count = 0;
     bool fAll = false;
+    AREA_DATA *item_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM item_wnum = wnum_zero;
     ITERATOR it;
 
     char name[MIL], *rest;
 
     if(!info || !info->token) return;
+
+    context_area = get_area_from_scriptinfo(info);
 
     if(!(rest = expand_argument(info,argument,arg))) {
         pbugf(LOG_SCRIPTS,"TpRemove: Bad syntax from vnum %ld.", VNUM(info->token));
@@ -2869,7 +2935,12 @@ SCRIPT_CMD(do_tpremove)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if(is_number(arg->d.str))
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
+                vnum = item_wnum.vnum;
+                item_area = item_wnum.pArea;
+            }
+        } else if(is_number(arg->d.str))
             vnum = atoi(arg->d.str);
         else if(!str_cmp(arg->d.str,"all"))
             fAll = true;
@@ -2917,7 +2988,7 @@ SCRIPT_CMD(do_tpremove)
         if (victim->lcarrying && IS_VALID(victim->lcarrying)) {
             iterator_start(&it, victim->lcarrying);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     iterator_remcurrent(&it);
                     extract_obj(obj);
@@ -2932,7 +3003,7 @@ SCRIPT_CMD(do_tpremove)
         if (count != 0 && victim->lworn && IS_VALID(victim->lworn)) {
             iterator_start(&it, victim->lworn);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     iterator_remcurrent(&it);
                     unequip_char(victim, obj, true);
@@ -2948,7 +3019,7 @@ SCRIPT_CMD(do_tpremove)
         if (count != 0 && victim->llocker && IS_VALID(victim->llocker)) {
             iterator_start(&it, victim->llocker);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     iterator_remcurrent(&it);
                     extract_obj(obj);
@@ -3030,6 +3101,9 @@ SCRIPT_CMD(do_tplink)
     char *rest;
     ROOM_INDEX_DATA *room, *dest;
     int door, vnum;
+    AREA_DATA *link_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM link_wnum = wnum_zero;
     unsigned long id1, id2;
 
     bool del = false;
@@ -3039,6 +3113,8 @@ SCRIPT_CMD(do_tplink)
 
     if(!(rest = expand_argument(info,argument,arg)))
         return;
+
+    context_area = get_area_from_scriptinfo(info);
 
     switch(arg->type) {
     case ENT_STRING:
@@ -3069,7 +3145,12 @@ SCRIPT_CMD(do_tplink)
     id1 = id2 = 0;
     switch(arg->type) {
     case ENT_STRING:
-        if(is_number(arg->d.str))
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &link_wnum) && link_wnum.pArea) {
+                vnum = link_wnum.vnum;
+                link_area = link_wnum.pArea;
+            }
+        } else if(is_number(arg->d.str))
             vnum = atoi(arg->d.str);
         else if(!str_cmp(arg->d.str,"delete") ||
             !str_cmp(arg->d.str,"remove") ||
@@ -3104,16 +3185,20 @@ SCRIPT_CMD(do_tplink)
         break;
     case ENT_ROOM:
         vnum = arg->d.room ? arg->d.room->vnum : -1;
+        link_area = arg->d.room ? arg->d.room->area : NULL;
         break;
     case ENT_EXIT:
         // Only allow STATIC links
         vnum = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door] && arg->d.door.r->exit[arg->d.door.door]->u1.to_room) ? arg->d.door.r->exit[arg->d.door.door]->u1.to_room->vnum : -1;
+        link_area = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door] && arg->d.door.r->exit[arg->d.door.door]->u1.to_room) ? arg->d.door.r->exit[arg->d.door.door]->u1.to_room->area : NULL;
         break;
     case ENT_MOBILE:
         vnum = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->vnum : -1;
+        link_area = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->area : NULL;
         break;
     case ENT_OBJECT:
         vnum = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->vnum : -1;
+        link_area = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->area : NULL;
         break;
     }
 
@@ -3124,10 +3209,14 @@ SCRIPT_CMD(do_tplink)
 
     WNUM dest_wnum;
     if(id1 > 0 || id2 > 0) {
-        if (resolve_widevnum(vnum, NULL, &dest_wnum))
+        if (link_area)
+            dest = get_clone_room(get_room_index(link_area, vnum),id1,id2);
+        else if (resolve_widevnum(vnum, NULL, &dest_wnum))
             dest = get_clone_room(get_room_index(dest_wnum.pArea, dest_wnum.vnum),id1,id2);
     } else if(vnum > 0) {
-        if (resolve_widevnum(vnum, NULL, &dest_wnum))
+        if (link_area)
+            dest = get_room_index(link_area, vnum);
+        else if (resolve_widevnum(vnum, NULL, &dest_wnum))
             dest = get_room_index(dest_wnum.pArea, dest_wnum.vnum);
     } else if(environ)
         dest = &room_pointer_environment;
@@ -4747,8 +4836,9 @@ SCRIPT_CMD(do_tpstripaffectname)
 SCRIPT_CMD(do_tpinput)
 {
     char *rest, *p;
-    int vnum;
+    long vnum;
     CHAR_DATA *mob = NULL;
+    SCRIPT_DATA *script = NULL;
 
 
     if(!info || !info->token) return;
@@ -4784,12 +4874,8 @@ SCRIPT_CMD(do_tpinput)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: return;
-    }
-
-    if(vnum < 1 || !get_script_from_info(info, vnum, PRG_TPROG)) return;
+    script = get_script_from_arg(info, arg, PRG_TPROG, &vnum);
+    if(vnum < 1 || !script) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
         pbugf(LOG_SCRIPTS,"TpInput - Error in parsing from vnum %ld.", VNUM(info->token));
@@ -5638,7 +5724,8 @@ SCRIPT_CMD(do_tpxcall)
     CHAR_DATA *vch, *ch;
     OBJ_DATA *obj1, *obj2;
     SCRIPT_DATA *script;
-    int depth, vnum, space = PRG_MPROG;
+    int depth, space = PRG_MPROG;
+    long vnum;
 
     int ret;
 
@@ -5698,13 +5785,8 @@ SCRIPT_CMD(do_tpxcall)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
+    script = get_script_from_arg(info, arg, space, &vnum);
+    if (vnum < 1 || !script) {
         pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
         return;
     }

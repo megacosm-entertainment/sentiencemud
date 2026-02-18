@@ -914,7 +914,8 @@ SCRIPT_CMD(do_mpcall)
     CHAR_DATA *vch = NULL,*ch = NULL;
     OBJ_DATA *obj1 = NULL,*obj2 = NULL;
     SCRIPT_DATA *script;
-    int depth, vnum, ret;
+    int depth, ret;
+    long vnum;
 
 
     DBG2ENTRY2(PTR,info,PTR,argument);
@@ -945,13 +946,8 @@ SCRIPT_CMD(do_mpcall)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, PRG_MPROG))) {
+    script = get_script_from_arg(info, arg, PRG_MPROG, &vnum);
+    if (!script || vnum < 1) {
         pbugf(LOG_SCRIPTS, "MpCall: invalid prog from vnum %d.", VNUM(info->mob));
         return;
     }
@@ -2563,6 +2559,9 @@ SCRIPT_CMD(do_mplink)
     ROOM_INDEX_DATA *room, *dest;
     EXIT_DATA *ex;
     int door, vnum;
+    AREA_DATA *link_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM link_wnum = wnum_zero;
     unsigned long id1, id2;
 
     bool del = false;
@@ -2572,6 +2571,8 @@ SCRIPT_CMD(do_mplink)
 
     if(!(rest = expand_argument(info,argument,arg)))
         return;
+
+    context_area = get_area_from_scriptinfo(info);
 
     switch(arg->type) {
     case ENT_STRING:
@@ -2602,8 +2603,13 @@ SCRIPT_CMD(do_mplink)
     id1 = id2 = 0;
     switch(arg->type) {
     case ENT_STRING:
-        if(is_number(arg->d.str))
-            vnum = arg->d.num;
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &link_wnum) && link_wnum.pArea) {
+                vnum = link_wnum.vnum;
+                link_area = link_wnum.pArea;
+            }
+        } else if(is_number(arg->d.str))
+            vnum = atoi(arg->d.str);
         else if(!str_cmp(arg->d.str,"delete") ||
             !str_cmp(arg->d.str,"remove") ||
             !str_cmp(arg->d.str,"unlink")) {
@@ -2637,16 +2643,20 @@ SCRIPT_CMD(do_mplink)
         break;
     case ENT_ROOM:
         vnum = arg->d.room ? arg->d.room->vnum : -1;
+        link_area = arg->d.room ? arg->d.room->area : NULL;
         break;
     case ENT_EXIT:
         ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
-        vnum = ex ? ex->u1.to_room->vnum : -1;
+        vnum = ex && ex->u1.to_room ? ex->u1.to_room->vnum : -1;
+        link_area = ex && ex->u1.to_room ? ex->u1.to_room->area : NULL;
         break;
     case ENT_MOBILE:
         vnum = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->vnum : -1;
+        link_area = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->area : NULL;
         break;
     case ENT_OBJECT:
         vnum = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->vnum : -1;
+        link_area = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->area : NULL;
         break;
     }
 
@@ -2655,10 +2665,17 @@ SCRIPT_CMD(do_mplink)
         return;
     }
 
-    if(id1 > 0 || id2 > 0)
-        dest = get_clone_room(get_room_index_from_info(info, vnum),id1,id2);
-    else if(vnum > 0)
-        dest = get_room_index_from_info(info, vnum);
+    if(id1 > 0 || id2 > 0) {
+        if (link_area)
+            dest = get_clone_room(get_room_index(link_area, vnum),id1,id2);
+        else
+            dest = get_clone_room(get_room_index_from_info(info, vnum),id1,id2);
+    } else if(vnum > 0) {
+        if (link_area)
+            dest = get_room_index(link_area, vnum);
+        else
+            dest = get_room_index_from_info(info, vnum);
+    }
     else if(environ)
         dest = &room_pointer_environment;
     else
@@ -3052,6 +3069,9 @@ SCRIPT_CMD(do_mpremove)
     OBJ_DATA *obj = NULL;
     int vnum = 0, count = 0;
     bool fAll = false;
+    AREA_DATA *item_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM item_wnum = wnum_zero;
     ITERATOR it;
 
     char name[MIL], *rest;
@@ -3062,6 +3082,8 @@ SCRIPT_CMD(do_mpremove)
         pbugf(LOG_SCRIPTS, "MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
+
+    context_area = get_area_from_scriptinfo(info);
 
     switch(arg->type) {
     case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
@@ -3086,7 +3108,12 @@ SCRIPT_CMD(do_mpremove)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if(is_number(arg->d.str))
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
+                vnum = item_wnum.vnum;
+                item_area = item_wnum.pArea;
+            }
+        } else if(is_number(arg->d.str))
             vnum = atoi(arg->d.str);
         else if(!str_cmp(arg->d.str,"all"))
             fAll = true;
@@ -3134,7 +3161,7 @@ SCRIPT_CMD(do_mpremove)
         if (victim->lcarrying && IS_VALID(victim->lcarrying)) {
             iterator_start(&it, victim->lcarrying);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     iterator_remcurrent(&it);
                     extract_obj(obj);
@@ -3149,7 +3176,7 @@ SCRIPT_CMD(do_mpremove)
         if (count != 0 && victim->lworn && IS_VALID(victim->lworn)) {
             iterator_start(&it, victim->lworn);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     iterator_remcurrent(&it);
                     unequip_char(victim, obj, true);
@@ -3165,7 +3192,7 @@ SCRIPT_CMD(do_mpremove)
         if (count != 0 && victim->llocker && IS_VALID(victim->llocker)) {
             iterator_start(&it, victim->llocker);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     iterator_remcurrent(&it);
                     extract_obj(obj);
@@ -3209,6 +3236,9 @@ SCRIPT_CMD(do_mptake)
     OBJ_DATA *obj = NULL;
     int vnum = 0, count = 0, taken = 0;
     bool fAll = false, force = false;
+    AREA_DATA *item_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM item_wnum = wnum_zero;
     ITERATOR it;
 
     char name[MIL], *rest;
@@ -3219,6 +3249,8 @@ SCRIPT_CMD(do_mptake)
         pbugf(LOG_SCRIPTS, "MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
         return;
     }
+
+    context_area = get_area_from_scriptinfo(info);
 
     switch(arg->type) {
     case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
@@ -3243,7 +3275,12 @@ SCRIPT_CMD(do_mptake)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if(is_number(arg->d.str))
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
+                vnum = item_wnum.vnum;
+                item_area = item_wnum.pArea;
+            }
+        } else if(is_number(arg->d.str))
             vnum = atoi(arg->d.str);
         else if(!str_cmp(arg->d.str,"all"))
             fAll = true;
@@ -3308,7 +3345,7 @@ SCRIPT_CMD(do_mptake)
         if (victim->lcarrying && IS_VALID(victim->lcarrying)) {
             iterator_start(&it, victim->lcarrying);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     // Not even FORCE will allow this...
                     if(victim->recite_scroll == obj) continue;
@@ -3332,7 +3369,7 @@ SCRIPT_CMD(do_mptake)
         if (count != 0 && victim->lworn && IS_VALID(victim->lworn)) {
             iterator_start(&it, victim->lworn);
             while ((obj = iterator_nextdata(&it))) {
-                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum && (!item_area || obj->pIndexData->area == item_area)) ||
                     (*name && is_name(name, obj->name))) {
                     // Not even FORCE will allow this...
                     if(victim->recite_scroll == obj) continue;
@@ -3452,6 +3489,9 @@ SCRIPT_CMD(do_mpvforce)
 {
     char *rest;
     int vnum = 0;
+    AREA_DATA *target_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM target_wnum = wnum_zero;
     CHAR_DATA *vch, *next;
 
 
@@ -3462,8 +3502,19 @@ SCRIPT_CMD(do_mpvforce)
         return;
     }
 
+    context_area = get_area_from_scriptinfo(info);
+
     switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
+    case ENT_STRING:
+        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
+                vnum = target_wnum.vnum;
+                target_area = target_wnum.pArea;
+            }
+        } else {
+            vnum = atoi(arg->d.str);
+        }
+        break;
     case ENT_NUMBER: vnum = arg->d.num; break;
     default: break;
     }
@@ -3484,6 +3535,7 @@ SCRIPT_CMD(do_mpvforce)
     for (vch = info->mob->in_room->people; vch; vch = next) {
         next = vch->next_in_room;
         if (IS_NPC(vch) && vch->pIndexData->vnum == vnum &&
+            (!target_area || vch->pIndexData->area == target_area) &&
             get_staff_rank(vch) < get_staff_rank(info->mob)
             && can_see(info->mob, vch)
             && (IS_NPC(vch) || !IS_IMMORTAL(vch)))
@@ -5041,8 +5093,9 @@ SCRIPT_CMD(do_mpskimprove)
 SCRIPT_CMD(do_mpinput)
 {
     char *rest, *p;
-    int vnum;
+    long vnum;
     CHAR_DATA *mob = NULL;
+    SCRIPT_DATA *script = NULL;
 
 
     if(!info || !info->mob) return;
@@ -5078,12 +5131,8 @@ SCRIPT_CMD(do_mpinput)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: return;
-    }
-
-    if(vnum < 1 || !get_script_from_info(info, vnum, PRG_MPROG)) return;
+    script = get_script_from_arg(info, arg, PRG_MPROG, &vnum);
+    if(vnum < 1 || !script) return;
 
     if(!(rest = expand_argument(info,rest,arg))) {
         pbugf(LOG_SCRIPTS, "MpInput - Error in parsing from vnum %ld.", VNUM(info->mob));
@@ -6486,7 +6535,8 @@ SCRIPT_CMD(do_mpxcall)
     CHAR_DATA *vch = NULL,*ch = NULL;
     OBJ_DATA *obj1 = NULL,*obj2 = NULL;
     SCRIPT_DATA *script;
-    int depth, vnum, ret, space = PRG_MPROG;
+    int depth, ret, space = PRG_MPROG;
+    long vnum;
 
 
     DBG2ENTRY2(PTR,info,PTR,argument);
@@ -6552,13 +6602,8 @@ SCRIPT_CMD(do_mpxcall)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
+    script = get_script_from_arg(info, arg, space, &vnum);
+    if (!script || vnum < 1) {
         pbugf(LOG_SCRIPTS, "MpCall: invalid prog from vnum %ld.", VNUM(info->mob));
         return;
     }

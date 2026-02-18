@@ -1,18 +1,42 @@
 {
   "type": "test_suite",
   "test_suite": "wnum_parsing_unit_tests",
-  "description": "Unit tests for WNUM parsing functions",
-  "requires_mud_environment": false,
+  "description": "Scenario coverage for WNUM parsing behavior",
+  "requires_mud_environment": true,
   "test_level": "unit",
   "tests": [
     {
-      "name": "parse_relative_vnum",
+      "name": "parse_required_wnum_scenarios",
       "test_type": "pure_function_test",
       "input": {
         "function": "parse_widevnum",
         "test_cases": [
-          {"argument": "#1234", "expected_vnum": 1234, "expected_success": true},
-          {"argument": "invalid", "expected_vnum": 0, "expected_success": false}
+          {
+            "input": "923#20",
+            "expected_area": "Limbo",
+            "expected_vnum": 20
+          },
+          {
+            "input": "Limbo#20",
+            "expected_area": "Limbo",
+            "expected_vnum": 20
+          },
+          {
+            "input": "#20",
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 20
+          },
+          {
+            "input": "20",
+            "context_area": "Realm of Alendith",
+            "expected_area": "Limbo",
+            "expected_vnum": 20
+          },
+          {
+            "input": "#20",
+            "expected_vnum": 0
+          }
         ]
       },
       "expected_output": {

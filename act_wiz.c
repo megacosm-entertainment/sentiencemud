@@ -3907,29 +3907,34 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     }
 
     if (arg3[0] != '\0' && !id_lookup) {
-        vnum = atol(arg3);
-
         AREA_DATA *tok_area = NULL;
-        WNUM res;
-        if (resolve_widevnum(vnum, NULL, &res))
-            tok_area = res.pArea;
-        if (!tok_area) tok_area = get_system_area_fallback();
+        WNUM tok_wnum = wnum_zero;
+
+        if (!parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &tok_wnum)
+        || !tok_wnum.pArea) {
+            send_to_char("That token vnum does not exist.\n\r", ch);
+            return;
+        }
+
+        vnum = tok_wnum.vnum;
+        tok_area = tok_wnum.pArea;
+
         if (get_token_index(tok_area, vnum) == NULL) {
             send_to_char("That token vnum does not exist.\n\r", ch);
             return;
         }
 
-        if (victim  && !(token= get_token_char(victim, vnum, NULL, count))) {
+        if (victim  && !(token= get_token_char(victim, vnum, tok_area, count))) {
             act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (object && !(token = get_token_obj(object, vnum, NULL, count))) {
+        if (object && !(token = get_token_obj(object, vnum, tok_area, count))) {
             act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
 
-        if (room && !(token = get_token_room(room, vnum, NULL, count))) {
+        if (room && !(token = get_token_room(room, vnum, tok_area, count))) {
             send_to_char("The room doesn't have that token.", ch);
             return;
         }
@@ -7185,9 +7190,19 @@ void do_tkset(CHAR_DATA *ch, char *argument)
     }
 
     count = number_argument(arg2,arg2b);
-    vnum = atol(arg2b);
+    WNUM token_wnum = wnum_zero;
+    AREA_DATA *token_area = NULL;
 
-    if ((token = get_token_char(victim, vnum, NULL, count)) == NULL) {
+    if (!parse_widevnum(arg2b, ch->in_room ? ch->in_room->area : NULL, &token_wnum)
+    || !token_wnum.pArea) {
+        send_to_char("Invalid token vnum.\n\r", ch);
+        return;
+    }
+
+    vnum = token_wnum.vnum;
+    token_area = token_wnum.pArea;
+
+    if ((token = get_token_char(victim, vnum, token_area, count)) == NULL) {
         send_to_char("Character doesn't have that token vnum.\n\r", ch);
         return;
     }
@@ -7875,10 +7890,17 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "recall"))
     {
-    long recall_vnum = atol(arg3);
-    WNUM wnum;
+    WNUM wnum = wnum_zero;
     ROOM_INDEX_DATA *recall_room = NULL;
-    if (resolve_widevnum(recall_vnum, NULL, &wnum))
+
+    if (!parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum)
+    || !wnum.pArea)
+    {
+        send_to_char("That room doesn't exist.\n\r", ch);
+        return;
+    }
+
+    if (wnum.pArea)
         recall_room = get_room_index(wnum.pArea, wnum.vnum);
     if (recall_room == NULL)
     {
@@ -7887,12 +7909,12 @@ void do_chset(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf,
-        "You have set %s's temple recall point to %ld - %s.\n\r",
+        "You have set %s's temple recall point to %s - %s.\n\r",
         church->name,
-        recall_vnum,
+        widevnum_string(wnum.pArea, wnum.vnum, NULL),
         recall_room->name);
     send_to_char(buf, ch);
-    church->recall_point.id[0] = atol(arg3);
+    church->recall_point.id[0] = wnum.vnum;
     church->recall_point.id[1] = church->recall_point.id[2] = 0;
     church->recall_point.wuid = 0;
     return;
@@ -7900,10 +7922,17 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "key"))
     {
-    long key_vnum = atol(arg3);
-    WNUM wnum;
+    WNUM wnum = wnum_zero;
     OBJ_INDEX_DATA *key_obj = NULL;
-    if (resolve_widevnum(key_vnum, NULL, &wnum))
+
+    if (!parse_widevnum(arg3, ch->in_room ? ch->in_room->area : NULL, &wnum)
+    || !wnum.pArea)
+    {
+        send_to_char("That object doesn't exist.\n\r", ch);
+        return;
+    }
+
+    if (wnum.pArea)
         key_obj = get_obj_index(wnum.pArea, wnum.vnum);
     if (key_obj == NULL)
     {
@@ -7912,12 +7941,12 @@ void do_chset(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf,
-        "You have set %s's key to %ld - %s.\n\r",
+        "You have set %s's key to %s - %s.\n\r",
         church->name,
-        key_vnum,
+        widevnum_string(wnum.pArea, wnum.vnum, NULL),
         key_obj->short_descr);
     send_to_char(buf, ch);
-    church->key = atol(arg3);
+    church->key = wnum.vnum;
     return;
     }
 
@@ -7958,19 +7987,11 @@ void do_chset(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if(!is_number(argument))
-            {
-                send_to_char("That's not even a number.\n\r", ch);
-                return;
-            }
-
-            long vnum = atol(argument);
-            WNUM wnum;
+            WNUM wnum = wnum_zero;
             ROOM_INDEX_DATA *room = NULL;
-            if (resolve_widevnum(vnum, NULL, &wnum))
+            if (parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum)
+            && wnum.pArea)
                 room = get_room_index(wnum.pArea, wnum.vnum);
-            else
-                room = get_room_index(get_system_area_fallback(), vnum);
 
             if(!room)
             {
@@ -8002,19 +8023,11 @@ void do_chset(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if(!is_number(argument))
-            {
-                send_to_char("That's not even a number.\n\r", ch);
-                return;
-            }
-
-            long vnum = atol(argument);
-            WNUM wnum;
+            WNUM wnum = wnum_zero;
             ROOM_INDEX_DATA *room = NULL;
-            if (resolve_widevnum(vnum, NULL, &wnum))
+            if (parse_widevnum(argument, ch->in_room ? ch->in_room->area : NULL, &wnum)
+            && wnum.pArea)
                 room = get_room_index(wnum.pArea, wnum.vnum);
-            else
-                room = get_room_index(get_system_area_fallback(), vnum);
 
             if(!room)
             {
@@ -10047,6 +10060,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     long vnum = 0;
+    WNUM room_wnum = wnum_zero;
     long iHash;
     int door;
     bool found = false;
@@ -10169,33 +10183,31 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
         return;
     }
     }
-    /* Room vnum provided, so lets go find the area it belongs to */
-    else if(is_number(arg1))
+    /* Room vnum or widevnum provided, so lets go find the area it belongs to */
+    else if (parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &room_wnum)
+        && room_wnum.pArea)
     {
-    vnum = atol(arg1);
+    vnum = room_wnum.vnum;
 
-    /* Hah! No funny vnums! I saw you trying to break it... */
-    if (vnum <= 0 || vnum > 2147483647)
+    /* Keep legacy behavior for bare vnum: require it to belong to a known area range */
+    if (is_number(arg1))
     {
-        send_to_char("The vnum must be between 1 and 2147483647.\n\r",ch);
-        return;
+        parea = find_area_by_vnum(vnum, NULL);
+    }
+    else
+    {
+        parea = room_wnum.pArea;
+        if (vnum < parea->min_vnum || vnum > parea->max_vnum)
+            parea = NULL;
     }
 
-    /* Search the areas for the appropriate vnum range */
-    for (parea = area_first; parea != NULL; parea = parea->next)
-    {
-        if(vnum >= parea->min_vnum && vnum <= parea->max_vnum)
-        break;
-    }
-
-    /* Whoops, vnum not contained in any area */
     if (parea == NULL)
     {
         send_to_char("There is no area containing that vnum.\n\r",ch);
         return;
     }
     }
-    /* Non-number argument, must be trying for an area name */
+    /* Non-vnum argument, must be trying for an area name */
     else
     {
     /* Loop the areas, compare the name to argument */
@@ -10389,6 +10401,8 @@ void do_junk(CHAR_DATA *ch, char *argument)
     char arg2[MAX_STRING_LENGTH];
     bool fAll = false;
     bool found = false;
+    bool by_vnum = false;
+    WNUM obj_wnum = wnum_zero;
     ITERATOR it;
 
     argument = one_argument(argument, arg);
@@ -10410,14 +10424,12 @@ void do_junk(CHAR_DATA *ch, char *argument)
     && !str_cmp(argument, "all"))
         fAll = true;
 
-    if (is_number(arg2)) {
-        long vnum = atol(arg2);
-        WNUM wnum;
+    if (parse_widevnum(arg2, ch->in_room ? ch->in_room->area : NULL, &obj_wnum)
+    && obj_wnum.pArea) {
         OBJ_INDEX_DATA *obj_ind = NULL;
-        if (resolve_widevnum(vnum, NULL, &wnum))
-            obj_ind = get_obj_index(wnum.pArea, wnum.vnum);
-        else
-            obj_ind = get_obj_index(get_system_area_fallback(), vnum);
+
+        by_vnum = true;
+        obj_ind = get_obj_index(obj_wnum.pArea, obj_wnum.vnum);
 
         if (obj_ind == NULL)
         {
@@ -10429,8 +10441,9 @@ void do_junk(CHAR_DATA *ch, char *argument)
     iterator_start(&it, victim->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if ((is_number(arg2)
-             && obj->pIndexData->vnum == atol(arg2))
+           if ((by_vnum
+               && obj->pIndexData->vnum == obj_wnum.vnum
+               && obj->pIndexData->area == obj_wnum.pArea)
         || (is_name(arg2, obj->name)))
         {
             act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);

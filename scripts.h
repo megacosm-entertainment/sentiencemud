@@ -2572,6 +2572,7 @@ bool script_dungeon_remref(DUNGEON *dungeon);
 /* Helper functions */
 AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info);
 SCRIPT_DATA *get_script_from_info(SCRIPT_VARINFO *info, long vnum, int type);
+SCRIPT_DATA *get_script_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, int type, long *resolved_vnum);
 MOB_INDEX_DATA *get_mob_index_from_info(SCRIPT_VARINFO *info, long vnum);
 OBJ_INDEX_DATA *get_obj_index_from_info(SCRIPT_VARINFO *info, long vnum);
 ROOM_INDEX_DATA *get_room_index_from_info(SCRIPT_VARINFO *info, long vnum);

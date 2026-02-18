@@ -1255,23 +1255,48 @@ OEDIT(oedit_portal)
                     PORTAL(pObj)->params[1] = 0;
                     PORTAL(pObj)->params[2] = 0;
                     PORTAL(pObj)->params[3] = 0;
+                    PORTAL(pObj)->params[4] = 0;
                 }
             }
             send_to_char("Portal flags toggled.\n\r", ch);
             return true;
         }
         if (!str_prefix(field, "destination")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: portal destination <vnum>\n\r", ch); return false; }
+            if (argument[0] == '\0') { send_to_char("Syntax: portal destination <widevnum|-1>\n\r", ch); return false; }
             if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON)) {
                 if (!get_dungeon_index(atoi(argument))) {
                     send_to_char("There is no such dungeon.\n\r", ch);
                     return false;
                 }
+                PORTAL(pObj)->params[0] = atol(argument);
+                PORTAL(pObj)->params[4] = 0;
                 send_to_char("Dungeon vnum set.\n\r", ch);
-            } else {
-                send_to_char("Destination vnum set.\n\r", ch);
+                return true;
             }
-            PORTAL(pObj)->params[0] = atol(argument);
+
+            if (!str_cmp(argument, "-1")) {
+                PORTAL(pObj)->params[0] = -1;
+                PORTAL(pObj)->params[4] = 0;
+                send_to_char("Destination mode set to area random.\n\r", ch);
+                return true;
+            }
+
+            {
+                AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+                WNUM dest_wnum = { NULL, 0 };
+
+                if (!parse_widevnum(argument, context, &dest_wnum) || dest_wnum.pArea == NULL
+                    || get_room_index(dest_wnum.pArea, dest_wnum.vnum) == NULL) {
+                    send_to_char("No such destination room.\n\r", ch);
+                    return false;
+                }
+
+                PORTAL(pObj)->params[0] = dest_wnum.vnum;
+                PORTAL(pObj)->params[1] = 0;
+                PORTAL(pObj)->params[4] = dest_wnum.pArea->uid;
+            }
+
+            send_to_char("Destination room set.\n\r", ch);
             return true;
         }
         if (!str_prefix(field, "param1")) {
@@ -1342,11 +1367,13 @@ OEDIT(oedit_portal)
             "  {Gcharges      {x [%d]\n\r"
             "  {Gexit         {x %s\n\r"
             "  {Gflags        {x %s\n\r"
-            "  {Gdestination  {x [%ld] (vnum)\n\r",
+            "  {Gdestination  {x [%s]\n\r",
             PORTAL(pObj)->charges,
             flag_string(portal_exit_flags, PORTAL(pObj)->exit),
             flag_string(portal_flags, PORTAL(pObj)->flags),
-            PORTAL(pObj)->params[0]);
+            widevnum_string(
+                PORTAL(pObj)->params[4] > 0 ? get_area_index(PORTAL(pObj)->params[4]) : NULL,
+                PORTAL(pObj)->params[0], pObj->area));
     } else {
         sprintf(buf,
             "{WPortal (Wilderness):{x\n\r"
@@ -2425,11 +2452,13 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
                 "  {Gcharges      {x [%d]\n\r"
                 "  {Gexit         {x %s\n\r"
                 "  {Gflags        {x %s\n\r"
-                "  {Gdestination  {x [%ld] (vnum)\n\r",
+                "  {Gdestination  {x [%s]\n\r",
                 PORTAL(pObj)->charges,
                 flag_string(portal_exit_flags, PORTAL(pObj)->exit),
                 flag_string(portal_flags, PORTAL(pObj)->flags),
-                PORTAL(pObj)->params[0]);
+                widevnum_string(
+                    PORTAL(pObj)->params[4] > 0 ? get_area_index(PORTAL(pObj)->params[4]) : NULL,
+                    PORTAL(pObj)->params[0], pObj->area));
         } else {
             sprintf(buf,
                 "\n\r{WPortal (Wilderness):{x\n\r"

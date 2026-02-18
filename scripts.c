@@ -8945,6 +8945,64 @@ SCRIPT_DATA *get_script_from_info(SCRIPT_VARINFO *info, long vnum, int type)
 }
 
 /**
+ * get_script_from_arg - Resolve a script reference argument to a script index
+ *
+ * Supports:
+ * - Numeric values (existing behavior via get_script_from_info)
+ * - Numeric strings (existing behavior)
+ * - Explicit widevnum strings containing '#', parsed with script area context
+ */
+SCRIPT_DATA *get_script_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, int type, long *resolved_vnum)
+{
+    long vnum = 0;
+
+    if (!info || !arg) {
+        return NULL;
+    }
+
+    switch (arg->type) {
+    case ENT_NUMBER:
+        vnum = arg->d.num;
+        if (resolved_vnum) {
+            *resolved_vnum = vnum;
+        }
+        return (vnum > 0) ? get_script_from_info(info, vnum, type) : NULL;
+
+    case ENT_STRING:
+        if (IS_NULLSTR(arg->d.str)) {
+            return NULL;
+        }
+
+        if (strchr(arg->d.str, '#') != NULL) {
+            WNUM wnum = wnum_zero;
+            AREA_DATA *context = get_area_from_scriptinfo(info);
+
+            if (!parse_widevnum(arg->d.str, context, &wnum) || !wnum.pArea || wnum.vnum < 1) {
+                return NULL;
+            }
+
+            if (resolved_vnum) {
+                *resolved_vnum = wnum.vnum;
+            }
+            return get_script_index(wnum.pArea, wnum.vnum, type);
+        }
+
+        if (!is_number(arg->d.str)) {
+            return NULL;
+        }
+
+        vnum = atol(arg->d.str);
+        if (resolved_vnum) {
+            *resolved_vnum = vnum;
+        }
+        return (vnum > 0) ? get_script_from_info(info, vnum, type) : NULL;
+
+    default:
+        return NULL;
+    }
+}
+
+/**
  * get_mob_index_from_info - Look up a mob index using the calling script's area context
  */
 MOB_INDEX_DATA *get_mob_index_from_info(SCRIPT_VARINFO *info, long vnum)

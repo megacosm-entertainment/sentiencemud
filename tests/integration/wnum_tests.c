@@ -374,6 +374,8 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
     
     json_t *input = json_object_get(test->config, "input");
     json_t *test_cases = json_object_get(input, "test_cases");
+    const char *suite_context_name = test_json_get_string(input, "area_context");
+    AREA_DATA *suite_context_area = suite_context_name ? find_area((char*)suite_context_name) : NULL;
     
     if (!json_is_array(test_cases)) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid structured WNUM test: no test_cases array");
@@ -385,13 +387,17 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
     json_array_foreach(test_cases, index, test_case) {
         const char *vnum_string = test_json_get_string(test_case, "vnum_string");
         const char *context_area_name = test_json_get_string(test_case, "context_area");
+        bool should_parse = true;
+        if (json_object_get(test_case, "should_parse")) {
+            should_parse = test_json_get_bool(test_case, "should_parse");
+        }
         
         if (!vnum_string) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid test case: missing vnum_string");
             return TEST_ERROR;
         }
         
-        AREA_DATA *context_area = context_area_name ? find_area((char*)context_area_name) : NULL;
+        AREA_DATA *context_area = context_area_name ? find_area((char*)context_area_name) : suite_context_area;
         if (context_area_name && !context_area) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, 
                           "Context area not found: %s", context_area_name);
@@ -399,10 +405,21 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
         }
         
         WNUM result;
-        if (!parse_widevnum((char*)vnum_string, context_area, &result)) {
+        bool parse_ok = parse_widevnum((char*)vnum_string, context_area, &result);
+        if (!parse_ok && should_parse) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, 
                           "WNUM parsing failed for input: %s", vnum_string);
             return TEST_FAILURE;
+        }
+
+        if (parse_ok && !should_parse) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                          "WNUM parsing unexpectedly succeeded for input: %s", vnum_string);
+            return TEST_FAILURE;
+        }
+
+        if (!parse_ok && !should_parse) {
+            continue;
         }
         
         log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
@@ -827,8 +844,41 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
     }
     
     const char *reserved_name = test_json_get_string(input, "reserved_name");
+    bool check_area_items = test_json_get_bool(input, "check_area_items");
     bool should_exist = test_json_get_bool(input, "should_exist");
-    
+
+    if (check_area_items) {
+        ITERATOR it;
+        RESERVED_DATA *reserved;
+        bool found_area_reserved = false;
+
+        if (!reserved_vnums) {
+            return TEST_ERROR;
+        }
+
+        iterator_start(&it, reserved_vnums);
+        while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+            AREA_DATA *area;
+
+            if (reserved->type != RESERVED_AREA) {
+                continue;
+            }
+
+            found_area_reserved = true;
+            area = get_area_index(reserved->wnum.auid);
+            if (!area && reserved->wnum.auid > 0) {
+                iterator_stop(&it);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Reserved AREA '%s' has invalid area UID %ld",
+                             reserved->name, reserved->wnum.auid);
+                return TEST_FAILURE;
+            }
+        }
+        iterator_stop(&it);
+
+        return found_area_reserved ? TEST_SUCCESS : TEST_FAILURE;
+    }
+
     if (!reserved_name) {
         return TEST_ERROR;
     }

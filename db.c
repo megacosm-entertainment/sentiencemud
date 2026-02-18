@@ -1130,9 +1130,10 @@ void new_reset(ROOM_INDEX_DATA *pR, RESET_DATA *pReset)
  * fix_portal_destinations - Resolve bare portal destination vnums to area UIDs
  *
  * After all areas are loaded, iterates every object index across all areas.
- * For portals with a destination vnum (value[3]) but no area UID (value[4]),
- * looks up which area owns that vnum and stores its UID in value[4].
- * Skips dungeon portals (GATE_DUNGEON flag in value[2]).
+ * For portals with a destination vnum but no destination area UID,
+ * looks up which area owns that vnum and stores its UID in the canonical
+ * typed portal data (params[4]), keeping legacy value[4] synchronized.
+ * Skips dungeon portals.
  */
 void fix_portal_destinations(void)
 {
@@ -1146,14 +1147,37 @@ void fix_portal_destinations(void)
         {
             for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
             {
-                if (obj->item_type == ITEM_PORTAL
-                &&  obj->value[3] > 0
-                &&  obj->value[4] == 0
-                &&  !IS_SET(obj->value[2], GATE_DUNGEON))
+                if (obj->item_type == ITEM_PORTAL)
                 {
-                    AREA_DATA *dest_area = find_area_by_vnum(obj->value[3], pArea);
-                    if (dest_area)
-                        obj->value[4] = dest_area->uid;
+                    long dest_vnum = 0;
+                    long dest_area_uid = 0;
+                    long portal_flags = 0;
+
+                    if (obj->_portal)
+                    {
+                        dest_vnum = PORTAL(obj)->params[0];
+                        dest_area_uid = PORTAL(obj)->params[4];
+                        portal_flags = PORTAL(obj)->flags;
+                    }
+                    else
+                    {
+                        dest_vnum = obj->value[3];
+                        dest_area_uid = obj->value[4];
+                        portal_flags = obj->value[2];
+                    }
+
+                    if (dest_vnum > 0
+                    &&  dest_area_uid == 0
+                    &&  !IS_SET(portal_flags, GATE_DUNGEON))
+                    {
+                        AREA_DATA *dest_area = find_area_by_vnum(dest_vnum, pArea);
+                        if (dest_area)
+                        {
+                            obj->value[4] = dest_area->uid;
+                            if (obj->_portal)
+                                PORTAL(obj)->params[4] = dest_area->uid;
+                        }
+                    }
                 }
             }
         }

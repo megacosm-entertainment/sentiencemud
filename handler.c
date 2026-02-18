@@ -12993,6 +12993,9 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
             if (!current_area) {
                 return false;
             }
+            if (!is_number(hash_pos + 1)) {
+                return false;
+            }
             vnum = atol(hash_pos + 1);
             wnum->pArea = current_area;
             wnum->vnum = vnum;
@@ -13005,6 +13008,9 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
             left_part[left_len] = '\0';
             
             // Parse right side (vnum)
+            if (!is_number(hash_pos + 1)) {
+                return false;
+            }
             vnum = atol(hash_pos + 1);
             if (vnum <= 0) {
                 return false;
@@ -13028,54 +13034,26 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
             return (wnum->pArea != NULL && vnum > 0);
         }
     } else {
-        // No hash - bare vnum
+        AREA_DATA *found_area;
+
+        // No hash - global vnum lookup by legacy area ranges
+        if (!is_number(argument)) {
+            return false;
+        }
+
         vnum = atol(argument);
         if (vnum <= 0) {
             return false;
         }
-        
-        if (current_area) {
-            // Try as relative vnum in current area first
-            // Check if the vnum is actually in this area's range
-            if (vnum >= current_area->min_vnum && vnum <= current_area->max_vnum) {
-                wnum->pArea = current_area;
-                wnum->vnum = vnum;
-                return true;
-            }
-            
-            // Vnum not in current area's range - fall back to global search
-            // This maintains backwards compatibility with legacy scripts/areas
-            AREA_DATA *found_area = find_area_by_vnum(vnum, NULL);
-            if (found_area) {
-                wnum->pArea = found_area;
-                wnum->vnum = vnum;
-                return true;
-            }
-            
-            // Last resort: system area fallback
-            wnum->pArea = get_system_area_fallback();
-            if (!wnum->pArea) {
-                return false;
-            }
-            wnum->vnum = vnum;
-            return true;
-        } else {
-            // Legacy support: find which area contains this vnum
-            AREA_DATA *found_area = find_area_by_vnum(vnum, NULL);
-            if (found_area) {
-                wnum->pArea = found_area;
-                wnum->vnum = vnum;
-                return true;
-            }
-            
-            // Fallback to system area if configured
-            wnum->pArea = get_system_area_fallback();
-            if (!wnum->pArea) {
-                return false;
-            }
-            wnum->vnum = vnum;
-            return true;
+
+        found_area = find_area_by_vnum(vnum, NULL);
+        if (!found_area) {
+            return false;
         }
+
+        wnum->pArea = found_area;
+        wnum->vnum = vnum;
+        return true;
     }
 }
 

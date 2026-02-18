@@ -986,7 +986,7 @@ void obj_copy_type_data_from_index(OBJ_DATA *dst, OBJ_INDEX_DATA *src)
             (O)->_portal->exit      = (O)->value[1]; \
             (O)->_portal->flags     = (O)->value[2]; \
             (O)->_portal->params[0] = (O)->value[3]; /* destination */ \
-            /* v4=key migrated to lock in VERSION_OBJECT_004 */ \
+            (O)->_portal->params[4] = (O)->value[4]; /* destination area uid (legacy key migrated in V004) */ \
             (O)->_portal->params[1] = (O)->value[5]; /* area/floor */ \
             (O)->_portal->params[2] = (O)->value[6]; /* map_x */ \
             (O)->_portal->params[3] = (O)->value[7]; /* map_y */ \

@@ -1620,7 +1620,8 @@ SCRIPT_CMD(scriptcmd_call)
     CHAR_DATA *vch = NULL,*ch = NULL;
     OBJ_DATA *obj1 = NULL,*obj2 = NULL;
     SCRIPT_DATA *script;
-    int depth, vnum, ret;
+    int depth, ret;
+    long vnum;
     int space;
 
     if(!info) return;
@@ -1643,12 +1644,6 @@ SCRIPT_CMD(scriptcmd_call)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
     if (info->mob) space = PRG_MPROG;
     else if(info->obj) space = PRG_OPROG;
     else if(info->room) space = PRG_RPROG;
@@ -1658,7 +1653,8 @@ SCRIPT_CMD(scriptcmd_call)
     else if(info->dungeon) space = PRG_DPROG;
     else return;
 
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
+    script = get_script_from_arg(info, arg, space, &vnum);
+    if (vnum < 1 || !script) {
         return;
     }
 
@@ -2844,8 +2840,9 @@ SCRIPT_CMD(scriptcmd_grantskill)
 SCRIPT_CMD(scriptcmd_inputstring)
 {
     char *rest;
-    int vnum;
+    long vnum;
     CHAR_DATA *mob = NULL;
+    SCRIPT_DATA *script = NULL;
 
     int type;
 
@@ -2884,12 +2881,8 @@ SCRIPT_CMD(scriptcmd_inputstring)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: return;
-    }
-
-    if(vnum < 1 || !get_script_from_info(info, vnum, type)) return;
+    script = get_script_from_arg(info, arg, type, &vnum);
+    if(vnum < 1 || !script) return;
     BUFFER *buffer = new_buf();
 
     expand_string(info,rest,buffer);
@@ -3527,13 +3520,8 @@ SCRIPT_CMD(scriptcmd_questcancel)
         if(!(rest = expand_argument(info,rest,arg)))
             return;
 
-        switch(arg->type) {
-        case ENT_STRING: vnum = atoi(arg->d.str); break;
-        case ENT_NUMBER: vnum = arg->d.num; break;
-        default: vnum = 0; break;
-        }
-
-        if (vnum < 1 || !(script = get_script_from_info(info, vnum, type)))
+        script = get_script_from_arg(info, arg, type, &vnum);
+        if (vnum < 1 || !script)
             return;
 
         // Don't care about response
@@ -3713,13 +3701,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
     if(!(rest = expand_argument(info,rest,arg)))
         return;
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, type)))
+    script = get_script_from_arg(info, arg, type, &vnum);
+    if (vnum < 1 || !script)
         return;
 
     mob->quest = new_quest();
@@ -5482,7 +5465,8 @@ SCRIPT_CMD(scriptcmd_xcall)
     CHAR_DATA *vch = NULL,*ch = NULL;
     OBJ_DATA *obj1 = NULL,*obj2 = NULL;
     SCRIPT_DATA *script;
-    int depth, vnum, ret, space = PRG_MPROG;
+    int depth, ret, space = PRG_MPROG;
+    long vnum;
 
 
     DBG2ENTRY2(PTR,info,PTR,argument);
@@ -5542,13 +5526,8 @@ SCRIPT_CMD(scriptcmd_xcall)
         return;
     }
 
-    switch(arg->type) {
-    case ENT_STRING: vnum = atoi(arg->d.str); break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: vnum = 0; break;
-    }
-
-    if (vnum < 1 || !(script = get_script_from_info(info, vnum, space))) {
+    script = get_script_from_arg(info, arg, space, &vnum);
+    if (vnum < 1 || !script) {
         return;
     }
 
