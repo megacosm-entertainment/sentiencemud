@@ -105,7 +105,7 @@ static const OLC_EDITOR_DEF aedit_def = {
  * do_aedit - Enter the area editor
  *
  * Usage: aedit                - edit current area
- *        aedit <anum>         - edit area by anum
+ *        aedit <uid>          - edit area by UID
  *        aedit <keyword>      - edit area by keyword
  *        aedit create         - create new area
  */
@@ -129,9 +129,11 @@ void do_aedit(CHAR_DATA *ch, char *argument)
     if (is_number(arg))
     {
         value = atoi(arg);
-        if (!(pArea = get_area_data(value)))
+        pArea = get_area_from_uid(value);
+
+        if (!pArea)
         {
-            send_to_char("That area vnum does not exist.\n\r", ch);
+            send_to_char("That area UID does not exist.\n\r", ch);
             return;
         }
     }
@@ -179,13 +181,15 @@ AEDIT(aedit_show)
     const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
     OLC_LAYOUT_CTX *ctx;
     ROOM_INDEX_DATA *recall;
+    const char *file_format;
+    const char *dot;
 
     EDIT_AREA(ch, pArea);
 
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "AEdit", pArea->name,
-        formatf("%ld", pArea->anum), &aedit_def);
+        formatf("%ld", pArea->uid), &aedit_def);
 
     /* --- Identity --- */
     olc_display_string(ctx, theme, "Name:", "name", pArea->name);
@@ -194,6 +198,14 @@ AEDIT(aedit_show)
     /* --- System Information --- */
     olc_display_section(ctx, theme, "System Information");
     olc_display_string(ctx, theme, "File:", "filename", pArea->file_name);
+    dot = pArea->file_name ? strrchr(pArea->file_name, '.') : NULL;
+    if (dot && !str_cmp(dot, ".json"))
+        file_format = "JSON";
+    else if (dot && !str_cmp(dot, ".are"))
+        file_format = "Legacy (.are)";
+    else
+        file_format = "Unknown";
+    olc_display_string(ctx, theme, "Storage:", NULL, file_format);
     olc_display_pair(ctx, theme,
         "Age:", NULL, formatf("%d", pArea->age),
         "Repop:", "repop", formatf("%d minutes", pArea->repop));
@@ -404,7 +416,7 @@ AEDIT(aedit_airshipland)
     }
 
     WNUM room_wnum;
-    AREA_DATA *context = strchr(argument, '#') ? pArea : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(pArea, argument);
     if (!parse_widevnum(argument, context, &room_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -826,7 +838,7 @@ AEDIT(aedit_recall)
     // If only one argument, try to parse as widevnum (room format)
     if(!arg2[0]) {
         WNUM room_wnum;
-        AREA_DATA *context = strchr(arg1, '#') ? pArea : NULL;
+        AREA_DATA *context = olc_relative_widevnum_context(pArea, arg1);
         if (!parse_widevnum(arg1, context, &room_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
@@ -1127,7 +1139,7 @@ AEDIT (aedit_addaprog)
     slot = trigger_table[tindex].slot;
 
     WNUM script_wnum;
-    AREA_DATA *context = strchr(num, '#') ? pArea : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(pArea, num);
     if (!parse_widevnum(num, context, &script_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;

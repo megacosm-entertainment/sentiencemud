@@ -1,7 +1,7 @@
 # Backport Plan: Skill, Class, and Supporting System Overhaul
 
 **Date:** February 13, 2026
-**Status:** Active — Phases 0-5 Complete, Phase 6 in progress
+**Status:** Active — Phases 0-8 Complete, Phase 9 pending
 **Supersedes:** Previous version of this doc, relevant sections of `PLAN_CLASS_JOB_SYSTEM_BACKPORT.md`
 
 ---
@@ -807,7 +807,7 @@ grant) to provide the same capability.
 - [x] Add `rating` and `mod_rating` to `SKILL_ENTRY`
 - [x] Add `SKILL_DATA *skill_data` pointer to `SKILL_ENTRY`
 - [x] Initialize new fields in `new_skill_entry()` (`mem.c`)
-- [x] Update `skill_entry_insert()` to set `skill_data` pointer via `skill_from_sn(sn)`
+- [x] Update `skill_entry_insert()` to set `skill_data` pointer via UID lookup (`skill_find_uid(sn)`) 
 - [x] Update character JSON save/load to populate `rating`/`mod_rating` from `learned[]`
 - [x] Update dat load path to populate `rating`/`mod_rating` from `learned[]`
 - [x] Add `VERSION_PLAYER_011` migration in `fix_character()` to sync existing characters
@@ -827,7 +827,7 @@ grant) to provide the same capability.
 - [x] Struct-copy in `affect_to_char()` / `affect_to_obj()` automatically copies `skill` pointer
 - [x] Update all ~57 spell function `af.type = sn` sites (`magic_*.c`) to also set `af.skill = skill`
 - [x] Update all ~4 `paf->type = sn` sites (`magic_cosmic.c`) to also set `paf->skill = skill`
-- [x] Update all ~36 `af.type = gsn_*` sites (9 non-spell files) to also set `af.skill = skill_from_sn(af.type)`
+- [x] Update all ~36 `af.type = gsn_*` sites (9 non-spell files) to also set `af.skill` via UID lookup
 - [x] Update all ~4 `af.type = skill` sites (`script_*.c`) to also set `af.skill`
 - [x] Update all load paths in `save.c` (6 sites), `db.c` (2 sites), `json_char.c` (2 sites), `json_persist.c` (2 sites) to populate `paf->skill` after setting `paf->type`
 - [x] Add `#include "skill_data.h"` to 12 files that needed it
@@ -980,21 +980,57 @@ grant) to provide the same capability.
 - [x] Restrict non-cross-class skills from characters when not in a class (`is_skill_available_for_class()` in `get_skill()`)
 - [x] Display reward grant messages only once per reward (not on rejoin)
 
+#### 6f: `skill_entry` Runtime Parity Hardening (vs `src_20_dev`)
+
+**Goal:** Finish migration from legacy `learned[]`/`mod_learned[]` runtime authority to `SKILL_ENTRY.rating`/`mod_rating`, including token-enabled paths.
+**Risk:** MEDIUM — broad but mechanical call-site conversion.
+**Files:** `skills.c`, `handler.c`, `magic.c`, `script_commands.c`, `script_*pcmds.c`, `act_wiz.c`, `save.c`, `io/json/json_char.c`
+
+- [x] Make `SKILL_ENTRY.rating` / `mod_rating` authoritative in core runtime reads:
+    - `skill_entry_rating()` / `skill_entry_mod()` now return entry fields for non-token entries (token entries still derive from token values)
+    - `get_skill()` now resolves from `SKILL_ENTRY` for players (legacy fallback only if entry is missing)
+    - `check_improve_show()` now improves `entry->rating` instead of direct `pcdata->learned[sn]`
+- [ ] Finish runtime writes to update `SKILL_ENTRY` first everywhere (keep legacy array mirrors during transition):
+    - [x] `do_practice()` standard-skill branch
+    - [x] script grant/set/adjust skill commands (`script_commands.c`, `script_opcmds.c`, `script_rpcmds.c`, `script_tpcmds.c`; `script_mpcmds.c` path is currently disabled/commented)
+    - [x] immortal skill set paths in `act_wiz.c`
+- [x] Align cast/practice consumption paths with `skill_entry_*` helpers where applicable:
+    - `find_spell()` cast selection now uses `get_skill()` for known-skill gating instead of direct `pcdata->learned[sn]`
+    - `do_cast()` success/failure roll now consumes the already-resolved skill value for the cast attempt
+    - `can_practice()` / `had_skill()` practice gating now check `SKILL_ENTRY.rating` first, with legacy `learned[]` fallback
+    - token spell behavior (`TOKVAL_SPELL_*`) and trigger hooks preserved
+        - runtime cleanup pass completed for non-legacy direct reads:
+            - `hunt.c` now consumes hunt chance via `get_skill()`
+            - `get_weapon_skill()` now resolves player weapon skill via `get_skill()`
+            - new-character default weapon skill initialization in `nanny.c` now sets `SKILL_ENTRY.rating` primary with legacy mirror
+            - `get_skill()` fallback reads from `learned[]`/`mod_learned[]` removed (entry-first runtime authority)
+            - script `+`/`-` skill mutation paths (`script_opcmds.c`, `script_rpcmds.c`, `script_tpcmds.c`) now require and consume `SKILL_ENTRY.rating` only
+            - `group_add()`, `had_skill()`, and `update_skills()` no longer read `learned[]` as runtime authority (mirror writes retained)
+        - remaining `learned[]` read checks are limited to persistence (`io/json/json_char.c`, `save.c`) and dead/commented legacy blocks (`#if 0` / disabled `script_mpcmds.c` path)
+- [x] Save/load consistency pass (JSON path):
+    - [x] JSON char persistence now writes `rating`/`mod_rating` from `SKILL_ENTRY` and loads with `rating`/`mod_rating` first (fallback to `learned`/`mod_learned` for backward compatibility)
+    - non-JSON player save/load paths are deprecated in current deployment; no additional non-JSON migration work planned for 6f
+    - keep backward-compatible `learned[]`/`mod_learned[]` sync until Phase 9 removal
+    - maintain JSON safety-net behavior for unmapped legacy skills during migration window
+- [ ] Validation:
+    - [x] unit tests (`./sent -test:unit`) after 6f slices
+    - [ ] manual spot-check: normal skill, token skill, scripted grant/revoke, class-switch availability gating
+
 ### Phase 7: OLC Editors
 
 **Goal:** In-game editors for skills and classes.
 **Risk:** LOW — editor-only.
 **Files:** `editors/skills/skedit.c` (new), `editors/classes/clsedit.c` (new), `interp.c`
 
-- [ ] Create `skedit` — skill/spell editor
-- [ ] Create `clsedit` — class editor with reward management:
+- [x] Create `skedit` — skill/spell editor
+- [x] Create `clsedit` — class editor with reward management:
   - `reward <level> skill|group|title|bonus|token|script|custom|trait <name> [value]`
   - `rewardflags <level> <type> <flags>` — set REVOKE_ON_LEAVE, ONE_TIME, HIDDEN
   - `reward remove <level> <type> [name]` — remove a specific reward
   - `rewards` — list all rewards for this class
   - Validate skill/group names exist at save time
-- [ ] Spell function name<>pointer lookup table for skedit
-- [ ] Register commands in `interp.c`
+- [x] Spell function name<>pointer lookup table for skedit
+- [x] Register commands in `interp.c`
 
 ### Phase 8: Song System Migration
 
@@ -1002,10 +1038,10 @@ grant) to provide the same capability.
 **Risk:** LOW — small scope (~20 references).
 **Files:** `music.c`, `const.c`, `merc.h`
 
-- [ ] Create `SONG_DATA` struct (similar to `SKILL_DATA`)
-- [ ] Create song hash table and lookup functions
-- [ ] Bootstrap from `music_table[]`
-- [ ] Update `music.c` to use new system
+- [x] Create `SONG_DATA` struct (similar to `SKILL_DATA`)
+- [x] Create song hash table and lookup functions
+- [x] Bootstrap from `music_table[]`
+- [x] Update `music.c` to use new system
 
 ### Phase 9: Cleanup
 
@@ -1015,6 +1051,7 @@ grant) to provide the same capability.
 
 - [ ] Remove `gsn_*` declarations from `merc.h` (272 declarations)
 - [ ] Remove `gsn_*` definitions from `db.c`
+- [x] Remove `skill_from_sn()` compatibility shim from runtime and headers
 - [ ] Remove `skill_table[]` from `const.c`
 - [ ] Remove `pgsn` field from `SKILL_DATA`
 - [ ] Remove `int16_t sn` from `SKILL_ENTRY`

@@ -39,10 +39,20 @@
 #include "recycle.h"
 #include "tables.h"
 
+extern const struct flag_type room_flags[];
+
 
 int flag_lookup (const char *name, const struct flag_type *flag_table)
 {
     int flag;
+
+    if (flag_table == room_flags)
+    {
+        if (!str_cmp(name, "cpk"))
+            return ROOM_CHAOTIC;
+        if (!str_cmp(name, "player_killing"))
+            return ROOM_PK;
+    }
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
@@ -59,6 +69,14 @@ int flag_find (const char *name, const struct flag_type *flag_table)
 {
     int flag;
 
+    if (flag_table == room_flags)
+    {
+        if (!str_cmp(name, "cpk"))
+            return ROOM_CHAOTIC;
+        if (!str_cmp(name, "player_killing"))
+            return ROOM_PK;
+    }
+
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
     if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
@@ -72,6 +90,14 @@ int flag_find (const char *name, const struct flag_type *flag_table)
 int stat_lookup (const char *name, const struct flag_type *flag_table, int invalid)
 {
     int flag;
+
+    if (flag_table == room_flags)
+    {
+        if (!str_cmp(name, "cpk"))
+            return ROOM_CHAOTIC;
+        if (!str_cmp(name, "player_killing"))
+            return ROOM_PK;
+    }
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {

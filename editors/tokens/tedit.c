@@ -917,7 +917,7 @@ TEDIT (tedit_addtprog)
 
 
     WNUM script_wnum;
-    AREA_DATA *context = strchr(num, '#') ? token_index->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(token_index->area, num);
     if (!parse_widevnum(num, context, &script_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;

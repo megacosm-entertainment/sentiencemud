@@ -800,49 +800,74 @@ void boot_db(void)
             if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
                 continue;
 
-            /* Try JSON format first */
-            char json_filename[MAX_STRING_LENGTH + 10];  // +10 for ".json" suffix
-            char json_fullpath[MAX_STRING_LENGTH + 30];  // +30 for AREA_DIR prefix and suffix
-            char *basename = strArea;
-            char *dot = strrchr(basename, '.');
-            
-            /* Build JSON filename (just the filename, no path) */
-            if (dot) {
-                char base[MAX_STRING_LENGTH];
-                strncpy(base, basename, dot - basename);
-                base[dot - basename] = '\0';
-                snprintf(json_filename, sizeof(json_filename), "%s.json", base);
+            /* Resolve area list entries by stem so extensions are optional.
+             * Accepts entries like: "foo", "foo.are", or "foo.json". */
+            char stem[MAX_STRING_LENGTH];
+            char json_filename[MAX_STRING_LENGTH + 10];
+            char json_fullpath[MAX_STRING_LENGTH + 30];
+            const char *dot = strrchr(strArea, '.');
+
+            if (dot != NULL) {
+                size_t stem_len = dot - strArea;
+                if (stem_len >= sizeof(stem))
+                    stem_len = sizeof(stem) - 1;
+                strncpy(stem, strArea, stem_len);
+                stem[stem_len] = '\0';
             } else {
-                snprintf(json_filename, sizeof(json_filename), "%s.json", basename);
+                strncpy(stem, strArea, sizeof(stem) - 1);
+                stem[sizeof(stem) - 1] = '\0';
             }
-            
-            /* Build full path for existence check */
+
+            snprintf(json_filename, sizeof(json_filename), "%s.json", stem);
             snprintf(json_fullpath, sizeof(json_fullpath), "%s%s", AREA_DIR, json_filename);
 
             if (access(json_fullpath, F_OK) == 0) {
-                /* JSON file exists - try to load it */
                 log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading area from JSON: %s", json_fullpath);
-                area = json_area_load(json_filename);  /* Pass just filename, json_area_load adds AREA_DIR */
+                area = json_area_load(json_filename);
                 if (area) {
                     loaded_from_json = true;
-                    log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Successfully loaded JSON area: %s", strArea);
+                    log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Successfully loaded JSON area: %s", json_filename);
                 } else {
-                    log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load JSON area %s, falling back to .are format", json_fullpath);
+                    log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                        "Failed to load JSON area %s, falling back to .are format", json_fullpath);
                 }
             }
 
             /* Fall back to .are format if JSON didn't work */
             if (!loaded_from_json) {
 #if ENABLE_LEGACY_AREA_READ
-                char area_path[MAX_STRING_LENGTH];
-                sprintf(area_path, "%s%s", AREA_DIR, strArea);
+                char area_path[MAX_STRING_LENGTH * 3];
+                char legacy_filename[MAX_STRING_LENGTH + 10];
+                const char *legacy_target = NULL;
+                size_t prefix_len = strlen(AREA_DIR);
+                int max_tail = (prefix_len < sizeof(area_path))
+                    ? (int)(sizeof(area_path) - prefix_len - 1)
+                    : 0;
 
+                snprintf(area_path, sizeof(area_path), "%s%.*s", AREA_DIR, max_tail, strArea);
+                if (access(area_path, F_OK) == 0) {
+                    legacy_target = strArea;
+                } else {
+                    snprintf(legacy_filename, sizeof(legacy_filename), "%s.are", stem);
+                    snprintf(area_path, sizeof(area_path), "%s%.*s", AREA_DIR, max_tail, legacy_filename);
+                    if (access(area_path, F_OK) == 0)
+                        legacy_target = legacy_filename;
+                }
+
+                if (!legacy_target) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                        "Unable to resolve area '%s' to a readable file (tried %s and %s.are)",
+                        strArea, strArea, stem);
+                    exit(2);
+                }
+
+                snprintf(area_path, sizeof(area_path), "%s%.*s", AREA_DIR, max_tail, legacy_target);
                 if ((fpArea = fopen(area_path, "r")) == NULL) {
                     perror(area_path);
                     exit(2);        // NIBS: changed this so we know it exited because of this
                 }
 
-                log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile from .are format: '%s'", strArea);
+                log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile from .are format: '%s'", legacy_target);
                 area = read_area_new(fpArea);
                 fclose(fpArea);
 #else
@@ -3468,7 +3493,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("invis");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3484,7 +3509,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type 		= skill_resolve_gsn("detect invis");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3499,7 +3524,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("detect hidden");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3514,7 +3539,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("sanctuary");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3529,7 +3554,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("infravision");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3544,7 +3569,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("death grip");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3559,7 +3584,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("fly");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3574,7 +3599,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("pass door");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_NONE;
@@ -3589,7 +3614,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[0] : 0,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("haste");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= APPLY_DEX;
@@ -3605,7 +3630,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= AFFGROUP_PHYSICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("warcry");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3620,7 +3645,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("light shroud");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3635,7 +3660,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("healing aura");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3650,7 +3675,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("energy field");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3665,7 +3690,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("spell shield");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3680,7 +3705,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("spell deflection");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3695,7 +3720,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("avatar shield");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3710,7 +3735,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("electrical barrier");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3726,7 +3751,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("fire barrier");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3741,7 +3766,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("frost barrier");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3756,7 +3781,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("improved invisibility");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -3771,7 +3796,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
             af.group		= IS_SET(mob->race ? mob->race->aff[1] : 0,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
             af.where		= TO_AFFECTS;
             af.type			= skill_resolve_gsn("stone skin");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level		= mob->level;
             af.duration		= -1;
             af.location		= 0;
@@ -6263,6 +6288,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
     vroom->description = str_dup(source->description);
     vroom->room_flag[0] = source->room_flag[0];
     vroom->room_flag[1] = source->room_flag[1] | ROOM_VIRTUAL_ROOM;
+    REMOVE_BIT(vroom->room_flag[0], ROOM_CHAOTIC);                    // Clone/instance rooms must not be chaotic
     REMOVE_BIT(vroom->room_flag[1], ROOM_BLUEPRINT);					// Clones can never be "blueprint" rooms
     room_set_sector_type(vroom, room_sector_type(source));
     vroom->viewwilds = source->viewwilds;
@@ -7828,9 +7854,10 @@ OBJ_DATA *persist_load_object(FILE *fp)
                     sn = skill_lookup(fread_word(fp));
                     if (sn < 0)
                         log_message(LOG_LEVEL_BUG, LOG_ERROR, "persist_load_object: unknown skill.");
-                    else
+                    else {
                         paf->type = sn;
-                        paf->skill = skill_from_sn(sn);
+                        paf->skill = skill_find_uid(sn);
+                    }
 
                     paf->where = fread_number(fp);
                     paf->group = fread_number(fp);
@@ -8414,7 +8441,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
                             log_message(LOG_LEVEL_WARN, LOG_WARN, "fread_char: unknown skill.");
                         else
                             paf->type = sn;
-                        paf->skill = skill_from_sn(sn);
+                        paf->skill = skill_find_uid(sn);
                         paf->custom_name = NULL;
                         paf->group = flag_value(affgroup_mobile_flags, fread_word(fp));
                         if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;

@@ -336,7 +336,7 @@ static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     olc_display_section(ctx, theme, "Properties");
     olc_display_string(ctx, theme, "Name:", "name", pWilds->name);
-    olc_display_infof(ctx, theme, "Area:", "%ld - %s", pWilds->pArea->anum, pWilds->pArea->name);
+    olc_display_infof(ctx, theme, "Area UID:", "%ld - %s", pWilds->pArea->uid, pWilds->pArea->name);
     olc_display_infof(ctx, theme, "Map size:", "%d x %d (%ld vrooms)",
         pWilds->map_size_x, pWilds->map_size_y,
         (long)(pWilds->map_size_x * pWilds->map_size_y));

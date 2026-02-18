@@ -69,7 +69,7 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
 
 SPELL_FUNC(spell_flash)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     void *argv[3];
 
     if(both_hands_full(ch)) {
@@ -90,7 +90,7 @@ SPELL_FUNC(spell_flash)
 
 SPELL_FUNC(spell_improved_invisibility)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     bool perm = false;
@@ -131,7 +131,7 @@ SPELL_FUNC(spell_improved_invisibility)
 
 SPELL_FUNC(spell_continual_light)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
         OBJ_DATA *obj;
 
     obj = (OBJ_DATA *) vo;
@@ -162,7 +162,7 @@ SPELL_FUNC(spell_continual_light)
 
 SPELL_FUNC(spell_starflare)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     CHAR_DATA *vnext;
     int dam;

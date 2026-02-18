@@ -63,11 +63,6 @@ int             skill_count(void);                      /* Total loaded skill co
  * Compatibility / Migration API                                           *
  ***************************************************************************/
 
-/* Map old sn (skill_table index) to new SKILL_DATA pointer
- * During migration, the bootstrap assigns uid = original sn index,
- * so this is equivalent to skill_find_uid(sn) */
-SKILL_DATA *    skill_from_sn(int sn);
-
 /* Reverse: get the UID (which matches old sn after bootstrap) */
 int16_t         skill_sn(SKILL_DATA *skill);
 

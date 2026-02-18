@@ -365,20 +365,6 @@ int skill_count(void)
     return skill_total;
 }
 
-/***************************************************************************
- * Compatibility / Migration API                                           *
- ***************************************************************************/
-
-/**
- * skill_from_sn - Map a legacy sn (skill_table index) to SKILL_DATA
- *
- * After bootstrap, uid == original sn, so this is just skill_find_uid.
- */
-SKILL_DATA *skill_from_sn(int sn)
-{
-    return skill_find_uid((int16_t)sn);
-}
-
 /**
  * skill_sn - Get the UID of a skill (matches legacy sn after bootstrap)
  */

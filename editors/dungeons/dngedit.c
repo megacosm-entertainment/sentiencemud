@@ -1061,7 +1061,7 @@ DNGEDIT( dngedit_floors )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  floors add <#vnum|area#vnum>\n\r", ch);
+        send_to_char("Syntax:  floors add <vnum|#vnum|area#vnum>\n\r", ch);
         send_to_char("         floors remove #\n\r", ch);
         send_to_char("         floors list\n\r", ch);
         return false;
@@ -1084,7 +1084,7 @@ DNGEDIT( dngedit_floors )
     {
         WNUM bp_wnum;
         if (!parse_widevnum(argument, ch->in_room->area, &bp_wnum) || !bp_wnum.pArea) {
-            send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
 
@@ -2248,13 +2248,13 @@ DNGEDIT( dngedit_entry )
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  entry <#vnum|area#vnum>\n\r", ch);
+        send_to_char("Syntax:  entry <vnum|#vnum|area#vnum>\n\r", ch);
         return false;
     }
 
     WNUM entry_wnum;
     if (!parse_widevnum(argument, ch->in_room->area, &entry_wnum) || !entry_wnum.pArea) {
-        send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
@@ -2283,13 +2283,13 @@ DNGEDIT( dngedit_exit )
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  exit <#vnum|area#vnum>\n\r", ch);
+        send_to_char("Syntax:  exit <vnum|#vnum|area#vnum>\n\r", ch);
         return false;
     }
 
     WNUM exit_wnum;
     if (!parse_widevnum(argument, ch->in_room->area, &exit_wnum) || !exit_wnum.pArea) {
-        send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
@@ -5793,7 +5793,7 @@ DNGEDIT (dngedit_adddprog)
     slot = trigger_table[tindex].slot;
 
     WNUM script_wnum;
-    AREA_DATA *context = strchr(num, '#') ? dungeon->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(dungeon->area, num);
     if (!parse_widevnum(num, context, &script_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;

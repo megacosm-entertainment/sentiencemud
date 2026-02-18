@@ -78,6 +78,15 @@ int get_olc_screen_height(CHAR_DATA *ch) {
      return 24; // A common default
 }
 
+AREA_DATA *olc_relative_widevnum_context(AREA_DATA *context_area, const char *argument)
+{
+    if (!context_area || !argument || argument[0] != '#') {
+        return NULL;
+    }
+
+    return context_area;
+}
+
 
 
 void process_olc_command(

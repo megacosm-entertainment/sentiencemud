@@ -513,7 +513,7 @@ AFFECT_DATA *json_persist_json_to_affect(json_t *json)
 
     value = json_object_get(json, "type");
     if (value) paf->type = json_integer_value(value);
-    paf->skill = skill_from_sn(paf->type);
+    paf->skill = skill_find_uid(paf->type);
 
     value = json_object_get(json, "where");
     if (value) paf->where = json_integer_value(value);
@@ -1885,7 +1885,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
                 aff_val = json_object_get(elem, "skill_name");
                 if (aff_val) {
                     paf->type = skill_lookup((char *)json_string_value(aff_val));
-                    paf->skill = skill_from_sn(paf->type);
+                    paf->skill = skill_find_uid(paf->type);
                 }
             }
 

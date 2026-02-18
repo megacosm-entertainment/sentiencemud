@@ -16,6 +16,7 @@ This review consolidates status across roadmap, plans, worklogs, and completed r
 
 ### Core migrations and foundations
 - Widevnum migration is documented as complete in `docs/widevnums/WIDEVNUM_REMAINING_WORK.md` (Phases 1-8 complete; polish deferred).
+- Post-migration cleanup is complete: script parsing/context hardening and JSON shop stock cross-area serialization/fixup (`0#<vnum>` regression) are resolved.
 - JSON persistence + Redis integration is complete and operational (tracked in `docs/done/` and roadmap completed section).
 - OLC framework refactor Phases 0-7 are complete; major editor migration is complete, with only remaining editor backports/new editor items still open under Phase 8.
 - Object multityping Phases 1-4 are complete (data model, migration, serialization, and stop-writing legacy value arrays).
@@ -31,7 +32,7 @@ This review consolidates status across roadmap, plans, worklogs, and completed r
 
 ### 1) Skills/classes backport
 - `PLAN_backport_skills_classes.md` is active.
-- Phases 0-5 complete; Phase 6 in progress.
+- Phases 0-6 complete; remaining work is editor/legacy cleanup phases.
 - This is a high-impact dependency for class/job and party follow-on work.
 
 ### 2) Object multityping gameplay migration
@@ -60,12 +61,12 @@ This review consolidates status across roadmap, plans, worklogs, and completed r
      - `player_killing` + `chaotic`: equivalent to current `cpk` gameplay behavior.
    - Migration target: remove direct dependence on legacy `cpk` semantics from runtime checks and builder-facing editing.
 
-2. **Roadmap/status reconciliation pass**
-   - `ROADMAP.md` currently says widevnum is in progress while widevnum-specific docs say complete.
-   - Align top-level roadmap to prevent planning drift.
+2. **Roadmap/status reconciliation pass** — **DONE (2026-02-18)**
+   - Top-level roadmap now reflects widevnum as completed work.
+   - Widevnum docs and roadmap are aligned.
 
 3. **Complete active phase work (no new major feature starts)**
-   - Finish skills/classes Phase 6.
+   - Finish skills/classes Phase 7+ follow-up (editor/cleanup scope).
    - Continue object multityping Phase 5 conversion in highest-traffic gameplay paths first.
 
 ## P1 (Immediately after P0)

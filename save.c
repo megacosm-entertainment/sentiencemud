@@ -1581,7 +1581,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
             log_string("fread_char: unknown skill.");
         else
             paf->type = sn;
-        paf->skill = skill_from_sn(sn);
+        paf->skill = skill_find_uid(sn);
 
         paf->level	= fread_number(fp);
         paf->duration	= fread_number(fp);
@@ -1606,7 +1606,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                     log_string("fread_char: unknown skill.");
                 else
                     paf->type = sn;
-                paf->skill = skill_from_sn(sn);
+                paf->skill = skill_find_uid(sn);
 
         paf->custom_name = NULL;
         paf->group  = AFFGROUP_MAGICAL;
@@ -1636,7 +1636,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                     log_string("fread_char: unknown skill.");
                 else
                     paf->type = sn;
-                paf->skill = skill_from_sn(sn);
+                paf->skill = skill_find_uid(sn);
 
                 paf->custom_name = NULL;
                 paf->group  = flag_value(affgroup_mobile_flags,fread_word(fp));
@@ -3392,7 +3392,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
                     pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
-                paf->skill = skill_from_sn(sn);
+                paf->skill = skill_find_uid(sn);
 
                 paf->level	= fread_number(fp);
                 paf->duration	= fread_number(fp);
@@ -3468,7 +3468,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
                     pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
-                paf->skill = skill_from_sn(sn);
+                paf->skill = skill_find_uid(sn);
 
                 paf->where	= fread_number(fp);
                 paf->group	= AFFGROUP_MAGICAL;
@@ -3495,7 +3495,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
                     pbugf(LOG_ERROR, "Fread_obj: unknown skill.");
                 else
                     paf->type = sn;
-                paf->skill = skill_from_sn(sn);
+                paf->skill = skill_find_uid(sn);
 
                 paf->where	= fread_number(fp);
                 paf->group	= fread_number(fp);

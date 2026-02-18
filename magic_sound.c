@@ -19,7 +19,7 @@
 
 SPELL_FUNC(spell_shriek)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -42,7 +42,7 @@ SPELL_FUNC(spell_shriek)
 
 SPELL_FUNC(spell_silence)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     int lvl, catalyst;
@@ -101,11 +101,22 @@ SPELL_FUNC(spell_silence)
 
 SPELL_FUNC(spell_vocalize)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     char buf[MAX_STRING_LENGTH];
     char speaker[MAX_INPUT_LENGTH];
     char dir[MAX_INPUT_LENGTH];
+    char *argument = (char *) vo;
+    CHAR_DATA *to;
+    ROOM_INDEX_DATA *to_room;
     int direction;
+
+    argument = one_argument(argument, dir);
+    if (IS_NULLSTR(argument)) {
+        send_to_char("What do you want to vocalize?\n\r", ch);
+        return false;
+    }
+
+    strcpy(speaker, argument);
 
     if ((direction = parse_direction(dir)) == -1) {
         send_to_char("That's not a direction.", ch);
@@ -119,6 +130,13 @@ SPELL_FUNC(spell_vocalize)
 
     sprintf(buf, "%s says '%s'.\n\r", ch->name, speaker);
     buf[0] = UPPER(buf[0]);
-    return false;
+    to_room = ch->in_room->exit[direction]->u1.to_room;
+    if (!to_room)
+        return false;
+
+    for (to = to_room->people; to; to = to->next_in_room)
+        send_to_char(buf, to);
+
+    return true;
 }
 

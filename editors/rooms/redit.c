@@ -182,7 +182,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
     {
         WNUM wnum;
         if (!parse_widevnum(arg1, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
-            send_to_char("REdit: Invalid widevnum format. Use #vnum or area#vnum.\n\r", ch);
+            send_to_char("REdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
             return;
         }
 
@@ -230,7 +230,7 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     olc_display_string(ctx, theme, "Name:", "name", pRoom->name);
     olc_display_string(ctx, theme, "Area:", NULL,
-        formatf("[%5ld] %s", pRoom->area->anum, pRoom->area->name));
+        formatf("[UID %5ld] %s", pRoom->area->uid, pRoom->area->name));
 
     if (IS_SET(pRoom->rs_room_flag[1], ROOM_VIRTUAL_ROOM)) {
         olc_display_infof(ctx, theme,

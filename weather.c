@@ -868,7 +868,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
                             af.type 	= skill_lookup("blindness");
                             af.level 	= 10;
                             af.duration	= 3;
-                            af.skill = skill_from_sn(af.type);
+                            af.skill = skill_find_uid(af.type);
                             af.location	= APPLY_HITROLL;
                             af.modifier	= -4;
                             af.bitvector 	= AFF_BLIND;

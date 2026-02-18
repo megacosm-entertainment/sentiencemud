@@ -469,7 +469,7 @@ if (ch->lworn) {
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_METARACIAL;
     af.type      = skill_resolve_gsn("sanctuary");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level     = ch->tot_level * 2;
     af.duration = -1;
     af.location  = APPLY_AC;
@@ -481,7 +481,7 @@ if (ch->lworn) {
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_METARACIAL;
     af.type      = skill_resolve_gsn("infravision");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level     = ch->tot_level * 2;
     af.duration = -1;
     af.location  = APPLY_NONE;
@@ -493,7 +493,7 @@ if (ch->lworn) {
     af.where     = TO_AFFECTS;
     af.group	 = AFFGROUP_METARACIAL;
     af.type      = skill_resolve_gsn("haste");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level     = ch->tot_level * 2;
     af.duration = -1;
     af.location  = APPLY_DEX;
@@ -506,7 +506,7 @@ if (ch->lworn) {
         af.where = TO_AFFECTS;
     af.group = AFFGROUP_METARACIAL;
     af.type = skill_resolve_gsn("regeneration");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level = ch->tot_level;
     af.duration = -1;
     af.location  = APPLY_NONE;
@@ -517,7 +517,7 @@ if (ch->lworn) {
 
     af.where       = TO_AFFECTS;
     af.type	 = skill_resolve_gsn("shift");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level  = ch->tot_level;
     af.duration = -1;
     af.bitvector = 0;

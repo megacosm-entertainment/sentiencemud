@@ -20,7 +20,7 @@
 
 SPELL_FUNC(spell_calm)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *vch;
     AFFECT_DATA af;
     bool found = false;
@@ -47,7 +47,7 @@ SPELL_FUNC(spell_calm)
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_MENTAL;
         af.type = sn;
-    af.skill = skill;
+        af.skill = skill;
         af.level = level;
         af.duration = level/4;
         af.location = APPLY_HITROLL;
@@ -65,7 +65,7 @@ SPELL_FUNC(spell_calm)
 
 SPELL_FUNC(spell_charm_person)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
 
@@ -89,7 +89,7 @@ SPELL_FUNC(spell_charm_person)
         saves_spell(level, victim,DAM_CHARM))
         return false;
 
-    if (!IS_NPC(victim) && !IS_SET(victim->in_room->room_flag[0], ROOM_CPK)) {
+    if (!IS_NPC(victim) && !is_room_full_cpk(victim->in_room)) {
         send_to_char("You can only charm players in a Chaotic Player Killing room.\n\r", ch);
         return false;
     }
@@ -135,7 +135,7 @@ SPELL_FUNC(spell_charm_person)
 
 SPELL_FUNC(spell_detect_hidden)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -177,7 +177,7 @@ SPELL_FUNC(spell_detect_hidden)
 
 SPELL_FUNC(spell_detect_invis)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -219,7 +219,7 @@ SPELL_FUNC(spell_detect_invis)
 
 SPELL_FUNC(spell_detect_magic)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -260,7 +260,7 @@ SPELL_FUNC(spell_detect_magic)
 
 SPELL_FUNC(spell_frenzy)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -324,7 +324,7 @@ SPELL_FUNC(spell_frenzy)
 
 SPELL_FUNC(spell_morphlock)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     int lvl, catalyst;
@@ -384,7 +384,7 @@ SPELL_FUNC(spell_morphlock)
 
 SPELL_FUNC(spell_sleep)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -417,7 +417,7 @@ SPELL_FUNC(spell_sleep)
 
 SPELL_FUNC(spell_third_eye)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *skull;
     AFFECT_DATA af;

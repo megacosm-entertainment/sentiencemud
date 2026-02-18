@@ -21,7 +21,7 @@
 
 SPELL_FUNC(spell_fatigue)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -48,7 +48,7 @@ SPELL_FUNC(spell_fatigue)
 
 SPELL_FUNC(spell_gas_breath)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
     int dam;
@@ -84,7 +84,7 @@ SPELL_FUNC(spell_gas_breath)
 
 SPELL_FUNC(spell_paralysis)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -117,7 +117,7 @@ SPELL_FUNC(spell_paralysis)
 
 SPELL_FUNC(spell_plague)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -151,7 +151,7 @@ SPELL_FUNC(spell_plague)
 
 SPELL_FUNC(spell_poison)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -248,7 +248,7 @@ SPELL_FUNC(spell_poison)
 
 SPELL_FUNC(spell_stinking_cloud)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *cloud;
     OBJ_DATA *obj;
 
@@ -266,7 +266,7 @@ SPELL_FUNC(spell_stinking_cloud)
 
 SPELL_FUNC(spell_toxic_fumes)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
 
     victim = (CHAR_DATA *) vo;
@@ -286,7 +286,7 @@ SPELL_FUNC(spell_toxic_fumes)
 
 SPELL_FUNC(spell_toxin_neurotoxin)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -328,7 +328,7 @@ SPELL_FUNC(spell_toxin_neurotoxin)
 
 SPELL_FUNC(spell_toxin_paralysis)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -368,7 +368,7 @@ SPELL_FUNC(spell_toxin_paralysis)
 
 SPELL_FUNC(spell_toxin_weakness)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -432,7 +432,7 @@ SPELL_FUNC(spell_toxin_weakness)
 
 SPELL_FUNC(spell_toxin_venom)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
     AFFECT_DATA af;
@@ -482,7 +482,7 @@ SPELL_FUNC(spell_toxin_venom)
 
 SPELL_FUNC(spell_withering_cloud)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_INDEX_DATA *index;
     OBJ_DATA *cloud;
     OBJ_DATA *obj;

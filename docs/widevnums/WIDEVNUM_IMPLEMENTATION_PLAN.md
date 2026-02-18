@@ -1,8 +1,11 @@
 # Widevnum Implementation Plan
 
 **Started:** January 27, 2026
-**Last Updated:** February 6, 2026
+**Last Updated:** February 18, 2026
+**Status:** Historical (implementation complete)
 **Branch:** `feature/widevnum-migration`
+
+> This plan is retained as an implementation record. Widevnum migration and follow-up cleanup are complete. For final status, see `WIDEVNUM_REMAINING_WORK.md`.
 
 ---
 
@@ -129,8 +132,8 @@ struct area_data {
 | 4 | Subsystems (churches, chat, instances, blueprints) | ✅ Complete | Feb 1-2, 2026 |
 | 5 | Scripting Engine | ✅ Complete | Feb 2, 2026 |
 | 6 | OLC Editors | ✅ Complete | Feb 2, 2026 |
-| 7 | Commands & Display | 🟡 In Progress | -- |
-| 8 | Polish & Cross-Area Fixes | 🟡 Pending | -- |
+| 7 | Commands & Display | ✅ Complete | Feb 2026 |
+| 8 | Polish & Cross-Area Fixes | ✅ Complete | Feb 2026 |
 
 ### Phase 1: Core Infrastructure ✅
 

@@ -21,7 +21,7 @@
 
 SPELL_FUNC(spell_curse)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -102,7 +102,7 @@ SPELL_FUNC(spell_curse)
 
 SPELL_FUNC(spell_demonfire)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -121,7 +121,7 @@ SPELL_FUNC(spell_demonfire)
 
 SPELL_FUNC(spell_destruction)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
 
     if (IS_SET(obj->extra[0], ITEM_NOPURGE) || !IS_SET(obj->wear_flags, ITEM_TAKE)) {
@@ -140,7 +140,7 @@ SPELL_FUNC(spell_destruction)
 
 SPELL_FUNC(spell_dispel_good)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -166,7 +166,7 @@ SPELL_FUNC(spell_dispel_good)
 
 SPELL_FUNC(spell_slow)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     int lvl, catalyst;
@@ -219,7 +219,7 @@ SPELL_FUNC(spell_slow)
 
 SPELL_FUNC(spell_weaken)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));

@@ -19,13 +19,13 @@
 
 SPELL_FUNC(spell_air_pocket)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     return false;
 }
 
 SPELL_FUNC(spell_faerie_fog)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *ich;
 
     act("$n conjures a cloud of purple smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -58,7 +58,7 @@ SPELL_FUNC(spell_faerie_fog)
 
 SPELL_FUNC(spell_fly)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -101,7 +101,7 @@ SPELL_FUNC(spell_fly)
 
 SPELL_FUNC(spell_underwater_breathing)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -144,7 +144,7 @@ SPELL_FUNC(spell_underwater_breathing)
 
 SPELL_FUNC(spell_wind_of_confusion)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *vch;
 
     send_to_char("{MYou summon forth a howling wind!{x\n\r", ch);

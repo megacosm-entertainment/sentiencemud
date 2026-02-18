@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "merc.h"
+#include "skill_data.h"
 #include "recycle.h"
 #include "wilds.h"
 #include "olc_save.h"
@@ -1351,8 +1352,8 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
     int count;
 
     if (IS_IMMORTAL(to) && (IS_NPC(to) || IS_SET(to->act[0], PLR_HOLYLIGHT))) {
-        sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%d, %d) ]{x",
-            pWilds->pArea->anum, pWilds->pArea->name,
+        sprintf (buf, "\n\r{C [ Area uid: %ld '%s', Wilds uid: %ld '%s', Vroom (%d, %d) ]{x",
+            pWilds->pArea->uid, pWilds->pArea->name,
             pWilds->uid, pWilds->name,
             wx, wy);
 
@@ -1371,12 +1372,12 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
 
     send_to_char(buf, to);
 
-    if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK) && IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
+    if (is_room_full_cpk(pTerrain->template)) {
         sprintf(buf, "  {M[CNPK ROOM]");
         send_to_char(buf, to);
         linelength -= 13;
-    } else if (IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
-        sprintf(buf, "  {M[CPK ROOM]");
+    } else if (IS_SET(pTerrain->template->room_flag[0], ROOM_CHAOTIC)) {
+        sprintf(buf, "  {M[CHAOTIC]");
         send_to_char(buf, to);
         linelength -= 12;
     } else if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK)) {
@@ -2730,7 +2731,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         AFFECT_DATA *af, plague;
         CHAR_DATA *vch;
         int16_t sn_plague = skill_resolve_gsn("plague");
-        SKILL_DATA *sk_plague = skill_from_sn(sn_plague);
+        SKILL_DATA *sk_plague = skill_find_uid(sn_plague);
 
         for (af = ch->affected; af != NULL; af = af->next)
         {

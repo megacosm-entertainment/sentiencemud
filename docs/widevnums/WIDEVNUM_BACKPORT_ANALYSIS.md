@@ -1,10 +1,15 @@
 # Wide Vnum (WVNUM) Backport Analysis
 
+**Last Updated:** February 18, 2026
+**Status:** Historical analysis (backport completed in `src`)
+
+> This file captures pre-backport analysis. It no longer reflects current implementation status.
+
 ## Executive Summary
 
 The "widevnum" or "wvnum" feature is a fundamental architectural change implemented in `/sentience/src_20_dev` that transitions from a **global vnum namespace** to **area-scoped vnums**. This change affects nearly every aspect of the codebase and represents one of the largest architectural improvements in the 2.0 development branch.
 
-**Status:** Not present in current `/sentience/src` - requires backport
+**Status:** Historical: this analysis predates the completed backport into `/sentience/src`
 **Complexity:** VERY HIGH - touches 82+ files, 20k+ lines of changes
 **Impact:** Fundamental - affects areas, objects, mobiles, rooms, scripts, dungeons, ships, blueprints
 

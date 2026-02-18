@@ -177,6 +177,9 @@ const char *format_ac_string(MOB_INDEX_DATA *pMob);
 int get_olc_screen_width(CHAR_DATA *ch);
 int get_olc_screen_height(CHAR_DATA *ch);
 
+// Widevnum parsing helpers
+AREA_DATA *olc_relative_widevnum_context(AREA_DATA *context_area, const char *argument);
+
 // Script/prog display helpers
 #define MAX_PROG_GROUP_TRIGGERS 64
 #define MAX_PROG_GROUPS 32

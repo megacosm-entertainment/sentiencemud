@@ -463,13 +463,13 @@ SHEDIT( shedit_blueprint )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  blueprint <#vnum|area#vnum>\n\r", ch);
+        send_to_char("Syntax:  blueprint <vnum|#vnum|area#vnum>\n\r", ch);
         return false;
     }
 
     WNUM bp_wnum;
     if (!parse_widevnum(argument, ch->in_room->area, &bp_wnum) || !bp_wnum.pArea) {
-        send_to_char("Invalid widevnum format. Use: #vnum or area#vnum\n\r", ch);
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
@@ -587,7 +587,7 @@ SHEDIT( shedit_object )
     }
 
     WNUM obj_wnum;
-    AREA_DATA *context = strchr(argument, '#') ? ship->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(ship->area, argument);
     if (!parse_widevnum(argument, context, &obj_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -856,7 +856,7 @@ SHEDIT( shedit_keys )
         OBJ_INDEX_DATA *key;
 
         WNUM key_wnum;
-        AREA_DATA *context = strchr(argument, '#') ? ship->area : NULL;
+        AREA_DATA *context = olc_relative_widevnum_context(ship->area, argument);
         if (!parse_widevnum(argument, context, &key_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;

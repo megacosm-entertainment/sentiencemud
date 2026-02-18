@@ -24,7 +24,7 @@
 
 SPELL_FUNC(spell_create_food)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *food;
     long i;
 
@@ -51,7 +51,7 @@ SPELL_FUNC(spell_create_food)
 // Perfect Catalyst:	allows one more enchant to the maximum
 SPELL_FUNC(spell_enchant_armour)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *obj;
     AFFECT_DATA *paf;
     int result, fail;
@@ -196,7 +196,7 @@ SPELL_FUNC(spell_enchant_object)
 
 SPELL_FUNC(spell_enchant_weapon)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *obj;
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_hit;

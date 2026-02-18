@@ -1,7 +1,7 @@
 # Worklog: Skill and Class System Backport
 
 **Started:** 2026-02-09
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-18
 
 ## Session 1: Analysis (2026-02-09)
 
@@ -86,7 +86,7 @@ Remaining Phase 0 item: `AFFECT_DATA.skill` field addition deferred to Phase 5.
 **`skill_data.h`** — Public API header:
 - Constants: `SKILL_HASH_SIZE` (256), `SKILLS_DIR`, `SKILLFLAG_*` bitfield values, `INVOC_*` invocation method constants
 - Lookup API: `skill_find()`, `skill_search()`, `skill_find_uid()`, `skill_name()`, `skill_first()`, `skill_count()`
-- Compatibility API: `skill_from_sn()`, `skill_sn()`
+- Compatibility API (current): `skill_find_uid()`, `skill_sn()`
 - Spell function resolution: `spell_fun_lookup()`, `spell_fun_name()`
 - Boot/persistence: `load_skill_data()`, `save_skill_data()`, `save_all_skill_data()`
 - Allocation: `new_skill_data()`, `new_skill_class_level()`
@@ -166,7 +166,7 @@ Variable shadowing fixes:
 
 #### Phase 3c: Call Site Updates
 
-Updated all invocation call sites to pass `skill_from_sn(sn)` as first arg and appropriate `INVOC_*` constant as last arg:
+Updated all invocation call sites to pass `skill_find_uid(sn)` as first arg and appropriate `INVOC_*` constant as last arg:
 
 | File | Sites | Invocation Type |
 |------|-------|-----------------|
@@ -216,7 +216,7 @@ Added structural foundation for per-entry skill ratings. The `learned[]`/`mod_le
 - Added `#include "skill_data.h"`
 
 **`skills.c`:**
-- `skill_entry_insert()` — sets `entry->skill_data = skill_from_sn(sn)` for built-in skills
+- `skill_entry_insert()` — sets `entry->skill_data` via UID lookup for built-in skills
 - Added `#include "skill_data.h"`
 
 **`io/json/json_char.c`:**
@@ -269,7 +269,7 @@ Added `SKILL_DATA *skill` pointer to `AFFECT_DATA` struct and populated it at al
 
 | File | Sites | Pattern |
 |------|-------|---------|
-| `effects.c` | 4 | `af.type = gsn_*` → added `af.skill = skill_from_sn(af.type)` |
+| `effects.c` | 4 | `af.type = gsn_*` → added `af.skill` via UID lookup |
 | `fight.c` | 10 | Same pattern |
 | `fight2.c` | 5 | Same pattern |
 | `db.c` | 24+ | `af.type = gsn_*` (20 sites) + `paf->type = sn` (2 load sites) |
@@ -288,9 +288,9 @@ Added `SKILL_DATA *skill` pointer to `AFFECT_DATA` struct and populated it at al
 
 | File | Sites | Action |
 |------|-------|--------|
-| `save.c` | 6 | After `paf->type = sn;` → `paf->skill = skill_from_sn(sn);` |
+| `save.c` | 6 | After `paf->type = sn;` → `paf->skill` via UID lookup |
 | `db.c` | 2 | Same |
-| `io/json/json_char.c` | 2 | After `paf->type = json_integer_value(...)` → `paf->skill = skill_from_sn(paf->type);` |
+| `io/json/json_char.c` | 2 | After `paf->type = json_integer_value(...)` → `paf->skill` via UID lookup |
 | `io/json/json_persist.c` | 2 | Same + custom name path gets `paf->skill = NULL;` |
 
 #### Sites Intentionally Not Modified
@@ -309,9 +309,403 @@ Clean build: zero warnings, zero errors.
 
 ---
 
+## Session 6: Phase 6 Closure Review (2026-02-18)
+
+### Objective
+
+Reconcile plan/review status to match implementation reality before moving P0 focus to object multityping.
+
+### Work Performed
+
+1. Re-audited `PLAN_backport_skills_classes.md` Phase 6 checklist and verified all 6a-6e items are marked complete.
+2. Confirmed remaining unresolved items are explicitly deferred to later phases (Phase 7 editor work and Phase 9 cleanup), not Phase 6 blockers.
+3. Updated status docs to reflect completion:
+    - `PLAN_backport_skills_classes.md`: status now reads **Phases 0-6 Complete, Phase 7 pending**.
+    - `DOCS_REVIEW_2026-02-18.md`: skills/classes section now states **Phases 0-6 complete** and shifts wording to follow-up/editor cleanup scope.
+
+### Outcome
+
+- Skills/classes P0 implementation phase (Phase 6) is now treated as complete in planning docs.
+- Next P0 execution focus can cleanly shift to wrapping object multityping (Phase 5 conversion work).
+
+---
+
+## Session 7: `skill_entry` + Token Parity Audit vs `src_20_dev` (2026-02-18)
+
+### Objective
+
+Verify migration completeness for token-integrated skill behavior by comparing `src` and `src_20_dev` `skill_entry` handling, then convert findings into an actionable implementation checklist.
+
+### Findings
+
+1. **`src` still uses legacy arrays as runtime authority**
+    - `skill_entry_rating()` / `skill_entry_mod()` read from `pcdata->learned[]` / `mod_learned[]` (or token values), while `src_20_dev` returns `entry->rating` / `entry->mod_rating`.
+    - `get_skill()` in `handler.c` also reads arrays directly for player skills.
+
+2. **Core write paths still mutate `learned[]` directly in `src`**
+    - `do_practice()` standard-skill branch writes `ch->pcdata->learned[sn]`.
+    - `check_improve_show()` writes `ch->pcdata->learned[sn]`.
+    - script grant/set paths and immortal set-skill paths still write arrays first.
+    - In `src_20_dev`, equivalent paths primarily mutate `entry->rating`.
+
+3. **Cast path remains mixed-mode in `src`**
+    - Token spells are entry/token-driven and already support token ratings/mana via `TOKVAL_SPELL_*`.
+    - Built-in spells still lean on `sn` + `skill_table[]` + `get_skill(sn)` behavior.
+
+4. **Persistence layer intentionally shadows entry fields from arrays**
+    - `save.c` / JSON paths in `src` sync entry fields from arrays and write compatibility data.
+    - This confirms migration is in an intermediate state by design, but not yet runtime-parity complete.
+
+### Outcome
+
+- Added a new **Phase 6f: `skill_entry` Runtime Parity Hardening** checklist to `PLAN_backport_skills_classes.md`.
+- Checklist scopes the remaining conversion work needed before Phase 9 cleanup removes legacy arrays.
+- This gives a concrete “finish skills/classes” execution slice before/alongside multityping wrap.
+
+---
+
+## Session 8: Phase 6f Slice A Implementation (2026-02-18)
+
+### Objective
+
+Begin executing Phase 6f by converting foundational runtime read/write paths to `SKILL_ENTRY` authority while preserving legacy compatibility.
+
+### Code Changes
+
+1. **Entry-authoritative reads (`skills.c`)**
+    - `skill_entry_rating()` now returns:
+      - token-derived rating for token entries,
+      - `entry->rating` for player non-token entries,
+      - NPC fallback behavior retained where needed.
+    - `skill_entry_mod()` now returns `entry->mod_rating` for non-token entries.
+
+2. **Player skill resolution (`handler.c`)**
+    - `get_skill()` now prefers `SKILL_ENTRY` (`skill_entry_rating/mod`) for player skills, including racial checks.
+    - Legacy `learned[]`/`mod_learned[]` used only as fallback when a skill entry is missing.
+
+3. **Core write paths (`skills.c`)**
+    - `check_improve_show()` now reads/writes `entry->rating`.
+    - `do_practice()` standard-skill branch now updates `entry->rating` first.
+    - Both paths mirror the final value back into `pcdata->learned[sn]` for transition compatibility.
+
+### Validation
+
+- Ran `Run Unit Tests` task (`./build tests` + `./sent -test:unit` dependency chain).
+- Result: **8/8 passing**, no regressions.
+- Existing compile warnings in unrelated files remain unchanged.
+
+### Remaining 6f Work
+
+- Script-based grant/set/adjust skill commands still write legacy arrays first.
+- Immortal set-skill paths in `act_wiz.c` still need entry-first updates.
+- Save/load pass still needs final alignment to make `entry->rating/mod_rating` primary persisted source (while retaining backward compatibility through Phase 9).
+
+---
+
+## Session 9: Phase 6f Slice B Implementation (2026-02-18)
+
+### Objective
+
+Continue Phase 6f by converting script and immortal skill mutation paths to `SKILL_ENTRY`-first writes with legacy mirroring.
+
+### Code Changes
+
+1. **Script skill mutation commands (entry-first writes)**
+    - Updated `do_opskill`, `do_rpskill`, and `do_tpskill` to:
+      - mutate `entry->rating` as primary state,
+      - mirror `pcdata->learned[sn]` for transition compatibility,
+      - create/remove `SKILL_ENTRY` as needed when setting values.
+
+2. **Script grant path alignment**
+    - Updated `scriptcmd_grantskill` to set `entry->rating` after insertion, then mirror `learned[sn]`.
+
+3. **Immortal set-skill alignment**
+    - Updated `do_sset` skill handling in `act_wiz.c` (`set skill <name|all> <value>`) to keep `entry->rating` synchronized with set values while preserving existing add/remove behavior.
+
+### Validation
+
+- Ran unit tests: `./sent -test:unit`
+- Result: **8/8 passing**, no regressions.
+
+### Remaining 6f Work
+
+- Save/load consistency pass to make `entry->rating/mod_rating` the primary persisted fields (while preserving backward-compatible mirrors through Phase 9).
+- Manual gameplay verification pass (normal skill, token skill, scripted grant/revoke, class-availability gating).
+
+---
+
+## Session 10: Phase 6f Slice C (JSON Persistence) (2026-02-18)
+
+### Objective
+
+Implement JSON serialization/deserialization support where `SKILL_ENTRY.rating` / `mod_rating` are treated as first-class persisted fields, while preserving compatibility with existing character JSON files.
+
+### Code Changes
+
+1. **JSON skill save path (`io/json/json_char.c`)**
+        - `skills_to_json()` now writes `rating` and `mod_rating` fields from `SKILL_ENTRY` as primary persisted values.
+        - Legacy mirror fields `learned` / `mod_learned` are still written with the same values for backward compatibility during migration.
+        - Safety-net serialization for skills present only in legacy arrays also now emits `rating` / `mod_rating` plus legacy mirrors.
+
+2. **JSON skill load paths (`io/json/json_char.c`)**
+        - Updated both load paths (`json_to_char_skills_data` and `json_to_skills`) to read:
+            - `rating` first, falling back to `learned`
+            - `mod_rating` first, falling back to `mod_learned`
+        - Loaded values continue to populate `pcdata->learned[]` / `mod_learned[]` and then synchronize into `SKILL_ENTRY` fields, preserving transitional mirror behavior.
+
+### Validation
+
+- Ran unit tests: `./sent -test:unit`
+- Result: **8/8 passing**, no regressions.
+
+### Remaining 6f Work
+
+- Non-JSON player save/load paths are deprecated for current deployment, so no additional non-JSON persistence migration is planned in 6f.
+- Manual gameplay verification pass (normal skill, token skill, scripted grant/revoke, class-switch availability gating).
+
+---
+
+## Session 11: Phase 6f Slice D (Cast/Practice Consumption Paths) (2026-02-18)
+
+### Objective
+
+Close the remaining 6f consumption-path gap by removing direct legacy array usage in cast/practice gating where entry-aware helpers are already available.
+
+### Code Changes
+
+1. **Cast selection and cast roll alignment (`magic.c`)**
+        - `find_spell()` now gates known spells using `get_skill(ch, sn) > 0` rather than direct `pcdata->learned[sn] > 0`.
+        - `do_cast()` now uses the previously resolved `skill` value for the cast success/failure roll, avoiding a second direct re-query.
+
+2. **Practice gating alignment (`skills.c`)**
+        - `can_practice()` now:
+            - safely bails out if no `SKILL_ENTRY` exists,
+            - uses `entry->rating` as primary, with legacy `learned[]` fallback,
+            - uses that rating for the “already practiced” threshold check.
+        - `had_skill()` now checks `SKILL_ENTRY.rating` first (with legacy fallback) for prior-skill determination.
+
+### Validation
+
+- Ran unit tests: `./sent -test:unit`
+- Result: **8/8 passing**, no regressions.
+
+### Remaining 6f Work
+
+- Manual gameplay verification pass (normal skill, token skill, scripted grant/revoke, class-switch availability gating).
+
+---
+
+## Session 12: Phase 6f Cleanup Pass (Non-Legacy Runtime `learned[]` Reads) (2026-02-18)
+
+### Objective
+
+Clean up direct `pcdata->learned[]` runtime consumption in active gameplay paths that are not part of persistence/migration compatibility code.
+
+### Code Changes
+
+1. **Hunt skill consumption (`hunt.c`)**
+    - Replaced direct hunt chance read from `pcdata->learned[gsn_hunt]` with `get_skill(ch, sn_hunt)`.
+    - Preserves scent-tracking trait override behavior.
+
+2. **Weapon skill consumption (`handler.c`)**
+    - `get_weapon_skill()` now resolves player weapon skill via `get_skill(ch, sn)` instead of direct `learned[]` access.
+
+3. **New-character weapon initialization (`nanny.c`)**
+    - Default weapon setup now ensures a `SKILL_ENTRY` exists and sets `entry->rating = 50` as primary state.
+    - Keeps legacy compatibility mirror `pcdata->learned[weapon] = 50`.
+
+### Validation
+
+- Ran unit tests: `./sent -test:unit`
+- Result: **8/8 passing**, no regressions.
+
+### Remaining 6f Work
+
+- Manual gameplay verification pass (normal skill, token skill, scripted grant/revoke, class-switch availability gating).
+
+---
+
+## Session 13: Phase 6f Cleanup Pass (Remove Runtime `learned[]` Fallback Reads) (2026-02-18)
+
+### Objective
+
+Keep legacy mirroring behavior, but stop actively relying on `pcdata->learned[]` in runtime skill consumption/mutation logic in favor of `SKILL_ENTRY`.
+
+### Code Changes
+
+1. **Core runtime resolver (`handler.c`)**
+    - `get_skill()` now uses `SKILL_ENTRY` as the runtime authority path and no longer falls back to reading `learned[]`/`mod_learned[]` when entries are missing.
+
+2. **Skill runtime helpers (`skills.c`)**
+    - Training increment path now raises `entry->rating` and mirrors to `learned[]`.
+    - `group_add()` now checks/initializes via `SKILL_ENTRY` first, then mirrors `learned[]`.
+    - `can_practice()` / `had_skill()` no longer use `learned[]` read fallback.
+    - `update_skills()` now evaluates/removes based on `SKILL_ENTRY.rating` and mirrors the resulting value to `learned[]`.
+
+3. **Script skill mutation (`script_opcmds.c`, `script_rpcmds.c`, `script_tpcmds.c`)**
+    - `+` and `-` operations now consume only `entry->rating` (no `learned[]` read fallback).
+    - Mirror writes to `learned[]` are retained.
+
+### Validation
+
+- Re-scanned active source: remaining `learned[]` checks are now confined to persistence files (`save.c`, `io/json/json_char.c`) and dead/commented legacy blocks.
+- Ran unit tests: `./sent -test:unit`
+- Result: **8/8 passing**, no regressions.
+
+### Final Runtime Grep Report
+
+- Scope (active runtime files only): `handler.c`, `skills.c`, `script_opcmds.c`, `script_rpcmds.c`, `script_tpcmds.c`
+- Read pattern: `->learned[...]` occurrences not used as assignment targets
+- Exclusions: persistence files (`save.c`, `io/json/json_char.c`) and known dead `#if 0` lines in `skills.c`
+- **Before (pre-cleanup for this scope): 30 read occurrences**
+- **After (current): 0 read occurrences**
+
+### Remaining 6f Work
+
+- Manual gameplay verification pass (normal skill, token skill, scripted grant/revoke, class-switch availability gating).
+
+---
+
+## Session 14: Phase 7/8 Completion Audit (2026-02-18)
+
+### Objective
+
+Verify whether Phases 7 and 8 can be marked complete based on current implementation status.
+
+### Findings
+
+1. **Phase 7 (OLC Editors): Complete**
+    - `skedit` implemented: `editors/skills/skedit.c` with command table and spell function editing.
+    - `clsedit` implemented: `editors/classes/clsedit.c` with reward management (`reward`, `rewardflags`, `rewards`, `reward remove`).
+    - Commands registered in dispatch tables:
+      - `interp.c` command table includes `skedit` and `clsedit`.
+      - `olc.c` editor map includes `skill` and `class` editors.
+
+2. **Phase 8 (Song migration): Partially complete**
+    - `SONG_DATA` backend exists (`song_data.h`, `song_data.c`) with lookup/count/load/save.
+    - Bootstrap from legacy `music_table[]` exists in `load_songs()` path.
+    - `db.c` boots songs via `load_songs()`.
+    - **Remaining:** `music.c` still has direct `music_table[]` consumption sites, so final migration item is not complete yet.
+
+### Documentation Updates
+
+- Updated plan status to: **Phases 0-7 Complete, Phase 8 in progress**.
+- Marked all Phase 7 checklist items complete.
+- Marked first three Phase 8 items complete; left `music.c` migration unchecked.
+
+---
+
+## Session 15: Phase 8 Completion (2026-02-18)
+
+### Objective
+
+Finish the final Phase 8 migration item by removing residual `music_table[]` usage from `music.c`.
+
+### Code Changes
+
+- Removed obsolete commented legacy block in `music.c` that still referenced `music_table[]` paths.
+- Active song execution logic remains `SONG_DATA`-driven (`ch->song`, `entry->song`, `song_lookup` path).
+
+### Validation
+
+- Verified `music_table[]` references in `music.c`: none remaining.
+- Ran unit tests: `./sent -test:unit`
+- Result: **8/8 passing**, no regressions.
+
+### Outcome
+
+- Phase 8 checklist is now fully complete.
+- Plan status updated to: **Phases 0-8 Complete, Phase 9 pending**.
+
+---
+
+## Session 16: Phase 9 Warning Cleanup (`unused sn`) (2026-02-18)
+
+### Objective
+
+Reduce clean-build warning noise by eliminating the bulk `unused variable 'sn'` warnings in spell files without changing spell behavior.
+
+### Code Changes
+
+- Updated spell-local compatibility declarations from `int sn = skill->uid;` to `int sn __attribute__((unused)) = skill->uid;` in the targeted `magic*.c` files.
+- Fixed malformed replacements from the first automated pass in:
+    - `magic_nature.c`
+    - `magic_shock.c`
+    - `magic_sound.c`
+    - `magic_mana.c`
+    - `magic_mind.c`
+    - `magic_death.c`
+- Preserved runtime behavior while restoring compile correctness in affected functions.
+
+### Validation
+
+- Ran clean build: `./build clean`
+- Build completed successfully (link succeeded).
+- Verified warning logs no longer include `unused variable 'sn'` entries.
+
+### Outcome
+
+- The primary Phase 9 warning class (`unused sn`) is cleaned up.
+- Remaining warnings are in other categories and can be handled as separate cleanup slices.
+
+---
+
+## Session 17: `skill_from_sn` Retirement (2026-02-18)
+
+### Objective
+
+Finish migration away from the legacy `skill_from_sn()` compatibility shim now that all runtime callsites are on UID-based lookups.
+
+### Code Changes
+
+- Replaced remaining runtime callsites of `skill_from_sn(...)` with `skill_find_uid(...)` across gameplay, scripting, persistence, and JSON paths.
+- Added missing `skill_data.h` includes for files that now call `skill_find_uid` directly.
+- Removed the `skill_from_sn` API declaration from `skill_data.h` and `merc.h`.
+- Removed the `skill_from_sn` function definition from `skill_data.c`.
+
+### Validation
+
+- Recursive grep in `src/` shows no code references to `skill_from_sn(`; only historical docs mention it.
+- Clean build completed successfully.
+
+### Outcome
+
+- Legacy `skill_from_sn` shim is fully retired from runtime code.
+- UID lookup is now uniformly done through `skill_find_uid(...)`.
+
+---
+
+## Session 18: AFFECT_DATA Pointer-First Helper Migration (2026-02-18)
+
+### Objective
+
+Start the deferred Phase 5 read-path migration by making core affect helper checks consume `AFFECT_DATA.skill` first, with legacy `type` fallback for compatibility.
+
+### Code Changes
+
+- Updated core affect helper matching in `handler.c` to use pointer-first comparison:
+    - `affect_find()`
+    - `affect_strip()`
+    - `affect_strip_obj()`
+    - `is_affected()`
+- Added local helper `affect_matches_skill_sn(...)` in `handler.c`:
+    - compares `paf->skill` to `skill_find_uid(sn)` when available,
+    - falls back to legacy `paf->type == sn` for compatibility/non-skill affects.
+
+### Validation
+
+- Ran clean build: `./build clean`
+- Build completed successfully.
+
+### Outcome
+
+- Core affect helper read paths now align with pointer-first migration strategy.
+- `AFFECT_DATA.type` remains as fallback compatibility until full Phase 9 removal.
+
+---
+
 ## Next Steps
 
-- **Phase 6:** Class system — data-driven classes with multi-classing
-- **Phase 7:** OLC editors for skills and classes
-- Gradual migration of `paf->type` READ sites to use `paf->skill` pointer
-- Test the bootstrap by booting the server to verify JSON generation
+- **Phase 9:** Continue migrating remaining `paf->type` READ/comparison sites to pointer-first checks
+- Begin `gsn_*` declaration/definition retirement slices (`merc.h` / `db.c`)
+- Manual gameplay spot-check for completed skills/classes migration slices (practice/cast/scripted grant paths)

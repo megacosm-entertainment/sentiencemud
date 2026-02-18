@@ -641,17 +641,15 @@ static json_t *skills_to_json(CHAR_DATA *ch)
         if (sn <= 0 || sn >= MAX_SKILL || !skill_table[sn].name)
             continue;
 
-        // Sync entry rating from learned[] to capture any runtime changes
-        entry->rating = ch->pcdata->learned[sn];
-        entry->mod_rating = ch->pcdata->mod_learned[sn];
-
         json_t *skill_data = json_object();
 
         if (entry->rating > 0) {
+            json_object_set_new(skill_data, "rating", json_integer(entry->rating));
             json_object_set_new(skill_data, "learned", json_integer(entry->rating));
         }
 
         if (entry->mod_rating != 0) {
+            json_object_set_new(skill_data, "mod_rating", json_integer(entry->mod_rating));
             json_object_set_new(skill_data, "mod_learned", json_integer(entry->mod_rating));
         }
 
@@ -703,10 +701,14 @@ static json_t *skills_to_json(CHAR_DATA *ch)
             && !json_object_get(skills, skill_table[sn].name)) {
 
             json_t *skill_data = json_object();
-            if (ch->pcdata->learned[sn] > 0)
+            if (ch->pcdata->learned[sn] > 0) {
+                json_object_set_new(skill_data, "rating", json_integer(ch->pcdata->learned[sn]));
                 json_object_set_new(skill_data, "learned", json_integer(ch->pcdata->learned[sn]));
-            if (ch->pcdata->mod_learned[sn] != 0)
+            }
+            if (ch->pcdata->mod_learned[sn] != 0) {
+                json_object_set_new(skill_data, "mod_rating", json_integer(ch->pcdata->mod_learned[sn]));
                 json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
+            }
             json_object_set_new(skills, skill_table[sn].name, skill_data);
         }
     }
@@ -956,7 +958,7 @@ static json_t *affects_to_json(CHAR_DATA *ch)
 
         // Save skill name alongside numeric type for resilient loading
         if (paf->type > 0) {
-            SKILL_DATA *sk = skill_from_sn(paf->type);
+            SKILL_DATA *sk = skill_find_uid(paf->type);
             if (sk) {
                 json_object_set_new(aff, "type_name", json_string(sk->name));
             }
@@ -1068,58 +1070,58 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     // **FIX #2: Save complete class data with all levels**
     classes_obj = json_object();
     if (ch->pcdata) {
-        if (ch->pcdata->class_mage > 0 || ch->pcdata->second_class_mage > 0) {
+        if (ch->pcdata->class_mage >= 0 || ch->pcdata->second_class_mage >= 0) {
             json_t *mage = json_object();
             json_object_set_new(mage, "primary", json_integer(ch->pcdata->class_mage));
-            if (ch->pcdata->second_class_mage > 0) {
+            if (ch->pcdata->second_class_mage >= 0) {
                 json_object_set_new(mage, "secondary", json_integer(ch->pcdata->second_class_mage));
             }
-            if (ch->pcdata->sub_class_mage > 0) {
+            if (ch->pcdata->sub_class_mage >= 0) {
                 json_object_set_new(mage, "sub", json_integer(ch->pcdata->sub_class_mage));
             }
-            if (ch->pcdata->second_sub_class_mage > 0) {
+            if (ch->pcdata->second_sub_class_mage >= 0) {
                 json_object_set_new(mage, "second_sub", json_integer(ch->pcdata->second_sub_class_mage));
             }
             json_object_set_new(classes_obj, "mage", mage);
         }
-        if (ch->pcdata->class_cleric > 0 || ch->pcdata->second_class_cleric > 0) {
+        if (ch->pcdata->class_cleric >= 0 || ch->pcdata->second_class_cleric >= 0) {
             json_t *cleric = json_object();
             json_object_set_new(cleric, "primary", json_integer(ch->pcdata->class_cleric));
-            if (ch->pcdata->second_class_cleric > 0) {
+            if (ch->pcdata->second_class_cleric >= 0) {
                 json_object_set_new(cleric, "secondary", json_integer(ch->pcdata->second_class_cleric));
             }
-            if (ch->pcdata->sub_class_cleric > 0) {
+            if (ch->pcdata->sub_class_cleric >= 0) {
                 json_object_set_new(cleric, "sub", json_integer(ch->pcdata->sub_class_cleric));
             }
-            if (ch->pcdata->second_sub_class_cleric > 0) {
+            if (ch->pcdata->second_sub_class_cleric >= 0) {
                 json_object_set_new(cleric, "second_sub", json_integer(ch->pcdata->second_sub_class_cleric));
             }
             json_object_set_new(classes_obj, "cleric", cleric);
         }
-        if (ch->pcdata->class_thief > 0 || ch->pcdata->second_class_thief > 0) {
+        if (ch->pcdata->class_thief >= 0 || ch->pcdata->second_class_thief >= 0) {
             json_t *thief = json_object();
             json_object_set_new(thief, "primary", json_integer(ch->pcdata->class_thief));
-            if (ch->pcdata->second_class_thief > 0) {
+            if (ch->pcdata->second_class_thief >= 0) {
                 json_object_set_new(thief, "secondary", json_integer(ch->pcdata->second_class_thief));
             }
-            if (ch->pcdata->sub_class_thief > 0) {
+            if (ch->pcdata->sub_class_thief >= 0) {
                 json_object_set_new(thief, "sub", json_integer(ch->pcdata->sub_class_thief));
             }
-            if (ch->pcdata->second_sub_class_thief > 0) {
+            if (ch->pcdata->second_sub_class_thief >= 0) {
                 json_object_set_new(thief, "second_sub", json_integer(ch->pcdata->second_sub_class_thief));
             }
             json_object_set_new(classes_obj, "thief", thief);
         }
-        if (ch->pcdata->class_warrior > 0 || ch->pcdata->second_class_warrior > 0) {
+        if (ch->pcdata->class_warrior >= 0 || ch->pcdata->second_class_warrior >= 0) {
             json_t *warrior = json_object();
             json_object_set_new(warrior, "primary", json_integer(ch->pcdata->class_warrior));
-            if (ch->pcdata->second_class_warrior > 0) {
+            if (ch->pcdata->second_class_warrior >= 0) {
                 json_object_set_new(warrior, "secondary", json_integer(ch->pcdata->second_class_warrior));
             }
-            if (ch->pcdata->sub_class_warrior > 0) {
+            if (ch->pcdata->sub_class_warrior >= 0) {
                 json_object_set_new(warrior, "sub", json_integer(ch->pcdata->sub_class_warrior));
             }
-            if (ch->pcdata->second_sub_class_warrior > 0) {
+            if (ch->pcdata->second_sub_class_warrior >= 0) {
                 json_object_set_new(warrior, "second_sub", json_integer(ch->pcdata->second_sub_class_warrior));
             }
             json_object_set_new(classes_obj, "warrior", warrior);
@@ -3756,15 +3758,19 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
             // Now we have a valid skill number, load the data
             if (json_is_object(skill_value)) {
-                // New format - object with learned/mod_learned fields
-                json_t *learned = json_object_get(skill_value, "learned");
-                if (learned) {
-                    ch->pcdata->learned[sn] = json_integer_value(learned);
+                // Preferred format - SKILL_ENTRY fields, with legacy fallback keys
+                json_t *rating = json_object_get(skill_value, "rating");
+                if (!rating)
+                    rating = json_object_get(skill_value, "learned");
+                if (rating) {
+                    ch->pcdata->learned[sn] = json_integer_value(rating);
                 }
-                // Load skill modifiers
-                json_t *mod_learned = json_object_get(skill_value, "mod_learned");
-                if (mod_learned) {
-                    ch->pcdata->mod_learned[sn] = json_integer_value(mod_learned);
+
+                json_t *mod_rating = json_object_get(skill_value, "mod_rating");
+                if (!mod_rating)
+                    mod_rating = json_object_get(skill_value, "mod_learned");
+                if (mod_rating) {
+                    ch->pcdata->mod_learned[sn] = json_integer_value(mod_rating);
                 }
             } else {
                 // Very old format - just the percentage as integer
@@ -3899,10 +3905,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 } else {
                     log_stringf("json_read_char: affect type_name '%s' not found for %s, falling back to type %d",
                                 str, ch->name, paf->type);
-                    paf->skill = skill_from_sn(paf->type);
+                    paf->skill = skill_find_uid(paf->type);
                 }
             } else {
-                paf->skill = skill_from_sn(paf->type);
+                paf->skill = skill_find_uid(paf->type);
             }
 
             paf->level = json_integer_value(json_object_get(array_elem, "level"));
@@ -4272,13 +4278,19 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             }
 
             if (json_is_object(skill_value)) {
-                json_t *learned = json_object_get(skill_value, "learned");
-                if (learned) {
-                    ch->pcdata->learned[sn] = json_integer_value(learned);
+                // Preferred format - SKILL_ENTRY fields, with legacy fallback keys
+                json_t *rating = json_object_get(skill_value, "rating");
+                if (!rating)
+                    rating = json_object_get(skill_value, "learned");
+                if (rating) {
+                    ch->pcdata->learned[sn] = json_integer_value(rating);
                 }
-                json_t *mod_learned = json_object_get(skill_value, "mod_learned");
-                if (mod_learned) {
-                    ch->pcdata->mod_learned[sn] = json_integer_value(mod_learned);
+
+                json_t *mod_rating = json_object_get(skill_value, "mod_rating");
+                if (!mod_rating)
+                    mod_rating = json_object_get(skill_value, "mod_learned");
+                if (mod_rating) {
+                    ch->pcdata->mod_learned[sn] = json_integer_value(mod_rating);
                 }
             } else {
                 ch->pcdata->learned[sn] = json_integer_value(skill_value);
@@ -4412,10 +4424,10 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 } else {
                     log_stringf("json_read_char: affect type_name '%s' not found for %s, falling back to type %d",
                                 str, ch->name, paf->type);
-                    paf->skill = skill_from_sn(paf->type);
+                    paf->skill = skill_find_uid(paf->type);
                 }
             } else {
-                paf->skill = skill_from_sn(paf->type);
+                paf->skill = skill_find_uid(paf->type);
             }
 
             paf->level = json_integer_value(json_object_get(array_elem, "level"));

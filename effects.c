@@ -199,7 +199,7 @@ void cold_effect(void *vo, int level, int dam, int target)
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
             af.type      = skill_resolve_gsn("chill touch");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level     = level;
             af.duration  = 6;
             af.location  = APPLY_STR;
@@ -322,7 +322,7 @@ void fire_effect(void *vo, int level, int dam, int target)
             af.where        = TO_AFFECTS;
             af.group        = AFFGROUP_PHYSICAL;
             af.type         = skill_resolve_gsn("fire breath");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level        = level;
             af.duration     = 1;//number_range(0,level/10);
             af.location     = APPLY_HITROLL;
@@ -516,7 +516,7 @@ void poison_effect(void *vo, int level, int dam, int target)
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
             af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level     = level;
             af.duration  = level / 2;
             af.location  = APPLY_STR;

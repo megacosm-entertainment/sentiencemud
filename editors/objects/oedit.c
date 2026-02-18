@@ -261,7 +261,7 @@ static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_string(ctx, theme, "Name:", "name", pObj->name);
     olc_display_infof(ctx, theme, "Area:         %s[%s%7ld%s] %s%s{x",
         theme->label, theme->value,
-        !pObj->area ? -1L : pObj->area->anum,
+        !pObj->area ? -1L : pObj->area->uid,
         theme->label,
         theme->value,
         !pObj->area ? "No Area" : pObj->area->name);
@@ -1451,7 +1451,7 @@ OEDIT(oedit_lock)
         }
 
         WNUM key_wnum;
-        AREA_DATA *context = strchr(argument, '#') ? pObj->area : NULL;
+        AREA_DATA *context = olc_relative_widevnum_context(pObj->area, argument);
         if (!parse_widevnum(argument, context, &key_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
@@ -2795,7 +2795,7 @@ OEDIT (oedit_addoprog)
 
 
   WNUM script_wnum;
-  AREA_DATA *context = strchr(num, '#') ? pObj->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(pObj->area, num);
   if (!parse_widevnum(num, context, &script_wnum)) {
       send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
       return false;

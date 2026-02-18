@@ -798,8 +798,10 @@ void do_train(CHAR_DATA *ch, char *argument)
                     entry->token->value[TOKVAL_SPELL_RATING] += entry->token->pIndexData->value[TOKVAL_SPELL_RATING];
                 else
                     entry->token->value[TOKVAL_SPELL_RATING]++;
-            } else
-                ch->pcdata->learned[entry->sn]++;
+            } else {
+                entry->rating++;
+                ch->pcdata->learned[entry->sn] = entry->rating;
+            }
         }
         else
         {
@@ -1353,6 +1355,7 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     int chance;
     char buf[100];
     int this_class;
+    int rating;
     SKILL_ENTRY *entry;
 
     if (IS_NPC(ch))
@@ -1369,11 +1372,12 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
         return;
 
     this_class = get_this_class(ch, sn);
+    rating = entry->rating;
 
     if (get_skill(ch, sn) == 0
     ||  skill_table[sn].rating[this_class] == 0
-    ||  ch->pcdata->learned[sn] == 0
-    ||  ch->pcdata->learned[sn] == 100)
+    ||  rating <= 0
+    ||  rating >= 100)
     return;
 
     // check to see if the character has a chance to learn
@@ -1389,26 +1393,28 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     // now that the character has a CHANCE to learn, see if they really have
     if (success)
     {
-    chance = URANGE(2, 100 - ch->pcdata->learned[sn], 25);
+    chance = URANGE(2, 100 - rating, 25);
     if (number_percent() < chance)
     {
         sprintf(buf,"{WYou have become better at %s!{x\n\r", skill_table[sn].name);
         send_to_char(buf,ch);
-        ch->pcdata->learned[sn]++;
+        entry->rating = UMIN(entry->rating + 1, 100);
+        ch->pcdata->learned[sn] = entry->rating;
         gain_exp(ch, NULL, 2 * skill_table[sn].rating[this_class], true);
     }
     }
     else
     {
-    chance = URANGE(5, ch->pcdata->learned[sn]/2, 30);
+    chance = URANGE(5, rating/2, 30);
     if (number_percent() < chance)
     {
         sprintf(buf,
         "{WYou learn from your mistakes, and your %s skill improves.{x\n\r",
         skill_table[sn].name);
         send_to_char(buf, ch);
-        ch->pcdata->learned[sn] += number_range(1,3);
-        ch->pcdata->learned[sn] = UMIN(ch->pcdata->learned[sn],100);
+        entry->rating += number_range(1,3);
+        entry->rating = UMIN(entry->rating,100);
+        ch->pcdata->learned[sn] = entry->rating;
         gain_exp(ch, NULL, 2 * skill_table[sn].rating[ch->pcdata->class_current], true);
     }
     }
@@ -1486,6 +1492,7 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 {
     int sn;
     int gn;
+    SKILL_ENTRY *entry;
 
     if (IS_NPC(ch))
     return;
@@ -1494,8 +1501,8 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 
     if (sn != -1)
     {
-        if (ch->pcdata->learned[sn] <= 0) { /* i.e. not known */
-            ch->pcdata->learned[sn] = 1;
+        entry = skill_entry_findsn(ch->sorted_skills, sn);
+        if (!entry || entry->rating <= 0) { /* i.e. not known */
 
             //This leads to all skills and spells being marked as skills when newly granted. -RHanson 12/12/16
 /*
@@ -1503,14 +1510,21 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
                 skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 */
 
-            if( skill_entry_findsn( ch->sorted_skills, sn) == NULL)
+            if( !entry )
             {
                 if( skill_table[sn].spell_fun == spell_null ) {
                     skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 } else {
                     skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 }
+
+                entry = skill_entry_findsn(ch->sorted_skills, sn);
             }
+
+            if (entry && entry->rating <= 0)
+                entry->rating = 1;
+
+            ch->pcdata->learned[sn] = 1;
         }
 
 
@@ -1693,6 +1707,8 @@ void do_practice( CHAR_DATA *ch, char *argument )
     else
     {
         // Standard ability
+        int amount;
+
         sn = entry->sn;
         if( !can_practice(ch, sn) )
         {
@@ -1706,7 +1722,8 @@ void do_practice( CHAR_DATA *ch, char *argument )
             return;
         }
 
-        if (ch->pcdata->learned[sn] >= rating_cap) {
+        amount = entry->rating;
+        if (amount >= rating_cap) {
             sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", skill_table[sn].name);
             send_to_char(buf, ch);
         } else {
@@ -1719,13 +1736,15 @@ void do_practice( CHAR_DATA *ch, char *argument )
             learn = ch->tempstore[0];
             if( learn < 1 ) learn = 1;	// At this point, it should be a minimum of 1 skill rating
 
-            ch->pcdata->learned[sn] += learn;
+            amount += learn;
+            if (amount > rating_cap) amount = rating_cap;
+            entry->rating = amount;
+            ch->pcdata->learned[sn] = amount;
 
-            if (ch->pcdata->learned[sn] < rating_cap) {
+            if (amount < rating_cap) {
                 act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
                 act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
             } else {
-                ch->pcdata->learned[sn] = rating_cap;
                 act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
                 act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
             }
@@ -1902,6 +1921,7 @@ bool can_practice( CHAR_DATA *ch, int sn )
 {
     SKILL_ENTRY *entry;
     int this_class;
+    int rating;
     
 
     if (sn < 0)
@@ -1910,6 +1930,11 @@ bool can_practice( CHAR_DATA *ch, int sn )
     }
     entry = skill_entry_findsn(ch->sorted_skills, sn);
     this_class = get_this_class(ch, sn);
+
+    if (!entry)
+        return false;
+
+    rating = entry->rating;
 
     // If we can't practice the skill, bail early.
     if(!IS_SET(entry->flags, SKILL_PRACTICE)) 
@@ -1944,7 +1969,7 @@ bool can_practice( CHAR_DATA *ch, int sn )
     }
 
     // For old skills which already got practiced
-    if (ch->pcdata->learned[sn] > 2)
+    if (rating > 2)
     return true;
 
     return false;
@@ -1954,13 +1979,16 @@ bool can_practice( CHAR_DATA *ch, int sn )
 // Has a person had a skill in any of their classes (past or present)?
 bool had_skill( CHAR_DATA *ch, int sn )
 {
+    SKILL_ENTRY *entry;
+
     if (sn < 0)
     return false;
 
     if (IS_IMMORTAL(ch))
     return true;
 
-    if (ch->pcdata->learned[sn] > 1)
+    entry = skill_entry_findsn(ch->sorted_skills, sn);
+    if (entry && entry->rating > 1)
     return true;
 
     // Check all classes the character has joined
@@ -2001,14 +2029,21 @@ void update_skills( CHAR_DATA *ch )
 
     for (sn = 0; sn < MAX_SKILL && skill_table[sn].name; sn++)
     {
-    if (ch->pcdata->learned[sn] > 0 && !should_have_skill(ch, sn)
+    SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
+    int rating = entry ? entry->rating : 0;
+
+    if (rating > 0 && !should_have_skill(ch, sn)
     &&  str_cmp(skill_table[sn].name, "reserved"))
     {
         sprintf(buf, "You shouldn't have skill %s (reward of {Y%d{x quest points)\n\r",
-            skill_table[sn].name, 7 * ch->pcdata->learned[sn]);
+            skill_table[sn].name, 7 * rating);
         send_to_char(buf, ch);
-        reward += (7 * ch->pcdata->learned[sn]);
-        ch->pcdata->learned[sn] = -ch->pcdata->learned[sn];
+        reward += (7 * rating);
+
+        if (entry)
+            entry->rating = -rating;
+
+        ch->pcdata->learned[sn] = -rating;
     }
     }
 
@@ -2198,7 +2233,7 @@ void skill_entry_insert (SKILL_ENTRY **list, int sn, SONG_DATA *song, TOKEN_DATA
 
     // Set SKILL_DATA pointer for navigation to skill definition
     if (sn > 0 && sn < MAX_SKILL)
-        entry->skill_data = skill_from_sn(sn);
+        entry->skill_data = skill_find_uid(sn);
 
     if (IS_SET(entry->flags, SKILL_SPELL)) {
     entry->isspell = true;
@@ -2431,30 +2466,41 @@ int token_skill_mana(TOKEN_DATA *token)
 
 int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
+    if (!entry)
+        return 0;
+
     if( IS_VALID(entry->token) ) {
         return token_skill_rating(entry->token);
-    } else if( entry->sn > 0) {
-        if( IS_NPC(ch) ) {
-            if ((skill_table[entry->sn].race != -1 && (!ch->race || ch->race->uid != skill_table[entry->sn].race)) || ch->tot_level < 10)
-                return 0;
+    }
 
-            return mob_skill_table[ch->tot_level];
-        } else
-            return ch->pcdata->learned[entry->sn];
-    } else
-        return 0;
+    if (!IS_NPC(ch))
+        return entry->rating;
+
+    if (entry->rating > 0)
+        return entry->rating;
+
+    if( entry->sn > 0) {
+        if ((skill_table[entry->sn].race != -1 && (!ch->race || ch->race->uid != skill_table[entry->sn].race)) || ch->tot_level < 10)
+            return 0;
+
+        return mob_skill_table[ch->tot_level];
+    }
+
+    return entry->rating;
 }
 
 int skill_entry_mod(CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
+    if (!entry)
+        return 0;
+
     if( IS_VALID(entry->token) ) {
         return 0;	// No mods for TOKEN entries yet!
-    } else if( entry->sn > 0) {
-        if( IS_NPC(ch) ) return 0;
+    }
 
-        return ch->pcdata->mod_learned[entry->sn];
-    } else
-        return 0;
+    if( IS_NPC(ch) ) return 0;
+
+    return entry->mod_rating;
 }
 
 int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
@@ -2710,7 +2756,7 @@ void do_skillinfo(CHAR_DATA *ch, char *argument)
                             entry->isspell ? "Spell" : "Skill", name));
 
     /* Summary line */
-    SKILL_DATA *sd = entry->skill_data ? entry->skill_data : skill_from_sn(sn);
+    SKILL_DATA *sd = entry->skill_data ? entry->skill_data : skill_find_uid(sn);
     if (sd && sd->summary && sd->summary[0])
         add_buf(buffer, formatf("{Y%s{x\n\r", sd->summary));
 

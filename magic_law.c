@@ -20,7 +20,7 @@
 
 SPELL_FUNC(spell_armour)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -61,7 +61,7 @@ SPELL_FUNC(spell_armour)
 
 SPELL_FUNC(spell_cloak_of_guile)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -104,7 +104,7 @@ SPELL_FUNC(spell_cloak_of_guile)
 
 SPELL_FUNC(spell_entrap)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
 
     if (IS_SET(obj->extra[0], ITEM_HOLY) ||
@@ -126,7 +126,7 @@ SPELL_FUNC(spell_entrap)
 
 SPELL_FUNC(spell_faerie_fire)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -156,7 +156,7 @@ SPELL_FUNC(spell_faerie_fire)
 
 SPELL_FUNC(spell_identify)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *obj = (OBJ_DATA *) vo;
     BUFFER *buffer;
     char buf[2*MAX_STRING_LENGTH];
@@ -513,7 +513,7 @@ SPELL_FUNC(spell_identify)
 
 SPELL_FUNC(spell_locate_object)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     char buf[MAX_INPUT_LENGTH];
     char *target_name = (char *) vo;
     BUFFER *buffer;
@@ -585,7 +585,7 @@ SPELL_FUNC(spell_locate_object)
 
 SPELL_FUNC(spell_pass_door)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -627,7 +627,7 @@ SPELL_FUNC(spell_pass_door)
 
 SPELL_FUNC(spell_room_shield)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *roomshield;
     OBJ_DATA *obj;
     int catalyst;
@@ -685,7 +685,7 @@ SPELL_FUNC(spell_room_shield)
 
 SPELL_FUNC(spell_word_of_recall)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     ROOM_INDEX_DATA *location;
 

@@ -20,7 +20,7 @@
 
 SPELL_FUNC(spell_gate)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     bool gate_pet;
     int distance, catalyst;
@@ -79,7 +79,7 @@ SPELL_FUNC(spell_gate)
 
 SPELL_FUNC(spell_maze)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     int skill_pct;
     CHAR_DATA *victim = NULL;
     ROOM_INDEX_DATA *room;
@@ -167,7 +167,7 @@ SPELL_FUNC(spell_maze)
 
 SPELL_FUNC(spell_nexus)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     OBJ_DATA *portal;
     ROOM_INDEX_DATA *to_room, *from_room;
@@ -266,7 +266,7 @@ SPELL_FUNC(spell_nexus)
 
 SPELL_FUNC(spell_reflection)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *reflection;
     char buf[MAX_STRING_LENGTH];
 
@@ -310,7 +310,7 @@ SPELL_FUNC(spell_reflection)
 
 SPELL_FUNC(spell_summon)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
 
     victim = (CHAR_DATA *) vo;

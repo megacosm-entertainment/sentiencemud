@@ -40,31 +40,18 @@ JSON-driven test framework with conditional compilation (`#ifdef BUILD_TESTS`). 
 ### Area Find Commands
 All eight find commands (`mfind`, `ofind`, `tfind`, `rfind`, `bpfind`, `bsfind`, `dngfind`, `shfind`) updated with widevnum display and area-scoping filters.
 
+### Widevnum Migration
+Core widevnum migration is complete (Phases 1-8), including command/input/display coverage, cross-area comparison safety, and scripting engine consistency updates.
+
+Post-completion cleanup is also complete:
+- script parsing/context hardening (`#vnum` context rules enforced),
+- JSON shop stock cross-area serialization/fixup regression resolved (`0#<vnum>` no longer emitted for valid resolved stock references).
+
+Details: [widevnums/WIDEVNUM_REMAINING_WORK.md](widevnums/WIDEVNUM_REMAINING_WORK.md)
+
 ---
 
 ## In Progress
-
-### Widevnum Migration
-
-**Status:** Complete (Phases 1-8 complete; minor polish deferred to Phase 9).
-**Docs:** [widevnums/](widevnums/)
-
-The core project: transitioning from globally-unique vnums to area-scoped widevnums (`area_uid:local_vnum`). This enables collision-free multi-area development and is a prerequisite for many downstream features.
-
-**What's done:**
-- `WNUM` / `WNUM_LOAD` types and conversion infrastructure
-- `parse_widevnum()` for runtime input, `parse_widevnum_load()` for deserialization
-- `widevnum_string_*()` display functions for all entity types
-- `wnum_match_*()` comparison functions
-- Per-area hash tables for entity lookup
-- JSON serialization with `WNUM_LOAD`
-- Stat commands (`rstat`, `ostat`, `mstat`), find commands, and navigation commands (`goto`, `transfer`, `at`)
-
-**Deferred polish (Phase 9):**
-- Optional low-visibility display consistency and message polish.
-- Opportunistic cleanup for any newly discovered edge display paths.
-
-**Detailed remaining work:** [widevnums/WIDEVNUM_REMAINING_WORK.md](widevnums/WIDEVNUM_REMAINING_WORK.md)
 
 ### Room PK Semantics Refactor (`cpk` → `chaotic` + `player_killing`)
 

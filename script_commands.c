@@ -807,7 +807,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
     af.group	= group;
     af.where     = where;
     af.type      = skill;
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -2808,15 +2808,22 @@ SCRIPT_CMD(scriptcmd_grantskill)
     }
     else if(sn > 0 && sn < MAX_SKILL )
     {
+        SKILL_ENTRY *entry;
+
         if( skill_entry_findsn(mob->sorted_skills, sn) )
             return;
 
-        mob->pcdata->learned[sn] = rating;
         if( skill_table[sn].spell_fun == spell_null ) {
             skill_entry_addskill(mob, sn, NULL, source, flags);
         } else {
             skill_entry_addspell(mob, sn, NULL, source, flags);
         }
+
+        entry = skill_entry_findsn(mob->sorted_skills, sn);
+        if (entry)
+            entry->rating = rating;
+
+        mob->pcdata->learned[sn] = rating;
     }
     else
         return;

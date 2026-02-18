@@ -257,7 +257,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     {
     case ED_AREA:
         pArea = (AREA_DATA *)ch->desc->pEdit;
-        sprintf(buf, "%ld", pArea ? pArea->anum : 0);
+        sprintf(buf, "%ld", pArea ? pArea->uid : 0);
         break;
     case ED_ROOM:
         pRoom = ch->in_room;
@@ -858,8 +858,8 @@ void display_resets(CHAR_DATA *ch)
             continue;
         }
 
-        sprintf(buf, "R[%5ld] Exits are randomized in %s\n\r",
-            pReset->arg1.value, pRoomIndex->name);
+        sprintf(buf, "R[%s] Exits are randomized in %s\n\r",
+            widevnum_string_room(pRoomIndex, NULL), pRoomIndex->name);
         strcat(final, buf);
 
         break;
@@ -1192,8 +1192,8 @@ void do_asearch(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    sprintf(result, "[%3s] [%-27s] (%-5s-%5s) [%-10s] %3s [%-9s]\n\r",
-       "Num", "Area Name", "lvnum", "uvnum", "Filename", "Sec", "Builders");
+     sprintf(result, "[%6s] [%-27s] (%-5s-%5s) [%-10s] %3s [%-9s]\n\r",
+         "UID", "Area Name", "lvnum", "uvnum", "Filename", "Sec", "Builders");
 
 
     for (pArea = area_first; pArea; pArea = pArea->next)
@@ -1201,8 +1201,8 @@ void do_asearch(CHAR_DATA *ch, char *argument)
     if (!str_infix(arg, pArea->name))
     {
         sprintf(buf,
-        "[%3ld] %-27.27s (%-5ld-%5ld) %-12.12s [%d] [%-10.10s]\n\r",
-            pArea->anum,
+        "[%6ld] %-27.27s (%-5ld-%5ld) %-12.12s [%d] [%-10.10s]\n\r",
+            pArea->uid,
         pArea->name,
         pArea->min_vnum,
         pArea->max_vnum,
@@ -1223,11 +1223,13 @@ void do_alist(CHAR_DATA *ch, char *argument)
     AREA_DATA *pArea;
     BUFFER *buffer;
     int place_type = 0;
+     const char *fmt;
+     const char *dot;
 
     buffer = new_buf();
 
-    sprintf(buf, "[%-7s] [%-7s] [%-26.26s] (%-7s-%7s) [%-10s] %3s [%-10s]\n\r",
-       "Anum", "UID", "Area Name", "lvnum", "uvnum", "Filename", "Sec", "Builders");
+     sprintf(buf, "[%-7s] [%-26.26s] (%-7s-%7s) [%-12s] [%-5s] %3s [%-10s]\n\r",
+         "UID", "Area Name", "lvnum", "uvnum", "Filename", "Fmt", "Sec", "Builders");
     add_buf(buffer, buf);
 
     if (argument[0] != '\0'
@@ -1242,8 +1244,15 @@ void do_alist(CHAR_DATA *ch, char *argument)
     {
     if (place_type == 0 || (pArea->place_flags == place_type))
     {
-    sprintf(buf, "{D[{x%7ld{D]{x {D[{x%7ld{D]{x %s%-26.26s%s {D({x%-7ld{D-{x%7ld{D){x %-12.12s {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
-         pArea->anum,
+    dot = pArea->file_name ? strrchr(pArea->file_name, '.') : NULL;
+    if (dot && !str_cmp(dot, ".json"))
+        fmt = "JSON";
+    else if (dot && !str_cmp(dot, ".are"))
+        fmt = "ARE";
+    else
+        fmt = "?";
+
+    sprintf(buf, "{D[{x%7ld{D]{x %s%-26.26s%s {D({x%-7ld{D-{x%7ld{D){x %-12.12s {D[{x%-5.5s{D]{x {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
          pArea->uid,
          pArea->open ? "{G" : "{R",
          pArea->name,
@@ -1251,6 +1260,7 @@ void do_alist(CHAR_DATA *ch, char *argument)
          pArea->min_vnum,
          pArea->max_vnum,
          pArea->file_name,
+         fmt,
          pArea->security,
          pArea->builders);
     add_buf(buffer, buf);

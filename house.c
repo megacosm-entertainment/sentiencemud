@@ -130,10 +130,10 @@ void do_house(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!str_cmp(arg2, "cpk"))
+    if (!str_cmp(arg2, "chaotic") || !str_cmp(arg2, "cpk"))
     {
-        send_to_char("This room is now CPK!\n\r", ch);
-        SET_BIT(ch->in_room->room_flag[0], ROOM_CPK);
+        send_to_char("This room is now CHAOTIC!\n\r", ch);
+        SET_BIT(ch->in_room->room_flag[0], ROOM_CHAOTIC);
         ch->gold -= 5000;
     }
     else if (!str_cmp(arg2, "pk"))
@@ -163,7 +163,7 @@ void do_house(CHAR_DATA *ch, char *argument)
     else
     {
           send_to_char("That isn't a valid room feature.\n\r", ch);
-        send_to_char("Valid features are: cpk pk private underwater safe.\n\r", ch);
+        send_to_char("Valid features are: chaotic pk private underwater safe.\n\r", ch);
         return;
     }
 

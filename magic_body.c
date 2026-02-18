@@ -22,7 +22,7 @@
 
 SPELL_FUNC(spell_blindness)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
 
@@ -54,7 +54,7 @@ SPELL_FUNC(spell_blindness)
 
 SPELL_FUNC(spell_cause_light)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     damage(ch, (CHAR_DATA *) vo, dice(1, 8) + level / 3, sn,DAM_HARM,true);
     return true;
 }
@@ -62,7 +62,7 @@ SPELL_FUNC(spell_cause_light)
 
 SPELL_FUNC(spell_cause_critical)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     damage(ch, (CHAR_DATA *) vo, dice(3, 8) + level - 6, sn,DAM_HARM,true);
     return true;
 }
@@ -70,7 +70,7 @@ SPELL_FUNC(spell_cause_critical)
 
 SPELL_FUNC(spell_cause_serious)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     damage(ch, (CHAR_DATA *) vo, dice(2, 8) + level / 2, sn,DAM_HARM,true);
     return true;
 }
@@ -79,7 +79,7 @@ SPELL_FUNC(spell_cause_serious)
 // What exactly is this bloody thing anyway?
 SPELL_FUNC(spell_colour_spray)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
 
     static const int16_t dam_each[] = {
@@ -112,7 +112,7 @@ SPELL_FUNC(spell_colour_spray)
 
 SPELL_FUNC(spell_cure_blindness)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
 
@@ -144,7 +144,7 @@ SPELL_FUNC(spell_cure_blindness)
 
 SPELL_FUNC(spell_cure_critical)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int heal;
 
@@ -162,7 +162,7 @@ SPELL_FUNC(spell_cure_critical)
 
 SPELL_FUNC(spell_cure_disease)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
 
@@ -197,7 +197,7 @@ SPELL_FUNC(spell_cure_disease)
 
 SPELL_FUNC(spell_cure_light)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int heal;
 
@@ -214,7 +214,7 @@ SPELL_FUNC(spell_cure_light)
 
 SPELL_FUNC(spell_cure_poison)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
 
@@ -249,7 +249,7 @@ SPELL_FUNC(spell_cure_poison)
 
 SPELL_FUNC(spell_cure_serious)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int heal;
 
@@ -265,7 +265,7 @@ SPELL_FUNC(spell_cure_serious)
 
 SPELL_FUNC(spell_cure_toxic)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance, helped;
     AFFECT_DATA *paf, *tox, *next;
@@ -320,7 +320,7 @@ SPELL_FUNC(spell_cure_toxic)
 
 SPELL_FUNC(spell_harm)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -334,7 +334,7 @@ SPELL_FUNC(spell_harm)
 
 SPELL_FUNC(spell_haste)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -379,7 +379,7 @@ SPELL_FUNC(spell_haste)
 
 SPELL_FUNC(spell_heal)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int heal;
 
@@ -410,7 +410,7 @@ SPELL_FUNC(spell_heal)
 
 SPELL_FUNC(spell_healing_aura)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *gch = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -452,7 +452,7 @@ SPELL_FUNC(spell_healing_aura)
 
 SPELL_FUNC(spell_infravision)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -492,7 +492,7 @@ SPELL_FUNC(spell_infravision)
 
 SPELL_FUNC(spell_invis)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -559,7 +559,7 @@ SPELL_FUNC(spell_invis)
 
 SPELL_FUNC(spell_mass_healing)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *gch;
     int heal_num, refresh_num;
 
@@ -568,8 +568,8 @@ SPELL_FUNC(spell_mass_healing)
 
     for (gch = ch->in_room->people; gch; gch = gch->next_in_room) {
         if (((IS_NPC(ch) && IS_NPC(gch)) || (!IS_NPC(ch) && !IS_NPC(gch))) && can_see(ch, gch)) {
-            spell_heal(skill_from_sn(heal_num),level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
-            spell_refresh(skill_from_sn(refresh_num),level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+            spell_heal(skill_find_uid(heal_num),level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+            spell_refresh(skill_find_uid(refresh_num),level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
         }
     }
     return true;
@@ -578,7 +578,7 @@ SPELL_FUNC(spell_mass_healing)
 
 SPELL_FUNC(spell_mass_invis)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     AFFECT_DATA af;
     CHAR_DATA *gch;
     memset(&af,0,sizeof(af));
@@ -609,7 +609,7 @@ SPELL_FUNC(spell_mass_invis)
 
 SPELL_FUNC(spell_regeneration)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *gch;
     AFFECT_DATA af;
     bool perm = false;

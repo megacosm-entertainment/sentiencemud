@@ -1,14 +1,19 @@
 # Widevnum Migration: Remaining Work Analysis
 
 **Date:** February 6, 2026
-**Last Updated:** February 9, 2026
-**Status:** **MIGRATION COMPLETE.** Phases 1-8 done. All 8 categories finished: commands, cross-area comparisons, struct fields, hardcoded constants, display consistency, function signatures, subsystem cleanup, scripting system. Minor polish items deferred to Phase 9.
+**Last Updated:** February 18, 2026
+**Status:** **MIGRATION COMPLETE.** Phases 1-8 done. All 8 categories finished: commands, cross-area comparisons, struct fields, hardcoded constants, display consistency, function signatures, subsystem cleanup, scripting system. Post-completion cleanup/regression fixes also complete.
 
 ## Executive Summary
 
-The core widevnum infrastructure is solid: `WNUM`/`WNUM_LOAD` types, `parse_widevnum()` for input, `widevnum_string_*()` for display, per-area hash tables, and JSON serialization are all working. What remains is systematically updating the ~1,458 `->vnum` references and related code across the codebase to be widevnum-aware.
+The core widevnum infrastructure is solid: `WNUM`/`WNUM_LOAD` types, `parse_widevnum()` for input, `widevnum_string_*()` for display, per-area hash tables, and JSON serialization are all working. This document records the completed migration of the ~1,458 `->vnum` reference patterns and related widevnum hardening across the codebase.
 
-This document categorizes every remaining change needed, organized by priority and risk.
+This document now serves as a completion ledger of that migration work, organized by category and risk, including post-completion fixes.
+
+## Post-Completion Fixes (2026-02-18) — COMPLETE
+
+- Script parsing/context hardening pass completed: context area now only applies for `#vnum` relative input, avoiding accidental cross-area reinterpretation.
+- JSON shop stock regression fixed: cross-area stock references now preserve/derive valid area identity during fixup and serialization, preventing `0#<vnum>` output for valid items.
 
 **Key principle:** `parse_widevnum()` handles legacy bare vnum lookups via `find_area_by_vnum()`, so user-facing *input* paths that already use it are covered. The remaining gaps are:
 1. **Display** - showing vnums to users without area context

@@ -843,7 +843,7 @@ SCRIPT_CMD(do_opcast)
     if ((target == TARGET_CHAR && !vch) ||
         (target == TARGET_OBJ  && !obj) ||
         target == TARGET_ROOM || target == TARGET_NONE)
-        (*skill_table[sn].spell_fun)(skill_from_sn(sn), info->obj->level, proxy, to, target, WEAR_NONE, INVOC_INTERNAL);
+        (*skill_table[sn].spell_fun)(skill_find_uid(sn), info->obj->level, proxy, to, target, WEAR_NONE, INVOC_INTERNAL);
     else {
         sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", info->obj->short_descr, info->obj->pIndexData->vnum);
         log_string(buf);
@@ -4326,7 +4326,7 @@ SCRIPT_CMD(do_opaddaffect)
     af.group	= group;
     af.where     = where;
     af.type      = skill;
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -6033,6 +6033,7 @@ SCRIPT_CMD(do_opskill)
 
     char *rest;
     CHAR_DATA *mob = NULL;
+    SKILL_ENTRY *entry = NULL;
     int sn, value;
 
     if(!info || !info->obj || IS_NULLSTR(argument)) return;
@@ -6078,17 +6079,40 @@ SCRIPT_CMD(do_opskill)
             if( value < 0 ) value = 0;
             else if( value > 100 ) value = 100;
 
+            entry = skill_entry_findsn(mob->sorted_skills, sn);
+            if( value == 0 ) {
+                if( skill_table[sn].spell_fun == spell_null )
+                    skill_entry_removeskill(mob, sn, NULL);
+                else
+                    skill_entry_removespell(mob, sn, NULL);
+            } else {
+                if( !entry ) {
+                    if( skill_table[sn].spell_fun == spell_null )
+                        skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                    else
+                        skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+
+                    entry = skill_entry_findsn(mob->sorted_skills, sn);
+                }
+
+                if( entry )
+                    entry->rating = value;
+            }
+
             mob->pcdata->learned[sn] = value;
             break;
 
         case '+':
             // Can only modify the skill, you cannot grant a skill using this.  Use the = operator.
-            if(mob->pcdata->learned[sn] > 0 )
+            entry = skill_entry_findsn(mob->sorted_skills, sn);
+            if(entry && entry->rating > 0)
             {
-                value = mob->pcdata->learned[sn] + value;
+                value = entry->rating + value;
 
                 if( value < 1 ) value = 1;
                 else if( value > 100 ) value = 100;
+
+                entry->rating = value;
 
                 mob->pcdata->learned[sn] = value;
             }
@@ -6096,12 +6120,15 @@ SCRIPT_CMD(do_opskill)
 
         case '-':
             // Can only modify the skill, you cannot remove it using this.  Use the = operator.
-            if(mob->pcdata->learned[sn] > 0 )
+            entry = skill_entry_findsn(mob->sorted_skills, sn);
+            if(entry && entry->rating > 0)
             {
-                value = mob->pcdata->learned[sn] - value;
+                value = entry->rating - value;
 
                 if( value < 1 ) value = 1;
                 else if( value > 100 ) value = 100;
+
+                entry->rating = value;
 
                 mob->pcdata->learned[sn] = value;
             }

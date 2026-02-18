@@ -14,6 +14,7 @@
 #include "wilds.h"
 #include "tables.h"
 #include "class_data.h"
+#include "skill_data.h"
 #include "song_data.h"
 #include "traits.h"
 #include "event_types.h"
@@ -3450,7 +3451,7 @@ char *expand_entity_list_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 
 char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    SKILL_DATA *skill = (arg->d.sn >= 0) ? skill_from_sn(arg->d.sn) : NULL;
+    SKILL_DATA *skill = (arg->d.sn >= 0) ? skill_find_uid(arg->d.sn) : NULL;
 
     switch(*str) {
     case ENTITY_SKILL_GSN:
@@ -7450,7 +7451,7 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
         break;
 
     case ENT_SKILL: {
-        SKILL_DATA *sk = (arg->d.sn >= 0) ? skill_from_sn(arg->d.sn) : NULL;
+        SKILL_DATA *sk = (arg->d.sn >= 0) ? skill_find_uid(arg->d.sn) : NULL;
         add_buf(buffer, sk ? sk->name : "none");
         break;
     }

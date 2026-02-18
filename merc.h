@@ -3621,6 +3621,7 @@ enum {
 #define ROOM_NOWHERE		(T)
 #define ROOM_PK		        (U)
 #define ROOM_CPK		(V)
+#define ROOM_CHAOTIC          ROOM_CPK
 #define ROOM_ARENA		(W)
 #define ROOM_UNDERWATER		(X)
 #define ROOM_ROCKS	        (Y)
@@ -7573,7 +7574,6 @@ const skill_t *skill_type_lookup( const char *name );
 SKILL_DATA *skill_find		( const char *name );
 int16_t	skill_resolve_gsn	( const char *name );
 int16_t	skill_sn		( SKILL_DATA *skill );
-SKILL_DATA *skill_from_sn	( int sn );
 int	slot_lookup		( int slot );
 bool	saves_spell		( int level, CHAR_DATA *victim, int16_t dam_type );
 bool	saves_dispel		( CHAR_DATA *ch, CHAR_DATA *victim, int spell_level);
@@ -9469,6 +9469,7 @@ void move_obj_into_container( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container 
 OBJ_DATA *get_skull( CHAR_DATA *ch, char *owner );
 int count_exits( ROOM_INDEX_DATA *room );
 bool is_room_pk( ROOM_INDEX_DATA *room, bool arena );
+bool is_room_full_cpk( ROOM_INDEX_DATA *room );
 bool is_pk( CHAR_DATA *ch );
 int get_num_dir( char *arg );
 bool dislink_room( ROOM_INDEX_DATA *pRoom );

@@ -2571,6 +2571,23 @@ void obj_update(void)
         }
 
         // Handle timers for decaying objs, etc
+        if (obj->item_type == ITEM_CORPSE_PC || obj->item_type == ITEM_CORPSE_NPC)
+        {
+            ROOM_INDEX_DATA *corpse_room = obj_room(obj);
+            bool protected_chaotic_room = corpse_room != NULL
+                && IS_SET(corpse_room->room_flag[0], ROOM_CHAOTIC)
+                && !is_room_full_cpk(corpse_room);
+            bool protected_corpse = (obj->item_type == ITEM_CORPSE_PC)
+                || (obj->item_type == ITEM_CORPSE_NPC && obj->persist);
+
+            if (protected_chaotic_room && protected_corpse)
+            {
+                if (!obj->persist)
+                    persist_addobject(obj);
+                continue;
+            }
+        }
+
         if ((obj->timer <= 0 || --obj->timer > 0))
             continue;
 
@@ -2933,7 +2950,7 @@ void aggr_update(void)
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_PHYSICAL;
                 af.type      = skill_resolve_gsn("blindness");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
                 af.level     = obj->level;
                 af.location  = APPLY_HITROLL;
                 af.modifier  = -4;
@@ -2990,7 +3007,7 @@ void aggr_update(void)
             af.where     = TO_AFFECTS;
             af.group	 = AFFGROUP_PHYSICAL;
             af.type      = skill_resolve_gsn("blindness");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level     = obj->level;
             af.location  = APPLY_HITROLL;
             af.modifier  = -4;
@@ -3011,7 +3028,7 @@ void aggr_update(void)
             af.where     = TO_AFFECTS;
             af.group	 = AFFGROUP_PHYSICAL;
             af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level     = obj->level * 3/4;
             af.duration  = URANGE(1,obj->level / 2, 5);
             af.location  = APPLY_STR;

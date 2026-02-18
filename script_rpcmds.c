@@ -4005,7 +4005,7 @@ SCRIPT_CMD(do_rpaddaffect)
     af.group = group;
     af.where = where;
     af.type = skill;
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.location = loc;
     af.modifier = mod;
     af.level = level;
@@ -5709,6 +5709,7 @@ SCRIPT_CMD(do_rpskill)
 
     char *rest;
     CHAR_DATA *mob = NULL;
+    SKILL_ENTRY *entry = NULL;
     int sn, value;
 
     if(!info || !info->room || IS_NULLSTR(argument)) return;
@@ -5754,17 +5755,40 @@ SCRIPT_CMD(do_rpskill)
             if( value < 0 ) value = 0;
             else if( value > 100 ) value = 100;
 
+            entry = skill_entry_findsn(mob->sorted_skills, sn);
+            if( value == 0 ) {
+                if( skill_table[sn].spell_fun == spell_null )
+                    skill_entry_removeskill(mob, sn, NULL);
+                else
+                    skill_entry_removespell(mob, sn, NULL);
+            } else {
+                if( !entry ) {
+                    if( skill_table[sn].spell_fun == spell_null )
+                        skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                    else
+                        skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+
+                    entry = skill_entry_findsn(mob->sorted_skills, sn);
+                }
+
+                if( entry )
+                    entry->rating = value;
+            }
+
             mob->pcdata->learned[sn] = value;
             break;
 
         case '+':
             // Can only modify the skill, you cannot grant a skill using this.  Use the = operator.
-            if(mob->pcdata->learned[sn] > 0 )
+            entry = skill_entry_findsn(mob->sorted_skills, sn);
+            if(entry && entry->rating > 0)
             {
-                value = mob->pcdata->learned[sn] + value;
+                value = entry->rating + value;
 
                 if( value < 1 ) value = 1;
                 else if( value > 100 ) value = 100;
+
+                entry->rating = value;
 
                 mob->pcdata->learned[sn] = value;
             }
@@ -5772,12 +5796,15 @@ SCRIPT_CMD(do_rpskill)
 
         case '-':
             // Can only modify the skill, you cannot remove it using this.  Use the = operator.
-            if(mob->pcdata->learned[sn] > 0 )
+            entry = skill_entry_findsn(mob->sorted_skills, sn);
+            if(entry && entry->rating > 0)
             {
-                value = mob->pcdata->learned[sn] - value;
+                value = entry->rating - value;
 
                 if( value < 1 ) value = 1;
                 else if( value > 100 ) value = 100;
+
+                entry->rating = value;
 
                 mob->pcdata->learned[sn] = value;
             }

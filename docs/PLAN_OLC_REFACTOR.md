@@ -481,6 +481,8 @@ olc_audit_log(ch, &def, "name", old_name, new_name, mob->vnum);
 This server-side logging is distinct from the **change history** system (Section 4)
 which provides an in-game, player-visible audit trail stored alongside the entity data.
 
+Deferred for OLC auditing pass: add an explicit audit/log entry when clone/instance room creation strips `ROOM_CHAOTIC` from virtual rooms, so staff can trace normalization events.
+
 ### 3.9 Relationship to Existing Code
 
 The new framework is **additive** — it does not remove any existing functions. During migration:

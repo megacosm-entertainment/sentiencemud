@@ -19,7 +19,7 @@
 
 SPELL_FUNC(spell_dark_shroud)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -71,7 +71,7 @@ SPELL_FUNC(spell_dark_shroud)
 
 SPELL_FUNC(spell_momentary_darkness)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_INDEX_DATA *index;
     OBJ_DATA *darkness;
     CHAR_DATA *rch;

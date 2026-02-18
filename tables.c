@@ -1168,7 +1168,7 @@ const struct flag_type room_flags[] =
     {	"solitary",			ROOM_SOLITARY,			true	},
     {	"arena",			ROOM_ARENA,				true	},
     {	"bank",				ROOM_BANK,				true	},
-    {	"cpk",				ROOM_CPK,				true	},
+    {	"chaotic",			ROOM_CHAOTIC,			true	},
     {	"dark_attack",		ROOM_ATTACK_IF_DARK,	true	},
     {	"death_trap",		ROOM_DEATH_TRAP,		true	},
     {	"helm",				ROOM_SHIP_HELM,			true	},

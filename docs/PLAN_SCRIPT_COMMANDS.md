@@ -236,5 +236,5 @@ Stubs `setclass`, `setrace`, `setsubclass` — check if already registered in al
 - `traits.h`: ch_has_trait(), ch_get_trait_bool/int/string(),
   trait_def_lookup(), trait_values_alloc()
 - `song_data.h`: song_lookup(), song_flags
-- `skill_data.h`: skill_from_sn(), SKILL_DATA
+- `skill_data.h`: skill_find_uid(), SKILL_DATA
 - `merc.h`: SKILL_ENTRY, skill_entry_* functions

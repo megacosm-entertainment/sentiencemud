@@ -23,10 +23,9 @@
 
 SPELL_FUNC(spell_call_familiar)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     ITERATOR it;
-    int lvl;
 
     if(ch->num_grouped >= 9) {
         send_to_char("You have too many people in your group already.\n\r", ch);
@@ -50,13 +49,10 @@ SPELL_FUNC(spell_call_familiar)
         if (IS_EVIL(ch) && !IS_EVIL(victim)) continue;
         if (IS_NEUTRAL(ch) && !IS_NEUTRAL(victim)) continue;
 
-        lvl = number_range((ch->tot_level / 2), (ch->tot_level - ch->tot_level / 10));
-
         if (!victim->in_room)
             continue;
 
-        if (victim->tot_level >= (lvl-5) && victim->tot_level <= (lvl+5) &&
-            number_percent() < 25) {
+        if (number_percent() < 25) {
 
             // DON'T CREATE! TRANSFER THE MOB!
 
@@ -92,7 +88,7 @@ SPELL_FUNC(spell_call_familiar)
 
 SPELL_FUNC(spell_create_rose)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *rose;
     int chance;
     long vnum;
@@ -123,7 +119,7 @@ SPELL_FUNC(spell_create_rose)
 
 SPELL_FUNC(spell_control_weather)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     char *target_name = (char *) vo;
 
     if (!target_name) {
@@ -147,7 +143,7 @@ SPELL_FUNC(spell_control_weather)
 
 SPELL_FUNC(spell_eagle_eye)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     long bonus_view;
     SHIP_DATA *ship = get_room_ship(ch->in_room);
     ROOM_INDEX_DATA *room = ch->in_room;
@@ -177,7 +173,7 @@ SPELL_FUNC(spell_eagle_eye)
 
 SPELL_FUNC(spell_ensnare)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));
@@ -214,7 +210,7 @@ SPELL_FUNC(spell_ensnare)
 
 SPELL_FUNC(spell_master_weather)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     char *target_name = (char *) vo;
 
     if (!str_prefix(target_name, "clear")) {
@@ -243,7 +239,7 @@ SPELL_FUNC(spell_master_weather)
 
 SPELL_FUNC(spell_vision)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     SHIP_DATA *ship = get_room_ship(ch->in_room);
     ROOM_INDEX_DATA *room = ch->in_room;
     long bonus_view;
@@ -274,7 +270,7 @@ SPELL_FUNC(spell_vision)
 
 SPELL_FUNC(spell_web)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
 

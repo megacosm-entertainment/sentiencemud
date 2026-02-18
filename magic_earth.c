@@ -19,7 +19,7 @@
 
 SPELL_FUNC(spell_earth_walk)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int distance, catalyst;
     int t1, t2, s1, s2;
@@ -221,7 +221,7 @@ SPELL_FUNC(spell_earth_walk)
 
 SPELL_FUNC(spell_earthquake)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
 
@@ -248,7 +248,7 @@ SPELL_FUNC(spell_earthquake)
 
 SPELL_FUNC(spell_giant_strength)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -290,7 +290,7 @@ SPELL_FUNC(spell_giant_strength)
 
 SPELL_FUNC(spell_stone_skin)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -331,7 +331,7 @@ SPELL_FUNC(spell_stone_skin)
 
 SPELL_FUNC(spell_stone_spikes)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     EXIT_DATA *pExit;
     CHAR_DATA *victim, *victim_next;
     int door;
@@ -392,7 +392,7 @@ SPELL_FUNC(spell_stone_spikes)
 
 SPELL_FUNC(spell_stone_touch)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     memset(&af,0,sizeof(af));

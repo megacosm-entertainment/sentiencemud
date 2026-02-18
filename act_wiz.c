@@ -2362,7 +2362,7 @@ void do_astat (CHAR_DATA * ch, char *argument)
     BUFFER *output;
     char buf[MSL];
     char arg[MIL];
-    int anum;
+    int uid;
 
     one_argument(argument, arg);
     if (!str_cmp(arg, ""))
@@ -2379,8 +2379,8 @@ void do_astat (CHAR_DATA * ch, char *argument)
         }
         else
         {
-            anum = atoi(arg);
-            pArea = get_area_from_uid(anum);
+            uid = atoi(arg);
+            pArea = get_area_from_uid(uid);
         }
     }
 
@@ -2391,7 +2391,7 @@ void do_astat (CHAR_DATA * ch, char *argument)
 
     output = new_buf();
     add_buf (output, "\n\r{x[ {Wstat area{x ]\n\r\n\r");
-    sprintf (buf, "Area    : [{W%3ld{x]  Uid	: [{W%6ld{x]\n\r", pArea->anum, pArea->uid);
+    sprintf (buf, "Area UID: [{W%6ld{x]\n\r", pArea->uid);
     add_buf (output, buf);
     sprintf (buf, "Name    : [{W%s{x]\n\r", pArea->name ? pArea->name : "(not set)");
     add_buf (output, buf);
@@ -3082,8 +3082,8 @@ void do_wstat (CHAR_DATA * ch, char *argument)
     sprintf(buf, "Wilds uid: ({W%ld{x), Name: '{W%s{x'\n\r", pWilds->uid, pWilds->name);
     add_buf(output, buf);
 
-    sprintf(buf, "Defined in area {W%ld{x, '{W%s{x'\n\r",
-                  pArea->anum, pArea->name);
+    sprintf(buf, "Defined in area UID {W%ld{x, '{W%s{x'\n\r",
+                  pArea->uid, pArea->name);
     add_buf(output, buf);
 
     sprintf(buf, "Dimensions: {W%d{x x {W%d{x ({W%ld{x vrooms)\n\r",
@@ -7643,35 +7643,51 @@ void do_sset(CHAR_DATA *ch, char *argument)
     {
         for (sn = 0; sn < MAX_SKILL; sn++)
         {
+            SKILL_ENTRY *entry;
+
             if (skill_table[sn].name != NULL && str_cmp(skill_table[sn].name, "none")) {
                 if( value == 0 ) {
                     if( skill_table[sn].spell_fun == spell_null )
                         skill_entry_removeskill(victim,sn, NULL);
                     else
                         skill_entry_removespell(victim,sn, NULL);
-                } else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                    if( skill_table[sn].spell_fun == spell_null ) {
-                        skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-                    } else {
-                        skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+                } else {
+                    if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
+                        if( skill_table[sn].spell_fun == spell_null ) {
+                            skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+                        } else {
+                            skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+                        }
                     }
+
+                    entry = skill_entry_findsn(victim->sorted_skills, sn);
+                    if (entry)
+                        entry->rating = value;
                 }
             }
             victim->pcdata->learned[sn]	= value;
         }
     }
     else {
+        SKILL_ENTRY *entry;
+
         if( value == 0 ) {
             if( skill_table[sn].spell_fun == spell_null )
                 skill_entry_removeskill(victim,sn, NULL);
             else
                 skill_entry_removespell(victim,sn, NULL);
-        } else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-            if( skill_table[sn].spell_fun == spell_null ) {
-                skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-            } else {
-                skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+        } else {
+            if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
+                if( skill_table[sn].spell_fun == spell_null ) {
+                    skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+                } else {
+                    skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+                }
             }
+
+            entry = skill_entry_findsn(victim->sorted_skills, sn);
+            if (entry)
+                entry->rating = value;
         }
         victim->pcdata->learned[sn] = value;
     }

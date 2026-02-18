@@ -1119,7 +1119,7 @@ SCRIPT_CMD(do_mpcast)
         if (!obj) return;
         to = obj;
     }
-    (*skill_table[sn].spell_fun)(skill_from_sn(sn), info->mob->level, info->mob, to, skill_table[sn].target, WEAR_NONE, INVOC_INTERNAL);
+    (*skill_table[sn].spell_fun)(skill_find_uid(sn), info->mob->level, info->mob, to, skill_table[sn].target, WEAR_NONE, INVOC_INTERNAL);
     return;
 }
 
@@ -5404,7 +5404,7 @@ SCRIPT_CMD(do_mpaddaffect)
     af.group	= group;
     af.where     = where;
     af.type      = skill;
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;

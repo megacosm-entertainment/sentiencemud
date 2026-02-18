@@ -21,7 +21,7 @@
 
 SPELL_FUNC(spell_animate_dead)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     MOB_INDEX_DATA *index;
     char buf[MAX_STRING_LENGTH];
@@ -200,7 +200,7 @@ SPELL_FUNC(spell_animate_dead)
 
 SPELL_FUNC(spell_death_grip)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -248,7 +248,7 @@ SPELL_FUNC(spell_death_grip)
 
 SPELL_FUNC(spell_deathsight)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     AFFECT_DATA af;
     bool perm = false;
@@ -290,7 +290,7 @@ SPELL_FUNC(spell_deathsight)
 
 SPELL_FUNC(spell_kill)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     ROOM_INDEX_DATA *here;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int chance;
@@ -377,7 +377,7 @@ SPELL_FUNC(spell_kill)
 
 SPELL_FUNC(spell_raise_dead)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim;
     char buf[MAX_STRING_LENGTH];
     OBJ_DATA *obj;
@@ -423,13 +423,14 @@ SPELL_FUNC(spell_raise_dead)
                 return false;
             }
 
-            // Only allow resurrection of CPK corpses in CPK rooms
-            if( IS_SET(ch->in_room->room_flag[0], ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
+            // Only allow resurrection of chaotic corpses in full chaotic PK rooms
+            if( is_room_full_cpk(ch->in_room)
+            &&  !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
             {
                 // Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
                 if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
                 {
-                    send_to_char("{YAttempting to raise a non-CPK corpse in a CPK room is {RFORBIDDEN{Y!{x\n\r", ch);
+                    send_to_char("{YAttempting to raise a non-chaotic corpse in a chaotic room is {RFORBIDDEN{Y!{x\n\r", ch);
                     ch->hit = 1;
                     ch->mana = 1;
                     ch->move = 1;

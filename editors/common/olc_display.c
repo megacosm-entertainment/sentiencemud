@@ -581,13 +581,13 @@ void olc_display_scripts(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 
     /* If MXP and add command provided, show an add link */
     if (add_cmd && display_use_mxp(ctx->ch)) {
-        char buf[MIL];
         const char *mxp = MXPCreateSend(ctx->ch->desc, add_cmd, "{G[+ Add Script]{x");
         char mxp_copy[MIL];
         strncpy(mxp_copy, mxp, sizeof(mxp_copy) - 1);
         mxp_copy[sizeof(mxp_copy) - 1] = '\0';
-        snprintf(buf, sizeof(buf), "  %s\n\r", mxp_copy);
-        add_buf(ctx->buffer, buf);
+        add_buf(ctx->buffer, "  ");
+        add_buf(ctx->buffer, mxp_copy);
+        add_buf(ctx->buffer, "\n\r");
     }
 }
 

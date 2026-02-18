@@ -20,7 +20,7 @@
 
 SPELL_FUNC(spell_cosmic_blast)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
 
@@ -39,7 +39,7 @@ SPELL_FUNC(spell_cosmic_blast)
 
 SPELL_FUNC(spell_energy_drain)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     int dam;
     int sk;
@@ -85,7 +85,7 @@ SPELL_FUNC(spell_energy_drain)
 
 SPELL_FUNC(spell_energy_field)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;
@@ -127,7 +127,7 @@ SPELL_FUNC(spell_energy_field)
 
 SPELL_FUNC(spell_shield)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     CHAR_DATA *victim = (CHAR_DATA *) vo;
     AFFECT_DATA af;
     bool perm = false;

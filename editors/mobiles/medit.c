@@ -1259,7 +1259,7 @@ MEDIT(medit_corpsevnum)
     }
 
     WNUM obj_wnum;
-    AREA_DATA *context = strchr(argument, '#') ? pMob->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(pMob->area, argument);
     if (!parse_widevnum(argument, context, &obj_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -1295,7 +1295,7 @@ MEDIT(medit_zombievnum)
     }
 
     WNUM obj_wnum;
-    AREA_DATA *context = strchr(argument, '#') ? pMob->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(pMob->area, argument);
     if (!parse_widevnum(argument, context, &obj_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -2925,7 +2925,7 @@ MEDIT (medit_addmprog)
     }
 
     WNUM script_wnum;
-    AREA_DATA *context = strchr(num, '#') ? pMob->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(pMob->area, num);
     if (!parse_widevnum(num, context, &script_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -3353,7 +3353,7 @@ MEDIT(medit_questor)
         }
 
         WNUM obj_wnum;
-        AREA_DATA *context = strchr(argument, '#') ? pMob->area : NULL;
+        AREA_DATA *context = olc_relative_widevnum_context(pMob->area, argument);
         if (!parse_widevnum(argument, context, &obj_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;

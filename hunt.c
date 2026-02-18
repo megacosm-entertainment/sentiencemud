@@ -582,10 +582,16 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     return;
     }
 
-    if (!IS_NPC(ch) && number_percent() > (race_get_trait_bool(ch->race, "scent_tracking") ? 100 : ch->pcdata->learned[skill_resolve_gsn("hunt")]))
+    if (!IS_NPC(ch))
     {
-    send_to_char("You can't find the trail.\n\r", ch);
-    return;
+        int16_t sn_hunt = skill_resolve_gsn("hunt");
+        int hunt_skill = get_skill(ch, sn_hunt);
+
+        if (number_percent() > (race_get_trait_bool(ch->race, "scent_tracking") ? 100 : hunt_skill))
+        {
+            send_to_char("You can't find the trail.\n\r", ch);
+            return;
+        }
     }
 
     /*

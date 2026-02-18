@@ -619,7 +619,8 @@ BSEDIT( bsedit_recall )
     }
 
     WNUM room_wnum;
-    AREA_DATA *context = strchr(argument, '#') ? bs->area : (bs->rooms_area ? bs->rooms_area : bs->area);
+    AREA_DATA *rooms_context = bs->rooms_area ? bs->rooms_area : bs->area;
+    AREA_DATA *context = olc_relative_widevnum_context(rooms_context, argument);
     if (!parse_widevnum(argument, context, &room_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
@@ -667,7 +668,7 @@ BSEDIT( bsedit_rooms )
     if( arg[0] == '\0' || argument[0] == '\0' )
     {
         send_to_char("Syntax:  rooms <lower vnum> <upper vnum>\n\r", ch);
-        send_to_char("{YVnums must be in the same area. Use #vnum or area#vnum format.{x\n\r", ch);
+        send_to_char("{YVnums must be in the same area. Use vnum, #vnum, or area#vnum format.{x\n\r", ch);
         return false;
     }
 
@@ -820,7 +821,8 @@ BSEDIT( bsedit_link )
         }
 
         WNUM room_wnum;
-        AREA_DATA *context = strchr(arg2, '#') ? NULL : (bs->rooms_area ? bs->rooms_area : bs->area);
+        AREA_DATA *rooms_context = bs->rooms_area ? bs->rooms_area : bs->area;
+        AREA_DATA *context = olc_relative_widevnum_context(rooms_context, arg2);
         if (!parse_widevnum(arg2, context, &room_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
@@ -880,7 +882,9 @@ BSEDIT( bsedit_link )
         }
 
         link = new_blueprint_link();
-        link->room_ref.load.vnum = vnum; link->room_ref.load.auid = bs->area ? bs->area->uid : 0; link->room = room;
+        link->room_ref.load.vnum = vnum;
+        link->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+        link->room = room;
         link->door = door;
         link->room = room;
         link->ex = ex;
@@ -980,7 +984,8 @@ BSEDIT( bsedit_link )
         }
 
         WNUM room_wnum;
-        AREA_DATA *context = strchr(argument, '#') ? NULL : (bs->rooms_area ? bs->rooms_area : bs->area);
+        AREA_DATA *rooms_context = bs->rooms_area ? bs->rooms_area : bs->area;
+        AREA_DATA *context = olc_relative_widevnum_context(rooms_context, argument);
         if (!parse_widevnum(argument, context, &room_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
@@ -1017,7 +1022,9 @@ BSEDIT( bsedit_link )
             }
         }
 
-        link->room_ref.load.vnum = vnum; link->room_ref.load.auid = bs->area ? bs->area->uid : 0; link->room = room;
+        link->room_ref.load.vnum = vnum;
+        link->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+        link->room = room;
         link->door = -1;
         link->room = room;
         link->ex = NULL;
@@ -1217,7 +1224,7 @@ BSEDIT( bsedit_maze )
             }
 
             WNUM room_wnum;
-            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            AREA_DATA *context = olc_relative_widevnum_context(bs->area, vnum_arg);
             if (!parse_widevnum(vnum_arg, context, &room_wnum)) {
                 send_to_char("Invalid widevnum format.\n\r", ch);
                 return false;
@@ -1352,7 +1359,7 @@ BSEDIT( bsedit_maze )
                     return false;
                 }
                 WNUM key_wnum;
-                AREA_DATA *context = strchr(argument, '#') ? NULL : bs->area;
+                AREA_DATA *context = olc_relative_widevnum_context(bs->area, argument);
                 if (!parse_widevnum(argument, context, &key_wnum)) {
                     send_to_char("Invalid widevnum format.\n\r", ch);
                     return false;
@@ -1484,7 +1491,7 @@ BSEDIT( bsedit_maze )
             }
 
             WNUM room_wnum;
-            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            AREA_DATA *context = olc_relative_widevnum_context(bs->area, vnum_arg);
             if (!parse_widevnum(vnum_arg, context, &room_wnum)) {
                 send_to_char("Invalid widevnum format.\n\r", ch);
                 return false;
@@ -1559,7 +1566,7 @@ BSEDIT( bsedit_maze )
             one_argument(argument, vnum_arg);
 
             WNUM obj_wnum;
-            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            AREA_DATA *context = olc_relative_widevnum_context(bs->area, vnum_arg);
             if (!parse_widevnum(vnum_arg, context, &obj_wnum)) {
                 send_to_char("Invalid widevnum format.\n\r", ch);
                 return false;
@@ -1598,7 +1605,7 @@ BSEDIT( bsedit_maze )
             one_argument(argument, vnum_arg);
 
             WNUM mob_wnum;
-            AREA_DATA *context = strchr(vnum_arg, '#') ? NULL : bs->area;
+            AREA_DATA *context = olc_relative_widevnum_context(bs->area, vnum_arg);
             if (!parse_widevnum(vnum_arg, context, &mob_wnum)) {
                 send_to_char("Invalid widevnum format.\n\r", ch);
                 return false;

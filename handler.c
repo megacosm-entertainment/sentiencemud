@@ -558,14 +558,24 @@ int check_immune(CHAR_DATA *ch, int16_t dam_type)
 int get_skill(CHAR_DATA *ch, int sn)
 {
     int skill;
+    SKILL_ENTRY *entry = NULL;
+
+    if (!IS_NPC(ch) && sn >= 0 && sn < MAX_SKILL)
+        entry = skill_entry_findsn(ch->sorted_skills, sn);
 
     // Racial skills
-    if (!IS_NPC(ch) && ch->race)
+    if (!IS_NPC(ch) && ch->race && sn >= 0 && sn < MAX_SKILL)
     {
         if (race_has_skill(ch->race, skill_table[sn].name)) {
-            skill = ch->pcdata->learned[sn];
+            if (!entry)
+                return 0;
+
+            skill = skill_entry_rating(ch, entry);
+
             if (skill <= 0) return skill;
-            skill += ch->pcdata->mod_learned[sn];
+
+            skill += skill_entry_mod(ch, entry);
+
             return URANGE(1, skill, 100);
         }
     }
@@ -584,21 +594,25 @@ int get_skill(CHAR_DATA *ch, int sn)
 
     this_class = get_this_class(ch,sn);
 
-    if (had_skill(ch,sn) || ch->level >= skill_table[sn].skill_level[this_class])
-        skill = ch->pcdata->learned[sn];
+    if (had_skill(ch,sn) || ch->level >= skill_table[sn].skill_level[this_class]) {
+        if (entry)
+            skill = skill_entry_rating(ch, entry);
+        else
+            skill = 0;
+    }
     else
         skill = 0;
 
     /* Cross-class scope check: if skill was granted by a class, verify it's
      * still available with the character's current active class. */
     if (skill > 0) {
-        SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
         if (entry && entry->source_class && !is_skill_available_for_class(ch, entry))
             skill = 0;
     }
 
     if(skill > 0) {
-        skill += ch->pcdata->mod_learned[sn];
+        if (entry)
+            skill += skill_entry_mod(ch, entry);
         skill = URANGE(1,skill,100);
     }
     }
@@ -772,7 +786,7 @@ int get_weapon_skill(CHAR_DATA *ch, int sn)
     if (sn == -1)
         skill = ch->level;
     else
-        skill = ch->pcdata->learned[sn];
+        skill = get_skill(ch, sn);
     }
 
     return URANGE(0,skill,100);
@@ -1322,13 +1336,25 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 
 
 /* find an effect in an affect list */
+static bool affect_matches_skill_sn(const AFFECT_DATA *paf, int sn, SKILL_DATA *skill)
+{
+    if (!paf)
+        return false;
+
+    if (skill && paf->skill == skill)
+        return true;
+
+    return paf->type == sn;
+}
+
 AFFECT_DATA *affect_find(AFFECT_DATA *paf, int sn)
 {
     AFFECT_DATA *paf_find;
+    SKILL_DATA *skill = skill_find_uid(sn);
 
     for (paf_find = paf; paf_find != NULL; paf_find = paf_find->next)
     {
-        if (paf_find->type == sn)
+        if (affect_matches_skill_sn(paf_find, sn, skill))
     return paf_find;
     }
 
@@ -1697,11 +1723,12 @@ void affect_strip(CHAR_DATA *ch, int sn)
 {
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
+    SKILL_DATA *skill = skill_find_uid(sn);
 
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
     paf_next = paf->next;
-    if (paf->type == sn)
+    if (affect_matches_skill_sn(paf, sn, skill))
         affect_remove(ch, paf);
     }
 }
@@ -1744,11 +1771,12 @@ void affect_strip_obj(OBJ_DATA *obj, int sn)
 {
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
+    SKILL_DATA *skill = skill_find_uid(sn);
 
     for (paf = obj->affected; paf != NULL; paf = paf_next)
     {
     paf_next = paf->next;
-    if (paf->type == sn)
+    if (affect_matches_skill_sn(paf, sn, skill))
         affect_remove_obj(obj, paf);
     }
 }
@@ -1776,10 +1804,11 @@ void affect_strip_name_obj(OBJ_DATA *obj, char *name)
 bool is_affected(CHAR_DATA *ch, int sn)
 {
     AFFECT_DATA *paf;
+    SKILL_DATA *skill = skill_find_uid(sn);
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
-    if (!paf->custom_name && paf->type == sn)
+    if (!paf->custom_name && affect_matches_skill_sn(paf, sn, skill))
         return true;
     }
 
@@ -2256,7 +2285,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
         plague.where		= TO_AFFECTS;
         plague.group		= AFFGROUP_BIOLOGICAL;
         plague.type 		= skill_resolve_gsn("plague");
-        plague.skill		= skill_from_sn(plague.type);
+        plague.skill		= skill_find_uid(plague.type);
         plague.level 		= af->level - 1;
         plague.duration 	= number_range(1,2 * plague.level);
         plague.location		= APPLY_STR;
@@ -6117,7 +6146,7 @@ int count_exits(ROOM_INDEX_DATA *room)
 bool is_room_pk(ROOM_INDEX_DATA *room, bool arena)
 {
     if( room != NULL ) {
-        if( IS_SET(room->room_flag[0], ROOM_PK) || IS_SET(room->room_flag[0], ROOM_CPK) )
+        if( IS_SET(room->room_flag[0], ROOM_PK) )
             return true;
 
         // Only count ARENA (LPK) if desired
@@ -6126,6 +6155,14 @@ bool is_room_pk(ROOM_INDEX_DATA *room, bool arena)
     }
 
     return false;
+}
+
+// Is the room full CPK? (both player_killing and chaotic)
+bool is_room_full_cpk(ROOM_INDEX_DATA *room)
+{
+    return room != NULL
+        && IS_SET(room->room_flag[0], ROOM_PK)
+        && IS_SET(room->room_flag[0], ROOM_CHAOTIC);
 }
 
 // Is a person PK? Covers all possible cases (PK flag, room PK, etc)
@@ -6239,7 +6276,7 @@ bool is_in_nature(CHAR_DATA *ch)
 }
 
 
-// Is there a PK/CPK room within a certain range of this one
+// Is there a PK room within a certain range of this one
 int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
 {
     EXIT_DATA *ex;
@@ -6248,14 +6285,14 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
 
     /*
     if (reverse_dir != -1 && (IS_SET(room->room_flag[0], ROOM_PK)
-    ||   IS_SET(room->room_flag[0], ROOM_CPK)))
+    ||   IS_SET(room->room_flag[0], ROOM_CHAOTIC)))
         return rev_dir[reverse_dir];
      */
 
     if (depth == 0)
     {
     if (IS_SET(room->room_flag[0], ROOM_PK)
-    ||   IS_SET(room->room_flag[0], ROOM_CPK))
+    )
         return 10;
 
     else
@@ -6272,7 +6309,7 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
             return dir;
 
         if (IS_SET(to_room->room_flag[0], ROOM_PK)
-        ||   IS_SET(to_room->room_flag[0], ROOM_CPK))
+        )
         return dir;
     }
 

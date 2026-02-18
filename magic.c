@@ -83,6 +83,7 @@ int find_spell(CHAR_DATA *ch, const char *name)
     int sn, found = -1;
     int this_class;
     int level;
+    int rating;
 
     if (IS_NPC(ch))
     return skill_lookup(name);
@@ -121,8 +122,10 @@ int find_spell(CHAR_DATA *ch, const char *name)
                 this_class = ch->pcdata->class_warrior;
     }
 
+        rating = get_skill(ch, sn);
+
         if (ch->level >= skill_table[sn].skill_level[this_class]
-        &&  ch->pcdata->learned[sn] > 0)
+        &&  rating > 0)
             return sn;
     }
     }
@@ -711,7 +714,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
             room_sector_has_flag(ch->in_room, SECTOR_HARD_MAGIC)) chance += 2;
         if (!IS_NPC(ch) && chance > 0 && number_range(1,chance) > 1)
             ch->cast_successful = MAGICCAST_ROOMBLOCK;
-        else if (number_percent() > get_skill(ch,spell->sn))
+        else if (number_percent() > skill)
             ch->cast_successful = MAGICCAST_FAILURE;
 
 
@@ -1039,9 +1042,9 @@ void cast_end(CHAR_DATA *ch)
 
         if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
             if (check_spell_deflection(ch, victim, sn))
-                (*skill_table[sn].spell_fun) (skill_from_sn(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
+                (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
         } else
-            (*skill_table[sn].spell_fun) (skill_from_sn(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
+            (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
 
 
         check_improve(ch,sn,!ch->casting_recovered,1);
@@ -1191,10 +1194,10 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
     if (target == TARGET_CHAR && victim != NULL)
     {
     if (check_spell_deflection(ch, victim, sn))
-        (*skill_table[sn].spell_fun) (skill_from_sn(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
+        (*skill_table[sn].spell_fun) (skill_find_uid(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
     }
     else
-        (*skill_table[sn].spell_fun) (skill_from_sn(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
+        (*skill_table[sn].spell_fun) (skill_find_uid(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
 
     if ((skill_table[sn].target == TAR_CHAR_OFFENSIVE
         || (skill_table[sn].target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR))
@@ -1325,7 +1328,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     ||   (target == TARGET_OBJ  && target_obj != NULL)
     ||    target == TARGET_ROOM
     ||    target == TARGET_NONE)
-    (*skill_table[sn].spell_fun)(skill_from_sn(sn), obj->level, ch, vo, target, WEAR_NONE, INVOC_INTERNAL);
+    (*skill_table[sn].spell_fun)(skill_find_uid(sn), obj->level, ch, vo, target, WEAR_NONE, INVOC_INTERNAL);
     else
     {
     sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", obj->short_descr, obj->pIndexData->vnum);
@@ -1489,7 +1492,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 
 SPELL_FUNC(spell_null)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     send_to_char("That's not a spell!\n\r", ch);
     return false;
 }

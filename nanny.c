@@ -2266,13 +2266,14 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
             continue;
 
         char rbuf[MSL];
+        int max_desc = (int)sizeof(rbuf) - 32;
         const char *tag = "";
         if (!r->starting && d->account && account_has_race_unlock(d->account, r->id)) {
             tag = " {Y(unlocked){x";
             has_unlocked = true;
         }
         if (!IS_NULLSTR(r->summary)) {
-            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), r->summary, tag);
+            snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - %.*s%s\n\r", capitalize(r->name), max_desc, r->summary, tag);
         } else if (!IS_NULLSTR(r->description)) {
             /* Trim trailing newlines from description for one-line display */
             char desc_buf[MSL];
@@ -2281,9 +2282,9 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
             char *p = desc_buf + strlen(desc_buf) - 1;
             while (p >= desc_buf && (*p == '\n' || *p == '\r'))
                 *p-- = '\0';
-            sprintf(rbuf, "{G%-12s{B - %s%s\n\r", capitalize(r->name), desc_buf, tag);
+            snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - %.*s%s\n\r", capitalize(r->name), max_desc, desc_buf, tag);
         } else {
-            sprintf(rbuf, "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
+            snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
         }
         send_to_char(rbuf, ch);
     }
@@ -5591,7 +5592,23 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
             break;
         }
 
-        ch->pcdata->learned[weapon] = 50;
+        if (weapon > 0 && weapon < MAX_SKILL) {
+            SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, weapon);
+
+            if (!entry) {
+                if (skill_table[weapon].spell_fun == spell_null)
+                    skill_entry_addskill(ch, weapon, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+                else
+                    skill_entry_addspell(ch, weapon, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+
+                entry = skill_entry_findsn(ch->sorted_skills, weapon);
+            }
+
+            if (entry)
+                entry->rating = 50;
+
+            ch->pcdata->learned[weapon] = 50;
+        }
 
     /* Assign default class(es) from the new class system */
     {

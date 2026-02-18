@@ -378,7 +378,23 @@ void save_area_list()
     else
     {
     for (pArea = area_first; pArea; pArea = pArea->next)
-        fprintf(fp, "%s\n", pArea->file_name);
+    {
+        char entry[MAX_STRING_LENGTH];
+        const char *name = pArea->file_name;
+        const char *dot;
+
+        if (IS_NULLSTR(name))
+            continue;
+
+        strncpy(entry, name, sizeof(entry) - 1);
+        entry[sizeof(entry) - 1] = '\0';
+
+        dot = strrchr(entry, '.');
+        if (dot)
+            entry[dot - entry] = '\0';
+
+        fprintf(fp, "%s\n", entry);
+    }
 
     fprintf(fp, "$\n");
     fclose(fp);

@@ -1116,7 +1116,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_BIOLOGICAL;
                 af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
                 af.level     = level * 3/4;
                 af.duration  = URANGE(1,level / 2, 5);
                 af.location  = APPLY_STR;
@@ -1246,7 +1246,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
                 af.where     = TO_AFFECTS;
                 af.group     = AFFGROUP_PHYSICAL;
                 af.type      = skill_resolve_gsn("blindness");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
                 af.level     = wield->level/2;
                 af.location  = APPLY_HITROLL;
                 af.modifier  = -4;
@@ -2064,10 +2064,8 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 
         // PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
         if ((IS_SET(ch->in_room->room_flag[0], ROOM_PK)
-             || IS_SET(ch->in_room->room_flag[0], ROOM_CPK)
              || IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
         &&  (IS_SET(victim->in_room->room_flag[0], ROOM_PK)
-             || IS_SET(victim->in_room->room_flag[0], ROOM_CPK)
              || IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)))
         return false;
 
@@ -3116,6 +3114,9 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
     OBJ_INDEX_DATA *obj_index;
     char *name;
     char *short_desc;
+    bool full_chaotic_pk_room;
+
+    full_chaotic_pk_room = is_room_full_cpk(ch->in_room);
 
     corpse_type = blend_corpsetypes(ch->corpse_type,corpse_type);
 
@@ -3143,6 +3144,9 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         // [3,6]
         corpse->orig_wnum.pArea = ch->pIndexData->area;
         corpse->orig_wnum.vnum = ch->pIndexData->vnum;
+
+        if (ch->persist)
+            persist_addobject(corpse);
 
         if (!IS_IMMORTAL(ch) && ch->gold > 0)
         {
@@ -3190,11 +3194,11 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         if (IS_IMMORTAL(ch))
             SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
         else {
-            if(IS_SET(ch->in_room->room_flag[0], ROOM_CPK))
+            if(full_chaotic_pk_room)
                 SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CPKDEATH);
             if(is_room_pk(ch->in_room, true) || is_pk(ch))
                 SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
-            if (ch->gold > 1 || ch->silver > 1)
+            if (full_chaotic_pk_room && (ch->gold > 1 || ch->silver > 1))
             {
                 obj_to_obj(create_money(ch->gold/2, ch->silver/2), corpse);
                 ch->gold -= ch->gold/2;
@@ -3257,10 +3261,10 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         iterator_stop(&it);
     }
 
-    // 20070521 : NIB : If a PC and a CPK Death, mark the corpse as a CPK death
+    // 20070521 : NIB : If a PC and a chaotic death, mark the corpse as a chaotic death
     if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
     {
-         if(IS_SET(ch->in_room->room_flag[0],ROOM_CPK))
+         if(full_chaotic_pk_room)
             SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CPKDEATH);
         if(is_room_pk(ch->in_room,false) || is_pk(ch))
             SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
@@ -3268,9 +3272,9 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
             SET_BIT(CORPSE_FLAGS(corpse),CORPSE_ARENADEATH);
     }
 
-    // NPC death and CPK death for PCs
+    // NPC death and chaotic death for PCs
     // Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
-    if (IS_NPC(ch) || (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flag[0],ROOM_CPK))) {
+    if (IS_NPC(ch) || (!IS_NPC(ch) && !IS_DEAD(ch) && full_chaotic_pk_room)) {
         // Process carried items first
         if (ch->lcarrying) {
             ITERATOR it;
@@ -3609,7 +3613,7 @@ bool visit_func_deathsight (ROOM_INDEX_DATA *room, void *argv[], int argc, int d
     af.where     = TO_AFFECTS;
     af.group    = AFFGROUP_MAGICAL;
     af.type      = skill_resolve_gsn("blindness");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level     = level;
     af.location  = APPLY_HITROLL;
     af.modifier  = -4;
@@ -4693,7 +4697,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
         af.where	= TO_AFFECTS;
         af.group     = AFFGROUP_METARACIAL;
         af.type		= skill_resolve_gsn("berserk");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
         af.level	= ch->tot_level;
         af.duration	= 5;
         af.modifier	= UMAX(1,ch->tot_level/10);
@@ -5436,7 +5440,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
                     af.where = TO_AFFECTS;
                     af.group     = AFFGROUP_BIOLOGICAL;
                     af.type  = skill_resolve_gsn("toxins");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
                     af.level = victim->bitten_level;
                     af.duration = 5;
                     af.location = APPLY_STR;
@@ -5466,7 +5470,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
                         af.where     = TO_AFFECTS;
                         af.group     = AFFGROUP_BIOLOGICAL;
                         af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
                         af.level     = level * 3/4;
                         af.duration  = URANGE(1,level / 2, 5);
                         af.location  = APPLY_STR;
@@ -5645,7 +5649,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
         af.where	= TO_AFFECTS;
         af.group     = AFFGROUP_PHYSICAL;
         af.type 	= skill_resolve_gsn("blindness");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
         af.level 	= ch->tot_level;
         af.duration	= 1;
         af.location	= APPLY_HITROLL;
@@ -5675,7 +5679,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
             af.where	= TO_AFFECTS;
             af.group     = AFFGROUP_PHYSICAL;
             af.type 	= skill_resolve_gsn("blindness");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level 	= ch->tot_level;
             af.duration	= 1;
             af.location	= APPLY_HITROLL;
@@ -6294,7 +6298,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
             af.where = TO_AFFECTS;
             af.group     = AFFGROUP_PHYSICAL;
             af.type = skill_resolve_gsn("sleep");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level = ch->tot_level+(weapon?(weapon->level/5):0);
             af.duration = weapon ? number_range(2,4) : 1;
             af.location = APPLY_NONE;
@@ -7233,13 +7237,14 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    // Only allow resurrection of CPK corpses in CPK rooms
-    if( IS_SET(ch->in_room->room_flag[0], ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
+    // Only allow resurrection of chaotic corpses in full chaotic PK rooms
+    if( is_room_full_cpk(ch->in_room)
+    &&  !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
     {
         // Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
         if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
         {
-            send_to_char("{YAttempting to resurrect a non-CPK corpse in a CPK room is {RFORBIDDEN{Y!{x\n\r", ch);
+            send_to_char("{YAttempting to resurrect a non-chaotic corpse in a chaotic room is {RFORBIDDEN{Y!{x\n\r", ch);
             ch->hit = 1;
             ch->mana = 1;
             ch->move = 1;
@@ -7971,7 +7976,7 @@ void do_warcry(CHAR_DATA *ch, char *argument)
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_PHYSICAL;
     af.type      = skill_resolve_gsn("warcry");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level     = ch->tot_level;
     af.duration  = 3;
     af.location  = APPLY_STR;
@@ -8053,8 +8058,8 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         ch->questpoints += quest_points;
     } else if (ch != victim) { // Regular PK win.
-        // CPK
-        if (IS_SET(ch->in_room->room_flag[0], ROOM_CPK)) {
+        // Chaotic PK
+        if (is_room_full_cpk(ch->in_room)) {
             ch->cpk_kills++;
             victim->cpk_deaths++;
             if (IN_CHURCH(ch)) {

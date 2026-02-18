@@ -813,7 +813,7 @@ BPEDIT( bpedit_section )
 
     if( argument[0] == '\0' )
     {
-        send_to_char("Syntax:  section add <#vnum|area#vnum>\n\r", ch);
+        send_to_char("Syntax:  section add <vnum|#vnum|area#vnum>\n\r", ch);
         send_to_char("         section delete <#>\n\r", ch);
         send_to_char("         section list\n\r", ch);
         return false;
@@ -1115,7 +1115,7 @@ BPEDIT( bpedit_static )
                 BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
                 WNUM room_wnum;
-                AREA_DATA *context = strchr(argument, '#') ? bp->area : NULL;
+                AREA_DATA *context = olc_relative_widevnum_context(bp->area, argument);
                 if (!parse_widevnum(argument, context, &room_wnum)) {
                     send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
                     return false;
@@ -1129,14 +1129,17 @@ BPEDIT( bpedit_static )
                     return false;
                 }
 
-                if( !get_room_index(room_wnum.pArea, vnum) )
+                ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, vnum);
+                if( !room )
                 {
                     send_to_char("Room does not exist.\n\r", ch);
                     return false;
                 }
 
                 special->section = section;
-                special->room_ref.load.vnum = vnum; special->room_ref.load.auid = bp->area ? bp->area->uid : 0; special->room = get_room_index(bp->area, vnum);
+                special->room_ref.load.vnum = vnum;
+                special->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+                special->room = room;
 
                 send_to_char("Special room changed.\n\r", ch);
                 return true;
@@ -1178,7 +1181,7 @@ BPEDIT( bpedit_static )
             BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
             WNUM room_wnum;
-            AREA_DATA *context = strchr(arg4, '#') ? bp->area : NULL;
+            AREA_DATA *context = olc_relative_widevnum_context(bp->area, arg4);
             if (!parse_widevnum(arg4, context, &room_wnum)) {
                 send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
                 return false;
@@ -1192,7 +1195,8 @@ BPEDIT( bpedit_static )
                 return false;
             }
 
-            if( !get_room_index(room_wnum.pArea, vnum) )
+            ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, vnum);
+            if( !room )
             {
                 send_to_char("Room does not exist.\n\r", ch);
                 return false;
@@ -1208,7 +1212,9 @@ BPEDIT( bpedit_static )
             free_string(special->name);
             special->name = str_dup(name);
             special->section = section;
-            special->room_ref.load.vnum = vnum; special->room_ref.load.auid = bp->area ? bp->area->uid : 0; special->room = get_room_index(bp->area, vnum);
+            special->room_ref.load.vnum = vnum;
+            special->room_ref.load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+            special->room = room;
 
             list_appendlink(bp->special_rooms, special);
 
@@ -1568,7 +1574,7 @@ BPEDIT (bpedit_addiprog)
     slot = trigger_table[tindex].slot;
 
     WNUM script_wnum;
-    AREA_DATA *context = strchr(num, '#') ? blueprint->area : NULL;
+    AREA_DATA *context = olc_relative_widevnum_context(blueprint->area, num);
     if (!parse_widevnum(num, context, &script_wnum)) {
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;

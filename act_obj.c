@@ -2672,7 +2672,7 @@ memset(&af,0,sizeof(af));
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
             af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level     = ch->tot_level * percent / 100;
             af.duration  = ch->tot_level/2 * percent / 100;
             af.location  = 0;
@@ -3059,7 +3059,7 @@ memset(&af,0,sizeof(af));
     af.where     = TO_AFFECTS;
     af.group     = AFFGROUP_BIOLOGICAL;
     af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
     af.level	 = number_fuzzy(amount);
     af.duration  = 3 * amount;
     af.location  = APPLY_NONE;
@@ -3178,7 +3178,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
         af.where	 = TO_AFFECTS;
         af.group     = AFFGROUP_BIOLOGICAL;
         af.type      = skill_resolve_gsn("poison");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
         af.level 	 = number_fuzzy(FOOD(obj)->hunger);
         af.duration  = 2 * FOOD(obj)->hunger;
         af.location  = APPLY_NONE;
@@ -4854,7 +4854,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
          && number_percent() < get_skill(victim, skill_resolve_gsn("deception")))
          || (!IS_NPC(ch)
           && !IS_NPC(victim)
-          && !IS_SET(ch->in_room->room_flag[0], ROOM_CPK)))
+          && !is_room_full_cpk(ch->in_room)))
     {
     send_to_char("Oops.\n\r", ch);
     affect_strip(ch,skill_resolve_gsn("sneak"));
@@ -4932,9 +4932,9 @@ void do_steal(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!IS_SET(ch->in_room->room_flag[0], ROOM_CPK) && !IS_NPC(victim) && !IS_NPC(ch))
+    if (!is_room_full_cpk(ch->in_room) && !IS_NPC(victim) && !IS_NPC(ch))
     {
-    send_to_char("You can only steal items in a CPK room.\n\r", ch);
+    send_to_char("You can only steal items in a chaotic room.\n\r", ch);
     return;
     }
 
@@ -8416,17 +8416,17 @@ void do_hands(CHAR_DATA *ch, char *argument)
     act("{C$n's hands glow a brilliant blue.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     sn = skill_lookup("cure disease");
-    spell_cure_disease(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_cure_disease(skill_find_uid(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     sn = skill_lookup("cure poison");
-    spell_cure_poison(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_cure_poison(skill_find_uid(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     sn = skill_lookup("cure blindness");
-    spell_cure_blindness(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_cure_blindness(skill_find_uid(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
     /* @@@NIB : 20070127 : for curing the toxic fumes*/
     sn = skill_lookup("cure toxic");
-    spell_cure_toxic(skill_from_sn(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    spell_cure_toxic(skill_find_uid(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     check_improve(ch, skill_resolve_gsn("healing hands"), true, 1);
 }
 
@@ -9006,7 +9006,7 @@ memset(&af,0,sizeof(af));
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
             af.type      = skill_resolve_gsn("infuse");
-    af.skill = skill_from_sn(af.type);
+    af.skill = skill_find_uid(af.type);
             af.level     = (ch->tot_level * skill)/ 100;
             af.duration  = ((ch->tot_level/2) * skill)/ 100;
             af.location  = 0;

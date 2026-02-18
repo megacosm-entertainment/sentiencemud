@@ -2114,13 +2114,13 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
     if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
         if (IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) {
             if(room->wilds) {
-                sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
-                    room->area->anum, room->area->name,
+                sprintf (buf, "\n\r{C [ Area uid: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
+                    room->area->uid, room->area->name,
                     room->wilds->uid, room->wilds->name,
                     room->x, room->y);
             } else if(room->source) {
-                sprintf (buf, "\n\r{C [ Area: %ld '%s', Clone (%ld, %ld, %ld) ]{x",
-                    room->area->anum, room->area->name,
+                sprintf (buf, "\n\r{C [ Area uid: %ld '%s', Clone (%ld, %ld, %ld) ]{x",
+                    room->area->uid, room->area->name,
                     room->source->vnum,room->id[0],room->id[1]);
             } else {
                 sprintf(buf, "{g[Room %s]", widevnum_string_room(room, ch->in_room->area));
@@ -2162,12 +2162,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
     send_to_char(buf, ch);
 
-    if (IS_SET(room->room_flag[0], ROOM_PK) && IS_SET(room->room_flag[0], ROOM_CPK)) {
+    if (is_room_full_cpk(room)) {
         sprintf(buf, "  {M[CNPK ROOM]");
         send_to_char(buf, ch);
         linelength -= 13;
-    } else if (IS_SET(room->room_flag[0], ROOM_CPK)) {
-        sprintf(buf, "  {M[CPK ROOM]");
+    } else if (IS_SET(room->room_flag[0], ROOM_CHAOTIC)) {
+        sprintf(buf, "  {M[CHAOTIC]");
         send_to_char(buf, ch);
         linelength -= 12;
     } else if (IS_SET(room->room_flag[0], ROOM_PK)) {
@@ -2346,7 +2346,6 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
                     if (room->exit[dir] != NULL &&
                         (to_room = room->exit[dir]->u1.to_room) != NULL) {
                         if (IS_SET(to_room->room_flag[0], ROOM_PK) ||
-                            IS_SET(to_room->room_flag[0], ROOM_CPK) ||
                             is_pk_safe_range(to_room, ch->pcdata->danger_range - 1, rev_dir[dir]) > -1) {
                             if (buf[0] == '\0')
                                 sprintf(buf, "{RYou sense danger to the: %s", dir_name[dir]);
@@ -7617,7 +7616,7 @@ char determine_room_type(ROOM_INDEX_DATA *room)
     if (room == NULL)
     return '@';
 
-    if (IS_SET(room->room_flag[0], ROOM_CPK))
+    if (IS_SET(room->room_flag[0], ROOM_CHAOTIC))
     return 'K';
     if (room_is_dark(room))
     return 'D';

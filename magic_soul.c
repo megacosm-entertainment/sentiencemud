@@ -19,7 +19,7 @@
 
 SPELL_FUNC(spell_soul_essence)
 {
-    int sn = skill->uid;
+    int sn __attribute__((unused)) = skill->uid;
     char buf[MSL];
     OBJ_DATA *obj;
     char *arg = (char *) vo;
