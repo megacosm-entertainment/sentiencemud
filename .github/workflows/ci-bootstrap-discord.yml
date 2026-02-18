@@ -16,6 +16,8 @@ jobs:
   notify:
     name: Notify Discord with CI result
     runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.GHA_CI_TESTS_DISCORD_WEBHOOK }}
 
     steps:
       - name: Build CI result payload
@@ -93,9 +95,9 @@ jobs:
             core.setOutput('json', JSON.stringify(body));
 
       - name: Send CI result to Discord
-        if: steps.payload.outputs.skip != 'true' && secrets.GHA_CI_TESTS_DISCORD_WEBHOOK != ''
+        if: steps.payload.outputs.skip != 'true' && env.DISCORD_WEBHOOK_URL != ''
         env:
-          WEBHOOK_URL: ${{ secrets.GHA_CI_TESTS_DISCORD_WEBHOOK }}
+          WEBHOOK_URL: ${{ env.DISCORD_WEBHOOK_URL }}
           PAYLOAD: ${{ steps.payload.outputs.json }}
         run: |
           curl -fsSL -X POST "$WEBHOOK_URL" \

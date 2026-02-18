@@ -578,13 +578,36 @@ static const char *detect_data_root_override(int argc, char **argv)
 int main(int argc, char **argv)
 {
     const char *data_root_override = detect_data_root_override(argc, argv);
+    char zlog_conf_buf[MAX_INPUT_LENGTH];
+    const char *zlog_conf_path;
 
     runtime_game_root[0] = '\0';
 
-    int rc = log_init(ZLOG_CONF);
+    detect_bootstrap_mode(argc, argv);
+
+    if (data_root_override && data_root_override[0]) {
+        set_runtime_game_root(data_root_override);
+    } else if (bootstrap_mode && bootstrap_root && bootstrap_root[0]) {
+        set_runtime_game_root(bootstrap_root);
+    }
+
+    zlog_conf_path = resolve_game_path(ZLOG_CONF, zlog_conf_buf, sizeof(zlog_conf_buf));
+
+    int rc = log_init(zlog_conf_path);
+    if (rc && bootstrap_mode) {
+        const char *bootstrap_fallback_conf = "bootstrap/bootstrap_data/system/zlog.conf";
+        rc = log_init(bootstrap_fallback_conf);
+        if (!rc) {
+            fprintf(stderr, "log_init fallback succeeded using %s\n", bootstrap_fallback_conf);
+        }
+    }
     if (rc) {
-        fprintf(stderr, "log_init failed\n");
-        return -1;
+        if (bootstrap_mode) {
+            fprintf(stderr, "log_init failed (rc=%d), continuing bootstrap with stderr logging only\n", rc);
+        } else {
+            fprintf(stderr, "log_init failed\n");
+            return -1;
+        }
     }
 
     detect_test_mode_args(argc, argv);
@@ -603,7 +626,6 @@ int main(int argc, char **argv)
     }
 
     /* Check for bootstrap mode */
-    detect_bootstrap_mode(argc, argv);
     if (bootstrap_mode) {
         /* Run bootstrap - creates minimal data files and first account */
         if (run_bootstrap() != 0) {
