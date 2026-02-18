@@ -48,6 +48,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "echo",				do_tpecho,					false,	true	},
+        { "event",              scriptcmd_event,          false,  true    },
     { "echoaround",			do_tpechoaround,			false,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "echobattlespam",		do_tpechobattlespam,		false,	true	},

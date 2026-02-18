@@ -10,6 +10,7 @@
 #include "traits.h"
 #include "tables.h"
 #include "scripts.h"
+#include "event_types.h"
 #include "recycle.h"
 #include "wilds.h"
 //#define DEBUG_MODULE
@@ -8542,6 +8543,95 @@ OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name)
     return NULL;
 }
 
+static bool script_get_event_source_from_info(SCRIPT_VARINFO *info, long *event_uid, uint32_t *instance_id, int *bracket)
+{
+    long uid = 0;
+    uint32_t instance = 0;
+    int source_bracket = 0;
+
+    if (event_uid)
+        *event_uid = 0;
+    if (instance_id)
+        *instance_id = 0;
+    if (bracket)
+        *bracket = 0;
+
+    if (!info)
+        return false;
+
+    if (info->mob && event_get_mobile_spawn_source(info->mob, &uid, &instance) && uid > 0) {
+        event_get_mobile_spawn_bracket(info->mob, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->mob && !IS_NPC(info->mob)
+        && event_get_character_active_bracket(info->mob, &uid, &instance, &source_bracket)
+        && uid > 0) {
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->obj && event_get_object_spawn_source(info->obj, &uid, &instance) && uid > 0) {
+        event_get_object_spawn_bracket(info->obj, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->token) {
+        if (info->token->player && event_get_mobile_spawn_source(info->token->player, &uid, &instance) && uid > 0) {
+            event_get_mobile_spawn_bracket(info->token->player, &source_bracket);
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+
+        if (info->token->player && !IS_NPC(info->token->player)
+            && event_get_character_active_bracket(info->token->player, &uid, &instance, &source_bracket)
+            && uid > 0) {
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+
+        if (info->token->object && event_get_object_spawn_source(info->token->object, &uid, &instance) && uid > 0) {
+            event_get_object_spawn_bracket(info->token->object, &source_bracket);
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // MLOAD $VNUM|$MOBILE $ROOM[ $VARIABLENAME]
 CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
@@ -8550,6 +8640,9 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
     MOB_INDEX_DATA *pMobIndex = NULL;
     ROOM_INDEX_DATA *room;
     CHAR_DATA *victim;
+    long event_uid = 0;
+    uint32_t event_instance_id = 0;
+    int event_bracket = 0;
 
     if(!info) return NULL;
 
@@ -8638,6 +8731,11 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
     victim = create_mobile(pMobIndex, false);
     if( !IS_VALID(victim) )
         return NULL;
+
+    if (script_get_event_source_from_info(info, &event_uid, &event_instance_id, &event_bracket) && event_uid > 0) {
+        event_tag_mobile_spawn(victim, event_uid, event_instance_id);
+        event_set_mobile_spawn_bracket(victim, event_bracket);
+    }
 
     if( instanced )
         SET_BIT(victim->act[1], ACT2_INSTANCE_MOB);
@@ -8907,6 +9005,9 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
     OBJ_DATA *to_obj = NULL;
     ROOM_INDEX_DATA *here = NULL;
     ROOM_INDEX_DATA *to_room = NULL;
+    int event_bracket = 0;
+    long event_uid = 0;
+    uint32_t event_instance_id = 0;
 
     if(!info) return NULL;
 
@@ -9033,6 +9134,11 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
     obj = create_object(pObjIndex, level, true);
     if( !IS_VALID(obj) )
         return NULL;
+
+    if (script_get_event_source_from_info(info, &event_uid, &event_instance_id, &event_bracket) && event_uid > 0) {
+        event_tag_object_spawn(obj, event_uid, event_instance_id);
+        event_set_object_spawn_bracket(obj, event_bracket);
+    }
 
     if( instanced )
         SET_BIT(obj->extra[2], ITEM_INSTANCE_OBJ);

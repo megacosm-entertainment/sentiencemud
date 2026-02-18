@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <jansson.h>
 
@@ -8,6 +9,7 @@
 #include "../../tables.h"
 #include "../../olc.h"
 #include "../../interp.h"
+#include "../../event_types.h"
 #include "../../recycle.h"
 #include "../../io/json/json_common.h"
 #include "../common.h"
@@ -37,6 +39,18 @@ struct evtedit_data {
     int16_t max_level;
     int16_t min_players;
     int16_t max_players;
+    int16_t completion_goal;
+    bool leader_required;
+    char *display_title;
+    char *short_summary;
+    char *news_slug;
+    char *news_announcement;
+    char *news_body;
+    char *theme_tags;
+    char *spawn_brackets;
+    char *collection_brackets;
+    char *bracket_mode;
+    char *progress_aggregation;
     bool enabled;
     long flags;
     char *comments;
@@ -56,6 +70,10 @@ struct event_instance {
     time_t end_time;
     EVENT_PART *participants;
     int participant_count;
+    int progress_kills;
+    int progress_items;
+    int progress_goal;
+    bool leader_phase;
     bool dirty;
     EVENT_INSTANCE *next;
 };
@@ -137,6 +155,18 @@ EVTEDIT(evtedit_minlevel);
 EVTEDIT(evtedit_maxlevel);
 EVTEDIT(evtedit_minplayers);
 EVTEDIT(evtedit_maxplayers);
+EVTEDIT(evtedit_goal);
+EVTEDIT(evtedit_leaderrequired);
+EVTEDIT(evtedit_title);
+EVTEDIT(evtedit_summary);
+EVTEDIT(evtedit_newsslug);
+EVTEDIT(evtedit_newsannounce);
+EVTEDIT(evtedit_newsbody);
+EVTEDIT(evtedit_themetags);
+EVTEDIT(evtedit_spawnbrackets);
+EVTEDIT(evtedit_collectionbrackets);
+EVTEDIT(evtedit_bracketmode);
+EVTEDIT(evtedit_progressagg);
 EVTEDIT(evtedit_flags);
 EVTEDIT(evtedit_comments);
 EVTEDIT(evtedit_save);
@@ -215,6 +245,16 @@ static void evtedit_free_item(EVTEDIT_DATA *evt)
     free_string(evt->announce_msg);
     free_string(evt->end_msg);
     free_string(evt->join_msg);
+    free_string(evt->display_title);
+    free_string(evt->short_summary);
+    free_string(evt->news_slug);
+    free_string(evt->news_announcement);
+    free_string(evt->news_body);
+    free_string(evt->theme_tags);
+    free_string(evt->spawn_brackets);
+    free_string(evt->collection_brackets);
+    free_string(evt->bracket_mode);
+    free_string(evt->progress_aggregation);
     free_string(evt->comments);
     free_mem(evt, sizeof(*evt));
 }
@@ -257,6 +297,18 @@ static EVTEDIT_DATA *evtedit_new(const char *name)
     evt->max_level = 0;
     evt->min_players = 0;
     evt->max_players = 0;
+    evt->completion_goal = 0;
+    evt->leader_required = true;
+    evt->display_title = str_dup("");
+    evt->short_summary = str_dup("");
+    evt->news_slug = str_dup("");
+    evt->news_announcement = str_dup("");
+    evt->news_body = str_dup("");
+    evt->theme_tags = str_dup("");
+    evt->spawn_brackets = str_dup("");
+    evt->collection_brackets = str_dup("");
+    evt->bracket_mode = str_dup("auto_by_level");
+    evt->progress_aggregation = str_dup("shared");
     evt->enabled = true;
     evt->flags = 0;
     evt->comments = str_dup("");
@@ -346,6 +398,303 @@ static int event_roll_variance(int variance)
     return number_range(-variance, variance);
 }
 
+static const char *event_bracket_spec_for(const EVTEDIT_DATA *evt)
+{
+    if (!evt)
+        return "";
+
+    if (evt->event_type == EVT_TYPE_COLLECTION)
+        return IS_NULLSTR(evt->collection_brackets) ? "" : evt->collection_brackets;
+
+    if (evt->event_type == EVT_TYPE_INVASION
+        || evt->event_type == EVT_TYPE_WAR_FFA
+        || evt->event_type == EVT_TYPE_WAR_GENOCIDE
+        || evt->event_type == EVT_TYPE_WAR_JIHAD)
+        return IS_NULLSTR(evt->spawn_brackets) ? "" : evt->spawn_brackets;
+
+    return "";
+}
+
+static bool event_progress_is_per_bracket_all_required(const EVTEDIT_DATA *evt)
+{
+    if (!evt || IS_NULLSTR(evt->progress_aggregation))
+        return false;
+
+    return !str_cmp(evt->progress_aggregation, "per_bracket_all_required")
+        || !str_cmp(evt->progress_aggregation, "per_bracket");
+}
+
+static bool event_parse_bracket_token(const char *token, int *min_level, int *max_level)
+{
+    int min = 0;
+    int max = 0;
+
+    if (IS_NULLSTR(token) || !min_level || !max_level)
+        return false;
+
+    if (sscanf(token, " %d - %d ", &min, &max) == 2) {
+        if (min < 0 || max < 0)
+            return false;
+
+        if (min > max) {
+            int tmp = min;
+            min = max;
+            max = tmp;
+        }
+
+        *min_level = min;
+        *max_level = max;
+        return true;
+    }
+
+    if (sscanf(token, " %d + ", &min) == 1) {
+        if (min < 0)
+            return false;
+
+        *min_level = min;
+        *max_level = 1000000;
+        return true;
+    }
+
+    if (sscanf(token, " %d ", &min) == 1) {
+        if (min < 0)
+            return false;
+
+        *min_level = min;
+        *max_level = min;
+        return true;
+    }
+
+    return false;
+}
+
+static bool event_level_bracket_index(const char *spec, int level, int *index_out)
+{
+    const char *cursor;
+    int index = 0;
+
+    if (IS_NULLSTR(spec) || !index_out)
+        return false;
+
+    cursor = spec;
+    while (*cursor) {
+        char token[MIL];
+        int pos = 0;
+        int min_level = 0;
+        int max_level = 0;
+
+        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ';' || *cursor == ','))
+            cursor++;
+
+        if (!*cursor)
+            break;
+
+        while (*cursor && *cursor != ';' && *cursor != ',' && pos < MIL - 1)
+            token[pos++] = *cursor++;
+        token[pos] = '\0';
+
+        if (event_parse_bracket_token(token, &min_level, &max_level)) {
+            if (level >= min_level && level <= max_level) {
+                *index_out = index;
+                return true;
+            }
+            index++;
+        }
+
+        while (*cursor && *cursor != ';' && *cursor != ',')
+            cursor++;
+    }
+
+    return false;
+}
+
+static int event_count_brackets(const char *spec)
+{
+    const char *cursor;
+    int count = 0;
+
+    if (IS_NULLSTR(spec))
+        return 0;
+
+    cursor = spec;
+    while (*cursor) {
+        char token[MIL];
+        int pos = 0;
+        int min_level = 0;
+        int max_level = 0;
+
+        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ';' || *cursor == ','))
+            cursor++;
+
+        if (!*cursor)
+            break;
+
+        while (*cursor && *cursor != ';' && *cursor != ',' && pos < MIL - 1)
+            token[pos++] = *cursor++;
+        token[pos] = '\0';
+
+        if (event_parse_bracket_token(token, &min_level, &max_level))
+            count++;
+
+        while (*cursor && *cursor != ';' && *cursor != ',')
+            cursor++;
+    }
+
+    return count;
+}
+
+static bool event_validate_bracket_spec(const char *spec, char *error, size_t error_size)
+{
+    const char *cursor;
+    int previous_max = -1;
+
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    if (IS_NULLSTR(spec))
+        return true;
+
+    cursor = spec;
+    while (*cursor) {
+        char token[MIL];
+        int pos = 0;
+        int min_level = 0;
+        int max_level = 0;
+
+        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ';' || *cursor == ','))
+            cursor++;
+
+        if (!*cursor)
+            break;
+
+        while (*cursor && *cursor != ';' && *cursor != ',' && pos < MIL - 1)
+            token[pos++] = *cursor++;
+        token[pos] = '\0';
+
+        if (!event_parse_bracket_token(token, &min_level, &max_level)) {
+            if (error && error_size > 0)
+                snprintf(error, error_size, "Invalid bracket token: '%s'", token);
+            return false;
+        }
+
+        if (previous_max >= 0 && min_level <= previous_max) {
+            if (error && error_size > 0)
+                snprintf(error, error_size,
+                    "Bracket ranges must be non-overlapping and ordered (problem near '%s').",
+                    token);
+            return false;
+        }
+
+        previous_max = max_level;
+
+        while (*cursor && *cursor != ';' && *cursor != ',')
+            cursor++;
+    }
+
+    return true;
+}
+
+static int event_progress_for_bracket(const EVENT_INSTANCE *inst, int bracket_index, bool items)
+{
+    EVENT_PART *part;
+    int total = 0;
+
+    if (!inst || bracket_index < 0)
+        return 0;
+
+    for (part = inst->participants; part; part = part->next) {
+        if (part->team != bracket_index + 1)
+            continue;
+        total += items ? part->items_turned : part->kills;
+    }
+
+    return total;
+}
+
+static bool event_all_brackets_met_goal(const EVENT_INSTANCE *inst, int goal, bool items)
+{
+    const char *spec;
+    int count;
+    int i;
+
+    if (!inst || !inst->def || goal <= 0)
+        return false;
+
+    spec = event_bracket_spec_for(inst->def);
+    count = event_count_brackets(spec);
+
+    if (count <= 0)
+        return false;
+
+    for (i = 0; i < count; i++)
+        if (event_progress_for_bracket(inst, i, items) < goal)
+            return false;
+
+    return true;
+}
+
+static bool event_assign_participant_bracket(EVENT_INSTANCE *inst, CHAR_DATA *ch, int *team_out)
+{
+    const char *spec;
+    bool enforce_by_level;
+    int index = 0;
+
+    if (!inst || !inst->def || !ch || !team_out)
+        return false;
+
+    *team_out = 0;
+    spec = event_bracket_spec_for(inst->def);
+    if (IS_NULLSTR(spec))
+        return true;
+
+    enforce_by_level = IS_NULLSTR(inst->def->bracket_mode)
+        || !str_cmp(inst->def->bracket_mode, "auto_by_level");
+
+    if (event_level_bracket_index(spec, ch->tot_level, &index)) {
+        *team_out = index + 1;
+        return true;
+    }
+
+    if (enforce_by_level)
+        return false;
+
+    return true;
+}
+
+static bool event_mobile_matches_instance(const CHAR_DATA *mob, const EVENT_INSTANCE *inst)
+{
+    if (!mob || !inst || !inst->def)
+        return false;
+
+    if (mob->event_source_uid <= 0 && mob->event_source_instance_id == 0)
+        return true;
+
+    if (mob->event_source_uid != inst->def->uid)
+        return false;
+
+    if (mob->event_source_instance_id > 0
+        && mob->event_source_instance_id != inst->instance_id)
+        return false;
+
+    return true;
+}
+
+static bool event_mobile_matches_participant_bracket(const CHAR_DATA *mob, const EVENT_PART *part)
+{
+    int mob_bracket = 0;
+
+    if (!mob || !part)
+        return false;
+
+    if (part->team <= 0)
+        return true;
+
+    if (!event_get_mobile_spawn_bracket(mob, &mob_bracket) || mob_bracket <= 0)
+        return true;
+
+    return mob_bracket == part->team;
+}
+
 static void event_set_next_recurring(EVTEDIT_DATA *evt)
 {
     int minutes;
@@ -363,8 +712,12 @@ static void event_set_next_recurring(EVTEDIT_DATA *evt)
 static bool event_add_participant(EVENT_INSTANCE *inst, CHAR_DATA *ch)
 {
     EVENT_PART *part;
+    int team = 0;
 
-    if (!inst || !ch)
+    if (!inst || !inst->def || !ch)
+        return false;
+
+    if (IS_SET(inst->def->flags, EVT_FLAG_PASSIVE) || inst->def->event_type == EVT_TYPE_WORLDSTATE)
         return false;
 
     if (event_find_participant(inst, ch))
@@ -382,10 +735,14 @@ static bool event_add_participant(EVENT_INSTANCE *inst, CHAR_DATA *ch)
     if (IS_SET(inst->def->flags, EVT_FLAG_EXCLUSIVE_PLAYER) && event_player_in_exclusive(ch))
         return false;
 
+    if (!event_assign_participant_bracket(inst, ch, &team))
+        return false;
+
     part = alloc_mem(sizeof(*part));
     memset(part, 0, sizeof(*part));
     part->inst = inst;
     part->ch = ch;
+    part->team = team;
     part->next = inst->participants;
     inst->participants = part;
     inst->participant_count++;
@@ -440,6 +797,20 @@ static void event_clear_participants(EVENT_INSTANCE *inst)
     inst->participant_count = 0;
 }
 
+static int event_default_kill_goal(const EVTEDIT_DATA *evt)
+{
+    if (!evt)
+        return 0;
+
+    if (evt->completion_goal > 0)
+        return evt->completion_goal;
+
+    if (evt->event_type == EVT_TYPE_INVASION)
+        return evt->min_players > 0 ? evt->min_players : 25;
+
+    return 0;
+}
+
 static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
 {
     EVENT_INSTANCE *inst;
@@ -459,6 +830,10 @@ static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
     inst->end_time = evt->sched_duration > 0
         ? current_time + (evt->sched_duration * 60)
         : 0;
+    inst->progress_kills = 0;
+    inst->progress_items = 0;
+    inst->progress_goal = event_default_kill_goal(evt);
+    inst->leader_phase = false;
     inst->dirty = true;
     inst->next = event_active_head;
     event_active_head = inst;
@@ -681,7 +1056,44 @@ void event_runtime_update(void)
                 && !IS_SET(evt->flags, EVT_FLAG_NOANNOUNCE)
                 && !IS_NULLSTR(evt->announce_msg))
                 event_broadcast(evt->announce_msg);
+
+            if (evt->sched_type == EVT_SCHED_CALENDAR && evt->sched_interval > 0) {
+                time_t step = (time_t)evt->sched_interval * 60;
+                time_t next_time = evt->scheduled_time + step;
+
+                while (next_time <= current_time)
+                    next_time += step;
+
+                evt->next_auto_time = next_time;
+            }
+
             evt->scheduled_time = 0;
+            continue;
+        }
+
+        if (evt->sched_type == EVT_SCHED_CALENDAR) {
+            if (evt->sched_interval <= 0 || evt->next_auto_time <= 0)
+                continue;
+
+            if (current_time < evt->next_auto_time)
+                continue;
+
+            if (event_find_active_def(evt))
+                continue;
+
+            if (evt->cooldown_until > current_time)
+                continue;
+
+            if (event_start_definition(evt)
+                && !IS_SET(evt->flags, EVT_FLAG_NOANNOUNCE)
+                && !IS_NULLSTR(evt->announce_msg))
+                event_broadcast(evt->announce_msg);
+
+            {
+                time_t step = (time_t)evt->sched_interval * 60;
+                while (evt->next_auto_time <= current_time)
+                    evt->next_auto_time += step;
+            }
             continue;
         }
 
@@ -726,6 +1138,506 @@ void event_runtime_update(void)
     }
 }
 
+void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
+{
+    EVENT_INSTANCE *inst;
+
+    if (!killer || !victim || IS_NPC(killer))
+        return;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        EVENT_PART *part;
+
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+
+        part = event_find_participant(inst, killer);
+        if (!part)
+            continue;
+
+        switch (inst->def->event_type) {
+        case EVT_TYPE_INVASION:
+            if (IS_NPC(victim)
+                && event_mobile_matches_instance(victim, inst)
+                && event_mobile_matches_participant_bracket(victim, part)) {
+                part->kills++;
+                inst->progress_kills++;
+                inst->dirty = true;
+
+                if (!inst->leader_phase
+                    && inst->progress_goal > 0
+                    && (event_progress_is_per_bracket_all_required(inst->def)
+                        ? event_all_brackets_met_goal(inst, inst->progress_goal, false)
+                        : (inst->progress_kills >= inst->progress_goal))) {
+                    if (inst->def->leader_required) {
+                        inst->leader_phase = true;
+                        event_broadcast("{YThe invasion leader has emerged! Slay the leader to end the invasion.{x\n\r");
+                    } else if (event_stop_definition(inst->def)) {
+                        if (!IS_NULLSTR(inst->def->end_msg))
+                            event_broadcast(inst->def->end_msg);
+                        else
+                            event_broadcast("{YThe invasion force has been defeated. The invasion is over!{x\n\r");
+                        return;
+                    }
+                }
+            }
+            break;
+
+        case EVT_TYPE_WAR_FFA:
+        case EVT_TYPE_WAR_GENOCIDE:
+        case EVT_TYPE_WAR_JIHAD:
+            if (!IS_NPC(victim)) {
+                part->kills++;
+                inst->progress_kills++;
+                inst->dirty = true;
+
+                if (inst->def->completion_goal > 0
+                    && (event_progress_is_per_bracket_all_required(inst->def)
+                        ? event_all_brackets_met_goal(inst, inst->def->completion_goal, false)
+                        : (inst->progress_kills >= inst->def->completion_goal))
+                    && event_stop_definition(inst->def)) {
+                    if (!IS_NULLSTR(inst->def->end_msg))
+                        event_broadcast(inst->def->end_msg);
+                    else
+                        event_broadcast("{YThe war objective has been reached. The war is over!{x\n\r");
+                    return;
+                }
+            }
+            break;
+
+        case EVT_TYPE_BOSS:
+            if (IS_NPC(victim)
+                && event_mobile_matches_instance(victim, inst)
+                && event_mobile_matches_participant_bracket(victim, part)) {
+                int goal = inst->def->completion_goal > 0 ? inst->def->completion_goal : 1;
+
+                part->kills++;
+                inst->progress_kills++;
+                inst->dirty = true;
+
+                if (inst->progress_kills >= goal
+                    && event_stop_definition(inst->def)) {
+                    if (!IS_NULLSTR(inst->def->end_msg))
+                        event_broadcast(inst->def->end_msg);
+                    else
+                        event_broadcast("{YThe boss has been defeated. Event complete!{x\n\r");
+                    return;
+                }
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
+void event_progress_record_collection_turnin(CHAR_DATA *ch, int items_turned)
+{
+    EVENT_INSTANCE *inst;
+
+    if (!ch || IS_NPC(ch) || items_turned <= 0)
+        return;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        EVENT_PART *part;
+
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+        if (inst->def->event_type != EVT_TYPE_COLLECTION)
+            continue;
+
+        part = event_find_participant(inst, ch);
+        if (!part)
+            continue;
+
+        part->items_turned += items_turned;
+        inst->progress_items += items_turned;
+        inst->dirty = true;
+
+        if (inst->def->completion_goal > 0
+            && (event_progress_is_per_bracket_all_required(inst->def)
+                ? event_all_brackets_met_goal(inst, inst->def->completion_goal, true)
+                : (inst->progress_items >= inst->def->completion_goal))
+            && event_stop_definition(inst->def)) {
+            if (!IS_NULLSTR(inst->def->end_msg))
+                event_broadcast(inst->def->end_msg);
+            else
+                event_broadcast("{YCollection objective reached. Event complete!{x\n\r");
+            return;
+        }
+    }
+}
+
+bool event_progress_complete_invasion_leader(CHAR_DATA *killer, CHAR_DATA *victim)
+{
+    EVENT_INSTANCE *inst;
+
+    if (!killer || !victim || IS_NPC(killer) || !IS_NPC(victim))
+        return false;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+        if (inst->def->event_type != EVT_TYPE_INVASION)
+            continue;
+        if (!inst->leader_phase)
+            continue;
+        if (!event_mobile_matches_instance(victim, inst))
+            continue;
+        if (!event_find_participant(inst, killer))
+            continue;
+
+        if (event_stop_definition(inst->def)) {
+            if (!IS_NULLSTR(inst->def->end_msg))
+                event_broadcast(inst->def->end_msg);
+            else
+                event_broadcast("{YThe invasion leader has fallen. The invasion is over!{x\n\r");
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void event_tag_mobile_spawn(CHAR_DATA *mob, long event_uid, uint32_t instance_id)
+{
+    if (!mob)
+        return;
+
+    mob->event_source_uid = UMAX(0, event_uid);
+    mob->event_source_instance_id = instance_id;
+    mob->event_source_bracket = 0;
+}
+
+void event_tag_object_spawn(OBJ_DATA *obj, long event_uid, uint32_t instance_id)
+{
+    if (!obj)
+        return;
+
+    obj->event_source_uid = UMAX(0, event_uid);
+    obj->event_source_instance_id = instance_id;
+    obj->event_source_bracket = 0;
+}
+
+void event_set_mobile_spawn_bracket(CHAR_DATA *mob, int bracket)
+{
+    if (!mob)
+        return;
+
+    mob->event_source_bracket = UMAX(0, bracket);
+}
+
+void event_set_object_spawn_bracket(OBJ_DATA *obj, int bracket)
+{
+    if (!obj)
+        return;
+
+    obj->event_source_bracket = UMAX(0, bracket);
+}
+
+bool event_get_mobile_spawn_source(const CHAR_DATA *mob, long *event_uid, uint32_t *instance_id)
+{
+    if (!mob)
+        return false;
+
+    if (event_uid)
+        *event_uid = mob->event_source_uid;
+    if (instance_id)
+        *instance_id = mob->event_source_instance_id;
+
+    return mob->event_source_uid > 0;
+}
+
+bool event_get_object_spawn_source(const OBJ_DATA *obj, long *event_uid, uint32_t *instance_id)
+{
+    if (!obj)
+        return false;
+
+    if (event_uid)
+        *event_uid = obj->event_source_uid;
+    if (instance_id)
+        *instance_id = obj->event_source_instance_id;
+
+    return obj->event_source_uid > 0;
+}
+
+bool event_get_mobile_spawn_bracket(const CHAR_DATA *mob, int *bracket)
+{
+    if (!mob)
+        return false;
+
+    if (bracket)
+        *bracket = mob->event_source_bracket;
+
+    return mob->event_source_bracket > 0;
+}
+
+bool event_get_object_spawn_bracket(const OBJ_DATA *obj, int *bracket)
+{
+    if (!obj)
+        return false;
+
+    if (bracket)
+        *bracket = obj->event_source_bracket;
+
+    return obj->event_source_bracket > 0;
+}
+
+bool event_get_character_active_bracket(const CHAR_DATA *ch, long *event_uid, uint32_t *instance_id, int *bracket)
+{
+    EVENT_INSTANCE *inst;
+    EVENT_PART *part;
+
+    if (event_uid)
+        *event_uid = 0;
+    if (instance_id)
+        *instance_id = 0;
+    if (bracket)
+        *bracket = 0;
+
+    if (!ch)
+        return false;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+
+        part = event_find_participant(inst, (CHAR_DATA *)ch);
+        if (!part)
+            continue;
+
+        if (event_uid)
+            *event_uid = inst->def->uid;
+        if (instance_id)
+            *instance_id = inst->instance_id;
+        if (bracket)
+            *bracket = part->team;
+        return true;
+    }
+
+    return false;
+}
+
+bool event_runtime_get_source_progress(long event_uid, uint32_t instance_id, int *kills, int *items, int *goal)
+{
+    EVENT_INSTANCE *inst;
+
+    if (kills)
+        *kills = 0;
+    if (items)
+        *items = 0;
+    if (goal)
+        *goal = 0;
+
+    if (event_uid <= 0)
+        return false;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+        if (inst->def->uid != event_uid)
+            continue;
+        if (instance_id > 0 && inst->instance_id != instance_id)
+            continue;
+
+        if (kills)
+            *kills = inst->progress_kills;
+        if (items)
+            *items = inst->progress_items;
+        if (goal) {
+            if (inst->def->event_type == EVT_TYPE_INVASION)
+                *goal = inst->progress_goal;
+            else
+                *goal = inst->def->completion_goal;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool event_runtime_is_source_leader_phase(long event_uid, uint32_t instance_id, bool *leader_phase)
+{
+    EVENT_INSTANCE *inst;
+
+    if (leader_phase)
+        *leader_phase = false;
+
+    if (event_uid <= 0)
+        return false;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+        if (inst->def->uid != event_uid)
+            continue;
+        if (instance_id > 0 && inst->instance_id != instance_id)
+            continue;
+
+        if (leader_phase)
+            *leader_phase = inst->leader_phase;
+        return true;
+    }
+
+    return false;
+}
+
+bool event_runtime_adjust_progress(const char *event_token, int kills_delta, int items_delta)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    if (kills_delta != 0)
+        inst->progress_kills = UMAX(0, inst->progress_kills + kills_delta);
+    if (items_delta != 0)
+        inst->progress_items = UMAX(0, inst->progress_items + items_delta);
+
+    inst->dirty = true;
+    return true;
+}
+
+bool event_runtime_get_progress(const char *event_token, int *kills, int *items, int *goal)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+
+    if (kills)
+        *kills = 0;
+    if (items)
+        *items = 0;
+    if (goal)
+        *goal = 0;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    if (kills)
+        *kills = inst->progress_kills;
+    if (items)
+        *items = inst->progress_items;
+    if (goal) {
+        if (evt->event_type == EVT_TYPE_INVASION)
+            *goal = inst->progress_goal;
+        else
+            *goal = evt->completion_goal;
+    }
+
+    return true;
+}
+
+bool event_runtime_is_leader_phase(const char *event_token, bool *leader_phase)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+
+    if (leader_phase)
+        *leader_phase = false;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    if (leader_phase)
+        *leader_phase = inst->leader_phase;
+
+    return true;
+}
+
+bool event_runtime_set_goal(const char *event_token, int goal)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    goal = UMAX(0, goal);
+
+    if (evt->event_type == EVT_TYPE_INVASION)
+        inst->progress_goal = goal;
+    else
+        evt->completion_goal = goal;
+
+    inst->dirty = true;
+    return true;
+}
+
+bool event_runtime_set_phase(const char *event_token, const char *phase_name)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    if (evt->event_type == EVT_TYPE_INVASION) {
+        if (IS_NULLSTR(phase_name) || !str_cmp(phase_name, "active") || !str_cmp(phase_name, "normal"))
+            inst->leader_phase = false;
+        else if (!str_cmp(phase_name, "leader") || !str_cmp(phase_name, "leader_phase"))
+            inst->leader_phase = true;
+        else
+            return false;
+
+        inst->dirty = true;
+        return true;
+    }
+
+    return false;
+}
+
+bool event_runtime_finish(const char *event_token, bool success, const char *reason)
+{
+    EVTEDIT_DATA *evt;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    if (!event_find_active_def(evt))
+        return false;
+
+    if (event_stop_definition(evt)) {
+        if (!IS_NULLSTR(reason))
+            event_broadcast(reason);
+        else if (success && !IS_NULLSTR(evt->end_msg))
+            event_broadcast(evt->end_msg);
+        else if (!success)
+            event_broadcast("{REvent failed.{x\n\r");
+        return true;
+    }
+
+    return false;
+}
+
 static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
 {
     json_t *obj = json_object();
@@ -747,6 +1659,18 @@ static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
     json_object_set_new(obj, "max_level", json_integer(evt->max_level));
     json_object_set_new(obj, "min_players", json_integer(evt->min_players));
     json_object_set_new(obj, "max_players", json_integer(evt->max_players));
+    json_object_set_new(obj, "completion_goal", json_integer(evt->completion_goal));
+    json_object_set_new(obj, "leader_required", json_integer(evt->leader_required ? 1 : 0));
+    json_object_set_new(obj, "display_title", json_string_safe(evt->display_title));
+    json_object_set_new(obj, "short_summary", json_string_safe(evt->short_summary));
+    json_object_set_new(obj, "news_slug", json_string_safe(evt->news_slug));
+    json_object_set_new(obj, "news_announcement", json_string_safe(evt->news_announcement));
+    json_object_set_new(obj, "news_body", json_string_safe(evt->news_body));
+    json_object_set_new(obj, "theme_tags", json_string_safe(evt->theme_tags));
+    json_object_set_new(obj, "spawn_brackets", json_string_safe(evt->spawn_brackets));
+    json_object_set_new(obj, "collection_brackets", json_string_safe(evt->collection_brackets));
+    json_object_set_new(obj, "bracket_mode", json_string_safe(evt->bracket_mode));
+    json_object_set_new(obj, "progress_aggregation", json_string_safe(evt->progress_aggregation));
     json_object_set_new(obj, "enabled", json_integer(evt->enabled ? 1 : 0));
     json_object_set_new(obj, "flags", json_integer(evt->flags));
     json_object_set_new(obj, "comments", json_string_safe(evt->comments));
@@ -820,6 +1744,18 @@ static bool evtedit_load_from_json(void)
         evt->max_level = (int16_t)json_get_int(entry, "max_level", 0);
         evt->min_players = (int16_t)json_get_int(entry, "min_players", 0);
         evt->max_players = (int16_t)json_get_int(entry, "max_players", 0);
+        evt->completion_goal = (int16_t)json_get_int(entry, "completion_goal", 0);
+        evt->leader_required = json_get_int(entry, "leader_required", 1) != 0;
+        evt->display_title = str_dup(json_get_string(entry, "display_title", ""));
+        evt->short_summary = str_dup(json_get_string(entry, "short_summary", ""));
+        evt->news_slug = str_dup(json_get_string(entry, "news_slug", ""));
+        evt->news_announcement = str_dup(json_get_string(entry, "news_announcement", ""));
+        evt->news_body = str_dup(json_get_string(entry, "news_body", ""));
+        evt->theme_tags = str_dup(json_get_string(entry, "theme_tags", ""));
+        evt->spawn_brackets = str_dup(json_get_string(entry, "spawn_brackets", ""));
+        evt->collection_brackets = str_dup(json_get_string(entry, "collection_brackets", ""));
+        evt->bracket_mode = str_dup(json_get_string(entry, "bracket_mode", "auto_by_level"));
+        evt->progress_aggregation = str_dup(json_get_string(entry, "progress_aggregation", "shared"));
         evt->enabled = json_get_int(entry, "enabled", 1) != 0;
         evt->flags = (long)json_get_int(entry, "flags", 0);
         evt->comments = str_dup(json_get_string(entry, "comments", ""));
@@ -883,6 +1819,18 @@ static const struct olc_cmd_type evtedit_table[] = {
     { "maxlevel",  evtedit_maxlevel },
     { "minplayers", evtedit_minplayers },
     { "maxplayers", evtedit_maxplayers },
+    { "goal",      evtedit_goal },
+    { "leaderrequired", evtedit_leaderrequired },
+    { "title",     evtedit_title },
+    { "summary",   evtedit_summary },
+    { "newsslug",  evtedit_newsslug },
+    { "newsannounce", evtedit_newsannounce },
+    { "newsbody",  evtedit_newsbody },
+    { "themetags", evtedit_themetags },
+    { "spawnbrackets", evtedit_spawnbrackets },
+    { "collectionbrackets", evtedit_collectionbrackets },
+    { "bracketmode", evtedit_bracketmode },
+    { "progressagg", evtedit_progressagg },
     { "flags",     evtedit_flags },
     { "comments",  evtedit_comments },
     { "save",      evtedit_save },
@@ -936,6 +1884,10 @@ void do_evtedit(CHAR_DATA *ch, char *argument)
         send_to_char("        evtedit save\n\r", ch);
         send_to_char("        evtedit reload\n\r", ch);
         send_to_char("        evtedit <uid|name>\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("Bracket format: ordered non-overlapping ranges (example: 1-50,51-90,91+).\n\r", ch);
+        send_to_char("bracketmode: auto_by_level|open|manual\n\r", ch);
+        send_to_char("progressagg: total|per_bracket|per_bracket_all_required\n\r", ch);
         return;
     }
 
@@ -989,6 +1941,7 @@ void do_event(CHAR_DATA *ch, char *argument)
     if (IS_NULLSTR(cmd) || !str_cmp(cmd, "help")) {
         send_to_char("Syntax: event list\n\r", ch);
         send_to_char("        event info <uid|name>\n\r", ch);
+        send_to_char("        event news <uid|name>\n\r", ch);
         send_to_char("        event enabled\n\r", ch);
         send_to_char("        event enable|disable\n\r", ch);
         send_to_char("        event status\n\r", ch);
@@ -997,6 +1950,9 @@ void do_event(CHAR_DATA *ch, char *argument)
         send_to_char("        event start <uid|name>\n\r", ch);
         send_to_char("        event stop <uid|name>\n\r", ch);
         send_to_char("        event schedule <uid|name> <+Nm|+Nh|+Nd|YYYY-MM-DD HH:MM>\n\r", ch);
+        send_to_char("        event tick\n\r", ch);
+        send_to_char("\n\r", ch);
+        send_to_char("Passive/worldstate events are status-only and cannot be joined.\n\r", ch);
         return;
     }
 
@@ -1065,7 +2021,8 @@ void do_event(CHAR_DATA *ch, char *argument)
         send_to_char("{WActive Event Status:{X\n\r", ch);
         for (inst = event_active_head; inst; inst = inst->next) {
             long rem = 0;
-            bool joined = event_find_participant(inst, ch) != NULL;
+            EVENT_PART *self = event_find_participant(inst, ch);
+            bool joined = self != NULL;
 
             if (!inst->def)
                 continue;
@@ -1077,13 +2034,41 @@ void do_event(CHAR_DATA *ch, char *argument)
                 in_any = true;
 
             printf_to_char(ch,
-                "  {W%-24.24s{x [%s] participants=%d%s%s\n\r",
+                "  {W%-24.24s{x [%s] participants=%d%s%s",
                 inst->def->name,
                 rem > 0 ? formatf("%ldm%02lds left", rem / 60, rem % 60) : "no timer",
                 inst->participant_count,
                 joined ? " {G(joined){x" : "",
                 (IS_SET(inst->def->flags, EVT_FLAG_PASSIVE) || inst->def->event_type == EVT_TYPE_WORLDSTATE)
                     ? " {C(passive){x" : "");
+
+            if (self && self->team > 0)
+                printf_to_char(ch, " {Wbracket:{x %d", self->team);
+
+            if (inst->def->event_type == EVT_TYPE_INVASION && inst->progress_goal > 0)
+                printf_to_char(ch, " {WKills:{x %d/%d%s",
+                    inst->progress_kills,
+                    inst->progress_goal,
+                    inst->leader_phase ? " {Y(leader phase){x" : "");
+            else if (inst->def->event_type == EVT_TYPE_COLLECTION)
+                printf_to_char(ch, " {WTurn-ins:{x %d%s",
+                    inst->progress_items,
+                    inst->def->completion_goal > 0
+                        ? formatf("/%d", inst->def->completion_goal)
+                        : "");
+            else if ((inst->def->event_type == EVT_TYPE_WAR_FFA
+                || inst->def->event_type == EVT_TYPE_WAR_GENOCIDE
+                || inst->def->event_type == EVT_TYPE_WAR_JIHAD)
+                && inst->def->completion_goal > 0)
+                printf_to_char(ch, " {WKills:{x %d/%d",
+                    inst->progress_kills,
+                    inst->def->completion_goal);
+            else if (inst->def->event_type == EVT_TYPE_BOSS)
+                printf_to_char(ch, " {WKills:{x %d/%d",
+                    inst->progress_kills,
+                    inst->def->completion_goal > 0 ? inst->def->completion_goal : 1);
+
+            send_to_char("\n\r", ch);
         }
 
         if (!in_any)
@@ -1111,6 +2096,11 @@ void do_event(CHAR_DATA *ch, char *argument)
             return;
         }
 
+        if (IS_SET(inst->def->flags, EVT_FLAG_PASSIVE) || inst->def->event_type == EVT_TYPE_WORLDSTATE) {
+            send_to_char("That event is passive and cannot be joined.\n\r", ch);
+            return;
+        }
+
         if (event_find_participant(inst, ch)) {
             send_to_char("You are already participating in that event.\n\r", ch);
             return;
@@ -1121,7 +2111,13 @@ void do_event(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        printf_to_char(ch, "You join event '%s'.\n\r", inst->def->name);
+        {
+            EVENT_PART *self = event_find_participant(inst, ch);
+            printf_to_char(ch, "You join event '%s'%s%s.\n\r",
+                inst->def->name,
+                (self && self->team > 0) ? " (bracket " : "",
+                (self && self->team > 0) ? formatf("%d)", self->team) : "");
+        }
         return;
     }
 
@@ -1156,6 +2152,35 @@ void do_event(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    if (!str_cmp(cmd, "news")) {
+        argument = one_argument(argument, target);
+        if (IS_NULLSTR(target)) {
+            send_to_char("Syntax: event news <uid|name>\n\r", ch);
+            return;
+        }
+
+        evt = event_lookup_definition(target);
+        if (!evt) {
+            send_to_char("No event found by that uid or name.\n\r", ch);
+            return;
+        }
+
+        printf_to_char(ch, "{WEvent News Preview:{x %s ({W%ld{x)\n\r", evt->name, evt->uid);
+        printf_to_char(ch, "{WTitle:{x %s\n\r",
+            IS_NULLSTR(evt->display_title) ? "(not set)" : evt->display_title);
+        printf_to_char(ch, "{WSummary:{x %s\n\r",
+            IS_NULLSTR(evt->short_summary) ? "(not set)" : evt->short_summary);
+        printf_to_char(ch, "{WNews Slug:{x %s\n\r",
+            IS_NULLSTR(evt->news_slug) ? "(not set)" : evt->news_slug);
+        printf_to_char(ch, "{WTheme Tags:{x %s\n\r",
+            IS_NULLSTR(evt->theme_tags) ? "(not set)" : evt->theme_tags);
+        printf_to_char(ch, "{WAnnouncement:{x %s\n\r",
+            IS_NULLSTR(evt->news_announcement) ? "(not set)" : evt->news_announcement);
+        printf_to_char(ch, "{WNews Body:{x %s\n\r",
+            IS_NULLSTR(evt->news_body) ? "(not set)" : evt->news_body);
+        return;
+    }
+
     argument = one_argument(argument, target);
     evt = event_lookup_definition(target);
 
@@ -1167,6 +2192,7 @@ void do_event(CHAR_DATA *ch, char *argument)
     if (!str_cmp(cmd, "info")) {
         long uptime = 0;
         long rem = 0;
+        EVENT_PART *self = NULL;
 
         inst = event_find_active_def(evt);
         if (inst)
@@ -1175,6 +2201,10 @@ void do_event(CHAR_DATA *ch, char *argument)
             rem = (long)(inst->end_time - current_time);
 
         printf_to_char(ch, "{WEvent:{x %s ({W%ld{x)\n\r", evt->name, evt->uid);
+        if (!IS_NULLSTR(evt->display_title))
+            printf_to_char(ch, "{WTitle:{x %s\n\r", evt->display_title);
+        if (!IS_NULLSTR(evt->short_summary))
+            printf_to_char(ch, "{WSummary:{x %s\n\r", evt->short_summary);
         printf_to_char(ch, "{WType:{x %s  {WScope:{x %s  {WSchedule:{x %s\n\r",
             flag_string(evt_type_flags, evt->event_type),
             flag_string(evt_scope_flags, evt->scope_type),
@@ -1184,6 +2214,12 @@ void do_event(CHAR_DATA *ch, char *argument)
             evt->sched_duration, evt->sched_cooldown);
         printf_to_char(ch, "{WEligibility:{x minlvl=%d maxlvl=%d minplayers=%d maxplayers=%d\n\r",
             evt->min_level, evt->max_level, evt->min_players, evt->max_players);
+        printf_to_char(ch, "{WCompletion:{x goal=%d leader_required=%s\n\r",
+            evt->completion_goal,
+            evt->leader_required ? "{GYes{x" : "{RNo{x");
+        printf_to_char(ch, "{WBrackets:{x mode=%s aggregation=%s\n\r",
+            IS_NULLSTR(evt->bracket_mode) ? "(not set)" : evt->bracket_mode,
+            IS_NULLSTR(evt->progress_aggregation) ? "(not set)" : evt->progress_aggregation);
         printf_to_char(ch, "{WEnabled:{x definition=%s system=%s\n\r",
             evt->enabled ? "{GYes{x" : "{RNo{x",
             event_system_enabled ? "{GYes{x" : "{RNo{x");
@@ -1194,6 +2230,37 @@ void do_event(CHAR_DATA *ch, char *argument)
         if (rem > 0)
             printf_to_char(ch, " {W(remaining %ldm%02lds){x", rem / 60, rem % 60);
         send_to_char("\n\r", ch);
+
+        if (inst) {
+            self = event_find_participant(inst, ch);
+
+            if (evt->event_type == EVT_TYPE_INVASION && inst->progress_goal > 0)
+                printf_to_char(ch, "{WProgress:{x kills=%d/%d%s\n\r",
+                    inst->progress_kills,
+                    inst->progress_goal,
+                    inst->leader_phase ? " {Y(leader phase active){x" : "");
+            else if (evt->event_type == EVT_TYPE_COLLECTION)
+                printf_to_char(ch, "{WProgress:{x turn-ins=%d%s\n\r",
+                    inst->progress_items,
+                    evt->completion_goal > 0 ? formatf("/%d", evt->completion_goal) : "");
+            else if ((evt->event_type == EVT_TYPE_WAR_FFA
+                || evt->event_type == EVT_TYPE_WAR_GENOCIDE
+                || evt->event_type == EVT_TYPE_WAR_JIHAD)
+                && evt->completion_goal > 0)
+                printf_to_char(ch, "{WProgress:{x kills=%d/%d\n\r",
+                    inst->progress_kills,
+                    evt->completion_goal);
+            else if (evt->event_type == EVT_TYPE_BOSS)
+                printf_to_char(ch, "{WProgress:{x kills=%d/%d\n\r",
+                    inst->progress_kills,
+                    evt->completion_goal > 0 ? evt->completion_goal : 1);
+
+            if (self)
+                printf_to_char(ch, "{WYour Contribution:{x kills=%d turn-ins=%d%s\n\r",
+                    self->kills,
+                    self->items_turned,
+                    self->team > 0 ? formatf(" bracket=%d", self->team) : "");
+        }
 
         if (evt->scheduled_time > current_time)
             printf_to_char(ch, "{WScheduled:{x in %ldm%02lds\n\r",
@@ -1210,6 +2277,16 @@ void do_event(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "{WAnnounce:{x %s\n\r", evt->announce_msg);
         if (!IS_NULLSTR(evt->end_msg))
             printf_to_char(ch, "{WEnd Msg:{x %s\n\r", evt->end_msg);
+        if (!IS_NULLSTR(evt->news_slug))
+            printf_to_char(ch, "{WNews Slug:{x %s\n\r", evt->news_slug);
+        if (!IS_NULLSTR(evt->news_announcement))
+            printf_to_char(ch, "{WNews Announcement:{x %s\n\r", evt->news_announcement);
+        if (!IS_NULLSTR(evt->theme_tags))
+            printf_to_char(ch, "{WTheme Tags:{x %s\n\r", evt->theme_tags);
+        if (!IS_NULLSTR(evt->spawn_brackets))
+            printf_to_char(ch, "{WSpawn Brackets:{x %s\n\r", evt->spawn_brackets);
+        if (!IS_NULLSTR(evt->collection_brackets))
+            printf_to_char(ch, "{WCollection Brackets:{x %s\n\r", evt->collection_brackets);
 
         return;
     }
@@ -1293,6 +2370,7 @@ void do_event(CHAR_DATA *ch, char *argument)
         }
 
         evt->scheduled_time = when_time;
+        evt->next_auto_time = 0;
         printf_to_char(ch, "Scheduled event '%s' for %s", evt->name, ctime(&when_time));
         return;
     }
@@ -1448,6 +2526,10 @@ static void evtedit_show_identity_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
     (void)ch;
 
     olc_display_string(ctx, theme, "Name:", "name", evt->name);
+    olc_display_string(ctx, theme, "Title:", "title",
+        IS_NULLSTR(evt->display_title) ? "" : evt->display_title);
+    olc_display_string(ctx, theme, "Summary:", "summary",
+        IS_NULLSTR(evt->short_summary) ? "" : evt->short_summary);
     olc_display_type(ctx, theme, "Type:", "type", evt_type_flags, evt->event_type);
     olc_display_string(ctx, theme, "Enabled:", "enabled",
         evt->enabled ? "Yes" : "No");
@@ -1471,6 +2553,13 @@ static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
     olc_display_number(ctx, theme, "Max Level:", "maxlevel", evt->max_level);
     olc_display_number(ctx, theme, "Min Players:", "minplayers", evt->min_players);
     olc_display_number(ctx, theme, "Max Players:", "maxplayers", evt->max_players);
+    olc_display_number(ctx, theme, "Completion Goal:", "goal", evt->completion_goal);
+    olc_display_string(ctx, theme, "Leader Required:", "leaderrequired",
+        evt->leader_required ? "Yes" : "No");
+    olc_display_string(ctx, theme, "Bracket Mode:", "bracketmode",
+        IS_NULLSTR(evt->bracket_mode) ? "" : evt->bracket_mode);
+    olc_display_string(ctx, theme, "Progress Aggregation:", "progressagg",
+        IS_NULLSTR(evt->progress_aggregation) ? "" : evt->progress_aggregation);
 }
 
 static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
@@ -1488,6 +2577,18 @@ static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
         IS_NULLSTR(evt->end_msg) ? NULL : evt->end_msg);
     olc_display_text(ctx, theme, "Join Msg:", "joinmsg",
         IS_NULLSTR(evt->join_msg) ? NULL : evt->join_msg);
+    olc_display_string(ctx, theme, "News Slug:", "newsslug",
+        IS_NULLSTR(evt->news_slug) ? "" : evt->news_slug);
+    olc_display_text(ctx, theme, "News Announce:", "newsannounce",
+        IS_NULLSTR(evt->news_announcement) ? NULL : evt->news_announcement);
+    olc_display_text(ctx, theme, "News Body:", "newsbody",
+        IS_NULLSTR(evt->news_body) ? NULL : evt->news_body);
+    olc_display_string(ctx, theme, "Theme Tags:", "themetags",
+        IS_NULLSTR(evt->theme_tags) ? "" : evt->theme_tags);
+    olc_display_text(ctx, theme, "Spawn Brackets:", "spawnbrackets",
+        IS_NULLSTR(evt->spawn_brackets) ? NULL : evt->spawn_brackets);
+    olc_display_text(ctx, theme, "Collection Brackets:", "collectionbrackets",
+        IS_NULLSTR(evt->collection_brackets) ? NULL : evt->collection_brackets);
 }
 
 static void evtedit_show_meta_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
@@ -1779,6 +2880,237 @@ EVTEDIT(evtedit_maxplayers)
         send_to_char("Max players cannot be less than min players.\n\r", ch);
         return false;
     }
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_goal)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_number_i16(ch, argument, "goal", "goal <0-32767>",
+            &evt->completion_goal, 0, 32767, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_leaderrequired)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_bool(ch, argument, "leaderrequired", "leaderrequired [on|off]",
+            &evt->leader_required, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_title)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_string(ch, argument, "title", "title <text>",
+            &evt->display_title, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_summary)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_string(ch, argument, "summary", "summary <text>",
+            &evt->short_summary, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_newsslug)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_string(ch, argument, "newsslug", "newsslug <text>",
+            &evt->news_slug, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_newsannounce)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_string(ch, argument, "newsannounce", "newsannounce <text>",
+            &evt->news_announcement, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_newsbody)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_string(ch, argument, "newsbody", "newsbody <text>",
+            &evt->news_body, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_themetags)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_string(ch, argument, "themetags", "themetags <text>",
+            &evt->theme_tags, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_spawnbrackets)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char error[MSL];
+    char *trimmed;
+
+    if (!evt)
+        return false;
+
+    trimmed = argument;
+    while (*trimmed && isspace((unsigned char)*trimmed))
+        trimmed++;
+
+    if (!IS_NULLSTR(trimmed)
+        && !event_validate_bracket_spec(trimmed, error, sizeof(error))) {
+        printf_to_char(ch,
+            "Invalid spawn bracket specification. %s\n\r"
+            "Expected format examples: 1-50, 51-90, 91+\n\r",
+            error);
+        return false;
+    }
+
+    if (!olc_cmd_string(ch, argument, "spawnbrackets", "spawnbrackets <text>",
+            &evt->spawn_brackets, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_collectionbrackets)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char error[MSL];
+    char *trimmed;
+
+    if (!evt)
+        return false;
+
+    trimmed = argument;
+    while (*trimmed && isspace((unsigned char)*trimmed))
+        trimmed++;
+
+    if (!IS_NULLSTR(trimmed)
+        && !event_validate_bracket_spec(trimmed, error, sizeof(error))) {
+        printf_to_char(ch,
+            "Invalid collection bracket specification. %s\n\r"
+            "Expected format examples: 1-50, 51-90, 91+\n\r",
+            error);
+        return false;
+    }
+
+    if (!olc_cmd_string(ch, argument, "collectionbrackets", "collectionbrackets <text>",
+            &evt->collection_brackets, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_bracketmode)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char mode[MIL];
+    int i;
+    bool ok = false;
+    static const char *valid_modes[] = {
+        "auto_by_level",
+        "open",
+        "manual",
+    };
+
+    if (!evt)
+        return false;
+
+    one_argument(argument, mode);
+    if (!IS_NULLSTR(mode)) {
+        for (i = 0; i < (int)elementsof(valid_modes); i++) {
+            if (!str_cmp(mode, valid_modes[i])) {
+                ok = true;
+                break;
+            }
+        }
+
+        if (!ok) {
+            send_to_char("Invalid bracket mode. Use: auto_by_level, open, manual.\n\r", ch);
+            return false;
+        }
+    }
+
+    if (!olc_cmd_string(ch, argument, "bracketmode", "bracketmode <text>",
+            &evt->bracket_mode, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_progressagg)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char mode[MIL];
+
+    if (!evt)
+        return false;
+
+    one_argument(argument, mode);
+    if (!IS_NULLSTR(mode)
+        && str_cmp(mode, "total")
+        && str_cmp(mode, "per_bracket")
+        && str_cmp(mode, "per_bracket_all_required")) {
+        send_to_char("Invalid progress aggregation. Use: total, per_bracket, per_bracket_all_required.\n\r", ch);
+        return false;
+    }
+
+    if (!olc_cmd_string(ch, argument, "progressagg", "progressagg <text>",
+            &evt->progress_aggregation, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
 
     return evtedit_save_after_change(ch);
 }

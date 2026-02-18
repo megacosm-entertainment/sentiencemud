@@ -36,6 +36,22 @@ Complete guide for random string generators:
 - Masculine/feminine naming strategies
 - Cross-editor and scripting integration plan
 
+## Event Runtime Documentation
+
+### [Event Editor Runtime Reference](EVENT_EDITOR_RUNTIME.md)
+Current implementation reference for event editor/runtime behavior:
+- Supported schedule/runtime modes
+- Bracket validation and aggregation rules
+- Progress/completion paths by event type
+- Script-facing event command/ifcheck/expansion surfaces
+- Deferred items tracked for later phases
+
+### [Event Editor Runtime Worklog](WORKLOG_EVENT_EDITOR_RUNTIME.md)
+Chronological summary of what was implemented in the event runtime closure pass:
+- Runtime/editor code changes
+- Script integration updates
+- Validation behavior and known deferred items
+
 ## Test Framework Overview
 
 The Sentience MUD test framework provides:

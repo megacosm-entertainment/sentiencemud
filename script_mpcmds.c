@@ -57,6 +57,7 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
+    { "event",              scriptcmd_event,          false,  true    },
     { "echo",				do_mpecho,					false,	true	},
     { "echoaround",			do_mpechoaround,			false,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},

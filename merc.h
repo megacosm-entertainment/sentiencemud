@@ -4949,6 +4949,9 @@ struct	char_data
 
     /* invasion - invasion the leader belongs to */
     INVASION_QUEST *invasion_quest;
+    long                event_source_uid;           /* Event definition UID that spawned this entity (0 = none) */
+    uint32_t            event_source_instance_id;   /* Event instance ID that spawned this entity (0 = none) */
+    int16_t             event_source_bracket;       /* Event bracket this entity belongs to (0 = none) */
 
     long		hit;
     long		max_hit;
@@ -5761,6 +5764,9 @@ struct	obj_data
     WNUM        created_script_wnum;
     int         created_script_type;
     time_t      creation_time;
+    long        event_source_uid;           /* Event definition UID that spawned this object (0 = none) */
+    uint32_t    event_source_instance_id;   /* Event instance ID that spawned this object (0 = none) */
+    int16_t     event_source_bracket;       /* Event bracket this object belongs to (0 = none) */
     int			item_type;
     long        extra[4];
     //long		extra_flags;

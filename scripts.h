@@ -783,8 +783,16 @@ enum entity_mobile_enum {
     ENTITY_MOB_LASTLOGOFF_DELTA,
     ENTITY_MOB_LASTLOGIN_DELTA,
     ENTITY_MOB_CREATED_DELTA,
-     ENTITY_MOB_BODY_TYPE_VALUE,
-    ENTITY_MOB_VERB_PREF_VALUE
+    ENTITY_MOB_BODY_TYPE_VALUE,
+    ENTITY_MOB_VERB_PREF_VALUE,
+    ENTITY_MOB_EVENT_SOURCE_UID,
+    ENTITY_MOB_EVENT_SOURCE_INSTANCE,
+    ENTITY_MOB_EVENT_BRACKET,
+    ENTITY_MOB_EVENT_ACTIVE,
+    ENTITY_MOB_EVENT_KILLS,
+    ENTITY_MOB_EVENT_ITEMS,
+    ENTITY_MOB_EVENT_GOAL,
+    ENTITY_MOB_EVENT_PHASE
 };
 
 enum entity_object_enum {
@@ -814,6 +822,8 @@ enum entity_object_enum {
     ENTITY_OBJ_WEAR,
     ENTITY_OBJ_SHIP,
     ENTITY_OBJ_LEVEL,
+    ENTITY_OBJ_EVENT_SOURCE_UID,
+    ENTITY_OBJ_EVENT_SOURCE_INSTANCE,
 
     // Typed data sub-entity accessors
     ENTITY_OBJ_WEAPON_DATA,
@@ -847,6 +857,12 @@ enum entity_object_enum {
     ENTITY_OBJ_JEWELRY_DATA,
     ENTITY_OBJ_MAP_DATA,
     ENTITY_OBJ_PAGE_DATA,
+    ENTITY_OBJ_EVENT_BRACKET,
+    ENTITY_OBJ_EVENT_ACTIVE,
+    ENTITY_OBJ_EVENT_KILLS,
+    ENTITY_OBJ_EVENT_ITEMS,
+    ENTITY_OBJ_EVENT_GOAL,
+    ENTITY_OBJ_EVENT_PHASE,
 };
 
 enum entity_room_enum {
@@ -2060,6 +2076,15 @@ DECL_IFC_FUN(ifc_deathcount);
 DECL_IFC_FUN(ifc_deity);
 DECL_IFC_FUN(ifc_dice);
 DECL_IFC_FUN(ifc_drunk);
+DECL_IFC_FUN(ifc_eventsourceinstance);
+DECL_IFC_FUN(ifc_eventsourceuid);
+DECL_IFC_FUN(ifc_eventsourcebracket);
+DECL_IFC_FUN(ifc_eventbracket);
+DECL_IFC_FUN(ifc_eventkills);
+DECL_IFC_FUN(ifc_eventitems);
+DECL_IFC_FUN(ifc_eventgoal);
+DECL_IFC_FUN(ifc_eventphase);
+DECL_IFC_FUN(ifc_eventactive);
 DECL_IFC_FUN(ifc_exists);
 DECL_IFC_FUN(ifc_exitexists);
 DECL_IFC_FUN(ifc_exitflag);
@@ -2117,6 +2142,7 @@ DECL_IFC_FUN(ifc_hasskill);
 DECL_IFC_FUN(ifc_hassong);
 DECL_IFC_FUN(ifc_hassubclass);
 DECL_IFC_FUN(ifc_hastarget);
+DECL_IFC_FUN(ifc_haseventsource);
 DECL_IFC_FUN(ifc_hastrait);
 DECL_IFC_FUN(ifc_hastoken);
 DECL_IFC_FUN(ifc_hasvlink);
@@ -3206,6 +3232,7 @@ SCRIPT_CMD(scriptcmd_lockremove);
 SCRIPT_CMD(scriptcmd_treasuremap);
 SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
+SCRIPT_CMD(scriptcmd_event);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 SCRIPT_CMD(scriptcmd_startreckoning);
 SCRIPT_CMD(scriptcmd_stopreckoning);

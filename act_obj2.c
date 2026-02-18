@@ -14,6 +14,7 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "event_types.h"
 
 
 /**
@@ -41,6 +42,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     CHAR_DATA *mob;
     GQ_OBJ_DATA *gq_obj;
     int i = 0;
+    int gq_items_turned = 0;
     bool found = false;
     int qp = 0;
     int prac = 0;
@@ -70,6 +72,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
                 if (wnum_match_obj(gq_obj->vnum_wnum, obj))
                 {
                     found = true;
+                    gq_items_turned++;
                     qp += gq_obj->qp_reward;
                     prac += gq_obj->prac_reward;
                     exp += gq_obj->exp_reward;
@@ -83,6 +86,8 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
         if (found)
         {
+            event_progress_record_collection_turnin(ch, gq_items_turned);
+
             sprintf(buf, "Thank you, %s!", pers(ch, mob));
             do_say(mob, buf);
 

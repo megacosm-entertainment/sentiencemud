@@ -12,6 +12,7 @@
 #include "class_data.h"
 #include "song_data.h"
 #include "traits.h"
+#include "event_types.h"
 #include <math.h>
 
 extern bool wiznet_script;
@@ -520,6 +521,147 @@ DECL_IFC_FUN(ifc_dice)
 DECL_IFC_FUN(ifc_drunk)
 {
     *ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->condition[COND_DRUNK] : 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventsourceuid)
+{
+    long event_uid = 0;
+    uint32_t instance_id = 0;
+
+    *ret = 0;
+
+    if (ISARG_MOB(0) && event_get_mobile_spawn_source(ARG_MOB(0), &event_uid, &instance_id))
+        *ret = (int)event_uid;
+    else if (ISARG_OBJ(0) && event_get_object_spawn_source(ARG_OBJ(0), &event_uid, &instance_id))
+        *ret = (int)event_uid;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventsourceinstance)
+{
+    long event_uid = 0;
+    uint32_t instance_id = 0;
+
+    *ret = 0;
+
+    if (ISARG_MOB(0) && event_get_mobile_spawn_source(ARG_MOB(0), &event_uid, &instance_id))
+        *ret = (int)instance_id;
+    else if (ISARG_OBJ(0) && event_get_object_spawn_source(ARG_OBJ(0), &event_uid, &instance_id))
+        *ret = (int)instance_id;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventsourcebracket)
+{
+    int bracket = 0;
+
+    *ret = 0;
+
+    if (ISARG_MOB(0) && event_get_mobile_spawn_bracket(ARG_MOB(0), &bracket))
+        *ret = bracket;
+    else if (ISARG_OBJ(0) && event_get_object_spawn_bracket(ARG_OBJ(0), &bracket))
+        *ret = bracket;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventbracket)
+{
+    long event_uid = 0;
+    uint32_t instance_id = 0;
+    int bracket = 0;
+
+    *ret = 0;
+
+    if (ISARG_MOB(0)
+        && event_get_character_active_bracket(ARG_MOB(0), &event_uid, &instance_id, &bracket)
+        && bracket > 0)
+        *ret = bracket;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventkills)
+{
+    int kills = 0;
+
+    *ret = 0;
+
+    if (ISARG_STR(0) && event_runtime_get_progress(ARG_STR(0), &kills, NULL, NULL))
+        *ret = kills;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventitems)
+{
+    int items = 0;
+
+    *ret = 0;
+
+    if (ISARG_STR(0) && event_runtime_get_progress(ARG_STR(0), NULL, &items, NULL))
+        *ret = items;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventgoal)
+{
+    int goal = 0;
+
+    *ret = 0;
+
+    if (ISARG_STR(0) && event_runtime_get_progress(ARG_STR(0), NULL, NULL, &goal))
+        *ret = goal;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventphase)
+{
+    bool leader_phase = false;
+
+    *ret = false;
+
+    if (!ISARG_STR(0) || !ISARG_STR(1))
+        return true;
+
+    if (!event_runtime_is_leader_phase(ARG_STR(0), &leader_phase))
+        return true;
+
+    if (!str_cmp(ARG_STR(1), "leader") || !str_cmp(ARG_STR(1), "leader_phase"))
+        *ret = leader_phase;
+    else if (!str_cmp(ARG_STR(1), "active") || !str_cmp(ARG_STR(1), "normal"))
+        *ret = !leader_phase;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_eventactive)
+{
+    *ret = false;
+
+    if (ISARG_STR(0) && event_runtime_get_progress(ARG_STR(0), NULL, NULL, NULL))
+        *ret = true;
+
+    return true;
+}
+
+DECL_IFC_FUN(ifc_haseventsource)
+{
+    long event_uid = 0;
+    uint32_t instance_id = 0;
+
+    *ret = false;
+
+    if (ISARG_MOB(0) && event_get_mobile_spawn_source(ARG_MOB(0), &event_uid, &instance_id) && event_uid > 0)
+        *ret = true;
+    else if (ISARG_OBJ(0) && event_get_object_spawn_source(ARG_OBJ(0), &event_uid, &instance_id) && event_uid > 0)
+        *ret = true;
+
     return true;
 }
 

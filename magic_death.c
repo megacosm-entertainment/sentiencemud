@@ -16,6 +16,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "event_types.h"
 
 
 SPELL_FUNC(spell_animate_dead)
@@ -346,6 +347,8 @@ SPELL_FUNC(spell_kill)
         if (!IS_NPC(ch)) {
             check_quest_slay_mob(ch, victim, true);
             check_invasion_quest_slay_mob(ch, victim);
+            event_progress_record_kill(ch, victim);
+            event_progress_complete_invasion_leader(ch, victim);
         }
 
     victim->set_death_type = DEATHTYPE_ALIVE;

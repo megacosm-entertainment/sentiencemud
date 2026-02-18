@@ -46,6 +46,7 @@
 #include "wilds.h"
 #include "traits.h"
 #include "skill_data.h"
+#include "event_types.h"
 
 #define MAX_BACKSTAB_DAMAGE 15000
 #define MAX_FLEE_ATTEMPTS 10
@@ -1767,6 +1768,8 @@ if (victim->lworn) {
         if (!IS_NPC(ch)) {
             check_quest_slay_mob(ch, victim, true);
             check_invasion_quest_slay_mob(ch, victim);
+            event_progress_record_kill(ch, victim);
+            event_progress_complete_invasion_leader(ch, victim);
         }
 
         // Hahahaha
@@ -2056,47 +2059,8 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
             return false;
         }
 
-        // Check for autowar
-        if (ch->in_war && victim->in_war)
-        {
-        // Genocide war?
-        if (auto_war->war_type == AUTO_WAR_GENOCIDE)
-        {
-            if (ch->race == victim->race)
-            {
-            if (show)
-                act("A magical power prevents your body from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-
-            return true;
-            }
-            else
-            return false;
-        }
-        else
-        // Jihad war?
-        if (auto_war->war_type == AUTO_WAR_JIHAD)
-        {
-            if (ch->alignment < 0
-            && (victim->alignment < 0 || IS_CHURCH_EVIL(victim)))
-            {
-            if (show)
-                act("A magical power prevents you from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-
-            return true;
-            }
-            else
-            if (ch->alignment > 0
-            && (victim->alignment > 0 || IS_CHURCH_GOOD(victim)))
-            {
-            if (show)
-                act("A magical power prevents you from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-
-            return true;
-            }
-            else
-            return false;
-        }
-        }
+        /* Legacy autowar combat restrictions are deprecated.
+         * Event participation and combat scope are handled by the event system. */
 
         // PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
         if ((IS_SET(ch->in_room->room_flag[0], ROOM_PK)
@@ -6147,6 +6111,8 @@ void do_slit(CHAR_DATA *ch, char *argument)
         if (!IS_NPC(ch)) {
             check_quest_slay_mob(ch, victim, true);
             check_invasion_quest_slay_mob(ch, victim);
+            event_progress_record_kill(ch, victim);
+            event_progress_complete_invasion_leader(ch, victim);
         }
 
         victim->set_death_type = DEATHTYPE_ALIVE;

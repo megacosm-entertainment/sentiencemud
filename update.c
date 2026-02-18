@@ -217,31 +217,8 @@ void update_handler(void)
 
     //update_weather();
 
-    // An autowar has started
-    if (auto_war_timer > 0)
-    {
-        auto_war_timer--;
-        if (auto_war_timer == 0)
-        start_war();
-        else
-        {
-        sprintf(buf, "{RGet ready! {RA {Y%s{R war will begin for levels {Y%d{R to {Y%d{R in {Y%d{R minutes!{x\n\r",
-            auto_war_table[ auto_war->war_type ].name,
-            auto_war->min,
-            auto_war->max,
-            auto_war_timer);
-        gecho(buf);
-        gecho("Type 'war join' to enter!\n\r");
-        }
-    }
-
-    // End an autowar in progress
-    if (auto_war_battle_timer > 0)
-    {
-        auto_war_battle_timer--;
-        if (auto_war_battle_timer == 0)
-        auto_war_time_finish();
-    }
+    /* Legacy autowar timers are deprecated.
+     * Runtime scheduling is handled by event_runtime_update(). */
 
     // Auto-reboot
     if (reboot_timer > 0)

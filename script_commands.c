@@ -18,6 +18,7 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 #include "skill_data.h"
+#include "event_types.h"
 
 void reset_reckoning();
 
@@ -39,6 +40,204 @@ static void quest_part_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, lo
 #define ARG_EQUALS(ss)			(!str_cmp(arg->d.str, (ss)))
 #define ARG_PREFIX(ss)			(!str_prefix(arg->d.str, (ss)))
 
+static bool scriptcmd_event_get_source_from_info(SCRIPT_VARINFO *info, long *event_uid, uint32_t *instance_id, int *bracket)
+{
+    long uid = 0;
+    uint32_t instance = 0;
+    int source_bracket = 0;
+
+    if (event_uid)
+        *event_uid = 0;
+    if (instance_id)
+        *instance_id = 0;
+    if (bracket)
+        *bracket = 0;
+
+    if (!info)
+        return false;
+
+    if (info->mob && event_get_mobile_spawn_source(info->mob, &uid, &instance) && uid > 0) {
+        event_get_mobile_spawn_bracket(info->mob, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->mob && !IS_NPC(info->mob)
+        && event_get_character_active_bracket(info->mob, &uid, &instance, &source_bracket)
+        && uid > 0) {
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->obj && event_get_object_spawn_source(info->obj, &uid, &instance) && uid > 0) {
+        event_get_object_spawn_bracket(info->obj, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->token) {
+        if (info->token->player && event_get_mobile_spawn_source(info->token->player, &uid, &instance) && uid > 0) {
+            event_get_mobile_spawn_bracket(info->token->player, &source_bracket);
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+
+        if (info->token->player && !IS_NPC(info->token->player)
+            && event_get_character_active_bracket(info->token->player, &uid, &instance, &source_bracket)
+            && uid > 0) {
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+
+        if (info->token->object && event_get_object_spawn_source(info->token->object, &uid, &instance) && uid > 0) {
+            event_get_object_spawn_bracket(info->token->object, &source_bracket);
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool scriptcmd_event_get_source_from_param(SCRIPT_PARAM *param, long *event_uid, uint32_t *instance_id, int *bracket)
+{
+    long uid = 0;
+    uint32_t instance = 0;
+    int source_bracket = 0;
+
+    if (!param)
+        return false;
+
+    if (event_uid)
+        *event_uid = 0;
+    if (instance_id)
+        *instance_id = 0;
+    if (bracket)
+        *bracket = 0;
+
+    if (param->type == ENT_MOBILE && param->d.mob &&
+        event_get_mobile_spawn_source(param->d.mob, &uid, &instance) && uid > 0) {
+        event_get_mobile_spawn_bracket(param->d.mob, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (param->type == ENT_MOBILE && param->d.mob && !IS_NPC(param->d.mob)
+        && event_get_character_active_bracket(param->d.mob, &uid, &instance, &source_bracket)
+        && uid > 0) {
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (param->type == ENT_OBJECT && param->d.obj &&
+        event_get_object_spawn_source(param->d.obj, &uid, &instance) && uid > 0) {
+        event_get_object_spawn_bracket(param->d.obj, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    return false;
+}
+
+static bool scriptcmd_event_parse_uid(SCRIPT_PARAM *arg, long *value)
+{
+    if (!arg || !value)
+        return false;
+
+    switch (arg->type) {
+    case ENT_NUMBER:
+        *value = arg->d.num;
+        return true;
+    case ENT_STRING:
+        if (!arg->d.str || !is_number(arg->d.str))
+            return false;
+        *value = atol(arg->d.str);
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool scriptcmd_event_parse_instance(SCRIPT_PARAM *arg, uint32_t *value)
+{
+    long parsed = 0;
+
+    if (!value)
+        return false;
+
+    if (!scriptcmd_event_parse_uid(arg, &parsed) || parsed < 0)
+        return false;
+
+    *value = (uint32_t)parsed;
+    return true;
+}
+
+static bool scriptcmd_event_param_to_token(SCRIPT_PARAM *arg, char *buf, size_t size)
+{
+    if (!arg || !buf || size == 0)
+        return false;
+
+    buf[0] = '\0';
+
+    switch (arg->type) {
+    case ENT_NUMBER:
+        snprintf(buf, size, "%d", arg->d.num);
+        return true;
+    case ENT_STRING:
+        if (IS_NULLSTR(arg->d.str))
+            return false;
+        snprintf(buf, size, "%s", arg->d.str);
+        return true;
+    default:
+        return false;
+    }
+}
+
 const struct script_cmd_type area_cmd_table[] = {
     { "alterroom",			scriptcmd_alterroom,		true,	true	},
     { "call",				scriptcmd_call,				false,	true	},
@@ -46,6 +245,7 @@ const struct script_cmd_type area_cmd_table[] = {
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
+    { "event",             scriptcmd_event,            false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
@@ -82,6 +282,7 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
+    { "event",             scriptcmd_event,            false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
@@ -120,6 +321,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
+    { "event",             scriptcmd_event,            false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
@@ -2938,6 +3140,217 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 SCRIPT_CMD(scriptcmd_mload)
 {
     script_mload(info,argument,arg, false);
+}
+
+// EVENT clear|inherit|set|copy <target_mob|target_obj> [args]
+// clear   <target>
+// inherit <target>
+// set     <target> <event_uid> [instance_id]
+// copy    <target> <source_mob|source_obj>
+SCRIPT_CMD(scriptcmd_event)
+{
+    char command[MIL];
+    char event_token[MIL];
+    char operation[MIL];
+    char *rest;
+    CHAR_DATA *target_mob = NULL;
+    OBJ_DATA *target_obj = NULL;
+    long event_uid = 0;
+    uint32_t instance_id = 0;
+    int source_bracket = 0;
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    rest = one_argument(argument, command);
+    if (IS_NULLSTR(command) || IS_NULLSTR(rest))
+        return;
+
+    if (!str_prefix(command, "progress")) {
+        int delta = 0;
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+            return;
+
+        rest = one_argument(rest, operation);
+        if (IS_NULLSTR(operation) || IS_NULLSTR(rest))
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) || !scriptcmd_event_parse_uid(arg, &event_uid))
+            return;
+
+        delta = (int)event_uid;
+
+        if (!str_prefix(operation, "addkills")) {
+            if (event_runtime_adjust_progress(event_token, delta, 0))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
+        if (!str_prefix(operation, "additems")) {
+            if (event_runtime_adjust_progress(event_token, 0, delta))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
+        if (!str_prefix(operation, "setgoal")) {
+            if (event_runtime_set_goal(event_token, UMAX(0, delta)))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
+        return;
+    }
+
+    if (!str_prefix(command, "phase")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+            return;
+
+        rest = one_argument(rest, operation);
+        if (str_cmp(operation, "set") || IS_NULLSTR(rest))
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+            return;
+
+        if (event_runtime_set_phase(event_token, arg->d.str))
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(command, "complete") || !str_prefix(command, "fail")) {
+        bool success = !str_prefix(command, "complete");
+        BUFFER *buffer;
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+            return;
+
+        rest = skip_whitespace(rest);
+        if (IS_NULLSTR(rest)) {
+            if (event_runtime_finish(event_token, success, NULL))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
+        buffer = new_buf();
+        if (expand_string(info, rest, buffer)
+            && event_runtime_finish(event_token, success, buf_string(buffer)))
+            info->progs->lastreturn = 1;
+        free_buf(buffer);
+        return;
+    }
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type == ENT_MOBILE)
+        target_mob = arg->d.mob;
+    else if (arg->type == ENT_OBJECT)
+        target_obj = arg->d.obj;
+    else
+        return;
+
+    if (!target_mob && !target_obj)
+        return;
+
+    if (!str_prefix(command, "clear")) {
+        if (target_mob) {
+            event_tag_mobile_spawn(target_mob, 0, 0);
+            event_set_mobile_spawn_bracket(target_mob, 0);
+        } else {
+            event_tag_object_spawn(target_obj, 0, 0);
+            event_set_object_spawn_bracket(target_obj, 0);
+        }
+
+        info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(command, "inherit")) {
+        if (!scriptcmd_event_get_source_from_info(info, &event_uid, &instance_id, &source_bracket) || event_uid <= 0)
+            return;
+
+        if (target_mob) {
+            event_tag_mobile_spawn(target_mob, event_uid, instance_id);
+            event_set_mobile_spawn_bracket(target_mob, source_bracket);
+        } else {
+            event_tag_object_spawn(target_obj, event_uid, instance_id);
+            event_set_object_spawn_bracket(target_obj, source_bracket);
+        }
+
+        info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(command, "set")) {
+        if (IS_NULLSTR(rest) || !(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (!scriptcmd_event_parse_uid(arg, &event_uid) || event_uid <= 0)
+            return;
+
+        instance_id = 0;
+        source_bracket = 0;
+        if (!IS_NULLSTR(rest)) {
+            if (!(rest = expand_argument(info, rest, arg)))
+                return;
+
+            if (!scriptcmd_event_parse_instance(arg, &instance_id))
+                return;
+
+            if (!IS_NULLSTR(rest)) {
+                long bracket_value = 0;
+
+                if (!(rest = expand_argument(info, rest, arg)))
+                    return;
+
+                if (!scriptcmd_event_parse_uid(arg, &bracket_value))
+                    return;
+
+                source_bracket = (int)UMAX(0, bracket_value);
+                if (source_bracket > 32767)
+                    source_bracket = 32767;
+            }
+        }
+
+        if (target_mob) {
+            event_tag_mobile_spawn(target_mob, event_uid, instance_id);
+            event_set_mobile_spawn_bracket(target_mob, source_bracket);
+        } else {
+            event_tag_object_spawn(target_obj, event_uid, instance_id);
+            event_set_object_spawn_bracket(target_obj, source_bracket);
+        }
+
+        info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(command, "copy")) {
+        if (IS_NULLSTR(rest) || !(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (!scriptcmd_event_get_source_from_param(arg, &event_uid, &instance_id, &source_bracket) || event_uid <= 0)
+            return;
+
+        if (target_mob) {
+            event_tag_mobile_spawn(target_mob, event_uid, instance_id);
+            event_set_mobile_spawn_bracket(target_mob, source_bracket);
+        } else {
+            event_tag_object_spawn(target_obj, event_uid, instance_id);
+            event_set_object_spawn_bracket(target_obj, source_bracket);
+        }
+
+        info->progs->lastreturn = 1;
+        return;
+    }
 }
 
 // MUTE $PLAYER

@@ -16,6 +16,7 @@
 #include "class_data.h"
 #include "song_data.h"
 #include "traits.h"
+#include "event_types.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -1722,6 +1723,24 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     CHAR_DATA *self = arg->d.mob;
     char *p;
     char time_str[100];
+    long event_uid = 0;
+    uint32_t event_instance_id = 0;
+    int event_kills = 0;
+    int event_items = 0;
+    int event_goal = 0;
+    bool event_active = false;
+    bool leader_phase = false;
+
+    if (self) {
+        if (!event_get_mobile_spawn_source(self, &event_uid, &event_instance_id) || event_uid <= 0)
+            event_get_character_active_bracket(self, &event_uid, &event_instance_id, NULL);
+
+        if (event_uid > 0)
+            event_active = event_runtime_get_source_progress(event_uid, event_instance_id, &event_kills, &event_items, &event_goal);
+        if (event_active)
+            event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+    }
+
     switch(*str) {
     case ENTITY_MOB_NAME:
         arg->type = ENT_STRING;
@@ -2082,6 +2101,46 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.num = self->verb_preference;
         arg->type = ENT_NUMBER;
         break;
+    case ENTITY_MOB_EVENT_SOURCE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source_uid : 0;
+        break;
+    case ENTITY_MOB_EVENT_SOURCE_INSTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source_instance_id : 0;
+        break;
+    case ENTITY_MOB_EVENT_BRACKET:
+    {
+        int bracket = 0;
+        arg->type = ENT_NUMBER;
+        if (self)
+            event_get_character_active_bracket(self, NULL, NULL, &bracket);
+        arg->d.num = bracket;
+        break;
+    }
+    case ENTITY_MOB_EVENT_ACTIVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_active ? 1 : 0;
+        break;
+    case ENTITY_MOB_EVENT_KILLS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_kills;
+        break;
+    case ENTITY_MOB_EVENT_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_items;
+        break;
+    case ENTITY_MOB_EVENT_GOAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_goal;
+        break;
+    case ENTITY_MOB_EVENT_PHASE:
+        arg->type = ENT_STRING;
+        if (!event_active)
+            arg->d.str = (char *)&str_empty[0];
+        else
+            arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
     default: return NULL;
     }
 
@@ -2335,6 +2394,22 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.mobindex = NULL;
         break;
 
+    case ENTITY_MOB_EVENT_SOURCE_UID:
+    case ENTITY_MOB_EVENT_SOURCE_INSTANCE:
+    case ENTITY_MOB_EVENT_BRACKET:
+    case ENTITY_MOB_EVENT_ACTIVE:
+    case ENTITY_MOB_EVENT_KILLS:
+    case ENTITY_MOB_EVENT_ITEMS:
+    case ENTITY_MOB_EVENT_GOAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+
+    case ENTITY_MOB_EVENT_PHASE:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+
     default: return NULL;
     }
 
@@ -2453,6 +2528,75 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_SHIP;
         arg->d.ship = arg->d.obj ? arg->d.obj->ship : NULL;
         break;
+
+    case ENTITY_OBJ_EVENT_SOURCE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source_uid : 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_SOURCE_INSTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source_instance_id : 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_BRACKET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? self->event_source_bracket : 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_ACTIVE:
+    case ENTITY_OBJ_EVENT_KILLS:
+    case ENTITY_OBJ_EVENT_ITEMS:
+    case ENTITY_OBJ_EVENT_GOAL:
+    {
+        long event_uid = 0;
+        uint32_t event_instance_id = 0;
+        int kills = 0;
+        int items = 0;
+        int goal = 0;
+        bool active = false;
+
+        if (self)
+            event_get_object_spawn_source(self, &event_uid, &event_instance_id);
+
+        if (event_uid > 0)
+            active = event_runtime_get_source_progress(event_uid, event_instance_id, &kills, &items, &goal);
+
+        arg->type = ENT_NUMBER;
+        if (*str == ENTITY_OBJ_EVENT_ACTIVE)
+            arg->d.num = active ? 1 : 0;
+        else if (*str == ENTITY_OBJ_EVENT_KILLS)
+            arg->d.num = kills;
+        else if (*str == ENTITY_OBJ_EVENT_ITEMS)
+            arg->d.num = items;
+        else
+            arg->d.num = goal;
+        break;
+    }
+
+    case ENTITY_OBJ_EVENT_PHASE:
+    {
+        long event_uid = 0;
+        uint32_t event_instance_id = 0;
+        bool leader_phase = false;
+        bool active = false;
+
+        if (self)
+            event_get_object_spawn_source(self, &event_uid, &event_instance_id);
+
+        if (event_uid > 0) {
+            active = event_runtime_get_source_progress(event_uid, event_instance_id, NULL, NULL, NULL);
+            if (active)
+                event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+        }
+
+        arg->type = ENT_STRING;
+        if (!active)
+            arg->d.str = (char *)&str_empty[0];
+        else
+            arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
+    }
 
     case ENTITY_OBJ_VARIABLES:
         arg->type = ENT_ILLIST_VARIABLE;
@@ -2694,6 +2838,22 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJ_SHIP:
         arg->type = ENT_SHIP;
         arg->d.ship = NULL;
+        break;
+
+    case ENTITY_OBJ_EVENT_SOURCE_UID:
+    case ENTITY_OBJ_EVENT_SOURCE_INSTANCE:
+    case ENTITY_OBJ_EVENT_BRACKET:
+    case ENTITY_OBJ_EVENT_ACTIVE:
+    case ENTITY_OBJ_EVENT_KILLS:
+    case ENTITY_OBJ_EVENT_ITEMS:
+    case ENTITY_OBJ_EVENT_GOAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_PHASE:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
         break;
         
 

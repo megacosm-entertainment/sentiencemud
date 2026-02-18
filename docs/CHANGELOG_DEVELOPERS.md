@@ -2,6 +2,15 @@
 
 Changes since the account system update (ad9c53d).
 
+## Recent Event Runtime Updates
+
+- `editors/events/evtedit.c` now includes stronger editor validation for bracket specifications (`spawnbrackets`, `collectionbrackets`), `bracketmode`, and `progressagg`.
+- Event runtime scheduling now supports recurring **and calendar cadence** behavior from a scheduled anchor + interval.
+- Boss event progression/completion is now handled in runtime kill tracking.
+- Passive/worldstate event participation is explicitly blocked from `event join` paths.
+- Script integration now includes event provenance + bracket metadata propagation and runtime control/read surfaces for progress/phase/finish flows.
+- See `docs/EVENT_EDITOR_RUNTIME.md` for current behavior and deferred items.
+
 ## Major Architectural Changes
 
 ### JSON-Based Data Storage

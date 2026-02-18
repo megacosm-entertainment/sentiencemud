@@ -290,6 +290,16 @@ ENT_FIELD entity_mobile[] = {
     {"immune",			ENTITY_MOB_IMMUNE,			ENT_BITVECTOR },
     {"resist",			ENTITY_MOB_RESIST,			ENT_BITVECTOR },
     {"verbpref_value",  ENTITY_MOB_VERB_PREF_VALUE,     ENT_NUMBER}, // Raw verb_preference enum value
+    {"event_uid",       ENTITY_MOB_EVENT_SOURCE_UID,    ENT_NUMBER },
+    {"event_source_uid", ENTITY_MOB_EVENT_SOURCE_UID,   ENT_NUMBER },
+    {"event_instance",  ENTITY_MOB_EVENT_SOURCE_INSTANCE, ENT_NUMBER },
+    {"event_source_instance", ENTITY_MOB_EVENT_SOURCE_INSTANCE, ENT_NUMBER },
+    {"event_bracket",   ENTITY_MOB_EVENT_BRACKET,       ENT_NUMBER },
+    {"event_active",    ENTITY_MOB_EVENT_ACTIVE,        ENT_NUMBER },
+    {"event_kills",     ENTITY_MOB_EVENT_KILLS,         ENT_NUMBER },
+    {"event_items",     ENTITY_MOB_EVENT_ITEMS,         ENT_NUMBER },
+    {"event_goal",      ENTITY_MOB_EVENT_GOAL,          ENT_NUMBER },
+    {"event_phase",     ENTITY_MOB_EVENT_PHASE,         ENT_STRING },
 
     {"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
 
@@ -327,6 +337,17 @@ ENT_FIELD entity_object[] = {
     {"extra",		ENTITY_OBJ_EXTRA,			ENT_BITMATRIX },
     {"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
     {"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
+
+    {"event_uid",   ENTITY_OBJ_EVENT_SOURCE_UID, ENT_NUMBER },
+    {"event_source_uid", ENTITY_OBJ_EVENT_SOURCE_UID, ENT_NUMBER },
+    {"event_instance", ENTITY_OBJ_EVENT_SOURCE_INSTANCE, ENT_NUMBER },
+    {"event_source_instance", ENTITY_OBJ_EVENT_SOURCE_INSTANCE, ENT_NUMBER },
+    {"event_bracket", ENTITY_OBJ_EVENT_BRACKET, ENT_NUMBER },
+    {"event_active", ENTITY_OBJ_EVENT_ACTIVE, ENT_NUMBER },
+    {"event_kills", ENTITY_OBJ_EVENT_KILLS, ENT_NUMBER },
+    {"event_items", ENTITY_OBJ_EVENT_ITEMS, ENT_NUMBER },
+    {"event_goal", ENTITY_OBJ_EVENT_GOAL, ENT_NUMBER },
+    {"event_phase", ENTITY_OBJ_EVENT_PHASE, ENT_STRING },
 
     // Typed data sub-entities
     {"armor",		ENTITY_OBJ_ARMOR_DATA,		ENT_OBJ_ARMOR		},
@@ -1346,6 +1367,16 @@ int trigger_table_size = elementsof(trigger_table);
 
 IFCHECK_DATA ifcheck_table[] = {
     // name					prog type	params	return	function				help reference
+    { "eventsourceinstance",IFC_ANY,	"E",   true,   ifc_eventsourceinstance, "ifcheck eventsourceinstance" },
+    { "eventsourcebracket",IFC_ANY,	"E",   true,   ifc_eventsourcebracket, "ifcheck eventsourcebracket" },
+    { "eventsourceuid",    IFC_ANY,	"E",   true,   ifc_eventsourceuid,      "ifcheck eventsourceuid" },
+    { "eventbracket",      IFC_ANY,	"E",   true,   ifc_eventbracket,        "ifcheck eventbracket" },
+    { "eventkills",        IFC_ANY,	"S",   true,   ifc_eventkills,          "ifcheck eventkills" },
+    { "eventitems",        IFC_ANY,	"S",   true,   ifc_eventitems,          "ifcheck eventitems" },
+    { "eventgoal",         IFC_ANY,	"S",   true,   ifc_eventgoal,           "ifcheck eventgoal" },
+    { "eventphase",        IFC_ANY,	"SS",  false,  ifc_eventphase,          "ifcheck eventphase" },
+    { "eventactive",       IFC_ANY,	"S",   false,  ifc_eventactive,         "ifcheck eventactive" },
+    { "haseventsource",    IFC_ANY,	"E",   false,  ifc_haseventsource,      "ifcheck haseventsource" },
     { "abs",				IFC_ANY,	"N",	false,	ifc_abs,				"ifcheck abs" },
     { "act",				IFC_ANY,	"ES",	false,	ifc_act,				"ifcheck act" },
     { "act2",				IFC_ANY,	"ES",	false,	ifc_act2,				"ifcheck act2" },
