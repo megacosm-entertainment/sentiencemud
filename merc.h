@@ -356,6 +356,7 @@ struct json_t;
 
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
+typedef struct	catalyst_data		CATALYST_DATA;
 typedef struct	area_data		AREA_DATA;
 typedef struct	auction_data		AUCTION_DATA;
 typedef struct	auto_war		AUTO_WAR;
@@ -2494,6 +2495,19 @@ struct	affect_data
     char 		*custom_name;
     int16_t		slot;
     TOKEN_DATA *	token;		/* Source token for this affect (if from TOKEN_AFFECT) */
+};
+
+struct catalyst_data
+{
+    CATALYST_DATA *	next;
+    bool		valid;
+    int16_t		where;
+    int16_t		type;
+    int16_t		level;
+    int16_t		duration;
+    int16_t		modifier;
+    int16_t 		random;
+    char 		*custom_name;
 };
 
 /* where definitions */
@@ -5609,7 +5623,7 @@ struct	obj_index_data
     OBJ_INDEX_DATA *	next;
     EXTRA_DESCR_DATA *	extra_descr;
     AFFECT_DATA *	affected;
-    AFFECT_DATA *	catalyst;
+    CATALYST_DATA *	catalyst;
     AREA_DATA *		area;
     bool	persist;
 
@@ -5735,7 +5749,7 @@ struct	obj_data
     CHAR_DATA *		pulled_by;
     EXTRA_DESCR_DATA *	extra_descr;
     AFFECT_DATA *	affected;
-    AFFECT_DATA *	catalyst;
+    CATALYST_DATA *	catalyst;
     OBJ_INDEX_DATA *	pIndexData;
     ROOM_INDEX_DATA *	in_room;
     ROOM_INDEX_DATA *	clone_rooms;
@@ -9171,6 +9185,7 @@ EXIT_DATA *new_wilderness_exit args( ( void ) );
 INVASION_QUEST *new_invasion_quest(void);
 STORM_DATA *new_storm_data(void);
 AFFECT_DATA *new_affect(void);
+CATALYST_DATA *new_catalyst(void);
 AMBUSH_DATA *new_ambush( void );
 AREA_DATA *new_area( void );
 AUTO_WAR *new_auto_war  args( ( int war_type, int min_players, int min_level, int max_level ) );
@@ -9211,6 +9226,7 @@ void free_wilderness_exit args( ( EXIT_DATA *pexit ) );
 void free_invasion_quest( INVASION_QUEST *quest );
 void free_storm_data( STORM_DATA *storm_data );
 void free_affect( AFFECT_DATA *af );
+void free_catalyst( CATALYST_DATA *cat );
 void free_ambush( AMBUSH_DATA *ambush );
 void free_auto_war  args( ( AUTO_WAR *auto_war ) );
 void free_chat_ban( CHAT_BAN_DATA *pBan );
@@ -9350,7 +9366,7 @@ bool	is_name		args( ( char *str, char *namelist ) );
 bool	is_exact_name	args( ( char *str, char *namelist ) );
 void	affect_to_char	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
 void	affect_to_obj	args( ( OBJ_DATA *obj, AFFECT_DATA *paf ) );
-void	catalyst_to_obj	args( ( OBJ_DATA *obj, AFFECT_DATA *paf ) );
+void	catalyst_to_obj	args( ( OBJ_DATA *obj, CATALYST_DATA *cat ) );
 void	affect_to_room	args( ( ROOM_INDEX_DATA *room, AFFECT_DATA *paf ) );
 void	affect_remove	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
 bool	affect_removeall_obj	args( ( OBJ_DATA *obj ) );
@@ -10484,6 +10500,8 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry);
 char *skill_entry_name (SKILL_ENTRY *entry);
+bool skill_entry_is_usable_now(CHAR_DATA *ch, SKILL_ENTRY *entry);
+bool skill_is_usable_now(CHAR_DATA *ch, int sn);
 void remort_player(CHAR_DATA *ch);
 
 void persist_addmobile(CHAR_DATA *mob);

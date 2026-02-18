@@ -2280,47 +2280,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         }
         break;
 
-/*	case ITEM_ARTIFACT:
-        switch(value_num)
-        {
-        case 0:
-            // TODO: UNUSED?
-            if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-
-            send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
-            break;
-        case 1:
-            // TODO: UNUSED?
-            if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[1] = skill_lookup(argument);
-            use_imp_sig(NULL, pObj);
-            break;
-        case 2:
-            // TODO: UNUSED?
-            if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-            {
-                send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-                return false;
-            }
-
-            send_to_char("SPELL SET.\n\r\n\r", ch);
-            pObj->value[2] = skill_lookup(argument);
-            use_imp_sig(NULL, pObj);
-            break;
-        }
-        break;*/
-
     case ITEM_ARMOUR:
         if (!IS_ARMOR(pObj)) return false;
         switch (value_num)
@@ -2634,55 +2593,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
             break;
         }
         break;
-
-/*	case ITEM_SHIP:
-        switch (value_num)
-        {
-        default:
-            do_help(ch, "ITEM_SHIP");
-            return false;
-        case 0:
-            send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-            pObj->value[0] = atoi(argument);
-            break;
-        case 1:
-            send_to_char("MOVE DELAY SET.\n\r\n\r", ch);
-            pObj->value[1] = atoi(argument);
-            break;
-        case 2:
-            send_to_char("MIN CREW SET.\n\r\n\r", ch);
-            pObj->value[2] = atoi(argument);
-            break;
-        case 3:
-            send_to_char("CAPACITY SET.\n\r\n\r", ch);
-            pObj->value[3] = atoi(argument);
-            break;
-        case 4:
-            send_to_char("MAX CREW SET.\n\r\n\r", ch);
-            pObj->value[4] = atoi(argument);
-            break;
-        case 5:
-            if (atoi(argument) != 0)
-            {
-                if (!get_room_index(atoi(argument)))
-                {
-                    send_to_char("THERE IS NO SUCH ROOM.\n\r\n\r", ch);
-                    return false;
-                }
-            }
-            send_to_char("BOARDING ROOM SET.\n\r\n\r", ch);
-            pObj->value[5] = atoi(argument);
-            break;
-        case 6:
-            send_to_char("HIT POINTS SET.\n\r", ch);
-            pObj->value[6] = atoi(argument);
-            break;
-        case 7:
-            send_to_char("MAX GUNS SET.\n\r\n\r", ch);
-            pObj->value[7] = atoi (argument);
-            break;
-        }
-        break;*/
 
     case ITEM_CART:
         if (!IS_CART(pObj)) return false;

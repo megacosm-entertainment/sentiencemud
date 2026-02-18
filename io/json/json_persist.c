@@ -870,14 +870,18 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
     /* Catalysts */
     if (obj->catalyst) {
         array = json_array();
-        for (paf = obj->catalyst; paf; paf = paf->next) {
-            json_t *cat_json = json_persist_affect_to_json(paf);
-            if (cat_json) {
-                /* Add catalyst-specific fields */
-                json_object_set_new(cat_json, "catalyst_type",
-                    json_string(flag_string(catalyst_types, paf->type)));
-                json_array_append_new(array, cat_json);
-            }
+        for (CATALYST_DATA *cat = obj->catalyst; cat; cat = cat->next) {
+            json_t *cat_json = json_object();
+            json_object_set_new(cat_json, "where", json_integer(cat->where));
+            json_object_set_new(cat_json, "level", json_integer(cat->level));
+            json_object_set_new(cat_json, "duration", json_integer(cat->duration));
+            json_object_set_new(cat_json, "modifier", json_integer(cat->modifier));
+            json_object_set_new(cat_json, "random", json_integer(cat->random));
+            if (!IS_NULLSTR(cat->custom_name))
+                json_object_set_new(cat_json, "custom_name", json_string(cat->custom_name));
+            json_object_set_new(cat_json, "catalyst_type",
+                json_string(flag_string(catalyst_types, cat->type)));
+            json_array_append_new(array, cat_json);
         }
         if (json_array_size(array) > 0) {
             json_object_set_new(json, "catalysts", array);
@@ -1203,15 +1207,35 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     array = json_object_get(json, "catalysts");
     if (array && json_is_array(array)) {
         json_array_foreach(array, index, elem) {
-            AFFECT_DATA *paf = json_persist_json_to_affect(elem);
-            if (paf) {
-                /* Get catalyst type from string */
-                json_t *cat_type = json_object_get(elem, "catalyst_type");
-                if (cat_type) {
-                    paf->type = flag_value(catalyst_types, (char *)json_string_value(cat_type));
-                }
-                paf->next = obj->catalyst;
-                obj->catalyst = paf;
+            CATALYST_DATA *cat = new_catalyst();
+            if (cat) {
+                json_t *value;
+
+                value = json_object_get(elem, "where");
+                if (value) cat->where = json_integer_value(value);
+
+                value = json_object_get(elem, "level");
+                if (value) cat->level = json_integer_value(value);
+
+                value = json_object_get(elem, "duration");
+                if (value) cat->duration = json_integer_value(value);
+
+                value = json_object_get(elem, "modifier");
+                if (value) cat->modifier = json_integer_value(value);
+
+                value = json_object_get(elem, "random");
+                if (value) cat->random = json_integer_value(value);
+
+                value = json_object_get(elem, "custom_name");
+                if (value && json_is_string(value))
+                    cat->custom_name = str_dup(json_string_value(value));
+
+                value = json_object_get(elem, "catalyst_type");
+                if (value && json_is_string(value))
+                    cat->type = flag_value(catalyst_types, (char *)json_string_value(value));
+
+                cat->next = obj->catalyst;
+                obj->catalyst = cat;
             }
         }
     }

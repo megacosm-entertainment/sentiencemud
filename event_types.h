@@ -21,11 +21,14 @@ bool event_get_object_spawn_bracket(const OBJ_DATA *obj, int *bracket);
 bool event_get_character_active_bracket(const CHAR_DATA *ch, long *event_uid, uint32_t *instance_id, int *bracket);
 bool event_runtime_get_source_progress(long event_uid, uint32_t instance_id, int *kills, int *items, int *goal);
 bool event_runtime_is_source_leader_phase(long event_uid, uint32_t instance_id, bool *leader_phase);
+bool event_runtime_get_source_phase(long event_uid, uint32_t instance_id, char *phase_out, int phase_size);
 bool event_runtime_get_progress(const char *event_token, int *kills, int *items, int *goal);
 bool event_runtime_is_leader_phase(const char *event_token, bool *leader_phase);
+bool event_runtime_get_phase(const char *event_token, char *phase_out, int phase_size);
 bool event_runtime_adjust_progress(const char *event_token, int kills_delta, int items_delta);
 bool event_runtime_set_goal(const char *event_token, int goal);
 bool event_runtime_set_phase(const char *event_token, const char *phase_name);
+bool event_runtime_next_phase(const char *event_token);
 bool event_runtime_finish(const char *event_token, bool success, const char *reason);
 
 #endif

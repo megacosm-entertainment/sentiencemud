@@ -10,6 +10,7 @@
 #include "../../olc.h"
 #include "../../interp.h"
 #include "../../event_types.h"
+#include "../../scripts.h"
 #include "../../recycle.h"
 #include "../../io/json/json_common.h"
 #include "../common.h"
@@ -51,6 +52,9 @@ struct evtedit_data {
     char *collection_brackets;
     char *bracket_mode;
     char *progress_aggregation;
+    char *phase_plan;
+    long reward_success_script;
+    long reward_failure_script;
     bool enabled;
     long flags;
     char *comments;
@@ -74,6 +78,9 @@ struct event_instance {
     int progress_items;
     int progress_goal;
     bool leader_phase;
+    int phase_index;
+    time_t phase_due;
+    char phase_name[MIL];
     bool dirty;
     EVENT_INSTANCE *next;
 };
@@ -167,6 +174,9 @@ EVTEDIT(evtedit_spawnbrackets);
 EVTEDIT(evtedit_collectionbrackets);
 EVTEDIT(evtedit_bracketmode);
 EVTEDIT(evtedit_progressagg);
+EVTEDIT(evtedit_phaseplan);
+EVTEDIT(evtedit_rewardsuccess);
+EVTEDIT(evtedit_rewardfail);
 EVTEDIT(evtedit_flags);
 EVTEDIT(evtedit_comments);
 EVTEDIT(evtedit_save);
@@ -234,6 +244,7 @@ static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
 static void evtedit_show_meta_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_ensure_loaded(void);
 static void event_broadcast(const char *message);
+static bool event_stop_definition(EVTEDIT_DATA *evt);
 
 static void evtedit_free_item(EVTEDIT_DATA *evt)
 {
@@ -255,6 +266,7 @@ static void evtedit_free_item(EVTEDIT_DATA *evt)
     free_string(evt->collection_brackets);
     free_string(evt->bracket_mode);
     free_string(evt->progress_aggregation);
+    free_string(evt->phase_plan);
     free_string(evt->comments);
     free_mem(evt, sizeof(*evt));
 }
@@ -309,6 +321,9 @@ static EVTEDIT_DATA *evtedit_new(const char *name)
     evt->collection_brackets = str_dup("");
     evt->bracket_mode = str_dup("auto_by_level");
     evt->progress_aggregation = str_dup("shared");
+    evt->phase_plan = str_dup("");
+    evt->reward_success_script = 0;
+    evt->reward_failure_script = 0;
     evt->enabled = true;
     evt->flags = 0;
     evt->comments = str_dup("");
@@ -415,13 +430,174 @@ static const char *event_bracket_spec_for(const EVTEDIT_DATA *evt)
     return "";
 }
 
-static bool event_progress_is_per_bracket_all_required(const EVTEDIT_DATA *evt)
+typedef enum {
+    EVT_PROGRESS_MODE_SHARED = 0,
+    EVT_PROGRESS_MODE_PER_BRACKET_ANY,
+    EVT_PROGRESS_MODE_PER_BRACKET_ALL,
+} evt_progress_mode_t;
+
+static evt_progress_mode_t event_progress_mode(const EVTEDIT_DATA *evt)
 {
-    if (!evt || IS_NULLSTR(evt->progress_aggregation))
+    if (!evt || IS_NULLSTR(evt->progress_aggregation)
+        || !str_cmp(evt->progress_aggregation, "shared")
+        || !str_cmp(evt->progress_aggregation, "total"))
+        return EVT_PROGRESS_MODE_SHARED;
+
+    if (!str_cmp(evt->progress_aggregation, "per_bracket_all_required"))
+        return EVT_PROGRESS_MODE_PER_BRACKET_ALL;
+
+    if (!str_cmp(evt->progress_aggregation, "per_bracket")
+        || !str_cmp(evt->progress_aggregation, "per_bracket_any"))
+        return EVT_PROGRESS_MODE_PER_BRACKET_ANY;
+
+    return EVT_PROGRESS_MODE_SHARED;
+}
+
+static void event_copy_trimmed(char *dst, size_t dst_size, const char *src)
+{
+    const char *start;
+    const char *end;
+    size_t len;
+
+    if (!dst || dst_size == 0) {
+        return;
+    }
+
+    dst[0] = '\0';
+
+    if (IS_NULLSTR(src))
+        return;
+
+    start = src;
+    while (*start && isspace((unsigned char)*start))
+        start++;
+
+    end = start + strlen(start);
+    while (end > start && isspace((unsigned char)*(end - 1)))
+        end--;
+
+    len = (size_t)(end - start);
+    if (len >= dst_size)
+        len = dst_size - 1;
+
+    if (len > 0)
+        memcpy(dst, start, len);
+    dst[len] = '\0';
+}
+
+static bool event_parse_phase_plan_step(const char *plan, int step_index,
+    char *phase_name, size_t phase_name_size, int *minutes_out, long *script_vnum_out)
+{
+    const char *cursor;
+    int index = 0;
+
+    if (!phase_name || phase_name_size == 0 || !minutes_out || !script_vnum_out)
         return false;
 
-    return !str_cmp(evt->progress_aggregation, "per_bracket_all_required")
-        || !str_cmp(evt->progress_aggregation, "per_bracket");
+    phase_name[0] = '\0';
+    *minutes_out = 0;
+    *script_vnum_out = 0;
+
+    if (IS_NULLSTR(plan) || step_index < 0)
+        return false;
+
+    cursor = plan;
+    while (*cursor) {
+        char token[MIL];
+        char name_buf[MIL];
+        char *at;
+        char *hash;
+        int pos = 0;
+        char *minutes_str = NULL;
+        char *script_str = NULL;
+
+        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ';' || *cursor == ','))
+            cursor++;
+
+        if (!*cursor)
+            break;
+
+        while (*cursor && *cursor != ';' && *cursor != ',' && pos < MIL - 1)
+            token[pos++] = *cursor++;
+        token[pos] = '\0';
+
+        event_copy_trimmed(name_buf, sizeof(name_buf), token);
+
+        at = strchr(name_buf, '@');
+        hash = strchr(name_buf, '#');
+
+        if (at) {
+            *at = '\0';
+            minutes_str = at + 1;
+        }
+
+        if (hash) {
+            *hash = '\0';
+            script_str = hash + 1;
+        }
+
+        if (minutes_str) {
+            char minutes_buf[MIL];
+            event_copy_trimmed(minutes_buf, sizeof(minutes_buf), minutes_str);
+            if (!IS_NULLSTR(minutes_buf)) {
+                char *endptr = NULL;
+                long parsed = strtol(minutes_buf, &endptr, 10);
+                if (endptr != minutes_buf && parsed > 0)
+                    *minutes_out = (int)parsed;
+            }
+        }
+
+        if (script_str) {
+            char script_buf[MIL];
+            char *endptr = NULL;
+            long parsed;
+
+            event_copy_trimmed(script_buf, sizeof(script_buf), script_str);
+            parsed = strtol(script_buf, &endptr, 10);
+            if (endptr != script_buf && parsed > 0)
+                *script_vnum_out = parsed;
+        }
+
+        if (!IS_NULLSTR(name_buf)) {
+            if (index == step_index) {
+                strncpy(phase_name, name_buf, phase_name_size - 1);
+                phase_name[phase_name_size - 1] = '\0';
+                return true;
+            }
+            index++;
+        }
+
+        while (*cursor && *cursor != ';' && *cursor != ',')
+            cursor++;
+    }
+
+    return false;
+}
+
+static bool event_validate_phase_plan(const char *plan, char *error, size_t error_size)
+{
+    int index = 0;
+    char name[MIL];
+    int minutes;
+    long script_vnum;
+
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    if (IS_NULLSTR(plan))
+        return true;
+
+    while (event_parse_phase_plan_step(plan, index, name, sizeof(name), &minutes, &script_vnum))
+        index++;
+
+    if (index <= 0) {
+        if (error && error_size > 0)
+            snprintf(error, error_size,
+                "Invalid phase plan. Use phase[@minutes][#scriptvnum],... (example: prep@10#1200,battle@30,boss#1201)");
+        return false;
+    }
+
+    return true;
 }
 
 static bool event_parse_bracket_token(const char *token, int *min_level, int *max_level)
@@ -633,6 +809,28 @@ static bool event_all_brackets_met_goal(const EVENT_INSTANCE *inst, int goal, bo
     return true;
 }
 
+static bool event_any_bracket_met_goal(const EVENT_INSTANCE *inst, int goal, bool items)
+{
+    const char *spec;
+    int count;
+    int i;
+
+    if (!inst || !inst->def || goal <= 0)
+        return false;
+
+    spec = event_bracket_spec_for(inst->def);
+    count = event_count_brackets(spec);
+
+    if (count <= 0)
+        return false;
+
+    for (i = 0; i < count; i++)
+        if (event_progress_for_bracket(inst, i, items) >= goal)
+            return true;
+
+    return false;
+}
+
 static bool event_assign_participant_bracket(EVENT_INSTANCE *inst, CHAR_DATA *ch, int *team_out)
 {
     const char *spec;
@@ -811,6 +1009,206 @@ static int event_default_kill_goal(const EVTEDIT_DATA *evt)
     return 0;
 }
 
+static void event_runtime_run_phase_script(EVENT_INSTANCE *inst, long script_vnum, const char *phase_name)
+{
+    WNUM wnum;
+    SCRIPT_DATA *script;
+
+    if (!inst || !inst->def || script_vnum <= 0)
+        return;
+
+    if (!resolve_widevnum(script_vnum, NULL, &wnum) || !wnum.pArea)
+        return;
+
+    script = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG);
+    if (!script)
+        return;
+
+    execute_script(script->vnum, script,
+        NULL, NULL, NULL, NULL,
+        wnum.pArea, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL,
+        (char *)(IS_NULLSTR(phase_name) ? "event_phase" : phase_name),
+        "event_phase",
+        TRIG_NONE,
+        (int)inst->def->uid,
+        (int)inst->instance_id,
+        inst->phase_index + 1,
+        0,
+        0);
+}
+
+static void event_runtime_apply_phase_step(EVENT_INSTANCE *inst, int phase_index,
+    const char *phase_name, int phase_minutes, long phase_script_vnum)
+{
+    char old_phase_name[MIL];
+    int old_phase_index;
+    bool old_leader_phase;
+    bool phase_changed;
+
+    if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
+        return;
+
+    old_phase_index = inst->phase_index;
+    old_leader_phase = inst->leader_phase;
+    strncpy(old_phase_name, inst->phase_name, sizeof(old_phase_name) - 1);
+    old_phase_name[sizeof(old_phase_name) - 1] = '\0';
+
+    inst->phase_index = phase_index;
+    inst->phase_due = phase_minutes > 0 ? current_time + ((time_t)phase_minutes * 60) : 0;
+
+    if (!IS_NULLSTR(phase_name)) {
+        strncpy(inst->phase_name, phase_name, sizeof(inst->phase_name) - 1);
+        inst->phase_name[sizeof(inst->phase_name) - 1] = '\0';
+    } else {
+        inst->phase_name[0] = '\0';
+    }
+
+    if (inst->def->event_type == EVT_TYPE_INVASION) {
+        if (!str_cmp(inst->phase_name, "leader") || !str_cmp(inst->phase_name, "leader_phase"))
+            inst->leader_phase = true;
+        else if (!IS_NULLSTR(inst->phase_name))
+            inst->leader_phase = false;
+    }
+
+    inst->dirty = true;
+
+    phase_changed = (old_phase_index != inst->phase_index)
+        || (old_leader_phase != inst->leader_phase)
+        || str_cmp(old_phase_name, inst->phase_name);
+
+    if (phase_changed
+        && !IS_SET(inst->def->flags, EVT_FLAG_NOANNOUNCE)
+        && !IS_NULLSTR(inst->phase_name)
+        && (old_phase_index >= 0 || !IS_NULLSTR(old_phase_name))) {
+        event_broadcast(formatf("{W%s{x enters phase {Y%s{x.\n\r",
+            IS_NULLSTR(inst->def->display_title) ? inst->def->name : inst->def->display_title,
+            inst->phase_name));
+    }
+
+    if (phase_script_vnum > 0)
+        event_runtime_run_phase_script(inst, phase_script_vnum, inst->phase_name);
+}
+
+static void event_runtime_run_reward_script(EVENT_INSTANCE *inst, long script_vnum,
+    bool success, const char *reason)
+{
+    WNUM wnum;
+    SCRIPT_DATA *script;
+    EVENT_PART *part;
+    bool ran = false;
+    const char *trigger;
+    const char *phrase;
+
+    if (!inst || !inst->def || script_vnum <= 0)
+        return;
+
+    if (!resolve_widevnum(script_vnum, NULL, &wnum) || !wnum.pArea)
+        return;
+
+    script = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG);
+    if (!script)
+        return;
+
+    trigger = success ? "event_complete" : "event_fail";
+    phrase = IS_NULLSTR(reason) ? trigger : reason;
+
+    for (part = inst->participants; part; part = part->next) {
+        if (!part->ch || IS_NPC(part->ch))
+            continue;
+
+        execute_script(script->vnum, script,
+            NULL, NULL, NULL, NULL,
+            wnum.pArea, NULL, NULL,
+            part->ch, NULL, NULL, NULL, NULL, NULL,
+            NULL,
+            (char *)phrase,
+            (char *)trigger,
+            TRIG_NONE,
+            (int)inst->def->uid,
+            (int)inst->instance_id,
+            success ? 1 : 0,
+            part->team,
+            inst->participant_count);
+        ran = true;
+    }
+
+    if (ran)
+        return;
+
+    execute_script(script->vnum, script,
+        NULL, NULL, NULL, NULL,
+        wnum.pArea, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL,
+        (char *)phrase,
+        (char *)trigger,
+        TRIG_NONE,
+        (int)inst->def->uid,
+        (int)inst->instance_id,
+        success ? 1 : 0,
+        0,
+        inst->participant_count);
+}
+
+static bool event_runtime_complete_instance(EVENT_INSTANCE *inst, bool success,
+    const char *reason, const char *default_success_msg)
+{
+    long reward_script = 0;
+
+    if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
+        return false;
+
+    reward_script = success ? inst->def->reward_success_script : inst->def->reward_failure_script;
+    event_runtime_run_reward_script(inst, reward_script, success, reason);
+
+    if (!event_stop_definition(inst->def))
+        return false;
+
+    if (!IS_NULLSTR(reason))
+        event_broadcast(reason);
+    else if (success && !IS_NULLSTR(inst->def->end_msg))
+        event_broadcast(inst->def->end_msg);
+    else if (success && !IS_NULLSTR(default_success_msg))
+        event_broadcast(default_success_msg);
+    else if (!success)
+        event_broadcast("{REvent failed.{x\n\r");
+
+    return true;
+}
+
+static bool event_runtime_apply_phase_by_index(EVENT_INSTANCE *inst, int phase_index)
+{
+    char phase_name[MIL];
+    int phase_minutes = 0;
+    long phase_script_vnum = 0;
+
+    if (!inst || !inst->def || phase_index < 0)
+        return false;
+
+    if (!event_parse_phase_plan_step(inst->def->phase_plan, phase_index,
+            phase_name, sizeof(phase_name), &phase_minutes, &phase_script_vnum))
+        return false;
+
+    event_runtime_apply_phase_step(inst, phase_index, phase_name, phase_minutes, phase_script_vnum);
+    return true;
+}
+
+static void event_runtime_update_phase_timers(EVENT_INSTANCE *inst)
+{
+    if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
+        return;
+
+    while (inst->phase_due > 0 && current_time >= inst->phase_due) {
+        if (!event_runtime_apply_phase_by_index(inst, inst->phase_index + 1)) {
+            inst->phase_due = 0;
+            inst->dirty = true;
+            break;
+        }
+    }
+}
+
 static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
 {
     EVENT_INSTANCE *inst;
@@ -834,9 +1232,20 @@ static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
     inst->progress_items = 0;
     inst->progress_goal = event_default_kill_goal(evt);
     inst->leader_phase = false;
+    inst->phase_index = -1;
+    inst->phase_due = 0;
+    inst->phase_name[0] = '\0';
     inst->dirty = true;
     inst->next = event_active_head;
     event_active_head = inst;
+
+    if (!event_runtime_apply_phase_by_index(inst, 0)) {
+        if (evt->event_type == EVT_TYPE_INVASION)
+            strncpy(inst->phase_name, "active", sizeof(inst->phase_name) - 1);
+        else
+            strncpy(inst->phase_name, "active", sizeof(inst->phase_name) - 1);
+        inst->phase_name[sizeof(inst->phase_name) - 1] = '\0';
+    }
 
     if (evt->sched_cooldown > 0)
         evt->cooldown_until = current_time + (evt->sched_cooldown * 60);
@@ -1130,6 +1539,8 @@ void event_runtime_update(void)
         if (!def)
             continue;
 
+        event_runtime_update_phase_timers(inst);
+
         if (inst->end_time > 0 && current_time >= inst->end_time) {
             if (!IS_NULLSTR(def->end_msg))
                 event_broadcast(def->end_msg);
@@ -1166,17 +1577,16 @@ void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
 
                 if (!inst->leader_phase
                     && inst->progress_goal > 0
-                    && (event_progress_is_per_bracket_all_required(inst->def)
+                    && ((event_progress_mode(inst->def) == EVT_PROGRESS_MODE_PER_BRACKET_ALL)
                         ? event_all_brackets_met_goal(inst, inst->progress_goal, false)
-                        : (inst->progress_kills >= inst->progress_goal))) {
+                        : ((event_progress_mode(inst->def) == EVT_PROGRESS_MODE_PER_BRACKET_ANY)
+                            ? event_any_bracket_met_goal(inst, inst->progress_goal, false)
+                            : (inst->progress_kills >= inst->progress_goal)))) {
                     if (inst->def->leader_required) {
                         inst->leader_phase = true;
                         event_broadcast("{YThe invasion leader has emerged! Slay the leader to end the invasion.{x\n\r");
-                    } else if (event_stop_definition(inst->def)) {
-                        if (!IS_NULLSTR(inst->def->end_msg))
-                            event_broadcast(inst->def->end_msg);
-                        else
-                            event_broadcast("{YThe invasion force has been defeated. The invasion is over!{x\n\r");
+                    } else if (event_runtime_complete_instance(inst, true, NULL,
+                            "{YThe invasion force has been defeated. The invasion is over!{x\n\r")) {
                         return;
                     }
                 }
@@ -1192,14 +1602,13 @@ void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
                 inst->dirty = true;
 
                 if (inst->def->completion_goal > 0
-                    && (event_progress_is_per_bracket_all_required(inst->def)
+                    && ((event_progress_mode(inst->def) == EVT_PROGRESS_MODE_PER_BRACKET_ALL)
                         ? event_all_brackets_met_goal(inst, inst->def->completion_goal, false)
-                        : (inst->progress_kills >= inst->def->completion_goal))
-                    && event_stop_definition(inst->def)) {
-                    if (!IS_NULLSTR(inst->def->end_msg))
-                        event_broadcast(inst->def->end_msg);
-                    else
-                        event_broadcast("{YThe war objective has been reached. The war is over!{x\n\r");
+                        : ((event_progress_mode(inst->def) == EVT_PROGRESS_MODE_PER_BRACKET_ANY)
+                            ? event_any_bracket_met_goal(inst, inst->def->completion_goal, false)
+                            : (inst->progress_kills >= inst->def->completion_goal)))
+                    && event_runtime_complete_instance(inst, true, NULL,
+                        "{YThe war objective has been reached. The war is over!{x\n\r")) {
                     return;
                 }
             }
@@ -1216,11 +1625,8 @@ void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
                 inst->dirty = true;
 
                 if (inst->progress_kills >= goal
-                    && event_stop_definition(inst->def)) {
-                    if (!IS_NULLSTR(inst->def->end_msg))
-                        event_broadcast(inst->def->end_msg);
-                    else
-                        event_broadcast("{YThe boss has been defeated. Event complete!{x\n\r");
+                    && event_runtime_complete_instance(inst, true, NULL,
+                        "{YThe boss has been defeated. Event complete!{x\n\r")) {
                     return;
                 }
             }
@@ -1256,14 +1662,13 @@ void event_progress_record_collection_turnin(CHAR_DATA *ch, int items_turned)
         inst->dirty = true;
 
         if (inst->def->completion_goal > 0
-            && (event_progress_is_per_bracket_all_required(inst->def)
+            && ((event_progress_mode(inst->def) == EVT_PROGRESS_MODE_PER_BRACKET_ALL)
                 ? event_all_brackets_met_goal(inst, inst->def->completion_goal, true)
-                : (inst->progress_items >= inst->def->completion_goal))
-            && event_stop_definition(inst->def)) {
-            if (!IS_NULLSTR(inst->def->end_msg))
-                event_broadcast(inst->def->end_msg);
-            else
-                event_broadcast("{YCollection objective reached. Event complete!{x\n\r");
+                : ((event_progress_mode(inst->def) == EVT_PROGRESS_MODE_PER_BRACKET_ANY)
+                    ? event_any_bracket_met_goal(inst, inst->def->completion_goal, true)
+                    : (inst->progress_items >= inst->def->completion_goal)))
+            && event_runtime_complete_instance(inst, true, NULL,
+                "{YCollection objective reached. Event complete!{x\n\r")) {
             return;
         }
     }
@@ -1288,11 +1693,8 @@ bool event_progress_complete_invasion_leader(CHAR_DATA *killer, CHAR_DATA *victi
         if (!event_find_participant(inst, killer))
             continue;
 
-        if (event_stop_definition(inst->def)) {
-            if (!IS_NULLSTR(inst->def->end_msg))
-                event_broadcast(inst->def->end_msg);
-            else
-                event_broadcast("{YThe invasion leader has fallen. The invasion is over!{x\n\r");
+        if (event_runtime_complete_instance(inst, true, NULL,
+                "{YThe invasion leader has fallen. The invasion is over!{x\n\r")) {
             return true;
         }
     }
@@ -1484,6 +1886,77 @@ bool event_runtime_is_source_leader_phase(long event_uid, uint32_t instance_id, 
     return false;
 }
 
+static bool event_runtime_goal_met(const EVENT_INSTANCE *inst, int goal, bool items)
+{
+    evt_progress_mode_t mode;
+
+    if (!inst || !inst->def || goal <= 0)
+        return false;
+
+    mode = event_progress_mode(inst->def);
+    if (mode == EVT_PROGRESS_MODE_PER_BRACKET_ALL)
+        return event_all_brackets_met_goal(inst, goal, items);
+    if (mode == EVT_PROGRESS_MODE_PER_BRACKET_ANY)
+        return event_any_bracket_met_goal(inst, goal, items);
+
+    return items ? (inst->progress_items >= goal) : (inst->progress_kills >= goal);
+}
+
+static void event_runtime_resolve_completion(EVENT_INSTANCE *inst)
+{
+    int goal;
+
+    if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
+        return;
+
+    switch (inst->def->event_type) {
+    case EVT_TYPE_INVASION:
+        goal = inst->progress_goal;
+        if (!inst->leader_phase && event_runtime_goal_met(inst, goal, false)) {
+            if (inst->def->leader_required) {
+                inst->leader_phase = true;
+                inst->dirty = true;
+                event_broadcast("{YThe invasion leader has emerged! Slay the leader to end the invasion.{x\n\r");
+            } else if (event_stop_definition(inst->def)) {
+                if (!IS_NULLSTR(inst->def->end_msg))
+                    event_broadcast(inst->def->end_msg);
+                else
+                    event_broadcast("{YThe invasion force has been defeated. The invasion is over!{x\n\r");
+            }
+        }
+        break;
+
+    case EVT_TYPE_COLLECTION:
+        goal = inst->def->completion_goal;
+        if (event_runtime_goal_met(inst, goal, true)
+            && event_runtime_complete_instance(inst, true, NULL,
+                "{YCollection objective reached. Event complete!{x\n\r")) {
+        }
+        break;
+
+    case EVT_TYPE_WAR_FFA:
+    case EVT_TYPE_WAR_GENOCIDE:
+    case EVT_TYPE_WAR_JIHAD:
+        goal = inst->def->completion_goal;
+        if (event_runtime_goal_met(inst, goal, false)
+            && event_runtime_complete_instance(inst, true, NULL,
+                "{YThe war objective has been reached. The war is over!{x\n\r")) {
+        }
+        break;
+
+    case EVT_TYPE_BOSS:
+        goal = inst->def->completion_goal > 0 ? inst->def->completion_goal : 1;
+        if (event_runtime_goal_met(inst, goal, false)
+            && event_runtime_complete_instance(inst, true, NULL,
+                "{YThe boss has been defeated. Event complete!{x\n\r")) {
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
 bool event_runtime_adjust_progress(const char *event_token, int kills_delta, int items_delta)
 {
     EVTEDIT_DATA *evt;
@@ -1503,6 +1976,7 @@ bool event_runtime_adjust_progress(const char *event_token, int kills_delta, int
         inst->progress_items = UMAX(0, inst->progress_items + items_delta);
 
     inst->dirty = true;
+    event_runtime_resolve_completion(inst);
     return true;
 }
 
@@ -1535,6 +2009,65 @@ bool event_runtime_get_progress(const char *event_token, int *kills, int *items,
             *goal = inst->progress_goal;
         else
             *goal = evt->completion_goal;
+    }
+
+    return true;
+}
+
+bool event_runtime_get_source_phase(long event_uid, uint32_t instance_id, char *phase_out, int phase_size)
+{
+    EVENT_INSTANCE *inst;
+
+    if (phase_out && phase_size > 0)
+        phase_out[0] = '\0';
+
+    if (event_uid <= 0)
+        return false;
+
+    for (inst = event_active_head; inst; inst = inst->next) {
+        if (!inst->def || inst->state != EVTS_ACTIVE)
+            continue;
+        if (inst->def->uid != event_uid)
+            continue;
+        if (instance_id > 0 && inst->instance_id != instance_id)
+            continue;
+
+        if (phase_out && phase_size > 0) {
+            const char *phase = !IS_NULLSTR(inst->phase_name)
+                ? inst->phase_name
+                : (inst->leader_phase ? "leader" : "active");
+            strncpy(phase_out, phase, phase_size - 1);
+            phase_out[phase_size - 1] = '\0';
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool event_runtime_get_phase(const char *event_token, char *phase_out, int phase_size)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+
+    if (phase_out && phase_size > 0)
+        phase_out[0] = '\0';
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    if (phase_out && phase_size > 0) {
+        const char *phase = !IS_NULLSTR(inst->phase_name)
+            ? inst->phase_name
+            : (inst->leader_phase ? "leader" : "active");
+        strncpy(phase_out, phase, phase_size - 1);
+        phase_out[phase_size - 1] = '\0';
     }
 
     return true;
@@ -1583,10 +2116,58 @@ bool event_runtime_set_goal(const char *event_token, int goal)
         evt->completion_goal = goal;
 
     inst->dirty = true;
+    event_runtime_resolve_completion(inst);
     return true;
 }
 
 bool event_runtime_set_phase(const char *event_token, const char *phase_name)
+{
+    EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
+    int phase_index = 0;
+    char planned_phase[MIL];
+    int phase_minutes = 0;
+    long phase_script_vnum = 0;
+
+    evt = event_lookup_definition(event_token);
+    if (!evt)
+        return false;
+
+    inst = event_find_active_def(evt);
+    if (!inst || inst->state != EVTS_ACTIVE)
+        return false;
+
+    while (event_parse_phase_plan_step(evt->phase_plan, phase_index,
+        planned_phase, sizeof(planned_phase), &phase_minutes, &phase_script_vnum)) {
+        if (!IS_NULLSTR(phase_name) && !str_cmp(phase_name, planned_phase)) {
+            event_runtime_apply_phase_step(inst, phase_index, planned_phase,
+                phase_minutes, phase_script_vnum);
+            return true;
+        }
+        phase_index++;
+    }
+
+    if (evt->event_type == EVT_TYPE_INVASION) {
+        if (IS_NULLSTR(phase_name) || !str_cmp(phase_name, "active") || !str_cmp(phase_name, "normal")) {
+            event_runtime_apply_phase_step(inst, -1, "active", 0, 0);
+            return true;
+        }
+
+        if (!str_cmp(phase_name, "leader") || !str_cmp(phase_name, "leader_phase")) {
+            event_runtime_apply_phase_step(inst, -1, "leader", 0, 0);
+            return true;
+        }
+    }
+
+    if (!IS_NULLSTR(phase_name)) {
+        event_runtime_apply_phase_step(inst, -1, phase_name, 0, 0);
+        return true;
+    }
+
+    return false;
+}
+
+bool event_runtime_next_phase(const char *event_token)
 {
     EVTEDIT_DATA *evt;
     EVENT_INSTANCE *inst;
@@ -1599,43 +2180,23 @@ bool event_runtime_set_phase(const char *event_token, const char *phase_name)
     if (!inst || inst->state != EVTS_ACTIVE)
         return false;
 
-    if (evt->event_type == EVT_TYPE_INVASION) {
-        if (IS_NULLSTR(phase_name) || !str_cmp(phase_name, "active") || !str_cmp(phase_name, "normal"))
-            inst->leader_phase = false;
-        else if (!str_cmp(phase_name, "leader") || !str_cmp(phase_name, "leader_phase"))
-            inst->leader_phase = true;
-        else
-            return false;
-
-        inst->dirty = true;
-        return true;
-    }
-
-    return false;
+    return event_runtime_apply_phase_by_index(inst, inst->phase_index + 1);
 }
 
 bool event_runtime_finish(const char *event_token, bool success, const char *reason)
 {
     EVTEDIT_DATA *evt;
+    EVENT_INSTANCE *inst;
 
     evt = event_lookup_definition(event_token);
     if (!evt)
         return false;
 
-    if (!event_find_active_def(evt))
+    inst = event_find_active_def(evt);
+    if (!inst)
         return false;
 
-    if (event_stop_definition(evt)) {
-        if (!IS_NULLSTR(reason))
-            event_broadcast(reason);
-        else if (success && !IS_NULLSTR(evt->end_msg))
-            event_broadcast(evt->end_msg);
-        else if (!success)
-            event_broadcast("{REvent failed.{x\n\r");
-        return true;
-    }
-
-    return false;
+    return event_runtime_complete_instance(inst, success, reason, NULL);
 }
 
 static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
@@ -1671,6 +2232,9 @@ static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
     json_object_set_new(obj, "collection_brackets", json_string_safe(evt->collection_brackets));
     json_object_set_new(obj, "bracket_mode", json_string_safe(evt->bracket_mode));
     json_object_set_new(obj, "progress_aggregation", json_string_safe(evt->progress_aggregation));
+    json_object_set_new(obj, "phase_plan", json_string_safe(evt->phase_plan));
+    json_object_set_new(obj, "reward_success_script", json_integer(evt->reward_success_script));
+    json_object_set_new(obj, "reward_failure_script", json_integer(evt->reward_failure_script));
     json_object_set_new(obj, "enabled", json_integer(evt->enabled ? 1 : 0));
     json_object_set_new(obj, "flags", json_integer(evt->flags));
     json_object_set_new(obj, "comments", json_string_safe(evt->comments));
@@ -1756,6 +2320,9 @@ static bool evtedit_load_from_json(void)
         evt->collection_brackets = str_dup(json_get_string(entry, "collection_brackets", ""));
         evt->bracket_mode = str_dup(json_get_string(entry, "bracket_mode", "auto_by_level"));
         evt->progress_aggregation = str_dup(json_get_string(entry, "progress_aggregation", "shared"));
+        evt->phase_plan = str_dup(json_get_string(entry, "phase_plan", ""));
+        evt->reward_success_script = (long)json_get_int(entry, "reward_success_script", 0);
+        evt->reward_failure_script = (long)json_get_int(entry, "reward_failure_script", 0);
         evt->enabled = json_get_int(entry, "enabled", 1) != 0;
         evt->flags = (long)json_get_int(entry, "flags", 0);
         evt->comments = str_dup(json_get_string(entry, "comments", ""));
@@ -1831,6 +2398,9 @@ static const struct olc_cmd_type evtedit_table[] = {
     { "collectionbrackets", evtedit_collectionbrackets },
     { "bracketmode", evtedit_bracketmode },
     { "progressagg", evtedit_progressagg },
+    { "phaseplan", evtedit_phaseplan },
+    { "rewardsuccess", evtedit_rewardsuccess },
+    { "rewardfail", evtedit_rewardfail },
     { "flags",     evtedit_flags },
     { "comments",  evtedit_comments },
     { "save",      evtedit_save },
@@ -1887,7 +2457,9 @@ void do_evtedit(CHAR_DATA *ch, char *argument)
         send_to_char("\n\r", ch);
         send_to_char("Bracket format: ordered non-overlapping ranges (example: 1-50,51-90,91+).\n\r", ch);
         send_to_char("bracketmode: auto_by_level|open|manual\n\r", ch);
-        send_to_char("progressagg: total|per_bracket|per_bracket_all_required\n\r", ch);
+        send_to_char("progressagg: shared|total|per_bracket_any|per_bracket|per_bracket_all_required\n\r", ch);
+        send_to_char("phaseplan: phase[@minutes][#scriptvnum],... (example: prep@10#1200,battle@30,boss#1201)\n\r", ch);
+        send_to_char("rewardsuccess/rewardfail: <scriptvnum|0>\n\r", ch);
         return;
     }
 
@@ -2044,6 +2616,9 @@ void do_event(CHAR_DATA *ch, char *argument)
 
             if (self && self->team > 0)
                 printf_to_char(ch, " {Wbracket:{x %d", self->team);
+
+            if (!IS_NULLSTR(inst->phase_name))
+                printf_to_char(ch, " {Wphase:{x %s", inst->phase_name);
 
             if (inst->def->event_type == EVT_TYPE_INVASION && inst->progress_goal > 0)
                 printf_to_char(ch, " {WKills:{x %d/%d%s",
@@ -2220,6 +2795,11 @@ void do_event(CHAR_DATA *ch, char *argument)
         printf_to_char(ch, "{WBrackets:{x mode=%s aggregation=%s\n\r",
             IS_NULLSTR(evt->bracket_mode) ? "(not set)" : evt->bracket_mode,
             IS_NULLSTR(evt->progress_aggregation) ? "(not set)" : evt->progress_aggregation);
+        if (!IS_NULLSTR(evt->phase_plan))
+            printf_to_char(ch, "{WPhase Plan:{x %s\n\r", evt->phase_plan);
+        if (evt->reward_success_script > 0 || evt->reward_failure_script > 0)
+            printf_to_char(ch, "{WReward Hooks:{x success=%ld fail=%ld\n\r",
+                evt->reward_success_script, evt->reward_failure_script);
         printf_to_char(ch, "{WEnabled:{x definition=%s system=%s\n\r",
             evt->enabled ? "{GYes{x" : "{RNo{x",
             event_system_enabled ? "{GYes{x" : "{RNo{x");
@@ -2260,6 +2840,14 @@ void do_event(CHAR_DATA *ch, char *argument)
                     self->kills,
                     self->items_turned,
                     self->team > 0 ? formatf(" bracket=%d", self->team) : "");
+
+            if (!IS_NULLSTR(inst->phase_name))
+                printf_to_char(ch, "{WCurrent Phase:{x %s\n\r", inst->phase_name);
+
+            if (inst->phase_due > current_time)
+                printf_to_char(ch, "{WNext Phase:{x in %ldm%02lds\n\r",
+                    (long)(inst->phase_due - current_time) / 60,
+                    (long)(inst->phase_due - current_time) % 60);
         }
 
         if (evt->scheduled_time > current_time)
@@ -2560,6 +3148,12 @@ static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
         IS_NULLSTR(evt->bracket_mode) ? "" : evt->bracket_mode);
     olc_display_string(ctx, theme, "Progress Aggregation:", "progressagg",
         IS_NULLSTR(evt->progress_aggregation) ? "" : evt->progress_aggregation);
+    olc_display_string(ctx, theme, "Phase Plan:", "phaseplan",
+        IS_NULLSTR(evt->phase_plan) ? "" : evt->phase_plan);
+    olc_display_number(ctx, theme, "Reward Success Script:", "rewardsuccess",
+        evt->reward_success_script);
+    olc_display_number(ctx, theme, "Reward Fail Script:", "rewardfail",
+        evt->reward_failure_script);
 }
 
 static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
@@ -3101,10 +3695,12 @@ EVTEDIT(evtedit_progressagg)
 
     one_argument(argument, mode);
     if (!IS_NULLSTR(mode)
+        && str_cmp(mode, "shared")
         && str_cmp(mode, "total")
+        && str_cmp(mode, "per_bracket_any")
         && str_cmp(mode, "per_bracket")
         && str_cmp(mode, "per_bracket_all_required")) {
-        send_to_char("Invalid progress aggregation. Use: total, per_bracket, per_bracket_all_required.\n\r", ch);
+        send_to_char("Invalid progress aggregation. Use: shared, total, per_bracket_any, per_bracket, per_bracket_all_required.\n\r", ch);
         return false;
     }
 
@@ -3112,6 +3708,63 @@ EVTEDIT(evtedit_progressagg)
             &evt->progress_aggregation, OLC_STR_DEFAULT, NULL, NULL))
         return false;
 
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_phaseplan)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char error[MSL];
+
+    if (!evt)
+        return false;
+
+    if (!event_validate_phase_plan(argument, error, sizeof(error))) {
+        send_to_char(error, ch);
+        send_to_char("\n\r", ch);
+        return false;
+    }
+
+    if (!olc_cmd_string(ch, argument, "phaseplan", "phaseplan <text>",
+            &evt->phase_plan, OLC_STR_DEFAULT, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_rewardsuccess)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char arg[MIL];
+
+    if (!evt)
+        return false;
+
+    one_argument(argument, arg);
+    if (IS_NULLSTR(arg) || !is_number(arg)) {
+        send_to_char("Syntax: rewardsuccess <scriptvnum|0>\n\r", ch);
+        return false;
+    }
+
+    evt->reward_success_script = UMAX(0, atol(arg));
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_rewardfail)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char arg[MIL];
+
+    if (!evt)
+        return false;
+
+    one_argument(argument, arg);
+    if (IS_NULLSTR(arg) || !is_number(arg)) {
+        send_to_char("Syntax: rewardfail <scriptvnum|0>\n\r", ch);
+        return false;
+    }
+
+    evt->reward_failure_script = UMAX(0, atol(arg));
     return evtedit_save_after_change(ch);
 }
 

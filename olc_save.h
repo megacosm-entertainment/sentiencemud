@@ -37,7 +37,7 @@ CONDITIONAL_DESCR_DATA *read_conditional_descr_new( FILE *fp );
 EXIT_DATA *read_exit_new( FILE *fp );
 RESET_DATA *read_reset_new( FILE *fp );
 AFFECT_DATA *read_obj_affect_new (FILE *fp);
-AFFECT_DATA *read_obj_catalyst_new (FILE *fp);
+CATALYST_DATA *read_obj_catalyst_new (FILE *fp);
 SHOP_DATA *read_shop_new( FILE *fp);
 SHIP_CREW_INDEX_DATA *read_ship_crew_index_new( FILE *fp );
 QUESTOR_DATA *read_questor_new( FILE *fp);

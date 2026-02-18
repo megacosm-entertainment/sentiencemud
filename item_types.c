@@ -1133,6 +1133,501 @@ void obj_index_migrate_values_to_types(OBJ_INDEX_DATA *obj)
     MIGRATE_VALUES_BODY(obj);
 }
 
+int obj_get_legacy_value_slot(OBJ_DATA *obj, int slot)
+{
+    if (!obj || slot < 0 || slot > 7)
+        return 0;
+
+    switch (obj->item_type) {
+    case ITEM_LIGHT:
+        if (IS_LIGHT(obj) && slot == 2) return LIGHT(obj)->duration;
+        break;
+
+    case ITEM_WAND:
+    case ITEM_STAFF:
+        if (IS_WAND(obj)) {
+            if (slot == 1) return WAND(obj)->max_charges;
+            if (slot == 2) return WAND(obj)->charges;
+        }
+        break;
+
+    case ITEM_WEAPON:
+    case ITEM_RANGED_WEAPON:
+        if (IS_WEAPON(obj)) {
+            if (slot == 0) return WEAPON(obj)->weapon_class;
+            if (slot == 1) return WEAPON(obj)->damage.number;
+            if (slot == 2) return WEAPON(obj)->damage.size;
+            if (obj->item_type == ITEM_WEAPON && slot == 3) return WEAPON(obj)->damage_type;
+            if (obj->item_type == ITEM_WEAPON && slot == 4) return WEAPON(obj)->flags;
+            if (obj->item_type == ITEM_RANGED_WEAPON && slot == 3) return WEAPON(obj)->range;
+        }
+        break;
+
+    case ITEM_ARMOUR:
+        if (IS_ARMOR(obj)) {
+            if (slot >= 0 && slot <= 3) return ARMOR(obj)->protection[slot];
+            if (slot == 4) return ARMOR(obj)->armor_strength;
+        }
+        break;
+
+    case ITEM_POTION:
+        if (IS_FLUID_CON(obj) && slot == 5) return FLUID_CON(obj)->capacity;
+        break;
+
+    case ITEM_FURNITURE:
+        if (IS_FURNITURE(obj)) {
+            if (slot == 0) return FURNITURE(obj)->max_people;
+            if (slot == 1) return FURNITURE(obj)->max_weight;
+            if (slot == 2) return FURNITURE(obj)->flags;
+            if (slot == 3) return FURNITURE(obj)->heal_rate;
+            if (slot == 4) return FURNITURE(obj)->mana_rate;
+            if (slot == 5) return FURNITURE(obj)->move_rate;
+        }
+        break;
+
+    case ITEM_CONTAINER:
+        if (IS_CONTAINER(obj)) {
+            if (slot == 0) return CONTAINER(obj)->max_weight;
+            if (slot == 1) return CONTAINER(obj)->flags;
+            if (slot == 3) return CONTAINER(obj)->max_items;
+            if (slot == 4) return CONTAINER(obj)->weight_multiplier;
+        }
+        break;
+
+    case ITEM_DRINK_CON:
+        if (IS_FLUID_CON(obj)) {
+            if (slot == 0) return FLUID_CON(obj)->capacity;
+            if (slot == 1) return FLUID_CON(obj)->amount;
+            if (slot == 2) return FLUID_CON(obj)->liquid;
+            if (slot == 3) return FLUID_CON(obj)->poison;
+        }
+        break;
+
+    case ITEM_FOOD:
+        if (IS_FOOD(obj)) {
+            if (slot == 0) return FOOD(obj)->hunger;
+            if (slot == 1) return FOOD(obj)->full;
+            if (slot == 3) return FOOD(obj)->poison;
+            if (slot == 4) return FOOD(obj)->timer;
+        }
+        break;
+
+    case ITEM_MONEY:
+        if (IS_MONEY(obj)) {
+            if (slot == 0) return MONEY(obj)->silver;
+            if (slot == 1) return MONEY(obj)->gold;
+        }
+        break;
+
+    case ITEM_CORPSE_NPC:
+    case ITEM_CORPSE_PC:
+        if (IS_CORPSE(obj)) {
+            if (slot == 0) return CORPSE(obj)->corpse_type;
+            if (slot == 1) return CORPSE(obj)->resurrection;
+            if (slot == 2) return CORPSE(obj)->animation;
+            if (slot == 3) return CORPSE(obj)->body_parts;
+            if (slot == 5) return CORPSE(obj)->mobile_vnum;
+        }
+        break;
+
+    case ITEM_FOUNTAIN:
+        if (IS_FLUID_CON(obj)) {
+            if (slot == 0) return FLUID_CON(obj)->capacity;
+            if (slot == 1) return FLUID_CON(obj)->amount;
+            if (slot == 2) return FLUID_CON(obj)->liquid;
+        }
+        break;
+
+    case ITEM_PORTAL:
+        if (IS_PORTAL(obj)) {
+            if (slot == 0) return PORTAL(obj)->charges;
+            if (slot == 1) return PORTAL(obj)->exit;
+            if (slot == 2) return PORTAL(obj)->flags;
+            if (slot == 3) return PORTAL(obj)->params[0];
+            if (slot == 4) return PORTAL(obj)->params[4];
+            if (slot == 5) return PORTAL(obj)->params[1];
+            if (slot == 6) return PORTAL(obj)->params[2];
+            if (slot == 7) return PORTAL(obj)->params[3];
+        }
+        break;
+
+    case ITEM_INSTRUMENT:
+        if (IS_INSTRUMENT(obj)) {
+            if (slot == 0) return INSTRUMENT(obj)->type;
+            if (slot == 1) return INSTRUMENT(obj)->flags;
+            if (slot == 2) return INSTRUMENT(obj)->beats_min;
+            if (slot == 3) return INSTRUMENT(obj)->beats_max;
+        }
+        break;
+
+    case ITEM_SEED:
+        if (IS_SEED(obj)) {
+            if (slot == 0) return SEED(obj)->growth_time;
+            if (slot == 1) return SEED(obj)->object_vnum;
+        }
+        break;
+
+    case ITEM_CART:
+        if (IS_CART(obj)) {
+            if (slot == 0) return CART(obj)->capacity;
+            if (slot == 1) return CART(obj)->move_delay;
+            if (slot == 2) return CART(obj)->min_strength;
+            if (slot == 3) return CART(obj)->max_items;
+            if (slot == 4) return CART(obj)->weight_multiplier;
+            if (slot == 5) return CART(obj)->vanish_time;
+        }
+        break;
+
+    case ITEM_SHIP:
+        if (IS_SHIP_TYPE(obj)) {
+            if (slot == 0) return SHIP_TYPE(obj)->weight;
+            if (slot == 1) return SHIP_TYPE(obj)->move_delay;
+            if (slot == 2) return SHIP_TYPE(obj)->min_crew;
+            if (slot == 3) return SHIP_TYPE(obj)->capacity;
+            if (slot == 4) return SHIP_TYPE(obj)->max_crew;
+            if (slot == 5) return SHIP_TYPE(obj)->first_room;
+            if (slot == 6) return SHIP_TYPE(obj)->hit_points;
+            if (slot == 7) return SHIP_TYPE(obj)->max_guns;
+        }
+        break;
+
+    case ITEM_SEXTANT:
+        if (IS_SEXTANT(obj) && slot == 0) return SEXTANT(obj)->accuracy;
+        break;
+
+    case ITEM_WEAPON_CONTAINER:
+        if (IS_WEAPON_CON(obj)) {
+            if (slot == 0) return WEAPON_CON(obj)->max_weight;
+            if (slot == 1) return WEAPON_CON(obj)->weapon_type;
+            if (slot == 3) return WEAPON_CON(obj)->max_items;
+            if (slot == 4) return WEAPON_CON(obj)->weight_multiplier;
+        }
+        break;
+
+    case ITEM_BOOK:
+        if (IS_BOOK(obj) && slot == 1) return BOOK(obj)->flags;
+        break;
+
+    case ITEM_HERB:
+        if (IS_HERB(obj)) {
+            if (slot == 0) return HERB(obj)->type;
+            if (slot == 1) return HERB(obj)->healing;
+            if (slot == 2) return HERB(obj)->regenerative;
+            if (slot == 3) return HERB(obj)->refreshing;
+            if (slot == 4) return HERB(obj)->immunity;
+            if (slot == 5) return HERB(obj)->resistance;
+            if (slot == 6) return HERB(obj)->vulnerability;
+            if (slot == 7) return HERB(obj)->spell;
+        }
+        break;
+
+    case ITEM_MIST:
+        if (IS_MIST(obj)) {
+            if (slot == 0) return MIST(obj)->obscure_objs;
+            if (slot == 1) return MIST(obj)->obscure_mobs;
+        }
+        break;
+
+    case ITEM_TRADE_TYPE:
+        if (IS_TRADE(obj) && slot == 0) return TRADE(obj)->trade_type;
+        break;
+
+    case ITEM_TATTOO:
+        if (IS_TATTOO(obj)) {
+            if (slot == 0) return TATTOO(obj)->touches;
+            if (slot == 1) return TATTOO(obj)->fading_chance;
+        }
+        break;
+
+    case ITEM_INK:
+        if (IS_INK(obj) && slot >= 0 && slot <= 2) return INK(obj)->types[slot];
+        break;
+
+    case ITEM_TELESCOPE:
+        if (IS_TELESCOPE(obj)) {
+            if (slot == 0) return TELESCOPE(obj)->distance;
+            if (slot == 1) return TELESCOPE(obj)->min_distance;
+            if (slot == 2) return TELESCOPE(obj)->max_distance;
+            if (slot == 3) return TELESCOPE(obj)->bonus_view;
+            if (slot == 4) return TELESCOPE(obj)->heading;
+        }
+        break;
+
+    case ITEM_COMPASS:
+        if (IS_COMPASS(obj)) {
+            if (slot == 0) return COMPASS(obj)->accuracy;
+            if (slot == 1) return COMPASS(obj)->wuid;
+            if (slot == 2) return COMPASS(obj)->x;
+            if (slot == 3) return COMPASS(obj)->y;
+        }
+        break;
+
+    case ITEM_BODY_PART:
+        if (IS_BODY_PART(obj)) {
+            if (slot == 0) return BODY_PART(obj)->parts;
+            if (slot == 1) return BODY_PART(obj)->race_uid;
+            if (slot == 2) return BODY_PART(obj)->char_id[0];
+            if (slot == 3) return BODY_PART(obj)->char_id[1];
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    return obj->value[slot];
+}
+
+bool obj_set_legacy_value_slot(OBJ_DATA *obj, int slot, int value)
+{
+    if (!obj || slot < 0 || slot > 7)
+        return false;
+
+    obj->value[slot] = value;
+
+    switch (obj->item_type) {
+    case ITEM_LIGHT:
+        if (IS_LIGHT(obj) && slot == 2) LIGHT(obj)->duration = value;
+        break;
+
+    case ITEM_WAND:
+    case ITEM_STAFF:
+        if (IS_WAND(obj)) {
+            if (slot == 1) WAND(obj)->max_charges = value;
+            else if (slot == 2) WAND(obj)->charges = value;
+        }
+        break;
+
+    case ITEM_WEAPON:
+    case ITEM_RANGED_WEAPON:
+        if (IS_WEAPON(obj)) {
+            if (slot == 0) WEAPON(obj)->weapon_class = (int16_t)value;
+            else if (slot == 1) WEAPON(obj)->damage.number = value;
+            else if (slot == 2) WEAPON(obj)->damage.size = value;
+            else if (obj->item_type == ITEM_WEAPON && slot == 3) WEAPON(obj)->damage_type = value;
+            else if (obj->item_type == ITEM_WEAPON && slot == 4) WEAPON(obj)->flags = value;
+            else if (obj->item_type == ITEM_RANGED_WEAPON && slot == 3) WEAPON(obj)->range = value;
+        }
+        break;
+
+    case ITEM_ARMOUR:
+        if (IS_ARMOR(obj)) {
+            if (slot >= 0 && slot <= 3) ARMOR(obj)->protection[slot] = (int16_t)value;
+            else if (slot == 4) ARMOR(obj)->armor_strength = (int16_t)value;
+        }
+        break;
+
+    case ITEM_POTION:
+        if (IS_FLUID_CON(obj) && slot == 5) {
+            FLUID_CON(obj)->capacity = (int16_t)value;
+            FLUID_CON(obj)->amount = (int16_t)value;
+        }
+        break;
+
+    case ITEM_FURNITURE:
+        if (IS_FURNITURE(obj)) {
+            if (slot == 0) FURNITURE(obj)->max_people = value;
+            else if (slot == 1) FURNITURE(obj)->max_weight = value;
+            else if (slot == 2) FURNITURE(obj)->flags = value;
+            else if (slot == 3) FURNITURE(obj)->heal_rate = value;
+            else if (slot == 4) FURNITURE(obj)->mana_rate = value;
+            else if (slot == 5) FURNITURE(obj)->move_rate = value;
+        }
+        break;
+
+    case ITEM_CONTAINER:
+        if (IS_CONTAINER(obj)) {
+            if (slot == 0) CONTAINER(obj)->max_weight = value;
+            else if (slot == 1) CONTAINER(obj)->flags = value;
+            else if (slot == 3) CONTAINER(obj)->max_items = value;
+            else if (slot == 4) CONTAINER(obj)->weight_multiplier = value;
+        }
+        break;
+
+    case ITEM_DRINK_CON:
+        if (IS_FLUID_CON(obj)) {
+            if (slot == 0) FLUID_CON(obj)->capacity = (int16_t)value;
+            else if (slot == 1) FLUID_CON(obj)->amount = (int16_t)value;
+            else if (slot == 2) FLUID_CON(obj)->liquid = value;
+            else if (slot == 3) FLUID_CON(obj)->poison = (int16_t)value;
+        }
+        break;
+
+    case ITEM_FOOD:
+        if (IS_FOOD(obj)) {
+            if (slot == 0) FOOD(obj)->hunger = value;
+            else if (slot == 1) FOOD(obj)->full = value;
+            else if (slot == 3) FOOD(obj)->poison = value;
+            else if (slot == 4) FOOD(obj)->timer = value;
+        }
+        break;
+
+    case ITEM_MONEY:
+        if (IS_MONEY(obj)) {
+            if (slot == 0) MONEY(obj)->silver = value;
+            else if (slot == 1) MONEY(obj)->gold = value;
+        }
+        break;
+
+    case ITEM_CORPSE_NPC:
+    case ITEM_CORPSE_PC:
+        if (IS_CORPSE(obj)) {
+            if (slot == 0) CORPSE(obj)->corpse_type = value;
+            else if (slot == 1) CORPSE(obj)->resurrection = value;
+            else if (slot == 2) CORPSE(obj)->animation = value;
+            else if (slot == 3) CORPSE(obj)->body_parts = value;
+            else if (slot == 5) CORPSE(obj)->mobile_vnum = value;
+        }
+        break;
+
+    case ITEM_FOUNTAIN:
+        if (IS_FLUID_CON(obj)) {
+            if (slot == 0) FLUID_CON(obj)->capacity = (int16_t)value;
+            else if (slot == 1) FLUID_CON(obj)->amount = (int16_t)value;
+            else if (slot == 2) FLUID_CON(obj)->liquid = value;
+        }
+        break;
+
+    case ITEM_PORTAL:
+        if (IS_PORTAL(obj)) {
+            if (slot == 0) PORTAL(obj)->charges = value;
+            else if (slot == 1) PORTAL(obj)->exit = value;
+            else if (slot == 2) PORTAL(obj)->flags = value;
+            else if (slot == 3) PORTAL(obj)->params[0] = value;
+            else if (slot == 4) PORTAL(obj)->params[4] = value;
+            else if (slot == 5) PORTAL(obj)->params[1] = value;
+            else if (slot == 6) PORTAL(obj)->params[2] = value;
+            else if (slot == 7) PORTAL(obj)->params[3] = value;
+        }
+        break;
+
+    case ITEM_INSTRUMENT:
+        if (IS_INSTRUMENT(obj)) {
+            if (slot == 0) INSTRUMENT(obj)->type = value;
+            else if (slot == 1) INSTRUMENT(obj)->flags = value;
+            else if (slot == 2) INSTRUMENT(obj)->beats_min = value;
+            else if (slot == 3) INSTRUMENT(obj)->beats_max = value;
+        }
+        break;
+
+    case ITEM_SEED:
+        if (IS_SEED(obj)) {
+            if (slot == 0) SEED(obj)->growth_time = value;
+            else if (slot == 1) SEED(obj)->object_vnum = value;
+        }
+        break;
+
+    case ITEM_CART:
+        if (IS_CART(obj)) {
+            if (slot == 0) CART(obj)->capacity = value;
+            else if (slot == 1) CART(obj)->move_delay = (int16_t)value;
+            else if (slot == 2) CART(obj)->min_strength = (int16_t)value;
+            else if (slot == 3) CART(obj)->max_items = value;
+            else if (slot == 4) CART(obj)->weight_multiplier = value;
+            else if (slot == 5) CART(obj)->vanish_time = value;
+        }
+        break;
+
+    case ITEM_SHIP:
+        if (IS_SHIP_TYPE(obj)) {
+            if (slot == 0) SHIP_TYPE(obj)->weight = value;
+            else if (slot == 1) SHIP_TYPE(obj)->move_delay = value;
+            else if (slot == 2) SHIP_TYPE(obj)->min_crew = value;
+            else if (slot == 3) SHIP_TYPE(obj)->capacity = value;
+            else if (slot == 4) SHIP_TYPE(obj)->max_crew = value;
+            else if (slot == 5) SHIP_TYPE(obj)->first_room = value;
+            else if (slot == 6) SHIP_TYPE(obj)->hit_points = value;
+            else if (slot == 7) SHIP_TYPE(obj)->max_guns = value;
+        }
+        break;
+
+    case ITEM_SEXTANT:
+        if (IS_SEXTANT(obj) && slot == 0) SEXTANT(obj)->accuracy = (int16_t)value;
+        break;
+
+    case ITEM_WEAPON_CONTAINER:
+        if (IS_WEAPON_CON(obj)) {
+            if (slot == 0) WEAPON_CON(obj)->max_weight = value;
+            else if (slot == 1) WEAPON_CON(obj)->weapon_type = value;
+            else if (slot == 3) WEAPON_CON(obj)->max_items = value;
+            else if (slot == 4) WEAPON_CON(obj)->weight_multiplier = value;
+        }
+        break;
+
+    case ITEM_BOOK:
+        if (IS_BOOK(obj) && slot == 1) BOOK(obj)->flags = value;
+        break;
+
+    case ITEM_HERB:
+        if (IS_HERB(obj)) {
+            if (slot == 0) HERB(obj)->type = value;
+            else if (slot == 1) HERB(obj)->healing = value;
+            else if (slot == 2) HERB(obj)->regenerative = value;
+            else if (slot == 3) HERB(obj)->refreshing = value;
+            else if (slot == 4) HERB(obj)->immunity = value;
+            else if (slot == 5) HERB(obj)->resistance = value;
+            else if (slot == 6) HERB(obj)->vulnerability = value;
+            else if (slot == 7) HERB(obj)->spell = value;
+        }
+        break;
+
+    case ITEM_MIST:
+        if (IS_MIST(obj)) {
+            if (slot == 0) MIST(obj)->obscure_objs = (char)value;
+            else if (slot == 1) MIST(obj)->obscure_mobs = (char)value;
+        }
+        break;
+
+    case ITEM_TRADE_TYPE:
+        if (IS_TRADE(obj) && slot == 0) TRADE(obj)->trade_type = value;
+        break;
+
+    case ITEM_TATTOO:
+        if (IS_TATTOO(obj)) {
+            if (slot == 0) TATTOO(obj)->touches = value;
+            else if (slot == 1) TATTOO(obj)->fading_chance = value;
+        }
+        break;
+
+    case ITEM_INK:
+        if (IS_INK(obj) && slot >= 0 && slot <= 2) INK(obj)->types[slot] = (int16_t)value;
+        break;
+
+    case ITEM_TELESCOPE:
+        if (IS_TELESCOPE(obj)) {
+            if (slot == 0) TELESCOPE(obj)->distance = (int16_t)value;
+            else if (slot == 1) TELESCOPE(obj)->min_distance = (int16_t)value;
+            else if (slot == 2) TELESCOPE(obj)->max_distance = (int16_t)value;
+            else if (slot == 3) TELESCOPE(obj)->bonus_view = (int16_t)value;
+            else if (slot == 4) TELESCOPE(obj)->heading = (int16_t)value;
+        }
+        break;
+
+    case ITEM_COMPASS:
+        if (IS_COMPASS(obj)) {
+            if (slot == 0) COMPASS(obj)->accuracy = (int16_t)value;
+            else if (slot == 1) COMPASS(obj)->wuid = value;
+            else if (slot == 2) COMPASS(obj)->x = value;
+            else if (slot == 3) COMPASS(obj)->y = value;
+        }
+        break;
+
+    case ITEM_BODY_PART:
+        if (IS_BODY_PART(obj)) {
+            if (slot == 0) BODY_PART(obj)->parts = value;
+            else if (slot == 1) BODY_PART(obj)->race_uid = value;
+            else if (slot == 2) BODY_PART(obj)->char_id[0] = value;
+            else if (slot == 3) BODY_PART(obj)->char_id[1] = value;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    return true;
+}
+
 #undef ALLOC_TYPE
 #undef MIGRATE_VALUES_BODY
 

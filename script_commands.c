@@ -3143,6 +3143,7 @@ SCRIPT_CMD(scriptcmd_mload)
 }
 
 // EVENT clear|inherit|set|copy <target_mob|target_obj> [args]
+// EVENT phase <event> next
 // clear   <target>
 // inherit <target>
 // set     <target> <event_uid> [instance_id]
@@ -3213,6 +3214,12 @@ SCRIPT_CMD(scriptcmd_event)
             return;
 
         rest = one_argument(rest, operation);
+        if (!str_cmp(operation, "next")) {
+            if (event_runtime_next_phase(event_token))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
         if (str_cmp(operation, "set") || IS_NULLSTR(rest))
             return;
 
@@ -5708,6 +5715,9 @@ SCRIPT_CMD(scriptcmd_alterobj)
     }
 
     if(num >= 0) {
+        int current_value;
+        int updated_value;
+
         switch(arg->type) {
         case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
         case ENT_NUMBER: value = arg->d.num; break;
@@ -5719,33 +5729,39 @@ SCRIPT_CMD(scriptcmd_alterobj)
             return;
         }
 
+        current_value = obj_get_legacy_value_slot(obj, num);
+        updated_value = current_value;
+
         switch (buf[0]) {
-        case '+': obj->value[num] += value; break;
-        case '-': obj->value[num] -= value; break;
-        case '*': obj->value[num] *= value; break;
+        case '+': updated_value += value; break;
+        case '-': updated_value -= value; break;
+        case '*': updated_value *= value; break;
         case '/':
             if (!value) {
                 pbugf(LOG_SCRIPTS, "AlterObj - adjust called with operator / and value 0");
                 return;
             }
-            obj->value[num] /= value;
+            updated_value /= value;
             break;
         case '%':
             if (!value) {
                 pbugf(LOG_SCRIPTS, "AlterObj - adjust called with operator % and value 0");
                 return;
             }
-            obj->value[num] %= value;
+            updated_value %= value;
             break;
 
-        case '=': obj->value[num] = value; break;
-        case '&': obj->value[num] &= value; break;
-        case '|': obj->value[num] |= value; break;
-        case '!': obj->value[num] &= ~value; break;
-        case '^': obj->value[num] ^= value; break;
+        case '=': updated_value = value; break;
+        case '&': updated_value &= value; break;
+        case '|': updated_value |= value; break;
+        case '!': updated_value &= ~value; break;
+        case '^': updated_value ^= value; break;
         default:
             return;
         }
+
+        if (!obj_set_legacy_value_slot(obj, num, updated_value))
+            return;
 
     } else {
         

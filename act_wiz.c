@@ -8877,31 +8877,31 @@ void do_oset(CHAR_DATA *ch, char *argument)
      */
     if (!str_cmp(arg2, "value0") || !str_cmp(arg2, "v0"))
     {
-    obj->value[0] = UMIN(50,value);
+    obj_set_legacy_value_slot(obj, 0, UMIN(50, value));
     return;
     }
 
     if (!str_cmp(arg2, "value1") || !str_cmp(arg2, "v1"))
     {
-    obj->value[1] = value;
+    obj_set_legacy_value_slot(obj, 1, value);
     return;
     }
 
     if (!str_cmp(arg2, "value2") || !str_cmp(arg2, "v2"))
     {
-    obj->value[2] = value;
+    obj_set_legacy_value_slot(obj, 2, value);
     return;
     }
 
     if (!str_cmp(arg2, "value3") || !str_cmp(arg2, "v3"))
     {
-    obj->value[3] = value;
+    obj_set_legacy_value_slot(obj, 3, value);
     return;
     }
 
     if (!str_cmp(arg2, "value4") || !str_cmp(arg2, "v4"))
     {
-    obj->value[4] = value;
+    obj_set_legacy_value_slot(obj, 4, value);
     return;
     }
 
@@ -11871,40 +11871,57 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
     default:	// No values
         break;
     case ITEM_LIGHT:
+    {
+        long light_value = obj_get_legacy_value_slot(obj, 2);
 
-            if (obj->value[2] == -1)
-        sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  Infinite[-1]\n\r", (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y");
-            else
-        sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  [%ld]\n\r", (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+        if (light_value == -1)
+        sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  Infinite[-1]\n\r", (light_value == obj->pIndexData->value[2]) ? "B" : "Y");
+        else
+        sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  [%ld]\n\r", (light_value == obj->pIndexData->value[2]) ? "B" : "Y", light_value);
 
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_WAND:
     case ITEM_STAFF:
+    {
+        long wand_level = obj_get_legacy_value_slot(obj, 0);
+        long wand_charges_total = obj_get_legacy_value_slot(obj, 1);
+        long wand_charges_left = obj_get_legacy_value_slot(obj, 2);
+
             sprintf(buf,
         "{B[  {Wv0{B]{%s Level:{x          [%ld]\n\r"
         "{B[  {Wv1{B]{%s Charges Total:{x  [%ld]\n\r"
         "{B[  {Wv2{B]{%s Charges Left:{x   [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+        (wand_level == obj->pIndexData->value[0]) ? "B" : "Y", wand_level,
+        (wand_charges_total == obj->pIndexData->value[1]) ? "B" : "Y", wand_charges_total,
+        (wand_charges_left == obj->pIndexData->value[2]) ? "B" : "Y", wand_charges_left);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_PORTAL:
     {
         WNUM key_wnum;
         OBJ_INDEX_DATA *key_index = NULL;
         const char *key_name = "none";
+        long portal_v0 = obj_get_legacy_value_slot(obj, 0);
+        long portal_v1 = obj_get_legacy_value_slot(obj, 1);
+        long portal_v2 = obj_get_legacy_value_slot(obj, 2);
+        long portal_v3 = obj_get_legacy_value_slot(obj, 3);
+        long portal_v4 = obj_get_legacy_value_slot(obj, 4);
+        long portal_v5 = obj_get_legacy_value_slot(obj, 5);
+        long portal_v6 = obj_get_legacy_value_slot(obj, 6);
+        long portal_v7 = obj_get_legacy_value_slot(obj, 7);
 
-        if (obj->value[4] > 0 && resolve_widevnum(obj->value[4], NULL, &key_wnum))
+        if (portal_v4 > 0 && resolve_widevnum(portal_v4, NULL, &key_wnum))
             key_index = get_obj_index(key_wnum.pArea, key_wnum.vnum);
 
         if (key_index)
             key_name = key_index->short_descr;
 
-        if( IS_SET(obj->value[2], GATE_DUNGEON) )
+        if( IS_SET(portal_v2, GATE_DUNGEON) )
         {
             // DUNGEON portal
             sprintf(buf,
@@ -11914,14 +11931,14 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 "{B[  {Wv3{B]{%s Goes to (dungeon):{x [%ld]\n\r"
                 "{B[  {Wv4{B]{%s Key:{x               [%ld] %s\n\r"
                 "{B[  {Wv5{B]{%s Goes to (floor):  {x [%ld]\n\r",
-                (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
-                (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], key_name,
-                (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
+                (portal_v0 == obj->pIndexData->value[0]) ? "B" : "Y", portal_v0,
+                (portal_v1 == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, portal_v1),
+                (portal_v2 == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, portal_v2),
+                (portal_v3 == obj->pIndexData->value[3]) ? "B" : "Y", portal_v3,
+                (portal_v4 == obj->pIndexData->value[4]) ? "B" : "Y", portal_v4, key_name,
+                (portal_v5 == obj->pIndexData->value[5]) ? "B" : "Y", portal_v5);
         }
-        else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
+        else if( IS_SET(portal_v2, GATE_AREARANDOM) || portal_v3 == -1 )
         {
             // AREARANDOM portal
             sprintf(buf,
@@ -11930,13 +11947,13 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 "{B[  {Wv2{B]{%s Portal Flags:{x   %s\n\r"
                 "{B[  {Wv4{B]{%s Key:{x            [%ld] %s\n\r"
                 "{B[  {Wv5{B]{%s Goes to (area id):{x [%ld]\n\r",
-                (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
-                (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[4], key_name,
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[5]);
+                (portal_v0 == obj->pIndexData->value[0]) ? "B" : "Y", portal_v0,
+                (portal_v1 == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, portal_v1),
+                (portal_v2 == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, portal_v2),
+                (portal_v3 == obj->pIndexData->value[3]) ? "B" : "Y", portal_v4, key_name,
+                (portal_v4 == obj->pIndexData->value[4]) ? "B" : "Y", portal_v5);
         }
-        else if(obj->value[3] > 0)
+        else if(portal_v3 > 0)
         {
             // STATIC portal
             sprintf(buf,
@@ -11945,11 +11962,11 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 "{B[  {Wv2{B]{%s Portal Flags:{x   %s\n\r"
                 "{B[  {Wv3{B]{%s Goes to (vnum):{x [%ld]\n\r"
                 "{B[  {Wv4{B]{%s Key:{x            [%ld] %s\n\r",
-                (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
-                (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], key_name);
+                (portal_v0 == obj->pIndexData->value[0]) ? "B" : "Y", portal_v0,
+                (portal_v1 == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, portal_v1),
+                (portal_v2 == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, portal_v2),
+                (portal_v3 == obj->pIndexData->value[3]) ? "B" : "Y", portal_v3,
+                (portal_v4 == obj->pIndexData->value[4]) ? "B" : "Y", portal_v4, key_name);
         }
         else
         {
@@ -11962,19 +11979,27 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 "{B[  {Wv5{B]{%s Goes to (map):{x  [%ld]\n\r"
                 "{B[  {Wv6{B]{%s Goes to (mapx):{x [%ld]\n\r"
                 "{B[  {Wv7{B]{%s Goes to (mapy):{x [%ld]\n\r",
-                (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
-                (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
-                (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], key_name,
-                (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5],
-                (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
-                (obj->value[6] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
+                (portal_v0 == obj->pIndexData->value[0]) ? "B" : "Y", portal_v0,
+                (portal_v1 == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, portal_v1),
+                (portal_v2 == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, portal_v2),
+                (portal_v4 == obj->pIndexData->value[4]) ? "B" : "Y", portal_v4, key_name,
+                (portal_v5 == obj->pIndexData->value[5]) ? "B" : "Y", portal_v5,
+                (portal_v6 == obj->pIndexData->value[6]) ? "B" : "Y", portal_v6,
+                (portal_v6 == obj->pIndexData->value[7]) ? "B" : "Y", portal_v7);
         }
         add_buf(buffer, buf);
         break;
     }
 
     case ITEM_FURNITURE:
+    {
+        long furniture_max_people = obj_get_legacy_value_slot(obj, 0);
+        long furniture_max_weight = obj_get_legacy_value_slot(obj, 1);
+        long furniture_flags_value = obj_get_legacy_value_slot(obj, 2);
+        long furniture_heal_bonus = obj_get_legacy_value_slot(obj, 3);
+        long furniture_mana_bonus = obj_get_legacy_value_slot(obj, 4);
+        long furniture_move_bonus = obj_get_legacy_value_slot(obj, 5);
+
         sprintf(buf,
             "{B[  {Wv0{B]{%s Max people:{x      [%ld]\n\r"
             "{B[  {Wv1{B]{%s Max weight:{x      [%ld]\n\r"
@@ -11982,16 +12007,27 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
             "{B[  {Wv3{B]{%s Heal bonus:{x      [%ld]\n\r"
             "{B[  {Wv4{B]{%s Mana bonus:{x      [%ld]\n\r"
             "{B[  {Wv5{B]{%s Move bonus:{x      [%ld]\n\r",
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-            (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(furniture_flags, obj->value[2]),
-            (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-            (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4],
-            (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
+            (furniture_max_people == obj->pIndexData->value[0]) ? "B" : "Y", furniture_max_people,
+            (furniture_max_weight == obj->pIndexData->value[1]) ? "B" : "Y", furniture_max_weight,
+            (furniture_flags_value == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(furniture_flags, furniture_flags_value),
+            (furniture_heal_bonus == obj->pIndexData->value[3]) ? "B" : "Y", furniture_heal_bonus,
+            (furniture_mana_bonus == obj->pIndexData->value[4]) ? "B" : "Y", furniture_mana_bonus,
+            (furniture_move_bonus == obj->pIndexData->value[5]) ? "B" : "Y", furniture_move_bonus);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_HERB:
+    {
+        long herb_type = obj_get_legacy_value_slot(obj, 0);
+        long herb_healing = obj_get_legacy_value_slot(obj, 1);
+        long herb_regenerative = obj_get_legacy_value_slot(obj, 2);
+        long herb_refreshing = obj_get_legacy_value_slot(obj, 3);
+        long herb_immunity = obj_get_legacy_value_slot(obj, 4);
+        long herb_resistance = obj_get_legacy_value_slot(obj, 5);
+        long herb_vulnerability = obj_get_legacy_value_slot(obj, 6);
+        long herb_spell = obj_get_legacy_value_slot(obj, 7);
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Type:{x            [%s]\n\r"
         "{B[  {Wv1{B]{%s Healing:{x         [%ld%%]\n\r"
@@ -12001,120 +12037,178 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         "{B[  {Wv5{B]{%s Resistance:{x      [%s]\n\r"
         "{B[  {Wv6{B]{%s Vulnerability:{x   [%s]\n\r"
         "{B[  {Wv7{B]{%s Spell:{x           [%s]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", herb_table[obj->value[0]].name,
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, obj->value[4]),
-        (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, obj->value[5]),
-        (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, obj->value[6]),
-        (obj->value[7] == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[obj->value[7]].name);
+        (herb_type == obj->pIndexData->value[0]) ? "B" : "Y", herb_table[herb_type].name,
+        (herb_healing == obj->pIndexData->value[1]) ? "B" : "Y", herb_healing,
+        (herb_regenerative == obj->pIndexData->value[2]) ? "B" : "Y", herb_regenerative,
+        (herb_refreshing == obj->pIndexData->value[3]) ? "B" : "Y", herb_refreshing,
+        (herb_immunity == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, herb_immunity),
+        (herb_resistance == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, herb_resistance),
+        (herb_vulnerability == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, herb_vulnerability),
+        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[herb_spell].name);
 
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_SCROLL:
     case ITEM_PILL:
         break;
 
     case ITEM_POTION:
+    {
+        long potion_charges = obj_get_legacy_value_slot(obj, 5);
+
         sprintf(buf,
                 "{B[  {Wv5{B]{%s Charges:{x                [%ld]\n\r",
-                (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
+                (potion_charges == obj->pIndexData->value[5]) ? "B" : "Y", potion_charges);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_TATTOO:
+    {
+        long tattoo_touches = obj_get_legacy_value_slot(obj, 0);
+        long tattoo_fade_chance = obj_get_legacy_value_slot(obj, 1);
+
             sprintf(buf,
                     "{B[  {Wv0{B]{%s Touches:{x                [%ld]\n\r"
                     "{B[  {Wv1{B]{%s Chance of Fading:{x       [%ld]\n\r",
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                    (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+                    (tattoo_touches == obj->pIndexData->value[0]) ? "B" : "Y", tattoo_touches,
+                    (tattoo_fade_chance == obj->pIndexData->value[1]) ? "B" : "Y", tattoo_fade_chance);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_INK:
+    {
+        long ink_type1 = obj_get_legacy_value_slot(obj, 0);
+        long ink_type2 = obj_get_legacy_value_slot(obj, 1);
+        long ink_type3 = obj_get_legacy_value_slot(obj, 2);
+
             sprintf(buf, "{B[  {Wv0{B]{%s Type 1:{x                 [%s]\n\r", 
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(catalyst_types, obj->value[0]));
+            (ink_type1 == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(catalyst_types, ink_type1));
         add_buf(buffer, buf);
             sprintf(buf, "{B[  {Wv1{B]{%s Type 2:{x                 [%s]\n\r", 
-            (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(catalyst_types, obj->value[1]));
+            (ink_type2 == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(catalyst_types, ink_type2));
         add_buf(buffer, buf);
             sprintf(buf, "{B[  {Wv2{B]{%s Type 3:{x                 [%s]\n\r", 
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(catalyst_types, obj->value[2]));
+            (ink_type3 == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(catalyst_types, ink_type3));
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_SEXTANT:
+    {
+        long sextant_working_pct = obj_get_legacy_value_slot(obj, 0);
+
             sprintf(buf,
         "{B[  {Wv0{B]{%s Percentage of working:{x  [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+        (sextant_working_pct == obj->pIndexData->value[0]) ? "B" : "Y", sextant_working_pct);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_SEED:
+    {
+        long seed_growth_time = obj_get_legacy_value_slot(obj, 0);
+        long seed_result_vnum = obj_get_legacy_value_slot(obj, 1);
+
             sprintf(buf,
         "{B[  {Wv0{B]{%s Time before growth:{x     [%ld]\n\r"
         "{B[  {Wv1{B]{%s Turns into object vnum:{x [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[1]);
+        (seed_growth_time == obj->pIndexData->value[0]) ? "B" : "Y", seed_growth_time,
+        (seed_result_vnum == obj->pIndexData->value[0]) ? "B" : "Y", seed_result_vnum);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_ARMOUR:
+    {
+        long armour_ac_pierce = obj_get_legacy_value_slot(obj, 0);
+        long armour_ac_bash = obj_get_legacy_value_slot(obj, 1);
+        long armour_ac_slash = obj_get_legacy_value_slot(obj, 2);
+        long armour_ac_exotic = obj_get_legacy_value_slot(obj, 3);
+        long armour_strength = obj_get_legacy_value_slot(obj, 4);
+
         sprintf(buf,
         "{B[  {Wv0{B] {%sAc pierce       {x[%ld]\n\r"
         "{B[  {Wv1{B] {%sAc bash         {x[%ld]\n\r"
         "{B[  {Wv2{B] {%sAc slash        {x[%ld]\n\r"
         "{B[  {Wv3{B] {%sAc exotic       {x[%ld]\n\r"
         "{B[  {Wv4{B] {%sArmour strength  {x%s\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", armour_strength_table[obj->value[4]].name);
+        (armour_ac_pierce == obj->pIndexData->value[0]) ? "B" : "Y", armour_ac_pierce,
+        (armour_ac_bash == obj->pIndexData->value[1]) ? "B" : "Y", armour_ac_bash,
+        (armour_ac_slash == obj->pIndexData->value[2]) ? "B" : "Y", armour_ac_slash,
+        (armour_ac_exotic == obj->pIndexData->value[3]) ? "B" : "Y", armour_ac_exotic,
+        (armour_strength == obj->pIndexData->value[4]) ? "B" : "Y", armour_strength_table[armour_strength].name);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_ARTIFACT:
         break;
 
     case ITEM_RANGED_WEAPON:
+    {
+        long ranged_weapon_class_value = obj_get_legacy_value_slot(obj, 0);
+        long ranged_weapon_num_dice = obj_get_legacy_value_slot(obj, 1);
+        long ranged_weapon_type_dice = obj_get_legacy_value_slot(obj, 2);
+        long ranged_weapon_distance = obj_get_legacy_value_slot(obj, 3);
+
             sprintf(buf, "{B[  {Wv0{B]{%s Ranged Weapon class:{x   %s\n\r",
-             (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(ranged_weapon_class, obj->value[0]));
+             (ranged_weapon_class_value == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(ranged_weapon_class, ranged_weapon_class_value));
         add_buf(buffer, buf);
 
         sprintf(buf, "{B[  {Wv1{B]{%s Number of dice:{x [%ld]\n\r", 
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+        (ranged_weapon_num_dice == obj->pIndexData->value[1]) ? "B" : "Y", ranged_weapon_num_dice);
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv2{B]{%s Type of dice:{x   [%ld]\n\r", 
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+        (ranged_weapon_type_dice == obj->pIndexData->value[2]) ? "B" : "Y", ranged_weapon_type_dice);
         add_buf(buffer, buf);
 
         sprintf(buf, "{B[  {Wv3{B]{%s Projectile Distance:{x [%ld]\n\r", 
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+        (ranged_weapon_distance == obj->pIndexData->value[3]) ? "B" : "Y", ranged_weapon_distance);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_WEAPON:
+    {
+        long weapon_class_value = obj_get_legacy_value_slot(obj, 0);
+        long weapon_num_dice = obj_get_legacy_value_slot(obj, 1);
+        long weapon_type_dice = obj_get_legacy_value_slot(obj, 2);
+        long weapon_attack_type = obj_get_legacy_value_slot(obj, 3);
+        long weapon_special_type = obj_get_legacy_value_slot(obj, 4);
+
             sprintf(buf, "{B[  {Wv0{B]{%s Weapon class:{x   %s\n\r",
-             (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(weapon_class, obj->value[0]));
+             (weapon_class_value == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(weapon_class, weapon_class_value));
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv1{B]{%s Number of dice:{x [%ld]\n\r", 
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+        (weapon_num_dice == obj->pIndexData->value[1]) ? "B" : "Y", weapon_num_dice);
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv2{B]{%s Type of dice:{x   [%ld]\n\r", 
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+        (weapon_type_dice == obj->pIndexData->value[2]) ? "B" : "Y", weapon_type_dice);
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv3{B]{%s Type:{x           %s\n\r",
-            (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", attack_table[obj->value[3]].name);
+            (weapon_attack_type == obj->pIndexData->value[3]) ? "B" : "Y", attack_table[weapon_attack_type].name);
         add_buf(buffer, buf);
          sprintf(buf, "{B[  {Wv4{B]{%s Special type:{x   %s\n\r",
-             (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(weapon_type2,  obj->value[4]));
+             (weapon_special_type == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(weapon_type2,  weapon_special_type));
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_SHIP:
+    {
+        long ship_weight = obj_get_legacy_value_slot(obj, 0);
+        long ship_move_delay = obj_get_legacy_value_slot(obj, 1);
+        long ship_min_crew = obj_get_legacy_value_slot(obj, 2);
+        long ship_capacity = obj_get_legacy_value_slot(obj, 3);
+        long ship_max_crew = obj_get_legacy_value_slot(obj, 4);
+        long ship_first_room = obj_get_legacy_value_slot(obj, 5);
+        long ship_hit_points = obj_get_legacy_value_slot(obj, 6);
+        long ship_max_guns = obj_get_legacy_value_slot(obj, 7);
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
         "{B[  {Wv1{B]{%s Move delay:{x [%ld]\n\r"
@@ -12124,49 +12218,67 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         "{B[  {Wv5{B]{%s First Room:{x [%ld]\n\r"
         "{B[  {Wv6{B]{%s Hit Points:{x [%ld]\n\r"
         "{B[  {Wv7{B]{%s Max Guns:{x   [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4],
-        (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5],
-        (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
-        (obj->value[7] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
+        (ship_weight == obj->pIndexData->value[0]) ? "B" : "Y", ship_weight,
+        (ship_move_delay == obj->pIndexData->value[1]) ? "B" : "Y", ship_move_delay,
+        (ship_min_crew == obj->pIndexData->value[2]) ? "B" : "Y", ship_min_crew,
+        (ship_capacity == obj->pIndexData->value[3]) ? "B" : "Y", ship_capacity,
+        (ship_max_crew == obj->pIndexData->value[4]) ? "B" : "Y", ship_max_crew,
+        (ship_first_room == obj->pIndexData->value[5]) ? "B" : "Y", ship_first_room,
+        (ship_hit_points == obj->pIndexData->value[6]) ? "B" : "Y", ship_hit_points,
+        (ship_max_guns == obj->pIndexData->value[7]) ? "B" : "Y", ship_max_guns);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_CART:
+    {
+        long cart_weight = obj_get_legacy_value_slot(obj, 0);
+        long cart_move_delay = obj_get_legacy_value_slot(obj, 1);
+        long cart_strength = obj_get_legacy_value_slot(obj, 2);
+        long cart_capacity = obj_get_legacy_value_slot(obj, 3);
+        long cart_weight_mult = obj_get_legacy_value_slot(obj, 4);
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
         "{B[  {Wv1{B]{%s Move delay:{x [%ld]\n\r"
         "{B[  {Wv2{B]{%s Strength:{x   [%ld]\n\r"
         "{B[  {Wv3{B]{%s Capacity:{x    [%ld]\n\r"
         "{B[  {Wv4{B]{%s Weight Mult:{x [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+        (cart_weight == obj->pIndexData->value[0]) ? "B" : "Y", cart_weight,
+        (cart_move_delay == obj->pIndexData->value[1]) ? "B" : "Y", cart_move_delay,
+        (cart_strength == obj->pIndexData->value[2]) ? "B" : "Y", cart_strength,
+        (cart_capacity == obj->pIndexData->value[3]) ? "B" : "Y", cart_capacity,
+        (cart_weight_mult == obj->pIndexData->value[4]) ? "B" : "Y", cart_weight_mult);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_TRADE_TYPE:
+    {
+        long trade_type = obj_get_legacy_value_slot(obj, 0);
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Trade Type:{x     [%s]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", trade_table[ obj->value[0] ].name);
+        (trade_type == obj->pIndexData->value[0]) ? "B" : "Y", trade_table[trade_type].name);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_CONTAINER:
     {
+        long container_weight = obj_get_legacy_value_slot(obj, 0);
+        long container_flags_value = obj_get_legacy_value_slot(obj, 1);
+        long container_key = obj_get_legacy_value_slot(obj, 2);
+        long container_capacity = obj_get_legacy_value_slot(obj, 3);
+        long container_weight_mult = obj_get_legacy_value_slot(obj, 4);
         char *key_name = "none";
-        if (obj->value[2] > 0) {
+        if (container_key > 0) {
             WNUM wnum;
             OBJ_INDEX_DATA *key_index = NULL;
-            if (resolve_widevnum(obj->value[2], NULL, &wnum))
+            if (resolve_widevnum(container_key, NULL, &wnum))
                 key_index = get_obj_index(wnum.pArea, wnum.vnum);
             else
-                key_index = get_obj_index(get_system_area_fallback(), obj->value[2]);
+                key_index = get_obj_index(get_system_area_fallback(), container_key);
             
             if (key_index) key_name = key_index->short_descr;
         }
@@ -12177,123 +12289,177 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         "{B[  {Wv2{B]{%s Key:{x     %s [%ld]\n\r"
         "{B[  {Wv3{B]{%s Capacity:{x    [%ld]\n\r"
         "{B[  {Wv4{B]{%s Weight Mult:{x [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(container_flags, obj->value[1]),
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
+        (container_weight == obj->pIndexData->value[0]) ? "B" : "Y", container_weight,
+        (container_flags_value == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(container_flags, container_flags_value),
+        (container_key == obj->pIndexData->value[2]) ? "B" : "Y", 
         key_name,
-        obj->value[2],
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+        container_key,
+        (container_capacity == obj->pIndexData->value[3]) ? "B" : "Y", container_capacity,
+        (container_weight_mult == obj->pIndexData->value[4]) ? "B" : "Y", container_weight_mult);
         add_buf(buffer, buf);
         break;
     }
 
     case ITEM_WEAPON_CONTAINER:
+    {
+        long weapon_container_weight = obj_get_legacy_value_slot(obj, 0);
+        long weapon_container_type = obj_get_legacy_value_slot(obj, 1);
+        long weapon_container_capacity = obj_get_legacy_value_slot(obj, 3);
+        long weapon_container_weight_mult = obj_get_legacy_value_slot(obj, 4);
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
         "{B[  {Wv1{B]{%s Weapon Type:{x [%s]\n\r"
         "{B[  {Wv3{B]{%s Capacity:{x   [%ld]\n\r"
         "{B[  {Wv4{B]{%s Weight Mult:{x[%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(weapon_class, obj->value[1]),
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+        (weapon_container_weight == obj->pIndexData->value[0]) ? "B" : "Y", weapon_container_weight,
+        (weapon_container_type == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(weapon_class, weapon_container_type),
+        (weapon_container_capacity == obj->pIndexData->value[3]) ? "B" : "Y", weapon_container_capacity,
+        (weapon_container_weight_mult == obj->pIndexData->value[4]) ? "B" : "Y", weapon_container_weight_mult);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_DRINK_CON:
+    {
+        long drink_total = obj_get_legacy_value_slot(obj, 0);
+        long drink_left = obj_get_legacy_value_slot(obj, 1);
+        long drink_liquid = obj_get_legacy_value_slot(obj, 2);
+        long drink_poisoned = obj_get_legacy_value_slot(obj, 3);
+
         sprintf(buf,
             "{B[  {Wv0{B]{%s Liquid Total:{x [%ld]\n\r"
             "{B[  {Wv1{B]{%s Liquid Left:{x  [%ld]\n\r"
             "{B[  {Wv2{B]{%s Liquid:{x       %s\n\r"
             "{B[  {Wv3{B]{%s Poisoned:{x     %s\n\r",
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-            (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liquid_name(obj->value[2]),
-            (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3] != 0 ? "Yes" : "No");
+            (drink_total == obj->pIndexData->value[0]) ? "B" : "Y", drink_total,
+            (drink_left == obj->pIndexData->value[1]) ? "B" : "Y", drink_left,
+            (drink_liquid == obj->pIndexData->value[2]) ? "B" : "Y", liquid_name(drink_liquid),
+            (drink_poisoned == obj->pIndexData->value[3]) ? "B" : "Y", drink_poisoned != 0 ? "Yes" : "No");
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_FOUNTAIN:
+    {
+        long fountain_total = obj_get_legacy_value_slot(obj, 0);
+        long fountain_left = obj_get_legacy_value_slot(obj, 1);
+        long fountain_liquid = obj_get_legacy_value_slot(obj, 2);
+
         sprintf(buf,
             "{B[  {Wv0{B]{%s Liquid Total:{x [%ld]\n\r"
             "{B[  {Wv1{B]{%s Liquid Left:{x  [%ld]\n\r"
             "{B[  {Wv2{B]{%s Liquid:{x     %s\n\r",
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-            (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liquid_name(obj->value[2]));
+            (fountain_total == obj->pIndexData->value[0]) ? "B" : "Y", fountain_total,
+            (fountain_left == obj->pIndexData->value[1]) ? "B" : "Y", fountain_left,
+            (fountain_liquid == obj->pIndexData->value[2]) ? "B" : "Y", liquid_name(fountain_liquid));
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_FOOD:
+    {
+        long food_hours = obj_get_legacy_value_slot(obj, 0);
+        long food_full_hours = obj_get_legacy_value_slot(obj, 1);
+        long food_poisoned = obj_get_legacy_value_slot(obj, 3);
+        long food_timer = obj_get_legacy_value_slot(obj, 4);
+
         sprintf(buf,
         "{B[  {Wv0{B]{%s Food hours:{x [%ld]\n\r"
         "{B[  {Wv1{B]{%s Full hours:{x [%ld]\n\r"
         "{B[  {Wv3{B]{%s Poisoned  :{x  %s\n\r"
         "{B[  {Wv4{B]{%s Timer     :{x [%ld]\n\r",
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3] != 0 ? "Yes" : "No",
-        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+        (food_hours == obj->pIndexData->value[0]) ? "B" : "Y", food_hours,
+        (food_full_hours == obj->pIndexData->value[1]) ? "B" : "Y", food_full_hours,
+        (food_poisoned == obj->pIndexData->value[3]) ? "B" : "Y", food_poisoned != 0 ? "Yes" : "No",
+        (food_timer == obj->pIndexData->value[4]) ? "B" : "Y", food_timer);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_MONEY:
-            sprintf(buf, "{B[  {Wv0{B]{%s Silver:{x [%ld]\n\r", 
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+    {
+        long money_silver = obj_get_legacy_value_slot(obj, 0);
+        long money_gold = obj_get_legacy_value_slot(obj, 1);
+
+        sprintf(buf, "{B[  {Wv0{B]{%s Silver:{x [%ld]\n\r", 
+            (money_silver == obj->pIndexData->value[0]) ? "B" : "Y", money_silver);
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv1{B]{%s Gold:{x   [%ld]\n\r", 
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+        (money_gold == obj->pIndexData->value[1]) ? "B" : "Y", money_gold);
         add_buf(buffer, buf);
         break;
+    }
 
-        case ITEM_MIST:
+    case ITEM_MIST:
+    {
+        long mist_hide_objects = obj_get_legacy_value_slot(obj, 0);
+        long mist_hide_characters = obj_get_legacy_value_slot(obj, 1);
+
         sprintf(buf, "{B[  {Wv0{B]{%s %%HideObjects:{x    [%ld]\n\r", 
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+        (mist_hide_objects == obj->pIndexData->value[0]) ? "B" : "Y", mist_hide_objects);
         add_buf(buffer, buf);
         sprintf(buf, "{B[  {Wv1{B]{%s %%HideCharacters:{x [%ld]\n\r", 
-        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[1]);
+        (mist_hide_objects == obj->pIndexData->value[0]) ? "B" : "Y", mist_hide_characters);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_CORPSE_NPC:
+    {
+        long corpse_type = obj_get_legacy_value_slot(obj, 0);
+        long corpse_resurrection = obj_get_legacy_value_slot(obj, 1);
+        long corpse_animation = obj_get_legacy_value_slot(obj, 2);
+        long corpse_parts = obj_get_legacy_value_slot(obj, 3);
+        long corpse_mobile_vnum = obj_get_legacy_value_slot(obj, 5);
+
         sprintf(buf,
             "{B[  {Wv0{B]{%s Type:{x           %s\n\r"
             "{B[  {Wv1{B]{%s Resurrection:{x   %d%%\n\r"
             "{B[  {Wv2{B]{%s Animation:{x      %d%%\n\r"
             "{B[  {Wv3{B]{%s Body Parts:{x     %s\n\r"
             "{B[  {Wv5{B]{%s Mobile (vnum):{x  %d\n\r",
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(corpse_types,obj->value[0]),
-            (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", (int)obj->value[1],
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", (int)obj->value[2],
-            (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", flag_string(part_flags, obj->value[3]),
-            (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", (int)obj->value[5]);
+            (corpse_type == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(corpse_types, corpse_type),
+            (corpse_resurrection == obj->pIndexData->value[1]) ? "B" : "Y", (int)corpse_resurrection,
+            (corpse_animation == obj->pIndexData->value[2]) ? "B" : "Y", (int)corpse_animation,
+            (corpse_parts == obj->pIndexData->value[3]) ? "B" : "Y", flag_string(part_flags, corpse_parts),
+            (corpse_mobile_vnum == obj->pIndexData->value[5]) ? "B" : "Y", (int)corpse_mobile_vnum);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_INSTRUMENT:
+    {
+        long instrument_type = obj_get_legacy_value_slot(obj, 0);
+        long instrument_flags_value = obj_get_legacy_value_slot(obj, 1);
+        long instrument_min_time_factor = obj_get_legacy_value_slot(obj, 2);
+        long instrument_max_time_factor = obj_get_legacy_value_slot(obj, 3);
+
         sprintf(buf,
             "{B[  {Wv0{B]{%s Type:{x            %s\n\r"
             "{B[  {Wv1{B]{%s Flags:{x           %s\n\r"
             "{B[  {Wv2{B]{%s Min Time Factor:{x %ld%%\n\r"
             "{B[  {Wv3{B]{%s Max Time Factor:{x %ld%%\n\r",
-            (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(instrument_types, obj->value[0]),
-            (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(instrument_flags, obj->value[1]),
-            (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-            (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+            (instrument_type == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(instrument_types, instrument_type),
+            (instrument_flags_value == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(instrument_flags, instrument_flags_value),
+            (instrument_min_time_factor == obj->pIndexData->value[2]) ? "B" : "Y", instrument_min_time_factor,
+            (instrument_max_time_factor == obj->pIndexData->value[3]) ? "B" : "Y", instrument_max_time_factor);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_BOOK:
     {
+        long book_flags = obj_get_legacy_value_slot(obj, 1);
+        long book_key = obj_get_legacy_value_slot(obj, 2);
         char *key_name = "none";
-        if (obj->value[2] > 0) {
+        if (book_key > 0) {
             WNUM wnum;
             OBJ_INDEX_DATA *key_index = NULL;
-            if (resolve_widevnum(obj->value[2], NULL, &wnum))
+            if (resolve_widevnum(book_key, NULL, &wnum))
                 key_index = get_obj_index(wnum.pArea, wnum.vnum);
             else
-                key_index = get_obj_index(get_system_area_fallback(), obj->value[2]);
+                key_index = get_obj_index(get_system_area_fallback(), book_key);
             
             if (key_index) key_name = key_index->short_descr;
         }
@@ -12301,27 +12467,34 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         sprintf(buf,
         "{B[  {Wv1{B]{%s Flags:{x      [%s]\n\r"
         "{B[  {Wv2{B]{%s Key:{x     %s [%ld]\n\r",
-        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", 
-        flag_string(container_flags, obj->value[1]),
-        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
+        (book_flags == obj->pIndexData->value[1]) ? "B" : "Y", 
+        flag_string(container_flags, book_flags),
+        (book_key == obj->pIndexData->value[2]) ? "B" : "Y", 
         key_name,
-        obj->value[2]);
+        book_key);
         add_buf(buffer, buf);
         break;
     }
 
     case ITEM_TELESCOPE:
-        if( obj->value[4] < 0 )
+    {
+        long telescope_current_distance = obj_get_legacy_value_slot(obj, 0);
+        long telescope_min_distance = obj_get_legacy_value_slot(obj, 1);
+        long telescope_max_distance = obj_get_legacy_value_slot(obj, 2);
+        long telescope_bonusview_size = obj_get_legacy_value_slot(obj, 3);
+        long telescope_current_heading = obj_get_legacy_value_slot(obj, 4);
+
+        if( telescope_current_heading < 0 )
             sprintf(buf,
                 "{B[  {Wv0{B]{%s Current Distance:{x  [%ld]\n\r"
                 "{B[  {Wv1{B]{%s Minimum Distance:{x  [%ld]\n\r"
                 "{B[  {Wv2{B]{%s Maximum Distance:{x  [%ld]\n\r"
                 "{B[  {Wv3{B]{%s Bonusview Size:{x    [%ld]\n\r"
                 "{B[  {Wv4{B]{B Current Heading:{x   [none]\n\r",
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                    (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-                    (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-                    (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+                    (telescope_current_distance == obj->pIndexData->value[0]) ? "B" : "Y", telescope_current_distance,
+                    (telescope_min_distance == obj->pIndexData->value[1]) ? "B" : "Y", telescope_min_distance,
+                    (telescope_max_distance == obj->pIndexData->value[2]) ? "B" : "Y", telescope_max_distance,
+                    (telescope_bonusview_size == obj->pIndexData->value[3]) ? "B" : "Y", telescope_bonusview_size);
         else
             sprintf(buf,
                 "{B[  {Wv0{B]{%s Current Distance:{x  [%ld]\n\r"
@@ -12329,47 +12502,57 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
                 "{B[  {Wv2{B]{%s Maximum Distance:{x  [%ld]\n\r"
                 "{B[  {Wv3{B]{%s Bonusview Size:{x    [%ld]\n\r"
                 "{B[  {Wv4{B]{%s Current Heading:{x   [%ld]\n\r",
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                    (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
-                    (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-                    (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
-                    (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+                    (telescope_current_distance == obj->pIndexData->value[0]) ? "B" : "Y", telescope_current_distance,
+                    (telescope_min_distance == obj->pIndexData->value[1]) ? "B" : "Y", telescope_min_distance,
+                    (telescope_max_distance == obj->pIndexData->value[2]) ? "B" : "Y", telescope_max_distance,
+                    (telescope_bonusview_size == obj->pIndexData->value[3]) ? "B" : "Y", telescope_bonusview_size,
+                    (telescope_current_heading == obj->pIndexData->value[4]) ? "B" : "Y", telescope_current_heading);
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_COMPASS:
-        if( obj->value[1] > 0 )
+    {
+        long compass_accuracy = obj_get_legacy_value_slot(obj, 0);
+        long compass_wilds_uid = obj_get_legacy_value_slot(obj, 1);
+        long compass_x = obj_get_legacy_value_slot(obj, 2);
+        long compass_y = obj_get_legacy_value_slot(obj, 3);
+
+        if( compass_wilds_uid > 0 )
         {
-            WILDS_DATA *pWilds = get_wilds_from_uid(NULL,obj->value[1]);
+            WILDS_DATA *pWilds = get_wilds_from_uid(NULL, compass_wilds_uid);
 
             sprintf(buf,
                 "{B[  {Wv0{B]{%s Accuracy:{x      [%ld]\n\r"
                 "{B[  {Wv1{B]{%s Wilderness:{x    [%ld] %s\n\r"
                 "{B[  {Wv2{B]{%s X Coordinate:{x  [%ld]\n\r"
                 "{B[  {Wv3{B]{%s Y Coordinate:{x  [%ld]\n\r",
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
-                    (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1], (pWilds?pWilds->name:"???"),
-                    (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
-                    (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+                    (compass_accuracy == obj->pIndexData->value[0]) ? "B" : "Y", compass_accuracy,
+                    (compass_wilds_uid == obj->pIndexData->value[1]) ? "B" : "Y", compass_wilds_uid, (pWilds?pWilds->name:"???"),
+                    (compass_x == obj->pIndexData->value[2]) ? "B" : "Y", compass_x,
+                    (compass_y == obj->pIndexData->value[3]) ? "B" : "Y", compass_y);
         }
         else
         {
             sprintf(buf,
                 "{B[  {Wv0{B]{%s Accuracy:{x      [%ld]\n\r"
                 "{B[  {Wv1{B]{B Wilderness:{x    [none]\n\r",
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+                    (compass_accuracy == obj->pIndexData->value[0]) ? "B" : "Y", compass_accuracy);
         }
         add_buf(buffer, buf);
         break;
+    }
 
     case ITEM_BODY_PART:
         {
-            RACE_DATA *body_race = race_lookup_uid(obj->value[1]);
+            long body_parts = obj_get_legacy_value_slot(obj, 0);
+            long body_race_uid = obj_get_legacy_value_slot(obj, 1);
+            RACE_DATA *body_race = race_lookup_uid(body_race_uid);
             sprintf(buf,
                     "{B[  {Wv0{B]{%s Body Parts:{x    %s\n\r"
                     "{B[  {Wv1{B]{%s Race:{x          %s\n\r",
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(part_flags, obj->value[0]),
-                    (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", body_race ? body_race->name : "unknown");
+                    (body_parts == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(part_flags, body_parts),
+                    (body_parts == obj->pIndexData->value[0]) ? "B" : "Y", body_race ? body_race->name : "unknown");
         }
 
         add_buf(buffer, buf);

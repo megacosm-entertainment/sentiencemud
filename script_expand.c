@@ -1731,6 +1731,9 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     int event_goal = 0;
     bool event_active = false;
     bool leader_phase = false;
+    char event_phase_name[MIL];
+
+    event_phase_name[0] = '\0';
 
     if (self) {
         if (!event_get_mobile_spawn_source(self, &event_uid, &event_instance_id) || event_uid <= 0)
@@ -1740,6 +1743,8 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             event_active = event_runtime_get_source_progress(event_uid, event_instance_id, &event_kills, &event_items, &event_goal);
         if (event_active)
             event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+        if (event_active)
+            event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
     }
 
     switch(*str) {
@@ -2139,6 +2144,8 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_STRING;
         if (!event_active)
             arg->d.str = (char *)&str_empty[0];
+        else if (!IS_NULLSTR(event_phase_name))
+            arg->d.str = event_phase_name;
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;
@@ -2581,19 +2588,26 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         uint32_t event_instance_id = 0;
         bool leader_phase = false;
         bool active = false;
+        char phase_name[MIL];
+
+        phase_name[0] = '\0';
 
         if (self)
             event_get_object_spawn_source(self, &event_uid, &event_instance_id);
 
         if (event_uid > 0) {
             active = event_runtime_get_source_progress(event_uid, event_instance_id, NULL, NULL, NULL);
-            if (active)
+            if (active) {
                 event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+                event_runtime_get_source_phase(event_uid, event_instance_id, phase_name, sizeof(phase_name));
+            }
         }
 
         arg->type = ENT_STRING;
         if (!active)
             arg->d.str = (char *)&str_empty[0];
+        else if (!IS_NULLSTR(phase_name))
+            arg->d.str = phase_name;
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;

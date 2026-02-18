@@ -33,6 +33,7 @@ long last_token_id;
 long last_obj_id;
 
 AFFECT_DATA *affect_free;
+CATALYST_DATA *catalyst_free;
 AFFLICTION_DATA *affliction_free;
 AMBUSH_DATA *ambush_free;
 AREA_DATA *area_free;
@@ -471,6 +472,41 @@ void free_affect(AFFECT_DATA *af)
 }
 
 
+CATALYST_DATA *new_catalyst(void)
+{
+    static CATALYST_DATA cat_zero;
+    CATALYST_DATA *cat;
+
+    if (catalyst_free == NULL)
+        cat = alloc_perm(sizeof(*cat));
+    else
+    {
+        cat = catalyst_free;
+        catalyst_free = catalyst_free->next;
+    }
+
+    *cat = cat_zero;
+    cat->custom_name = NULL;
+
+    VALIDATE(cat);
+    return cat;
+}
+
+
+void free_catalyst(CATALYST_DATA *cat)
+{
+    if (!IS_VALID(cat))
+        return;
+
+    INVALIDATE(cat);
+    cat->next = catalyst_free;
+    catalyst_free = cat;
+
+    free_string(cat->custom_name);
+    cat->custom_name = NULL;
+}
+
+
 OBJ_DATA *new_obj(void)
 {
     static OBJ_DATA obj_zero;
@@ -503,6 +539,7 @@ OBJ_DATA *new_obj(void)
 void free_obj(OBJ_DATA *obj)
 {
     AFFECT_DATA *paf, *paf_next;
+    CATALYST_DATA *cat, *cat_next;
     EXTRA_DESCR_DATA *ed, *ed_next;
     EVENT_DATA *ev, *ev_next;
     TOKEN_DATA *token, *token_next;
@@ -517,12 +554,12 @@ void free_obj(OBJ_DATA *obj)
     }
     obj->affected = NULL;
 
-    for (paf = obj->catalyst; paf != NULL; paf = paf_next)
+    for (cat = obj->catalyst; cat != NULL; cat = cat_next)
     {
-    paf_next = paf->next;
-    free_affect(paf);
+    cat_next = cat->next;
+    free_catalyst(cat);
     }
-    obj->affected = NULL;
+    obj->catalyst = NULL;
 
     for (ed = obj->extra_descr; ed != NULL; ed = ed_next )
     {
@@ -2286,6 +2323,7 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->next          =   NULL;
     pObj->extra_descr   =   NULL;
     pObj->affected      =   NULL;
+    pObj->catalyst      =   NULL;
     pObj->area          =   NULL;
     pObj->name          =   str_dup( "no name" );
     pObj->short_descr   =   str_dup( "(no short description)" );
@@ -2322,6 +2360,7 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 {
     EXTRA_DESCR_DATA *pExtra;
     AFFECT_DATA *pAf;
+    CATALYST_DATA *cat, *cat_next;
 
     free_string( pObj->name );
     free_string( pObj->short_descr );
@@ -2336,6 +2375,12 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 
     for ( pAf = pObj->affected; pAf; pAf = pAf->next )
         free_affect( pAf );
+
+    for (cat = pObj->catalyst; cat; cat = cat_next)
+    {
+        cat_next = cat->next;
+        free_catalyst(cat);
+    }
 
     for ( pExtra = pObj->extra_descr; pExtra; pExtra = pExtra->next )
         free_extra_descr( pExtra );

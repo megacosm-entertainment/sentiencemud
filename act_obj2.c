@@ -174,7 +174,8 @@ void do_deposit(CHAR_DATA *ch, char *argument)
  * at a specified level. Reports best weapon for each type:
  * sword, dagger, polearm, axe, exotic.
  *
- * Uses average damage formula: (1 + value[2]) * value[1] / 2
+ * Uses average damage formula: (1 + WEAPON(obj)->damage.size)
+ * * WEAPON(obj)->damage.number / 2
  *
  * @param ch        Character (should be staff)
  * @param argument  Level number to search
@@ -1080,8 +1081,9 @@ void do_consume(CHAR_DATA *ch, char *argument)
  * do_touch - Activate a tattoo's magical effects
  *
  * Touches a worn tattoo to trigger its stored spells. Each use
- * decrements the tattoo's charge counter (value[0]). After use,
- * there's a chance (value[1]%) the tattoo fades permanently.
+ * decrements the tattoo's charge counter (TATTOO(obj)->touches).
+ * After use, there's a chance (TATTOO(obj)->fading_chance%)
+ * the tattoo fades permanently.
  *
  * @param ch        Character touching the tattoo
  * @param argument  Name of tattoo to touch
@@ -1605,7 +1607,7 @@ void do_activate(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
     OBJ_DATA *obj;
-    AFFECT_DATA *aff;
+    CATALYST_DATA *cat;
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
@@ -1629,9 +1631,9 @@ void do_activate(CHAR_DATA *ch, char *argument)
         if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
         {
             REMOVE_BIT(obj->extra[2], ITEM_ACTIVATED);
-            for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+            for (cat = obj->catalyst; cat != NULL; cat = cat->next)
             {
-                aff->where = TO_CATALYST_DORMANT;
+                cat->where = TO_CATALYST_DORMANT;
             }
             act("You will no longer use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             
@@ -1639,9 +1641,9 @@ void do_activate(CHAR_DATA *ch, char *argument)
         else
         {
             SET_BIT(obj->extra[2], ITEM_ACTIVATED);
-            for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+            for (cat = obj->catalyst; cat != NULL; cat = cat->next)
             {
-                aff->where = TO_CATALYST_ACTIVE;
+                cat->where = TO_CATALYST_ACTIVE;
             }
             act("You will now use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         }

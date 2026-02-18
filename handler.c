@@ -603,10 +603,10 @@ int get_skill(CHAR_DATA *ch, int sn)
     else
         skill = 0;
 
-    /* Cross-class scope check: if skill was granted by a class, verify it's
-     * still available with the character's current active class. */
+    /* Cross-class scope check: verify class-granted skills are currently
+     * available with the character's active class setup. */
     if (skill > 0) {
-        if (entry && entry->source_class && !is_skill_available_for_class(ch, entry))
+        if (entry && !skill_entry_is_usable_now(ch, entry))
             skill = 0;
     }
 
@@ -1524,28 +1524,28 @@ void affect_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 }
 
 /* give an affect to an object */
-void catalyst_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
+void catalyst_to_obj(OBJ_DATA *obj, CATALYST_DATA *cat)
 {
-    AFFECT_DATA *paf_new, *cat;
+    CATALYST_DATA *cat_new, *existing;
 
-    for(cat = obj->catalyst; cat; cat = cat->next) {
-        if(cat->type == paf->type && cat->level == paf->level) {
-            if(cat->modifier < 0 || paf->modifier < 0)
-                cat->duration = cat->modifier = -1;
+    for(existing = obj->catalyst; existing; existing = existing->next) {
+        if(existing->type == cat->type && existing->level == cat->level) {
+            if(existing->modifier < 0 || cat->modifier < 0)
+                existing->duration = existing->modifier = -1;
             else
-                cat->duration += (paf->level * paf->modifier);
+                existing->duration += (cat->level * cat->modifier);
             return;
         }
     }
 
-    paf_new = new_affect();
+    cat_new = new_catalyst();
 
-    *paf_new		= *paf;
+    *cat_new		= *cat;
 
-    VALIDATE(paf);	/* in case we missed it when we set up paf */
-    paf_new->next	= obj->catalyst;
-    obj->catalyst	= paf_new;
-    paf_new->duration = (paf_new->modifier > 0) ? (paf_new->level * paf_new->modifier) : -1;
+    VALIDATE(cat);	/* in case we missed it when we set up cat */
+    cat_new->next	= obj->catalyst;
+    obj->catalyst	= cat_new;
+    cat_new->duration = (cat_new->modifier > 0) ? (cat_new->level * cat_new->modifier) : -1;
 }
 
 
@@ -6975,13 +6975,8 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
         return false;
 
         /*
-    if (get_obj_weight(obj) + (get_obj_weight_container(container) * WEIGHT_MULT(container))/100
-        > (container->value[0])
-        ||  (get_obj_number_container(container) >= container->value[3]))
-    {
-        act("$p won't fit in $P.", ch, obj, container, TO_CHAR);
-        return false;
-    }
+    Legacy slot-based container capacity check retained here for reference.
+    Runtime checks now use typed container data paths.
     */
 
     if (container->item_type == ITEM_WEAPON_CONTAINER
@@ -7511,6 +7506,14 @@ TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, AREA_DATA *area, in
 }
 
 
+static inline int legacy_obj_index_value_get(const OBJ_INDEX_DATA *pObj, int slot)
+{
+    if (!pObj || slot < 0 || slot > 7)
+        return 0;
+    return pObj->value[slot];
+}
+
+
 
 /* Syn - this function fixes the problems with staves, potions, scrolls, and wands.
    It takes the spell numbers (previously stored in the v0-v9 values) and changes them
@@ -7526,11 +7529,11 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
     ||  obj->item_type == ITEM_POTION
     ||  obj->item_type == ITEM_PILL) {
     for (val = 1; val < 8; val++) {
-        if (obj->value[val] > 0) {
+        if (legacy_obj_index_value_get(obj, val) > 0) {
          /* Don't put the same spell on twice. */
          already_has_spell = false;
          for (spell = obj->spells; spell != NULL; spell = spell->next) {
-             if (spell->sn == obj->value[val])
+             if (spell->sn == legacy_obj_index_value_get(obj, val))
              already_has_spell = true;
          }
 
@@ -7538,8 +7541,8 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
              continue;
 
          spell 		= new_spell();
-         spell->sn	= obj->value[val];
-         spell->level	= obj->value[0];
+         spell->sn	= legacy_obj_index_value_get(obj, val);
+         spell->level	= legacy_obj_index_value_get(obj, 0);
          spell->repop	= 100; // Assuming 100 on objects made before rand was implemented
          spell->next     = NULL;
          if (!str_cmp(skill_table[spell->sn].name, "none"))
@@ -7557,10 +7560,10 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 
              log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Obj %s (%ld): Added spell %s, level %d, random %d.",
                  obj->short_descr, obj->vnum,
-                 skill_table[obj->value[val]].name, spell->level, spell->repop);
+                 skill_table[legacy_obj_index_value_get(obj, val)].name, spell->level, spell->repop);
          }
 
-         obj->value[val] = 0; // Reset val to 0 since it won't any longer be needed
+         obj->value[val] = 0; // Reset legacy slot after migration
         }
     }
     }
@@ -7569,11 +7572,11 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
     if (obj->item_type == ITEM_WAND
     ||  obj->item_type == ITEM_STAFF) {
          for (val = 3; val < 8; val++) {
-         if (obj->value[val] > 0) {
+         if (legacy_obj_index_value_get(obj, val) > 0) {
          /* Don't put the same spell on twice. */
          already_has_spell = false;
          for (spell = obj->spells; spell != NULL; spell = spell->next) {
-             if (spell->sn == obj->value[val])
+             if (spell->sn == legacy_obj_index_value_get(obj, val))
              already_has_spell = true;
          }
 
@@ -7581,8 +7584,8 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
              continue;
 
          spell 		= new_spell();
-         spell->sn	= obj->value[val];
-         spell->level	= obj->value[0];
+         spell->sn	= legacy_obj_index_value_get(obj, val);
+         spell->level	= legacy_obj_index_value_get(obj, 0);
          spell->repop	= 100; // Assuming 100 on objects made before rand was implemented
          spell->next     = NULL;
 
@@ -7601,7 +7604,7 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 
              log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Obj %s (%ld): Added spell %s, level %d, random %d.",
                  obj->short_descr, obj->vnum,
-                 skill_table[obj->value[val]].name, spell->level, spell->repop);
+                 skill_table[legacy_obj_index_value_get(obj, val)].name, spell->level, spell->repop);
          }
          obj->value[val] = 0;
          }
@@ -7904,7 +7907,7 @@ int has_catalyst(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int type, int method, int
     int total;
     OBJ_DATA *obj;
     OBJ_DATA *objNest;
-    AFFECT_DATA *aff;
+    CATALYST_DATA *cat;
     ITERATOR it;
 
     // For now, it just checks to see if it has WARP_STONES...  CHECK: fixed to check any catalyst type
@@ -7928,31 +7931,31 @@ int has_catalyst(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int type, int method, int
                 if((IS_SET(method,CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
                     (IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
                     IS_SET(method,(CATALYST_CARRY))) {
-                        for(aff = obj->catalyst; aff; aff = aff->next) 
-                            if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-                                if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                        for(cat = obj->catalyst; cat; cat = cat->next) 
+                            if(cat->level >= min_strength && cat->level <= max_strength && cat->type == type) {
+                                if(IS_SET(method, CATALYST_ACTIVE) && (cat->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
                                     continue;
 
-                                if(aff->duration < 0) {
+                                if(cat->duration < 0) {
                                     iterator_stop(&it);
                                     return -1;    // Negative is treated as a "source"
                                 }
 
-                                total += aff->duration;
+                                total += cat->duration;
                             }
                 } else if(obj->contains && IS_SET(method,CATALYST_CONTAINERS)) {    /* look in bags too */
                     // Navigate through container contents
                     for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
-                        for(aff = objNest->catalyst; aff; aff = aff->next) 
-                            if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-                                if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                        for(cat = objNest->catalyst; cat; cat = cat->next) 
+                            if(cat->level >= min_strength && cat->level <= max_strength && cat->type == type) {
+                                if(IS_SET(method, CATALYST_ACTIVE) && (cat->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
                                     continue;
-                                if(aff->duration < 0) {
+                                if(cat->duration < 0) {
                                     iterator_stop(&it);
                                     return -1;    // Negative is treated as a "source"
                                 }
 
-                                total += aff->duration;
+                                total += cat->duration;
                             }
                     }
                 }
@@ -7966,29 +7969,29 @@ int has_catalyst(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int type, int method, int
         if (room->lcontents) {
             iterator_start(&it, room->lcontents);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                for(aff = obj->catalyst; aff; aff = aff->next) 
-                    if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-                        if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                for(cat = obj->catalyst; cat; cat = cat->next) 
+                    if(cat->level >= min_strength && cat->level <= max_strength && cat->type == type) {
+                        if(IS_SET(method, CATALYST_ACTIVE) && (cat->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
                             continue;
-                        if(aff->duration < 0) {
+                        if(cat->duration < 0) {
                             iterator_stop(&it);
                             return -1;    // Negative is treated as a "source"
                         }
-                        total += aff->duration;
+                        total += cat->duration;
                     }
                 
                 // Check container contents
                 if (obj->contains) {
                     for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
-                        for(aff = objNest->catalyst; aff; aff = aff->next) 
-                            if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-                                if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                        for(cat = objNest->catalyst; cat; cat = cat->next) 
+                            if(cat->level >= min_strength && cat->level <= max_strength && cat->type == type) {
+                                if(IS_SET(method, CATALYST_ACTIVE) && (cat->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
                                     continue;
-                                if(aff->duration < 0) {
+                                if(cat->duration < 0) {
                                     iterator_stop(&it);
                                     return -1;    // Negative is treated as a "source"
                                 }
-                                total += aff->duration;
+                                total += cat->duration;
                             }
                     }
                 }
@@ -8004,7 +8007,7 @@ int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int ty
 {
     bool used;
     int total = 0;
-    AFFECT_DATA *aff, *prev, *next;
+    CATALYST_DATA *cat, *prev, *next;
 
     if(!obj) return 0;
 
@@ -8013,23 +8016,23 @@ int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int ty
     if(!room) return 0;
 
     used = false;
-    for(prev = NULL, aff = obj->catalyst; aff && total < left; aff = next) {
-        next = aff->next;
-        if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-            if(active && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT)) continue;
+    for(prev = NULL, cat = obj->catalyst; cat && total < left; cat = next) {
+        next = cat->next;
+        if(cat->level >= min_strength && cat->level <= max_strength && cat->type == type) {
+            if(active && (cat->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT)) continue;
 
-            if(aff->duration < 0) {
+            if(cat->duration < 0) {
                 if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
                     act("$p pulsates brightly.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
                 return -1;
             }
 
-            if(total + aff->duration <= left) {
-                total += aff->duration;
+            if(total + cat->duration <= left) {
+                total += cat->duration;
                 if(prev) prev->next = next;
                 else obj->catalyst = next;
 
-                free_affect(aff);
+                free_catalyst(cat);
 
                 if(!obj->catalyst) {    // All catalyst affects have been exhausted
                     if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL) && ch)
@@ -8038,13 +8041,13 @@ int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int ty
                     return total;
                 }
             } else {
-                aff->duration -= left - total;
+                cat->duration -= left - total;
                 total = left;
             }
 
             used = true;
         } else {
-            prev = aff;
+            prev = cat;
         }
     }
 

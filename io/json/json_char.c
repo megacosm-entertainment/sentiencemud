@@ -418,13 +418,18 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
 
     // Catalysts
     catalysts_array = json_array();
-    for (paf = obj->catalyst; paf; paf = paf->next) {
-        json_t *cat = json_persist_affect_to_json(paf);
-        if (cat) {
-            json_object_set_new(cat, "catalyst_type",
-                json_string(flag_string(catalyst_types, paf->type)));
-            json_array_append_new(catalysts_array, cat);
-        }
+    for (CATALYST_DATA *cat_data = obj->catalyst; cat_data; cat_data = cat_data->next) {
+        json_t *cat = json_object();
+        json_object_set_new(cat, "where", json_integer(cat_data->where));
+        json_object_set_new(cat, "level", json_integer(cat_data->level));
+        json_object_set_new(cat, "duration", json_integer(cat_data->duration));
+        json_object_set_new(cat, "modifier", json_integer(cat_data->modifier));
+        json_object_set_new(cat, "random", json_integer(cat_data->random));
+        if (!IS_NULLSTR(cat_data->custom_name))
+            json_object_set_new(cat, "custom_name", json_string(cat_data->custom_name));
+        json_object_set_new(cat, "catalyst_type",
+            json_string(flag_string(catalyst_types, cat_data->type)));
+        json_array_append_new(catalysts_array, cat);
     }
     if (json_array_size(catalysts_array) > 0) {
         json_object_set_new(json_obj, "catalysts", catalysts_array);
@@ -2385,10 +2390,19 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     value = json_object_get(json_obj, "catalysts");
     if (value && json_is_array(value)) {
         json_array_foreach(value, index, array_elem) {
-            AFFECT_DATA *paf = json_persist_json_to_affect(array_elem);
-            if (paf) {
-                paf->next = obj->catalyst;
-                obj->catalyst = paf;
+            CATALYST_DATA *cat = new_catalyst();
+            if (cat) {
+                cat->where = json_get_int_default(array_elem, "where", TO_CATALYST_DORMANT);
+                cat->level = json_get_int_default(array_elem, "level", 0);
+                cat->duration = json_get_int_default(array_elem, "duration", 0);
+                cat->modifier = json_get_int_default(array_elem, "modifier", 0);
+                cat->random = json_get_int_default(array_elem, "random", 0);
+                const char *name = json_get_string_default(array_elem, "custom_name", "");
+                if (name && name[0] != '\0')
+                    cat->custom_name = str_dup(name);
+                cat->type = flag_value(catalyst_types, (char *)json_get_string_default(array_elem, "catalyst_type", ""));
+                cat->next = obj->catalyst;
+                obj->catalyst = cat;
             }
         }
     }

@@ -3230,26 +3230,26 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     }
 
     // for catalysts
-    for (paf = obj->catalyst; paf != NULL; paf = paf->next)
+    for (CATALYST_DATA *cat = obj->catalyst; cat != NULL; cat = cat->next)
     {
-        if( IS_NULLSTR(paf->custom_name) )
+        if( IS_NULLSTR(cat->custom_name) )
         {
             fprintf(fp, "%s '%s' %3d %3d %3d\n",
-                ((paf->where == TO_CATALYST_ACTIVE) ? "CataA" : "Cata"),
-                flag_string( catalyst_types, paf->type ),
-                paf->level,
-                paf->modifier,
-                paf->duration);
+                ((cat->where == TO_CATALYST_ACTIVE) ? "CataA" : "Cata"),
+                flag_string( catalyst_types, cat->type ),
+                cat->level,
+                cat->modifier,
+                cat->duration);
         }
         else
         {
             fprintf(fp, "%s '%s' %3d %3d %3d %s\n",
-                ((paf->where == TO_CATALYST_ACTIVE) ? "CataNA" : "CataN"),
-                flag_string( catalyst_types, paf->type ),
-                paf->level,
-                paf->modifier,
-                paf->duration,
-                paf->custom_name
+                ((cat->where == TO_CATALYST_ACTIVE) ? "CataNA" : "CataN"),
+                flag_string( catalyst_types, cat->type ),
+                cat->level,
+                cat->modifier,
+                cat->duration,
+                cat->custom_name
                 );
         }
     }
@@ -3591,22 +3591,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
         case 'C':
             if (!str_cmp(word, "Cata"))
             {
-                AFFECT_DATA *paf;
+                CATALYST_DATA *cat;
 
-                paf = new_affect();
+                cat = new_catalyst();
 
-                paf->type = flag_value(catalyst_types,fread_word(fp));
-                if(paf->type == NO_FLAG) {
+                cat->type = flag_value(catalyst_types,fread_word(fp));
+                if(cat->type == NO_FLAG) {
                     log_string("fread_char: invalid catalyst type.");
-                    free_affect(paf);
+                    free_catalyst(cat);
                 } else {
-                    paf->custom_name = NULL;
-                    paf->where		= TO_CATALYST_DORMANT;
-                    paf->level       = fread_number(fp);
-                    paf->modifier    = fread_number(fp);
-                    paf->duration    = fread_number(fp);
-                    paf->next        = obj->catalyst;
-                    obj->catalyst    = paf;
+                    cat->custom_name = NULL;
+                    cat->where		= TO_CATALYST_DORMANT;
+                    cat->level       = fread_number(fp);
+                    cat->modifier    = fread_number(fp);
+                    cat->duration    = fread_number(fp);
+                    cat->next        = obj->catalyst;
+                    obj->catalyst    = cat;
                 }
                 fMatch = true;
                 break;
@@ -3614,22 +3614,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
             if (!str_cmp(word, "CataA"))
             {
-                AFFECT_DATA *paf;
+                CATALYST_DATA *cat;
 
-                paf = new_affect();
+                cat = new_catalyst();
 
-                paf->type = flag_value(catalyst_types,fread_word(fp));
-                if(paf->type == NO_FLAG) {
+                cat->type = flag_value(catalyst_types,fread_word(fp));
+                if(cat->type == NO_FLAG) {
                     log_string("fread_char: invalid catalyst type.");
-                    free_affect(paf);
+                    free_catalyst(cat);
                 } else {
-                    paf->custom_name = NULL;
-                    paf->where		= TO_CATALYST_ACTIVE;
-                    paf->level       = fread_number(fp);
-                    paf->modifier    = fread_number(fp);
-                    paf->duration    = fread_number(fp);
-                    paf->next        = obj->catalyst;
-                    obj->catalyst    = paf;
+                    cat->custom_name = NULL;
+                    cat->where		= TO_CATALYST_ACTIVE;
+                    cat->level       = fread_number(fp);
+                    cat->modifier    = fread_number(fp);
+                    cat->duration    = fread_number(fp);
+                    cat->next        = obj->catalyst;
+                    obj->catalyst    = cat;
                 }
                 fMatch = true;
                 break;
@@ -3637,22 +3637,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
             if (!str_cmp(word, "CataN"))
             {
-                AFFECT_DATA *paf;
+                CATALYST_DATA *cat;
 
-                paf = new_affect();
+                cat = new_catalyst();
 
-                paf->type = flag_value(catalyst_types,fread_word(fp));
-                if(paf->type == NO_FLAG) {
+                cat->type = flag_value(catalyst_types,fread_word(fp));
+                if(cat->type == NO_FLAG) {
                     log_string("fread_char: invalid catalyst type.");
-                    free_affect(paf);
+                    free_catalyst(cat);
                 } else {
-                    paf->where		= TO_CATALYST_DORMANT;
-                    paf->level       = fread_number(fp);
-                    paf->modifier    = fread_number(fp);
-                    paf->duration    = fread_number(fp);
-                    paf->custom_name = fread_string_eol(fp);
-                    paf->next        = obj->catalyst;
-                    obj->catalyst    = paf;
+                    cat->where		= TO_CATALYST_DORMANT;
+                    cat->level       = fread_number(fp);
+                    cat->modifier    = fread_number(fp);
+                    cat->duration    = fread_number(fp);
+                    cat->custom_name = fread_string_eol(fp);
+                    cat->next        = obj->catalyst;
+                    obj->catalyst    = cat;
                 }
                 fMatch = true;
                 break;
@@ -3660,22 +3660,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
             if (!str_cmp(word, "CataNA"))
             {
-                AFFECT_DATA *paf;
+                CATALYST_DATA *cat;
 
-                paf = new_affect();
+                cat = new_catalyst();
 
-                paf->type = flag_value(catalyst_types,fread_word(fp));
-                if(paf->type == NO_FLAG) {
+                cat->type = flag_value(catalyst_types,fread_word(fp));
+                if(cat->type == NO_FLAG) {
                     log_string("fread_char: invalid catalyst type.");
-                    free_affect(paf);
+                    free_catalyst(cat);
                 } else {
-                    paf->where		= TO_CATALYST_ACTIVE;
-                    paf->level       = fread_number(fp);
-                    paf->modifier    = fread_number(fp);
-                    paf->duration    = fread_number(fp);
-                    paf->custom_name = fread_string_eol(fp);
-                    paf->next        = obj->catalyst;
-                    obj->catalyst    = paf;
+                    cat->where		= TO_CATALYST_ACTIVE;
+                    cat->level       = fread_number(fp);
+                    cat->modifier    = fread_number(fp);
+                    cat->duration    = fread_number(fp);
+                    cat->custom_name = fread_string_eol(fp);
+                    cat->next        = obj->catalyst;
+                    obj->catalyst    = cat;
                 }
                 fMatch = true;
                 break;

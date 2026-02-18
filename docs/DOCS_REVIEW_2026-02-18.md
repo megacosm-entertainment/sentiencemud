@@ -52,7 +52,7 @@ This review consolidates status across roadmap, plans, worklogs, and completed r
 
 ## P0 (Do next)
 
-1. **Room PK semantics cleanup (`cpk` removal / `chaotic` introduction)**
+1. **Room PK semantics cleanup (`cpk` removal / `chaotic` introduction)** — **DONE (2026-02-18)**
    - Add `chaotic` room flag: causes inventory loss behavior currently tied to `cpk`.
    - Decouple item-loss behavior from PK-permission behavior.
    - New behavior rule:
@@ -60,14 +60,17 @@ This review consolidates status across roadmap, plans, worklogs, and completed r
      - `chaotic` alone: enables inventory-loss-on-death semantics, no PK by itself.
      - `player_killing` + `chaotic`: equivalent to current `cpk` gameplay behavior.
    - Migration target: remove direct dependence on legacy `cpk` semantics from runtime checks and builder-facing editing.
+   - Completion noted in current-cycle docs: runtime PK/full-CPK split semantics and room-flag model are now represented as `player_killing` + `chaotic`.
 
 2. **Roadmap/status reconciliation pass** — **DONE (2026-02-18)**
    - Top-level roadmap now reflects widevnum as completed work.
    - Widevnum docs and roadmap are aligned.
 
-3. **Complete active phase work (no new major feature starts)**
-   - Finish skills/classes Phase 7+ follow-up (editor/cleanup scope).
-   - Continue object multityping Phase 5 conversion in highest-traffic gameplay paths first.
+3. **Complete active phase work (no new major feature starts)** — **IN PROGRESS**
+- Finish skills/classes Phase 7+ follow-up (editor/cleanup scope).
+- Continue object multityping Phase 5 conversion in highest-traffic gameplay paths first.
+- **Completed slice (2026-02-18):** skill usability helpers added and integrated (`skill_entry_is_usable_now` / `skill_is_usable_now`) for centralized runtime availability checks.
+- **Completed slice (2026-02-18):** runtime `skill_from_sn(...)` compatibility shim retired; runtime callsites are on `skill_find_uid(...)` (docs may still mention historical usage).
 
 ## P1 (Immediately after P0)
 
@@ -123,12 +126,46 @@ This review consolidates status across roadmap, plans, worklogs, and completed r
 
 ## Recommended Execution Order (Practical)
 
-1. Implement and migrate `cpk` → `chaotic` room-flag semantics.
-2. Reconcile roadmap statuses to match completion docs.
-3. Finish skills/classes active phase.
-4. Continue object multityping Phase 5 conversion.
-5. Advance event criteria Phase 2.
-6. Start testing roadmap Phase 2 (unit + memory tooling).
+1. Reconcile roadmap statuses to match completion docs.
+2. Finish skills/classes active phase.
+3. Continue object multityping Phase 5 conversion.
+4. Advance event criteria Phase 2.
+5. Start testing roadmap Phase 2 (unit + memory tooling).
+
+---
+
+## Immediate Next Steps (Skills/Classes Track)
+
+The current branch has active momentum on skills/classes migration and runtime safety.
+Use this short sequence for the next sessions before starting new large features.
+
+1. **Consolidate skill usability gates**
+   - Keep `skill_entry_is_usable_now(...)` / `skill_is_usable_now(...)` as the single entrypoint for runtime availability checks.
+   - Migrate high-traffic command handlers that still rely on ad-hoc `get_skill(...) == 0` checks to these helpers.
+   - Preserve behavior where traits intentionally bypass skill checks.
+
+2. **Finish Phase 9 read-path migration slices (pointer-first affects)**
+   - Continue converting `paf->type` comparison/read sites to prefer `paf->skill` pointer with `type` fallback.
+   - Prioritize combat/update/script paths first, then lower-frequency admin/editor paths.
+
+3. **Retire remaining `gsn_*` dependencies in thin slices**
+   - Replace declaration/definition usage incrementally (`merc.h`, `db.c`, callsites grouped by subsystem).
+   - Do not do a big-bang removal; gate each slice behind clean build + smoke checks.
+
+4. **Stabilize build verification workflow**
+   - Standardize on one authoritative clean build check per slice (`./build clean`) and record the final terminal result only.
+   - Avoid mixing stale terminal/history output into status decisions.
+
+5. **Keep docs synchronized per slice**
+   - Update `WORKLOG_skills_classes.md` after each migration slice with objective, changed files, and validation command.
+   - Check off or re-scope corresponding items in `PLAN_backport_skills_classes.md` to prevent status drift.
+
+### Exit Criteria for this mini-track
+
+- Availability checks are centralized and used by major player skill/spell command paths.
+- No runtime `skill_from_sn(...)` references remain (docs-only references acceptable).
+- Pointer-first affect read paths cover core gameplay loops.
+- Clean debug build passes after each slice.
 
 ---
 

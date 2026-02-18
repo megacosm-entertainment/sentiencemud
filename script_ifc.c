@@ -1739,49 +1739,49 @@ DECL_IFC_FUN(ifc_objtype)
 
 DECL_IFC_FUN(ifc_objval0)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[0] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 0) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval1)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[1] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 1) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval2)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[2] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 2) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval3)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[3] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 3) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval4)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[4] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 4) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval5)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[5] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 5) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval6)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[6] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 6) : 0;
     return true;
 }
 
 DECL_IFC_FUN(ifc_objval7)
 {
-    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->value[7] : 0;
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 7) : 0;
     return true;
 }
 

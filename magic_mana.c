@@ -18,6 +18,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "skill_data.h"
+#include "item_types.h"
 
 
 SPELL_FUNC(spell_cancellation)
@@ -354,6 +355,32 @@ SPELL_FUNC(spell_magic_missile)
     return true;
 }
 
+static int get_recharge_energy(OBJ_DATA *obj)
+{
+    int energy = 0;
+
+    for (SPELL_DATA *spell = obj->spells; spell != NULL; spell = spell->next)
+        energy = UMAX(energy, spell->level);
+
+    if (energy > 0)
+        return energy;
+
+    return obj_get_legacy_value_slot(obj, 0);
+}
+
+static void consume_recharge_energy(OBJ_DATA *obj)
+{
+    bool had_spells = false;
+
+    for (SPELL_DATA *spell = obj->spells; spell != NULL; spell = spell->next) {
+        had_spells = true;
+        spell->level = (spell->level * 9) / 10;
+    }
+
+    if (!had_spells)
+        obj_set_legacy_value_slot(obj, 0, (obj_get_legacy_value_slot(obj, 0) * 9) / 10);
+}
+
 
 SPELL_FUNC(spell_recharge)
 {
@@ -376,7 +403,7 @@ SPELL_FUNC(spell_recharge)
         act("$n's $p disappears as $e screws up $s spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         extract_obj(obj);
     } else {
-        if (obj->value[0] < 10) {
+        if (get_recharge_energy(obj) < 10) {
             act("$p's magical energies are too low to be recharged.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return false;
         }
@@ -384,13 +411,13 @@ SPELL_FUNC(spell_recharge)
         switch (obj->item_type) {
         case ITEM_WAND:
         case ITEM_STAFF:
-            obj->value[0] = (obj->value[0] * 9)/10;
+            consume_recharge_energy(obj);
             WAND(obj)->charges = WAND(obj)->max_charges;
             break;
 
         case ITEM_POTION:
             if (ch_has_trait(ch, "potion_recharge")) {
-                obj->value[0] = (obj->value[0] * 9)/10;
+                consume_recharge_energy(obj);
 
                 int16_t sn_brew = skill_resolve_gsn("brew");
                 if (get_skill(ch, sn_brew) < 75)

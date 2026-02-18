@@ -63,6 +63,7 @@
 #include "class_data.h"
 #include "skill_group.h"
 #include "song_data.h"
+#include "item_types.h"
 
 #ifndef ENABLE_LEGACY_AREA_READ
 /* Keep enabled by default until remaining legacy maze .are zones
@@ -85,6 +86,20 @@ time_t time(time_t *tloc);
 #define BOOT_ERROR_MAX (1024 * 1024) // 1MB buffer for boot errors
 static char boot_error_buf[BOOT_ERROR_MAX];
 static size_t boot_error_len = 0;
+
+static inline int legacy_obj_index_value_get(const OBJ_INDEX_DATA *obj, int slot)
+{
+    if (!obj || slot < 0 || slot > 7)
+        return 0;
+    return obj->value[slot];
+}
+
+static inline void legacy_obj_index_value_set(OBJ_INDEX_DATA *obj, int slot, int value)
+{
+    if (!obj || slot < 0 || slot > 7)
+        return;
+    obj->value[slot] = value;
+}
 
 // Central boot error logging function
 void boot_error_log(const char *fmt, ...)
@@ -1197,9 +1212,9 @@ void fix_portal_destinations(void)
                     }
                     else
                     {
-                        dest_vnum = obj->value[3];
-                        dest_area_uid = obj->value[4];
-                        portal_flags = obj->value[2];
+                        dest_vnum = legacy_obj_index_value_get(obj, 3);
+                        dest_area_uid = legacy_obj_index_value_get(obj, 4);
+                        portal_flags = legacy_obj_index_value_get(obj, 2);
                     }
 
                     if (dest_vnum > 0
@@ -1209,7 +1224,7 @@ void fix_portal_destinations(void)
                         AREA_DATA *dest_area = find_area_by_vnum(dest_vnum, pArea);
                         if (dest_area)
                         {
-                            obj->value[4] = dest_area->uid;
+                            legacy_obj_index_value_set(obj, 4, dest_area->uid);
                             if (obj->_portal)
                                 PORTAL(obj)->params[4] = dest_area->uid;
                         }
@@ -3027,7 +3042,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             }
 
             /* fix object lock state! */
-            LastObj->value[1] = LastObj->pIndexData->value[1];
+            obj_set_legacy_value_slot(LastObj, 1,
+                legacy_obj_index_value_get(LastObj->pIndexData, 1));
             last = true;
             break;
 
@@ -3954,6 +3970,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool add_to_loaded_objs)
 {
     AFFECT_DATA *paf;
+    CATALYST_DATA *cat;
     SPELL_DATA *spell, *spell_new;
     OBJ_DATA *obj;
     GQ_OBJ_DATA *gq_obj;
@@ -4029,12 +4046,13 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     switch (obj->item_type)
     {
     case ITEM_LIGHT:
-        if (obj->value[2] >= 999)
-        obj->value[2] = -1;
+        if (obj_get_legacy_value_slot(obj, 2) >= 999)
+            obj_set_legacy_value_slot(obj, 2, -1);
         break;
 
     case ITEM_CATALYST:
-        if (!obj->value[1]) obj->value[1] = 1; /* Fix zero charge catalysts to single uses*/
+        if (!obj_get_legacy_value_slot(obj, 1))
+            obj_set_legacy_value_slot(obj, 1, 1); /* Fix zero charge catalysts to single uses*/
         break;
 
     case ITEM_BOOK:
@@ -4094,7 +4112,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
         break;
 
     case ITEM_FOOD:
-        obj->timer = obj->value[4];
+        obj->timer = obj_get_legacy_value_slot(obj, 4);
             break;
 
     default:
@@ -4125,10 +4143,10 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
         }
     }
 
-    for (paf = pObjIndex->catalyst; paf != NULL; paf = paf->next)
+    for (cat = pObjIndex->catalyst; cat != NULL; cat = cat->next)
     {
-        if (number_percent() < paf->random || paf->random == 100)
-        catalyst_to_obj(obj,paf);
+        if (number_percent() < cat->random || cat->random == 100)
+        catalyst_to_obj(obj,cat);
     }
     }
 
@@ -4222,6 +4240,7 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 {
     int i;
     AFFECT_DATA *paf, *paf_next;
+    CATALYST_DATA *cat, *cat_next;
     EXTRA_DESCR_DATA *ed,*ed_new;
 
     if (parent == NULL || clone == NULL)
@@ -4234,10 +4253,10 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     affect_remove_obj(clone, paf);
     }
 
-    for (paf = clone->catalyst; paf != NULL; paf = paf_next) {
-        paf_next = paf->next;
+    for (cat = clone->catalyst; cat != NULL; cat = cat_next) {
+        cat_next = cat->next;
 
-    free_affect(paf);
+    free_catalyst(cat);
     }
 
     clone->affected = NULL;
@@ -4278,8 +4297,8 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
         affect_to_obj(clone,paf);
 
     /* catalyst affects */
-    for (paf = parent->catalyst; paf != NULL; paf = paf->next)
-        catalyst_to_obj(clone,paf);
+    for (cat = parent->catalyst; cat != NULL; cat = cat->next)
+        catalyst_to_obj(clone,cat);
 
     // Free loaded extra description
     if( clone->extra_descr )
@@ -6641,9 +6660,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 //	fprintf(fp, "Time %d\n",		obj->timer);
 //	fprintf(fp, "Cost %ld\n",		obj->cost);
 
-//	fprintf(fp, "Val  %d %d %d %d %d %d %d %d\n",
-//		obj->value[0], obj->value[1], obj->value[2], obj->value[3],
-//		obj->value[4], obj->value[5], obj->value[6], obj->value[7]);
+//	/* Legacy value-slot dump intentionally removed; type data is canonical. */
 
 //	if (obj->spells)
 //		save_spell(fp, obj->spells);
@@ -7082,26 +7099,26 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
     }
 
     // for catalysts
-    for (paf = obj->catalyst; paf != NULL; paf = paf->next)
+    for (CATALYST_DATA *cat = obj->catalyst; cat != NULL; cat = cat->next)
     {
-        if( IS_NULLSTR(paf->custom_name) )
+        if( IS_NULLSTR(cat->custom_name) )
         {
             fprintf(fp, "%s '%s' %3d %3d %3d\n",
-                ((paf->where == TO_CATALYST_ACTIVE) ? "CataA" : "Cata"),
-                flag_string( catalyst_types, paf->type ),
-                paf->level,
-                paf->modifier,
-                paf->duration);
+                ((cat->where == TO_CATALYST_ACTIVE) ? "CataA" : "Cata"),
+                flag_string( catalyst_types, cat->type ),
+                cat->level,
+                cat->modifier,
+                cat->duration);
         }
         else
         {
             fprintf(fp, "%s '%s' %3d %3d %3d %s\n",
-                ((paf->where == TO_CATALYST_ACTIVE) ? "CataNA" : "CataN"),
-                flag_string( catalyst_types, paf->type ),
-                paf->level,
-                paf->modifier,
-                paf->duration,
-                paf->custom_name);
+                ((cat->where == TO_CATALYST_ACTIVE) ? "CataNA" : "CataN"),
+                flag_string( catalyst_types, cat->type ),
+                cat->level,
+                cat->modifier,
+                cat->duration,
+                cat->custom_name);
         }
     }
 
@@ -7926,85 +7943,85 @@ OBJ_DATA *persist_load_object(FILE *fp)
                 break;
             case 'C':
                 if (!str_cmp(word, "Cata")) {
-                    AFFECT_DATA *paf;
+                    CATALYST_DATA *cat;
 
-                    paf = new_affect();
+                    cat = new_catalyst();
 
-                    paf->type = flag_value(catalyst_types,fread_word(fp));
-                    if(paf->type == NO_FLAG) {
+                    cat->type = flag_value(catalyst_types,fread_word(fp));
+                    if(cat->type == NO_FLAG) {
                         log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
-                        free_affect(paf);
+                        free_catalyst(cat);
                     } else {
-                        paf->where = TO_CATALYST_DORMANT;
-                        paf->level = fread_number(fp);
-                        paf->modifier = fread_number(fp);
-                        paf->duration = fread_number(fp);
-                        paf->custom_name = NULL;
-                        paf->next = obj->catalyst;
-                        obj->catalyst = paf;
+                        cat->where = TO_CATALYST_DORMANT;
+                        cat->level = fread_number(fp);
+                        cat->modifier = fread_number(fp);
+                        cat->duration = fread_number(fp);
+                        cat->custom_name = NULL;
+                        cat->next = obj->catalyst;
+                        obj->catalyst = cat;
                     }
                     fMatch = true;
                     break;
                 }
                 if (!str_cmp(word, "CataA")) {
-                    AFFECT_DATA *paf;
+                    CATALYST_DATA *cat;
 
-                    paf = new_affect();
+                    cat = new_catalyst();
 
-                    paf->type = flag_value(catalyst_types,fread_word(fp));
-                    if(paf->type == NO_FLAG) {
+                    cat->type = flag_value(catalyst_types,fread_word(fp));
+                    if(cat->type == NO_FLAG) {
                         log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
-                        free_affect(paf);
+                        free_catalyst(cat);
                     } else {
-                        paf->where = TO_CATALYST_ACTIVE;
-                        paf->level = fread_number(fp);
-                        paf->modifier = fread_number(fp);
-                        paf->duration = fread_number(fp);
-                        paf->custom_name = NULL;
-                        paf->next = obj->catalyst;
-                        obj->catalyst = paf;
+                        cat->where = TO_CATALYST_ACTIVE;
+                        cat->level = fread_number(fp);
+                        cat->modifier = fread_number(fp);
+                        cat->duration = fread_number(fp);
+                        cat->custom_name = NULL;
+                        cat->next = obj->catalyst;
+                        obj->catalyst = cat;
                     }
                     fMatch = true;
                     break;
                 }
                 if (!str_cmp(word, "CataN")) {
-                    AFFECT_DATA *paf;
+                    CATALYST_DATA *cat;
 
-                    paf = new_affect();
+                    cat = new_catalyst();
 
-                    paf->type = flag_value(catalyst_types,fread_word(fp));
-                    if(paf->type == NO_FLAG) {
+                    cat->type = flag_value(catalyst_types,fread_word(fp));
+                    if(cat->type == NO_FLAG) {
                         log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
-                        free_affect(paf);
+                        free_catalyst(cat);
                     } else {
-                        paf->where = TO_CATALYST_DORMANT;
-                        paf->level = fread_number(fp);
-                        paf->modifier = fread_number(fp);
-                        paf->duration = fread_number(fp);
-                        paf->custom_name = fread_string_eol(fp);
-                        paf->next = obj->catalyst;
-                        obj->catalyst = paf;
+                        cat->where = TO_CATALYST_DORMANT;
+                        cat->level = fread_number(fp);
+                        cat->modifier = fread_number(fp);
+                        cat->duration = fread_number(fp);
+                        cat->custom_name = fread_string_eol(fp);
+                        cat->next = obj->catalyst;
+                        obj->catalyst = cat;
                     }
                     fMatch = true;
                     break;
                 }
                 if (!str_cmp(word, "CataNA")) {
-                    AFFECT_DATA *paf;
+                    CATALYST_DATA *cat;
 
-                    paf = new_affect();
+                    cat = new_catalyst();
 
-                    paf->type = flag_value(catalyst_types,fread_word(fp));
-                    if(paf->type == NO_FLAG) {
+                    cat->type = flag_value(catalyst_types,fread_word(fp));
+                    if(cat->type == NO_FLAG) {
                         log_message(LOG_LEVEL_ERROR, LOG_ERROR, "persist_load_object: invalid catalyst type.");
-                        free_affect(paf);
+                        free_catalyst(cat);
                     } else {
-                        paf->where = TO_CATALYST_ACTIVE;
-                        paf->level = fread_number(fp);
-                        paf->modifier = fread_number(fp);
-                        paf->duration = fread_number(fp);
-                        paf->custom_name = fread_string_eol(fp);
-                        paf->next = obj->catalyst;
-                        obj->catalyst = paf;
+                        cat->where = TO_CATALYST_ACTIVE;
+                        cat->level = fread_number(fp);
+                        cat->modifier = fread_number(fp);
+                        cat->duration = fread_number(fp);
+                        cat->custom_name = fread_string_eol(fp);
+                        cat->next = obj->catalyst;
+                        obj->catalyst = cat;
                     }
                     fMatch = true;
                     break;

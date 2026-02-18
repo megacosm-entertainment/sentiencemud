@@ -84,6 +84,12 @@ AD	*new_affect args( (void) );
 void	free_affect args( (AFFECT_DATA *af) );
 #undef AD
 
+/* catalyst recycling */
+#define CATD CATALYST_DATA
+CATD	*new_catalyst args( (void) );
+void	free_catalyst args( (CATALYST_DATA *cat) );
+#undef CATD
+
 /* object recycling */
 #define OD OBJ_DATA
 OD	*new_obj args( (void) );

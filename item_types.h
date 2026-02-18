@@ -986,4 +986,10 @@ bool    obj_index_remove_type(OBJ_INDEX_DATA *pObj, int item_type);
 void    obj_migrate_values_to_types(OBJ_DATA *obj);
 void    obj_index_migrate_values_to_types(OBJ_INDEX_DATA *obj);
 
+/* Legacy value[] compatibility helpers for runtime script paths.
+ * These expose old slot semantics while reading/writing canonical
+ * type-specific data when available. */
+int     obj_get_legacy_value_slot(OBJ_DATA *obj, int slot);
+bool    obj_set_legacy_value_slot(OBJ_DATA *obj, int slot, int value);
+
 #endif /* ITEM_TYPES_H */

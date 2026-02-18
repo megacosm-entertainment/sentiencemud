@@ -2395,6 +2395,8 @@ void do_pick(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
     int door;
+    int pick_sn;
+    int skill;
 
     if (IS_NPC(ch))
     return;
@@ -2413,16 +2415,23 @@ void do_pick(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("pick lock")].beats);
+    pick_sn = skill_resolve_gsn("pick lock");
+    skill = get_skill(ch, pick_sn);
+
+    if (!skill_is_usable_now(ch, pick_sn) && !ch_has_trait(ch, "lockpick_mastery"))
+    {
+        send_to_char("You don't know how to pick locks.\n\r", ch);
+        return;
+    }
+
+    WAIT_STATE(ch, skill_table[pick_sn].beats);
 
     if (!ch_has_trait(ch, "lockpick_mastery"))
     {
-        int skill = get_skill(ch,skill_resolve_gsn("pick lock"));
-
         if (number_percent() > UMAX(skill, 20))
         {
             send_to_char("You failed.\n\r", ch);
-            check_improve(ch,skill_resolve_gsn("pick lock"),false,2);
+            check_improve(ch, pick_sn, false, 2);
             return;
         }
     }
@@ -2477,7 +2486,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
             REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
             act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
-            check_improve(ch,skill_resolve_gsn("pick lock"),true,2);
+            check_improve(ch, pick_sn, true, 2);
             return;
         }
 
@@ -2522,7 +2531,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
         REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
         act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
-        check_improve(ch,skill_resolve_gsn("pick lock"),true,2);
+        check_improve(ch, pick_sn, true, 2);
         return;
     }
 
@@ -2569,7 +2578,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
         REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
         send_to_char("*Click*\n\r", ch);
         act("$n picks the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM, NULL, NULL);
-        check_improve(ch,skill_resolve_gsn("pick lock"),true,2);
+        check_improve(ch, pick_sn, true, 2);
 
         /* pick the other side */
         if ((to_room   = pexit->u1.to_room ) != NULL &&

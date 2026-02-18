@@ -352,6 +352,7 @@ static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
     char buf[MAX_STRING_LENGTH];
     AFFECT_DATA *paf;
+    CATALYST_DATA *cat;
     SPELL_DATA *spell;
     int cnt;
 
@@ -441,20 +442,20 @@ static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         add_buf(ctx->buffer, "\n\r");
 
         cnt = 0;
-        for (paf = pObj->catalyst; paf; paf = paf->next, cnt++) {
-            char line_colour = (paf->where == TO_CATALYST_ACTIVE) ? 'W' : 'x';
-            char *name = (IS_NULLSTR(paf->custom_name)) ? "---" : paf->custom_name;
+        for (cat = pObj->catalyst; cat; cat = cat->next, cnt++) {
+            char line_colour = (cat->where == TO_CATALYST_ACTIVE) ? 'W' : 'x';
+            char *name = (IS_NULLSTR(cat->custom_name)) ? "---" : cat->custom_name;
 
-            if (paf->modifier < 0)
+            if (cat->modifier < 0)
                 snprintf(buf, sizeof(buf), "  {M[{W%4d{M]{%c %-20s %-10d {Wsource{%c %d%% %s{x\n\r",
                     cnt, line_colour,
-                    flag_string(catalyst_types, paf->type), paf->level,
-                    line_colour, paf->random, name);
+                    flag_string(catalyst_types, cat->type), cat->level,
+                    line_colour, cat->random, name);
             else
                 snprintf(buf, sizeof(buf), "  {M[{W%4d{M]{%c %-20s %-10d %-6d %d%% %s{x\n\r",
                     cnt, line_colour,
-                    flag_string(catalyst_types, paf->type), paf->level,
-                    paf->modifier, paf->random, name);
+                    flag_string(catalyst_types, cat->type), cat->level,
+                    cat->modifier, cat->random, name);
 
             buf[2] = UPPER(buf[2]);
             add_buf(ctx->buffer, buf);
@@ -983,7 +984,7 @@ OEDIT(oedit_addcatalyst)
     char charges[MSL];
     char chance[MIL];
     char where[MIL];
-    AFFECT_DATA *cat, *pCat;
+    CATALYST_DATA *cat, *pCat;
     int t, s, c, n, w;
 
     EDIT_OBJ(ch, pObj);
@@ -1044,7 +1045,7 @@ OEDIT(oedit_addcatalyst)
     }
 
     if(!cat) {
-        pCat = new_affect();
+        pCat = new_catalyst();
         pCat->next = NULL;
         pCat->where = w;
         pCat->modifier = n;
@@ -1121,7 +1122,7 @@ OEDIT(oedit_delspell)
 OEDIT(oedit_delcatalyst)
 {
     OBJ_INDEX_DATA *pObj;
-    AFFECT_DATA *catalyst, *catalyst_prev;
+    CATALYST_DATA *catalyst, *catalyst_prev;
     int i, n;
 
     EDIT_OBJ(ch, pObj);
@@ -1154,12 +1155,12 @@ OEDIT(oedit_delcatalyst)
     if (!catalyst_prev)
     {
     pObj->catalyst = catalyst->next;
-    free_affect(catalyst);
+    free_catalyst(catalyst);
     }
     else
     {
     catalyst_prev->next = catalyst->next;
-    free_affect(catalyst);
+    free_catalyst(catalyst);
     }
 
     send_to_char("Catalyst removed.\n\r", ch);

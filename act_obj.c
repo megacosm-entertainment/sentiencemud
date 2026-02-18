@@ -895,7 +895,7 @@ void do_get(CHAR_DATA *ch, char *argument)
  *
  * Validates:
  * - Container weight capacity
- * - Container item count capacity (value[3])
+ * - Container item count capacity (typed max_items field)
  * - CONT_PUT_ON flag for different messaging ("on" vs "in")
  * - CONT_CLOSED flag
  * - Special handling for furniture objects
@@ -2551,7 +2551,7 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
  *
  * Uses skill_resolve_gsn("envenom") skill to poison consumables or weapons.
  *
- * Food/Drink: Sets poison flag (value[3] = 1). Blessed or burn-proof
+ * Food/Drink: Sets typed poison flag to 1. Blessed or burn-proof
  * items are immune.
  *
  * Weapons: Applies temporary poison weapon affect with damage based
@@ -2797,7 +2797,7 @@ void do_fill(CHAR_DATA *ch, char *argument)
  * - pour <container> <person>   : Fill what they're holding
  *
  * Validates liquid compatibility between containers.
- * Clears poison flag when emptying (value[3] = 0).
+ * Clears typed poison flag when emptying.
  *
  * @param ch        Character pouring
  * @param argument  Source container and destination
@@ -2932,7 +2932,7 @@ void do_pour(CHAR_DATA *ch, char *argument)
  * Special handling:
  * - Very drunk characters fail to reach their mouth
  * - Vampires get special treatment from blood (liquid 14)
- * - Poisoned drinks (value[3] != 0) apply poison affect
+ * - Poisoned drinks (FLUID_CON(obj)->poison != 0) apply poison affect
  * - Fountains have infinite capacity
  * - Social status check prevents drinking in certain areas
  *
@@ -3086,12 +3086,12 @@ memset(&af,0,sizeof(af));
  * Eats ITEM_FOOD or ITEM_PILL objects from inventory.
  *
  * ITEM_FOOD:
- * - Satisfies hunger (value[0] = food units)
- * - value[3] != 0 means poisoned (applies poison affect)
+ * - Satisfies hunger via FOOD(obj)->hunger
+ * - FOOD(obj)->poison != 0 means poisoned (applies poison affect)
  *
  * ITEM_PILL:
  * - Casts up to 4 spells stored in values[1-4]
- * - Level from value[0]
+ * - Spell level from typed food payload (FOOD(obj)->hunger)
  *
  * Special items:
  * - Golden apple: Grants enough XP to level up
@@ -4229,7 +4229,7 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
  * Features:
  * - Level check (tot_level >= obj->level)
  * - Social area restriction
- * - Multi-swig potions (value[5] = sips remaining)
+ * - Multi-swig potions (FLUID_CON(obj)->amount = sips remaining)
  * - TRIG_PREDRINK can cancel
  * - 8 beat wait state after quaffing
  *
@@ -4533,7 +4533,7 @@ void recite_end(CHAR_DATA *ch)
  * - TAR_CHAR_DEFENSIVE: Same alignment
  * - TAR_CHAR_SELF: Caster only
  *
- * Consumes one charge (value[2]). Staff destroyed when empty.
+ * Consumes one charge (WAND(staff)->charges). Staff destroyed when empty.
  * Staves skill affects success (20 + skill*4/5).
  * 2 PULSE_VIOLENCE wait state.
  *
@@ -4646,7 +4646,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
  * Zaps with held wand item to cast single-target spell.
  * Without argument, targets self or current combat opponent.
  *
- * Consumes one charge (value[2]). Wand destroyed when empty.
+ * Consumes one charge (WAND(wand)->charges). Wand destroyed when empty.
  * Wands skill affects success (20 + skill*4/5).
  * 2 PULSE_VIOLENCE wait state.
  *

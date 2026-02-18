@@ -1079,20 +1079,20 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
     }
 
     // Catalysts
-    for (af = obj->catalyst; af != NULL; af = af->next) {
-        fprintf(fp, "#CATALYST %s\n", flag_string(catalyst_types,af->type));
+    for (CATALYST_DATA *cat = obj->catalyst; cat != NULL; cat = cat->next) {
+        fprintf(fp, "#CATALYST %s\n", flag_string(catalyst_types,cat->type));
 
-        if( af->where == TO_CATALYST_ACTIVE )
+        if( cat->where == TO_CATALYST_ACTIVE )
             fprintf(fp, "Active 1\n");
 
-        if( !IS_NULLSTR(af->custom_name) )
-            fprintf(fp, "Name %s\n", af->custom_name);
+        if( !IS_NULLSTR(cat->custom_name) )
+            fprintf(fp, "Name %s\n", cat->custom_name);
 
-        fprintf(fp, "Charges %d\n", af->modifier);
+        fprintf(fp, "Charges %d\n", cat->modifier);
 
-        fprintf(fp, "Strength %d\n", af->level);
+        fprintf(fp, "Strength %d\n", cat->level);
 
-        fprintf(fp, "Random %d\n", af->random);
+        fprintf(fp, "Random %d\n", cat->random);
         fprintf(fp, "#-CATALYST\n");
     }
 
@@ -2808,9 +2808,9 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
             af->next = obj->affected;
             obj->affected = af;
             } else if (!str_cmp(word, "#CATALYST")) {
-            af = read_obj_catalyst_new(fp);
-            af->next = obj->catalyst;
-            obj->catalyst = af;
+            CATALYST_DATA *cat = read_obj_catalyst_new(fp);
+            cat->next = obj->catalyst;
+            obj->catalyst = cat;
         } else if (!str_cmp(word, "#EXTRA_DESCR")) {
             ed = read_extra_descr_new(fp);
             ed->next = obj->extra_descr;
@@ -3165,8 +3165,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                 {
                 case ITEM_CONTAINER:
                 case ITEM_BOOK:
-                    // Value[1] == CONT flags
-                    // Value[2] == Key
+                    // Legacy container/book lock data:
+                    // slot 1 = flags, slot 2 = key vnum (migrated to LOCK_STATE)
 
                     {
                     long lock_flags = legacy_obj_index_value_get(obj, 1);
@@ -3210,8 +3210,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                     break;
 
                 case ITEM_PORTAL:
-                    // Value[1] == EXIT flags
-                    // Value[4] == Key
+                    // Legacy portal lock data:
+                    // slot 1 = exit flags, slot 4 = key vnum (migrated to LOCK_STATE)
 
                     {
                     long exit_flags = (IS_PORTAL(obj) ? PORTAL(obj)->exit : legacy_obj_index_value_get(obj, 1));
@@ -3264,12 +3264,12 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
             }
         }
 
-        // Portal destination area UID (value[4]) resolved post-boot by fix_portal_destinations()
+        // Portal destination area UID (legacy slot 4) resolved post-boot by fix_portal_destinations()
     }
 
     if (area && area->version_object < VERSION_OBJECT_005)
     {
-        // Populate type-specific data structs from legacy value[] array.
+        // Populate type-specific data structs from legacy object value slots.
         obj_index_migrate_values_to_types(obj);
     }
 
@@ -3617,14 +3617,14 @@ AFFECT_DATA *read_obj_affect_new(FILE *fp)
 }
 
 /* read in an obj affect */
-AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
+CATALYST_DATA *read_obj_catalyst_new(FILE *fp)
 {
-    AFFECT_DATA *af;
+    CATALYST_DATA *cat;
     char *word;
 
-    af = new_affect();
-    af->type = flag_value(catalyst_types,fread_string_eol(fp));
-    af->where = TO_CATALYST_DORMANT;
+    cat = new_catalyst();
+    cat->type = flag_value(catalyst_types,fread_string_eol(fp));
+    cat->where = TO_CATALYST_DORMANT;
 
     while (str_cmp((word = fread_word(fp)), "#-CATALYST")) {
     fMatch = false;
@@ -3633,23 +3633,23 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
             if (!str_cmp(word, "Active")) {
                 fread_to_eol(fp);
                 fMatch = true;
-                af->where = TO_CATALYST_ACTIVE;
+                cat->where = TO_CATALYST_ACTIVE;
             }
             break;
 
         case 'C':
-            KEY("Charges",	af->modifier,	fread_number(fp));
+            KEY("Charges",	cat->modifier,	fread_number(fp));
         break;
 
         case 'N':
-            KEYS("Name",	af->custom_name,	fread_string_eol(fp));
+            KEYS("Name",	cat->custom_name,	fread_string_eol(fp));
 
         case 'R':
-        KEY("Random",		af->random,	fread_number(fp));
+        KEY("Random",		cat->random,	fread_number(fp));
             break;
 
         case 'S':
-            KEY("Strength",		af->level,	fread_number(fp));
+            KEY("Strength",		cat->level,	fread_number(fp));
         break;
     }
 
@@ -3658,7 +3658,7 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
     }
     }
 
-    return af;
+    return cat;
 }
 
 

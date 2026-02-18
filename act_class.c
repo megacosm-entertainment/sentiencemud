@@ -833,6 +833,57 @@ bool is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry)
 }
 
 /**
+ * skill_entry_is_usable_now - Check if a skill entry is currently usable
+ *
+ * Wrapper around class-scope availability rules for direct SKILL_ENTRY checks.
+ * NPCs and immortals are always considered usable.
+ *
+ * @param ch     The character using the skill
+ * @param entry  Skill entry to validate
+ * @return       true if skill is currently usable
+ */
+bool skill_entry_is_usable_now(CHAR_DATA *ch, SKILL_ENTRY *entry)
+{
+    if (!ch || !entry)
+        return false;
+
+    if (IS_NPC(ch) || IS_IMMORTAL(ch))
+        return true;
+
+    return is_skill_available_for_class(ch, entry);
+}
+
+/**
+ * skill_is_usable_now - Check if a skill number is currently usable
+ *
+ * Resolves the character's SKILL_ENTRY by sn and applies current usability
+ * checks against that entry.
+ *
+ * @param ch  Character using the skill
+ * @param sn  Skill number
+ * @return    true if usable now, false otherwise
+ */
+bool skill_is_usable_now(CHAR_DATA *ch, int sn)
+{
+    SKILL_ENTRY *entry;
+
+    if (!ch)
+        return false;
+
+    if (IS_NPC(ch) || IS_IMMORTAL(ch))
+        return true;
+
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    entry = skill_entry_findsn(ch->sorted_skills, sn);
+    if (!entry)
+        return false;
+
+    return skill_entry_is_usable_now(ch, entry);
+}
+
+/**
  * class_grants_skill - Check if a CLASS_DATA grants a specific skill
  *
  * Checks the class's rewards list for REWARD_SKILL entries matching the

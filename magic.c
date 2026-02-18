@@ -1500,6 +1500,20 @@ SPELL_FUNC(spell_null)
 
 
 // Find a warpstone(astral) on a character.
+static bool obj_has_catalyst_type(OBJ_DATA *obj, int type)
+{
+    CATALYST_DATA *cat;
+
+    if (!obj)
+        return false;
+
+    for (cat = obj->catalyst; cat; cat = cat->next)
+        if (cat->type == type)
+            return true;
+
+    return false;
+}
+
 OBJ_DATA *get_warp_stone(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
@@ -1510,13 +1524,13 @@ OBJ_DATA *get_warp_stone(CHAR_DATA *ch)
     if (ch->lcarrying) {
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (obj->item_type == ITEM_CATALYST && obj->value[0] == CATALYST_ASTRAL) {
+            if (obj_has_catalyst_type(obj, CATALYST_ASTRAL)) {
                 iterator_stop(&it);
                 return obj;
             } else if (obj->contains) {
                 // Check container contents
                 for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
-                    if (objNest->item_type == ITEM_CATALYST && objNest->value[0] == CATALYST_ASTRAL) {
+                    if (obj_has_catalyst_type(objNest, CATALYST_ASTRAL)) {
                         iterator_stop(&it);
                         return objNest;
                     }
@@ -1530,13 +1544,13 @@ OBJ_DATA *get_warp_stone(CHAR_DATA *ch)
     if (ch->lworn) {
         iterator_start(&it, ch->lworn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (obj->item_type == ITEM_CATALYST && obj->value[0] == CATALYST_ASTRAL) {
+            if (obj_has_catalyst_type(obj, CATALYST_ASTRAL)) {
                 iterator_stop(&it);
                 return obj;
             } else if (obj->contains) {
                 // Check worn container contents
                 for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
-                    if (objNest->item_type == ITEM_CATALYST && objNest->value[0] == CATALYST_ASTRAL) {
+                    if (obj_has_catalyst_type(objNest, CATALYST_ASTRAL)) {
                         iterator_stop(&it);
                         return objNest;
                     }

@@ -632,7 +632,8 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
  * Formats and displays a linked list of objects, coalescing duplicates
  * with a count indicator (e.g., "(3) sword"). Handles special cases:
  * - Hidden objects (ITEM_HIDDEN) are not shown
- * - Mist items (ITEM_MIST) can obscure other objects based on value[0] %
+ * - Mist items (ITEM_MIST) can obscure other objects based on
+ *   MIST(mist)->obscure_objs percentage
  * - Characters in POS_FEIGN are shown as corpses
  *
  * @param list          Head of the object linked list (via next_content)
@@ -1365,7 +1366,7 @@ show_llist_to_char(victim->lcarrying, ch, true, true);
  * Otherwise shows characters as seen by ch directly.
  *
  * Handles:
- * - Mist items that obscure characters (value[1] = % chance to hide)
+ * - Mist items that obscure characters via MIST(mist)->obscure_mobs
  * - Hidden characters (AFF_HIDE vs AFF_DETECT_HIDDEN)
  * - Invisible immortals (wizi check)
  * - Wizi mobs (ACT2_WIZI_MOB)

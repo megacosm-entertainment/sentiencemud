@@ -456,11 +456,11 @@ SPELL_FUNC(spell_identify)
         add_buf(buffer, buf);
     }
 
-    for (af = obj->catalyst; af != NULL; af = af->next) {
-        sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->type ), af->level);
+    for (CATALYST_DATA *cat = obj->catalyst; cat != NULL; cat = cat->next) {
+        sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((cat->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, cat->type ), cat->level);
         add_buf(buffer, buf);
-        if (af->duration > -1)
-            sprintf(buf,"with {x%d%%{M left.\n\r{x",100 * af->duration / (af->level * af->modifier) );
+        if (cat->duration > -1)
+            sprintf(buf,"with {x%d%%{M left.\n\r{x",100 * cat->duration / (cat->level * cat->modifier) );
         else
             sprintf(buf,"with an infinite source.\n\r{x");
         add_buf(buffer,buf);

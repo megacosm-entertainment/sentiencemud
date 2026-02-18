@@ -49,28 +49,17 @@ Post-completion cleanup is also complete:
 
 Details: [widevnums/WIDEVNUM_REMAINING_WORK.md](widevnums/WIDEVNUM_REMAINING_WORK.md)
 
+### Room PK Semantics Refactor (`cpk` → `chaotic` + `player_killing`)
+PK legality and inventory-loss semantics are now separated in room behavior:
+- `player_killing` controls PK permissibility,
+- `chaotic` controls inventory-loss-on-death behavior,
+- legacy full-CPK behavior is represented by enabling both flags.
+
+Details: [DOCS_REVIEW_2026-02-18.md](DOCS_REVIEW_2026-02-18.md)
+
 ---
 
 ## In Progress
-
-### Room PK Semantics Refactor (`cpk` → `chaotic` + `player_killing`)
-
-**Status:** Planned, high priority.
-**Docs:** [DOCS_REVIEW_2026-02-18.md](DOCS_REVIEW_2026-02-18.md)
-
-Current room `cpk` behavior couples two separate concerns:
-- PK legality
-- inventory-loss-on-death semantics
-
-Planned model:
-- `player_killing` controls PK permissibility.
-- `chaotic` controls inventory-loss-on-death behavior.
-- Legacy `cpk` behavior is represented by rooms that enable both flags.
-
-Migration notes:
-- Runtime checks must be split so `chaotic` does not enable PK by itself.
-- Builder-facing room editing/help must reflect independent semantics.
-- Existing content that expects old `cpk` behavior should be migrated to dual-flag configuration.
 
 ### Crypto Modernization (Phase 2)
 

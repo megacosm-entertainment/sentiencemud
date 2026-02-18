@@ -8,6 +8,8 @@
 #ifndef CLASS_DATA_H
 #define CLASS_DATA_H
 
+#include "tables.h"
+
 /* Forward declarations — full structs are in merc.h */
 typedef struct class_data CLASS_DATA;
 typedef struct class_level CLASS_LEVEL;
@@ -172,6 +174,12 @@ void            rebuild_skill_sources(CHAR_DATA *ch);
 
 /* Check if a skill entry is usable with the character's current class */
 bool            is_skill_available_for_class(CHAR_DATA *ch, SKILL_ENTRY *entry);
+
+/* Check if a specific skill entry is currently usable right now */
+bool            skill_entry_is_usable_now(CHAR_DATA *ch, SKILL_ENTRY *entry);
+
+/* Check if a skill number is currently usable right now */
+bool            skill_is_usable_now(CHAR_DATA *ch, int sn);
 
 /* Check if a class grants a specific skill via its rewards */
 bool            class_grants_skill(CLASS_DATA *clazz, int sn);

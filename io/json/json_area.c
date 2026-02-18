@@ -3323,7 +3323,7 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
     
     // Catalysts
     json_t *catalysts = json_array();
-    for (AFFECT_DATA *cat = obj->catalyst; cat; cat = cat->next) {
+    for (CATALYST_DATA *cat = obj->catalyst; cat; cat = cat->next) {
         json_t *cat_json = json_area_serialize_catalyst(cat);
         if (cat_json)
             json_array_append_new(catalysts, cat_json);
@@ -3509,7 +3509,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         size_t index;
         json_t *catalyst_json;
         json_array_foreach(catalysts, index, catalyst_json) {
-            AFFECT_DATA *cat = json_area_deserialize_catalyst(catalyst_json);
+            CATALYST_DATA *cat = json_area_deserialize_catalyst(catalyst_json);
             if (cat) {
                 cat->next = obj->catalyst;
                 obj->catalyst = cat;
@@ -4479,7 +4479,7 @@ AFFECT_DATA *json_area_deserialize_affect(json_t *json)
     return af;
 }
 
-json_t *json_area_serialize_catalyst(AFFECT_DATA *cat)
+json_t *json_area_serialize_catalyst(CATALYST_DATA *cat)
 {
     if (!cat) return NULL;
     
@@ -4501,11 +4501,11 @@ json_t *json_area_serialize_catalyst(AFFECT_DATA *cat)
     return json;
 }
 
-AFFECT_DATA *json_area_deserialize_catalyst(json_t *json)
+CATALYST_DATA *json_area_deserialize_catalyst(json_t *json)
 {
     if (!json) return NULL;
     
-    AFFECT_DATA *cat = alloc_perm(sizeof(*cat));
+    CATALYST_DATA *cat = new_catalyst();
     if (!cat) return NULL;
     
     const char *type_str = json_get_string_default(json, "type", "");
@@ -4522,6 +4522,7 @@ AFFECT_DATA *json_area_deserialize_catalyst(json_t *json)
     cat->modifier = json_get_int_default(json, "charges", 0);
     cat->level = json_get_int_default(json, "strength", 0);
     cat->random = json_get_int_default(json, "random", 0);
+    cat->duration = (cat->modifier > 0) ? (cat->level * cat->modifier) : -1;
     cat->next = NULL;
     
     return cat;

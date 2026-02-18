@@ -1206,8 +1206,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
             if( hide_learned && skill >= MAX_SKILL_LEARNABLE) continue;
 
             if( !arg[0] || !str_prefix(arg, name) ) {
-                bool dimmed = !IS_IMMORTAL(ch)
-                    && !is_skill_available_for_class(ch, entry);
+                bool dimmed = !skill_entry_is_usable_now(ch, entry);
 
                 color = dimmed ? 'D'
                     : (IS_IMMORTAL(ch) && IS_VALID(entry->token)) ? 'G' : 'Y';
@@ -2747,7 +2746,7 @@ void do_skillinfo(CHAR_DATA *ch, char *argument)
     }
 
     const char *name = skill_entry_name(entry);
-    bool avail = IS_IMMORTAL(ch) || is_skill_available_for_class(ch, entry);
+    bool avail = skill_entry_is_usable_now(ch, entry);
 
     buffer = new_buf();
 

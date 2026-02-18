@@ -53,7 +53,7 @@ json_t *json_area_serialize_reset(RESET_DATA *reset);
 json_t *json_area_serialize_exit(EXIT_DATA *exit);
 json_t *json_area_serialize_shop(SHOP_DATA *shop, AREA_DATA *ref_area);
 json_t *json_area_serialize_affect(AFFECT_DATA *affect);
-json_t *json_area_serialize_catalyst(AFFECT_DATA *catalyst);
+json_t *json_area_serialize_catalyst(CATALYST_DATA *catalyst);
 json_t *json_area_serialize_progs(LLIST **progs, AREA_DATA *area);
 
 /***************************************************************************
@@ -70,7 +70,7 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area);
 SHOP_DATA *json_area_deserialize_shop(json_t *json, AREA_DATA *area);
 SHOP_STOCK_DATA *json_area_deserialize_shop_stock(json_t *json, AREA_DATA *area);
 AFFECT_DATA *json_area_deserialize_affect(json_t *json);
-AFFECT_DATA *json_area_deserialize_catalyst(json_t *json);
+CATALYST_DATA *json_area_deserialize_catalyst(json_t *json);
 LLIST **json_area_deserialize_progs(json_t *json, AREA_DATA *area, int prog_type);
 
 /* Serialization functions */
