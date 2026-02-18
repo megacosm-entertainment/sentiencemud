@@ -418,8 +418,10 @@ SOCEDIT(socialedit_save)
 {
     FILE *fp;
     int i;
+    char socials_file_buf[MAX_INPUT_LENGTH];
+    const char *socials_file = resolve_game_path(SOCIALS_FILE, socials_file_buf, sizeof(socials_file_buf));
     
-    if ((fp = fopen(SOCIALS_FILE, "w")) == NULL) {
+    if ((fp = fopen(socials_file, "w")) == NULL) {
         send_to_char("Error: Could not open file for writing.\n\r", ch);
         return false;
     }

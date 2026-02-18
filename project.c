@@ -900,13 +900,15 @@ void read_projects()
 {
     FILE *fp;
     PROJECT_DATA *project;
+    char projects_file_buf[MAX_INPUT_LENGTH];
+    const char *projects_file = resolve_game_path(PROJECTS_FILE, projects_file_buf, sizeof(projects_file_buf));
 
     // Try JSON first
     if (json_load_projects(PROJECTS_JSON_FILE))
         return;
 
     // Fall back to legacy format
-    fp = fopen(PROJECTS_FILE, "r");
+    fp = fopen(projects_file, "r");
     if (fp == NULL)
     {
         pbugf(LOG_ERROR, "Couldn't read projects file");

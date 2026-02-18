@@ -661,11 +661,13 @@ void write_mail(void)
     /* Fallback to legacy format if JSON fails */
     MAIL_DATA *mail;
     FILE *fp;
+    char mail_path_buf[MAX_INPUT_LENGTH];
+    const char *mail_path = resolve_game_path(MAIL_FILE, mail_path_buf, sizeof(mail_path_buf));
 
-    fp = fopen(MAIL_FILE, "w");
+    fp = fopen(mail_path, "w");
     if (fp == NULL)
     {
-    pbugf(LOG_ERROR, "Couldn't load mail.dat");
+    pbugf(LOG_ERROR, "Couldn't load mail.dat (%s)", mail_path);
     exit(1);
     }
 
@@ -711,11 +713,13 @@ void read_mail(void)
     OBJ_DATA *obj;
     char *word;
     OBJ_DATA *listObjNest[MAX_NEST];
+    char mail_path_buf[MAX_INPUT_LENGTH];
+    const char *mail_path = resolve_game_path(MAIL_FILE, mail_path_buf, sizeof(mail_path_buf));
 
-    fp = fopen(MAIL_FILE, "r");
+    fp = fopen(mail_path, "r");
     if (fp == NULL)
     {
-    pbugf(LOG_ERROR, "Couldn't read mail.dat");
+    pbugf(LOG_ERROR, "Couldn't read mail.dat (%s)", mail_path);
     exit(1);
     }
 

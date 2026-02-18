@@ -536,10 +536,12 @@ BLUEPRINT *load_blueprint(FILE *fp)
  */
 void load_blueprints()
 {
-    FILE *fp = fopen(BLUEPRINTS_FILE, "r");
+    char blueprints_path_buf[MAX_INPUT_LENGTH];
+    const char *blueprints_path = resolve_game_path(BLUEPRINTS_FILE, blueprints_path_buf, sizeof(blueprints_path_buf));
+    FILE *fp = fopen(blueprints_path, "r");
     if (fp == NULL)
     {
-        pbugf(LOG_ERROR, "Couldn't load blueprints.dat");
+        pbugf(LOG_ERROR, "Couldn't load blueprints.dat (%s)", blueprints_path);
         return;
     }
 
@@ -768,10 +770,12 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
  */
 bool save_blueprints()
 {
-    FILE *fp = fopen(BLUEPRINTS_FILE, "w");
+    char blueprints_path_buf[MAX_INPUT_LENGTH];
+    const char *blueprints_path = resolve_game_path(BLUEPRINTS_FILE, blueprints_path_buf, sizeof(blueprints_path_buf));
+    FILE *fp = fopen(blueprints_path, "w");
     if (fp == NULL)
     {
-        pbugf(LOG_ERROR, "Couldn't save blueprints.dat");
+        pbugf(LOG_ERROR, "Couldn't save blueprints.dat (%s)", blueprints_path);
         return false;
     }
 

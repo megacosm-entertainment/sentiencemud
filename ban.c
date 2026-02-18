@@ -55,9 +55,11 @@ BAN_DATA *ban_list;
  */
 void save_bans(void)
 {
+    char null_file_buf[MAX_INPUT_LENGTH];
+    const char *null_file = resolve_game_path(NULL_FILE, null_file_buf, sizeof(null_file_buf));
     fclose(fpReserve);
     json_save_bans(BAN_JSON_FILE);
-    fpReserve = fopen(NULL_FILE, "r");
+    fpReserve = fopen(null_file, "r");
 }
 
 
@@ -74,8 +76,10 @@ void load_bans(void)
 
     FILE *fp;
     BAN_DATA *ban_last;
+    char ban_file_buf[MAX_INPUT_LENGTH];
+    const char *ban_file = resolve_game_path(BAN_FILE, ban_file_buf, sizeof(ban_file_buf));
 
-    if ((fp = fopen(BAN_FILE, "r")) == NULL)
+    if ((fp = fopen(ban_file, "r")) == NULL)
         return;
 
     ban_last = NULL;

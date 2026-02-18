@@ -186,7 +186,11 @@ void load_reserved(void)
     bool in_block = false;
     RESERVED_DATA *reserved = NULL;
     char vnum_str[MAX_INPUT_LENGTH];
+    char reserved_file_buf[MAX_INPUT_LENGTH];
+    const char *reserved_file;
     WNUM wnum;
+
+    reserved_file = resolve_game_path(RESERVED_FILE, reserved_file_buf, sizeof(reserved_file_buf));
     
     /* Try loading JSON first */
     if (load_reserved_json()) {
@@ -195,7 +199,7 @@ void load_reserved(void)
     }
     
     /* Fall back to old .dat format */
-    if ((fp = fopen(RESERVED_FILE, "r")) == NULL) {
+    if ((fp = fopen(reserved_file, "r")) == NULL) {
         pwarnf(LOG_INIT, "No reserved items file found. Creating new file at save.");
         return;
     }
@@ -311,8 +315,8 @@ void load_reserved(void)
     plogf(LOG_INIT, "Migrating reserved items to JSON format...");
     if (save_reserved_json()) {
         char old_file[MAX_INPUT_LENGTH];
-        sprintf(old_file, "%s.old", RESERVED_FILE);
-        rename(RESERVED_FILE, old_file);
+        snprintf(old_file, sizeof(old_file), "%s.old", reserved_file);
+        rename(reserved_file, old_file);
         plogf(LOG_INFO, "Reserved items migrated to JSON, old file saved as %s", old_file);
     }
     

@@ -1016,15 +1016,7 @@ void boot_db(void)
     read_immstaff();
 
     load_socials_file();
-    /*
-    if ((fp = fopen(AREA_DIR "social.are", "r")) != NULL)
-    {
-    log_string("Doing load_socials...");
-    fread_word(fp);
-    load_socials_file(fp);
-    fclose(fp);
-    }
-    */
+    /* Legacy social.are loading path removed (JSON/dat loader handles socials). */
 
     help_greeting = str_dup("hello");
 
@@ -5658,6 +5650,8 @@ char *capitalize(const char *str)
 void append_file(CHAR_DATA *ch, char *file, char *str)
 {
     FILE *fp;
+    char null_file_buf[MAX_INPUT_LENGTH];
+    const char *null_file;
 
     if (IS_NPC(ch) || str[0] == '\0')
     return;
@@ -5675,7 +5669,8 @@ void append_file(CHAR_DATA *ch, char *file, char *str)
     fclose(fp);
     }
 
-    fpReserve = fopen(NULL_FILE, "r");
+    null_file = resolve_game_path(NULL_FILE, null_file_buf, sizeof(null_file_buf));
+    fpReserve = fopen(null_file, "r");
     return;
 }
 

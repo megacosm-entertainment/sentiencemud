@@ -472,9 +472,14 @@ bool leaderboard_load_backup(void)
 {
     json_t *root, *boards, *board, *entries_arr, *entry;
     json_error_t error;
+    char leaderboard_path_buf[MAX_INPUT_LENGTH];
+    const char *leaderboard_path;
     int i;
 
-    root = json_load_file(LEADERBOARD_JSON_FILE, 0, &error);
+    leaderboard_path = resolve_game_path(LEADERBOARD_JSON_FILE,
+        leaderboard_path_buf, sizeof(leaderboard_path_buf));
+
+    root = json_load_file(leaderboard_path, 0, &error);
     if (!root) {
         log_string("No leaderboard backup found, starting fresh.");
         return false;
@@ -539,8 +544,13 @@ bool leaderboard_load_backup(void)
 void leaderboard_save_backup(void)
 {
     json_t *root, *boards;
-    char tmp_path[256];
+    char leaderboard_path_buf[MAX_INPUT_LENGTH];
+    char tmp_path[MAX_INPUT_LENGTH + 8];
+    const char *leaderboard_path;
     int i;
+
+    leaderboard_path = resolve_game_path(LEADERBOARD_JSON_FILE,
+        leaderboard_path_buf, sizeof(leaderboard_path_buf));
 
     root = json_object();
     boards = json_array();
@@ -572,9 +582,9 @@ void leaderboard_save_backup(void)
     json_object_set_new(root, "boards", boards);
     json_object_set_new(root, "saved_at", json_integer((json_int_t)current_time));
 
-    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", LEADERBOARD_JSON_FILE);
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", leaderboard_path);
     if (json_dump_file(root, tmp_path, JSON_INDENT(2) | JSON_PRESERVE_ORDER) == 0) {
-        rename(tmp_path, LEADERBOARD_JSON_FILE);
+        rename(tmp_path, leaderboard_path);
     } else {
         pbugf(LOG_ERROR, "Failed to save leaderboard backup to %s", tmp_path);
     }

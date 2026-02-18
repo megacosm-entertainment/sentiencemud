@@ -253,6 +253,8 @@ bool save_reserved_json(void)
     ITERATOR it;
     RESERVED_DATA *reserved;
     char *json_str;
+    char reserved_path_buf[MAX_INPUT_LENGTH];
+    const char *reserved_path;
     
     if (!reserved_vnums) {
         plogf(LOG_ERROR, "save_reserved_json: reserved_vnums list is NULL");
@@ -291,12 +293,14 @@ bool save_reserved_json(void)
     
     /* Add array to root */
     json_object_set_new(root, "entities", entities_array);
+
+    reserved_path = resolve_game_path(SYSTEM_DIR "reserved.json", reserved_path_buf, sizeof(reserved_path_buf));
     
     /* Open file for writing */
-    fp = fopen(SYSTEM_DIR "reserved.json", "w");
+    fp = fopen(reserved_path, "w");
     if (!fp) {
         json_decref(root);
-        plogf(LOG_ERROR, "save_reserved_json: Failed to open file for writing");
+        plogf(LOG_ERROR, "save_reserved_json: Failed to open file for writing: %s", reserved_path);
         return false;
     }
     
@@ -343,16 +347,20 @@ bool load_reserved_json(void)
     size_t i, count;
     int version;
     RESERVED_DATA *reserved;
+    char reserved_path_buf[MAX_INPUT_LENGTH];
+    const char *reserved_path;
+
+    reserved_path = resolve_game_path(SYSTEM_DIR "reserved.json", reserved_path_buf, sizeof(reserved_path_buf));
     
     /* Try to open JSON file */
-    fp = fopen(SYSTEM_DIR "reserved.json", "r");
+    fp = fopen(reserved_path, "r");
     if (!fp)
         return false;  /* File doesn't exist */
     
     fclose(fp);
     
     /* Parse JSON file */
-    root = json_load_file(SYSTEM_DIR "reserved.json", 0, &error);
+    root = json_load_file(reserved_path, 0, &error);
     if (!root) {
         plogf(LOG_ERROR, "load_reserved_json: JSON parse error on line %d: %s", 
               error.line, error.text);

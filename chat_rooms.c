@@ -1414,6 +1414,8 @@ void read_chat_rooms()
     int count;
     int counter;
     int op_count;
+    char chat_file_buf[MAX_INPUT_LENGTH];
+    const char *chat_file = resolve_game_path(CHAT_FILE, chat_file_buf, sizeof(chat_file_buf));
     
     // Try JSON format first
     if (load_chat_rooms_json()) {
@@ -1424,7 +1426,7 @@ void read_chat_rooms()
     // Fall back to legacy .dat format
     log_string("JSON not found, trying legacy .dat format");
 
-    fp = fopen(CHAT_FILE, "r");
+    fp = fopen(chat_file, "r");
 
     if (fp == NULL)
     {

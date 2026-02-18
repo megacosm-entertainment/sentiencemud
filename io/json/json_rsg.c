@@ -498,13 +498,15 @@ static void rsg_load_legacy_aggregate(RANDOM_STRING **rsg_list, long *max_uid, i
     json_t *rsg_obj;
     size_t i;
     FILE *fp;
+    char rsg_file_buf[MAX_INPUT_LENGTH];
+    const char *rsg_file = resolve_game_path(RSG_JSON_FILE, rsg_file_buf, sizeof(rsg_file_buf));
 
-    fp = fopen(RSG_JSON_FILE, "r");
+    fp = fopen(rsg_file, "r");
     if (!fp)
         return;
     fclose(fp);
 
-    root = json_file_load(RSG_JSON_FILE, NULL, NULL, "json_rsg_load_generators");
+    root = json_file_load(rsg_file, NULL, NULL, "json_rsg_load_generators");
     if (!root)
         return;
 

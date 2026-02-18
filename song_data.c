@@ -275,6 +275,8 @@ bool load_songs(void)
 {
     json_t *root, *arr;
     json_error_t error;
+    char songs_file_buf[MAX_INPUT_LENGTH];
+    const char *songs_file;
     size_t i;
 
     top_song_uid = 0;
@@ -286,11 +288,13 @@ bool load_songs(void)
 
     songs_list = list_create(false);
 
+    songs_file = resolve_game_path(SONGS_FILE, songs_file_buf, sizeof(songs_file_buf));
+
     /* Try to load from JSON file */
-    root = json_load_file(SONGS_FILE, 0, &error);
+    root = json_load_file(songs_file, 0, &error);
     if (!root) {
         /* No file exists — bootstrap from music_table[] */
-        log_stringf("load_songs: %s not found, bootstrapping from music_table[]", SONGS_FILE);
+        log_stringf("load_songs: %s not found, bootstrapping from music_table[]", songs_file);
 
         if (!bootstrap_songs())
             return false;
@@ -303,7 +307,7 @@ bool load_songs(void)
     /* Validate format */
     const char *fmt = json_string_value(json_object_get(root, "_format"));
     if (!fmt || str_cmp(fmt, "song_data")) {
-        log_stringf("load_songs: invalid format '%s' in %s", fmt ? fmt : "(null)", SONGS_FILE);
+        log_stringf("load_songs: invalid format '%s' in %s", fmt ? fmt : "(null)", songs_file);
         json_decref(root);
         return false;
     }
@@ -328,7 +332,7 @@ bool load_songs(void)
     json_decref(root);
 
     log_stringf("load_songs: loaded %d songs from %s (top_uid=%d)",
-                song_count(), SONGS_FILE, top_song_uid);
+                song_count(), songs_file, top_song_uid);
     return true;
 }
 
@@ -371,6 +375,10 @@ bool save_songs(void)
     json_t *root, *arr;
     ITERATOR it;
     SONG_DATA *song;
+    char songs_dir_buf[MAX_INPUT_LENGTH];
+    char songs_file_buf[MAX_INPUT_LENGTH];
+    const char *songs_dir;
+    const char *songs_file;
 
     if (!songs_list) {
         log_string("save_songs: no songs_list to save");
@@ -378,7 +386,10 @@ bool save_songs(void)
     }
 
     /* Ensure directory exists */
-    mkdir(SONGS_DIR, 0755);
+    songs_dir = resolve_game_path(SONGS_DIR, songs_dir_buf, sizeof(songs_dir_buf));
+    mkdir(songs_dir, 0755);
+
+    songs_file = resolve_game_path(SONGS_FILE, songs_file_buf, sizeof(songs_file_buf));
 
     root = json_object();
     json_object_set_new(root, "_format", json_string("song_data"));
@@ -395,14 +406,14 @@ bool save_songs(void)
 
     json_object_set_new(root, "songs", arr);
 
-    if (json_dump_file(root, SONGS_FILE, JSON_INDENT(4) | JSON_SORT_KEYS) != 0) {
-        log_stringf("save_songs: failed to write %s", SONGS_FILE);
+    if (json_dump_file(root, songs_file, JSON_INDENT(4) | JSON_SORT_KEYS) != 0) {
+        log_stringf("save_songs: failed to write %s", songs_file);
         json_decref(root);
         return false;
     }
 
     json_decref(root);
-    log_stringf("save_songs: saved %d songs to %s", song_count(), SONGS_FILE);
+    log_stringf("save_songs: saved %d songs to %s", song_count(), songs_file);
     return true;
 }
 

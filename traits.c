@@ -38,6 +38,8 @@ void load_trait_definitions(void)
     json_t *root, *traits_arr, *trait_obj, *val;
     json_error_t error;
     const char *str;
+    char traits_path_buf[MAX_INPUT_LENGTH];
+    const char *traits_path;
     size_t index;
     TRAIT_DEF *def, *last = NULL;
 
@@ -46,22 +48,24 @@ void load_trait_definitions(void)
     trait_def_list = NULL;
     trait_def_count = 0;
 
-    root = json_load_file(TRAITS_FILE, 0, &error);
+    traits_path = resolve_game_path(TRAITS_FILE, traits_path_buf, sizeof(traits_path_buf));
+
+    root = json_load_file(traits_path, 0, &error);
     if (!root) {
-        pwarnf(LOG_INIT, "Could not load " TRAITS_FILE ": %s", error.text);
+        pwarnf(LOG_INIT, "Could not load %s: %s", traits_path, error.text);
         return;
     }
 
     str = json_string_value(json_object_get(root, "_format"));
     if (!str || str_cmp(str, "trait_definitions")) {
-        pbugf(LOG_INIT, "Invalid format in " TRAITS_FILE);
+        pbugf(LOG_INIT, "Invalid format in %s", traits_path);
         json_decref(root);
         return;
     }
 
     traits_arr = json_object_get(root, "traits");
     if (!traits_arr || !json_is_array(traits_arr)) {
-        pbugf(LOG_INIT, "No traits array in " TRAITS_FILE);
+        pbugf(LOG_INIT, "No traits array in %s", traits_path);
         json_decref(root);
         return;
     }
@@ -1352,6 +1356,8 @@ bool save_trait_definitions(void)
 {
     json_t *root, *traits_arr, *trait_obj;
     TRAIT_DEF *def;
+    char traits_path_buf[MAX_INPUT_LENGTH];
+    const char *traits_path;
 
     root = json_object();
     json_object_set_new(root, "_format", json_string("trait_definitions"));
@@ -1390,8 +1396,10 @@ bool save_trait_definitions(void)
 
     json_object_set_new(root, "traits", traits_arr);
 
-    if (json_dump_file(root, TRAITS_FILE, JSON_INDENT(2)) != 0) {
-        pbugf(LOG_ERROR, "save_trait_definitions: Failed to write " TRAITS_FILE);
+    traits_path = resolve_game_path(TRAITS_FILE, traits_path_buf, sizeof(traits_path_buf));
+
+    if (json_dump_file(root, traits_path, JSON_INDENT(2)) != 0) {
+        pbugf(LOG_ERROR, "save_trait_definitions: Failed to write %s", traits_path);
         json_decref(root);
         return false;
     }

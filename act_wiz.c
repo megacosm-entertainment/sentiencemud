@@ -775,8 +775,10 @@ int gconfig_write(void)
 static int game_settings_write_dat(void)
 {
     FILE *fp;
+    char game_settings_file_buf[MAX_INPUT_LENGTH];
+    const char *game_settings_file = resolve_game_path(GAME_SETTINGS_FILE, game_settings_file_buf, sizeof(game_settings_file_buf));
 
-    fp = fopen(GAME_SETTINGS_FILE,"w");
+    fp = fopen(game_settings_file,"w");
     if (!fp)
     {
         pbugf(LOG_INIT, "Unable to open game_settings.rc file for writing.");
@@ -10086,23 +10088,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     /* First, the 'all' option */
     if (!str_cmp(arg1,"all"))
     {
-    /*
-     * If a filename was provided, try to open it for writing
-     * If that fails, just spit output to the screen.
-     */ /*
-    if (arg2[0] != '\0')
-    {
-        fclose(fpReserve);
-        if((fp = fopen(arg2, "w")) == NULL)
-        {
-        send_to_char("Error opening file, printing to screen.\n\r",ch);
-        fclose(fp);
-        fpReserve = fopen(NULL_FILE, "r");
-        fp = NULL;
-        }
-    }
-    else
-        fp = NULL; */
+    /* Legacy file-output path removed (screen output only). */
 
     /* Open a buffer if it's to be output to the screen */
     /*if (!fp)*/
@@ -10175,12 +10161,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
         page_to_char(buf_string(buffer), ch);
         free_buf(buffer);
     /*}*/
-    /* Or just clean up file stuff */
-    /*else
-    {
-        fclose(fp);
-        fpReserve = fopen(NULL_FILE, "r");
-    }*/
+    /* Legacy file-output path removed (screen output only). */
 
     return;
     }
@@ -10239,20 +10220,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     }
     }
 
-    /* Just like in all, trying to fix up the file if provided */
-   /* if (arg2[0] != '\0')
-    {
-    fclose(fpReserve);
-    if((fp = fopen(arg2, "w")) == NULL)
-    {
-        send_to_char("Error opening file, printing to screen.\n\r",ch);
-        fclose(fp);
-        fpReserve = fopen(NULL_FILE, "r");
-        fp = NULL;
-    }
-    }
-    else
-    fp = NULL;*/
+    /* Legacy file-output path removed (screen output only). */
 
     /* And we loop the rooms */
     for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
@@ -10304,12 +10272,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    /* Close up and clean up file stuff */
-    /*if(fp)
-    {
-    fclose(fp);
-    fpReserve = fopen(NULL_FILE, "r");
-    }*/
+    /* Legacy file-output path removed (screen output only). */
 
 }
 

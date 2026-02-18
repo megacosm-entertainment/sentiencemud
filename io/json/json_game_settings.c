@@ -765,11 +765,18 @@ int json_game_settings_migrate(void)
     extern int game_settings_read_dat(void);  // Old .dat reader from act_wiz.c
     int result;
     FILE *test_fp;
+    char game_settings_file_buf[MAX_INPUT_LENGTH];
+    char backup_file_buf[MAX_INPUT_LENGTH];
+    const char *game_settings_file;
+    const char *backup_file;
 
     log_string("Attempting to migrate game_settings.dat to JSON format...");
 
+    game_settings_file = resolve_game_path(GAME_SETTINGS_FILE, game_settings_file_buf, sizeof(game_settings_file_buf));
+    backup_file = resolve_game_path(GAME_SETTINGS_DAT_BACKUP, backup_file_buf, sizeof(backup_file_buf));
+
     // Check if the .dat file exists first
-    test_fp = fopen(GAME_SETTINGS_FILE, "r");
+    test_fp = fopen(game_settings_file, "r");
     if (!test_fp) {
         log_string("Error: No game_settings.dat file found to migrate");
         return 1;
@@ -786,9 +793,9 @@ int json_game_settings_migrate(void)
     // Backup the old file
     char backup_cmd[512];
     snprintf(backup_cmd, sizeof(backup_cmd), "cp %s %s",
-             GAME_SETTINGS_FILE, GAME_SETTINGS_DAT_BACKUP);
+             game_settings_file, backup_file);
     system(backup_cmd);
-    log_stringf("  Backed up old file to %s", GAME_SETTINGS_DAT_BACKUP);
+    log_stringf("  Backed up old file to %s", backup_file);
 
     // Write as JSON
     result = json_game_settings_write();

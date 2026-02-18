@@ -731,10 +731,12 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
  */
 void load_ships()
 {
-    FILE *fp = fopen(SHIPS_FILE, "r");
+    char ships_path_buf[MAX_INPUT_LENGTH];
+    const char *ships_path = resolve_game_path(SHIPS_FILE, ships_path_buf, sizeof(ships_path_buf));
+    FILE *fp = fopen(ships_path, "r");
     if (fp == NULL)
     {
-        pbugf(LOG_ERROR, "Couldn't read ships.dat");
+        pbugf(LOG_ERROR, "Couldn't read ships.dat (%s)", ships_path);
         return;
     }
 
@@ -834,10 +836,12 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
  */
 bool save_ships()
 {
-    FILE *fp = fopen(SHIPS_FILE, "w");
+    char ships_path_buf[MAX_INPUT_LENGTH];
+    const char *ships_path = resolve_game_path(SHIPS_FILE, ships_path_buf, sizeof(ships_path_buf));
+    FILE *fp = fopen(ships_path, "w");
     if (fp == NULL)
     {
-        pbugf(LOG_ERROR, "Couldn't save ships.dat");
+        pbugf(LOG_ERROR, "Couldn't save ships.dat (%s)", ships_path);
         return false;
     }
 

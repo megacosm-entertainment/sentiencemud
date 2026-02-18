@@ -765,10 +765,15 @@ int main(int argc, char **argv)
     /*
      * Reserve one channel for our use.
      */
-    if ((fpReserve = fopen(NULL_FILE, "r")) == NULL)
     {
-    perror(NULL_FILE);
+    char null_file_buf[MAX_INPUT_LENGTH];
+    const char *null_file = resolve_game_path(NULL_FILE, null_file_buf, sizeof(null_file_buf));
+
+    if ((fpReserve = fopen(null_file, "r")) == NULL)
+    {
+    perror(null_file);
     exit(1);
+    }
     }
 
     game_settings = game_settings_zero;

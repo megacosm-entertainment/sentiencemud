@@ -153,6 +153,10 @@ void load_socials_file(void)
 {
     FILE *fp;
     bool loaded_new = false;
+    char socials_file_buf[MAX_INPUT_LENGTH];
+    char old_socials_file_buf[MAX_INPUT_LENGTH];
+    const char *socials_file = resolve_game_path(SOCIALS_FILE, socials_file_buf, sizeof(socials_file_buf));
+    const char *old_socials_file = resolve_game_path(OLD_SOCIALS_FILE, old_socials_file_buf, sizeof(old_socials_file_buf));
 
     social_count = 0;
 
@@ -163,7 +167,7 @@ void load_socials_file(void)
     }
 
     // Try loading from the legacy dat format
-    if ((fp = fopen(SOCIALS_FILE, "r")) != NULL) {
+    if ((fp = fopen(socials_file, "r")) != NULL) {
         log_string("Loading socials from legacy format...");
         loaded_new = load_new_socials(fp);
         fclose(fp);
@@ -172,7 +176,7 @@ void load_socials_file(void)
     // If dat format loading failed or file doesn't exist, try old .are format
     if (!loaded_new) {
         log_string("Legacy socials not found or invalid, trying old format...");
-        if ((fp = fopen(OLD_SOCIALS_FILE, "r")) != NULL) {
+        if ((fp = fopen(old_socials_file, "r")) != NULL) {
             log_string("Loading socials from old format...");
 
             // Skip ahead to the #SOCIALS section

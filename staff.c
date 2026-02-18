@@ -464,14 +464,16 @@ void read_immstaff()
 {
     FILE *fp;
     IMMORTAL_DATA *immortal;
+    char staff_file_buf[MAX_INPUT_LENGTH];
+    const char *staff_file = resolve_game_path(STAFF_FILE, staff_file_buf, sizeof(staff_file_buf));
 
     // Try JSON first
     if (json_load_staff(STAFF_JSON_FILE))
         return;
 
     // Fall back to legacy format
-    if ((fp = fopen(STAFF_FILE, "r")) == NULL) {
-        pbugf(LOG_ERROR, "Couldn't open staff file '%s'.", STAFF_FILE);
+    if ((fp = fopen(staff_file, "r")) == NULL) {
+        pbugf(LOG_ERROR, "Couldn't open staff file '%s'.", staff_file);
         return;
     }
 

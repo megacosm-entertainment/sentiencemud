@@ -11504,9 +11504,11 @@ void generate_discord_who() {
     char nocol[2 * MAX_STRING_LENGTH];
 
     FILE *file;
+    char player_list_path_buf[MAX_INPUT_LENGTH];
+    const char *player_list_path = resolve_game_path(PLAYER_LIST, player_list_path_buf, sizeof(player_list_path_buf));
 
     // Open the file for writing
-    file = fopen(PLAYER_LIST, "w");
+    file = fopen(player_list_path, "w");
     if (!file) {
         log_message(LOG_LEVEL_ERROR, LOG_ERROR, "Unable to open player list file for writing.");
         return;

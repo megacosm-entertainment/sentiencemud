@@ -761,11 +761,13 @@ static bool read_helpfiles_json(void)
 void save_helpfiles_new()
 {
     FILE *fp;
+    char help_file_buf[MAX_INPUT_LENGTH];
+    const char *help_file = resolve_game_path(HELP_FILE, help_file_buf, sizeof(help_file_buf));
 
     if (save_helpfiles_json())
         return;
 
-    if ((fp = fopen(HELP_FILE, "w")) == NULL) {
+    if ((fp = fopen(help_file, "w")) == NULL) {
         pbugf(LOG_ERROR, "save_helpfiles_new: couldn't open file for writing");
         return;
     }
@@ -781,13 +783,15 @@ void read_helpfiles_new()
 {
     FILE *fp;
     char *word;
+    char help_file_buf[MAX_INPUT_LENGTH];
+    const char *help_file = resolve_game_path(HELP_FILE, help_file_buf, sizeof(help_file_buf));
 
     if (read_helpfiles_json())
         return;
 
-    if ((fp = fopen(HELP_FILE, "r")) == NULL) {
+    if ((fp = fopen(help_file, "r")) == NULL) {
         pbugf(LOG_ERROR, "read_helpfiles_new: couldn't open file for reading");
-        fp = fopen(HELP_FILE, "w");
+        fp = fopen(help_file, "w");
         if (fp != NULL) {
             fprintf(fp, "#HELPCATEGORY ~\n");
             fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
@@ -802,7 +806,7 @@ void read_helpfiles_new()
         }
     }
 
-    fp = fopen(HELP_FILE, "r");
+    fp = fopen(help_file, "r");
     if (fp == NULL) {
         topHelpCat = new_help_category();
         free_string(topHelpCat->name);

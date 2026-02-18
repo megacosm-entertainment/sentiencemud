@@ -1628,6 +1628,8 @@ void load_changesets(void)
     char *word;
     bool fMatch;
     GAME_SETTINGS_CHANGESET *changeset = NULL;
+    char changeset_file_buf[MAX_INPUT_LENGTH];
+    const char *changeset_file = resolve_game_path(CHANGESET_FILE, changeset_file_buf, sizeof(changeset_file_buf));
 
     /* First, free any existing changesets */
     free_all_changesets();
@@ -1637,7 +1639,7 @@ void load_changesets(void)
         return;
 
     // Fall back to legacy format
-    if ((fp = fopen(CHANGESET_FILE, "r")) == NULL) {
+    if ((fp = fopen(changeset_file, "r")) == NULL) {
         pwarnf(LOG_INIT, "No changeset history file found. Starting with empty history.");
         return;
     }

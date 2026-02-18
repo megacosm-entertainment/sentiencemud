@@ -524,10 +524,12 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 
 void load_dungeons()
 {
-    FILE *fp = fopen(DUNGEONS_FILE, "r");
+    char dungeons_path_buf[MAX_INPUT_LENGTH];
+    const char *dungeons_path = resolve_game_path(DUNGEONS_FILE, dungeons_path_buf, sizeof(dungeons_path_buf));
+    FILE *fp = fopen(dungeons_path, "r");
     if (fp == NULL)
     {
-        pbugf(LOG_ERROR, "Couldn't load dungeons.dat");
+        pbugf(LOG_ERROR, "Couldn't load dungeons.dat (%s)", dungeons_path);
         return;
     }
     char *word;
@@ -786,10 +788,12 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 
 bool save_dungeons()
 {
-    FILE *fp = fopen(DUNGEONS_FILE, "w");
+    char dungeons_path_buf[MAX_INPUT_LENGTH];
+    const char *dungeons_path = resolve_game_path(DUNGEONS_FILE, dungeons_path_buf, sizeof(dungeons_path_buf));
+    FILE *fp = fopen(dungeons_path, "w");
     if (fp == NULL)
     {
-        pbugf(LOG_ERROR, "Couldn't save dungeons.dat");
+        pbugf(LOG_ERROR, "Couldn't save dungeons.dat (%s)", dungeons_path);
         return false;
     }
 
