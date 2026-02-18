@@ -29,6 +29,9 @@ jobs:
   bootstrap-ci-tests:
     name: Bootstrap-root regression tests
     runs-on: ubuntu-latest
+    env:
+      SENTIENCE_BOOTSTRAP_DATA_SOURCE: ${{ github.workspace }}/bootstrap/bootstrap_data
+      SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
     container:
       image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
       options: --user root
@@ -46,8 +49,6 @@ jobs:
         run: |
           cd .deps
           ./build_deps.sh
-         SENTIENCE_BOOTSTRAP_DATA_SOURCE: ${{ github.workspace }}/bootstrap/bootstrap_data
-         SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
 
       - name: Build tests binary
         run: |

@@ -28,6 +28,7 @@ jobs:
             const run = context.payload.workflow_run;
             if (!run) {
               core.setOutput('skip', 'true');
+              core.setOutput('reason', 'No workflow_run payload (likely manual dispatch).');
               return;
             }
 
@@ -35,6 +36,7 @@ jobs:
             const isRelevant = ['pull_request', 'push', 'merge_group', 'workflow_dispatch'].includes(eventName);
             if (!isRelevant) {
               core.setOutput('skip', 'true');
+              core.setOutput('reason', `Event '${eventName}' is not configured for Discord notifications.`);
               return;
             }
 
@@ -92,7 +94,19 @@ jobs:
             };
 
             core.setOutput('skip', 'false');
+            core.setOutput('reason', '');
             core.setOutput('json', JSON.stringify(body));
+
+      - name: Explain notification skip
+        if: steps.payload.outputs.skip == 'true' || env.DISCORD_WEBHOOK_URL == ''
+        run: |
+          if [ "${{ steps.payload.outputs.skip }}" = "true" ]; then
+            echo "Discord notification skipped: ${{ steps.payload.outputs.reason }}"
+          fi
+
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "Discord notification skipped: secret GHA_CI_TESTS_DISCORD_WEBHOOK is empty or not configured."
+          fi
 
       - name: Send CI result to Discord
         if: steps.payload.outputs.skip != 'true' && env.DISCORD_WEBHOOK_URL != ''
