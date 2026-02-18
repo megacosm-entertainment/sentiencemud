@@ -592,6 +592,12 @@ int main(int argc, char **argv)
 
     if (data_root_override && data_root_override[0]) {
         set_runtime_game_root(data_root_override);
+
+        if (chdir(data_root_override) != 0) {
+            fprintf(stderr, "Failed to use data root '%s': %s\n", data_root_override, strerror(errno));
+            return 1;
+        }
+        fprintf(stderr, "Using data root: %s\n", runtime_game_root);
     } else if (bootstrap_mode && bootstrap_root && bootstrap_root[0]) {
         set_runtime_game_root(bootstrap_root);
     }
@@ -618,16 +624,6 @@ int main(int argc, char **argv)
     detect_test_mode_args(argc, argv);
     if (test_mode) {
         log_set_unit_test_only(true);
-    }
-
-    if (data_root_override && data_root_override[0]) {
-        set_runtime_game_root(data_root_override);
-
-        if (chdir(data_root_override) != 0) {
-            fprintf(stderr, "Failed to use data root '%s': %s\n", data_root_override, strerror(errno));
-            return 1;
-        }
-        fprintf(stderr, "Using data root: %s\n", runtime_game_root);
     }
 
     /* Check for bootstrap mode */
