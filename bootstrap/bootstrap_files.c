@@ -125,6 +125,14 @@ static bool copy_file_contents(const char *src, const char *dst)
     return ok;
 }
 
+static bool copy_file_if_missing(const char *src, const char *dst)
+{
+    if (file_exists(dst)) {
+        return true;
+    }
+    return copy_file_contents(src, dst);
+}
+
 static bool copy_directory_recursive(const char *src, const char *dst)
 {
     DIR *dir = opendir(src);
@@ -175,6 +183,74 @@ static bool copy_directory_recursive(const char *src, const char *dst)
 
     closedir(dir);
     return true;
+}
+
+static bool copy_directory_recursive_missing(const char *src, const char *dst)
+{
+    DIR *dir = opendir(src);
+    if (!dir) {
+        return false;
+    }
+
+    if (!ensure_directory(dst)) {
+        closedir(dir);
+        return false;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (!str_cmp(entry->d_name, ".") || !str_cmp(entry->d_name, "..")) {
+            continue;
+        }
+
+        char src_path[1024];
+        char dst_path[1024];
+        struct stat st;
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", src, entry->d_name);
+        snprintf(dst_path, sizeof(dst_path), "%s/%s", dst, entry->d_name);
+
+        if (stat(src_path, &st) != 0) {
+            closedir(dir);
+            return false;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            if (!copy_directory_recursive_missing(src_path, dst_path)) {
+                closedir(dir);
+                return false;
+            }
+            continue;
+        }
+
+        if (!S_ISREG(st.st_mode)) {
+            continue;
+        }
+
+        if (!copy_file_if_missing(src_path, dst_path)) {
+            closedir(dir);
+            return false;
+        }
+    }
+
+    closedir(dir);
+    return true;
+}
+
+static bool find_existing_directory(char *out_path, size_t out_size, const char **candidates)
+{
+    if (!out_path || out_size == 0 || !candidates) {
+        return false;
+    }
+
+    for (int i = 0; candidates[i] != NULL; i++) {
+        if (directory_exists_local(candidates[i])) {
+            snprintf(out_path, out_size, "%s", candidates[i]);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -230,6 +306,93 @@ bool ensure_directory_structure(void)
             }
         } else if (!S_ISDIR(st.st_mode)) {
             fprintf(stderr, "Path exists but is not a directory: %s\n", dirs[i]);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool seed_from_bootstrap_data(void)
+{
+    char source_root[1024];
+    const char *workspace = getenv("GITHUB_WORKSPACE");
+    const char *env_source = getenv("SENTIENCE_BOOTSTRAP_DATA_SOURCE");
+    char workspace_candidate_a[1024];
+    char workspace_candidate_b[1024];
+
+    workspace_candidate_a[0] = '\0';
+    workspace_candidate_b[0] = '\0';
+
+    if (workspace && workspace[0]) {
+        snprintf(workspace_candidate_a, sizeof(workspace_candidate_a), "%s/bootstrap/bootstrap_data", workspace);
+        snprintf(workspace_candidate_b, sizeof(workspace_candidate_b), "%s/src/bootstrap/bootstrap_data", workspace);
+    }
+
+    if (env_source && directory_exists_local(env_source)) {
+        snprintf(source_root, sizeof(source_root), "%s", env_source);
+    } else {
+        const char *source_candidates[] = {
+            "bootstrap/bootstrap_data",
+            "src/bootstrap/bootstrap_data",
+            workspace_candidate_a[0] ? workspace_candidate_a : NULL,
+            workspace_candidate_b[0] ? workspace_candidate_b : NULL,
+            "/sentience/src/bootstrap/bootstrap_data",
+            NULL
+        };
+
+        if (!find_existing_directory(source_root, sizeof(source_root), source_candidates)) {
+            fprintf(stderr, "No bootstrap_data source directory found; continuing with generated minimums\n");
+            return true;
+        }
+    }
+
+    struct {
+        const char *src_rel;
+        const char *dst_rel;
+    } mappings[] = {
+        {"area", "area"},
+        {"system", "data/system"},
+        {"world", "data/world"},
+        {"races", "data/races"},
+        {"skills", "data/skills"},
+        {"skill_groups", "data/skill_groups"},
+        {"classes", "data/classes"},
+        {"songs", "data/songs"},
+        {"traits", "data/traits"},
+        {"dump", "data/dump"},
+        {NULL, NULL}
+    };
+
+    for (int i = 0; mappings[i].src_rel != NULL; i++) {
+        char src_path[1024];
+        char dst_path[1024];
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", source_root, mappings[i].src_rel);
+        snprintf(dst_path, sizeof(dst_path), "%s", mappings[i].dst_rel);
+
+        if (!directory_exists_local(src_path)) {
+            continue;
+        }
+
+        if (!copy_directory_recursive_missing(src_path, dst_path)) {
+            fprintf(stderr, "Failed seeding bootstrap directory %s -> %s\n", src_path, dst_path);
+            return false;
+        }
+    }
+
+    {
+        char src_gq[1024];
+        char src_mail[1024];
+        snprintf(src_gq, sizeof(src_gq), "%s/gq.json", source_root);
+        snprintf(src_mail, sizeof(src_mail), "%s/mail.json", source_root);
+
+        if (file_exists(src_gq) && !copy_file_if_missing(src_gq, "data/gq.json")) {
+            fprintf(stderr, "Failed seeding data/gq.json from bootstrap_data\n");
+            return false;
+        }
+        if (file_exists(src_mail) && !copy_file_if_missing(src_mail, "data/mail.json")) {
+            fprintf(stderr, "Failed seeding data/mail.json from bootstrap_data\n");
             return false;
         }
     }
@@ -344,6 +507,34 @@ bool create_limbo_area(void)
     }
 
     json_decref(root);
+    return true;
+}
+
+bool create_zlog_conf(void)
+{
+    FILE *fp = fopen("data/system/zlog.conf", "w");
+    if (!fp) {
+        perror("Failed to create zlog.conf");
+        return false;
+    }
+
+    fprintf(fp, "[formats]\n");
+    fprintf(fp, "text_format = \"%%d(%%Y-%%m-%%d %%H:%%M:%%S.%%us) %%-6V (%%c) - %%m%%n\"\n");
+    fprintf(fp, "bug_format = \"%%d(%%Y-%%m-%%d %%H:%%M:%%S.%%us) %%-6V (%%c:%%F:%%L %%U) - %%m%%n\"\n");
+    fprintf(fp, "debug_format = \"%%d(%%Y-%%m-%%d %%H:%%M:%%S.%%us) %%-6V (%%c:%%F:%%L %%U) - %%m%%n\"\n");
+    fprintf(fp, "unit_test_format = \"%%m%%n\"\n\n");
+
+    fprintf(fp, "[rules]\n");
+    fprintf(fp, "info.* >stdout; text_format\n");
+    fprintf(fp, "unit_tests.* >stdout; unit_test_format\n\n");
+    fprintf(fp, "*.info \"logs/system.log\" rotate 10M; text_format\n");
+    fprintf(fp, "*.=debug \"logs/system.log\" rotate 10M; debug_format\n");
+    fprintf(fp, "*.=warn \"logs/system.log\" rotate 10M; debug_format\n");
+    fprintf(fp, "*.=error \"logs/system.log\" rotate 10M; debug_format\n");
+    fprintf(fp, "*.=bug \"logs/system.log\" rotate 10M; bug_format\n\n");
+    fprintf(fp, "unit_tests.* \"logs/unit_tests.log\" rotate 10M; unit_test_format\n");
+
+    fclose(fp);
     return true;
 }
 
@@ -801,21 +992,38 @@ bool create_ci_test_fixture_areas(void)
 
 bool create_ci_test_data_files(void)
 {
-    const char *source_candidates[] = {
-        "src/tests/data",
-        "/sentience/src/tests/data",
-        NULL
-    };
+    char source_dir[1024];
+    const char *env_source = getenv("SENTIENCE_TEST_SOURCE_DIR");
+    const char *workspace = getenv("GITHUB_WORKSPACE");
+    char workspace_tests_data[1024];
+    char workspace_src_tests_data[1024];
 
-    const char *source_dir = NULL;
-    for (int i = 0; source_candidates[i] != NULL; i++) {
-        if (directory_exists_local(source_candidates[i])) {
-            source_dir = source_candidates[i];
-            break;
+    workspace_tests_data[0] = '\0';
+    workspace_src_tests_data[0] = '\0';
+
+    if (env_source && directory_exists_local(env_source)) {
+        snprintf(source_dir, sizeof(source_dir), "%s", env_source);
+    } else {
+        if (workspace && workspace[0]) {
+            snprintf(workspace_tests_data, sizeof(workspace_tests_data), "%s/tests/data", workspace);
+            snprintf(workspace_src_tests_data, sizeof(workspace_src_tests_data), "%s/src/tests/data", workspace);
+        }
+
+        const char *source_candidates[] = {
+            "tests/data",
+            "src/tests/data",
+            workspace_tests_data[0] ? workspace_tests_data : NULL,
+            workspace_src_tests_data[0] ? workspace_src_tests_data : NULL,
+            "/sentience/src/tests/data",
+            NULL
+        };
+
+        if (!find_existing_directory(source_dir, sizeof(source_dir), source_candidates)) {
+            source_dir[0] = '\0';
         }
     }
 
-    if (!source_dir) {
+    if (!source_dir[0]) {
         fprintf(stderr, "No source test data directory found for CI fixture copy\n");
         return false;
     }

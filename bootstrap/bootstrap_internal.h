@@ -18,11 +18,13 @@ bool ensure_directory_structure(void);
 bool create_gconfig_rc(void);
 bool create_area_lst(void);
 bool create_limbo_area(void);
+bool create_zlog_conf(void);
 bool create_human_race(void);
 bool create_trait_definitions(void);
 bool create_game_settings(void);
 bool create_ci_test_fixture_areas(void);
 bool create_ci_test_data_files(void);
+bool seed_from_bootstrap_data(void);
 bool generate_default_game_data(void);
 
 /* Reserved entities (bootstrap_reserved.c) */

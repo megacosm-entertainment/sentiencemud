@@ -46,6 +46,8 @@ jobs:
         run: |
           cd .deps
           ./build_deps.sh
+         SENTIENCE_BOOTSTRAP_DATA_SOURCE: ${{ github.workspace }}/bootstrap/bootstrap_data
+         SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
 
       - name: Build tests binary
         run: |
@@ -54,6 +56,7 @@ jobs:
       - name: Bootstrap isolated CI root
         env:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
+          SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
         run: |
           rm -rf "$BOOT_ROOT"
           mkdir -p "$BOOT_ROOT"

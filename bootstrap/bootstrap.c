@@ -168,6 +168,13 @@ bool create_minimal_data_files(void)
     }
     printf("  Directory structure verified.\n");
 
+    printf("  Seeding bootstrap data files... ");
+    if (!seed_from_bootstrap_data()) {
+        fprintf(stderr, "FAILED\n");
+        return false;
+    }
+    printf("OK\n");
+
     /* Create each required file */
     struct {
         const char *name;
@@ -177,6 +184,7 @@ bool create_minimal_data_files(void)
         {"gconfig.rc", "data/system/gconfig.rc", create_gconfig_rc},
         {"area.lst", "data/world/area.lst", create_area_lst},
         {"limbo.json", "area/limbo.json", create_limbo_area},
+        {"zlog.conf", "data/system/zlog.conf", create_zlog_conf},
         {"game_settings.json", "data/system/game_settings.json", create_game_settings},
         {"commands.json", "data/system/commands.json", create_commands_json},
         {NULL, NULL, NULL}
