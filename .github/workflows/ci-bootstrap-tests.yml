@@ -76,3 +76,62 @@ jobs:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
         run: |
           ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT"
+
+  notify-discord:
+    name: Notify Discord
+    needs: bootstrap-ci-tests
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.GHA_CI_TESTS_DISCORD_WEBHOOK }}
+    steps:
+      - name: Build notification payload
+        id: payload
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = '${{ needs.bootstrap-ci-tests.result }}';
+            const success = result === 'success';
+            const icon = success ? '✅' : (result === 'cancelled' ? '⚠️' : '❌');
+            const color = success ? 3066993 : (result === 'cancelled' ? 16705372 : 15158332);
+            const title = `${icon} CI Bootstrap Tests ${success ? 'Passed' : result.charAt(0).toUpperCase() + result.slice(1)}`;
+
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
+            const branch = context.ref.replace('refs/heads/', '');
+            const actor = context.actor;
+            const runUrl = `${context.serverUrl}/${repo}/actions/runs/${context.runId}`;
+
+            const body = {
+              content: null,
+              embeds: [
+                {
+                  title,
+                  description: [
+                    `**Repository:** ${repo}`,
+                    `**Branch:** ${branch}`,
+                    `**Event:** ${context.eventName}`,
+                    `**Conclusion:** ${result}`,
+                    `**Triggered by:** ${actor}`
+                  ].join('\n'),
+                  url: runUrl,
+                  color,
+                  timestamp: new Date().toISOString()
+                }
+              ]
+            };
+
+            core.setOutput('json', JSON.stringify(body));
+
+      - name: Explain notification skip
+        if: env.DISCORD_WEBHOOK_URL == ''
+        run: |
+          echo "Discord notification skipped: secret GHA_CI_TESTS_DISCORD_WEBHOOK is empty or not configured."
+
+      - name: Send Discord notification
+        if: env.DISCORD_WEBHOOK_URL != ''
+        env:
+          PAYLOAD: ${{ steps.payload.outputs.json }}
+        run: |
+          curl -fsSL -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"

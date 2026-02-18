@@ -519,6 +519,11 @@ const char *resolve_game_path(const char *path, char *buffer, size_t buffer_size
         return path;
     }
 
+    if (path[0] != '/') {
+        snprintf(buffer, buffer_size, "%s/%s", runtime_game_root, path);
+        return buffer;
+    }
+
     default_root_len = strlen(default_root);
     if (strncmp(path, default_root, default_root_len) != 0) {
         return path;
