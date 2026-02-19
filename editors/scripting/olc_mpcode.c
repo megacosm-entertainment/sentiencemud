@@ -548,8 +548,13 @@ SCRIPTEDIT(scriptedit_show)
         def);
 
     /* Dispatch to active tab */
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < def->tabs.count
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < def->tabs.count; i++) {
+            if (def->tabs.tabs[i].show_fn)
+                def->tabs.tabs[i].show_fn(ch, ctx, (void *)pCode);
+        }
+    } else if (tab >= 0 && tab < def->tabs.count
         && def->tabs.tabs[tab].show_fn) {
         def->tabs.tabs[tab].show_fn(ch, ctx, (void *)pCode);
     } else {
@@ -898,7 +903,7 @@ SCRIPTEDIT(scriptedit_name)
  *
  * @param ch        Character issuing the command
  * @param argument  Must be empty
- * @return          true if code was modified (SECURED flag removed)
+ * @return          true when entering code editor (marks area dirty)
  */
 SCRIPTEDIT(scriptedit_code)
 {
@@ -906,19 +911,19 @@ SCRIPTEDIT(scriptedit_code)
     EDIT_SCRIPT(ch, pCode);
 
     if (!argument[0]) {
-        int ret;
-
         /* If they edit the code and aren't authorized, remove SECURED */
         if (IS_SET(pCode->flags, SCRIPT_SECURED) && !script_imp_check(ch)) {
             REMOVE_BIT(pCode->flags, SCRIPT_SECURED);
-            ret = true;
-        } else
-            ret = false;
+        }
 
         if (pCode->edit_src == pCode->src)
             pCode->edit_src = str_dup(pCode->src);
         string_append(ch, &pCode->edit_src);
-        return ret;
+
+        if (pCode->area)
+            SET_BIT(pCode->area->area_flags, AREA_CHANGED);
+
+        return true;
     }
 
     send_to_char("Syntax: code\n\r", ch);

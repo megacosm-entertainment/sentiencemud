@@ -283,8 +283,13 @@ TEDIT(tedit_show)
         formatf("%ld", token_index->vnum), &tedit_def);
 
     /* Dispatch to active tab's show function */
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < tedit_def.tabs.count && tedit_def.tabs.tabs[tab].show_fn) {
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < tedit_def.tabs.count; i++) {
+            if (tedit_def.tabs.tabs[i].show_fn)
+                tedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)token_index);
+        }
+    } else if (tab >= 0 && tab < tedit_def.tabs.count && tedit_def.tabs.tabs[tab].show_fn) {
         tedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)token_index);
     } else {
         tedit_show_general_tab(ch, ctx, (void *)token_index);

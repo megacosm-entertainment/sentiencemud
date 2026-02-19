@@ -3686,20 +3686,27 @@ EVTEDIT(evtedit_show)
     olc_display_header(ctx, "EVTEdit", evt->name,
         formatf("UID %ld", evt->uid), &evtedit_def);
 
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    switch (tab) {
-    case 1:
-        evtedit_show_schedule_tab(ch, ctx, evt);
-        break;
-    case 2:
-        evtedit_show_messages_tab(ch, ctx, evt);
-        break;
-    case 3:
-        evtedit_show_meta_tab(ch, ctx, evt);
-        break;
-    default:
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
         evtedit_show_identity_tab(ch, ctx, evt);
-        break;
+        evtedit_show_schedule_tab(ch, ctx, evt);
+        evtedit_show_messages_tab(ch, ctx, evt);
+        evtedit_show_meta_tab(ch, ctx, evt);
+    } else {
+        switch (tab) {
+        case 1:
+            evtedit_show_schedule_tab(ch, ctx, evt);
+            break;
+        case 2:
+            evtedit_show_messages_tab(ch, ctx, evt);
+            break;
+        case 3:
+            evtedit_show_meta_tab(ch, ctx, evt);
+            break;
+        default:
+            evtedit_show_identity_tab(ch, ctx, evt);
+            break;
+        }
     }
 
     olc_display_footer(ctx, theme);

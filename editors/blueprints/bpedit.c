@@ -211,8 +211,13 @@ BPEDIT( bpedit_show )
     olc_display_header(ctx, "BPEdit", bp->name, id_buf, &bpedit_def);
 
     /* Dispatch to active tab's show function */
-    int tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < bpedit_def.tabs.count
+    int tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < bpedit_def.tabs.count; i++) {
+            if (bpedit_def.tabs.tabs[i].show_fn)
+                bpedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)bp);
+        }
+    } else if (tab >= 0 && tab < bpedit_def.tabs.count
         && bpedit_def.tabs.tabs[tab].show_fn) {
         bpedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)bp);
     } else {

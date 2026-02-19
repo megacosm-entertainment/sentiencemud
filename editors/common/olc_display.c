@@ -112,7 +112,7 @@ void olc_display_header(OLC_LAYOUT_CTX *ctx, const char *editor_name,
     add_buf(ctx->buffer, "{x\n\r");
 
     /* Render tabs if the editor has them */
-    if (def && def->tabs.count > 0) {
+    if (def && def->tabs.count > 0 && !olc_show_all_tabs_mode(ctx->ch)) {
         /* Build an OLC_EDITOR_TABS compatible struct for the existing renderer */
         OLC_EDITOR_TABS compat_tabs;
         compat_tabs.tab_count = def->tabs.count;

@@ -143,11 +143,11 @@ void do_plist(CHAR_DATA *ch, char *argument)
 void do_pshow(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL], arg2[MSL];
-    void *old_edit;
     BUFFER *buffer;
     PROJECT_DATA *project;
 
     argument = one_argument(argument, arg);
+    arg2[0] = '\0';
 
     buffer = new_buf();
 
@@ -159,10 +159,7 @@ void do_pshow(CHAR_DATA *ch, char *argument)
         add_buf(buffer, "Project not found.\n\r");
     else
     {
-        old_edit = ch->desc->pEdit;
-        ch->desc->pEdit = (void *) project;
-        pedit_show(ch, arg2);
-        ch->desc->pEdit = old_edit;
+        olc_show_item(ch, (void *)project, pedit_show, arg2);
     }
     }
 

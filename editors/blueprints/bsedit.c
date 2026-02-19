@@ -203,8 +203,13 @@ BSEDIT( bsedit_show )
     olc_display_header(ctx, "BSEdit", bs->name, id_buf, &bsedit_def);
 
     /* Dispatch to active tab's show function */
-    int tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < bsedit_def.tabs.count
+    int tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < bsedit_def.tabs.count; i++) {
+            if (bsedit_def.tabs.tabs[i].show_fn)
+                bsedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)bs);
+        }
+    } else if (tab >= 0 && tab < bsedit_def.tabs.count
         && bsedit_def.tabs.tabs[tab].show_fn) {
         bsedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)bs);
     } else {

@@ -518,8 +518,13 @@ REDIT(redit_show)
         formatf("%ld", pRoom->vnum), &redit_def);
 
     /* Dispatch to active tab's show function */
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < redit_def.tabs.count
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < redit_def.tabs.count; i++) {
+            if (redit_def.tabs.tabs[i].show_fn)
+                redit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)pRoom);
+        }
+    } else if (tab >= 0 && tab < redit_def.tabs.count
         && redit_def.tabs.tabs[tab].show_fn) {
         redit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pRoom);
     } else {
@@ -531,7 +536,7 @@ REDIT(redit_show)
     olc_layout_free(ctx);
 
     /* Resets tab: display_resets sends directly to character */
-    if (tab == 2 && ch->in_room && ch->in_room->reset_first)
+    if ((tab == 2 || tab < 0) && ch->in_room && ch->in_room->reset_first)
         display_resets(ch);
 
     return false;

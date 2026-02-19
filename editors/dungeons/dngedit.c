@@ -655,8 +655,13 @@ DNGEDIT( dngedit_show )
     olc_display_header(ctx, "DNGEdit", dng->name, id_buf, &dngedit_def);
 
     /* Dispatch to active tab's show function */
-    int tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < dngedit_def.tabs.count
+    int tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < dngedit_def.tabs.count; i++) {
+            if (dngedit_def.tabs.tabs[i].show_fn)
+                dngedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)dng);
+        }
+    } else if (tab >= 0 && tab < dngedit_def.tabs.count
         && dngedit_def.tabs.tabs[tab].show_fn) {
         dngedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)dng);
     } else {

@@ -2635,7 +2635,6 @@ void do_bslist(CHAR_DATA *ch, char *argument)
 void do_bsshow(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT_SECTION *bs;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -2656,11 +2655,7 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) bs;
-
-    bsedit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)bs, bsedit_show, argument);
     return;
 }
 
@@ -2922,7 +2917,6 @@ void do_bplist(CHAR_DATA *ch, char *argument)
 void do_bpshow(CHAR_DATA *ch, char *argument)
 {
     BLUEPRINT *bp;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -2943,11 +2937,7 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) bp;
-
-    bpedit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)bp, bpedit_show, argument);
     return;
 }
 
@@ -2958,6 +2948,120 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 /**
  * @section Immortal Commands
  */
+
+static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
+{
+    ITERATOR it;
+    int count;
+
+    bprintf(buffer, "\n\r{CInstance Entities{x\n\r");
+    bprintf(buffer, "  Players : {W%d{x\n\r", list_size(instance->players));
+    bprintf(buffer, "  Mobiles : {W%d{x\n\r", list_size(instance->mobiles));
+    bprintf(buffer, "  Bosses  : {W%d{x\n\r", list_size(instance->bosses));
+    bprintf(buffer, "  Objects : {W%d{x\n\r", list_size(instance->objects));
+    bprintf(buffer, "  Rooms   : {W%d{x\n\r", list_size(instance->rooms));
+
+    count = 0;
+    bprintf(buffer, "\n\r{YPlayers:{x\n\r");
+    iterator_start(&it, instance->players);
+    while (true)
+    {
+        CHAR_DATA *player = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!player)
+            break;
+
+        ++count;
+        bprintf(buffer, "  %3d) {W%s{x [%s]\n\r",
+            count,
+            player->name ? player->name : "(unknown)",
+            (player->in_room ? widevnum_string_room(player->in_room, NULL) : "nowhere"));
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "  (none)\n\r");
+
+    count = 0;
+    bprintf(buffer, "\n\r{YMobiles:{x\n\r");
+    iterator_start(&it, instance->mobiles);
+    while (true)
+    {
+        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!mob)
+            break;
+
+        ++count;
+        bprintf(buffer, "  %3d) {W%s{x [%s]\n\r",
+            count,
+            IS_NPC(mob) ? mob->short_descr : mob->name,
+            (mob->in_room ? widevnum_string_room(mob->in_room, NULL) : "nowhere"));
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "  (none)\n\r");
+
+    count = 0;
+    bprintf(buffer, "\n\r{YBosses:{x\n\r");
+    iterator_start(&it, instance->bosses);
+    while (true)
+    {
+        CHAR_DATA *boss = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!boss)
+            break;
+
+        ++count;
+        bprintf(buffer, "  %3d) {W%s{x [%s]\n\r",
+            count,
+            IS_NPC(boss) ? boss->short_descr : boss->name,
+            (boss->in_room ? widevnum_string_room(boss->in_room, NULL) : "nowhere"));
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "  (none)\n\r");
+
+    count = 0;
+    bprintf(buffer, "\n\r{YObjects:{x\n\r");
+    iterator_start(&it, instance->objects);
+    while (true)
+    {
+        OBJ_DATA *obj = (OBJ_DATA *)iterator_nextdata(&it);
+        if (!obj)
+            break;
+
+        ++count;
+        bprintf(buffer, "  %3d) {W%s{x", count, obj->short_descr ? obj->short_descr : "(object)");
+        if (obj->in_room)
+            bprintf(buffer, " [%s]", widevnum_string_room(obj->in_room, NULL));
+        else if (obj->carried_by)
+            bprintf(buffer, " [carried by %s]", IS_NPC(obj->carried_by) ? obj->carried_by->short_descr : obj->carried_by->name);
+        else if (obj->in_obj)
+            bprintf(buffer, " [inside %s]", obj->in_obj->short_descr ? obj->in_obj->short_descr : "object");
+        else
+            bprintf(buffer, " [unknown]");
+        bprintf(buffer, "\n\r");
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "  (none)\n\r");
+
+    count = 0;
+    bprintf(buffer, "\n\r{YRooms:{x\n\r");
+    iterator_start(&it, instance->rooms);
+    while (true)
+    {
+        ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&it);
+        if (!room)
+            break;
+
+        ++count;
+        bprintf(buffer, "  %3d) {W%s{x %s\n\r",
+            count,
+            widevnum_string_room(room, NULL),
+            room->name ? room->name : "(unnamed room)");
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "  (none)\n\r");
+}
 
 
 /**
@@ -2976,6 +3080,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
     if( argument[0] == '\0' )
     {
         send_to_char("Syntax:  instance list\n\r", ch);
+        send_to_char("         instance entities <#>\n\r", ch);
         send_to_char("         instance unload\n\r", ch);
         return;
     }
@@ -3046,6 +3151,44 @@ void do_instance(CHAR_DATA *ch, char *argument)
         }
         free_buf(buffer);
 
+        return;
+    }
+
+    if( !str_prefix(arg1, "entities") )
+    {
+        BUFFER *buffer;
+        INSTANCE *instance;
+        int index;
+
+        if( !is_number(argument) )
+        {
+            send_to_char("Syntax:  instance entities <#>\n\r", ch);
+            return;
+        }
+
+        index = atoi(argument);
+        if( index < 1 || list_size(loaded_instances) < index )
+        {
+            send_to_char("There is no instance loaded at that index.\n\r", ch);
+            return;
+        }
+
+        instance = (INSTANCE *)list_nthdata(loaded_instances, index);
+
+        buffer = new_buf();
+        bprintf(buffer, "\n\r{x[ {Winstance entities %d{x ]\n\r", index);
+        bprintf(buffer, "Blueprint: {W%s{x [%s]\n\r",
+            instance->blueprint ? instance->blueprint->name : "(none)",
+            (instance->blueprint ? widevnum_string_blueprint(instance->blueprint, NULL) : "0"));
+        bprintf(buffer, "Floor    : {W%d{x\n\r", instance->floor);
+        bprintf(buffer, "Owner    : {W%s{x\n\r", instance_get_ownership(instance));
+        if( IS_VALID(instance->dungeon) )
+            bprintf(buffer, "Dungeon  : {W%s{x\n\r", widevnum_string_dungeon(instance->dungeon->index, NULL));
+
+        instance_append_entities_report(buffer, instance);
+
+        page_to_char(buf_string(buffer), ch);
+        free_buf(buffer);
         return;
     }
 

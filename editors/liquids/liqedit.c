@@ -624,8 +624,13 @@ LIQEDIT(liqedit_show)
     olc_display_header(ctx, "LiqEdit", liq->name,
         formatf("UID %ld", liq->uid), &liqedit_def);
 
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < liqedit_def.tabs.count
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < liqedit_def.tabs.count; i++) {
+            if (liqedit_def.tabs.tabs[i].show_fn)
+                liqedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)liq);
+        }
+    } else if (tab >= 0 && tab < liqedit_def.tabs.count
         && liqedit_def.tabs.tabs[tab].show_fn) {
         liqedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)liq);
     } else {

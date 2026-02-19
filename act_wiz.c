@@ -2280,6 +2280,8 @@ void do_stat(CHAR_DATA *ch, char *argument)
     send_to_char("  stat <name>\n\r",ch);
     send_to_char("  stat area <number>\n\r", ch);
     send_to_char("  stat wilds <wuid>\n\r", ch);
+    send_to_char("  stat instance <#>\n\r", ch);
+    send_to_char("  stat dungeon <#> [floor]\n\r", ch);
     send_to_char("  stat obj <name>\n\r",ch);
     send_to_char("  stat mob <name>\n\r",ch);
     send_to_char("  stat room <number>\n\r",ch);
@@ -2323,6 +2325,23 @@ void do_stat(CHAR_DATA *ch, char *argument)
         do_function (ch, &do_wstat, string);
         return;
     }
+
+    if (!str_cmp(arg, "instance"))
+    {
+        char cmd[MAX_INPUT_LENGTH];
+        snprintf(cmd, sizeof(cmd), "entities %s", string);
+        do_function(ch, &do_instance, cmd);
+        return;
+    }
+
+    if (!str_cmp(arg, "dungeon") || !str_cmp(arg, "dng"))
+    {
+        char cmd[MAX_INPUT_LENGTH];
+        snprintf(cmd, sizeof(cmd), "entities %s", string);
+        do_function(ch, &do_dungeon, cmd);
+        return;
+    }
+
     if (!str_cmp(arg,"acct") || !str_cmp(arg,"account"))
     {
     do_function(ch, &do_accstat, string);

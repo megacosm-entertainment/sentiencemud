@@ -1501,7 +1501,6 @@ void do_dnglist(CHAR_DATA *ch, char *argument)
 void do_dngshow(CHAR_DATA *ch, char *argument)
 {
     DUNGEON_INDEX_DATA *dng;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -1522,11 +1521,7 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) dng;
-
-    dngedit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)dng, dngedit_show, argument);
     return;
 }
 
@@ -1540,6 +1535,82 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
 //
 // Immortal Commands
 //
+static void dungeon_append_floor_entities(BUFFER *buffer, INSTANCE *instance)
+{
+    ITERATOR it;
+    int count;
+
+    bprintf(buffer, "  Floor %d\n\r", instance->floor);
+    bprintf(buffer, "    Players : {W%d{x\n\r", list_size(instance->players));
+    bprintf(buffer, "    Mobiles : {W%d{x\n\r", list_size(instance->mobiles));
+    bprintf(buffer, "    Bosses  : {W%d{x\n\r", list_size(instance->bosses));
+    bprintf(buffer, "    Objects : {W%d{x\n\r", list_size(instance->objects));
+    bprintf(buffer, "    Rooms   : {W%d{x\n\r", list_size(instance->rooms));
+
+    count = 0;
+    bprintf(buffer, "    {YMobiles:{x\n\r");
+    iterator_start(&it, instance->mobiles);
+    while (true)
+    {
+        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!mob)
+            break;
+
+        ++count;
+        bprintf(buffer, "      %3d) {W%s{x [%s]\n\r",
+            count,
+            IS_NPC(mob) ? mob->short_descr : mob->name,
+            (mob->in_room ? widevnum_string_room(mob->in_room, NULL) : "nowhere"));
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "      (none)\n\r");
+
+    count = 0;
+    bprintf(buffer, "    {YBosses:{x\n\r");
+    iterator_start(&it, instance->bosses);
+    while (true)
+    {
+        CHAR_DATA *boss = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!boss)
+            break;
+
+        ++count;
+        bprintf(buffer, "      %3d) {W%s{x [%s]\n\r",
+            count,
+            IS_NPC(boss) ? boss->short_descr : boss->name,
+            (boss->in_room ? widevnum_string_room(boss->in_room, NULL) : "nowhere"));
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "      (none)\n\r");
+
+    count = 0;
+    bprintf(buffer, "    {YObjects:{x\n\r");
+    iterator_start(&it, instance->objects);
+    while (true)
+    {
+        OBJ_DATA *obj = (OBJ_DATA *)iterator_nextdata(&it);
+        if (!obj)
+            break;
+
+        ++count;
+        bprintf(buffer, "      %3d) {W%s{x", count, obj->short_descr ? obj->short_descr : "(object)");
+        if (obj->in_room)
+            bprintf(buffer, " [%s]", widevnum_string_room(obj->in_room, NULL));
+        else if (obj->carried_by)
+            bprintf(buffer, " [carried by %s]", IS_NPC(obj->carried_by) ? obj->carried_by->short_descr : obj->carried_by->name);
+        else if (obj->in_obj)
+            bprintf(buffer, " [inside %s]", obj->in_obj->short_descr ? obj->in_obj->short_descr : "object");
+        else
+            bprintf(buffer, " [unknown]");
+        bprintf(buffer, "\n\r");
+    }
+    iterator_stop(&it);
+    if (count < 1)
+        bprintf(buffer, "      (none)\n\r");
+}
+
 void do_dungeon(CHAR_DATA *ch, char *argument)
 {
     char arg1[MIL];
@@ -1552,6 +1623,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
         if( ch->tot_level >= MAX_LEVEL )
         {
             send_to_char("         dungeon list\n\r", ch);
+            send_to_char("         dungeon entities <#> [floor]\n\r", ch);
             send_to_char("         dungeon unload #\n\r", ch);
         }
         return;
@@ -1724,6 +1796,87 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
             }
             free_buf(buffer);
 
+            return;
+        }
+
+        if( !str_prefix(arg1, "entities") )
+        {
+            char arg2[MIL];
+            DUNGEON *dungeon;
+            BUFFER *buffer;
+            int index;
+
+            argument = one_argument(argument, arg2);
+            if( !is_number(arg2) )
+            {
+                send_to_char("Syntax:  dungeon entities <#> [floor]\n\r", ch);
+                return;
+            }
+
+            index = atoi(arg2);
+            if( index < 1 || list_size(loaded_dungeons) < index )
+            {
+                send_to_char("No dungeon at that index.\n\r", ch);
+                return;
+            }
+
+            dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
+            buffer = new_buf();
+
+            bprintf(buffer, "\n\r{x[ {Wdungeon entities %d{x ]\n\r", index);
+            bprintf(buffer, "Dungeon : {W%s{x [%s]\n\r",
+                dungeon->index ? dungeon->index->name : "(none)",
+                (dungeon->index ? widevnum_string_dungeon(dungeon->index, NULL) : "0"));
+            bprintf(buffer, "Floors  : {W%d{x\n\r", list_size(dungeon->floors));
+            bprintf(buffer, "Players : {W%d{x\n\r", list_size(dungeon->players));
+            bprintf(buffer, "Mobiles : {W%d{x\n\r", list_size(dungeon->mobiles));
+            bprintf(buffer, "Bosses  : {W%d{x\n\r", list_size(dungeon->bosses));
+            bprintf(buffer, "Objects : {W%d{x\n\r", list_size(dungeon->objects));
+            bprintf(buffer, "Rooms   : {W%d{x\n\r", list_size(dungeon->rooms));
+
+            if( argument[0] != '\0' )
+            {
+                if( !is_number(argument) )
+                {
+                    free_buf(buffer);
+                    send_to_char("Floor must be a number.\n\r", ch);
+                    return;
+                }
+
+                int floor = atoi(argument);
+                if( floor < 1 || list_size(dungeon->floors) < floor )
+                {
+                    free_buf(buffer);
+                    send_to_char("No such floor in that dungeon.\n\r", ch);
+                    return;
+                }
+
+                INSTANCE *instance = (INSTANCE *)list_nthdata(dungeon->floors, floor);
+                bprintf(buffer, "\n\r{CFloor Details{x\n\r");
+                dungeon_append_floor_entities(buffer, instance);
+            }
+            else
+            {
+                ITERATOR fit;
+                INSTANCE *instance;
+
+                bprintf(buffer, "\n\r{CFloors Summary{x\n\r");
+                iterator_start(&fit, dungeon->floors);
+                while ((instance = (INSTANCE *)iterator_nextdata(&fit)) != NULL)
+                {
+                    bprintf(buffer, "  Floor {W%d{x: players={W%d{x mobiles={W%d{x bosses={W%d{x objects={W%d{x rooms={W%d{x\n\r",
+                        instance->floor,
+                        list_size(instance->players),
+                        list_size(instance->mobiles),
+                        list_size(instance->bosses),
+                        list_size(instance->objects),
+                        list_size(instance->rooms));
+                }
+                iterator_stop(&fit);
+            }
+
+            page_to_char(buf_string(buffer), ch);
+            free_buf(buffer);
             return;
         }
 

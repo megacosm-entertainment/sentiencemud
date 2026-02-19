@@ -1944,6 +1944,7 @@ struct	descriptor_data
     void *              pEdit;		/* OLC */
     int                 nEditTab;
     int                 nMaxEditTabs;
+    bool                olc_show_all_tabs;
     HELP_CATEGORY	*hCat;		/* hedit */
     char **             pString;	/* OLC */
     int			editor;		/* OLC */

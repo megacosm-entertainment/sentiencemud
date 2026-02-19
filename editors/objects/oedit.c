@@ -527,8 +527,13 @@ OEDIT(oedit_show)
         formatf("%ld", pObj->vnum), &oedit_def);
 
     /* Dispatch to active tab's show function */
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < oedit_def.tabs.count && oedit_def.tabs.tabs[tab].show_fn) {
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < oedit_def.tabs.count; i++) {
+            if (oedit_def.tabs.tabs[i].show_fn)
+                oedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)pObj);
+        }
+    } else if (tab >= 0 && tab < oedit_def.tabs.count && oedit_def.tabs.tabs[tab].show_fn) {
         oedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pObj);
     } else {
         oedit_show_general_tab(ch, ctx, (void *)pObj);
@@ -1777,6 +1782,9 @@ OEDIT(oedit_short)
 
     free_string(pObj->short_descr);
     pObj->short_descr = str_dup(argument);
+
+    if (pObj->area)
+        SET_BIT(pObj->area->area_flags, AREA_CHANGED);
 
     send_to_char("Short description set.\n\r", ch);
 

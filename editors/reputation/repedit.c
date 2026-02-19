@@ -247,14 +247,19 @@ REPEDIT(repedit_show)
         widevnum_string(rep->area, rep->vnum, NULL),
         &repedit_def);
 
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    switch (tab) {
-    case 1:
-        repedit_show_ranks_tab(ch, ctx, rep);
-        break;
-    default:
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
         repedit_show_basic_tab(ch, ctx, rep);
-        break;
+        repedit_show_ranks_tab(ch, ctx, rep);
+    } else {
+        switch (tab) {
+        case 1:
+            repedit_show_ranks_tab(ch, ctx, rep);
+            break;
+        default:
+            repedit_show_basic_tab(ch, ctx, rep);
+            break;
+        }
     }
 
     olc_display_footer(ctx, theme);

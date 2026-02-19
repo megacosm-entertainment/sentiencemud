@@ -705,8 +705,13 @@ MEDIT(medit_show)
         formatf("%ld", pMob->vnum), &medit_def);
 
     /* Dispatch to active tab's show function */
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < medit_def.tabs.count && medit_def.tabs.tabs[tab].show_fn) {
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < medit_def.tabs.count; i++) {
+            if (medit_def.tabs.tabs[i].show_fn)
+                medit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)pMob);
+        }
+    } else if (tab >= 0 && tab < medit_def.tabs.count && medit_def.tabs.tabs[tab].show_fn) {
         medit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pMob);
     } else {
         medit_show_general_tab(ch, ctx, (void *)pMob);

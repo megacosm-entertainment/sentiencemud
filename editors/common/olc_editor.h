@@ -381,6 +381,19 @@ bool olc_editor_check_perm(CHAR_DATA *ch, const OLC_EDITOR_DEF *def, void *pEdit
  */
 const OLC_EDITOR_THEME *olc_get_theme(const OLC_EDITOR_DEF *def);
 
+/**
+ * Determine whether tabbed OLC view is enabled for this character.
+ * Uses the staff/player preference key "olctabs" (default ON).
+ */
+bool olc_tabs_enabled(CHAR_DATA *ch);
+
+/**
+ * Determine whether current OLC output should render all tabs on one page.
+ * True if tabbed view is disabled by preference or temporarily forced
+ * (e.g. from *show commands).
+ */
+bool olc_show_all_tabs_mode(CHAR_DATA *ch);
+
 /* =========================================================================
  * Audit Functions
  * ========================================================================= */

@@ -223,14 +223,17 @@ void olc_set_editor(CHAR_DATA *ch, int editor, void *data)
 void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument)
 {
     int old_tab = ch->desc->nEditTab;
+    bool old_show_all_tabs = ch->desc->olc_show_all_tabs;
     void *old_data = ch->desc->pEdit;
 
     ch->desc->nEditTab = 0;
+    ch->desc->olc_show_all_tabs = true;
     ch->desc->pEdit = data;
 
     (*show_fun)(ch, argument);
 
     ch->desc->nEditTab = old_tab;
+    ch->desc->olc_show_all_tabs = old_show_all_tabs;
     ch->desc->pEdit = old_data;
 }
 
@@ -2197,7 +2200,6 @@ void do_olist(CHAR_DATA *ch, char *argument)
 void do_mshow(CHAR_DATA *ch, char *argument)
 {
     MOB_INDEX_DATA *pMob;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -2218,11 +2220,7 @@ void do_mshow(CHAR_DATA *ch, char *argument)
        return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) pMob;
-
-    medit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)pMob, medit_show, argument);
     return;
 }
 
@@ -2230,7 +2228,6 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 void do_oshow(CHAR_DATA *ch, char *argument)
 {
     OBJ_INDEX_DATA *pObj;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -2251,17 +2248,13 @@ void do_oshow(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) pObj;
-    oedit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)pObj, oedit_show, argument);
 }
 
 
 void do_rshow(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *pRoom, *oldRoom;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -2286,10 +2279,7 @@ void do_rshow(CHAR_DATA *ch, char *argument)
     char_from_room(ch);
     char_to_room(ch, pRoom);
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) pRoom;
-    redit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)pRoom, redit_show, argument);
 
     char_from_room(ch);
     char_to_room(ch, oldRoom);
@@ -2772,7 +2762,6 @@ void use_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 void do_tshow(CHAR_DATA *ch, char *argument)
 {
     TOKEN_INDEX_DATA *token_index;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0')
@@ -2793,10 +2782,7 @@ void do_tshow(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *) token_index;
-    tedit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)token_index, tedit_show, argument);
 }
 
 

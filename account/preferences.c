@@ -2197,6 +2197,24 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         if (!str_prefix(arg, pc_set_table[i].name)
             && ch->pcdata->staff_rank >= pc_set_table[i].min_rank) {
 
+            if (pc_set_table[i].vector == 0
+                && pc_set_table[i].vector2 == 0
+                && pc_set_table[i].vector_comm == 0) {
+                ACCOUNT_DATA *account = ch->desc ? ch->desc->account : NULL;
+                bool current = pref_get_bool(account, ch, pc_set_table[i].name,
+                    pc_set_table[i].default_state == SETTING_ON);
+                bool is_on = !current;
+
+                pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
+                              pc_set_table[i].name, is_on);
+
+                sprintf(buf, "%s is now %s. {Y(character override){x\n\r",
+                        pc_set_table[i].name,
+                        is_on ? "{WON{x" : "{DOFF{x");
+                send_to_char(buf, ch);
+                return;
+            }
+
             long *field;
             long vector;
 

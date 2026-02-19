@@ -510,8 +510,13 @@ WEDIT ( wedit_show )
         formatf("UID %ld", pWilds->uid), &wedit_def);
 
     /* Dispatch to active tab's show function */
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < wedit_def.tabs.count
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < wedit_def.tabs.count; i++) {
+            if (wedit_def.tabs.tabs[i].show_fn)
+                wedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)pWilds);
+        }
+    } else if (tab >= 0 && tab < wedit_def.tabs.count
         && wedit_def.tabs.tabs[tab].show_fn) {
         wedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pWilds);
     } else {
@@ -523,7 +528,7 @@ WEDIT ( wedit_show )
     olc_layout_free(ctx);
 
     /* Map tab: show_map_to_char sends directly to character */
-    if (tab == 1)
+    if (tab == 1 || tab < 0)
         show_map_to_char(ch, ch, 3, 3, true);
 
     return false;

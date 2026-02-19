@@ -791,8 +791,13 @@ RSGEDIT(rsgedit_show)
     olc_display_header(ctx, "RSGEdit", rsg->name,
         formatf("UID %ld", rsg->uid), &rsgedit_def);
 
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    if (tab >= 0 && tab < rsgedit_def.tabs.count
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < rsgedit_def.tabs.count; i++) {
+            if (rsgedit_def.tabs.tabs[i].show_fn)
+                rsgedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)rsg);
+        }
+    } else if (tab >= 0 && tab < rsgedit_def.tabs.count
         && rsgedit_def.tabs.tabs[tab].show_fn) {
         rsgedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)rsg);
     } else {

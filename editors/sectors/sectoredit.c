@@ -204,20 +204,27 @@ SECTOREDIT(sectoredit_show)
 
     olc_display_header(ctx, "SectorEdit", sector_name(index), formatf("Sector %d", index), &sectoredit_def);
 
-    tab = ch->desc ? ch->desc->nEditTab : 0;
-    switch (tab) {
-    case 1:
-        sectoredit_show_details_tab(ch, ctx, (void *)(intptr_t)(index + 1));
-        break;
-    case 2:
-        sectoredit_show_hidemsgs_tab(ch, ctx, (void *)(intptr_t)(index + 1));
-        break;
-    case 3:
-        sectoredit_show_affinity_tab(ch, ctx, (void *)(intptr_t)(index + 1));
-        break;
-    default:
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
         sectoredit_show_basic_tab(ch, ctx, (void *)(intptr_t)(index + 1));
-        break;
+        sectoredit_show_details_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+        sectoredit_show_hidemsgs_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+        sectoredit_show_affinity_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+    } else {
+        switch (tab) {
+        case 1:
+            sectoredit_show_details_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+            break;
+        case 2:
+            sectoredit_show_hidemsgs_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+            break;
+        case 3:
+            sectoredit_show_affinity_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+            break;
+        default:
+            sectoredit_show_basic_tab(ch, ctx, (void *)(intptr_t)(index + 1));
+            break;
+        }
     }
 
     olc_display_footer(ctx, theme);

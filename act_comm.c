@@ -45,6 +45,7 @@
 #include "io/cache/redis_cache.h"
 #include "traits.h"
 #include "account/penalty.h"
+#include "account/preferences.h"
 
 
 
@@ -3521,9 +3522,11 @@ void do_toggle(CHAR_DATA *ch, char *argument)
     char buf[2*MSL];
     char status[MSL];
     bool found;
+    bool is_on;
     int i;
     long *field;
     long vector;
+    ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
 
     /* Show current settings */
     if (argument[0] == '\0')
@@ -3536,6 +3539,15 @@ void do_toggle(CHAR_DATA *ch, char *argument)
     for (i = 0; pc_set_table[i].name != NULL; i++)
     {
     if (ch->pcdata->staff_rank >= pc_set_table[i].min_rank)
+    {
+    if (pc_set_table[i].vector == 0
+    &&  pc_set_table[i].vector2 == 0
+    &&  pc_set_table[i].vector_comm == 0)
+    {
+    is_on = pref_get_bool(acct, ch, pc_set_table[i].name,
+        pc_set_table[i].default_state == SETTING_ON);
+    }
+    else
     {
     if (pc_set_table[i].vector != 0)
     {
@@ -3556,23 +3568,18 @@ void do_toggle(CHAR_DATA *ch, char *argument)
     {
     pbugf(LOG_ERROR, "do_toggle: no good vector/field for setting %s",
     pc_set_table[i].name);
-    return;
+    continue;
     }
 
+    is_on = IS_SET(*field, vector);
     if (pc_set_table[i].inverted)
-    {
-    if (IS_SET(*field, vector))
-    sprintf(status, "{DOFF{x");
-    else
-    sprintf(status, "{WON{x");
+    is_on = !is_on;
     }
-    else
-    {
-    if (IS_SET(*field, vector))
+
+    if (is_on)
     sprintf(status, "{WON{x");
     else
     sprintf(status, "{DOFF{x");
-    }
 
     sprintf(buf, "%-15s %s\n\r", pc_set_table[i].name, status);
     send_to_char(buf, ch);
@@ -3597,6 +3604,24 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 
     if (!found) {
     send_to_char("That is not a valid setting.\n\r", ch);
+    return;
+    }
+
+    if (pc_set_table[i].vector == 0
+    &&  pc_set_table[i].vector2 == 0
+    &&  pc_set_table[i].vector_comm == 0)
+    {
+    bool current = pref_get_bool(acct, ch, pc_set_table[i].name,
+        pc_set_table[i].default_state == SETTING_ON);
+    bool new_state = !current;
+
+    pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
+        pc_set_table[i].name, new_state);
+
+    sprintf(buf, "%s is now %s. {Y(character override){x\n\r",
+        pc_set_table[i].name,
+        new_state ? "{WON{x" : "{DOFF{x");
+    send_to_char(buf, ch);
     return;
     }
 

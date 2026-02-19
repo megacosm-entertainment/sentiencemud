@@ -23,6 +23,7 @@
 #include "../../interp.h"
 #include "../../mxp_links.h"
 #include "../../io/json/json_olc.h"
+#include "../../account/preferences.h"
 #include "../common.h"
 #include "olc_editor.h"
 
@@ -31,6 +32,28 @@ static bool display_use_mxp(CHAR_DATA *ch)
 {
     if (!ch || !ch->desc) return false;
     return isMXP(ch->desc) && IS_SET(ch->comm, COMM_MXP);
+}
+
+bool olc_tabs_enabled(CHAR_DATA *ch)
+{
+    ACCOUNT_DATA *account;
+
+    if (!ch || IS_NPC(ch))
+        return true;
+
+    account = (ch->desc ? ch->desc->account : NULL);
+    return pref_get_bool(account, ch, "olctabs", true);
+}
+
+bool olc_show_all_tabs_mode(CHAR_DATA *ch)
+{
+    if (!ch || !ch->desc)
+        return false;
+
+    if (ch->desc->olc_show_all_tabs)
+        return true;
+
+    return !olc_tabs_enabled(ch);
 }
 
 typedef struct olc_area_history_bucket {
@@ -858,7 +881,9 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
     }
 
     /* --- Tab switching (if editor has tabs) --- */
-    if (def->tabs.count > 0 && editor_try_tab_switch(ch, argument, def)) {
+    if (def->tabs.count > 0
+        && olc_tabs_enabled(ch)
+        && editor_try_tab_switch(ch, argument, def)) {
         /* Tab was switched - redisplay */
         if (def->show_fn) {
             (*def->show_fn)(ch, "");

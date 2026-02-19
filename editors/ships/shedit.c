@@ -196,7 +196,6 @@ void shedit(CHAR_DATA *ch, char *argument)
 void do_shshow(CHAR_DATA *ch, char *argument)
 {
     SHIP_INDEX_DATA *ship;
-    void *old_edit;
     WNUM wnum;
 
     if (argument[0] == '\0') {
@@ -214,11 +213,7 @@ void do_shshow(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    old_edit = ch->desc->pEdit;
-    ch->desc->pEdit = (void *)ship;
-
-    shedit_show(ch, argument);
-    ch->desc->pEdit = old_edit;
+    olc_show_item(ch, (void *)ship, shedit_show, argument);
     return;
 }
 
