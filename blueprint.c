@@ -2957,15 +2957,20 @@ static void instance_append_entities_report(descriptor_t *d, BUFFER *buffer, INS
     int mobile_count;
 
     mobile_count = 0;
-    iterator_start(&it, instance->mobiles);
+    iterator_start(&it, instance->rooms);
     while (true)
     {
-        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
-        if (!mob)
+        ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&it);
+        CHAR_DATA *mob;
+
+        if (!room)
             break;
 
-        if (IS_NPC(mob))
-            ++mobile_count;
+        for (mob = room->people; mob; mob = mob->next_in_room)
+        {
+            if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_INSTANCE_MOB) && !IS_BOSS(mob))
+                ++mobile_count;
+        }
     }
     iterator_stop(&it);
 
@@ -3001,25 +3006,30 @@ static void instance_append_entities_report(descriptor_t *d, BUFFER *buffer, INS
 
     count = 0;
     bprintf(buffer, "\n\r{YMobiles:{x\n\r");
-    iterator_start(&it, instance->mobiles);
+    iterator_start(&it, instance->rooms);
     while (true)
     {
-        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
-        if (!mob)
+        ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&it);
+        CHAR_DATA *mob;
+
+        if (!room)
             break;
 
-        if (!IS_NPC(mob))
-            continue;
+        for (mob = room->people; mob; mob = mob->next_in_room)
+        {
+            if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_INSTANCE_MOB) || IS_BOSS(mob))
+                continue;
 
-        ++count;
-        bprintf(buffer, "  %3d) ", count);
-        mxp_mob_link(d, buffer, mob, IS_NPC(mob) ? mob->short_descr : mob->name);
-        bprintf(buffer, "{x [");
-        if (mob->in_room)
-            mxp_room_link(d, buffer, mob->in_room, widevnum_string_room(mob->in_room, NULL));
-        else
-            bprintf(buffer, "nowhere");
-        bprintf(buffer, "]\n\r");
+            ++count;
+            bprintf(buffer, "  %3d) ", count);
+            mxp_mob_link(d, buffer, mob, mob->short_descr);
+            bprintf(buffer, "{x [");
+            if (mob->in_room)
+                mxp_room_link(d, buffer, mob->in_room, widevnum_string_room(mob->in_room, NULL));
+            else
+                bprintf(buffer, "nowhere");
+            bprintf(buffer, "]\n\r");
+        }
     }
     iterator_stop(&it);
     if (count < 1)

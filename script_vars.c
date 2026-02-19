@@ -3620,7 +3620,7 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
                 if( var->_.r->wilds )
                     sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%ld <%d,%d,%d>]\n\r", var->name,var->save?'Y':'N',var->_.r->wilds->uid,(int)var->_.r->x,(int)var->_.r->y,(int)var->_.r->z);
                 else if( var->_.r->source )
-                    sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d %08X:%08X)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->source->vnum,(int)var->_.r->id[0],(int)var->_.r->id[1]);
+                    sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d %lu:%lu)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->source->vnum,(unsigned long)var->_.r->id[0],(unsigned long)var->_.r->id[1]);
                 else
                     sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
             } else
@@ -3631,7 +3631,7 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
                 if( var->_.door.r->wilds)
                     sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s at %ld <%d,%d,%d>]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->wilds->uid,(int)var->_.door.r->x,(int)var->_.door.r->y,(int)var->_.door.r->z);
                 else if( var->_.door.r->source )
-                    sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d %08X:%08X)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->source->vnum,(int)var->_.door.r->id[0],(int)var->_.door.r->id[1]);
+                    sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d %lu:%lu)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->source->vnum,(unsigned long)var->_.door.r->id[0],(unsigned long)var->_.door.r->id[1]);
                 else
                     sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->vnum);
             } else
@@ -3640,21 +3640,21 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
         case VAR_MOBILE:
             if(var->_.m) {
                 if(IS_NPC(var->_.m))
-                    sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.m->short_descr,(int)var->_.m->pIndexData->vnum,(int)var->_.m->id[0],(int)var->_.m->id[1]);
+                    sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[%s (%d)] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',var->_.m->short_descr,(int)var->_.m->pIndexData->vnum,(unsigned long)var->_.m->id[0],(unsigned long)var->_.m->id[1]);
                 else
-                    sprintf(arg, "Name [%-20s] Type[PLAYER] Save[%c] Value[%s] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.m->name,(int)var->_.m->id[0],(int)var->_.m->id[1]);
+                    sprintf(arg, "Name [%-20s] Type[PLAYER] Save[%c] Value[%s] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',var->_.m->name,(unsigned long)var->_.m->id[0],(unsigned long)var->_.m->id[1]);
             } else
                 sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[-no-mobile-]\n\r", var->name,var->save?'Y':'N');
             break;
         case VAR_OBJECT:
             if(var->_.o)
-                sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.o->short_descr,(int)var->_.o->pIndexData->vnum,(int)var->_.o->id[0],(int)var->_.o->id[1]);
+                sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[%s (%d)] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',var->_.o->short_descr,(int)var->_.o->pIndexData->vnum,(unsigned long)var->_.o->id[0],(unsigned long)var->_.o->id[1]);
             else
                 sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[-no-object-]\n\r", var->name,var->save?'Y':'N');
             break;
         case VAR_TOKEN:
             if(var->_.t)
-                sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.t->name,(int)var->_.t->pIndexData->vnum,(int)var->_.t->id[0],(int)var->_.t->id[1]);
+                sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[%s (%d)] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',var->_.t->name,(int)var->_.t->pIndexData->vnum,(unsigned long)var->_.t->id[0],(unsigned long)var->_.t->id[1]);
             else
                 sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[-no-token-]\n\r", var->name,var->save?'Y':'N');
             break;
@@ -3665,13 +3665,13 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
                 sprintf(arg, "Name [%-20s] Type[AREA  ] Save[%c] Value[-no-area-]\n\r", var->name,var->save?'Y':'N');
             break;
         case VAR_MOBILE_ID:
-            sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.mid.a,(int)var->_.mid.b);
+            sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[???] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',(unsigned long)var->_.mid.a,(unsigned long)var->_.mid.b);
             break;
         case VAR_OBJECT_ID:
-            sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.oid.a,(int)var->_.oid.b);
+            sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[???] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',(unsigned long)var->_.oid.a,(unsigned long)var->_.oid.b);
             break;
         case VAR_TOKEN_ID:
-            sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.tid.a,(int)var->_.tid.b);
+            sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%lu:%lu]\n\r", var->name,var->save?'Y':'N',(unsigned long)var->_.tid.a,(unsigned long)var->_.tid.b);
             break;
         case VAR_BLLIST_MOB: {
             LLIST *mob_list = var->_.list;

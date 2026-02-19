@@ -1930,6 +1930,12 @@ static bool pref_check_index(CHAR_DATA *ch, int index)
 {
     long *field;
     long vector;
+    ACCOUNT_DATA *account;
+
+    if (!ch)
+        return false;
+
+    account = ch->desc ? ch->desc->account : NULL;
 
     if (pc_set_table[index].vector != 0) {
         vector = pc_set_table[index].vector;
@@ -1941,7 +1947,8 @@ static bool pref_check_index(CHAR_DATA *ch, int index)
         vector = pc_set_table[index].vector_comm;
         field = &ch->comm;
     } else {
-        return false;
+        return pref_get_bool(account, ch, pc_set_table[index].name,
+                             pc_set_table[index].default_state == SETTING_ON);
     }
 
     bool is_set = IS_SET(*field, vector);

@@ -1543,15 +1543,20 @@ static void dungeon_append_floor_entities(descriptor_t *d, BUFFER *buffer, INSTA
     int mobile_count;
 
     mobile_count = 0;
-    iterator_start(&it, instance->mobiles);
+    iterator_start(&it, instance->rooms);
     while (true)
     {
-        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
-        if (!mob)
+        ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&it);
+        CHAR_DATA *mob;
+
+        if (!room)
             break;
 
-        if (IS_NPC(mob))
-            ++mobile_count;
+        for (mob = room->people; mob; mob = mob->next_in_room)
+        {
+            if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_INSTANCE_MOB) && !IS_BOSS(mob))
+                ++mobile_count;
+        }
     }
     iterator_stop(&it);
 
@@ -1564,25 +1569,30 @@ static void dungeon_append_floor_entities(descriptor_t *d, BUFFER *buffer, INSTA
 
     count = 0;
     bprintf(buffer, "    {YMobiles:{x\n\r");
-    iterator_start(&it, instance->mobiles);
+    iterator_start(&it, instance->rooms);
     while (true)
     {
-        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
-        if (!mob)
+        ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&it);
+        CHAR_DATA *mob;
+
+        if (!room)
             break;
 
-        if (!IS_NPC(mob))
-            continue;
+        for (mob = room->people; mob; mob = mob->next_in_room)
+        {
+            if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_INSTANCE_MOB) || IS_BOSS(mob))
+                continue;
 
-        ++count;
-        bprintf(buffer, "      %3d) ", count);
-        mxp_mob_link(d, buffer, mob, IS_NPC(mob) ? mob->short_descr : mob->name);
-        bprintf(buffer, "{x [");
-        if (mob->in_room)
-            mxp_room_link(d, buffer, mob->in_room, widevnum_string_room(mob->in_room, NULL));
-        else
-            bprintf(buffer, "nowhere");
-        bprintf(buffer, "]\n\r");
+            ++count;
+            bprintf(buffer, "      %3d) ", count);
+            mxp_mob_link(d, buffer, mob, mob->short_descr);
+            bprintf(buffer, "{x [");
+            if (mob->in_room)
+                mxp_room_link(d, buffer, mob->in_room, widevnum_string_room(mob->in_room, NULL));
+            else
+                bprintf(buffer, "nowhere");
+            bprintf(buffer, "]\n\r");
+        }
     }
     iterator_stop(&it);
     if (count < 1)
@@ -1865,15 +1875,20 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
             int dungeon_mobile_count = 0;
             ITERATOR mit;
 
-            iterator_start(&mit, dungeon->mobiles);
+            iterator_start(&mit, dungeon->rooms);
             while (true)
             {
-                CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&mit);
-                if (!mob)
+                ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&mit);
+                CHAR_DATA *mob;
+
+                if (!room)
                     break;
 
-                if (IS_NPC(mob))
-                    ++dungeon_mobile_count;
+                for (mob = room->people; mob; mob = mob->next_in_room)
+                {
+                    if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_INSTANCE_MOB) && !IS_BOSS(mob))
+                        ++dungeon_mobile_count;
+                }
             }
             iterator_stop(&mit);
 
@@ -1946,15 +1961,20 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
                     int floor_mobile_count = 0;
                     ITERATOR fmit;
 
-                    iterator_start(&fmit, instance->mobiles);
+                    iterator_start(&fmit, instance->rooms);
                     while (true)
                     {
-                        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&fmit);
-                        if (!mob)
+                        ROOM_INDEX_DATA *room = (ROOM_INDEX_DATA *)iterator_nextdata(&fmit);
+                        CHAR_DATA *mob;
+
+                        if (!room)
                             break;
 
-                        if (IS_NPC(mob))
-                            ++floor_mobile_count;
+                        for (mob = room->people; mob; mob = mob->next_in_room)
+                        {
+                            if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_INSTANCE_MOB) && !IS_BOSS(mob))
+                                ++floor_mobile_count;
+                        }
                     }
                     iterator_stop(&fmit);
 
