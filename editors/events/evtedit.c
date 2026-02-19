@@ -265,6 +265,12 @@ static const char *event_format_time_short(time_t when)
     return buf;
 }
 
+static const char *event_enum_name(const struct flag_type *table, int value)
+{
+    const char *name = flag_name(table, value);
+    return IS_NULLSTR(name) ? "(unknown)" : name;
+}
+
 static void evtedit_show_identity_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
@@ -2680,8 +2686,8 @@ void do_event(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "{W%-5ld {x%-24.24s %-14s %-14s %-8s %s{X\n\r",
                 evt->uid,
                 evt->name,
-                flag_string(evt_type_flags, evt->event_type),
-                flag_string(evt_sched_flags, evt->sched_type),
+                flag_name(evt_type_flags, evt->event_type),
+                flag_name(evt_sched_flags, evt->sched_type),
                 inst ? "{GACTIVE{x" : "{Didle{x",
                 evt->enabled ? "{GYes{x" : "{RNo{x");
         }
@@ -2888,9 +2894,9 @@ void do_event(CHAR_DATA *ch, char *argument)
         if (!IS_NULLSTR(evt->short_summary))
             printf_to_char(ch, "{WSummary:{x %s\n\r", evt->short_summary);
         printf_to_char(ch, "{WType:{x %s  {WScope:{x %s  {WSchedule:{x %s\n\r",
-            flag_string(evt_type_flags, evt->event_type),
-            flag_string(evt_scope_flags, evt->scope_type),
-            flag_string(evt_sched_flags, evt->sched_type));
+            event_enum_name(evt_type_flags, evt->event_type),
+            event_enum_name(evt_scope_flags, evt->scope_type),
+            event_enum_name(evt_sched_flags, evt->sched_type));
         printf_to_char(ch, "{WTiming:{x interval=%d variance=%d duration=%d cooldown=%d\n\r",
             evt->sched_interval, evt->sched_variance,
             evt->sched_duration, evt->sched_cooldown);
@@ -3107,8 +3113,8 @@ EVTEDIT(evtedit_list)
         printf_to_char(ch, "{W%-5ld {x%-24.24s %-14s %-14s %s{X\n\r",
             evt->uid,
             evt->name,
-            flag_string(evt_type_flags, evt->event_type),
-            flag_string(evt_sched_flags, evt->sched_type),
+            event_enum_name(evt_type_flags, evt->event_type),
+            event_enum_name(evt_sched_flags, evt->sched_type),
             evt->enabled ? "{GYes{x" : "{RNo{x");
     }
 
@@ -3462,7 +3468,7 @@ EVTEDIT(evtedit_schedule)
     if (!str_prefix(arg1, "list")) {
         printf_to_char(ch,
             "Schedule: mode=%s anchor=%s interval=%d variance=%d duration=%d cooldown=%d\n\r",
-            flag_string(evt_sched_flags, evt->sched_type),
+            event_enum_name(evt_sched_flags, evt->sched_type),
             event_format_time_short(evt->scheduled_time),
             evt->sched_interval,
             evt->sched_variance,
