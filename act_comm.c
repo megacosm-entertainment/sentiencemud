@@ -3673,6 +3673,15 @@ void do_toggle(CHAR_DATA *ch, char *argument)
     act("$t is now {WON{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR, NULL, NULL);
     }
     }
+
+    /* Persist as character preference override so account defaults
+     * do not overwrite this choice on next login. */
+    is_on = IS_SET(*field, vector);
+    if (pc_set_table[i].inverted)
+    is_on = !is_on;
+
+    pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
+    pc_set_table[i].name, is_on);
 }
 
 /**
