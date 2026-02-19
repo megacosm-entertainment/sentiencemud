@@ -385,22 +385,22 @@ int class_lookup(const char *name)
 {
    int class;
 
-   /* Use new CLASS_DATA system for lookup */
-   CLASS_DATA *clazz = class_find(name);
-   if (clazz) {
-       /* Map back to legacy index via class type for backward compat */
-       for (class = 0; class < MAX_CLASS; class++) {
-           if (!str_prefix(name, class_table[class].name))
-               return class;
-       }
-   }
-
-   /* Fall back to direct table scan */
    for (class = 0; class < MAX_CLASS; class++)
    {
-        if (LOWER(name[0]) == LOWER(class_table[class].name[0])
-        &&  !str_prefix(name,class_table[class].name))
+        const char *legacy_name = class_name_from_legacy(class);
+        if (!legacy_name)
+            continue;
+
+        if (LOWER(name[0]) == LOWER(legacy_name[0])
+        &&  !str_prefix(name, legacy_name))
             return class;
+   }
+
+   {
+       CLASS_DATA *clazz = class_find(name);
+       class = class_legacy_index(clazz);
+       if (class >= 0)
+           return class;
    }
 
    return -1;
@@ -409,35 +409,35 @@ int class_lookup(const char *name)
 
 int sub_class_lookup(CHAR_DATA *ch, const char *name)
 {
-   /* Use CLASS_DATA system — find by prefix match */
+   int sub_class;
    CLASS_DATA *clazz = class_find(name);
-   if (clazz) {
-       if (clazz->flags & CLASS_REMORT_ONLY)
+
+   if (clazz)
+   {
+       sub_class = sub_class_legacy_index(clazz);
+       if (sub_class < 0)
            return -1;
-       /* Check alignment constraints via legacy table for now */
-       for (int sc = 0; sc < MAX_SUB_CLASS; sc++) {
-           if (!str_cmp(clazz->name, sub_class_table[sc].name[0])) {
-               if (sub_class_table[sc].alignment == ALIGN_GOOD && ch->alignment < 0)
-                   return -1;
-               if (sub_class_table[sc].alignment == ALIGN_EVIL && ch->alignment > 0)
-                   return -1;
-               return sc;
-           }
-       }
+       if (sub_class_legacy_is_remort(sub_class))
+           return -1;
+       if (sub_class_legacy_alignment(sub_class) == ALIGN_GOOD && ch->alignment < 0)
+           return -1;
+       if (sub_class_legacy_alignment(sub_class) == ALIGN_EVIL && ch->alignment > 0)
+           return -1;
+       return sub_class;
    }
 
-   /* Legacy fallback */
-   int sub_class;
    for (sub_class = 0; sub_class < MAX_SUB_CLASS; sub_class++)
    {
-    if (!str_prefix(name, sub_class_table[sub_class].name[ch->sex])
-    &&  !sub_class_table[sub_class].remort)
+    CLASS_DATA *legacy_sub = class_from_legacy(0, sub_class);
+    if (legacy_sub
+    &&  !str_prefix(name, class_name(legacy_sub))
+    &&  !sub_class_legacy_is_remort(sub_class))
     {
-        if (sub_class_table[sub_class].alignment == ALIGN_GOOD
+        if (sub_class_legacy_alignment(sub_class) == ALIGN_GOOD
         &&  ch->alignment < 0)
         return -1;
 
-        if (sub_class_table[sub_class].alignment == ALIGN_EVIL
+        if (sub_class_legacy_alignment(sub_class) == ALIGN_EVIL
         &&  ch->alignment > 0)
         return -1;
 
@@ -450,23 +450,19 @@ int sub_class_lookup(CHAR_DATA *ch, const char *name)
 
 int sub_class_search(const char *name)
 {
-   /* Use CLASS_DATA system for lookup */
+   int sub_class;
    CLASS_DATA *clazz = class_find(name);
-   if (clazz) {
-       /* Map back to legacy sub_class index */
-       for (int sc = 0; sc < MAX_SUB_CLASS; sc++) {
-           if (!str_cmp(clazz->name, sub_class_table[sc].name[0]))
-               return sc;
-       }
+
+   if (clazz)
+       return sub_class_legacy_index(clazz);
+
+   for (sub_class = 0; sub_class < MAX_SUB_CLASS; sub_class++)
+   {
+       CLASS_DATA *legacy_sub = class_from_legacy(0, sub_class);
+       if (legacy_sub && !str_prefix(name, class_name(legacy_sub)))
+           return sub_class;
    }
 
-   /* Legacy fallback */
-   int sub_class;
-   for (sub_class = 0; sub_class < MAX_SUB_CLASS; sub_class++)
-    if (!str_prefix(name, sub_class_table[sub_class].name[SEX_NEUTRAL]) ||
-        !str_prefix(name, sub_class_table[sub_class].name[SEX_MALE]) ||
-        !str_prefix(name, sub_class_table[sub_class].name[SEX_FEMALE]))
-        return sub_class;
    return -1;
 }
 

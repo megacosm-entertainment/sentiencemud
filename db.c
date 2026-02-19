@@ -390,8 +390,7 @@ static void resolve_newbie_tables(void)
     for (i = 0; class_weapons[i].reserved_name != NULL; i++) {
         OBJ_INDEX_DATA *obj = get_reserved_obj_index(class_weapons[i].reserved_name);
         if (obj) {
-            class_table[class_weapons[i].class_index].weapon = obj->vnum;
-            /* Also update CLASS_DATA entries that match this base class type */
+            /* Update CLASS_DATA entries that match this base class type */
             CLASS_DATA *clz;
             for (clz = class_first(); clz; clz = clz->next) {
                 if (clz->type == class_weapons[i].class_index && clz->weapon == 0)

@@ -80,6 +80,51 @@ static bool directory_exists_local(const char *path)
     return path && stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+static bool path_copy_checked(char *dst, size_t dst_size, const char *src)
+{
+    size_t src_len;
+
+    if (!dst || dst_size == 0 || !src)
+        return false;
+
+    src_len = strlen(src);
+    if (src_len >= dst_size)
+        return false;
+
+    memcpy(dst, src, src_len + 1);
+    return true;
+}
+
+static bool path_join_checked(char *dst, size_t dst_size, const char *left, const char *right)
+{
+    size_t left_len;
+    size_t right_len;
+    bool need_sep;
+    size_t total_len;
+
+    if (!dst || dst_size == 0 || !left || !right)
+        return false;
+
+    left_len = strlen(left);
+    right_len = strlen(right);
+    need_sep = (left_len > 0 && left[left_len - 1] != '/');
+
+    total_len = left_len + (need_sep ? 1 : 0) + right_len;
+    if (total_len >= dst_size)
+        return false;
+
+    memcpy(dst, left, left_len);
+
+    if (need_sep) {
+        dst[left_len] = '/';
+        left_len++;
+    }
+
+    memcpy(dst + left_len, right, right_len);
+    dst[left_len + right_len] = '\0';
+    return true;
+}
+
 static bool ensure_directory(const char *path)
 {
     struct stat st;
@@ -325,12 +370,21 @@ bool seed_from_bootstrap_data(void)
     workspace_candidate_b[0] = '\0';
 
     if (workspace && workspace[0]) {
-        snprintf(workspace_candidate_a, sizeof(workspace_candidate_a), "%s/bootstrap/bootstrap_data", workspace);
-        snprintf(workspace_candidate_b, sizeof(workspace_candidate_b), "%s/src/bootstrap/bootstrap_data", workspace);
+        if (!path_join_checked(workspace_candidate_a, sizeof(workspace_candidate_a),
+                workspace, "bootstrap/bootstrap_data")) {
+            workspace_candidate_a[0] = '\0';
+        }
+        if (!path_join_checked(workspace_candidate_b, sizeof(workspace_candidate_b),
+                workspace, "src/bootstrap/bootstrap_data")) {
+            workspace_candidate_b[0] = '\0';
+        }
     }
 
     if (env_source && directory_exists_local(env_source)) {
-        snprintf(source_root, sizeof(source_root), "%s", env_source);
+        if (!path_copy_checked(source_root, sizeof(source_root), env_source)) {
+            fprintf(stderr, "Bootstrap source path too long; continuing with generated minimums\n");
+            return true;
+        }
     } else {
         const char *source_candidates[] = {
             "bootstrap/bootstrap_data",
@@ -368,8 +422,12 @@ bool seed_from_bootstrap_data(void)
         char src_path[1024];
         char dst_path[1024];
 
-        snprintf(src_path, sizeof(src_path), "%s/%s", source_root, mappings[i].src_rel);
-        snprintf(dst_path, sizeof(dst_path), "%s", mappings[i].dst_rel);
+        if (!path_join_checked(src_path, sizeof(src_path), source_root, mappings[i].src_rel)
+        || !path_copy_checked(dst_path, sizeof(dst_path), mappings[i].dst_rel)) {
+            fprintf(stderr, "Skipping oversized bootstrap path mapping %s -> %s\n",
+                mappings[i].src_rel, mappings[i].dst_rel);
+            continue;
+        }
 
         if (!directory_exists_local(src_path)) {
             continue;
@@ -384,8 +442,11 @@ bool seed_from_bootstrap_data(void)
     {
         char src_gq[1024];
         char src_mail[1024];
-        snprintf(src_gq, sizeof(src_gq), "%s/gq.json", source_root);
-        snprintf(src_mail, sizeof(src_mail), "%s/mail.json", source_root);
+        if (!path_join_checked(src_gq, sizeof(src_gq), source_root, "gq.json")
+        || !path_join_checked(src_mail, sizeof(src_mail), source_root, "mail.json")) {
+            fprintf(stderr, "Skipping oversized bootstrap JSON path(s)\n");
+            return true;
+        }
 
         if (file_exists(src_gq) && !copy_file_if_missing(src_gq, "data/gq.json")) {
             fprintf(stderr, "Failed seeding data/gq.json from bootstrap_data\n");

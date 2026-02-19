@@ -3502,6 +3502,7 @@ const struct do_func_type do_func_table[] =
         { "do_corpsedit", do_corpsedit },
         { "do_sectoredit", do_sectoredit },
         { "do_evtedit", do_evtedit },
+        { "do_event", do_event },
         { NULL, NULL }
 };
 

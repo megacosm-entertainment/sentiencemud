@@ -5369,7 +5369,7 @@ void login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
             else
             {
                 if ((iClass = class_lookup(argument)) != -1) {
-                    const char *cls_help_name = class_table[iClass].name;
+                    const char *cls_help_name = class_name_from_legacy(iClass);
                     help = lookup_help_exact((char *)cls_help_name, 0, topHelpCat);
                 }
                 if (iClass != -1 && help != NULL)
@@ -5547,7 +5547,9 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
                     group_add(ch, sg->name, false);
                 iterator_stop(&git);
             } else {
-                group_add(ch, class_table[ch->pcdata->class_current].base_group, false);
+                pbugf(LOG_INIT,
+                    "nanny: unable to map legacy base class %d for %s",
+                    ch->pcdata->class_current, ch->name ? ch->name : "(unknown)");
             }
             if (sub_class) {
                 ITERATOR git;
@@ -5557,7 +5559,9 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
                     group_add(ch, sg->name, false);
                 iterator_stop(&git);
             } else {
-                group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
+                pbugf(LOG_INIT,
+                    "nanny: unable to map legacy subclass %d for %s",
+                    ch->pcdata->sub_class_current, ch->name ? ch->name : "(unknown)");
             }
         }
 

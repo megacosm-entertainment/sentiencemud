@@ -1,97 +1,96 @@
 /**
- * bootstrap_commands.c - Command table generation for bootstrap
+ * bootstrap_commands.c - Command bootstrap seeding
  *
- * Generates commands.json from the hardcoded cmd_table[] array,
- * using the function lookup table from editors/commands/cmdedit.c
+ * Creates data/system/commands.json from committed bootstrap_data.
  */
 
 #include <stdio.h>
 #include <string.h>
-#include <jansson.h>
+#include <stdlib.h>
+#include <errno.h>
 #include "../merc.h"
-#include "../interp.h"
 #include "bootstrap_internal.h"
 
-/* External declarations for command table and function lookup */
-extern const struct cmd_type cmd_table[];
-extern char *do_func_name(DO_FUN *func);
+static bool copy_file(const char *src, const char *dst)
+{
+    FILE *in = fopen(src, "rb");
+    FILE *out;
+    char buf[8192];
+    size_t n;
+
+    if (!in)
+        return false;
+
+    out = fopen(dst, "wb");
+    if (!out) {
+        fclose(in);
+        return false;
+    }
+
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            fclose(in);
+            fclose(out);
+            return false;
+        }
+    }
+
+    fclose(in);
+    fclose(out);
+    return true;
+}
 
 /**
- * create_commands_json - Generate commands.json from cmd_table
+ * create_commands_json - Seed commands.json from committed bootstrap data
  *
- * Reads the hardcoded cmd_table[] array and serializes it to JSON format.
- * Uses do_func_name() from cmdedit.c to lookup function names from do_func_table[].
- * This allows the game to bootstrap without relying on an existing commands file.
+ * Searches known bootstrap_data locations for system/commands.json and copies
+ * it to data/system/commands.json.
  *
  * @return true on success
  */
 bool create_commands_json(void)
 {
-    json_t *root = json_object();
-    json_t *commands_array = json_array();
-    int command_count = 0;
+    const char *workspace = getenv("GITHUB_WORKSPACE");
+    char workspace_candidate_a[1024];
+    char workspace_candidate_b[1024];
+    const char *source = NULL;
+    const char *candidates[8];
 
-    json_object_set_new(root, "version", json_integer(1));
+    workspace_candidate_a[0] = '\0';
+    workspace_candidate_b[0] = '\0';
 
-    /* Iterate through cmd_table and convert each entry */
-    for (int i = 0; cmd_table[i].name != NULL; i++) {
-        json_t *cmd = json_object();
-
-        json_object_set_new(cmd, "name", json_string(cmd_table[i].name));
-        json_object_set_new(cmd, "enabled", json_boolean(true));
-
-        /* Get function name from do_func_table via do_func_name() */
-        char *func_name = do_func_name(cmd_table[i].do_fun);
-        json_object_set_new(cmd, "function", json_string(func_name ? func_name : ""));
-
-        /* NOTE: cmd_table[].level values use the old level macros (ML/L1-L6/IM/HE)
-         * which are NOT valid staff_rank values. The bootstrap mapping is only
-         * meaningful if cmd_table[] is updated to use STAFF_* constants, or if
-         * a conversion function is added. The existing commands.json already
-         * has correct rank values from prior OLC editing. */
-        json_object_set_new(cmd, "rank", json_integer(cmd_table[i].level));
-        json_object_set_new(cmd, "log", json_integer(cmd_table[i].log));
-        json_object_set_new(cmd, "position", json_integer(cmd_table[i].position));
-
-        /* Determine command type based on characteristics */
-        int cmd_type = CMDTYPE_NONE;
-        if (cmd_table[i].is_ooc) {
-            cmd_type = CMDTYPE_OOC;
-        } else if (strstr(cmd_table[i].name, "north") || strstr(cmd_table[i].name, "south") ||
-                   strstr(cmd_table[i].name, "east") || strstr(cmd_table[i].name, "west") ||
-                   strstr(cmd_table[i].name, "up") || strstr(cmd_table[i].name, "down") ||
-                   !strcmp(cmd_table[i].name, "ne") || !strcmp(cmd_table[i].name, "nw") ||
-                   !strcmp(cmd_table[i].name, "se") || !strcmp(cmd_table[i].name, "sw")) {
-            cmd_type = CMDTYPE_MOVE;
-        }
-        json_object_set_new(cmd, "type", json_integer(cmd_type));
-
-        json_object_set_new(cmd, "addl_types", json_integer(0));
-
-        /* Command flags: show flag from cmd_table */
-        json_object_set_new(cmd, "command_flags", json_integer(cmd_table[i].show));
-
-        /* Empty metadata fields (can be filled in via OLC later) */
-        json_object_set_new(cmd, "comments", json_string(""));
-        json_object_set_new(cmd, "description", json_string(""));
-        json_object_set_new(cmd, "help_keywords", json_string(""));
-        json_object_set_new(cmd, "reason", json_string(""));
-        json_object_set_new(cmd, "summary", json_string(""));
-
-        json_array_append_new(commands_array, cmd);
-        command_count++;
+    if (workspace && workspace[0]) {
+        snprintf(workspace_candidate_a, sizeof(workspace_candidate_a),
+                 "%s/bootstrap/bootstrap_data/system/commands.json", workspace);
+        snprintf(workspace_candidate_b, sizeof(workspace_candidate_b),
+                 "%s/src/bootstrap/bootstrap_data/system/commands.json", workspace);
     }
 
-    json_object_set_new(root, "commands", commands_array);
+    candidates[0] = "bootstrap/bootstrap_data/system/commands.json";
+    candidates[1] = "src/bootstrap/bootstrap_data/system/commands.json";
+    candidates[2] = workspace_candidate_a[0] ? workspace_candidate_a : NULL;
+    candidates[3] = workspace_candidate_b[0] ? workspace_candidate_b : NULL;
+    candidates[4] = "/sentience/src/bootstrap/bootstrap_data/system/commands.json";
+    candidates[5] = NULL;
 
-    /* Write to file with sorted keys for consistency */
-    if (json_dump_file(root, "data/system/commands.json", JSON_INDENT(2) | JSON_SORT_KEYS) != 0) {
-        fprintf(stderr, "Failed to write commands.json\n");
-        json_decref(root);
+    for (int i = 0; candidates[i] != NULL; i++) {
+        if (file_exists(candidates[i])) {
+            source = candidates[i];
+            break;
+        }
+    }
+
+    if (!source) {
+        fprintf(stderr, "create_commands_json: bootstrap commands.json not found\n");
         return false;
     }
 
-    json_decref(root);
-    printf("  Generated %d commands from cmd_table[]\n", command_count);
+    if (!copy_file(source, "data/system/commands.json")) {
+        fprintf(stderr, "create_commands_json: failed copying %s -> data/system/commands.json (%s)\n",
+                source, strerror(errno));
+        return false;
+    }
+
+    printf("  Seeded commands.json from %s\n", source);
     return true;
 }

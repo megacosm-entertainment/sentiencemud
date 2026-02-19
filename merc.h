@@ -8514,8 +8514,6 @@ extern  const           long            food_table[];
 extern  const   struct  rep_type	rating_table    [];
 extern  const   struct  map_exit_type map_exit_table    [];
 extern  const   struct  rank_type	rank_table      [];
-extern	struct	class_type	class_table	[MAX_CLASS];
-extern	const	struct	sub_class_type	sub_class_table [];
 extern	const	struct	weapon_type	weapon_table	[];
 extern	const	struct	weapon_type	ranged_weapon_table	[];
 //extern	const	struct	crew_type	crew_table	[];

@@ -4802,10 +4802,10 @@ void add_possible_subclasses(CHAR_DATA *ch, char *string)
     CLASS_DATA *sc = class_from_legacy(0, i);
     if (!sc) continue;
     if (!(sc->flags & CLASS_REMORT_ONLY)
-    &&  ch->pcdata->class_current == sub_class_table[i].class)
+    &&  ch->pcdata->class_current == sub_class_legacy_type(i))
     {
-        if ((align == ALIGN_GOOD && sub_class_table[i].alignment == ALIGN_EVIL)
-            ||  (align == ALIGN_EVIL && sub_class_table[i].alignment == ALIGN_GOOD))
+        if ((align == ALIGN_GOOD && sub_class_legacy_alignment(i) == ALIGN_EVIL)
+            ||  (align == ALIGN_EVIL && sub_class_legacy_alignment(i) == ALIGN_GOOD))
         continue;
 
             count++;

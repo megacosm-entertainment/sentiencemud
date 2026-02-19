@@ -19,10 +19,12 @@ Script-side integration exists via:
 Editable fields include:
 - Identity/meta: name, title, summary, type, scope, enabled, flags, comments
 - Schedule: schedule type, interval, variance, duration, cooldown
+- Schedule anchor: `schedule at <when>` / `schedule clear` in EVTEdit
 - Eligibility: min/max level, min/max players
 - Completion controls: goal, leaderrequired
 - Messaging/news: description, announce, endmsg, joinmsg, newsslug, newsannounce, newsbody, themetags
 - Brackets/progress: spawnbrackets, collectionbrackets, bracketmode, progressagg
+- Phase plan: managed via `phaseplan` indexed subcommands (`list/add/insert/set/name/minutes/script/remove/clear`)
 
 ## Validation Rules (Current)
 

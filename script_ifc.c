@@ -3597,10 +3597,13 @@ DECL_IFC_FUN(ifc_hassubclass)
             if(sub < 0)
                 *ret = false;
             else {
-                if(sub_class_table[sub].remort)
-                    *ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SECOND_CLASS_MAGE)) == sub) ? true : false;
+                int sub_type = sub_class_legacy_type(sub);
+                if (sub_type < 0)
+                    *ret = false;
+                else if (sub_class_legacy_is_remort(sub))
+                    *ret = ((get_profession(ARG_MOB(0), sub_type + SECOND_CLASS_MAGE)) == sub) ? true : false;
                 else
-                    *ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SUBCLASS_MAGE)) == sub) ? true : false;
+                    *ret = ((get_profession(ARG_MOB(0), sub_type + SUBCLASS_MAGE)) == sub) ? true : false;
             }
         }
 

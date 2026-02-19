@@ -17,6 +17,7 @@
 #include "../../interp.h"
 #include "../../recycle.h"
 #include "../../skill_data.h"
+#include "../../class_data.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
@@ -249,8 +250,9 @@ SKEDIT(skedit_show)
             olc_display_section(ctx, theme, "Legacy Class Levels");
             for (int i = 0; i < MAX_CLASS; i++) {
                 if (skill->skill_level[i] < LEVEL_HERO) {
+                    const char *legacy_name = class_name_from_legacy(i);
                     olc_display_string(ctx, theme,
-                        formatf("  %s:", class_table[i].name), NULL,
+                        formatf("  %s:", legacy_name ? legacy_name : "unknown"), NULL,
                         formatf("%d/%d", skill->skill_level[i], skill->rating[i]));
                 }
             }

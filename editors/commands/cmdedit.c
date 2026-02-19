@@ -406,11 +406,11 @@ bool load_commands()
         return true;
     }
 
-    log_string("commands.json not found, generating from cmd_table[]...");
+    log_string("commands.json not found, seeding from bootstrap_data...");
 
     if (create_commands_json() && json_load_commands(COMMANDS_JSON_FILE))
     {
-        log_string("Generated and loaded commands.json from cmd_table[]");
+        log_string("Seeded and loaded commands.json from bootstrap_data");
         return true;
     }
 

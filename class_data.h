@@ -128,6 +128,13 @@ const long *    class_default_xp_table(int *out_size);
 
 /* Map legacy class index (0-3) + sub_class index to CLASS_DATA */
 CLASS_DATA *    class_from_legacy(int class_idx, int sub_class_idx);
+const char *    class_name_from_legacy(int class_idx);
+int             class_legacy_index(CLASS_DATA *clazz);
+int             sub_class_legacy_index(CLASS_DATA *clazz);
+int             sub_class_legacy_type(int sub_class_idx);
+int             sub_class_legacy_alignment(int sub_class_idx);
+bool            sub_class_legacy_is_remort(int sub_class_idx);
+bool            sub_class_legacy_prereq_match(int sub_class_idx, int profession);
 
 /*
  * CLASS_CACHED — File-local cached class pointer.
@@ -145,7 +152,7 @@ CLASS_DATA *    class_from_legacy(int class_idx, int sub_class_idx);
  * Boot / Persistence                                                      *
  ***************************************************************************/
 
-/* Load all classes from JSON files (or bootstrap from sub_class_table on first run) */
+/* Load all classes from JSON files (with bootstrap_data seeding fallback) */
 void            load_class_data(void);
 
 /* Save a single class to its JSON file */

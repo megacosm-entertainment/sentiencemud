@@ -4936,7 +4936,8 @@ void fix_character( CHAR_DATA *ch )
                     group_add(ch, sg->name, false);
                 iterator_stop(&git);
             } else {
-                group_add(ch, class_table[ch->pcdata->class_current].base_group, false);
+                pbugf(LOG_INIT, "fix_character: unable to map legacy base class %d for %s",
+                    ch->pcdata->class_current, ch->name ? ch->name : "(unknown)");
             }
         }
         ch->version = 2;
@@ -4962,7 +4963,9 @@ void fix_character( CHAR_DATA *ch )
                         group_add(ch, sg->name, false);
                     iterator_stop(&git);
                 } else {
-                    group_add(ch, class_table[*class_ptrs[si]].base_group, false);
+                    pbugf(LOG_INIT,
+                        "fix_character: unable to map legacy base class slot %d value %d for %s",
+                        si, *class_ptrs[si], ch->name ? ch->name : "(unknown)");
                 }
             }
             if (*remort_ptrs[si] != -1) {
@@ -4974,7 +4977,9 @@ void fix_character( CHAR_DATA *ch )
                         group_add(ch, sg->name, false);
                     iterator_stop(&git);
                 } else {
-                    group_add(ch, sub_class_table[*remort_ptrs[si]].default_group, false);
+                    pbugf(LOG_INIT,
+                        "fix_character: unable to map legacy subclass slot %d value %d for %s",
+                        si, *remort_ptrs[si], ch->name ? ch->name : "(unknown)");
                 }
             }
         }

@@ -2,8 +2,7 @@
  *  Class Data System - Implementation                                     *
  *                                                                         *
  *  Data-driven class backend. Loads class definitions from JSON files     *
- *  in data/classes/, or bootstraps from the legacy sub_class_table[]      *
- *  on first run.                                                          *
+ *  in data/classes/, with fallback seeding from committed bootstrap_data. *
  *                                                                         *
  *  Provides O(1) hash table lookup by name and UID index for fast access. *
  ***************************************************************************/
@@ -870,19 +869,149 @@ bool is_current_class_combat(CHAR_DATA *ch)
  * Compatibility / Migration API                                           *
  ***************************************************************************/
 
+typedef struct legacy_subclass_meta {
+    const char *name;
+    int type;
+    int alignment;
+    bool remort;
+    int prereq0;
+    int prereq1;
+} LEGACY_SUBCLASS_META;
+
+static const char *legacy_base_class_names[MAX_CLASS] = {
+    [CLASS_MAGE] = "mage",
+    [CLASS_CLERIC] = "cleric",
+    [CLASS_THIEF] = "thief",
+    [CLASS_WARRIOR] = "warrior",
+};
+
+static const LEGACY_SUBCLASS_META legacy_subclass_meta[MAX_SUB_CLASS] = {
+    [CLASS_WARRIOR_MARAUDER] = { "marauder", CLASS_WARRIOR, ALIGN_EVIL, false, -1, -1 },
+    [CLASS_WARRIOR_GLADIATOR] = { "gladiator", CLASS_WARRIOR, ALIGN_NONE, false, -1, -1 },
+    [CLASS_WARRIOR_PALADIN] = { "paladin", CLASS_WARRIOR, ALIGN_GOOD, false, -1, -1 },
+
+    [CLASS_MAGE_NECROMANCER] = { "necromancer", CLASS_MAGE, ALIGN_EVIL, false, -1, -1 },
+    [CLASS_MAGE_SORCERER] = { "sorcerer", CLASS_MAGE, ALIGN_NONE, false, -1, -1 },
+    [CLASS_MAGE_WIZARD] = { "wizard", CLASS_MAGE, ALIGN_GOOD, false, -1, -1 },
+
+    [CLASS_CLERIC_WITCH] = { "witch", CLASS_CLERIC, ALIGN_EVIL, false, -1, -1 },
+    [CLASS_CLERIC_DRUID] = { "druid", CLASS_CLERIC, ALIGN_NONE, false, -1, -1 },
+    [CLASS_CLERIC_MONK] = { "monk", CLASS_CLERIC, ALIGN_GOOD, false, -1, -1 },
+
+    [CLASS_THIEF_ASSASSIN] = { "assassin", CLASS_THIEF, ALIGN_EVIL, false, -1, -1 },
+    [CLASS_THIEF_ROGUE] = { "rogue", CLASS_THIEF, ALIGN_NONE, false, -1, -1 },
+    [CLASS_THIEF_BARD] = { "bard", CLASS_THIEF, ALIGN_GOOD, false, -1, -1 },
+
+    [CLASS_WARRIOR_WARLORD] = { "warlord", CLASS_WARRIOR, ALIGN_NONE, true, CLASS_WARRIOR_MARAUDER, CLASS_WARRIOR_PALADIN },
+    [CLASS_WARRIOR_DESTROYER] = { "destroyer", CLASS_WARRIOR, ALIGN_NONE, true, CLASS_WARRIOR_GLADIATOR, CLASS_WARRIOR_MARAUDER },
+    [CLASS_WARRIOR_CRUSADER] = { "crusader", CLASS_WARRIOR, ALIGN_NONE, true, CLASS_WARRIOR_GLADIATOR, CLASS_WARRIOR_PALADIN },
+
+    [CLASS_MAGE_ARCHMAGE] = { "archmage", CLASS_MAGE, ALIGN_NONE, true, CLASS_MAGE_NECROMANCER, CLASS_MAGE_SORCERER },
+    [CLASS_MAGE_GEOMANCER] = { "geomancer", CLASS_MAGE, ALIGN_NONE, true, CLASS_MAGE_NECROMANCER, CLASS_MAGE_WIZARD },
+    [CLASS_MAGE_ILLUSIONIST] = { "illusionist", CLASS_MAGE, ALIGN_NONE, true, CLASS_MAGE_SORCERER, CLASS_MAGE_WIZARD },
+
+    [CLASS_CLERIC_ALCHEMIST] = { "alchemist", CLASS_CLERIC, ALIGN_NONE, true, CLASS_CLERIC_WITCH, CLASS_CLERIC_DRUID },
+    [CLASS_CLERIC_RANGER] = { "ranger", CLASS_CLERIC, ALIGN_NONE, true, CLASS_CLERIC_DRUID, CLASS_CLERIC_MONK },
+    [CLASS_CLERIC_ADEPT] = { "adept", CLASS_CLERIC, ALIGN_NONE, true, CLASS_CLERIC_WITCH, CLASS_CLERIC_MONK },
+
+    [CLASS_THIEF_HIGHWAYMAN] = { "highwayman", CLASS_THIEF, ALIGN_NONE, true, CLASS_THIEF_ASSASSIN, CLASS_THIEF_BARD },
+    [CLASS_THIEF_NINJA] = { "ninja", CLASS_THIEF, ALIGN_NONE, true, CLASS_THIEF_ASSASSIN, CLASS_THIEF_ROGUE },
+    [CLASS_THIEF_SAGE] = { "sage", CLASS_THIEF, ALIGN_NONE, true, CLASS_THIEF_BARD, CLASS_THIEF_ROGUE },
+};
+
+const char *class_name_from_legacy(int class_idx)
+{
+    if (class_idx < 0 || class_idx >= MAX_CLASS)
+        return NULL;
+
+    return legacy_base_class_names[class_idx];
+}
+
+int class_legacy_index(CLASS_DATA *clazz)
+{
+    if (!clazz)
+        return -1;
+
+    if (clazz->type >= CLASS_MAGE && clazz->type <= CLASS_WARRIOR)
+        return clazz->type;
+
+    return -1;
+}
+
+int sub_class_legacy_index(CLASS_DATA *clazz)
+{
+    int i;
+
+    if (!clazz)
+        return -1;
+
+    for (i = 0; i < MAX_SUB_CLASS; i++) {
+        if (legacy_subclass_meta[i].name
+        && !str_cmp(clazz->name, legacy_subclass_meta[i].name))
+            return i;
+    }
+
+    return -1;
+}
+
+int sub_class_legacy_type(int sub_class_idx)
+{
+    if (sub_class_idx < 0 || sub_class_idx >= MAX_SUB_CLASS)
+        return -1;
+
+    return legacy_subclass_meta[sub_class_idx].name ? legacy_subclass_meta[sub_class_idx].type : -1;
+}
+
+int sub_class_legacy_alignment(int sub_class_idx)
+{
+    if (sub_class_idx < 0 || sub_class_idx >= MAX_SUB_CLASS)
+        return ALIGN_NONE;
+
+    return legacy_subclass_meta[sub_class_idx].name ? legacy_subclass_meta[sub_class_idx].alignment : ALIGN_NONE;
+}
+
+bool sub_class_legacy_is_remort(int sub_class_idx)
+{
+    if (sub_class_idx < 0 || sub_class_idx >= MAX_SUB_CLASS)
+        return false;
+
+    return legacy_subclass_meta[sub_class_idx].name ? legacy_subclass_meta[sub_class_idx].remort : false;
+}
+
+bool sub_class_legacy_prereq_match(int sub_class_idx, int profession)
+{
+    if (sub_class_idx < 0 || sub_class_idx >= MAX_SUB_CLASS)
+        return false;
+
+    if (!legacy_subclass_meta[sub_class_idx].name)
+        return false;
+
+    return (profession == legacy_subclass_meta[sub_class_idx].prereq0
+        || profession == legacy_subclass_meta[sub_class_idx].prereq1);
+}
+
 /**
  * class_from_legacy - Map a legacy class_table + sub_class index to CLASS_DATA
  *
- * Resolves old sub_class_table indices to new CLASS_DATA pointers.
- * sub_class_idx is the index into sub_class_table[]; if -1, returns NULL.
+ * Resolves legacy class/subclass indices from old pfiles to CLASS_DATA.
+ * Uses stable legacy index -> canonical class name mappings so migration
+ * remains available even after static table removal.
  */
 CLASS_DATA *class_from_legacy(int class_idx, int sub_class_idx)
 {
-    if (sub_class_idx < 0 || sub_class_idx >= MAX_SUB_CLASS)
-        return NULL;
+    if (sub_class_idx >= 0 && sub_class_idx < MAX_SUB_CLASS) {
+        const char *sub_name = legacy_subclass_meta[sub_class_idx].name;
+        if (sub_name)
+            return class_find_exact(sub_name);
+    }
 
-    /* The sub_class_table[].name[0] is the canonical class name */
-    return class_find_exact(sub_class_table[sub_class_idx].name[0]);
+    if (class_idx >= 0 && class_idx < MAX_CLASS) {
+        const char *base_name = legacy_base_class_names[class_idx];
+        if (base_name)
+            return class_find_exact(base_name);
+    }
+
+    return NULL;
 }
 
 /***************************************************************************
@@ -1499,172 +1628,6 @@ void save_all_class_data(void)
 }
 
 /***************************************************************************
- * Bootstrap from Legacy Tables                                            *
- ***************************************************************************/
-
-/**
- * bootstrap_classes_from_table - Create CLASS_DATA entries from sub_class_table[]
- *
- * Called on first boot when no data/classes/ directory exists.
- * Creates one CLASS_DATA per sub_class_table entry.
- */
-static void bootstrap_classes_from_table(void)
-{
-    int i;
-    CLASS_DATA *clazz;
-    int parent_class;
-
-    log_string("bootstrap_classes_from_table: Creating classes from sub_class_table[]");
-
-    for (i = 0; i < MAX_SUB_CLASS; i++) {
-        if (!sub_class_table[i].name[0])
-            break;
-
-        clazz = new_class_data();
-        clazz->uid = ++top_class_uid;
-
-        /* Name from sub_class_table */
-        free_string(clazz->name);
-        clazz->name = str_dup(sub_class_table[i].name[0]);
-
-        /* Display names (neutral, male, female — BODY_TYPE_OTHER reuses neutral) */
-        for (int s = 0; s < 3 && s < BODY_TYPE_MAX; s++) {
-            free_string(clazz->display[s]);
-            clazz->display[s] = str_dup(sub_class_table[i].name[s]);
-            free_string(clazz->who[s]);
-            clazz->who[s] = str_dup(sub_class_table[i].who_name[s]);
-        }
-        /* BODY_TYPE_OTHER = same as neutral */
-        free_string(clazz->display[BODY_TYPE_OTHER]);
-        clazz->display[BODY_TYPE_OTHER] = str_dup(sub_class_table[i].name[0]);
-        free_string(clazz->who[BODY_TYPE_OTHER]);
-        clazz->who[BODY_TYPE_OTHER] = str_dup(sub_class_table[i].who_name[0]);
-
-        /* Create titles from legacy display/who names */
-        {
-            /* Default title = neutral name */
-            CLASS_TITLE *def = new_class_title();
-            def->keyword   = str_dup("default");
-            def->display   = str_dup(sub_class_table[i].name[0]);
-            def->who_name  = str_dup(sub_class_table[i].who_name[0]);
-            def->is_default = true;
-            list_appendlink(clazz->titles, def);
-
-            /* If male name differs from neutral, create a male-variant title */
-            if (str_cmp(sub_class_table[i].name[1], sub_class_table[i].name[0])) {
-                CLASS_TITLE *male = new_class_title();
-                male->keyword   = str_dup("male");
-                male->display   = str_dup(sub_class_table[i].name[1]);
-                male->who_name  = str_dup(sub_class_table[i].who_name[1]);
-                male->is_default = false;
-                list_appendlink(clazz->titles, male);
-            }
-
-            /* If female name differs from neutral, create a female-variant title */
-            if (str_cmp(sub_class_table[i].name[2], sub_class_table[i].name[0])) {
-                CLASS_TITLE *female = new_class_title();
-                female->keyword   = str_dup("female");
-                female->display   = str_dup(sub_class_table[i].name[2]);
-                female->who_name  = str_dup(sub_class_table[i].who_name[2]);
-                female->is_default = false;
-                list_appendlink(clazz->titles, female);
-            }
-        }
-
-        /* Parent class determines type and base stats */
-        parent_class = sub_class_table[i].class;
-        clazz->type = parent_class;  /* CLASS_MAGE/CLERIC/THIEF/WARRIOR map directly to CLASS_TYPE_* */
-
-        /* All legacy classes are combative */
-        SET_BIT(clazz->flags, CLASS_COMBATIVE);
-
-        /* Caster flag for mage and cleric types */
-        if (parent_class == CLASS_MAGE || parent_class == CLASS_CLERIC)
-            SET_BIT(clazz->flags, CLASS_CASTER);
-
-        /* Remort flag */
-        if (sub_class_table[i].remort)
-            SET_BIT(clazz->flags, CLASS_REMORT_ONLY);
-
-        /* Stats from parent class_table */
-        if (parent_class >= 0 && parent_class < MAX_CLASS) {
-            clazz->primary_stat = class_table[parent_class].attr_prime;
-            clazz->hp_min = class_table[parent_class].hp_min;
-            clazz->hp_max = class_table[parent_class].hp_max;
-            clazz->gains_mana = class_table[parent_class].fMana;
-            clazz->weapon = class_table[parent_class].weapon;
-        }
-
-        /* Sync legacy stats into trait values */
-        if (clazz->trait_values) {
-            TRAIT_DEF *def;
-
-            def = trait_def_lookup("hp_gain_min");
-            if (def && def->type == TRAIT_INTEGER)
-                clazz->trait_values[def->index].int_val = clazz->hp_min;
-
-            def = trait_def_lookup("hp_gain_max");
-            if (def && def->type == TRAIT_INTEGER)
-                clazz->trait_values[def->index].int_val = clazz->hp_max;
-
-            def = trait_def_lookup("uses_mana");
-            if (def && def->type == TRAIT_BOOLEAN)
-                clazz->trait_values[def->index].bool_val = clazz->gains_mana;
-
-            def = trait_def_lookup("primary_stat");
-            if (def && def->type == TRAIT_INTEGER)
-                clazz->trait_values[def->index].int_val = clazz->primary_stat;
-        }
-
-        clazz->max_level = MAX_CLASS_LEVEL;
-
-        /* Groups — base group from parent class + default group from sub_class */
-        if (parent_class >= 0 && parent_class < MAX_CLASS
-        && class_table[parent_class].base_group) {
-            SKILL_GROUP *sg = skill_group_find(class_table[parent_class].base_group);
-            if (sg) list_appendlink(clazz->groups, sg);
-        }
-        if (sub_class_table[i].default_group) {
-            SKILL_GROUP *sg = skill_group_find(sub_class_table[i].default_group);
-            if (sg) list_appendlink(clazz->groups, sg);
-        }
-
-        /* Bootstrap rewards from group assignments.
-         * Each group the class owns becomes a REWARD_GROUP at level 1.
-         * Group scope is REWARD_SCOPE_CLASS (the default) — each class
-         * owns its own skill grants. Cross-class sharing is set per-reward
-         * by builders after bootstrap. */
-        {
-            ITERATOR git;
-            SKILL_GROUP *sg;
-            iterator_start(&git, clazz->groups);
-            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git))) {
-                CLASS_REWARD *reward = new_class_reward();
-                reward->level = 1;
-                reward->type  = REWARD_GROUP;
-                reward->scope = REWARD_SCOPE_CLASS;
-                reward->name  = str_dup(sg->name);
-                list_appendlink(clazz->rewards, reward);
-            }
-            iterator_stop(&git);
-        }
-
-        /* Description placeholder */
-        free_string(clazz->description);
-        clazz->description = str_dup("");
-
-        class_register(clazz);
-
-        log_stringf("  Bootstrapped class: %s (uid=%d, type=%s%s)",
-            clazz->name, clazz->uid,
-            class_type_to_string(clazz->type),
-            sub_class_table[i].remort ? ", remort" : "");
-    }
-
-    log_stringf("bootstrap_classes_from_table: Created %d classes", class_total);
-}
-
-/***************************************************************************
  * Hot-Reload                                                              *
  ***************************************************************************/
 
@@ -1888,45 +1851,29 @@ CLASS_DATA *class_reload(const char *name)
  * Boot / Load                                                             *
  ***************************************************************************/
 
-/**
- * load_class_data - Load all classes from JSON files, or bootstrap on first run
- *
- * Called from boot_db() after load_skill_data().
- */
-void load_class_data(void)
+static int load_class_data_from_dir(const char *dir_path)
 {
     DIR *dir;
     struct dirent *entry;
-    char path[512];
+    char path[1024];
     int loaded = 0;
 
-    log_string("load_class_data: Loading classes...");
+    if (!dir_path || !dir_path[0])
+        return 0;
 
-    memset(class_hash_tbl, 0, sizeof(class_hash_tbl));
+    dir = opendir(dir_path);
+    if (!dir)
+        return 0;
 
-    /* Try to open the classes directory */
-    dir = opendir(CLASSES_DIR);
-
-    if (!dir) {
-        /* No directory — bootstrap from legacy tables */
-        log_stringf("load_class_data: %s not found, bootstrapping from sub_class_table", CLASSES_DIR);
-        bootstrap_classes_from_table();
-        save_all_class_data();
-        log_stringf("load_class_data: Bootstrap complete. %d classes saved.", class_total);
-        return;
-    }
-
-    /* Load all .json files from the directory */
     while ((entry = readdir(dir)) != NULL) {
         size_t len = strlen(entry->d_name);
         if (len < 6 || strcmp(entry->d_name + len - 5, ".json") != 0)
             continue;
 
-        snprintf(path, sizeof(path), "%s%s", CLASSES_DIR, entry->d_name);
+        snprintf(path, sizeof(path), "%s%s", dir_path, entry->d_name);
 
         CLASS_DATA *clazz = class_load_json(path);
         if (clazz) {
-            /* Assign UID if missing */
             if (clazz->uid < 0)
                 clazz->uid = ++top_class_uid;
 
@@ -1936,15 +1883,59 @@ void load_class_data(void)
     }
 
     closedir(dir);
+    return loaded;
+}
 
-    if (loaded == 0) {
-        log_stringf("WARNING: No classes loaded from %s!", CLASSES_DIR);
-        log_string("load_class_data: Bootstrapping from sub_class_table as fallback");
-        bootstrap_classes_from_table();
-        save_all_class_data();
-    } else {
+/**
+ * load_class_data - Load all classes from JSON files
+ *
+ * Called from boot_db() after load_skill_data().
+ */
+void load_class_data(void)
+{
+    int loaded = 0;
+    const char *workspace = getenv("GITHUB_WORKSPACE");
+    char workspace_candidate_a[1024];
+    char workspace_candidate_b[1024];
+    const char *fallback_dirs[8];
+
+    log_string("load_class_data: Loading classes...");
+
+    memset(class_hash_tbl, 0, sizeof(class_hash_tbl));
+
+    loaded = load_class_data_from_dir(CLASSES_DIR);
+    if (loaded > 0) {
         log_stringf("load_class_data: Loaded %d classes from JSON", loaded);
+        return;
     }
+
+    workspace_candidate_a[0] = '\0';
+    workspace_candidate_b[0] = '\0';
+    if (workspace && workspace[0]) {
+        snprintf(workspace_candidate_a, sizeof(workspace_candidate_a),
+                 "%s/bootstrap/bootstrap_data/classes/", workspace);
+        snprintf(workspace_candidate_b, sizeof(workspace_candidate_b),
+                 "%s/src/bootstrap/bootstrap_data/classes/", workspace);
+    }
+
+    fallback_dirs[0] = "bootstrap/bootstrap_data/classes/";
+    fallback_dirs[1] = "src/bootstrap/bootstrap_data/classes/";
+    fallback_dirs[2] = workspace_candidate_a[0] ? workspace_candidate_a : NULL;
+    fallback_dirs[3] = workspace_candidate_b[0] ? workspace_candidate_b : NULL;
+    fallback_dirs[4] = "/sentience/src/bootstrap/bootstrap_data/classes/";
+    fallback_dirs[5] = NULL;
+
+    for (int i = 0; fallback_dirs[i] != NULL; i++) {
+        loaded = load_class_data_from_dir(fallback_dirs[i]);
+        if (loaded > 0) {
+            log_stringf("load_class_data: Loaded %d classes from bootstrap source %s",
+                        loaded, fallback_dirs[i]);
+            save_all_class_data();
+            return;
+        }
+    }
+
+    perrf(LOG_INIT, "load_class_data: no class JSON files found in %s or bootstrap_data sources", CLASSES_DIR);
 }
 
 /***************************************************************************

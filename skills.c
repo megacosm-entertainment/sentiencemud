@@ -451,7 +451,9 @@ void do_multi(CHAR_DATA *ch, char *argument)
                 group_add(ch, sg->name, true);
             iterator_stop(&git);
         } else {
-            group_add(ch, class_table[ch->pcdata->class_current].base_group, true);
+            pbugf(LOG_INIT,
+                "multiclass: unable to map legacy base class %d for %s",
+                ch->pcdata->class_current, ch->name ? ch->name : "(unknown)");
         }
         if (mc_sub) {
             ITERATOR git; SKILL_GROUP *sg;
@@ -460,7 +462,9 @@ void do_multi(CHAR_DATA *ch, char *argument)
                 group_add(ch, sg->name, true);
             iterator_stop(&git);
         } else {
-            group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, true);
+            pbugf(LOG_INIT,
+                "multiclass: unable to map legacy subclass %d for %s",
+                ch->pcdata->sub_class_current, ch->name ? ch->name : "(unknown)");
         }
         sprintf(buf2, "%s", mc_sub ? class_display_ch(mc_sub, ch) : "Adventurer");
     }
@@ -571,7 +575,10 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 {
     int prof;
     CLASS_DATA *sub_class_data = class_from_legacy(0, subclass);
-    int sub_type = sub_class_data ? sub_class_data->type : sub_class_table[subclass].class;
+    int sub_type = sub_class_data ? sub_class_data->type : sub_class_legacy_type(subclass);
+
+    if (sub_type < CLASS_MAGE || sub_type > CLASS_WARRIOR)
+        return false;
 
     // 1st mort
     if (subclass >= CLASS_WARRIOR_MARAUDER && subclass <= CLASS_THIEF_BARD)
@@ -602,19 +609,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 
     // Check if they fit align
     {
-    int align_val = sub_class_data ? 0 : sub_class_table[subclass].alignment;
-    /* TODO: Once CLASS_DATA has alignment field, use it here */
-    if (!sub_class_data)
-        align_val = sub_class_table[subclass].alignment;
-    else {
-        /* Derive from legacy table for now */
-        for (int ai = 0; ai < MAX_SUB_CLASS; ai++) {
-            if (!str_cmp(class_name(sub_class_data), sub_class_table[ai].name[0])) {
-                align_val = sub_class_table[ai].alignment;
-                break;
-            }
-        }
-    }
+    int align_val = sub_class_legacy_alignment(subclass);
     switch (align_val)
     {
         case ALIGN_EVIL:
@@ -644,8 +639,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 
             prof = get_profession(ch, SUBCLASS_MAGE);
 
-            if (prof == sub_class_table[subclass].prereq[0] ||
-                prof == sub_class_table[subclass].prereq[1])
+            if (sub_class_legacy_prereq_match(subclass, prof))
 
             return true;
             break;
@@ -656,8 +650,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 
             prof = get_profession(ch, SUBCLASS_CLERIC);
 
-            if (prof == sub_class_table[subclass].prereq[0] ||
-                prof == sub_class_table[subclass].prereq[1])
+            if (sub_class_legacy_prereq_match(subclass, prof))
 
             return true;
             break;
@@ -668,8 +661,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 
             prof = get_profession(ch, SUBCLASS_THIEF);
 
-            if (prof == sub_class_table[subclass].prereq[0] ||
-                prof == sub_class_table[subclass].prereq[1])
+            if (sub_class_legacy_prereq_match(subclass, prof))
 
             return true;
             break;
@@ -680,8 +672,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 
             prof = get_profession(ch, SUBCLASS_WARRIOR);
 
-            if (prof == sub_class_table[subclass].prereq[0] ||
-                prof == sub_class_table[subclass].prereq[1])
+            if (sub_class_legacy_prereq_match(subclass, prof))
 
             return true;
             break;
@@ -2060,7 +2051,6 @@ void update_skills( CHAR_DATA *ch )
 bool has_subclass_skill( int subclass, int sn )
 {
     char *skill_name;
-    char *group_name;
     int i;
     int n;
 
@@ -2074,14 +2064,12 @@ bool has_subclass_skill( int subclass, int sn )
     {
         CLASS_DATA *hss_class = class_from_legacy(0, subclass);
         if (hss_class && hss_class->groups) {
-            /* Check if skill is in any of the class's groups */
             ITERATOR git;
             SKILL_GROUP *sg;
             iterator_start(&git, hss_class->groups);
             while ((sg = (SKILL_GROUP *)iterator_nextdata(&git))) {
-                group_name = sg->name;
                 for (i = 0; group_table[i].name != NULL; i++) {
-                    if (!str_cmp(group_name, group_table[i].name))
+                    if (!str_cmp(sg->name, group_table[i].name))
                         break;
                 }
                 if (group_table[i].name != NULL) {
@@ -2096,20 +2084,6 @@ bool has_subclass_skill( int subclass, int sn )
             iterator_stop(&git);
             return false;
         }
-        /* Legacy fallback */
-        group_name = sub_class_table[subclass].default_group;
-    }
-
-    for (i = 0; group_table[i].name != NULL; i++)
-    {
-    if (!str_cmp(group_name, group_table[i].name))
-        break;
-    }
-
-    for (n = 0; group_table[i].spells[n] != NULL; n++)
-    {
-    if (!str_cmp(skill_name, group_table[i].spells[n]))
-        return true;
     }
 
     return false;

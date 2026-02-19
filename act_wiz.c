@@ -10034,8 +10034,38 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
     }
     }
 
-    group_add(victim, class_table[victim->pcdata->class_current].base_group, true);
-    group_add(victim, sub_class_table[victim->pcdata->sub_class_current].default_group, true);
+    {
+        CLASS_DATA *fr_base = class_from_legacy(victim->pcdata->class_current, -1);
+        CLASS_DATA *fr_sub = class_from_legacy(0, victim->pcdata->sub_class_current);
+
+        if (fr_base) {
+            ITERATOR git;
+            SKILL_GROUP *sg;
+            iterator_start(&git, fr_base->groups);
+            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                group_add(victim, sg->name, true);
+            iterator_stop(&git);
+        } else {
+            pbugf(LOG_INIT,
+                "forceremort: unable to map legacy base class %d for %s",
+                victim->pcdata->class_current,
+                victim->name ? victim->name : "(unknown)");
+        }
+
+        if (fr_sub) {
+            ITERATOR git;
+            SKILL_GROUP *sg;
+            iterator_start(&git, fr_sub->groups);
+            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
+                group_add(victim, sg->name, true);
+            iterator_stop(&git);
+        } else {
+            pbugf(LOG_INIT,
+                "forceremort: unable to map legacy subclass %d for %s",
+                victim->pcdata->sub_class_current,
+                victim->name ? victim->name : "(unknown)");
+        }
+    }
     victim->exp = 0;
 
     {

@@ -94,6 +94,15 @@ struct event_part {
     int team;
 };
 
+#define EVT_PHASEPLAN_MAX_STEPS 64
+
+typedef struct evt_phase_step_def EVT_PHASE_STEP_DEF;
+struct evt_phase_step_def {
+    char name[MIL];
+    int minutes;
+    long script_vnum;
+};
+
 enum {
     EVT_TYPE_COLLECTION = 0,
     EVT_TYPE_INVASION,
@@ -237,6 +246,24 @@ static const struct flag_type evt_flags[] = {
     { "passive", EVT_FLAG_PASSIVE, true, NULL },
     { NULL, 0, false, NULL },
 };
+
+static const char *event_format_time_short(time_t when)
+{
+    static char buf[64];
+    struct tm *tm_info;
+
+    if (when <= 0)
+        return "(none)";
+
+    tm_info = localtime(&when);
+    if (!tm_info)
+        return "(invalid)";
+
+    if (strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", tm_info) <= 0)
+        return "(invalid)";
+
+    return buf;
+}
 
 static void evtedit_show_identity_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
@@ -574,30 +601,106 @@ static bool event_parse_phase_plan_step(const char *plan, int step_index,
     return false;
 }
 
-static bool event_validate_phase_plan(const char *plan, char *error, size_t error_size)
+static bool event_validate_phase_name(const char *name, char *error, size_t error_size)
 {
-    int index = 0;
-    char name[MIL];
-    int minutes;
-    long script_vnum;
+    const char *cursor;
 
     if (error && error_size > 0)
         error[0] = '\0';
 
-    if (IS_NULLSTR(plan))
-        return true;
+    if (IS_NULLSTR(name)) {
+        if (error && error_size > 0)
+            snprintf(error, error_size, "Phase name cannot be empty.");
+        return false;
+    }
 
-    while (event_parse_phase_plan_step(plan, index, name, sizeof(name), &minutes, &script_vnum))
-        index++;
+    cursor = name;
+    while (*cursor) {
+        if (*cursor == ',' || *cursor == ';' || *cursor == '@' || *cursor == '#') {
+            if (error && error_size > 0)
+                snprintf(error, error_size,
+                    "Phase name cannot contain ',', ';', '@', or '#'.");
+            return false;
+        }
+        cursor++;
+    }
+
+    return true;
+}
+
+static int event_phase_steps_load(const char *plan,
+    EVT_PHASE_STEP_DEF *steps, int max_steps,
+    char *error, size_t error_size)
+{
+    int index = 0;
+
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    if (!steps || max_steps <= 0) {
+        if (error && error_size > 0)
+            snprintf(error, error_size, "Internal phase buffer unavailable.");
+        return -1;
+    }
+
+    if (IS_NULLSTR(plan))
+        return 0;
+
+    while (true) {
+        EVT_PHASE_STEP_DEF step;
+
+        memset(&step, 0, sizeof(step));
+        if (!event_parse_phase_plan_step(plan, index,
+                step.name, sizeof(step.name), &step.minutes, &step.script_vnum))
+            break;
+
+        if (index >= max_steps) {
+            if (error && error_size > 0)
+                snprintf(error, error_size,
+                    "Too many phase steps (maximum %d).", max_steps);
+            return -1;
+        }
+
+        if (!event_validate_phase_name(step.name, error, error_size))
+            return -1;
+
+        steps[index++] = step;
+    }
 
     if (index <= 0) {
         if (error && error_size > 0)
             snprintf(error, error_size,
-                "Invalid phase plan. Use phase[@minutes][#scriptvnum],... (example: prep@10#1200,battle@30,boss#1201)");
-        return false;
+                "Stored phase plan is invalid. Use phaseplan clear, then rebuild with subcommands.");
+        return -1;
     }
 
-    return true;
+    return index;
+}
+
+static void event_phase_steps_store(EVTEDIT_DATA *evt,
+    const EVT_PHASE_STEP_DEF *steps, int count)
+{
+    BUFFER *buffer;
+    int i;
+
+    if (!evt || count < 0)
+        return;
+
+    buffer = new_buf();
+
+    for (i = 0; i < count; i++) {
+        add_buf(buffer, steps[i].name);
+        if (steps[i].minutes > 0)
+            add_buf(buffer, formatf("@%d", steps[i].minutes));
+        if (steps[i].script_vnum > 0)
+            add_buf(buffer, formatf("#%ld", steps[i].script_vnum));
+        if (i + 1 < count)
+            add_buf(buffer, ",");
+    }
+
+    free_string(evt->phase_plan);
+    evt->phase_plan = str_dup(buf_string(buffer));
+    free_buf(buffer);
 }
 
 static bool event_parse_bracket_token(const char *token, int *min_level, int *max_level)
@@ -2238,6 +2341,7 @@ static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
     json_object_set_new(obj, "enabled", json_integer(evt->enabled ? 1 : 0));
     json_object_set_new(obj, "flags", json_integer(evt->flags));
     json_object_set_new(obj, "comments", json_string_safe(evt->comments));
+    json_object_set_new(obj, "scheduled_time", json_integer((json_int_t)evt->scheduled_time));
 
     return obj;
 }
@@ -2326,6 +2430,9 @@ static bool evtedit_load_from_json(void)
         evt->enabled = json_get_int(entry, "enabled", 1) != 0;
         evt->flags = (long)json_get_int(entry, "flags", 0);
         evt->comments = str_dup(json_get_string(entry, "comments", ""));
+        evt->scheduled_time = (time_t)json_get_int(entry, "scheduled_time", 0);
+        evt->cooldown_until = 0;
+        evt->next_auto_time = 0;
 
         if (evt->uid <= 0)
             evt->uid = ++max_uid;
@@ -2458,7 +2565,7 @@ void do_evtedit(CHAR_DATA *ch, char *argument)
         send_to_char("Bracket format: ordered non-overlapping ranges (example: 1-50,51-90,91+).\n\r", ch);
         send_to_char("bracketmode: auto_by_level|open|manual\n\r", ch);
         send_to_char("progressagg: shared|total|per_bracket_any|per_bracket|per_bracket_all_required\n\r", ch);
-        send_to_char("phaseplan: phase[@minutes][#scriptvnum],... (example: prep@10#1200,battle@30,boss#1201)\n\r", ch);
+        send_to_char("phaseplan: use subcommands (list/add/insert/set/name/minutes/script/remove/clear)\n\r", ch);
         send_to_char("rewardsuccess/rewardfail: <scriptvnum|0>\n\r", ch);
         return;
     }
@@ -3133,6 +3240,8 @@ static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
     (void)ch;
 
     olc_display_type(ctx, theme, "Schedule:", "schedule", evt_sched_flags, evt->sched_type);
+    olc_display_string(ctx, theme, "Scheduled At:", "schedule at",
+        event_format_time_short(evt->scheduled_time));
     olc_display_number(ctx, theme, "Interval:", "interval", evt->sched_interval);
     olc_display_number(ctx, theme, "Variance:", "variance", evt->sched_variance);
     olc_display_number(ctx, theme, "Duration:", "duration", evt->sched_duration);
@@ -3334,11 +3443,69 @@ EVTEDIT(evtedit_scope)
 EVTEDIT(evtedit_schedule)
 {
     EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char arg1[MIL];
+    time_t when_time;
 
     if (!evt)
         return false;
 
-    if (!olc_cmd_type_set_i16(ch, argument, "schedule",
+    argument = one_argument(argument, arg1);
+
+    if (IS_NULLSTR(arg1)) {
+        send_to_char("schedule <manual|recurring|calendar|worldcondition|triggered>\n\r", ch);
+        send_to_char("schedule list\n\r", ch);
+        send_to_char("schedule at <+Nm|+Nh|+Nd|YYYY-MM-DD HH:MM>\n\r", ch);
+        send_to_char("schedule clear\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "list")) {
+        printf_to_char(ch,
+            "Schedule: mode=%s anchor=%s interval=%d variance=%d duration=%d cooldown=%d\n\r",
+            flag_string(evt_sched_flags, evt->sched_type),
+            event_format_time_short(evt->scheduled_time),
+            evt->sched_interval,
+            evt->sched_variance,
+            evt->sched_duration,
+            evt->sched_cooldown);
+
+        if (evt->next_auto_time > current_time)
+            printf_to_char(ch, "Next auto window: %s\n\r",
+                event_format_time_short(evt->next_auto_time));
+
+        if (evt->cooldown_until > current_time)
+            printf_to_char(ch, "Cooldown until: %s\n\r",
+                event_format_time_short(evt->cooldown_until));
+
+        return false;
+    }
+
+    if (!str_prefix(arg1, "clear")) {
+        evt->scheduled_time = 0;
+        evt->next_auto_time = 0;
+        send_to_char("Schedule anchor cleared.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(arg1, "at")) {
+        if (IS_NULLSTR(argument)) {
+            send_to_char("Syntax: schedule at <+Nm|+Nh|+Nd|YYYY-MM-DD HH:MM>\n\r", ch);
+            return false;
+        }
+
+        if (!event_parse_when(argument, &when_time) || when_time <= current_time) {
+            send_to_char("Invalid schedule time.\n\r", ch);
+            return false;
+        }
+
+        evt->scheduled_time = when_time;
+        evt->next_auto_time = 0;
+        printf_to_char(ch, "Schedule anchor set to %s.\n\r",
+            event_format_time_short(evt->scheduled_time));
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!olc_cmd_type_set_i16(ch, arg1, "schedule",
             "schedule <manual|recurring|calendar|worldcondition|triggered>",
             &evt->sched_type, evt_sched_flags, NULL, NULL))
         return false;
@@ -3714,22 +3881,296 @@ EVTEDIT(evtedit_progressagg)
 EVTEDIT(evtedit_phaseplan)
 {
     EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    EVT_PHASE_STEP_DEF steps[EVT_PHASEPLAN_MAX_STEPS];
+    char cmd[MIL];
+    char arg1[MIL];
+    char arg2[MIL];
+    char arg3[MIL];
     char error[MSL];
+    int count;
+    int index;
 
     if (!evt)
         return false;
 
-    if (!event_validate_phase_plan(argument, error, sizeof(error))) {
+    count = event_phase_steps_load(evt->phase_plan,
+        steps, EVT_PHASEPLAN_MAX_STEPS,
+        error, sizeof(error));
+    if (count < 0) {
         send_to_char(error, ch);
         send_to_char("\n\r", ch);
         return false;
     }
 
-    if (!olc_cmd_string(ch, argument, "phaseplan", "phaseplan <text>",
-            &evt->phase_plan, OLC_STR_DEFAULT, NULL, NULL))
-        return false;
+    argument = one_argument(argument, cmd);
 
-    return evtedit_save_after_change(ch);
+    if (IS_NULLSTR(cmd)) {
+        send_to_char("Syntax: phaseplan list\n\r", ch);
+        send_to_char("        phaseplan clear\n\r", ch);
+        send_to_char("        phaseplan add <name> [minutes] [scriptvnum]\n\r", ch);
+        send_to_char("        phaseplan insert <index> <name> [minutes] [scriptvnum]\n\r", ch);
+        send_to_char("        phaseplan set <index> <name> [minutes] [scriptvnum]\n\r", ch);
+        send_to_char("        phaseplan name <index> <name>\n\r", ch);
+        send_to_char("        phaseplan minutes <index> <minutes>\n\r", ch);
+        send_to_char("        phaseplan script <index> <scriptvnum|0>\n\r", ch);
+        send_to_char("        phaseplan remove <index>\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(cmd, "list")) {
+        int i;
+
+        if (count <= 0) {
+            send_to_char("Phase plan is empty.\n\r", ch);
+            return false;
+        }
+
+        send_to_char("{WPhase Plan Steps:{x\n\r", ch);
+        for (i = 0; i < count; i++) {
+            printf_to_char(ch, "  {W%2d){x name={Y%s{x minutes={C%d{x script={M%ld{x\n\r",
+                i + 1,
+                steps[i].name,
+                steps[i].minutes,
+                steps[i].script_vnum);
+        }
+
+        return false;
+    }
+
+    if (!str_prefix(cmd, "clear")) {
+        event_phase_steps_store(evt, steps, 0);
+        send_to_char("Phase plan cleared.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "add")) {
+        EVT_PHASE_STEP_DEF step;
+
+        memset(&step, 0, sizeof(step));
+        argument = one_argument(argument, arg1);
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+
+        if (IS_NULLSTR(arg1)) {
+            send_to_char("Syntax: phaseplan add <name> [minutes] [scriptvnum]\n\r", ch);
+            return false;
+        }
+
+        if (count >= EVT_PHASEPLAN_MAX_STEPS) {
+            printf_to_char(ch, "Phase plan is at max capacity (%d).\n\r", EVT_PHASEPLAN_MAX_STEPS);
+            return false;
+        }
+
+        if (!event_validate_phase_name(arg1, error, sizeof(error))) {
+            send_to_char(error, ch);
+            send_to_char("\n\r", ch);
+            return false;
+        }
+
+        strncpy(step.name, arg1, sizeof(step.name) - 1);
+        step.name[sizeof(step.name) - 1] = '\0';
+
+        if (!IS_NULLSTR(arg2)) {
+            if (!is_number(arg2) || atoi(arg2) < 0) {
+                send_to_char("Minutes must be a number >= 0.\n\r", ch);
+                return false;
+            }
+            step.minutes = atoi(arg2);
+        }
+
+        if (!IS_NULLSTR(arg3)) {
+            if (!is_number(arg3) || atol(arg3) < 0) {
+                send_to_char("Script vnum must be a number >= 0.\n\r", ch);
+                return false;
+            }
+            step.script_vnum = atol(arg3);
+        }
+
+        steps[count++] = step;
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase step added.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "insert")) {
+        EVT_PHASE_STEP_DEF step;
+
+        memset(&step, 0, sizeof(step));
+        argument = one_argument(argument, arg1);
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+
+        if (!is_number(arg1) || IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: phaseplan insert <index> <name> [minutes] [scriptvnum]\n\r", ch);
+            return false;
+        }
+
+        if (count >= EVT_PHASEPLAN_MAX_STEPS) {
+            printf_to_char(ch, "Phase plan is at max capacity (%d).\n\r", EVT_PHASEPLAN_MAX_STEPS);
+            return false;
+        }
+
+        index = atoi(arg1);
+        if (index < 1 || index > count + 1) {
+            printf_to_char(ch, "Index must be between 1 and %d.\n\r", count + 1);
+            return false;
+        }
+
+        if (!event_validate_phase_name(arg2, error, sizeof(error))) {
+            send_to_char(error, ch);
+            send_to_char("\n\r", ch);
+            return false;
+        }
+
+        strncpy(step.name, arg2, sizeof(step.name) - 1);
+        step.name[sizeof(step.name) - 1] = '\0';
+
+        if (!IS_NULLSTR(arg3)) {
+            if (!is_number(arg3) || atoi(arg3) < 0) {
+                send_to_char("Minutes must be a number >= 0.\n\r", ch);
+                return false;
+            }
+            step.minutes = atoi(arg3);
+        }
+
+        argument = one_argument(argument, arg1);
+        if (!IS_NULLSTR(arg1)) {
+            if (!is_number(arg1) || atol(arg1) < 0) {
+                send_to_char("Script vnum must be a number >= 0.\n\r", ch);
+                return false;
+            }
+            step.script_vnum = atol(arg1);
+        }
+
+        memmove(&steps[index], &steps[index - 1],
+            (size_t)(count - (index - 1)) * sizeof(steps[0]));
+        steps[index - 1] = step;
+        count++;
+
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase step inserted.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "set")) {
+        argument = one_argument(argument, arg1);
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+
+        if (!is_number(arg1) || IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: phaseplan set <index> <name> [minutes] [scriptvnum]\n\r", ch);
+            return false;
+        }
+
+        index = atoi(arg1);
+        if (index < 1 || index > count) {
+            printf_to_char(ch, "Index must be between 1 and %d.\n\r", count);
+            return false;
+        }
+
+        if (!event_validate_phase_name(arg2, error, sizeof(error))) {
+            send_to_char(error, ch);
+            send_to_char("\n\r", ch);
+            return false;
+        }
+
+        strncpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name) - 1);
+        steps[index - 1].name[sizeof(steps[index - 1].name) - 1] = '\0';
+
+        if (!IS_NULLSTR(arg3)) {
+            if (!is_number(arg3) || atoi(arg3) < 0) {
+                send_to_char("Minutes must be a number >= 0.\n\r", ch);
+                return false;
+            }
+            steps[index - 1].minutes = atoi(arg3);
+        } else {
+            steps[index - 1].minutes = 0;
+        }
+
+        argument = one_argument(argument, arg1);
+        if (!IS_NULLSTR(arg1)) {
+            if (!is_number(arg1) || atol(arg1) < 0) {
+                send_to_char("Script vnum must be a number >= 0.\n\r", ch);
+                return false;
+            }
+            steps[index - 1].script_vnum = atol(arg1);
+        } else {
+            steps[index - 1].script_vnum = 0;
+        }
+
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase step updated.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    if (!is_number(arg1)) {
+        send_to_char("Phaseplan command requires an index for this operation.\n\r", ch);
+        return false;
+    }
+
+    index = atoi(arg1);
+    if (index < 1 || index > count) {
+        printf_to_char(ch, "Index must be between 1 and %d.\n\r", count);
+        return false;
+    }
+
+    if (!str_prefix(cmd, "remove")) {
+        memmove(&steps[index - 1], &steps[index],
+            (size_t)(count - index) * sizeof(steps[0]));
+        count--;
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase step removed.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "name")) {
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: phaseplan name <index> <name>\n\r", ch);
+            return false;
+        }
+
+        if (!event_validate_phase_name(arg2, error, sizeof(error))) {
+            send_to_char(error, ch);
+            send_to_char("\n\r", ch);
+            return false;
+        }
+
+        strncpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name) - 1);
+        steps[index - 1].name[sizeof(steps[index - 1].name) - 1] = '\0';
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase name updated.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "minutes")) {
+        if (IS_NULLSTR(arg2) || !is_number(arg2) || atoi(arg2) < 0) {
+            send_to_char("Syntax: phaseplan minutes <index> <minutes>=0\n\r", ch);
+            return false;
+        }
+
+        steps[index - 1].minutes = atoi(arg2);
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase minutes updated.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "script")) {
+        if (IS_NULLSTR(arg2) || !is_number(arg2) || atol(arg2) < 0) {
+            send_to_char("Syntax: phaseplan script <index> <scriptvnum|0>\n\r", ch);
+            return false;
+        }
+
+        steps[index - 1].script_vnum = atol(arg2);
+        event_phase_steps_store(evt, steps, count);
+        send_to_char("Phase script updated.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    send_to_char("Unknown phaseplan subcommand. Use: list, clear, add, insert, set, name, minutes, script, remove.\n\r", ch);
+    return false;
 }
 
 EVTEDIT(evtedit_rewardsuccess)

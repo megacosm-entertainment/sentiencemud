@@ -38,6 +38,14 @@ Complete guide for random string generators:
 
 ## Event Runtime Documentation
 
+### [Event System Admin Guide](EVENT_SYSTEM_ADMIN_GUIDE.md)
+Admin/operator guide for live event creation and control:
+- End-to-end `evtedit` and `event` workflows
+- Schedule setup (manual/recurring/calendar)
+- Time scheduling via `event schedule`
+- Phase plan configuration and script-driven phase control
+- Troubleshooting for common operator issues
+
 ### [Event Editor Runtime Reference](EVENT_EDITOR_RUNTIME.md)
 Current implementation reference for event editor/runtime behavior:
 - Supported schedule/runtime modes
@@ -51,6 +59,16 @@ Chronological summary of what was implemented in the event runtime closure pass:
 - Runtime/editor code changes
 - Script integration updates
 - Validation behavior and known deferred items
+
+## Developer How-To Guides
+
+### [Adding Skills, Spells, and Commands](SKILL_SPELL_COMMAND_GUIDE.md)
+Practical implementation checklist for gameplay additions:
+- New command function + registration + cmdedit wiring
+- New skill/spell JSON data workflow
+- Spell function registration in `skill_data` backend
+- Bootstrap seed updates for clean-environment parity
+- Build/run validation and common failure modes
 
 ## Test Framework Overview
 

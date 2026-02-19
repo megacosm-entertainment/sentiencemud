@@ -270,9 +270,8 @@ void olc_display_type(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     if (!ctx || !ctx->buffer) return;
     if (!theme) theme = &olc_theme_default;
 
-    if (table) {
-        type_name = flag_string(table, value);
-    }
+    if (table)
+        type_name = flag_name(table, value);
 
     display_format_label(ctx->ch, command, label, label_buf, sizeof(label_buf));
 

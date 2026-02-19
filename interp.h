@@ -1,3 +1,18 @@
+#ifndef __INTERP_H__
+#define __INTERP_H__
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#ifndef args
+#define args(list) list
+#endif
+
+#ifndef __MERC_H__
+typedef struct char_data CHAR_DATA;
+typedef void DO_FUN(CHAR_DATA *ch, char *argument);
+#endif
+
 /***************************************************************************
  *  Original Diku Mud copyright (C) 1990, 1991 by Sebastian Hammer,	   *
  *  Michael Seifert, Hans Henrik St{rfeldt, Tom Madsen, and Katja Nyboe.   *
@@ -39,9 +54,9 @@ void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
 
 void cmd_under_construction(CHAR_DATA *ch);
 
-/* (Deprecated) Legacy level macros for cmd_table[] bootstrap fallback.
- * Runtime commands use CMD_DATA.rank with STAFF_* constants instead.
- * These are only meaningful for the static cmd_table[] array. */
+/* (Deprecated) Legacy level macros retained for compatibility with older
+ * command metadata and helper code paths. Runtime commands use
+ * CMD_DATA.rank with STAFF_* constants. */
 #define ML 	MAX_LEVEL	/* implementor */
 #define L1	MAX_LEVEL - 1  	/* creator */
 #define L2	MAX_LEVEL - 2	/* supremacy */
@@ -82,9 +97,6 @@ struct	cmd_type
     int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
 };
-
-/* the command table itself */
-extern	const	struct	cmd_type	cmd_table	[];
 
 /*
  * Command functions.
@@ -668,3 +680,5 @@ DECLARE_DO_FUN( do_bonus );
 DECLARE_DO_FUN( do_prefadmin );
 DECLARE_DO_FUN( do_prefs );
 DECLARE_DO_FUN( do_raceunlock );
+
+#endif /* __INTERP_H__ */
