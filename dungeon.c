@@ -32,6 +32,7 @@
 #include "interp.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "mxp_links.h"
 
 
 INSTANCE *instance_load(FILE *fp);
@@ -1535,14 +1536,28 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
 //
 // Immortal Commands
 //
-static void dungeon_append_floor_entities(BUFFER *buffer, INSTANCE *instance)
+static void dungeon_append_floor_entities(descriptor_t *d, BUFFER *buffer, INSTANCE *instance)
 {
     ITERATOR it;
     int count;
+    int mobile_count;
+
+    mobile_count = 0;
+    iterator_start(&it, instance->mobiles);
+    while (true)
+    {
+        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!mob)
+            break;
+
+        if (IS_NPC(mob))
+            ++mobile_count;
+    }
+    iterator_stop(&it);
 
     bprintf(buffer, "  Floor %d\n\r", instance->floor);
     bprintf(buffer, "    Players : {W%d{x\n\r", list_size(instance->players));
-    bprintf(buffer, "    Mobiles : {W%d{x\n\r", list_size(instance->mobiles));
+    bprintf(buffer, "    Mobiles : {W%d{x\n\r", mobile_count);
     bprintf(buffer, "    Bosses  : {W%d{x\n\r", list_size(instance->bosses));
     bprintf(buffer, "    Objects : {W%d{x\n\r", list_size(instance->objects));
     bprintf(buffer, "    Rooms   : {W%d{x\n\r", list_size(instance->rooms));
@@ -1556,11 +1571,18 @@ static void dungeon_append_floor_entities(BUFFER *buffer, INSTANCE *instance)
         if (!mob)
             break;
 
+        if (!IS_NPC(mob))
+            continue;
+
         ++count;
-        bprintf(buffer, "      %3d) {W%s{x [%s]\n\r",
-            count,
-            IS_NPC(mob) ? mob->short_descr : mob->name,
-            (mob->in_room ? widevnum_string_room(mob->in_room, NULL) : "nowhere"));
+        bprintf(buffer, "      %3d) ", count);
+        mxp_mob_link(d, buffer, mob, IS_NPC(mob) ? mob->short_descr : mob->name);
+        bprintf(buffer, "{x [");
+        if (mob->in_room)
+            mxp_room_link(d, buffer, mob->in_room, widevnum_string_room(mob->in_room, NULL));
+        else
+            bprintf(buffer, "nowhere");
+        bprintf(buffer, "]\n\r");
     }
     iterator_stop(&it);
     if (count < 1)
@@ -1576,10 +1598,14 @@ static void dungeon_append_floor_entities(BUFFER *buffer, INSTANCE *instance)
             break;
 
         ++count;
-        bprintf(buffer, "      %3d) {W%s{x [%s]\n\r",
-            count,
-            IS_NPC(boss) ? boss->short_descr : boss->name,
-            (boss->in_room ? widevnum_string_room(boss->in_room, NULL) : "nowhere"));
+        bprintf(buffer, "      %3d) ", count);
+        mxp_mob_link(d, buffer, boss, IS_NPC(boss) ? boss->short_descr : boss->name);
+        bprintf(buffer, "{x [");
+        if (boss->in_room)
+            mxp_room_link(d, buffer, boss->in_room, widevnum_string_room(boss->in_room, NULL));
+        else
+            bprintf(buffer, "nowhere");
+        bprintf(buffer, "]\n\r");
     }
     iterator_stop(&it);
     if (count < 1)
@@ -1595,13 +1621,27 @@ static void dungeon_append_floor_entities(BUFFER *buffer, INSTANCE *instance)
             break;
 
         ++count;
-        bprintf(buffer, "      %3d) {W%s{x", count, obj->short_descr ? obj->short_descr : "(object)");
+        bprintf(buffer, "      %3d) ", count);
+        mxp_obj_link(d, buffer, obj, obj->short_descr ? obj->short_descr : "(object)");
+        bprintf(buffer, "{x");
         if (obj->in_room)
-            bprintf(buffer, " [%s]", widevnum_string_room(obj->in_room, NULL));
+        {
+            bprintf(buffer, " [");
+            mxp_room_link(d, buffer, obj->in_room, widevnum_string_room(obj->in_room, NULL));
+            bprintf(buffer, "]");
+        }
         else if (obj->carried_by)
-            bprintf(buffer, " [carried by %s]", IS_NPC(obj->carried_by) ? obj->carried_by->short_descr : obj->carried_by->name);
+        {
+            bprintf(buffer, " [carried by ");
+            mxp_mob_link(d, buffer, obj->carried_by, IS_NPC(obj->carried_by) ? obj->carried_by->short_descr : obj->carried_by->name);
+            bprintf(buffer, "]");
+        }
         else if (obj->in_obj)
-            bprintf(buffer, " [inside %s]", obj->in_obj->short_descr ? obj->in_obj->short_descr : "object");
+        {
+            bprintf(buffer, " [inside ");
+            mxp_obj_link(d, buffer, obj->in_obj, obj->in_obj->short_descr ? obj->in_obj->short_descr : "object");
+            bprintf(buffer, "]");
+        }
         else
             bprintf(buffer, " [unknown]");
         bprintf(buffer, "\n\r");
@@ -1822,17 +1862,50 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
             dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
             buffer = new_buf();
+            int dungeon_mobile_count = 0;
+            ITERATOR mit;
+
+            iterator_start(&mit, dungeon->mobiles);
+            while (true)
+            {
+                CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&mit);
+                if (!mob)
+                    break;
+
+                if (IS_NPC(mob))
+                    ++dungeon_mobile_count;
+            }
+            iterator_stop(&mit);
 
             bprintf(buffer, "\n\r{x[ {Wdungeon entities %d{x ]\n\r", index);
-            bprintf(buffer, "Dungeon : {W%s{x [%s]\n\r",
-                dungeon->index ? dungeon->index->name : "(none)",
-                (dungeon->index ? widevnum_string_dungeon(dungeon->index, NULL) : "0"));
+            bprintf(buffer, "Dungeon : ");
+            if (dungeon->index)
+            {
+                mxp_command_link(ch->desc, buffer,
+                    formatf("dngshow %s", widevnum_string_dungeon(dungeon->index, NULL)),
+                    "Show dungeon index", dungeon->index->name);
+                bprintf(buffer, "{x [");
+                mxp_command_link(ch->desc, buffer,
+                    formatf("dngshow %s", widevnum_string_dungeon(dungeon->index, NULL)),
+                    "Show dungeon index", widevnum_string_dungeon(dungeon->index, NULL));
+                bprintf(buffer, "]\n\r");
+            }
+            else
+            {
+                bprintf(buffer, "{W(none){x [0]\n\r");
+            }
             bprintf(buffer, "Floors  : {W%d{x\n\r", list_size(dungeon->floors));
             bprintf(buffer, "Players : {W%d{x\n\r", list_size(dungeon->players));
-            bprintf(buffer, "Mobiles : {W%d{x\n\r", list_size(dungeon->mobiles));
+            bprintf(buffer, "Mobiles : {W%d{x\n\r", dungeon_mobile_count);
             bprintf(buffer, "Bosses  : {W%d{x\n\r", list_size(dungeon->bosses));
             bprintf(buffer, "Objects : {W%d{x\n\r", list_size(dungeon->objects));
             bprintf(buffer, "Rooms   : {W%d{x\n\r", list_size(dungeon->rooms));
+
+            bprintf(buffer, "\n\r{YDungeon Variables:{x\n\r");
+            if (dungeon->progs && dungeon->progs->vars)
+                pstat_variable_list(buffer, dungeon->progs->vars);
+            else
+                bprintf(buffer, "  (none)\n\r");
 
             if( argument[0] != '\0' )
             {
@@ -1853,7 +1926,13 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
                 INSTANCE *instance = (INSTANCE *)list_nthdata(dungeon->floors, floor);
                 bprintf(buffer, "\n\r{CFloor Details{x\n\r");
-                dungeon_append_floor_entities(buffer, instance);
+                dungeon_append_floor_entities(ch->desc, buffer, instance);
+
+                bprintf(buffer, "\n\r{YFloor Variables:{x\n\r");
+                if (instance->progs && instance->progs->vars)
+                    pstat_variable_list(buffer, instance->progs->vars);
+                else
+                    bprintf(buffer, "  (none)\n\r");
             }
             else
             {
@@ -1864,10 +1943,25 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
                 iterator_start(&fit, dungeon->floors);
                 while ((instance = (INSTANCE *)iterator_nextdata(&fit)) != NULL)
                 {
+                    int floor_mobile_count = 0;
+                    ITERATOR fmit;
+
+                    iterator_start(&fmit, instance->mobiles);
+                    while (true)
+                    {
+                        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&fmit);
+                        if (!mob)
+                            break;
+
+                        if (IS_NPC(mob))
+                            ++floor_mobile_count;
+                    }
+                    iterator_stop(&fmit);
+
                     bprintf(buffer, "  Floor {W%d{x: players={W%d{x mobiles={W%d{x bosses={W%d{x objects={W%d{x rooms={W%d{x\n\r",
                         instance->floor,
                         list_size(instance->players),
-                        list_size(instance->mobiles),
+                        floor_mobile_count,
                         list_size(instance->bosses),
                         list_size(instance->objects),
                         list_size(instance->rooms));

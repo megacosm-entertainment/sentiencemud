@@ -4678,7 +4678,6 @@ void do_shfind(CHAR_DATA *ch, char *argument)
  */
 void do_rwhere(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_INPUT_LENGTH];
     BUFFER *buffer;
     ROOM_INDEX_DATA *room;
     AREA_DATA *area;
@@ -4714,10 +4713,10 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 
                     number++;
                     found = true;
-                    sprintf(buf, "{Y%3d){x %s [%s]\n\r", number,
-                        room->name, widevnum_string_room(room, NULL));
-                    buf[0] = UPPER(buf[0]);
-                    add_buf(buffer,buf);
+                    bprintf(buffer, "{Y%3d){x %s [", number, room->name);
+                    mxp_room_link(ch->desc, buffer, room,
+                        widevnum_string_room(room, NULL));
+                    bprintf(buffer, "]\n\r");
                 }
             }
 
@@ -4853,7 +4852,6 @@ void do_owhere(CHAR_DATA *ch, char *argument)
  */
 void do_mwhere(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
     BUFFER *buffer;
     CHAR_DATA *victim;
     bool found;
@@ -4873,33 +4871,47 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     victim = d->character;
                     count++;
 
+                    bprintf(buffer, "{Y%3d) {WID{X: [{W%ld %ld{X]{x ",
+                        count, (long)victim->id[0], (long)victim->id[1]);
+
                     if (d->original != NULL)
-                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in %s [%s]\n\r",
-                            count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
-                            victim->in_room->name,widevnum_string_room(victim->in_room, NULL));
+                    {
+                        mxp_mob_link(ch->desc, buffer, victim,
+                            formatf("%s (in the body of %s)", d->original->name,
+                                victim->short_descr));
+                    }
                     else
-                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in %s [%s]\n\r",
-                            count, (long)victim->id[0], (long)victim->id[1], victim->name,victim->in_room->name,
-                            widevnum_string_room(victim->in_room, NULL));
-                    add_buf(buffer,buf);
+                    {
+                        mxp_mob_link(ch->desc, buffer, victim, victim->name);
+                    }
+
+                    bprintf(buffer, "{x is in %s [", victim->in_room->name);
+                    mxp_room_link(ch->desc, buffer, victim->in_room,
+                        widevnum_string_room(victim->in_room, NULL));
+                    bprintf(buffer, "]\n\r");
                 } else {
                     /* Victim is in a virtual room, so report the location and position.*/
                     victim = d->character;
                     count++;
 
-                    if (d->original != NULL)
-                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in wilds '%s', %s (%ld, %ld)\n\r",
-                            count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
-                            victim->in_room->name,
-                            victim->in_wilds->name, victim->in_room->x, victim->in_room->y);
-                    else
-                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in wilds '%s', %s (%ld, %ld)\n\r",
-                            count, (long)victim->id[0], (long)victim->id[1], victim->name,
-                            victim->in_wilds->name,
-                            victim->in_room->name,
-                            victim->in_room->x, victim->in_room->y);
+                    bprintf(buffer, "{Y%3d) {WID{X: [{W%ld %ld{X]{x ",
+                        count, (long)victim->id[0], (long)victim->id[1]);
 
-                    add_buf(buffer,buf);
+                    if (d->original != NULL)
+                    {
+                        mxp_mob_link(ch->desc, buffer, victim,
+                            formatf("%s (in the body of %s)", d->original->name,
+                                victim->short_descr));
+                    }
+                    else
+                    {
+                        mxp_mob_link(ch->desc, buffer, victim, victim->name);
+                    }
+
+                    bprintf(buffer, "{x is in wilds '%s', %s (%ld, %ld)\n\r",
+                        victim->in_wilds->name,
+                        victim->in_room->name,
+                        victim->in_room->x, victim->in_room->y);
                 }
             }
         }
@@ -4921,12 +4933,13 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             if (victim->in_room==NULL) {
                 found = true;
                 count++;
-                sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] %-28s %lx\n\r", count,
+                bprintf(buffer, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] ",
+                    count,
                     (long)victim->id[0], (long)victim->id[1],
-                    IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0",
-                    IS_NPC(victim) ? victim->short_descr : victim->name,
-                    (long)victim);
-                add_buf(buffer,buf);
+                    IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0");
+                mxp_mob_link(ch->desc, buffer, victim,
+                    IS_NPC(victim) ? victim->short_descr : victim->name);
+                bprintf(buffer, "{x %lx\n\r", (long)victim);
             }
         }
         iterator_stop(&vit);
@@ -4950,13 +4963,15 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             is_name(argument, victim->name)) {
             found = true;
             count++;
-            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] %-28s [%s] %s\n\r", count,
-            (long)victim->id[0], (long)victim->id[1],
-            IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0",
-            IS_NPC(victim) ? victim->short_descr : victim->name,
-            widevnum_string_room(victim->in_room, NULL),
-            victim->in_room->name);
-            add_buf(buffer,buf);
+            bprintf(buffer, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] ", count,
+                (long)victim->id[0], (long)victim->id[1],
+                IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0");
+            mxp_mob_link(ch->desc, buffer, victim,
+                IS_NPC(victim) ? victim->short_descr : victim->name);
+            bprintf(buffer, "{x [");
+            mxp_room_link(ch->desc, buffer, victim->in_room,
+                widevnum_string_room(victim->in_room, NULL));
+            bprintf(buffer, "] %s\n\r", victim->in_room->name);
         }
     }
     iterator_stop(&vit);

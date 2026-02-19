@@ -46,6 +46,7 @@
 #include "olc.h"
 #include "tables.h"
 #include "scripts.h"
+#include "mxp_links.h"
 
 void room_update(ROOM_INDEX_DATA *room);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
@@ -2949,14 +2950,28 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
  * @section Immortal Commands
  */
 
-static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
+static void instance_append_entities_report(descriptor_t *d, BUFFER *buffer, INSTANCE *instance)
 {
     ITERATOR it;
     int count;
+    int mobile_count;
+
+    mobile_count = 0;
+    iterator_start(&it, instance->mobiles);
+    while (true)
+    {
+        CHAR_DATA *mob = (CHAR_DATA *)iterator_nextdata(&it);
+        if (!mob)
+            break;
+
+        if (IS_NPC(mob))
+            ++mobile_count;
+    }
+    iterator_stop(&it);
 
     bprintf(buffer, "\n\r{CInstance Entities{x\n\r");
     bprintf(buffer, "  Players : {W%d{x\n\r", list_size(instance->players));
-    bprintf(buffer, "  Mobiles : {W%d{x\n\r", list_size(instance->mobiles));
+    bprintf(buffer, "  Mobiles : {W%d{x\n\r", mobile_count);
     bprintf(buffer, "  Bosses  : {W%d{x\n\r", list_size(instance->bosses));
     bprintf(buffer, "  Objects : {W%d{x\n\r", list_size(instance->objects));
     bprintf(buffer, "  Rooms   : {W%d{x\n\r", list_size(instance->rooms));
@@ -2971,10 +2986,14 @@ static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
             break;
 
         ++count;
-        bprintf(buffer, "  %3d) {W%s{x [%s]\n\r",
-            count,
-            player->name ? player->name : "(unknown)",
-            (player->in_room ? widevnum_string_room(player->in_room, NULL) : "nowhere"));
+        bprintf(buffer, "  %3d) ", count);
+        mxp_mob_link(d, buffer, player, player->name ? player->name : "(unknown)");
+        bprintf(buffer, "{x [");
+        if (player->in_room)
+            mxp_room_link(d, buffer, player->in_room, widevnum_string_room(player->in_room, NULL));
+        else
+            bprintf(buffer, "nowhere");
+        bprintf(buffer, "]\n\r");
     }
     iterator_stop(&it);
     if (count < 1)
@@ -2989,11 +3008,18 @@ static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
         if (!mob)
             break;
 
+        if (!IS_NPC(mob))
+            continue;
+
         ++count;
-        bprintf(buffer, "  %3d) {W%s{x [%s]\n\r",
-            count,
-            IS_NPC(mob) ? mob->short_descr : mob->name,
-            (mob->in_room ? widevnum_string_room(mob->in_room, NULL) : "nowhere"));
+        bprintf(buffer, "  %3d) ", count);
+        mxp_mob_link(d, buffer, mob, IS_NPC(mob) ? mob->short_descr : mob->name);
+        bprintf(buffer, "{x [");
+        if (mob->in_room)
+            mxp_room_link(d, buffer, mob->in_room, widevnum_string_room(mob->in_room, NULL));
+        else
+            bprintf(buffer, "nowhere");
+        bprintf(buffer, "]\n\r");
     }
     iterator_stop(&it);
     if (count < 1)
@@ -3009,10 +3035,14 @@ static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
             break;
 
         ++count;
-        bprintf(buffer, "  %3d) {W%s{x [%s]\n\r",
-            count,
-            IS_NPC(boss) ? boss->short_descr : boss->name,
-            (boss->in_room ? widevnum_string_room(boss->in_room, NULL) : "nowhere"));
+        bprintf(buffer, "  %3d) ", count);
+        mxp_mob_link(d, buffer, boss, IS_NPC(boss) ? boss->short_descr : boss->name);
+        bprintf(buffer, "{x [");
+        if (boss->in_room)
+            mxp_room_link(d, buffer, boss->in_room, widevnum_string_room(boss->in_room, NULL));
+        else
+            bprintf(buffer, "nowhere");
+        bprintf(buffer, "]\n\r");
     }
     iterator_stop(&it);
     if (count < 1)
@@ -3028,13 +3058,27 @@ static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
             break;
 
         ++count;
-        bprintf(buffer, "  %3d) {W%s{x", count, obj->short_descr ? obj->short_descr : "(object)");
+        bprintf(buffer, "  %3d) ", count);
+        mxp_obj_link(d, buffer, obj, obj->short_descr ? obj->short_descr : "(object)");
+        bprintf(buffer, "{x");
         if (obj->in_room)
-            bprintf(buffer, " [%s]", widevnum_string_room(obj->in_room, NULL));
+        {
+            bprintf(buffer, " [");
+            mxp_room_link(d, buffer, obj->in_room, widevnum_string_room(obj->in_room, NULL));
+            bprintf(buffer, "]");
+        }
         else if (obj->carried_by)
-            bprintf(buffer, " [carried by %s]", IS_NPC(obj->carried_by) ? obj->carried_by->short_descr : obj->carried_by->name);
+        {
+            bprintf(buffer, " [carried by ");
+            mxp_mob_link(d, buffer, obj->carried_by, IS_NPC(obj->carried_by) ? obj->carried_by->short_descr : obj->carried_by->name);
+            bprintf(buffer, "]");
+        }
         else if (obj->in_obj)
-            bprintf(buffer, " [inside %s]", obj->in_obj->short_descr ? obj->in_obj->short_descr : "object");
+        {
+            bprintf(buffer, " [inside ");
+            mxp_obj_link(d, buffer, obj->in_obj, obj->in_obj->short_descr ? obj->in_obj->short_descr : "object");
+            bprintf(buffer, "]");
+        }
         else
             bprintf(buffer, " [unknown]");
         bprintf(buffer, "\n\r");
@@ -3053,10 +3097,9 @@ static void instance_append_entities_report(BUFFER *buffer, INSTANCE *instance)
             break;
 
         ++count;
-        bprintf(buffer, "  %3d) {W%s{x %s\n\r",
-            count,
-            widevnum_string_room(room, NULL),
-            room->name ? room->name : "(unnamed room)");
+        bprintf(buffer, "  %3d) ", count);
+        mxp_room_link(d, buffer, room, widevnum_string_room(room, NULL));
+        bprintf(buffer, " {x%s\n\r", room->name ? room->name : "(unnamed room)");
     }
     iterator_stop(&it);
     if (count < 1)
@@ -3185,7 +3228,13 @@ void do_instance(CHAR_DATA *ch, char *argument)
         if( IS_VALID(instance->dungeon) )
             bprintf(buffer, "Dungeon  : {W%s{x\n\r", widevnum_string_dungeon(instance->dungeon->index, NULL));
 
-        instance_append_entities_report(buffer, instance);
+        instance_append_entities_report(ch->desc, buffer, instance);
+
+        bprintf(buffer, "\n\r{YInstance Variables:{x\n\r");
+        if (instance->progs && instance->progs->vars)
+            pstat_variable_list(buffer, instance->progs->vars);
+        else
+            bprintf(buffer, "  (none)\n\r");
 
         page_to_char(buf_string(buffer), ch);
         free_buf(buffer);
