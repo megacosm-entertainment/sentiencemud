@@ -2633,7 +2633,10 @@ DECL_IFC_FUN(ifc_varbool)
 DECL_IFC_FUN(ifc_vardefined)
 {
     PROG_DATA * progs = NULL;
+    PROG_DATA * fallback_progs = NULL;
+    ROOM_INDEX_DATA *ctx_room = NULL;
     pVARIABLE var;
+
     if(ISARG_MOB(0)) { progs = ARG_MOB(0)->progs; ++argv; }
     else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
     else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
@@ -2649,6 +2652,28 @@ DECL_IFC_FUN(ifc_vardefined)
     else if(IS_VALID(info->instance)) progs = info->instance->progs;
     else if(IS_VALID(info->dungeon)) progs = info->dungeon->progs;
 
+    if (IS_VALID(info->instance))
+        fallback_progs = info->instance->progs;
+    else if (IS_VALID(info->dungeon))
+        fallback_progs = info->dungeon->progs;
+    else
+    {
+        if (info->room)
+            ctx_room = info->room;
+        else if (info->mob)
+            ctx_room = info->mob->in_room;
+        else if (info->obj)
+            ctx_room = obj_room(info->obj);
+        else if (info->token)
+            ctx_room = token_room(info->token);
+
+        if (ctx_room && IS_VALID(ctx_room->instance_section) &&
+            IS_VALID(ctx_room->instance_section->instance))
+        {
+            fallback_progs = ctx_room->instance_section->instance->progs;
+        }
+    }
+
 //	if(wiznet_script) {
 //		sprintf(buf, "vardefined searching for '%s'", ARG_STR(0));
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
@@ -2656,6 +2681,9 @@ DECL_IFC_FUN(ifc_vardefined)
 
     if(progs && progs->vars && ISARG_STR(0)) {
         var = variable_get(progs->vars,ARG_STR(0));
+
+        if (!var && fallback_progs && fallback_progs != progs && fallback_progs->vars)
+            var = variable_get(fallback_progs->vars, ARG_STR(0));
 
 //		if( var && wiznet_script ) {
 //			sprintf(buf, "vardefined found variable: '%s'", var->name);
@@ -2665,6 +2693,14 @@ DECL_IFC_FUN(ifc_vardefined)
         *ret = var ? true : false;
         return true;
     }
+
+    if (fallback_progs && fallback_progs->vars && ISARG_STR(0))
+    {
+        var = variable_get(fallback_progs->vars, ARG_STR(0));
+        *ret = var ? true : false;
+        return true;
+    }
+
     return false;
 }
 
